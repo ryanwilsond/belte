@@ -1,0 +1,3 @@
+TODO
+
+    * Parse argv[0] string to only have executable name, and not entire path
