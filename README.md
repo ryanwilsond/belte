@@ -110,8 +110,8 @@ Instead of having different types of numbers depending on capacity, there will b
 | Type | Description |
 |-|-|
 | int | any whole number, no limit |
-| float | any decimal number, no limit |
 | uint | and whole number >= 0, no limit |
+| decimal | any decimal number, no limit |
 
 This list is short, because it is all that is needed.
 You can add on to each of these base types a range on what numbers they can contain, allowing developers to have a limit on a number in niche situations where it is needed.

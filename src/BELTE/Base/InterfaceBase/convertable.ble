@@ -1,3 +1,7 @@
 
 namespace Base {
+    public interface IConvertable<class T, class MyT> {
+    public:
+        overload T::T(MyT obj);
+    }
 }

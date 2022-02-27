@@ -8,4 +8,4 @@ ___
 
 ___
 
-## Floating Point Number
+## Decimal Number
