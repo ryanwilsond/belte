@@ -66,6 +66,17 @@ They are very basic classes that only exist because of the fact that they are cl
 
 ___
 
+## Optimization Tasks
+
+A big part of the language is being able to create routines in a class definition to tell the compiler how to optimize it if conditions are met.
+Most of the STI use these to make the smart compiler optimizations possible and implemented. This is the unique part of the compiler where niche developers (e.g. STI implementation) go low-level for efficiency.
+This also allows developers to make code and think about optimization later, because they can add these routines to object definitions without changing any of their original code\*.
+This will encourage the creation of more readable and intuitive code first, and keeping it like that in the future even if it is a little inefficient,
+
+\* Of course in a lot of situations the original approach is inefficient and this does not apply. Mostly just for custom object implementations.
+
+___
+
 ## Consistency
 
 A big issue with many languages is consistency in how different objects are treated. For example, int C# depending on what the object is, it will either be passed by value or by reference as a default.
@@ -78,7 +89,7 @@ ___
 
 ## DataTypes
 
-Some of the biggest changes with BELTE from other languages are the unique set of provided types.
+Some of the biggest changes with BELTE from other languages are the unique set of provided types. This goes over types that have notable design changes.
 
 ### NULL
 
@@ -87,6 +98,10 @@ Null can be used on any object, and it prevents using the object (calling method
 ### Pointers
 
 C-style pointers are not available. References are safer and more intuitive.
+
+### String
+
+Mutable to allow string manipulation. Compiler switches to immutable under the hood for efficiency if developer never modifies string.
 
 ### Numbers
 
