@@ -13,7 +13,7 @@ Index for all parts of the language. Don't know where to start? Try [Getting Sta
       - [bool](Reference/Types/Simple.md#Boolean)
       - [tuple](Reference/Types/Simple.md#Tuple)
       - [collection](Reference/Types/Enumerable.md#Collection)
-      - [dictionary](Reference/Types/Enumerable.md#Dictionary)
+      - [map](Reference/Types/Enumerable.md#Map)
       - [set](Reference/Types/Enumerable.md#Set)
       - [int](Reference/Types/Numerical.md#Integer)
       - [uint](Reference/Types/Numerical.md#PositiveUnsigned_Integer)
