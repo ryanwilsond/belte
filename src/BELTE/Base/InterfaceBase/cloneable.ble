@@ -1,6 +1,6 @@
 
 namespace Base {
-    public interface ICloneable<class T> {
+    public interface ICloneable<type T> {
     public:
         static T Clone();
     }

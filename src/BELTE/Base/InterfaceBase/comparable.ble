@@ -1,6 +1,6 @@
 
 namespace Base {
-    public interface IComparable<class T> {
+    public interface IComparable<type T> {
     public:
         int CompareTo(T obj);
     }

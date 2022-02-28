@@ -1,7 +1,6 @@
 
 namespace System {
-    public static class Stdout {
+    public static class Math {
         
     }
 }
-

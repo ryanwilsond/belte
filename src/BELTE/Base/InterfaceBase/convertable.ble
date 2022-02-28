@@ -1,7 +1,11 @@
 
 namespace Base {
-    public interface IConvertable<class T, class MyT> {
+    public interface IConvertable {
     public:
-        overload T::T(MyT obj);
+        datetime ToDateTime();
+        bool ToBool();
+        int ToInt();
+        uint ToUInt();
+        decimal ToDecimal();
     }
 }
