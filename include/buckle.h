@@ -1,3 +1,4 @@
+// Redirects to steps in the compilation phase
 #ifndef BUCKLE_H
 #define BUCKLE_H
 
@@ -12,33 +13,35 @@ public:
 
     /// Preprocessing input
     /// @param code     input belte code
-    /// @param options  compiler options
-    /// @return preprocessed code
-    _NODISCARD static string Preprocess(_In_ const vector<string>& code, _In_ const CompilerOptions& options) noexcept;
+    /// @param state    compiler state
+    /// @return error
+    static int Preprocess(_Inout_ string& code, _In_ const CompilerState& state) noexcept;
 
     /// Preprocessing input
     /// @param code     input belte code
-    /// @param options  compiler options
-    /// @return produced assembly language code
-    _NODISCARD static string Compile(_In_ const string& code, _In_ const CompilerOptions& options) noexcept;
+    /// @param state    compiler state
+    /// @return error
+    static int Compile(_Inout_ string& code, _In_ const CompilerState& state) noexcept;
 
     /// Preprocessing input
     /// @param code     input belte code
-    /// @param options  compiler options
-    /// @return produced idl code
-    _NODISCARD static string CompileNET(_In_ const string& code, _In_ const CompilerOptions& options) noexcept;
+    /// @param state    compiler state
+    /// @return error
+    static int CompileNET(_Inout_ string& code, _In_ const CompilerState& state) noexcept;
 
     /// Preprocessing input
     /// @param code     input assembly code
-    /// @param options  compiler options
-    /// @return produced machine code
-    _NODISCARD static vector<unsigned char> Assemble(_In_ const string& code, _In_ const CompilerOptions& options) noexcept;
+    /// @param obj      output object code
+    /// @param state    compiler state
+    /// @return error
+    static int Assemble(_In_ const string& code, _Out_ vector<unsigned char>& obj, _In_ const CompilerState& state) noexcept;
 
     /// Preprocessing input
     /// @param code     input code
-    /// @param options  compiler options
-    /// @return produced executable
-    _NODISCARD static vector<unsigned char> Link(_In_ const vector<vector<unsigned char>>& binary, _In_ const CompilerOptions& options) noexcept;
+    /// @param exe      output exectuable
+    /// @param state    compiler state
+    /// @return error
+    static int Link(_In_ const vector<vector<unsigned char>>& binary, _Out_ vector<unsigned char> exe, _In_ const CompilerState& state) noexcept;
 
 };
 

@@ -1,31 +1,21 @@
 #include "buckle.h"
 
-_NODISCARD string Buckle::Preprocess(_In_ const vector<string>& code, _In_ const CompilerOptions& options) noexcept {
-    string processed;
-
-    return processed;
+int Buckle::Preprocess(_Inout_ string& code, _In_ const CompilerState& state) noexcept {
+    return SUCCESS_EXIT;
 }
 
-_NODISCARD string Buckle::Compile(_In_ const string& code, _In_ const CompilerOptions& options) noexcept {
-    string assembly;
-
-    return assembly;
+int Buckle::Compile(_Inout_ string& code, _In_ const CompilerState& state) noexcept {
+    return SUCCESS_EXIT;
 }
 
-_NODISCARD string Buckle::CompileNET(_In_ const string& code, _In_ const CompilerOptions& options) noexcept {
-    string idl;
-
-    return idl;
+int Buckle::CompileNET(_Inout_ string& code, _In_ const CompilerState& state) noexcept {
+    return SUCCESS_EXIT;
 }
 
-_NODISCARD vector<unsigned char> Buckle::Assemble(_In_ const string& code, _In_ const CompilerOptions& options) noexcept {
-    vector<unsigned char> binary;
-
-    return binary;
+int Buckle::Assemble(_In_ const string& code, _Out_ vector<unsigned char>& obj, _In_ const CompilerState& state) noexcept {
+    return SUCCESS_EXIT;
 }
 
-_NODISCARD vector<unsigned char> Buckle::Link(_In_ const vector<vector<unsigned char>>& binary, _In_ const CompilerOptions& options) noexcept {
-    vector<unsigned char> executable;
-
-    return executable;
+int Buckle::Link(_In_ const vector<vector<unsigned char>>& binary, _Out_ vector<unsigned char> exe, _In_ const CompilerState& state) noexcept {
+    return SUCCESS_EXIT;
 }

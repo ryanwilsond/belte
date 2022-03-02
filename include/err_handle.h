@@ -1,3 +1,4 @@
+// Handles printing formatted error and warning messages to stdout
 #ifndef ERROR_HANDLING_H
 #define ERROR_HANDLING_H
 
@@ -115,6 +116,5 @@ inline int RaiseWarning(_In_ const string& format, ...) {
     _print_color_me("error: ", COLOR_PURPLE, msg);
     return 2;
 }
-
 
 #endif

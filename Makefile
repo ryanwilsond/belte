@@ -11,14 +11,14 @@ CCFLAGS+=-pedantic -Wall -Wextra -Wcast-align -Wcast-qual -Wctor-dtor-privacy \
 -Wundef -Wno-unused -Werror -Wredundant-decls -Wswitch-default
 LDFLAGS=
 
-SOURCE=$(wildcard src/*.cpp)
-OBJECT=$(patsubst src/%.cpp, bin/%.o, $(SOURCE))
+SOURCE=$(wildcard src/Buckle/*.cpp)
+OBJECT=$(patsubst src/Buckle/%.cpp, bin/%.o, $(SOURCE))
 
 OUT=buckle.exe
 
 all: $(OUT)
 
-bin/%.o: src/%.cpp
+bin/%.o: src/Buckle/%.cpp
 	$(CC) $(CCFLAGS) -c $^ -o $@
 
 $(OUT): $(OBJECT)
@@ -29,4 +29,4 @@ setup:
 
 clean:
 	rm -f bin/*
-	rm $(OUT)
+	rm -f $(OUT)
