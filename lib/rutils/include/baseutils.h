@@ -6,6 +6,7 @@
 
 #include <string>
 #include <vector>
+#include <algorithm>
 
 #define _NODISCARD [[nodiscard]]
 #define _UNUSED [[maybe_unused]]

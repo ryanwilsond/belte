@@ -3,6 +3,7 @@
 #define TOP_LEVEL_H
 
 #include "utils.h"
+#include <iostream>
 
 namespace toplev {
 

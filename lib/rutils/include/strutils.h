@@ -250,6 +250,17 @@ _NODISCARD inline std::string join(const std::vector<std::string>& _Segs, const 
     return _Comb;
 }
 
+/// Checks if string is empty or all whitespace
+/// @param _Str     string to check
+/// @return is empty or whitespace
+_NODISCARD inline bool null_or_whitespace(const std::string& _Str) noexcept
+{   // Uses std::string methods to check if null/empty, then uses std::isspace iterating
+    // through string to check each char is whitespace
+    return _Str.empty() || std::all_of(_Str.begin(), _Str.end(), [](char c) {
+        return std::isspace(static_cast<unsigned char>(c));
+    });
+}
+
 _RUTILS_END
 
 #endif
