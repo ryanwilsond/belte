@@ -5,6 +5,9 @@
 #include "utils.h"
 #include <iostream>
 
+using std::cout;
+using std::endl;
+
 namespace toplev {
 
     int main() noexcept;
