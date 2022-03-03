@@ -3,3 +3,7 @@ TODO
     * Implement InterfaceBase
     * Implement TypeBase
     * Parse argv[0] string to only have executable name, and not entire path
+    * Add Parser
+    * Finish Lexer
+    * Add docstrings to InterfaceBase & TypeBase & System Libraries
+    * Add base inherited interfaces to base types

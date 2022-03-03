@@ -18,6 +18,7 @@ Index for all parts of the language. Don't know where to start? Try [Getting Sta
       - [int](Reference/Types/Numerical.md#integer)
       - [uint](Reference/Types/Numerical.md#positiveunsigned-integer)
       - [decimal](Reference/Types/Numerical.md#decimal-number)
+      - [byte](Reference/Types/Numerical.md#byte)
       - [char](Reference/Types/String.md#character)
       - [string](Reference/Types/String.md)
       - [datetime](Reference/Types/DateTime.md)
