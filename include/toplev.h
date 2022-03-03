@@ -31,7 +31,7 @@ _NODISCARD inline T try_cast(_UNUSED _In_ U& _Val) {
 //* TEMP
 /// Entry point for repl
 /// @return error
-int main() noexcept;
+int main();
 
 }
 
