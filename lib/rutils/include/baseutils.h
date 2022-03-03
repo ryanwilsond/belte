@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <memory>
 
 #define _NODISCARD [[nodiscard]]
 #define _UNUSED [[maybe_unused]]

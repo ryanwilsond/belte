@@ -261,6 +261,25 @@ _NODISCARD inline bool null_or_whitespace(const std::string& _Str) noexcept
     });
 }
 
+/// Implementation of std::format, taking std::string as input
+/// @param _Format  format string
+/// @return formatted string using all varargs
+_NODISCARD inline std::string format(const std::string& _Format, ...) noexcept
+{
+    va_list _Arg_ptr;
+    va_start(_Arg_ptr, _Format);
+    const int _Size = std::vsnprintf(nullptr, 0, _Format.c_str(), _Arg_ptr) + 1; // +1 for terminator
+    va_end(_Arg_ptr);
+    va_start(_Arg_ptr, _Format); // reset argptr, probaly better way to do this
+
+    auto _Size_T = static_cast<size_t>(_Size);
+    auto _Buf = std::make_unique<char[]>(_Size_T);
+    std::vsnprintf(_Buf.get(), _Size_T, _Format.c_str(), _Arg_ptr);
+
+    va_end(_Arg_ptr);
+    return std::string(_Buf.get(), _Buf.get() + _Size_T - 1); // remove terminator space
+}
+
 _RUTILS_END
 
 #endif

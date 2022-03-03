@@ -22,17 +22,6 @@ struct NullType {
 
 #define null NullType(true)
 
-template <class T, class U>
-T error_cast(U& val) {
-    if (typeid(T) == typeid(U)) {
-        const T* t = reinterpret_cast<const T*>(&val);
-        T* tc = const_cast<T*>(t);
-        return *tc;
-    }
-    T t = T();
-    return t;
-}
-
 struct SyntaxValue {
     int val_int;
     string val_string;
@@ -74,11 +63,11 @@ public:
         switch (type) {
             case SyntaxType::NumberToken:
                 if (typeid(T) == typeid(int))
-                    return error_cast<T>(value.val_int);
+                    return try_cast<T>(value.val_int);
                 else throw std::runtime_error(string("Syntax Token is of type int, not ") + typeid(T).name());
             default:
                 if (typeid(T) == typeid(NullType))
-                    return error_cast<T>(value.val_null);
+                    return try_cast<T>(value.val_null);
                 else throw std::runtime_error(string("Syntax Token is of type NullType, not ") + typeid(T).name());
         }
     }
