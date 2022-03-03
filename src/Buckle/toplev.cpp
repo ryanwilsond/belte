@@ -16,44 +16,29 @@ enum SyntaxType {
 };
 
 struct NullType {
+    bool null;
+    NullType(bool n) noexcept { null=n; }
 };
 
-class ParamBase {
-public:
+#define null NullType(true)
 
-    virtual ~ParamBase() {}
-
-    template<class T> const T& get() const;
-    template<class T, class U> void setValue(const U& val);
-
-};
-
-template <typename T>
-class Param : public ParamBase {
-private:
-    T value;
-
-public:
-
-    Param(const T& val) : value(val) {}
-
-    const T& get() const {
-        return value;
+template <class T, class U>
+T error_cast(U& val) {
+    if (typeid(T) == typeid(U)) {
+        const T* t = reinterpret_cast<const T*>(&val);
+        T* tc = const_cast<T*>(t);
+        return *tc;
     }
-
-    void setValue(const T& val) {
-        value = val;
-    }
-
-};
-
-template<class T> const T& ParamBase::get() const {
-    return dynamic_cast<const Param<T>&>(*this).get();
+    T t = T();
+    return t;
 }
 
-template<class T, class U> void ParamBase::setValue(const U& val) {
-    return dynamic_cast<Param<T>&>(*this).setValue(val);
-}
+struct SyntaxValue {
+    int val_int;
+    string val_string;
+    NullType val_null = NullType(false);
+    SyntaxValue() noexcept { }
+};
 
 class SyntaxToken {
 public:
@@ -61,13 +46,41 @@ public:
     SyntaxType type;
     int pos;
     string text;
-    ParamBase value;
+    SyntaxValue value;
 
-    SyntaxToken(SyntaxType _type, int _pos, string _text, ParamBase _value) {
+    void init(SyntaxType _type, int _pos, string _text) noexcept {
         type = _type;
         pos = _pos;
         text = _text;
-        value = _value;
+    }
+
+    SyntaxToken(SyntaxType _type, int _pos, string _text, int _val) noexcept {
+        init(_type, _pos, _text);
+        value.val_int = _val;
+    }
+
+    SyntaxToken(SyntaxType _type, int _pos, string _text, string _val) noexcept {
+        init(_type, _pos, _text);
+        value.val_string = _val;
+    }
+
+    SyntaxToken(SyntaxType _type, int _pos, string _text, NullType _val) noexcept {
+        init(_type, _pos, _text);
+        value.val_null = _val;
+    }
+
+    template<class T>
+    _NODISCARD T Value() const {
+        switch (type) {
+            case SyntaxType::NumberToken:
+                if (typeid(T) == typeid(int))
+                    return error_cast<T>(value.val_int);
+                else throw std::runtime_error(string("Syntax Token is of type int, not ") + typeid(T).name());
+            default:
+                if (typeid(T) == typeid(NullType))
+                    return error_cast<T>(value.val_null);
+                else throw std::runtime_error(string("Syntax Token is of type NullType, not ") + typeid(T).name());
+        }
     }
 
     string Type() const {
@@ -87,12 +100,6 @@ public:
     }
 
 };
-
-#define null_t Param<NullType>(NullType())
-
-template <class T> Param<T> param(T val) {
-    return Param<T>(val);
-}
 
 class Lexer {
 private:
@@ -121,7 +128,7 @@ public:
         // <whitespace>
 
         if (pos_ >= text_.length())
-            return SyntaxToken(SyntaxType::EOFToken, pos_, "\0", null_t);
+            return SyntaxToken(SyntaxType::EOFToken, pos_, "\0", null);
 
         if (isdigit(CurrentChar())) {
             auto start = pos_;
@@ -133,7 +140,7 @@ public:
             auto text = text_.substr(start, len);
             int value = stoi(text);
 
-            return SyntaxToken(SyntaxType::NumberToken, start, text, param(value));
+            return SyntaxToken(SyntaxType::NumberToken, start, text, value);
         } else if (isspace(CurrentChar())) {
             auto start = pos_;
 
@@ -143,21 +150,22 @@ public:
             auto len = pos_ - start;
             auto text = text_.substr(start, len);
 
-            return SyntaxToken(SyntaxType::WhitespaceToken, start, text, null_t);
+            return SyntaxToken(SyntaxType::WhitespaceToken, start, text, null);
         } else if (CurrentChar() == '+')
-            return SyntaxToken(SyntaxType::PlusToken, pos_++, "+", null_t);
+            return SyntaxToken(SyntaxType::PlusToken, pos_++, "+", null);
         else if (CurrentChar() == '-')
-            return SyntaxToken(SyntaxType::MinusToken, pos_++, "-", null_t);
+            return SyntaxToken(SyntaxType::MinusToken, pos_++, "-", null);
         else if (CurrentChar() == '*')
-            return SyntaxToken(SyntaxType::AsteriskToken, pos_++, "*", null_t);
+            return SyntaxToken(SyntaxType::AsteriskToken, pos_++, "*", null);
         else if (CurrentChar() == '/')
-            return SyntaxToken(SyntaxType::SolidusToken, pos_++, "/", null_t);
+            return SyntaxToken(SyntaxType::SolidusToken, pos_++, "/", null);
         else if (CurrentChar() == '(')
-            return SyntaxToken(SyntaxType::LeftParenToken, pos_++, "(", null_t);
+            return SyntaxToken(SyntaxType::LeftParenToken, pos_++, "(", null);
         else if (CurrentChar() == ')')
-            return SyntaxToken(SyntaxType::RightParenToken, pos_++, ")", null_t);
+            return SyntaxToken(SyntaxType::RightParenToken, pos_++, ")", null);
 
-        return SyntaxToken(SyntaxType::BadToken, pos_++, text_.substr(pos_-1, 1), null_t);
+        pos_++; // avoids sequence point error
+        return SyntaxToken(SyntaxType::BadToken, pos_, text_.substr(pos_-1, 1), null);
     }
 
 };
@@ -175,8 +183,10 @@ int main() noexcept {
             auto token = lexer.Next();
             if (token.type == SyntaxType::EOFToken) break;
             cout << token.Type() << ": '" << token.text << "' ";
+
             if (token.type == SyntaxType::NumberToken)
-                cout << token.text;
+                cout << token.Value<int>();
+
             cout << endl;
         }
     }
