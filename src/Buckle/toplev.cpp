@@ -2,30 +2,6 @@
 
 namespace toplev {
 
-int main() noexcept {
-    int error = SUCCESS_EXIT;
-
-    printf("> ");
-    for (string line; std::getline(std::cin, line); printf("> ")) {
-        if (null_or_whitespace(line)) return error;
-
-        auto lexer = Lexer(line);
-        while (true) {
-            SyntaxToken<class T> token = lexer.Next<T>();
-            if (token.type == SyntaxType::EOFToken) break;
-            cout << token.Type() << ": " << token.text << endl;
-            if (token.value != NULL)
-                cout << token.value << endl;
-        }
-
-        if (line == "1 + 2 * 3") printf("%i\n", 7);
-        else printf("ERROR: Invalid Expression\n");
-    }
-
-    return SUCCESS_EXIT;
-}
-
-
 enum SyntaxType {
     NumberToken,
     WhitespaceToken,
@@ -42,15 +18,52 @@ enum SyntaxType {
 struct NullType {
 };
 
+class ParamBase {
+public:
+
+    virtual ~ParamBase() {}
+
+    template<class T> const T& get() const;
+    template<class T, class U> void setValue(const U& val);
+
+};
+
+template <typename T>
+class Param : public ParamBase {
+private:
+    T value;
+
+public:
+
+    Param(const T& val) : value(val) {}
+
+    const T& get() const {
+        return value;
+    }
+
+    void setValue(const T& val) {
+        value = val;
+    }
+
+};
+
+template<class T> const T& ParamBase::get() const {
+    return dynamic_cast<const Param<T>&>(*this).get();
+}
+
+template<class T, class U> void ParamBase::setValue(const U& val) {
+    return dynamic_cast<Param<T>&>(*this).setValue(val);
+}
+
 class SyntaxToken {
 public:
 
     SyntaxType type;
     int pos;
     string text;
-    boost::any value;
+    ParamBase value;
 
-    SyntaxToken(SyntaxType _type, int _pos, string _text, T _value) {
+    SyntaxToken(SyntaxType _type, int _pos, string _text, ParamBase _value) {
         type = _type;
         pos = _pos;
         text = _text;
@@ -75,14 +88,20 @@ public:
 
 };
 
+#define null_t Param<NullType>(NullType())
+
+template <class T> Param<T> param(T val) {
+    return Param<T>(val);
+}
+
 class Lexer {
 private:
     const string text_;
-    int pos_;
+    size_t pos_;
 
     char CurrentChar() {
         if (pos_ >= text_.length()) return '\0';
-        return text_[pos_++];
+        return text_[pos_];
     }
 
     void Advance() {
@@ -91,7 +110,10 @@ private:
 
 public:
 
-    Lexer(string text) : text_(text) {}
+
+    Lexer(string text) : text_(text) {
+        pos_ = 0;
+    }
 
     SyntaxToken Next() {
         // <numbers>
@@ -99,7 +121,7 @@ public:
         // <whitespace>
 
         if (pos_ >= text_.length())
-            return SyntaxToken(SyntaxType::EOFToken, pos_, "\0", null);
+            return SyntaxToken(SyntaxType::EOFToken, pos_, "\0", null_t);
 
         if (isdigit(CurrentChar())) {
             auto start = pos_;
@@ -111,35 +133,55 @@ public:
             auto text = text_.substr(start, len);
             int value = stoi(text);
 
-            return SyntaxToken(SyntaxType::NumberToken, start, text, value);
+            return SyntaxToken(SyntaxType::NumberToken, start, text, param(value));
         } else if (isspace(CurrentChar())) {
             auto start = pos_;
 
-            while (isdigit(CurrentChar()))
+            while (isspace(CurrentChar()))
                 Advance();
 
             auto len = pos_ - start;
             auto text = text_.substr(start, len);
-            int value = stoi(text);
 
-            return SyntaxToken(SyntaxType::WhitespaceToken, start, text, value);
+            return SyntaxToken(SyntaxType::WhitespaceToken, start, text, null_t);
         } else if (CurrentChar() == '+')
-            return SyntaxToken(SyntaxType::PlusToken, pos_++, "+", NULL);
+            return SyntaxToken(SyntaxType::PlusToken, pos_++, "+", null_t);
         else if (CurrentChar() == '-')
-            return SyntaxToken(SyntaxType::MinusToken, pos_++, "-", NULL);
+            return SyntaxToken(SyntaxType::MinusToken, pos_++, "-", null_t);
         else if (CurrentChar() == '*')
-            return SyntaxToken(SyntaxType::AsteriskToken, pos_++, "*", NULL);
+            return SyntaxToken(SyntaxType::AsteriskToken, pos_++, "*", null_t);
         else if (CurrentChar() == '/')
-            return SyntaxToken(SyntaxType::SolidusToken, pos_++, "/", NULL);
+            return SyntaxToken(SyntaxType::SolidusToken, pos_++, "/", null_t);
         else if (CurrentChar() == '(')
-            return SyntaxToken(SyntaxType::LeftParenToken, pos_++, "(", NULL);
+            return SyntaxToken(SyntaxType::LeftParenToken, pos_++, "(", null_t);
         else if (CurrentChar() == ')')
-            return SyntaxToken(SyntaxType::RightParenToken, pos_++, ")", NULL);
+            return SyntaxToken(SyntaxType::RightParenToken, pos_++, ")", null_t);
 
-        return SyntaxToken(SyntaxType::BadToken, pos_++, text_.substr(pos_-1, 1), NULL);
+        return SyntaxToken(SyntaxType::BadToken, pos_++, text_.substr(pos_-1, 1), null_t);
     }
 
 };
 
+
+int main() noexcept {
+    int error = SUCCESS_EXIT;
+
+    printf("> ");
+    for (string line; std::getline(std::cin, line); printf("> ")) {
+        if (null_or_whitespace(line)) return error;
+
+        auto lexer = Lexer(line);
+        while (true) {
+            auto token = lexer.Next();
+            if (token.type == SyntaxType::EOFToken) break;
+            cout << token.Type() << ": '" << token.text << "' ";
+            if (token.type == SyntaxType::NumberToken)
+                cout << token.text;
+            cout << endl;
+        }
+    }
+
+    return SUCCESS_EXIT;
+}
 
 }
