@@ -2,8 +2,9 @@
 
 Index for all parts of the language. Don't know where to start? Try [Getting Started](GettingStarted.md).
 
+- [BELTE Mission Statement](../README.md)
 - [Getting Started](GettingStarted.md)
-- Tutorial
+- Tutorials
   - [Hello World](Tutorial/HelloWorld.md)
   - [Calculator](Tutorial/Calculator.md)
 - Language Reference
@@ -82,3 +83,4 @@ Index for all parts of the language. Don't know where to start? Try [Getting Sta
 - Standard Library
   - [File](STD/File.md)
   - [Stdout](STD/Stdout.md)
+  - [Math](STD/Math.md)
