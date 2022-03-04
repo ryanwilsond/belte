@@ -2,7 +2,6 @@
 
 Index for all parts of the language. Don't know where to start? Try [Getting Started](GettingStarted.md).
 
-- [BELTE Mission Statement](../README.md)
 - [Getting Started](GettingStarted.md)
 - Tutorials
   - [Hello World](Tutorial/HelloWorld.md)

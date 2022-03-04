@@ -1,7 +1,6 @@
 
 namespace System {
     public static class File {
-    public:
 
         bool CreateFile(string filename);
         bool FileExists(string filename);

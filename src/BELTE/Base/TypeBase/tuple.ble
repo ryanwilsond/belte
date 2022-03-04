@@ -1,7 +1,7 @@
 
 namespace Base {
     public class tuple<type T1, type T2=null, type T3=null, type T4=null, type T5=null, type T6=null, type T7=null, type T8=null> {
-    public:
+
         tuple(T1 item_1, T2 item_2=null, T3 item_3=null, T4 item_4=null, T5 item_5=null, T6 item_6=null, T7 item_7=null, T8 item_8=null)
 
         T1 item1 { get; }
@@ -15,5 +15,7 @@ namespace Base {
 
         override string ToString();
         override bool operator=(object obj);
+        object operator[](int index);
+
     }
 }
