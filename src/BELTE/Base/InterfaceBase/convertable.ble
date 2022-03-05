@@ -1,11 +1,12 @@
 
 namespace Base {
     public interface IConvertable {
-    public:
+
         datetime ToDateTime();
         bool ToBool();
         int ToInt();
         uint ToUInt();
         decimal ToDecimal();
+
     }
 }

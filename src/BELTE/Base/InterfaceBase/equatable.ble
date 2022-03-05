@@ -1,12 +1,13 @@
 
 namespace Base {
     public interface IEquatable<type T> {
-    public:
+
         bool operator==(T obj);
         bool operator!=(T obj);
         bool operator<=(T obj);
         bool operator>=(T obj);
         bool operator<(T obj);
         bool operator>(T obj);
+
     }
 }

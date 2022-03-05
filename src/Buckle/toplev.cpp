@@ -43,6 +43,8 @@ public:
         text = _text;
     }
 
+    SyntaxToken() {}
+
     SyntaxToken(SyntaxType _type, int _pos, string _text, int _val) noexcept {
         init(_type, _pos, _text);
         value.val_int = _val;
@@ -157,6 +159,64 @@ public:
         return SyntaxToken(SyntaxType::BadToken, pos_, text_.substr(pos_-1, 1), null);
     }
 
+};
+
+class SyntaxNode {
+public:
+
+    SyntaxType type;
+
+};
+
+class ExpressionSyntax : SyntaxNode {
+};
+
+class NumberExpressionSyntax : ExpressionSyntax {
+public:
+
+    NumberExpressionSyntax(SyntaxToken number) {
+    }
+
+    SyntaxToken number;
+
+};
+
+class BinaryExpressionSyntax : Nu
+
+class Parser {
+private:
+
+    vector<SyntaxToken> tokens_;
+    int pos_;
+
+    SyntaxToken Peek(int offset) {
+        int index = pos_ + offset;
+
+        if (index >= tokens_.size())
+            return tokens_[tokens_.size() - 1];
+
+        return tokens_[index];
+    }
+
+    SyntaxToken Current() {
+        return Peek(0);
+    }
+
+public:
+
+    Parser(string text) {
+        Lexer lexer = Lexer(text);
+        SyntaxToken token;
+
+        while (token.type != SyntaxType::EOFToken) {
+            token = lexer.Next();
+
+            if (token.type != SyntaxType::WhitespaceToken &&
+                token.type != SyntaxType::BadToken) {
+                tokens_.push_back(token);
+            }
+        }
+    }
 };
 
 
