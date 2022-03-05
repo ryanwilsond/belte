@@ -1,7 +1,6 @@
 
 namespace Base {
     public class byte {
-    public:
 
     }
 }

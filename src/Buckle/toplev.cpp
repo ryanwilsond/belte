@@ -9,10 +9,12 @@ enum SyntaxType {
     MinusToken,
     AsteriskToken,
     SolidusToken,
-    LeftParenToken,
-    RightParenToken,
+    OpenParenToken,
+    CloseParenToken,
     BadToken,
     EOFToken,
+    NumberExpression,
+    BinaryExpression,
 };
 
 struct NullType {
@@ -82,8 +84,8 @@ public:
             case SyntaxType::MinusToken: return "MinusToken";
             case SyntaxType::AsteriskToken: return "AsteriskToken";
             case SyntaxType::SolidusToken: return "SolidusToken";
-            case SyntaxType::LeftParenToken: return "LeftParenToken";
-            case SyntaxType::RightParenToken: return "RightParenToken";
+            case SyntaxType::OpenParenToken: return "OpenParenToken";
+            case SyntaxType::CloseParenToken: return "CloseParenToken";
             case SyntaxType::BadToken: return "BadToken";
             case SyntaxType::EOFToken: return "EOFToken";
             default: return "NullToken";
@@ -151,9 +153,9 @@ public:
         else if (CurrentChar() == '/')
             return SyntaxToken(SyntaxType::SolidusToken, pos_++, "/", null);
         else if (CurrentChar() == '(')
-            return SyntaxToken(SyntaxType::LeftParenToken, pos_++, "(", null);
+            return SyntaxToken(SyntaxType::OpenParenToken, pos_++, "(", null);
         else if (CurrentChar() == ')')
-            return SyntaxToken(SyntaxType::RightParenToken, pos_++, ")", null);
+            return SyntaxToken(SyntaxType::CloseParenToken, pos_++, ")", null);
 
         pos_++; // avoids sequence point error
         return SyntaxToken(SyntaxType::BadToken, pos_, text_.substr(pos_-1, 1), null);
@@ -174,14 +176,30 @@ class ExpressionSyntax : SyntaxNode {
 class NumberExpressionSyntax : ExpressionSyntax {
 public:
 
-    NumberExpressionSyntax(SyntaxToken number) {
-    }
-
+    const SyntaxType type = SyntaxType::NumberExpression;
     SyntaxToken number;
+
+    NumberExpressionSyntax(SyntaxToken _number) {
+        number = _number;
+    }
 
 };
 
-class BinaryExpressionSyntax : Nu
+class BinaryExpressionSyntax : ExpressionSyntax {
+public:
+
+    ExpressionSyntax left;
+    SyntaxToken op;
+    ExpressionSyntax right;
+    const SyntaxType type = SyntaxType::BinaryExpression;
+
+    BinaryExpressionSyntax(ExpressionSyntax _left, SyntaxToken _op, ExpressionSyntax _right) {
+        left = _left;
+        op = _op;
+        right = _right;
+    }
+
+};
 
 class Parser {
 private:
@@ -217,6 +235,11 @@ public:
             }
         }
     }
+
+    ExpressionSyntax Parse() {
+
+    }
+
 };
 
 
