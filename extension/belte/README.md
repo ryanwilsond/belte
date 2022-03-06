@@ -8,7 +8,7 @@ Read more about BELTE at [flamechain.github.io/BELTE](https://flamechain.github.
 
 Syntax highlighting. Intellisense has not been added (yet).
 
-![example](images/example1.png)
+![example](./images/example1.png)
 
 ## Known Issues
 

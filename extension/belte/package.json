@@ -3,6 +3,12 @@
     "displayName": "BELTE",
     "description": "Language support for BELTE",
     "version": "0.0.1",
+    "publisher": "Ryan Wilson",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/flamechain/BELTE"
+    },
+    "icon": "./images/belte-icon128x.png",
     "engines": {
         "vscode": "^1.46.0"
     },
@@ -16,8 +22,8 @@
             "extensions": [".ble",".belte"],
             "configuration": "./language-configuration.json",
             "icon": {
-                "light": "./images/belte-icon.png",
-                "dark": "./images/belte-icon.png"
+                "light": "./images/belte-icon128.png",
+                "dark": "./images/belte-icon128.png"
             }
         }],
         "grammars": [{
