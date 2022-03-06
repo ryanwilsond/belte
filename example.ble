@@ -1,0 +1,37 @@
+include System.Stdout;
+
+#define PI 3.14159
+
+class Circle {
+private:
+
+    decimal radius;
+
+public:
+
+    // Returns area of circle based on radius
+    decimal GetArea() const {
+        return (radius ** 2) * PI;
+    }
+
+    // Sets radius of circle
+    void SetRadius(decimal _radius) {
+        radius = _radius;
+    }
+
+}
+
+const decimal area_threshold = 24;
+
+int main() {
+    Circle circle;
+    circle.SetRadius(6);
+
+    if (crcle.GetArea() > area_threshold) {
+        Stdout.Print("Big circle");
+    } else {
+        Stdout.Print("Small circle");
+    }
+
+    return 0;
+}

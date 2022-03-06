@@ -86,6 +86,9 @@
 			}, {
 				"name": "storage.modifier.belte",
 				"match": "\\b(static|abstract|sealed|const|async)\\b"
+			}, {
+				"name": "storage.type.doxygen.belte",
+				"match": "(?<=///)\\s+(@param|@par|@parameter|@ret|@return|@summary|@overload|@deprecated)\\b"
 			}]
 		},
 		"constant": {
@@ -94,7 +97,7 @@
 				"match": "\\b(\\d+)\\b"
 			}, {
 				"name": "constant.numeric.decimal.belte",
-				"match": "(\\d)*\\.(\\d)*\\b"
+				"match": "(\\d)*\\.(\\d)+\\b"
 			}, {
 				"name": "constant.numeric.hex.belte",
 				"match": "(?<=0x)([\\da-fA-F]+)\\b"
@@ -155,6 +158,9 @@
 			}, {
 				"name": "comment.block",
 				"match": "/\\*[\\s\\S]*\\*/"
+			}, {
+				"name": "comment.line.double-slash.documentation",
+				"match": "///.*"
 			}]
 		}
 	},

@@ -16,8 +16,8 @@
             "extensions": [".ble",".belte"],
             "configuration": "./language-configuration.json",
             "icon": {
-                "light": "./belte-icon.png",
-                "dark": "./belte-icon.png"
+                "light": "./images/belte-icon.png",
+                "dark": "./images/belte-icon.png"
             }
         }],
         "grammars": [{

@@ -6,4 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.1] - 2022-03-05
+
 - Initial release
+
+### Added
+
+- All basic grammer
+- Language icon
