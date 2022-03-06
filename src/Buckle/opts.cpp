@@ -22,6 +22,9 @@ void decode_options(_In_ const vector<string>& args) noexcept {
             } else if (arg == "-c") {
                 specify_stage = true;
                 state.finish_stage = CompilerStage::assembled;
+            } else if (arg == "-r") {
+                error = SUCCESS_EXIT_CODE;
+                return;
             } else if (arg == "-o") {
                 specify_out = true;
                 if (i >= args.size()-1) {

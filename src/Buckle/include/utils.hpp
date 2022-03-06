@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <iostream>
 
 #include "errors.hpp"
 #include "state.hpp"
