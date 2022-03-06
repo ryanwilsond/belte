@@ -148,10 +148,11 @@ _NODISCARD inline std::vector<std::string> split_str(const std::string& _Str, co
 
     while ((_Pos = _Str.find(_Delim, _Off)) != std::string::npos)
         {
-        _Segs.push_back(_Str.substr(_Off, _Pos));
-        _Off = _Pos;
+        _Segs.push_back(_Str.substr(_Off, _Pos-_Off));
+        _Off = _Pos + _Delim.length();
         }
 
+    _Segs.push_back(_Str.substr(_Off, _Pos-_Off));
     return _Segs;
 }
 

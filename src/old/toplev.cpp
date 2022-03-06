@@ -18,8 +18,8 @@ enum SyntaxType {
 };
 
 struct NullType {
-    bool null;
-    NullType(bool n) noexcept { null=n; }
+    bool is_null;
+    NullType(bool n) noexcept { is_null=n; }
 };
 
 #define null NullType(true)
@@ -31,7 +31,32 @@ struct SyntaxValue {
     SyntaxValue() noexcept { }
 };
 
-class SyntaxToken {
+class SyntaxNode {
+public:
+
+    SyntaxType type;
+
+    vector<SyntaxNode> GetChildren();
+
+    string Type() const {
+        switch (type) {
+            case SyntaxType::NumberToken: return "NumberToken";
+            case SyntaxType::WhitespaceToken: return "WhitespaceToken";
+            case SyntaxType::PlusToken: return "PlusToken";
+            case SyntaxType::MinusToken: return "MinusToken";
+            case SyntaxType::AsteriskToken: return "AsteriskToken";
+            case SyntaxType::SolidusToken: return "SolidusToken";
+            case SyntaxType::OpenParenToken: return "OpenParenToken";
+            case SyntaxType::CloseParenToken: return "CloseParenToken";
+            case SyntaxType::BadToken: return "BadToken";
+            case SyntaxType::EOFToken: return "EOFToken";
+            default: return "NullToken";
+        }
+    }
+
+};
+
+class SyntaxToken : public SyntaxNode {
 public:
 
     SyntaxType type;
@@ -76,20 +101,8 @@ public:
         }
     }
 
-    string Type() const {
-        switch (type) {
-            case SyntaxType::NumberToken: return "NumberToken";
-            case SyntaxType::WhitespaceToken: return "WhitespaceToken";
-            case SyntaxType::PlusToken: return "PlusToken";
-            case SyntaxType::MinusToken: return "MinusToken";
-            case SyntaxType::AsteriskToken: return "AsteriskToken";
-            case SyntaxType::SolidusToken: return "SolidusToken";
-            case SyntaxType::OpenParenToken: return "OpenParenToken";
-            case SyntaxType::CloseParenToken: return "CloseParenToken";
-            case SyntaxType::BadToken: return "BadToken";
-            case SyntaxType::EOFToken: return "EOFToken";
-            default: return "NullToken";
-        }
+    vector<SyntaxNode> GetChildren() {
+        return vector<SyntaxNode>();
     }
 
 };
@@ -163,17 +176,10 @@ public:
 
 };
 
-class SyntaxNode {
-public:
-
-    SyntaxType type;
-
+class ExpressionSyntax : public SyntaxNode {
 };
 
-class ExpressionSyntax : SyntaxNode {
-};
-
-class NumberExpressionSyntax : ExpressionSyntax {
+class NumberExpressionSyntax : public ExpressionSyntax {
 public:
 
     const SyntaxType type = SyntaxType::NumberExpression;
@@ -183,9 +189,14 @@ public:
         number = _number;
     }
 
+    vector<SyntaxNode> GetChildren() {
+        vector<SyntaxNode> nodes = {number};
+        return nodes;
+    }
+
 };
 
-class BinaryExpressionSyntax : ExpressionSyntax {
+class BinaryExpressionSyntax : public ExpressionSyntax {
 public:
 
     ExpressionSyntax left;
@@ -197,6 +208,11 @@ public:
         left = _left;
         op = _op;
         right = _right;
+    }
+
+    vector<SyntaxNode> GetChildren() {
+        vector<SyntaxNode> nodes = {left, op, right};
+        return nodes;
     }
 
 };
@@ -220,6 +236,22 @@ private:
         return Peek(0);
     }
 
+    SyntaxToken NextToken() {
+        SyntaxToken current = Current();
+        pos_++;
+        return current;
+    }
+
+    SyntaxToken Match(SyntaxType _type) {
+        if (Current().type == _type) return NextToken();
+        return SyntaxToken(_type, Current().pos, "", null);
+    }
+
+    ExpressionSyntax ParsePrimaryExpression() {
+        SyntaxToken number = Match(SyntaxType::NumberToken);
+        return NumberExpressionSyntax(number);
+    }
+
 public:
 
     Parser(string text) {
@@ -234,16 +266,35 @@ public:
                 tokens_.push_back(token);
             }
         }
-    }
+    }    
 
     ExpressionSyntax Parse() {
+        auto left = ParsePrimaryExpression();
 
+        while (Current().type == SyntaxType::PlusToken ||
+               Current().type == SyntaxType::MinusToken) {
+            SyntaxToken opToken = NextToken();
+            auto right = ParsePrimaryExpression();
+            left = BinaryExpressionSyntax(left, opToken, right);
+        }
+
+        return left;
     }
 
 };
 
+void PrettyPrint(SyntaxNode node, string index = "") {
+    cout << node.Type();
 
-int main() noexcept {
+    SyntaxToken *nodeChild = reinterpret_cast<SyntaxToken*>(&node);
+
+    if (nodeChild->value.val_null.is_null == false) {
+        
+    }
+
+}
+
+int main() {
     int error = SUCCESS_EXIT;
 
     printf("> ");

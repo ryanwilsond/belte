@@ -1,21 +1,22 @@
-#include "state.h"
+#include "state.hpp"
 
-void check_tasks(_In_ CompilerState& state) noexcept {
-    for (size_t i=0; i<state.tasks.size(); i++) {
-        FileTask& task = state.tasks[i];
+extern CompilerState state;
 
-        if (task.state.GetStep() == task.out_step) {
-            switch (task.out_step) {
-                case Steps::Compile:
-                case Steps::Preprocess:
-                    write_text(task.out, task.state.GetCodeS());
-                    break;
-                case Steps::Link:
-                case Steps::Assemble:
-                    write_bytes(task.out, task.state.GetCodeO());
-                    break;
-                default:
-                    break;
+void clean_up_early_exit() noexcept { }
+
+void clean_up_normal_exit() noexcept {
+
+    if (state.finish_stage == CompilerStage::linked) {
+        write_bytes(state.link_output, state.link_content);
+        return;
+    }
+
+    for (FileState file : state.tasks) {
+        if (file.stage == state.finish_stage) {
+            if (file.stage == CompilerStage::assembled) {
+                write_bytes(file.out_filename, file.FileContent.object);
+            } else {
+                write_lines(file.out_filename, file.FileContent.lines);
             }
         }
     }

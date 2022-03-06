@@ -1,36 +1,12 @@
-#include "cmdline.h"
-#include "utils.h"
+#include "cmdline.hpp"
 
-extern string me;
-
-_NODISCARD vector<string> convert_argv(_In_reads_(argc) char **argv, int argc) noexcept {
-    vector<string> args;
-
-    for (int i=0; i<argc; i++) {
-        args.push_back(argv[i]);
-    }
-
-    return args;
+vector<string> convert_argv(int argc, _In_ char **argv) noexcept {
+    return vector<string>(argv, argv+argc);
 }
 
-int decode_options(_In_ const vector<string>& args, _Out_ CompilerState& state) noexcept {
-        state.test = true;
-        return SUCCESS_EXIT;
-
-    int error = SUCCESS_EXIT;
-    me = args[0];
-
-    if (args.size() == 1) {
-        error = RaiseError("No input files.");
-    }
-
-    return error;
-}
-
-void clean_outfiles(_In_ CompilerState& state) noexcept {
-    for (size_t i=0; i<state.tasks.size(); i++) {
-        if (file_exists(state.tasks[i].out)) {
-            delete_file(state.tasks[i].out);
-        }
-    }
+void extract_name_and_expand(_Inout_ vector<string>& args) noexcept {
+    vector<string> parts = split_str(args[0], "\\");
+    me = parts[parts.size()-1];
+    me = split_str(me, ".")[0];
+    args.erase(args.begin());
 }

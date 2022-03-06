@@ -1,43 +1,62 @@
-#include "utils.h"
-#include "cmdline.h"
-#include "compiler.h"
-#include "state.h"
-#include "toplev.h"
+/* Entry point for Buckle */
 
+#include "utils.cpp"
+#include "compiler.hpp"
+#include "asm.hpp"
+#include "preproc.hpp"
+#include "link.hpp"
+#include "cmdline.hpp"
+#include "opts.hpp"
+
+CompilerState state;
 string me;
 
-int main(int argc, char **argv) {
-    int error = SUCCESS_EXIT;
-    vector<string> args = convert_argv(argv, argc);
+/// entry point, takes in command-line arguments
+/// controls flow of compiler and calls modules
+/// @param argc argument count
+/// @param argv arguments
+/// @return error
+int main(int argc, _In_ char **argv) noexcept {
+    vector<string> args = convert_argv(argc, argv);
+    extract_name_and_expand(args);
 
-    CompilerState compiler_state;
-    decode_options(args, compiler_state);
+    decode_options(args);
+    check_errors();
 
-    if (compiler_state.test) {
-        return toplev::main();
+    produce_output_filenames();
+    clean_output_files();
+
+    Preprocessor::preprocess();
+    check_errors();
+
+    if (state.finish_stage == CompilerStage::preprocessed) {
+        clean_up_normal_exit();
+        return SUCCESS_EXIT_CODE;
     }
 
-    clean_outfiles(compiler_state);
+    Compiler::compile();
+    check_errors();
 
-    error = preprocess_code(compiler_state);
-    check_error(error);
-    check_tasks(compiler_state);
-
-    if (compiler_state.target == Targets::Win64) {
-        error = compile_for_win64(compiler_state);
-    } else if (compiler_state.target == Targets::NET) {
-        error = compile_for_dotnet_core(compiler_state);
+    if (state.finish_stage == CompilerStage::compiled) {
+        clean_up_normal_exit();
+        return SUCCESS_EXIT_CODE;
     }
-    check_error(error);
-    check_tasks(compiler_state);
 
-    error = assemble_for_win64(compiler_state);
-    check_error(error);
-    check_tasks(compiler_state);
+    Assembler::assemble();
+    check_errors();
 
-    error = link_for_win64(compiler_state);
-    check_error(error);
-    check_tasks(compiler_state);
+    if (state.finish_stage == CompilerStage::assembled) {
+        clean_up_normal_exit();
+        return SUCCESS_EXIT_CODE;
+    }
 
-    return error;
+    Linker::link();
+    check_errors();
+
+    if (state.finish_stage == CompilerStage::linked) {
+        clean_up_normal_exit();
+        return SUCCESS_EXIT_CODE;
+    }
+
+    return FATAL_EXIT_CODE;
 }
