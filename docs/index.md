@@ -1,4 +1,10 @@
-# BELTE Documentation Index
+# BELTE & Buckle Documentation
+
+BELTE is a object oriented programming language aiming to have the same feel and power of C# and C++, while also having some simplicity like Python.
+
+For a longer description visit my [GitHub page!](https://github.com/flamechain/BELTE)
+
+## Index
 
 Index for all parts of the language. Don't know where to start? Try [Getting Started](GettingStarted.md).
 
@@ -42,6 +48,8 @@ Index for all parts of the language. Don't know where to start? Try [Getting Sta
       - [virtual](Reference/Keywords/Modifier.md#virtual)
       - [override](Reference/Keywords/Modifier.md#override)
       - [static](Reference/Keywords/Modifier.md#static)
+      - [abstract](Reference/Keywords/Modifier.md#abstract)
+      - [sealed](Reference/Keywords/Modifier.md#sealed)
     - [Other](Reference/Keywords/Other.md)
       - [ref](Reference/Keywords/Other.md#reference)
       - [get](Reference/Keywords/Other.md#getter)
@@ -80,5 +88,8 @@ Index for all parts of the language. Don't know where to start? Try [Getting Sta
   - [Compiler Options](Buckle.md)
 - Standard Library
   - [File](STD/File.md)
-  - [Stdout](STD/Stdout.md)
+  - [Stdio](STD/Stdio.md)
   - [Math](STD/Math.md)
+  - [Time](STD/Time.md)
+  - [Random](STD/Random.md)
+  - [LowLevel](STD/LowLevel.md)

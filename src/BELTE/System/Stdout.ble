@@ -1,9 +1,0 @@
-
-namespace System {
-    public static class Stdout {
-
-        void print(string msg, string end="\n");
-        string input(string msg);
-
-    }
-}

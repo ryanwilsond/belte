@@ -1,0 +1,9 @@
+
+namespace System {
+    public static class Time {
+
+        datetime Now();
+        void Sleep(decimal seconds);
+
+    }
+}

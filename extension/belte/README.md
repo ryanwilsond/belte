@@ -2,7 +2,7 @@
 
 Language support for the BELTE programming language.
 
-Read more about BELTE at [github.com/flamechain/BELTE](https://github.com/flamechain/BELTE)
+Read more about BELTE at [flamechain.github.io/BELTE](https://flamechain.github.io/BELTE/)
 
 ## Features
 

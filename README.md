@@ -3,8 +3,7 @@
 This document covers what BELTE and Buckle are, their design principles, and how they are able to do optimizations to cut out physical concerns.
 This document **does not** cover the syntax and descriptions of BELTE and its libraries.
 
-> [Documentation for BELTE](docs/Index.md)
-> [Documentation for Buckle](docs/Buckle.md)
+> [Full BELTE & Buckle docs](https://flamechain.github.io/BELTE/)
 
 For sake of looking back this project started in December of 2021.
 

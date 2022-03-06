@@ -1,0 +1,8 @@
+
+namespace System {
+    public static class Random {
+
+        int Randint(int start, int end);
+
+    }
+}
