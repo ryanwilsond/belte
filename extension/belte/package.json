@@ -1,0 +1,29 @@
+{
+    "name": "belte",
+    "displayName": "BELTE",
+    "description": "Language support for BELTE",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.46.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "belte",
+            "aliases": ["Belte", "belte"],
+            "extensions": [".ble",".belte"],
+            "configuration": "./language-configuration.json",
+            "icon": {
+                "light": "./belte-icon.png",
+                "dark": "./belte-icon.png"
+            }
+        }],
+        "grammars": [{
+            "language": "belte",
+            "scopeName": "source.belte",
+            "path": "./syntaxes/belte.tmLanguage.json"
+        }]
+    }
+}
