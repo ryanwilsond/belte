@@ -1,5 +1,29 @@
 #include "compiler.hpp"
 
+namespace compiler {
+
+Token CreateToken(TokenType type, size_t pos) {
+    switch (type) {
+        case TokenType::EOFToken: return EndOfFileToken("", pos);
+        case TokenType::NUMBER: return NumberToken("", pos, true);
+        case TokenType::PLUS: return PlusToken("", pos);
+        case TokenType::MINUS: return MinusToken("", pos);
+        case TokenType::ASTERISK: return AsteriskToken("", pos);
+        case TokenType::SOLIDUS: return SolidusToken("", pos);
+        case TokenType::LPAREN: return LParenToken("", pos);
+        case TokenType::RPAREN: return RParenToken("", pos);
+        case TokenType::WHITESPACE: return WhitespaceToken("", pos);
+        default: return InvalidToken("", pos);
+    }
+}
+
+Node CreateNode(Token token) {
+    switch (token.type) {
+        case TokenType::NUMBER: return NumberNode(token);
+        default: return InvalidNode(token);
+    }
+}
+
 class Lexer {
 private:
 
@@ -53,21 +77,108 @@ public:
 
 };
 
+class Parser {
+private:
+
+    vector<Token> tokens_;
+    size_t pos_;
+
+    Token Peek(int offset) const {
+        if (offset < 0) offset *= -1;
+        size_t uoff = static_cast<size_t>(offset);
+        size_t index = pos_ + uoff;
+        if (index >= tokens_.size()) return tokens_[tokens_.size()-1];
+        return tokens_[index];
+    }
+
+    Token Current() const { return Peek(0); }
+
+    Token Next() {
+        auto current = Current();
+        pos_++;
+        return current;
+    }
+
+    Token Match(TokenType type) {
+        if (Current().type == type) return Next();
+        return CreateToken(type, Current().pos);
+    }
+
+public:
+
+    Parser(string text) {
+        Lexer lexer = Lexer(text);
+
+        while (true) {
+            auto token = lexer.Next();
+
+            if (token.type != TokenType::WHITESPACE && token.type != TokenType::BadToken)
+                tokens_.push_back(token);
+
+            if (token.type == TokenType::EOFToken) break;
+        }
+    }
+
+    Expression Parse() {
+        auto left = ParsePrimary();
+
+        while (Current().type == TokenType::PLUS || Current().type == TokenType::MINUS) {
+            auto opTok = Next();
+            auto right = ParsePrimary();
+            left = BinaryExpression(left, opTok, right);
+        }
+
+        return left;
+    }
+
+    Expression ParsePrimary() {
+        auto number = Match(TokenType::NUMBER);
+        return NumberNode(number);
+    }
+
+};
+
+void PrettyPrint(Node node, string indent, bool last) {
+    // ├ ─ └ │
+    // string marker = last ? "└─" : "├─";
+    string marker;
+    if (last) marker = "└─";
+    else marker = "├─";
+
+    // cout << indent << marker << node.Type();
+    printf("%s%s%s\n", indent.c_str(), marker.c_str(), node.Type().c_str());
+
+    indent += "│ ";
+
+    vector<Node> children = node.GetChildren();
+    if (children.size() == 0) last = true;
+    if (children[children.size()-1] == node) last = true;
+
+    printf("Children: %llu\n", children.size());
+    for (size_t i=0; i<children.size(); i++) {
+        PrettyPrint(children[i], indent, last);
+    }
+}
+
+}
+
+using namespace compiler;
+
 void Compiler::compile() noexcept {
     printf("> ");
     for (string line; getline(cin, line); printf("> ")) {
-        Lexer lexer = Lexer(line);
         if (null_or_whitespace(line)) break;
 
-        while (true) {
-            auto tok = lexer.Next();
-            if (tok.type == SyntaxTokenType::EOFToken) break;
-            if (tok.type == SyntaxTokenType::WHITESPACE) continue;
+        Parser parser = Parser(line);
+        auto expression = parser.Parse();
+        printf("expression: %s\n", expression.Type().c_str());
 
-            printf("%s: '%s' ", tok.Type().c_str(), tok.text.c_str());
-            if (tok.type == SyntaxTokenType::NUMBER) cout << tok.val_int;
-            printf("\n");
-        }
+        WORD color;
+        GetConsoleColor(color);
+        SetConsoleColor(COLOR_GRAY);
+        PrettyPrint(expression);
+        printf("done\n");
+        SetConsoleColor(color);
     }
 
     exit(0);

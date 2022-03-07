@@ -33,7 +33,7 @@ void decode_options(_In_ const vector<string>& args) noexcept {
 
                 state.link_output = args[i++];
             } else {
-                RaiseFatalError(format("Unknown argument '%s'.", arg));
+                RaiseFatalError(format("Unknown argument '%s'.", arg.c_str()));
             }
         } else {
             string filename = arg;
@@ -51,7 +51,7 @@ void decode_options(_In_ const vector<string>& args) noexcept {
             } else if (type == "o" || type == "obj") {
                 task.stage = CompilerStage::assembled;
             } else {
-                RaiseWarning(format("Unknown file extension '%s'. Ignoring input file '%s'.", type, filename));
+                RaiseWarning(format("Unknown file extension '%s'. Ignoring input file '%s'.", type.c_str(), filename.c_str()));
             }
 
             state.tasks.push_back(task);

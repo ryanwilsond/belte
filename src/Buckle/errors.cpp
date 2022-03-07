@@ -10,14 +10,25 @@ void check_errors() noexcept {
     }
 }
 
+bool GetConsoleColor(_Out_ WORD& ret) noexcept {
+    CONSOLE_SCREEN_BUFFER_INFO info;
+    if (!GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info)) return false;
+    ret = info.wAttributes;
+    return true;
+}
+
+bool SetConsoleColor(WORD color) noexcept {
+    if (!SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color)) return false;
+    return true;
+}
+
 void RaiseFatalError(_In_ const string& msg) noexcept {
     printf("%s: ", me.c_str());
 
-    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    SetConsoleTextAttribute(hConsole, COLOR_RED);
+    SetConsoleColor(COLOR_RED);
     printf("fatal error: ");
 
-    SetConsoleTextAttribute(hConsole, COLOR_WHITE);
+    SetConsoleColor(COLOR_WHITE);
     printf("%s\n", msg.c_str());
 
     error = FATAL_EXIT_CODE;
@@ -26,11 +37,10 @@ void RaiseFatalError(_In_ const string& msg) noexcept {
 void RaiseError(_In_ const string& msg) noexcept {
     printf("%s: ", me.c_str());
 
-    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    SetConsoleTextAttribute(hConsole, COLOR_RED);
+    SetConsoleColor(COLOR_RED);
     printf("error: ");
 
-    SetConsoleTextAttribute(hConsole, COLOR_WHITE);
+    SetConsoleColor(COLOR_WHITE);
     printf("%s\n", msg.c_str());
 
     error = ERROR_EXIT_CODE;
@@ -39,10 +49,9 @@ void RaiseError(_In_ const string& msg) noexcept {
 void RaiseWarning(_In_ const string& msg) noexcept {
     printf("%s: ", me.c_str());
 
-    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    SetConsoleTextAttribute(hConsole, COLOR_PURPLE);
+    SetConsoleColor(COLOR_PURPLE);
     printf("warning: ");
 
-    SetConsoleTextAttribute(hConsole, COLOR_WHITE);
+    SetConsoleColor(COLOR_WHITE);
     printf("%s\n", msg.c_str());
 }
