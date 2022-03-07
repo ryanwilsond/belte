@@ -119,45 +119,44 @@ public:
         }
     }
 
-    Expression Parse() {
+    shared_ptr<Expression> Parse() {
         auto left = ParsePrimary();
 
         while (Current().type == TokenType::PLUS || Current().type == TokenType::MINUS) {
             auto opTok = Next();
             auto right = ParsePrimary();
-            left = BinaryExpression(left, opTok, right);
+            left = make_unique<BinaryExpression>(BinaryExpression(*left, opTok, *right));
         }
 
         return left;
     }
 
-    Expression ParsePrimary() {
+    unique_ptr<Expression> ParsePrimary() {
         auto number = Match(TokenType::NUMBER);
-        return NumberNode(number);
+        auto num = make_unique<NumberNode>(NumberNode(number));
+        return num;
     }
 
 };
 
-void PrettyPrint(Node node, string indent, bool last) {
+void PrettyPrint(const Node& node, string indent, bool last) {
+    if (node.type == NodeType::BadNode) return;
+
     // ├ ─ └ │
-    // string marker = last ? "└─" : "├─";
-    string marker;
-    if (last) marker = "└─";
-    else marker = "├─";
+    string marker = last ? "+-" : "|-";
+    cout << indent << marker << node.Type() << endl;
 
-    // cout << indent << marker << node.Type();
-    printf("%s%s%s\n", indent.c_str(), marker.c_str(), node.Type().c_str());
-
-    indent += "│ ";
+    indent += "| ";
 
     vector<Node> children = node.GetChildren();
-    if (children.size() == 0) last = true;
-    if (children[children.size()-1] == node) last = true;
-
-    printf("Children: %llu\n", children.size());
-    for (size_t i=0; i<children.size(); i++) {
-        PrettyPrint(children[i], indent, last);
+    if (children.size() > 0) {
+        auto& lastChild = children[children.size()-1];
+        for (size_t i=0; i<children.size(); i++) {
+            PrettyPrint(children[i], indent, &children[i] == &lastChild);
+        }
     }
+
+
 }
 
 }
@@ -171,13 +170,11 @@ void Compiler::compile() noexcept {
 
         Parser parser = Parser(line);
         auto expression = parser.Parse();
-        printf("expression: %s\n", expression.Type().c_str());
 
         WORD color;
         GetConsoleColor(color);
         SetConsoleColor(COLOR_GRAY);
-        PrettyPrint(expression);
-        printf("done\n");
+        PrettyPrint(*expression.get());
         SetConsoleColor(color);
     }
 

@@ -5,11 +5,6 @@
 
 #include "utils.hpp"
 
-using std::cout;
-using std::getline;
-using std::cin;
-using std::endl;
-
 namespace compiler {
 
 enum TokenType {
@@ -77,8 +72,9 @@ class Node {
 public:
     const NodeType type;
     Token token;
-    virtual vector<Node> GetChildren() { return {CreateNode(token)}; }
+    virtual vector<Node> GetChildren() const { return { }; }
 
+    Node() : type(NodeType::BadNode) { }
     Node(NodeType _type) : type(_type) { }
 
     string Type() const {
@@ -91,8 +87,6 @@ public:
         }
     }
 
-    void operator=(const Node& node) { *this = node; }
-    bool operator==(const Node& node) { return *this == node; }
 };
 
 Token CreateToken(TokenType type, size_t pos);
@@ -204,7 +198,7 @@ public:
         token = _token;
     }
 
-    vector<Node> GetChildren() { return {CreateNode(token)}; }
+    vector<Node> GetChildren() const { return {CreateNode(token)}; }
 };
 
 class BinaryExpression : public Expression {
@@ -214,14 +208,14 @@ public:
     Expression right;
 
     BinaryExpression(Expression _left, Token _op, Expression _right) : Expression(NodeType::BINARY_EXPR), left(_left), op(_op), right(_right) { }
-    vector<Node> GetChildren() { return {left, CreateNode(op), right}; }
+    vector<Node> GetChildren() const { return {left, CreateNode(op), right}; }
 };
 
 class UnaryExpression : public Expression {
 
 };
 
-void PrettyPrint(Node node, string index="", bool last=false);
+void PrettyPrint(const Node& node, string index="", bool last=false);
 
 }
 
