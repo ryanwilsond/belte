@@ -17,13 +17,6 @@ Token CreateToken(TokenType type, size_t pos) {
     }
 }
 
-Node CreateNode(Token token) {
-    switch (token.type) {
-        case TokenType::NUMBER: return NumberNode(token);
-        default: return InvalidNode(token);
-    }
-}
-
 class Lexer {
 private:
 
@@ -107,6 +100,7 @@ private:
 public:
 
     Parser(string text) {
+        pos_ = 0;
         Lexer lexer = Lexer(text);
 
         while (true) {
@@ -125,15 +119,15 @@ public:
         while (Current().type == TokenType::PLUS || Current().type == TokenType::MINUS) {
             auto opTok = Next();
             auto right = ParsePrimary();
-            left = make_unique<BinaryExpression>(BinaryExpression(*left, opTok, *right));
+            left = make_shared<BinaryExpression>(BinaryExpression(*left, opTok, *right));
         }
 
         return left;
     }
 
-    unique_ptr<Expression> ParsePrimary() {
+    shared_ptr<Expression> ParsePrimary() {
         auto number = Match(TokenType::NUMBER);
-        auto num = make_unique<NumberNode>(NumberNode(number));
+        auto num = make_shared<NumberNode>(NumberNode(number));
         return num;
     }
 
@@ -155,8 +149,6 @@ void PrettyPrint(const Node& node, string indent, bool last) {
             PrettyPrint(children[i], indent, &children[i] == &lastChild);
         }
     }
-
-
 }
 
 }

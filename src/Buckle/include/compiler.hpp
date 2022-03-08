@@ -22,15 +22,34 @@ enum TokenType {
 
 enum NodeType {
     BadNode,
+    TokenNode,
     NUMBER_EXPR,
     BINARY_EXPR,
     UNARY_EXPR,
 };
 
-class Node;
-class Token;
+class Node {
+public:
+    const NodeType type;
+    virtual vector<Node> GetChildren() const { return { }; }
 
-class Token {
+    Node() : type(NodeType::BadNode) { }
+    Node(NodeType _type) : type(_type) { }
+
+    string Type() const {
+        switch (type) {
+            case NodeType::BadNode: return "InvalidNode";
+            case NodeType::TokenNode: return "TokenNode";
+            case NodeType::NUMBER_EXPR: return "NumberNode";
+            case NodeType::BINARY_EXPR: return "BinaryExpression";
+            case NodeType::UNARY_EXPR: return "UnaryExpression";
+            default: return "UnknownNode";
+        }
+    }
+
+};
+
+class Token : public Node {
 public:
 
     string text;
@@ -39,8 +58,8 @@ public:
     int val_int;
     bool is_null = true;
 
-    Token() : type(TokenType::BadToken) { }
-    Token(TokenType _type) : type(_type) { }
+    Token() : Node(NodeType::TokenNode), type(TokenType::BadToken) { }
+    Token(TokenType _type) : Node(NodeType::TokenNode), type(_type) { }
 
     string Type() const {
         if (type == TokenType::EOFToken) return "EOFToken";
@@ -65,31 +84,6 @@ public:
     }
 
 };
-
-Node CreateNode(Token token);
-
-class Node {
-public:
-    const NodeType type;
-    Token token;
-    virtual vector<Node> GetChildren() const { return { }; }
-
-    Node() : type(NodeType::BadNode) { }
-    Node(NodeType _type) : type(_type) { }
-
-    string Type() const {
-        switch (type) {
-            case NodeType::BadNode: return "InvalidNode";
-            case NodeType::NUMBER_EXPR: return "NumberNode";
-            case NodeType::BINARY_EXPR: return "BinaryExpression";
-            case NodeType::UNARY_EXPR: return "UnaryExpression";
-            default: return "UnknownNode";
-        }
-    }
-
-};
-
-Token CreateToken(TokenType type, size_t pos);
 
 class EndOfFileToken : public Token {
 public:
@@ -187,18 +181,17 @@ public:
 class InvalidNode : public Node {
 public:
     InvalidNode() : Node(NodeType::BadNode) { }
-    InvalidNode(Token _token) : Node(NodeType::BadNode) {
-        token = _token;
-    }
 };
 
 class NumberNode : public Expression {
 public:
+    Token token;
+
     NumberNode(Token _token) : Expression(NodeType::NUMBER_EXPR) {
         token = _token;
     }
 
-    vector<Node> GetChildren() const { return {CreateNode(token)}; }
+    vector<Node> GetChildren() const { return { token }; }
 };
 
 class BinaryExpression : public Expression {
@@ -208,7 +201,7 @@ public:
     Expression right;
 
     BinaryExpression(Expression _left, Token _op, Expression _right) : Expression(NodeType::BINARY_EXPR), left(_left), op(_op), right(_right) { }
-    vector<Node> GetChildren() const { return {left, CreateNode(op), right}; }
+    vector<Node> GetChildren() const { return { left, op, right }; }
 };
 
 class UnaryExpression : public Expression {
@@ -216,6 +209,7 @@ class UnaryExpression : public Expression {
 };
 
 void PrettyPrint(const Node& node, string index="", bool last=false);
+Token CreateToken(TokenType type, size_t pos);
 
 }
 
