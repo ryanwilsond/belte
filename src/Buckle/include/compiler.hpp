@@ -187,10 +187,7 @@ class NumberNode : public Expression {
 public:
     Token token;
 
-    NumberNode(Token _token) : Expression(NodeType::NUMBER_EXPR) {
-        token = _token;
-    }
-
+    NumberNode(Token _token) : Expression(NodeType::NUMBER_EXPR), token(_token) { }
     vector<Node> GetChildren() const { return { token }; }
 };
 
@@ -200,7 +197,7 @@ public:
     Token op;
     Expression right;
 
-    BinaryExpression(Expression _left, Token _op, Expression _right) : Expression(NodeType::BINARY_EXPR), left(_left), op(_op), right(_right) { }
+    BinaryExpression(const Expression& _left, const Token& _op, const Expression& _right) : Expression(NodeType::BINARY_EXPR), left(_left), op(_op), right(_right) { }
     vector<Node> GetChildren() const { return { left, op, right }; }
 };
 

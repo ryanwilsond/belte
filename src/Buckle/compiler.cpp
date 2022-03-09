@@ -127,8 +127,7 @@ public:
 
     shared_ptr<Expression> ParsePrimary() {
         auto number = Match(TokenType::NUMBER);
-        auto num = make_shared<NumberNode>(NumberNode(number));
-        return num;
+        return make_shared<NumberNode>(NumberNode(number));
     }
 
 };
