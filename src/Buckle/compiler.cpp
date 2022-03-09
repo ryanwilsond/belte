@@ -120,6 +120,7 @@ public:
             auto opTok = Next();
             auto right = ParsePrimary();
             left = make_shared<BinaryExpression>(BinaryExpression(*left, opTok, *right));
+            printf("size: %llu\n", left->GetChildren().size());
         }
 
         return left;
@@ -132,14 +133,16 @@ public:
 
 };
 
-void PrettyPrint(const Node& node, string indent, bool last) {
+void PrettyPrint(const Node& node, wstring indent, bool last) {
     if (node.type == NodeType::BadNode) return;
 
-    // ├ ─ └ │
-    string marker = last ? "+-" : "|-";
-    cout << indent << marker << node.Type() << endl;
+    _setmode(_fileno(stdout), _O_U16TEXT);
+    wstring marker = last ? L"└─" : L"├─"; // ?: is less readable but easier in this situation
+    wcout << indent << marker;
+    _setmode(_fileno(stdout), _O_TEXT);
+    cout << node.Type() << endl;
 
-    indent += "| ";
+    indent += last ? L"  " : L"│ ";
 
     vector<Node> children = node.GetChildren();
     if (children.size() > 0) {

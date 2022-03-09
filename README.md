@@ -61,6 +61,8 @@ There is no benefit to being able to choose between using a class versus a struc
 They are very basic classes that only exist because of the fact that they are closer to the machine. This is why some assembly languages and C have them, but not classes.
 **Physically** (on the hardware level, for speed and space efficiency) there is a benefit to structures, but the developer should not care, hence the compiler doing these optimizations without the input of the developer.
 
+One design challange is should bad statements be added because they are commonly used and people would not appreicate if they are gone. This is where the choice can be made to either keep on the path of doing it right, or aiming to make it accepted by the public. Some examples of this are the `goto` and `do while` statements, lamdas, and the `?:` operator. All of these examples are hard to read. Goto is a harder to read function, or a hack to exit a nested loop. Do while makes you go to the bottom of the statement to read the condition. Lamdas are harder to read inline functions, similar to macros. The ?: operator is a harder to read if-else statement, especially because it is not in every language.
+
 \* With the exception of low-level tasks that require maximum efficiency or low-level features, e.g. using assembly language ever.
 
 ___

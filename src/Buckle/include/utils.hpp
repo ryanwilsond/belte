@@ -4,15 +4,29 @@
 #define UTILITIES_HPP
 
 #include <rutils.h>
-#include <cstdio>
 #include <string>
 #include <vector>
 #include <map>
 #include <iostream>
+
+#include <cstdio>
+#include <cwchar>
+#include <clocale>
+#include <io.h>
 #include <fcntl.h>
 
 #include "errors.hpp"
 #include "state.hpp"
+
+#ifndef _O_U16TEXT
+    #define _O_U16TEXT 0x20000
+#endif
+#ifndef _O_U8TEXT
+    #define _O_U8TEXT 0x40000
+#endif
+#ifndef _O_TEXT
+    #define _O_TEXT 0x4000
+#endif
 
 using namespace rutils;
 
@@ -29,6 +43,7 @@ using std::getline;
 using std::cin;
 using std::endl;
 using std::wcout;
+using wstring = std::basic_string<wchar_t>;
 
 extern CompilerState state;
 extern string me;

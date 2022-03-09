@@ -205,7 +205,7 @@ class UnaryExpression : public Expression {
 
 };
 
-void PrettyPrint(const Node& node, string index="", bool last=false);
+void PrettyPrint(const Node& node, wstring index=L"", bool last=true);
 Token CreateToken(TokenType type, size_t pos);
 
 }
