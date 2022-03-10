@@ -2,6 +2,12 @@
 
 This document covers many concepts and inspirations behind BELTE, and also its major design principles.
 
+- [Introduction](#introduction--logical-vs-physical)
+- [Optimization](#optimization-tasks)
+- [Consistency](#consistency)
+- [Data Types](#datatypes)
+- [Ilities](#ilities)
+
 ## Introduction & Logical vs Physical
 
 BELTE is a statically and strongly typed language most similar to C# (BELTE is object oriented), compiled using the Buckle compiler.
