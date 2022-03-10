@@ -30,6 +30,8 @@ private:
 
 public:
 
+    vector<string> Diagnostics;
+
     Lexer(string _text) : text_(_text) {
         pos_ = 0;
     }
@@ -64,6 +66,7 @@ public:
         else if (Current() == '(') return LParenToken("(", pos_++);
         else if (Current() == ')') return RParenToken(")", pos_++);
 
+        Diagnostics.push_back(format("bad character input `%c`", Current()));
         pos_++;
         return InvalidToken(text_.substr(pos_-1, 1), pos_);
     }
@@ -94,10 +97,13 @@ private:
 
     Token Match(TokenType type) {
         if (Current().type == type) return Next();
+        Diagnostics.push_back(format("unexpected token `%s`, expected token of type `%s`", Current().Type(), Token::Type(type)));
         return CreateToken(type, Current().pos);
     }
 
 public:
+
+    vector<string> Diagnostics;
 
     Parser(string text) {
         pos_ = 0;
@@ -111,6 +117,8 @@ public:
 
             if (token.type == TokenType::EOFToken) break;
         }
+
+        Diagnostics.insert(Diagnostics.end(), lexer.Diagnostics.begin(), lexer.Diagnostics.end());
     }
 
     shared_ptr<Expression> Parse() {
@@ -119,8 +127,7 @@ public:
         while (Current().type == TokenType::PLUS || Current().type == TokenType::MINUS) {
             auto opTok = Next();
             auto right = ParsePrimary();
-            left = make_shared<BinaryExpression>(BinaryExpression(*left, opTok, *right));
-            printf("size: %llu\n", left->GetChildren().size());
+            left = make_shared<BinaryExpression>(BinaryExpression(left, make_shared<Token>(opTok), right));
         }
 
         return left;
@@ -133,22 +140,37 @@ public:
 
 };
 
-void PrettyPrint(const Node& node, wstring indent, bool last) {
-    if (node.type == NodeType::BadNode) return;
+void PrettyPrint(shared_ptr<Node> node, wstring indent, bool last) {
+    if (node->type == NodeType::BadNode) return;
 
     _setmode(_fileno(stdout), _O_U16TEXT);
     wstring marker = last ? L"└─" : L"├─"; // ?: is less readable but easier in this situation
     wcout << indent << marker;
     _setmode(_fileno(stdout), _O_TEXT);
-    cout << node.Type() << endl;
+    cout << node->Type() << endl;
 
     indent += last ? L"  " : L"│ ";
 
-    vector<Node> children = node.GetChildren();
+    vector<shared_ptr<Node>> children;
+
+    switch (node->type) {
+        case NodeType::NUMBER_EXPR: {
+            NumberNode* nodec = dynamic_cast<NumberNode*>(node.get());
+            children = nodec->GetChildren();
+            break; }
+        case NodeType::BINARY_EXPR: {
+            BinaryExpression* nodec = dynamic_cast<BinaryExpression*>(node.get());
+            children = nodec->GetChildren();
+            break; }
+        default: {
+            children = { };
+            break; }
+    }
+
     if (children.size() > 0) {
-        auto& lastChild = children[children.size()-1];
+        auto lastChild = children[children.size()-1];
         for (size_t i=0; i<children.size(); i++) {
-            PrettyPrint(children[i], indent, &children[i] == &lastChild);
+            PrettyPrint(children[i], indent, children[i] == lastChild);
         }
     }
 }
@@ -168,8 +190,12 @@ void Compiler::compile() noexcept {
         WORD color;
         GetConsoleColor(color);
         SetConsoleColor(COLOR_GRAY);
-        PrettyPrint(*expression.get());
+        PrettyPrint(expression);
         SetConsoleColor(color);
+
+        for (string err : parser.Diagnostics) {
+            RaiseError(err);
+        }
     }
 
     exit(0);

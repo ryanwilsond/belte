@@ -28,12 +28,12 @@ void decode_options(_In_ const vector<string>& args) noexcept {
             } else if (arg == "-o") {
                 specify_out = true;
                 if (i >= args.size()-1) {
-                    RaiseFatalError("Missing output filename (with '-o').");
+                    RaiseFatalError("missing output filename (with '-o')");
                 }
 
                 state.link_output = args[i++];
             } else {
-                RaiseFatalError(format("Unknown argument '%s'.", arg.c_str()));
+                RaiseFatalError(format("unknown argument '%s'", arg.c_str()));
             }
         } else {
             string filename = arg;
@@ -51,7 +51,7 @@ void decode_options(_In_ const vector<string>& args) noexcept {
             } else if (type == "o" || type == "obj") {
                 task.stage = CompilerStage::assembled;
             } else {
-                RaiseWarning(format("Unknown file extension '%s'. Ignoring input file '%s'.", type.c_str(), filename.c_str()));
+                RaiseWarning(format("unknown file type of input file '%s'; ignoring", filename.c_str()));
             }
 
             state.tasks.push_back(task);
@@ -59,8 +59,8 @@ void decode_options(_In_ const vector<string>& args) noexcept {
     }
 
     // final error checking
-    if (specify_out && specify_stage) RaiseFatalError("Cannot specify output file with '-E', '-S', or '-c'.");
-    if (state.tasks.size() == 0) RaiseFatalError("No input files.");
+    if (specify_out && specify_stage) RaiseFatalError("cannot specify output file with '-E', '-S', or '-c'");
+    if (state.tasks.size() == 0) RaiseFatalError("no input files");
 
 }
 

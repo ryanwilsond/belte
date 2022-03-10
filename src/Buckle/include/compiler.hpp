@@ -31,7 +31,7 @@ enum NodeType {
 class Node {
 public:
     const NodeType type;
-    virtual vector<Node> GetChildren() const { return { }; }
+    virtual vector<shared_ptr<Node>> GetChildren() const { return { }; }
 
     Node() : type(NodeType::BadNode) { }
     Node(NodeType _type) : type(_type) { }
@@ -61,19 +61,22 @@ public:
     Token() : Node(NodeType::TokenNode), type(TokenType::BadToken) { }
     Token(TokenType _type) : Node(NodeType::TokenNode), type(_type) { }
 
-    string Type() const {
-        if (type == TokenType::EOFToken) return "EOFToken";
-        else if (type == TokenType::BadToken) return "InvalidToken";
-        else if (type == TokenType::NUMBER) return "NUMBER";
-        else if (type == TokenType::PLUS) return "PLUS";
-        else if (type == TokenType::MINUS) return "MINUS";
-        else if (type == TokenType::ASTERISK) return "ASTERISK";
-        else if (type == TokenType::SOLIDUS) return "SOLIDUS";
-        else if (type == TokenType::LPAREN) return "LPAREN";
-        else if (type == TokenType::RPAREN) return "RPAREN";
-        else if (type == TokenType::WHITESPACE) return "WHITESPACE";
-        return "UnknownToken";
+    static string Type(TokenType _type) {
+        switch (_type) {
+            case TokenType::EOFToken: return "EOFToken";
+            case TokenType::BadToken: return "InvalidToken";
+            case TokenType::PLUS: return "PLUS";
+            case TokenType::MINUS: return "MINUS";
+            case TokenType::ASTERISK: return "ASTERISK";
+            case TokenType::SOLIDUS: return "SOLIDUS";
+            case TokenType::LPAREN: return "LPAREN";
+            case TokenType::RPAREN: return "RPAREN";
+            case TokenType::WHITESPACE: return "WHITESPACE";
+            default: return "UnknownToken";
+        }
     }
+
+    string Type() const { return Token::Type(type); }
 
     void operator=(const Token& token) {
         text = token.text;
@@ -188,24 +191,28 @@ public:
     Token token;
 
     NumberNode(Token _token) : Expression(NodeType::NUMBER_EXPR), token(_token) { }
-    vector<Node> GetChildren() const { return { token }; }
+    vector<shared_ptr<Node>> GetChildren() const { return { make_shared<Token>(token) }; }
 };
 
 class BinaryExpression : public Expression {
 public:
-    Expression left;
-    Token op;
-    Expression right;
+    shared_ptr<Expression> left;
+    shared_ptr<Token> op;
+    shared_ptr<Expression> right;
 
-    BinaryExpression(const Expression& _left, const Token& _op, const Expression& _right) : Expression(NodeType::BINARY_EXPR), left(_left), op(_op), right(_right) { }
-    vector<Node> GetChildren() const { return { left, op, right }; }
+    BinaryExpression(shared_ptr<Expression> _left, shared_ptr<Token> _op, shared_ptr<Expression> _right) : Expression(NodeType::BINARY_EXPR) {
+        left = _left;
+        op = _op;
+        right = _right;
+    }
+    vector<shared_ptr<Node>> GetChildren() const { return { left, op, right }; }
 };
 
 class UnaryExpression : public Expression {
 
 };
 
-void PrettyPrint(const Node& node, wstring index=L"", bool last=true);
+void PrettyPrint(shared_ptr<Node> node, wstring index=L"", bool last=true);
 Token CreateToken(TokenType type, size_t pos);
 
 }
