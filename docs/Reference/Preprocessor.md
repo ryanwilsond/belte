@@ -117,31 +117,3 @@ Disables or enables a warning message.
 #pragma warning enable unused
 #pragma warning default unused
 ```
-
-## \#pragma entry
-
-Changes entry point (compiler produces error if there are conflicting entry statements).
-
-C# approach:
-
-```belte
-#pragma entry Project::Program::Main
-
-namespace Project {
-    class Program {
-        int Main() {
-            ...
-        }
-    }
-}
-```
-
-C++ approach:
-
-```belte
-#pragma entry main
-
-int main() {
-    ...
-}
-```

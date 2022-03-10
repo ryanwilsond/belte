@@ -4,11 +4,7 @@
 
 ___
 
-## Positive/Unsigned Integer
-
-___
-
-## Decimal Number
+## Decimal
 
 ___
 

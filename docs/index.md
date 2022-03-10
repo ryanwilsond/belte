@@ -6,8 +6,13 @@ For a longer description visit my [GitHub page!](https://github.com/flamechain/B
 
 ## Index
 
-Index for all parts of the language. Don't know where to start? Try [Getting Started](GettingStarted.md).
+Index for all parts of the language.
 
+> Don't know where to start? Try [Getting Started](GettingStarted.md).
+
+> For more info about the language try [Principles](Principles.md).
+
+- [Principles](Principles.md)
 - [Getting Started](GettingStarted.md)
 - Tutorials
   - [Hello World](Tutorial/HelloWorld.md)
@@ -15,25 +20,29 @@ Index for all parts of the language. Don't know where to start? Try [Getting Sta
 - Language Reference
   - Types
     - STI (Standard Types Implementation)
-      - [object](Reference/Types/Simple.md#object)
-      - [bool](Reference/Types/Simple.md#boolean)
-      - [tuple](Reference/Types/Simple.md#tuple)
-      - [collection](Reference/Types/Enumerable.md#collection)
-      - [map](Reference/Types/Enumerable.md#map)
-      - [set](Reference/Types/Enumerable.md#set)
-      - [int](Reference/Types/Numerical.md#integer)
-      - [uint](Reference/Types/Numerical.md#positiveunsigned-integer)
-      - [decimal](Reference/Types/Numerical.md#decimal-number)
-      - [byte](Reference/Types/Numerical.md#byte)
-      - [string](Reference/Types/String.md)
-      - [datetime](Reference/Types/DateTime.md)
-      - [type](Reference/Types/Type.md)
-      - [iterator](Reference/Types/Iterator.md)
-    - [dynamic](Reference/Types/Definition.md#dynamic-typing)
-    - [auto](Reference/Types/Definition.md#implicit-typing)
-    - [class](Reference/Types/Definition.md#classes)
-    - [interface](Reference/Types/Definition.md#interfaces)
-    - [void](Reference/Types/Definition.md#void)
+      - Built-ins
+        - [object](Reference/Types/Simple.md#object)
+        - [type](Reference/Types/Simple.md#type)
+        - [bool](Reference/Types/Simple.md#boolean)
+        - [decimal](Reference/Types/Numerical.md#decimal)
+        - [byte](Reference/Types/Numerical.md#byte)
+        - [int](Reference/Types/Numerical.md#integer)
+      - Include-with
+        - [tuple](Reference/Types/Simple.md#tuple)
+        - [collection](Reference/Types/Enumerable.md#collection)
+        - [map](Reference/Types/Enumerable.md#map)
+        - [iterator](Reference/Types/Enumerable.md#iterator)
+        - [set](Reference/Types/Enumerable.md#set)
+        - [string](Reference/Types/String.md)
+        - [date](Reference/Types/Time.md#date)
+        - [datetime](Reference/Types/Time.md#datetime)
+        - [time](Reference/Types/Time.md#time)
+        - [guid](Reference/Types/Guid.md)
+    - [dynamic](Reference/Types/Defining.md#dynamic-typing)
+    - [auto](Reference/Types/Defining.md#implicit-typing)
+    - [class](Reference/Types/Defining.md#classes)
+    - [interface](Reference/Types/Defining.md#interfaces)
+    - [void](Reference/Types/Defining.md#void)
   - Keywords
     - [Scope](Reference/Keywords/Scope.md)
       - [include](Reference/Keywords/Scope.md#include)
@@ -86,10 +95,11 @@ Index for all parts of the language. Don't know where to start? Try [Getting Sta
     - [#error](Reference/Preprocessor.md#messages)
     - [#pragma](Reference/Preprocessor.md#pragmas)
   - [Compiler Options](Buckle.md)
-- Standard Library
-  - [File](STD/File.md)
+- Standard Library (Shipped-with)
   - [Stdio](STD/Stdio.md)
   - [Math](STD/Math.md)
-  - [Time](STD/Time.md)
   - [Random](STD/Random.md)
+  - [JSON](STD/JSON.md)
+  - [XML](STD/XML.md)
+  - [Regex](STD/Regex.md)
   - [LowLevel](STD/LowLevel.md)
