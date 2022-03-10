@@ -4,9 +4,15 @@ TODO
     * Implement TypeBase
     * Add Parser
     * Finish Lexer
+    * Add file exists checking for input files
+    * Add keywords for pragma statements (warning, entry)
     * Add docstrings to InterfaceBase & TypeBase & System Libraries
     * Add base inherited interfaces to base types
     * String interpolation regex
     * preprocessor constant regex
+    * fix doxygen comment regex to highlight
     * type followed by () use function highlighting (for basic type declarations)
     * fix extension example image
+    * fix static class, namespace, and enum access regex (Myenum::something wrong colors)
+    * intellisense for extension
+    * rename stdio to console OR have it include System.File
