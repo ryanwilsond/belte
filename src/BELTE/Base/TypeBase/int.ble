@@ -1,6 +1,6 @@
 
 namespace Base {
-    public class int {
+    public class int<int Min=null, int Max=null> {
 
     }
 }
