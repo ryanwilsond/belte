@@ -1,0 +1,6 @@
+
+namespace System {
+
+void Exit(int error);
+
+}

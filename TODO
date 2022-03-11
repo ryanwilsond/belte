@@ -9,6 +9,7 @@ TODO
     * Finish Lexer
     * Add file exists checking for input files
 
+    * remove <> auto closing
     * Add keywords for pragma statements (warning, entry)
     * String interpolation regex
     * preprocessor constant regex
@@ -16,7 +17,12 @@ TODO
     * type followed by () use function highlighting (for basic type declarations)
     * intellisense for extension
     * fix extension example image
-    * add new types to regex
+    * add new built-in types to regex
+    * add &&, ||, ! and word counterparts
+    * add yellow highlighting to <name>.<something> name if enum, remove if not
+    * make class constructors not look like functions (intellisense probably)
+
+    * add Consistency to Ilities
 
 Outside Ideas:
 

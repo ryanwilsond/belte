@@ -1,0 +1,50 @@
+
+namespace Compiler {
+
+
+
+}
+
+namespace Buckle {
+
+void PrettyPrint(Node node, string indent, bool last) {
+    if (node.Type == NodeType.BadNode) return;
+
+    string marker = last ? "└─" : "├─";
+    Console.Print($"{indent}{marker}{node.Type}");
+
+    indent += last ? "  " : "│ ";
+    auto lastChild = node.GetChildren().LastOrDefault();
+
+    for (Node child : node.GetChildren()) {
+        PrettyPrint(child, indent, child == lastChild);
+    }
+}
+
+public static class Compiler {
+    string PS1 = "> ";
+
+    void compile() {
+        Printn(PS1);
+        
+        while (true) {
+            string line = Console.Input(PS1);
+            if (line.IsNullOrWhitespace()) break;
+
+            Parser parser = Parser(line);
+            auto expr = parser.Parse();
+
+            Console.SetTempForegroundColor(Console.Color.Gray);
+            PrettyPrint(expr);
+            Console.RemoveTempForegroundColor();
+
+            for (string err : parser.Diagnostics) {
+                RaiseError(err);
+            }
+        }
+    }
+
+    Exit(0);
+}
+
+}

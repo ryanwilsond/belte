@@ -1,4 +1,3 @@
-#pragma entry Buckle::main
 
 namespace Buckle {
 
@@ -19,34 +18,34 @@ int main(string[] args) {
     produce_output_filenames();
     clean_output_files();
 
-    Preprocessor::preprocess();
+    Preprocessor.preprocess();
     check_errors();
 
-    if (state.finish_stage == CompilerState::compiled) {
+    if (state.finish_stage == CompilerState.compiled) {
         clean_up_normal_exit();
         return SUCCESS_EXIT_CODE;
     }
 
-    Compiler::compile();
+    Compiler.compile();
     check_errors();
 
-    if (state.finish_stage == CompilerStage::compiled) {
+    if (state.finish_stage == CompilerStage.compiled) {
         clean_up_normal_exit();
         return SUCCESS_EXIT_CODE;
     }
 
-    Assembler::assemble();
+    Assembler.assemble();
     check_errors();
 
-    if (state.finish_stage == CompilerStage::assembled) {
+    if (state.finish_stage == CompilerStage.assembled) {
         clean_up_normal_exit();
         return SUCCESS_EXIT_CODE;
     }
 
-    Linker::link();
+    Linker.link();
     check_errors();
 
-    if (state.finish_stage == CompilerStage::linked) {
+    if (state.finish_stage == CompilerStage.linked) {
         clean_up_normal_exit();
         return SUCCESS_EXIT_CODE;
     }

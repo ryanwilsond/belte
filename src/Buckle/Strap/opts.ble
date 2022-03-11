@@ -1,0 +1,108 @@
+
+namespace Buckle {
+
+void decode_options(string[] args) {
+    bool specify_stage = false;
+    bool specify_out = false;
+
+    state.finish_stage = CompilerStage.linked;
+    state.link_output = "a.exe";
+
+    for (int i=0; i<args.Count(); i++) {
+        string arg = args[i];
+
+        if (arg.StartsWith("-")) {
+            switch (arg) {
+                case "-E":
+                    specify_stage = true;
+                    state.finish_stage = CompilerStage.preprocessed;
+                    break;
+                case "-S":
+                    specify_stage = true;
+                    state.finish_stage = CompilerStage.compiled;
+                    break;
+                case "-c":
+                    specify_stage = true;
+                    state.finish_stage = CompilerStage.assembled;
+                    break;
+                case "-r":
+                    error = SUCCESS_EXIT_CODE;
+                    return;
+                case "-o":
+                    specify_out = true;
+                    if (i >= args.count()-1)
+                        RaiseFatalError("missing output filename");
+                    state.link_output = args[i++];
+                    break;
+                default:
+                    RaiseFatalError($"unknown argument {arg}");
+                    break;
+            }
+        } else {
+            string filename = arg;
+            string[] parts = filename.Split(".");
+            string filetype = parts[-1];
+            FileState task;
+            task.in_filename = filename;
+
+            switch (filetype) {
+                case "ble":
+                    task.stage = CompilerStage.raw;
+                    break;
+                case "pble":
+                    task.stage = CompilerStage.preprocessed;
+                    break;
+                case "asm":
+                case "s":
+                    task.stage = CompilerStage.compiled;
+                    break;
+                case "obj":
+                case "o":
+                    task.stage = CompilerStage.assembled;
+                    break;
+                default:
+                    RaiseWarning($"unknown file type of input file {filename}; ignorning");
+                    break;
+            }
+
+            state.tasks.Append(task);
+        }
+    }
+
+    if (specify_out && specify_stage) RaiseFatalError("cannot specify output file with '-E', '-S', or '-c'");
+    if (state.tasks.count() == 0) RaiseFatalError("no input files");
+}
+
+void produce_output_filenames() {
+    if (state.finish_stage == CompilerStage.linked) return;
+
+    for (FileState file : state.tasks) {
+        string inter = file.in_filename.Split(".")[0];
+
+        switch (state.finish_stage) {
+            case CompilerStage.preprocessed:
+                inter += ".pble";
+                break;
+            case CompilerStage.compiled:
+                inter += ".s";
+                break;
+            case CompilerStage.assembled:
+                inter += ".o";
+                break;
+            default: break;
+        }
+    }
+}
+
+void clean_output_files() {
+    if (state.finish_stage == CompilerStage::linked) {
+        File.Remove(state.link_output);
+        return;
+    }
+
+    for (FileState file : state.tasks) {
+        File.Remove(file.out_filename);
+    }
+}
+
+}

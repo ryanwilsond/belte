@@ -1,0 +1,47 @@
+
+namespace Buckle {
+
+#define SUCCESS_EXIT_CODE 0
+#define FATAL_EXIT_CODE 1
+#define ERROR_EXIT_CODE 2 // compilation errors
+
+int<0,2> error;
+
+void Printn(string msg) { Console.Print(msg, end=""); }
+
+void check_errors() {
+    if (error) {
+        clean_up_early_exit();
+        Exit(error);
+    }
+}
+
+void RaiseFatalError(string msg) {
+    Printn(msg);
+    Console.SetTempForegroundColor(Console.Color.Red);
+    Printn("fatal error: ");
+    Console.RemoveTempForegroundColor();
+    Console.Print(msg);
+
+    error = FATAL_EXIT_CODE;
+}
+
+void RaiseError(string msg) {
+    Printn(msg);
+    Console.SetTempForegroundColor(Console.Color.Red);
+    Printn("error: ");
+    Console.RemoveTempForegroundColor();
+    Console.Print(msg);
+
+    error = FATAL_EXIT_CODE;
+}
+
+void RaiseWarning(string msg) {
+    Printn(msg);
+    Console.SetTempForegroundColor(Console.Color.Purple);
+    Printn("warningr: ");
+    Console.RemoveTempForegroundColor();
+    Console.Print(msg);
+}
+
+}

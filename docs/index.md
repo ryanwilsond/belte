@@ -96,10 +96,15 @@ Index for all parts of the language.
     - [#pragma](Reference/Preprocessor.md#pragmas)
   - [Compiler Options](Buckle.md)
 - Standard Library (Shipped-with)
-  - [Stdio](STD/Stdio.md)
+  - [Base](STD/Base.md)\*
+  - [System](STD/System.md)\*
+  - [File](STD/File.md)\*
+  - [Console](STD/Console.md)\*
   - [Math](STD/Math.md)
   - [Random](STD/Random.md)
   - [JSON](STD/JSON.md)
   - [XML](STD/XML.md)
   - [Regex](STD/Regex.md)
   - [LowLevel](STD/LowLevel.md)
+
+\* Implicitly included

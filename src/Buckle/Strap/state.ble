@@ -1,4 +1,3 @@
-include System.File;
 
 namespace Buckle {
 
@@ -15,10 +14,10 @@ class FileState {
     CompilerStage stage;
     string out_filename = "";
 
-    class {
+    inline class FileContent {
         string[] lines;
         byte[] bytes;
-    } FileContent;
+    };
 
 }
 
@@ -34,17 +33,17 @@ void clean_up_early_exit() { }
 
 /// Cleans up resources on compilation finish
 void clean_up_normal_exit() {
-    if (state.finish_stage == CompilerStage::linked) {
-        File::WriteAllBytes(state.link_output, state.link_content);
+    if (state.finish_stage == CompilerStage.linked) {
+        File.WriteAllBytes(state.link_output, state.link_content);
         return;
     }
 
     for (FileState file : state.tasks) {
-        if (file.stage == state.finish_stage) {
-            if (file.stage == CompilerStage::assembled) {
-                File::WriteAllBytes(file.out_filename, file.FileContent.bytes);
+        if (File.stage == state.finish_stage) {
+            if (file.stage == CompilerStage.assembled) {
+                File.WriteAllBytes(file.out_filename, file.FileContent.bytes);
             } else {
-                File::WriteAllLines(file.out_filename, file.FileContent.lines);
+                File.WriteAllLines(file.out_filename, file.FileContent.lines);
             }
         }
     }

@@ -1,0 +1,8 @@
+
+namespace Buckle {
+
+public static class Assembler {
+    void assemble() { }
+}
+
+}

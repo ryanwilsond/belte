@@ -1,0 +1,20 @@
+
+namespace System {
+    public class File {
+
+        static bool Create(string filename);
+        static bool Exists(string filename);
+        static bool Remove(string filename);
+        static string ReadAllText(string filename);
+        static string[] ReadAllLines(string filename);
+        static byte[] ReadAllBytes(string filename);
+        static void WriteAllText(string filename, string text);
+        static void WriteAllLines(string filename, string[] lines);
+        static void WriteAllBytes(string filename, byte[] bytes);
+        static bool DirectoryExists(string dirname);
+        static void CreateDirectory(string dirname);
+        static bool RemoveDirectory(string dirname);
+        static string GetWorkingDir();
+
+    }
+}

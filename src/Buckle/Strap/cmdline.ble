@@ -1,0 +1,11 @@
+
+namespace Buckle {
+
+void extract_name_and_expand(string[] args) {
+    string[] parts = args[0].Split("\\");
+    me = parts[-1];
+    me = me.Split(".")[0];
+    args.Remove(0);
+}
+
+}
