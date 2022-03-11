@@ -36,6 +36,9 @@
 				"name": "keyword.operator.arithmetic.belte",
 				"match": "\\b(/|\\*|(\\*\\*)|\\+|\\-|\\%)\\b"
 			}, {
+				"name": "keyword.operator.logical.belte",
+				"match": "(&&|\\|\\||!)"
+			}, {
 				"name": "keyword.preprocessor.belte",
 				"match": "^\\s*(\\#\\s*(define|pragma|undef|if|elif|else|end|warning|error))\\b"
 			}]
@@ -55,7 +58,7 @@
 		"storage": {
 			"patterns": [{
 				"name": "storage.type.built-in.belte",
-				"match": "\\b(int|uint|decimal|string|void|bool|byte|datetime|iterator|map|object|set|tuple|type)\\b"
+				"match": "\\b(int|decimal|string|void|bool|byte|datetime|iterator|map|object|set|tuple|type|time|date|guid)\\b"
 			}, {
 				"name": "storage.type.namespace.belte",
 				"match": "\\b(namespace)\\b"
@@ -140,6 +143,12 @@
 			}, {
 				"name": "entity.name.type.specifier.belte",
 				"match": "\\b(?<=\\<[a-zA-Z_]+[\\w\\,\\s\\=]+)(?<!\\>)\\s+([a-zA-Z_]+\\w*)\\b"
+			}, {
+				"name": "entity.name.function.preprocessor.belte",
+				"match": "(?<=#define|#undef)\\s+\\S+"
+			}, {
+				"name": "entity.preprocessor.other.belte",
+				"match": "((?<=#pragma|#if|#elif)\\s+.*)|((?<=#define\\s+.*)\\s+[^\\n]+\\n)"
 			}]
 		},
 		"variable": {

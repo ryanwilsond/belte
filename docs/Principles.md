@@ -145,6 +145,10 @@ List of priorities in order of most important to least important.
 
 BELTE focusses on functionality as the first goal. This is one of the reasons that the syntax and design of the language were the first todo. Not biassed by industry standards, ease of implementation, or something similar. This language aims to fix issues with programming languages, added a unique spin on a c-style language. It aims to be intuitive like Python, robust like C#, high performance like C++, and able to be applicable to most situations.
 
+### Consistency
+
+A good way to make a language hard to use is to not keep strict guidelines that hold up the standard of consistency. Not only as a style guide, but as the language design itself. Everything in BELTE aims to be as consistent as possible, reducing the background knowledge the developer is required to have. A good example to highlight this is value types versus reference types in C#. The developer must know if the object they are using are value or reference types, while in BELTE every type is a value type by default. This includes built-ins, and user defined types. This helps code readability, and ease of developing.
+
 ### Usability
 
 After the core functionality is there, the language also aims to be easy to use. Good for beginners, while also having the power of C++. This hopefully makes it very accessible and popular. Python got a lot of its popularity from its simplicity, and BELTE aims to do the same.

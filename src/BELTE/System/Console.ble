@@ -1,6 +1,6 @@
 
 namespace System {
-    public class Console {
+    public static class Console {
 
         enum Color {
             Blue,

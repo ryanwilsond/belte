@@ -1,6 +1,5 @@
 TODO
 
-    * Implement InterfaceBase
     * Implement TypeBase
     * Add docstrings to InterfaceBase & TypeBase & System Libraries
     * Add base inherited interfaces to base types
@@ -9,27 +8,26 @@ TODO
     * Finish Lexer
     * Add file exists checking for input files
 
-    * remove <> auto closing
-    * Add keywords for pragma statements (warning, entry)
     * String interpolation regex
-    * preprocessor constant regex
+    * preprocessor constant regex (intellisense)
     * fix doxygen comment regex to highlight
     * type followed by () use function highlighting (for basic type declarations)
     * intellisense for extension
     * fix extension example image
-    * add new built-in types to regex
-    * add &&, ||, ! and word counterparts
     * add yellow highlighting to <name>.<something> name if enum, remove if not
     * make class constructors not look like functions (intellisense probably)
+    * word counterparts to logical operators?
 
     * add Consistency to Ilities
+    * finish all docs
+    * fix line character limit to wrap on words not sentences
 
 Outside Ideas:
 
     * customizable types with restraints, regex with strings
     * reflection .net, typeof, nameof
-    * enums with strings
     * decorators
-    * switch over string
+    * switch over any built-in data type
+    * enums with strings
     * enum have multiple fields
     * ability to add enum entries at code-time
