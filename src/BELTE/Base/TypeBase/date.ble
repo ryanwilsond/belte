@@ -1,4 +1,6 @@
 
 namespace Base {
+    public class date {
 
+    }
 }
