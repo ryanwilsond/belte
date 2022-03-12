@@ -1,6 +1,6 @@
 
 namespace Base {
-    public class string<int<0,null> MinSize=null, int<0,null> MaxSize=null, string Match=".*"> {
+    public class string<int<0,null> MinSize=null, int<MinSize,null> MaxSize=null, string Match=null> {
 
     }
 }
