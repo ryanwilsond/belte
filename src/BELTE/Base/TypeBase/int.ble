@@ -1,6 +1,13 @@
 
 namespace Base {
-    public class int<int Min=null, int Max=null> {
+    public class int<int Min=null, int Max=null> : IComparable, IComparable<int>, IConvertible {
+        const int MaxValue = Max;
+        const int MinValue = Min;
+
+        static int Parse(string str);
+        int<-1,1> CompareTo(object value);
+        int<-1,1> CompareTo(int value);
+        override string ToString();
 
     }
 }

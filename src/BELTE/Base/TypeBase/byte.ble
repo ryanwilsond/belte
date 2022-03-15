@@ -1,6 +1,13 @@
 
 namespace Base {
-    public class byte {
+    public class byte : IComparable, IComparable<byte>, IConvertible {
+        const byte MaxValue = 255;
+        const byte MinValue = 0;
+
+        static byte Parse(string str);
+        int CompareTo(object value);
+        int CompareTo(byte value);
+        override string ToString();
 
     }
 }

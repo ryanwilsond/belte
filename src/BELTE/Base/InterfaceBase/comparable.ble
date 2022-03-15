@@ -1,8 +1,9 @@
 
 namespace Base {
-    public interface IComparable<type T> {
+    public interface IComparable<type T=object> : IEquatable {
 
         int<-1,1> CompareTo(T obj);
+        override bool Equals(T obj) { return CompareTo(obj) == 0; }
 
     }
 }

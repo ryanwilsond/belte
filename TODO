@@ -9,6 +9,7 @@ TODO
     * Add file exists checking for input files
 
     * String interpolation regex
+    * all inherited classes with highlighting not just first one
     * preprocessor constant regex (intellisense)
     * fix doxygen comment regex to highlight
     * type followed by () use function highlighting (for basic type declarations)
