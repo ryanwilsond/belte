@@ -241,7 +241,7 @@ _NODISCARD inline std::string join(const std::vector<std::string>& _Segs, const 
     std::string _Comb;
     const size_type _Segs_size = _Segs.size();
 
-    for (size_type _Index; _Index<_Segs_size-1; ++_Index)
+    for (size_type _Index=0; _Index<_Segs_size-1; ++_Index)
         {
         _Comb += _Segs[_Index];
         _Comb += _Sep;
