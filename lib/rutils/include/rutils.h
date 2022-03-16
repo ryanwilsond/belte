@@ -9,10 +9,15 @@
 
 _RUTILS
 
-template<class T>
-inline void swap(T *_First, T *_Second) noexcept {
-    T *_Temp = new T(*_First);
-    // finish this
+/// Swaps two pointers so they each point to each others data
+/// @param _First   will point to `_Second`
+/// @param _Second  will point to `_First`
+template<typename T>
+inline constexpr void swap(_Inout_ T * _First,_Inout_ T * _Second) noexcept
+{   // Makes a new pointer to _First, then sets _First to _Second, the _Second to _Temp
+    T * _Temp = _First;
+    _First = _Second;
+    _Second = _First;
 }
 
 _RUTILS_END
