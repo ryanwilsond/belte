@@ -147,7 +147,7 @@ BELTE focusses on functionality as the first goal. This is one of the reasons th
 
 ### Consistency
 
-A good way to make a language hard to use is to not keep strict guidelines that hold up the standard of consistency. Not only as a style guide, but as the language design itself. Everything in BELTE aims to be as consistent as possible, reducing the background knowledge the developer is required to have. A good example to highlight this is value types versus reference types in C#. The developer must know if the object they are using are value or reference types, while in BELTE every type is a value type by default. This includes built-ins, and user defined types. This helps code readability, and ease of developing.
+A good way to make a language hard to use is to not keep strict guidelines that hold up the standard of consistency. Not only as a style guide, but as the language design itself. Everything in BELTE aims to be as consistent as possible, reducing the background knowledge the developer is required to have. A good example to highlight how a language can go wrong with consistency is value versus reference types in C#. The developer must know whether the object they are using is a value or reference type, while in BELTE every type/class is a value type by default. This includes built-ins, and user defined types. This helps code readability, and ease of developing.
 
 ### Usability
 
