@@ -1,4 +1,6 @@
 
 namespace System {
+    public class Json {
 
+    }
 }

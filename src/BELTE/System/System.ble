@@ -1,6 +1,6 @@
 
 namespace System {
 
-void Exit(int error);
+void exit(int error);
 
 }

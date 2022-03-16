@@ -1,6 +1,11 @@
 
 namespace LowLevel {
     public class dword {
+        int<-0x80000000, 0x7FFFFFFF> value;
 
+    }
+
+    public class udword {
+        int<0, 0xFFFFFFFF> value;
     }
 }

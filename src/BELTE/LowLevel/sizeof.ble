@@ -1,6 +1,0 @@
-
-namespace LowLevel {
-
-int<0> sizeof(object obj);
-
-}

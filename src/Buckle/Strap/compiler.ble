@@ -26,7 +26,7 @@ public static class Compiler {
 
     void compile() {
         Printn(PS1);
-        
+
         while (true) {
             string line = Console.Input(PS1);
             if (line.IsNullOrWhitespace()) break;
@@ -44,7 +44,7 @@ public static class Compiler {
         }
     }
 
-    Exit(0);
+    exit(0);
 }
 
 }

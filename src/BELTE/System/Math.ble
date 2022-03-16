@@ -2,15 +2,17 @@
 namespace System {
     public static class Math {
 
-        int floor(decimal num);
-        int ceil(decimal num);
-        decimal sin(decimal num);
-        decimal tan(decimal num);
-        decimal cos(decimal num);
-        decimal log(decimal num, decimal base=10);
-        decimal pow(decimal base, decimal pow=2);
-        decimal sqrt(decimal num);
-        decimal root(decimal num, decimal root=2);
+        int Floor(decimal num);
+        int Ceil(decimal num);
+        decimal Sin(decimal num);
+        decimal Tan(decimal num);
+        decimal Cos(decimal num);
+        decimal Asin(decimal num);
+        decimal Acos(decimal num);
+        decimal Atan(decimal num);
+        decimal Log(decimal num, decimal base=10);
+        decimal Sqrt(decimal num);
+        decimal Root(decimal num, decimal root);
 
     }
 }

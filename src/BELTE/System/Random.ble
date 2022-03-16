@@ -1,8 +1,16 @@
 
 namespace System {
     public static class Random {
+    private:
 
-        int Randint(int start, int end);
+        bool first_ = true;
+
+        void Seed(int<0,> seed);
+
+    public:
+
+        int Randint(int start, int<start,> end);
+        decimal Random(decimal start, decimal<start,> end, decimal step=1);
 
     }
 }

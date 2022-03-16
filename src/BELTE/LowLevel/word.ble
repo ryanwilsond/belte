@@ -1,6 +1,10 @@
 
 namespace LowLevel {
     public class word {
+        int<-0x8000, 0x7FFF> value;
+    }
 
+    public class uword {
+        int<0, 0xFFFF> value;
     }
 }

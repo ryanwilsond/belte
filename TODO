@@ -1,6 +1,7 @@
 TODO
 
     * Implement TypeBase
+    * add interfaces to all types
     * Add docstrings to InterfaceBase & TypeBase & System Libraries
     * Add base inherited interfaces to base types
 
@@ -22,6 +23,12 @@ TODO
     * add Consistency to Ilities
     * finish all docs
     * fix line character limit to wrap on words not sentences
+
+    * namespaces tab in?
+    * exntesion method syntax
+        * if C# style: make typename after `this` not be parameter
+    * add MaxValue and MinValue to all number types (make them static)
+    * make installer
 
 Outside Ideas:
 
