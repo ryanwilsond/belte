@@ -1,6 +1,7 @@
 # Preprocessor Directives
 
-Preprocessor directives are used to do basic computation before compiling. A common example is a check to only compile some code depending on the build system.
+Preprocessor directives are used to do basic computation before compiling. A common example is a check to only compile
+some code depending on the build system.
 
 ```belte
 #if def(win64)
@@ -10,7 +11,8 @@ Preprocessor directives are used to do basic computation before compiling. A com
 #end
 ```
 
-This is only possible with preprocessor directives as even unreachable code is compiled, and could produce errors for platform specific code (very rare).
+This is only possible with preprocessor directives as even unreachable code is compiled, and could produce errors for
+platform specific code (very rare).
 
 ## Conditionals
 

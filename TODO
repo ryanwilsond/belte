@@ -20,22 +20,24 @@ TODO
     * make class constructors not look like functions (intellisense probably)
     * word counterparts to logical operators?
 
-    * add Consistency to Ilities
     * finish all docs
-    * fix line character limit to wrap on words not sentences
 
     * namespaces tab in?
     * exntesion method syntax
         * if C# style: make typename after `this` not be parameter
     * add MaxValue and MinValue to all number types (make them static)
     * make installer
+    * <,0> and <0,> syntax acceptable? it is nice to use, but less consistent
+        should avoid as much of making there multiple ways to do things, causes conflict when new people join team
+    * `decimal<decimal Min=null, decimal<Min,> Max=null>` second Min and Max should be template param, but currently show as vars
+    * const and static members same as preproc constants?
 
 Outside Ideas:
 
-    * customizable types with restraints, regex with strings
     * reflection .net, typeof, nameof
     * decorators
     * switch over any built-in data type
     * enums with strings
     * enum have multiple fields
-    * ability to add enum entries at code-time
+    * ability to add enum entries at code-time (need to make it not happen at runtime somehow)
+    * python style unpacking

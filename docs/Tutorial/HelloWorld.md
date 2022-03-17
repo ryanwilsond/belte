@@ -2,7 +2,8 @@
 
 Once you have your main file, you can include `System.Stdio` to b able to print to stdout (terminal).
 
-We will be using `Stdio.Print` to print a single string. Finally we will end the program with `return 0` to indicate that the program successfully ran.
+We will be using `Stdio.Print` to print a single string. Finally we will end the program with `return 0` to indicate
+that the program successfully ran.
 
 <img src="../img/helloworld.png" alt="belte" width="500"/>
 

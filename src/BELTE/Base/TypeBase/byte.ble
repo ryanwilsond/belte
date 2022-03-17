@@ -4,9 +4,11 @@ namespace Base {
         static byte MaxValue = 255;
         static byte MinValue = 0;
 
+        int<0, 255> value;
+
         static byte Parse(string str);
-        int CompareTo(object value);
-        int CompareTo(byte value);
+        int CompareTo(object val);
+        int CompareTo(byte val);
         override string ToString();
 
     }

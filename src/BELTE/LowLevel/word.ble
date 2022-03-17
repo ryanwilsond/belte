@@ -1,10 +1,18 @@
 
 namespace LowLevel {
     public class word {
-        int<-0x8000, 0x7FFF> value;
+        static int MinValue = -0x8000;
+        static int MaxValue = 0x7FFF;
+
+        int<MinValue, MaxValue> value;
+
     }
 
     public class uword {
-        int<0, 0xFFFF> value;
+        static int MinValue = 0;
+        static int MaxValue = 0xFFFF;
+
+        int<MinValue, MaxValue> value;
+
     }
 }
