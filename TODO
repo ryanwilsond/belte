@@ -1,14 +1,17 @@
 TODO
 
+  STD
     * Implement TypeBase
     * add interfaces to all types
     * Add docstrings to InterfaceBase & TypeBase & System Libraries
     * Add base inherited interfaces to base types
 
+  Buckle
     * Add Parser
     * Finish Lexer
     * Add file exists checking for input files
 
+  Extension
     * String interpolation regex
     * all inherited classes with highlighting not just first one
     * preprocessor constant regex (intellisense)
@@ -19,18 +22,22 @@ TODO
     * add yellow highlighting to <name>.<something> name if enum, remove if not
     * make class constructors not look like functions (intellisense probably)
     * word counterparts to logical operators?
-
-    * finish all docs
-
-    * namespaces tab in?
-    * exntesion method syntax
-        * if C# style: make typename after `this` not be parameter
-    * add MaxValue and MinValue to all number types (make them static)
-    * make installer
-    * <,0> and <0,> syntax acceptable? it is nice to use, but less consistent
-        should avoid as much of making there multiple ways to do things, causes conflict when new people join team
     * `decimal<decimal Min=null, decimal<Min,> Max=null>` second Min and Max should be template param, but currently show as vars
     * const and static members same as preproc constants?
+
+  Docs
+    * finish all docs
+
+  Belte & Formatting
+    * namespaces tab in?
+    * extension method syntax
+        * if C# style: make typename after `this` not be parameter
+    * <,0> and <0,> syntax acceptable? it is nice to use, but less consistent
+        should avoid as much of making there multiple ways to do things, causes conflict when new people join team
+
+  Other
+    * make installer
+    * trello board
 
 Outside Ideas:
 
