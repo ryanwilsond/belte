@@ -7,13 +7,26 @@ For a longer description visit my [GitHub page!](https://github.com/flamechain/B
 
 ## Index
 
-Index for all parts of the language.
-
-> Don't know where to start? Try [Getting Started](GettingStarted.md).
+<!-- > Don't know where to start? Try [Getting Started](GettingStarted.md). -->
 
 > For more info about the language try [Principles](Principles.md).
 
 - [Principles](Principles.md)
+- [Design by Contract](DesignContract.md)
+- [Using Buckle](Buckle.md)
+- Standard Library (Shipped-with)
+  - [Base](STD/Base.md)\*
+  - [System](STD/System.md)\*
+  - [File](STD/File.md)\*
+  - [Console](STD/Console.md)\*
+  - [Math](STD/Math.md)
+  - [Random](STD/Random.md)
+  - [JSON](STD/JSON.md)
+  - [XML](STD/XML.md)
+  - [Regex](STD/Regex.md)
+  - [LowLevel](STD/LowLevel.md)
+
+<!--
 - [Getting Started](GettingStarted.md)
 - Tutorials
   - [Hello World](Tutorial/HelloWorld.md)
@@ -95,17 +108,6 @@ Index for all parts of the language.
     - [#warning](Reference/Preprocessor.md#messages)
     - [#error](Reference/Preprocessor.md#messages)
     - [#pragma](Reference/Preprocessor.md#pragmas)
-  - [Compiler Options](Buckle.md)
-- Standard Library (Shipped-with)
-  - [Base](STD/Base.md)\*
-  - [System](STD/System.md)\*
-  - [File](STD/File.md)\*
-  - [Console](STD/Console.md)\*
-  - [Math](STD/Math.md)
-  - [Random](STD/Random.md)
-  - [JSON](STD/JSON.md)
-  - [XML](STD/XML.md)
-  - [Regex](STD/Regex.md)
-  - [LowLevel](STD/LowLevel.md)
+-->
 
 \* Implicitly included
