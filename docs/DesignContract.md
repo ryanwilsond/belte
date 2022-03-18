@@ -34,10 +34,11 @@ As mentioned you can enforce a regular expression where the string always needs 
 ```belte
 string<match="^(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$"> phone_number;
 
-phone_number = "(111) 111-1111";
-
-// throws
-phone_number = "Hello, world!";
+phone_number = "123-456-7890";
+phone_number = "(123) 456-7890";
+phone_number = "123 456 7890";
+phone_number = "123.456.7890";
+phone_number = "Hello, world!"; // error
 ```
 
 In this example, the string `phone_number` must always be a 10-digit phone number.
