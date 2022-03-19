@@ -1,7 +1,7 @@
 # Design by Contract
 
 BELTE supports and encourages contract programming by making it native and very easy with built-in types. This also
-allows built-in types to be more versatile, and reduces the amount of types. For example, instead of having an unsigned-
+allows built-in types to be more versatile, and reduces the amount of types. For example, instead of having an unsigned
 int, you can add a bound to an int to make it greater than or equal to 0.
 
 Declaring an unsigned int in C vs BELTE:
@@ -26,8 +26,8 @@ maximum).
 
 ## Strings
 
-Similar to integers, strings have a minimum and maximum bound for length, as well as an exact length and regex match.
-To create a `char` (which there is no type for) you would declare `string<1>` (constant length 1).
+Similar to integers, strings have a minimum and maximum bound for length, as well as an exact length and regex match. To
+create a `char` (which there is no type for) you would declare `string<1>` (constant length 1).
 
 As mentioned you can enforce a regular expression where the string always needs to comply, else an error is thrown.
 
