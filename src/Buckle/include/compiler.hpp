@@ -26,6 +26,7 @@ enum NodeType {
     NUMBER_EXPR,
     BINARY_EXPR,
     UNARY_EXPR,
+    PAREN_EXPR,
 };
 
 class Node {
@@ -65,6 +66,7 @@ public:
         switch (_type) {
             case TokenType::EOFToken: return "EOFToken";
             case TokenType::BadToken: return "InvalidToken";
+            case TokenType::NUMBER: return "NumberToken";
             case TokenType::PLUS: return "PLUS";
             case TokenType::MINUS: return "MINUS";
             case TokenType::ASTERISK: return "ASTERISK";
@@ -209,6 +211,37 @@ public:
 };
 
 class UnaryExpression : public Expression {
+
+};
+
+class ParenExpression : public Expression {
+public:
+
+    shared_ptr<Token> OpenParen;
+    shared_ptr<Expression> Expr;
+    shared_ptr<Token> CloseParen;
+
+    ParenExpression(shared_ptr<Token> openParen, shared_ptr<Expression> expr, shared_ptr<Token> closeParen) : Expression(NodeType::PAREN_EXPR) {
+        OpenParen = openParen;
+        Expr = expr;
+        CloseParen = closeParen;
+    }
+
+    vector<shared_ptr<Node>> GetChildren() const { return { OpenParen, Expr, CloseParen }; }
+};
+
+class SyntaxTree {
+public:
+
+    vector<string> Diagnostics;
+    shared_ptr<Expression> Root;
+    Token EOFToken;
+
+    SyntaxTree(vector<string> diagnostics, shared_ptr<Expression> root, Token EOFtoken) {
+        Root = root;
+        EOFToken = EOFtoken;
+        Diagnostics = diagnostics;
+    }
 
 };
 

@@ -47,7 +47,13 @@ public:
 
             auto len = pos_ - start;
             string text = text_.substr(start, len);
-            int value = stoi(text);
+            int value;
+
+            try {
+                value = stoi(text);
+            } catch (...) {
+                Diagnostics.push_back(format("'%s' cannot be represented as an integer", text.c_str()));
+            }
 
             return NumberToken(text, start, value);
         } else if (isspace(Current())) {
@@ -97,8 +103,12 @@ private:
 
     Token Match(TokenType type) {
         if (Current().type == type) return Next();
-        Diagnostics.push_back(format("unexpected token `%s`, expected token of type `%s`", Current().Type(), Token::Type(type)));
+        Diagnostics.push_back(format("unexpected token `%s`, expected token of type `%s`", Current().Type().c_str(), Token::Type(type).c_str()));
         return CreateToken(type, Current().pos);
+    }
+
+    shared_ptr<Expression> ParseExpression() {
+        return ParseTerm();
     }
 
 public:
@@ -121,10 +131,28 @@ public:
         Diagnostics.insert(Diagnostics.end(), lexer.Diagnostics.begin(), lexer.Diagnostics.end());
     }
 
-    shared_ptr<Expression> Parse() {
-        auto left = ParsePrimary();
+    SyntaxTree Parse() {
+        auto expr = ParseTerm();
+        auto eofToken = Match(TokenType::EOFToken);
+        return SyntaxTree(Diagnostics, expr, eofToken);
+    }
+
+    shared_ptr<Expression> ParseTerm() {
+        auto left = ParseFactor();
 
         while (Current().type == TokenType::PLUS || Current().type == TokenType::MINUS) {
+            auto opTok = Next();
+            auto right = ParseFactor();
+            left = make_shared<BinaryExpression>(BinaryExpression(left, make_shared<Token>(opTok), right));
+        }
+
+        return left;
+    }
+
+    shared_ptr<Expression> ParseFactor() {
+        auto left = ParsePrimary();
+
+        while (Current().type == TokenType::ASTERISK || Current().type == TokenType::SOLIDUS) {
             auto opTok = Next();
             auto right = ParsePrimary();
             left = make_shared<BinaryExpression>(BinaryExpression(left, make_shared<Token>(opTok), right));
@@ -134,8 +162,62 @@ public:
     }
 
     shared_ptr<Expression> ParsePrimary() {
+        if (Current().type == TokenType::LPAREN) {
+            auto left = Next();
+            auto expr = ParseExpression();
+            auto right = Match(TokenType::RPAREN);
+            return make_shared<Expression>(ParenExpression(make_shared<Token>(left), expr, make_shared<Token>(right)));
+        }
+
         auto number = Match(TokenType::NUMBER);
         return make_shared<NumberNode>(NumberNode(number));
+    }
+
+};
+
+class Evaluator {
+private:
+
+    shared_ptr<Expression> root_;
+
+    int EvaluateExpression(shared_ptr<Expression> node) {
+        if (node.get()->type == NodeType::NUMBER_EXPR) {
+            return dynamic_cast<NumberNode*>(node.get())->token.val_int;
+        } else if (node.get()->type == NodeType::BINARY_EXPR) {
+            printf("after\n");
+            BinaryExpression *bi_expr = dynamic_cast<BinaryExpression*>(node.get());
+            auto left = EvaluateExpression(bi_expr->left);
+            auto right = EvaluateExpression(bi_expr->right);
+
+            switch (bi_expr->op.get()->type) {
+                case TokenType::PLUS:
+                    return left + right;
+                case TokenType::MINUS:
+                    return left - right;
+                case TokenType::ASTERISK:
+                    return left * right;
+                case TokenType::SOLIDUS:
+                    return left / right;
+                default:
+                    throw std::runtime_error(format("Unexpected binary operator `%s`", bi_expr->op.get()->Type().c_str()));
+            }
+        } else if (node.get()->type == NodeType::PAREN_EXPR) {
+            ParenExpression *par_expr = dynamic_cast<ParenExpression*>(node.get());
+            printf("seg?\n");
+            return EvaluateExpression(par_expr->Expr);
+        }
+
+        throw std::runtime_error(format("Unexpected node `%s`", node.get()->Type().c_str()));
+    }
+
+public:
+
+    Evaluator(shared_ptr<Expression> root) {
+        root_ = root;
+    }
+
+    int Evaluate() {
+        return EvaluateExpression(root_);
     }
 
 };
@@ -185,16 +267,22 @@ void Compiler::compile() noexcept {
         if (null_or_whitespace(line)) break;
 
         Parser parser = Parser(line);
-        auto expression = parser.Parse();
+        auto syntaxTree = parser.Parse();
 
         WORD color;
         GetConsoleColor(color);
         SetConsoleColor(COLOR_GRAY);
-        PrettyPrint(expression);
+        PrettyPrint(syntaxTree.Root);
         SetConsoleColor(color);
 
-        for (string err : parser.Diagnostics) {
-            RaiseError(err);
+        if (syntaxTree.Diagnostics.size() > 0) {
+            for (string err : syntaxTree.Diagnostics) {
+                RaiseError(err);
+            }
+        } else {
+            auto eval = Evaluator(syntaxTree.Root);
+            auto result = eval.Evaluate();
+            cout << result << endl;
         }
     }
 
