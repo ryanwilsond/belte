@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Buckle.CodeAnalysis {
+namespace Buckle.CodeAnalysis.Syntax {
 
     internal class SyntaxTree {
         public Expression root { get; }

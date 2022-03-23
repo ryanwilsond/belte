@@ -2,6 +2,8 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using Buckle.CodeAnalysis;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Binding;
 
 namespace Buckle {
 
@@ -119,6 +121,10 @@ namespace Buckle {
                 }
 
                 SyntaxTree tree = SyntaxTree.Parse(line);
+                Binder binder = new Binder();
+                var boundexpr = binder.BindExpression(tree.root);
+                diagnostics.AddRange(tree.diagnostics);
+                diagnostics.AddRange(binder.diagnostics);
 
                 if (showTree) {
                     Console.ForegroundColor = ConsoleColor.DarkGray;
@@ -126,7 +132,6 @@ namespace Buckle {
                     Console.ResetColor();
                 }
 
-                diagnostics.AddRange(tree.diagnostics);
                 if (diagnostics.Any()) {
                     if (callback != null)
                         callback(this);
@@ -134,15 +139,18 @@ namespace Buckle {
                     continue;
                 }
 
-                Evaluator eval = new Evaluator(tree.root);
+                Evaluator eval = new Evaluator(boundexpr);
                 var result = eval.Evaluate();
 
-                if (eval.diagnostics.Any()) {
+                diagnostics.AddRange(eval.diagnostics);
+                if (diagnostics.Any()) {
                     if (callback != null)
                         callback(this);
-                } else if (result != null) {
-                    Console.WriteLine(result);
+                    diagnostics.Clear();
+                    continue;
                 }
+
+                Console.WriteLine(result);
             }
         }
 

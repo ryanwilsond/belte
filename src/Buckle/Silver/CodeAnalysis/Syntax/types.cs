@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Buckle.CodeAnalysis {
+namespace Buckle.CodeAnalysis.Syntax {
 
     internal enum SyntaxType {
         Invalid,
@@ -15,7 +15,7 @@ namespace Buckle.CodeAnalysis {
         LPAREN,
         RPAREN,
         // expressions
-        NUMBER_EXPR,
+        LITERAL_EXPR,
         BINARY_EXPR,
         UNARY_EXPR,
         PAREN_EXPR,
@@ -44,18 +44,18 @@ namespace Buckle.CodeAnalysis {
 
     internal abstract class Expression : Node { }
 
-    internal class NumberNode : Expression {
+    internal class LiteralExpression : Expression {
         public Token token { get; }
-        public override SyntaxType type => SyntaxType.NUMBER_EXPR;
+        public override SyntaxType type => SyntaxType.LITERAL_EXPR;
 
-        public NumberNode(Token token_) {
+        public LiteralExpression(Token token_) {
             token = token_;
         }
 
         public override List<Node> GetChildren() { return new List<Node>() { token }; }
     }
 
-    internal class BinaryExpression : Expression {
+    internal sealed class BinaryExpression : Expression {
         public Expression left { get; }
         public Token op { get; }
         public Expression right { get; }
@@ -70,7 +70,7 @@ namespace Buckle.CodeAnalysis {
         public override List<Node> GetChildren() { return new List<Node>() { left, op, right }; }
     }
 
-    internal class ParenExpression : Expression {
+    internal sealed class ParenExpression : Expression {
         public Token lparen { get; }
         public Expression expr { get; }
         public Token rparen { get; }
@@ -85,7 +85,7 @@ namespace Buckle.CodeAnalysis {
         public override List<Node> GetChildren() { return new List<Node>() { lparen, expr, rparen }; }
     }
 
-    internal class UnaryExpression : Expression {
+    internal sealed class UnaryExpression : Expression {
         public Token op { get; }
         public Expression operand { get; }
         public override SyntaxType type => SyntaxType.UNARY_EXPR;

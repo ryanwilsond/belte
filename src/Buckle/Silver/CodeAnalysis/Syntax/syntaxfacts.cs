@@ -1,5 +1,5 @@
 
-namespace Buckle.CodeAnalysis {
+namespace Buckle.CodeAnalysis.Syntax {
 
     internal static class SyntaxFacts {
 

@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Buckle.CodeAnalysis {
+namespace Buckle.CodeAnalysis.Syntax {
 
     internal class Parser {
         private readonly Token[] tokens_;
@@ -60,7 +60,7 @@ namespace Buckle.CodeAnalysis {
             }
 
             var token = Match(SyntaxType.NUMBER);
-            return new NumberNode(token);
+            return new LiteralExpression(token);
         }
 
         private Token Match(SyntaxType type) {

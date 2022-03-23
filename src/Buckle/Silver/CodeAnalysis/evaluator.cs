@@ -1,42 +1,42 @@
 using System.Collections.Generic;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Binding;
 
 namespace Buckle.CodeAnalysis {
 
     internal class Evaluator {
-        private readonly Expression root_;
+        private readonly BoundExpression root_;
         public List<Diagnostic> diagnostics;
 
-        public Evaluator(Expression root) {
+        public Evaluator(BoundExpression root) {
             root_ = root;
             diagnostics = new List<Diagnostic>();
         }
 
         public int? Evaluate() { return EvaluteExpression(root_); }
 
-        private int? EvaluteExpression(Expression node) {
-            if (node is NumberNode n) {
-                return (int)n.token.value;
-            } else if (node is UnaryExpression u) {
+        private int? EvaluteExpression(BoundExpression node) {
+            if (node is BoundLiteralExpression n) {
+                return (int)n.value;
+            } else if (node is BoundUnaryExpression u) {
                 var operand = EvaluteExpression(u.operand);
 
-                if (u.op.type == SyntaxType.PLUS) return operand;
-                else if (u.op.type == SyntaxType.MINUS) return -operand;
-                else diagnostics.Add(new Diagnostic(DiagnosticType.fatal, "unknown unary operator '{u.op.type}'"));
-            } else if (node is BinaryExpression b) {
+                if (u.op == BoundUnaryOperatorType.Identity) return operand;
+                else if (u.op == BoundUnaryOperatorType.Negation) return -operand;
+                else diagnostics.Add(new Diagnostic(DiagnosticType.fatal, $"unknown unary operator '{u.op}'"));
+            } else if (node is BoundBinaryExpression b) {
                 var left = EvaluteExpression(b.left);
                 var right = EvaluteExpression(b.right);
 
-                switch (b.op.type) {
-                    case SyntaxType.PLUS: return left + right;
-                    case SyntaxType.MINUS: return left - right;
-                    case SyntaxType.ASTERISK: return left * right;
-                    case SyntaxType.SOLIDUS: return left / right;
+                switch (b.op) {
+                    case BoundBinaryOperatorType.Add: return left + right;
+                    case BoundBinaryOperatorType.Subtract: return left - right;
+                    case BoundBinaryOperatorType.Multiply: return left * right;
+                    case BoundBinaryOperatorType.Divide: return left / right;
                     default:
-                        diagnostics.Add(new Diagnostic(DiagnosticType.fatal, $"unknown binary operator '{b.op.type}'"));
+                        diagnostics.Add(new Diagnostic(DiagnosticType.fatal, $"unknown binary operator '{b.op}'"));
                         return null;
                 }
-            } else if (node is ParenExpression p) {
-                return EvaluteExpression(p.expr);
             }
 
             diagnostics.Add(new Diagnostic(DiagnosticType.fatal, $"unexpected node '{node.type}'"));

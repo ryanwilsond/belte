@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Buckle.CodeAnalysis {
+namespace Buckle.CodeAnalysis.Syntax {
 
     internal class Lexer {
         private readonly string text_;
