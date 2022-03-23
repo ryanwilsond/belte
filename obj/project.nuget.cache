@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "9M4QEB/b80jiExRMImVRRjlDc709Sx3vOOy6YFsfeVmsmFhrLsNxc3/MM9l8Nuz3/z6ODUNU2hZTRL4uqnqrEw==",
+  "success": true,
+  "projectFilePath": "D:\\OneDrive\\Programming\\repos\\BELTE\\buckle.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\rwc\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\5.0.15\\microsoft.netcore.app.host.win-x64.5.0.15.nupkg.sha512"
+  ],
+  "logs": []
+}

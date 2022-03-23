@@ -1,32 +1,38 @@
-CC=g++
-LD=g++
-IN=iscc
-AS=gcc
+PROJNAME:=buckle
+BUILDTYPE=DEBUG
 
-CCFLAGS=-Isrc/Buckle/include -Ilib/rutils/include
-CCFLAGS+=-pedantic -Wall -Wextra -Wcast-align -Wcast-qual -Wctor-dtor-privacy \
--Wdisabled-optimization -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations \
--Wmissing-include-dirs -Wnoexcept -Wold-style-cast -Woverloaded-virtual \
--Wshadow -Wsign-conversion -Wsign-promo -Wstrict-null-sentinel -Wstrict-overflow=5 \
--Wundef -Wno-unused -Werror -Wredundant-decls -Wswitch-default
-LDFLAGS=
+CSPROJ="<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net5.0</TargetFramework>"
+CSPROJFINAL="<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net5.0</TargetFramework>"
+CSPROJFINAL+="<Configuration>Release</Configuration>"
+CSPROJFINAL+="<PublishSingleFile>true</PublishSingleFile><SelfContained>true</SelfContained><RuntimeIdentifier>win-x64</RuntimeIdentifier>"
+# CSPROJFINAL+="<PublishTrimmed>true</PublishTrimmed>"
+CSPROJFINAL+="<PublishReadyToRun>true</PublishReadyToRun></PropertyGroup></Project>"
 
-SOURCE=$(wildcard src/Buckle/*.cpp)
-OBJECT=$(patsubst src/Buckle/%.cpp, bin/%.o, $(SOURCE))
+ifeq ($(BUILDTYPE), RELEASE)
+	CSPROJ+="<Configuration>Release</Configuration>"
+endif
 
-OUT=buckle.exe
+CSPROJ+="</PropertyGroup></Project>"
+PACKDIR=.
 
-all: $(OUT)
+all:
+	@echo $(CSPROJ) > $(PROJNAME).csproj
+	dotnet build $(PROJNAME).csproj
+	cp bin/Debug/net5.0/$(PROJNAME).exe $(PROJNAME).exe
+	cp obj/Debug/net5.0/$(PROJNAME).dll $(PROJNAME).dll
+	cp bin/Debug/net5.0/$(PROJNAME).deps.json $(PROJNAME).deps.json
+	cp bin/Debug/net5.0/$(PROJNAME).runtimeconfig.json $(PROJNAME).runtimeconfig.json
 
-bin/%.o: src/Buckle/%.cpp
-	$(CC) $(CCFLAGS) -c $^ -o $@
-
-$(OUT): $(OBJECT)
-	$(LD) $(LDFLAGS) $^ -o $@
-
-setup:
-	mkdir -p bin
+install:
+	@echo $(CSPROJFINAL) > $(PROJNAME).csproj
+	dotnet publish -r win-x64 -p:PublishSingleFile=true --self-contained true -p:PublishReadyToRunShowWarnings=true -p:IncludeNativeLibrariesForSelfExtract=true
+	rm -f $(PACKDIR)/$(PROJNAME).exe
+	cp bin/Release/net5.0/win-x64/publish/$(PROJNAME).exe $(PACKDIR)/$(PROJNAME).exe
 
 clean:
-	rm -f bin/*
-	rm -f $(OUT)
+	rm -f $(PROJNAME).exe
+	rm -f $(PROJNAME).dll
+	rm -f $(PROJNAME).deps.json
+	rm -f $(PROJNAME).runtimeconfig.json
+	rm -rfd bin
+	rm -rfd obj

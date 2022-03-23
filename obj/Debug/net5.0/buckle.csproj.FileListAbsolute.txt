@@ -1,0 +1,16 @@
+D:\OneDrive\Programming\repos\BELTE\bin\Debug\net5.0\buckle.exe
+D:\OneDrive\Programming\repos\BELTE\bin\Debug\net5.0\buckle.deps.json
+D:\OneDrive\Programming\repos\BELTE\bin\Debug\net5.0\buckle.runtimeconfig.json
+D:\OneDrive\Programming\repos\BELTE\bin\Debug\net5.0\buckle.runtimeconfig.dev.json
+D:\OneDrive\Programming\repos\BELTE\bin\Debug\net5.0\buckle.dll
+D:\OneDrive\Programming\repos\BELTE\bin\Debug\net5.0\buckle.pdb
+D:\OneDrive\Programming\repos\BELTE\obj\Debug\net5.0\buckle.csproj.AssemblyReference.cache
+D:\OneDrive\Programming\repos\BELTE\obj\Debug\net5.0\buckle.GeneratedMSBuildEditorConfig.editorconfig
+D:\OneDrive\Programming\repos\BELTE\obj\Debug\net5.0\buckle.AssemblyInfoInputs.cache
+D:\OneDrive\Programming\repos\BELTE\obj\Debug\net5.0\buckle.AssemblyInfo.cs
+D:\OneDrive\Programming\repos\BELTE\obj\Debug\net5.0\buckle.csproj.CoreCompileInputs.cache
+D:\OneDrive\Programming\repos\BELTE\obj\Debug\net5.0\buckle.dll
+D:\OneDrive\Programming\repos\BELTE\obj\Debug\net5.0\refint\buckle.dll
+D:\OneDrive\Programming\repos\BELTE\obj\Debug\net5.0\buckle.pdb
+D:\OneDrive\Programming\repos\BELTE\obj\Debug\net5.0\buckle.genruntimeconfig.cache
+D:\OneDrive\Programming\repos\BELTE\obj\Debug\net5.0\ref\buckle.dll
