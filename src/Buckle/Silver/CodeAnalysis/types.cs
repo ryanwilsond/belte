@@ -2,29 +2,31 @@ using System.Collections.Generic;
 
 namespace Buckle.CodeAnalysis {
 
-    enum SyntaxType {
+    internal enum SyntaxType {
         Invalid,
+        // tokens
         EOF,
-        NUMBER,
         WHITESPACE,
+        NUMBER,
         PLUS,
         MINUS,
         ASTERISK,
         SOLIDUS,
         LPAREN,
         RPAREN,
+        // expressions
         NUMBER_EXPR,
         BINARY_EXPR,
         UNARY_EXPR,
         PAREN_EXPR,
     }
 
-    abstract class Node {
+    internal abstract class Node {
         public abstract SyntaxType type { get; }
         public abstract List<Node> GetChildren();
     }
 
-    class Token : Node {
+    internal class Token : Node {
         public override SyntaxType type { get; }
         public int pos { get; }
         public string text { get; }
@@ -40,9 +42,9 @@ namespace Buckle.CodeAnalysis {
         public override List<Node> GetChildren() { return new List<Node>() { }; }
     }
 
-    abstract class Expression : Node { }
+    internal abstract class Expression : Node { }
 
-    class NumberNode : Expression {
+    internal class NumberNode : Expression {
         public Token token { get; }
         public override SyntaxType type => SyntaxType.NUMBER_EXPR;
 
@@ -53,7 +55,7 @@ namespace Buckle.CodeAnalysis {
         public override List<Node> GetChildren() { return new List<Node>() { token }; }
     }
 
-    class BinaryExpression : Expression {
+    internal class BinaryExpression : Expression {
         public Expression left { get; }
         public Token op { get; }
         public Expression right { get; }
@@ -68,7 +70,7 @@ namespace Buckle.CodeAnalysis {
         public override List<Node> GetChildren() { return new List<Node>() { left, op, right }; }
     }
 
-    class ParenExpression : Expression {
+    internal class ParenExpression : Expression {
         public Token lparen { get; }
         public Expression expr { get; }
         public Token rparen { get; }
@@ -81,6 +83,19 @@ namespace Buckle.CodeAnalysis {
         }
 
         public override List<Node> GetChildren() { return new List<Node>() { lparen, expr, rparen }; }
+    }
+
+    internal class UnaryExpression : Expression {
+        public Token op { get; }
+        public Expression operand { get; }
+        public override SyntaxType type => SyntaxType.UNARY_EXPR;
+
+        public UnaryExpression(Token op_, Expression operand_) {
+            op = op_;
+            operand = operand_;
+        }
+
+        public override List<Node> GetChildren() { return new List<Node>() { op, operand }; }
     }
 
 }

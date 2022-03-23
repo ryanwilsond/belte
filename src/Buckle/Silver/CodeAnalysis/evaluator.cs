@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace Buckle.CodeAnalysis {
 
-    class Evaluator {
+    internal class Evaluator {
         private readonly Expression root_;
         public List<Diagnostic> diagnostics;
 
@@ -16,6 +16,12 @@ namespace Buckle.CodeAnalysis {
         private int? EvaluteExpression(Expression node) {
             if (node is NumberNode n) {
                 return (int)n.token.value;
+            } else if (node is UnaryExpression u) {
+                var operand = EvaluteExpression(u.operand);
+
+                if (u.op.type == SyntaxType.PLUS) return operand;
+                else if (u.op.type == SyntaxType.MINUS) return -operand;
+                else diagnostics.Add(new Diagnostic(DiagnosticType.fatal, "unknown unary operator '{u.op.type}'"));
             } else if (node is BinaryExpression b) {
                 var left = EvaluteExpression(b.left);
                 var right = EvaluteExpression(b.right);
@@ -37,5 +43,4 @@ namespace Buckle.CodeAnalysis {
             return null;
         }
     }
-
 }

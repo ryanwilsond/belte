@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace Buckle.CodeAnalysis {
 
-    class Lexer {
+    internal class Lexer {
         private readonly string text_;
         private int pos_;
         public List<Diagnostic> diagnostics;
@@ -21,7 +21,7 @@ namespace Buckle.CodeAnalysis {
 
         private void Advance() { pos_++; }
 
-        public Token Next() {
+        public Token LexNext() {
             if (pos_ >= text_.Length) return new Token(SyntaxType.EOF, pos_, "\0", null);
 
             if (char.IsDigit(current)) {
@@ -57,5 +57,4 @@ namespace Buckle.CodeAnalysis {
             return new Token(SyntaxType.Invalid, pos_++, text_.Substring(pos_-1,1), null);
         }
     }
-
 }

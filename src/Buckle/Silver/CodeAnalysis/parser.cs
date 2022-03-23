@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace Buckle.CodeAnalysis {
 
-    class Parser {
+    internal class Parser {
         private readonly Token[] tokens_;
         private int pos_;
         public List<Diagnostic> diagnostics;
@@ -14,7 +14,7 @@ namespace Buckle.CodeAnalysis {
             Token token;
 
             do {
-                token = lexer.Next();
+                token = lexer.LexNext();
 
                 if (token.type != SyntaxType.WHITESPACE && token.type != SyntaxType.Invalid)
                     tokens.Add(token);
@@ -25,29 +25,26 @@ namespace Buckle.CodeAnalysis {
         }
 
         public SyntaxTree Parse() {
-            var expr = ParseTerm();
+            var expr = ParseExpression();
             var eof = Match(SyntaxType.EOF);
             return new SyntaxTree(expr, eof, diagnostics);
         }
 
-        public Expression ParseTerm() {
-            var left = ParseFactor();
+        private Expression ParseExpression(int parentPrecedence = 0) {
+            Expression left;
+            var unaryPrecedence = current.type.GetUnaryPrecedence();
 
-            while (current.type == SyntaxType.PLUS || current.type == SyntaxType.MINUS) {
+            if (unaryPrecedence != 0 && unaryPrecedence >= parentPrecedence) {
                 var op = Next();
-                var right = ParseFactor();
-                left = new BinaryExpression(left, op, right);
-            }
+                var operand = ParseExpression(unaryPrecedence);
+                left = new UnaryExpression(op, operand);
+            } else left = ParsePrimaryExpression();
 
-            return left;
-        }
-
-        public Expression ParseFactor() {
-            var left = ParsePrimaryExpression();
-
-            while (current.type == SyntaxType.ASTERISK || current.type == SyntaxType.SOLIDUS) {
+            while (true) {
+                int precedence = current.type.GetBinaryPrecedence();
+                if (precedence == 0 || precedence <= parentPrecedence) break;
                 var op = Next();
-                var right = ParsePrimaryExpression();
+                var right = ParseExpression();
                 left = new BinaryExpression(left, op, right);
             }
 
@@ -57,7 +54,7 @@ namespace Buckle.CodeAnalysis {
         private Expression ParsePrimaryExpression() {
             if (current.type == SyntaxType.LPAREN) {
                 var left = Next();
-                var expr = ParseTerm();
+                var expr = ParseExpression();
                 var right = Match(SyntaxType.RPAREN);
                 return new ParenExpression(left, expr, right);
             }
@@ -68,7 +65,7 @@ namespace Buckle.CodeAnalysis {
 
         private Token Match(SyntaxType type) {
             if (current.type == type) return Next();
-            diagnostics.Add(new Diagnostic(DiagnosticType.error, $"expected token of type '{type}', got '{current.type}'"));
+            diagnostics.Add(new Diagnostic(DiagnosticType.error, $"unexpected token '{current.type}', expected token of type '{type}'"));
             return new Token(type, current.pos, null, null);
         }
 
@@ -86,5 +83,4 @@ namespace Buckle.CodeAnalysis {
 
         private Token current => Peek(0);
     }
-
 }

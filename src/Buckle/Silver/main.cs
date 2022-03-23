@@ -98,7 +98,6 @@ namespace CommandLine {
             foreach (Diagnostic diagnostic in compiler.diagnostics) {
                 if (diagnostic.type == DiagnosticType.unknown) continue;
 
-                ConsoleColor prev = Console.ForegroundColor;
                 Console.Write($"{compiler.me}: ");
                 Console.ForegroundColor = ConsoleColor.Red;
 
@@ -118,7 +117,7 @@ namespace CommandLine {
                     worst = DiagnosticType.fatal;
                 }
 
-                Console.ForegroundColor = prev;
+                Console.ResetColor();
                 Console.WriteLine($"{diagnostic.msg}");
             }
 

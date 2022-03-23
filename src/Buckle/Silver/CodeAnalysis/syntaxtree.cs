@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace Buckle.CodeAnalysis {
 
-    class SyntaxTree {
+    internal class SyntaxTree {
         public Expression root { get; }
         public Token eof { get; }
         public List<Diagnostic> diagnostics;
@@ -19,5 +19,4 @@ namespace Buckle.CodeAnalysis {
             return parser.Parse();
         }
     }
-
 }

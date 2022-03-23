@@ -121,10 +121,9 @@ namespace Buckle {
                 SyntaxTree tree = SyntaxTree.Parse(line);
 
                 if (showTree) {
-                    ConsoleColor prev = Console.ForegroundColor;
                     Console.ForegroundColor = ConsoleColor.DarkGray;
                     PrettyPrint(tree.root);
-                    Console.ForegroundColor = prev;
+                    Console.ResetColor();
                 }
 
                 diagnostics.AddRange(tree.diagnostics);
