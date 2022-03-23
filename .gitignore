@@ -8,4 +8,4 @@
 *.dll
 *.csproj
 *.deps.json
-*.runtimeconfig.js
+*.runtimeconfig.json
