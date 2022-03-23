@@ -200,7 +200,7 @@ namespace CommandLine {
                 if (err > 0) return err;
             }
 
-            compiler.Compile();
+            compiler.Compile(ResolveDiagnostics); // temp callback
             err = ResolveDiagnostics(compiler);
             if (err > 0) return err;
 

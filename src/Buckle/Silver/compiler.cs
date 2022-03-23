@@ -114,12 +114,47 @@ namespace Buckle {
         public override List<Node> GetChildren() { return new List<Node>() { left, op, right }; }
     }
 
+    class ParenExpression : Expression {
+        public Token lparen { get; }
+        public Expression expr { get; }
+        public Token rparen { get; }
+        public override SyntaxType type => SyntaxType.PAREN_EXPR;
+
+        public ParenExpression(Token lparen_, Expression expr_, Token rparen_) {
+            lparen = lparen_;
+            expr = expr_;
+            rparen = rparen_;
+        }
+
+        public override List<Node> GetChildren() { return new List<Node>() { lparen, expr, rparen }; }
+    }
+
+    class SyntaxTree {
+        public Expression root { get; }
+        public Token eof { get; }
+        public List<Diagnostic> diagnostics;
+
+        public SyntaxTree(Expression root_, Token eof_, List<Diagnostic> diagnostics_) {
+            root = root_;
+            eof = eof_;
+            diagnostics = new List<Diagnostic>();
+            diagnostics.AddRange(diagnostics_);
+        }
+
+        public static SyntaxTree Parse(string line) {
+            Parser parser = new Parser(line);
+            return parser.Parse();
+        }
+    }
+
     class Lexer {
         private readonly string text_;
         private int pos_;
+        public List<Diagnostic> diagnostics;
 
         public Lexer(string text) {
             text_ = text;
+            diagnostics = new List<Diagnostic>();
         }
 
         private char current {
@@ -142,7 +177,10 @@ namespace Buckle {
 
                 int length = pos_ - start;
                 string text = text_.Substring(start, length);
-                int.TryParse(text, out int value);
+
+                if (!int.TryParse(text, out var value))
+                    diagnostics.Add(new Diagnostic(DiagnosticType.error, $"'{value}' is not a valid integer"));
+
                 return new Token(SyntaxType.NUMBER, start, text, value);
             } else if (char.IsWhiteSpace(current)) {
                 int start = pos_;
@@ -160,6 +198,7 @@ namespace Buckle {
             else if (current == '(') return new Token(SyntaxType.LPAREN, pos_++, "(", null);
             else if (current == ')') return new Token(SyntaxType.RPAREN, pos_++, ")", null);
 
+            diagnostics.Add(new Diagnostic(DiagnosticType.error, $"bad input character '{current}'"));
             return new Token(SyntaxType.Invalid, pos_++, text_.Substring(pos_-1,1), null);
         }
     }
@@ -167,8 +206,10 @@ namespace Buckle {
     class Parser {
         private readonly Token[] tokens_;
         private int pos_;
+        public List<Diagnostic> diagnostics;
 
         public Parser(string text) {
+            diagnostics = new List<Diagnostic>();
             var tokens = new List<Token>();
             Lexer lexer = new Lexer(text);
             Token token;
@@ -181,12 +222,34 @@ namespace Buckle {
             } while (token.type != SyntaxType.EOF);
 
             tokens_ = tokens.ToArray();
+            diagnostics.AddRange(lexer.diagnostics);
         }
 
-        public Expression Parse() {
-            var left = ParsePrimaryExpression();
+        public SyntaxTree Parse() {
+            if (diagnostics.Any())
+                return new SyntaxTree(null, null, diagnostics);
+
+            var expr = ParseTerm();
+            var eof = Match(SyntaxType.EOF);
+            return new SyntaxTree(expr, eof, diagnostics);
+        }
+
+        public Expression ParseTerm() {
+            var left = ParseFactor();
 
             while (current.type == SyntaxType.PLUS || current.type == SyntaxType.MINUS) {
+                var op = Next();
+                var right = ParseFactor();
+                left = new BinaryExpression(left, op, right);
+            }
+
+            return left;
+        }
+
+        public Expression ParseFactor() {
+            var left = ParsePrimaryExpression();
+
+            while (current.type == SyntaxType.ASTERISK || current.type == SyntaxType.SOLIDUS) {
                 var op = Next();
                 var right = ParsePrimaryExpression();
                 left = new BinaryExpression(left, op, right);
@@ -196,12 +259,20 @@ namespace Buckle {
         }
 
         private Expression ParsePrimaryExpression() {
+            if (current.type == SyntaxType.LPAREN) {
+                var left = Next();
+                var expr = ParseTerm();
+                var right = Match(SyntaxType.RPAREN);
+                return new ParenExpression(left, expr, right);
+            }
+
             var token = Match(SyntaxType.NUMBER);
             return new NumberNode(token);
         }
 
         private Token Match(SyntaxType type) {
             if (current.type == type) return Next();
+            diagnostics.Add(new Diagnostic(DiagnosticType.error, $"expected token of type '{type}', got '{current.type}'"));
             return new Token(type, current.pos, null, null);
         }
 
@@ -218,6 +289,42 @@ namespace Buckle {
         }
 
         private Token current => Peek(0);
+    }
+
+    class Evaluator {
+        private readonly Expression root_;
+        public List<Diagnostic> diagnostics;
+
+        public Evaluator(Expression root) {
+            root_ = root;
+            diagnostics = new List<Diagnostic>();
+        }
+
+        public int? Evaluate() { return EvaluteExpression(root_); }
+
+        private int? EvaluteExpression(Expression node) {
+            if (node is NumberNode n) {
+                return (int)n.token.value;
+            } else if (node is BinaryExpression b) {
+                var left = EvaluteExpression(b.left);
+                var right = EvaluteExpression(b.right);
+
+                switch (b.op.type) {
+                    case SyntaxType.PLUS: return left + right;
+                    case SyntaxType.MINUS: return left - right;
+                    case SyntaxType.ASTERISK: return left * right;
+                    case SyntaxType.SOLIDUS: return left / right;
+                    default:
+                        diagnostics.Add(new Diagnostic(DiagnosticType.fatal, $"unknown binary operator '{b.op.type}'"));
+                        return null;
+                }
+            } else if (node is ParenExpression p) {
+                return EvaluteExpression(p.expr);
+            }
+
+            diagnostics.Add(new Diagnostic(DiagnosticType.fatal, $"unexpected node '{node.type}'"));
+            return null;
+        }
     }
 
     public class Compiler {
@@ -267,26 +374,44 @@ namespace Buckle {
                 PrettyPrint(child, indent, child == lastChild);
         }
 
-        private void Repl() {
+        public delegate int ErrorHandle(Compiler compiler);
+
+        private void Repl(ErrorHandle callback) {
             state.link_output_content = null;
+            diagnostics.Clear();
 
             while (true) {
                 Console.Write("> ");
                 string line = Console.ReadLine();
                 if (string.IsNullOrWhiteSpace(line)) return;
-                Parser parser = new Parser(line);
-                var expr = parser.Parse();
+                SyntaxTree tree = SyntaxTree.Parse(line);
+
+                diagnostics.AddRange(tree.diagnostics);
+                if (diagnostics.Any()) {
+                    if (callback != null)
+                        callback(this);
+                    diagnostics.Clear();
+                    continue;
+                }
 
                 ConsoleColor prev = Console.ForegroundColor;
                 Console.ForegroundColor = ConsoleColor.DarkGray;
-
-                PrettyPrint(expr);
-
+                PrettyPrint(tree.root);
                 Console.ForegroundColor = prev;
+
+                Evaluator eval = new Evaluator(tree.root);
+                var result = eval.Evaluate();
+
+                if (eval.diagnostics.Any()) {
+                    if (callback != null)
+                        callback(this);
+                } else if (result != null) {
+                    Console.WriteLine(result);
+                }
             }
         }
 
-        public int Compile() {
+        public int Compile(ErrorHandle callback=null) {
             int err;
 
             Preprocess();
@@ -296,10 +421,13 @@ namespace Buckle {
             if (state.finish_stage == CompilerStage.preprocessed)
                 return SUCCESS_EXIT_CODE;
 
-            Repl();
+            // InternalCompiler();
+            Repl(callback);
             err = CheckErrors();
-            if (err > 0) return err;
+            // if (err > 0) return err;
+            return err;
 
+            /*
             if (state.finish_stage == CompilerStage.compiled)
                 return SUCCESS_EXIT_CODE;
 
@@ -318,6 +446,7 @@ namespace Buckle {
                 return SUCCESS_EXIT_CODE;
 
             return FATAL_EXIT_CODE;
+            // */
         }
     }
 }
