@@ -14,6 +14,7 @@ namespace CommandLine {
         private static CompilerState DecodeOptions(string[] args, out List<Diagnostic> diagnostics) {
             diagnostics = new List<Diagnostic>();
             CompilerState state = new CompilerState();
+            state.tasks = new List<FileState>();
 
             bool specify_stage = false;
             bool specify_out = false;

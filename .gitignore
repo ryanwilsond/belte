@@ -1,6 +1,11 @@
 .*/
 !.github
 
+**/obj/*
 **/bin/*
 *.o
 *.exe
+*.dll
+*.csproj
+*.deps.json
+*.runtimeconfig.js

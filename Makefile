@@ -32,6 +32,7 @@ install:
 clean:
 	rm -f $(PROJNAME).exe
 	rm -f $(PROJNAME).dll
+	rm -f $(PROJNAME).csproj
 	rm -f $(PROJNAME).deps.json
 	rm -f $(PROJNAME).runtimeconfig.json
 	rm -rfd bin
