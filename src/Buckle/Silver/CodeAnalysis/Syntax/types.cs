@@ -20,6 +20,8 @@ namespace Buckle.CodeAnalysis.Syntax {
         DPIPE,
         DMINUS,
         DPLUS,
+        DEQUALS,
+        BANGEQUALS,
         // expressions
         LITERAL_EXPR,
         BINARY_EXPR,

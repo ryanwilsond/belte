@@ -11,6 +11,8 @@ namespace Buckle.CodeAnalysis.Binding {
         Divide,
         ConditionalAnd,
         ConditionalOr,
+        EqualityEquals,
+        EqualityNotEquals,
     }
 
     internal class BoundBinaryOperator {
@@ -28,8 +30,8 @@ namespace Buckle.CodeAnalysis.Binding {
             resulttype = resulttype_;
         }
 
-        private BoundBinaryOperator(SyntaxType type_, BoundBinaryOperatorType optype_, Type lefttype_, Type righttype_)
-            : this(type_, optype_, lefttype_, righttype_, lefttype_) { }
+        private BoundBinaryOperator(SyntaxType type_, BoundBinaryOperatorType optype_, Type operandtype, Type resulttype_)
+            : this(type_, optype_, operandtype, operandtype, resulttype_) { }
 
         private BoundBinaryOperator(SyntaxType type_, BoundBinaryOperatorType optype_, Type ltype)
             : this(type_, optype_, ltype, ltype, ltype) { }
@@ -39,8 +41,14 @@ namespace Buckle.CodeAnalysis.Binding {
             new BoundBinaryOperator(SyntaxType.MINUS, BoundBinaryOperatorType.Subtract, typeof(int)),
             new BoundBinaryOperator(SyntaxType.ASTERISK, BoundBinaryOperatorType.Multiply, typeof(int)),
             new BoundBinaryOperator(SyntaxType.SOLIDUS, BoundBinaryOperatorType.Divide, typeof(int)),
+
+            new BoundBinaryOperator(SyntaxType.DEQUALS, BoundBinaryOperatorType.EqualityEquals, typeof(int), typeof(bool)),
+            new BoundBinaryOperator(SyntaxType.BANGEQUALS, BoundBinaryOperatorType.EqualityNotEquals, typeof(int), typeof(bool)),
+
             new BoundBinaryOperator(SyntaxType.DAMPERSAND, BoundBinaryOperatorType.ConditionalAnd, typeof(bool)),
             new BoundBinaryOperator(SyntaxType.DPIPE, BoundBinaryOperatorType.ConditionalOr, typeof(bool)),
+            new BoundBinaryOperator(SyntaxType.DEQUALS, BoundBinaryOperatorType.EqualityEquals, typeof(bool)),
+            new BoundBinaryOperator(SyntaxType.BANGEQUALS, BoundBinaryOperatorType.EqualityNotEquals, typeof(bool)),
         };
 
         public static BoundBinaryOperator Bind(SyntaxType type, Type lefttype, Type righttype) {
@@ -53,7 +61,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
     internal sealed class BoundBinaryExpression : BoundExpression {
         public override BoundNodeType type => BoundNodeType.BINARY_EXPR;
-        public override Type ltype => left.ltype;
+        public override Type ltype => op.resulttype;
         public BoundExpression left { get; }
         public BoundBinaryOperator op { get; }
         public BoundExpression right { get; }

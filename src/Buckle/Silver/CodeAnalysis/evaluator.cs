@@ -40,6 +40,8 @@ namespace Buckle.CodeAnalysis {
                     case BoundBinaryOperatorType.Divide: return (int)left / (int)right;
                     case BoundBinaryOperatorType.ConditionalAnd: return (bool)left && (bool)right;
                     case BoundBinaryOperatorType.ConditionalOr: return (bool)left || (bool)right;
+                    case BoundBinaryOperatorType.EqualityEquals: return Equals(left, right);
+                    case BoundBinaryOperatorType.EqualityNotEquals: return !Equals(left, right);
                     default:
                         diagnostics.Add(new Diagnostic(DiagnosticType.fatal, $"unknown binary operator '{b.op}'"));
                         return null;

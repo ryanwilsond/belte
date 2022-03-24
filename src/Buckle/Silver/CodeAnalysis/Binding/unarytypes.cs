@@ -42,7 +42,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
     internal sealed class BoundUnaryExpression : BoundExpression {
         public override BoundNodeType type => BoundNodeType.UNARY_EXPR;
-        public override Type ltype => operand.ltype;
+        public override Type ltype => op.resulttype;
         public BoundUnaryOperator op { get; }
         public BoundExpression operand { get; }
 

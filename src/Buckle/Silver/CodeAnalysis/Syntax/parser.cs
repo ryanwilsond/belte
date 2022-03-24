@@ -44,7 +44,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                 int precedence = current.type.GetBinaryPrecedence();
                 if (precedence == 0 || precedence <= parentPrecedence) break;
                 var op = Next();
-                var right = ParseExpression();
+                var right = ParseExpression(precedence);
                 left = new BinaryExpression(left, op, right);
             }
 

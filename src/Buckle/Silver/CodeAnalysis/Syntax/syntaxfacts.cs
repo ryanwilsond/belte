@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             switch(type) {
                 case SyntaxType.DMINUS:
                 case SyntaxType.DPLUS:
-                    return 6;
+                    return 7;
                 default: return 0;
             }
         }
@@ -16,9 +16,12 @@ namespace Buckle.CodeAnalysis.Syntax {
             switch(type) {
                 case SyntaxType.ASTERISK:
                 case SyntaxType.SOLIDUS:
-                    return 4;
+                    return 5;
                 case SyntaxType.PLUS:
                 case SyntaxType.MINUS:
+                    return 4;
+                case SyntaxType.DEQUALS:
+                case SyntaxType.BANGEQUALS:
                     return 3;
                 case SyntaxType.DAMPERSAND:
                     return 2;
@@ -35,7 +38,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.BANG:
                 case SyntaxType.DMINUS:
                 case SyntaxType.DPLUS:
-                    return 5;
+                    return 6;
                 default: return 0;
             }
         }

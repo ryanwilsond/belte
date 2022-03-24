@@ -66,13 +66,18 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case '/': return new Token(SyntaxType.SOLIDUS, pos_++, "/", null);
                 case '(': return new Token(SyntaxType.LPAREN, pos_++, "(", null);
                 case ')': return new Token(SyntaxType.RPAREN, pos_++, ")", null);
-                case '!': return new Token(SyntaxType.BANG, pos_++, "!", null);
                 case '&':
                     if (lookahead == '&') return new Token(SyntaxType.DAMPERSAND, pos_+=2, "&&", null);
                     break;
                 case '|':
                     if (lookahead == '|') return new Token(SyntaxType.DPIPE, pos_+=2, "||", null);
                     break;
+                case '=':
+                    if (lookahead == '=') return new Token(SyntaxType.DEQUALS, pos_+=2, "==", null);
+                    break;
+                case '!':
+                    if (lookahead == '=') return new Token(SyntaxType.BANGEQUALS, pos_+=2, "!=", null);
+                    return new Token(SyntaxType.BANG, pos_++, "!", null);
                 default: break;
             }
 
