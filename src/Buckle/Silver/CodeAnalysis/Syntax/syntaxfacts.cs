@@ -3,14 +3,27 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal static class SyntaxFacts {
 
+        public static int GetPrimaryPrecedence(this SyntaxType type) {
+            switch(type) {
+                case SyntaxType.DMINUS:
+                case SyntaxType.DPLUS:
+                    return 6;
+                default: return 0;
+            }
+        }
+
         public static int GetBinaryPrecedence(this SyntaxType type) {
             switch(type) {
-                case SyntaxType.PLUS:
-                case SyntaxType.MINUS:
-                    return 1;
                 case SyntaxType.ASTERISK:
                 case SyntaxType.SOLIDUS:
+                    return 4;
+                case SyntaxType.PLUS:
+                case SyntaxType.MINUS:
+                    return 3;
+                case SyntaxType.DAMPERSAND:
                     return 2;
+                case SyntaxType.DPIPE:
+                    return 1;
                 default: return 0;
             }
         }
@@ -19,8 +32,19 @@ namespace Buckle.CodeAnalysis.Syntax {
             switch(type) {
                 case SyntaxType.PLUS:
                 case SyntaxType.MINUS:
-                    return 3;
+                case SyntaxType.BANG:
+                case SyntaxType.DMINUS:
+                case SyntaxType.DPLUS:
+                    return 5;
                 default: return 0;
+            }
+        }
+
+        public static SyntaxType GetKeywordType(string text) {
+            switch (text) {
+                case "true": return SyntaxType.TRUE_KEYWORD;
+                case "false": return SyntaxType.FALSE_KEYWORD;
+                default: return SyntaxType.Identifier;
             }
         }
     }

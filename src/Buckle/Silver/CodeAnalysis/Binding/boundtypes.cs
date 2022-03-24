@@ -11,8 +11,9 @@ namespace Buckle.CodeAnalysis.Binding {
 
     internal enum BoundUnaryOperatorType {
         Invalid,
-        Identity,
-        Negation,
+        NumericalIdentity,
+        NumericalNegation,
+        BooleanNegation,
     }
 
     internal enum BoundBinaryOperatorType {
@@ -21,6 +22,8 @@ namespace Buckle.CodeAnalysis.Binding {
         Subtract,
         Multiply,
         Divide,
+        ConditionalAnd,
+        ConditionalOr,
     }
 
     internal abstract class BoundNode {

@@ -23,7 +23,7 @@ namespace Buckle.CodeAnalysis.Binding {
         }
 
         private BoundExpression BindLiteralExpression(LiteralExpression expr) {
-            var value = expr.token.value as int? ?? 0; // as nullable int, if null instead 0
+            var value = expr.value ?? 0;
             return new BoundLiteralExpression(value);
         }
 
@@ -55,29 +55,41 @@ namespace Buckle.CodeAnalysis.Binding {
         }
 
         private BoundUnaryOperatorType? BindUnaryOperatorType(SyntaxType type, Type ltype) {
-            if (ltype != typeof(int)) return null;
-
-            switch (type) {
-                case SyntaxType.PLUS: return BoundUnaryOperatorType.Identity;
-                case SyntaxType.MINUS: return BoundUnaryOperatorType.Negation;
-                default:
-                    diagnostics.Add(new Diagnostic(DiagnosticType.fatal, $"unexpected unary operator '{type}'"));
-                    return BoundUnaryOperatorType.Invalid;
+            if (ltype == typeof(int)) {
+                switch (type) {
+                    case SyntaxType.PLUS: return BoundUnaryOperatorType.NumericalIdentity;
+                    case SyntaxType.MINUS: return BoundUnaryOperatorType.NumericalNegation;
+                    default: break;
+                }
+            } else if (ltype == typeof(bool)) {
+                switch (type) {
+                    case SyntaxType.BANG: return BoundUnaryOperatorType.BooleanNegation;
+                    default: break;
+                }
             }
+
+            return null;
+
         }
 
         private BoundBinaryOperatorType? BindBinaryOperatorType(SyntaxType type, Type lltype, Type rltype) {
-            if (lltype != typeof(int) || rltype != typeof(int)) return null;
-
-            switch (type) {
-                case SyntaxType.PLUS: return BoundBinaryOperatorType.Add;
-                case SyntaxType.MINUS: return BoundBinaryOperatorType.Subtract;
-                case SyntaxType.ASTERISK: return BoundBinaryOperatorType.Multiply;
-                case SyntaxType.SOLIDUS: return BoundBinaryOperatorType.Divide;
-                default:
-                    diagnostics.Add(new Diagnostic(DiagnosticType.fatal, $"unexpected unary operator '{type}'"));
-                    return BoundBinaryOperatorType.Invalid;
+            if (lltype == typeof(int) && rltype == typeof(int)) {
+                switch (type) {
+                    case SyntaxType.PLUS: return BoundBinaryOperatorType.Add;
+                    case SyntaxType.MINUS: return BoundBinaryOperatorType.Subtract;
+                    case SyntaxType.ASTERISK: return BoundBinaryOperatorType.Multiply;
+                    case SyntaxType.SOLIDUS: return BoundBinaryOperatorType.Divide;
+                    default: break;
+                }
+            } else if (lltype == typeof(bool) && rltype == typeof(bool)) {
+                switch (type) {
+                    case SyntaxType.DAMPERSAND: return BoundBinaryOperatorType.ConditionalAnd;
+                    case SyntaxType.DPIPE: return BoundBinaryOperatorType.ConditionalOr;
+                    default: break;
+                }
             }
+
+            return null;
         }
     }
 }

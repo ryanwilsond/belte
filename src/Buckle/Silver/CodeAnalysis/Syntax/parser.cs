@@ -57,6 +57,10 @@ namespace Buckle.CodeAnalysis.Syntax {
                 var expr = ParseExpression();
                 var right = Match(SyntaxType.RPAREN);
                 return new ParenExpression(left, expr, right);
+            }  else if (current.type == SyntaxType.TRUE_KEYWORD || current.type == SyntaxType.FALSE_KEYWORD) {
+                var keyword = Next();
+                var value = keyword.type == SyntaxType.TRUE_KEYWORD;
+                return new LiteralExpression(keyword, value);
             }
 
             var token = Match(SyntaxType.NUMBER);

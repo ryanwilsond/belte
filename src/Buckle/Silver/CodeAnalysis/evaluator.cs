@@ -13,26 +13,33 @@ namespace Buckle.CodeAnalysis {
             diagnostics = new List<Diagnostic>();
         }
 
-        public int? Evaluate() { return EvaluteExpression(root_); }
+        public object Evaluate() { return EvaluteExpression(root_); }
 
-        private int? EvaluteExpression(BoundExpression node) {
+        private object EvaluteExpression(BoundExpression node) {
             if (node is BoundLiteralExpression n) {
-                return (int)n.value;
+                return n.value;
             } else if (node is BoundUnaryExpression u) {
                 var operand = EvaluteExpression(u.operand);
 
-                if (u.op == BoundUnaryOperatorType.Identity) return operand;
-                else if (u.op == BoundUnaryOperatorType.Negation) return -operand;
-                else diagnostics.Add(new Diagnostic(DiagnosticType.fatal, $"unknown unary operator '{u.op}'"));
+                switch(u.op) {
+                    case BoundUnaryOperatorType.NumericalIdentity: return (int)operand;
+                    case BoundUnaryOperatorType.NumericalNegation: return -(int)operand;
+                    case BoundUnaryOperatorType.BooleanNegation: return !(bool)operand;
+                    default:
+                        diagnostics.Add(new Diagnostic(DiagnosticType.fatal, $"unknown unary operator '{u.op}'"));
+                        return null;
+                }
             } else if (node is BoundBinaryExpression b) {
                 var left = EvaluteExpression(b.left);
                 var right = EvaluteExpression(b.right);
 
                 switch (b.op) {
-                    case BoundBinaryOperatorType.Add: return left + right;
-                    case BoundBinaryOperatorType.Subtract: return left - right;
-                    case BoundBinaryOperatorType.Multiply: return left * right;
-                    case BoundBinaryOperatorType.Divide: return left / right;
+                    case BoundBinaryOperatorType.Add: return (int)left + (int)right;
+                    case BoundBinaryOperatorType.Subtract: return (int)left - (int)right;
+                    case BoundBinaryOperatorType.Multiply: return (int)left * (int)right;
+                    case BoundBinaryOperatorType.Divide: return (int)left / (int)right;
+                    case BoundBinaryOperatorType.ConditionalAnd: return (bool)left && (bool)right;
+                    case BoundBinaryOperatorType.ConditionalOr: return (bool)left || (bool)right;
                     default:
                         diagnostics.Add(new Diagnostic(DiagnosticType.fatal, $"unknown binary operator '{b.op}'"));
                         return null;

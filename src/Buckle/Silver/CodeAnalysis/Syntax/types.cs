@@ -4,6 +4,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal enum SyntaxType {
         Invalid,
+        Identifier,
         // tokens
         EOF,
         WHITESPACE,
@@ -14,11 +15,19 @@ namespace Buckle.CodeAnalysis.Syntax {
         SOLIDUS,
         LPAREN,
         RPAREN,
+        BANG,
+        DAMPERSAND,
+        DPIPE,
+        DMINUS,
+        DPLUS,
         // expressions
         LITERAL_EXPR,
         BINARY_EXPR,
         UNARY_EXPR,
         PAREN_EXPR,
+        // keywords
+        TRUE_KEYWORD,
+        FALSE_KEYWORD,
     }
 
     internal abstract class Node {
@@ -46,11 +55,15 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal class LiteralExpression : Expression {
         public Token token { get; }
+        public object value { get; }
         public override SyntaxType type => SyntaxType.LITERAL_EXPR;
 
-        public LiteralExpression(Token token_) {
+        public LiteralExpression(Token token_, object value_) {
             token = token_;
+            value = value_;
         }
+
+        public LiteralExpression(Token token_) : this(token_, token_.value) { }
 
         public override List<Node> GetChildren() { return new List<Node>() { token }; }
     }
