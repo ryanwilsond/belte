@@ -9,23 +9,6 @@ namespace Buckle.CodeAnalysis.Binding {
         BINARY_EXPR,
     }
 
-    internal enum BoundUnaryOperatorType {
-        Invalid,
-        NumericalIdentity,
-        NumericalNegation,
-        BooleanNegation,
-    }
-
-    internal enum BoundBinaryOperatorType {
-        Invalid,
-        Add,
-        Subtract,
-        Multiply,
-        Divide,
-        ConditionalAnd,
-        ConditionalOr,
-    }
-
     internal abstract class BoundNode {
         public abstract BoundNodeType type { get; }
     }
@@ -41,32 +24,6 @@ namespace Buckle.CodeAnalysis.Binding {
 
         public BoundLiteralExpression(object value_) {
             value = value_;
-        }
-    }
-
-    internal sealed class BoundUnaryExpression : BoundExpression {
-        public override BoundNodeType type => BoundNodeType.UNARY_EXPR;
-        public override Type ltype => operand.ltype;
-        public BoundUnaryOperatorType op { get; }
-        public BoundExpression operand { get; }
-
-        public BoundUnaryExpression(BoundUnaryOperatorType op_, BoundExpression operand_) {
-            op = op_;
-            operand = operand_;
-        }
-    }
-
-    internal sealed class BoundBinaryExpression : BoundExpression {
-        public override BoundNodeType type => BoundNodeType.BINARY_EXPR;
-        public override Type ltype => left.ltype;
-        public BoundExpression left { get; }
-        public BoundBinaryOperatorType op { get; }
-        public BoundExpression right { get; }
-
-        public BoundBinaryExpression(BoundExpression left_, BoundBinaryOperatorType op_, BoundExpression right_) {
-            left = left_;
-            op = op_;
-            right = right_;
         }
     }
 }

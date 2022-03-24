@@ -21,7 +21,7 @@ namespace Buckle.CodeAnalysis {
             } else if (node is BoundUnaryExpression u) {
                 var operand = EvaluteExpression(u.operand);
 
-                switch(u.op) {
+                switch(u.op.optype) {
                     case BoundUnaryOperatorType.NumericalIdentity: return (int)operand;
                     case BoundUnaryOperatorType.NumericalNegation: return -(int)operand;
                     case BoundUnaryOperatorType.BooleanNegation: return !(bool)operand;
@@ -33,7 +33,7 @@ namespace Buckle.CodeAnalysis {
                 var left = EvaluteExpression(b.left);
                 var right = EvaluteExpression(b.right);
 
-                switch (b.op) {
+                switch (b.op.optype) {
                     case BoundBinaryOperatorType.Add: return (int)left + (int)right;
                     case BoundBinaryOperatorType.Subtract: return (int)left - (int)right;
                     case BoundBinaryOperatorType.Multiply: return (int)left * (int)right;
