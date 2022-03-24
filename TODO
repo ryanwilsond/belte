@@ -1,14 +1,14 @@
 TODO
 
-  STD
+  Standard
     * Implement TypeBase
     * add interfaces to all types
     * Add docstrings to InterfaceBase & TypeBase & System Libraries
     * Add base inherited interfaces to base types
+    * rethink a lot of things like extension methods, callbacks, optimization methods, and STDIO / STD
+      maybe dont call it STD and steal from C, e.g. C# calls it IO not STDIO
 
   Buckle
-    * Add Parser
-    * Finish Lexer
     * Add file exists checking for input files
 
   Extension
@@ -29,7 +29,6 @@ TODO
     * finish all docs
 
   Belte & Formatting
-    * namespaces tab in?
     * extension method syntax
         * if C# style: make typename after `this` not be parameter
     * <,0> and <0,> syntax acceptable? it is nice to use, but less consistent
@@ -44,7 +43,6 @@ Outside Ideas:
     * reflection .net, typeof, nameof
     * decorators
     * switch over any built-in data type
-    * enums with strings
     * enum have multiple fields
     * ability to add enum entries at code-time (need to make it not happen at runtime somehow)
     * python style unpacking
