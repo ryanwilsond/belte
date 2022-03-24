@@ -1,8 +1,14 @@
-PROJNAME:=buckle
+PROJNAME:=CmdLine
 BUILDTYPE=DEBUG
+EXENAME:=buckle
+COMPDIR:=src/Buckle/Silver/Buckle
+COMPPROJ:=Buckle
 
-CSPROJ="<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net5.0</TargetFramework>"
-CSPROJFINAL="<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net5.0</TargetFramework>"
+COMMONPROJ="<Project Sdk=\"Microsoft.NET.Sdk\"><ItemGroup><ProjectReference Include=\"..\\Buckle\\$(COMPPROJ).csproj\" /></ItemGroup>"
+COMMONPROJ+="<PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net5.0</TargetFramework>"
+
+CSPROJ=$(COMMONPROJ)
+CSPROJFINAL=$(COMMONPROJ)
 CSPROJFINAL+="<Configuration>Release</Configuration>"
 CSPROJFINAL+="<PublishSingleFile>true</PublishSingleFile><SelfContained>true</SelfContained><RuntimeIdentifier>win-x64</RuntimeIdentifier>"
 # CSPROJFINAL+="<PublishTrimmed>true</PublishTrimmed>"
@@ -13,27 +19,47 @@ ifeq ($(BUILDTYPE), RELEASE)
 endif
 
 CSPROJ+="</PropertyGroup></Project>"
-PACKDIR=.
+PACKDIR="src/Buckle/Silver/CmdLine"
 
-all:
-	@echo $(CSPROJ) > $(PROJNAME).csproj
-	dotnet build $(PROJNAME).csproj
-	cp bin/Debug/net5.0/$(PROJNAME).exe $(PROJNAME).exe
-	cp obj/Debug/net5.0/$(PROJNAME).dll $(PROJNAME).dll
-	cp bin/Debug/net5.0/$(PROJNAME).deps.json $(PROJNAME).deps.json
-	cp bin/Debug/net5.0/$(PROJNAME).runtimeconfig.json $(PROJNAME).runtimeconfig.json
+all: componly cmdonly copy
 
-install:
-	@echo $(CSPROJFINAL) > $(PROJNAME).csproj
-	dotnet publish -r win-x64 -p:PublishSingleFile=true --self-contained true -p:PublishReadyToRunShowWarnings=true -p:IncludeNativeLibrariesForSelfExtract=true
-	rm -f $(PACKDIR)/$(PROJNAME).exe
-	cp bin/Release/net5.0/win-x64/publish/$(PROJNAME).exe $(PACKDIR)/$(PROJNAME).exe
+debug: redo all
 
-clean:
-	rm -f $(PROJNAME).exe
+redo:
+	@echo $(CSPROJ) > $(PACKDIR)/$(PROJNAME).csproj
+	dotnet build $(PACKDIR)/$(PROJNAME).csproj
+
+install: cleancmd
+	@echo $(CSPROJFINAL) > $(PACKDIR)/$(PROJNAME).csproj
+	dotnet publish $(PACKDIR)/$(PROJNAME).csproj -r win-x64 -p:PublishSingleFile=true --self-contained true \
+		-p:PublishReadyToRunShowWarnings=true -p:IncludeNativeLibrariesForSelfExtract=true
+	cp $(PACKDIR)/bin/Release/net5.0/win-x64/publish/$(PROJNAME).exe $(EXENAME).exe
+
+componly:
+	dotnet build $(COMPDIR)/$(COMPPROJ).csproj
+
+cmdonly:
+	dotnet build $(PACKDIR)/$(PROJNAME).csproj
+
+copy:
+	cp $(PACKDIR)/bin/Debug/net5.0/$(PROJNAME).exe $(EXENAME).exe
+	cp $(PACKDIR)/obj/Debug/net5.0/$(PROJNAME).dll $(PROJNAME).dll
+	cp $(PACKDIR)/bin/Debug/net5.0/$(PROJNAME).deps.json $(PROJNAME).deps.json
+	cp $(PACKDIR)/bin/Debug/net5.0/$(PROJNAME).runtimeconfig.json $(PROJNAME).runtimeconfig.json
+	cp $(COMPDIR)/bin/Debug/net5.0/$(COMPPROJ).dll $(COMPPROJ).dll
+
+cleancomp:
+	rm -fdr $(COMPDIR)/bin
+	rm -fdr $(COMPDIR)/obj
+
+cleancmd:
+	rm -f $(EXENAME).exe
 	rm -f $(PROJNAME).dll
-	rm -f $(PROJNAME).csproj
 	rm -f $(PROJNAME).deps.json
 	rm -f $(PROJNAME).runtimeconfig.json
-	rm -rfd bin
-	rm -rfd obj
+	rm -f $(COMPPROJ).dll
+	rm -fdr $(PACKDIR)/bin
+	rm -fdr $(PACKDIR)/obj
+	rm -f $(PACKDIR)/$(PROJNAME).csproj
+
+clean: cleancomp cleancmd
