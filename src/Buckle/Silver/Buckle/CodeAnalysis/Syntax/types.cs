@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 
 namespace Buckle.CodeAnalysis.Syntax {
 
@@ -38,7 +40,27 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal abstract class Node {
         public abstract SyntaxType type { get; }
-        public abstract List<Node> GetChildren();
+        public virtual TextSpan span {
+            get {
+                var first = GetChildren().First().span;
+                var last = GetChildren().Last().span;
+                return TextSpan.FromBounds(first.start, last.end);
+            }
+        }
+        public IEnumerable<Node> GetChildren() {
+            var properties = GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
+
+            foreach (var property in properties) {
+                if (typeof(Node).IsAssignableFrom(property.PropertyType)) {
+                    yield return (Node)property.GetValue(this);
+                } else if (typeof(IEnumerable<Node>).IsAssignableFrom(property.PropertyType)) {
+                    var values = (IEnumerable<Node>)property.GetValue(this);
+                    foreach (var child in values) {
+                        yield return child;
+                    }
+                }
+            }
+        }
     }
 
     internal class Token : Node {
@@ -46,7 +68,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public int pos { get; }
         public string text { get; }
         public object value { get; }
-        public TextSpan span => new TextSpan(pos, text.Length);
+        public override TextSpan span => new TextSpan(pos, text.Length);
 
         public Token(SyntaxType type_, int pos_, string text_, object value_) {
             type = type_;
@@ -54,8 +76,6 @@ namespace Buckle.CodeAnalysis.Syntax {
             text = text_;
             value = value_;
         }
-
-        public override List<Node> GetChildren() { return new List<Node>() { }; }
     }
 
     internal abstract class Expression : Node { }
@@ -71,8 +91,6 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         public LiteralExpression(Token token_) : this(token_, token_.value) { }
-
-        public override List<Node> GetChildren() { return new List<Node>() { token }; }
     }
 
     internal sealed class BinaryExpression : Expression {
@@ -86,8 +104,6 @@ namespace Buckle.CodeAnalysis.Syntax {
             op = op_;
             right = right_;
         }
-
-        public override List<Node> GetChildren() { return new List<Node>() { left, op, right }; }
     }
 
     internal sealed class ParenExpression : Expression {
@@ -101,8 +117,6 @@ namespace Buckle.CodeAnalysis.Syntax {
             expr = expr_;
             rparen = rparen_;
         }
-
-        public override List<Node> GetChildren() { return new List<Node>() { lparen, expr, rparen }; }
     }
 
     internal sealed class UnaryExpression : Expression {
@@ -114,8 +128,6 @@ namespace Buckle.CodeAnalysis.Syntax {
             op = op_;
             operand = operand_;
         }
-
-        public override List<Node> GetChildren() { return new List<Node>() { op, operand }; }
     }
 
     internal sealed class NameExpression : Expression {
@@ -125,8 +137,6 @@ namespace Buckle.CodeAnalysis.Syntax {
         public NameExpression(Token id_) {
             id = id_;
         }
-
-        public override List<Node> GetChildren() { return new List<Node>() { id }; }
     }
 
     internal sealed class AssignmentExpression : Expression {
@@ -140,8 +150,5 @@ namespace Buckle.CodeAnalysis.Syntax {
             equals = equals_;
             expr = expr_;
         }
-
-        public override List<Node> GetChildren() { return new List<Node>() { id, equals, expr }; }
     }
-
 }

@@ -26,17 +26,22 @@ namespace Buckle {
         }
 
         public TextSpan(int? start_, int? length_) : this(start_, length_, null, null) { }
+
+        public static TextSpan FromBounds(int? start, int? end) {
+            var length = end - start;
+            return new TextSpan(start, length);
+        }
     }
 
     public class Diagnostic {
         public DiagnosticType type { get; }
         public string msg { get; }
-        public TextSpan? pos { get; }
+        public TextSpan? span { get; }
 
         public Diagnostic(DiagnosticType type_, TextSpan? span_, string msg_) {
             type = type_;
             msg = msg_;
-            pos = span_;
+            span = span_;
         }
     }
 
