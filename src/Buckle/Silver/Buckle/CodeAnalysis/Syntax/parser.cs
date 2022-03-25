@@ -1,11 +1,32 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Syntax {
 
     internal class Parser {
-        private readonly Token[] tokens_;
+        private readonly ImmutableArray<Token> tokens_;
         private int pos_;
         public DiagnosticQueue diagnostics;
+
+        private Token Match(SyntaxType type) {
+            if (current.type == type) return Next();
+            diagnostics.Push(Error.UnexpectedToken(current.span, current.type, type));
+            return new Token(type, current.pos, null, null);
+        }
+
+        private Token Next() {
+            Token cur = current;
+            pos_++;
+            return cur;
+        }
+
+        private Token Peek(int offset) {
+            int index = pos_ + offset;
+            if (index >= tokens_.Length) return tokens_[tokens_.Length-1];
+            return tokens_[index];
+        }
+
+        private Token current => Peek(0);
 
         public Parser(string text) {
             diagnostics = new DiagnosticQueue();
@@ -20,7 +41,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                     tokens.Add(token);
             } while (token.type != SyntaxType.EOF);
 
-            tokens_ = tokens.ToArray();
+            tokens_ = tokens.ToImmutableArray();
             diagnostics.Move(lexer.diagnostics);
         }
 
@@ -69,42 +90,39 @@ namespace Buckle.CodeAnalysis.Syntax {
         private Expression ParsePrimaryExpression() {
             switch(current.type) {
                 case SyntaxType.LPAREN:
-                    var left = Next();
-                    var expr = ParseExpression();
-                    var right = Match(SyntaxType.RPAREN);
-                    return new ParenExpression(left, expr, right);
+                    return ParseParenExpression();
                 case SyntaxType.TRUE_KEYWORD:
                 case SyntaxType.FALSE_KEYWORD:
-                    var keyword = Next();
-                    var value = keyword.type == SyntaxType.TRUE_KEYWORD;
-                    return new LiteralExpression(keyword, value);
-                case SyntaxType.IDENTIFIER:
-                    var id = Next();
-                    return new NameExpression(id);
+                    return ParseBooleanLiteral();
+                case SyntaxType.NUMBER:
+                    return ParseNumberLiteral();
+                case SyntaxType.NAME_EXPR:
                 default:
-                    var token = Match(SyntaxType.NUMBER);
-                    return new LiteralExpression(token);
+                    return ParseNameExpression();
             }
         }
 
-        private Token Match(SyntaxType type) {
-            if (current.type == type) return Next();
-            diagnostics.Push(Error.UnexpectedToken(current.span, current.type, type));
-            return new Token(type, current.pos, null, null);
+        private Expression ParseNumberLiteral() {
+            var token = Match(SyntaxType.NUMBER);
+            return new LiteralExpression(token);
         }
 
-        private Token Next() {
-            Token cur = current;
-            pos_++;
-            return cur;
+        private Expression ParseParenExpression() {
+            var left = Match(SyntaxType.LPAREN);
+            var expr = ParseExpression();
+            var right = Match(SyntaxType.RPAREN);
+            return new ParenExpression(left, expr, right);
         }
 
-        private Token Peek(int offset) {
-            int index = pos_ + offset;
-            if (index >= tokens_.Length) return tokens_[tokens_.Length-1];
-            return tokens_[index];
+        private Expression ParseBooleanLiteral() {
+            var istrue = current.type == SyntaxType.TRUE_KEYWORD;
+            var keyword = istrue ? Match(SyntaxType.TRUE_KEYWORD) : Match(SyntaxType.FALSE_KEYWORD);
+            return new LiteralExpression(keyword, istrue);
         }
 
-        private Token current => Peek(0);
+        private Expression ParseNameExpression() {
+            var id = Match(SyntaxType.IDENTIFIER);
+            return new NameExpression(id);
+        }
     }
 }
