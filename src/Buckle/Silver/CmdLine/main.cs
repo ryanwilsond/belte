@@ -96,9 +96,9 @@ namespace CommandLine {
         }
 
         private static void PrettyPrintDiagnostic(string line, Diagnostic error) {
-            if (error.pos.Value.file != null) Console.Write($"{error.pos.Value.file}:");
-            if (error.pos.Value.line != null) Console.Write($"{error.pos.Value.line.Value}:");
-            if (error.pos.Value.start != null) Console.Write($"{error.pos.Value.start.Value}:");
+            if (error.pos.file != null) Console.Write($"{error.pos.file}:");
+            if (error.pos.line != null) Console.Write($"{error.pos.line.Value}:");
+            if (error.pos.start != null) Console.Write($"{error.pos.start.Value}:");
 
             if (error.type == DiagnosticType.error) {
                 Console.ForegroundColor = ConsoleColor.Red;
@@ -116,14 +116,14 @@ namespace CommandLine {
 
             string prefix, focus, suffix;
 
-            if (error.pos.Value.start.Value == line.Length) {
+            if (error.pos.start.Value == line.Length) {
                 prefix = line;
                 focus = " ";
                 suffix = "";
             } else {
-                prefix = line.Substring(0, error.pos.Value.start.Value);
-                focus = line.Substring(error.pos.Value.start.Value, error.pos.Value.length.Value);
-                suffix = line.Substring(error.pos.Value.end.Value);
+                prefix = line.Substring(0, error.pos.start.Value);
+                focus = line.Substring(error.pos.start.Value, error.pos.length.Value);
+                suffix = line.Substring(error.pos.end.Value);
             }
 
             Console.Write($" {prefix}");
@@ -134,10 +134,10 @@ namespace CommandLine {
 
             Console.ForegroundColor = ConsoleColor.Red;
             int tabcount = prefix.Length - prefix.Replace("\t", "").Length;
-            string marker = new string(' ', error.pos.Value.start.Value + 1);
+            string marker = new string(' ', error.pos.start.Value + 1);
             marker += new string('\t', tabcount);
             marker += "^";
-            marker += new string('~', error.pos.Value.length.Value - 1);
+            marker += new string('~', error.pos.length.Value - 1);
             Console.WriteLine(marker);
 
             Console.ResetColor();

@@ -11,7 +11,7 @@ namespace Buckle {
         unknown,
     }
 
-    public struct TextSpan {
+    public class TextSpan {
         public int? start { get; }
         public int? length { get; }
         public int? end => start + length;
@@ -44,6 +44,7 @@ namespace Buckle {
         private List<Diagnostic> diagnostics_;
         public int count => diagnostics_.Count;
         public bool Any() => diagnostics_.Any();
+        public Diagnostic[] ToArray() => diagnostics_.ToArray();
         public IEnumerator GetEnumerator() => diagnostics_.GetEnumerator();
 
         public DiagnosticQueue() {

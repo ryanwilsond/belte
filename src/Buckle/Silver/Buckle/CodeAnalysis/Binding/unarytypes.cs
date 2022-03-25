@@ -29,8 +29,9 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private static BoundUnaryOperator[] operators_ = {
             new BoundUnaryOperator(SyntaxType.BANG, BoundUnaryOperatorType.BooleanNegation, typeof(bool)),
-            new BoundUnaryOperator(SyntaxType.PLUS, BoundUnaryOperatorType.NumericalIdentity, typeof(bool)),
-            new BoundUnaryOperator(SyntaxType.MINUS, BoundUnaryOperatorType.NumericalNegation, typeof(bool)),
+
+            new BoundUnaryOperator(SyntaxType.PLUS, BoundUnaryOperatorType.NumericalIdentity, typeof(int)),
+            new BoundUnaryOperator(SyntaxType.MINUS, BoundUnaryOperatorType.NumericalNegation, typeof(int)),
         };
 
         public static BoundUnaryOperator Bind(SyntaxType type, Type operandtype) {

@@ -18,5 +18,14 @@ namespace Buckle.CodeAnalysis.Syntax {
             Parser parser = new Parser(line);
             return parser.Parse();
         }
+
+        public static IEnumerable<Token> ParseTokens(string text) {
+            Lexer lexer = new Lexer(text);
+            while (true) {
+                var token = lexer.LexNext();
+                if (token.type == SyntaxType.EOF) break;
+                yield return token;
+            }
+        }
     }
 }

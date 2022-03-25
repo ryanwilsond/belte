@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Binding;
 
 namespace Buckle.CodeAnalysis {

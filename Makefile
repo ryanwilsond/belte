@@ -3,6 +3,8 @@ BUILDTYPE=DEBUG
 EXENAME:=buckle
 COMPDIR:=src/Buckle/Silver/Buckle
 COMPPROJ:=Buckle
+TESTDIR:=src/Buckle/Silver/Buckle.Tests
+TESTPROJ:=Buckle.Tests
 
 COMMONPROJ="<Project Sdk=\"Microsoft.NET.Sdk\"><ItemGroup><ProjectReference Include=\"..\\Buckle\\$(COMPPROJ).csproj\" /></ItemGroup>"
 COMMONPROJ+="<PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net5.0</TargetFramework>"
@@ -21,7 +23,7 @@ endif
 CSPROJ+="</PropertyGroup></Project>"
 PACKDIR="src/Buckle/Silver/CmdLine"
 
-all: componly cmdonly copy
+all: componly cmdonly testsonly copy test
 
 debug: redo all
 
@@ -40,6 +42,12 @@ componly:
 
 cmdonly:
 	dotnet build $(PACKDIR)/$(PROJNAME).csproj
+
+testsonly:
+	dotnet build $(TESTDIR)/$(TESTPROJ).csproj
+
+test:
+	dotnet test $(TESTDIR)/$(TESTPROJ).csproj
 
 copy:
 	cp $(PACKDIR)/bin/Debug/net5.0/$(PROJNAME).exe $(EXENAME).exe

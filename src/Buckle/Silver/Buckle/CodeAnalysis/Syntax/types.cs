@@ -19,8 +19,9 @@ namespace Buckle.CodeAnalysis.Syntax {
         BANG,
         DAMPERSAND,
         DPIPE,
-        DMINUS,
-        DPLUS,
+        // DMINUS,
+        // DPLUS,
+        // DASTERISK,
         DEQUALS,
         BANGEQUALS,
         // expressions

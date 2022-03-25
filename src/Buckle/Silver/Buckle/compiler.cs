@@ -34,6 +34,17 @@ namespace Buckle {
         public FileState[] tasks;
     }
 
+    internal class EvaluationResult {
+        public DiagnosticQueue diagnostics;
+        public object value;
+
+        internal EvaluationResult(object value_, DiagnosticQueue diagnostics_) {
+            value = value_;
+            diagnostics = new DiagnosticQueue();
+            diagnostics.Move(diagnostics_);
+        }
+    }
+
     internal class Compilation {
         public DiagnosticQueue diagnostics;
         public SyntaxTree tree;
@@ -46,13 +57,13 @@ namespace Buckle {
 
         public Compilation(string[] text) : this(string.Join('\n', text)) { }
 
-        public object Evaluate(Dictionary<VariableSymbol, object> variables) {
+        public EvaluationResult Evaluate(Dictionary<VariableSymbol, object> variables) {
             Binder binder = new Binder(variables);
             expr_ = binder.BindExpression(tree.root);
             diagnostics.Move(tree.diagnostics);
             diagnostics.Move(binder.diagnostics);
             Evaluator eval = new Evaluator(expr_, variables);
-            return eval.Evaluate();
+            return new EvaluationResult(eval.Evaluate(), diagnostics);
         }
 
         public string[] Compile() {
@@ -165,11 +176,11 @@ namespace Buckle {
 
                 var result = compilation.Evaluate(variables);
 
-                diagnostics.Move(compilation.diagnostics);
+                diagnostics.Move(result.diagnostics);
                 if (diagnostics.Any()) {
                     if (callback != null)
                         callback(this, line);
-                } else Console.WriteLine(result);
+                } else Console.WriteLine(result.value);
             }
         }
 
