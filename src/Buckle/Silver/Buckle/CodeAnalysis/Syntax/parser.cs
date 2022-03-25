@@ -5,10 +5,10 @@ namespace Buckle.CodeAnalysis.Syntax {
     internal class Parser {
         private readonly Token[] tokens_;
         private int pos_;
-        public List<Diagnostic> diagnostics;
+        public DiagnosticQueue diagnostics;
 
         public Parser(string text) {
-            diagnostics = new List<Diagnostic>();
+            diagnostics = new DiagnosticQueue();
             var tokens = new List<Token>();
             Lexer lexer = new Lexer(text);
             Token token;
@@ -21,7 +21,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             } while (token.type != SyntaxType.EOF);
 
             tokens_ = tokens.ToArray();
-            diagnostics.AddRange(lexer.diagnostics);
+            diagnostics.Move(lexer.diagnostics);
         }
 
         public SyntaxTree Parse() {
@@ -56,7 +56,8 @@ namespace Buckle.CodeAnalysis.Syntax {
                 var left = Next();
                 var expr = ParseExpression();
                 var right = Match(SyntaxType.RPAREN);
-                return new ParenExpression(left, expr, right);
+                // return new ParenExpression(left, expr, right);
+                return expr;
             }  else if (current.type == SyntaxType.TRUE_KEYWORD || current.type == SyntaxType.FALSE_KEYWORD) {
                 var keyword = Next();
                 var value = keyword.type == SyntaxType.TRUE_KEYWORD;
@@ -69,7 +70,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         private Token Match(SyntaxType type) {
             if (current.type == type) return Next();
-            diagnostics.Add(new Diagnostic(DiagnosticType.error, $"unexpected token '{current.type}', expected token of type '{type}'"));
+            diagnostics.Push(Error.UnexpectedToken(current.span, current.type, type));
             return new Token(type, current.pos, null, null);
         }
 

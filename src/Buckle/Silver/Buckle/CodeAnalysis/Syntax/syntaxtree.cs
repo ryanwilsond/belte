@@ -5,13 +5,13 @@ namespace Buckle.CodeAnalysis.Syntax {
     internal class SyntaxTree {
         public Expression root { get; }
         public Token eof { get; }
-        public List<Diagnostic> diagnostics;
+        public DiagnosticQueue diagnostics;
 
-        public SyntaxTree(Expression root_, Token eof_, List<Diagnostic> diagnostics_) {
+        public SyntaxTree(Expression root_, Token eof_, DiagnosticQueue diagnostics_) {
             root = root_;
             eof = eof_;
-            diagnostics = new List<Diagnostic>();
-            diagnostics.AddRange(diagnostics_);
+            diagnostics = new DiagnosticQueue();
+            diagnostics.Move(diagnostics_);
         }
 
         public static SyntaxTree Parse(string line) {

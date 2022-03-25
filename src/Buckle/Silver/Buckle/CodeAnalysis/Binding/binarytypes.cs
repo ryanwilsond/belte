@@ -22,7 +22,8 @@ namespace Buckle.CodeAnalysis.Binding {
         public Type righttype { get; }
         public Type resulttype { get; }
 
-        private BoundBinaryOperator(SyntaxType type_, BoundBinaryOperatorType optype_, Type lefttype_, Type righttype_, Type resulttype_) {
+        private BoundBinaryOperator(
+            SyntaxType type_, BoundBinaryOperatorType optype_, Type lefttype_, Type righttype_, Type resulttype_) {
             type = type_;
             optype = optype_;
             lefttype = lefttype_;
@@ -30,7 +31,8 @@ namespace Buckle.CodeAnalysis.Binding {
             resulttype = resulttype_;
         }
 
-        private BoundBinaryOperator(SyntaxType type_, BoundBinaryOperatorType optype_, Type operandtype, Type resulttype_)
+        private BoundBinaryOperator(
+            SyntaxType type_, BoundBinaryOperatorType optype_, Type operandtype, Type resulttype_)
             : this(type_, optype_, operandtype, operandtype, resulttype_) { }
 
         private BoundBinaryOperator(SyntaxType type_, BoundBinaryOperatorType optype_, Type ltype)
@@ -42,8 +44,10 @@ namespace Buckle.CodeAnalysis.Binding {
             new BoundBinaryOperator(SyntaxType.ASTERISK, BoundBinaryOperatorType.Multiply, typeof(int)),
             new BoundBinaryOperator(SyntaxType.SOLIDUS, BoundBinaryOperatorType.Divide, typeof(int)),
 
-            new BoundBinaryOperator(SyntaxType.DEQUALS, BoundBinaryOperatorType.EqualityEquals, typeof(int), typeof(bool)),
-            new BoundBinaryOperator(SyntaxType.BANGEQUALS, BoundBinaryOperatorType.EqualityNotEquals, typeof(int), typeof(bool)),
+            new BoundBinaryOperator(
+                SyntaxType.DEQUALS, BoundBinaryOperatorType.EqualityEquals, typeof(int), typeof(bool)),
+            new BoundBinaryOperator(
+                SyntaxType.BANGEQUALS, BoundBinaryOperatorType.EqualityNotEquals, typeof(int), typeof(bool)),
 
             new BoundBinaryOperator(SyntaxType.DAMPERSAND, BoundBinaryOperatorType.ConditionalAnd, typeof(bool)),
             new BoundBinaryOperator(SyntaxType.DPIPE, BoundBinaryOperatorType.ConditionalOr, typeof(bool)),

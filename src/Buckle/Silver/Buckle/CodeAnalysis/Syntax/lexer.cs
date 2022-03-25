@@ -5,11 +5,11 @@ namespace Buckle.CodeAnalysis.Syntax {
     internal class Lexer {
         private readonly string text_;
         private int pos_;
-        public List<Diagnostic> diagnostics;
+        public DiagnosticQueue diagnostics;
 
         public Lexer(string text) {
             text_ = text;
-            diagnostics = new List<Diagnostic>();
+            diagnostics = new DiagnosticQueue();
         }
 
         private char Peek(int offset) {
@@ -26,9 +26,9 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Token LexNext() {
             if (pos_ >= text_.Length) return new Token(SyntaxType.EOF, pos_, "\0", null);
 
-            if (char.IsDigit(current)) {
-                int start = pos_;
+            int start = pos_;
 
+            if (char.IsDigit(current)) {
                 while (char.IsDigit(current))
                     Advance();
 
@@ -36,12 +36,10 @@ namespace Buckle.CodeAnalysis.Syntax {
                 string text = text_.Substring(start, length);
 
                 if (!int.TryParse(text, out var value))
-                    diagnostics.Add(new Diagnostic(DiagnosticType.error, $"'{value}' is not a valid integer"));
+                    diagnostics.Push(Error.InvalidType(new TextSpan(start, length), text, typeof(int)));
 
                 return new Token(SyntaxType.NUMBER, start, text, value);
             } else if (char.IsWhiteSpace(current)) {
-                int start = pos_;
-
                 while (char.IsWhiteSpace(current))
                     Advance();
 
@@ -49,8 +47,6 @@ namespace Buckle.CodeAnalysis.Syntax {
                 string text = text_.Substring(start, length);
                 return new Token(SyntaxType.WHITESPACE, start, text, null);
             } else if (char.IsLetter(current)) {
-                int start = pos_;
-
                 while (char.IsLetter(current)) Advance();
 
                 int length = pos_ - start;
@@ -67,21 +63,33 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case '(': return new Token(SyntaxType.LPAREN, pos_++, "(", null);
                 case ')': return new Token(SyntaxType.RPAREN, pos_++, ")", null);
                 case '&':
-                    if (lookahead == '&') return new Token(SyntaxType.DAMPERSAND, pos_+=2, "&&", null);
+                    if (lookahead == '&') {
+                        pos_+=2;
+                        return new Token(SyntaxType.DAMPERSAND, start, "&&", null);
+                    }
                     break;
                 case '|':
-                    if (lookahead == '|') return new Token(SyntaxType.DPIPE, pos_+=2, "||", null);
+                    if (lookahead == '|') {
+                        pos_+=2;
+                        return new Token(SyntaxType.DPIPE, start, "||", null);
+                    }
                     break;
                 case '=':
-                    if (lookahead == '=') return new Token(SyntaxType.DEQUALS, pos_+=2, "==", null);
+                    if (lookahead == '=') {
+                        pos_+=2;
+                        return new Token(SyntaxType.DEQUALS, start, "==", null);
+                    }
                     break;
                 case '!':
-                    if (lookahead == '=') return new Token(SyntaxType.BANGEQUALS, pos_+=2, "!=", null);
+                    if (lookahead == '=') {
+                        pos_+=2;
+                        return new Token(SyntaxType.BANGEQUALS, start, "!=", null);
+                    }
                     return new Token(SyntaxType.BANG, pos_++, "!", null);
                 default: break;
             }
 
-            diagnostics.Add(new Diagnostic(DiagnosticType.error, $"bad input character '{current}'"));
+            diagnostics.Push(Error.BadCharacter(pos_, current));
             return new Token(SyntaxType.Invalid, pos_++, text_.Substring(pos_-1,1), null);
         }
     }

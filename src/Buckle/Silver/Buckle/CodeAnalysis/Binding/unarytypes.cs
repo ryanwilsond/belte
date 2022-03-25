@@ -16,7 +16,8 @@ namespace Buckle.CodeAnalysis.Binding {
         public Type operandtype { get; }
         public Type resulttype { get; }
 
-        private BoundUnaryOperator(SyntaxType type_, BoundUnaryOperatorType optype_, Type operandtype_, Type resulttype_) {
+        private BoundUnaryOperator(
+            SyntaxType type_, BoundUnaryOperatorType optype_, Type operandtype_, Type resulttype_) {
             type = type_;
             optype = optype_;
             operandtype = operandtype_;

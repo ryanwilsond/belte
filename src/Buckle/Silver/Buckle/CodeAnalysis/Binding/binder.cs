@@ -5,10 +5,10 @@ using Buckle.CodeAnalysis.Syntax;
 namespace Buckle.CodeAnalysis.Binding {
 
     internal class Binder {
-        public List<Diagnostic> diagnostics;
+        public DiagnosticQueue diagnostics;
 
         public Binder() {
-            diagnostics = new List<Diagnostic>();
+            diagnostics = new DiagnosticQueue();
         }
 
         public BoundExpression BindExpression(Expression expr) {
@@ -17,7 +17,7 @@ namespace Buckle.CodeAnalysis.Binding {
                 case SyntaxType.UNARY_EXPR: return BindUnaryExpression((UnaryExpression)expr);
                 case SyntaxType.BINARY_EXPR: return BindBinaryExpression((BinaryExpression)expr);
                 default:
-                    diagnostics.Add(new Diagnostic(DiagnosticType.fatal, $"unexpected syntax '{expr.type}'"));
+                    diagnostics.Push(DiagnosticType.fatal, $"unexpected syntax {expr.type}");
                     return null;
             }
         }
@@ -32,7 +32,7 @@ namespace Buckle.CodeAnalysis.Binding {
             var boundop = BoundUnaryOperator.Bind(expr.op.type, boundoperand.ltype);
 
             if (boundop == null) {
-                diagnostics.Add(new Diagnostic(DiagnosticType.error, $"unary operator '{boundoperand.ltype}'"));
+                diagnostics.Push(Error.InvalidUnaryOperatorUse(expr.op.span, expr.op.text, boundoperand.ltype));
                 return boundoperand;
             }
 
@@ -42,12 +42,12 @@ namespace Buckle.CodeAnalysis.Binding {
         private BoundExpression BindBinaryExpression(BinaryExpression expr) {
             var boundleft = BindExpression(expr.left);
             var boundright = BindExpression(expr.right);
+            if (boundleft == null || boundright == null) return boundleft;
             var boundop = BoundBinaryOperator.Bind(expr.op.type, boundleft.ltype, boundright.ltype);
 
             if (boundop == null) {
-                diagnostics.Add(new Diagnostic(DiagnosticType.error,
-                    $"binary operator '{expr.op.text}' is not defined for types '{boundleft.ltype}' and '{boundright.ltype}'")
-                );
+                diagnostics.Push(
+                    Error.InvalidBinaryOperatorUse(expr.op.span, expr.op.text, boundleft.ltype, boundright.ltype));
                 return boundleft;
             }
 

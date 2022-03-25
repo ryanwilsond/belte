@@ -42,6 +42,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public int pos { get; }
         public string text { get; }
         public object value { get; }
+        public TextSpan span => new TextSpan(pos, text.Length);
 
         public Token(SyntaxType type_, int pos_, string text_, object value_) {
             type = type_;

@@ -12,10 +12,10 @@ namespace CommandLine {
         const int ERROR_EXIT_CODE = 1;
         const int FATAL_EXIT_CODE = 2;
 
-        private static CompilerState DecodeOptions(string[] args, out List<Diagnostic> diagnostics) {
-            diagnostics = new List<Diagnostic>();
+        private static CompilerState DecodeOptions(string[] args, out DiagnosticQueue diagnostics) {
+            diagnostics = new DiagnosticQueue();
             CompilerState state = new CompilerState();
-            state.tasks = new List<FileState>();
+            List<FileState> tasks = new List<FileState>();
 
             bool specify_stage = false;
             bool specify_out = false;
@@ -44,11 +44,11 @@ namespace CommandLine {
                         case "-o":
                             specify_out = true;
                             if (i >= args.Length-1)
-                                diagnostics.Add(new Diagnostic(DiagnosticType.fatal, "missing filename after '-o'"));
+                                diagnostics.Push(DiagnosticType.fatal, "missing filename after '-o'");
                             state.link_output_filename = args[i++];
                             break;
                         default:
-                            diagnostics.Add(new Diagnostic(DiagnosticType.fatal, $"unknown argument '{arg}'"));
+                            diagnostics.Push(DiagnosticType.fatal, $"unknown argument '{arg}'");
                             break;
                     }
                 } else {
@@ -75,53 +75,104 @@ namespace CommandLine {
                             task.stage = CompilerStage.assembled;
                             break;
                         default:
-                            diagnostics.Add(new Diagnostic(DiagnosticType.warning, $"unknown file type of input file '{filename}'; ignoring"));
+                            diagnostics.Push(DiagnosticType.warning,
+                                $"unknown file type of input file '{filename}'; ignoring");
                             break;
                     }
 
-                    state.tasks.Add(task);
+                    tasks.Add(task);
                 }
             }
 
-            if (specify_out && specify_stage && state.tasks.Count > 1)
-                diagnostics.Add(new Diagnostic(DiagnosticType.fatal, "cannot specify output file with '-E', '-S', or '-c' with multiple files"));
-            if (state.tasks.Count == 0)
-                diagnostics.Add(new Diagnostic(DiagnosticType.fatal, "no input files"));
+            state.tasks = tasks.ToArray();
+
+            if (specify_out && specify_stage && state.tasks.Length > 1)
+                diagnostics.Push(DiagnosticType.fatal,
+                    "cannot specify output file with '-E', '-S', or '-c' with multiple files");
+            if (state.tasks.Length == 0)
+                diagnostics.Push(DiagnosticType.fatal, "no input files");
 
             return state;
         }
 
-        private static int ResolveDiagnostics(Compiler compiler) {
-            if (compiler.diagnostics.Count == 0) return SUCCESS_EXIT_CODE;
-            DiagnosticType worst = DiagnosticType.unknown;
+        private static void PrettyPrintDiagnostic(string line, Diagnostic error) {
+            if (error.pos.Value.file != null) Console.Write($"{error.pos.Value.file}:");
+            if (error.pos.Value.line != null) Console.Write($"{error.pos.Value.line.Value}:");
+            if (error.pos.Value.start != null) Console.Write($"{error.pos.Value.start.Value}:");
 
-            foreach (Diagnostic diagnostic in compiler.diagnostics) {
-                if (diagnostic.type == DiagnosticType.unknown) continue;
-
-                Console.Write($"{compiler.me}: ");
+            if (error.type == DiagnosticType.error) {
                 Console.ForegroundColor = ConsoleColor.Red;
-
-                if (diagnostic.type == DiagnosticType.warning) {
-                    Console.ForegroundColor = ConsoleColor.Magenta;
-                    Console.Write("warning: ");
-
-                    if (worst == DiagnosticType.unknown)
-                        worst = DiagnosticType.warning;
-                } else if (diagnostic.type == DiagnosticType.error) {
-                    Console.Write("error: ");
-
-                    if (worst != DiagnosticType.fatal)
-                        worst = DiagnosticType.error;
-                } else if (diagnostic.type == DiagnosticType.fatal) {
-                    Console.Write("fatal error: ");
-                    worst = DiagnosticType.fatal;
-                }
-
-                Console.ResetColor();
-                Console.WriteLine($"{diagnostic.msg}");
+                Console.Write(" error: ");
+            } else if (error.type == DiagnosticType.fatal) {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Write(" fatal error: ");
+            } else if (error.type == DiagnosticType.warning) {
+                Console.ForegroundColor = ConsoleColor.Magenta;
+                Console.Write(" warning: ");
             }
 
-            compiler.diagnostics.Clear();
+            Console.ResetColor();
+            Console.WriteLine(error.msg);
+
+            string prefix = line.Substring(0, error.pos.Value.start.Value);
+            string focus = line.Substring(error.pos.Value.start.Value, error.pos.Value.length.Value);
+            string suffix = line.Substring(error.pos.Value.end.Value);
+
+            Console.Write($" {prefix}");
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.Write(focus);
+            Console.ResetColor();
+            Console.WriteLine(suffix);
+
+            Console.ForegroundColor = ConsoleColor.Red;
+            int tabcount = prefix.Length - prefix.Replace("\t", "").Length;
+            string marker = new string(' ', error.pos.Value.start.Value + 1);
+            marker += new string('\t', tabcount);
+            marker += "^";
+            marker += new string('~', error.pos.Value.length.Value - 1);
+            Console.WriteLine(marker);
+
+            Console.ResetColor();
+        }
+
+        private static int ResolveDiagnostics(Compiler compiler, string line = null) {
+            if (compiler.diagnostics.count == 0) return SUCCESS_EXIT_CODE;
+            DiagnosticType worst = DiagnosticType.unknown;
+
+            Diagnostic diagnostic = compiler.diagnostics.Pop();
+            while (diagnostic != null) {
+                if (diagnostic.type == DiagnosticType.unknown) {
+                } else if (diagnostic.pos == null) {
+                    Console.Write($"{compiler.me}: ");
+
+                    if (diagnostic.type == DiagnosticType.warning) {
+                        if (worst == DiagnosticType.unknown)
+                            worst = DiagnosticType.warning;
+
+                        Console.ForegroundColor = ConsoleColor.Magenta;
+                        Console.Write("warning: ");
+                    } else if (diagnostic.type == DiagnosticType.error) {
+                        if (worst != DiagnosticType.fatal)
+                            worst = DiagnosticType.error;
+
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.Write("error: ");
+                    } else if (diagnostic.type == DiagnosticType.fatal) {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.Write("fatal error: ");
+                        worst = DiagnosticType.fatal;
+                    }
+
+                    Console.ResetColor();
+                    if (diagnostic.type != DiagnosticType.error)
+                        Console.WriteLine($"{diagnostic.msg}");
+
+                } else {
+                    PrettyPrintDiagnostic(line, diagnostic);
+                }
+
+                diagnostic = compiler.diagnostics.Pop();
+            }
 
             switch (worst) {
                 case DiagnosticType.error: return ERROR_EXIT_CODE;
@@ -172,7 +223,8 @@ namespace CommandLine {
         private static void ResolveCompilerOutput(Compiler compiler) {
             if (compiler.state.finish_stage == CompilerStage.linked) {
                 if (compiler.state.link_output_content != null)
-                    File.WriteAllBytes(compiler.state.link_output_filename, compiler.state.link_output_content.ToArray());
+                    File.WriteAllBytes(compiler.state.link_output_filename,
+                        compiler.state.link_output_content.ToArray());
                 return;
             }
 
@@ -191,13 +243,11 @@ namespace CommandLine {
             Compiler compiler = new Compiler();
             compiler.me = Process.GetCurrentProcess().ProcessName;
 
-            compiler.state = DecodeOptions(args, out List<Diagnostic> diagnostics);
+            compiler.state = DecodeOptions(args, out DiagnosticQueue diagnostics);
             ResolveOutputFiles(compiler);
-            compiler.diagnostics.AddRange(diagnostics);
-            if (compiler.diagnostics.Count > 0) {
-                err = ResolveDiagnostics(compiler);
-                if (err > 0) return err;
-            }
+            compiler.diagnostics.Move(diagnostics);
+            err = ResolveDiagnostics(compiler);
+            if (err > 0) return err;
 
             compiler.Compile(ResolveDiagnostics); // temp callback
             err = ResolveDiagnostics(compiler);

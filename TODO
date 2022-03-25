@@ -46,3 +46,6 @@ Outside Ideas:
     * enum have multiple fields
     * ability to add enum entries at code-time (need to make it not happen at runtime somehow)
     * python style unpacking
+    * parsimony
+    * factory pattern
+    * graphical instead of text file

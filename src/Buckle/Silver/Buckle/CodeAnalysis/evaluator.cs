@@ -6,11 +6,11 @@ namespace Buckle.CodeAnalysis {
 
     internal class Evaluator {
         private readonly BoundExpression root_;
-        public List<Diagnostic> diagnostics;
+        public DiagnosticQueue diagnostics;
 
         public Evaluator(BoundExpression root) {
             root_ = root;
-            diagnostics = new List<Diagnostic>();
+            diagnostics = new DiagnosticQueue();
         }
 
         public object Evaluate() { return EvaluteExpression(root_); }
@@ -26,7 +26,7 @@ namespace Buckle.CodeAnalysis {
                     case BoundUnaryOperatorType.NumericalNegation: return -(int)operand;
                     case BoundUnaryOperatorType.BooleanNegation: return !(bool)operand;
                     default:
-                        diagnostics.Add(new Diagnostic(DiagnosticType.fatal, $"unknown unary operator '{u.op}'"));
+                        diagnostics.Push(DiagnosticType.fatal, $"unknown unary operator '{u.op}'");
                         return null;
                 }
             } else if (node is BoundBinaryExpression b) {
@@ -43,12 +43,12 @@ namespace Buckle.CodeAnalysis {
                     case BoundBinaryOperatorType.EqualityEquals: return Equals(left, right);
                     case BoundBinaryOperatorType.EqualityNotEquals: return !Equals(left, right);
                     default:
-                        diagnostics.Add(new Diagnostic(DiagnosticType.fatal, $"unknown binary operator '{b.op}'"));
+                        diagnostics.Push(DiagnosticType.fatal, $"unknown binary operator '{b.op}'");
                         return null;
                 }
             }
 
-            diagnostics.Add(new Diagnostic(DiagnosticType.fatal, $"unexpected node '{node.type}'"));
+            diagnostics.Push(DiagnosticType.fatal, $"unexpected node '{node.type}'");
             return null;
         }
     }

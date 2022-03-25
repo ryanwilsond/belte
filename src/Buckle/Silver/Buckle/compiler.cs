@@ -31,23 +31,33 @@ namespace Buckle {
         public CompilerStage finish_stage;
         public string link_output_filename;
         public List<byte> link_output_content;
-        public List<FileState> tasks;
+        public FileState[] tasks;
     }
 
-    public enum DiagnosticType {
-        error,
-        warning,
-        fatal,
-        unknown,
-    }
+    internal class Compilation {
+        public DiagnosticQueue diagnostics;
+        public SyntaxTree tree;
+        private BoundExpression expr_;
 
-    public class Diagnostic {
-        public DiagnosticType type { get; }
-        public string msg { get; }
+        public Compilation(string text) {
+            diagnostics = new DiagnosticQueue();
+            tree = SyntaxTree.Parse(text);
+            Binder binder = new Binder();
+            expr_ = binder.BindExpression(tree.root);
+            diagnostics.Move(tree.diagnostics);
+            diagnostics.Move(binder.diagnostics);
+        }
 
-        public Diagnostic(DiagnosticType type_, string msg_) {
-            type = type_;
-            msg = msg_;
+        public Compilation(string[] text) : this(string.Join('\n', text)) { }
+
+        public object Evaluate() {
+            Evaluator eval = new Evaluator(expr_);
+            return eval.Evaluate();
+        }
+
+        public string[] Compile() {
+            List<string> lines = new List<string>();
+            return lines.ToArray();
         }
     }
 
@@ -58,10 +68,10 @@ namespace Buckle {
 
         public CompilerState state;
         public string me;
-        public List<Diagnostic> diagnostics;
+        public DiagnosticQueue diagnostics;
 
         public Compiler() {
-            diagnostics = new List<Diagnostic>();
+            diagnostics = new DiagnosticQueue();
         }
 
         private int CheckErrors() {
@@ -72,15 +82,15 @@ namespace Buckle {
         }
 
         private void ExternalAssembler() {
-            diagnostics.Add(new Diagnostic(DiagnosticType.warning, "assembling not supported (yet); skipping"));
+            diagnostics.Push(DiagnosticType.warning, "assembling not supported (yet); skipping");
         }
 
         private void ExternalLinker() {
-            diagnostics.Add(new Diagnostic(DiagnosticType.warning, "linking not supported (yet); skipping"));
+            diagnostics.Push(DiagnosticType.warning, "linking not supported (yet); skipping");
         }
 
         private void Preprocess() {
-            diagnostics.Add(new Diagnostic(DiagnosticType.warning, "preprocessing not supported (yet); skipping"));
+            diagnostics.Push(DiagnosticType.warning, "preprocessing not supported (yet); skipping");
         }
 
         private void PrettyPrint(Node node, string indent = "", bool islast=true) {
@@ -98,7 +108,24 @@ namespace Buckle {
                 PrettyPrint(child, indent, child == lastChild);
         }
 
-        public delegate int ErrorHandle(Compiler compiler);
+        private void PrintTree(Node root) {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            PrettyPrint(root);
+            Console.ResetColor();
+        }
+
+        public delegate int ErrorHandle(Compiler compiler, string line=null);
+
+        private void InternalCompiler() {
+            for (int i=0; i<state.tasks.Length; i++) {
+                if (state.tasks[i].stage == CompilerStage.preprocessed) {
+                    Compilation compilation = new Compilation(state.tasks[i].file_content.lines.ToArray());
+                    state.tasks[i].file_content.lines = compilation.Compile().ToList();
+                    state.tasks[i].stage = CompilerStage.compiled;
+                    diagnostics.Move(compilation.diagnostics);
+                }
+            }
+        }
 
         private void Repl(ErrorHandle callback) {
             state.link_output_content = null;
@@ -109,6 +136,10 @@ namespace Buckle {
                 Console.Write("> ");
                 string line = Console.ReadLine();
                 if (string.IsNullOrWhiteSpace(line)) return;
+                if (line.Length - line.Replace("\t", "").Length != 0) {
+                    diagnostics.Push(new Diagnostic(DiagnosticType.warning, null,
+                        "using tabs is unsupported, and may produce unexpected results"));
+                }
 
                 // repl specific zulu statements
                 if (line == "#showTree") {
@@ -120,37 +151,24 @@ namespace Buckle {
                     continue;
                 }
 
-                SyntaxTree tree = SyntaxTree.Parse(line);
-                Binder binder = new Binder();
-                var boundexpr = binder.BindExpression(tree.root);
-                diagnostics.AddRange(tree.diagnostics);
-                diagnostics.AddRange(binder.diagnostics);
+                var compilation = new Compilation(line);
+                diagnostics.Move(compilation.diagnostics);
 
-                if (showTree) {
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    PrettyPrint(tree.root);
-                    Console.ResetColor();
-                }
+                if (showTree) PrintTree(compilation.tree.root);
 
                 if (diagnostics.Any()) {
                     if (callback != null)
-                        callback(this);
-                    diagnostics.Clear();
+                        callback(this, line);
                     continue;
                 }
 
-                Evaluator eval = new Evaluator(boundexpr);
-                var result = eval.Evaluate();
+                var result = compilation.Evaluate();
 
-                diagnostics.AddRange(eval.diagnostics);
+                diagnostics.Move(compilation.diagnostics);
                 if (diagnostics.Any()) {
                     if (callback != null)
-                        callback(this);
-                    diagnostics.Clear();
-                    continue;
-                }
-
-                Console.WriteLine(result);
+                        callback(this, line);
+                } else Console.WriteLine(result);
             }
         }
 
