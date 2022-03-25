@@ -30,24 +30,23 @@ namespace Buckle.CodeAnalysis.Binding {
     }
 
     internal sealed class BoundVariableExpression : BoundExpression {
-        public string name { get; }
-        public override Type ltype { get; }
+        public VariableSymbol variable { get; }
+        public override Type ltype => variable.ltype;
         public override BoundNodeType type => BoundNodeType.VARIABLE_EXPR;
 
-        public BoundVariableExpression(string name_, Type ltype_) {
-            name = name_;
-            ltype = ltype_;
+        public BoundVariableExpression(VariableSymbol variable_) {
+            variable = variable_;
         }
     }
 
     internal sealed class BoundAssignmentExpression : BoundExpression {
-        public string name { get; }
+        public VariableSymbol variable { get; }
         public BoundExpression expr { get; }
         public override BoundNodeType type => BoundNodeType.ASSIGN_EXPR;
         public override Type ltype => expr.ltype;
 
-        public BoundAssignmentExpression(string name_, BoundExpression expr_) {
-            name = name_;
+        public BoundAssignmentExpression(VariableSymbol variable_, BoundExpression expr_) {
+            variable = variable_;
             expr = expr_;
         }
     }

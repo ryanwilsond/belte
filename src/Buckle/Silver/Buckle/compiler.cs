@@ -46,7 +46,7 @@ namespace Buckle {
 
         public Compilation(string[] text) : this(string.Join('\n', text)) { }
 
-        public object Evaluate(Dictionary<string, object> variables) {
+        public object Evaluate(Dictionary<VariableSymbol, object> variables) {
             Binder binder = new Binder(variables);
             expr_ = binder.BindExpression(tree.root);
             diagnostics.Move(tree.diagnostics);
@@ -131,7 +131,7 @@ namespace Buckle {
             state.link_output_content = null;
             diagnostics.Clear();
             bool showTree = false;
-            var variables = new Dictionary<string, object>();
+            var variables = new Dictionary<VariableSymbol, object>();
 
             while (true) {
                 Console.Write("> ");

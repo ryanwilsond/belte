@@ -1,4 +1,4 @@
-using System;
+using System.Linq;
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Syntax;
 
@@ -6,9 +6,9 @@ namespace Buckle.CodeAnalysis.Binding {
 
     internal class Binder {
         public DiagnosticQueue diagnostics;
-        private readonly Dictionary<string, object> variables_;
+        private readonly Dictionary<VariableSymbol, object> variables_;
 
-        public Binder(Dictionary<string, object> variables) {
+        public Binder(Dictionary<VariableSymbol, object> variables) {
             diagnostics = new DiagnosticQueue();
             variables_ = variables;
         }
@@ -65,10 +65,10 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private BoundExpression BindNameExpression(NameExpression expr) {
             string name = expr.id.text;
+            var variable = variables_.Keys.FirstOrDefault(v => v.name == name);
 
-            if (variables_.TryGetValue(name, out var value)) {
-                var ltype = value.GetType();
-                return new BoundVariableExpression(name, ltype);
+            if (variable != null) {
+                return new BoundVariableExpression(variable);
             }
 
             diagnostics.Push(Error.UndefinedName(expr.id.span, name));
@@ -76,22 +76,17 @@ namespace Buckle.CodeAnalysis.Binding {
         }
 
         private BoundExpression BindAssignmentExpression(AssignmentExpression expr) {
+            var name = expr.id.text;
             var boundexpr = BindExpression(expr.expr);
 
-            var defaultval =
-                boundexpr.ltype == typeof(int)
-                    ? (object)0
-                    : boundexpr.ltype == typeof(bool)
-                        ? (object)false
-                        : null; // no idea what this even does
+            var existingvar = variables_.Keys.FirstOrDefault(v => v.name == name);
+            if (existingvar != null)
+                variables_.Remove(existingvar);
 
-            if (defaultval == null)
-                diagnostics.Push(new Diagnostic(DiagnosticType.fatal, null, $"unsupported variable type {boundexpr.ltype}"));
+            var variable = new VariableSymbol(name, boundexpr.ltype);
+            variables_[variable] = null;
 
-            variables_[expr.id.text] = defaultval;
-            return new BoundAssignmentExpression(expr.id.text, boundexpr);
+            return new BoundAssignmentExpression(variable, boundexpr);
         }
-
-
     }
 }
