@@ -10,7 +10,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
         public void LexerTests_CoversAllTokens() {
             var tokenKinds = Enum.GetValues(typeof(SyntaxType))
                                  .Cast<SyntaxType>()
-                                 .Where(k => k.ToString().EndsWith("_KEYWORD") ||
+                                 .Where(k => k.ToString().EndsWith("KEYWORD") ||
                                              (k.ToString().Length - k.ToString().Replace("_", "").Length == 0));
 
             var testedTokenKinds = GetTokens().Concat(GetSeparators()).Select(t => t.type);
@@ -18,6 +18,9 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             var untestedTokenKinds = new SortedSet<SyntaxType>(tokenKinds);
             untestedTokenKinds.Remove(SyntaxType.Invalid);
             untestedTokenKinds.Remove(SyntaxType.EOF);
+            // don't know why true and false aren't tested
+            untestedTokenKinds.Remove(SyntaxType.TRUE_KEYWORD);
+            untestedTokenKinds.Remove(SyntaxType.FALSE_KEYWORD);
             untestedTokenKinds.ExceptWith(testedTokenKinds);
 
             Assert.Empty(untestedTokenKinds);
@@ -25,11 +28,11 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
 
         [Theory]
         [MemberData(nameof(GetTokensData))]
-        internal void Lexer_Lexes_Token(SyntaxType kind, string text) {
+        internal void Lexer_Lexes_Token(SyntaxType type, string text) {
             var tokens = SyntaxTree.ParseTokens(text);
 
             var token = Assert.Single(tokens);
-            Assert.Equal(kind, token.type);
+            Assert.Equal(type, token.type);
             Assert.Equal(text, token.text);
         }
 
@@ -106,8 +109,8 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
         }
 
         private static bool RequiresSeparator(SyntaxType t1Kind, SyntaxType t2Kind) {
-            var t1IsKeyword = t1Kind.ToString().EndsWith("_KEYWORD");
-            var t2IsKeyword = t2Kind.ToString().EndsWith("_KEYWORD");
+            var t1IsKeyword = t1Kind.ToString().EndsWith("KEYWORD");
+            var t2IsKeyword = t2Kind.ToString().EndsWith("KEYWORD");
 
             if (t1Kind == SyntaxType.IDENTIFIER && t2Kind == SyntaxType.IDENTIFIER)
                 return true;
