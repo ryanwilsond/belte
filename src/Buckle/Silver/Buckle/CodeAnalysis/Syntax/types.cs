@@ -4,10 +4,10 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal enum SyntaxType {
         Invalid,
-        Identifier,
         // tokens
         EOF,
         WHITESPACE,
+        IDENTIFIER,
         NUMBER,
         PLUS,
         MINUS,
@@ -15,6 +15,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         SOLIDUS,
         LPAREN,
         RPAREN,
+        EQUALS,
         BANG,
         DAMPERSAND,
         DPIPE,
@@ -27,6 +28,8 @@ namespace Buckle.CodeAnalysis.Syntax {
         BINARY_EXPR,
         UNARY_EXPR,
         PAREN_EXPR,
+        NAME_EXPR,
+        ASSIGN_EXPR,
         // keywords
         TRUE_KEYWORD,
         FALSE_KEYWORD,
@@ -112,6 +115,32 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         public override List<Node> GetChildren() { return new List<Node>() { op, operand }; }
+    }
+
+    internal sealed class NameExpression : Expression {
+        public Token id { get; }
+        public override SyntaxType type => SyntaxType.NAME_EXPR;
+
+        public NameExpression(Token id_) {
+            id = id_;
+        }
+
+        public override List<Node> GetChildren() { return new List<Node>() { id }; }
+    }
+
+    internal sealed class AssignmentExpression : Expression {
+        public Token id { get; }
+        public Token equals { get; }
+        public Expression expr { get; }
+        public override SyntaxType type => SyntaxType.ASSIGN_EXPR;
+
+        public AssignmentExpression(Token id_, Token equals_, Expression expr_) {
+            id = id_;
+            equals = equals_;
+            expr = expr_;
+        }
+
+        public override List<Node> GetChildren() { return new List<Node>() { id, equals, expr }; }
     }
 
 }

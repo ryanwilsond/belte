@@ -42,16 +42,16 @@ namespace Buckle {
         public Compilation(string text) {
             diagnostics = new DiagnosticQueue();
             tree = SyntaxTree.Parse(text);
-            Binder binder = new Binder();
-            expr_ = binder.BindExpression(tree.root);
-            diagnostics.Move(tree.diagnostics);
-            diagnostics.Move(binder.diagnostics);
         }
 
         public Compilation(string[] text) : this(string.Join('\n', text)) { }
 
-        public object Evaluate() {
-            Evaluator eval = new Evaluator(expr_);
+        public object Evaluate(Dictionary<string, object> variables) {
+            Binder binder = new Binder(variables);
+            expr_ = binder.BindExpression(tree.root);
+            diagnostics.Move(tree.diagnostics);
+            diagnostics.Move(binder.diagnostics);
+            Evaluator eval = new Evaluator(expr_, variables);
             return eval.Evaluate();
         }
 
@@ -131,6 +131,7 @@ namespace Buckle {
             state.link_output_content = null;
             diagnostics.Clear();
             bool showTree = false;
+            var variables = new Dictionary<string, object>();
 
             while (true) {
                 Console.Write("> ");
@@ -162,7 +163,7 @@ namespace Buckle {
                     continue;
                 }
 
-                var result = compilation.Evaluate();
+                var result = compilation.Evaluate(variables);
 
                 diagnostics.Move(compilation.diagnostics);
                 if (diagnostics.Any()) {

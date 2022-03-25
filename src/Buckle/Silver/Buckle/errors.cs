@@ -28,5 +28,10 @@ namespace Buckle {
             string msg = $"operator '{op}' is not defined for types {left} and {right}";
             return new Diagnostic(DiagnosticType.error, pos, msg);
         }
+
+        public static Diagnostic UndefinedName(TextSpan pos, string name) {
+            string msg = $"undefined symbol '{name}'";
+            return new Diagnostic(DiagnosticType.error, pos, msg);
+        }
     }
 }

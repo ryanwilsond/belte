@@ -7,10 +7,12 @@ namespace Buckle.CodeAnalysis {
     internal class Evaluator {
         private readonly BoundExpression root_;
         public DiagnosticQueue diagnostics;
+        private readonly Dictionary<string, object> variables_;
 
-        public Evaluator(BoundExpression root) {
+        public Evaluator(BoundExpression root, Dictionary<string, object> variables) {
             root_ = root;
             diagnostics = new DiagnosticQueue();
+            variables_ = variables;
         }
 
         public object Evaluate() { return EvaluteExpression(root_); }
@@ -18,6 +20,12 @@ namespace Buckle.CodeAnalysis {
         private object EvaluteExpression(BoundExpression node) {
             if (node is BoundLiteralExpression n) {
                 return n.value;
+            } else if (node is BoundVariableExpression v) {
+                return variables_[v.name];
+            } else if (node is BoundAssignmentExpression a) {
+                var value = EvaluteExpression(a.expr);
+                variables_[a.name] = value;
+                return value;
             } else if (node is BoundUnaryExpression u) {
                 var operand = EvaluteExpression(u.operand);
 

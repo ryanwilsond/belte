@@ -30,13 +30,28 @@ namespace Buckle.CodeAnalysis.Syntax {
             return new SyntaxTree(expr, eof, diagnostics);
         }
 
-        private Expression ParseExpression(int parentPrecedence = 0) {
+        private Expression ParseAssignmentExpression() {
+            if (Peek(0).type == SyntaxType.IDENTIFIER && Peek(1).type == SyntaxType.EQUALS) {
+                var id = Next();
+                var op = Next();
+                var right = ParseAssignmentExpression();
+                return new AssignmentExpression(id, op, right);
+            }
+
+            return ParseBinaryExpression();
+        }
+
+        private Expression ParseExpression() {
+            return ParseAssignmentExpression();
+        }
+
+        private Expression ParseBinaryExpression(int parentPrecedence = 0) {
             Expression left;
             var unaryPrecedence = current.type.GetUnaryPrecedence();
 
             if (unaryPrecedence != 0 && unaryPrecedence >= parentPrecedence) {
                 var op = Next();
-                var operand = ParseExpression(unaryPrecedence);
+                var operand = ParseBinaryExpression(unaryPrecedence);
                 left = new UnaryExpression(op, operand);
             } else left = ParsePrimaryExpression();
 
@@ -44,7 +59,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                 int precedence = current.type.GetBinaryPrecedence();
                 if (precedence == 0 || precedence <= parentPrecedence) break;
                 var op = Next();
-                var right = ParseExpression(precedence);
+                var right = ParseBinaryExpression(precedence);
                 left = new BinaryExpression(left, op, right);
             }
 
@@ -52,20 +67,24 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         private Expression ParsePrimaryExpression() {
-            if (current.type == SyntaxType.LPAREN) {
-                var left = Next();
-                var expr = ParseExpression();
-                var right = Match(SyntaxType.RPAREN);
-                // return new ParenExpression(left, expr, right);
-                return expr;
-            }  else if (current.type == SyntaxType.TRUE_KEYWORD || current.type == SyntaxType.FALSE_KEYWORD) {
-                var keyword = Next();
-                var value = keyword.type == SyntaxType.TRUE_KEYWORD;
-                return new LiteralExpression(keyword, value);
+            switch(current.type) {
+                case SyntaxType.LPAREN:
+                    var left = Next();
+                    var expr = ParseExpression();
+                    var right = Match(SyntaxType.RPAREN);
+                    return new ParenExpression(left, expr, right);
+                case SyntaxType.TRUE_KEYWORD:
+                case SyntaxType.FALSE_KEYWORD:
+                    var keyword = Next();
+                    var value = keyword.type == SyntaxType.TRUE_KEYWORD;
+                    return new LiteralExpression(keyword, value);
+                case SyntaxType.IDENTIFIER:
+                    var id = Next();
+                    return new NameExpression(id);
+                default:
+                    var token = Match(SyntaxType.NUMBER);
+                    return new LiteralExpression(token);
             }
-
-            var token = Match(SyntaxType.NUMBER);
-            return new LiteralExpression(token);
         }
 
         private Token Match(SyntaxType type) {

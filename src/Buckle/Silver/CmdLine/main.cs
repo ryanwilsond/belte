@@ -114,9 +114,17 @@ namespace CommandLine {
             Console.ResetColor();
             Console.WriteLine(error.msg);
 
-            string prefix = line.Substring(0, error.pos.Value.start.Value);
-            string focus = line.Substring(error.pos.Value.start.Value, error.pos.Value.length.Value);
-            string suffix = line.Substring(error.pos.Value.end.Value);
+            string prefix, focus, suffix;
+
+            if (error.pos.Value.start.Value == line.Length) {
+                prefix = line;
+                focus = " ";
+                suffix = "";
+            } else {
+                prefix = line.Substring(0, error.pos.Value.start.Value);
+                focus = line.Substring(error.pos.Value.start.Value, error.pos.Value.length.Value);
+                suffix = line.Substring(error.pos.Value.end.Value);
+            }
 
             Console.Write($" {prefix}");
             Console.ForegroundColor = ConsoleColor.Red;

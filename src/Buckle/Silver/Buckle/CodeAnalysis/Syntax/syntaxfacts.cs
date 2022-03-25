@@ -47,7 +47,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             switch (text) {
                 case "true": return SyntaxType.TRUE_KEYWORD;
                 case "false": return SyntaxType.FALSE_KEYWORD;
-                default: return SyntaxType.Identifier;
+                default: return SyntaxType.IDENTIFIER;
             }
         }
     }

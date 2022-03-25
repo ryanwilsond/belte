@@ -79,7 +79,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                         pos_+=2;
                         return new Token(SyntaxType.DEQUALS, start, "==", null);
                     }
-                    break;
+                    return new Token(SyntaxType.EQUALS, pos_++, "=", null);
                 case '!':
                     if (lookahead == '=') {
                         pos_+=2;
