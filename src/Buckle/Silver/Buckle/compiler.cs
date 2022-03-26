@@ -104,24 +104,9 @@ namespace Buckle {
             diagnostics.Push(DiagnosticType.warning, "preprocessing not supported (yet); skipping");
         }
 
-        private void PrettyPrint(Node node, string indent = "", bool islast=true) {
-            string marker = islast ? "└─" : "├─";
-            Console.Write($"{indent}{marker}{node.type}");
-
-            if (node is Token t && t.value != null)
-                Console.Write($" {t.value}");
-
-            Console.WriteLine();
-            indent += islast ? "  " : "│ ";
-            var lastChild = node.GetChildren().LastOrDefault();
-
-            foreach (var child in node.GetChildren())
-                PrettyPrint(child, indent, child == lastChild);
-        }
-
         private void PrintTree(Node root) {
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            PrettyPrint(root);
+            root.WriteTo(Console.Out);
             Console.ResetColor();
         }
 

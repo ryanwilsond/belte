@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.IO;
 
 namespace Buckle.CodeAnalysis.Syntax {
 
@@ -59,6 +60,32 @@ namespace Buckle.CodeAnalysis.Syntax {
                         yield return child;
                     }
                 }
+            }
+        }
+
+        public void WriteTo(TextWriter writer) {
+            PrettyPrint(writer, this);
+        }
+
+        private void PrettyPrint(TextWriter writer, Node node, string indent = "", bool islast=true) {
+            string marker = islast ? "└─" : "├─";
+            writer.Write($"{indent}{marker}{node.type}");
+
+            if (node is Token t && t.value != null)
+                writer.Write($" {t.value}");
+
+            writer.WriteLine();
+            indent += islast ? "  " : "│ ";
+            var lastChild = node.GetChildren().LastOrDefault();
+
+            foreach (var child in node.GetChildren())
+                PrettyPrint(writer, child, indent, child == lastChild);
+        }
+
+        public override string ToString() {
+            using (var writer = new StringWriter()) {
+                WriteTo(writer);
+                return writer.ToString();
             }
         }
     }

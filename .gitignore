@@ -7,6 +7,5 @@
 *.o
 *.exe
 *.dll
-*.csproj
-*.deps.json
-*.runtimeconfig.json
+*.json
+*.pdb
