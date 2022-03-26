@@ -140,10 +140,14 @@ namespace Buckle {
             var textbuilder = new StringBuilder();
 
             while (true) {
+                Console.ForegroundColor = ConsoleColor.Green;
+
                 if (textbuilder.Length == 0)
-                    Console.Write("> ");
+                    Console.Write("» ");
                 else
-                    Console.Write(". ");
+                    Console.Write("· ");
+
+                Console.ResetColor();
 
                 string line = Console.ReadLine();
                 bool isblank = string.IsNullOrWhiteSpace(line);
@@ -171,7 +175,7 @@ namespace Buckle {
                 var compilation = new Compilation(syntaxTree);
                 state.source_text = compilation.tree.text;
 
-                if (showTree) PrintTree(compilation.tree.root);
+                if (showTree) compilation.tree.root.WriteTo(Console.Out);
 
                 var result = compilation.Evaluate(variables);
 
@@ -179,7 +183,11 @@ namespace Buckle {
                 if (diagnostics.Any()) {
                     if (callback != null)
                         callback(this);
-                } else Console.WriteLine(result.value);
+                } else {
+                    Console.ForegroundColor = ConsoleColor.Cyan; // orange?
+                    Console.WriteLine(result.value);
+                    Console.ResetColor();
+                }
 
                 textbuilder.Clear();
             }

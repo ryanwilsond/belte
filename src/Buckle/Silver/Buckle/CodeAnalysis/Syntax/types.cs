@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.IO;
+using System;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax {
@@ -69,12 +70,19 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         private void PrettyPrint(TextWriter writer, Node node, string indent = "", bool islast=true) {
+            bool isConsoleOut = writer == Console.Out;
             string marker = islast ? "└─" : "├─";
-            writer.Write($"{indent}{marker}{node.type}");
+
+            if (isConsoleOut) Console.ForegroundColor = ConsoleColor.DarkGray;
+            writer.Write($"{indent}{marker}");
+
+            if (isConsoleOut) Console.ForegroundColor = node is Token ? ConsoleColor.DarkBlue : ConsoleColor.Cyan;
+            writer.Write(node.type);
 
             if (node is Token t && t.value != null)
                 writer.Write($" {t.value}");
 
+            Console.ResetColor();
             writer.WriteLine();
             indent += islast ? "  " : "│ ";
             var lastChild = node.GetChildren().LastOrDefault();
