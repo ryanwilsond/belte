@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using Buckle;
 using Buckle.CodeAnalysis.Text;
 
@@ -97,10 +98,11 @@ namespace CommandLine {
         }
 
         private static void PrettyPrintDiagnostic(SourceText text, Diagnostic error) {
-            // if (error.span.file != null) Console.Write($"{error.span.file}:");
             int linenum = text.GetLineIndex(error.span.start);
-            string line = text.lines[linenum].ToString();
-            Console.Write($"{linenum+1}:{error.span.start+1}:");
+            TextLine rline = text.lines[linenum];
+            int column = error.span.start - rline.start + 1;
+            string line = rline.ToString();
+            Console.Write($"{linenum+1}:{column}:");
 
             if (error.type == DiagnosticType.error) {
                 Console.ForegroundColor = ConsoleColor.Red;
@@ -116,17 +118,12 @@ namespace CommandLine {
             Console.ResetColor();
             Console.WriteLine(error.msg);
 
-            string prefix, focus, suffix;
+            TextSpan prefixSpan = TextSpan.FromBounds(rline.start, error.span.start);
+            TextSpan suffixSpan = TextSpan.FromBounds(error.span.end, rline.end);
 
-            if (error.span.start == line.Length) {
-                prefix = line;
-                focus = " ";
-                suffix = "";
-            } else {
-                prefix = line.Substring(0, error.span.start);
-                focus = line.Substring(error.span.start, error.span.length);
-                suffix = line.Substring(error.span.end);
-            }
+            string prefix = text.ToString(prefixSpan);
+            string focus = text.ToString(error.span);
+            string suffix = text.ToString(suffixSpan);
 
             Console.Write($" {prefix}");
             Console.ForegroundColor = ConsoleColor.Red;
@@ -135,13 +132,12 @@ namespace CommandLine {
             Console.WriteLine(suffix);
 
             Console.ForegroundColor = ConsoleColor.Red;
-            int tabcount = prefix.Length - prefix.Replace("\t", "").Length;
-            string marker = new string(' ', error.span.start + 1);
-            marker += new string('\t', tabcount);
+            string marker = " " + Regex.Replace(prefix, @"\S", " ");
             marker += "^";
-            marker += new string('~', error.span.length - 1);
-            Console.WriteLine(marker);
+            if (error.span.length > 0 && error.span.start != line.Length)
+                marker += new string('~', error.span.length - 1);
 
+            Console.WriteLine(marker);
             Console.ResetColor();
         }
 

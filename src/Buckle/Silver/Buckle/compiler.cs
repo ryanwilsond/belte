@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Text;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Binding;
@@ -55,6 +56,12 @@ namespace Buckle {
         public Compilation(string text) {
             diagnostics = new DiagnosticQueue();
             tree = SyntaxTree.Parse(text);
+        }
+
+        public Compilation(SyntaxTree tree_) {
+            diagnostics = new DiagnosticQueue();
+            diagnostics.Move(tree_.diagnostics);
+            tree = tree_;
         }
 
         public Compilation(string[] text) : this(string.Join('\n', text)) { }
@@ -130,37 +137,41 @@ namespace Buckle {
             diagnostics.Clear();
             bool showTree = false;
             var variables = new Dictionary<VariableSymbol, object>();
+            var textbuilder = new StringBuilder();
 
             while (true) {
-                Console.Write("> ");
+                if (textbuilder.Length == 0)
+                    Console.Write("> ");
+                else
+                    Console.Write(". ");
+
                 string line = Console.ReadLine();
-                if (string.IsNullOrWhiteSpace(line)) return;
-                if (line.Length - line.Replace("\t", "").Length != 0) {
-                    diagnostics.Push(new Diagnostic(DiagnosticType.warning, null,
-                        "using tabs is unsupported, and may produce unexpected results"));
+                bool isblank = string.IsNullOrWhiteSpace(line);
+
+                if (textbuilder.Length == 0) {
+                    if (isblank) {
+                        break;
+                    } else if (line == "#showTree") {
+                        showTree = !showTree;
+                        Console.WriteLine(showTree ? "Parse-trees visible" : "Parse-trees hidden");
+                        continue;
+                    } else if (line == "#clear" || line == "#cls") {
+                        Console.Clear();
+                        continue;
+                    }
                 }
 
-                // repl specific zulu statements
-                if (line == "#showTree") {
-                    showTree = !showTree;
-                    Console.WriteLine(showTree ? "Parse-trees visible" : "Parse-trees hidden");
-                    continue;
-                } else if (line == "#clear" || line == "#cls") {
-                    Console.Clear();
-                    continue;
-                }
+                textbuilder.AppendLine(line);
+                string text = textbuilder.ToString();
 
-                var compilation = new Compilation(line);
-                diagnostics.Move(compilation.diagnostics);
+                var syntaxTree = SyntaxTree.Parse(text);
+
+                if (!isblank && syntaxTree.diagnostics.Any()) continue;
+
+                var compilation = new Compilation(syntaxTree);
                 state.source_text = compilation.tree.text;
 
                 if (showTree) PrintTree(compilation.tree.root);
-
-                if (diagnostics.Any()) {
-                    if (callback != null)
-                        callback(this);
-                    continue;
-                }
 
                 var result = compilation.Evaluate(variables);
 
@@ -169,6 +180,8 @@ namespace Buckle {
                     if (callback != null)
                         callback(this);
                 } else Console.WriteLine(result.value);
+
+                textbuilder.Clear();
             }
         }
 

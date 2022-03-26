@@ -96,7 +96,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public int pos { get; }
         public string text { get; }
         public object value { get; }
-        public override TextSpan span => new TextSpan(pos, text.Length);
+        public override TextSpan span => new TextSpan(pos, text?.Length ?? 0);
 
         public Token(SyntaxType type_, int pos_, string text_, object value_) {
             type = type_;
