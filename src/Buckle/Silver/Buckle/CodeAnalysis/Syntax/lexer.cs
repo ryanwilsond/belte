@@ -1,22 +1,23 @@
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax {
 
     internal class Lexer {
-        private readonly string text_;
+        private readonly SourceText text_;
         private int pos_;
         private int start_;
         private SyntaxType type_;
         private object value_;
         public DiagnosticQueue diagnostics;
 
-        public Lexer(string text) {
+        public Lexer(SourceText text) {
             text_ = text;
             diagnostics = new DiagnosticQueue();
         }
 
         private char Peek(int offset) {
             int index = pos_ + offset;
-            if (index >= text_.Length) return '\0';
+            if (index >= text_.length) return '\0';
             return text_[index];
         }
 
@@ -114,7 +115,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             int length = pos_ - start_;
             var text = SyntaxFacts.GetText(type_);
             if (text == null)
-                text = text_.Substring(start_, length);
+                text = text_.ToString(start_, length);
 
             return new Token(type_, start_, text, value_);
         }
@@ -123,7 +124,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             while (char.IsDigit(current)) pos_++;
 
             int length = pos_ - start_;
-            string text = text_.Substring(start_, length);
+            string text = text_.ToString(start_, length);
 
             if (!int.TryParse(text, out var value))
                 diagnostics.Push(Error.InvalidType(new TextSpan(start_, length), text, typeof(int)));
@@ -141,7 +142,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             while (char.IsLetter(current)) pos_++;
 
             int length = pos_ - start_;
-            string text = text_.Substring(start_, length);
+            string text = text_.ToString(start_, length);
             type_ = SyntaxFacts.GetKeywordType(text);
         }
     }

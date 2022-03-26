@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle {
 
@@ -9,28 +10,6 @@ namespace Buckle {
         warning,
         fatal,
         unknown,
-    }
-
-    public class TextSpan {
-        public int? start { get; }
-        public int? length { get; }
-        public int? end => start + length;
-        public int? line { get; }
-        public string? file { get; }
-
-        public TextSpan(int? start_, int? length_, int? linenum, string? filename) {
-            start = start_;
-            length = length_;
-            line = linenum;
-            file = filename;
-        }
-
-        public TextSpan(int? start_, int? length_) : this(start_, length_, null, null) { }
-
-        public static TextSpan FromBounds(int? start, int? end) {
-            var length = end - start;
-            return new TextSpan(start, length);
-        }
     }
 
     public class Diagnostic {

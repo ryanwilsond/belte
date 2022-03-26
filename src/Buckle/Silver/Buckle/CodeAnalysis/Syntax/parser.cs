@@ -1,11 +1,13 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax {
 
     internal class Parser {
         private readonly ImmutableArray<Token> tokens_;
         private int pos_;
+        private readonly SourceText text_;
         public DiagnosticQueue diagnostics;
 
         private Token Match(SyntaxType type) {
@@ -28,11 +30,12 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         private Token current => Peek(0);
 
-        public Parser(string text) {
+        public Parser(SourceText text) {
             diagnostics = new DiagnosticQueue();
             var tokens = new List<Token>();
             Lexer lexer = new Lexer(text);
             Token token;
+            text_ = text;
 
             do {
                 token = lexer.LexNext();
@@ -48,7 +51,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public SyntaxTree Parse() {
             var expr = ParseExpression();
             var eof = Match(SyntaxType.EOF);
-            return new SyntaxTree(expr, eof, diagnostics);
+            return new SyntaxTree(text_, expr, eof, diagnostics);
         }
 
         private Expression ParseAssignmentExpression() {

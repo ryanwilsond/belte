@@ -3,6 +3,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Collections.Generic;
 using Buckle;
+using Buckle.CodeAnalysis.Text;
 
 namespace CommandLine {
 
@@ -95,10 +96,11 @@ namespace CommandLine {
             return state;
         }
 
-        private static void PrettyPrintDiagnostic(string line, Diagnostic error) {
-            if (error.span.file != null) Console.Write($"{error.span.file}:");
-            if (error.span.line != null) Console.Write($"{error.span.line.Value}:");
-            if (error.span.start != null) Console.Write($"{error.span.start.Value}:");
+        private static void PrettyPrintDiagnostic(SourceText text, Diagnostic error) {
+            // if (error.span.file != null) Console.Write($"{error.span.file}:");
+            int linenum = text.GetLineIndex(error.span.start);
+            string line = text.lines[linenum].ToString();
+            Console.Write($"{linenum+1}:{error.span.start+1}:");
 
             if (error.type == DiagnosticType.error) {
                 Console.ForegroundColor = ConsoleColor.Red;
@@ -116,14 +118,14 @@ namespace CommandLine {
 
             string prefix, focus, suffix;
 
-            if (error.span.start.Value == line.Length) {
+            if (error.span.start == line.Length) {
                 prefix = line;
                 focus = " ";
                 suffix = "";
             } else {
-                prefix = line.Substring(0, error.span.start.Value);
-                focus = line.Substring(error.span.start.Value, error.span.length.Value);
-                suffix = line.Substring(error.span.end.Value);
+                prefix = line.Substring(0, error.span.start);
+                focus = line.Substring(error.span.start, error.span.length);
+                suffix = line.Substring(error.span.end);
             }
 
             Console.Write($" {prefix}");
@@ -134,16 +136,16 @@ namespace CommandLine {
 
             Console.ForegroundColor = ConsoleColor.Red;
             int tabcount = prefix.Length - prefix.Replace("\t", "").Length;
-            string marker = new string(' ', error.span.start.Value + 1);
+            string marker = new string(' ', error.span.start + 1);
             marker += new string('\t', tabcount);
             marker += "^";
-            marker += new string('~', error.span.length.Value - 1);
+            marker += new string('~', error.span.length - 1);
             Console.WriteLine(marker);
 
             Console.ResetColor();
         }
 
-        private static int ResolveDiagnostics(Compiler compiler, string line = null) {
+        private static int ResolveDiagnostics(Compiler compiler) {
             if (compiler.diagnostics.count == 0) return SUCCESS_EXIT_CODE;
             DiagnosticType worst = DiagnosticType.unknown;
 
@@ -176,7 +178,7 @@ namespace CommandLine {
                         Console.WriteLine($"{diagnostic.msg}");
 
                 } else {
-                    PrettyPrintDiagnostic(line, diagnostic);
+                    PrettyPrintDiagnostic(compiler.state.source_text, diagnostic);
                 }
 
                 diagnostic = compiler.diagnostics.Pop();

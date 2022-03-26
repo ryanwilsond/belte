@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle {
 
@@ -29,6 +30,7 @@ namespace Buckle {
 
     public struct CompilerState {
         public CompilerStage finish_stage;
+        public SourceText source_text;
         public string link_output_filename;
         public List<byte> link_output_content;
         public FileState[] tasks;
@@ -110,7 +112,7 @@ namespace Buckle {
             Console.ResetColor();
         }
 
-        public delegate int ErrorHandle(Compiler compiler, string line=null);
+        public delegate int ErrorHandle(Compiler compiler);
 
         private void InternalCompiler() {
             for (int i=0; i<state.tasks.Length; i++) {
@@ -150,12 +152,13 @@ namespace Buckle {
 
                 var compilation = new Compilation(line);
                 diagnostics.Move(compilation.diagnostics);
+                state.source_text = compilation.tree.text;
 
                 if (showTree) PrintTree(compilation.tree.root);
 
                 if (diagnostics.Any()) {
                     if (callback != null)
-                        callback(this, line);
+                        callback(this);
                     continue;
                 }
 
@@ -164,7 +167,7 @@ namespace Buckle {
                 diagnostics.Move(result.diagnostics);
                 if (diagnostics.Any()) {
                     if (callback != null)
-                        callback(this, line);
+                        callback(this);
                 } else Console.WriteLine(result.value);
             }
         }

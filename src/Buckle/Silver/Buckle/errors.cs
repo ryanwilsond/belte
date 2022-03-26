@@ -1,5 +1,6 @@
 using System;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle {
 
