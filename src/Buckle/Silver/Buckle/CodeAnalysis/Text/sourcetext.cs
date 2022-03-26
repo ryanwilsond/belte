@@ -49,7 +49,7 @@ namespace Buckle.CodeAnalysis.Text {
                 }
             }
 
-            if (pos > linestart)
+            if (pos >= linestart)
                 AddLine(result, pointer, pos, linestart, 0);
 
             return result.ToImmutable();

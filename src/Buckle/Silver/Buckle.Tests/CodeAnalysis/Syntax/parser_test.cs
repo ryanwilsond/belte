@@ -46,11 +46,11 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
 
         [Theory]
         [MemberData(nameof(GetUnaryOperatorPairsData))]
-        internal void Parser_UnaryExpression_HonorsPrecedences(SyntaxType unaryKind, SyntaxType binaryKind) {
-            var unaryPrecedence = SyntaxFacts.GetUnaryPrecedence(unaryKind);
-            var binaryPrecedence = SyntaxFacts.GetBinaryPrecedence(binaryKind);
-            var unaryText = SyntaxFacts.GetText(unaryKind);
-            var binaryText = SyntaxFacts.GetText(binaryKind);
+        internal void Parser_UnaryExpression_HonorsPrecedences(SyntaxType unaryType, SyntaxType binaryType) {
+            var unaryPrecedence = SyntaxFacts.GetUnaryPrecedence(unaryType);
+            var binaryPrecedence = SyntaxFacts.GetBinaryPrecedence(binaryType);
+            var unaryText = SyntaxFacts.GetText(unaryType);
+            var binaryText = SyntaxFacts.GetText(binaryType);
             var text = $"{unaryText} a {binaryText} b";
             var expression = SyntaxTree.Parse(text).root;
 
@@ -58,21 +58,21 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
                 using (var e = new AssertingEnumerator(expression)) {
                     e.AssertNode(SyntaxType.BINARY_EXPR);
                     e.AssertNode(SyntaxType.UNARY_EXPR);
-                    e.AssertToken(unaryKind, unaryText);
+                    e.AssertToken(unaryType, unaryText);
                     e.AssertNode(SyntaxType.NAME_EXPR);
                     e.AssertToken(SyntaxType.IDENTIFIER, "a");
-                    e.AssertToken(binaryKind, binaryText);
+                    e.AssertToken(binaryType, binaryText);
                     e.AssertNode(SyntaxType.NAME_EXPR);
                     e.AssertToken(SyntaxType.IDENTIFIER, "b");
                 }
             } else {
                 using (var e = new AssertingEnumerator(expression)) {
                     e.AssertNode(SyntaxType.UNARY_EXPR);
-                    e.AssertToken(unaryKind, unaryText);
+                    e.AssertToken(unaryType, unaryText);
                     e.AssertNode(SyntaxType.BINARY_EXPR);
                     e.AssertNode(SyntaxType.NAME_EXPR);
                     e.AssertToken(SyntaxType.IDENTIFIER, "a");
-                    e.AssertToken(binaryKind, binaryText);
+                    e.AssertToken(binaryType, binaryText);
                     e.AssertNode(SyntaxType.NAME_EXPR);
                     e.AssertToken(SyntaxType.IDENTIFIER, "b");
                 }
@@ -80,16 +80,16 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
         }
 
         public static IEnumerable<object[]> GetBinaryOperatorPairsData() {
-            foreach (var op1 in SyntaxFacts.GetBinaryOperatorKinds()) {
-                foreach (var op2 in SyntaxFacts.GetBinaryOperatorKinds()) {
+            foreach (var op1 in SyntaxFacts.GetBinaryOperatorTypes()) {
+                foreach (var op2 in SyntaxFacts.GetBinaryOperatorTypes()) {
                     yield return new object[] { op1, op2 };
                 }
             }
         }
 
         public static IEnumerable<object[]> GetUnaryOperatorPairsData() {
-            foreach (var unary in SyntaxFacts.GetUnaryOperatorKinds()) {
-                foreach (var binary in SyntaxFacts.GetBinaryOperatorKinds()) {
+            foreach (var unary in SyntaxFacts.GetUnaryOperatorTypes()) {
+                foreach (var binary in SyntaxFacts.GetBinaryOperatorTypes()) {
                     yield return new object[] { unary, binary };
                 }
             }

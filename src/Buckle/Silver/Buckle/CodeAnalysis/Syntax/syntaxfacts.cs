@@ -76,7 +76,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             }
         }
 
-        public static IEnumerable<SyntaxType> GetUnaryOperatorKinds() {
+        public static IEnumerable<SyntaxType> GetUnaryOperatorTypes() {
             var types = (SyntaxType[]) Enum.GetValues(typeof(SyntaxType));
             foreach (var type in types) {
                 if (GetUnaryPrecedence(type) > 0)
@@ -84,7 +84,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             }
         }
 
-        public static IEnumerable<SyntaxType> GetBinaryOperatorKinds() {
+        public static IEnumerable<SyntaxType> GetBinaryOperatorTypes() {
             var types = (SyntaxType[]) Enum.GetValues(typeof(SyntaxType));
             foreach (var type in types) {
                 if (GetBinaryPrecedence(type) > 0)
