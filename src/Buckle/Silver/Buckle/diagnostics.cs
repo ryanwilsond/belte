@@ -17,6 +17,12 @@ namespace Buckle {
         public string msg { get; }
         public TextSpan? span { get; }
 
+        /// <summary>
+        /// A diagnostic message with a specific location
+        /// </summary>
+        /// <param name="type_">Severity of diagnostic</param>
+        /// <param name="span_">Location of the diagnostic</param>
+        /// <param name="msg_">Message/info on the diagnostic</param>
         public Diagnostic(DiagnosticType type_, TextSpan? span_, string msg_) {
             type = type_;
             msg = msg_;
@@ -31,19 +37,27 @@ namespace Buckle {
         public Diagnostic[] ToArray() => diagnostics_.ToArray();
         public IEnumerator GetEnumerator() => diagnostics_.GetEnumerator();
 
+        /// <summary>
+        /// Queue structure for organizing diagnostics
+        /// </summary>
         public DiagnosticQueue() {
             diagnostics_ = new List<Diagnostic>();
         }
 
-        public void Push(DiagnosticType type, TextSpan? span, string msg) {
-            diagnostics_.Add(new Diagnostic(type, span, msg));
-        }
-
+        /// <summary>
+        /// Pushes a diagnostic onto the Queue
+        /// </summary>
+        /// <param name="diagnostic">Diagnostic to copy onto the queue</param>
+        public void Push(Diagnostic diagnostic) { diagnostics_.Add(diagnostic); }
+        public void Push(DiagnosticType type, TextSpan? span, string msg) { Push(new Diagnostic(type, span, msg)); }
         public void Push(TextSpan? span, string msg) { Push(DiagnosticType.error, span, msg); }
         public void Push(DiagnosticType type, string msg) { Push(type, null, msg); }
         public void Push(string msg) { Push(DiagnosticType.error, null, msg); }
-        public void Push(Diagnostic diagnostic) { diagnostics_.Add(diagnostic); }
 
+        /// <summary>
+        /// Pops all diagnostics off queue and pushes them onto this
+        /// </summary>
+        /// <param name="diagnosticQueue">queue to pop and copy from</param>
         public void Move(DiagnosticQueue diagnosticQueue) {
             Diagnostic diagnostic = diagnosticQueue.Pop();
             while (diagnostic != null) {
@@ -52,6 +66,10 @@ namespace Buckle {
             }
         }
 
+        /// <summary>
+        /// Removes a diagnostic
+        /// </summary>
+        /// <returns>first diagnostic on the queue</returns>
         public Diagnostic? Pop() {
             if (diagnostics_.Count == 0) return null;
             Diagnostic diagnostic = diagnostics_[0];
@@ -59,6 +77,9 @@ namespace Buckle {
             return diagnostic;
         }
 
+        /// <summary>
+        /// Removes all diagnostics
+        /// </summary>
         public void Clear() {
             diagnostics_.Clear();
         }

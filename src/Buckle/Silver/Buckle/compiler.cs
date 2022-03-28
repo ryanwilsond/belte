@@ -1,11 +1,13 @@
 using System;
-using System.Linq;
 using System.Collections.Generic;
 using System.Text;
 using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle {
 
+    /// <summary>
+    /// Handles compiling and handling a single CompilerState
+    /// </summary>
     public sealed class Compiler {
         const int SUCCESS_EXIT_CODE = 0;
         const int ERROR_EXIT_CODE = 1;
@@ -85,6 +87,9 @@ namespace Buckle {
                     } else if (line == "#clear" || line == "#cls") {
                         Console.Clear();
                         continue;
+                    } else if (line == "#reset") {
+                        prev = null;
+                        continue;
                     }
                 }
 
@@ -115,6 +120,11 @@ namespace Buckle {
             }
         }
 
+        /// <summary>
+        /// Handles preprocessing, compiling, assembling, and linking of a set of files
+        /// </summary>
+        /// <param name="callback">temp</param>
+        /// <returns>error</returns>
         public int Compile(ErrorHandle callback=null) {
             int err;
 
