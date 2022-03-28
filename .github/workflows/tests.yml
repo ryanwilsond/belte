@@ -1,0 +1,20 @@
+
+name: tests
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+
+      - name: dotnet build
+        run: dotnet build --configuration Release ./src/Buckle/Silver/Buckle.Tests/Buckle.Tests.csproj
+
+      - name: dotnet test
+        run: dotnet test --configuration Release ./src/Buckle/Silver/Buckle.Tests/Buckle.Tests.csproj
