@@ -15,7 +15,7 @@ namespace Buckle.CodeAnalysis.Binding {
         EqualityNotEquals,
     }
 
-    internal class BoundBinaryOperator {
+    internal sealed class BoundBinaryOperator {
         public SyntaxType type { get; }
         public BoundBinaryOperatorType optype { get; }
         public Type lefttype { get; }

@@ -34,5 +34,10 @@ namespace Buckle {
             string msg = $"undefined symbol '{name}'";
             return new Diagnostic(DiagnosticType.error, span, msg);
         }
+
+        public static Diagnostic AlreadyDeclared(TextSpan span, string name) {
+            string msg = $"redefinition of '{name}'";
+            return new Diagnostic(DiagnosticType.error, span, msg);
+        }
     }
 }

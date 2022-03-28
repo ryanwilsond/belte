@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Text {
 
-    public class SourceText {
+    public sealed class SourceText {
         public ImmutableArray<TextLine> lines { get; }
         private readonly string text_;
 

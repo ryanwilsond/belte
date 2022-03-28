@@ -1,7 +1,7 @@
 
 namespace Buckle.CodeAnalysis.Text {
 
-    public class TextLine {
+    public sealed class TextLine {
         public SourceText text { get; }
         public int start { get; }
         public int length { get; }

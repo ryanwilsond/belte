@@ -2,86 +2,11 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Text;
-using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.Text;
 
 namespace Buckle {
 
-    public enum CompilerStage {
-        raw,
-        preprocessed,
-        compiled,
-        assembled,
-        linked,
-    }
-
-    public struct FileContent {
-        public List<string> lines;
-        public List<byte> bytes;
-    }
-
-    public struct FileState {
-        public string in_filename;
-        public CompilerStage stage;
-        public string out_filename;
-        public FileContent file_content;
-    }
-
-    public struct CompilerState {
-        public CompilerStage finish_stage;
-        public SourceText source_text;
-        public string link_output_filename;
-        public List<byte> link_output_content;
-        public FileState[] tasks;
-    }
-
-    internal class EvaluationResult {
-        public DiagnosticQueue diagnostics;
-        public object value;
-
-        internal EvaluationResult(object value_, DiagnosticQueue diagnostics_) {
-            value = value_;
-            diagnostics = new DiagnosticQueue();
-            diagnostics.Move(diagnostics_);
-        }
-    }
-
-    internal class Compilation {
-        public DiagnosticQueue diagnostics;
-        public SyntaxTree tree;
-        private BoundExpression expr_;
-
-        public Compilation(string text) {
-            diagnostics = new DiagnosticQueue();
-            tree = SyntaxTree.Parse(text);
-        }
-
-        public Compilation(SyntaxTree tree_) {
-            diagnostics = new DiagnosticQueue();
-            diagnostics.Move(tree_.diagnostics);
-            tree = tree_;
-        }
-
-        public Compilation(string[] text) : this(string.Join('\n', text)) { }
-
-        public EvaluationResult Evaluate(Dictionary<VariableSymbol, object> variables) {
-            Binder binder = new Binder(variables);
-            expr_ = binder.BindExpression(tree.root);
-            diagnostics.Move(tree.diagnostics);
-            diagnostics.Move(binder.diagnostics);
-            Evaluator eval = new Evaluator(expr_, variables);
-            return new EvaluationResult(eval.Evaluate(), diagnostics);
-        }
-
-        public string[] Compile() {
-            List<string> lines = new List<string>();
-            return lines.ToArray();
-        }
-    }
-
-    public class Compiler {
+    public sealed class Compiler {
         const int SUCCESS_EXIT_CODE = 0;
         const int ERROR_EXIT_CODE = 1;
         const int FATAL_EXIT_CODE = 2;
@@ -124,10 +49,7 @@ namespace Buckle {
         private void InternalCompiler() {
             for (int i=0; i<state.tasks.Length; i++) {
                 if (state.tasks[i].stage == CompilerStage.preprocessed) {
-                    Compilation compilation = new Compilation(state.tasks[i].file_content.lines.ToArray());
-                    state.tasks[i].file_content.lines = compilation.Compile().ToList();
-                    state.tasks[i].stage = CompilerStage.compiled;
-                    diagnostics.Move(compilation.diagnostics);
+                    // ...
                 }
             }
         }
@@ -138,6 +60,7 @@ namespace Buckle {
             bool showTree = false;
             var variables = new Dictionary<VariableSymbol, object>();
             var textbuilder = new StringBuilder();
+            Compilation prev = null;
 
             while (true) {
                 Console.ForegroundColor = ConsoleColor.Green;
@@ -167,16 +90,14 @@ namespace Buckle {
 
                 textbuilder.AppendLine(line);
                 string text = textbuilder.ToString();
-
                 var syntaxTree = SyntaxTree.Parse(text);
-
                 if (!isblank && syntaxTree.diagnostics.Any()) continue;
 
-                var compilation = new Compilation(syntaxTree);
+                var compilation = prev == null ? new Compilation(syntaxTree) : prev.ContinueWith(syntaxTree);
+
                 state.source_text = compilation.tree.text;
 
                 if (showTree) compilation.tree.root.WriteTo(Console.Out);
-
                 var result = compilation.Evaluate(variables);
 
                 diagnostics.Move(result.diagnostics);
@@ -184,9 +105,10 @@ namespace Buckle {
                     if (callback != null)
                         callback(this);
                 } else {
-                    Console.ForegroundColor = ConsoleColor.Cyan; // orange?
+                    Console.ForegroundColor = ConsoleColor.Cyan;
                     Console.WriteLine(result.value);
                     Console.ResetColor();
+                    prev = compilation; // prevents chaining a statement that had errors
                 }
 
                 textbuilder.Clear();

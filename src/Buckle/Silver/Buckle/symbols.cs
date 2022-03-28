@@ -1,7 +1,7 @@
 using System;
 
 namespace Buckle {
-    internal class VariableSymbol {
+    internal sealed class VariableSymbol {
         public string name { get; }
         public Type ltype { get; }
 

@@ -1,20 +1,23 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax {
 
-    internal class SyntaxTree {
-        public Expression root { get; }
+    internal sealed class SyntaxTree {
+        public CompilationUnit root { get; }
         public Token eof { get; }
         public SourceText text { get; }
         public DiagnosticQueue diagnostics;
 
-        public SyntaxTree(SourceText text_, Expression root_, Token eof_, DiagnosticQueue diagnostics_) {
-            root = root_;
-            eof = eof_;
-            text = text_;
+        private SyntaxTree(SourceText text_) {
+            Parser parser = new Parser(text_);
+            var root_ = parser.ParseCompilationUnit();
             diagnostics = new DiagnosticQueue();
-            diagnostics.Move(diagnostics_);
+            diagnostics.Move(parser.diagnostics);
+
+            text = text_;
+            root = root_;
         }
 
         public static SyntaxTree Parse(string text) {
@@ -23,8 +26,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         public static SyntaxTree Parse(SourceText text) {
-            Parser parser = new Parser(text);
-            return parser.Parse();
+            return new SyntaxTree(text);
         }
 
         public static IEnumerable<Token> ParseTokens(string text) {

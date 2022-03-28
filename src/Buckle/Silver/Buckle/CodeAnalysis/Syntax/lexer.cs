@@ -2,7 +2,7 @@ using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax {
 
-    internal class Lexer {
+    internal sealed class Lexer {
         private readonly SourceText text_;
         private int pos_;
         private int start_;

@@ -39,6 +39,8 @@ namespace Buckle.CodeAnalysis.Syntax {
         // keywords
         TRUE_KEYWORD,
         FALSE_KEYWORD,
+        // other
+        CompilationUnit,
     }
 
     internal abstract class Node {
@@ -99,7 +101,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
     }
 
-    internal class Token : Node {
+    internal sealed class Token : Node {
         public override SyntaxType type { get; }
         public int pos { get; }
         public string text { get; }
@@ -116,7 +118,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal abstract class Expression : Node { }
 
-    internal class LiteralExpression : Expression {
+    internal sealed class LiteralExpression : Expression {
         public Token token { get; }
         public object value { get; }
         public override SyntaxType type => SyntaxType.LITERAL_EXPR;

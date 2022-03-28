@@ -3,7 +3,7 @@ using Buckle.CodeAnalysis.Binding;
 
 namespace Buckle.CodeAnalysis {
 
-    internal class Evaluator {
+    internal sealed class Evaluator {
         private readonly BoundExpression root_;
         public DiagnosticQueue diagnostics;
         private readonly Dictionary<VariableSymbol, object> variables_;

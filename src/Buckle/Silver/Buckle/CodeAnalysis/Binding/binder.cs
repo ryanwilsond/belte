@@ -1,16 +1,50 @@
-using System.Linq;
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding {
 
-    internal class Binder {
+    internal sealed class Binder {
         public DiagnosticQueue diagnostics;
-        private readonly Dictionary<VariableSymbol, object> variables_;
+        private BoundScope scope_;
 
-        public Binder(Dictionary<VariableSymbol, object> variables) {
+        public Binder(BoundScope parent) {
             diagnostics = new DiagnosticQueue();
-            variables_ = variables;
+            scope_ = new BoundScope(parent);
+        }
+
+        public static BoundGlobalScope BindGlobalScope(BoundGlobalScope prev, CompilationUnit expr) {
+            var parentScope = CreateParentScopes(prev);
+            var binder = new Binder(parentScope);
+            var expression = binder.BindExpression(expr.expr);
+            var variables = binder.scope_.GetDeclaredVariables();
+
+            if (prev != null)
+                binder.diagnostics.diagnostics_.InsertRange(0, prev.diagnostics.diagnostics_);
+
+            return new BoundGlobalScope(prev, binder.diagnostics, variables, expression);
+        }
+
+        private static BoundScope CreateParentScopes(BoundGlobalScope prev) {
+            var stack = new Stack<BoundGlobalScope>();
+            // make all scopes cascade in order of repl statements
+
+            while (prev != null) {
+                stack.Push(prev);
+                prev = prev.previous;
+            }
+
+            BoundScope parent = null;
+
+            while (stack.Count > 0) {
+                prev = stack.Pop();
+                var scope = new BoundScope(parent);
+                foreach (var variable in prev.variables)
+                    scope.TryDeclare(variable);
+
+                parent = scope;
+            }
+
+            return parent;
         }
 
         public BoundExpression BindExpression(Expression expr) {
@@ -65,9 +99,8 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private BoundExpression BindNameExpression(NameExpression expr) {
             string name = expr.id.text;
-            var variable = variables_.Keys.FirstOrDefault(v => v.name == name);
 
-            if (variable != null) {
+            if (scope_.TryLookup(name, out var variable)) {
                 return new BoundVariableExpression(variable);
             }
 
@@ -78,13 +111,11 @@ namespace Buckle.CodeAnalysis.Binding {
         private BoundExpression BindAssignmentExpression(AssignmentExpression expr) {
             var name = expr.id.text;
             var boundexpr = BindExpression(expr.expr);
-
-            var existingvar = variables_.Keys.FirstOrDefault(v => v.name == name);
-            if (existingvar != null)
-                variables_.Remove(existingvar);
-
             var variable = new VariableSymbol(name, boundexpr.ltype);
-            variables_[variable] = null;
+
+            if (!scope_.TryDeclare(variable)) {
+                diagnostics.Push(Error.AlreadyDeclared(expr.id.span, name));
+            }
 
             return new BoundAssignmentExpression(variable, boundexpr);
         }

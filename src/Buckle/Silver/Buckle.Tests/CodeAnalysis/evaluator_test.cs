@@ -29,7 +29,8 @@ namespace Buckle.Tests.CodeAnalysis {
         [InlineData("!false", true)]
         [InlineData("(a = 10) * a", 100)]
         public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
-            var compilation = new Compilation(text);
+            var tree = SyntaxTree.Parse(text);
+            var compilation = new Compilation(tree);
             var variables = new Dictionary<VariableSymbol, object>();
             var result = compilation.Evaluate(variables);
 

@@ -12,7 +12,7 @@ namespace Buckle {
         unknown,
     }
 
-    public class Diagnostic {
+    public sealed class Diagnostic {
         public DiagnosticType type { get; }
         public string msg { get; }
         public TextSpan? span { get; }
@@ -24,8 +24,8 @@ namespace Buckle {
         }
     }
 
-    public class DiagnosticQueue {
-        private List<Diagnostic> diagnostics_;
+    public sealed class DiagnosticQueue {
+        internal List<Diagnostic> diagnostics_;
         public int count => diagnostics_.Count;
         public bool Any() => diagnostics_.Any();
         public Diagnostic[] ToArray() => diagnostics_.ToArray();

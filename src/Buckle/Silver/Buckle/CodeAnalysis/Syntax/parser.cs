@@ -4,7 +4,7 @@ using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax {
 
-    internal class Parser {
+    internal sealed class Parser {
         private readonly ImmutableArray<Token> tokens_;
         private int pos_;
         private readonly SourceText text_;
@@ -48,10 +48,10 @@ namespace Buckle.CodeAnalysis.Syntax {
             diagnostics.Move(lexer.diagnostics);
         }
 
-        public SyntaxTree Parse() {
+        public CompilationUnit ParseCompilationUnit() {
             var expr = ParseExpression();
             var eof = Match(SyntaxType.EOF);
-            return new SyntaxTree(text_, expr, eof, diagnostics);
+            return new CompilationUnit(expr, eof);
         }
 
         private Expression ParseAssignmentExpression() {

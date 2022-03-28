@@ -10,7 +10,7 @@ namespace Buckle.CodeAnalysis.Binding {
         BooleanNegation,
     }
 
-    internal class BoundUnaryOperator {
+    internal sealed class BoundUnaryOperator {
         public SyntaxType type { get; }
         public BoundUnaryOperatorType optype { get; }
         public Type operandtype { get; }

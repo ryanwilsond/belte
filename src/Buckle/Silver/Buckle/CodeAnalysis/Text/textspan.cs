@@ -1,7 +1,7 @@
 
 namespace Buckle.CodeAnalysis.Text {
 
-    public class TextSpan {
+    public sealed class TextSpan {
         public int start { get; }
         public int length { get; }
         public int end => start + length;
