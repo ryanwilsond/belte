@@ -10,6 +10,7 @@ TODO
 
   Buckle
     * Add file exists checking for input files
+    * update strap to match C# Silver impl OOP
 
   Extension
     * String interpolation regex
