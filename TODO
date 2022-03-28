@@ -11,6 +11,7 @@ TODO
   Buckle
     * Add file exists checking for input files
     * update strap to match C# Silver impl OOP
+    * setup azure pipeline for testing builds
 
   Extension
     * String interpolation regex
