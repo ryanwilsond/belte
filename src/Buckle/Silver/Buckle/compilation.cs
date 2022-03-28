@@ -77,6 +77,9 @@ namespace Buckle {
         public EvaluationResult Evaluate(Dictionary<VariableSymbol, object> variables) {
             diagnostics.Move(tree.diagnostics);
             diagnostics.Move(global_scope.diagnostics);
+            if (diagnostics.Any())
+                return new EvaluationResult(null, diagnostics);
+
             Evaluator eval = new Evaluator(global_scope.expr, variables);
             return new EvaluationResult(eval.Evaluate(), diagnostics);
         }
@@ -89,7 +92,7 @@ namespace Buckle {
     internal sealed class CompilationUnit : Node {
         public Expression expr { get; }
         public Token eof { get; }
-        public override SyntaxType type => SyntaxType.CompilationUnit;
+        public override SyntaxType type => SyntaxType.COMPILATION_UNIT;
 
         public CompilationUnit(Expression expr_, Token eof_) {
             expr = expr_;

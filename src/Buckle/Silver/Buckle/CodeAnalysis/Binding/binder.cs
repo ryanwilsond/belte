@@ -111,10 +111,15 @@ namespace Buckle.CodeAnalysis.Binding {
         private BoundExpression BindAssignmentExpression(AssignmentExpression expr) {
             var name = expr.id.text;
             var boundexpr = BindExpression(expr.expr);
-            var variable = new VariableSymbol(name, boundexpr.ltype);
 
-            if (!scope_.TryDeclare(variable)) {
-                diagnostics.Push(Error.AlreadyDeclared(expr.id.span, name));
+            if (!scope_.TryLookup(name, out var variable)) {
+                variable = new VariableSymbol(name, boundexpr.ltype);
+                scope_.TryDeclare(variable);
+            }
+
+            if (boundexpr.ltype != variable.ltype) {
+                diagnostics.Push(Error.CannotConvert(expr.expr.span, boundexpr.ltype, variable.ltype));
+                return boundexpr;
             }
 
             return new BoundAssignmentExpression(variable, boundexpr);

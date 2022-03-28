@@ -12,7 +12,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             var op1Text = SyntaxFacts.GetText(op1);
             var op2Text = SyntaxFacts.GetText(op2);
             var text = $"a {op1Text} b {op2Text} c";
-            var expression = SyntaxTree.Parse(text).root;
+            Expression expression = ParseExpression(text);
 
             if (op1Precedence >= op2Precedence) {
                 using (var e = new AssertingEnumerator(expression))
@@ -52,7 +52,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             var unaryText = SyntaxFacts.GetText(unaryType);
             var binaryText = SyntaxFacts.GetText(binaryType);
             var text = $"{unaryText} a {binaryText} b";
-            var expression = SyntaxTree.Parse(text).root;
+            Expression expression = ParseExpression(text);
 
             if (unaryPrecedence >= binaryPrecedence) {
                 using (var e = new AssertingEnumerator(expression)) {
@@ -77,6 +77,12 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
                     e.AssertToken(SyntaxType.IDENTIFIER, "b");
                 }
             }
+        }
+
+        private static Expression ParseExpression(string text) {
+            SyntaxTree tree = SyntaxTree.Parse(text);
+            CompilationUnit unit = tree.root;
+            return unit.expr;
         }
 
         public static IEnumerable<object[]> GetBinaryOperatorPairsData() {

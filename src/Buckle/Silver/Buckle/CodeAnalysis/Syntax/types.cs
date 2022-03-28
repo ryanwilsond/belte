@@ -40,7 +40,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         TRUE_KEYWORD,
         FALSE_KEYWORD,
         // other
-        CompilationUnit,
+        COMPILATION_UNIT,
     }
 
     internal abstract class Node {

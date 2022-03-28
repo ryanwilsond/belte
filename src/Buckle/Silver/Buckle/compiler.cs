@@ -103,6 +103,7 @@ namespace Buckle {
                 state.source_text = compilation.tree.text;
 
                 if (showTree) compilation.tree.root.WriteTo(Console.Out);
+
                 var result = compilation.Evaluate(variables);
 
                 diagnostics.Move(result.diagnostics);

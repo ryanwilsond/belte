@@ -10,7 +10,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
         public void LexerTests_CoversAllTokens() {
             var tokenTypes = Enum.GetValues(typeof(SyntaxType))
                                  .Cast<SyntaxType>()
-                                 .Where(k => k.ToString().EndsWith("KEYWORD") ||
+                                 .Where(k => k.ToString().EndsWith("_KEYWORD") ||
                                              (k.ToString().Length - k.ToString().Replace("_", "").Length == 0));
 
             var testedTokenTypes = GetTokens().Concat(GetSeparators()).Select(t => t.type);

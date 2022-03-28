@@ -35,8 +35,8 @@ namespace Buckle {
             return new Diagnostic(DiagnosticType.error, span, msg);
         }
 
-        public static Diagnostic AlreadyDeclared(TextSpan span, string name) {
-            string msg = $"redefinition of '{name}'";
+        public static Diagnostic CannotConvert(TextSpan span, Type from, Type to) {
+            string msg = $"cannot convert from {from} to {to}";
             return new Diagnostic(DiagnosticType.error, span, msg);
         }
     }
