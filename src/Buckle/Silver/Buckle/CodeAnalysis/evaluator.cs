@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Binding;
 
@@ -101,6 +102,7 @@ namespace Buckle.CodeAnalysis {
                 case BoundBinaryOperatorType.Subtract: return (int)left - (int)right;
                 case BoundBinaryOperatorType.Multiply: return (int)left * (int)right;
                 case BoundBinaryOperatorType.Divide: return (int)left / (int)right;
+                case BoundBinaryOperatorType.Power: return (int)Math.Pow((int)left, (int)right);
                 case BoundBinaryOperatorType.ConditionalAnd: return (bool)left && (bool)right;
                 case BoundBinaryOperatorType.ConditionalOr: return (bool)left || (bool)right;
                 case BoundBinaryOperatorType.EqualityEquals: return Equals(left, right);

@@ -27,9 +27,9 @@ namespace Buckle.CodeAnalysis.Syntax {
         DAMPERSAND,
         DPIPE,
         SEMICOLON,
-        // DMINUS,
-        // DPLUS,
-        // DASTERISK,
+        DMINUS,
+        DPLUS,
+        DASTERISK,
         DEQUALS,
         BANGEQUALS,
         // expressions

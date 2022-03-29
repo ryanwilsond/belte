@@ -9,6 +9,7 @@ namespace Buckle.CodeAnalysis.Binding {
         Subtract,
         Multiply,
         Divide,
+        Power,
         ConditionalAnd,
         ConditionalOr,
         EqualityEquals,
@@ -43,6 +44,7 @@ namespace Buckle.CodeAnalysis.Binding {
             new BoundBinaryOperator(SyntaxType.MINUS, BoundBinaryOperatorType.Subtract, typeof(int)),
             new BoundBinaryOperator(SyntaxType.ASTERISK, BoundBinaryOperatorType.Multiply, typeof(int)),
             new BoundBinaryOperator(SyntaxType.SOLIDUS, BoundBinaryOperatorType.Divide, typeof(int)),
+            new BoundBinaryOperator(SyntaxType.DASTERISK, BoundBinaryOperatorType.Power, typeof(int)),
 
             new BoundBinaryOperator(
                 SyntaxType.DEQUALS, BoundBinaryOperatorType.EqualityEquals, typeof(int), typeof(bool)),

@@ -33,18 +33,6 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case '\0':
                     type_= SyntaxType.EOF;
                     break;
-                case '+':
-                    pos_++;
-                    type_= SyntaxType.PLUS;
-                    break;
-                case '-':
-                    pos_++;
-                    type_= SyntaxType.MINUS;
-                    break;
-                case '*':
-                    pos_++;
-                    type_= SyntaxType.ASTERISK;
-                    break;
                 case '/':
                     pos_++;
                     type_= SyntaxType.SOLIDUS;
@@ -68,6 +56,33 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case ';':
                     pos_++;
                     type_ = SyntaxType.SEMICOLON;
+                    break;
+                case '+':
+                    pos_++;
+                    if (current == '+') {
+                        type_ = SyntaxType.DPLUS;
+                        pos_++;
+                    } else {
+                        type_= SyntaxType.PLUS;
+                    }
+                    break;
+                case '-':
+                    pos_++;
+                    if (current == '-') {
+                        type_ = SyntaxType.DMINUS;
+                        pos_++;
+                    } else {
+                        type_= SyntaxType.MINUS;
+                    }
+                    break;
+                case '*':
+                    pos_++;
+                    if (current == '*') {
+                        type_ = SyntaxType.DASTERISK;
+                        pos_++;
+                    } else {
+                        type_= SyntaxType.ASTERISK;
+                    }
                     break;
                 case '&':
                     if (lookahead == '&') {
