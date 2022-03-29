@@ -1,6 +1,0 @@
-
-namespace System {
-
-void exit(int error);
-
-}

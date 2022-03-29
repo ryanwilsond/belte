@@ -1,6 +1,7 @@
 
 namespace Base {
     public class int<int Min=null, int Max=null> : IComparable, IComparable<int>, IConvertible {
+
         const int MinValue = Min;
         const int MaxValue = Max;
 

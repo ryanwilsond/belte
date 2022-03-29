@@ -1,5 +1,34 @@
 
-namespace System {
+namespace Standard {
+    public static class Console {
+
+        enum Color {
+            Black,
+            DarkBlue,
+            DarkGreen,
+            DarkCyan,
+            DarkRed,
+            DarkMagenta,
+            DarkYellow,
+            Gray,
+            DarkGray,
+            Blue,
+            Green,
+            Cyan,
+            Red,
+            Magenta,
+            Yellow,
+            White
+        }
+
+        static void Print(string msg, string end="\n");
+        static string Input(string msg);
+        static void SetForegroundColor(Color color);
+        static void SetBackgroundColor(Color color);
+        static void ResetColor();
+
+    }
+
     public class File {
 
         static bool Create(string filename);

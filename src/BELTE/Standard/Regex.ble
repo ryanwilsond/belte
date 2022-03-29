@@ -1,5 +1,5 @@
 
-namespace System {
+namespace Standard {
     public static class Regex {
 
     }

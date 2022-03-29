@@ -1,6 +1,7 @@
 
 namespace Base {
     public class decimal<decimal Min=null, decimal<Min,> Max=null> {
+
         const decimal MinValue = Min;
         const decimal MaxValue = Max;
 

@@ -1,15 +1,5 @@
 
 namespace Base {
-    public class byte : IComparable, IComparable<byte>, IConvertible {
-        static byte MaxValue = 255;
-        static byte MinValue = 0;
-
-        int<0, 255> value;
-
-        static byte Parse(string str);
-        int CompareTo(object val);
-        int CompareTo(byte val);
-        override string ToString();
-
-    }
+    public class byte : int<0,0xFF> IComparable, IComparable<byte>, IConvertible {}
+    public class sbyte : int<-0x80,0xFF> IComparable, IComparable<sbyte>, IConvertible {}
 }

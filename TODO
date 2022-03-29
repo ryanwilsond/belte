@@ -5,9 +5,8 @@ TODO
     * add interfaces to all types
     * Add docstrings to InterfaceBase & TypeBase & System Libraries
     * Add base inherited interfaces to base types
-    * rethink a lot of things like extension methods, callbacks, optimization methods, and STDIO / STD
-      maybe dont call it STD and steal from C, e.g. C# calls it IO not STDIO
-      C#/Java is System, C is STD, Python is SYS,
+    * rethink a lot of things like extension methods, callbacks, optimization methods
+      STD vs Standard vs . vs System vs BELTE vs Common vs Default?
 
   Buckle
     * Add file exists checking for input files

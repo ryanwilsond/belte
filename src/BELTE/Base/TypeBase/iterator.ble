@@ -1,7 +1,7 @@
 
 namespace Base {
     public class iterator {
-    public:
+
         object current { get; }
 
         void Reset();
@@ -11,5 +11,6 @@ namespace Base {
         iterator operator-(int index);
         void operator+=(int index);
         void operator-=(int index);
+
     }
 }

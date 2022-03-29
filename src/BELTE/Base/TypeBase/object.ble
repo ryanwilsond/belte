@@ -1,12 +1,13 @@
 
 namespace Base {
     public class object {
-    public:
+
         object();
         ~object();
 
         virtual operator==(object obj);
         type GetType();
         virtual string ToString();
+
     }
 }

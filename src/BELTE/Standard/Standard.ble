@@ -1,0 +1,6 @@
+
+namespace Standard {
+    void Exit(int error);
+
+    class uint : int<0,null> {}
+}
