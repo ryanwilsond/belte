@@ -51,6 +51,8 @@ namespace Buckle.CodeAnalysis.Syntax {
             switch (text) {
                 case "true": return SyntaxType.TRUE_KEYWORD;
                 case "false": return SyntaxType.FALSE_KEYWORD;
+                case "auto": return SyntaxType.AUTO_KEYWORD;
+                case "let": return SyntaxType.LET_KEYWORD;
                 default: return SyntaxType.IDENTIFIER;
             }
         }
@@ -75,6 +77,10 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.SEMICOLON: return ";";
                 case SyntaxType.DEQUALS: return "==";
                 case SyntaxType.BANGEQUALS: return "!=";
+                case SyntaxType.TRUE_KEYWORD: return "true";
+                case SyntaxType.FALSE_KEYWORD: return "false";
+                case SyntaxType.AUTO_KEYWORD: return "auto";
+                case SyntaxType.LET_KEYWORD: return "let";
                 default: return null;
             }
         }

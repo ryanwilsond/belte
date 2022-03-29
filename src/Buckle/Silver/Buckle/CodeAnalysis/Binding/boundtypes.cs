@@ -12,6 +12,7 @@ namespace Buckle.CodeAnalysis.Binding {
         ASSIGN_EXPR,
         BLOCK_STATEMENT,
         EXPRESSION_STATEMENT,
+        VARIABLE_DECLARATION_STATEMENT,
     }
 
     internal abstract class BoundNode {
@@ -71,6 +72,17 @@ namespace Buckle.CodeAnalysis.Binding {
 
         public BoundExpressionStatement(BoundExpression expr_) {
             expr = expr_;
+        }
+    }
+
+    internal sealed class BoundVariableDeclaration : BoundStatement {
+        public VariableSymbol variable { get; }
+        public BoundExpression init { get; }
+        public override BoundNodeType type => BoundNodeType.VARIABLE_DECLARATION_STATEMENT;
+
+        public BoundVariableDeclaration(VariableSymbol variable_, BoundExpression init_) {
+            variable = variable_;
+            init = init_;
         }
     }
 }

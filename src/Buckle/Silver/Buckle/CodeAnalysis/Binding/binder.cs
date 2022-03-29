@@ -52,6 +52,7 @@ namespace Buckle.CodeAnalysis.Binding {
             switch (syntax.type) {
                 case SyntaxType.BLOCK_STATEMENT: return BindBlockStatement((BlockStatement)syntax);
                 case SyntaxType.EXPRESSION_STATEMENT: return BindExpressionStatement((ExpressionStatement)syntax);
+                case SyntaxType.VARIABLE_DECLARATION_STATEMENT: return BindVariableDeclaration((VariableDeclaration)syntax);
                 default:
                     diagnostics.Push(DiagnosticType.fatal, $"unexpected syntax {syntax.type}");
                     return null;
@@ -74,11 +75,14 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private BoundStatement BindBlockStatement(BlockStatement statement) {
             var statements = ImmutableArray.CreateBuilder<BoundStatement>();
+            scope_ = new BoundScope(scope_);
 
             foreach (var statementSyntax in statement.statements) {
                 var state = BindStatement(statementSyntax);
                 statements.Add(state);
             }
+
+            scope_ = scope_.parent;
 
             return new BoundBlockStatement(statements.ToImmutable());
         }
@@ -140,9 +144,12 @@ namespace Buckle.CodeAnalysis.Binding {
             var boundexpr = BindExpression(expr.expr);
 
             if (!scope_.TryLookup(name, out var variable)) {
-                variable = new VariableSymbol(name, boundexpr.ltype);
-                scope_.TryDeclare(variable);
+                diagnostics.Push(Error.UndefinedName(expr.id.span, name));
+                return boundexpr;
             }
+
+            if (variable.is_read_only)
+                diagnostics.Push(Error.ReadonlyAssign(expr.equals.span, name));
 
             if (boundexpr.ltype != variable.ltype) {
                 diagnostics.Push(Error.CannotConvert(expr.expr.span, boundexpr.ltype, variable.ltype));
@@ -150,6 +157,19 @@ namespace Buckle.CodeAnalysis.Binding {
             }
 
             return new BoundAssignmentExpression(variable, boundexpr);
+        }
+
+        private BoundStatement BindVariableDeclaration(VariableDeclaration expr) {
+            var name = expr.id.text;
+            var isReadOnly = expr.keyword.type == SyntaxType.LET_KEYWORD;
+            var expression = BindExpression(expr.init);
+            var variable = new VariableSymbol(name, isReadOnly, expression.ltype);
+
+            if (!scope_.TryDeclare(variable)) {
+                diagnostics.Push(Error.AlreadyDeclared(expr.id.span, name));
+            }
+
+            return new BoundVariableDeclaration(variable, expression);
         }
     }
 }

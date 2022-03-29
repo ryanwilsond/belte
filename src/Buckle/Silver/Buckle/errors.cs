@@ -39,5 +39,15 @@ namespace Buckle {
             string msg = $"cannot convert from {from} to {to}";
             return new Diagnostic(DiagnosticType.error, span, msg);
         }
+
+        public static Diagnostic AlreadyDeclared(TextSpan span, string name) {
+            string msg = $"redefinition of '{name}'";
+            return new Diagnostic(DiagnosticType.error, span, msg);
+        }
+
+        public static Diagnostic ReadonlyAssign(TextSpan span, string name) {
+            string msg = $"assignment of read-only variable '{name}'";
+            return new Diagnostic(DiagnosticType.error, span, msg);
+        }
     }
 }

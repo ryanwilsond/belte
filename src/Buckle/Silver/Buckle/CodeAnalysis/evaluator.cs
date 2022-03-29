@@ -28,6 +28,9 @@ namespace Buckle.CodeAnalysis {
                 case BoundNodeType.EXPRESSION_STATEMENT:
                     EvaluateExpressionStatement((BoundExpressionStatement)statement);
                     break;
+                case BoundNodeType.VARIABLE_DECLARATION_STATEMENT:
+                    EvaluteVariableDeclaration((BoundVariableDeclaration)statement);
+                    break;
                 default:
                     diagnostics.Push(DiagnosticType.fatal, $"unexpected statement '{statement.type}'");
                     break;
@@ -41,6 +44,12 @@ namespace Buckle.CodeAnalysis {
 
         private void EvaluateExpressionStatement(BoundExpressionStatement statement) {
             last_value_ = EvaluateExpression(statement.expr);
+        }
+
+        private void EvaluteVariableDeclaration(BoundVariableDeclaration statement) {
+            var value = EvaluateExpression(statement.init);
+            variables_[statement.variable] = value;
+            last_value_ = value;
         }
 
         private object EvaluateExpression(BoundExpression node) {

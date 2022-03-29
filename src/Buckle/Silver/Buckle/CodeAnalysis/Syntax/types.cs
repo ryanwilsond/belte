@@ -42,9 +42,12 @@ namespace Buckle.CodeAnalysis.Syntax {
         // keywords
         TRUE_KEYWORD,
         FALSE_KEYWORD,
+        AUTO_KEYWORD,
+        LET_KEYWORD,
         // statements
         BLOCK_STATEMENT,
         EXPRESSION_STATEMENT,
+        VARIABLE_DECLARATION_STATEMENT,
         // other
         COMPILATION_UNIT,
     }

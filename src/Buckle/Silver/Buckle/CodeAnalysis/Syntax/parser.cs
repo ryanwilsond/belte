@@ -55,10 +55,26 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         private Statement ParseStatement() {
-            if (current.type == SyntaxType.LBRACE)
-                return ParseBlockStatement();
+            switch (current.type) {
+                case SyntaxType.LBRACE:
+                    return ParseBlockStatement();
+                case SyntaxType.LET_KEYWORD:
+                case SyntaxType.AUTO_KEYWORD:
+                    return ParseVariableDeclaration();
+                default:
+                    return ParseExpressionStatement();
+            }
+        }
 
-            return ParseExpressionStatement();
+        private Statement ParseVariableDeclaration() {
+            var expected = current.type == SyntaxType.LET_KEYWORD ? SyntaxType.LET_KEYWORD : SyntaxType.AUTO_KEYWORD;
+            var keyword = Match(expected);
+            var id = Match(SyntaxType.IDENTIFIER);
+            var equals = Match(SyntaxType.EQUALS);
+            var init = ParseExpression();
+            var semicolon = Match(SyntaxType.SEMICOLON);
+
+            return new VariableDeclaration(keyword, id, equals, init, semicolon);
         }
 
         private Statement ParseBlockStatement() {

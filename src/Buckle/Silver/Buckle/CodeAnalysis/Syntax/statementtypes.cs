@@ -4,6 +4,23 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal abstract class Statement : Node { }
 
+    internal sealed class VariableDeclaration : Statement {
+        public override SyntaxType type => SyntaxType.VARIABLE_DECLARATION_STATEMENT;
+        public Token keyword { get; }
+        public Token id { get; }
+        public Token equals { get; }
+        public Expression init { get; }
+        public Token semicolon { get; }
+
+        public VariableDeclaration(Token keyword_, Token id_, Token equals_, Expression init_, Token semicolon_) {
+            keyword = keyword_;
+            id = id_;
+            equals = equals_;
+            init = init_;
+            semicolon = semicolon_;
+        }
+    }
+
     internal sealed class BlockStatement : Statement {
         public Token lbrace { get; }
         public ImmutableArray<Statement> statements { get; }
