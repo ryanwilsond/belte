@@ -49,9 +49,36 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         public CompilationUnit ParseCompilationUnit() {
-            var expr = ParseExpression();
+            var statement = ParseStatement();
             var eof = Match(SyntaxType.EOF);
-            return new CompilationUnit(expr, eof);
+            return new CompilationUnit(statement, eof);
+        }
+
+        private Statement ParseStatement() {
+            if (current.type == SyntaxType.LBRACE)
+                return ParseBlockStatement();
+
+            return ParseExpressionStatement();
+        }
+
+        private Statement ParseBlockStatement() {
+            var statements = ImmutableArray.CreateBuilder<Statement>();
+            var lbrace = Match(SyntaxType.LBRACE);
+
+            while (current.type != SyntaxType.EOF && current.type != SyntaxType.RBRACE) {
+                var statement = ParseStatement();
+                statements.Add(statement);
+            }
+
+            var rbrace = Match(SyntaxType.RBRACE);
+
+            return new BlockStatement(lbrace, statements.ToImmutable(), rbrace);
+        }
+
+        private Statement ParseExpressionStatement() {
+            var expression = ParseExpression();
+            var semicolon = Match(SyntaxType.SEMICOLON);
+            return new ExpressionStatement(expression, semicolon);
         }
 
         private Expression ParseAssignmentExpression() {

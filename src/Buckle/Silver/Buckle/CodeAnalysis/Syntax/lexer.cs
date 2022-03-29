@@ -57,6 +57,18 @@ namespace Buckle.CodeAnalysis.Syntax {
                     pos_++;
                     type_= SyntaxType.RPAREN;
                     break;
+                case '{':
+                    pos_++;
+                    type_ = SyntaxType.LBRACE;
+                    break;
+                case '}':
+                    pos_++;
+                    type_ = SyntaxType.RBRACE;
+                    break;
+                case ';':
+                    pos_++;
+                    type_ = SyntaxType.SEMICOLON;
+                    break;
                 case '&':
                     if (lookahead == '&') {
                         type_= SyntaxType.DAMPERSAND;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Binding {
 
@@ -9,6 +10,8 @@ namespace Buckle.CodeAnalysis.Binding {
         BINARY_EXPR,
         VARIABLE_EXPR,
         ASSIGN_EXPR,
+        BLOCK_STATEMENT,
+        EXPRESSION_STATEMENT,
     }
 
     internal abstract class BoundNode {
@@ -47,6 +50,26 @@ namespace Buckle.CodeAnalysis.Binding {
 
         public BoundAssignmentExpression(VariableSymbol variable_, BoundExpression expr_) {
             variable = variable_;
+            expr = expr_;
+        }
+    }
+
+    internal abstract class BoundStatement : BoundNode { }
+
+    internal sealed class BoundBlockStatement : BoundStatement {
+        public ImmutableArray<BoundStatement> statements { get; }
+        public override BoundNodeType type => BoundNodeType.BLOCK_STATEMENT;
+
+        public BoundBlockStatement(ImmutableArray<BoundStatement> statements_) {
+            statements = statements_;
+        }
+    }
+
+    internal sealed class BoundExpressionStatement : BoundStatement {
+        public BoundExpression expr { get; }
+        public override BoundNodeType type => BoundNodeType.EXPRESSION_STATEMENT;
+
+        public BoundExpressionStatement(BoundExpression expr_) {
             expr = expr_;
         }
     }

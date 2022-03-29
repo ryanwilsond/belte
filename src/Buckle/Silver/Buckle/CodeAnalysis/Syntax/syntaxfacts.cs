@@ -70,6 +70,9 @@ namespace Buckle.CodeAnalysis.Syntax {
                 // case SyntaxType.DMINUS: return "--";
                 // case SyntaxType.DPLUS: return "++";
                 // case SyntaxType.DASTERISK: return "**";
+                case SyntaxType.LBRACE: return "{";
+                case SyntaxType.RBRACE: return "}";
+                case SyntaxType.SEMICOLON: return ";";
                 case SyntaxType.DEQUALS: return "==";
                 case SyntaxType.BANGEQUALS: return "!=";
                 default: return null;

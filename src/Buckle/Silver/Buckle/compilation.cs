@@ -80,7 +80,7 @@ namespace Buckle {
             if (diagnostics.Any())
                 return new EvaluationResult(null, diagnostics);
 
-            Evaluator eval = new Evaluator(global_scope.expr, variables);
+            Evaluator eval = new Evaluator(global_scope.statement, variables);
             return new EvaluationResult(eval.Evaluate(), diagnostics);
         }
 
@@ -90,12 +90,12 @@ namespace Buckle {
     }
 
     internal sealed class CompilationUnit : Node {
-        public Expression expr { get; }
+        public Statement statement { get; }
         public Token eof { get; }
         public override SyntaxType type => SyntaxType.COMPILATION_UNIT;
 
-        public CompilationUnit(Expression expr_, Token eof_) {
-            expr = expr_;
+        public CompilationUnit(Statement statement_, Token eof_) {
+            statement = statement_;
             eof = eof_;
         }
     }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding {
@@ -15,13 +16,13 @@ namespace Buckle.CodeAnalysis.Binding {
         public static BoundGlobalScope BindGlobalScope(BoundGlobalScope prev, CompilationUnit expr) {
             var parentScope = CreateParentScopes(prev);
             var binder = new Binder(parentScope);
-            var expression = binder.BindExpression(expr.expr);
+            var statement = binder.BindStatement(expr.statement);
             var variables = binder.scope_.GetDeclaredVariables();
 
             if (prev != null)
                 binder.diagnostics.diagnostics_.InsertRange(0, prev.diagnostics.diagnostics_);
 
-            return new BoundGlobalScope(prev, binder.diagnostics, variables, expression);
+            return new BoundGlobalScope(prev, binder.diagnostics, variables, statement);
         }
 
         private static BoundScope CreateParentScopes(BoundGlobalScope prev) {
@@ -47,7 +48,17 @@ namespace Buckle.CodeAnalysis.Binding {
             return parent;
         }
 
-        public BoundExpression BindExpression(Expression expr) {
+        private BoundStatement BindStatement(Statement syntax) {
+            switch (syntax.type) {
+                case SyntaxType.BLOCK_STATEMENT: return BindBlockStatement((BlockStatement)syntax);
+                case SyntaxType.EXPRESSION_STATEMENT: return BindExpressionStatement((ExpressionStatement)syntax);
+                default:
+                    diagnostics.Push(DiagnosticType.fatal, $"unexpected syntax {syntax.type}");
+                    return null;
+            }
+        }
+
+        private BoundExpression BindExpression(Expression expr) {
             switch (expr.type) {
                 case SyntaxType.LITERAL_EXPR: return BindLiteralExpression((LiteralExpression)expr);
                 case SyntaxType.UNARY_EXPR: return BindUnaryExpression((UnaryExpression)expr);
@@ -59,6 +70,22 @@ namespace Buckle.CodeAnalysis.Binding {
                     diagnostics.Push(DiagnosticType.fatal, $"unexpected syntax {expr.type}");
                     return null;
             }
+        }
+
+        private BoundStatement BindBlockStatement(BlockStatement statement) {
+            var statements = ImmutableArray.CreateBuilder<BoundStatement>();
+
+            foreach (var statementSyntax in statement.statements) {
+                var state = BindStatement(statementSyntax);
+                statements.Add(state);
+            }
+
+            return new BoundBlockStatement(statements.ToImmutable());
+        }
+
+        private BoundStatement BindExpressionStatement(ExpressionStatement statement) {
+            var expression = BindExpression(statement.expr);
+            return new BoundExpressionStatement(expression);
         }
 
         private BoundExpression BindLiteralExpression(LiteralExpression expr) {

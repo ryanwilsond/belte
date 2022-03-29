@@ -4,17 +4,44 @@ using Buckle.CodeAnalysis.Binding;
 namespace Buckle.CodeAnalysis {
 
     internal sealed class Evaluator {
-        private readonly BoundExpression root_;
+        private readonly BoundStatement root_;
         public DiagnosticQueue diagnostics;
         private readonly Dictionary<VariableSymbol, object> variables_;
+        private object last_value_;
 
-        public Evaluator(BoundExpression root, Dictionary<VariableSymbol, object> variables) {
+        public Evaluator(BoundStatement root, Dictionary<VariableSymbol, object> variables) {
             root_ = root;
             diagnostics = new DiagnosticQueue();
             variables_ = variables;
         }
 
-        public object Evaluate() { return EvaluateExpression(root_); }
+        public object Evaluate() {
+            EvaluateStatement(root_);
+            return last_value_;
+        }
+
+        private void EvaluateStatement(BoundStatement statement) {
+            switch(statement.type) {
+                case BoundNodeType.BLOCK_STATEMENT:
+                    EvaluateBlockStatement((BoundBlockStatement)statement);
+                    break;
+                case BoundNodeType.EXPRESSION_STATEMENT:
+                    EvaluateExpressionStatement((BoundExpressionStatement)statement);
+                    break;
+                default:
+                    diagnostics.Push(DiagnosticType.fatal, $"unexpected statement '{statement.type}'");
+                    break;
+            }
+        }
+
+        private void EvaluateBlockStatement(BoundBlockStatement statement) {
+            foreach (var state in statement.statements)
+                EvaluateStatement(state);
+        }
+
+        private void EvaluateExpressionStatement(BoundExpressionStatement statement) {
+            last_value_ = EvaluateExpression(statement.expr);
+        }
 
         private object EvaluateExpression(BoundExpression node) {
             switch(node.type) {
