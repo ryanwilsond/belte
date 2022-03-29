@@ -7,11 +7,12 @@ TODO
     * Add base inherited interfaces to base types
     * rethink a lot of things like extension methods, callbacks, optimization methods, and STDIO / STD
       maybe dont call it STD and steal from C, e.g. C# calls it IO not STDIO
+      C#/Java is System, C is STD, Python is SYS,
 
   Buckle
     * Add file exists checking for input files
     * update strap to match C# Silver impl OOP
-    * setup azure pipeline for testing builds
+    * setup azure pipeline for testing builds?
 
   Extension
     * String interpolation regex

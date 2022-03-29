@@ -2,11 +2,12 @@ PROJDIR:=src/Buckle/Silver/CmdLine
 TESTDIR:=src/Buckle/Silver/Buckle.Tests
 NETVER:=net5.0
 SYSTEM:=win-x64
+SLN:=src/Buckle/Silver/buckle.sln
 
-all: build test
+all: build
 
 build:
-	dotnet build
+	dotnet build $(SLN)
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/Buckle.dll Buckle.dll
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/CmdLine.deps.json CmdLine.deps.json
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/CmdLine.dll CmdLine.dll

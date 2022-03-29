@@ -1,5 +1,5 @@
 
-name: tests
+name: UnitTests
 
 on:
   push:
@@ -7,14 +7,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  Test:
     runs-on: windows-latest
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
 
-      - name: dotnet build
+      - name: Build
         run: dotnet build --configuration Release ./src/Buckle/Silver/Buckle.Tests/Buckle.Tests.csproj
 
-      - name: dotnet test
+      - name: Test
         run: dotnet test --configuration Release ./src/Buckle/Silver/Buckle.Tests/Buckle.Tests.csproj
