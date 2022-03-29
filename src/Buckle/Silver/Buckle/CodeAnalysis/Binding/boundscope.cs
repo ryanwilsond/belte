@@ -33,16 +33,16 @@ namespace Buckle.CodeAnalysis.Binding {
         public BoundGlobalScope previous { get; }
         public DiagnosticQueue diagnostics { get; }
         public ImmutableArray<VariableSymbol> variables { get; }
-        public BoundStatement statement { get; }
+        public ImmutableArray<BoundStatement> statements { get; }
 
         public BoundGlobalScope(
             BoundGlobalScope previous_, DiagnosticQueue diagnostics_,
-            ImmutableArray<VariableSymbol> variables_, BoundStatement statement_) {
+            ImmutableArray<VariableSymbol> variables_, ImmutableArray<BoundStatement> statements_) {
             previous = previous_;
             diagnostics = new DiagnosticQueue();
             diagnostics.Move(diagnostics_);
             variables = variables_;
-            statement = statement_;
+            statements = statements_;
         }
     }
 }

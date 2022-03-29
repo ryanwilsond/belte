@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
@@ -80,8 +81,18 @@ namespace Buckle {
             if (diagnostics.Any())
                 return new EvaluationResult(null, diagnostics);
 
-            Evaluator eval = new Evaluator(global_scope.statement, variables);
-            return new EvaluationResult(eval.Evaluate(), diagnostics);
+            EvaluationResult last_value_ = null;
+            DiagnosticQueue past_diagnostics = new DiagnosticQueue();
+            past_diagnostics.Move(diagnostics);
+
+            foreach(var statement in global_scope.statements) {
+                Evaluator eval = new Evaluator(statement, variables);
+                last_value_ = new EvaluationResult(eval.Evaluate(), past_diagnostics);
+                past_diagnostics.Move(last_value_.diagnostics);
+            }
+
+            last_value_.diagnostics.Move(past_diagnostics);
+            return last_value_;
         }
 
         public Compilation ContinueWith(SyntaxTree tree) {
@@ -90,12 +101,12 @@ namespace Buckle {
     }
 
     internal sealed class CompilationUnit : Node {
-        public Statement statement { get; }
+        public ImmutableArray<Statement> statements { get; }
         public Token eof { get; }
         public override SyntaxType type => SyntaxType.COMPILATION_UNIT;
 
-        public CompilationUnit(Statement statement_, Token eof_) {
-            statement = statement_;
+        public CompilationUnit(ImmutableArray<Statement> statements_, Token eof_) {
+            statements = statements_;
             eof = eof_;
         }
     }

@@ -16,13 +16,16 @@ namespace Buckle.CodeAnalysis.Binding {
         public static BoundGlobalScope BindGlobalScope(BoundGlobalScope prev, CompilationUnit expr) {
             var parentScope = CreateParentScopes(prev);
             var binder = new Binder(parentScope);
-            var statement = binder.BindStatement(expr.statement);
+            var statements = ImmutableArray.CreateBuilder<BoundStatement>();
+            foreach (var statement in expr.statements) {
+                statements.Add(binder.BindStatement(statement));
+            }
             var variables = binder.scope_.GetDeclaredVariables();
 
             if (prev != null)
                 binder.diagnostics.diagnostics_.InsertRange(0, prev.diagnostics.diagnostics_);
 
-            return new BoundGlobalScope(prev, binder.diagnostics, variables, statement);
+            return new BoundGlobalScope(prev, binder.diagnostics, variables, statements.ToImmutable());
         }
 
         private static BoundScope CreateParentScopes(BoundGlobalScope prev) {

@@ -49,9 +49,15 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         public CompilationUnit ParseCompilationUnit() {
-            var statement = ParseStatement();
+            var statements = ImmutableArray.CreateBuilder<Statement>();
+
+            while (current.type != SyntaxType.EOF) {
+                var statement = ParseStatement();
+                statements.Add(statement);
+            }
+
             var eof = Match(SyntaxType.EOF);
-            return new CompilationUnit(statement, eof);
+            return new CompilationUnit(statements.ToImmutable(), eof);
         }
 
         private Statement ParseStatement() {

@@ -82,7 +82,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
         private static Expression ParseExpression(string text) {
             SyntaxTree tree = SyntaxTree.Parse(text);
             CompilationUnit unit = tree.root;
-            Statement statement = unit.statement;
+            Statement statement = unit.statements[0];
             return Assert.IsType<ExpressionStatement>(statement).expr;
         }
 
