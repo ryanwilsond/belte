@@ -1,0 +1,4 @@
+BB=buckle
+
+all:
+	$(BB) ...
