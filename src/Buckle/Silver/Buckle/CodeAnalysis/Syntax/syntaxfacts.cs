@@ -5,19 +5,19 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal static class SyntaxFacts {
 
-        public static int GetPrimaryPrecedence(this SyntaxType type) {
-            switch(type) {
-                case SyntaxType.DMINUS:
-                case SyntaxType.DPLUS:
-                    return 8;
-                default: return 0;
-            }
-        }
+        // public static int GetPrimaryPrecedence(this SyntaxType type) {
+        //     switch(type) {
+        //         case SyntaxType.DMINUS:
+        //         case SyntaxType.DPLUS:
+        //             return 8;
+        //         default: return 0;
+        //     }
+        // }
 
         public static int GetBinaryPrecedence(this SyntaxType type) {
             switch(type) {
                 case SyntaxType.DASTERISK:
-                    return 7;
+                    return 6;
                 case SyntaxType.ASTERISK:
                 case SyntaxType.SOLIDUS:
                     return 5;
@@ -40,9 +40,9 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.PLUS:
                 case SyntaxType.MINUS:
                 case SyntaxType.BANG:
-                case SyntaxType.DMINUS:
-                case SyntaxType.DPLUS:
-                    return 6;
+                // case SyntaxType.DMINUS:
+                // case SyntaxType.DPLUS:
+                    return 7;
                 default: return 0;
             }
         }
@@ -69,8 +69,8 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.BANG: return "!";
                 case SyntaxType.DAMPERSAND: return "&&";
                 case SyntaxType.DPIPE: return "||";
-                case SyntaxType.DMINUS: return "--";
-                case SyntaxType.DPLUS: return "++";
+                // case SyntaxType.DMINUS: return "--";
+                // case SyntaxType.DPLUS: return "++";
                 case SyntaxType.DASTERISK: return "**";
                 case SyntaxType.LBRACE: return "{";
                 case SyntaxType.RBRACE: return "}";

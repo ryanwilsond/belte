@@ -59,21 +59,21 @@ namespace Buckle.CodeAnalysis.Syntax {
                     break;
                 case '+':
                     pos_++;
-                    if (current == '+') {
-                        type_ = SyntaxType.DPLUS;
-                        pos_++;
-                    } else {
+                    // if (current == '+') {
+                    //     type_ = SyntaxType.DPLUS;
+                    //     pos_++;
+                    // } else {
                         type_= SyntaxType.PLUS;
-                    }
+                    // }
                     break;
                 case '-':
                     pos_++;
-                    if (current == '-') {
-                        type_ = SyntaxType.DMINUS;
-                        pos_++;
-                    } else {
+                    // if (current == '-') {
+                    //     type_ = SyntaxType.DMINUS;
+                    //     pos_++;
+                    // } else {
                         type_= SyntaxType.MINUS;
-                    }
+                    // }
                     break;
                 case '*':
                     pos_++;
