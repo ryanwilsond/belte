@@ -12,6 +12,7 @@ TODO
     * Add file exists checking for input files
     * update strap to match C# Silver impl OOP
     * setup azure pipeline for testing builds?
+    * fix naming to be consistent (probably lower camel-case for vars)
 
   Extension
     * String interpolation regex
