@@ -32,6 +32,10 @@ namespace Buckle.CodeAnalysis.Syntax {
         DASTERISK,
         DEQUALS,
         BANGEQUALS,
+        LANGLEBRACKET,
+        RANGLEBRACKET,
+        LESSEQUAL,
+        GREATEQUAL,
         // expressions
         LITERAL_EXPR,
         BINARY_EXPR,

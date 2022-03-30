@@ -107,6 +107,10 @@ namespace Buckle.CodeAnalysis {
                 case BoundBinaryOperatorType.ConditionalOr: return (bool)left || (bool)right;
                 case BoundBinaryOperatorType.EqualityEquals: return Equals(left, right);
                 case BoundBinaryOperatorType.EqualityNotEquals: return !Equals(left, right);
+                case BoundBinaryOperatorType.LessThan: return (int)left < (int)right;
+                case BoundBinaryOperatorType.GreaterThan: return (int)left > (int)right;
+                case BoundBinaryOperatorType.LessOrEqual: return (int)left <= (int)right;
+                case BoundBinaryOperatorType.GreatOrEqual: return (int)left >= (int)right;
                 default:
                     diagnostics.Push(DiagnosticType.fatal, $"unknown binary operator '{expr.op}'");
                     return null;

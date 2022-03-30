@@ -9,7 +9,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         //     switch(type) {
         //         case SyntaxType.DMINUS:
         //         case SyntaxType.DPLUS:
-        //             return 8;
+        //             return 9;
         //         default: return 0;
         //     }
         // }
@@ -17,12 +17,17 @@ namespace Buckle.CodeAnalysis.Syntax {
         public static int GetBinaryPrecedence(this SyntaxType type) {
             switch(type) {
                 case SyntaxType.DASTERISK:
-                    return 6;
+                    return 7;
                 case SyntaxType.ASTERISK:
                 case SyntaxType.SOLIDUS:
-                    return 5;
+                    return 6;
                 case SyntaxType.PLUS:
                 case SyntaxType.MINUS:
+                    return 5;
+                case SyntaxType.LANGLEBRACKET:
+                case SyntaxType.RANGLEBRACKET:
+                case SyntaxType.LESSEQUAL:
+                case SyntaxType.GREATEQUAL:
                     return 4;
                 case SyntaxType.DEQUALS:
                 case SyntaxType.BANGEQUALS:
@@ -42,7 +47,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.BANG:
                 // case SyntaxType.DMINUS:
                 // case SyntaxType.DPLUS:
-                    return 7;
+                    return 8;
                 default: return 0;
             }
         }
@@ -77,6 +82,10 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.SEMICOLON: return ";";
                 case SyntaxType.DEQUALS: return "==";
                 case SyntaxType.BANGEQUALS: return "!=";
+                case SyntaxType.LANGLEBRACKET: return "<";
+                case SyntaxType.RANGLEBRACKET: return ">";
+                case SyntaxType.LESSEQUAL: return "<=";
+                case SyntaxType.GREATEQUAL: return ">=";
                 case SyntaxType.TRUE_KEYWORD: return "true";
                 case SyntaxType.FALSE_KEYWORD: return "false";
                 case SyntaxType.AUTO_KEYWORD: return "auto";

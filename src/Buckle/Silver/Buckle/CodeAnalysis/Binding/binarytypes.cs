@@ -14,6 +14,10 @@ namespace Buckle.CodeAnalysis.Binding {
         ConditionalOr,
         EqualityEquals,
         EqualityNotEquals,
+        LessThan,
+        GreaterThan,
+        LessOrEqual,
+        GreatOrEqual,
     }
 
     internal sealed class BoundBinaryOperator {
@@ -50,6 +54,14 @@ namespace Buckle.CodeAnalysis.Binding {
                 SyntaxType.DEQUALS, BoundBinaryOperatorType.EqualityEquals, typeof(int), typeof(bool)),
             new BoundBinaryOperator(
                 SyntaxType.BANGEQUALS, BoundBinaryOperatorType.EqualityNotEquals, typeof(int), typeof(bool)),
+            new BoundBinaryOperator(
+                SyntaxType.LANGLEBRACKET, BoundBinaryOperatorType.LessThan, typeof(int), typeof(bool)),
+            new BoundBinaryOperator(
+                SyntaxType.RANGLEBRACKET, BoundBinaryOperatorType.GreaterThan, typeof(int), typeof(bool)),
+            new BoundBinaryOperator(
+                SyntaxType.LESSEQUAL, BoundBinaryOperatorType.LessOrEqual, typeof(int), typeof(bool)),
+            new BoundBinaryOperator(
+                SyntaxType.GREATEQUAL, BoundBinaryOperatorType.GreatOrEqual, typeof(int), typeof(bool)),
 
             new BoundBinaryOperator(SyntaxType.DAMPERSAND, BoundBinaryOperatorType.ConditionalAnd, typeof(bool)),
             new BoundBinaryOperator(SyntaxType.DPIPE, BoundBinaryOperatorType.ConditionalOr, typeof(bool)),

@@ -114,6 +114,24 @@ namespace Buckle.CodeAnalysis.Syntax {
                         type_= SyntaxType.BANG;
                     }
                     break;
+                case '<':
+                    pos_++;
+                    if (current == '=') {
+                        pos_++;
+                        type_= SyntaxType.LESSEQUAL;
+                    } else {
+                        type_= SyntaxType.LANGLEBRACKET;
+                    }
+                    break;
+                case '>':
+                    pos_++;
+                    if (current == '=') {
+                        pos_++;
+                        type_= SyntaxType.GREATEQUAL;
+                    } else {
+                        type_= SyntaxType.RANGLEBRACKET;
+                    }
+                    break;
                 case '0': // faster than if check, but probably neglagable and is uglier
                 case '1':
                 case '2':

@@ -38,11 +38,6 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
         internal void Lexer_Lexes_TokenPairs(SyntaxType t1Type, string t1Text,
                                            SyntaxType t2Type, string t2Text) {
             var text = t1Text + t2Text;
-            if (t1Type == SyntaxType.ASTERISK && t2Type == SyntaxType.DASTERISK ||
-                t1Type == SyntaxType.DASTERISK && t2Type == SyntaxType.ASTERISK ||
-                t1Type == SyntaxType.ASTERISK && t2Type == SyntaxType.ASTERISK)
-                return;
-
             var tokens = SyntaxTree.ParseTokens(text).ToArray();
 
             Assert.Equal(2, tokens.Length);
@@ -139,6 +134,30 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
                 return true;
 
             if (t1Type == SyntaxType.EQUALS && t2Type == SyntaxType.DEQUALS)
+                return true;
+
+            if (t1Type == SyntaxType.ASTERISK && t2Type == SyntaxType.ASTERISK)
+                return true;
+
+            if (t1Type == SyntaxType.DASTERISK && t2Type == SyntaxType.ASTERISK)
+                return true;
+
+            if (t1Type == SyntaxType.ASTERISK && t2Type == SyntaxType.DASTERISK)
+                return true;
+
+            if (t1Type == SyntaxType.DASTERISK && t2Type == SyntaxType.DASTERISK)
+                return true;
+
+            if (t1Type == SyntaxType.LANGLEBRACKET && t2Type == SyntaxType.EQUALS)
+                return true;
+
+            if (t1Type == SyntaxType.LANGLEBRACKET && t2Type == SyntaxType.DEQUALS)
+                return true;
+
+            if (t1Type == SyntaxType.RANGLEBRACKET && t2Type == SyntaxType.EQUALS)
+                return true;
+
+            if (t1Type == SyntaxType.RANGLEBRACKET && t2Type == SyntaxType.DEQUALS)
                 return true;
 
             return false;
