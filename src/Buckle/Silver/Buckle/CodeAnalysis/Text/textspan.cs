@@ -15,5 +15,7 @@ namespace Buckle.CodeAnalysis.Text {
             var length = end - start;
             return new TextSpan(start, length);
         }
+
+        public override string ToString() => $"{start}..{end}";
     }
 }

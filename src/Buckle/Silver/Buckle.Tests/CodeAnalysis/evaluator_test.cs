@@ -29,13 +29,7 @@ namespace Buckle.Tests.CodeAnalysis {
         [InlineData("!false;", true)]
         [InlineData("{ auto a = 1; a = 10 * a; }", 10)]
         public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
-            var tree = SyntaxTree.Parse(text);
-            var compilation = new Compilation(tree);
-            var variables = new Dictionary<VariableSymbol, object>();
-            var result = compilation.Evaluate(variables);
-
-            Assert.Empty(result.diagnostics.ToArray());
-            Assert.Equal(expectedValue, result.value);
+            AssertValue(text, expectedValue);
         }
 
         [Fact]
@@ -104,6 +98,38 @@ namespace Buckle.Tests.CodeAnalysis {
             ";
 
             AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_Unary_Reports_Undefined() {
+            var text = @"[+]true;";
+
+            var diagnostics = @"
+                operator '+' is not defined for type System.Boolean
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_Binary_Reports_Undefined() {
+            var text = @"10[+]true;";
+
+            var diagnostics = @"
+                operator '+' is not defined for types System.Int32 and System.Boolean
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        private void AssertValue(string text, object expectedValue) {
+            var tree = SyntaxTree.Parse(text);
+            var compilation = new Compilation(tree);
+            var variables = new Dictionary<VariableSymbol, object>();
+            var result = compilation.Evaluate(variables);
+
+            Assert.Empty(result.diagnostics.ToArray());
+            Assert.Equal(expectedValue, result.value);
         }
 
         private void AssertDiagnostics(string text, string diagnosticText) {
