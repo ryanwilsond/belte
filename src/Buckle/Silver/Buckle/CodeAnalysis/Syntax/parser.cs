@@ -94,13 +94,23 @@ namespace Buckle.CodeAnalysis.Syntax {
             var lparen = Match(SyntaxType.LPAREN);
             var condition = ParseExpression();
             var rparen = Match(SyntaxType.RPAREN);
-            var statement = ParseStatement();
+            var body = ParseStatement();
 
-            return new WhileStatement(keyword, lparen, condition, rparen, statement);
+            return new WhileStatement(keyword, lparen, condition, rparen, body);
         }
 
         private Statement ParseForStatement() {
-            return null;
+            var keyword = Match(SyntaxType.FOR_KEYWORD);
+            var lparen = Match(SyntaxType.LPAREN);
+            var it = (VariableDeclaration)ParseVariableDeclaration();
+            var condition = ParseExpression();
+            var semicolon = Match(SyntaxType.SEMICOLON);
+            var statement = ParseAssignmentExpression();
+            var step = (AssignmentExpression)statement;
+            var rparen = Match(SyntaxType.RPAREN);
+            var body = ParseStatement();
+
+            return new ForStatement(keyword, lparen, it, condition, semicolon, step, rparen, body);
         }
 
         private Statement ParseIfStatement() {

@@ -36,7 +36,7 @@ namespace Buckle {
         }
 
         public static Diagnostic CannotConvert(TextSpan span, Type from, Type to) {
-            string msg = $"cannot convert from {from} to {to}";
+            string msg = $"cannot convert from type {from} to {to}";
             return new Diagnostic(DiagnosticType.error, span, msg);
         }
 

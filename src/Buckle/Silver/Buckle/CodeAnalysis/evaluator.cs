@@ -53,7 +53,12 @@ namespace Buckle.CodeAnalysis {
         }
 
         private void EvaluateForStatement(BoundForStatement statement) {
+            EvaluateVariableDeclaration(statement.it);
 
+            while ((bool)EvaluateExpression(statement.condition)) {
+                EvaluateStatement(statement.body);
+                EvaluateAssignment(statement.step);
+            }
         }
 
         private void EvaluateIfStatement(BoundIfStatement statement) {

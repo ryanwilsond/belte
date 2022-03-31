@@ -96,9 +96,15 @@ namespace Buckle.CodeAnalysis.Binding {
         }
 
         private BoundStatement BindForStatement(ForStatement statement) {
+            scope_ = new BoundScope(scope_);
+
+            var it = (BoundVariableDeclaration)BindVariableDeclaration(statement.it);
             var condition = BindExpression(statement.condition);
+            var step = (BoundAssignmentExpression)BindAssignmentExpression(statement.step);
             var body = BindStatement(statement.body);
-            return new BoundForStatement(condition, body);
+
+            scope_ = scope_.parent;
+            return new BoundForStatement(it, condition, step, body);
         }
 
         private BoundStatement BindIfStatement(IfStatement statement) {

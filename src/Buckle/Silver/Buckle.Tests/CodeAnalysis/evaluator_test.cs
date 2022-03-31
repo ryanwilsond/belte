@@ -47,12 +47,27 @@ namespace Buckle.Tests.CodeAnalysis {
         [InlineData("{ auto a = 0; if (a == 4) { a = 10; } else { a = 5; } a; }", 5)]
 
         [InlineData("{ auto i = 10; auto result = 0; while (i > 0) { result = result + i; i = i - 1; } result; }", 55)]
+        [InlineData("{ auto result = 0; for (auto i=0; i<=10; i=i+1) { result = result + i; } result; }", 55)]
         public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
             AssertValue(text, expectedValue);
         }
 
         [Fact]
-        public void Evaluator_VariableDelcaration_Reports_Reclaration() {
+        public void Evaluator_If_Reports_CannotConvert() {
+            var text = @"
+                auto x = 0;
+                if ([10]) x = 1;
+            ";
+
+            var diagnostics = @"
+                cannot convert from type System.Int32 to System.Boolean
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_VariableDelcaration_Reports_Redeclaration() {
             var text = @"
                 auto x = 10;
                 auto y = 100;
@@ -113,7 +128,7 @@ namespace Buckle.Tests.CodeAnalysis {
             ";
 
             var diagnostics = @"
-                cannot convert from System.Boolean to System.Int32
+                cannot convert from type System.Boolean to System.Int32
             ";
 
             AssertDiagnostics(text, diagnostics);

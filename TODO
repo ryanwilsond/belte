@@ -15,9 +15,15 @@ TODO
     * fix naming to be consistent (probably lower camel-case for vars)
 
       * 'while (0 != 0) {} else' infinite loop
+        should raise error for misplaced else
       * 'if' crash
+        should raise error for expected lparen, but got eof instead
       * '-' crash
+        should raise error for expected int, but got semicolon instead
       * 'auto x=;' crash
+        should raise error on expected value, but got semicolon instead
+      * 'for (int i=0; i<10; i=i+1) {' crash
+        should raise error for unknown characters 'int'
 
   Extension
     * String interpolation regex
