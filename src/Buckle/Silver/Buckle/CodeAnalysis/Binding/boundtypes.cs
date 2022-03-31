@@ -13,6 +13,7 @@ namespace Buckle.CodeAnalysis.Binding {
         BLOCK_STATEMENT,
         EXPRESSION_STATEMENT,
         VARIABLE_DECLARATION_STATEMENT,
+        IF_STATEMENT,
     }
 
     internal abstract class BoundNode {
@@ -83,6 +84,19 @@ namespace Buckle.CodeAnalysis.Binding {
         public BoundVariableDeclaration(VariableSymbol variable_, BoundExpression init_) {
             variable = variable_;
             init = init_;
+        }
+    }
+
+    internal sealed class BoundIfStatement : BoundStatement {
+        public BoundExpression condition { get; }
+        public BoundStatement then { get; }
+        public BoundStatement elsestatement { get; }
+        public override BoundNodeType type => BoundNodeType.IF_STATEMENT;
+
+        public BoundIfStatement(BoundExpression condition_, BoundStatement then_, BoundStatement elsestatement_) {
+            condition = condition_;
+            then = then_;
+            elsestatement = elsestatement_;
         }
     }
 }

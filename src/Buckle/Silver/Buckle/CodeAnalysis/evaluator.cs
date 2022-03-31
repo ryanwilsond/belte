@@ -30,12 +30,23 @@ namespace Buckle.CodeAnalysis {
                     EvaluateExpressionStatement((BoundExpressionStatement)statement);
                     break;
                 case BoundNodeType.VARIABLE_DECLARATION_STATEMENT:
-                    EvaluteVariableDeclaration((BoundVariableDeclaration)statement);
+                    EvaluateVariableDeclaration((BoundVariableDeclaration)statement);
+                    break;
+                case BoundNodeType.IF_STATEMENT:
+                    EvaluateIfStatement((BoundIfStatement)statement);
                     break;
                 default:
                     diagnostics.Push(DiagnosticType.fatal, $"unexpected statement '{statement.type}'");
                     break;
             }
+        }
+
+        private void EvaluateIfStatement(BoundIfStatement statement) {
+            var condition = (bool)EvaluateExpression(statement.condition);
+            if (condition)
+                EvaluateStatement(statement.then);
+            else if (statement.elsestatement != null)
+                EvaluateStatement(statement.elsestatement);
         }
 
         private void EvaluateBlockStatement(BoundBlockStatement statement) {
@@ -47,7 +58,7 @@ namespace Buckle.CodeAnalysis {
             last_value_ = EvaluateExpression(statement.expr);
         }
 
-        private void EvaluteVariableDeclaration(BoundVariableDeclaration statement) {
+        private void EvaluateVariableDeclaration(BoundVariableDeclaration statement) {
             var value = EvaluateExpression(statement.init);
             variables_[statement.variable] = value;
             last_value_ = value;

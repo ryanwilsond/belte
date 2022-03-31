@@ -67,6 +67,8 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.LET_KEYWORD:
                 case SyntaxType.AUTO_KEYWORD:
                     return ParseVariableDeclaration();
+                case SyntaxType.IF_KEYWORD:
+                    return ParseIfStatement();
                 default:
                     return ParseExpressionStatement();
             }
@@ -81,6 +83,48 @@ namespace Buckle.CodeAnalysis.Syntax {
             var semicolon = Match(SyntaxType.SEMICOLON);
 
             return new VariableDeclaration(keyword, id, equals, init, semicolon);
+        }
+
+        private Statement ParseIfStatement() {
+            var keyword = Match(SyntaxType.IF_KEYWORD);
+            var lparen = Match(SyntaxType.LPAREN);
+            var condition = ParseExpression();
+            var rparen = Match(SyntaxType.RPAREN);
+            var statement = ParseStatement();
+
+            // not allow nested if statements with else clause without braces
+            bool nestedIf = false;
+            List<TextSpan> invalidElseSpans = new List<TextSpan>();
+            var inter = statement;
+            while (inter.type == SyntaxType.IF_STATEMENT) {
+                nestedIf = true;
+                var interif = (IfStatement)inter;
+
+                if (interif.elseclause != null && interif.then.type != SyntaxType.BLOCK_STATEMENT)
+                    invalidElseSpans.Add(interif.elseclause.elsekeyword.span);
+
+                if (interif.then.type == SyntaxType.IF_STATEMENT)
+                    inter = interif.then;
+                else break;
+            }
+            var elseclause = ParseElseClause();
+            if (elseclause != null && statement.type != SyntaxType.BLOCK_STATEMENT && nestedIf)
+                invalidElseSpans.Add(elseclause.elsekeyword.span);
+
+            while (invalidElseSpans.Count > 0) {
+                diagnostics.Push(Error.AmbiguousElse(invalidElseSpans[0]));
+                invalidElseSpans.RemoveAt(0);
+            }
+
+            return new IfStatement(keyword, lparen, condition, rparen, statement, elseclause);
+        }
+
+        private ElseClause ParseElseClause() {
+            if (current.type != SyntaxType.ELSE_KEYWORD) return null;
+
+            var keyword = Next();
+            var statement = ParseStatement();
+            return new ElseClause(keyword, statement);
         }
 
         private Statement ParseBlockStatement() {

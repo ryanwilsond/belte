@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
@@ -56,6 +57,7 @@ namespace Buckle.CodeAnalysis.Binding {
                 case SyntaxType.BLOCK_STATEMENT: return BindBlockStatement((BlockStatement)syntax);
                 case SyntaxType.EXPRESSION_STATEMENT: return BindExpressionStatement((ExpressionStatement)syntax);
                 case SyntaxType.VARIABLE_DECLARATION_STATEMENT: return BindVariableDeclaration((VariableDeclaration)syntax);
+                case SyntaxType.IF_STATEMENT: return BindIfStatement((IfStatement)syntax);
                 default:
                     diagnostics.Push(DiagnosticType.fatal, $"unexpected syntax {syntax.type}");
                     return null;
@@ -74,6 +76,21 @@ namespace Buckle.CodeAnalysis.Binding {
                     diagnostics.Push(DiagnosticType.fatal, $"unexpected syntax {expr.type}");
                     return null;
             }
+        }
+
+        private BoundExpression BindExpression(Expression expr, Type target) {
+            var result = BindExpression(expr);
+            if (result.ltype != target)
+                diagnostics.Push(Error.CannotConvert(expr.span, result.ltype, target));
+
+            return result;
+        }
+
+        private BoundStatement BindIfStatement(IfStatement statement) {
+            var condition = BindExpression(statement.condition, typeof(bool));
+            var then = BindStatement(statement.then);
+            var elsestatement = statement.elseclause == null ? null : BindStatement(statement.elseclause.then);
+            return new BoundIfStatement(condition, then, elsestatement);
         }
 
         private BoundStatement BindBlockStatement(BlockStatement statement) {

@@ -44,4 +44,34 @@ namespace Buckle.CodeAnalysis.Syntax {
             semicolon = semicolon_;
         }
     }
+
+    internal sealed class IfStatement : Statement {
+        public Token ifkeyword { get; }
+        public Token lparen { get; }
+        public Expression condition { get; }
+        public Token rparen { get; }
+        public Statement then { get; }
+        public ElseClause elseclause { get; }
+        public override SyntaxType type => SyntaxType.IF_STATEMENT;
+
+        public IfStatement(Token ifkeyword_, Token lparen_, Expression condition_, Token rparen_, Statement then_, ElseClause elseclause_) {
+            ifkeyword = ifkeyword_;
+            lparen = lparen_;
+            condition = condition_;
+            rparen = rparen_;
+            then = then_;
+            elseclause = elseclause_;
+        }
+    }
+
+    internal sealed class ElseClause : Node {
+        public Token elsekeyword { get; }
+        public Statement then { get; }
+        public override SyntaxType type => SyntaxType.ELSE_CLAUSE;
+
+        public ElseClause(Token elsekeyword_, Statement then_) {
+            elsekeyword = elsekeyword_;
+            then = then_;
+        }
+    }
 }

@@ -48,12 +48,16 @@ namespace Buckle.CodeAnalysis.Syntax {
         FALSE_KEYWORD,
         AUTO_KEYWORD,
         LET_KEYWORD,
+        IF_KEYWORD,
+        ELSE_KEYWORD,
         // statements
         BLOCK_STATEMENT,
         EXPRESSION_STATEMENT,
         VARIABLE_DECLARATION_STATEMENT,
+        IF_STATEMENT,
         // other
         COMPILATION_UNIT,
+        ELSE_CLAUSE,
     }
 
     internal abstract class Node {
@@ -70,11 +74,14 @@ namespace Buckle.CodeAnalysis.Syntax {
 
             foreach (var property in properties) {
                 if (typeof(Node).IsAssignableFrom(property.PropertyType)) {
-                    yield return (Node)property.GetValue(this);
+                    var child = (Node)property.GetValue(this);
+                    if (child != null)
+                        yield return child;
                 } else if (typeof(IEnumerable<Node>).IsAssignableFrom(property.PropertyType)) {
                     var values = (IEnumerable<Node>)property.GetValue(this);
                     foreach (var child in values) {
-                        yield return child;
+                        if (child != null)
+                            yield return child;
                     }
                 }
             }

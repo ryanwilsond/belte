@@ -49,5 +49,10 @@ namespace Buckle {
             string msg = $"assignment of read-only variable '{name}'";
             return new Diagnostic(DiagnosticType.error, span, msg);
         }
+
+        public static Diagnostic AmbiguousElse(TextSpan span) {
+            string msg = $"ambiguous what if-statement else-clause belongs to";
+            return new Diagnostic(DiagnosticType.error, span, msg);
+        }
     }
 }

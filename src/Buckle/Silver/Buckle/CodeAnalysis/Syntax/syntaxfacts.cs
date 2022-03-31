@@ -58,6 +58,8 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case "false": return SyntaxType.FALSE_KEYWORD;
                 case "auto": return SyntaxType.AUTO_KEYWORD;
                 case "let": return SyntaxType.LET_KEYWORD;
+                case "if": return SyntaxType.IF_KEYWORD;
+                case "else": return SyntaxType.ELSE_KEYWORD;
                 default: return SyntaxType.IDENTIFIER;
             }
         }
@@ -90,6 +92,8 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.FALSE_KEYWORD: return "false";
                 case SyntaxType.AUTO_KEYWORD: return "auto";
                 case SyntaxType.LET_KEYWORD: return "let";
+                case SyntaxType.IF_KEYWORD: return "if";
+                case SyntaxType.ELSE_KEYWORD: return "else";
                 default: return null;
             }
         }
