@@ -45,6 +45,8 @@ namespace Buckle.Tests.CodeAnalysis {
         [InlineData("{ auto a = 0; if (a == 4) { a = 10; } a; }", 0)]
         [InlineData("{ auto a = 0; if (a == 0) { a = 10; } else { a = 5; } a; }", 10)]
         [InlineData("{ auto a = 0; if (a == 4) { a = 10; } else { a = 5; } a; }", 5)]
+
+        [InlineData("{ auto i = 10; auto result = 0; while (i > 0) { result = result + i; i = i - 1; } result; }", 55)]
         public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
             AssertValue(text, expectedValue);
         }

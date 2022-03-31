@@ -74,4 +74,38 @@ namespace Buckle.CodeAnalysis.Syntax {
             then = then_;
         }
     }
+
+    internal sealed class WhileStatement : Statement {
+        public Token keyword { get; }
+        public Token lparen { get; }
+        public Expression condition { get; }
+        public Token rparen { get; }
+        public Statement body { get; }
+        public override SyntaxType type => SyntaxType.WHILE_STATEMENT;
+
+        public WhileStatement(Token keyword_, Token lparen_, Expression condition_, Token rparen_, Statement body_) {
+            keyword = keyword_;
+            lparen = lparen_;
+            condition = condition_;
+            rparen = rparen_;
+            body = body_;
+        }
+    }
+
+    internal sealed class ForStatement : Statement {
+        public Token keyword { get; }
+        public Token lparen { get; }
+        public Expression condition { get; }
+        public Token rparen { get; }
+        public Statement body { get; }
+        public override SyntaxType type => SyntaxType.FOR_STATEMENT;
+
+        public ForStatement(Token keyword_, Token lparen_, Expression condition_, Token rparen_, Statement body_) {
+            keyword = keyword_;
+            lparen = lparen_;
+            condition = condition_;
+            rparen = rparen_;
+            body = body_;
+        }
+    }
 }

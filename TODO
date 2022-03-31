@@ -14,6 +14,11 @@ TODO
     * setup azure pipeline for testing builds?
     * fix naming to be consistent (probably lower camel-case for vars)
 
+      * 'while (0 != 0) {} else' infinite loop
+      * 'if' crash
+      * '-' crash
+      * 'auto x=;' crash
+
   Extension
     * String interpolation regex
     * all inherited classes with highlighting not just first one

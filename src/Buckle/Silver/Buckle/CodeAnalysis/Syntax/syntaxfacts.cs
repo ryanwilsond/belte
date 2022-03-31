@@ -60,6 +60,8 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case "let": return SyntaxType.LET_KEYWORD;
                 case "if": return SyntaxType.IF_KEYWORD;
                 case "else": return SyntaxType.ELSE_KEYWORD;
+                case "while": return SyntaxType.WHILE_KEYWORD;
+                case "for": return SyntaxType.FOR_KEYWORD;
                 default: return SyntaxType.IDENTIFIER;
             }
         }

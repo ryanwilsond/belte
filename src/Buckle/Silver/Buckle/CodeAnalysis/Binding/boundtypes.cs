@@ -14,6 +14,8 @@ namespace Buckle.CodeAnalysis.Binding {
         EXPRESSION_STATEMENT,
         VARIABLE_DECLARATION_STATEMENT,
         IF_STATEMENT,
+        WHILE_STATEMENT,
+        FOR_STATEMENT,
     }
 
     internal abstract class BoundNode {
@@ -97,6 +99,28 @@ namespace Buckle.CodeAnalysis.Binding {
             condition = condition_;
             then = then_;
             elsestatement = elsestatement_;
+        }
+    }
+
+    internal sealed class BoundWhileStatement : BoundStatement {
+        public BoundExpression condition { get; }
+        public BoundStatement body { get; }
+        public override BoundNodeType type => BoundNodeType.WHILE_STATEMENT;
+
+        public BoundWhileStatement(BoundExpression condition_, BoundStatement body_) {
+            condition = condition_;
+            body = body_;
+        }
+    }
+
+    internal sealed class BoundForStatement : BoundStatement {
+        public BoundExpression condition { get; }
+        public BoundStatement body { get; }
+        public override BoundNodeType type => BoundNodeType.FOR_STATEMENT;
+
+        public BoundForStatement(BoundExpression condition_, BoundStatement body_) {
+            condition = condition_;
+            body = body_;
         }
     }
 }

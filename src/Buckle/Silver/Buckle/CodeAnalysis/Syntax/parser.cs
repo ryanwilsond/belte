@@ -69,6 +69,10 @@ namespace Buckle.CodeAnalysis.Syntax {
                     return ParseVariableDeclaration();
                 case SyntaxType.IF_KEYWORD:
                     return ParseIfStatement();
+                case SyntaxType.WHILE_KEYWORD:
+                    return ParseWhileStatement();
+                case SyntaxType.FOR_KEYWORD:
+                    return ParseForStatement();
                 default:
                     return ParseExpressionStatement();
             }
@@ -83,6 +87,20 @@ namespace Buckle.CodeAnalysis.Syntax {
             var semicolon = Match(SyntaxType.SEMICOLON);
 
             return new VariableDeclaration(keyword, id, equals, init, semicolon);
+        }
+
+        private Statement ParseWhileStatement() {
+            var keyword = Match(SyntaxType.WHILE_KEYWORD);
+            var lparen = Match(SyntaxType.LPAREN);
+            var condition = ParseExpression();
+            var rparen = Match(SyntaxType.RPAREN);
+            var statement = ParseStatement();
+
+            return new WhileStatement(keyword, lparen, condition, rparen, statement);
+        }
+
+        private Statement ParseForStatement() {
+            return null;
         }
 
         private Statement ParseIfStatement() {

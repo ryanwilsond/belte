@@ -56,8 +56,11 @@ namespace Buckle.CodeAnalysis.Binding {
             switch (syntax.type) {
                 case SyntaxType.BLOCK_STATEMENT: return BindBlockStatement((BlockStatement)syntax);
                 case SyntaxType.EXPRESSION_STATEMENT: return BindExpressionStatement((ExpressionStatement)syntax);
-                case SyntaxType.VARIABLE_DECLARATION_STATEMENT: return BindVariableDeclaration((VariableDeclaration)syntax);
+                case SyntaxType.VARIABLE_DECLARATION_STATEMENT:
+                    return BindVariableDeclaration((VariableDeclaration)syntax);
                 case SyntaxType.IF_STATEMENT: return BindIfStatement((IfStatement)syntax);
+                case SyntaxType.WHILE_STATEMENT: return BindWhileStatement((WhileStatement)syntax);
+                case SyntaxType.FOR_STATEMENT: return BindForStatement((ForStatement)syntax);
                 default:
                     diagnostics.Push(DiagnosticType.fatal, $"unexpected syntax {syntax.type}");
                     return null;
@@ -84,6 +87,18 @@ namespace Buckle.CodeAnalysis.Binding {
                 diagnostics.Push(Error.CannotConvert(expr.span, result.ltype, target));
 
             return result;
+        }
+
+        private BoundStatement BindWhileStatement(WhileStatement statement) {
+            var condition = BindExpression(statement.condition);
+            var body = BindStatement(statement.body);
+            return new BoundWhileStatement(condition, body);
+        }
+
+        private BoundStatement BindForStatement(ForStatement statement) {
+            var condition = BindExpression(statement.condition);
+            var body = BindStatement(statement.body);
+            return new BoundForStatement(condition, body);
         }
 
         private BoundStatement BindIfStatement(IfStatement statement) {

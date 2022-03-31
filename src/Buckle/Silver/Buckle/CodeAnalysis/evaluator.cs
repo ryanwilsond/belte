@@ -35,10 +35,25 @@ namespace Buckle.CodeAnalysis {
                 case BoundNodeType.IF_STATEMENT:
                     EvaluateIfStatement((BoundIfStatement)statement);
                     break;
+                case BoundNodeType.WHILE_STATEMENT:
+                    EvaluateWhileStatement((BoundWhileStatement)statement);
+                    break;
+                case BoundNodeType.FOR_STATEMENT:
+                    EvaluateForStatement((BoundForStatement)statement);
+                    break;
                 default:
                     diagnostics.Push(DiagnosticType.fatal, $"unexpected statement '{statement.type}'");
                     break;
             }
+        }
+
+        private void EvaluateWhileStatement(BoundWhileStatement statement) {
+            while ((bool)EvaluateExpression(statement.condition))
+                EvaluateStatement(statement.body);
+        }
+
+        private void EvaluateForStatement(BoundForStatement statement) {
+
         }
 
         private void EvaluateIfStatement(BoundIfStatement statement) {

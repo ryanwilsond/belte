@@ -50,11 +50,15 @@ namespace Buckle.CodeAnalysis.Syntax {
         LET_KEYWORD,
         IF_KEYWORD,
         ELSE_KEYWORD,
+        WHILE_KEYWORD,
+        FOR_KEYWORD,
         // statements
         BLOCK_STATEMENT,
         EXPRESSION_STATEMENT,
         VARIABLE_DECLARATION_STATEMENT,
         IF_STATEMENT,
+        WHILE_STATEMENT,
+        FOR_STATEMENT,
         // other
         COMPILATION_UNIT,
         ELSE_CLAUSE,
