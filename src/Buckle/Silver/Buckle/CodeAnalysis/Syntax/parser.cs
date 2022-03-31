@@ -158,10 +158,14 @@ namespace Buckle.CodeAnalysis.Syntax {
         private Statement ParseBlockStatement() {
             var statements = ImmutableArray.CreateBuilder<Statement>();
             var lbrace = Match(SyntaxType.LBRACE);
+            var startToken = current;
 
             while (current.type != SyntaxType.EOF && current.type != SyntaxType.RBRACE) {
                 var statement = ParseStatement();
                 statements.Add(statement);
+
+                if (current == startToken) Next();
+                startToken = current;
             }
 
             var rbrace = Match(SyntaxType.RBRACE);

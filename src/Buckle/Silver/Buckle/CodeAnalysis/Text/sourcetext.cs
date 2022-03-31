@@ -77,5 +77,10 @@ namespace Buckle.CodeAnalysis.Text {
         public override string ToString() => text_;
         public string ToString(int start, int length) => text_.Substring(start, length);
         public string ToString(TextSpan span) => ToString(span.start, span.length);
+
+        public bool IsAtEndOfInput(TextSpan span) {
+            if (span.start == text_.Length) return true;
+            return false;
+        }
     }
 }

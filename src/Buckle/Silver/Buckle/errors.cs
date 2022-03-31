@@ -54,5 +54,10 @@ namespace Buckle {
             string msg = $"ambiguous what if-statement else-clause belongs to";
             return new Diagnostic(DiagnosticType.error, span, msg);
         }
+
+        public static Diagnostic ExpectedExpression(TextSpan span) {
+            string msg = $"expected expression";
+            return new Diagnostic(DiagnosticType.error, span, msg);
+        }
     }
 }

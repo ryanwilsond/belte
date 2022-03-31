@@ -116,7 +116,14 @@ namespace CommandLine {
             }
 
             Console.ResetColor();
-            Console.WriteLine(error.msg);
+            Console.Write(error.msg);
+
+            if (text.IsAtEndOfInput(error.span)) {
+                Console.WriteLine(" at end of input");
+                return;
+            }
+
+            Console.WriteLine();
 
             TextSpan prefixSpan = TextSpan.FromBounds(rline.start, error.span.start);
             TextSpan suffixSpan = TextSpan.FromBounds(error.span.end, rline.end);

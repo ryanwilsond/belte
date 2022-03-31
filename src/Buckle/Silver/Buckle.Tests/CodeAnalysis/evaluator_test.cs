@@ -53,7 +53,21 @@ namespace Buckle.Tests.CodeAnalysis {
         }
 
         [Fact]
-        public void Evaluator_If_Reports_CannotConvert() {
+        public void Evaluator_Block_NoInfiniteLoop() {
+            var text = @"
+                {
+                )
+            ";
+
+            var diagnostics = @"
+                unexpected token ')'
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_IfStatement_Reports_CannotConvert() {
             var text = @"
                 auto x = 0;
                 if ([10]) x = 1;
@@ -85,7 +99,7 @@ namespace Buckle.Tests.CodeAnalysis {
         }
 
         [Fact]
-        public void Evaluator_Name_Reports_Undefined() {
+        public void Evaluator_NameExpression_Reports_Undefined() {
             var text = @"[x] * 10;";
 
             var diagnostics = @"
@@ -96,7 +110,18 @@ namespace Buckle.Tests.CodeAnalysis {
         }
 
         [Fact]
-        public void Evaluator_Assigns_Reports_Undefined() {
+        public void Evaluator_NameExpression_Reports_NoErrorForInsertedToken() {
+            var text = @"[]";
+
+            var diagnostics = @"
+                unexpected token EOF, expected IDENTIFIER
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_AssignmentExpression_Reports_Undefined() {
             var text = @"[x] = 10;";
 
             var diagnostics = @"
@@ -107,7 +132,7 @@ namespace Buckle.Tests.CodeAnalysis {
         }
 
         [Fact]
-        public void Evaluator_Assigns_Reports_Readonly() {
+        public void Evaluator_AssignmentExpression_Reports_Readonly() {
             var text = @"
                 let x = 10;
                 x [=] 0;
@@ -121,7 +146,7 @@ namespace Buckle.Tests.CodeAnalysis {
         }
 
         [Fact]
-        public void Evaluator_Assigns_Reports_CannotConvert() {
+        public void Evaluator_AssignmentExpression_Reports_CannotConvert() {
             var text = @"
                 auto x = 10;
                 x = [false];
@@ -135,7 +160,7 @@ namespace Buckle.Tests.CodeAnalysis {
         }
 
         [Fact]
-        public void Evaluator_Unary_Reports_Undefined() {
+        public void Evaluator_UnaryOperator_Reports_Undefined() {
             var text = @"[+]true;";
 
             var diagnostics = @"
@@ -146,7 +171,7 @@ namespace Buckle.Tests.CodeAnalysis {
         }
 
         [Fact]
-        public void Evaluator_Binary_Reports_Undefined() {
+        public void Evaluator_BinaryOperator_Reports_Undefined() {
             var text = @"10[+]true;";
 
             var diagnostics = @"

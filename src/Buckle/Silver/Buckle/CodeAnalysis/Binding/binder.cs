@@ -171,6 +171,8 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private BoundExpression BindNameExpression(NameExpression expr) {
             string name = expr.id.text;
+            if (string.IsNullOrEmpty(name))
+                return new BoundLiteralExpression(0);
 
             if (scope_.TryLookup(name, out var variable)) {
                 return new BoundVariableExpression(variable);
