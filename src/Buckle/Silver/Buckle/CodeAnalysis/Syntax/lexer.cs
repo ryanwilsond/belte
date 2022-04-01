@@ -4,7 +4,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal sealed class Lexer {
         private readonly SourceText text_;
-        private int pos_;
+        private int position_;
         private int start_;
         private SyntaxType type_;
         private object value_;
@@ -16,7 +16,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         private char Peek(int offset) {
-            int index = pos_ + offset;
+            int index = position_ + offset;
             if (index >= text_.length) return '\0';
             return text_[index];
         }
@@ -25,111 +25,131 @@ namespace Buckle.CodeAnalysis.Syntax {
         private char lookahead => Peek(1);
 
         public Token LexNext() {
-            start_ = pos_;
+            start_ = position_;
             type_ = SyntaxType.Invalid;
             value_ = null;
 
             switch (current) {
                 case '\0':
-                    type_= SyntaxType.EOF;
+                    type_ = SyntaxType.EOF;
                     break;
                 case '/':
-                    pos_++;
-                    type_= SyntaxType.SOLIDUS;
+                    position_++;
+                    type_ = SyntaxType.SLASH;
                     break;
                 case '(':
-                    pos_++;
-                    type_= SyntaxType.LPAREN;
+                    position_++;
+                    type_ = SyntaxType.LPAREN;
                     break;
                 case ')':
-                    pos_++;
-                    type_= SyntaxType.RPAREN;
+                    position_++;
+                    type_ = SyntaxType.RPAREN;
                     break;
                 case '{':
-                    pos_++;
+                    position_++;
                     type_ = SyntaxType.LBRACE;
                     break;
                 case '}':
-                    pos_++;
+                    position_++;
                     type_ = SyntaxType.RBRACE;
                     break;
                 case ';':
-                    pos_++;
+                    position_++;
                     type_ = SyntaxType.SEMICOLON;
                     break;
+                case '~':
+                    position_++;
+                    type_ = SyntaxType.TILDE;
+                    break;
+                case '^':
+                    position_++;
+                    type_ = SyntaxType.CARET;
+                    break;
                 case '+':
-                    pos_++;
+                    position_++;
                     // if (current == '+') {
                     //     type_ = SyntaxType.DPLUS;
-                    //     pos_++;
+                    //     position_++;
                     // } else {
-                        type_= SyntaxType.PLUS;
+                        type_ = SyntaxType.PLUS;
                     // }
                     break;
                 case '-':
-                    pos_++;
+                    position_++;
                     // if (current == '-') {
                     //     type_ = SyntaxType.DMINUS;
-                    //     pos_++;
+                    //     position_++;
                     // } else {
-                        type_= SyntaxType.MINUS;
+                        type_ = SyntaxType.MINUS;
                     // }
                     break;
                 case '*':
-                    pos_++;
+                    position_++;
                     if (current == '*') {
                         type_ = SyntaxType.DASTERISK;
-                        pos_++;
+                        position_++;
                     } else {
-                        type_= SyntaxType.ASTERISK;
+                        type_ = SyntaxType.ASTERISK;
                     }
                     break;
                 case '&':
-                    if (lookahead == '&') {
-                        type_= SyntaxType.DAMPERSAND;
-                        pos_+=2;
-                    } else goto default;
+                    position_++;
+                    if (current == '&') {
+                        type_ = SyntaxType.DAMPERSAND;
+                        position_++;
+                    } else {
+                        type_ = SyntaxType.AMPERSAND;
+                    }
                     break;
                 case '|':
-                    if (lookahead == '|') {
-                        type_= SyntaxType.DPIPE;
-                        pos_+=2;
-                    } else goto default;
+                    position_++;
+                    if (current == '|') {
+                        type_ = SyntaxType.DPIPE;
+                        position_++;
+                    } else {
+                        type_ = SyntaxType.PIPE;
+                    }
                     break;
                 case '=':
-                    pos_++;
+                    position_++;
                     if (current == '=') {
-                        type_= SyntaxType.DEQUALS;
-                        pos_++;
+                        type_ = SyntaxType.DEQUALS;
+                        position_++;
                     } else {
-                        type_= SyntaxType.EQUALS;
+                        type_ = SyntaxType.EQUALS;
                     }
                     break;
                 case '!':
-                    pos_++;
+                    position_++;
                     if (current == '=') {
-                        pos_++;
-                        type_= SyntaxType.BANGEQUALS;
+                        position_++;
+                        type_ = SyntaxType.BANGEQUALS;
                     } else {
-                        type_= SyntaxType.BANG;
+                        type_ = SyntaxType.BANG;
                     }
                     break;
                 case '<':
-                    pos_++;
+                    position_++;
                     if (current == '=') {
-                        pos_++;
-                        type_= SyntaxType.LESSEQUAL;
+                        position_++;
+                        type_ = SyntaxType.LESSEQUAL;
+                    } else if (current == '<') {
+                        position_++;
+                        type_ = SyntaxType.SHIFTLEFT;
                     } else {
-                        type_= SyntaxType.LANGLEBRACKET;
+                        type_ = SyntaxType.LANGLEBRACKET;
                     }
                     break;
                 case '>':
-                    pos_++;
+                    position_++;
                     if (current == '=') {
-                        pos_++;
-                        type_= SyntaxType.GREATEQUAL;
+                        position_++;
+                        type_ = SyntaxType.GREATEQUAL;
+                    } else if (current == '>') {
+                        position_++;
+                        type_ = SyntaxType.SHIFTRIGHT;
                     } else {
-                        type_= SyntaxType.RANGLEBRACKET;
+                        type_ = SyntaxType.RANGLEBRACKET;
                     }
                     break;
                 case '0': // faster than if check, but probably neglagable and is uglier
@@ -153,11 +173,11 @@ namespace Buckle.CodeAnalysis.Syntax {
                 default:
                     if (char.IsLetter(current)) ReadIdentifierOrKeyword();
                     else if (char.IsWhiteSpace(current)) ReadWhitespaceToken();
-                    else diagnostics.Push(Error.BadCharacter(pos_++, current));
+                    else diagnostics.Push(Error.BadCharacter(position_++, current));
                     break;
             }
 
-            int length = pos_ - start_;
+            int length = position_ - start_;
             var text = SyntaxFacts.GetText(type_);
             if (text == null)
                 text = text_.ToString(start_, length);
@@ -166,9 +186,9 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         private void ReadNumberToken() {
-            while (char.IsDigit(current)) pos_++;
+            while (char.IsDigit(current)) position_++;
 
-            int length = pos_ - start_;
+            int length = position_ - start_;
             string text = text_.ToString(start_, length);
 
             if (!int.TryParse(text, out var value))
@@ -179,14 +199,14 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         private void ReadWhitespaceToken() {
-            while (char.IsWhiteSpace(current)) pos_++;
+            while (char.IsWhiteSpace(current)) position_++;
             type_ = SyntaxType.WHITESPACE;
         }
 
         private void ReadIdentifierOrKeyword() {
-            while (char.IsLetter(current)) pos_++;
+            while (char.IsLetter(current)) position_++;
 
-            int length = pos_ - start_;
+            int length = position_ - start_;
             string text = text_.ToString(start_, length);
             type_ = SyntaxFacts.GetKeywordType(text);
         }

@@ -8,6 +8,7 @@ namespace Buckle.CodeAnalysis.Binding {
         NumericalIdentity,
         NumericalNegation,
         BooleanNegation,
+        BitwiseCompliment,
     }
 
     internal sealed class BoundUnaryOperator {
@@ -32,6 +33,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
             new BoundUnaryOperator(SyntaxType.PLUS, BoundUnaryOperatorType.NumericalIdentity, typeof(int)),
             new BoundUnaryOperator(SyntaxType.MINUS, BoundUnaryOperatorType.NumericalNegation, typeof(int)),
+            new BoundUnaryOperator(SyntaxType.TILDE, BoundUnaryOperatorType.BitwiseCompliment, typeof(int)),
         };
 
         public static BoundUnaryOperator Bind(SyntaxType type, Type operandType) {

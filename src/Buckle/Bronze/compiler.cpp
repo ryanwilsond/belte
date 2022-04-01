@@ -9,7 +9,7 @@ Token CreateToken(TokenType type, size_t pos) {
         case TokenType::PLUS: return PlusToken("", pos);
         case TokenType::MINUS: return MinusToken("", pos);
         case TokenType::ASTERISK: return AsteriskToken("", pos);
-        case TokenType::SOLIDUS: return SolidusToken("", pos);
+        case TokenType::SLASH: return SolidusToken("", pos);
         case TokenType::LPAREN: return LParenToken("", pos);
         case TokenType::RPAREN: return RParenToken("", pos);
         case TokenType::WHITESPACE: return WhitespaceToken("", pos);
@@ -152,7 +152,7 @@ public:
     shared_ptr<Expression> ParseFactor() {
         auto left = ParsePrimary();
 
-        while (Current().type == TokenType::ASTERISK || Current().type == TokenType::SOLIDUS) {
+        while (Current().type == TokenType::ASTERISK || Current().type == TokenType::SLASH) {
             auto opTok = Next();
             auto right = ParsePrimary();
             left = make_shared<BinaryExpression>(BinaryExpression(left, make_shared<Token>(opTok), right));
@@ -196,7 +196,7 @@ private:
                     return left - right;
                 case TokenType::ASTERISK:
                     return left * right;
-                case TokenType::SOLIDUS:
+                case TokenType::SLASH:
                     return left / right;
                 default:
                     throw std::runtime_error(format("Unexpected binary operator `%s`", bi_expr->op.get()->Type().c_str()));

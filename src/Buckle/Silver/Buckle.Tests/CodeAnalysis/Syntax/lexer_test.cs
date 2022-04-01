@@ -109,56 +109,37 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             var t1IsKeyword = t1Type.ToString().EndsWith("KEYWORD");
             var t2IsKeyword = t2Type.ToString().EndsWith("KEYWORD");
 
-            if (t1Type == SyntaxType.IDENTIFIER && t2Type == SyntaxType.IDENTIFIER)
-                return true;
-
-            if (t1IsKeyword && t2IsKeyword)
-                return true;
-
-            if (t1IsKeyword && t2Type == SyntaxType.IDENTIFIER)
-                return true;
-
-            if (t1Type == SyntaxType.IDENTIFIER && t2IsKeyword)
-                return true;
-
-            if (t1Type == SyntaxType.NUMBER && t2Type == SyntaxType.NUMBER)
-                return true;
-
-            if (t1Type == SyntaxType.BANG && t2Type == SyntaxType.EQUALS)
-                return true;
-
-            if (t1Type == SyntaxType.BANG && t2Type == SyntaxType.DEQUALS)
-                return true;
-
-            if (t1Type == SyntaxType.EQUALS && t2Type == SyntaxType.EQUALS)
-                return true;
-
-            if (t1Type == SyntaxType.EQUALS && t2Type == SyntaxType.DEQUALS)
-                return true;
-
-            if (t1Type == SyntaxType.ASTERISK && t2Type == SyntaxType.ASTERISK)
-                return true;
-
-            if (t1Type == SyntaxType.DASTERISK && t2Type == SyntaxType.ASTERISK)
-                return true;
-
-            if (t1Type == SyntaxType.ASTERISK && t2Type == SyntaxType.DASTERISK)
-                return true;
-
-            if (t1Type == SyntaxType.DASTERISK && t2Type == SyntaxType.DASTERISK)
-                return true;
-
-            if (t1Type == SyntaxType.LANGLEBRACKET && t2Type == SyntaxType.EQUALS)
-                return true;
-
-            if (t1Type == SyntaxType.LANGLEBRACKET && t2Type == SyntaxType.DEQUALS)
-                return true;
-
-            if (t1Type == SyntaxType.RANGLEBRACKET && t2Type == SyntaxType.EQUALS)
-                return true;
-
-            if (t1Type == SyntaxType.RANGLEBRACKET && t2Type == SyntaxType.DEQUALS)
-                return true;
+            if (t1Type == SyntaxType.IDENTIFIER && t2Type == SyntaxType.IDENTIFIER) return true;
+            if (t1IsKeyword && t2IsKeyword) return true;
+            if (t1IsKeyword && t2Type == SyntaxType.IDENTIFIER) return true;
+            if (t1Type == SyntaxType.IDENTIFIER && t2IsKeyword) return true;
+            if (t1Type == SyntaxType.NUMBER && t2Type == SyntaxType.NUMBER) return true;
+            if (t1Type == SyntaxType.BANG && t2Type == SyntaxType.EQUALS) return true;
+            if (t1Type == SyntaxType.BANG && t2Type == SyntaxType.DEQUALS) return true;
+            if (t1Type == SyntaxType.EQUALS && t2Type == SyntaxType.EQUALS) return true;
+            if (t1Type == SyntaxType.EQUALS && t2Type == SyntaxType.DEQUALS) return true;
+            if (t1Type == SyntaxType.ASTERISK && t2Type == SyntaxType.ASTERISK) return true;
+            if (t1Type == SyntaxType.DASTERISK && t2Type == SyntaxType.ASTERISK) return true;
+            if (t1Type == SyntaxType.ASTERISK && t2Type == SyntaxType.DASTERISK) return true;
+            if (t1Type == SyntaxType.DASTERISK && t2Type == SyntaxType.DASTERISK) return true;
+            if (t1Type == SyntaxType.LANGLEBRACKET && t2Type == SyntaxType.EQUALS) return true;
+            if (t1Type == SyntaxType.LANGLEBRACKET && t2Type == SyntaxType.DEQUALS) return true;
+            if (t1Type == SyntaxType.RANGLEBRACKET && t2Type == SyntaxType.EQUALS) return true;
+            if (t1Type == SyntaxType.RANGLEBRACKET && t2Type == SyntaxType.DEQUALS) return true;
+            if (t1Type == SyntaxType.PIPE && t2Type == SyntaxType.PIPE) return true;
+            if (t1Type == SyntaxType.PIPE && t2Type == SyntaxType.DPIPE) return true;
+            if (t1Type == SyntaxType.DPIPE && t2Type == SyntaxType.PIPE) return true;
+            if (t1Type == SyntaxType.AMPERSAND && t2Type == SyntaxType.AMPERSAND) return true;
+            if (t1Type == SyntaxType.AMPERSAND && t2Type == SyntaxType.DAMPERSAND) return true;
+            if (t1Type == SyntaxType.DAMPERSAND && t2Type == SyntaxType.AMPERSAND) return true;
+            if (t1Type == SyntaxType.LANGLEBRACKET && t2Type == SyntaxType.LESSEQUAL) return true;
+            if (t1Type == SyntaxType.LANGLEBRACKET && t2Type == SyntaxType.SHIFTLEFT) return true;
+            if (t1Type == SyntaxType.SHIFTLEFT && t2Type == SyntaxType.LESSEQUAL) return true;
+            if (t1Type == SyntaxType.LANGLEBRACKET && t2Type == SyntaxType.LANGLEBRACKET) return true;
+            if (t1Type == SyntaxType.RANGLEBRACKET && t2Type == SyntaxType.GREATEQUAL) return true;
+            if (t1Type == SyntaxType.RANGLEBRACKET && t2Type == SyntaxType.SHIFTRIGHT) return true;
+            if (t1Type == SyntaxType.SHIFTRIGHT && t2Type == SyntaxType.GREATEQUAL) return true;
+            if (t1Type == SyntaxType.RANGLEBRACKET && t2Type == SyntaxType.RANGLEBRACKET) return true;
 
             return false;
         }

@@ -9,7 +9,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         //     switch(type) {
         //         case SyntaxType.DMINUS:
         //         case SyntaxType.DPLUS:
-        //             return 9;
+        //             return 13;
         //         default: return 0;
         //     }
         // }
@@ -17,20 +17,29 @@ namespace Buckle.CodeAnalysis.Syntax {
         public static int GetBinaryPrecedence(this SyntaxType type) {
             switch(type) {
                 case SyntaxType.DASTERISK:
-                    return 7;
+                    return 11;
                 case SyntaxType.ASTERISK:
-                case SyntaxType.SOLIDUS:
-                    return 6;
+                case SyntaxType.SLASH:
+                    return 10;
                 case SyntaxType.PLUS:
                 case SyntaxType.MINUS:
-                    return 5;
+                    return 9;
+                case SyntaxType.SHIFTLEFT:
+                case SyntaxType.SHIFTRIGHT:
+                    return 8;
                 case SyntaxType.LANGLEBRACKET:
                 case SyntaxType.RANGLEBRACKET:
                 case SyntaxType.LESSEQUAL:
                 case SyntaxType.GREATEQUAL:
-                    return 4;
+                    return 7;
                 case SyntaxType.DEQUALS:
                 case SyntaxType.BANGEQUALS:
+                    return 6;
+                case SyntaxType.AMPERSAND:
+                    return 5;
+                case SyntaxType.CARET:
+                    return 4;
+                case SyntaxType.PIPE:
                     return 3;
                 case SyntaxType.DAMPERSAND:
                     return 2;
@@ -45,9 +54,10 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.PLUS:
                 case SyntaxType.MINUS:
                 case SyntaxType.BANG:
+                case SyntaxType.TILDE:
                 // case SyntaxType.DMINUS:
                 // case SyntaxType.DPLUS:
-                    return 8;
+                    return 12;
                 default: return 0;
             }
         }
@@ -71,10 +81,16 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.PLUS: return "+";
                 case SyntaxType.MINUS: return "-";
                 case SyntaxType.ASTERISK: return "*";
-                case SyntaxType.SOLIDUS: return "/";
+                case SyntaxType.SLASH: return "/";
                 case SyntaxType.LPAREN: return "(";
                 case SyntaxType.RPAREN: return ")";
                 case SyntaxType.EQUALS: return "=";
+                case SyntaxType.TILDE: return "~";
+                case SyntaxType.CARET: return "^";
+                case SyntaxType.AMPERSAND: return "&";
+                case SyntaxType.PIPE: return "|";
+                case SyntaxType.SHIFTLEFT: return "<<";
+                case SyntaxType.SHIFTRIGHT: return ">>";
                 case SyntaxType.BANG: return "!";
                 case SyntaxType.DAMPERSAND: return "&&";
                 case SyntaxType.DPIPE: return "||";

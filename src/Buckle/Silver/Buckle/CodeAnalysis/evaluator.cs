@@ -118,6 +118,7 @@ namespace Buckle.CodeAnalysis {
                 case BoundUnaryOperatorType.NumericalIdentity: return (int)operand;
                 case BoundUnaryOperatorType.NumericalNegation: return -(int)operand;
                 case BoundUnaryOperatorType.BooleanNegation: return !(bool)operand;
+                case BoundUnaryOperatorType.BitwiseCompliment: return ~(int)operand;
                 default:
                     diagnostics.Push(DiagnosticType.Fatal, $"unknown unary operator '{syntax.op}'");
                     return null;
@@ -142,6 +143,23 @@ namespace Buckle.CodeAnalysis {
                 case BoundBinaryOperatorType.GreaterThan: return (int)left > (int)right;
                 case BoundBinaryOperatorType.LessOrEqual: return (int)left <= (int)right;
                 case BoundBinaryOperatorType.GreatOrEqual: return (int)left >= (int)right;
+                case BoundBinaryOperatorType.LogicalAnd:
+                    if (syntax.lType == typeof(int))
+                        return (int)left & (int)right;
+                    else
+                        return (bool)left & (bool)right;
+                case BoundBinaryOperatorType.LogicalOr:
+                    if (syntax.lType == typeof(int))
+                        return (int)left | (int)right;
+                    else
+                        return (bool)left | (bool)right;
+                case BoundBinaryOperatorType.LogicalXor:
+                    if (syntax.lType == typeof(int))
+                        return (int)left ^ (int)right;
+                    else
+                        return (bool)left ^ (bool)right;
+                case BoundBinaryOperatorType.LeftShift: return (int)left << (int)right;
+                case BoundBinaryOperatorType.RightShift: return (int)left >> (int)right;
                 default:
                     diagnostics.Push(DiagnosticType.Fatal, $"unknown binary operator '{syntax.op}'");
                     return null;

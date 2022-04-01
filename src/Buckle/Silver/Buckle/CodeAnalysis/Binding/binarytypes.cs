@@ -10,6 +10,11 @@ namespace Buckle.CodeAnalysis.Binding {
         Multiply,
         Divide,
         Power,
+        LogicalAnd,
+        LogicalOr,
+        LogicalXor,
+        LeftShift,
+        RightShift,
         ConditionalAnd,
         ConditionalOr,
         EqualityEquals,
@@ -47,8 +52,13 @@ namespace Buckle.CodeAnalysis.Binding {
             new BoundBinaryOperator(SyntaxType.PLUS, BoundBinaryOperatorType.Add, typeof(int)),
             new BoundBinaryOperator(SyntaxType.MINUS, BoundBinaryOperatorType.Subtract, typeof(int)),
             new BoundBinaryOperator(SyntaxType.ASTERISK, BoundBinaryOperatorType.Multiply, typeof(int)),
-            new BoundBinaryOperator(SyntaxType.SOLIDUS, BoundBinaryOperatorType.Divide, typeof(int)),
+            new BoundBinaryOperator(SyntaxType.SLASH, BoundBinaryOperatorType.Divide, typeof(int)),
             new BoundBinaryOperator(SyntaxType.DASTERISK, BoundBinaryOperatorType.Power, typeof(int)),
+            new BoundBinaryOperator(SyntaxType.AMPERSAND, BoundBinaryOperatorType.LogicalAnd, typeof(int)),
+            new BoundBinaryOperator(SyntaxType.PIPE, BoundBinaryOperatorType.LogicalOr, typeof(int)),
+            new BoundBinaryOperator(SyntaxType.CARET, BoundBinaryOperatorType.LogicalXor, typeof(int)),
+            new BoundBinaryOperator(SyntaxType.SHIFTLEFT, BoundBinaryOperatorType.LeftShift, typeof(int)),
+            new BoundBinaryOperator(SyntaxType.SHIFTRIGHT, BoundBinaryOperatorType.RightShift, typeof(int)),
 
             new BoundBinaryOperator(
                 SyntaxType.DEQUALS, BoundBinaryOperatorType.EqualityEquals, typeof(int), typeof(bool)),
@@ -65,6 +75,9 @@ namespace Buckle.CodeAnalysis.Binding {
 
             new BoundBinaryOperator(SyntaxType.DAMPERSAND, BoundBinaryOperatorType.ConditionalAnd, typeof(bool)),
             new BoundBinaryOperator(SyntaxType.DPIPE, BoundBinaryOperatorType.ConditionalOr, typeof(bool)),
+            new BoundBinaryOperator(SyntaxType.AMPERSAND, BoundBinaryOperatorType.LogicalAnd, typeof(bool)),
+            new BoundBinaryOperator(SyntaxType.PIPE, BoundBinaryOperatorType.LogicalOr, typeof(bool)),
+            new BoundBinaryOperator(SyntaxType.CARET, BoundBinaryOperatorType.LogicalXor, typeof(bool)),
             new BoundBinaryOperator(SyntaxType.DEQUALS, BoundBinaryOperatorType.EqualityEquals, typeof(bool)),
             new BoundBinaryOperator(SyntaxType.BANGEQUALS, BoundBinaryOperatorType.EqualityNotEquals, typeof(bool)),
         };

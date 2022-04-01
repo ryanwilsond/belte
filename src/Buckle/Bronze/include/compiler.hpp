@@ -14,7 +14,7 @@ enum TokenType {
     PLUS,
     MINUS,
     ASTERISK,
-    SOLIDUS,
+    SLASH,
     LPAREN,
     RPAREN,
     WHITESPACE,
@@ -70,7 +70,7 @@ public:
             case TokenType::PLUS: return "PLUS";
             case TokenType::MINUS: return "MINUS";
             case TokenType::ASTERISK: return "ASTERISK";
-            case TokenType::SOLIDUS: return "SOLIDUS";
+            case TokenType::SLASH: return "SLASH";
             case TokenType::LPAREN: return "LPAREN";
             case TokenType::RPAREN: return "RPAREN";
             case TokenType::WHITESPACE: return "WHITESPACE";
@@ -148,7 +148,7 @@ public:
 
 class SolidusToken : public Token {
 public:
-    SolidusToken(string _text, size_t _pos) : Token(TokenType::SOLIDUS) {
+    SolidusToken(string _text, size_t _pos) : Token(TokenType::SLASH) {
         text = _text;
         pos = _pos;
     }
