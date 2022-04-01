@@ -36,6 +36,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             Lexer lexer = new Lexer(text);
             Token token;
             text_ = text;
+            pos_ = 0;
 
             do {
                 token = lexer.LexNext();
@@ -174,8 +175,12 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         private Statement ParseExpressionStatement() {
+            int prevCount = diagnostics.count;
             var expression = ParseExpression();
+            bool popLast = prevCount != diagnostics.count;
             var semicolon = Match(SyntaxType.SEMICOLON);
+
+            if (popLast) diagnostics.RemoveAt(diagnostics.count-1);
             return new ExpressionStatement(expression, semicolon);
         }
 

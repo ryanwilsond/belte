@@ -5,6 +5,16 @@ using Buckle.CodeAnalysis.Text;
 namespace Buckle {
 
     internal static class Error {
+        public static string DiagnosticText(SyntaxType type) {
+            string factvalue = SyntaxFacts.GetText(type);
+            if (factvalue != null) return "'" + factvalue + "'";
+
+            if (type.ToString().EndsWith("_STATEMENT")) return "statement";
+            else if (type.ToString().EndsWith("_EXPRESSION")) return "expression";
+            else if (type.ToString().EndsWith("_KEYWORD")) return "keyword";
+            else return type.ToString().ToLower();
+        }
+
         public static Diagnostic InvalidType(TextSpan span, string text, Type type) {
             string msg = $"'{text}' is not a valid {type}";
             return new Diagnostic(DiagnosticType.error, span, msg);
@@ -16,7 +26,13 @@ namespace Buckle {
         }
 
         public static Diagnostic UnexpectedToken(TextSpan span, SyntaxType unexpected, SyntaxType expected) {
-            string msg = $"unexpected token of type {unexpected}, expected {expected}";
+            string msg;
+
+            if (unexpected != SyntaxType.EOF)
+                msg = $"unexpected token {DiagnosticText(unexpected)}, expected {DiagnosticText(expected)}";
+            else
+                msg = $"expected {DiagnosticText(expected)} at end of input";
+
             return new Diagnostic(DiagnosticType.error, span, msg);
         }
 

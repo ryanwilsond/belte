@@ -56,11 +56,12 @@ namespace Buckle.Tests.CodeAnalysis {
         public void Evaluator_Block_NoInfiniteLoop() {
             var text = @"
                 {
-                )
+                [)][]
             ";
 
             var diagnostics = @"
-                unexpected token ')'
+                unexpected token ')', expected identifier
+                expected '}' at end of input
             ";
 
             AssertDiagnostics(text, diagnostics);
@@ -111,11 +112,9 @@ namespace Buckle.Tests.CodeAnalysis {
 
         [Fact]
         public void Evaluator_NameExpression_Reports_NoErrorForInsertedToken() {
-            var text = @"[]";
+            var text = @"";
 
-            var diagnostics = @"
-                unexpected token EOF, expected IDENTIFIER
-            ";
+            var diagnostics = @"";
 
             AssertDiagnostics(text, diagnostics);
         }

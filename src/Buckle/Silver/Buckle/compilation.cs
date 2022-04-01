@@ -45,6 +45,8 @@ namespace Buckle {
             diagnostics = new DiagnosticQueue();
             diagnostics.Move(diagnostics_);
         }
+
+        internal EvaluationResult() : this(null, null) { }
     }
 
     internal sealed class Compilation {
@@ -81,7 +83,7 @@ namespace Buckle {
             if (diagnostics.Any())
                 return new EvaluationResult(null, diagnostics);
 
-            EvaluationResult last_value_ = null;
+            EvaluationResult last_value_ = new EvaluationResult();
             DiagnosticQueue past_diagnostics = new DiagnosticQueue();
             past_diagnostics.Move(diagnostics);
 

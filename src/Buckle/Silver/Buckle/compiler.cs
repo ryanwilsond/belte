@@ -22,9 +22,9 @@ namespace Buckle {
         }
 
         private int CheckErrors() {
-            foreach (Diagnostic diagnostic in diagnostics) {
+            foreach (Diagnostic diagnostic in diagnostics)
                 if (diagnostic.type == DiagnosticType.error) return ERROR_EXIT_CODE;
-            }
+
             return SUCCESS_EXIT_CODE;
         }
 

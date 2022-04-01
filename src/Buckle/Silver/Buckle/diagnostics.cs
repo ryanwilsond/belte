@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -34,8 +35,10 @@ namespace Buckle {
         internal List<Diagnostic> diagnostics_;
         public int count => diagnostics_.Count;
         public bool Any() => diagnostics_.Any();
-        public Diagnostic[] ToArray() => diagnostics_.ToArray();
+
         public IEnumerator GetEnumerator() => diagnostics_.GetEnumerator();
+        public Diagnostic[] ToArray() => diagnostics_.ToArray();
+        internal void RemoveAt(int index) => diagnostics_.RemoveAt(index);
 
         /// <summary>
         /// Queue structure for organizing diagnostics
@@ -59,6 +62,8 @@ namespace Buckle {
         /// </summary>
         /// <param name="diagnosticQueue">queue to pop and copy from</param>
         public void Move(DiagnosticQueue diagnosticQueue) {
+            if (diagnosticQueue == null) return;
+
             Diagnostic diagnostic = diagnosticQueue.Pop();
             while (diagnostic != null) {
                 diagnostics_.Add(diagnostic);
