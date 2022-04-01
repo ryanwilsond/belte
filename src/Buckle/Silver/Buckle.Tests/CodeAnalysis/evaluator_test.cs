@@ -35,19 +35,24 @@ namespace Buckle.Tests.CodeAnalysis {
         [InlineData("true == false;", false)]
         [InlineData("false != false;", false)]
         [InlineData("true != false;", true)]
+        [InlineData("true && true;", true)]
+        [InlineData("true && false;", false)]
         [InlineData("true;", true)]
         [InlineData("false;", false)]
         [InlineData("!true;", false)]
         [InlineData("!false;", true)]
-        [InlineData("{ auto a = 1; a = 10 * a; }", 10)]
 
-        [InlineData("{ auto a = 0; if (a == 0) { a = 10; } a; }", 10)]
-        [InlineData("{ auto a = 0; if (a == 4) { a = 10; } a; }", 0)]
-        [InlineData("{ auto a = 0; if (a == 0) { a = 10; } else { a = 5; } a; }", 10)]
-        [InlineData("{ auto a = 0; if (a == 4) { a = 10; } else { a = 5; } a; }", 5)]
+        [InlineData("auto a = 10;", 10)]
+        [InlineData("auto a = 10; a * a;", 100)]
+        [InlineData("auto a = 1; a = 10 * a;", 10)]
 
-        [InlineData("{ auto i = 10; auto result = 0; while (i > 0) { result = result + i; i = i - 1; } result; }", 55)]
-        [InlineData("{ auto result = 0; for (auto i=0; i<=10; i=i+1) { result = result + i; } result; }", 55)]
+        [InlineData("auto a = 0; if (a == 0) { a = 10; } a;", 10)]
+        [InlineData("auto a = 0; if (a == 4) { a = 10; } a;", 0)]
+        [InlineData("auto a = 0; if (a == 0) { a = 10; } else { a = 5; } a;", 10)]
+        [InlineData("auto a = 0; if (a == 4) { a = 10; } else { a = 5; } a;", 5)]
+
+        [InlineData("auto i = 10; auto result = 0; while (i > 0) { result = result + i; i = i - 1; } result;", 55)]
+        [InlineData("auto result = 0; for (auto i=0; i<=10; i=i+1) { result = result + i; } result;", 55)]
         public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
             AssertValue(text, expectedValue);
         }
