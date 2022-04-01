@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis {
         private readonly BoundStatement root_;
         public DiagnosticQueue diagnostics;
         private readonly Dictionary<VariableSymbol, object> variables_;
-        private object last_value_;
+        private object lastValue_;
 
         public Evaluator(BoundStatement root, Dictionary<VariableSymbol, object> variables) {
             root_ = root;
@@ -18,31 +18,31 @@ namespace Buckle.CodeAnalysis {
 
         public object Evaluate() {
             EvaluateStatement(root_);
-            return last_value_;
+            return lastValue_;
         }
 
         private void EvaluateStatement(BoundStatement statement) {
             switch(statement.type) {
-                case BoundNodeType.BLOCK_STATEMENT:
+                case BoundNodeType.BlockStatement:
                     EvaluateBlockStatement((BoundBlockStatement)statement);
                     break;
-                case BoundNodeType.EXPRESSION_STATEMENT:
+                case BoundNodeType.ExpressionStatement:
                     EvaluateExpressionStatement((BoundExpressionStatement)statement);
                     break;
-                case BoundNodeType.VARIABLE_DECLARATION_STATEMENT:
+                case BoundNodeType.VariableDeclarationStatement:
                     EvaluateVariableDeclaration((BoundVariableDeclaration)statement);
                     break;
-                case BoundNodeType.IF_STATEMENT:
+                case BoundNodeType.IfStatement:
                     EvaluateIfStatement((BoundIfStatement)statement);
                     break;
-                case BoundNodeType.WHILE_STATEMENT:
+                case BoundNodeType.WhileStatement:
                     EvaluateWhileStatement((BoundWhileStatement)statement);
                     break;
-                case BoundNodeType.FOR_STATEMENT:
+                case BoundNodeType.ForStatement:
                     EvaluateForStatement((BoundForStatement)statement);
                     break;
                 default:
-                    diagnostics.Push(DiagnosticType.fatal, $"unexpected statement '{statement.type}'");
+                    diagnostics.Push(DiagnosticType.Fatal, $"unexpected statement '{statement.type}'");
                     break;
             }
         }
@@ -53,7 +53,7 @@ namespace Buckle.CodeAnalysis {
         }
 
         private void EvaluateForStatement(BoundForStatement statement) {
-            EvaluateVariableDeclaration(statement.it);
+            EvaluateVariableDeclaration(statement.stepper);
 
             while ((bool)EvaluateExpression(statement.condition)) {
                 EvaluateStatement(statement.body);
@@ -65,8 +65,8 @@ namespace Buckle.CodeAnalysis {
             var condition = (bool)EvaluateExpression(statement.condition);
             if (condition)
                 EvaluateStatement(statement.then);
-            else if (statement.elsestatement != null)
-                EvaluateStatement(statement.elsestatement);
+            else if (statement.elseStatement != null)
+                EvaluateStatement(statement.elseStatement);
         }
 
         private void EvaluateBlockStatement(BoundBlockStatement statement) {
@@ -75,60 +75,60 @@ namespace Buckle.CodeAnalysis {
         }
 
         private void EvaluateExpressionStatement(BoundExpressionStatement statement) {
-            last_value_ = EvaluateExpression(statement.expr);
+            lastValue_ = EvaluateExpression(statement.expression);
         }
 
         private void EvaluateVariableDeclaration(BoundVariableDeclaration statement) {
-            var value = EvaluateExpression(statement.init);
+            var value = EvaluateExpression(statement.initializer);
             variables_[statement.variable] = value;
-            last_value_ = value;
+            lastValue_ = value;
         }
 
         private object EvaluateExpression(BoundExpression node) {
             switch(node.type) {
-                case BoundNodeType.LITERAL_EXPR: return EvaluateLiteral((BoundLiteralExpression)node);
-                case BoundNodeType.VARIABLE_EXPR: return EvaluateVariable((BoundVariableExpression)node);
-                case BoundNodeType.ASSIGN_EXPR: return EvaluateAssignment((BoundAssignmentExpression)node);
-                case BoundNodeType.UNARY_EXPR: return EvaluateUnary((BoundUnaryExpression)node);
-                case BoundNodeType.BINARY_EXPR: return EvaluateBinary((BoundBinaryExpression)node);
+                case BoundNodeType.LiteralExpression: return EvaluateLiteral((BoundLiteralExpression)node);
+                case BoundNodeType.VariableExpression: return EvaluateVariable((BoundVariableExpression)node);
+                case BoundNodeType.AssignmentExpression: return EvaluateAssignment((BoundAssignmentExpression)node);
+                case BoundNodeType.UnaryExpression: return EvaluateUnary((BoundUnaryExpression)node);
+                case BoundNodeType.BinaryExpression: return EvaluateBinary((BoundBinaryExpression)node);
                 default:
-                    diagnostics.Push(DiagnosticType.fatal, $"unexpected node '{node.type}'");
+                    diagnostics.Push(DiagnosticType.Fatal, $"unexpected node '{node.type}'");
                     return null;
             }
         }
 
-        private object EvaluateLiteral(BoundLiteralExpression expr) {
-            return expr.value;
+        private object EvaluateLiteral(BoundLiteralExpression syntax) {
+            return syntax.value;
         }
 
-        private object EvaluateVariable(BoundVariableExpression expr) {
-            return variables_[expr.variable];
+        private object EvaluateVariable(BoundVariableExpression syntax) {
+            return variables_[syntax.variable];
         }
 
-        private object EvaluateAssignment(BoundAssignmentExpression expr) {
-            var value = EvaluateExpression(expr.expr);
-            variables_[expr.variable] = value;
+        private object EvaluateAssignment(BoundAssignmentExpression syntax) {
+            var value = EvaluateExpression(syntax.expression);
+            variables_[syntax.variable] = value;
             return value;
         }
 
-        private object EvaluateUnary(BoundUnaryExpression expr) {
-            var operand = EvaluateExpression(expr.operand);
+        private object EvaluateUnary(BoundUnaryExpression syntax) {
+            var operand = EvaluateExpression(syntax.operand);
 
-            switch(expr.op.optype) {
+            switch(syntax.op.opType) {
                 case BoundUnaryOperatorType.NumericalIdentity: return (int)operand;
                 case BoundUnaryOperatorType.NumericalNegation: return -(int)operand;
                 case BoundUnaryOperatorType.BooleanNegation: return !(bool)operand;
                 default:
-                    diagnostics.Push(DiagnosticType.fatal, $"unknown unary operator '{expr.op}'");
+                    diagnostics.Push(DiagnosticType.Fatal, $"unknown unary operator '{syntax.op}'");
                     return null;
             }
         }
 
-        private object EvaluateBinary(BoundBinaryExpression expr) {
-            var left = EvaluateExpression(expr.left);
-            var right = EvaluateExpression(expr.right);
+        private object EvaluateBinary(BoundBinaryExpression syntax) {
+            var left = EvaluateExpression(syntax.left);
+            var right = EvaluateExpression(syntax.right);
 
-            switch (expr.op.optype) {
+            switch (syntax.op.opType) {
                 case BoundBinaryOperatorType.Add: return (int)left + (int)right;
                 case BoundBinaryOperatorType.Subtract: return (int)left - (int)right;
                 case BoundBinaryOperatorType.Multiply: return (int)left * (int)right;
@@ -143,7 +143,7 @@ namespace Buckle.CodeAnalysis {
                 case BoundBinaryOperatorType.LessOrEqual: return (int)left <= (int)right;
                 case BoundBinaryOperatorType.GreatOrEqual: return (int)left >= (int)right;
                 default:
-                    diagnostics.Push(DiagnosticType.fatal, $"unknown binary operator '{expr.op}'");
+                    diagnostics.Push(DiagnosticType.Fatal, $"unknown binary operator '{syntax.op}'");
                     return null;
             }
         }

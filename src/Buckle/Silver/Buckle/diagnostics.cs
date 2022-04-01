@@ -7,10 +7,10 @@ using Buckle.CodeAnalysis.Text;
 namespace Buckle {
 
     public enum DiagnosticType {
-        error,
-        warning,
-        fatal,
-        unknown,
+        Error,
+        Warning,
+        Fatal,
+        Unknown,
     }
 
     public sealed class Diagnostic {
@@ -53,9 +53,9 @@ namespace Buckle {
         /// <param name="diagnostic">Diagnostic to copy onto the queue</param>
         public void Push(Diagnostic diagnostic) { diagnostics_.Add(diagnostic); }
         public void Push(DiagnosticType type, TextSpan? span, string msg) { Push(new Diagnostic(type, span, msg)); }
-        public void Push(TextSpan? span, string msg) { Push(DiagnosticType.error, span, msg); }
+        public void Push(TextSpan? span, string msg) { Push(DiagnosticType.Error, span, msg); }
         public void Push(DiagnosticType type, string msg) { Push(type, null, msg); }
-        public void Push(string msg) { Push(DiagnosticType.error, null, msg); }
+        public void Push(string msg) { Push(DiagnosticType.Error, null, msg); }
 
         /// <summary>
         /// Pops all diagnostics off queue and pushes them onto this

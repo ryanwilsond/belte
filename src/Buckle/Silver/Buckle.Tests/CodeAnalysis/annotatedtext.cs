@@ -23,21 +23,21 @@ namespace Buckle.Tests.CodeAnalysis {
             var spanBuilder = ImmutableArray.CreateBuilder<TextSpan>();
             var startStack = new Stack<int>();
 
-            var pos = 0;
+            var position = 0;
 
             foreach (var c in text) {
                 if (c == '[') {
-                    startStack.Push(pos);
+                    startStack.Push(position);
                 } else if (c == ']') {
                     if (startStack.Count == 0)
                         throw new ArgumentException("']' without corresponding '[' in text", nameof(text));
 
                     var start = startStack.Pop();
-                    var end = pos;
+                    var end = position;
                     var span = TextSpan.FromBounds(start, end);
                     spanBuilder.Add(span);
                 } else {
-                    pos++;
+                    position++;
                     textBuilder.Append(c);
                 }
             }

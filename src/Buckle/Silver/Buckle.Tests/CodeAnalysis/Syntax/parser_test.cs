@@ -83,7 +83,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             SyntaxTree tree = SyntaxTree.Parse(text);
             CompilationUnit unit = tree.root;
             Statement statement = unit.statements[0];
-            return Assert.IsType<ExpressionStatement>(statement).expr;
+            return Assert.IsType<ExpressionStatement>(statement).expression;
         }
 
         public static IEnumerable<object[]> GetBinaryOperatorPairsData() {

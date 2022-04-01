@@ -19,10 +19,10 @@ namespace CommandLine {
             CompilerState state = new CompilerState();
             List<FileState> tasks = new List<FileState>();
 
-            bool specify_stage = false;
-            bool specify_out = false;
-            state.finish_stage = CompilerStage.linked;
-            state.link_output_filename = "a.exe";
+            bool specifyStage = false;
+            bool specifyOut = false;
+            state.finishStage = CompilerStage.Linked;
+            state.linkOutputFilename = "a.exe";
 
             for (int i=0; i<args.Length; i++) {
                 string arg = args[i];
@@ -30,27 +30,27 @@ namespace CommandLine {
                 if (arg.StartsWith('-')) {
                     switch (arg) {
                         case "-E":
-                            specify_stage = true;
-                            state.finish_stage = CompilerStage.preprocessed;
+                            specifyStage = true;
+                            state.finishStage = CompilerStage.Preprocessed;
                             break;
                         case "-S":
-                            specify_stage = true;
-                            state.finish_stage = CompilerStage.compiled;
+                            specifyStage = true;
+                            state.finishStage = CompilerStage.Compiled;
                             break;
                         case "-c":
-                            specify_stage = true;
-                            state.finish_stage = CompilerStage.assembled;
+                            specifyStage = true;
+                            state.finishStage = CompilerStage.Assembled;
                             break;
                         case "-r":
                             return state;
                         case "-o":
-                            specify_out = true;
+                            specifyOut = true;
                             if (i >= args.Length-1)
-                                diagnostics.Push(DiagnosticType.fatal, "missing filename after '-o'");
-                            state.link_output_filename = args[i++];
+                                diagnostics.Push(DiagnosticType.Fatal, "missing filename after '-o'");
+                            state.linkOutputFilename = args[i++];
                             break;
                         default:
-                            diagnostics.Push(DiagnosticType.fatal, $"unknown argument '{arg}'");
+                            diagnostics.Push(DiagnosticType.Fatal, $"unknown argument '{arg}'");
                             break;
                     }
                 } else {
@@ -58,26 +58,26 @@ namespace CommandLine {
                     string[] parts = filename.Split('.');
                     string type = parts[parts.Length-1];
                     FileState task = new FileState();
-                    // check if exists
-                    task.in_filename = filename;
+                    // check if exists goes here
+                    task.inputFilename = filename;
 
                     switch (type) {
                         case "ble":
-                            task.stage = CompilerStage.raw;
+                            task.stage = CompilerStage.Raw;
                             break;
                         case "pble":
-                            task.stage = CompilerStage.preprocessed;
+                            task.stage = CompilerStage.Preprocessed;
                             break;
                         case "s":
                         case "asm":
-                            task.stage = CompilerStage.compiled;
+                            task.stage = CompilerStage.Compiled;
                             break;
                         case "o":
                         case "obj":
-                            task.stage = CompilerStage.assembled;
+                            task.stage = CompilerStage.Assembled;
                             break;
                         default:
-                            diagnostics.Push(DiagnosticType.warning,
+                            diagnostics.Push(DiagnosticType.Warning,
                                 $"unknown file type of input file '{filename}'; ignoring");
                             break;
                     }
@@ -88,29 +88,29 @@ namespace CommandLine {
 
             state.tasks = tasks.ToArray();
 
-            if (specify_out && specify_stage && state.tasks.Length > 1)
-                diagnostics.Push(DiagnosticType.fatal,
+            if (specifyOut && specifyStage && state.tasks.Length > 1)
+                diagnostics.Push(DiagnosticType.Fatal,
                     "cannot specify output file with '-E', '-S', or '-c' with multiple files");
             if (state.tasks.Length == 0)
-                diagnostics.Push(DiagnosticType.fatal, "no input files");
+                diagnostics.Push(DiagnosticType.Fatal, "no input files");
 
             return state;
         }
 
         private static void PrettyPrintDiagnostic(SourceText text, Diagnostic error) {
-            int linenum = text.GetLineIndex(error.span.start);
-            TextLine rline = text.lines[linenum];
-            int column = error.span.start - rline.start + 1;
-            string line = rline.ToString();
-            Console.Write($"{linenum+1}:{column}:");
+            int lineNumber = text.GetLineIndex(error.span.start);
+            TextLine line = text.lines[lineNumber];
+            int column = error.span.start - line.start + 1;
+            string lineText = line.ToString();
+            Console.Write($"{lineNumber+1}:{column}:");
 
-            if (error.type == DiagnosticType.error) {
+            if (error.type == DiagnosticType.Error) {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.Write(" error: ");
-            } else if (error.type == DiagnosticType.fatal) {
+            } else if (error.type == DiagnosticType.Fatal) {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.Write(" fatal error: ");
-            } else if (error.type == DiagnosticType.warning) {
+            } else if (error.type == DiagnosticType.Warning) {
                 Console.ForegroundColor = ConsoleColor.Magenta;
                 Console.Write(" warning: ");
             }
@@ -120,8 +120,8 @@ namespace CommandLine {
 
             if (text.IsAtEndOfInput(error.span)) return;
 
-            TextSpan prefixSpan = TextSpan.FromBounds(rline.start, error.span.start);
-            TextSpan suffixSpan = TextSpan.FromBounds(error.span.end, rline.end);
+            TextSpan prefixSpan = TextSpan.FromBounds(line.start, error.span.start);
+            TextSpan suffixSpan = TextSpan.FromBounds(error.span.end, line.end);
 
             string prefix = text.ToString(prefixSpan);
             string focus = text.ToString(error.span);
@@ -136,7 +136,7 @@ namespace CommandLine {
             Console.ForegroundColor = ConsoleColor.Red;
             string marker = " " + Regex.Replace(prefix, @"\S", " ");
             marker += "^";
-            if (error.span.length > 0 && error.span.start != line.Length)
+            if (error.span.length > 0 && error.span.start != lineText.Length)
                 marker += new string('~', error.span.length - 1);
 
             Console.WriteLine(marker);
@@ -145,66 +145,66 @@ namespace CommandLine {
 
         private static int ResolveDiagnostics(Compiler compiler) {
             if (compiler.diagnostics.count == 0) return SUCCESS_EXIT_CODE;
-            DiagnosticType worst = DiagnosticType.unknown;
+            DiagnosticType worst = DiagnosticType.Unknown;
 
             Diagnostic diagnostic = compiler.diagnostics.Pop();
             while (diagnostic != null) {
-                if (diagnostic.type == DiagnosticType.unknown) {
+                if (diagnostic.type == DiagnosticType.Unknown) {
                 } else if (diagnostic.span == null) {
                     Console.Write($"{compiler.me}: ");
 
-                    if (diagnostic.type == DiagnosticType.warning) {
-                        if (worst == DiagnosticType.unknown)
-                            worst = DiagnosticType.warning;
+                    if (diagnostic.type == DiagnosticType.Warning) {
+                        if (worst == DiagnosticType.Unknown)
+                            worst = DiagnosticType.Warning;
 
                         Console.ForegroundColor = ConsoleColor.Magenta;
                         Console.Write("warning: ");
-                    } else if (diagnostic.type == DiagnosticType.error) {
-                        if (worst != DiagnosticType.fatal)
-                            worst = DiagnosticType.error;
+                    } else if (diagnostic.type == DiagnosticType.Error) {
+                        if (worst != DiagnosticType.Fatal)
+                            worst = DiagnosticType.Error;
 
                         Console.ForegroundColor = ConsoleColor.Red;
                         Console.Write("error: ");
-                    } else if (diagnostic.type == DiagnosticType.fatal) {
+                    } else if (diagnostic.type == DiagnosticType.Fatal) {
                         Console.ForegroundColor = ConsoleColor.Red;
                         Console.Write("fatal error: ");
-                        worst = DiagnosticType.fatal;
+                        worst = DiagnosticType.Fatal;
                     }
 
                     Console.ResetColor();
-                    if (diagnostic.type != DiagnosticType.error)
+                    if (diagnostic.type != DiagnosticType.Error)
                         Console.WriteLine($"{diagnostic.msg}");
 
                 } else {
-                    PrettyPrintDiagnostic(compiler.state.source_text, diagnostic);
+                    PrettyPrintDiagnostic(compiler.state.sourceText, diagnostic);
                 }
 
                 diagnostic = compiler.diagnostics.Pop();
             }
 
             switch (worst) {
-                case DiagnosticType.error: return ERROR_EXIT_CODE;
-                case DiagnosticType.fatal: return FATAL_EXIT_CODE;
-                case DiagnosticType.unknown:
-                case DiagnosticType.warning:
+                case DiagnosticType.Error: return ERROR_EXIT_CODE;
+                case DiagnosticType.Fatal: return FATAL_EXIT_CODE;
+                case DiagnosticType.Unknown:
+                case DiagnosticType.Warning:
                 default: return SUCCESS_EXIT_CODE;
             }
         }
 
         private static void ProduceOutputFiles(Compiler compiler) {
-            if (compiler.state.finish_stage == CompilerStage.linked) return;
+            if (compiler.state.finishStage == CompilerStage.Linked) return;
 
             foreach (FileState file in compiler.state.tasks) {
-                string inter = file.in_filename.Split('.')[0];
+                string inter = file.inputFilename.Split('.')[0];
 
-                switch (compiler.state.finish_stage) {
-                    case CompilerStage.preprocessed:
+                switch (compiler.state.finishStage) {
+                    case CompilerStage.Preprocessed:
                         inter += ".pble";
                         break;
-                    case CompilerStage.compiled:
+                    case CompilerStage.Compiled:
                         inter += ".s";
                         break;
-                    case CompilerStage.assembled:
+                    case CompilerStage.Assembled:
                         inter += ".o";
                         break;
                     default: break;
@@ -213,13 +213,13 @@ namespace CommandLine {
         }
 
         private static void CleanOutputFiles(Compiler compiler) {
-            if (compiler.state.finish_stage == CompilerStage.linked) {
-                File.Delete(compiler.state.link_output_filename);
+            if (compiler.state.finishStage == CompilerStage.Linked) {
+                File.Delete(compiler.state.linkOutputFilename);
                 return;
             }
 
             foreach (FileState file in compiler.state.tasks) {
-                File.Delete(file.out_filename);
+                File.Delete(file.outputFilename);
             }
         }
 
@@ -229,19 +229,19 @@ namespace CommandLine {
         }
 
         private static void ResolveCompilerOutput(Compiler compiler) {
-            if (compiler.state.finish_stage == CompilerStage.linked) {
-                if (compiler.state.link_output_content != null)
-                    File.WriteAllBytes(compiler.state.link_output_filename,
-                        compiler.state.link_output_content.ToArray());
+            if (compiler.state.finishStage == CompilerStage.Linked) {
+                if (compiler.state.linkOutputContent != null)
+                    File.WriteAllBytes(compiler.state.linkOutputFilename,
+                        compiler.state.linkOutputContent.ToArray());
                 return;
             }
 
             foreach (FileState file in compiler.state.tasks) {
-                if (file.stage == compiler.state.finish_stage) {
-                    if (file.stage == CompilerStage.assembled)
-                        File.WriteAllBytes(file.out_filename, file.file_content.bytes.ToArray());
+                if (file.stage == compiler.state.finishStage) {
+                    if (file.stage == CompilerStage.Assembled)
+                        File.WriteAllBytes(file.outputFilename, file.fileContent.bytes.ToArray());
                     else
-                        File.WriteAllLines(file.out_filename, file.file_content.lines.ToArray());
+                        File.WriteAllLines(file.outputFilename, file.fileContent.lines.ToArray());
                 }
             }
         }

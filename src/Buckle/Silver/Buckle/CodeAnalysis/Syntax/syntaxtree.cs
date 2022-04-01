@@ -6,7 +6,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal sealed class SyntaxTree {
         public CompilationUnit root { get; }
-        public Token eof { get; }
+        public Token endOfFile { get; }
         public SourceText text { get; }
         public DiagnosticQueue diagnostics;
 

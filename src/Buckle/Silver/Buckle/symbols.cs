@@ -3,13 +3,13 @@ using System;
 namespace Buckle {
     internal sealed class VariableSymbol {
         public string name { get; }
-        public Type ltype { get; }
-        public bool is_read_only { get; }
+        public Type lType { get; }
+        public bool isReadOnly { get; }
 
-        internal VariableSymbol(string name_, bool is_read_only_, Type ltype_) {
+        internal VariableSymbol(string name_, bool isReadOnly_, Type lType_) {
             name = name_;
-            ltype = ltype_;
-            is_read_only = is_read_only_;
+            lType = lType_;
+            isReadOnly = isReadOnly_;
         }
     }
 }

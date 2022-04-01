@@ -23,21 +23,21 @@ namespace Buckle {
 
         private int CheckErrors() {
             foreach (Diagnostic diagnostic in diagnostics)
-                if (diagnostic.type == DiagnosticType.error) return ERROR_EXIT_CODE;
+                if (diagnostic.type == DiagnosticType.Error) return ERROR_EXIT_CODE;
 
             return SUCCESS_EXIT_CODE;
         }
 
         private void ExternalAssembler() {
-            diagnostics.Push(DiagnosticType.warning, "assembling not supported (yet); skipping");
+            diagnostics.Push(DiagnosticType.Warning, "assembling not supported (yet); skipping");
         }
 
         private void ExternalLinker() {
-            diagnostics.Push(DiagnosticType.warning, "linking not supported (yet); skipping");
+            diagnostics.Push(DiagnosticType.Warning, "linking not supported (yet); skipping");
         }
 
         private void Preprocess() {
-            diagnostics.Push(DiagnosticType.warning, "preprocessing not supported (yet); skipping");
+            diagnostics.Push(DiagnosticType.Warning, "preprocessing not supported (yet); skipping");
         }
 
         private void PrintTree(Node root) {
@@ -50,24 +50,24 @@ namespace Buckle {
 
         private void InternalCompiler() {
             for (int i=0; i<state.tasks.Length; i++) {
-                if (state.tasks[i].stage == CompilerStage.preprocessed) {
+                if (state.tasks[i].stage == CompilerStage.Preprocessed) {
                     // ...
                 }
             }
         }
 
         private void Repl(ErrorHandle callback) {
-            state.link_output_content = null;
+            state.linkOutputContent = null;
             diagnostics.Clear();
             bool showTree = false;
             var variables = new Dictionary<VariableSymbol, object>();
-            var textbuilder = new StringBuilder();
-            Compilation prev = null;
+            var textBuilder = new StringBuilder();
+            Compilation previousCompilation = null;
 
             while (true) {
                 Console.ForegroundColor = ConsoleColor.Green;
 
-                if (textbuilder.Length == 0)
+                if (textBuilder.Length == 0)
                     Console.Write("» ");
                 else
                     Console.Write("· ");
@@ -75,10 +75,10 @@ namespace Buckle {
                 Console.ResetColor();
 
                 string line = Console.ReadLine();
-                bool isblank = string.IsNullOrWhiteSpace(line);
+                bool isBlank = string.IsNullOrWhiteSpace(line);
 
-                if (textbuilder.Length == 0) {
-                    if (isblank) {
+                if (textBuilder.Length == 0) {
+                    if (isBlank) {
                         break;
                     } else if (line == "#showTree") {
                         showTree = !showTree;
@@ -88,19 +88,21 @@ namespace Buckle {
                         Console.Clear();
                         continue;
                     } else if (line == "#reset") {
-                        prev = null;
+                        previousCompilation = null;
                         continue;
                     }
                 }
 
-                textbuilder.AppendLine(line);
-                string text = textbuilder.ToString();
+                textBuilder.AppendLine(line);
+                string text = textBuilder.ToString();
                 var syntaxTree = SyntaxTree.Parse(text);
-                if (!isblank && syntaxTree.diagnostics.Any()) continue;
+                if (!isBlank && syntaxTree.diagnostics.Any()) continue;
 
-                var compilation = prev == null ? new Compilation(syntaxTree) : prev.ContinueWith(syntaxTree);
+                var compilation = previousCompilation == null
+                    ? new Compilation(syntaxTree)
+                    : previousCompilation.ContinueWith(syntaxTree);
 
-                state.source_text = compilation.tree.text;
+                state.sourceText = compilation.tree.text;
 
                 if (showTree) compilation.tree.root.WriteTo(Console.Out);
 
@@ -114,10 +116,10 @@ namespace Buckle {
                     Console.ForegroundColor = ConsoleColor.Cyan;
                     Console.WriteLine(result.value);
                     Console.ResetColor();
-                    prev = compilation; // prevents chaining a statement that had errors
+                    previousCompilation = compilation; // prevents chaining a statement that had errors
                 }
 
-                textbuilder.Clear();
+                textBuilder.Clear();
             }
         }
 
@@ -133,7 +135,7 @@ namespace Buckle {
             err = CheckErrors();
             if (err > 0) return err;
 
-            if (state.finish_stage == CompilerStage.preprocessed)
+            if (state.finishStage == CompilerStage.Preprocessed)
                 return SUCCESS_EXIT_CODE;
 
             // InternalCompiler();
@@ -143,21 +145,21 @@ namespace Buckle {
             return err;
 
             /*
-            if (state.finish_stage == CompilerStage.compiled)
+            if (state.finishStage == CompilerStage.Compiled)
                 return SUCCESS_EXIT_CODE;
 
             ExternalAssembler();
             err = CheckErrors();
             if (err > 0) return err;
 
-            if (state.finish_stage == CompilerStage.assembled)
+            if (state.finishStage == CompilerStage.Assembled)
                 return SUCCESS_EXIT_CODE;
 
             ExternalLinker();
             err = CheckErrors();
             if (err > 0) return err;
 
-            if (state.finish_stage == CompilerStage.linked)
+            if (state.finishStage == CompilerStage.Linked)
                 return SUCCESS_EXIT_CODE;
 
             return FATAL_EXIT_CODE;

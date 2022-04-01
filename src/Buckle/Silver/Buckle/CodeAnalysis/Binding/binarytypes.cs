@@ -22,26 +22,26 @@ namespace Buckle.CodeAnalysis.Binding {
 
     internal sealed class BoundBinaryOperator {
         public SyntaxType type { get; }
-        public BoundBinaryOperatorType optype { get; }
-        public Type lefttype { get; }
-        public Type righttype { get; }
-        public Type resulttype { get; }
+        public BoundBinaryOperatorType opType { get; }
+        public Type leftType { get; }
+        public Type rightType { get; }
+        public Type resultType { get; }
 
         private BoundBinaryOperator(
-            SyntaxType type_, BoundBinaryOperatorType optype_, Type lefttype_, Type righttype_, Type resulttype_) {
+            SyntaxType type_, BoundBinaryOperatorType opType_, Type leftType_, Type rightType_, Type resultType_) {
             type = type_;
-            optype = optype_;
-            lefttype = lefttype_;
-            righttype = righttype_;
-            resulttype = resulttype_;
+            opType = opType_;
+            leftType = leftType_;
+            rightType = rightType_;
+            resultType = resultType_;
         }
 
         private BoundBinaryOperator(
-            SyntaxType type_, BoundBinaryOperatorType optype_, Type operandtype, Type resulttype_)
-            : this(type_, optype_, operandtype, operandtype, resulttype_) { }
+            SyntaxType type, BoundBinaryOperatorType opType, Type operandType, Type resultType)
+            : this(type, opType, operandType, operandType, resultType) { }
 
-        private BoundBinaryOperator(SyntaxType type_, BoundBinaryOperatorType optype_, Type ltype)
-            : this(type_, optype_, ltype, ltype, ltype) { }
+        private BoundBinaryOperator(SyntaxType type, BoundBinaryOperatorType opType, Type lType)
+            : this(type, opType, lType, lType, lType) { }
 
         private static BoundBinaryOperator[] operators_ = {
             new BoundBinaryOperator(SyntaxType.PLUS, BoundBinaryOperatorType.Add, typeof(int)),
@@ -69,17 +69,17 @@ namespace Buckle.CodeAnalysis.Binding {
             new BoundBinaryOperator(SyntaxType.BANGEQUALS, BoundBinaryOperatorType.EqualityNotEquals, typeof(bool)),
         };
 
-        public static BoundBinaryOperator Bind(SyntaxType type, Type lefttype, Type righttype) {
+        public static BoundBinaryOperator Bind(SyntaxType type, Type leftType, Type rightType) {
             foreach (var op in operators_)
-                if (op.type == type && op.lefttype == lefttype && op.righttype == righttype) return op;
+                if (op.type == type && op.leftType == leftType && op.rightType == rightType) return op;
 
             return null;
         }
     }
 
     internal sealed class BoundBinaryExpression : BoundExpression {
-        public override BoundNodeType type => BoundNodeType.BINARY_EXPR;
-        public override Type ltype => op.resulttype;
+        public override BoundNodeType type => BoundNodeType.BinaryExpression;
+        public override Type lType => op.resultType;
         public BoundExpression left { get; }
         public BoundBinaryOperator op { get; }
         public BoundExpression right { get; }

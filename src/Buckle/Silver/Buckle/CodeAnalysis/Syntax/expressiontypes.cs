@@ -30,15 +30,15 @@ namespace Buckle.CodeAnalysis.Syntax {
     }
 
     internal sealed class ParenExpression : Expression {
-        public Token lparen { get; }
-        public Expression expr { get; }
-        public Token rparen { get; }
+        public Token openParenthesis { get; }
+        public Expression expression { get; }
+        public Token closeParenthesis { get; }
         public override SyntaxType type => SyntaxType.PAREN_EXPR;
 
-        public ParenExpression(Token lparen_, Expression expr_, Token rparen_) {
-            lparen = lparen_;
-            expr = expr_;
-            rparen = rparen_;
+        public ParenExpression(Token openParenthesis_, Expression expression_, Token closeParenthesis_) {
+            openParenthesis = openParenthesis_;
+            expression = expression_;
+            closeParenthesis = closeParenthesis_;
         }
     }
 
@@ -54,24 +54,24 @@ namespace Buckle.CodeAnalysis.Syntax {
     }
 
     internal sealed class NameExpression : Expression {
-        public Token id { get; }
+        public Token identifier { get; }
         public override SyntaxType type => SyntaxType.NAME_EXPR;
 
-        public NameExpression(Token id_) {
-            id = id_;
+        public NameExpression(Token identifier_) {
+            identifier = identifier_;
         }
     }
 
     internal sealed class AssignmentExpression : Expression {
-        public Token id { get; }
+        public Token identifier { get; }
         public Token equals { get; }
-        public Expression expr { get; }
+        public Expression expression { get; }
         public override SyntaxType type => SyntaxType.ASSIGN_EXPR;
 
-        public AssignmentExpression(Token id_, Token equals_, Expression expr_) {
-            id = id_;
+        public AssignmentExpression(Token identifier_, Token equals_, Expression expression_) {
+            identifier = identifier_;
             equals = equals_;
-            expr = expr_;
+            expression = expression_;
         }
     }
 }

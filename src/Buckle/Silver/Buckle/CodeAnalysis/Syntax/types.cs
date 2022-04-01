@@ -95,14 +95,18 @@ namespace Buckle.CodeAnalysis.Syntax {
             PrettyPrint(writer, this);
         }
 
-        private void PrettyPrint(TextWriter writer, Node node, string indent = "", bool islast=true) {
+        private void PrettyPrint(TextWriter writer, Node node, string indent = "", bool isLast=true) {
             bool isConsoleOut = writer == Console.Out;
-            string marker = islast ? "└─" : "├─";
+            string marker = isLast ? "└─" : "├─";
 
-            if (isConsoleOut) Console.ForegroundColor = ConsoleColor.DarkGray;
+            if (isConsoleOut)
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+
             writer.Write($"{indent}{marker}");
 
-            if (isConsoleOut) Console.ForegroundColor = node is Token ? ConsoleColor.DarkBlue : ConsoleColor.Cyan;
+            if (isConsoleOut)
+                Console.ForegroundColor = node is Token ? ConsoleColor.DarkBlue : ConsoleColor.Cyan;
+
             writer.Write(node.type);
 
             if (node is Token t && t.value != null)
@@ -110,7 +114,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
             Console.ResetColor();
             writer.WriteLine();
-            indent += islast ? "  " : "│ ";
+            indent += isLast ? "  " : "│ ";
             var lastChild = node.GetChildren().LastOrDefault();
 
             foreach (var child in node.GetChildren())
@@ -127,14 +131,14 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal sealed class Token : Node {
         public override SyntaxType type { get; }
-        public int pos { get; }
+        public int position { get; }
         public string text { get; }
         public object value { get; }
-        public override TextSpan span => new TextSpan(pos, text?.Length ?? 0);
+        public override TextSpan span => new TextSpan(position, text?.Length ?? 0);
 
-        public Token(SyntaxType type_, int pos_, string text_, object value_) {
+        public Token(SyntaxType type_, int position_, string text_, object value_) {
             type = type_;
-            pos = pos_;
+            position = position_;
             text = text_;
             value = value_;
         }

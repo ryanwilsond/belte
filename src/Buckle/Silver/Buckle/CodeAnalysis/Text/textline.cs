@@ -6,15 +6,15 @@ namespace Buckle.CodeAnalysis.Text {
         public int start { get; }
         public int length { get; }
         public int end => start + length;
-        public int lenwbreak { get; }
+        public int lengthWithBreak { get; }
         public TextSpan span => new TextSpan(start, length);
-        public TextSpan spanwbreak => new TextSpan(start, lenwbreak);
+        public TextSpan spanWithBreak => new TextSpan(start, lengthWithBreak);
 
-        public TextLine(SourceText text_, int start_, int length_, int lenwbreak_) {
+        public TextLine(SourceText text_, int start_, int length_, int lengthWithBreak_) {
             text = text_;
             start = start_;
             length = length_;
-            lenwbreak = lenwbreak_;
+            lengthWithBreak = lengthWithBreak_;
         }
 
         public override string ToString() => text.ToString(span);

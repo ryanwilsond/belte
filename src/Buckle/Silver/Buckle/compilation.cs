@@ -9,11 +9,11 @@ using Buckle.CodeAnalysis.Syntax;
 namespace Buckle {
 
     public enum CompilerStage {
-        raw,
-        preprocessed,
-        compiled,
-        assembled,
-        linked,
+        Raw,
+        Preprocessed,
+        Compiled,
+        Assembled,
+        Linked,
     }
 
     public struct FileContent {
@@ -22,17 +22,17 @@ namespace Buckle {
     }
 
     public struct FileState {
-        public string in_filename;
+        public string inputFilename;
         public CompilerStage stage;
-        public string out_filename;
-        public FileContent file_content;
+        public string outputFilename;
+        public FileContent fileContent;
     }
 
     public struct CompilerState {
-        public CompilerStage finish_stage;
-        public SourceText source_text;
-        public string link_output_filename;
-        public List<byte> link_output_content;
+        public CompilerStage finishStage;
+        public SourceText sourceText;
+        public string linkOutputFilename;
+        public List<byte> linkOutputContent;
         public FileState[] tasks;
     }
 
@@ -50,21 +50,21 @@ namespace Buckle {
     }
 
     internal sealed class Compilation {
-        private BoundGlobalScope global_scope_;
+        private BoundGlobalScope globalScope_;
         public DiagnosticQueue diagnostics;
         public SyntaxTree tree;
         public Compilation prev;
 
-        internal BoundGlobalScope global_scope {
+        internal BoundGlobalScope globalScope {
             get {
-                if (global_scope_ == null) {
-                    var globalScope = Binder.BindGlobalScope(prev?.global_scope, tree.root);
+                if (globalScope_ == null) {
+                    var tempScope = Binder.BindGlobalScope(prev?.globalScope, tree.root);
                     // makes assignment thread-safe
                     // so if multiple threads try and initialize they use whoever did it first
-                    Interlocked.CompareExchange(ref global_scope_, globalScope, null);
+                    Interlocked.CompareExchange(ref globalScope_, tempScope, null);
                 }
 
-                return global_scope_;
+                return globalScope_;
             }
         }
 
@@ -79,22 +79,22 @@ namespace Buckle {
 
         public EvaluationResult Evaluate(Dictionary<VariableSymbol, object> variables) {
             diagnostics.Move(tree.diagnostics);
-            diagnostics.Move(global_scope.diagnostics);
+            diagnostics.Move(globalScope.diagnostics);
             if (diagnostics.Any())
                 return new EvaluationResult(null, diagnostics);
 
-            EvaluationResult last_value_ = new EvaluationResult();
-            DiagnosticQueue past_diagnostics = new DiagnosticQueue();
-            past_diagnostics.Move(diagnostics);
+            EvaluationResult lastValue_ = new EvaluationResult();
+            DiagnosticQueue pastDiagnostics = new DiagnosticQueue();
+            pastDiagnostics.Move(diagnostics);
 
-            foreach(var statement in global_scope.statements) {
+            foreach(var statement in globalScope.statements) {
                 Evaluator eval = new Evaluator(statement, variables);
-                last_value_ = new EvaluationResult(eval.Evaluate(), past_diagnostics);
-                past_diagnostics.Move(last_value_.diagnostics);
+                lastValue_ = new EvaluationResult(eval.Evaluate(), pastDiagnostics);
+                pastDiagnostics.Move(lastValue_.diagnostics);
             }
 
-            last_value_.diagnostics.Move(past_diagnostics);
-            return last_value_;
+            lastValue_.diagnostics.Move(pastDiagnostics);
+            return lastValue_;
         }
 
         public Compilation ContinueWith(SyntaxTree tree) {
@@ -104,12 +104,12 @@ namespace Buckle {
 
     internal sealed class CompilationUnit : Node {
         public ImmutableArray<Statement> statements { get; }
-        public Token eof { get; }
+        public Token endOfFile { get; }
         public override SyntaxType type => SyntaxType.COMPILATION_UNIT;
 
-        public CompilationUnit(ImmutableArray<Statement> statements_, Token eof_) {
+        public CompilationUnit(ImmutableArray<Statement> statements_, Token endOfFile_) {
             statements = statements_;
-            eof = eof_;
+            endOfFile = endOfFile_;
         }
     }
 }

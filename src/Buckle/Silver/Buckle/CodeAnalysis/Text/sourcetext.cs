@@ -15,7 +15,7 @@ namespace Buckle.CodeAnalysis.Text {
             text_ = text;
         }
 
-        public int GetLineIndex(int pos) {
+        public int GetLineIndex(int position) {
             int lower = 0;
             int upper = lines.Length - 1;
 
@@ -23,8 +23,8 @@ namespace Buckle.CodeAnalysis.Text {
                 int index = lower + (upper - lower) / 2;
                 int start = lines[index].start;
 
-                if (pos == start) return index;
-                if (start > pos) upper = index - 1;
+                if (position == start) return index;
+                if (start > position) upper = index - 1;
                 else lower = index + 1;
             }
 
@@ -34,30 +34,31 @@ namespace Buckle.CodeAnalysis.Text {
         private static ImmutableArray<TextLine> ParseLines(SourceText pointer, string text) {
             var result = ImmutableArray.CreateBuilder<TextLine>();
 
-            int pos = 0;
-            int linestart = 0;
+            int position = 0;
+            int lineStart = 0;
 
-            while (pos < text.Length) {
-                var linebreakwidth = GetLineBreakWidth(text, pos);
+            while (position < text.Length) {
+                var linebreakWidth = GetLineBreakWidth(text, position);
 
-                if (linebreakwidth == 0) pos++;
+                if (linebreakWidth == 0) position++;
                 else {
-                    AddLine(result, pointer, pos, linestart, linebreakwidth);
+                    AddLine(result, pointer, position, lineStart, linebreakWidth);
 
-                    pos += linebreakwidth;
-                    linestart = pos;
+                    position += linebreakWidth;
+                    lineStart = position;
                 }
             }
 
-            if (pos >= linestart)
-                AddLine(result, pointer, pos, linestart, 0);
+            if (position >= lineStart)
+                AddLine(result, pointer, position, lineStart, 0);
 
             return result.ToImmutable();
         }
 
-        private static void AddLine(ImmutableArray<TextLine>.Builder result, SourceText pointer, int pos, int linestart, int linebreakwidth) {
-            var linelen = pos - linestart;
-            var line = new TextLine(pointer, linestart, linelen, linelen + linebreakwidth);
+        private static void AddLine(ImmutableArray<TextLine>.Builder result, SourceText pointer,
+            int position, int lineStart, int linebreakWidth) {
+            var lineLength = position - lineStart;
+            var line = new TextLine(pointer, lineStart, lineLength, lineLength + linebreakWidth);
             result.Add(line);
         }
 

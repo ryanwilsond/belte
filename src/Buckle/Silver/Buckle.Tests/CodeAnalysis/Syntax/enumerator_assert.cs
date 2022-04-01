@@ -6,23 +6,23 @@ using Xunit;
 
 namespace Buckle.Tests.CodeAnalysis.Syntax {
     internal sealed class AssertingEnumerator : IDisposable {
-        private readonly IEnumerator<Node> _enumerator;
-        private bool _hasErrors;
+        private readonly IEnumerator<Node> enumerator_;
+        private bool hasErrors_;
 
         public AssertingEnumerator(Node node) {
-            _enumerator = Flatten(node).GetEnumerator();
+            enumerator_ = Flatten(node).GetEnumerator();
         }
 
         private bool MarkFailed() {
-            _hasErrors = true;
+            hasErrors_ = true;
             return false;
         }
 
         public void Dispose() {
-            if (!_hasErrors)
-                Assert.False(_enumerator.MoveNext());
+            if (!hasErrors_)
+                Assert.False(enumerator_.MoveNext());
 
-            _enumerator.Dispose();
+            enumerator_.Dispose();
         }
 
         private static IEnumerable<Node> Flatten(Node node) {
@@ -32,18 +32,18 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             while (stack.Count > 0) {
                 var n = stack.Pop();
                 yield return n;
-                IEnumerable<Node> nlist = n.GetChildren();
+                IEnumerable<Node> nodeList = n.GetChildren();
 
-                foreach (var child in nlist.Reverse())
+                foreach (var child in nodeList.Reverse())
                     stack.Push(child);
             }
         }
 
         public void AssertNode(SyntaxType type) {
             try {
-                Assert.True(_enumerator.MoveNext());
-                Assert.Equal(type,_enumerator.Current.type);
-                Assert.IsNotType<Token>(_enumerator.Current);
+                Assert.True(enumerator_.MoveNext());
+                Assert.Equal(type,enumerator_.Current.type);
+                Assert.IsNotType<Token>(enumerator_.Current);
             } catch when (MarkFailed()) {
                 throw;
             }
@@ -51,9 +51,9 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
 
         public void AssertToken(SyntaxType type, string text) {
             try {
-                Assert.True(_enumerator.MoveNext());
-                Assert.Equal(type,_enumerator.Current.type);
-                var token = Assert.IsType<Token>(_enumerator.Current);
+                Assert.True(enumerator_.MoveNext());
+                Assert.Equal(type,enumerator_.Current.type);
+                var token = Assert.IsType<Token>(enumerator_.Current);
                 Assert.Equal(text, token.text);
             } catch when (MarkFailed()) {
                 throw;

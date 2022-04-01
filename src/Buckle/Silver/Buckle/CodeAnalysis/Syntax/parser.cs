@@ -6,24 +6,24 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal sealed class Parser {
         private readonly ImmutableArray<Token> tokens_;
-        private int pos_;
+        private int position_;
         private readonly SourceText text_;
         public DiagnosticQueue diagnostics;
 
         private Token Match(SyntaxType type) {
             if (current.type == type) return Next();
             diagnostics.Push(Error.UnexpectedToken(current.span, current.type, type));
-            return new Token(type, current.pos, null, null);
+            return new Token(type, current.position, null, null);
         }
 
         private Token Next() {
             Token cur = current;
-            pos_++;
+            position_++;
             return cur;
         }
 
         private Token Peek(int offset) {
-            int index = pos_ + offset;
+            int index = position_ + offset;
             if (index >= tokens_.Length) return tokens_[tokens_.Length-1];
             return tokens_[index];
         }
@@ -36,7 +36,6 @@ namespace Buckle.CodeAnalysis.Syntax {
             Lexer lexer = new Lexer(text);
             Token token;
             text_ = text;
-            pos_ = 0;
 
             do {
                 token = lexer.LexNext();
@@ -57,8 +56,8 @@ namespace Buckle.CodeAnalysis.Syntax {
                 statements.Add(statement);
             }
 
-            var eof = Match(SyntaxType.EOF);
-            return new CompilationUnit(statements.ToImmutable(), eof);
+            var endOfFile = Match(SyntaxType.EOF);
+            return new CompilationUnit(statements.ToImmutable(), endOfFile);
         }
 
         private Statement ParseStatement() {
@@ -82,43 +81,44 @@ namespace Buckle.CodeAnalysis.Syntax {
         private Statement ParseVariableDeclaration() {
             var expected = current.type == SyntaxType.LET_KEYWORD ? SyntaxType.LET_KEYWORD : SyntaxType.AUTO_KEYWORD;
             var keyword = Match(expected);
-            var id = Match(SyntaxType.IDENTIFIER);
+            var identifier = Match(SyntaxType.IDENTIFIER);
             var equals = Match(SyntaxType.EQUALS);
-            var init = ParseExpression();
+            var initializer = ParseExpression();
             var semicolon = Match(SyntaxType.SEMICOLON);
 
-            return new VariableDeclaration(keyword, id, equals, init, semicolon);
+            return new VariableDeclaration(keyword, identifier, equals, initializer, semicolon);
         }
 
         private Statement ParseWhileStatement() {
             var keyword = Match(SyntaxType.WHILE_KEYWORD);
-            var lparen = Match(SyntaxType.LPAREN);
+            var openParenthesis = Match(SyntaxType.LPAREN);
             var condition = ParseExpression();
-            var rparen = Match(SyntaxType.RPAREN);
+            var closeParenthesis = Match(SyntaxType.RPAREN);
             var body = ParseStatement();
 
-            return new WhileStatement(keyword, lparen, condition, rparen, body);
+            return new WhileStatement(keyword, openParenthesis, condition, closeParenthesis, body);
         }
 
         private Statement ParseForStatement() {
             var keyword = Match(SyntaxType.FOR_KEYWORD);
-            var lparen = Match(SyntaxType.LPAREN);
-            var it = (VariableDeclaration)ParseVariableDeclaration();
+            var openParenthesis = Match(SyntaxType.LPAREN);
+            var stepper = (VariableDeclaration)ParseVariableDeclaration();
             var condition = ParseExpression();
             var semicolon = Match(SyntaxType.SEMICOLON);
             var statement = ParseAssignmentExpression();
             var step = (AssignmentExpression)statement;
-            var rparen = Match(SyntaxType.RPAREN);
+            var closeParenthesis = Match(SyntaxType.RPAREN);
             var body = ParseStatement();
 
-            return new ForStatement(keyword, lparen, it, condition, semicolon, step, rparen, body);
+            return new ForStatement(
+                keyword, openParenthesis, stepper, condition, semicolon, step, closeParenthesis, body);
         }
 
         private Statement ParseIfStatement() {
             var keyword = Match(SyntaxType.IF_KEYWORD);
-            var lparen = Match(SyntaxType.LPAREN);
+            var openParenthesis = Match(SyntaxType.LPAREN);
             var condition = ParseExpression();
-            var rparen = Match(SyntaxType.RPAREN);
+            var closeParenthesis = Match(SyntaxType.RPAREN);
             var statement = ParseStatement();
 
             // not allow nested if statements with else clause without braces
@@ -127,25 +127,25 @@ namespace Buckle.CodeAnalysis.Syntax {
             var inter = statement;
             while (inter.type == SyntaxType.IF_STATEMENT) {
                 nestedIf = true;
-                var interif = (IfStatement)inter;
+                var interIf = (IfStatement)inter;
 
-                if (interif.elseclause != null && interif.then.type != SyntaxType.BLOCK_STATEMENT)
-                    invalidElseSpans.Add(interif.elseclause.elsekeyword.span);
+                if (interIf.elseClause != null && interIf.then.type != SyntaxType.BLOCK_STATEMENT)
+                    invalidElseSpans.Add(interIf.elseClause.elseKeyword.span);
 
-                if (interif.then.type == SyntaxType.IF_STATEMENT)
-                    inter = interif.then;
+                if (interIf.then.type == SyntaxType.IF_STATEMENT)
+                    inter = interIf.then;
                 else break;
             }
-            var elseclause = ParseElseClause();
-            if (elseclause != null && statement.type != SyntaxType.BLOCK_STATEMENT && nestedIf)
-                invalidElseSpans.Add(elseclause.elsekeyword.span);
+            var elseClause = ParseElseClause();
+            if (elseClause != null && statement.type != SyntaxType.BLOCK_STATEMENT && nestedIf)
+                invalidElseSpans.Add(elseClause.elseKeyword.span);
 
             while (invalidElseSpans.Count > 0) {
                 diagnostics.Push(Error.AmbiguousElse(invalidElseSpans[0]));
                 invalidElseSpans.RemoveAt(0);
             }
 
-            return new IfStatement(keyword, lparen, condition, rparen, statement, elseclause);
+            return new IfStatement(keyword, openParenthesis, condition, closeParenthesis, statement, elseClause);
         }
 
         private ElseClause ParseElseClause() {
@@ -158,7 +158,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         private Statement ParseBlockStatement() {
             var statements = ImmutableArray.CreateBuilder<Statement>();
-            var lbrace = Match(SyntaxType.LBRACE);
+            var openBrace = Match(SyntaxType.LBRACE);
             var startToken = current;
 
             while (current.type != SyntaxType.EOF && current.type != SyntaxType.RBRACE) {
@@ -169,15 +169,15 @@ namespace Buckle.CodeAnalysis.Syntax {
                 startToken = current;
             }
 
-            var rbrace = Match(SyntaxType.RBRACE);
+            var closeBrace = Match(SyntaxType.RBRACE);
 
-            return new BlockStatement(lbrace, statements.ToImmutable(), rbrace);
+            return new BlockStatement(openBrace, statements.ToImmutable(), closeBrace);
         }
 
         private Statement ParseExpressionStatement() {
-            int prevCount = diagnostics.count;
+            int previousCount = diagnostics.count;
             var expression = ParseExpression();
-            bool popLast = prevCount != diagnostics.count;
+            bool popLast = previousCount != diagnostics.count;
             var semicolon = Match(SyntaxType.SEMICOLON);
 
             if (popLast) diagnostics.RemoveAt(diagnostics.count-1);
@@ -186,10 +186,10 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         private Expression ParseAssignmentExpression() {
             if (Peek(0).type == SyntaxType.IDENTIFIER && Peek(1).type == SyntaxType.EQUALS) {
-                var id = Next();
+                var identifier = Next();
                 var op = Next();
                 var right = ParseAssignmentExpression();
-                return new AssignmentExpression(id, op, right);
+                return new AssignmentExpression(identifier, op, right);
             }
 
             return ParseBinaryExpression();
@@ -242,20 +242,20 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         private Expression ParseParenExpression() {
             var left = Match(SyntaxType.LPAREN);
-            var expr = ParseExpression();
+            var expression = ParseExpression();
             var right = Match(SyntaxType.RPAREN);
-            return new ParenExpression(left, expr, right);
+            return new ParenExpression(left, expression, right);
         }
 
         private Expression ParseBooleanLiteral() {
-            var istrue = current.type == SyntaxType.TRUE_KEYWORD;
-            var keyword = istrue ? Match(SyntaxType.TRUE_KEYWORD) : Match(SyntaxType.FALSE_KEYWORD);
-            return new LiteralExpression(keyword, istrue);
+            var isTrue = current.type == SyntaxType.TRUE_KEYWORD;
+            var keyword = isTrue ? Match(SyntaxType.TRUE_KEYWORD) : Match(SyntaxType.FALSE_KEYWORD);
+            return new LiteralExpression(keyword, isTrue);
         }
 
         private Expression ParseNameExpression() {
-            var id = Match(SyntaxType.IDENTIFIER);
-            return new NameExpression(id);
+            var identifier = Match(SyntaxType.IDENTIFIER);
+            return new NameExpression(identifier);
         }
     }
 }

@@ -7,112 +7,115 @@ namespace Buckle.CodeAnalysis.Syntax {
     internal sealed class VariableDeclaration : Statement {
         public override SyntaxType type => SyntaxType.VARIABLE_DECLARATION_STATEMENT;
         public Token keyword { get; }
-        public Token id { get; }
+        public Token identifier { get; }
         public Token equals { get; }
-        public Expression init { get; }
+        public Expression initializer { get; }
         public Token semicolon { get; }
 
-        public VariableDeclaration(Token keyword_, Token id_, Token equals_, Expression init_, Token semicolon_) {
+        public VariableDeclaration(
+            Token keyword_, Token identifier_, Token equals_, Expression initializer_, Token semicolon_) {
             keyword = keyword_;
-            id = id_;
+            identifier = identifier_;
             equals = equals_;
-            init = init_;
+            initializer = initializer_;
             semicolon = semicolon_;
         }
     }
 
     internal sealed class BlockStatement : Statement {
-        public Token lbrace { get; }
+        public Token openBrace { get; }
         public ImmutableArray<Statement> statements { get; }
-        public Token rbrace { get; }
+        public Token closeBrace { get; }
         public override SyntaxType type => SyntaxType.BLOCK_STATEMENT;
 
-        public BlockStatement(Token lbrace_, ImmutableArray<Statement> statements_, Token rbrace_) {
-            lbrace = lbrace_;
+        public BlockStatement(Token openBrace_, ImmutableArray<Statement> statements_, Token closeBrace_) {
+            openBrace = openBrace_;
             statements = statements_;
-            rbrace = rbrace_;
+            closeBrace = closeBrace_;
         }
     }
 
     internal sealed class ExpressionStatement : Statement {
-        public Expression expr { get; }
+        public Expression expression { get; }
         public Token semicolon { get; }
         public override SyntaxType type => SyntaxType.EXPRESSION_STATEMENT;
 
-        public ExpressionStatement(Expression expr_, Token semicolon_) {
-            expr = expr_;
+        public ExpressionStatement(Expression expression_, Token semicolon_) {
+            expression = expression_;
             semicolon = semicolon_;
         }
     }
 
     internal sealed class IfStatement : Statement {
-        public Token ifkeyword { get; }
-        public Token lparen { get; }
+        public Token ifKeyword { get; }
+        public Token openParenthesis { get; }
         public Expression condition { get; }
-        public Token rparen { get; }
+        public Token closeParenthesis { get; }
         public Statement then { get; }
-        public ElseClause elseclause { get; }
+        public ElseClause elseClause { get; }
         public override SyntaxType type => SyntaxType.IF_STATEMENT;
 
-        public IfStatement(Token ifkeyword_, Token lparen_, Expression condition_, Token rparen_, Statement then_, ElseClause elseclause_) {
-            ifkeyword = ifkeyword_;
-            lparen = lparen_;
+        public IfStatement(Token ifKeyword_, Token openParenthesis_, Expression condition_,
+            Token closeParenthesis_, Statement then_, ElseClause elseClause_) {
+            ifKeyword = ifKeyword_;
+            openParenthesis = openParenthesis_;
             condition = condition_;
-            rparen = rparen_;
+            closeParenthesis = closeParenthesis_;
             then = then_;
-            elseclause = elseclause_;
+            elseClause = elseClause_;
         }
     }
 
     internal sealed class ElseClause : Node {
-        public Token elsekeyword { get; }
+        public Token elseKeyword { get; }
         public Statement then { get; }
         public override SyntaxType type => SyntaxType.ELSE_CLAUSE;
 
-        public ElseClause(Token elsekeyword_, Statement then_) {
-            elsekeyword = elsekeyword_;
+        public ElseClause(Token elseKeyword_, Statement then_) {
+            elseKeyword = elseKeyword_;
             then = then_;
         }
     }
 
     internal sealed class WhileStatement : Statement {
         public Token keyword { get; }
-        public Token lparen { get; }
+        public Token openParenthesis { get; }
         public Expression condition { get; }
-        public Token rparen { get; }
+        public Token closeParenthesis { get; }
         public Statement body { get; }
         public override SyntaxType type => SyntaxType.WHILE_STATEMENT;
 
-        public WhileStatement(Token keyword_, Token lparen_, Expression condition_, Token rparen_, Statement body_) {
+        public WhileStatement(
+            Token keyword_, Token openParenthesis_, Expression condition_, Token closeParenthesis_, Statement body_) {
             keyword = keyword_;
-            lparen = lparen_;
+            openParenthesis = openParenthesis_;
             condition = condition_;
-            rparen = rparen_;
+            closeParenthesis = closeParenthesis_;
             body = body_;
         }
     }
 
     internal sealed class ForStatement : Statement {
         public Token keyword { get; }
-        public Token lparen { get; }
-        public VariableDeclaration it { get; }
+        public Token openParenthesis { get; }
+        public VariableDeclaration stepper { get; }
         public Expression condition { get; }
         public Token semicolon { get; }
         public AssignmentExpression step { get; }
-        public Token rparen { get; }
+        public Token closeParenthesis { get; }
         public Statement body { get; }
         public override SyntaxType type => SyntaxType.FOR_STATEMENT;
 
         public ForStatement(
-            Token keyword_, Token lparen_, VariableDeclaration it_,
-            Expression condition_, Token semicolon_, AssignmentExpression step_, Token rparen_, Statement body_) {
+            Token keyword_, Token openParenthesis_, VariableDeclaration stepper_, Expression condition_,
+            Token semicolon_, AssignmentExpression step_, Token closeParenthesis_, Statement body_) {
             keyword = keyword_;
-            lparen = lparen_;
-            it = it_;
+            openParenthesis = openParenthesis_;
+            stepper = stepper_;
             condition = condition_;
             semicolon = semicolon_;
             step = step_;
-            rparen = rparen_;
+            closeParenthesis = closeParenthesis_;
             body = body_;
         }
     }
