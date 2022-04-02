@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Binding {
@@ -18,11 +17,33 @@ namespace Buckle.CodeAnalysis.Binding {
                     return RewriteForStatement((BoundForStatement)statement);
                 case BoundNodeType.ExpressionStatement:
                     return RewriteExpressionStatement((BoundExpressionStatement)statement);
+                case BoundNodeType.LabelStatement:
+                    return RewriteLabelStatement((BoundLabelStatement)statement);
+                case BoundNodeType.GotoStatement:
+                    return RewriteGotoStatement((BoundGotoStatement)statement);
+                case BoundNodeType.ConditionalGotoStatement:
+                    return RewriteConditionalGotoStatement((BoundConditionalGotoStatement)statement);
                 default: return null;
             }
         }
 
-        private BoundStatement RewriteExpressionStatement(BoundExpressionStatement statement) {
+        protected virtual BoundStatement RewriteLabelStatement(BoundLabelStatement statement) {
+            return statement;
+        }
+
+        protected virtual BoundStatement RewriteGotoStatement(BoundGotoStatement statement) {
+            return statement;
+        }
+
+        protected virtual BoundStatement RewriteConditionalGotoStatement(BoundConditionalGotoStatement statement) {
+            var condition = RewriteExpression(statement.condition);
+            if (condition == statement.condition)
+                return statement;
+
+            return new BoundConditionalGotoStatement(statement.label, condition);
+        }
+
+        protected virtual BoundStatement RewriteExpressionStatement(BoundExpressionStatement statement) {
             var expression = RewriteExpression(statement.expression);
             if (expression == statement.expression)
                 return statement;
@@ -30,7 +51,7 @@ namespace Buckle.CodeAnalysis.Binding {
             return new BoundExpressionStatement(expression);
         }
 
-        private BoundStatement RewriteForStatement(BoundForStatement statement) {
+        protected virtual BoundStatement RewriteForStatement(BoundForStatement statement) {
             var condition = RewriteExpression(statement.condition);
             var step = (BoundAssignmentExpression)RewriteAssignmentExpression(statement.step);
             var body = RewriteStatement(statement.body);
@@ -40,7 +61,7 @@ namespace Buckle.CodeAnalysis.Binding {
             return new BoundForStatement(statement.stepper, condition, step, body);
         }
 
-        private BoundStatement RewriteWhileStatement(BoundWhileStatement statement) {
+        protected virtual BoundStatement RewriteWhileStatement(BoundWhileStatement statement) {
             var condition = RewriteExpression(statement.condition);
             var body = RewriteStatement(statement.body);
             if (condition == statement.condition && body == statement.body)
@@ -49,7 +70,7 @@ namespace Buckle.CodeAnalysis.Binding {
             return new BoundWhileStatement(condition, body);
         }
 
-        private BoundStatement RewriteIfStatement(BoundIfStatement statement) {
+        protected virtual BoundStatement RewriteIfStatement(BoundIfStatement statement) {
             var condition = RewriteExpression(statement.condition);
             var then = RewriteStatement(statement.then);
             var elseStatement = statement.elseStatement == null ? null : RewriteStatement(statement.elseStatement);
@@ -59,7 +80,7 @@ namespace Buckle.CodeAnalysis.Binding {
             return new BoundIfStatement(condition, then, elseStatement);
         }
 
-        private BoundStatement RewriteVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
+        protected virtual BoundStatement RewriteVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
             var initializer = RewriteExpression(statement.initializer);
             if (initializer == statement.initializer)
                 return statement;
@@ -67,7 +88,7 @@ namespace Buckle.CodeAnalysis.Binding {
             return new BoundVariableDeclarationStatement(statement.variable, initializer);
         }
 
-        private BoundStatement RewriteBlockStatement(BoundBlockStatement statement) {
+        protected virtual BoundStatement RewriteBlockStatement(BoundBlockStatement statement) {
             ImmutableArray<BoundStatement>.Builder builder = null;
 
             for (int i=0; i<statement.statements.Length; i++) {
@@ -104,9 +125,13 @@ namespace Buckle.CodeAnalysis.Binding {
                 case BoundNodeType.UnaryExpression:
                     return RewriteUnaryExpression((BoundUnaryExpression)expression);
                 case BoundNodeType.EmptyExpression:
-                    return expression;
+                    return RewriteEmptyExpression((BoundEmptyExpression)expression);
                 default: return null;
             }
+        }
+
+        protected virtual BoundExpression RewriteEmptyExpression(BoundEmptyExpression expression) {
+            return expression;
         }
 
         protected virtual BoundExpression RewriteBinaryExpression(BoundBinaryExpression expression) {

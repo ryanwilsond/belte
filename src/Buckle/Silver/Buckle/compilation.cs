@@ -85,36 +85,20 @@ namespace Buckle {
             if (diagnostics.Any())
                 return new EvaluationResult(null, diagnostics);
 
-            EvaluationResult lastValue_ = new EvaluationResult();
-            DiagnosticQueue pastDiagnostics = new DiagnosticQueue();
-            pastDiagnostics.Move(diagnostics);
+            var statement = Lowerer.Lower(globalScope.statements);
 
-            foreach(var statement in globalScope.statements) {
-                var lowered = Lowerer.Lower(statement);
-                Evaluator eval = new Evaluator(lowered, variables);
-                lastValue_ = new EvaluationResult(eval.Evaluate(), pastDiagnostics);
-                pastDiagnostics.Move(lastValue_.diagnostics);
-            }
-
-            lastValue_.diagnostics.Move(pastDiagnostics);
-            return lastValue_;
+            var eval = new Evaluator(statement, variables);
+            var result = new EvaluationResult(eval.Evaluate(), diagnostics);
+            return result;
         }
 
         public Compilation ContinueWith(SyntaxTree tree) {
             return new Compilation(this, tree);
         }
 
-        private void EmitStatement(TextWriter writer, int index, bool isLast=false) {
-            var statement = Lowerer.Lower(globalScope.statements[index]);
-            globalScope.statements[index].WriteTo(writer, isLast);
-        }
-
         public void EmitTree(TextWriter writer) {
-            for (int i=0; i<globalScope.statements.Length-1; i++) {
-                EmitStatement(writer, i);
-            }
-
-            EmitStatement(writer, globalScope.statements.Length-1, true);
+            var statement = Lowerer.Lower(globalScope.statements);
+            statement.WriteTo(writer);
         }
     }
 

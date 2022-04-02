@@ -5,73 +5,64 @@ using Buckle.CodeAnalysis.Binding;
 namespace Buckle.CodeAnalysis {
 
     internal sealed class Evaluator {
-        private readonly BoundStatement root_;
+        private readonly BoundBlockStatement root_;
         public DiagnosticQueue diagnostics;
         private readonly Dictionary<VariableSymbol, object> variables_;
         private object lastValue_;
 
-        public Evaluator(BoundStatement root, Dictionary<VariableSymbol, object> variables) {
+        public Evaluator(BoundBlockStatement root, Dictionary<VariableSymbol, object> variables) {
             root_ = root;
             diagnostics = new DiagnosticQueue();
             variables_ = variables;
         }
 
         public object Evaluate() {
-            EvaluateStatement(root_);
+            var labelToIndex = new Dictionary<LabelSymbol, int>();
+
+            for (int i=0; i<root_.statements.Length; i++) {
+                if (root_.statements[i] is BoundLabelStatement l)
+                    labelToIndex.Add(l.label, i+1);
+            }
+
+            var index = 0;
+            while (index < root_.statements.Length) {
+                var s = root_.statements[index];
+
+                switch (s.type) {
+                    case BoundNodeType.ExpressionStatement:
+                        EvaluateExpressionStatement((BoundExpressionStatement)s);
+                        index++;
+                        break;
+                    case BoundNodeType.VariableDeclarationStatement:
+                        EvaluateVariableDeclarationStatement((BoundVariableDeclarationStatement)s);
+                        index++;
+                        break;
+                    case BoundNodeType.GotoStatement:
+                        var gs = (BoundGotoStatement)s;
+                        index = labelToIndex[gs.label];
+                        break;
+                    case BoundNodeType.ConditionalGotoStatement:
+                        var cgs = (BoundConditionalGotoStatement)s;
+                        var condition = (bool)EvaluateExpression(cgs.condition);
+
+                        if (condition && !cgs.jumpIfFalse ||
+                            !condition && cgs.jumpIfFalse)
+                            index = labelToIndex[cgs.label];
+                        else
+                            index++;
+
+                        break;
+                    case BoundNodeType.LabelStatement:
+                        index++;
+                        break;
+                    default:
+                        diagnostics.Push(DiagnosticType.Fatal, $"unexpected statement '{s.type}'");
+                        index++;
+                        break;
+                }
+            }
+
             return lastValue_;
-        }
-
-        private void EvaluateStatement(BoundStatement statement) {
-            switch(statement.type) {
-                case BoundNodeType.BlockStatement:
-                    EvaluateBlockStatement((BoundBlockStatement)statement);
-                    break;
-                case BoundNodeType.ExpressionStatement:
-                    EvaluateExpressionStatement((BoundExpressionStatement)statement);
-                    break;
-                case BoundNodeType.VariableDeclarationStatement:
-                    EvaluateVariableDeclarationStatement((BoundVariableDeclarationStatement)statement);
-                    break;
-                case BoundNodeType.IfStatement:
-                    EvaluateIfStatement((BoundIfStatement)statement);
-                    break;
-                case BoundNodeType.WhileStatement:
-                    EvaluateWhileStatement((BoundWhileStatement)statement);
-                    break;
-                case BoundNodeType.ForStatement:
-                    EvaluateForStatement((BoundForStatement)statement);
-                    break;
-                default:
-                    diagnostics.Push(DiagnosticType.Fatal, $"unexpected statement '{statement.type}'");
-                    break;
-            }
-        }
-
-        private void EvaluateWhileStatement(BoundWhileStatement statement) {
-            while ((bool)EvaluateExpression(statement.condition))
-                EvaluateStatement(statement.body);
-        }
-
-        private void EvaluateForStatement(BoundForStatement statement) {
-            EvaluateVariableDeclarationStatement(statement.stepper);
-
-            while ((bool)EvaluateExpression(statement.condition)) {
-                EvaluateStatement(statement.body);
-                EvaluateAssignment(statement.step);
-            }
-        }
-
-        private void EvaluateIfStatement(BoundIfStatement statement) {
-            var condition = (bool)EvaluateExpression(statement.condition);
-            if (condition)
-                EvaluateStatement(statement.then);
-            else if (statement.elseStatement != null)
-                EvaluateStatement(statement.elseStatement);
-        }
-
-        private void EvaluateBlockStatement(BoundBlockStatement statement) {
-            foreach (var state in statement.statements)
-                EvaluateStatement(state);
         }
 
         private void EvaluateExpressionStatement(BoundExpressionStatement statement) {

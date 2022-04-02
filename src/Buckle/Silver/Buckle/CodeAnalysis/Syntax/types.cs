@@ -42,7 +42,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         SHIFTRIGHT,
         LESSEQUAL,
         GREATEQUAL,
-        // expressions
+
         LITERAL_EXPR,
         BINARY_EXPR,
         UNARY_EXPR,
@@ -50,7 +50,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         NAME_EXPR,
         ASSIGN_EXPR,
         EMPTY_EXPR,
-        // keywords
+
         TRUE_KEYWORD,
         FALSE_KEYWORD,
         AUTO_KEYWORD,
@@ -59,7 +59,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         ELSE_KEYWORD,
         WHILE_KEYWORD,
         FOR_KEYWORD,
-        // statements
+
         BLOCK_STATEMENT,
         EXPRESSION_STATEMENT,
         VARIABLE_DECLARATION_STATEMENT,

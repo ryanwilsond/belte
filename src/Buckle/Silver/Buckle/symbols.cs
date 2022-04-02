@@ -11,5 +11,17 @@ namespace Buckle {
             lType = lType_;
             isReadOnly = isReadOnly_;
         }
+
+        public override string ToString() => name;
+    }
+
+    internal sealed class LabelSymbol {
+        public string name { get; }
+
+        internal LabelSymbol(string name_) {
+            name = name_;
+        }
+
+        public override string ToString() => name;
     }
 }
