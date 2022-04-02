@@ -26,7 +26,7 @@ namespace Buckle.CodeAnalysis.Lowering {
         private static BoundBlockStatement Flatten(ImmutableArray<BoundStatement> statements) {
             var builder = ImmutableArray.CreateBuilder<BoundStatement>();
             var stack = new Stack<BoundStatement>();
-            foreach (var statement in statements)
+            foreach (var statement in statements.Reverse())
                 stack.Push(statement);
 
             while (stack.Count > 0) {
