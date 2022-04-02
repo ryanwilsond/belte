@@ -118,8 +118,11 @@ namespace Buckle.CodeAnalysis.Syntax {
             if (node is Token t && t.value != null)
                 writer.Write($" {t.value}");
 
-            Console.ResetColor();
             writer.WriteLine();
+
+            if (isConsoleOut)
+                Console.ResetColor();
+
             indent += isLast ? "  " : "│ ";
             var lastChild = node.GetChildren().LastOrDefault();
 

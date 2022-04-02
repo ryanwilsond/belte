@@ -5,10 +5,10 @@ namespace Buckle.CodeAnalysis.Binding {
 
     internal enum BoundBinaryOperatorType {
         Invalid,
-        Add,
-        Subtract,
-        Multiply,
-        Divide,
+        Addition,
+        Subtraction,
+        Multiplication,
+        Division,
         Power,
         LogicalAnd,
         LogicalOr,
@@ -49,10 +49,10 @@ namespace Buckle.CodeAnalysis.Binding {
             : this(type, opType, lType, lType, lType) { }
 
         private static BoundBinaryOperator[] operators_ = {
-            new BoundBinaryOperator(SyntaxType.PLUS, BoundBinaryOperatorType.Add, typeof(int)),
-            new BoundBinaryOperator(SyntaxType.MINUS, BoundBinaryOperatorType.Subtract, typeof(int)),
-            new BoundBinaryOperator(SyntaxType.ASTERISK, BoundBinaryOperatorType.Multiply, typeof(int)),
-            new BoundBinaryOperator(SyntaxType.SLASH, BoundBinaryOperatorType.Divide, typeof(int)),
+            new BoundBinaryOperator(SyntaxType.PLUS, BoundBinaryOperatorType.Addition, typeof(int)),
+            new BoundBinaryOperator(SyntaxType.MINUS, BoundBinaryOperatorType.Subtraction, typeof(int)),
+            new BoundBinaryOperator(SyntaxType.ASTERISK, BoundBinaryOperatorType.Multiplication, typeof(int)),
+            new BoundBinaryOperator(SyntaxType.SLASH, BoundBinaryOperatorType.Division, typeof(int)),
             new BoundBinaryOperator(SyntaxType.DASTERISK, BoundBinaryOperatorType.Power, typeof(int)),
             new BoundBinaryOperator(SyntaxType.AMPERSAND, BoundBinaryOperatorType.LogicalAnd, typeof(int)),
             new BoundBinaryOperator(SyntaxType.PIPE, BoundBinaryOperatorType.LogicalOr, typeof(int)),

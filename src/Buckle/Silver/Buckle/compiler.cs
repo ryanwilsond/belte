@@ -60,6 +60,7 @@ namespace Buckle {
             state.linkOutputContent = null;
             diagnostics.Clear();
             bool showTree = false;
+            bool showProgramTree = false;
             var variables = new Dictionary<VariableSymbol, object>();
             var textBuilder = new StringBuilder();
             Compilation previousCompilation = null;
@@ -84,6 +85,10 @@ namespace Buckle {
                         showTree = !showTree;
                         Console.WriteLine(showTree ? "Parse-trees visible" : "Parse-trees hidden");
                         continue;
+                    } else if (line == "#showProgramTree") {
+                        showProgramTree = !showProgramTree;
+                        Console.WriteLine(showProgramTree ? "Bound-trees visible" : "Bound-trees hidden");
+                        continue;
                     } else if (line == "#clear" || line == "#cls") {
                         Console.Clear();
                         continue;
@@ -104,7 +109,8 @@ namespace Buckle {
 
                 state.sourceText = compilation.tree.text;
 
-                if (showTree) compilation.tree.root.WriteTo(Console.Out);
+                if (showTree) syntaxTree.root.WriteTo(Console.Out);
+                if (showProgramTree) compilation.EmitTree(Console.Out);
 
                 var result = compilation.Evaluate(variables);
 
@@ -113,7 +119,7 @@ namespace Buckle {
                     if (callback != null)
                         callback(this);
                 } else {
-                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.ForegroundColor = ConsoleColor.Magenta;
                     Console.WriteLine(result.value);
                     Console.ResetColor();
                     previousCompilation = compilation; // prevents chaining a statement that had errors

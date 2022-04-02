@@ -5,6 +5,8 @@ using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Text;
 using Buckle.CodeAnalysis.Syntax;
+using System.IO;
+using System;
 
 namespace Buckle {
 
@@ -53,12 +55,12 @@ namespace Buckle {
         private BoundGlobalScope globalScope_;
         public DiagnosticQueue diagnostics;
         public SyntaxTree tree;
-        public Compilation prev;
+        public Compilation previous;
 
         internal BoundGlobalScope globalScope {
             get {
                 if (globalScope_ == null) {
-                    var tempScope = Binder.BindGlobalScope(prev?.globalScope, tree.root);
+                    var tempScope = Binder.BindGlobalScope(previous?.globalScope, tree.root);
                     // makes assignment thread-safe
                     // so if multiple threads try and initialize they use whoever did it first
                     Interlocked.CompareExchange(ref globalScope_, tempScope, null);
@@ -70,10 +72,10 @@ namespace Buckle {
 
         public Compilation(SyntaxTree tree) : this(null, tree) { }
 
-        private Compilation(Compilation prev_, SyntaxTree tree_) {
+        private Compilation(Compilation previous_, SyntaxTree tree_) {
             diagnostics = new DiagnosticQueue();
             diagnostics.Move(tree_.diagnostics);
-            prev = prev_;
+            previous = previous_;
             tree = tree_;
         }
 
@@ -99,6 +101,13 @@ namespace Buckle {
 
         public Compilation ContinueWith(SyntaxTree tree) {
             return new Compilation(this, tree);
+        }
+
+        public void EmitTree(TextWriter writer) {
+            for (int i=0; i<globalScope.statements.Length-1; i++)
+                globalScope.statements[i].WriteTo(writer, true);
+
+            globalScope.statements[globalScope.statements.Length-1].WriteTo(writer);
         }
     }
 
