@@ -57,7 +57,7 @@ namespace Buckle.CodeAnalysis.Binding {
                 case SyntaxType.BLOCK_STATEMENT: return BindBlockStatement((BlockStatement)syntax);
                 case SyntaxType.EXPRESSION_STATEMENT: return BindExpressionStatement((ExpressionStatement)syntax);
                 case SyntaxType.VARIABLE_DECLARATION_STATEMENT:
-                    return BindVariableDeclaration((VariableDeclaration)syntax);
+                    return BindVariableDeclarationStatement((VariableDeclarationStatement)syntax);
                 case SyntaxType.IF_STATEMENT: return BindIfStatement((IfStatement)syntax);
                 case SyntaxType.WHILE_STATEMENT: return BindWhileStatement((WhileStatement)syntax);
                 case SyntaxType.FOR_STATEMENT: return BindForStatement((ForStatement)syntax);
@@ -75,6 +75,7 @@ namespace Buckle.CodeAnalysis.Binding {
                 case SyntaxType.PAREN_EXPR: return BindParenExpression((ParenExpression)expression);
                 case SyntaxType.NAME_EXPR: return BindNameExpression((NameExpression)expression);
                 case SyntaxType.ASSIGN_EXPR: return BindAssignmentExpression((AssignmentExpression)expression);
+                case SyntaxType.EMPTY_EXPR: return BindEmptyExpression((EmptyExpression)expression);
                 default:
                     diagnostics.Push(DiagnosticType.Fatal, $"unexpected syntax {expression.type}");
                     return null;
@@ -98,7 +99,7 @@ namespace Buckle.CodeAnalysis.Binding {
         private BoundStatement BindForStatement(ForStatement statement) {
             scope_ = new BoundScope(scope_);
 
-            var stepper = (BoundVariableDeclaration)BindVariableDeclaration(statement.stepper);
+            var stepper = (BoundVariableDeclarationStatement)BindVariableDeclarationStatement(statement.stepper);
             var condition = BindExpression(statement.condition);
             var step = (BoundAssignmentExpression)BindAssignmentExpression(statement.step);
             var body = BindStatement(statement.body);
@@ -184,6 +185,10 @@ namespace Buckle.CodeAnalysis.Binding {
             return new BoundLiteralExpression(0);
         }
 
+        private BoundExpression BindEmptyExpression(EmptyExpression expression) {
+            return new BoundEmptyExpression();
+        }
+
         private BoundExpression BindAssignmentExpression(AssignmentExpression expression) {
             var name = expression.identifier.text;
             var boundExpression = BindExpression(expression.expression);
@@ -205,7 +210,7 @@ namespace Buckle.CodeAnalysis.Binding {
             return new BoundAssignmentExpression(variable, boundExpression);
         }
 
-        private BoundStatement BindVariableDeclaration(VariableDeclaration expression) {
+        private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatement expression) {
             var name = expression.identifier.text;
             var isReadOnly = expression.keyword.type == SyntaxType.LET_KEYWORD;
             var boundExpression = BindExpression(expression.initializer);
@@ -215,7 +220,7 @@ namespace Buckle.CodeAnalysis.Binding {
                 diagnostics.Push(Error.AlreadyDeclared(expression.identifier.span, name));
             }
 
-            return new BoundVariableDeclaration(variable, boundExpression);
+            return new BoundVariableDeclarationStatement(variable, boundExpression);
         }
     }
 }

@@ -7,6 +7,8 @@ using Xunit;
 namespace Buckle.Tests.CodeAnalysis {
     public class EvaluatorTests {
         [Theory]
+        [InlineData(";", null)]
+
         [InlineData("1;", 1)]
         [InlineData("+1;", 1)]
         [InlineData("-1;", -1)]

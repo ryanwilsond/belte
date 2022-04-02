@@ -49,6 +49,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         PAREN_EXPR,
         NAME_EXPR,
         ASSIGN_EXPR,
+        EMPTY_EXPR,
         // keywords
         TRUE_KEYWORD,
         FALSE_KEYWORD,

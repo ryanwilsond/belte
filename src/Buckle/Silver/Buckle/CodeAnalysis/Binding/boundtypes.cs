@@ -14,6 +14,7 @@ namespace Buckle.CodeAnalysis.Binding {
         BinaryExpression,
         VariableExpression,
         AssignmentExpression,
+        EmptyExpression,
         BlockStatement,
         ExpressionStatement,
         VariableDeclarationStatement,
@@ -63,8 +64,8 @@ namespace Buckle.CodeAnalysis.Binding {
             }
         }
 
-        public void WriteTo(TextWriter writer, bool multipleStatements=false) {
-            PrettyPrint(writer, this, !multipleStatements);
+        public void WriteTo(TextWriter writer, bool isLast=false) {
+            PrettyPrint(writer, this, isLast);
         }
 
         private ConsoleColor GetColor(BoundNode node) {
@@ -184,6 +185,13 @@ namespace Buckle.CodeAnalysis.Binding {
         }
     }
 
+    internal sealed class BoundEmptyExpression : BoundExpression {
+        public override BoundNodeType type => BoundNodeType.EmptyExpression;
+        public override Type lType => null;
+
+        public BoundEmptyExpression() {}
+    }
+
     internal abstract class BoundStatement : BoundNode { }
 
     internal sealed class BoundBlockStatement : BoundStatement {
@@ -204,12 +212,12 @@ namespace Buckle.CodeAnalysis.Binding {
         }
     }
 
-    internal sealed class BoundVariableDeclaration : BoundStatement {
+    internal sealed class BoundVariableDeclarationStatement : BoundStatement {
         public VariableSymbol variable { get; }
         public BoundExpression initializer { get; }
         public override BoundNodeType type => BoundNodeType.VariableDeclarationStatement;
 
-        public BoundVariableDeclaration(VariableSymbol variable_, BoundExpression initializer_) {
+        public BoundVariableDeclarationStatement(VariableSymbol variable_, BoundExpression initializer_) {
             variable = variable_;
             initializer = initializer_;
         }
@@ -240,14 +248,14 @@ namespace Buckle.CodeAnalysis.Binding {
     }
 
     internal sealed class BoundForStatement : BoundStatement {
-        public BoundVariableDeclaration stepper { get; }
+        public BoundVariableDeclarationStatement stepper { get; }
         public BoundExpression condition { get; }
         public BoundAssignmentExpression step { get; }
         public BoundStatement body { get; }
         public override BoundNodeType type => BoundNodeType.ForStatement;
 
         public BoundForStatement(
-            BoundVariableDeclaration stepper_, BoundExpression condition_,
+            BoundVariableDeclarationStatement stepper_, BoundExpression condition_,
             BoundAssignmentExpression step_, BoundStatement body_) {
             stepper = stepper_;
             condition = condition_;

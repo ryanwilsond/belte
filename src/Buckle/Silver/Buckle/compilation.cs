@@ -6,7 +6,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Text;
 using Buckle.CodeAnalysis.Syntax;
 using System.IO;
-using System;
+using Buckle.CodeAnalysis.Lowering;
 
 namespace Buckle {
 
@@ -90,7 +90,8 @@ namespace Buckle {
             pastDiagnostics.Move(diagnostics);
 
             foreach(var statement in globalScope.statements) {
-                Evaluator eval = new Evaluator(statement, variables);
+                var lowered = Lowerer.Lower(statement);
+                Evaluator eval = new Evaluator(lowered, variables);
                 lastValue_ = new EvaluationResult(eval.Evaluate(), pastDiagnostics);
                 pastDiagnostics.Move(lastValue_.diagnostics);
             }
@@ -103,11 +104,17 @@ namespace Buckle {
             return new Compilation(this, tree);
         }
 
-        public void EmitTree(TextWriter writer) {
-            for (int i=0; i<globalScope.statements.Length-1; i++)
-                globalScope.statements[i].WriteTo(writer, true);
+        private void EmitStatement(TextWriter writer, int index, bool isLast=false) {
+            var statement = Lowerer.Lower(globalScope.statements[index]);
+            globalScope.statements[index].WriteTo(writer, isLast);
+        }
 
-            globalScope.statements[globalScope.statements.Length-1].WriteTo(writer);
+        public void EmitTree(TextWriter writer) {
+            for (int i=0; i<globalScope.statements.Length-1; i++) {
+                EmitStatement(writer, i);
+            }
+
+            EmitStatement(writer, globalScope.statements.Length-1, true);
         }
     }
 

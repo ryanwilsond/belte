@@ -30,7 +30,7 @@ namespace Buckle.CodeAnalysis {
                     EvaluateExpressionStatement((BoundExpressionStatement)statement);
                     break;
                 case BoundNodeType.VariableDeclarationStatement:
-                    EvaluateVariableDeclaration((BoundVariableDeclaration)statement);
+                    EvaluateVariableDeclarationStatement((BoundVariableDeclarationStatement)statement);
                     break;
                 case BoundNodeType.IfStatement:
                     EvaluateIfStatement((BoundIfStatement)statement);
@@ -53,7 +53,7 @@ namespace Buckle.CodeAnalysis {
         }
 
         private void EvaluateForStatement(BoundForStatement statement) {
-            EvaluateVariableDeclaration(statement.stepper);
+            EvaluateVariableDeclarationStatement(statement.stepper);
 
             while ((bool)EvaluateExpression(statement.condition)) {
                 EvaluateStatement(statement.body);
@@ -78,7 +78,7 @@ namespace Buckle.CodeAnalysis {
             lastValue_ = EvaluateExpression(statement.expression);
         }
 
-        private void EvaluateVariableDeclaration(BoundVariableDeclaration statement) {
+        private void EvaluateVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
             var value = EvaluateExpression(statement.initializer);
             variables_[statement.variable] = value;
             lastValue_ = value;

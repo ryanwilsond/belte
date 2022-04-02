@@ -74,4 +74,10 @@ namespace Buckle.CodeAnalysis.Syntax {
             expression = expression_;
         }
     }
+
+    internal sealed class EmptyExpression : Expression {
+        public override SyntaxType type => SyntaxType.EMPTY_EXPR;
+
+        public EmptyExpression() {}
+    }
 }

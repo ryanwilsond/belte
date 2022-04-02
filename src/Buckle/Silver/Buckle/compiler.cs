@@ -119,9 +119,12 @@ namespace Buckle {
                     if (callback != null)
                         callback(this);
                 } else {
-                    Console.ForegroundColor = ConsoleColor.Magenta;
-                    Console.WriteLine(result.value);
-                    Console.ResetColor();
+                    if (result.value != null) {
+                        Console.ForegroundColor = ConsoleColor.Magenta;
+                        Console.WriteLine(result.value);
+                        Console.ResetColor();
+                    }
+
                     previousCompilation = compilation; // prevents chaining a statement that had errors
                 }
 

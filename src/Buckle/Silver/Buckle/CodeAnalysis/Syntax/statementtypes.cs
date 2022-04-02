@@ -4,7 +4,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal abstract class Statement : Node { }
 
-    internal sealed class VariableDeclaration : Statement {
+    internal sealed class VariableDeclarationStatement : Statement {
         public override SyntaxType type => SyntaxType.VARIABLE_DECLARATION_STATEMENT;
         public Token keyword { get; }
         public Token identifier { get; }
@@ -12,7 +12,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Expression initializer { get; }
         public Token semicolon { get; }
 
-        public VariableDeclaration(
+        public VariableDeclarationStatement(
             Token keyword_, Token identifier_, Token equals_, Expression initializer_, Token semicolon_) {
             keyword = keyword_;
             identifier = identifier_;
@@ -98,7 +98,7 @@ namespace Buckle.CodeAnalysis.Syntax {
     internal sealed class ForStatement : Statement {
         public Token keyword { get; }
         public Token openParenthesis { get; }
-        public VariableDeclaration stepper { get; }
+        public VariableDeclarationStatement stepper { get; }
         public Expression condition { get; }
         public Token semicolon { get; }
         public AssignmentExpression step { get; }
@@ -107,7 +107,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public override SyntaxType type => SyntaxType.FOR_STATEMENT;
 
         public ForStatement(
-            Token keyword_, Token openParenthesis_, VariableDeclaration stepper_, Expression condition_,
+            Token keyword_, Token openParenthesis_, VariableDeclarationStatement stepper_, Expression condition_,
             Token semicolon_, AssignmentExpression step_, Token closeParenthesis_, Statement body_) {
             keyword = keyword_;
             openParenthesis = openParenthesis_;

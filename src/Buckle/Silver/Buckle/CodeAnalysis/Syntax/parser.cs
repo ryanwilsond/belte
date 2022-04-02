@@ -66,7 +66,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                     return ParseBlockStatement();
                 case SyntaxType.LET_KEYWORD:
                 case SyntaxType.AUTO_KEYWORD:
-                    return ParseVariableDeclaration();
+                    return ParseVariableDeclarationStatement();
                 case SyntaxType.IF_KEYWORD:
                     return ParseIfStatement();
                 case SyntaxType.WHILE_KEYWORD:
@@ -78,7 +78,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             }
         }
 
-        private Statement ParseVariableDeclaration() {
+        private Statement ParseVariableDeclarationStatement() {
             var expected = current.type == SyntaxType.LET_KEYWORD ? SyntaxType.LET_KEYWORD : SyntaxType.AUTO_KEYWORD;
             var keyword = Match(expected);
             var identifier = Match(SyntaxType.IDENTIFIER);
@@ -86,7 +86,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             var initializer = ParseExpression();
             var semicolon = Match(SyntaxType.SEMICOLON);
 
-            return new VariableDeclaration(keyword, identifier, equals, initializer, semicolon);
+            return new VariableDeclarationStatement(keyword, identifier, equals, initializer, semicolon);
         }
 
         private Statement ParseWhileStatement() {
@@ -102,7 +102,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         private Statement ParseForStatement() {
             var keyword = Match(SyntaxType.FOR_KEYWORD);
             var openParenthesis = Match(SyntaxType.LPAREN);
-            var stepper = (VariableDeclaration)ParseVariableDeclaration();
+            var stepper = (VariableDeclarationStatement)ParseVariableDeclarationStatement();
             var condition = ParseExpression();
             var semicolon = Match(SyntaxType.SEMICOLON);
             var statement = ParseAssignmentExpression();
@@ -196,7 +196,14 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         private Expression ParseExpression() {
+            if (current.type == SyntaxType.SEMICOLON)
+                return ParseEmptyExpression();
+
             return ParseAssignmentExpression();
+        }
+
+        private Expression ParseEmptyExpression() {
+            return new EmptyExpression();
         }
 
         private Expression ParseBinaryExpression(int parentPrecedence = 0) {
