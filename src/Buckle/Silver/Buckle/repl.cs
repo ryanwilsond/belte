@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using System.Text;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle;
 
-namespace Buckle {
+namespace CommandLine {
     internal struct ReplState {
         public Compilation previous;
         public bool showTree;
@@ -14,12 +14,15 @@ namespace Buckle {
         public bool done;
     }
 
-    internal abstract class Repl {
+    public abstract class Repl {
+        public delegate int ErrorHandle(Compiler compiler, string me = null);
+        private List<string> submissionHistory_ = new List<string>();
+        private int submissionHistoryIndex_;
         internal Compiler handle;
-        internal Compiler.ErrorHandle errorHandle;
+        internal ErrorHandle errorHandle;
         internal ReplState state;
 
-        public Repl(Compiler handle_, Compiler.ErrorHandle errorHandle_) {
+        public Repl(Compiler handle_, ErrorHandle errorHandle_) {
             handle = handle_;
             errorHandle = errorHandle_;
             state = new ReplState();
@@ -40,37 +43,46 @@ namespace Buckle {
                 string text = EditSubmission();
                 if (string.IsNullOrEmpty(text)) return;
 
-                EvaluateSubmission(text);
+                if (!text.Contains(Environment.NewLine) && text.StartsWith('#'))
+                    EvaluateReplCommand(text);
+                else
+                    EvaluateSubmission(text);
+
+                submissionHistory_.Add(text);
+                submissionHistoryIndex_ = 0;
             }
         }
 
         private sealed class SubmissionView {
+            private readonly Action<string> lineRenderer_;
             private readonly ObservableCollection<string> document_;
             private readonly int cursorTop_;
             private int renderedLineCount_;
-            private int currentLineIndex_;
-            private int curretCharacter_;
+            private int currentLine_;
+            private int currentCharacter_;
 
-            public int currentLineIndex {
-                get => currentLineIndex_;
+            public int currentLine {
+                get => currentLine_;
                 set {
-                    if (currentLineIndex_ != value) {
-                        currentLineIndex_ = value;
+                    if (currentLine_ != value) {
+                        currentLine_ = value;
+                        currentCharacter_ = Math.Min(document_[currentLine_].Length, currentCharacter_);
                         UpdateCursorPosition();
                     }
                 }
             }
             public int currentCharacter {
-                get => curretCharacter_;
+                get => currentCharacter_;
                 set {
-                    if (curretCharacter_ != value) {
-                        curretCharacter_ = value;
+                    if (currentCharacter_ != value) {
+                        currentCharacter_ = value;
                         UpdateCursorPosition();
                     }
                 }
             }
 
-            public SubmissionView(ObservableCollection<string> document) {
+            public SubmissionView(Action<string> lineRenderer, ObservableCollection<string> document) {
+                lineRenderer_ = lineRenderer;
                 document_ = document;
                 document_.CollectionChanged += SubmissionDocumentChanged;
                 cursorTop_ = Console.CursorTop;
@@ -95,16 +107,19 @@ namespace Buckle {
                         Console.Write("· ");
 
                     Console.ResetColor();
-                    Console.WriteLine(line);
+                    lineRenderer_(line);
+                    Console.Write(new string(' ', Console.WindowWidth - line.Length));
                     lineCount++;
                 }
 
                 var blankLineCount = renderedLineCount_ - lineCount;
 
-                string blankLine = new string(' ', Console.WindowWidth);
-                for (int i=0; i<blankLineCount; i++) {
-                    Console.SetCursorPosition(0, cursorTop_ + lineCount + i);
-                    Console.WriteLine(blankLine);
+                if (blankLineCount > 0) {
+                    string blankLine = new string(' ', Console.WindowWidth);
+                    for (int i=0; i<blankLineCount; i++) {
+                        Console.SetCursorPosition(0, cursorTop_ + lineCount + i);
+                        Console.WriteLine(blankLine);
+                    }
                 }
 
                 renderedLineCount_ = lineCount;
@@ -113,8 +128,8 @@ namespace Buckle {
             }
 
             private void UpdateCursorPosition() {
-                Console.CursorTop = cursorTop_ + currentLineIndex_;
-                Console.CursorLeft = 2 + curretCharacter_; // accounts for repl indentation
+                Console.CursorTop = cursorTop_ + currentLine_;
+                Console.CursorLeft = 2 + currentCharacter_; // accounts for repl indentation
             }
         }
 
@@ -122,12 +137,15 @@ namespace Buckle {
             state.done = false;
 
             var document = new ObservableCollection<string>() { "" };
-            var view = new SubmissionView(document);
+            var view = new SubmissionView(RenderLine, document);
 
             while (!state.done) {
                 var key = Console.ReadKey(true);
                 HandleKey(key, document, view);
             }
+
+            view.currentLine = document.Count - 1;
+            view.currentCharacter = document[view.currentLine].Length;
 
             Console.WriteLine();
 
@@ -152,6 +170,30 @@ namespace Buckle {
                     case ConsoleKey.DownArrow:
                         HandleDownArrow(document, view);
                         break;
+                    case ConsoleKey.Backspace:
+                        HandleBackspace(document, view);
+                        break;
+                    case ConsoleKey.Delete:
+                        HandleDelete(document, view);
+                        break;
+                    case ConsoleKey.Home:
+                        HandleHome(document, view);
+                        break;
+                    case ConsoleKey.End:
+                        HandleEnd(document, view);
+                        break;
+                    case ConsoleKey.Tab:
+                        HandleTab(document, view);
+                        break;
+                    case ConsoleKey.Escape:
+                        HandleEscape(document, view);
+                        break;
+                    case ConsoleKey.PageUp:
+                        HandlePageUp(document, view);
+                        break;
+                    case ConsoleKey.PageDown:
+                        HandlePageDown(document, view);
+                        break;
                     default:
                         break;
                 }
@@ -163,10 +205,100 @@ namespace Buckle {
                     default:
                         break;
                 }
+            } else if (key.Modifiers == ConsoleModifiers.Shift) {
+                switch (key.Key) {
+                    case ConsoleKey.Enter:
+                        InsertLine(document, view);
+                        break;
+                    default:
+                        break;
+                }
             }
 
             if (key.KeyChar >= ' ')
                 HandleTyping(document, view, key.KeyChar.ToString());
+        }
+
+        private void HandlePageDown(ObservableCollection<string> document, SubmissionView view) {
+            submissionHistoryIndex_++;
+            if (submissionHistoryIndex_ > submissionHistory_.Count - 1)
+                submissionHistoryIndex_ = 0;
+            UpdateDocumentFromHistory(document, view);
+        }
+
+        private void HandlePageUp(ObservableCollection<string> document, SubmissionView view) {
+            submissionHistoryIndex_--;
+            if (submissionHistoryIndex_ < 0)
+                submissionHistoryIndex_ = submissionHistory_.Count - 1;
+            UpdateDocumentFromHistory(document, view);
+        }
+
+        private void UpdateDocumentFromHistory(ObservableCollection<string> document, SubmissionView view) {
+            document.Clear();
+
+            var historyItem = submissionHistory_[submissionHistoryIndex_];
+            var lines = historyItem.Split(Environment.NewLine);
+            foreach (var line in lines)
+                document.Add(line);
+
+            view.currentLine = document.Count - 1;
+            view.currentCharacter = document[view.currentLine].Length;
+        }
+
+        private void HandleEscape(ObservableCollection<string> document, SubmissionView view) {
+            document[view.currentLine] = string.Empty;
+            view.currentCharacter = 0;
+        }
+
+        private void HandleTab(ObservableCollection<string> document, SubmissionView view) {
+            const int tabWidth = 4;
+            var start = view.currentCharacter;
+            var remainingSpaces = tabWidth - start % tabWidth;
+            var line = document[view.currentLine];
+            document[view.currentLine] = line.Insert(start, new string(' ', remainingSpaces));
+            view.currentCharacter += remainingSpaces;
+        }
+
+        private void HandleHome(ObservableCollection<string> document, SubmissionView view) {
+            view.currentCharacter = 0;
+        }
+
+        private void HandleEnd(ObservableCollection<string> document, SubmissionView view) {
+            view.currentCharacter = document[view.currentLine].Length;
+        }
+
+        private void HandleDelete(ObservableCollection<string> document, SubmissionView view) {
+
+            var lineIndex = view.currentLine;
+            var line = document[lineIndex];
+            var start = view.currentCharacter;
+            if (start > line.Length - 1)
+                return;
+
+            var before = line.Substring(0, start);
+            var after = line.Substring(start + 1);
+            document[lineIndex] = before + after;
+        }
+
+        private void HandleBackspace(ObservableCollection<string> document, SubmissionView view) {
+            var start = view.currentCharacter;
+            if (start == 0) {
+                if (view.currentLine == 0) return;
+
+                var currentLine = document[view.currentLine];
+                var previousLine = document[view.currentLine - 1];
+                document.RemoveAt(view.currentLine);
+                view.currentLine--;
+                document[view.currentLine] = previousLine + currentLine;
+                view.currentCharacter = previousLine.Length;
+            } else {
+                var lineIndex = view.currentLine;
+                var line = document[lineIndex];
+                var before = line.Substring(0, start-1);
+                var after = line.Substring(start);
+                document[lineIndex] = before + after;
+                view.currentCharacter--;
+            }
         }
 
         private void HandleControlEnter(ObservableCollection<string> document, SubmissionView view) {
@@ -174,26 +306,26 @@ namespace Buckle {
         }
 
         private void HandleTyping(ObservableCollection<string> document, SubmissionView view, string text) {
-            var lineIndex = view.currentLineIndex;
+            var lineIndex = view.currentLine;
             var start = view.currentCharacter;
             document[lineIndex] = document[lineIndex].Insert(start, text);
             view.currentCharacter += text.Length;
         }
 
         private void HandleDownArrow(ObservableCollection<string> document, SubmissionView view) {
-            if (view.currentLineIndex < document.Count - 1)
-                view.currentLineIndex++;
+            if (view.currentLine < document.Count - 1)
+                view.currentLine++;
         }
 
         private void HandleUpArrow(ObservableCollection<string> document, SubmissionView view) {
-            if (view.currentLineIndex > 0)
-                view.currentLineIndex--;
+            if (view.currentLine > 0)
+                view.currentLine--;
         }
 
         private void HandleRightArrow(ObservableCollection<string> document, SubmissionView view) {
-            var line = document[view.currentLineIndex];
+            var line = document[view.currentLine];
 
-            if (view.currentCharacter < line.Length - 1)
+            if (view.currentCharacter <= line.Length - 1)
                 view.currentCharacter++;
         }
 
@@ -202,16 +334,33 @@ namespace Buckle {
                 view.currentCharacter--;
         }
 
-        private void HandleEnter(ObservableCollection<string> document, SubmissionView view) {
+        private void HandleEnter(ObservableCollection<string> document, SubmissionView view)
+        {
             var submissionText = string.Join(Environment.NewLine, document);
-            if (IsCompleteSubmission(submissionText)) {
+            if (submissionText.StartsWith('#') || IsCompleteSubmission(submissionText)) {
                 state.done = true;
                 return;
             }
 
-            document.Add(string.Empty);
+            InsertLine(document, view);
+        }
+
+        private static void InsertLine(ObservableCollection<string> document, SubmissionView view) {
+            var remainder = document[view.currentLine].Substring(view.currentCharacter);
+            document[view.currentLine] = document[view.currentLine].Substring(0, view.currentCharacter);
+
+            var lineIndex = view.currentLine + 1;
+            document.Insert(lineIndex, remainder);
             view.currentCharacter = 0;
-            view.currentLineIndex = document.Count - 1;
+            view.currentLine = lineIndex;
+        }
+
+        protected void ClearHistory() {
+            submissionHistory_.Clear();
+        }
+
+        protected virtual void RenderLine(string line) {
+            Console.Write(line);
         }
 
         protected virtual void EvaluateReplCommand(string line) {
@@ -225,72 +374,5 @@ namespace Buckle {
 
         protected abstract bool IsCompleteSubmission(string text);
         protected abstract void EvaluateSubmission(string text);
-    }
-
-    internal sealed class BuckleRepl : Repl {
-        public BuckleRepl(Compiler handle, Compiler.ErrorHandle errorHandle) : base(handle, errorHandle) {}
-
-        protected override void EvaluateSubmission(string text) {
-            var syntaxTree = SyntaxTree.Parse(text);
-
-            var compilation = state.previous == null
-                ? new Compilation(syntaxTree)
-                : state.previous.ContinueWith(syntaxTree);
-
-            handle.state.sourceText = compilation.tree.text;
-
-            if (state.showTree) syntaxTree.root.WriteTo(Console.Out);
-            if (state.showProgram) compilation.EmitTree(Console.Out);
-
-            var result = compilation.Evaluate(state.variables);
-
-            handle.diagnostics.Move(result.diagnostics);
-            if (handle.diagnostics.Any())  {
-                if (errorHandle != null)
-                    errorHandle(handle);
-                else
-                    handle.diagnostics.Clear();
-            } else {
-                if (result.value != null) {
-                    Console.ForegroundColor = ConsoleColor.Magenta;
-                    Console.WriteLine(result.value);
-                    Console.ResetColor();
-                }
-
-                state.previous = compilation;
-            }
-        }
-
-        protected override void EvaluateReplCommand(string line) {
-            switch (line) {
-                case "#showTree":
-                    state.showTree = !state.showTree;
-                    Console.WriteLine(state.showTree ? "Parse-trees visible" : "Parse-trees hidden");
-                    break;
-                case "#showProgram":
-                    state.showProgram = !state.showProgram;
-                    Console.WriteLine(state.showProgram ? "Bound-trees visible" : "Bound-trees hidden");
-                    break;
-                case "#clear":
-                case "#cls":
-                    Console.Clear();
-                    break;
-                case "#reset":
-                    state.previous = null;
-                    break;
-                default:
-                    base.EvaluateReplCommand(line);
-                    break;
-            }
-        }
-
-        protected override bool IsCompleteSubmission(string text) {
-            if (string.IsNullOrEmpty(text)) return true;
-
-            var tree = SyntaxTree.Parse(text);
-            if (tree.diagnostics.Any()) return false;
-
-            return true;
-        }
     }
 }

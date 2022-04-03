@@ -266,7 +266,14 @@ namespace CommandLine {
             err = ResolveDiagnostics(compiler);
             if (err > 0) return err;
 
-            compiler.Compile(ResolveDiagnostics);
+            if (compiler.state.useRepl) {
+                var repl = new BuckleRepl(compiler, ResolveDiagnostics);
+                repl.Run();
+
+                return SUCCESS_EXIT_CODE;
+            }
+
+            compiler.Compile();
             err = ResolveDiagnostics(compiler);
             if (err > 0) return err;
 

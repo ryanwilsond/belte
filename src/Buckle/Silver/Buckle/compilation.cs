@@ -52,10 +52,10 @@ namespace Buckle {
         internal EvaluationResult() : this(null, null) { }
     }
 
-    internal sealed class Compilation {
+    public sealed class Compilation {
         private BoundGlobalScope globalScope_;
         public DiagnosticQueue diagnostics;
-        public SyntaxTree tree;
+        internal SyntaxTree tree;
         public Compilation previous;
 
         internal BoundGlobalScope globalScope {
@@ -71,7 +71,7 @@ namespace Buckle {
             }
         }
 
-        public Compilation(SyntaxTree tree) : this(null, tree) { }
+        internal Compilation(SyntaxTree tree) : this(null, tree) { }
 
         private Compilation(Compilation previous_, SyntaxTree tree_) {
             diagnostics = new DiagnosticQueue();
@@ -80,7 +80,7 @@ namespace Buckle {
             tree = tree_;
         }
 
-        public EvaluationResult Evaluate(Dictionary<VariableSymbol, object> variables) {
+        internal EvaluationResult Evaluate(Dictionary<VariableSymbol, object> variables) {
             diagnostics.Move(tree.diagnostics);
             diagnostics.Move(globalScope.diagnostics);
             if (diagnostics.Any())
@@ -93,7 +93,7 @@ namespace Buckle {
             return result;
         }
 
-        public Compilation ContinueWith(SyntaxTree tree) {
+        internal Compilation ContinueWith(SyntaxTree tree) {
             return new Compilation(this, tree);
         }
 

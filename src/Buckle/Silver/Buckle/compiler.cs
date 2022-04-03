@@ -46,8 +46,6 @@ namespace Buckle {
             Console.ResetColor();
         }
 
-        public delegate int ErrorHandle(Compiler compiler, string me = null);
-
         private void InternalCompiler() {
             for (int i=0; i<state.tasks.Length; i++) {
                 if (state.tasks[i].stage == CompilerStage.Preprocessed) {
@@ -59,19 +57,8 @@ namespace Buckle {
         /// <summary>
         /// Handles preprocessing, compiling, assembling, and linking of a set of files
         /// </summary>
-        /// <param name="callback">handler for writing diagnostics to out (used for repl only)</param>
         /// <returns>error</returns>
-        public int Compile(ErrorHandle callback=null) {
-            if (state.useRepl) {
-                state.linkOutputContent = null;
-                diagnostics.Clear();
-
-                var repl = new BuckleRepl(this, callback);
-                repl.Run();
-
-                return SUCCESS_EXIT_CODE;
-            }
-
+        public int Compile() {
             int err;
 
             Preprocess();
