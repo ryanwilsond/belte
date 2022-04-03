@@ -178,7 +178,9 @@ namespace Buckle.CodeAnalysis.Syntax {
             int previousCount = diagnostics.count;
             var expression = ParseExpression();
             bool popLast = previousCount != diagnostics.count;
+            previousCount = diagnostics.count;
             var semicolon = Match(SyntaxType.SEMICOLON);
+            popLast = popLast && previousCount != diagnostics.count;
 
             if (popLast) diagnostics.RemoveAt(diagnostics.count-1);
             return new ExpressionStatement(expression, semicolon);
