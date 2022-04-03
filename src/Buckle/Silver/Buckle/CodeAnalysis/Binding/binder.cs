@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding {
@@ -82,7 +83,7 @@ namespace Buckle.CodeAnalysis.Binding {
             }
         }
 
-        private BoundExpression BindExpression(Expression expression, Type target) {
+        private BoundExpression BindExpression(Expression expression, TypeSymbol target) {
             var result = BindExpression(expression);
             if (result.lType != target)
                 diagnostics.Push(Error.CannotConvert(expression.span, result.lType, target));
@@ -109,7 +110,7 @@ namespace Buckle.CodeAnalysis.Binding {
         }
 
         private BoundStatement BindIfStatement(IfStatement statement) {
-            var condition = BindExpression(statement.condition, typeof(bool));
+            var condition = BindExpression(statement.condition, TypeSymbol.Bool);
             var then = BindStatement(statement.then);
             var elseStatement = statement.elseClause == null ? null : BindStatement(statement.elseClause.then);
             return new BoundIfStatement(condition, then, elseStatement);
@@ -141,12 +142,16 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private BoundExpression BindUnaryExpression(UnaryExpression expression) {
             var boundOperand = BindExpression(expression.operand);
+
+            if (boundOperand.lType == TypeSymbol.Error)
+                return new BoundErrorExpression();
+
             var boundOp = BoundUnaryOperator.Bind(expression.op.type, boundOperand.lType);
 
             if (boundOp == null) {
                 diagnostics.Push(
                     Error.InvalidUnaryOperatorUse(expression.op.span, expression.op.text, boundOperand.lType));
-                return boundOperand;
+                return new BoundErrorExpression();
             }
 
             return new BoundUnaryExpression(boundOp, boundOperand);
@@ -155,14 +160,17 @@ namespace Buckle.CodeAnalysis.Binding {
         private BoundExpression BindBinaryExpression(BinaryExpression expression) {
             var boundLeft = BindExpression(expression.left);
             var boundRight = BindExpression(expression.right);
-            if (boundLeft == null || boundRight == null) return boundLeft;
+
+            if (boundLeft.lType == TypeSymbol.Error || boundRight.lType == TypeSymbol.Error)
+                return new BoundErrorExpression();
+
             var boundOp = BoundBinaryOperator.Bind(expression.op.type, boundLeft.lType, boundRight.lType);
 
             if (boundOp == null) {
                 diagnostics.Push(
                     Error.InvalidBinaryOperatorUse(
                         expression.op.span, expression.op.text, boundLeft.lType, boundRight.lType));
-                return boundLeft;
+                return new BoundErrorExpression();
             }
 
             return new BoundBinaryExpression(boundLeft, boundOp, boundRight);
@@ -175,14 +183,14 @@ namespace Buckle.CodeAnalysis.Binding {
         private BoundExpression BindNameExpression(NameExpression expression) {
             string name = expression.identifier.text;
             if (string.IsNullOrEmpty(name))
-                return new BoundLiteralExpression(0);
+                return new BoundErrorExpression();
 
             if (scope_.TryLookup(name, out var variable)) {
                 return new BoundVariableExpression(variable);
             }
 
             diagnostics.Push(Error.UndefinedName(expression.identifier.span, name));
-            return new BoundLiteralExpression(0);
+            return new BoundErrorExpression();
         }
 
         private BoundExpression BindEmptyExpression(EmptyExpression expression) {

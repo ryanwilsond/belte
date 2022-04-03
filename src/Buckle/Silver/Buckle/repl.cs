@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle;
+using Buckle.CodeAnalysis.Symbols;
 
 namespace CommandLine {
     internal struct ReplState {

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding {
 
@@ -75,21 +76,21 @@ namespace Buckle.CodeAnalysis.Binding {
     }
 
     internal sealed class BoundGotoStatement : BoundStatement {
-        public LabelSymbol label { get; }
+        public BoundLabel label { get; }
         public override BoundNodeType type => BoundNodeType.GotoStatement;
 
-        public BoundGotoStatement(LabelSymbol label_) {
+        public BoundGotoStatement(BoundLabel label_) {
             label = label_;
         }
     }
 
     internal sealed class BoundConditionalGotoStatement : BoundStatement {
-        public LabelSymbol label { get; }
+        public BoundLabel label { get; }
         public BoundExpression condition { get; }
         public bool jumpIfTrue { get; }
         public override BoundNodeType type => BoundNodeType.ConditionalGotoStatement;
 
-        public BoundConditionalGotoStatement(LabelSymbol label_, BoundExpression condition_, bool jumpIfTrue_ = true) {
+        public BoundConditionalGotoStatement(BoundLabel label_, BoundExpression condition_, bool jumpIfTrue_ = true) {
             label = label_;
             condition = condition_;
             jumpIfTrue = jumpIfTrue_;
@@ -97,10 +98,10 @@ namespace Buckle.CodeAnalysis.Binding {
     }
 
     internal sealed class BoundLabelStatement : BoundStatement {
-        public LabelSymbol label { get; }
+        public BoundLabel label { get; }
         public override BoundNodeType type => BoundNodeType.LabelStatement;
 
-        public BoundLabelStatement(LabelSymbol label_) {
+        public BoundLabelStatement(BoundLabel label_) {
             label = label_;
         }
     }

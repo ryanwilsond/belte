@@ -9,9 +9,9 @@ namespace Buckle.CodeAnalysis.Lowering {
 
         private Lowerer() { }
 
-        private LabelSymbol GenerateLabel() {
+        private BoundLabel GenerateLabel() {
             var name = $"Label{++labelCount_}";
-            return new LabelSymbol(name);
+            return new BoundLabel(name);
         }
 
         public static BoundBlockStatement Lower(ImmutableArray<BoundStatement> statements) {

@@ -15,6 +15,7 @@ namespace Buckle.CodeAnalysis.Binding {
         VariableExpression,
         AssignmentExpression,
         EmptyExpression,
+        ErrorExpression,
 
         BlockStatement,
         ExpressionStatement,

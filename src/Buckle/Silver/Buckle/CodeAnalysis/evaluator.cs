@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis {
 
@@ -17,7 +18,7 @@ namespace Buckle.CodeAnalysis {
         }
 
         public object Evaluate() {
-            var labelToIndex = new Dictionary<LabelSymbol, int>();
+            var labelToIndex = new Dictionary<BoundLabel, int>();
 
             for (int i = 0; i < root_.statements.Length; i++) {
                 if (root_.statements[i] is BoundLabelStatement l)
@@ -134,17 +135,17 @@ namespace Buckle.CodeAnalysis {
                 case BoundBinaryOperatorType.LessOrEqual: return (int)left <= (int)right;
                 case BoundBinaryOperatorType.GreatOrEqual: return (int)left >= (int)right;
                 case BoundBinaryOperatorType.LogicalAnd:
-                    if (syntax.lType == typeof(int))
+                    if (syntax.lType == TypeSymbol.Int)
                         return (int)left & (int)right;
                     else
                         return (bool)left & (bool)right;
                 case BoundBinaryOperatorType.LogicalOr:
-                    if (syntax.lType == typeof(int))
+                    if (syntax.lType == TypeSymbol.Int)
                         return (int)left | (int)right;
                     else
                         return (bool)left | (bool)right;
                 case BoundBinaryOperatorType.LogicalXor:
-                    if (syntax.lType == typeof(int))
+                    if (syntax.lType == TypeSymbol.Int)
                         return (int)left ^ (int)right;
                     else
                         return (bool)left ^ (bool)right;

@@ -1,4 +1,5 @@
 using System;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding {
@@ -28,12 +29,13 @@ namespace Buckle.CodeAnalysis.Binding {
     internal sealed class BoundBinaryOperator {
         public SyntaxType type { get; }
         public BoundBinaryOperatorType opType { get; }
-        public Type leftType { get; }
-        public Type rightType { get; }
-        public Type resultType { get; }
+        public TypeSymbol leftType { get; }
+        public TypeSymbol rightType { get; }
+        public TypeSymbol resultType { get; }
 
         private BoundBinaryOperator(
-            SyntaxType type_, BoundBinaryOperatorType opType_, Type leftType_, Type rightType_, Type resultType_) {
+            SyntaxType type_, BoundBinaryOperatorType opType_,
+            TypeSymbol leftType_, TypeSymbol rightType_, TypeSymbol resultType_) {
             type = type_;
             opType = opType_;
             leftType = leftType_;
@@ -42,47 +44,47 @@ namespace Buckle.CodeAnalysis.Binding {
         }
 
         private BoundBinaryOperator(
-            SyntaxType type, BoundBinaryOperatorType opType, Type operandType, Type resultType)
+            SyntaxType type, BoundBinaryOperatorType opType, TypeSymbol operandType, TypeSymbol resultType)
             : this(type, opType, operandType, operandType, resultType) { }
 
-        private BoundBinaryOperator(SyntaxType type, BoundBinaryOperatorType opType, Type lType)
+        private BoundBinaryOperator(SyntaxType type, BoundBinaryOperatorType opType, TypeSymbol lType)
             : this(type, opType, lType, lType, lType) { }
 
         private static BoundBinaryOperator[] operators_ = {
-            new BoundBinaryOperator(SyntaxType.PLUS, BoundBinaryOperatorType.Addition, typeof(int)),
-            new BoundBinaryOperator(SyntaxType.MINUS, BoundBinaryOperatorType.Subtraction, typeof(int)),
-            new BoundBinaryOperator(SyntaxType.ASTERISK, BoundBinaryOperatorType.Multiplication, typeof(int)),
-            new BoundBinaryOperator(SyntaxType.SLASH, BoundBinaryOperatorType.Division, typeof(int)),
-            new BoundBinaryOperator(SyntaxType.DASTERISK, BoundBinaryOperatorType.Power, typeof(int)),
-            new BoundBinaryOperator(SyntaxType.AMPERSAND, BoundBinaryOperatorType.LogicalAnd, typeof(int)),
-            new BoundBinaryOperator(SyntaxType.PIPE, BoundBinaryOperatorType.LogicalOr, typeof(int)),
-            new BoundBinaryOperator(SyntaxType.CARET, BoundBinaryOperatorType.LogicalXor, typeof(int)),
-            new BoundBinaryOperator(SyntaxType.SHIFTLEFT, BoundBinaryOperatorType.LeftShift, typeof(int)),
-            new BoundBinaryOperator(SyntaxType.SHIFTRIGHT, BoundBinaryOperatorType.RightShift, typeof(int)),
+            new BoundBinaryOperator(SyntaxType.PLUS, BoundBinaryOperatorType.Addition, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.MINUS, BoundBinaryOperatorType.Subtraction, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.ASTERISK, BoundBinaryOperatorType.Multiplication, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.SLASH, BoundBinaryOperatorType.Division, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.DASTERISK, BoundBinaryOperatorType.Power, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.AMPERSAND, BoundBinaryOperatorType.LogicalAnd, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.PIPE, BoundBinaryOperatorType.LogicalOr, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.CARET, BoundBinaryOperatorType.LogicalXor, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.SHIFTLEFT, BoundBinaryOperatorType.LeftShift, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.SHIFTRIGHT, BoundBinaryOperatorType.RightShift, TypeSymbol.Int),
 
             new BoundBinaryOperator(
-                SyntaxType.DEQUALS, BoundBinaryOperatorType.EqualityEquals, typeof(int), typeof(bool)),
+                SyntaxType.DEQUALS, BoundBinaryOperatorType.EqualityEquals, TypeSymbol.Int, TypeSymbol.Bool),
             new BoundBinaryOperator(
-                SyntaxType.BANGEQUALS, BoundBinaryOperatorType.EqualityNotEquals, typeof(int), typeof(bool)),
+                SyntaxType.BANGEQUALS, BoundBinaryOperatorType.EqualityNotEquals, TypeSymbol.Int, TypeSymbol.Bool),
             new BoundBinaryOperator(
-                SyntaxType.LANGLEBRACKET, BoundBinaryOperatorType.LessThan, typeof(int), typeof(bool)),
+                SyntaxType.LANGLEBRACKET, BoundBinaryOperatorType.LessThan, TypeSymbol.Int, TypeSymbol.Bool),
             new BoundBinaryOperator(
-                SyntaxType.RANGLEBRACKET, BoundBinaryOperatorType.GreaterThan, typeof(int), typeof(bool)),
+                SyntaxType.RANGLEBRACKET, BoundBinaryOperatorType.GreaterThan, TypeSymbol.Int, TypeSymbol.Bool),
             new BoundBinaryOperator(
-                SyntaxType.LESSEQUAL, BoundBinaryOperatorType.LessOrEqual, typeof(int), typeof(bool)),
+                SyntaxType.LESSEQUAL, BoundBinaryOperatorType.LessOrEqual, TypeSymbol.Int, TypeSymbol.Bool),
             new BoundBinaryOperator(
-                SyntaxType.GREATEQUAL, BoundBinaryOperatorType.GreatOrEqual, typeof(int), typeof(bool)),
+                SyntaxType.GREATEQUAL, BoundBinaryOperatorType.GreatOrEqual, TypeSymbol.Int, TypeSymbol.Bool),
 
-            new BoundBinaryOperator(SyntaxType.DAMPERSAND, BoundBinaryOperatorType.ConditionalAnd, typeof(bool)),
-            new BoundBinaryOperator(SyntaxType.DPIPE, BoundBinaryOperatorType.ConditionalOr, typeof(bool)),
-            new BoundBinaryOperator(SyntaxType.AMPERSAND, BoundBinaryOperatorType.LogicalAnd, typeof(bool)),
-            new BoundBinaryOperator(SyntaxType.PIPE, BoundBinaryOperatorType.LogicalOr, typeof(bool)),
-            new BoundBinaryOperator(SyntaxType.CARET, BoundBinaryOperatorType.LogicalXor, typeof(bool)),
-            new BoundBinaryOperator(SyntaxType.DEQUALS, BoundBinaryOperatorType.EqualityEquals, typeof(bool)),
-            new BoundBinaryOperator(SyntaxType.BANGEQUALS, BoundBinaryOperatorType.EqualityNotEquals, typeof(bool)),
+            new BoundBinaryOperator(SyntaxType.DAMPERSAND, BoundBinaryOperatorType.ConditionalAnd, TypeSymbol.Bool),
+            new BoundBinaryOperator(SyntaxType.DPIPE, BoundBinaryOperatorType.ConditionalOr, TypeSymbol.Bool),
+            new BoundBinaryOperator(SyntaxType.AMPERSAND, BoundBinaryOperatorType.LogicalAnd, TypeSymbol.Bool),
+            new BoundBinaryOperator(SyntaxType.PIPE, BoundBinaryOperatorType.LogicalOr, TypeSymbol.Bool),
+            new BoundBinaryOperator(SyntaxType.CARET, BoundBinaryOperatorType.LogicalXor, TypeSymbol.Bool),
+            new BoundBinaryOperator(SyntaxType.DEQUALS, BoundBinaryOperatorType.EqualityEquals, TypeSymbol.Bool),
+            new BoundBinaryOperator(SyntaxType.BANGEQUALS, BoundBinaryOperatorType.EqualityNotEquals, TypeSymbol.Bool),
         };
 
-        public static BoundBinaryOperator Bind(SyntaxType type, Type leftType, Type rightType) {
+        public static BoundBinaryOperator Bind(SyntaxType type, TypeSymbol leftType, TypeSymbol rightType) {
             foreach (var op in operators_)
                 if (op.type == type && op.leftType == leftType && op.rightType == rightType) return op;
 
@@ -92,7 +94,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
     internal sealed class BoundBinaryExpression : BoundExpression {
         public override BoundNodeType type => BoundNodeType.BinaryExpression;
-        public override Type lType => op.resultType;
+        public override TypeSymbol lType => op.resultType;
         public BoundExpression left { get; }
         public BoundBinaryOperator op { get; }
         public BoundExpression right { get; }
@@ -115,29 +117,29 @@ namespace Buckle.CodeAnalysis.Binding {
     internal sealed class BoundUnaryOperator {
         public SyntaxType type { get; }
         public BoundUnaryOperatorType opType { get; }
-        public Type operandType { get; }
-        public Type resultType { get; }
+        public TypeSymbol operandType { get; }
+        public TypeSymbol resultType { get; }
 
         private BoundUnaryOperator(
-            SyntaxType type_, BoundUnaryOperatorType opType_, Type operandType_, Type resultType_) {
+            SyntaxType type_, BoundUnaryOperatorType opType_, TypeSymbol operandType_, TypeSymbol resultType_) {
             type = type_;
             opType = opType_;
             operandType = operandType_;
             resultType = resultType_;
         }
 
-        private BoundUnaryOperator(SyntaxType type, BoundUnaryOperatorType opType, Type operandType)
+        private BoundUnaryOperator(SyntaxType type, BoundUnaryOperatorType opType, TypeSymbol operandType)
             : this(type, opType, operandType, operandType) { }
 
         private static BoundUnaryOperator[] operators_ = {
-            new BoundUnaryOperator(SyntaxType.BANG, BoundUnaryOperatorType.BooleanNegation, typeof(bool)),
+            new BoundUnaryOperator(SyntaxType.BANG, BoundUnaryOperatorType.BooleanNegation, TypeSymbol.Bool),
 
-            new BoundUnaryOperator(SyntaxType.PLUS, BoundUnaryOperatorType.NumericalIdentity, typeof(int)),
-            new BoundUnaryOperator(SyntaxType.MINUS, BoundUnaryOperatorType.NumericalNegation, typeof(int)),
-            new BoundUnaryOperator(SyntaxType.TILDE, BoundUnaryOperatorType.BitwiseCompliment, typeof(int)),
+            new BoundUnaryOperator(SyntaxType.PLUS, BoundUnaryOperatorType.NumericalIdentity, TypeSymbol.Int),
+            new BoundUnaryOperator(SyntaxType.MINUS, BoundUnaryOperatorType.NumericalNegation, TypeSymbol.Int),
+            new BoundUnaryOperator(SyntaxType.TILDE, BoundUnaryOperatorType.BitwiseCompliment, TypeSymbol.Int),
         };
 
-        public static BoundUnaryOperator Bind(SyntaxType type, Type operandType) {
+        public static BoundUnaryOperator Bind(SyntaxType type, TypeSymbol operandType) {
             foreach (var op in operators_)
                 if (op.type == type && op.operandType == operandType) return op;
 
@@ -147,7 +149,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
     internal sealed class BoundUnaryExpression : BoundExpression {
         public override BoundNodeType type => BoundNodeType.UnaryExpression;
-        public override Type lType => op.resultType;
+        public override TypeSymbol lType => op.resultType;
         public BoundUnaryOperator op { get; }
         public BoundExpression operand { get; }
 
@@ -158,22 +160,31 @@ namespace Buckle.CodeAnalysis.Binding {
     }
 
     internal abstract class BoundExpression : BoundNode {
-        public abstract Type lType { get; }
+        public abstract TypeSymbol lType { get; }
     }
 
     internal sealed class BoundLiteralExpression : BoundExpression {
         public override BoundNodeType type => BoundNodeType.LiteralExpression;
-        public override Type lType => value.GetType();
+        public override TypeSymbol lType { get; }
         public object value { get; }
 
         public BoundLiteralExpression(object value_) {
             value = value_;
+
+            if (value is bool)
+                lType = TypeSymbol.Bool;
+            else if (value is int)
+                lType = TypeSymbol.Int;
+            else if (value is string)
+                lType = TypeSymbol.String;
+            else
+                throw new Exception($"unexpected literal '{value}' of type '{value.GetType()}'");
         }
     }
 
     internal sealed class BoundVariableExpression : BoundExpression {
         public VariableSymbol variable { get; }
-        public override Type lType => variable.lType;
+        public override TypeSymbol lType => variable.lType;
         public override BoundNodeType type => BoundNodeType.VariableExpression;
 
         public BoundVariableExpression(VariableSymbol variable_) {
@@ -185,7 +196,7 @@ namespace Buckle.CodeAnalysis.Binding {
         public VariableSymbol variable { get; }
         public BoundExpression expression { get; }
         public override BoundNodeType type => BoundNodeType.AssignmentExpression;
-        public override Type lType => expression.lType;
+        public override TypeSymbol lType => expression.lType;
 
         public BoundAssignmentExpression(VariableSymbol variable_, BoundExpression expression_) {
             variable = variable_;
@@ -195,8 +206,15 @@ namespace Buckle.CodeAnalysis.Binding {
 
     internal sealed class BoundEmptyExpression : BoundExpression {
         public override BoundNodeType type => BoundNodeType.EmptyExpression;
-        public override Type lType => null;
+        public override TypeSymbol lType => null;
 
         public BoundEmptyExpression() { }
+    }
+
+    internal sealed class BoundErrorExpression : BoundExpression {
+        public override BoundNodeType type => BoundNodeType.ErrorExpression;
+        public override TypeSymbol lType => TypeSymbol.Error;
+
+        public BoundErrorExpression() { }
     }
 }

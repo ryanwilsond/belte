@@ -1,4 +1,5 @@
 using System;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 
@@ -15,7 +16,7 @@ namespace Buckle {
             else return type.ToString().ToLower();
         }
 
-        public static Diagnostic InvalidType(TextSpan span, string text, Type type) {
+        public static Diagnostic InvalidType(TextSpan span, string text, TypeSymbol type) {
             string msg = $"'{text}' is not a valid {type}";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
@@ -36,12 +37,12 @@ namespace Buckle {
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
-        public static Diagnostic InvalidUnaryOperatorUse(TextSpan span, string op, Type operand) {
+        public static Diagnostic InvalidUnaryOperatorUse(TextSpan span, string op, TypeSymbol operand) {
             string msg = $"operator '{op}' is not defined for type {operand}";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
-        public static Diagnostic InvalidBinaryOperatorUse(TextSpan span, string op, Type left, Type right) {
+        public static Diagnostic InvalidBinaryOperatorUse(TextSpan span, string op, TypeSymbol left, TypeSymbol right) {
             string msg = $"operator '{op}' is not defined for types {left} and {right}";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
@@ -51,7 +52,7 @@ namespace Buckle {
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
-        public static Diagnostic CannotConvert(TextSpan span, Type from, Type to) {
+        public static Diagnostic CannotConvert(TextSpan span, TypeSymbol from, TypeSymbol to) {
             string msg = $"cannot convert from type {from} to {to}";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }

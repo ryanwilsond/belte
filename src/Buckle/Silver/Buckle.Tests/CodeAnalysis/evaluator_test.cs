@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Buckle.CodeAnalysis;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Xunit;
 
@@ -111,7 +112,7 @@ namespace Buckle.Tests.CodeAnalysis {
             ";
 
             var diagnostics = @"
-                cannot convert from type System.Int32 to System.Boolean
+                cannot convert from type int to bool
             ";
 
             AssertDiagnostics(text, diagnostics);
@@ -188,7 +189,7 @@ namespace Buckle.Tests.CodeAnalysis {
             ";
 
             var diagnostics = @"
-                cannot convert from type System.Boolean to System.Int32
+                cannot convert from type bool to int
             ";
 
             AssertDiagnostics(text, diagnostics);
@@ -199,7 +200,7 @@ namespace Buckle.Tests.CodeAnalysis {
             var text = @"[+]true;";
 
             var diagnostics = @"
-                operator '+' is not defined for type System.Boolean
+                operator '+' is not defined for type bool
             ";
 
             AssertDiagnostics(text, diagnostics);
@@ -210,7 +211,7 @@ namespace Buckle.Tests.CodeAnalysis {
             var text = @"10[+]true;";
 
             var diagnostics = @"
-                operator '+' is not defined for types System.Int32 and System.Boolean
+                operator '+' is not defined for types int and bool
             ";
 
             AssertDiagnostics(text, diagnostics);

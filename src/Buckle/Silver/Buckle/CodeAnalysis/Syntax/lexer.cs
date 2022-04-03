@@ -1,4 +1,5 @@
 using System.Text;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax {
@@ -230,7 +231,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             string text = text_.ToString(start_, length);
 
             if (!int.TryParse(text, out var value))
-                diagnostics.Push(Error.InvalidType(new TextSpan(start_, length), text, typeof(int)));
+                diagnostics.Push(Error.InvalidType(new TextSpan(start_, length), text, TypeSymbol.Int));
 
             value_ = value;
             type_ = SyntaxType.NUMBER;
