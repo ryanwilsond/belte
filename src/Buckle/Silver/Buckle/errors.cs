@@ -77,6 +77,11 @@ namespace Buckle {
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
+        public static Diagnostic ExpectedStatement(TextSpan span) {
+            string msg = $"expected statement";
+            return new Diagnostic(DiagnosticType.Error, span, msg);
+        }
+
         internal static Diagnostic UnterminatedString(TextSpan span) {
             string msg = $"unterminated string literal";
             return new Diagnostic(DiagnosticType.Error, span, msg);

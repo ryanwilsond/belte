@@ -121,13 +121,13 @@ namespace Buckle.CodeAnalysis.Lowering {
 
         protected override BoundStatement RewriteForStatement(BoundForStatement node) {
             /*
-            for (<stepper> <condition>; <step>)
+            for (<initializer> <condition>; <step>)
                 <body>
 
             --->
 
             {
-                <stepper>
+                <initializer>
                 while (<condition>) {
                     <body>
                     <step>;
@@ -137,9 +137,13 @@ namespace Buckle.CodeAnalysis.Lowering {
             var step = new BoundExpressionStatement(node.step);
 
             var whileBody = new BoundBlockStatement(ImmutableArray.Create<BoundStatement>(node.body, step));
-            var whileStatement = new BoundWhileStatement(node.condition, whileBody);
+            BoundExpression condition = new BoundLiteralExpression(true);
+            if (node.condition.type != BoundNodeType.EmptyExpression)
+                condition = node.condition;
 
-            var result = new BoundBlockStatement(ImmutableArray.Create<BoundStatement>(node.stepper, whileStatement));
+            var whileStatement = new BoundWhileStatement(condition, whileBody);
+
+            var result = new BoundBlockStatement(ImmutableArray.Create<BoundStatement>(node.initializer, whileStatement));
             return RewriteStatement(result);
         }
     }

@@ -152,10 +152,21 @@ namespace CommandLine {
             Console.ResetColor();
         }
 
+        private static void CleanDiagnostics(Compiler compiler) {
+            // remove duplicates
+            // sort
+            // only one error per character
+            //   either ignore the later ones, or change error to focus on what produced multiple
+            //   e.g. 'let' produces 4 errors, instead produce 'unexpected keyword 'let'', would require SourceText
+            // this func will have to pop all, clean, then move back onto queue
+        }
+
         private static int ResolveDiagnostics(Compiler compiler, string me = null) {
             if (compiler.diagnostics.count == 0) return SUCCESS_EXIT_CODE;
             DiagnosticType worst = DiagnosticType.Unknown;
             me = me ?? compiler.me;
+
+            CleanDiagnostics(compiler);
 
             Diagnostic diagnostic = compiler.diagnostics.Pop();
             while (diagnostic != null) {

@@ -6,7 +6,9 @@ using CommandLine;
 namespace Buckle {
 
     public sealed class BuckleRepl : Repl {
-        public BuckleRepl(Compiler handle, ErrorHandle errorHandle) : base(handle, errorHandle) { }
+        public BuckleRepl(Compiler handle, ErrorHandle errorHandle) : base(handle, errorHandle) {
+            initializerStatements_.Add("#cls");
+        }
 
         protected override void EvaluateSubmission(string text) {
             var syntaxTree = SyntaxTree.Parse(text);
@@ -92,6 +94,7 @@ namespace Buckle {
             if (twoBlankTines) return true;
 
             var tree = SyntaxTree.Parse(text);
+            if (tree.root.statements.Length == 0) return false;
             if (tree.root.statements[tree.root.statements.Length - 1].GetLastToken().isMissing) return false;
 
             return true;

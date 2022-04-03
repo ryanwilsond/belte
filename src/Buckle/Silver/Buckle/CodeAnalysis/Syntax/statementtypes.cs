@@ -98,20 +98,20 @@ namespace Buckle.CodeAnalysis.Syntax {
     internal sealed class ForStatement : Statement {
         public Token keyword { get; }
         public Token openParenthesis { get; }
-        public VariableDeclarationStatement stepper { get; }
+        public Statement initializer { get; }
         public Expression condition { get; }
         public Token semicolon { get; }
-        public AssignmentExpression step { get; }
+        public Expression step { get; }
         public Token closeParenthesis { get; }
         public Statement body { get; }
         public override SyntaxType type => SyntaxType.FOR_STATEMENT;
 
         public ForStatement(
-            Token keyword_, Token openParenthesis_, VariableDeclarationStatement stepper_, Expression condition_,
-            Token semicolon_, AssignmentExpression step_, Token closeParenthesis_, Statement body_) {
+            Token keyword_, Token openParenthesis_, Statement initializer_, Expression condition_,
+            Token semicolon_, Expression step_, Token closeParenthesis_, Statement body_) {
             keyword = keyword_;
             openParenthesis = openParenthesis_;
-            stepper = stepper_;
+            initializer = initializer_;
             condition = condition_;
             semicolon = semicolon_;
             step = step_;

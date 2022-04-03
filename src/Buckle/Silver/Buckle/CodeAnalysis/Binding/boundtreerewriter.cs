@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Binding {
@@ -53,12 +54,14 @@ namespace Buckle.CodeAnalysis.Binding {
 
         protected virtual BoundStatement RewriteForStatement(BoundForStatement statement) {
             var condition = RewriteExpression(statement.condition);
-            var step = (BoundAssignmentExpression)RewriteAssignmentExpression(statement.step);
+            var initializer = RewriteStatement(statement.initializer);
+            var step = RewriteExpression(statement.step);
             var body = RewriteStatement(statement.body);
-            if (condition == statement.condition && step == statement.step && body == statement.body)
+            if (initializer == statement.initializer && condition == statement.condition &&
+                step == statement.step && body == statement.body)
                 return statement;
 
-            return new BoundForStatement(statement.stepper, condition, step, body);
+            return new BoundForStatement(initializer, condition, step, body);
         }
 
         protected virtual BoundStatement RewriteWhileStatement(BoundWhileStatement statement) {
@@ -126,8 +129,14 @@ namespace Buckle.CodeAnalysis.Binding {
                     return RewriteUnaryExpression((BoundUnaryExpression)expression);
                 case BoundNodeType.EmptyExpression:
                     return RewriteEmptyExpression((BoundEmptyExpression)expression);
+                case BoundNodeType.ErrorExpression:
+                    return RewriteErrorExpression((BoundErrorExpression)expression);
                 default: return null;
             }
+        }
+
+        protected virtual BoundExpression RewriteErrorExpression(BoundErrorExpression expression) {
+            return expression;
         }
 
         protected virtual BoundExpression RewriteEmptyExpression(BoundEmptyExpression expression) {

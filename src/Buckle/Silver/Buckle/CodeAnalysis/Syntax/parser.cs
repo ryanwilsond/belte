@@ -102,16 +102,22 @@ namespace Buckle.CodeAnalysis.Syntax {
         private Statement ParseForStatement() {
             var keyword = Match(SyntaxType.FOR_KEYWORD);
             var openParenthesis = Match(SyntaxType.LPAREN);
-            var stepper = (VariableDeclarationStatement)ParseVariableDeclarationStatement();
+
+            var initializer = ParseStatement();
             var condition = ParseExpression();
             var semicolon = Match(SyntaxType.SEMICOLON);
-            var statement = ParseAssignmentExpression();
-            var step = (AssignmentExpression)statement;
+
+            Expression step = null;
+            if (current.type == SyntaxType.RPAREN)
+                step = new EmptyExpression();
+            else
+                step = ParseExpression();
+
             var closeParenthesis = Match(SyntaxType.RPAREN);
             var body = ParseStatement();
 
             return new ForStatement(
-                keyword, openParenthesis, stepper, condition, semicolon, step, closeParenthesis, body);
+                keyword, openParenthesis, initializer, condition, semicolon, step, closeParenthesis, body);
         }
 
         private Statement ParseIfStatement() {

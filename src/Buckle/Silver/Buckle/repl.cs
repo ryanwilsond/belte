@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using Buckle.CodeAnalysis.Syntax;
 using Buckle;
 using Buckle.CodeAnalysis.Symbols;
+using System.Linq;
 
 namespace CommandLine {
     internal struct ReplState {
@@ -22,6 +22,7 @@ namespace CommandLine {
         internal Compiler handle;
         internal ErrorHandle errorHandle;
         internal ReplState state;
+        protected List<string> initializerStatements_ = new List<string>();
 
         public Repl(Compiler handle_, ErrorHandle errorHandle_) {
             handle = handle_;
@@ -41,7 +42,15 @@ namespace CommandLine {
             ResetState();
 
             while (true) {
-                string text = EditSubmission();
+                string text;
+
+                if (initializerStatements_.Any()) {
+                    text = initializerStatements_[0];
+                    initializerStatements_.RemoveAt(0);
+                } else {
+                    text = EditSubmission();
+                }
+
                 if (string.IsNullOrEmpty(text)) return;
 
                 if (!text.Contains(Environment.NewLine) && text.StartsWith('#'))

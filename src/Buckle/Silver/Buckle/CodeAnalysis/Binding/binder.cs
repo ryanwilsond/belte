@@ -85,7 +85,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private BoundExpression BindExpression(Expression expression, TypeSymbol target) {
             var result = BindExpression(expression);
-            if (result.lType != target)
+            if (target != TypeSymbol.Error && result.lType != TypeSymbol.Error && result.lType != target)
                 diagnostics.Push(Error.CannotConvert(expression.span, result.lType, target));
 
             return result;
@@ -100,13 +100,13 @@ namespace Buckle.CodeAnalysis.Binding {
         private BoundStatement BindForStatement(ForStatement statement) {
             scope_ = new BoundScope(scope_);
 
-            var stepper = (BoundVariableDeclarationStatement)BindVariableDeclarationStatement(statement.stepper);
+            var initializer = BindStatement(statement.initializer);
             var condition = BindExpression(statement.condition);
-            var step = (BoundAssignmentExpression)BindAssignmentExpression(statement.step);
+            var step = BindExpression(statement.step);
             var body = BindStatement(statement.body);
 
             scope_ = scope_.parent;
-            return new BoundForStatement(stepper, condition, step, body);
+            return new BoundForStatement(initializer, condition, step, body);
         }
 
         private BoundStatement BindIfStatement(IfStatement statement) {
@@ -182,12 +182,11 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private BoundExpression BindNameExpression(NameExpression expression) {
             string name = expression.identifier.text;
-            if (string.IsNullOrEmpty(name))
+            if (expression.identifier.isMissing)
                 return new BoundErrorExpression();
 
-            if (scope_.TryLookup(name, out var variable)) {
+            if (scope_.TryLookup(name, out var variable))
                 return new BoundVariableExpression(variable);
-            }
 
             diagnostics.Push(Error.UndefinedName(expression.identifier.span, name));
             return new BoundErrorExpression();
@@ -219,16 +218,22 @@ namespace Buckle.CodeAnalysis.Binding {
         }
 
         private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatement expression) {
-            var name = expression.identifier.text;
             var isReadOnly = expression.keyword.type == SyntaxType.LET_KEYWORD;
-            var boundExpression = BindExpression(expression.initializer);
-            var variable = new VariableSymbol(name, isReadOnly, boundExpression.lType);
+            var initializer = BindExpression(expression.initializer);
+            var variable = BindVariable(expression.identifier, isReadOnly, initializer.lType);
 
-            if (!scope_.TryDeclare(variable)) {
-                diagnostics.Push(Error.AlreadyDeclared(expression.identifier.span, name));
-            }
+            return new BoundVariableDeclarationStatement(variable, initializer);
+        }
 
-            return new BoundVariableDeclarationStatement(variable, boundExpression);
+        private VariableSymbol BindVariable(Token identifier, bool isReadOnly, TypeSymbol type) {
+            var name = identifier.text ?? "?";
+            var declare = !identifier.isMissing;
+            var variable = new VariableSymbol(name, isReadOnly, type);
+
+            if (declare && !scope_.TryDeclare(variable))
+                diagnostics.Push(Error.AlreadyDeclared(identifier.span, name));
+
+            return variable;
         }
     }
 }

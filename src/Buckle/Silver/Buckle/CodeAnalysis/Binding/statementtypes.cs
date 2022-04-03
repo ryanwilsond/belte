@@ -59,16 +59,16 @@ namespace Buckle.CodeAnalysis.Binding {
     }
 
     internal sealed class BoundForStatement : BoundStatement {
-        public BoundVariableDeclarationStatement stepper { get; }
+        public BoundStatement initializer { get; }
         public BoundExpression condition { get; }
-        public BoundAssignmentExpression step { get; }
+        public BoundExpression step { get; }
         public BoundStatement body { get; }
         public override BoundNodeType type => BoundNodeType.ForStatement;
 
         public BoundForStatement(
-            BoundVariableDeclarationStatement stepper_, BoundExpression condition_,
-            BoundAssignmentExpression step_, BoundStatement body_) {
-            stepper = stepper_;
+            BoundStatement initializer_, BoundExpression condition_,
+            BoundExpression step_, BoundStatement body_) {
+            initializer = initializer_;
             condition = condition_;
             step = step_;
             body = body_;
