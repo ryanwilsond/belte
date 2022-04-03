@@ -45,8 +45,7 @@ namespace Buckle.CodeAnalysis {
                         var cgs = (BoundConditionalGotoStatement)s;
                         var condition = (bool)EvaluateExpression(cgs.condition);
 
-                        if (condition && !cgs.jumpIfFalse ||
-                            !condition && cgs.jumpIfFalse)
+                        if (condition == cgs.jumpIfTrue)
                             index = labelToIndex[cgs.label];
                         else
                             index++;

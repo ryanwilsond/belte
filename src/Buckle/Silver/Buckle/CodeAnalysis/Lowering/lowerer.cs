@@ -72,7 +72,7 @@ namespace Buckle.CodeAnalysis.Lowering {
             */
             if (node.elseStatement == null) {
                 var endLabel = GenerateLabel();
-                var gotoFalse = new BoundConditionalGotoStatement(endLabel, node.condition, true);
+                var gotoFalse = new BoundConditionalGotoStatement(endLabel, node.condition, false);
                 var endLabelStatement = new BoundLabelStatement(endLabel);
                 var result = new BoundBlockStatement(
                     ImmutableArray.Create<BoundStatement>(gotoFalse, node.then, endLabelStatement));
@@ -81,7 +81,7 @@ namespace Buckle.CodeAnalysis.Lowering {
             } else {
                 var elseLabel = GenerateLabel();
                 var endLabel = GenerateLabel();
-                var gotoFalse = new BoundConditionalGotoStatement(elseLabel, node.condition, true);
+                var gotoFalse = new BoundConditionalGotoStatement(elseLabel, node.condition, false);
                 var gotoEnd = new BoundGotoStatement(endLabel);
                 var elseLabelStatement = new BoundLabelStatement(elseLabel);
                 var endLabelStatement = new BoundLabelStatement(endLabel);
@@ -108,7 +108,7 @@ namespace Buckle.CodeAnalysis.Lowering {
             */
             var checkLabel = GenerateLabel();
             var endLabel = GenerateLabel();
-            var gotoFalse = new BoundConditionalGotoStatement(endLabel, node.condition, true);
+            var gotoFalse = new BoundConditionalGotoStatement(endLabel, node.condition, false);
             var gotoCheck = new BoundGotoStatement(checkLabel);
             var checkLabelStatement = new BoundLabelStatement(checkLabel);
             var endLabelStatement = new BoundLabelStatement(endLabel);

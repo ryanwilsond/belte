@@ -31,6 +31,7 @@ namespace Buckle {
     }
 
     public struct CompilerState {
+        public bool useRepl;
         public CompilerStage finishStage;
         public SourceText sourceText;
         public string linkOutputFilename;

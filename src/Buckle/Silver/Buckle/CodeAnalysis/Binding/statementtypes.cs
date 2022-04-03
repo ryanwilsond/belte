@@ -86,13 +86,13 @@ namespace Buckle.CodeAnalysis.Binding {
     internal sealed class BoundConditionalGotoStatement : BoundStatement {
         public LabelSymbol label { get; }
         public BoundExpression condition { get; }
-        public bool jumpIfFalse { get; }
+        public bool jumpIfTrue { get; }
         public override BoundNodeType type => BoundNodeType.ConditionalGotoStatement;
 
-        public BoundConditionalGotoStatement(LabelSymbol label_, BoundExpression condition_, bool jumpIfFalse_=false) {
+        public BoundConditionalGotoStatement(LabelSymbol label_, BoundExpression condition_, bool jumpIfTrue_=true) {
             label = label_;
             condition = condition_;
-            jumpIfFalse = jumpIfFalse_;
+            jumpIfTrue = jumpIfTrue_;
         }
     }
 

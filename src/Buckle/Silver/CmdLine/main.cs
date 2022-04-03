@@ -21,6 +21,7 @@ namespace CommandLine {
 
             bool specifyStage = false;
             bool specifyOut = false;
+            state.useRepl = false;
             state.finishStage = CompilerStage.Linked;
             state.linkOutputFilename = "a.exe";
 
@@ -42,7 +43,11 @@ namespace CommandLine {
                             state.finishStage = CompilerStage.Assembled;
                             break;
                         case "-r":
-                            return state;
+                            state.useRepl = true;
+                            if (args.Length != 1)
+                                diagnostics.Push(DiagnosticType.Fatal, "cannot use any other arguments with '-r'");
+
+                            break;
                         case "-o":
                             specifyOut = true;
                             if (i >= args.Length-1)
@@ -58,8 +63,12 @@ namespace CommandLine {
                     string[] parts = filename.Split('.');
                     string type = parts[parts.Length-1];
                     FileState task = new FileState();
-                    // check if exists goes here
                     task.inputFilename = filename;
+
+                    if (!File.Exists(task.inputFilename)) {
+                        diagnostics.Push(DiagnosticType.Error, $"{filename}: no such file or directory");
+                        continue;
+                    }
 
                     switch (type) {
                         case "ble":
@@ -91,7 +100,7 @@ namespace CommandLine {
             if (specifyOut && specifyStage && state.tasks.Length > 1)
                 diagnostics.Push(DiagnosticType.Fatal,
                     "cannot specify output file with '-E', '-S', or '-c' with multiple files");
-            if (state.tasks.Length == 0)
+            if (state.tasks.Length == 0 && !state.useRepl)
                 diagnostics.Push(DiagnosticType.Fatal, "no input files");
 
             return state;
@@ -143,15 +152,16 @@ namespace CommandLine {
             Console.ResetColor();
         }
 
-        private static int ResolveDiagnostics(Compiler compiler) {
+        private static int ResolveDiagnostics(Compiler compiler, string me = null) {
             if (compiler.diagnostics.count == 0) return SUCCESS_EXIT_CODE;
             DiagnosticType worst = DiagnosticType.Unknown;
+            me = me ?? compiler.me;
 
             Diagnostic diagnostic = compiler.diagnostics.Pop();
             while (diagnostic != null) {
                 if (diagnostic.type == DiagnosticType.Unknown) {
                 } else if (diagnostic.span == null) {
-                    Console.Write($"{compiler.me}: ");
+                    Console.Write($"{me}: ");
 
                     if (diagnostic.type == DiagnosticType.Warning) {
                         if (worst == DiagnosticType.Unknown)
@@ -172,8 +182,7 @@ namespace CommandLine {
                     }
 
                     Console.ResetColor();
-                    if (diagnostic.type != DiagnosticType.Error)
-                        Console.WriteLine($"{diagnostic.msg}");
+                    Console.WriteLine(diagnostic.msg);
 
                 } else {
                     PrettyPrintDiagnostic(compiler.state.sourceText, diagnostic);
@@ -257,7 +266,7 @@ namespace CommandLine {
             err = ResolveDiagnostics(compiler);
             if (err > 0) return err;
 
-            compiler.Compile(ResolveDiagnostics); // temp callback
+            compiler.Compile(ResolveDiagnostics);
             err = ResolveDiagnostics(compiler);
             if (err > 0) return err;
 
