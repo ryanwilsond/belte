@@ -1,3 +1,4 @@
+using System.Text;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax {
@@ -152,6 +153,9 @@ namespace Buckle.CodeAnalysis.Syntax {
                         type_ = SyntaxType.RANGLEBRACKET;
                     }
                     break;
+                case '"':
+                    ReadString();
+                    break;
                 case '0': // faster than if check, but probably neglagable and is uglier
                 case '1':
                 case '2':
@@ -183,6 +187,40 @@ namespace Buckle.CodeAnalysis.Syntax {
                 text = text_.ToString(start_, length);
 
             return new Token(type_, start_, text, value_);
+        }
+
+        private void ReadString() {
+            position_++;
+            var sb = new StringBuilder();
+            bool done = false;
+
+            while (!done) {
+                switch (current) {
+                    case '\0':
+                    case '\r':
+                    case '\n':
+                        var span = new TextSpan(start_, 1);
+                        diagnostics.Push(Error.UnterminatedString(span));
+                        done = true;
+                        break;
+                    case '"':
+                        if (lookahead == '"') {
+                            sb.Append(current);
+                            position_ += 2;
+                        } else {
+                            position_++;
+                            done = true;
+                        }
+                        break;
+                    default:
+                        sb.Append(current);
+                        position_++;
+                        break;
+                }
+            }
+
+            type_ = SyntaxType.STRING;
+            value_ = sb.ToString();
         }
 
         private void ReadNumberToken() {

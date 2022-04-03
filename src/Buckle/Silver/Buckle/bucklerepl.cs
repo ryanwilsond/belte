@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Buckle.CodeAnalysis.Syntax;
 using CommandLine;
 
@@ -83,8 +84,15 @@ namespace Buckle {
         protected override bool IsCompleteSubmission(string text) {
             if (string.IsNullOrEmpty(text)) return true;
 
+            var twoBlankTines = text.Split(Environment.NewLine).Reverse()
+                .TakeWhile(s => string.IsNullOrEmpty(s))
+                .Take(2)
+                .Count() == 2;
+
+            if (twoBlankTines) return true;
+
             var tree = SyntaxTree.Parse(text);
-            if (tree.diagnostics.Any()) return false;
+            if (tree.root.statements[tree.root.statements.Length - 1].GetLastToken().isMissing) return false;
 
             return true;
         }

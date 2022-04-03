@@ -238,6 +238,8 @@ namespace Buckle.CodeAnalysis.Syntax {
                     return ParseBooleanLiteral();
                 case SyntaxType.NUMBER:
                     return ParseNumberLiteral();
+                case SyntaxType.STRING:
+                    return ParseStringLiteral();
                 case SyntaxType.NAME_EXPR:
                 default:
                     return ParseNameExpression();
@@ -260,6 +262,11 @@ namespace Buckle.CodeAnalysis.Syntax {
             var isTrue = current.type == SyntaxType.TRUE_KEYWORD;
             var keyword = isTrue ? Match(SyntaxType.TRUE_KEYWORD) : Match(SyntaxType.FALSE_KEYWORD);
             return new LiteralExpression(keyword, isTrue);
+        }
+
+        private Expression ParseStringLiteral() {
+            var stringToken = Match(SyntaxType.STRING);
+            return new LiteralExpression(stringToken);
         }
 
         private Expression ParseNameExpression() {

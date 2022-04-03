@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax {
@@ -29,18 +30,33 @@ namespace Buckle.CodeAnalysis.Syntax {
             return new SyntaxTree(text);
         }
 
-        public static IEnumerable<Token> ParseTokens(string text) {
+        public static ImmutableArray<Token> ParseTokens(string text) {
             var sourceText = SourceText.From(text);
             return ParseTokens(sourceText);
         }
 
-        public static IEnumerable<Token> ParseTokens(SourceText text) {
-            Lexer lexer = new Lexer(text);
-            while (true) {
-                var token = lexer.LexNext();
-                if (token.type == SyntaxType.EOF) break;
-                yield return token;
+        public static ImmutableArray<Token> ParseTokens(string text, out DiagnosticQueue diagnostics) {
+            var sourceText = SourceText.From(text);
+            return ParseTokens(sourceText, out diagnostics);
+        }
+
+        public static ImmutableArray<Token> ParseTokens(SourceText text) {
+            return ParseTokens(text, out _);
+        }
+
+        public static ImmutableArray<Token> ParseTokens(SourceText text, out DiagnosticQueue diagnostics) {
+            IEnumerable<Token> LexTokens(Lexer lexer) {
+                while (true) {
+                    var token = lexer.LexNext();
+                    if (token.type == SyntaxType.EOF) break;
+                    yield return token;
+                }
             }
+            Lexer lexer = new Lexer(text);
+            var result = LexTokens(lexer).ToImmutableArray();
+            diagnostics = new DiagnosticQueue();
+            diagnostics.Move(lexer.diagnostics);
+            return result;
         }
     }
 }

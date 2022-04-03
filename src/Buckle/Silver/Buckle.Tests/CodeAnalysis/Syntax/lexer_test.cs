@@ -2,12 +2,27 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Xunit;
 
 namespace Buckle.Tests.CodeAnalysis.Syntax {
     public class LexerTests {
         [Fact]
-        public void LexerTests_CoversAllTokens() {
+        public void Lexer_Lexes_UnterminatedString() {
+            const string text = "\"test";
+            var tokens = SyntaxTree.ParseTokens(text, out var diagnostics);
+            var token = Assert.Single(tokens);
+            Assert.Equal(SyntaxType.STRING, token.type);
+            Assert.Equal(text, token.text);
+            Assert.Equal(1, diagnostics.count);
+            var diagnostic = diagnostics.Pop();
+            Assert.Equal(0, diagnostic.span.start);
+            Assert.Equal(1, diagnostic.span.length);
+            Assert.Equal("unterminated string literal", diagnostic.msg);
+        }
+
+        [Fact]
+        public void Lexer_Covers_AllTokens() {
             var tokenTypes = Enum.GetValues(typeof(SyntaxType))
                                  .Cast<SyntaxType>()
                                  .Where(k => k.ToString().EndsWith("_KEYWORD") ||
@@ -90,6 +105,8 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
                 (SyntaxType.NUMBER, "123"),
                 (SyntaxType.IDENTIFIER, "a"),
                 (SyntaxType.IDENTIFIER, "abc"),
+                (SyntaxType.STRING, "\"Test\""),
+                (SyntaxType.STRING, "\"Te\"\"st\""),
             };
 
             return fixedTokens.Concat(dynamicTokens);
@@ -140,6 +157,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             if (t1Type == SyntaxType.RANGLEBRACKET && t2Type == SyntaxType.SHIFTRIGHT) return true;
             if (t1Type == SyntaxType.SHIFTRIGHT && t2Type == SyntaxType.GREATEQUAL) return true;
             if (t1Type == SyntaxType.RANGLEBRACKET && t2Type == SyntaxType.RANGLEBRACKET) return true;
+            if (t1Type == SyntaxType.STRING && t2Type == SyntaxType.STRING) return true;
 
             return false;
         }

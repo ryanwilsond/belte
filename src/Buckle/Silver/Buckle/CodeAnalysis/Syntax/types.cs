@@ -42,6 +42,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         SHIFTRIGHT,
         LESSEQUAL,
         GREATEQUAL,
+        STRING,
 
         LITERAL_EXPR,
         BINARY_EXPR,
@@ -137,6 +138,13 @@ namespace Buckle.CodeAnalysis.Syntax {
                 return writer.ToString();
             }
         }
+
+        public Token GetLastToken() {
+            if (this is Token t)
+                return t;
+
+            return GetChildren().Last().GetLastToken();
+        }
     }
 
     internal sealed class Token : Node {
@@ -144,6 +152,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public int position { get; }
         public string text { get; }
         public object value { get; }
+        public bool isMissing => text == null;
         public override TextSpan span => new TextSpan(position, text?.Length ?? 0);
 
         public Token(SyntaxType type_, int position_, string text_, object value_) {

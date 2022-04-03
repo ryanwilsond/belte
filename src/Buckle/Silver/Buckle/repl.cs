@@ -234,6 +234,9 @@ namespace CommandLine {
         }
 
         private void UpdateDocumentFromHistory(ObservableCollection<string> document, SubmissionView view) {
+            if (submissionHistory_.Count == 0)
+                return;
+
             document.Clear();
 
             var historyItem = submissionHistory_[submissionHistoryIndex_];
@@ -272,8 +275,15 @@ namespace CommandLine {
             var lineIndex = view.currentLine;
             var line = document[lineIndex];
             var start = view.currentCharacter;
-            if (start > line.Length - 1)
+            if (start >= line.Length) {
+                if (view.currentLine == document.Count - 1)
+                    return;
+
+                var nextLine = document[view.currentLine + 1];
+                document[view.currentLine] += nextLine;
+                document.RemoveAt(view.currentLine + 1);
                 return;
+            }
 
             var before = line.Substring(0, start);
             var after = line.Substring(start + 1);
