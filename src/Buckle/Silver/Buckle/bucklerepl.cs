@@ -5,7 +5,7 @@ using CommandLine;
 namespace Buckle {
 
     public sealed class BuckleRepl : Repl {
-        public BuckleRepl(Compiler handle, ErrorHandle errorHandle) : base(handle, errorHandle) {}
+        public BuckleRepl(Compiler handle, ErrorHandle errorHandle) : base(handle, errorHandle) { }
 
         protected override void EvaluateSubmission(string text) {
             var syntaxTree = SyntaxTree.Parse(text);
@@ -22,7 +22,7 @@ namespace Buckle {
             var result = compilation.Evaluate(state.variables);
 
             handle.diagnostics.Move(result.diagnostics);
-            if (handle.diagnostics.Any())  {
+            if (handle.diagnostics.Any()) {
                 if (errorHandle != null)
                     errorHandle(handle);
                 else

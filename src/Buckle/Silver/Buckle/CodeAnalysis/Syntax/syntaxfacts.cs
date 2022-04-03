@@ -15,7 +15,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         // }
 
         public static int GetBinaryPrecedence(this SyntaxType type) {
-            switch(type) {
+            switch (type) {
                 case SyntaxType.DASTERISK:
                     return 11;
                 case SyntaxType.ASTERISK:
@@ -50,13 +50,13 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         public static int GetUnaryPrecedence(this SyntaxType type) {
-            switch(type) {
+            switch (type) {
                 case SyntaxType.PLUS:
                 case SyntaxType.MINUS:
                 case SyntaxType.BANG:
                 case SyntaxType.TILDE:
-                // case SyntaxType.DMINUS:
-                // case SyntaxType.DPLUS:
+                    // case SyntaxType.DMINUS:
+                    // case SyntaxType.DPLUS:
                     return 12;
                 default: return 0;
             }
@@ -77,7 +77,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         public static string GetText(SyntaxType type) {
-            switch(type) {
+            switch (type) {
                 case SyntaxType.PLUS: return "+";
                 case SyntaxType.MINUS: return "-";
                 case SyntaxType.ASTERISK: return "*";
@@ -119,7 +119,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         public static IEnumerable<SyntaxType> GetUnaryOperatorTypes() {
-            var types = (SyntaxType[]) Enum.GetValues(typeof(SyntaxType));
+            var types = (SyntaxType[])Enum.GetValues(typeof(SyntaxType));
             foreach (var type in types) {
                 if (GetUnaryPrecedence(type) > 0)
                     yield return type;
@@ -127,7 +127,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         public static IEnumerable<SyntaxType> GetBinaryOperatorTypes() {
-            var types = (SyntaxType[]) Enum.GetValues(typeof(SyntaxType));
+            var types = (SyntaxType[])Enum.GetValues(typeof(SyntaxType));
             foreach (var type in types) {
                 if (GetBinaryPrecedence(type) > 0)
                     yield return type;

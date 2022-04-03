@@ -19,9 +19,9 @@ namespace Buckle.CodeAnalysis {
         public object Evaluate() {
             var labelToIndex = new Dictionary<LabelSymbol, int>();
 
-            for (int i=0; i<root_.statements.Length; i++) {
+            for (int i = 0; i < root_.statements.Length; i++) {
                 if (root_.statements[i] is BoundLabelStatement l)
-                    labelToIndex.Add(l.label, i+1);
+                    labelToIndex.Add(l.label, i + 1);
             }
 
             var index = 0;
@@ -75,7 +75,7 @@ namespace Buckle.CodeAnalysis {
         }
 
         private object EvaluateExpression(BoundExpression node) {
-            switch(node.type) {
+            switch (node.type) {
                 case BoundNodeType.LiteralExpression: return EvaluateLiteral((BoundLiteralExpression)node);
                 case BoundNodeType.VariableExpression: return EvaluateVariable((BoundVariableExpression)node);
                 case BoundNodeType.AssignmentExpression: return EvaluateAssignment((BoundAssignmentExpression)node);
@@ -104,7 +104,7 @@ namespace Buckle.CodeAnalysis {
         private object EvaluateUnary(BoundUnaryExpression syntax) {
             var operand = EvaluateExpression(syntax.operand);
 
-            switch(syntax.op.opType) {
+            switch (syntax.op.opType) {
                 case BoundUnaryOperatorType.NumericalIdentity: return (int)operand;
                 case BoundUnaryOperatorType.NumericalNegation: return -(int)operand;
                 case BoundUnaryOperatorType.BooleanNegation: return !(bool)operand;

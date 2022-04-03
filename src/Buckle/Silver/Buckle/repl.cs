@@ -116,7 +116,7 @@ namespace CommandLine {
 
                 if (blankLineCount > 0) {
                     string blankLine = new string(' ', Console.WindowWidth);
-                    for (int i=0; i<blankLineCount; i++) {
+                    for (int i = 0; i < blankLineCount; i++) {
                         Console.SetCursorPosition(0, cursorTop_ + lineCount + i);
                         Console.WriteLine(blankLine);
                     }
@@ -294,7 +294,7 @@ namespace CommandLine {
             } else {
                 var lineIndex = view.currentLine;
                 var line = document[lineIndex];
-                var before = line.Substring(0, start-1);
+                var before = line.Substring(0, start - 1);
                 var after = line.Substring(start);
                 document[lineIndex] = before + after;
                 view.currentCharacter--;
@@ -334,8 +334,7 @@ namespace CommandLine {
                 view.currentCharacter--;
         }
 
-        private void HandleEnter(ObservableCollection<string> document, SubmissionView view)
-        {
+        private void HandleEnter(ObservableCollection<string> document, SubmissionView view) {
             var submissionText = string.Join(Environment.NewLine, document);
             if (submissionText.StartsWith('#') || IsCompleteSubmission(submissionText)) {
                 state.done = true;

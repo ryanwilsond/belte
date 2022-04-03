@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Lowering {
     internal sealed class Lowerer : BoundTreeRewriter {
         private int labelCount_;
 
-        private Lowerer() {}
+        private Lowerer() { }
 
         private LabelSymbol GenerateLabel() {
             var name = $"Label{++labelCount_}";

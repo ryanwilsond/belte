@@ -47,7 +47,7 @@ namespace Buckle {
         }
 
         private void InternalCompiler() {
-            for (int i=0; i<state.tasks.Length; i++) {
+            for (int i = 0; i < state.tasks.Length; i++) {
                 if (state.tasks[i].stage == CompilerStage.Preprocessed) {
                     // ...
                 }

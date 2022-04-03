@@ -64,7 +64,7 @@ namespace Buckle.Tests.CodeAnalysis {
             }
 
             var minIndent = int.MaxValue;
-            for (int i=0; i<lines.Count; i++) {
+            for (int i = 0; i < lines.Count; i++) {
                 var line = lines[i];
 
                 if (line.Trim().Length == 0) {
@@ -76,7 +76,7 @@ namespace Buckle.Tests.CodeAnalysis {
                 minIndent = Math.Min(minIndent, indent);
             }
 
-            for (var i=0; i<lines.Count; i++) {
+            for (var i = 0; i < lines.Count; i++) {
                 if (lines[i].Length == 0)
                     continue;
 

@@ -78,6 +78,6 @@ namespace Buckle.CodeAnalysis.Syntax {
     internal sealed class EmptyExpression : Expression {
         public override SyntaxType type => SyntaxType.EMPTY_EXPR;
 
-        public EmptyExpression() {}
+        public EmptyExpression() { }
     }
 }

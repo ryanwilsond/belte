@@ -89,7 +89,7 @@ namespace Buckle.CodeAnalysis.Binding {
         public bool jumpIfTrue { get; }
         public override BoundNodeType type => BoundNodeType.ConditionalGotoStatement;
 
-        public BoundConditionalGotoStatement(LabelSymbol label_, BoundExpression condition_, bool jumpIfTrue_=true) {
+        public BoundConditionalGotoStatement(LabelSymbol label_, BoundExpression condition_, bool jumpIfTrue_ = true) {
             label = label_;
             condition = condition_;
             jumpIfTrue = jumpIfTrue_;

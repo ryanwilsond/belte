@@ -239,7 +239,7 @@ namespace Buckle.Tests.CodeAnalysis {
 
             Assert.Equal(expectedDiagnostics.Length, result.diagnostics.count);
 
-            for (int i=0; i<expectedDiagnostics.Length; i++) {
+            for (int i = 0; i < expectedDiagnostics.Length; i++) {
                 var diagnostic = result.diagnostics.Pop();
 
                 var expectedMessage = expectedDiagnostics[i];

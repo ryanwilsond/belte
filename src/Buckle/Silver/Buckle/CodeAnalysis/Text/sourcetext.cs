@@ -64,7 +64,7 @@ namespace Buckle.CodeAnalysis.Text {
 
         private static int GetLineBreakWidth(string text, int i) {
             var c = text[i];
-            var l = i + 1 >= text.Length ? '\0' : text[i+1];
+            var l = i + 1 >= text.Length ? '\0' : text[i + 1];
 
             if (c == '\r' && l == '\n') return 2;
             if (c == '\r' || c == '\n') return 1;

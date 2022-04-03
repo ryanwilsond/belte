@@ -197,6 +197,6 @@ namespace Buckle.CodeAnalysis.Binding {
         public override BoundNodeType type => BoundNodeType.EmptyExpression;
         public override Type lType => null;
 
-        public BoundEmptyExpression() {}
+        public BoundEmptyExpression() { }
     }
 }

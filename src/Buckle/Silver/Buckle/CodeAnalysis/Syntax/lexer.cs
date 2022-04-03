@@ -71,7 +71,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                     //     type_ = SyntaxType.DPLUS;
                     //     position_++;
                     // } else {
-                        type_ = SyntaxType.PLUS;
+                    type_ = SyntaxType.PLUS;
                     // }
                     break;
                 case '-':
@@ -80,7 +80,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                     //     type_ = SyntaxType.DMINUS;
                     //     position_++;
                     // } else {
-                        type_ = SyntaxType.MINUS;
+                    type_ = SyntaxType.MINUS;
                     // }
                     break;
                 case '*':

@@ -15,8 +15,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             Expression expression = ParseExpression(text);
 
             if (op1Precedence >= op2Precedence) {
-                using (var e = new AssertingEnumerator(expression))
-                {
+                using (var e = new AssertingEnumerator(expression)) {
                     e.AssertNode(SyntaxType.BINARY_EXPR);
                     e.AssertNode(SyntaxType.BINARY_EXPR);
                     e.AssertNode(SyntaxType.NAME_EXPR);

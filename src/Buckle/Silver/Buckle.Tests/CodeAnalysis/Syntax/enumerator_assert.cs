@@ -42,7 +42,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
         public void AssertNode(SyntaxType type) {
             try {
                 Assert.True(enumerator_.MoveNext());
-                Assert.Equal(type,enumerator_.Current.type);
+                Assert.Equal(type, enumerator_.Current.type);
                 Assert.IsNotType<Token>(enumerator_.Current);
             } catch when (MarkFailed()) {
                 throw;
@@ -52,7 +52,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
         public void AssertToken(SyntaxType type, string text) {
             try {
                 Assert.True(enumerator_.MoveNext());
-                Assert.Equal(type,enumerator_.Current.type);
+                Assert.Equal(type, enumerator_.Current.type);
                 var token = Assert.IsType<Token>(enumerator_.Current);
                 Assert.Equal(text, token.text);
             } catch when (MarkFailed()) {

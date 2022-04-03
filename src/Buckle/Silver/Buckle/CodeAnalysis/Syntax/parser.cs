@@ -24,7 +24,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         private Token Peek(int offset) {
             int index = position_ + offset;
-            if (index >= tokens_.Length) return tokens_[tokens_.Length-1];
+            if (index >= tokens_.Length) return tokens_[tokens_.Length - 1];
             return tokens_[index];
         }
 
@@ -182,7 +182,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             var semicolon = Match(SyntaxType.SEMICOLON);
             popLast = popLast && previousCount != diagnostics.count;
 
-            if (popLast) diagnostics.RemoveAt(diagnostics.count-1);
+            if (popLast) diagnostics.RemoveAt(diagnostics.count - 1);
             return new ExpressionStatement(expression, semicolon);
         }
 
@@ -230,7 +230,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         private Expression ParsePrimaryExpression() {
-            switch(current.type) {
+            switch (current.type) {
                 case SyntaxType.LPAREN:
                     return ParseParenExpression();
                 case SyntaxType.TRUE_KEYWORD:

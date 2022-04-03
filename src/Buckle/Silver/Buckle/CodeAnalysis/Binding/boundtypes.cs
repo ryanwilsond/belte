@@ -78,8 +78,7 @@ namespace Buckle.CodeAnalysis.Binding {
             return ConsoleColor.Yellow;
         }
 
-        private void PrettyPrint(TextWriter writer, BoundNode node, bool isLast=true, string indent="")
-        {
+        private void PrettyPrint(TextWriter writer, BoundNode node, bool isLast = true, string indent = "") {
             bool isConsoleOut = writer == Console.Out;
             string marker = isLast ? "└─" : "├─";
 

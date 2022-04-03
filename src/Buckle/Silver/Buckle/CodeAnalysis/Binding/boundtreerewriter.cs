@@ -91,14 +91,14 @@ namespace Buckle.CodeAnalysis.Binding {
         protected virtual BoundStatement RewriteBlockStatement(BoundBlockStatement statement) {
             ImmutableArray<BoundStatement>.Builder builder = null;
 
-            for (int i=0; i<statement.statements.Length; i++) {
+            for (int i = 0; i < statement.statements.Length; i++) {
                 var oldStatement = statement.statements[i];
                 var newStatement = RewriteStatement(oldStatement);
 
                 if (newStatement != oldStatement && builder == null) {
                     builder = ImmutableArray.CreateBuilder<BoundStatement>(statement.statements.Length);
 
-                    for (int j=0; j<i; j++)
+                    for (int j = 0; j < i; j++)
                         builder.Add(statement.statements[j]);
                 }
 

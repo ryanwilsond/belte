@@ -102,7 +102,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             PrettyPrint(writer, this);
         }
 
-        private void PrettyPrint(TextWriter writer, Node node, string indent = "", bool isLast=true) {
+        private void PrettyPrint(TextWriter writer, Node node, string indent = "", bool isLast = true) {
             bool isConsoleOut = writer == Console.Out;
             string marker = isLast ? "└─" : "├─";
 

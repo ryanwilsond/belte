@@ -25,7 +25,7 @@ namespace CommandLine {
             state.finishStage = CompilerStage.Linked;
             state.linkOutputFilename = "a.exe";
 
-            for (int i=0; i<args.Length; i++) {
+            for (int i = 0; i < args.Length; i++) {
                 string arg = args[i];
 
                 if (arg.StartsWith('-')) {
@@ -50,7 +50,7 @@ namespace CommandLine {
                             break;
                         case "-o":
                             specifyOut = true;
-                            if (i >= args.Length-1)
+                            if (i >= args.Length - 1)
                                 diagnostics.Push(DiagnosticType.Fatal, "missing filename after '-o'");
                             state.linkOutputFilename = args[i++];
                             break;
@@ -61,7 +61,7 @@ namespace CommandLine {
                 } else {
                     string filename = arg;
                     string[] parts = filename.Split('.');
-                    string type = parts[parts.Length-1];
+                    string type = parts[parts.Length - 1];
                     FileState task = new FileState();
                     task.inputFilename = filename;
 
@@ -111,7 +111,7 @@ namespace CommandLine {
             TextLine line = text.lines[lineNumber];
             int column = error.span.start - line.start + 1;
             string lineText = line.ToString();
-            Console.Write($"{lineNumber+1}:{column}:");
+            Console.Write($"{lineNumber + 1}:{column}:");
 
             if (error.type == DiagnosticType.Error) {
                 Console.ForegroundColor = ConsoleColor.Red;
