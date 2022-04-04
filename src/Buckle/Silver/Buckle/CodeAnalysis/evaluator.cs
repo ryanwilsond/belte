@@ -121,7 +121,11 @@ namespace Buckle.CodeAnalysis {
             var right = EvaluateExpression(syntax.right);
 
             switch (syntax.op.opType) {
-                case BoundBinaryOperatorType.Addition: return (int)left + (int)right;
+                case BoundBinaryOperatorType.Addition:
+                    if (syntax.lType == TypeSymbol.Int)
+                        return (int)left + (int)right;
+                    else
+                        return (string)left + (string)right;
                 case BoundBinaryOperatorType.Subtraction: return (int)left - (int)right;
                 case BoundBinaryOperatorType.Multiplication: return (int)left * (int)right;
                 case BoundBinaryOperatorType.Division: return (int)left / (int)right;

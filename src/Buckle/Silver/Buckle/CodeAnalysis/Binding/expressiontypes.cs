@@ -82,6 +82,8 @@ namespace Buckle.CodeAnalysis.Binding {
             new BoundBinaryOperator(SyntaxType.CARET, BoundBinaryOperatorType.LogicalXor, TypeSymbol.Bool),
             new BoundBinaryOperator(SyntaxType.DEQUALS, BoundBinaryOperatorType.EqualityEquals, TypeSymbol.Bool),
             new BoundBinaryOperator(SyntaxType.BANGEQUALS, BoundBinaryOperatorType.EqualityNotEquals, TypeSymbol.Bool),
+
+            new BoundBinaryOperator(SyntaxType.PLUS, BoundBinaryOperatorType.Addition, TypeSymbol.String),
         };
 
         public static BoundBinaryOperator Bind(SyntaxType type, TypeSymbol leftType, TypeSymbol rightType) {
