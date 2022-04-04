@@ -1,13 +1,16 @@
 using System;
+using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Symbols {
 
-    public enum SymbolType {
+    internal enum SymbolType {
         Variable,
         Type,
+        Function,
+        Parameter,
     }
 
-    public abstract class Symbol {
+    internal abstract class Symbol {
         public string name { get; }
         public abstract SymbolType type { get; }
 
@@ -18,7 +21,7 @@ namespace Buckle.CodeAnalysis.Symbols {
         public override string ToString() => name;
     }
 
-    public sealed class VariableSymbol : Symbol {
+    internal class VariableSymbol : Symbol {
         public TypeSymbol lType { get; }
         public bool isReadOnly { get; }
         public override SymbolType type => SymbolType.Variable;

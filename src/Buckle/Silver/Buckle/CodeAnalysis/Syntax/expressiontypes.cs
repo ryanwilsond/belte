@@ -80,4 +80,13 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         public EmptyExpression() { }
     }
+
+    internal sealed class CallExpression : Expression {
+        public SepereratedSyntaxList<Expression> arguments { get; }
+        public override SyntaxType type => SyntaxType.CALL_EXPR;
+
+        public CallExpression(Token identifier, SepereratedSyntaxList<Expression> arguments_) {
+            arguments = arguments_;
+        }
+    }
 }
