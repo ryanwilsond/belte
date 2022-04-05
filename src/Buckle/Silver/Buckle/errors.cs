@@ -86,5 +86,15 @@ namespace Buckle {
             string msg = $"unterminated string literal";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
+
+        internal static Diagnostic UndefinedFunction(TextSpan span, string name) {
+            string msg = $"undefined function '{name}'";
+            return new Diagnostic(DiagnosticType.Error, span, msg);
+        }
+
+        internal static Diagnostic IncorrectArgumentsCount(TextSpan span, string name, int expected, int actual) {
+            string msg = $"function '{name}' expected {expected} arguments, got {actual}";
+            return new Diagnostic(DiagnosticType.Error, span, msg);
+        }
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Text;
@@ -248,7 +249,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                     return ParseStringLiteral();
                 case SyntaxType.NAME_EXPR:
                 default:
-                    return ParseNameExpression();
+                    return ParseNameOrCallExpression();
             }
         }
 
@@ -273,6 +274,38 @@ namespace Buckle.CodeAnalysis.Syntax {
         private Expression ParseStringLiteral() {
             var stringToken = Match(SyntaxType.STRING);
             return new LiteralExpression(stringToken);
+        }
+
+        private Expression ParseNameOrCallExpression() {
+            if (Peek(0).type == SyntaxType.IDENTIFIER && Peek(1).type == SyntaxType.LPAREN)
+                return ParseCallExpression();
+
+            return ParseNameExpression();
+        }
+
+        private Expression ParseCallExpression() {
+            var identifier = Match(SyntaxType.IDENTIFIER);
+            var openParenthesis = Match(SyntaxType.LPAREN);
+            var arguments = ParseArguments();
+            var closeParenthesis = Match(SyntaxType.RPAREN);
+
+            return new CallExpression(identifier, openParenthesis, arguments, closeParenthesis);
+        }
+
+        private SeparatedSyntaxList<Expression> ParseArguments() {
+            var nodesAndSeparators = ImmutableArray.CreateBuilder<Node>();
+
+            while (current.type != SyntaxType.RPAREN && current.type != SyntaxType.EOF) {
+                var expression = ParseExpression();
+                nodesAndSeparators.Add(expression);
+
+                if (current.type != SyntaxType.RPAREN) {
+                    var comma = Match(SyntaxType.COMMA);
+                    nodesAndSeparators.Add(comma);
+                }
+            }
+
+            return new SeparatedSyntaxList<Expression>(nodesAndSeparators.ToImmutable());
         }
 
         private Expression ParseNameExpression() {

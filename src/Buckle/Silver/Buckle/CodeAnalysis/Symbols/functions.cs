@@ -1,5 +1,7 @@
-
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
+using System.Reflection;
 
 namespace Buckle.CodeAnalysis.Symbols {
     internal static class BuiltinFunctions {
@@ -7,6 +9,11 @@ namespace Buckle.CodeAnalysis.Symbols {
             "print", ImmutableArray.Create(new ParameterSymbol("text", TypeSymbol.String)), TypeSymbol.Void);
         internal static readonly FunctionSymbol input = new FunctionSymbol(
             "print", ImmutableArray<ParameterSymbol>.Empty, TypeSymbol.String);
+
+        internal static IEnumerable<FunctionSymbol> GetAll()
+            => typeof(BuiltinFunctions).GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(f => f.FieldType == typeof(FunctionSymbol))
+            .Select(f => (FunctionSymbol)f.GetValue(null));
     }
 
     internal sealed class ParameterSymbol : VariableSymbol {

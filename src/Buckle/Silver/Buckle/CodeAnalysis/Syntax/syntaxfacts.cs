@@ -78,6 +78,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         public static string GetText(SyntaxType type) {
             switch (type) {
+                case SyntaxType.COMMA: return ",";
                 case SyntaxType.PLUS: return "+";
                 case SyntaxType.MINUS: return "-";
                 case SyntaxType.ASTERISK: return "*";

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 
@@ -76,11 +77,38 @@ namespace Buckle.CodeAnalysis.Binding {
                 case SyntaxType.PAREN_EXPR: return BindParenExpression((ParenExpression)expression);
                 case SyntaxType.NAME_EXPR: return BindNameExpression((NameExpression)expression);
                 case SyntaxType.ASSIGN_EXPR: return BindAssignmentExpression((AssignmentExpression)expression);
+                case SyntaxType.CALL_EXPR: return BindCallExpression((CallExpression)expression);
                 case SyntaxType.EMPTY_EXPR: return BindEmptyExpression((EmptyExpression)expression);
                 default:
                     diagnostics.Push(DiagnosticType.Fatal, $"unexpected syntax {expression.type}");
                     return null;
             }
+        }
+
+        private BoundExpression BindCallExpression(CallExpression expression) {
+            var functions = BuiltinFunctions.GetAll();
+            var function = functions.SingleOrDefault(f => f.name == expression.identifier.text);
+            if (function == null) {
+                diagnostics.Push(Error.UndefinedFunction(expression.identifier.span, expression.identifier.text));
+                return new BoundErrorExpression();
+            }
+
+            if (expression.arguments.count != function.parameters.Length) {
+                diagnostics.Push(Error.IncorrectArgumentsCount(
+                    expression.span, function.name, function.parameters.Length, expression.arguments.count));
+                return new BoundErrorExpression();
+            }
+
+            var arguments = ImmutableArray.CreateBuilder<BoundExpression>();
+
+            for (int i=0; i<expression.arguments.count; i++) {
+                var parameter = function.parameters[i];
+                // var argument = ; // 55:46
+
+                // if (argument.lType != parameter)
+            }
+
+            return new BoundErrorExpression();
         }
 
         private BoundExpression BindExpression(Expression expression, TypeSymbol target) {

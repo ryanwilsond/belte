@@ -82,11 +82,18 @@ namespace Buckle.CodeAnalysis.Syntax {
     }
 
     internal sealed class CallExpression : Expression {
-        public SepereratedSyntaxList<Expression> arguments { get; }
+        public Token identifier { get; }
+        public Token openParenthesis { get; }
+        public SeparatedSyntaxList<Expression> arguments { get; }
+        public Token closeParenthesis { get; }
         public override SyntaxType type => SyntaxType.CALL_EXPR;
 
-        public CallExpression(Token identifier, SepereratedSyntaxList<Expression> arguments_) {
+        public CallExpression(Token identifier_, Token openParenthesis_,
+            SeparatedSyntaxList<Expression> arguments_, Token closeParenthesis_) {
+            identifier = identifier_;
+            openParenthesis = openParenthesis_;
             arguments = arguments_;
+            closeParenthesis = closeParenthesis_;
         }
     }
 }

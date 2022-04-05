@@ -31,6 +31,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         DAMPERSAND,
         DPIPE,
         SEMICOLON,
+        COMMA,
         // DMINUS,
         // DPLUS,
         DASTERISK,

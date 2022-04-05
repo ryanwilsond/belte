@@ -35,6 +35,10 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case '\0':
                     type_ = SyntaxType.EOF;
                     break;
+                case ',':
+                    position_++;
+                    type_ = SyntaxType.COMMA;
+                    break;
                 case '/':
                     position_++;
                     type_ = SyntaxType.SLASH;
