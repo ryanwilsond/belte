@@ -40,7 +40,7 @@ namespace Buckle.CodeAnalysis.Binding {
                 previous = previous.previous;
             }
 
-            var parent = CreateRootScope(); // implemenet
+            var parent = CreateRootScope();
 
             while (stack.Count > 0) {
                 previous = stack.Pop();
@@ -52,6 +52,15 @@ namespace Buckle.CodeAnalysis.Binding {
             }
 
             return parent;
+        }
+
+        private static BoundScope CreateRootScope() {
+            var result = new BoundScope(null);
+
+            foreach (var f in BuiltinFunctions.GetAll())
+                result.TryDeclareFunction(f);
+
+            return result;
         }
 
         private BoundStatement BindStatement(Statement syntax) {
