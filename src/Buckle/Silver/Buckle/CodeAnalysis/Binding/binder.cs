@@ -69,7 +69,18 @@ namespace Buckle.CodeAnalysis.Binding {
             }
         }
 
-        private BoundExpression BindExpression(Expression expression) {
+        private BoundExpression BindExpression(Expression expression, bool canBeVoid=false) {
+            var result = BindExpressionInternal(expression);
+
+            if (!canBeVoid && result.lType == TypeSymbol.Void) {
+                diagnostics.Push(Error.NoValue(expression.span));
+                return new BoundErrorExpression();
+            }
+
+            return result;
+        }
+
+        private BoundExpression BindExpressionInternal(Expression expression) {
             switch (expression.type) {
                 case SyntaxType.LITERAL_EXPR: return BindLiteralExpression((LiteralExpression)expression);
                 case SyntaxType.UNARY_EXPR: return BindUnaryExpression((UnaryExpression)expression);
@@ -168,7 +179,7 @@ namespace Buckle.CodeAnalysis.Binding {
         }
 
         private BoundStatement BindExpressionStatement(ExpressionStatement statement) {
-            var expression = BindExpression(statement.expression);
+            var expression = BindExpression(statement.expression, true);
             return new BoundExpressionStatement(expression);
         }
 

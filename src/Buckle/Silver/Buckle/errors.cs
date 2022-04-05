@@ -72,6 +72,11 @@ namespace Buckle {
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
+        public static Diagnostic NoValue(TextSpan span) {
+            string msg = $"expression must have a value";
+            return new Diagnostic(DiagnosticType.Error, span, msg);
+        }
+
         public static Diagnostic ExpectedExpression(TextSpan span) {
             string msg = $"expected expression";
             return new Diagnostic(DiagnosticType.Error, span, msg);
@@ -82,22 +87,22 @@ namespace Buckle {
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
-        internal static Diagnostic UnterminatedString(TextSpan span) {
+        public static Diagnostic UnterminatedString(TextSpan span) {
             string msg = $"unterminated string literal";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
-        internal static Diagnostic UndefinedFunction(TextSpan span, string name) {
+        public static Diagnostic UndefinedFunction(TextSpan span, string name) {
             string msg = $"undefined function '{name}'";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
-        internal static Diagnostic IncorrectArgumentsCount(TextSpan span, string name, int expected, int actual) {
+        public static Diagnostic IncorrectArgumentsCount(TextSpan span, string name, int expected, int actual) {
             string msg = $"function '{name}' expected {expected} arguments, got {actual}";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
-        internal static Diagnostic InvalidArgumentType(
+        public static Diagnostic InvalidArgumentType(
                 TextSpan span, string parameterName, TypeSymbol expected, TypeSymbol actual) {
             string msg = $"parameter '{parameterName}' expected argument of type {expected}, got {actual}";
             return new Diagnostic(DiagnosticType.Error, span, msg);
