@@ -40,13 +40,13 @@ namespace Buckle.CodeAnalysis.Binding {
                 previous = previous.previous;
             }
 
-            BoundScope parent = null;
+            var parent = CreateRootScope(); // implemenet
 
             while (stack.Count > 0) {
                 previous = stack.Pop();
                 var scope = new BoundScope(parent);
                 foreach (var variable in previous.variables)
-                    scope.TryDeclare(variable);
+                    scope.TryDeclareVariable(variable);
 
                 parent = scope;
             }
@@ -103,8 +103,11 @@ namespace Buckle.CodeAnalysis.Binding {
                 boundArguments.Add(boundArgument);
             }
 
-            var functions = BuiltinFunctions.GetAll();
-            var function = functions.SingleOrDefault(f => f.name == expression.identifier.text);
+            if (!scope_.TryLookupFunction(expression.identifier.text, out var function)) {
+                diagnostics.Push(Error.UndefinedFunction(expression.identifier.span, expression.identifier.text));
+                return new BoundErrorExpression();
+            }
+
             if (function == null) {
                 diagnostics.Push(Error.UndefinedFunction(expression.identifier.span, expression.identifier.text));
                 return new BoundErrorExpression();
@@ -233,7 +236,7 @@ namespace Buckle.CodeAnalysis.Binding {
             if (expression.identifier.isMissing)
                 return new BoundErrorExpression();
 
-            if (scope_.TryLookup(name, out var variable))
+            if (scope_.TryLookupVariable(name, out var variable))
                 return new BoundVariableExpression(variable);
 
             diagnostics.Push(Error.UndefinedName(expression.identifier.span, name));
@@ -248,7 +251,7 @@ namespace Buckle.CodeAnalysis.Binding {
             var name = expression.identifier.text;
             var boundExpression = BindExpression(expression.expression);
 
-            if (!scope_.TryLookup(name, out var variable)) {
+            if (!scope_.TryLookupVariable(name, out var variable)) {
                 diagnostics.Push(Error.UndefinedName(expression.identifier.span, name));
                 return boundExpression;
             }
@@ -278,7 +281,7 @@ namespace Buckle.CodeAnalysis.Binding {
             var declare = !identifier.isMissing;
             var variable = new VariableSymbol(name, isReadOnly, type);
 
-            if (declare && !scope_.TryDeclare(variable))
+            if (declare && !scope_.TryDeclareVariable(variable))
                 diagnostics.Push(Error.AlreadyDeclared(identifier.span, name));
 
             return variable;

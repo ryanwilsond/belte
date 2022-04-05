@@ -6,27 +6,61 @@ namespace Buckle.CodeAnalysis.Binding {
 
     internal sealed class BoundScope {
         private Dictionary<string, VariableSymbol> variables_;
+        private Dictionary<string, FunctionSymbol> functions_ = new Dictionary<string, FunctionSymbol>();
         public BoundScope parent;
 
         public BoundScope(BoundScope parent_) {
-            variables_ = new Dictionary<string, VariableSymbol>();
             parent = parent_;
         }
 
-        public bool TryDeclare(VariableSymbol variable) {
+        public bool TryDeclareVariable(VariableSymbol variable) {
+            if (variables_ == null)
+                variables_ = new Dictionary<string, VariableSymbol>();
+
             if (variables_.ContainsKey(variable.name)) return false;
             variables_.Add(variable.name, variable);
             return true;
         }
 
-        public bool TryLookup(string name, out VariableSymbol variable) {
-            if (variables_.TryGetValue(name, out variable)) return true;
+        public bool TryLookupVariable(string name, out VariableSymbol variable) {
+            variable = null;
+
+            if (variables_ != null && variables_.TryGetValue(name, out variable)) return true;
             if (parent == null) return false;
-            return parent.TryLookup(name, out variable);
+
+            return parent.TryLookupVariable(name, out variable);
+        }
+
+        public bool TryDeclareFunction(FunctionSymbol function) {
+            if (functions_ == null)
+                functions_ = new Dictionary<string, FunctionSymbol>();
+
+            if (functions_.ContainsKey(function.name)) return false;
+            functions_.Add(function.name, function);
+            return true;
+        }
+
+        public bool TryLookupFunction(string name, out FunctionSymbol function) {
+            function = null;
+
+            if (functions_ != null && functions_.TryGetValue(name, out function)) return true;
+            if (parent == null) return false;
+
+            return parent.TryLookupFunction(name, out function);
         }
 
         public ImmutableArray<VariableSymbol> GetDeclaredVariables() {
+            if (variables_ == null)
+                return ImmutableArray<VariableSymbol>.Empty;
+
             return variables_.Values.ToImmutableArray();
+        }
+
+        public ImmutableArray<FunctionSymbol> GetDeclaredFunctions() {
+            if (functions_ == null)
+                return ImmutableArray<FunctionSymbol>.Empty;
+
+            return functions_.Values.ToImmutableArray();
         }
     }
 
