@@ -10,6 +10,7 @@ namespace Buckle.CodeAnalysis {
         public DiagnosticQueue diagnostics;
         private readonly Dictionary<VariableSymbol, object> variables_;
         private object lastValue_;
+        private Random random_;
 
         public Evaluator(BoundBlockStatement root, Dictionary<VariableSymbol, object> variables) {
             root_ = root;
@@ -95,6 +96,12 @@ namespace Buckle.CodeAnalysis {
             } else if (node.function == BuiltinFunctions.Print) {
                 var message = (string)EvaluateExpression(node.arguments[0]);
                 Console.WriteLine(message);
+            } else if (node.function == BuiltinFunctions.Randint) {
+                var max = (int)EvaluateExpression(node.arguments[0]);
+
+                if (random_ == null) random_ = new Random();
+
+                return random_.Next(max);
             } else {
                 diagnostics.Push(DiagnosticType.Fatal, $"unexpected function '{node.function}'");
             }
