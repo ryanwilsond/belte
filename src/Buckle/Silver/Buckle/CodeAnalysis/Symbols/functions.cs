@@ -5,10 +5,10 @@ using System.Reflection;
 
 namespace Buckle.CodeAnalysis.Symbols {
     internal static class BuiltinFunctions {
-        internal static readonly FunctionSymbol print = new FunctionSymbol(
+        public static readonly FunctionSymbol Print = new FunctionSymbol(
             "print", ImmutableArray.Create(new ParameterSymbol("text", TypeSymbol.String)), TypeSymbol.Void);
-        internal static readonly FunctionSymbol input = new FunctionSymbol(
-            "print", ImmutableArray<ParameterSymbol>.Empty, TypeSymbol.String);
+        public static readonly FunctionSymbol Input = new FunctionSymbol(
+            "input", ImmutableArray<ParameterSymbol>.Empty, TypeSymbol.String);
 
         internal static IEnumerable<FunctionSymbol> GetAll()
             => typeof(BuiltinFunctions).GetFields(BindingFlags.Public | BindingFlags.Static)
@@ -24,12 +24,13 @@ namespace Buckle.CodeAnalysis.Symbols {
 
     internal sealed class FunctionSymbol : Symbol {
         public ImmutableArray<ParameterSymbol> parameters { get; }
-        public TypeSymbol returnType { get; }
+        public TypeSymbol lType { get; }
         public override SymbolType type => SymbolType.Function;
 
-        public FunctionSymbol(string name, ImmutableArray<ParameterSymbol> parameters_,
-            TypeSymbol returnType_) : base(name) {
-            returnType = returnType_;
+        public FunctionSymbol(string name, ImmutableArray<ParameterSymbol> parameters_, TypeSymbol lType_)
+            : base(name) {
+            lType = lType_;
+            parameters = parameters_;
         }
     }
 }

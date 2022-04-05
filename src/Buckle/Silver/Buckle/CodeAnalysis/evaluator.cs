@@ -82,10 +82,24 @@ namespace Buckle.CodeAnalysis {
                 case BoundNodeType.AssignmentExpression: return EvaluateAssignment((BoundAssignmentExpression)node);
                 case BoundNodeType.UnaryExpression: return EvaluateUnary((BoundUnaryExpression)node);
                 case BoundNodeType.BinaryExpression: return EvaluateBinary((BoundBinaryExpression)node);
+                case BoundNodeType.CallExpression: return EvaluateCall((BoundCallExpression)node);
                 default:
                     diagnostics.Push(DiagnosticType.Fatal, $"unexpected node '{node.type}'");
                     return null;
             }
+        }
+
+        private object EvaluateCall(BoundCallExpression node) {
+            if (node.function == BuiltinFunctions.Input) {
+                return Console.ReadLine();
+            } else if (node.function == BuiltinFunctions.Print) {
+                var message = (string)EvaluateExpression(node.arguments[0]);
+                Console.WriteLine(message);
+            } else {
+                diagnostics.Push(DiagnosticType.Fatal, $"unexpected function '{node.function}'");
+            }
+
+            return null;
         }
 
         private object EvaluateLiteral(BoundLiteralExpression syntax) {

@@ -86,6 +86,12 @@ namespace Buckle.CodeAnalysis.Binding {
         }
 
         private BoundExpression BindCallExpression(CallExpression expression) {
+            var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
+            foreach (var argument in expression.arguments) {
+                var boundArgument = BindExpression(argument);
+                boundArguments.Add(boundArgument);
+            }
+
             var functions = BuiltinFunctions.GetAll();
             var function = functions.SingleOrDefault(f => f.name == expression.identifier.text);
             if (function == null) {
@@ -99,16 +105,19 @@ namespace Buckle.CodeAnalysis.Binding {
                 return new BoundErrorExpression();
             }
 
-            var arguments = ImmutableArray.CreateBuilder<BoundExpression>();
 
             for (int i=0; i<expression.arguments.count; i++) {
+                var argument = boundArguments[i];
                 var parameter = function.parameters[i];
-                // var argument = ; // 55:46
 
-                // if (argument.lType != parameter)
+                if (argument.lType != parameter.lType) {
+                    diagnostics.Push(Error.InvalidArgumentType(
+                        expression.span, parameter.name, parameter.lType, argument.lType));
+                    return new BoundErrorExpression();
+                }
             }
 
-            return new BoundErrorExpression();
+            return new BoundCallExpression(function, boundArguments.ToImmutable());
         }
 
         private BoundExpression BindExpression(Expression expression, TypeSymbol target) {

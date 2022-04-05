@@ -131,8 +131,35 @@ namespace Buckle.CodeAnalysis.Binding {
                     return RewriteEmptyExpression((BoundEmptyExpression)expression);
                 case BoundNodeType.ErrorExpression:
                     return RewriteErrorExpression((BoundErrorExpression)expression);
+                case BoundNodeType.CallExpression:
+                    return RewriteCallExpression((BoundCallExpression)expression);
                 default: return null;
             }
+        }
+
+        private BoundExpression RewriteCallExpression(BoundCallExpression expression) {
+            ImmutableArray<BoundExpression>.Builder builder = null;
+
+            for (int i=0; i<expression.arguments.Length; i++) {
+                var oldArgument = expression.arguments[i];
+                var newArgument = RewriteExpression(oldArgument);
+                if (newArgument != oldArgument) {
+                    if (builder == null) {
+                        builder = ImmutableArray.CreateBuilder<BoundExpression>(expression.arguments.Length);
+
+                        for (int j=0; j<i; j++)
+                            builder.Add(expression.arguments[j]);
+                    }
+                }
+
+                if (builder != null)
+                    builder.Add(newArgument);
+            }
+
+            if (builder == null)
+                return expression;
+
+            return new BoundCallExpression(expression.function, builder.MoveToImmutable());
         }
 
         protected virtual BoundExpression RewriteErrorExpression(BoundErrorExpression expression) {

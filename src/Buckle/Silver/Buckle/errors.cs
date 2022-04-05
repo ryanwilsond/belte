@@ -96,5 +96,11 @@ namespace Buckle {
             string msg = $"function '{name}' expected {expected} arguments, got {actual}";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
+
+        internal static Diagnostic InvalidArgumentType(
+                TextSpan span, string parameterName, TypeSymbol expected, TypeSymbol actual) {
+            string msg = $"parameter '{parameterName}' expected argument of type {expected}, got {actual}";
+            return new Diagnostic(DiagnosticType.Error, span, msg);
+        }
     }
 }

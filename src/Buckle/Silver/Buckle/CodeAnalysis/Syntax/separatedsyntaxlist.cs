@@ -17,7 +17,12 @@ namespace Buckle.CodeAnalysis.Syntax {
             nodesAndSeparators_ = nodesAndSeparators;
         }
 
-        public Token GetSeparator(int index) => (Token)nodesAndSeparators_[index * 2 + 1];
+        public Token GetSeparator(int index) {
+            if (index == count - 1)
+                return null;
+
+            return (Token)nodesAndSeparators_[index * 2 + 1];
+        }
 
         public override ImmutableArray<Node> GetWithSeparators() => nodesAndSeparators_;
 
