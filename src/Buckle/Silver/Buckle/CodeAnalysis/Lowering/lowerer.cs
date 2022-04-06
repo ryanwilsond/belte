@@ -119,6 +119,30 @@ namespace Buckle.CodeAnalysis.Lowering {
             return RewriteStatement(result);
         }
 
+        protected override BoundStatement RewriteDoWhileStatement(BoundDoWhileStatement node) {
+            /*
+            do
+                <body>
+            while <condition>
+
+            ---->
+
+            continue:
+            <body>
+            gotoTrue <condition> continue
+            */
+            var continueLabel = GenerateLabel();
+            var continueStatement = new BoundLabelStatement(continueLabel);
+            var gotoTrue = new BoundConditionalGotoStatement(continueLabel, node.condition);
+
+            var result = new BoundBlockStatement(ImmutableArray.Create<BoundStatement>(
+                continueStatement,
+                node.body,
+                gotoTrue));
+
+            return RewriteStatement(result);
+        }
+
         protected override BoundStatement RewriteForStatement(BoundForStatement node) {
             /*
             for (<initializer> <condition>; <step>)

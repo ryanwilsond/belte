@@ -72,6 +72,7 @@ namespace Buckle.CodeAnalysis.Binding {
                 case SyntaxType.IF_STATEMENT: return BindIfStatement((IfStatement)syntax);
                 case SyntaxType.WHILE_STATEMENT: return BindWhileStatement((WhileStatement)syntax);
                 case SyntaxType.FOR_STATEMENT: return BindForStatement((ForStatement)syntax);
+                case SyntaxType.DO_WHILE_STATEMENT: return BindDoWhileStatement((DoWhileStatement)syntax);
                 default:
                     diagnostics.Push(DiagnosticType.Fatal, $"unexpected syntax {syntax.type}");
                     return null;
@@ -107,7 +108,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private BoundExpression BindCallExpression(CallExpression expression) {
             if (expression.arguments.count == 1 && LookupType(expression.identifier.text) is TypeSymbol type)
-                return BindConversion(type, expression.arguments[0]);
+                return BindConversion(expression.arguments[0], type);
 
             var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
             foreach (var argument in expression.arguments) {
@@ -146,9 +147,10 @@ namespace Buckle.CodeAnalysis.Binding {
             return new BoundCallExpression(function, boundArguments.ToImmutable());
         }
 
-        private BoundExpression BindConversion(TypeSymbol type, Expression expression) {
+        private BoundExpression BindConversion(Expression expression, TypeSymbol type) {
             var boundExpression = BindExpression(expression);
             var conversion = Cast.Classify(boundExpression.lType, type);
+
             if (!conversion.exists) {
                 diagnostics.Push(Error.CannotConvert(expression.span, boundExpression.lType, type));
                 return new BoundErrorExpression();
@@ -158,17 +160,19 @@ namespace Buckle.CodeAnalysis.Binding {
         }
 
         private BoundExpression BindExpression(Expression expression, TypeSymbol target) {
-            var result = BindExpression(expression);
-            if (target != TypeSymbol.Error && result.lType != TypeSymbol.Error && result.lType != target)
-                diagnostics.Push(Error.CannotConvert(expression.span, result.lType, target));
-
-            return result;
+            return BindConversion(expression, target);
         }
 
         private BoundStatement BindWhileStatement(WhileStatement statement) {
             var condition = BindExpression(statement.condition);
             var body = BindStatement(statement.body);
             return new BoundWhileStatement(condition, body);
+        }
+
+        private BoundStatement BindDoWhileStatement(DoWhileStatement statement) {
+            var body = BindStatement(statement.body);
+            var condition = BindExpression(statement.condition);
+            return new BoundDoWhileStatement(body, condition);
         }
 
         private BoundStatement BindForStatement(ForStatement statement) {

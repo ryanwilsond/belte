@@ -74,9 +74,24 @@ namespace Buckle.CodeAnalysis.Syntax {
                     return ParseWhileStatement();
                 case SyntaxType.FOR_KEYWORD:
                     return ParseForStatement();
+                case SyntaxType.DO_KEYWORD:
+                    return ParseDoWhileStatement();
                 default:
                     return ParseExpressionStatement();
             }
+        }
+
+        private Statement ParseDoWhileStatement() {
+            var doKeyword = Match(SyntaxType.DO_KEYWORD);
+            var body = ParseStatement();
+            var whileKeyword = Match(SyntaxType.WHILE_KEYWORD);
+            var openParenthesis = Match(SyntaxType.LPAREN);
+            var condition = ParseExpression();
+            var closeParenthesis = Match(SyntaxType.RPAREN);
+            var semicolon = Match(SyntaxType.SEMICOLON);
+
+            return new DoWhileStatement(
+                doKeyword, body, whileKeyword, openParenthesis, condition, closeParenthesis, semicolon);
         }
 
         private Statement ParseVariableDeclarationStatement() {

@@ -28,6 +28,7 @@ namespace Buckle.CodeAnalysis.Binding {
         GotoStatement,
         LabelStatement,
         ConditionalGotoStatement,
+        DoWhileStatement,
     }
 
     internal abstract class BoundNode {

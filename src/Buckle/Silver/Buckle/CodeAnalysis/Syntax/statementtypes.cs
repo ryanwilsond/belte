@@ -119,4 +119,27 @@ namespace Buckle.CodeAnalysis.Syntax {
             body = body_;
         }
     }
+
+    internal sealed class DoWhileStatement : Statement {
+        public Token doKeyword { get; }
+        public Statement body { get; }
+        public Token whileKeyword { get; }
+        public Token openParenthesis { get; }
+        public Expression condition { get; }
+        public Token closeParenthesis { get; }
+        public Token semicolon { get; }
+        public override SyntaxType type => SyntaxType.DO_WHILE_STATEMENT;
+
+        public DoWhileStatement(
+            Token doKeyword_, Statement body_, Token whileKeyword_, Token openParenthesis_,
+            Expression condition_, Token closeParenthesis_, Token semicolon_) {
+            doKeyword = doKeyword_;
+            body = body_;
+            whileKeyword = whileKeyword_;
+            openParenthesis = openParenthesis_;
+            condition = condition_;
+            closeParenthesis = closeParenthesis_;
+            semicolon = semicolon_;
+        }
+    }
 }

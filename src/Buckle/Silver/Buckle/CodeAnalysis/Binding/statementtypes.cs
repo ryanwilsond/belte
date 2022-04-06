@@ -105,4 +105,15 @@ namespace Buckle.CodeAnalysis.Binding {
             label = label_;
         }
     }
+
+    internal sealed class BoundDoWhileStatement : BoundStatement {
+        public BoundStatement body { get; }
+        public BoundExpression condition { get; }
+        public override BoundNodeType type => BoundNodeType.DoWhileStatement;
+
+        public BoundDoWhileStatement(BoundStatement body_, BoundExpression condition_) {
+            body = body_;
+            condition = condition_;
+        }
+    }
 }

@@ -62,6 +62,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         ELSE_KEYWORD,
         WHILE_KEYWORD,
         FOR_KEYWORD,
+        DO_KEYWORD,
 
         BLOCK_STATEMENT,
         EXPRESSION_STATEMENT,
@@ -69,6 +70,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         IF_STATEMENT,
         WHILE_STATEMENT,
         FOR_STATEMENT,
+        DO_WHILE_STATEMENT,
         // other
         COMPILATION_UNIT,
         ELSE_CLAUSE,
