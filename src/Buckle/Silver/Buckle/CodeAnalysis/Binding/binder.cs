@@ -106,6 +106,9 @@ namespace Buckle.CodeAnalysis.Binding {
         }
 
         private BoundExpression BindCallExpression(CallExpression expression) {
+            if (expression.arguments.count == 1 && LookupType(expression.identifier.text) is TypeSymbol type)
+                return BindConversion(type, expression.arguments[0]);
+
             var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
             foreach (var argument in expression.arguments) {
                 var boundArgument = BindExpression(argument);
@@ -141,6 +144,17 @@ namespace Buckle.CodeAnalysis.Binding {
             }
 
             return new BoundCallExpression(function, boundArguments.ToImmutable());
+        }
+
+        private BoundExpression BindConversion(TypeSymbol type, Expression expression) {
+            var boundExpression = BindExpression(expression);
+            var conversion = Cast.Classify(boundExpression.lType, type);
+            if (!conversion.exists) {
+                diagnostics.Push(Error.CannotConvert(expression.span, boundExpression.lType, type));
+                return new BoundErrorExpression();
+            }
+
+            return new BoundCastExpression(type, boundExpression);
         }
 
         private BoundExpression BindExpression(Expression expression, TypeSymbol target) {
@@ -294,6 +308,15 @@ namespace Buckle.CodeAnalysis.Binding {
                 diagnostics.Push(Error.AlreadyDeclared(identifier.span, name));
 
             return variable;
+        }
+
+        private TypeSymbol LookupType(string name) {
+            switch (name) {
+                case "bool": return TypeSymbol.Bool;
+                case "int": return TypeSymbol.Int;
+                case "string": return TypeSymbol.String;
+                default: return null;
+            }
         }
     }
 }

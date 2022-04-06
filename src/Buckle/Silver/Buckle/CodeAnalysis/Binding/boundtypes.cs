@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.IO;
 using System.Linq;
-using Buckle.CodeAnalysis.Symbols;
-using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Binding {
 
@@ -19,6 +17,7 @@ namespace Buckle.CodeAnalysis.Binding {
         EmptyExpression,
         ErrorExpression,
         CallExpression,
+        CastExpression,
 
         BlockStatement,
         ExpressionStatement,
@@ -153,18 +152,6 @@ namespace Buckle.CodeAnalysis.Binding {
                 WriteTo(writer);
                 return writer.ToString();
             }
-        }
-    }
-
-    internal sealed class BoundCallExpression : BoundExpression {
-        public FunctionSymbol function { get; }
-        public ImmutableArray<BoundExpression> arguments { get; }
-        public override BoundNodeType type => BoundNodeType.CallExpression;
-        public override TypeSymbol lType => function.lType;
-
-        public BoundCallExpression(FunctionSymbol function_, ImmutableArray<BoundExpression> arguments_) {
-            function = function_;
-            arguments = arguments_;
         }
     }
 }

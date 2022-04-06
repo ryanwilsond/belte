@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Binding {
@@ -132,11 +133,21 @@ namespace Buckle.CodeAnalysis.Binding {
                     return RewriteErrorExpression((BoundErrorExpression)expression);
                 case BoundNodeType.CallExpression:
                     return RewriteCallExpression((BoundCallExpression)expression);
+                case BoundNodeType.CastExpression:
+                    return RewriteCastExpression((BoundCastExpression)expression);
                 default: return null;
             }
         }
 
-        private BoundExpression RewriteCallExpression(BoundCallExpression expression) {
+        protected virtual BoundExpression RewriteCastExpression(BoundCastExpression expression) {
+            var rewrote = RewriteExpression(expression.expression);
+            if (rewrote == expression.expression)
+                return expression;
+
+            return new BoundCastExpression(expression.lType, rewrote);
+        }
+
+        protected virtual BoundExpression RewriteCallExpression(BoundCallExpression expression) {
             ImmutableArray<BoundExpression>.Builder builder = null;
 
             for (int i=0; i<expression.arguments.Length; i++) {

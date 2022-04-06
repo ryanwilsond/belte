@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 
@@ -218,5 +219,28 @@ namespace Buckle.CodeAnalysis.Binding {
         public override TypeSymbol lType => TypeSymbol.Error;
 
         public BoundErrorExpression() { }
+    }
+
+    internal sealed class BoundCallExpression : BoundExpression {
+        public FunctionSymbol function { get; }
+        public ImmutableArray<BoundExpression> arguments { get; }
+        public override BoundNodeType type => BoundNodeType.CallExpression;
+        public override TypeSymbol lType => function.lType;
+
+        public BoundCallExpression(FunctionSymbol function_, ImmutableArray<BoundExpression> arguments_) {
+            function = function_;
+            arguments = arguments_;
+        }
+    }
+
+    internal sealed class BoundCastExpression : BoundExpression {
+        public BoundExpression expression { get; }
+        public override BoundNodeType type => BoundNodeType.CastExpression;
+        public override TypeSymbol lType { get; }
+
+        public BoundCastExpression(TypeSymbol lType_, BoundExpression expression_) {
+            lType = lType_;
+            expression = expression_;
+        }
     }
 }
