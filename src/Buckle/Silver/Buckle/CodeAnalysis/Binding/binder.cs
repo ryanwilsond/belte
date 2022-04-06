@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Binding {
 
@@ -108,7 +109,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private BoundExpression BindCallExpression(CallExpression expression) {
             if (expression.arguments.count == 1 && LookupType(expression.identifier.text) is TypeSymbol type)
-                return BindConversion(expression.arguments[0], type);
+                return BindCast(expression.arguments[0], type);
 
             var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
             foreach (var argument in expression.arguments) {
@@ -117,7 +118,12 @@ namespace Buckle.CodeAnalysis.Binding {
             }
 
             if (!scope_.TryLookupFunction(expression.identifier.text, out var function)) {
-                diagnostics.Push(Error.UndefinedFunction(expression.identifier.span, expression.identifier.text));
+                if (scope_.TryLookupVariable(expression.identifier.text, out _))
+                    diagnostics.Push(
+                        Error.CannotCallNonFunction(expression.identifier.span, expression.identifier.text));
+                else
+                    diagnostics.Push(Error.UndefinedFunction(expression.identifier.span, expression.identifier.text));
+
                 return new BoundErrorExpression();
             }
 
@@ -147,31 +153,40 @@ namespace Buckle.CodeAnalysis.Binding {
             return new BoundCallExpression(function, boundArguments.ToImmutable());
         }
 
-        private BoundExpression BindConversion(Expression expression, TypeSymbol type) {
+        private BoundExpression BindCast(Expression expression, TypeSymbol type) {
             var boundExpression = BindExpression(expression);
-            var conversion = Cast.Classify(boundExpression.lType, type);
+            return BindCast(expression.span, boundExpression, type);
+        }
+
+        private BoundExpression BindCast(TextSpan diagnosticSpan, BoundExpression expression, TypeSymbol type) {
+            var conversion = Cast.Classify(expression.lType, type);
 
             if (!conversion.exists) {
-                diagnostics.Push(Error.CannotConvert(expression.span, boundExpression.lType, type));
+                if (expression.lType != TypeSymbol.Error && type != TypeSymbol.Error)
+                    diagnostics.Push(Error.CannotConvert(diagnosticSpan, expression.lType, type));
+
                 return new BoundErrorExpression();
             }
 
-            return new BoundCastExpression(type, boundExpression);
+            if (conversion.isIdentity)
+                return expression;
+
+            return new BoundCastExpression(type, expression);
         }
 
         private BoundExpression BindExpression(Expression expression, TypeSymbol target) {
-            return BindConversion(expression, target);
+            return BindCast(expression, target);
         }
 
         private BoundStatement BindWhileStatement(WhileStatement statement) {
-            var condition = BindExpression(statement.condition);
+            var condition = BindExpression(statement.condition, TypeSymbol.Bool);
             var body = BindStatement(statement.body);
             return new BoundWhileStatement(condition, body);
         }
 
         private BoundStatement BindDoWhileStatement(DoWhileStatement statement) {
             var body = BindStatement(statement.body);
-            var condition = BindExpression(statement.condition);
+            var condition = BindExpression(statement.condition, TypeSymbol.Bool);
             return new BoundDoWhileStatement(body, condition);
         }
 
@@ -179,7 +194,7 @@ namespace Buckle.CodeAnalysis.Binding {
             scope_ = new BoundScope(scope_);
 
             var initializer = BindStatement(statement.initializer);
-            var condition = BindExpression(statement.condition);
+            var condition = BindExpression(statement.condition, TypeSymbol.Bool);
             var step = BindExpression(statement.step);
             var body = BindStatement(statement.body);
 

@@ -112,5 +112,10 @@ namespace Buckle {
             string msg = $"parameter '{parameterName}' expected argument of type {expected}, got {actual}";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
+
+        public static Diagnostic CannotCallNonFunction(TextSpan span, string text) {
+            string msg = $"called object '{text}' is not a function";
+            return new Diagnostic(DiagnosticType.Error, span, msg);
+        }
     }
 }
