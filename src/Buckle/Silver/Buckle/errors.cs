@@ -117,5 +117,10 @@ namespace Buckle {
             string msg = $"called object '{text}' is not a function";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
+
+        public static Diagnostic UnknownType(TextSpan span, string text) {
+            string msg = $"unknown type '{text}'";
+            return new Diagnostic(DiagnosticType.Error, span, msg);
+        }
     }
 }

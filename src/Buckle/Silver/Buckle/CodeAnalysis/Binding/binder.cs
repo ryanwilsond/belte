@@ -312,9 +312,38 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatement expression) {
             var isReadOnly = expression.keyword.type == SyntaxType.LET_KEYWORD;
-            var initializer = BindExpression(expression.initializer);
-            var variable = BindVariable(expression.identifier, isReadOnly, initializer.lType);
+            var anyType = false;
 
+            TypeSymbol lType = null;
+            switch (expression.keyword.type) {
+                case SyntaxType.LET_KEYWORD:
+                case SyntaxType.AUTO_KEYWORD:
+                    anyType = true;
+                    break;
+                case SyntaxType.STRING_KEYWORD:
+                    lType = TypeSymbol.String;
+                    break;
+                case SyntaxType.INT_KEYWORD:
+                    lType = TypeSymbol.Int;
+                    break;
+                case SyntaxType.BOOL_KEYWORD:
+                    lType = TypeSymbol.Bool;
+                    break;
+                default:
+                    diagnostics.Push(Error.UnknownType(expression.keyword.span, expression.keyword.text));
+                    return new BoundVariableDeclarationStatement(null, null);
+            }
+
+            BoundExpression initializer = null;
+
+            if (anyType)
+                initializer = BindExpression(expression.initializer);
+            else {
+                initializer = BindExpression(expression.initializer, lType);
+                // raise error if explicit cast
+            }
+
+            var variable = BindVariable(expression.identifier, isReadOnly, lType);
             return new BoundVariableDeclarationStatement(variable, initializer);
         }
 

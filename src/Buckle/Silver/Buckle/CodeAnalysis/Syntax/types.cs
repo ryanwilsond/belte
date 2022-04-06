@@ -63,6 +63,9 @@ namespace Buckle.CodeAnalysis.Syntax {
         WHILE_KEYWORD,
         FOR_KEYWORD,
         DO_KEYWORD,
+        STRING_KEYWORD,
+        INT_KEYWORD,
+        BOOL_KEYWORD,
 
         BLOCK_STATEMENT,
         EXPRESSION_STATEMENT,

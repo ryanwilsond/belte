@@ -67,6 +67,9 @@ namespace Buckle.CodeAnalysis.Syntax {
                     return ParseBlockStatement();
                 case SyntaxType.LET_KEYWORD:
                 case SyntaxType.AUTO_KEYWORD:
+                case SyntaxType.STRING_KEYWORD:
+                case SyntaxType.INT_KEYWORD:
+                case SyntaxType.BOOL_KEYWORD:
                     return ParseVariableDeclarationStatement();
                 case SyntaxType.IF_KEYWORD:
                     return ParseIfStatement();
@@ -95,8 +98,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         private Statement ParseVariableDeclarationStatement() {
-            var expected = current.type == SyntaxType.LET_KEYWORD ? SyntaxType.LET_KEYWORD : SyntaxType.AUTO_KEYWORD;
-            var keyword = Match(expected);
+            var keyword = Match(current.type);
             var identifier = Match(SyntaxType.IDENTIFIER);
             var equals = Match(SyntaxType.EQUALS);
             var initializer = ParseExpression();

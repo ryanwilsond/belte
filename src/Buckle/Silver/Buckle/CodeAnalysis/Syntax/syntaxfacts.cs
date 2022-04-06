@@ -73,6 +73,9 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case "while": return SyntaxType.WHILE_KEYWORD;
                 case "for": return SyntaxType.FOR_KEYWORD;
                 case "do": return SyntaxType.DO_KEYWORD;
+                case "string": return SyntaxType.STRING_KEYWORD;
+                case "int": return SyntaxType.INT_KEYWORD;
+                case "bool": return SyntaxType.BOOL_KEYWORD;
                 default: return SyntaxType.IDENTIFIER;
             }
         }
@@ -117,6 +120,9 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.WHILE_KEYWORD: return "while";
                 case SyntaxType.FOR_KEYWORD: return "for";
                 case SyntaxType.DO_KEYWORD: return "do";
+                case SyntaxType.STRING_KEYWORD: return "string";
+                case SyntaxType.INT_KEYWORD: return "int";
+                case SyntaxType.BOOL_KEYWORD: return "bool";
                 default: return null;
             }
         }
