@@ -6,15 +6,15 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal sealed class VariableDeclarationStatement : Statement {
         public override SyntaxType type => SyntaxType.VARIABLE_DECLARATION_STATEMENT;
-        public Token keyword { get; }
+        public Token typeName { get; }
         public Token identifier { get; }
         public Token equals { get; }
         public Expression initializer { get; }
         public Token semicolon { get; }
 
         public VariableDeclarationStatement(
-            Token keyword_, Token identifier_, Token equals_, Expression initializer_, Token semicolon_) {
-            keyword = keyword_;
+            Token typeName_, Token identifier_, Token equals_, Expression initializer_, Token semicolon_) {
+            typeName = typeName_;
             identifier = identifier_;
             equals = equals_;
             initializer = initializer_;

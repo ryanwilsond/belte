@@ -17,7 +17,7 @@ namespace Buckle {
         }
 
         public static Diagnostic InvalidType(TextSpan span, string text, TypeSymbol type) {
-            string msg = $"'{text}' is not a valid {type}";
+            string msg = $"'{text}' is not a valid '{type}'";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
@@ -38,12 +38,12 @@ namespace Buckle {
         }
 
         public static Diagnostic InvalidUnaryOperatorUse(TextSpan span, string op, TypeSymbol operand) {
-            string msg = $"operator '{op}' is not defined for type {operand}";
+            string msg = $"operator '{op}' is not defined for type '{operand}'";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
         public static Diagnostic InvalidBinaryOperatorUse(TextSpan span, string op, TypeSymbol left, TypeSymbol right) {
-            string msg = $"operator '{op}' is not defined for types {left} and {right}";
+            string msg = $"operator '{op}' is not defined for types '{left}' and '{right}'";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
@@ -53,7 +53,7 @@ namespace Buckle {
         }
 
         public static Diagnostic CannotConvert(TextSpan span, TypeSymbol from, TypeSymbol to) {
-            string msg = $"cannot convert from type {from} to {to}";
+            string msg = $"cannot convert from type '{from}' to '{to}'";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
@@ -98,18 +98,18 @@ namespace Buckle {
         }
 
         public static Diagnostic IncorrectArgumentsCount(TextSpan span, string name, int expected, int actual) {
-            string msg = $"function '{name}' expected {expected} arguments, got {actual}";
+            string msg = $"function '{name}' expects {expected} arguments, got {actual}";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
         public static Diagnostic UnexpectedType(TextSpan span, TypeSymbol lType) {
-            string msg = $"unexpected type {lType}";
+            string msg = $"unexpected type '{lType}'";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
         public static Diagnostic InvalidArgumentType(
                 TextSpan span, string parameterName, TypeSymbol expected, TypeSymbol actual) {
-            string msg = $"parameter '{parameterName}' expected argument of type {expected}, got {actual}";
+            string msg = $"parameter '{parameterName}' expected argument of type '{expected}', got '{actual}'";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
@@ -120,6 +120,12 @@ namespace Buckle {
 
         public static Diagnostic UnknownType(TextSpan span, string text) {
             string msg = $"unknown type '{text}'";
+            return new Diagnostic(DiagnosticType.Error, span, msg);
+        }
+
+        public static Diagnostic CannotConvertImplicitly(TextSpan span, TypeSymbol from, TypeSymbol to) {
+            string msg =
+                $"cannot convert from type '{from}' to '{to}'. An explicit conversion exists (are you missing a cast?)";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
     }

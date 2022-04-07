@@ -109,7 +109,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private BoundExpression BindCallExpression(CallExpression expression) {
             if (expression.arguments.count == 1 && LookupType(expression.identifier.text) is TypeSymbol type)
-                return BindCast(expression.arguments[0], type);
+                return BindCast(expression.arguments[0], type, true);
 
             var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
             foreach (var argument in expression.arguments) {
@@ -153,12 +153,13 @@ namespace Buckle.CodeAnalysis.Binding {
             return new BoundCallExpression(function, boundArguments.ToImmutable());
         }
 
-        private BoundExpression BindCast(Expression expression, TypeSymbol type) {
+        private BoundExpression BindCast(Expression expression, TypeSymbol type, bool allowExplicit = false) {
             var boundExpression = BindExpression(expression);
-            return BindCast(expression.span, boundExpression, type);
+            return BindCast(expression.span, boundExpression, type, allowExplicit);
         }
 
-        private BoundExpression BindCast(TextSpan diagnosticSpan, BoundExpression expression, TypeSymbol type) {
+        private BoundExpression BindCast(
+            TextSpan diagnosticSpan, BoundExpression expression, TypeSymbol type, bool allowExplicit = false) {
             var conversion = Cast.Classify(expression.lType, type);
 
             if (!conversion.exists) {
@@ -166,6 +167,10 @@ namespace Buckle.CodeAnalysis.Binding {
                     diagnostics.Push(Error.CannotConvert(diagnosticSpan, expression.lType, type));
 
                 return new BoundErrorExpression();
+            }
+
+            if (!allowExplicit && conversion.isExplicit) {
+                diagnostics.Push(Error.CannotConvertImplicitly(diagnosticSpan, expression.lType, type));
             }
 
             if (conversion.isIdentity)
@@ -311,40 +316,25 @@ namespace Buckle.CodeAnalysis.Binding {
         }
 
         private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatement expression) {
-            var isReadOnly = expression.keyword.type == SyntaxType.LET_KEYWORD;
-            var anyType = false;
+            var isReadOnly = expression.typeName.type == SyntaxType.LET_KEYWORD;
+            var type = BindTypeClause(expression.typeName);
+            var initializer = BindExpression(expression.initializer);
+            var variableType = type ?? initializer.lType;
+            var castedInitializer = BindCast(expression.initializer.span, initializer, variableType);
+            var variable = BindVariable(expression.identifier, isReadOnly, variableType);
 
-            TypeSymbol lType = null;
-            switch (expression.keyword.type) {
-                case SyntaxType.LET_KEYWORD:
-                case SyntaxType.AUTO_KEYWORD:
-                    anyType = true;
-                    break;
-                case SyntaxType.STRING_KEYWORD:
-                    lType = TypeSymbol.String;
-                    break;
-                case SyntaxType.INT_KEYWORD:
-                    lType = TypeSymbol.Int;
-                    break;
-                case SyntaxType.BOOL_KEYWORD:
-                    lType = TypeSymbol.Bool;
-                    break;
-                default:
-                    diagnostics.Push(Error.UnknownType(expression.keyword.span, expression.keyword.text));
-                    return new BoundVariableDeclarationStatement(null, null);
-            }
+            return new BoundVariableDeclarationStatement(variable, castedInitializer);
+        }
 
-            BoundExpression initializer = null;
+        private TypeSymbol BindTypeClause(Token type) {
+            if (type.type == SyntaxType.AUTO_KEYWORD || type.type == SyntaxType.LET_KEYWORD)
+                return null;
 
-            if (anyType)
-                initializer = BindExpression(expression.initializer);
-            else {
-                initializer = BindExpression(expression.initializer, lType);
-                // raise error if explicit cast
-            }
+            var foundType = LookupType(type.text);
+            if (foundType == null)
+                diagnostics.Push(Error.UnknownType(type.span, type.text));
 
-            var variable = BindVariable(expression.identifier, isReadOnly, lType);
-            return new BoundVariableDeclarationStatement(variable, initializer);
+            return foundType;
         }
 
         private VariableSymbol BindVariable(Token identifier, bool isReadOnly, TypeSymbol type) {

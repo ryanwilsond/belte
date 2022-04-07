@@ -67,9 +67,6 @@ namespace Buckle.CodeAnalysis.Syntax {
                     return ParseBlockStatement();
                 case SyntaxType.LET_KEYWORD:
                 case SyntaxType.AUTO_KEYWORD:
-                case SyntaxType.STRING_KEYWORD:
-                case SyntaxType.INT_KEYWORD:
-                case SyntaxType.BOOL_KEYWORD:
                     return ParseVariableDeclarationStatement();
                 case SyntaxType.IF_KEYWORD:
                     return ParseIfStatement();
@@ -79,6 +76,10 @@ namespace Buckle.CodeAnalysis.Syntax {
                     return ParseForStatement();
                 case SyntaxType.DO_KEYWORD:
                     return ParseDoWhileStatement();
+                case SyntaxType.IDENTIFIER:
+                    if (Peek(1).type == SyntaxType.IDENTIFIER)
+                        return ParseVariableDeclarationStatement();
+                    else goto default;
                 default:
                     return ParseExpressionStatement();
             }
@@ -98,13 +99,13 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         private Statement ParseVariableDeclarationStatement() {
-            var keyword = Match(current.type);
+            var typeName = Match(current.type);
             var identifier = Match(SyntaxType.IDENTIFIER);
             var equals = Match(SyntaxType.EQUALS);
             var initializer = ParseExpression();
             var semicolon = Match(SyntaxType.SEMICOLON);
 
-            return new VariableDeclarationStatement(keyword, identifier, equals, initializer, semicolon);
+            return new VariableDeclarationStatement(typeName, identifier, equals, initializer, semicolon);
         }
 
         private Statement ParseWhileStatement() {
