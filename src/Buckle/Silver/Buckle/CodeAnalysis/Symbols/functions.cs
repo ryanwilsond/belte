@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Symbols {
     internal static class BuiltinFunctions {
@@ -18,7 +19,7 @@ namespace Buckle.CodeAnalysis.Symbols {
             .Select(f => (FunctionSymbol)f.GetValue(null));
     }
 
-    internal sealed class ParameterSymbol : VariableSymbol {
+    internal sealed class ParameterSymbol : LocalVariableSymbol {
         public override SymbolType type => SymbolType.Parameter;
 
         public ParameterSymbol(string name, TypeSymbol lType) : base(name, true, lType) { }
@@ -27,12 +28,16 @@ namespace Buckle.CodeAnalysis.Symbols {
     internal sealed class FunctionSymbol : Symbol {
         public ImmutableArray<ParameterSymbol> parameters { get; }
         public TypeSymbol lType { get; }
+        public FunctionDeclaration declaration { get; }
         public override SymbolType type => SymbolType.Function;
 
-        public FunctionSymbol(string name, ImmutableArray<ParameterSymbol> parameters_, TypeSymbol lType_)
+        public FunctionSymbol(
+            string name, ImmutableArray<ParameterSymbol> parameters_,
+            TypeSymbol lType_, FunctionDeclaration declaration_ = null)
             : base(name) {
             lType = lType_;
             parameters = parameters_;
+            declaration = declaration_;
         }
     }
 }

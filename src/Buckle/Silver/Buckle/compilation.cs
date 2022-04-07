@@ -87,9 +87,12 @@ namespace Buckle {
             if (diagnostics.Any())
                 return new EvaluationResult(null, diagnostics);
 
-            var statement = Lowerer.Lower(globalScope.statement);
+            var program = Binder.BindProgram(globalScope);
+            if (program.diagnostics.Any())
+                return new EvaluationResult(null, program.diagnostics);
 
-            var eval = new Evaluator(statement, variables);
+            var statement = Lowerer.Lower(globalScope.statement);
+            var eval = new Evaluator(program.functionBodies, statement, variables);
             var result = new EvaluationResult(eval.Evaluate(), diagnostics);
             return result;
         }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 
@@ -8,27 +9,35 @@ namespace Buckle.CodeAnalysis {
     internal sealed class Evaluator {
         private readonly BoundBlockStatement root_;
         public DiagnosticQueue diagnostics;
-        private readonly Dictionary<VariableSymbol, object> variables_;
+        private readonly Dictionary<VariableSymbol, object> globals_;
+        private readonly Stack<Dictionary<VariableSymbol, object>> locals_ =
+            new Stack<Dictionary<VariableSymbol, object>>();
+        private readonly ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies_;
         private object lastValue_;
         private Random random_;
 
-        public Evaluator(BoundBlockStatement root, Dictionary<VariableSymbol, object> variables) {
+        public Evaluator(ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies, BoundBlockStatement root, Dictionary<VariableSymbol, object> variables) {
+            functionBodies_ = functionBodies;
             root_ = root;
             diagnostics = new DiagnosticQueue();
-            variables_ = variables;
+            globals_ = variables;
         }
 
         public object Evaluate() {
+            return EvaluateStatement(root_);
+        }
+
+        private object EvaluateStatement(BoundBlockStatement statement) {
             var labelToIndex = new Dictionary<BoundLabel, int>();
 
-            for (int i = 0; i < root_.statements.Length; i++) {
-                if (root_.statements[i] is BoundLabelStatement l)
+            for (int i = 0; i < statement.statements.Length; i++) {
+                if (statement.statements[i] is BoundLabelStatement l)
                     labelToIndex.Add(l.label, i + 1);
             }
 
             var index = 0;
-            while (index < root_.statements.Length) {
-                var s = root_.statements[index];
+            while (index < statement.statements.Length) {
+                var s = statement.statements[index];
 
                 switch (s.type) {
                     case BoundNodeType.ExpressionStatement:
@@ -72,8 +81,11 @@ namespace Buckle.CodeAnalysis {
 
         private void EvaluateVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
             var value = EvaluateExpression(statement.initializer);
-            variables_[statement.variable] = value;
             lastValue_ = value;
+
+            if (statement.variable.type == SymbolType.GlobalVariable) {
+                // globals_[]
+            }
         }
 
         private object EvaluateExpression(BoundExpression node) {
@@ -115,7 +127,18 @@ namespace Buckle.CodeAnalysis {
 
                 return random_.Next(max);
             } else {
-                diagnostics.Push(DiagnosticType.Fatal, $"unexpected function '{node.function}'");
+                var locals = new Dictionary<VariableSymbol, object>();
+                for (int i=0; i<node.arguments.Length; i++) {
+                    var parameter = node.function.parameters[i];
+                    var value = EvaluateExpression(node.arguments[i]);
+                    locals.Add(parameter, value);
+                }
+
+                locals_.Push(locals);
+                var statement = functionBodies_[node.function];
+                var result = EvaluateStatement(statement);
+                locals_.Pop();
+                return result;
             }
 
             return null;
@@ -126,12 +149,23 @@ namespace Buckle.CodeAnalysis {
         }
 
         private object EvaluateVariable(BoundVariableExpression syntax) {
-            return variables_[syntax.variable];
+            if (syntax.variable.type == SymbolType.GlobalVariable)
+                return globals_[syntax.variable];
+
+            var locals = locals_.Peek();
+            return locals[syntax.variable];
         }
 
         private object EvaluateAssignment(BoundAssignmentExpression syntax) {
             var value = EvaluateExpression(syntax.expression);
-            variables_[syntax.variable] = value;
+
+            if (syntax.variable.type == SymbolType.GlobalVariable) {
+                globals_[syntax.variable] = value;
+            } else {
+                var locals = locals_.Peek();
+                locals[syntax.variable] = value;
+            }
+
             return value;
         }
 

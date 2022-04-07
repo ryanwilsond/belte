@@ -76,4 +76,18 @@ namespace Buckle.CodeAnalysis.Binding {
             statement = statement_;
         }
     }
+
+    internal sealed class BoundProgram {
+        public BoundGlobalScope globalScope { get; }
+        public DiagnosticQueue diagnostics { get; }
+        public ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies { get; }
+
+        public BoundProgram(
+            BoundGlobalScope globalScope_, DiagnosticQueue diagnostics_,
+            ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies_) {
+            globalScope = globalScope_;
+            diagnostics = diagnostics_;
+            functionBodies = functionBodies_;
+        }
+    }
 }

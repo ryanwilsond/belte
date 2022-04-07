@@ -4,7 +4,8 @@ using System.Collections.Immutable;
 namespace Buckle.CodeAnalysis.Symbols {
 
     internal enum SymbolType {
-        Variable,
+        GlobalVariable,
+        LocalVariable,
         Type,
         Function,
         Parameter,
@@ -21,14 +22,27 @@ namespace Buckle.CodeAnalysis.Symbols {
         public override string ToString() => name;
     }
 
-    internal class VariableSymbol : Symbol {
+    internal abstract class VariableSymbol : Symbol {
         public TypeSymbol lType { get; }
         public bool isReadOnly { get; }
-        public override SymbolType type => SymbolType.Variable;
 
         internal VariableSymbol(string name, bool isReadOnly_, TypeSymbol lType_) : base(name) {
             lType = lType_;
             isReadOnly = isReadOnly_;
         }
+    }
+
+    internal sealed class GlobalVariableSymbol : VariableSymbol {
+        public override SymbolType type => SymbolType.GlobalVariable;
+
+        internal GlobalVariableSymbol(string name, bool isReadOnly, TypeSymbol lType)
+            : base(name, isReadOnly, lType) { }
+    }
+
+    internal class LocalVariableSymbol : VariableSymbol {
+        public override SymbolType type => SymbolType.LocalVariable;
+
+        internal LocalVariableSymbol(string name, bool isReadOnly, TypeSymbol lType)
+            : base(name, isReadOnly, lType) { }
     }
 }

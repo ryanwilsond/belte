@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -11,15 +12,22 @@ namespace Buckle.CodeAnalysis.Binding {
     internal sealed class Binder {
         public DiagnosticQueue diagnostics;
         private BoundScope scope_;
+        private readonly FunctionSymbol function_;
 
-        public Binder(BoundScope parent) {
+        public Binder(BoundScope parent, FunctionSymbol function) {
             diagnostics = new DiagnosticQueue();
             scope_ = new BoundScope(parent);
+            function_ = function;
+
+            if (function != null) {
+                foreach (var parameter in function.parameters)
+                    scope_.TryDeclareVariable(parameter);
+            }
         }
 
         public static BoundGlobalScope BindGlobalScope(BoundGlobalScope previous, CompilationUnit expression) {
-            var parentScope = CreateParentScopes(previous);
-            var binder = new Binder(parentScope);
+            var parentScope = CreateParentScope(previous);
+            var binder = new Binder(parentScope, null);
 
             foreach (var function in expression.members.OfType<FunctionDeclaration>())
                 binder.BindFunctionDeclaration(function);
@@ -37,6 +45,27 @@ namespace Buckle.CodeAnalysis.Binding {
                 binder.diagnostics.diagnostics_.InsertRange(0, previous.diagnostics.diagnostics_);
 
             return new BoundGlobalScope(previous, binder.diagnostics, functions, variables, statement);
+        }
+
+        public static BoundProgram BindProgram(BoundGlobalScope globalScope) {
+            var parentScope = CreateParentScope(globalScope);
+            var functionBodies = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
+            var diagnostics = new DiagnosticQueue();
+
+            var scope = globalScope;
+            while (scope != null) {
+                foreach (var function in scope.functions) {
+                    var binder = new Binder(parentScope, function);
+                    var body = binder.BindStatement(function.declaration.body);
+                    var loweredBody = Lowerer.Lower(body);
+                    functionBodies.Add(function, loweredBody);
+                    diagnostics.Move(binder.diagnostics);
+                }
+
+                scope = scope.previous;
+            }
+
+            return new BoundProgram(globalScope, diagnostics, functionBodies.ToImmutable());
         }
 
         private void BindFunctionDeclaration(FunctionDeclaration function) {
@@ -60,12 +89,12 @@ namespace Buckle.CodeAnalysis.Binding {
                 diagnostics.Push(Error.Unsupported.FunctionReturnValues(function.typeName.span));
             }
 
-            var newFunction = new FunctionSymbol(function.identifier.text, parameters.ToImmutable(), type);
+            var newFunction = new FunctionSymbol(function.identifier.text, parameters.ToImmutable(), type, function);
             if (!scope_.TryDeclareFunction(newFunction))
                 diagnostics.Push(Error.FunctionAlreadyDeclared(function.identifier.span, newFunction.name));
         }
 
-        private static BoundScope CreateParentScopes(BoundGlobalScope previous) {
+        private static BoundScope CreateParentScope(BoundGlobalScope previous) {
             var stack = new Stack<BoundGlobalScope>();
             // make all scopes cascade in order of repl statements
 
@@ -182,7 +211,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
                 if (argument.lType != parameter.lType) {
                     diagnostics.Push(Error.InvalidArgumentType(
-                        expression.span, parameter.name, parameter.lType, argument.lType));
+                        expression.arguments[i].span, parameter.name, parameter.lType, argument.lType));
                     return new BoundErrorExpression();
                 }
             }
@@ -377,7 +406,9 @@ namespace Buckle.CodeAnalysis.Binding {
         private VariableSymbol BindVariable(Token identifier, bool isReadOnly, TypeSymbol type) {
             var name = identifier.text ?? "?";
             var declare = !identifier.isMissing;
-            var variable = new VariableSymbol(name, isReadOnly, type);
+            var variable = function_ == null
+                ? (VariableSymbol) new GlobalVariableSymbol(name, isReadOnly, type)
+                : new LocalVariableSymbol(name, isReadOnly, type);
 
             if (declare && !scope_.TryDeclareVariable(variable))
                 diagnostics.Push(Error.AlreadyDeclared(identifier.span, name));
@@ -390,6 +421,7 @@ namespace Buckle.CodeAnalysis.Binding {
                 case "bool": return TypeSymbol.Bool;
                 case "int": return TypeSymbol.Int;
                 case "string": return TypeSymbol.String;
+                case "void": return TypeSymbol.Void;
                 default: return null;
             }
         }

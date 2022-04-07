@@ -97,8 +97,7 @@ namespace Buckle {
             if (twoBlankTines) return true;
 
             var tree = SyntaxTree.Parse(text);
-            if (tree.root.statements.Length == 0) return false;
-            if (tree.root.statements[tree.root.statements.Length - 1].GetLastToken().isMissing) return false;
+            if (tree.root.members.Last().GetLastToken().isMissing) return false;
 
             return true;
         }
