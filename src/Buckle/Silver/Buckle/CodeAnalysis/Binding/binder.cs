@@ -20,16 +20,49 @@ namespace Buckle.CodeAnalysis.Binding {
         public static BoundGlobalScope BindGlobalScope(BoundGlobalScope previous, CompilationUnit expression) {
             var parentScope = CreateParentScopes(previous);
             var binder = new Binder(parentScope);
+
+            foreach (var function in expression.members.OfType<FunctionDeclaration>())
+                binder.BindFunctionDeclaration(function);
+
             var statements = ImmutableArray.CreateBuilder<BoundStatement>();
-            foreach (var statement in expression.statements) {
-                statements.Add(binder.BindStatement(statement));
-            }
+            foreach (var globalStatement in expression.members.OfType<GlobalStatement>())
+                statements.Add(binder.BindStatement(globalStatement.statement));
+
+            var statement = new BoundBlockStatement(statements.ToImmutable());
+
+            var functions = binder.scope_.GetDeclaredFunctions();
             var variables = binder.scope_.GetDeclaredVariables();
 
             if (previous != null)
                 binder.diagnostics.diagnostics_.InsertRange(0, previous.diagnostics.diagnostics_);
 
-            return new BoundGlobalScope(previous, binder.diagnostics, variables, statements.ToImmutable());
+            return new BoundGlobalScope(previous, binder.diagnostics, functions, variables, statement);
+        }
+
+        private void BindFunctionDeclaration(FunctionDeclaration function) {
+            var type = BindTypeClause(function.typeName);
+            var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
+            var seenParametersNames = new HashSet<string>();
+
+            foreach (var parameter in function.parameters) {
+                var parameterName = parameter.identifier.text;
+                var parameterType = BindTypeClause(parameter.typeName);
+
+                if (!seenParametersNames.Add(parameterName)) {
+                    diagnostics.Push(Error.ParameterAlreadyDeclared(parameter.span, parameter.identifier.text));
+                } else {
+                    var boundParameter = new ParameterSymbol(parameterName, parameterType);
+                    parameters.Add(boundParameter);
+                }
+            }
+
+            if (type != TypeSymbol.Void) {
+                diagnostics.Push(Error.Unsupported.FunctionReturnValues(function.typeName.span));
+            }
+
+            var newFunction = new FunctionSymbol(function.identifier.text, parameters.ToImmutable(), type);
+            if (!scope_.TryDeclareFunction(newFunction))
+                diagnostics.Push(Error.FunctionAlreadyDeclared(function.identifier.span, newFunction.name));
         }
 
         private static BoundScope CreateParentScopes(BoundGlobalScope previous) {
@@ -46,6 +79,10 @@ namespace Buckle.CodeAnalysis.Binding {
             while (stack.Count > 0) {
                 previous = stack.Pop();
                 var scope = new BoundScope(parent);
+
+                foreach (var function in previous.functions)
+                    scope.TryDeclareFunction(function);
+
                 foreach (var variable in previous.variables)
                     scope.TryDeclareVariable(variable);
 

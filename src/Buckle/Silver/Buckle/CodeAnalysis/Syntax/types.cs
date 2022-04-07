@@ -71,9 +71,12 @@ namespace Buckle.CodeAnalysis.Syntax {
         WHILE_STATEMENT,
         FOR_STATEMENT,
         DO_WHILE_STATEMENT,
+        GLOBAL_STATEMENT,
         // other
         COMPILATION_UNIT,
+        FUNCTION_DECLARATION,
         ELSE_CLAUSE,
+        PARAMETER,
     }
 
     internal abstract class Node {

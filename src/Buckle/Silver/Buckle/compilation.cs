@@ -87,7 +87,7 @@ namespace Buckle {
             if (diagnostics.Any())
                 return new EvaluationResult(null, diagnostics);
 
-            var statement = Lowerer.Lower(globalScope.statements);
+            var statement = Lowerer.Lower(globalScope.statement);
 
             var eval = new Evaluator(statement, variables);
             var result = new EvaluationResult(eval.Evaluate(), diagnostics);
@@ -99,18 +99,18 @@ namespace Buckle {
         }
 
         public void EmitTree(TextWriter writer) {
-            var statement = Lowerer.Lower(globalScope.statements);
+            var statement = Lowerer.Lower(globalScope.statement);
             statement.WriteTo(writer);
         }
     }
 
     internal sealed class CompilationUnit : Node {
-        public ImmutableArray<Statement> statements { get; }
+        public ImmutableArray<Member> members { get; }
         public Token endOfFile { get; }
         public override SyntaxType type => SyntaxType.COMPILATION_UNIT;
 
-        public CompilationUnit(ImmutableArray<Statement> statements_, Token endOfFile_) {
-            statements = statements_;
+        public CompilationUnit(ImmutableArray<Member> members_, Token endOfFile_) {
+            members = members_;
             endOfFile = endOfFile_;
         }
     }

@@ -61,17 +61,19 @@ namespace Buckle.CodeAnalysis.Binding {
     internal sealed class BoundGlobalScope {
         public BoundGlobalScope previous { get; }
         public DiagnosticQueue diagnostics { get; }
+        public ImmutableArray<FunctionSymbol> functions { get; }
         public ImmutableArray<VariableSymbol> variables { get; }
-        public ImmutableArray<BoundStatement> statements { get; }
+        public BoundStatement statement { get; }
 
         public BoundGlobalScope(
-            BoundGlobalScope previous_, DiagnosticQueue diagnostics_,
-            ImmutableArray<VariableSymbol> variables_, ImmutableArray<BoundStatement> statements_) {
+            BoundGlobalScope previous_, DiagnosticQueue diagnostics_, ImmutableArray<FunctionSymbol> functions_,
+            ImmutableArray<VariableSymbol> variables_, BoundStatement statement_) {
             previous = previous_;
             diagnostics = new DiagnosticQueue();
             diagnostics.Move(diagnostics_);
+            functions = functions_;
             variables = variables_;
-            statements = statements_;
+            statement = statement_;
         }
     }
 }

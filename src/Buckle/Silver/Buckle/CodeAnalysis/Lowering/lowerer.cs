@@ -14,20 +14,15 @@ namespace Buckle.CodeAnalysis.Lowering {
             return new BoundLabel(name);
         }
 
-        public static BoundBlockStatement Lower(ImmutableArray<BoundStatement> statements) {
+        public static BoundBlockStatement Lower(BoundStatement statement) {
             var lowerer = new Lowerer();
-            var builder = ImmutableArray.CreateBuilder<BoundStatement>();
-            foreach (var statement in statements)
-                builder.Add(lowerer.RewriteStatement(statement));
-
-            return Flatten(builder.ToImmutable());
+            return Flatten(lowerer.RewriteStatement(statement));
         }
 
-        private static BoundBlockStatement Flatten(ImmutableArray<BoundStatement> statements) {
+        private static BoundBlockStatement Flatten(BoundStatement statement) {
             var builder = ImmutableArray.CreateBuilder<BoundStatement>();
             var stack = new Stack<BoundStatement>();
-            foreach (var statement in statements.Reverse())
-                stack.Push(statement);
+            stack.Push(statement);
 
             while (stack.Count > 0) {
                 var current = stack.Pop();

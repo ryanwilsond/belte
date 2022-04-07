@@ -6,6 +6,13 @@ using Buckle.CodeAnalysis.Text;
 namespace Buckle {
 
     internal static class Error {
+        internal static class Unsupported {
+            public static Diagnostic FunctionReturnValues(TextSpan span) {
+                string msg = $"unsupported: function cannot return a value";
+                return new Diagnostic(DiagnosticType.Error, span, msg);
+            }
+        }
+
         public static string DiagnosticText(SyntaxType type) {
             string factValue = SyntaxFacts.GetText(type);
             if (factValue != null) return "'" + factValue + "'";
@@ -47,8 +54,18 @@ namespace Buckle {
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
+        public static Diagnostic ParameterAlreadyDeclared(TextSpan span, string name) {
+            string msg = $"redefinition of parameter '{name}'";
+            return new Diagnostic(DiagnosticType.Error, span, msg);
+        }
+
         public static Diagnostic UndefinedName(TextSpan span, string name) {
             string msg = $"undefined symbol '{name}'";
+            return new Diagnostic(DiagnosticType.Error, span, msg);
+        }
+
+        internal static Diagnostic FunctionAlreadyDeclared(TextSpan span, string name) {
+            string msg = $"redefinition of function '{name}'";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 

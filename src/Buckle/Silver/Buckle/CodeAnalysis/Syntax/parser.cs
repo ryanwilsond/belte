@@ -50,15 +50,70 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         public CompilationUnit ParseCompilationUnit() {
-            var statements = ImmutableArray.CreateBuilder<Statement>();
+            var members = ParseMembers();
+            var endOfFile = Match(SyntaxType.EOF);
+            return new CompilationUnit(members, endOfFile);
+        }
+
+        private ImmutableArray<Member> ParseMembers() {
+            var members = ImmutableArray.CreateBuilder<Member>();
 
             while (current.type != SyntaxType.EOF) {
-                var statement = ParseStatement();
-                statements.Add(statement);
+                var startToken = current;
+
+                var member = ParseMember();
+                members.Add(member);
+
+                if (current == startToken)
+                    Next();
             }
 
-            var endOfFile = Match(SyntaxType.EOF);
-            return new CompilationUnit(statements.ToImmutable(), endOfFile);
+            return members.ToImmutable();
+        }
+
+        private Member ParseMember() {
+            if (current.type == SyntaxType.IDENTIFIER && tokens_.Length > 2 && Peek(2).type == SyntaxType.LPAREN)
+                return ParseFunctionDeclaration();
+
+            return ParseGlobalStatement();
+        }
+
+        private Member ParseFunctionDeclaration() {
+            var typeName = Match(SyntaxType.IDENTIFIER);
+            var identifier = Match(SyntaxType.IDENTIFIER);
+            var openParenthesis = Match(SyntaxType.LPAREN);
+            var parameters = ParseParameterList();
+            var closeParenthesis = Match(SyntaxType.RPAREN);
+            var body = (BlockStatement)ParseBlockStatement();
+
+            return new FunctionDeclaration(typeName, identifier, openParenthesis, parameters, closeParenthesis, body);
+        }
+
+        private SeparatedSyntaxList<Parameter> ParseParameterList() {
+            var nodesAndSeparators = ImmutableArray.CreateBuilder<Node>();
+
+            while (current.type != SyntaxType.RPAREN && current.type != SyntaxType.EOF) {
+                var expression = ParseParameter();
+                nodesAndSeparators.Add(expression);
+
+                if (current.type != SyntaxType.RPAREN) {
+                    var comma = Match(SyntaxType.COMMA);
+                    nodesAndSeparators.Add(comma);
+                }
+            }
+
+            return new SeparatedSyntaxList<Parameter>(nodesAndSeparators.ToImmutable());
+        }
+
+        private Parameter ParseParameter() {
+            var typeName = Match(SyntaxType.IDENTIFIER);
+            var identifier = Match(SyntaxType.IDENTIFIER);
+            return new Parameter(typeName, identifier);
+        }
+
+        private Member ParseGlobalStatement() {
+            var statement = ParseStatement();
+            return new GlobalStatement(statement);
         }
 
         private Statement ParseStatement() {
