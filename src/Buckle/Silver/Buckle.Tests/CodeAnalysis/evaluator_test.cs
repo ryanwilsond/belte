@@ -59,6 +59,13 @@ namespace Buckle.Tests.CodeAnalysis {
         [InlineData("!true;", false)]
         [InlineData("!false;", true)]
 
+        [InlineData("\"test\";", "test")]
+        [InlineData("\"test\" + \"test2\";", "testtest2")]
+        [InlineData("\"test\" == \"test\";", true)]
+        [InlineData("\"test\" != \"test\";", false)]
+        [InlineData("\"test\" == \"abc\";", false)]
+        [InlineData("\"test\" != \"abc\";", true)]
+
         [InlineData("12 == 3;", false)]
         [InlineData("3 == 3;", true)]
         [InlineData("12 != 3;", true)]
@@ -91,7 +98,7 @@ namespace Buckle.Tests.CodeAnalysis {
         }
 
         [Fact]
-        public void Evaluator_InvokeFunctionArguments_NoInifiniteLoop() {
+        public void Evaluator_InvokeFunctionArguments_NoInfiniteLoop() {
             var text = @"print(""Hi""[[=]][)];";
 
             var diagnostics = @"
