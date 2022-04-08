@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 
 namespace Buckle.CodeAnalysis.Text {
 
@@ -17,5 +18,14 @@ namespace Buckle.CodeAnalysis.Text {
         }
 
         public override string ToString() => $"{start}..{end}";
+    }
+
+    internal class SpanComparer : IComparer<TextSpan> {
+        public int Compare(TextSpan x, TextSpan y) {
+            int cmp = x.start - y.start;
+            if (cmp == 0)
+                cmp = x.length - y.length;
+            return cmp;
+        }
     }
 }

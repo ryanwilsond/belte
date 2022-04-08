@@ -79,11 +79,11 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
         }
 
         private static Expression ParseExpression(string text) {
-            SyntaxTree tree = SyntaxTree.Parse(text);
-            CompilationUnit unit = tree.root;
-            // Statement statement = unit.members[0];
-            // return Assert.IsType<ExpressionStatement>(statement).expression;
-            return new EmptyExpression();
+            var tree = SyntaxTree.Parse(text);
+            var root = tree.root;
+            var member = Assert.Single(root.members);
+            var globalStatement = Assert.IsType<GlobalStatement>(member);
+            return Assert.IsType<ExpressionStatement>(globalStatement.statement).expression;
         }
 
         public static IEnumerable<object[]> GetBinaryOperatorPairsData() {

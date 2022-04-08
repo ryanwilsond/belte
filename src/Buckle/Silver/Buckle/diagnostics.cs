@@ -72,6 +72,21 @@ namespace Buckle {
         }
 
         /// <summary>
+        /// Sorts, removes duplicates, and modifies diagnostics
+        /// </summary>
+        /// <param name="diagnostics">queue to modify, doesn't modify queue</param>
+        /// <returns></returns>
+        public static DiagnosticQueue CleanDiagnostics(DiagnosticQueue diagnostics) {
+            var cleanedDiagnostics = new DiagnosticQueue();
+
+            foreach (var diagnostic in diagnostics.diagnostics_.OrderBy(diag => diag.span, new SpanComparer())) {
+                cleanedDiagnostics.Push(diagnostic);
+            }
+
+            return cleanedDiagnostics;
+        }
+
+        /// <summary>
         /// Removes a diagnostic
         /// </summary>
         /// <returns>first diagnostic on the queue</returns>

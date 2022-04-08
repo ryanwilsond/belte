@@ -32,6 +32,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             var untestedTokenTypes = new SortedSet<SyntaxType>(tokenTypes);
             untestedTokenTypes.Remove(SyntaxType.Invalid);
             untestedTokenTypes.Remove(SyntaxType.EOF);
+            untestedTokenTypes.Remove(SyntaxType.PARAMETER); // not a token
             untestedTokenTypes.ExceptWith(testedTokenTypes);
 
             Assert.Empty(untestedTokenTypes);

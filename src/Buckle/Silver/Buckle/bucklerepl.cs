@@ -26,10 +26,12 @@ namespace Buckle {
 
             handle.diagnostics.Move(result.diagnostics);
             if (handle.diagnostics.Any()) {
-                if (errorHandle != null)
+                if (errorHandle != null) {
+                    handle.diagnostics = DiagnosticQueue.CleanDiagnostics(handle.diagnostics);
                     errorHandle(handle);
-                else
+                } else {
                     handle.diagnostics.Clear();
+                }
             } else {
                 if (result.value != null) {
                     Console.ForegroundColor = ConsoleColor.White;
