@@ -82,9 +82,15 @@ namespace Buckle.CodeAnalysis {
         private void EvaluateVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
             var value = EvaluateExpression(statement.initializer);
             lastValue_ = value;
+            Assign(statement.variable, value);
+        }
 
-            if (statement.variable.type == SymbolType.GlobalVariable) {
-                // globals_[]
+        private void Assign(VariableSymbol variable, object value) {
+            if (variable.type == SymbolType.GlobalVariable) {
+                globals_[variable] = value;
+            } else {
+                var locals = locals_.Peek();
+                locals[variable] = value;
             }
         }
 
@@ -158,13 +164,7 @@ namespace Buckle.CodeAnalysis {
 
         private object EvaluateAssignment(BoundAssignmentExpression syntax) {
             var value = EvaluateExpression(syntax.expression);
-
-            if (syntax.variable.type == SymbolType.GlobalVariable) {
-                globals_[syntax.variable] = value;
-            } else {
-                var locals = locals_.Peek();
-                locals[syntax.variable] = value;
-            }
+            Assign(syntax.variable, value);
 
             return value;
         }
