@@ -73,21 +73,11 @@ namespace Buckle.CodeAnalysis.Syntax {
                     break;
                 case '+':
                     position_++;
-                    // if (current == '+') {
-                    //     type_ = SyntaxType.DPLUS;
-                    //     position_++;
-                    // } else {
                     type_ = SyntaxType.PLUS;
-                    // }
                     break;
                 case '-':
                     position_++;
-                    // if (current == '-') {
-                    //     type_ = SyntaxType.DMINUS;
-                    //     position_++;
-                    // } else {
                     type_ = SyntaxType.MINUS;
-                    // }
                     break;
                 case '*':
                     position_++;
@@ -161,7 +151,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case '"':
                     ReadString();
                     break;
-                case '0': // faster than if check, but probably neglagable and is uglier
+                case '0':
                 case '1':
                 case '2':
                 case '3':

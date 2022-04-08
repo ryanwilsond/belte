@@ -212,6 +212,7 @@ namespace Buckle.IO {
         }
 
         private static void WriteExpressionStatement(BoundExpressionStatement node, IndentedTextWriter writer) {
+            if (node.expression is BoundEmptyExpression) return;
             node.expression.WriteTo(writer);
             writer.WriteLine();
         }
@@ -234,7 +235,6 @@ namespace Buckle.IO {
             writer.WritePunctuation("(");
             node.expression.WriteTo(writer);
             writer.WritePunctuation(")");
-            writer.WriteLine();
         }
 
         private static void WriteCallExpression(BoundCallExpression node, IndentedTextWriter writer) {
@@ -252,7 +252,6 @@ namespace Buckle.IO {
             }
 
             writer.WritePunctuation(")");
-            writer.WriteLine();
         }
 
         private static void WriteErrorExpression(BoundErrorExpression node, IndentedTextWriter writer) {

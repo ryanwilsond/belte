@@ -95,20 +95,20 @@ namespace Buckle.CodeAnalysis.Lowering {
 
             ---->
 
-            check:
+            continue:
             gotoFalse <condition> end
             <body>
             goto check
-            end:
+            break:
             */
-            var checkLabel = GenerateLabel();
-            var endLabel = GenerateLabel();
-            var gotoFalse = new BoundConditionalGotoStatement(endLabel, node.condition, false);
-            var gotoCheck = new BoundGotoStatement(checkLabel);
-            var checkLabelStatement = new BoundLabelStatement(checkLabel);
-            var endLabelStatement = new BoundLabelStatement(endLabel);
+            var continueLabel = node.continueLabel;
+            var breakLabel = node.breakLabel;
+            var gotoFalse = new BoundConditionalGotoStatement(breakLabel, node.condition, false);
+            var gotoCheck = new BoundGotoStatement(continueLabel);
+            var continueLabelStatement = new BoundLabelStatement(continueLabel);
+            var breakLabelStatement = new BoundLabelStatement(breakLabel);
             var result = new BoundBlockStatement(ImmutableArray.Create<BoundStatement>(
-                checkLabelStatement, gotoFalse, node.body, gotoCheck, endLabelStatement
+                continueLabelStatement, gotoFalse, node.body, gotoCheck, breakLabelStatement
             ));
 
             return RewriteStatement(result);
@@ -125,15 +125,17 @@ namespace Buckle.CodeAnalysis.Lowering {
             continue:
             <body>
             gotoTrue <condition> continue
+            break:
             */
-            var continueLabel = GenerateLabel();
-            var continueStatement = new BoundLabelStatement(continueLabel);
+            var continueLabel = node.continueLabel;
+            var breakLabel = node.breakLabel;
+            var continueLabelStatement = new BoundLabelStatement(continueLabel);
+            var breakLabelStatement = new BoundLabelStatement(breakLabel);
             var gotoTrue = new BoundConditionalGotoStatement(continueLabel, node.condition);
 
             var result = new BoundBlockStatement(ImmutableArray.Create<BoundStatement>(
-                continueStatement,
-                node.body,
-                gotoTrue));
+                continueLabelStatement, node.body, gotoTrue, breakLabelStatement
+            ));
 
             return RewriteStatement(result);
         }
@@ -149,18 +151,25 @@ namespace Buckle.CodeAnalysis.Lowering {
                 <initializer>
                 while (<condition>) {
                     <body>
+                continue:
                     <step>;
                 }
             }
             */
             var step = new BoundExpressionStatement(node.step);
+            var continueLabelStatement = new BoundLabelStatement(node.continueLabel);
+            var breakLabelStatement = new BoundLabelStatement(node.breakLabel);
 
-            var whileBody = new BoundBlockStatement(ImmutableArray.Create<BoundStatement>(node.body, step));
+            var whileBody = new BoundBlockStatement(ImmutableArray.Create<BoundStatement>(
+                node.body, continueLabelStatement, step
+            ));
+
             BoundExpression condition = new BoundLiteralExpression(true);
             if (node.condition.type != BoundNodeType.EmptyExpression)
                 condition = node.condition;
 
-            var whileStatement = new BoundWhileStatement(condition, whileBody);
+            var whileStatement = new BoundWhileStatement(
+                condition, whileBody, node.breakLabel, GenerateLabel());
 
             var result = new BoundBlockStatement(ImmutableArray.Create<BoundStatement>(node.initializer, whileStatement));
             return RewriteStatement(result);

@@ -32,8 +32,6 @@ namespace Buckle.CodeAnalysis.Syntax {
         DPIPE,
         SEMICOLON,
         COMMA,
-        // DMINUS,
-        // DPLUS,
         DASTERISK,
         DEQUALS,
         BANGEQUALS,
@@ -63,6 +61,8 @@ namespace Buckle.CodeAnalysis.Syntax {
         WHILE_KEYWORD,
         FOR_KEYWORD,
         DO_KEYWORD,
+        BREAK_KEYWORD,
+        CONTINUE_KEYWORD,
 
         BLOCK_STATEMENT,
         EXPRESSION_STATEMENT,
@@ -72,6 +72,8 @@ namespace Buckle.CodeAnalysis.Syntax {
         FOR_STATEMENT,
         DO_WHILE_STATEMENT,
         GLOBAL_STATEMENT,
+        BREAK_STATEMENT,
+        CONTINUE_STATEMENT,
         // other
         COMPILATION_UNIT,
         FUNCTION_DECLARATION,

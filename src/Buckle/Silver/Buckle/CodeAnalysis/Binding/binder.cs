@@ -13,6 +13,9 @@ namespace Buckle.CodeAnalysis.Binding {
         public DiagnosticQueue diagnostics;
         private BoundScope scope_;
         private readonly FunctionSymbol function_;
+        private Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> loopStack_ =
+            new Stack<(BoundLabel breakLabel, BoundLabel continueLabel)>();
+        private int labelCount_;
 
         public Binder(BoundScope parent, FunctionSymbol function) {
             diagnostics = new DiagnosticQueue();
@@ -96,7 +99,6 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private static BoundScope CreateParentScope(BoundGlobalScope previous) {
             var stack = new Stack<BoundGlobalScope>();
-            // make all scopes cascade in order of repl statements
 
             while (previous != null) {
                 stack.Push(previous);
@@ -140,6 +142,8 @@ namespace Buckle.CodeAnalysis.Binding {
                 case SyntaxType.WHILE_STATEMENT: return BindWhileStatement((WhileStatement)syntax);
                 case SyntaxType.FOR_STATEMENT: return BindForStatement((ForStatement)syntax);
                 case SyntaxType.DO_WHILE_STATEMENT: return BindDoWhileStatement((DoWhileStatement)syntax);
+                case SyntaxType.BREAK_STATEMENT: return BindBreakStatement((BreakStatement)syntax);
+                case SyntaxType.CONTINUE_STATEMENT: return BindContinueStatement((ContinueStatement)syntax);
                 default:
                     diagnostics.Push(DiagnosticType.Fatal, $"unexpected syntax {syntax.type}");
                     return null;
@@ -249,16 +253,40 @@ namespace Buckle.CodeAnalysis.Binding {
             return BindCast(expression, target);
         }
 
+        private BoundStatement BindErrorStatement() {
+            return new BoundExpressionStatement(new BoundErrorExpression());
+        }
+
+        private BoundStatement BindContinueStatement(ContinueStatement syntax) {
+            if (loopStack_.Count == 0) {
+                diagnostics.Push(Error.InvalidBreakOrContinue(syntax.keyword.span, syntax.keyword.text));
+                return BindErrorStatement();
+            }
+
+            var continueLabel = loopStack_.Peek().continueLabel;
+            return new BoundGotoStatement(continueLabel);
+        }
+
+        private BoundStatement BindBreakStatement(BreakStatement syntax) {
+            if (loopStack_.Count == 0) {
+                diagnostics.Push(Error.InvalidBreakOrContinue(syntax.keyword.span, syntax.keyword.text));
+                return BindErrorStatement();
+            }
+
+            var breakLabel = loopStack_.Peek().breakLabel;
+            return new BoundGotoStatement(breakLabel);
+        }
+
         private BoundStatement BindWhileStatement(WhileStatement statement) {
             var condition = BindExpression(statement.condition, TypeSymbol.Bool);
-            var body = BindStatement(statement.body);
-            return new BoundWhileStatement(condition, body);
+            var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
+            return new BoundWhileStatement(condition, body, breakLabel, continueLabel);
         }
 
         private BoundStatement BindDoWhileStatement(DoWhileStatement statement) {
-            var body = BindStatement(statement.body);
+            var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
             var condition = BindExpression(statement.condition, TypeSymbol.Bool);
-            return new BoundDoWhileStatement(body, condition);
+            return new BoundDoWhileStatement(body, condition, breakLabel, continueLabel);
         }
 
         private BoundStatement BindForStatement(ForStatement statement) {
@@ -267,10 +295,22 @@ namespace Buckle.CodeAnalysis.Binding {
             var initializer = BindStatement(statement.initializer);
             var condition = BindExpression(statement.condition, TypeSymbol.Bool);
             var step = BindExpression(statement.step);
-            var body = BindStatement(statement.body);
+            var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
 
             scope_ = scope_.parent;
-            return new BoundForStatement(initializer, condition, step, body);
+            return new BoundForStatement(initializer, condition, step, body, breakLabel, continueLabel);
+        }
+
+        private BoundStatement BindLoopBody(Statement body, out BoundLabel breakLabel, out BoundLabel continueLabel) {
+            labelCount_++;
+            breakLabel = new BoundLabel($"Break{labelCount_}");
+            continueLabel = new BoundLabel($"Continue{labelCount_}");
+
+            loopStack_.Push((breakLabel, continueLabel));
+            var boundBody = BindStatement(body);
+            loopStack_.Pop();
+
+            return boundBody;
         }
 
         private BoundStatement BindIfStatement(IfStatement statement) {

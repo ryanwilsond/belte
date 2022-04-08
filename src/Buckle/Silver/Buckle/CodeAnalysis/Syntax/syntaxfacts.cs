@@ -5,15 +5,6 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal static class SyntaxFacts {
 
-        // public static int GetPrimaryPrecedence(this SyntaxType type) {
-        //     switch(type) {
-        //         case SyntaxType.DMINUS:
-        //         case SyntaxType.DPLUS:
-        //             return 13;
-        //         default: return 0;
-        //     }
-        // }
-
         public static int GetBinaryPrecedence(this SyntaxType type) {
             switch (type) {
                 case SyntaxType.DASTERISK:
@@ -55,8 +46,6 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.MINUS:
                 case SyntaxType.BANG:
                 case SyntaxType.TILDE:
-                    // case SyntaxType.DMINUS:
-                    // case SyntaxType.DPLUS:
                     return 12;
                 default: return 0;
             }
@@ -73,6 +62,8 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case "while": return SyntaxType.WHILE_KEYWORD;
                 case "for": return SyntaxType.FOR_KEYWORD;
                 case "do": return SyntaxType.DO_KEYWORD;
+                case "break": return SyntaxType.BREAK_KEYWORD;
+                case "continue": return SyntaxType.CONTINUE_KEYWORD;
                 default: return SyntaxType.IDENTIFIER;
             }
         }
@@ -96,8 +87,6 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.BANG: return "!";
                 case SyntaxType.DAMPERSAND: return "&&";
                 case SyntaxType.DPIPE: return "||";
-                // case SyntaxType.DMINUS: return "--";
-                // case SyntaxType.DPLUS: return "++";
                 case SyntaxType.DASTERISK: return "**";
                 case SyntaxType.LBRACE: return "{";
                 case SyntaxType.RBRACE: return "}";
@@ -117,6 +106,8 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.WHILE_KEYWORD: return "while";
                 case SyntaxType.FOR_KEYWORD: return "for";
                 case SyntaxType.DO_KEYWORD: return "do";
+                case SyntaxType.BREAK_KEYWORD: return "break";
+                case SyntaxType.CONTINUE_KEYWORD: return "continue";
                 default: return null;
             }
         }

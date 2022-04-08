@@ -47,18 +47,30 @@ namespace Buckle.CodeAnalysis.Binding {
         }
     }
 
-    internal sealed class BoundWhileStatement : BoundStatement {
+    internal abstract class BoundLoopStatement : BoundStatement {
+        public BoundLabel breakLabel { get; }
+        public BoundLabel continueLabel { get; }
+
+        protected BoundLoopStatement(BoundLabel breakLabel_, BoundLabel continueLabel_) {
+            breakLabel = breakLabel_;
+            continueLabel = continueLabel_;
+        }
+    }
+
+    internal sealed class BoundWhileStatement : BoundLoopStatement {
         public BoundExpression condition { get; }
         public BoundStatement body { get; }
         public override BoundNodeType type => BoundNodeType.WhileStatement;
 
-        public BoundWhileStatement(BoundExpression condition_, BoundStatement body_) {
+        public BoundWhileStatement(
+            BoundExpression condition_, BoundStatement body_, BoundLabel breakLabel, BoundLabel continueLabel)
+            : base(breakLabel, continueLabel) {
             condition = condition_;
             body = body_;
         }
     }
 
-    internal sealed class BoundForStatement : BoundStatement {
+    internal sealed class BoundForStatement : BoundLoopStatement {
         public BoundStatement initializer { get; }
         public BoundExpression condition { get; }
         public BoundExpression step { get; }
@@ -66,12 +78,26 @@ namespace Buckle.CodeAnalysis.Binding {
         public override BoundNodeType type => BoundNodeType.ForStatement;
 
         public BoundForStatement(
-            BoundStatement initializer_, BoundExpression condition_,
-            BoundExpression step_, BoundStatement body_) {
+            BoundStatement initializer_, BoundExpression condition_, BoundExpression step_,
+            BoundStatement body_, BoundLabel breakLabel, BoundLabel continueLabel)
+            : base(breakLabel, continueLabel) {
             initializer = initializer_;
             condition = condition_;
             step = step_;
             body = body_;
+        }
+    }
+
+    internal sealed class BoundDoWhileStatement : BoundLoopStatement {
+        public BoundStatement body { get; }
+        public BoundExpression condition { get; }
+        public override BoundNodeType type => BoundNodeType.DoWhileStatement;
+
+        public BoundDoWhileStatement(
+            BoundStatement body_, BoundExpression condition_, BoundLabel breakLabel, BoundLabel continueLabel)
+            : base(breakLabel, continueLabel) {
+            body = body_;
+            condition = condition_;
         }
     }
 
@@ -103,17 +129,6 @@ namespace Buckle.CodeAnalysis.Binding {
 
         public BoundLabelStatement(BoundLabel label_) {
             label = label_;
-        }
-    }
-
-    internal sealed class BoundDoWhileStatement : BoundStatement {
-        public BoundStatement body { get; }
-        public BoundExpression condition { get; }
-        public override BoundNodeType type => BoundNodeType.DoWhileStatement;
-
-        public BoundDoWhileStatement(BoundStatement body_, BoundExpression condition_) {
-            body = body_;
-            condition = condition_;
         }
     }
 }

@@ -138,9 +138,23 @@ namespace Buckle.CodeAnalysis.Syntax {
                     if (Peek(1).type == SyntaxType.IDENTIFIER)
                         return ParseVariableDeclarationStatement();
                     else goto default;
+                case SyntaxType.BREAK_KEYWORD:
+                    return ParseBreakStatement();
+                case SyntaxType.CONTINUE_KEYWORD:
+                    return ParseContinueStatement();
                 default:
                     return ParseExpressionStatement();
             }
+        }
+
+        private Statement ParseContinueStatement() {
+            var keyword = Match(SyntaxType.CONTINUE_KEYWORD);
+            return new ContinueStatement(keyword);
+        }
+
+        private Statement ParseBreakStatement() {
+            var keyword = Match(SyntaxType.BREAK_KEYWORD);
+            return new BreakStatement(keyword);
         }
 
         private Statement ParseDoWhileStatement() {

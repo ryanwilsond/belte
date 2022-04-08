@@ -36,7 +36,7 @@ namespace Buckle.CodeAnalysis.Binding {
             if (body == statement.body && condition == statement.condition)
                 return statement;
 
-            return new BoundDoWhileStatement(body, condition);
+            return new BoundDoWhileStatement(body, condition, statement.breakLabel, statement.continueLabel);
         }
 
         protected virtual BoundStatement RewriteLabelStatement(BoundLabelStatement statement) {
@@ -72,7 +72,7 @@ namespace Buckle.CodeAnalysis.Binding {
                 step == statement.step && body == statement.body)
                 return statement;
 
-            return new BoundForStatement(initializer, condition, step, body);
+            return new BoundForStatement(initializer, condition, step, body, statement.breakLabel, statement.continueLabel);
         }
 
         protected virtual BoundStatement RewriteWhileStatement(BoundWhileStatement statement) {
@@ -81,7 +81,7 @@ namespace Buckle.CodeAnalysis.Binding {
             if (condition == statement.condition && body == statement.body)
                 return statement;
 
-            return new BoundWhileStatement(condition, body);
+            return new BoundWhileStatement(condition, body, statement.breakLabel, statement.continueLabel);
         }
 
         protected virtual BoundStatement RewriteIfStatement(BoundIfStatement statement) {

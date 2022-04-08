@@ -64,7 +64,7 @@ namespace Buckle {
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
-        internal static Diagnostic FunctionAlreadyDeclared(TextSpan span, string name) {
+        public static Diagnostic FunctionAlreadyDeclared(TextSpan span, string name) {
             string msg = $"redefinition of function '{name}'";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
@@ -143,6 +143,11 @@ namespace Buckle {
         public static Diagnostic CannotConvertImplicitly(TextSpan span, TypeSymbol from, TypeSymbol to) {
             string msg =
                 $"cannot convert from type '{from}' to '{to}'. An explicit conversion exists (are you missing a cast?)";
+            return new Diagnostic(DiagnosticType.Error, span, msg);
+        }
+
+        internal static Diagnostic InvalidBreakOrContinue(TextSpan span, string text) {
+            string msg = $"{text} statement not within a loop";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
     }
