@@ -9,6 +9,7 @@ using System.IO;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.IO;
+using System.Linq;
 
 namespace Buckle {
 
@@ -92,8 +93,7 @@ namespace Buckle {
             if (program.diagnostics.Any())
                 return new EvaluationResult(null, program.diagnostics);
 
-            var statement = Lowerer.Lower(globalScope.statement);
-            var eval = new Evaluator(program.functionBodies, statement, variables);
+            var eval = new Evaluator(program, variables);
             var result = new EvaluationResult(eval.Evaluate(), diagnostics);
             return result;
         }
@@ -103,8 +103,19 @@ namespace Buckle {
         }
 
         public void EmitTree(TextWriter writer) {
-            var statement = Lowerer.Lower(globalScope.statement);
-            statement.WriteTo(writer);
+            var program = Binder.BindProgram(globalScope);
+
+            if (program.statement.statements.Any()) {
+                program.statement.WriteTo(writer);
+            } else {
+                foreach (var functionBody in program.functionBodies) {
+                    if (!globalScope.functions.Contains(functionBody.Key))
+                        continue;
+
+                    functionBody.Key.WriteTo(writer);
+                    functionBody.Value.WriteTo(writer);
+                }
+            }
         }
     }
 

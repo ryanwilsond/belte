@@ -39,15 +39,13 @@ namespace Buckle.CodeAnalysis.Binding {
             foreach (var globalStatement in expression.members.OfType<GlobalStatement>())
                 statements.Add(binder.BindStatement(globalStatement.statement));
 
-            var statement = new BoundBlockStatement(statements.ToImmutable());
-
             var functions = binder.scope_.GetDeclaredFunctions();
             var variables = binder.scope_.GetDeclaredVariables();
 
             if (previous != null)
                 binder.diagnostics.diagnostics_.InsertRange(0, previous.diagnostics.diagnostics_);
 
-            return new BoundGlobalScope(previous, binder.diagnostics, functions, variables, statement);
+            return new BoundGlobalScope(previous, binder.diagnostics, functions, variables, statements.ToImmutable());
         }
 
         public static BoundProgram BindProgram(BoundGlobalScope globalScope) {
@@ -68,7 +66,8 @@ namespace Buckle.CodeAnalysis.Binding {
                 scope = scope.previous;
             }
 
-            return new BoundProgram(globalScope, diagnostics, functionBodies.ToImmutable());
+            var statement = Lowerer.Lower(new BoundBlockStatement(globalScope.statements));
+            return new BoundProgram(diagnostics, functionBodies.ToImmutable(), statement);
         }
 
         private void BindFunctionDeclaration(FunctionDeclaration function) {

@@ -63,31 +63,31 @@ namespace Buckle.CodeAnalysis.Binding {
         public DiagnosticQueue diagnostics { get; }
         public ImmutableArray<FunctionSymbol> functions { get; }
         public ImmutableArray<VariableSymbol> variables { get; }
-        public BoundStatement statement { get; }
+        public ImmutableArray<BoundStatement> statements { get; }
 
         public BoundGlobalScope(
             BoundGlobalScope previous_, DiagnosticQueue diagnostics_, ImmutableArray<FunctionSymbol> functions_,
-            ImmutableArray<VariableSymbol> variables_, BoundStatement statement_) {
+            ImmutableArray<VariableSymbol> variables_, ImmutableArray<BoundStatement> statements_) {
             previous = previous_;
             diagnostics = new DiagnosticQueue();
             diagnostics.Move(diagnostics_);
             functions = functions_;
             variables = variables_;
-            statement = statement_;
+            statements = statements_;
         }
     }
 
     internal sealed class BoundProgram {
-        public BoundGlobalScope globalScope { get; }
         public DiagnosticQueue diagnostics { get; }
         public ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies { get; }
+        public BoundBlockStatement statement { get; }
 
         public BoundProgram(
-            BoundGlobalScope globalScope_, DiagnosticQueue diagnostics_,
-            ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies_) {
-            globalScope = globalScope_;
+            DiagnosticQueue diagnostics_, ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies_,
+            BoundBlockStatement statement_) {
             diagnostics = diagnostics_;
             functionBodies = functionBodies_;
+            statement = statement_;
         }
     }
 }

@@ -7,24 +7,22 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis {
 
     internal sealed class Evaluator {
-        private readonly BoundBlockStatement root_;
+        private readonly BoundProgram program_;
         public DiagnosticQueue diagnostics;
         private readonly Dictionary<VariableSymbol, object> globals_;
         private readonly Stack<Dictionary<VariableSymbol, object>> locals_ =
             new Stack<Dictionary<VariableSymbol, object>>();
-        private readonly ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies_;
         private object lastValue_;
         private Random random_;
 
-        public Evaluator(ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies, BoundBlockStatement root, Dictionary<VariableSymbol, object> variables) {
-            functionBodies_ = functionBodies;
-            root_ = root;
+        public Evaluator(BoundProgram program, Dictionary<VariableSymbol, object> variables) {
+            program_ = program;
             diagnostics = new DiagnosticQueue();
             globals_ = variables;
         }
 
         public object Evaluate() {
-            return EvaluateStatement(root_);
+            return EvaluateStatement(program_.statement);
         }
 
         private object EvaluateStatement(BoundBlockStatement statement) {
@@ -141,7 +139,7 @@ namespace Buckle.CodeAnalysis {
                 }
 
                 locals_.Push(locals);
-                var statement = functionBodies_[node.function];
+                var statement = program_.functionBodies[node.function];
                 var result = EvaluateStatement(statement);
                 locals_.Pop();
                 return result;

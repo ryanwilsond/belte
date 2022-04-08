@@ -1,5 +1,5 @@
-using System;
-using System.Collections.Immutable;
+using System.IO;
+using Buckle.IO;
 
 namespace Buckle.CodeAnalysis.Symbols {
 
@@ -19,7 +19,12 @@ namespace Buckle.CodeAnalysis.Symbols {
             name = name_;
         }
 
-        public override string ToString() => name;
+        public override string ToString() {
+            using (var writer = new StringWriter()) {
+                this.WriteTo(writer);
+                return writer.ToString();
+            }
+        }
     }
 
     internal abstract class VariableSymbol : Symbol {
