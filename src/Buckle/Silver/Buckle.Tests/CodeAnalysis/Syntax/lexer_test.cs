@@ -23,9 +23,9 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
         [Fact]
         public void Lexer_Covers_AllTokens() {
             var tokenTypes = Enum.GetValues(typeof(SyntaxType))
-                                 .Cast<SyntaxType>()
-                                 .Where(k => k.ToString().EndsWith("_KEYWORD") ||
-                                             (k.ToString().Length - k.ToString().Replace("_", "").Length == 0));
+                .Cast<SyntaxType>()
+                .Where(k => k.ToString().EndsWith("_KEYWORD") ||
+                    (k.ToString().Length - k.ToString().Replace("_", "").Length == 0));
 
             var testedTokenTypes = GetTokens().Concat(GetSeparators()).Select(t => t.type);
 

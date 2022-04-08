@@ -91,6 +91,38 @@ namespace Buckle.Tests.CodeAnalysis {
         }
 
         [Fact]
+        public void Evaluator_InvokeFunctionArguments_NoInifiniteLoop() {
+            var text = @"print(""Hi""[[=]][)];";
+
+            var diagnostics = @"
+                unexpected token '=', expected ')'
+                unexpected token '=', expected identifier
+                unexpected token ')', expected identifier
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_FunctionParameters_NoInfiniteLoop() {
+            var text = @"
+                void hi(string name[[[=]]][)] {
+                    print(""Hi "" + name + ""!"");
+                }[]
+            ";
+
+            var diagnostics = @"
+                unexpected token '=', expected ')'
+                unexpected token '=', expected '{'
+                unexpected token '=', expected identifier
+                unexpected token ')', expected identifier
+                expected '}' at end of input
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
         public void Evaluator_Block_NoInfiniteLoop() {
             var text = @"
                 {

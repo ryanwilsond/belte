@@ -92,13 +92,16 @@ namespace Buckle.CodeAnalysis.Syntax {
         private SeparatedSyntaxList<Parameter> ParseParameterList() {
             var nodesAndSeparators = ImmutableArray.CreateBuilder<Node>();
 
-            while (current.type != SyntaxType.RPAREN && current.type != SyntaxType.EOF) {
+            var parseNextParameter = true;
+            while (parseNextParameter && current.type != SyntaxType.RPAREN && current.type != SyntaxType.EOF) {
                 var expression = ParseParameter();
                 nodesAndSeparators.Add(expression);
 
-                if (current.type != SyntaxType.RPAREN) {
+                if (current.type == SyntaxType.COMMA) {
                     var comma = Match(SyntaxType.COMMA);
                     nodesAndSeparators.Add(comma);
+                } else {
+                    parseNextParameter = false;
                 }
             }
 
@@ -368,13 +371,16 @@ namespace Buckle.CodeAnalysis.Syntax {
         private SeparatedSyntaxList<Expression> ParseArguments() {
             var nodesAndSeparators = ImmutableArray.CreateBuilder<Node>();
 
-            while (current.type != SyntaxType.RPAREN && current.type != SyntaxType.EOF) {
+            var parseNextArgument = true;
+            while (parseNextArgument && current.type != SyntaxType.RPAREN && current.type != SyntaxType.EOF) {
                 var expression = ParseExpression();
                 nodesAndSeparators.Add(expression);
 
-                if (current.type != SyntaxType.RPAREN) {
+                if (current.type == SyntaxType.COMMA) {
                     var comma = Match(SyntaxType.COMMA);
                     nodesAndSeparators.Add(comma);
+                } else {
+                    parseNextArgument = false;
                 }
             }
 
