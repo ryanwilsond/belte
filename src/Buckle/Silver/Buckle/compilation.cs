@@ -8,6 +8,7 @@ using Buckle.CodeAnalysis.Syntax;
 using System.IO;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.IO;
 
 namespace Buckle {
 
