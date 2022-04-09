@@ -6,6 +6,8 @@ using Buckle;
 using Buckle.CodeAnalysis.Symbols;
 using System.Linq;
 using System.Reflection;
+using System.Text;
+using Buckle.IO;
 
 namespace CommandLine {
     internal class ReplState {
@@ -20,7 +22,6 @@ namespace CommandLine {
         private readonly List<string> submissionHistory_ = new List<string>();
         private readonly List<MetaCommand> metaCommands_ = new List<MetaCommand>();
         private int submissionHistoryIndex_;
-        protected List<string> initializerStatements_ = new List<string>();
         internal Compiler handle;
         internal ErrorHandle errorHandle;
         internal abstract ReplState state_ { get; set; }
@@ -53,17 +54,8 @@ namespace CommandLine {
         }
 
         public void Run() {
-            ResetState();
-
             while (true) {
-                string text;
-
-                if (initializerStatements_.Any()) {
-                    text = initializerStatements_[0];
-                    initializerStatements_.RemoveAt(0);
-                } else {
-                    text = EditSubmission();
-                }
+                string text = EditSubmission();
 
                 if (string.IsNullOrEmpty(text)) return;
 
@@ -399,19 +391,75 @@ namespace CommandLine {
         }
 
         private void EvaluateReplCommand(string line) {
-            var commandName = line.Substring(1);
+            var position = 1;
+            var sb = new StringBuilder();
+            var inQuotes = false;
+            var args = new List<string>();
+
+            while (position < line.Length) {
+                var c = line[position];
+                var l = position + 1 >= line.Length ? '\0' : line[position + 1];
+
+                if (char.IsWhiteSpace(c)) {
+                    if (!inQuotes) {
+                        var arg = sb.ToString();
+                        if (!string.IsNullOrWhiteSpace(arg))
+                            args.Add(arg);
+
+                        sb.Clear();
+                    } else
+                        sb.Append(c);
+                } else if (c == '\"') {
+                    if (!inQuotes)
+                        inQuotes = true;
+                    else if (l == '\"') {
+                        sb.Append(c);
+                        position++;
+                    } else if (inQuotes)
+                        inQuotes = false;
+                } else {
+                    sb.Append(c);
+                }
+
+                position++;
+            }
+
+            args.Add(sb.ToString());
+
+            var commandName = args.FirstOrDefault();
+
+            if (args.Count > 0)
+                args.RemoveAt(0);
+
             var command = metaCommands_.SingleOrDefault(mc => mc.name == commandName);
 
-            if (command != null) {
-                command.method.Invoke(this, null);
-            } else {
+            if (command == null) {
                 handle.diagnostics.Push(DiagnosticType.Error, $"unknown repl command '{line}'");
 
                 if (errorHandle != null)
                     errorHandle(handle, "repl");
                 else
                     handle.diagnostics.Clear();
+
+                return;
             }
+
+            var parameters = command.method.GetParameters();
+
+            if (args.Count != parameters.Length) {
+                var parameterNames = string.Join(" ", parameters.Select(p => $"<{p.Name}>"));
+                handle.diagnostics.Push(
+                    DiagnosticType.Error, $"invalid number of arguments\nusage: #{command.name} {parameterNames}");
+
+                if (errorHandle != null)
+                    errorHandle(handle, "repl");
+                else
+                    handle.diagnostics.Clear();
+
+                return;
+            }
+
+            command.method.Invoke(this, args.ToArray());
         }
 
         protected abstract bool IsCompleteSubmission(string text);
@@ -442,11 +490,22 @@ namespace CommandLine {
 
         [MetaCommand("help", "Shows this document")]
         protected void EvaluateHelp() {
-            var maxLength = metaCommands_.Max(mc => mc.name.Length);
+            var maxLength = metaCommands_
+                .Max(mc => mc.name.Length + string.Join(" ", mc.method.GetParameters()
+                .SelectMany(p => p.Name).ToList()).Length);
 
             foreach (var metaCommand in metaCommands_.OrderBy(mc => mc.name)) {
-                var paddedName = metaCommand.name.PadRight(maxLength);
-                Console.WriteLine($"#{paddedName}  {metaCommand.description}");
+                var name = metaCommand.name;
+                foreach (var parameter in metaCommand.method.GetParameters())
+                    name += $" <{parameter.Name}>";
+
+                var paddedName = name.PadRight(maxLength);
+                Console.Out.WritePunctuation("#");
+                Console.Out.WriteIdentifier(paddedName);
+                Console.Out.WriteSpace();
+                Console.Out.WriteSpace();
+                Console.Out.WritePunctuation(metaCommand.description);
+                Console.Out.WriteLine();
             }
         }
     }

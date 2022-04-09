@@ -3,7 +3,6 @@ using System.Collections.Immutable;
 using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.Text;
 using Buckle.CodeAnalysis.Syntax;
 using System.IO;
 using Buckle.CodeAnalysis.Symbols;
@@ -65,6 +64,8 @@ namespace Buckle {
         private BoundGlobalScope globalScope_;
         public DiagnosticQueue diagnostics;
         internal ImmutableArray<SyntaxTree> trees;
+        internal ImmutableArray<FunctionSymbol> functions => globalScope.functions;
+        internal ImmutableArray<VariableSymbol> variables => globalScope.variables;
         public Compilation previous;
 
         internal BoundGlobalScope globalScope {
@@ -87,6 +88,23 @@ namespace Buckle {
                 diagnostics.Move(tree.diagnostics);
             previous = previous_;
             trees = trees_.ToImmutableArray();
+        }
+
+        internal IEnumerable<Symbol> GetSymbols() {
+            var submission = this;
+            var seenSymbolNames = new HashSet<string>();
+
+            while (submission != null) {
+                foreach (var function in submission.functions)
+                    if (seenSymbolNames.Add(function.name))
+                        yield return function;
+
+                foreach (var variable in submission.variables)
+                    if (seenSymbolNames.Add(variable.name))
+                        yield return variable;
+
+                submission = submission.previous;
+            }
         }
 
         internal EvaluationResult Evaluate(Dictionary<VariableSymbol, object> variables) {
@@ -122,7 +140,7 @@ namespace Buckle {
             return new Compilation(this, trees);
         }
 
-        public void EmitTree(TextWriter writer) {
+        internal void EmitTree(TextWriter writer) {
             var program = Binder.BindProgram(globalScope);
 
             if (program.statement.statements.Any()) {
@@ -135,6 +153,20 @@ namespace Buckle {
                     functionBody.Key.WriteTo(writer);
                     functionBody.Value.WriteTo(writer);
                 }
+            }
+        }
+
+        internal void EmitTree(Symbol symbol, TextWriter writer) {
+            var program = Binder.BindProgram(globalScope);
+
+            if (symbol is FunctionSymbol f) {
+                if (!program.functions.TryGetValue(f, out var body))
+                    return;
+
+                f.WriteTo(writer);
+                body.WriteTo(writer);
+            } else {
+                symbol.WriteTo(writer);
             }
         }
     }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax {
@@ -23,6 +24,12 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         public static SyntaxTree Load(string fileName, string text) {
+            var sourceText = SourceText.From(text, fileName);
+            return Parse(sourceText);
+        }
+
+        public static SyntaxTree Load(string fileName) {
+            var text = File.ReadAllText(fileName);
             var sourceText = SourceText.From(text, fileName);
             return Parse(sourceText);
         }

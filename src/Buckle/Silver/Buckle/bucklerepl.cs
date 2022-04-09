@@ -1,12 +1,15 @@
 using System;
+using System.IO;
 using System.Linq;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.IO;
 using CommandLine;
 
 namespace Buckle {
     internal sealed class BuckleReplState : ReplState {
         public bool showTree = false;
         public bool showProgram = false;
+        public bool loadingSubmissions = false;
     }
 
     public sealed class BuckleRepl : Repl {
@@ -14,13 +17,15 @@ namespace Buckle {
         internal BuckleReplState state { get { return (BuckleReplState)state_; } set { state_=value; } }
 
         public BuckleRepl(Compiler handle, ErrorHandle errorHandle) : base(handle, errorHandle) {
-            initializerStatements_.Add("#clear");
             state = new BuckleReplState();
+            ResetState();
+            LoadSubmissions();
         }
 
         internal override void ResetState() {
             state.showTree = false;
             state.showProgram = false;
+            state.loadingSubmissions = false;
             base.ResetState();
         }
 
@@ -52,7 +57,47 @@ namespace Buckle {
                 }
 
                 state.previous = compilation;
+                SaveSubmission(text);
             }
+        }
+
+        private void SaveSubmission(string text) {
+            if (state.loadingSubmissions)
+                return;
+
+            var submissionsFolder = GetSumbissionsDirectory();
+            var count = Directory.GetFiles(submissionsFolder).Length;
+            var name = $"submission{count:0000}";
+            var fileName = Path.Combine(submissionsFolder, name);
+            File.WriteAllText(fileName, text);
+        }
+
+        private static void ClearSubmissions() {
+            Directory.Delete(GetSumbissionsDirectory(), true);
+        }
+
+        private void LoadSubmissions() {
+            var files = Directory.GetFiles(GetSumbissionsDirectory()).OrderBy(f => f).ToArray();
+            var keyword = files.Length == 1 ? "submission" : "submissions";
+            Console.Out.WritePunctuation($"loaded {files.Length} {keyword}");
+            Console.WriteLine();
+
+            state.loadingSubmissions = true;
+
+            foreach (var file in files) {
+                var text = File.ReadAllText(file);
+                EvaluateSubmission(text);
+            }
+
+            state.loadingSubmissions = false;
+        }
+
+        private static string GetSumbissionsDirectory() {
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var submissionsFolder = Path.Combine(localAppData, "Buckle", "Submissions");
+            if (!Directory.Exists(submissionsFolder))
+                Directory.CreateDirectory(submissionsFolder);
+            return submissionsFolder;
         }
 
         protected override void RenderLine(string line) {
@@ -65,6 +110,8 @@ namespace Buckle {
                 var isString = token.type == SyntaxType.STRING;
                 var isType = (i < tokens.Length-2) && (tokens[i+1].type == SyntaxType.WHITESPACE) &&
                     (tokens[i+2].type == SyntaxType.IDENTIFIER) && isIdentifier;
+                isType |= i == 1 && tokens[0].text == "#";
+                isType &= !(i > 1 && tokens[0].text == "#");
 
                 if (isKeyword)
                     Console.ForegroundColor = ConsoleColor.Blue;
@@ -102,7 +149,56 @@ namespace Buckle {
         [MetaCommand("reset", "Clears previous submissions")]
         private void EvaluateReset() {
             ResetState();
-            EvaluateClear();
+            ClearSubmissions();
+        }
+
+        [MetaCommand("load", "Loads in text from file")]
+        private void EvaluateLoad(string path) {
+            if (!File.Exists(path)) {
+                handle.diagnostics.Push(DiagnosticType.Error, $"{path}: no such file");
+
+                if (errorHandle != null)
+                    errorHandle(handle, "repl");
+                else
+                    handle.diagnostics.Clear();
+
+                return;
+            }
+
+            var text = File.ReadAllText(path);
+            EvaluateSubmission(text);
+        }
+
+        [MetaCommand("ls", "Lists all defined symbols")]
+        private void EvaluateLs() {
+            if (state.previous == null)
+                return;
+
+            var symbols = state.previous.GetSymbols().OrderBy(s => s.type).ThenBy(s => s.name);
+            foreach (var symbol in symbols) {
+                symbol.WriteTo(Console.Out);
+                Console.WriteLine();
+            }
+        }
+
+        [MetaCommand("dump", "Shows contents of a symbol")]
+        private void EvaluateDump(string name) {
+            if (state.previous == null)
+                return;
+
+            var symbol = state.previous.GetSymbols().SingleOrDefault(f => f.name == name);
+            if (symbol == null) {
+                handle.diagnostics.Push(DiagnosticType.Error, $"undefined symbol '{name}'");
+
+                if (errorHandle != null)
+                    errorHandle(handle, "repl");
+                else
+                    handle.diagnostics.Clear();
+
+                return;
+            }
+
+            state.previous.EmitTree(symbol, Console.Out);
         }
 
         protected override bool IsCompleteSubmission(string text) {

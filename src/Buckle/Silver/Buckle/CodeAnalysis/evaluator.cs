@@ -14,10 +14,10 @@ namespace Buckle.CodeAnalysis {
         private object lastValue_;
         private Random random_;
 
-        public Evaluator(BoundProgram program, Dictionary<VariableSymbol, object> variables) {
+        public Evaluator(BoundProgram program, Dictionary<VariableSymbol, object> globals) {
             program_ = program;
             diagnostics = new DiagnosticQueue();
-            globals_ = variables;
+            globals_ = globals;
         }
 
         public object Evaluate() {
