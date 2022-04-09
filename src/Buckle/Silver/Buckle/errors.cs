@@ -115,7 +115,8 @@ namespace Buckle {
         }
 
         public static Diagnostic IncorrectArgumentsCount(TextSpan span, string name, int expected, int actual) {
-            string msg = $"function '{name}' expects {expected} arguments, got {actual}";
+            var argWord = expected == 1 ? "argument" : "arguments";
+            string msg = $"function '{name}' expects {expected} {argWord}, got {actual}";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 

@@ -202,22 +202,40 @@ namespace Buckle.CodeAnalysis.Binding {
             }
 
             if (expression.arguments.count != function.parameters.Length) {
+                TextSpan span;
+
+                if (expression.arguments.count > function.parameters.Length) {
+                    Node firstExceedingNode;
+                    if (function.parameters.Length > 0)
+                        firstExceedingNode = expression.arguments.GetSeparator(function.parameters.Length - 1);
+                    else
+                        firstExceedingNode = expression.arguments[0];
+                    var lastExceedingNode = expression.arguments.Last();
+                    span = TextSpan.FromBounds(firstExceedingNode.span.start, lastExceedingNode.span.end);
+                } else {
+                    span = expression.closeParenthesis.span;
+                }
+
                 diagnostics.Push(Error.IncorrectArgumentsCount(
-                    expression.span, function.name, function.parameters.Length, expression.arguments.count));
+                    span, function.name, function.parameters.Length, expression.arguments.count));
                 return new BoundErrorExpression();
             }
 
-
+            bool hasErrors = false;
             for (int i=0; i<expression.arguments.count; i++) {
                 var argument = boundArguments[i];
                 var parameter = function.parameters[i];
 
                 if (argument.lType != parameter.lType) {
-                    diagnostics.Push(Error.InvalidArgumentType(
-                        expression.arguments[i].span, parameter.name, parameter.lType, argument.lType));
-                    return new BoundErrorExpression();
+                    if (argument.lType != TypeSymbol.Error)
+                        diagnostics.Push(Error.InvalidArgumentType(
+                            expression.arguments[i].span, parameter.name, parameter.lType, argument.lType));
+                    hasErrors = true;
                 }
             }
+
+            if (hasErrors)
+                return new BoundErrorExpression();
 
             return new BoundCallExpression(function, boundArguments.ToImmutable());
         }

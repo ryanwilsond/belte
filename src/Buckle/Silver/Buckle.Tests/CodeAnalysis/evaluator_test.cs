@@ -111,6 +111,24 @@ namespace Buckle.Tests.CodeAnalysis {
         }
 
         [Fact]
+        public void Evaluator_InvokeFunctionArguments_Missing() {
+            var text = @"print([)];";
+
+            var diagnostics = @"function 'print' expects 1 argument, got 0";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_InvokeFunctionArguments_Exceeding() {
+            var text = @"print(""Hello""[, "" "", "" world!""]);";
+
+            var diagnostics = @"function 'print' expects 1 argument, got 3";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
         public void Evaluator_FunctionParameters_NoInfiniteLoop() {
             var text = @"
                 void hi(string name[[[=]]][)] {
