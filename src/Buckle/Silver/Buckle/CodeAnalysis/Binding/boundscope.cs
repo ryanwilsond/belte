@@ -79,14 +79,14 @@ namespace Buckle.CodeAnalysis.Binding {
 
     internal sealed class BoundProgram {
         public DiagnosticQueue diagnostics { get; }
-        public ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies { get; }
+        public ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functions { get; }
         public BoundBlockStatement statement { get; }
 
         public BoundProgram(
             DiagnosticQueue diagnostics_, ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies_,
             BoundBlockStatement statement_) {
             diagnostics = diagnostics_;
-            functionBodies = functionBodies_;
+            functions = functionBodies_;
             statement = statement_;
         }
     }

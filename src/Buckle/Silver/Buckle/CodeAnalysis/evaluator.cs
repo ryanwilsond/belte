@@ -146,7 +146,7 @@ namespace Buckle.CodeAnalysis {
                 }
 
                 locals_.Push(locals);
-                var statement = program_.functionBodies[node.function];
+                var statement = program_.functions[node.function];
                 var result = EvaluateStatement(statement);
                 locals_.Pop();
                 return result;

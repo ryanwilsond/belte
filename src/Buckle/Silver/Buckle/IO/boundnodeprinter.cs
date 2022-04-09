@@ -74,9 +74,21 @@ namespace Buckle.IO {
                 case BoundNodeType.DoWhileStatement:
                     WriteDoWhileStatement((BoundDoWhileStatement)node, writer);
                     break;
+                case BoundNodeType.ReturnStatement:
+                    WriteReturnStatement((BoundReturnStatement)node, writer);
+                    break;
                 default:
                     throw new Exception($"unexpected node '{node.type}'");
             }
+        }
+
+        private static void WriteReturnStatement(BoundReturnStatement node, IndentedTextWriter writer) {
+            writer.WriteKeyword(SyntaxType.RETURN_KEYWORD);
+            if (node.expression != null) {
+                writer.WriteSpace();
+                node.expression.WriteTo(writer);
+            }
+            writer.WriteLine();
         }
 
         private static void WriteNestedStatement(this IndentedTextWriter writer, BoundStatement node) {

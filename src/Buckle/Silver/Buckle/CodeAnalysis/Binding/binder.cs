@@ -59,6 +59,10 @@ namespace Buckle.CodeAnalysis.Binding {
                     var binder = new Binder(parentScope, function);
                     var body = binder.BindStatement(function.declaration.body);
                     var loweredBody = Lowerer.Lower(body);
+
+                    if (function.lType != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
+                        binder.diagnostics.Push(Error.NotAllPathsReturn(function.declaration.identifier.span));
+
                     functionBodies.Add(function, loweredBody);
                     diagnostics.Move(binder.diagnostics);
                 }

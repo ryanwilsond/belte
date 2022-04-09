@@ -1,0 +1,16 @@
+digraph G {
+    N0 [label = "<Start>" shape = box]
+    N1 [label = "int i = 10\lint result = 0\l" shape = box]
+    N2 [label = "Continue1:\lgoto Break1 unless True\l" shape = box]
+    N3 [label = "goto Label1 unless i == 0\l" shape = box]
+    N4 [label = "return result\l" shape = box]
+    N5 [label = "Label1:\lresult = result + i\li = i - 1\lgoto Continue1\l" shape = box]
+    N6 [label = "<End>" shape = box]
+    N0 -> N1 [label = ""]
+    N1 -> N2 [label = ""]
+    N2 -> N3 [label = ""]
+    N3 -> N5 [label = "!(i == 0)"]
+    N3 -> N4 [label = "i == 0"]
+    N4 -> N6 [label = ""]
+    N5 -> N2 [label = ""]
+}

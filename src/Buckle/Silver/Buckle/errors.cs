@@ -67,6 +67,11 @@ namespace Buckle {
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
+        public static Diagnostic NotAllPathsReturn(TextSpan span) {
+            string msg = $"not all code paths return a value";
+            return new Diagnostic(DiagnosticType.Error, span, msg);
+        }
+
         public static Diagnostic CannotConvert(TextSpan span, TypeSymbol from, TypeSymbol to) {
             string msg = $"cannot convert from type '{from}' to '{to}'";
             return new Diagnostic(DiagnosticType.Error, span, msg);

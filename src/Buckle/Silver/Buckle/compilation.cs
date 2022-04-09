@@ -10,6 +10,7 @@ using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.IO;
 using System.Linq;
+using System;
 
 namespace Buckle {
 
@@ -90,6 +91,18 @@ namespace Buckle {
                 return new EvaluationResult(null, diagnostics);
 
             var program = Binder.BindProgram(globalScope);
+
+            var appPath = Environment.GetCommandLineArgs()[0];
+            var appDirectory = Path.GetDirectoryName(appPath);
+            var cfgPath = Path.Combine(appDirectory, "cfg.dot");
+            var cfgStatement = !program.statement.statements.Any() && program.functions.Any()
+                ? program.functions.Last().Value
+                : program.statement;
+            var cfg = ControlFlowGraph.Create(cfgStatement);
+
+            using (var streamWriter = new StreamWriter(cfgPath))
+                cfg.WriteTo(streamWriter);
+
             if (program.diagnostics.Any())
                 return new EvaluationResult(null, program.diagnostics);
 
@@ -108,7 +121,7 @@ namespace Buckle {
             if (program.statement.statements.Any()) {
                 program.statement.WriteTo(writer);
             } else {
-                foreach (var functionBody in program.functionBodies) {
+                foreach (var functionBody in program.functions) {
                     if (!globalScope.functions.Contains(functionBody.Key))
                         continue;
 
