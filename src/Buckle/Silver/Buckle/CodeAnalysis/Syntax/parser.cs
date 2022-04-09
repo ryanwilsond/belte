@@ -142,19 +142,34 @@ namespace Buckle.CodeAnalysis.Syntax {
                     return ParseBreakStatement();
                 case SyntaxType.CONTINUE_KEYWORD:
                     return ParseContinueStatement();
+                case SyntaxType.RETURN_KEYWORD:
+                    return ParseReturnStatement();
                 default:
                     return ParseExpressionStatement();
             }
         }
 
+        private Statement ParseReturnStatement() {
+            var keyword = Match(SyntaxType.RETURN_KEYWORD);
+            Expression expression = null;
+            if (current.type != SyntaxType.SEMICOLON)
+                expression = ParseExpression();
+
+            Token semicolon = Match(SyntaxType.SEMICOLON);
+
+            return new ReturnStatement(keyword, expression, semicolon);
+        }
+
         private Statement ParseContinueStatement() {
             var keyword = Match(SyntaxType.CONTINUE_KEYWORD);
-            return new ContinueStatement(keyword);
+            var semicolon = Match(SyntaxType.SEMICOLON);
+            return new ContinueStatement(keyword, semicolon);
         }
 
         private Statement ParseBreakStatement() {
             var keyword = Match(SyntaxType.BREAK_KEYWORD);
-            return new BreakStatement(keyword);
+            var semicolon = Match(SyntaxType.SEMICOLON);
+            return new BreakStatement(keyword, semicolon);
         }
 
         private Statement ParseDoWhileStatement() {

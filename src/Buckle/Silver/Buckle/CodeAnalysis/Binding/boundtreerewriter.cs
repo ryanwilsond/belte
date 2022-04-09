@@ -26,8 +26,19 @@ namespace Buckle.CodeAnalysis.Binding {
                     return RewriteConditionalGotoStatement((BoundConditionalGotoStatement)statement);
                 case BoundNodeType.DoWhileStatement:
                     return RewriteDoWhileStatement((BoundDoWhileStatement)statement);
+                case BoundNodeType.ReturnStatement:
+                    return RewriteReturnStatement((BoundReturnStatement)statement);
                 default: return null;
             }
+        }
+
+        protected virtual BoundStatement RewriteReturnStatement(BoundReturnStatement statement) {
+            var expression = statement.expression == null ? null : RewriteExpression(statement.expression);
+
+            if (expression == statement.expression)
+                return statement;
+
+            return new BoundReturnStatement(expression);
         }
 
         protected virtual BoundStatement RewriteDoWhileStatement(BoundDoWhileStatement statement) {

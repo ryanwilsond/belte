@@ -106,34 +106,34 @@ namespace CommandLine {
             return state;
         }
 
-        private static void PrettyPrintDiagnostic(SourceText text, Diagnostic error) {
-            int lineNumber = text.GetLineIndex(error.span.start);
+        private static void PrettyPrintDiagnostic(SourceText text, Diagnostic diagnostic) {
+            int lineNumber = text.GetLineIndex(diagnostic.span.start);
             TextLine line = text.lines[lineNumber];
-            int column = error.span.start - line.start + 1;
+            int column = diagnostic.span.start - line.start + 1;
             string lineText = line.ToString();
             Console.Write($"{lineNumber + 1}:{column}:");
 
-            if (error.type == DiagnosticType.Error) {
+            if (diagnostic.type == DiagnosticType.Error) {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.Write(" error: ");
-            } else if (error.type == DiagnosticType.Fatal) {
+            } else if (diagnostic.type == DiagnosticType.Fatal) {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.Write(" fatal error: ");
-            } else if (error.type == DiagnosticType.Warning) {
+            } else if (diagnostic.type == DiagnosticType.Warning) {
                 Console.ForegroundColor = ConsoleColor.Magenta;
                 Console.Write(" warning: ");
             }
 
             Console.ResetColor();
-            Console.WriteLine(error.msg);
+            Console.WriteLine(diagnostic.msg);
 
-            if (text.IsAtEndOfInput(error.span)) return;
+            if (text.IsAtEndOfInput(diagnostic.span)) return;
 
-            TextSpan prefixSpan = TextSpan.FromBounds(line.start, error.span.start);
-            TextSpan suffixSpan = TextSpan.FromBounds(error.span.end, line.end);
+            TextSpan prefixSpan = TextSpan.FromBounds(line.start, diagnostic.span.start);
+            TextSpan suffixSpan = TextSpan.FromBounds(diagnostic.span.end, line.end);
 
             string prefix = text.ToString(prefixSpan);
-            string focus = text.ToString(error.span);
+            string focus = text.ToString(diagnostic.span);
             string suffix = text.ToString(suffixSpan);
 
             Console.Write($" {prefix}");
@@ -143,12 +143,19 @@ namespace CommandLine {
             Console.WriteLine(suffix);
 
             Console.ForegroundColor = ConsoleColor.Red;
-            string marker = " " + Regex.Replace(prefix, @"\S", " ");
-            marker += "^";
-            if (error.span.length > 0 && error.span.start != lineText.Length)
-                marker += new string('~', error.span.length - 1);
+            string markerPrefix = " " + Regex.Replace(prefix, @"\S", " ");
+            string marker = "^";
+            if (diagnostic.span.length > 0 && diagnostic.span.start != lineText.Length)
+                marker += new string('~', diagnostic.span.length - 1);
 
-            Console.WriteLine(marker);
+            Console.WriteLine(markerPrefix + marker);
+
+            if (diagnostic.suggestion != null) {
+                Console.ForegroundColor = ConsoleColor.Green;
+                string suggestion = diagnostic.suggestion.Replace("%", focus);
+                Console.WriteLine(markerPrefix + suggestion);
+            }
+
             Console.ResetColor();
         }
 

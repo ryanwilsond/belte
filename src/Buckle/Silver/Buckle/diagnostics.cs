@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,6 +16,7 @@ namespace Buckle {
         public DiagnosticType type { get; }
         public string msg { get; }
         public TextSpan? span { get; }
+        public string suggestion { get; }
 
         /// <summary>
         /// A diagnostic message with a specific location
@@ -24,11 +24,14 @@ namespace Buckle {
         /// <param name="type_">Severity of diagnostic</param>
         /// <param name="span_">Location of the diagnostic</param>
         /// <param name="msg_">Message/info on the diagnostic</param>
-        public Diagnostic(DiagnosticType type_, TextSpan? span_, string msg_) {
+        public Diagnostic(DiagnosticType type_, TextSpan? span_, string msg_, string suggestion_) {
             type = type_;
             msg = msg_;
             span = span_;
+            suggestion = suggestion_;
         }
+
+        public Diagnostic(DiagnosticType type, TextSpan? span, string msg) : this(type, span, msg, null) { }
     }
 
     public sealed class DiagnosticQueue {

@@ -63,6 +63,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         DO_KEYWORD,
         BREAK_KEYWORD,
         CONTINUE_KEYWORD,
+        RETURN_KEYWORD,
 
         BLOCK_STATEMENT,
         EXPRESSION_STATEMENT,
@@ -74,6 +75,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         GLOBAL_STATEMENT,
         BREAK_STATEMENT,
         CONTINUE_STATEMENT,
+        RETURN_STATEMENT,
         // other
         COMPILATION_UNIT,
         FUNCTION_DECLARATION,

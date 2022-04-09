@@ -131,4 +131,13 @@ namespace Buckle.CodeAnalysis.Binding {
             label = label_;
         }
     }
+
+    internal sealed class BoundReturnStatement : BoundStatement {
+        public BoundExpression expression { get; }
+        public override BoundNodeType type => BoundNodeType.ReturnStatement;
+
+        public BoundReturnStatement(BoundExpression expression_) {
+            expression = expression_;
+        }
+    }
 }

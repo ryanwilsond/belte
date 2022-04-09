@@ -63,6 +63,13 @@ namespace Buckle.CodeAnalysis {
                     case BoundNodeType.LabelStatement:
                         index++;
                         break;
+                    case BoundNodeType.ReturnStatement:
+                        var returnStatement = (BoundReturnStatement)s;
+                        var lastValue_ = returnStatement.expression == null
+                            ? null
+                            : EvaluateExpression(returnStatement.expression);
+
+                        return lastValue_;
                     default:
                         diagnostics.Push(DiagnosticType.Fatal, $"unexpected statement '{s.type}'");
                         index++;

@@ -7,10 +7,8 @@ namespace Buckle {
 
     internal static class Error {
         internal static class Unsupported {
-            public static Diagnostic FunctionReturnValues(TextSpan span) {
-                string msg = $"unsupported: function cannot return a value";
-                return new Diagnostic(DiagnosticType.Error, span, msg);
-            }
+            // temporary errors messages go here
+            // given compiler is finished this will be empty
         }
 
         public static string DiagnosticText(SyntaxType type) {
@@ -144,11 +142,27 @@ namespace Buckle {
         public static Diagnostic CannotConvertImplicitly(TextSpan span, TypeSymbol from, TypeSymbol to) {
             string msg =
                 $"cannot convert from type '{from}' to '{to}'. An explicit conversion exists (are you missing a cast?)";
+            string suggestion = $"{to}(%)";
+            return new Diagnostic(DiagnosticType.Error, span, msg, suggestion);
+        }
+
+        public static Diagnostic InvalidBreakOrContinue(TextSpan span, string text) {
+            string msg = $"{text} statement not within a loop";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
 
-        internal static Diagnostic InvalidBreakOrContinue(TextSpan span, string text) {
-            string msg = $"{text} statement not within a loop";
+        public static Diagnostic ReturnOutsideFunction(TextSpan span) {
+            string msg = $"return statement not within a function";
+            return new Diagnostic(DiagnosticType.Error, span, msg);
+        }
+
+        public static Diagnostic UnexpectedReturnValue(TextSpan span) {
+            string msg = $"return statement with a value, in function returning void";
+            return new Diagnostic(DiagnosticType.Error, span, msg);
+        }
+
+        public static Diagnostic MissingReturnValue(TextSpan span) {
+            string msg = $"return statement with no value, in function returning non-void";
             return new Diagnostic(DiagnosticType.Error, span, msg);
         }
     }

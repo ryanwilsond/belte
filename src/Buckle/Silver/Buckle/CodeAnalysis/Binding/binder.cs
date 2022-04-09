@@ -87,10 +87,6 @@ namespace Buckle.CodeAnalysis.Binding {
                 }
             }
 
-            if (type != TypeSymbol.Void) {
-                diagnostics.Push(Error.Unsupported.FunctionReturnValues(function.typeName.span));
-            }
-
             var newFunction = new FunctionSymbol(function.identifier.text, parameters.ToImmutable(), type, function);
             if (!scope_.TryDeclareFunction(newFunction))
                 diagnostics.Push(Error.FunctionAlreadyDeclared(function.identifier.span, newFunction.name));
@@ -143,10 +139,32 @@ namespace Buckle.CodeAnalysis.Binding {
                 case SyntaxType.DO_WHILE_STATEMENT: return BindDoWhileStatement((DoWhileStatement)syntax);
                 case SyntaxType.BREAK_STATEMENT: return BindBreakStatement((BreakStatement)syntax);
                 case SyntaxType.CONTINUE_STATEMENT: return BindContinueStatement((ContinueStatement)syntax);
+                case SyntaxType.RETURN_STATEMENT: return BindReturnStatement((ReturnStatement)syntax);
                 default:
                     diagnostics.Push(DiagnosticType.Fatal, $"unexpected syntax {syntax.type}");
                     return null;
             }
+        }
+
+        private BoundStatement BindReturnStatement(ReturnStatement expression) {
+            var boundExpression = expression.expression == null ? null : BindExpression(expression.expression);
+
+            if (function_ == null) {
+                diagnostics.Push(Error.ReturnOutsideFunction(expression.keyword.span));
+                return new BoundExpressionStatement(new BoundErrorExpression());
+            }
+
+            if (function_.lType == TypeSymbol.Void) {
+                if (boundExpression != null)
+                    diagnostics.Push(Error.UnexpectedReturnValue(expression.keyword.span));
+            } else {
+                if (boundExpression == null)
+                    diagnostics.Push(Error.MissingReturnValue(expression.keyword.span));
+                else
+                    boundExpression = BindCast(expression.expression.span, boundExpression, function_.lType);
+            }
+
+            return new BoundReturnStatement(boundExpression);
         }
 
         private BoundExpression BindExpression(Expression expression, bool canBeVoid=false) {

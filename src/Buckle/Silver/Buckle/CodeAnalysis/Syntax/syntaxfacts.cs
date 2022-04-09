@@ -64,6 +64,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case "do": return SyntaxType.DO_KEYWORD;
                 case "break": return SyntaxType.BREAK_KEYWORD;
                 case "continue": return SyntaxType.CONTINUE_KEYWORD;
+                case "return": return SyntaxType.RETURN_KEYWORD;
                 default: return SyntaxType.IDENTIFIER;
             }
         }
@@ -108,6 +109,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.DO_KEYWORD: return "do";
                 case SyntaxType.BREAK_KEYWORD: return "break";
                 case SyntaxType.CONTINUE_KEYWORD: return "continue";
+                case SyntaxType.RETURN_KEYWORD: return "return";
                 default: return null;
             }
         }

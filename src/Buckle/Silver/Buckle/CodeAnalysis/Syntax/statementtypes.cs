@@ -145,19 +145,36 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal sealed class ContinueStatement : Statement {
         public Token keyword { get; }
+        public Token semicolon { get; }
         public override SyntaxType type => SyntaxType.CONTINUE_STATEMENT;
 
-        public ContinueStatement(Token keyword_) {
+        public ContinueStatement(Token keyword_, Token semicolon_) {
             keyword = keyword_;
+            semicolon = semicolon_;
         }
     }
 
     internal sealed class BreakStatement : Statement {
         public Token keyword { get; }
+        public Token semicolon { get; }
         public override SyntaxType type => SyntaxType.BREAK_STATEMENT;
 
-        public BreakStatement(Token keyword_) {
+        public BreakStatement(Token keyword_, Token semicolon_) {
             keyword = keyword_;
+            semicolon = semicolon_;
+        }
+    }
+
+    internal sealed class ReturnStatement : Statement {
+        public Token keyword { get; }
+        public Expression expression { get; }
+        public Token semicolon { get; }
+        public override SyntaxType type => SyntaxType.RETURN_STATEMENT;
+
+        public ReturnStatement(Token keyword_, Expression expression_, Token semicolon_) {
+            keyword = keyword_;
+            expression = expression_;
+            semicolon = semicolon_;
         }
     }
 }
