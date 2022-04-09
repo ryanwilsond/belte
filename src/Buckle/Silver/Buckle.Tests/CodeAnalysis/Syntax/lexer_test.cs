@@ -15,8 +15,8 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             Assert.Equal(text, token.text);
             Assert.Equal(1, diagnostics.count);
             var diagnostic = diagnostics.Pop();
-            Assert.Equal(0, diagnostic.span.start);
-            Assert.Equal(1, diagnostic.span.length);
+            Assert.Equal(0, diagnostic.location.span.start);
+            Assert.Equal(1, diagnostic.location.span.length);
             Assert.Equal("unterminated string literal", diagnostic.msg);
         }
 

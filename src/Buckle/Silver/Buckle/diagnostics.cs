@@ -15,7 +15,7 @@ namespace Buckle {
     public sealed class Diagnostic {
         public DiagnosticType type { get; }
         public string msg { get; }
-        public TextSpan? span { get; }
+        public TextLocation location { get; }
         public string suggestion { get; }
 
         /// <summary>
@@ -24,14 +24,14 @@ namespace Buckle {
         /// <param name="type_">Severity of diagnostic</param>
         /// <param name="span_">Location of the diagnostic</param>
         /// <param name="msg_">Message/info on the diagnostic</param>
-        public Diagnostic(DiagnosticType type_, TextSpan? span_, string msg_, string suggestion_) {
+        public Diagnostic(DiagnosticType type_, TextLocation location_, string msg_, string suggestion_) {
             type = type_;
             msg = msg_;
-            span = span_;
+            location = location_;
             suggestion = suggestion_;
         }
 
-        public Diagnostic(DiagnosticType type, TextSpan? span, string msg) : this(type, span, msg, null) { }
+        public Diagnostic(DiagnosticType type, TextLocation location, string msg) : this(type, location, msg, null) { }
     }
 
     public sealed class DiagnosticQueue {
@@ -54,9 +54,15 @@ namespace Buckle {
         /// Pushes a diagnostic onto the Queue
         /// </summary>
         /// <param name="diagnostic">Diagnostic to copy onto the queue</param>
-        public void Push(Diagnostic diagnostic) { diagnostics_.Add(diagnostic); }
-        public void Push(DiagnosticType type, TextSpan? span, string msg) { Push(new Diagnostic(type, span, msg)); }
-        public void Push(TextSpan? span, string msg) { Push(DiagnosticType.Error, span, msg); }
+        public void Push(Diagnostic diagnostic) {
+            diagnostics_.Add(diagnostic);
+        }
+
+        public void Push(DiagnosticType type, TextLocation location, string msg) {
+            Push(new Diagnostic(type, location, msg));
+        }
+
+        public void Push(TextLocation location, string msg) { Push(DiagnosticType.Error, location, msg); }
         public void Push(DiagnosticType type, string msg) { Push(type, null, msg); }
         public void Push(string msg) { Push(DiagnosticType.Error, null, msg); }
 
@@ -82,7 +88,9 @@ namespace Buckle {
         public static DiagnosticQueue CleanDiagnostics(DiagnosticQueue diagnostics) {
             var cleanedDiagnostics = new DiagnosticQueue();
 
-            foreach (var diagnostic in diagnostics.diagnostics_.OrderBy(diag => diag.span, new SpanComparer())) {
+            foreach (var diagnostic in diagnostics.diagnostics_.OrderBy(diag => diag.location.fileName)
+                    .ThenBy(diag => diag.location.span.start)
+                    .ThenBy(diag => diag.location.span.length)) {
                 cleanedDiagnostics.Push(diagnostic);
             }
 

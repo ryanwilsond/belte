@@ -1,19 +1,21 @@
 
 namespace Buckle.CodeAnalysis.Syntax {
 
-    internal abstract class Expression : Node { }
+    internal abstract class Expression : Node {
+        protected Expression(SyntaxTree syntaxTree) : base(syntaxTree) { }
+    }
 
     internal sealed class LiteralExpression : Expression {
         public Token token { get; }
         public object value { get; }
         public override SyntaxType type => SyntaxType.LITERAL_EXPR;
 
-        public LiteralExpression(Token token_, object value_) {
+        public LiteralExpression(SyntaxTree syntaxTree, Token token_, object value_) : base(syntaxTree) {
             token = token_;
             value = value_;
         }
 
-        public LiteralExpression(Token token_) : this(token_, token_.value) { }
+        public LiteralExpression(SyntaxTree syntaxTree, Token token_) : this(syntaxTree, token_, token_.value) { }
     }
 
     internal sealed class BinaryExpression : Expression {
@@ -22,7 +24,8 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Expression right { get; }
         public override SyntaxType type => SyntaxType.BINARY_EXPR;
 
-        public BinaryExpression(Expression left_, Token op_, Expression right_) {
+        public BinaryExpression(SyntaxTree syntaxTree, Expression left_, Token op_, Expression right_)
+            : base(syntaxTree) {
             left = left_;
             op = op_;
             right = right_;
@@ -35,7 +38,9 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Token closeParenthesis { get; }
         public override SyntaxType type => SyntaxType.PAREN_EXPR;
 
-        public ParenExpression(Token openParenthesis_, Expression expression_, Token closeParenthesis_) {
+        public ParenExpression(
+            SyntaxTree syntaxTree, Token openParenthesis_, Expression expression_, Token closeParenthesis_)
+            : base(syntaxTree) {
             openParenthesis = openParenthesis_;
             expression = expression_;
             closeParenthesis = closeParenthesis_;
@@ -47,7 +52,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Expression operand { get; }
         public override SyntaxType type => SyntaxType.UNARY_EXPR;
 
-        public UnaryExpression(Token op_, Expression operand_) {
+        public UnaryExpression(SyntaxTree syntaxTree, Token op_, Expression operand_) : base(syntaxTree) {
             op = op_;
             operand = operand_;
         }
@@ -57,7 +62,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Token identifier { get; }
         public override SyntaxType type => SyntaxType.NAME_EXPR;
 
-        public NameExpression(Token identifier_) {
+        public NameExpression(SyntaxTree syntaxTree, Token identifier_) : base(syntaxTree) {
             identifier = identifier_;
         }
     }
@@ -68,7 +73,8 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Expression expression { get; }
         public override SyntaxType type => SyntaxType.ASSIGN_EXPR;
 
-        public AssignmentExpression(Token identifier_, Token equals_, Expression expression_) {
+        public AssignmentExpression(SyntaxTree syntaxTree, Token identifier_, Token equals_, Expression expression_)
+            : base(syntaxTree) {
             identifier = identifier_;
             equals = equals_;
             expression = expression_;
@@ -78,7 +84,7 @@ namespace Buckle.CodeAnalysis.Syntax {
     internal sealed class EmptyExpression : Expression {
         public override SyntaxType type => SyntaxType.EMPTY_EXPR;
 
-        public EmptyExpression() { }
+        public EmptyExpression(SyntaxTree syntaxTree) : base(syntaxTree) { }
     }
 
     internal sealed class CallExpression : Expression {
@@ -88,8 +94,10 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Token closeParenthesis { get; }
         public override SyntaxType type => SyntaxType.CALL_EXPR;
 
-        public CallExpression(Token identifier_, Token openParenthesis_,
-            SeparatedSyntaxList<Expression> arguments_, Token closeParenthesis_) {
+        public CallExpression(
+            SyntaxTree syntaxTree, Token identifier_, Token openParenthesis_,
+            SeparatedSyntaxList<Expression> arguments_, Token closeParenthesis_)
+            : base(syntaxTree) {
             identifier = identifier_;
             openParenthesis = openParenthesis_;
             arguments = arguments_;

@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Token identifier { get; }
         public override SyntaxType type => SyntaxType.PARAMETER;
 
-        public Parameter(Token typeName_, Token identifier_) {
+        public Parameter(SyntaxTree syntaxTree, Token typeName_, Token identifier_) : base(syntaxTree) {
             typeName = typeName_;
             identifier = identifier_;
         }
@@ -24,8 +24,9 @@ namespace Buckle.CodeAnalysis.Syntax {
         public override SyntaxType type => SyntaxType.FUNCTION_DECLARATION;
 
         public FunctionDeclaration(
-            Token typeName_, Token identifier_, Token openParenthesis_,
-            SeparatedSyntaxList<Parameter> parameters_, Token closeParenthesis_, BlockStatement body_) {
+            SyntaxTree syntaxTree, Token typeName_, Token identifier_, Token openParenthesis_,
+            SeparatedSyntaxList<Parameter> parameters_, Token closeParenthesis_, BlockStatement body_)
+            : base(syntaxTree) {
             typeName = typeName_;
             identifier = identifier_;
             openParenthesis = openParenthesis_;

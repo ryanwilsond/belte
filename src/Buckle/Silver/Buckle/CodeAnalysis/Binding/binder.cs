@@ -61,7 +61,7 @@ namespace Buckle.CodeAnalysis.Binding {
                     var loweredBody = Lowerer.Lower(body);
 
                     if (function.lType != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
-                        binder.diagnostics.Push(Error.NotAllPathsReturn(function.declaration.identifier.span));
+                        binder.diagnostics.Push(Error.NotAllPathsReturn(function.declaration.identifier.location));
 
                     functionBodies.Add(function, loweredBody);
                     diagnostics.Move(binder.diagnostics);
@@ -84,7 +84,7 @@ namespace Buckle.CodeAnalysis.Binding {
                 var parameterType = BindTypeClause(parameter.typeName);
 
                 if (!seenParametersNames.Add(parameterName)) {
-                    diagnostics.Push(Error.ParameterAlreadyDeclared(parameter.span, parameter.identifier.text));
+                    diagnostics.Push(Error.ParameterAlreadyDeclared(parameter.location, parameter.identifier.text));
                 } else {
                     var boundParameter = new ParameterSymbol(parameterName, parameterType);
                     parameters.Add(boundParameter);
@@ -93,7 +93,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
             var newFunction = new FunctionSymbol(function.identifier.text, parameters.ToImmutable(), type, function);
             if (newFunction.declaration.identifier.text != null && !scope_.TryDeclareFunction(newFunction))
-                diagnostics.Push(Error.FunctionAlreadyDeclared(function.identifier.span, newFunction.name));
+                diagnostics.Push(Error.FunctionAlreadyDeclared(function.identifier.location, newFunction.name));
         }
 
         private static BoundScope CreateParentScope(BoundGlobalScope previous) {
@@ -154,18 +154,18 @@ namespace Buckle.CodeAnalysis.Binding {
             var boundExpression = expression.expression == null ? null : BindExpression(expression.expression);
 
             if (function_ == null) {
-                diagnostics.Push(Error.ReturnOutsideFunction(expression.keyword.span));
+                diagnostics.Push(Error.ReturnOutsideFunction(expression.keyword.location));
                 return new BoundExpressionStatement(new BoundErrorExpression());
             }
 
             if (function_.lType == TypeSymbol.Void) {
                 if (boundExpression != null)
-                    diagnostics.Push(Error.UnexpectedReturnValue(expression.keyword.span));
+                    diagnostics.Push(Error.UnexpectedReturnValue(expression.keyword.location));
             } else {
                 if (boundExpression == null)
-                    diagnostics.Push(Error.MissingReturnValue(expression.keyword.span));
+                    diagnostics.Push(Error.MissingReturnValue(expression.keyword.location));
                 else
-                    boundExpression = BindCast(expression.expression.span, boundExpression, function_.lType);
+                    boundExpression = BindCast(expression.expression.location, boundExpression, function_.lType);
             }
 
             return new BoundReturnStatement(boundExpression);
@@ -175,7 +175,7 @@ namespace Buckle.CodeAnalysis.Binding {
             var result = BindExpressionInternal(expression);
 
             if (!canBeVoid && result.lType == TypeSymbol.Void) {
-                diagnostics.Push(Error.NoValue(expression.span));
+                diagnostics.Push(Error.NoValue(expression.location));
                 return new BoundErrorExpression();
             }
 
@@ -211,15 +211,16 @@ namespace Buckle.CodeAnalysis.Binding {
             if (!scope_.TryLookupFunction(expression.identifier.text, out var function)) {
                 if (scope_.TryLookupVariable(expression.identifier.text, out _))
                     diagnostics.Push(
-                        Error.CannotCallNonFunction(expression.identifier.span, expression.identifier.text));
+                        Error.CannotCallNonFunction(expression.identifier.location, expression.identifier.text));
                 else
-                    diagnostics.Push(Error.UndefinedFunction(expression.identifier.span, expression.identifier.text));
+                    diagnostics.Push(
+                        Error.UndefinedFunction(expression.identifier.location, expression.identifier.text));
 
                 return new BoundErrorExpression();
             }
 
             if (function == null) {
-                diagnostics.Push(Error.UndefinedFunction(expression.identifier.span, expression.identifier.text));
+                diagnostics.Push(Error.UndefinedFunction(expression.identifier.location, expression.identifier.text));
                 return new BoundErrorExpression();
             }
 
@@ -238,8 +239,9 @@ namespace Buckle.CodeAnalysis.Binding {
                     span = expression.closeParenthesis.span;
                 }
 
+                var location = new TextLocation(expression.syntaxTree.text, span);
                 diagnostics.Push(Error.IncorrectArgumentsCount(
-                    span, function.name, function.parameters.Length, expression.arguments.count));
+                    location, function.name, function.parameters.Length, expression.arguments.count));
                 return new BoundErrorExpression();
             }
 
@@ -251,7 +253,7 @@ namespace Buckle.CodeAnalysis.Binding {
                 if (argument.lType != parameter.lType) {
                     if (argument.lType != TypeSymbol.Error)
                         diagnostics.Push(Error.InvalidArgumentType(
-                            expression.arguments[i].span, parameter.name, parameter.lType, argument.lType));
+                            expression.arguments[i].location, parameter.name, parameter.lType, argument.lType));
                     hasErrors = true;
                 }
             }
@@ -264,22 +266,22 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private BoundExpression BindCast(Expression expression, TypeSymbol type, bool allowExplicit = false) {
             var boundExpression = BindExpression(expression);
-            return BindCast(expression.span, boundExpression, type, allowExplicit);
+            return BindCast(expression.location, boundExpression, type, allowExplicit);
         }
 
         private BoundExpression BindCast(
-            TextSpan diagnosticSpan, BoundExpression expression, TypeSymbol type, bool allowExplicit = false) {
+            TextLocation diagnosticLocation, BoundExpression expression, TypeSymbol type, bool allowExplicit = false) {
             var conversion = Cast.Classify(expression.lType, type);
 
             if (!conversion.exists) {
                 if (expression.lType != TypeSymbol.Error && type != TypeSymbol.Error)
-                    diagnostics.Push(Error.CannotConvert(diagnosticSpan, expression.lType, type));
+                    diagnostics.Push(Error.CannotConvert(diagnosticLocation, expression.lType, type));
 
                 return new BoundErrorExpression();
             }
 
             if (!allowExplicit && conversion.isExplicit) {
-                diagnostics.Push(Error.CannotConvertImplicitly(diagnosticSpan, expression.lType, type));
+                diagnostics.Push(Error.CannotConvertImplicitly(diagnosticLocation, expression.lType, type));
             }
 
             if (conversion.isIdentity)
@@ -298,7 +300,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private BoundStatement BindContinueStatement(ContinueStatement syntax) {
             if (loopStack_.Count == 0) {
-                diagnostics.Push(Error.InvalidBreakOrContinue(syntax.keyword.span, syntax.keyword.text));
+                diagnostics.Push(Error.InvalidBreakOrContinue(syntax.keyword.location, syntax.keyword.text));
                 return BindErrorStatement();
             }
 
@@ -308,7 +310,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private BoundStatement BindBreakStatement(BreakStatement syntax) {
             if (loopStack_.Count == 0) {
-                diagnostics.Push(Error.InvalidBreakOrContinue(syntax.keyword.span, syntax.keyword.text));
+                diagnostics.Push(Error.InvalidBreakOrContinue(syntax.keyword.location, syntax.keyword.text));
                 return BindErrorStatement();
             }
 
@@ -393,7 +395,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
             if (boundOp == null) {
                 diagnostics.Push(
-                    Error.InvalidUnaryOperatorUse(expression.op.span, expression.op.text, boundOperand.lType));
+                    Error.InvalidUnaryOperatorUse(expression.op.location, expression.op.text, boundOperand.lType));
                 return new BoundErrorExpression();
             }
 
@@ -412,7 +414,7 @@ namespace Buckle.CodeAnalysis.Binding {
             if (boundOp == null) {
                 diagnostics.Push(
                     Error.InvalidBinaryOperatorUse(
-                        expression.op.span, expression.op.text, boundLeft.lType, boundRight.lType));
+                        expression.op.location, expression.op.text, boundLeft.lType, boundRight.lType));
                 return new BoundErrorExpression();
             }
 
@@ -431,7 +433,7 @@ namespace Buckle.CodeAnalysis.Binding {
             if (scope_.TryLookupVariable(name, out var variable))
                 return new BoundVariableExpression(variable);
 
-            diagnostics.Push(Error.UndefinedName(expression.identifier.span, name));
+            diagnostics.Push(Error.UndefinedName(expression.identifier.location, name));
             return new BoundErrorExpression();
         }
 
@@ -444,16 +446,16 @@ namespace Buckle.CodeAnalysis.Binding {
             var boundExpression = BindExpression(expression.expression);
 
             if (!scope_.TryLookupVariable(name, out var variable)) {
-                diagnostics.Push(Error.UndefinedName(expression.identifier.span, name));
+                diagnostics.Push(Error.UndefinedName(expression.identifier.location, name));
                 return boundExpression;
             }
 
             if (variable.isReadOnly)
-                diagnostics.Push(Error.ReadonlyAssign(expression.equals.span, name));
+                diagnostics.Push(Error.ReadonlyAssign(expression.equals.location, name));
 
             if (boundExpression.lType != variable.lType) {
                 diagnostics.Push(
-                    Error.CannotConvert(expression.expression.span, boundExpression.lType, variable.lType));
+                    Error.CannotConvert(expression.expression.location, boundExpression.lType, variable.lType));
                 return boundExpression;
             }
 
@@ -465,7 +467,7 @@ namespace Buckle.CodeAnalysis.Binding {
             var type = BindTypeClause(expression.typeName);
             var initializer = BindExpression(expression.initializer);
             var variableType = type ?? initializer.lType;
-            var castedInitializer = BindCast(expression.initializer.span, initializer, variableType);
+            var castedInitializer = BindCast(expression.initializer.location, initializer, variableType);
             var variable = BindVariable(expression.identifier, isReadOnly, variableType);
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
@@ -477,7 +479,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
             var foundType = LookupType(type.text);
             if (foundType == null)
-                diagnostics.Push(Error.UnknownType(type.span, type.text));
+                diagnostics.Push(Error.UnknownType(type.location, type.text));
 
             return foundType;
         }
@@ -490,7 +492,7 @@ namespace Buckle.CodeAnalysis.Binding {
                 : new LocalVariableSymbol(name, isReadOnly, type);
 
             if (declare && !scope_.TryDeclareVariable(variable))
-                diagnostics.Push(Error.AlreadyDeclared(identifier.span, name));
+                diagnostics.Push(Error.AlreadyDeclared(identifier.location, name));
 
             return variable;
         }

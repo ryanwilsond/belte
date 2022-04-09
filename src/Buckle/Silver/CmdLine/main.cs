@@ -116,10 +116,15 @@ namespace CommandLine {
         }
 
         private static void PrettyPrintDiagnostic(SourceText text, Diagnostic diagnostic) {
-            int lineNumber = text.GetLineIndex(diagnostic.span.start);
+            var span = diagnostic.location.span;
+            int lineNumber = text.GetLineIndex(span.start);
             TextLine line = text.lines[lineNumber];
-            int column = diagnostic.span.start - line.start + 1;
+            int column = span.start - line.start + 1;
             string lineText = line.ToString();
+            string filename = diagnostic.location.fileName;
+            if (!string.IsNullOrEmpty(filename))
+                Console.Write($"{filename}:");
+
             Console.Write($"{lineNumber + 1}:{column}:");
 
             if (diagnostic.type == DiagnosticType.Error) {
@@ -136,13 +141,13 @@ namespace CommandLine {
             Console.ResetColor();
             Console.WriteLine(diagnostic.msg);
 
-            if (text.IsAtEndOfInput(diagnostic.span)) return;
+            if (text.IsAtEndOfInput(span)) return;
 
-            TextSpan prefixSpan = TextSpan.FromBounds(line.start, diagnostic.span.start);
-            TextSpan suffixSpan = TextSpan.FromBounds(diagnostic.span.end, line.end);
+            TextSpan prefixSpan = TextSpan.FromBounds(line.start, span.start);
+            TextSpan suffixSpan = TextSpan.FromBounds(span.end, line.end);
 
             string prefix = text.ToString(prefixSpan);
-            string focus = text.ToString(diagnostic.span);
+            string focus = text.ToString(span);
             string suffix = text.ToString(suffixSpan);
 
             Console.Write($" {prefix}");
@@ -154,8 +159,8 @@ namespace CommandLine {
             Console.ForegroundColor = ConsoleColor.Red;
             string markerPrefix = " " + Regex.Replace(prefix, @"\S", " ");
             string marker = "^";
-            if (diagnostic.span.length > 0 && diagnostic.span.start != lineText.Length)
-                marker += new string('~', diagnostic.span.length - 1);
+            if (span.length > 0 && span.start != lineText.Length)
+                marker += new string('~', span.length - 1);
 
             Console.WriteLine(markerPrefix + marker);
 
@@ -176,7 +181,7 @@ namespace CommandLine {
             Diagnostic diagnostic = compiler.diagnostics.Pop();
             while (diagnostic != null) {
                 if (diagnostic.type == DiagnosticType.Unknown) {
-                } else if (diagnostic.span == null) {
+                } else if (diagnostic.location == null) {
                     Console.Write($"{me}: ");
 
                     if (diagnostic.type == DiagnosticType.Warning) {

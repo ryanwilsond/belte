@@ -2,7 +2,9 @@ using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Syntax {
 
-    internal abstract class Statement : Node { }
+    internal abstract class Statement : Node {
+        protected Statement(SyntaxTree syntaxTree): base(syntaxTree) { }
+    }
 
     internal sealed class VariableDeclarationStatement : Statement {
         public override SyntaxType type => SyntaxType.VARIABLE_DECLARATION_STATEMENT;
@@ -13,7 +15,9 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Token semicolon { get; }
 
         public VariableDeclarationStatement(
-            Token typeName_, Token identifier_, Token equals_, Expression initializer_, Token semicolon_) {
+            SyntaxTree syntaxTree, Token typeName_, Token identifier_,
+            Token equals_, Expression initializer_, Token semicolon_)
+            : base(syntaxTree) {
             typeName = typeName_;
             identifier = identifier_;
             equals = equals_;
@@ -28,7 +32,9 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Token closeBrace { get; }
         public override SyntaxType type => SyntaxType.BLOCK_STATEMENT;
 
-        public BlockStatement(Token openBrace_, ImmutableArray<Statement> statements_, Token closeBrace_) {
+        public BlockStatement(
+            SyntaxTree syntaxTree, Token openBrace_, ImmutableArray<Statement> statements_, Token closeBrace_)
+            : base(syntaxTree) {
             openBrace = openBrace_;
             statements = statements_;
             closeBrace = closeBrace_;
@@ -40,7 +46,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Token semicolon { get; }
         public override SyntaxType type => SyntaxType.EXPRESSION_STATEMENT;
 
-        public ExpressionStatement(Expression expression_, Token semicolon_) {
+        public ExpressionStatement(SyntaxTree syntaxTree, Expression expression_, Token semicolon_) : base(syntaxTree) {
             expression = expression_;
             semicolon = semicolon_;
         }
@@ -55,8 +61,10 @@ namespace Buckle.CodeAnalysis.Syntax {
         public ElseClause elseClause { get; }
         public override SyntaxType type => SyntaxType.IF_STATEMENT;
 
-        public IfStatement(Token ifKeyword_, Token openParenthesis_, Expression condition_,
-            Token closeParenthesis_, Statement then_, ElseClause elseClause_) {
+        public IfStatement(
+            SyntaxTree syntaxTree, Token ifKeyword_, Token openParenthesis_, Expression condition_,
+            Token closeParenthesis_, Statement then_, ElseClause elseClause_)
+            : base(syntaxTree) {
             ifKeyword = ifKeyword_;
             openParenthesis = openParenthesis_;
             condition = condition_;
@@ -71,7 +79,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Statement then { get; }
         public override SyntaxType type => SyntaxType.ELSE_CLAUSE;
 
-        public ElseClause(Token elseKeyword_, Statement then_) {
+        public ElseClause(SyntaxTree syntaxTree, Token elseKeyword_, Statement then_) : base(syntaxTree) {
             elseKeyword = elseKeyword_;
             then = then_;
         }
@@ -86,7 +94,9 @@ namespace Buckle.CodeAnalysis.Syntax {
         public override SyntaxType type => SyntaxType.WHILE_STATEMENT;
 
         public WhileStatement(
-            Token keyword_, Token openParenthesis_, Expression condition_, Token closeParenthesis_, Statement body_) {
+            SyntaxTree syntaxTree, Token keyword_, Token openParenthesis_,
+            Expression condition_, Token closeParenthesis_, Statement body_)
+            : base(syntaxTree) {
             keyword = keyword_;
             openParenthesis = openParenthesis_;
             condition = condition_;
@@ -107,8 +117,9 @@ namespace Buckle.CodeAnalysis.Syntax {
         public override SyntaxType type => SyntaxType.FOR_STATEMENT;
 
         public ForStatement(
-            Token keyword_, Token openParenthesis_, Statement initializer_, Expression condition_,
-            Token semicolon_, Expression step_, Token closeParenthesis_, Statement body_) {
+            SyntaxTree syntaxTree, Token keyword_, Token openParenthesis_, Statement initializer_,
+            Expression condition_, Token semicolon_, Expression step_, Token closeParenthesis_, Statement body_)
+            : base(syntaxTree) {
             keyword = keyword_;
             openParenthesis = openParenthesis_;
             initializer = initializer_;
@@ -131,8 +142,9 @@ namespace Buckle.CodeAnalysis.Syntax {
         public override SyntaxType type => SyntaxType.DO_WHILE_STATEMENT;
 
         public DoWhileStatement(
-            Token doKeyword_, Statement body_, Token whileKeyword_, Token openParenthesis_,
-            Expression condition_, Token closeParenthesis_, Token semicolon_) {
+            SyntaxTree syntaxTree, Token doKeyword_, Statement body_, Token whileKeyword_,
+            Token openParenthesis_, Expression condition_, Token closeParenthesis_, Token semicolon_)
+            : base(syntaxTree) {
             doKeyword = doKeyword_;
             body = body_;
             whileKeyword = whileKeyword_;
@@ -148,7 +160,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Token semicolon { get; }
         public override SyntaxType type => SyntaxType.CONTINUE_STATEMENT;
 
-        public ContinueStatement(Token keyword_, Token semicolon_) {
+        public ContinueStatement(SyntaxTree syntaxTree, Token keyword_, Token semicolon_) : base(syntaxTree) {
             keyword = keyword_;
             semicolon = semicolon_;
         }
@@ -159,7 +171,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Token semicolon { get; }
         public override SyntaxType type => SyntaxType.BREAK_STATEMENT;
 
-        public BreakStatement(Token keyword_, Token semicolon_) {
+        public BreakStatement(SyntaxTree syntaxTree, Token keyword_, Token semicolon_) : base(syntaxTree) {
             keyword = keyword_;
             semicolon = semicolon_;
         }
@@ -171,7 +183,8 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Token semicolon { get; }
         public override SyntaxType type => SyntaxType.RETURN_STATEMENT;
 
-        public ReturnStatement(Token keyword_, Expression expression_, Token semicolon_) {
+        public ReturnStatement(SyntaxTree syntaxTree, Token keyword_, Expression expression_, Token semicolon_)
+            : base(syntaxTree) {
             keyword = keyword_;
             expression = expression_;
             semicolon = semicolon_;

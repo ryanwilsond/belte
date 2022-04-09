@@ -10,11 +10,12 @@ namespace Buckle.CodeAnalysis.Syntax {
         private int start_;
         private SyntaxType type_;
         private object value_;
-        public DiagnosticQueue diagnostics;
+        private SyntaxTree syntaxTree_;
+        public DiagnosticQueue diagnostics = new DiagnosticQueue();
 
-        public Lexer(SourceText text) {
-            text_ = text;
-            diagnostics = new DiagnosticQueue();
+        public Lexer(SyntaxTree syntaxTree) {
+            text_ = syntaxTree.text;
+            syntaxTree_ = syntaxTree;
         }
 
         private char Peek(int offset) {
@@ -170,9 +171,15 @@ namespace Buckle.CodeAnalysis.Syntax {
                     ReadWhitespaceToken();
                     break;
                 default:
-                    if (char.IsLetter(current)) ReadIdentifierOrKeyword();
-                    else if (char.IsWhiteSpace(current)) ReadWhitespaceToken();
-                    else diagnostics.Push(Error.BadCharacter(position_++, current));
+                    if (char.IsLetter(current))
+                        ReadIdentifierOrKeyword();
+                    else if (char.IsWhiteSpace(current))
+                        ReadWhitespaceToken();
+                    else {
+                        var span = new TextSpan(position_, 1);
+                        var location = new TextLocation(text_, span);
+                        diagnostics.Push(Error.BadCharacter(location, position_++, current));
+                    }
                     break;
             }
 
@@ -181,7 +188,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             if (text == null)
                 text = text_.ToString(start_, length);
 
-            return new Token(type_, start_, text, value_);
+            return new Token(syntaxTree_, type_, start_, text, value_);
         }
 
         private void ReadString() {
@@ -195,7 +202,8 @@ namespace Buckle.CodeAnalysis.Syntax {
                     case '\r':
                     case '\n':
                         var span = new TextSpan(start_, 1);
-                        diagnostics.Push(Error.UnterminatedString(span));
+                        var location = new TextLocation(text_, span);
+                        diagnostics.Push(Error.UnterminatedString(location));
                         done = true;
                         break;
                     case '"':
@@ -224,8 +232,11 @@ namespace Buckle.CodeAnalysis.Syntax {
             int length = position_ - start_;
             string text = text_.ToString(start_, length);
 
-            if (!int.TryParse(text, out var value))
-                diagnostics.Push(Error.InvalidType(new TextSpan(start_, length), text, TypeSymbol.Int));
+            if (!int.TryParse(text, out var value)) {
+                var span = new TextSpan(start_, length);
+                var location = new TextLocation(text_, span);
+                diagnostics.Push(Error.InvalidType(location, text, TypeSymbol.Int));
+            }
 
             value_ = value;
             type_ = SyntaxType.NUMBER;

@@ -21,17 +21,17 @@ namespace Buckle {
             else return type.ToString().ToLower();
         }
 
-        public static Diagnostic InvalidType(TextSpan span, string text, TypeSymbol type) {
+        public static Diagnostic InvalidType(TextLocation location, string text, TypeSymbol type) {
             string msg = $"'{text}' is not a valid '{type}'";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic BadCharacter(int position, char input) {
+        public static Diagnostic BadCharacter(TextLocation location, int position, char input) {
             string msg = $"unknown character '{input}'";
-            return new Diagnostic(DiagnosticType.Error, new TextSpan(position, 1), msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic UnexpectedToken(TextSpan span, SyntaxType unexpected, SyntaxType expected) {
+        public static Diagnostic UnexpectedToken(TextLocation location, SyntaxType unexpected, SyntaxType expected) {
             string msg;
 
             if (unexpected != SyntaxType.EOF)
@@ -39,136 +39,136 @@ namespace Buckle {
             else
                 msg = $"expected {DiagnosticText(expected)} at end of input";
 
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic InvalidUnaryOperatorUse(TextSpan span, string op, TypeSymbol operand) {
+        public static Diagnostic InvalidUnaryOperatorUse(TextLocation location, string op, TypeSymbol operand) {
             string msg = $"operator '{op}' is not defined for type '{operand}'";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic InvalidBinaryOperatorUse(TextSpan span, string op, TypeSymbol left, TypeSymbol right) {
+        public static Diagnostic InvalidBinaryOperatorUse(TextLocation location, string op, TypeSymbol left, TypeSymbol right) {
             string msg = $"operator '{op}' is not defined for types '{left}' and '{right}'";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic ParameterAlreadyDeclared(TextSpan span, string name) {
+        public static Diagnostic ParameterAlreadyDeclared(TextLocation location, string name) {
             string msg = $"redefinition of parameter '{name}'";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic UndefinedName(TextSpan span, string name) {
+        public static Diagnostic UndefinedName(TextLocation location, string name) {
             string msg = $"undefined symbol '{name}'";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic FunctionAlreadyDeclared(TextSpan span, string name) {
+        public static Diagnostic FunctionAlreadyDeclared(TextLocation location, string name) {
             string msg = $"redefinition of function '{name}'";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic NotAllPathsReturn(TextSpan span) {
+        public static Diagnostic NotAllPathsReturn(TextLocation location) {
             string msg = $"not all code paths return a value";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic CannotConvert(TextSpan span, TypeSymbol from, TypeSymbol to) {
+        public static Diagnostic CannotConvert(TextLocation location, TypeSymbol from, TypeSymbol to) {
             string msg = $"cannot convert from type '{from}' to '{to}'";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic AlreadyDeclared(TextSpan span, string name) {
+        public static Diagnostic AlreadyDeclared(TextLocation location, string name) {
             string msg = $"redefinition of '{name}'";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic ReadonlyAssign(TextSpan span, string name) {
+        public static Diagnostic ReadonlyAssign(TextLocation location, string name) {
             string msg = $"assignment of read-only variable '{name}'";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic AmbiguousElse(TextSpan span) {
+        public static Diagnostic AmbiguousElse(TextLocation location) {
             string msg = $"ambiguous what if-statement else-clause belongs to";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic NoValue(TextSpan span) {
+        public static Diagnostic NoValue(TextLocation location) {
             string msg = $"expression must have a value";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic ExpectedExpression(TextSpan span) {
+        public static Diagnostic ExpectedExpression(TextLocation location) {
             string msg = $"expected expression";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic ExpectedStatement(TextSpan span) {
+        public static Diagnostic ExpectedStatement(TextLocation location) {
             string msg = $"expected statement";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic UnterminatedString(TextSpan span) {
+        public static Diagnostic UnterminatedString(TextLocation location) {
             string msg = $"unterminated string literal";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic UndefinedFunction(TextSpan span, string name) {
+        public static Diagnostic UndefinedFunction(TextLocation location, string name) {
             string msg = $"undefined function '{name}'";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic IncorrectArgumentsCount(TextSpan span, string name, int expected, int actual) {
+        public static Diagnostic IncorrectArgumentsCount(TextLocation location, string name, int expected, int actual) {
             var argWord = expected == 1 ? "argument" : "arguments";
             string msg = $"function '{name}' expects {expected} {argWord}, got {actual}";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic UnexpectedType(TextSpan span, TypeSymbol lType) {
+        public static Diagnostic UnexpectedType(TextLocation location, TypeSymbol lType) {
             string msg = $"unexpected type '{lType}'";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
         public static Diagnostic InvalidArgumentType(
-                TextSpan span, string parameterName, TypeSymbol expected, TypeSymbol actual) {
+                TextLocation location, string parameterName, TypeSymbol expected, TypeSymbol actual) {
             string msg = $"parameter '{parameterName}' expected argument of type '{expected}', got '{actual}'";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic CannotCallNonFunction(TextSpan span, string text) {
+        public static Diagnostic CannotCallNonFunction(TextLocation location, string text) {
             string msg = $"called object '{text}' is not a function";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic UnknownType(TextSpan span, string text) {
+        public static Diagnostic UnknownType(TextLocation location, string text) {
             string msg = $"unknown type '{text}'";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic CannotConvertImplicitly(TextSpan span, TypeSymbol from, TypeSymbol to) {
+        public static Diagnostic CannotConvertImplicitly(TextLocation location, TypeSymbol from, TypeSymbol to) {
             string msg =
                 $"cannot convert from type '{from}' to '{to}'. An explicit conversion exists (are you missing a cast?)";
             string suggestion = $"{to}(%)";
-            return new Diagnostic(DiagnosticType.Error, span, msg, suggestion);
+            return new Diagnostic(DiagnosticType.Error, location, msg, suggestion);
         }
 
-        public static Diagnostic InvalidBreakOrContinue(TextSpan span, string text) {
+        public static Diagnostic InvalidBreakOrContinue(TextLocation location, string text) {
             string msg = $"{text} statement not within a loop";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic ReturnOutsideFunction(TextSpan span) {
+        public static Diagnostic ReturnOutsideFunction(TextLocation location) {
             string msg = $"return statement not within a function";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic UnexpectedReturnValue(TextSpan span) {
+        public static Diagnostic UnexpectedReturnValue(TextLocation location) {
             string msg = $"return statement with a value, in function returning void";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic MissingReturnValue(TextSpan span) {
+        public static Diagnostic MissingReturnValue(TextLocation location) {
             string msg = $"return statement with no value, in function returning non-void";
-            return new Diagnostic(DiagnosticType.Error, span, msg);
+            return new Diagnostic(DiagnosticType.Error, location, msg);
         }
     }
 }

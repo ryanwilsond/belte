@@ -9,12 +9,14 @@ namespace Buckle.CodeAnalysis.Syntax {
         private readonly ImmutableArray<Token> tokens_;
         private int position_;
         private readonly SourceText text_;
+        private readonly SyntaxTree syntaxTree_;
+
         public DiagnosticQueue diagnostics;
 
         private Token Match(SyntaxType type) {
             if (current.type == type) return Next();
-            diagnostics.Push(Error.UnexpectedToken(current.span, current.type, type));
-            return new Token(type, current.position, null, null);
+            diagnostics.Push(Error.UnexpectedToken(current.location, current.type, type));
+            return new Token(syntaxTree_, type, current.position, null, null);
         }
 
         private Token Next() {
@@ -31,12 +33,13 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         private Token current => Peek(0);
 
-        public Parser(SourceText text) {
+        public Parser(SyntaxTree syntaxTree) {
             diagnostics = new DiagnosticQueue();
             var tokens = new List<Token>();
-            Lexer lexer = new Lexer(text);
+            Lexer lexer = new Lexer(syntaxTree);
             Token token;
-            text_ = text;
+            text_ = syntaxTree.text;
+            syntaxTree_ = syntaxTree;
 
             do {
                 token = lexer.LexNext();
@@ -52,7 +55,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public CompilationUnit ParseCompilationUnit() {
             var members = ParseMembers();
             var endOfFile = Match(SyntaxType.EOF);
-            return new CompilationUnit(members, endOfFile);
+            return new CompilationUnit(syntaxTree_, members, endOfFile);
         }
 
         private ImmutableArray<Member> ParseMembers() {
@@ -86,7 +89,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             var closeParenthesis = Match(SyntaxType.RPAREN);
             var body = (BlockStatement)ParseBlockStatement();
 
-            return new FunctionDeclaration(typeName, identifier, openParenthesis, parameters, closeParenthesis, body);
+            return new FunctionDeclaration(syntaxTree_, typeName, identifier, openParenthesis, parameters, closeParenthesis, body);
         }
 
         private SeparatedSyntaxList<Parameter> ParseParameterList() {
@@ -111,12 +114,12 @@ namespace Buckle.CodeAnalysis.Syntax {
         private Parameter ParseParameter() {
             var typeName = Match(SyntaxType.IDENTIFIER);
             var identifier = Match(SyntaxType.IDENTIFIER);
-            return new Parameter(typeName, identifier);
+            return new Parameter(syntaxTree_, typeName, identifier);
         }
 
         private Member ParseGlobalStatement() {
             var statement = ParseStatement();
-            return new GlobalStatement(statement);
+            return new GlobalStatement(syntaxTree_, statement);
         }
 
         private Statement ParseStatement() {
@@ -157,19 +160,19 @@ namespace Buckle.CodeAnalysis.Syntax {
 
             Token semicolon = Match(SyntaxType.SEMICOLON);
 
-            return new ReturnStatement(keyword, expression, semicolon);
+            return new ReturnStatement(syntaxTree_, keyword, expression, semicolon);
         }
 
         private Statement ParseContinueStatement() {
             var keyword = Match(SyntaxType.CONTINUE_KEYWORD);
             var semicolon = Match(SyntaxType.SEMICOLON);
-            return new ContinueStatement(keyword, semicolon);
+            return new ContinueStatement(syntaxTree_, keyword, semicolon);
         }
 
         private Statement ParseBreakStatement() {
             var keyword = Match(SyntaxType.BREAK_KEYWORD);
             var semicolon = Match(SyntaxType.SEMICOLON);
-            return new BreakStatement(keyword, semicolon);
+            return new BreakStatement(syntaxTree_, keyword, semicolon);
         }
 
         private Statement ParseDoWhileStatement() {
@@ -182,7 +185,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             var semicolon = Match(SyntaxType.SEMICOLON);
 
             return new DoWhileStatement(
-                doKeyword, body, whileKeyword, openParenthesis, condition, closeParenthesis, semicolon);
+                syntaxTree_, doKeyword, body, whileKeyword, openParenthesis, condition, closeParenthesis, semicolon);
         }
 
         private Statement ParseVariableDeclarationStatement() {
@@ -192,7 +195,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             var initializer = ParseExpression();
             var semicolon = Match(SyntaxType.SEMICOLON);
 
-            return new VariableDeclarationStatement(typeName, identifier, equals, initializer, semicolon);
+            return new VariableDeclarationStatement(syntaxTree_, typeName, identifier, equals, initializer, semicolon);
         }
 
         private Statement ParseWhileStatement() {
@@ -202,7 +205,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             var closeParenthesis = Match(SyntaxType.RPAREN);
             var body = ParseStatement();
 
-            return new WhileStatement(keyword, openParenthesis, condition, closeParenthesis, body);
+            return new WhileStatement(syntaxTree_, keyword, openParenthesis, condition, closeParenthesis, body);
         }
 
         private Statement ParseForStatement() {
@@ -215,7 +218,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
             Expression step = null;
             if (current.type == SyntaxType.RPAREN)
-                step = new EmptyExpression();
+                step = new EmptyExpression(syntaxTree_);
             else
                 step = ParseExpression();
 
@@ -223,7 +226,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             var body = ParseStatement();
 
             return new ForStatement(
-                keyword, openParenthesis, initializer, condition, semicolon, step, closeParenthesis, body);
+                syntaxTree_, keyword, openParenthesis, initializer, condition, semicolon, step, closeParenthesis, body);
         }
 
         private Statement ParseIfStatement() {
@@ -235,14 +238,14 @@ namespace Buckle.CodeAnalysis.Syntax {
 
             // not allow nested if statements with else clause without braces
             bool nestedIf = false;
-            List<TextSpan> invalidElseSpans = new List<TextSpan>();
+            List<TextLocation> invalidElseLocations = new List<TextLocation>();
             var inter = statement;
             while (inter.type == SyntaxType.IF_STATEMENT) {
                 nestedIf = true;
                 var interIf = (IfStatement)inter;
 
                 if (interIf.elseClause != null && interIf.then.type != SyntaxType.BLOCK_STATEMENT)
-                    invalidElseSpans.Add(interIf.elseClause.elseKeyword.span);
+                    invalidElseLocations.Add(interIf.elseClause.elseKeyword.location);
 
                 if (interIf.then.type == SyntaxType.IF_STATEMENT)
                     inter = interIf.then;
@@ -250,14 +253,14 @@ namespace Buckle.CodeAnalysis.Syntax {
             }
             var elseClause = ParseElseClause();
             if (elseClause != null && statement.type != SyntaxType.BLOCK_STATEMENT && nestedIf)
-                invalidElseSpans.Add(elseClause.elseKeyword.span);
+                invalidElseLocations.Add(elseClause.elseKeyword.location);
 
-            while (invalidElseSpans.Count > 0) {
-                diagnostics.Push(Error.AmbiguousElse(invalidElseSpans[0]));
-                invalidElseSpans.RemoveAt(0);
+            while (invalidElseLocations.Count > 0) {
+                diagnostics.Push(Error.AmbiguousElse(invalidElseLocations[0]));
+                invalidElseLocations.RemoveAt(0);
             }
 
-            return new IfStatement(keyword, openParenthesis, condition, closeParenthesis, statement, elseClause);
+            return new IfStatement(syntaxTree_, keyword, openParenthesis, condition, closeParenthesis, statement, elseClause);
         }
 
         private ElseClause ParseElseClause() {
@@ -265,7 +268,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
             var keyword = Next();
             var statement = ParseStatement();
-            return new ElseClause(keyword, statement);
+            return new ElseClause(syntaxTree_, keyword, statement);
         }
 
         private Statement ParseBlockStatement() {
@@ -283,7 +286,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
             var closeBrace = Match(SyntaxType.RBRACE);
 
-            return new BlockStatement(openBrace, statements.ToImmutable(), closeBrace);
+            return new BlockStatement(syntaxTree_, openBrace, statements.ToImmutable(), closeBrace);
         }
 
         private Statement ParseExpressionStatement() {
@@ -295,7 +298,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             popLast = popLast && previousCount != diagnostics.count;
 
             if (popLast) diagnostics.RemoveAt(diagnostics.count - 1);
-            return new ExpressionStatement(expression, semicolon);
+            return new ExpressionStatement(syntaxTree_, expression, semicolon);
         }
 
         private Expression ParseAssignmentExpression() {
@@ -303,7 +306,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                 var identifier = Next();
                 var op = Next();
                 var right = ParseAssignmentExpression();
-                return new AssignmentExpression(identifier, op, right);
+                return new AssignmentExpression(syntaxTree_, identifier, op, right);
             }
 
             return ParseBinaryExpression();
@@ -317,7 +320,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         private Expression ParseEmptyExpression() {
-            return new EmptyExpression();
+            return new EmptyExpression(syntaxTree_);
         }
 
         private Expression ParseBinaryExpression(int parentPrecedence = 0) {
@@ -327,7 +330,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             if (unaryPrecedence != 0 && unaryPrecedence >= parentPrecedence) {
                 var op = Next();
                 var operand = ParseBinaryExpression(unaryPrecedence);
-                left = new UnaryExpression(op, operand);
+                left = new UnaryExpression(syntaxTree_, op, operand);
             } else left = ParsePrimaryExpression();
 
             while (true) {
@@ -335,7 +338,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                 if (precedence == 0 || precedence <= parentPrecedence) break;
                 var op = Next();
                 var right = ParseBinaryExpression(precedence);
-                left = new BinaryExpression(left, op, right);
+                left = new BinaryExpression(syntaxTree_, left, op, right);
             }
 
             return left;
@@ -360,25 +363,25 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         private Expression ParseNumberLiteral() {
             var token = Match(SyntaxType.NUMBER);
-            return new LiteralExpression(token);
+            return new LiteralExpression(syntaxTree_, token);
         }
 
         private Expression ParseParenExpression() {
             var left = Match(SyntaxType.LPAREN);
             var expression = ParseExpression();
             var right = Match(SyntaxType.RPAREN);
-            return new ParenExpression(left, expression, right);
+            return new ParenExpression(syntaxTree_, left, expression, right);
         }
 
         private Expression ParseBooleanLiteral() {
             var isTrue = current.type == SyntaxType.TRUE_KEYWORD;
             var keyword = isTrue ? Match(SyntaxType.TRUE_KEYWORD) : Match(SyntaxType.FALSE_KEYWORD);
-            return new LiteralExpression(keyword, isTrue);
+            return new LiteralExpression(syntaxTree_, keyword, isTrue);
         }
 
         private Expression ParseStringLiteral() {
             var stringToken = Match(SyntaxType.STRING);
-            return new LiteralExpression(stringToken);
+            return new LiteralExpression(syntaxTree_, stringToken);
         }
 
         private Expression ParseNameOrCallExpression() {
@@ -394,7 +397,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             var arguments = ParseArguments();
             var closeParenthesis = Match(SyntaxType.RPAREN);
 
-            return new CallExpression(identifier, openParenthesis, arguments, closeParenthesis);
+            return new CallExpression(syntaxTree_, identifier, openParenthesis, arguments, closeParenthesis);
         }
 
         private SeparatedSyntaxList<Expression> ParseArguments() {
@@ -418,7 +421,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         private Expression ParseNameExpression() {
             var identifier = Match(SyntaxType.IDENTIFIER);
-            return new NameExpression(identifier);
+            return new NameExpression(syntaxTree_, identifier);
         }
     }
 }

@@ -4,6 +4,7 @@ using System.Reflection;
 using System.IO;
 using System;
 using Buckle.CodeAnalysis.Text;
+using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Syntax {
 
@@ -85,6 +86,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal abstract class Node {
         public abstract SyntaxType type { get; }
+        public SyntaxTree syntaxTree { get; }
         public virtual TextSpan span {
             get {
                 var first = GetChildren().First().span;
@@ -92,6 +94,13 @@ namespace Buckle.CodeAnalysis.Syntax {
                 return TextSpan.FromBounds(first.start, last.end);
             }
         }
+
+        protected Node(SyntaxTree syntaxTree_) {
+            syntaxTree = syntaxTree_;
+        }
+
+        public TextLocation location => new TextLocation(syntaxTree.text, span);
+
         public IEnumerable<Node> GetChildren() {
             var properties = GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
@@ -166,11 +175,24 @@ namespace Buckle.CodeAnalysis.Syntax {
         public bool isMissing => text == null;
         public override TextSpan span => new TextSpan(position, text?.Length ?? 0);
 
-        public Token(SyntaxType type_, int position_, string text_, object value_) {
+        public Token(SyntaxTree syntaxTree, SyntaxType type_, int position_, string text_, object value_)
+            : base(syntaxTree) {
             type = type_;
             position = position_;
             text = text_;
             value = value_;
+        }
+    }
+
+    internal sealed class CompilationUnit : Node {
+        public ImmutableArray<Member> members { get; }
+        public Token endOfFile { get; }
+        public override SyntaxType type => SyntaxType.COMPILATION_UNIT;
+
+        public CompilationUnit(SyntaxTree syntaxTree, ImmutableArray<Member> members_, Token endOfFile_)
+            : base(syntaxTree) {
+            members = members_;
+            endOfFile = endOfFile_;
         }
     }
 }

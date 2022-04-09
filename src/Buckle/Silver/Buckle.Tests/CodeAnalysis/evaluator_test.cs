@@ -306,7 +306,7 @@ namespace Buckle.Tests.CodeAnalysis {
                 Assert.Equal(expectedMessage, actualMessage);
 
                 var expectedSpan = annotatedText.spans[i];
-                var actualSpan = diagnostic.span;
+                var actualSpan = diagnostic.location.span;
                 Assert.Equal(expectedSpan.start, actualSpan.start);
                 Assert.Equal(expectedSpan.end, actualSpan.end);
                 Assert.Equal(expectedSpan.length, actualSpan.length);

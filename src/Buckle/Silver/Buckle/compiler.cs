@@ -54,7 +54,7 @@ namespace Buckle {
 
                 if (task.stage == CompilerStage.Preprocessed) {
                     var text = string.Join(Environment.NewLine, task.fileContent.lines);
-                    var syntaxTree = SyntaxTree.Parse(text);
+                    var syntaxTree = SyntaxTree.Load(task.inputFilename, text);
                     var compilation = new Compilation(syntaxTree);
                     state.sourceText = compilation.tree.text;
                     diagnostics.Move(compilation.diagnostics);

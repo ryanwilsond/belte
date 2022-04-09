@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
@@ -135,17 +134,6 @@ namespace Buckle {
                     functionBody.Value.WriteTo(writer);
                 }
             }
-        }
-    }
-
-    internal sealed class CompilationUnit : Node {
-        public ImmutableArray<Member> members { get; }
-        public Token endOfFile { get; }
-        public override SyntaxType type => SyntaxType.COMPILATION_UNIT;
-
-        public CompilationUnit(ImmutableArray<Member> members_, Token endOfFile_) {
-            members = members_;
-            endOfFile = endOfFile_;
         }
     }
 }

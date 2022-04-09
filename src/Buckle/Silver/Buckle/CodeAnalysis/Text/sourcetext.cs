@@ -5,14 +5,16 @@ namespace Buckle.CodeAnalysis.Text {
     public sealed class SourceText {
         public ImmutableArray<TextLine> lines { get; }
         private readonly string text_;
+        public string fileName { get; }
 
         public char this[int index] => text_[index];
 
         public int length => text_.Length;
 
-        private SourceText(string text) {
+        private SourceText(string fileName_, string text) {
             lines = ParseLines(this, text);
             text_ = text;
+            fileName = fileName_;
         }
 
         public int GetLineIndex(int position) {
@@ -71,8 +73,8 @@ namespace Buckle.CodeAnalysis.Text {
             return 0;
         }
 
-        public static SourceText From(string text) {
-            return new SourceText(text);
+        public static SourceText From(string text, string filename = "") {
+            return new SourceText(filename, text);
         }
 
         public override string ToString() => text_;
