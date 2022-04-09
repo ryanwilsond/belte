@@ -20,6 +20,7 @@ namespace Buckle {
         public BuckleRepl(Compiler handle, ErrorHandle errorHandle) : base(handle, errorHandle) {
             state = new BuckleReplState();
             ResetState();
+            EvaluateClear();
             LoadSubmissions();
         }
 
@@ -51,7 +52,7 @@ namespace Buckle {
                     handle.diagnostics.Clear();
                 }
             } else {
-                if (result.value != null) {
+                if (result.value != null && !state.loadingSubmissions) {
                     Console.ForegroundColor = ConsoleColor.White;
                     Console.WriteLine(result.value);
                     Console.ResetColor();

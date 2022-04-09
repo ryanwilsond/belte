@@ -72,10 +72,11 @@ namespace CommandLine {
         private sealed class SubmissionView {
             private readonly Action<string> lineRenderer_;
             private readonly ObservableCollection<string> document_;
-            private readonly int cursorTop_;
+            private int cursorTop_;
             private int renderedLineCount_;
             private int currentLine_;
             private int currentCharacter_;
+            private bool firstLastLine = true;
 
             public int currentLine {
                 get => currentLine_;
@@ -114,6 +115,14 @@ namespace CommandLine {
                 int lineCount = 0;
 
                 foreach (var line in document_) {
+                    if (cursorTop_ + lineCount >= Console.WindowHeight - 1) {
+                        Console.SetCursorPosition(0, Console.WindowHeight - 1);
+                        Console.WriteLine();
+
+                        if (cursorTop_ > 0)
+                            cursorTop_--;
+                    }
+
                     Console.SetCursorPosition(0, cursorTop_ + lineCount);
                     Console.ForegroundColor = ConsoleColor.Green;
 
@@ -124,7 +133,7 @@ namespace CommandLine {
 
                     Console.ResetColor();
                     lineRenderer_(line);
-                    Console.Write(new string(' ', Console.WindowWidth - line.Length));
+                    Console.Write(new string(' ', Console.WindowWidth - line.Length - 2));
                     lineCount++;
                 }
 
