@@ -76,7 +76,6 @@ namespace CommandLine {
             private int renderedLineCount_;
             private int currentLine_;
             private int currentCharacter_;
-            private bool firstLastLine = true;
 
             public int currentLine {
                 get => currentLine_;

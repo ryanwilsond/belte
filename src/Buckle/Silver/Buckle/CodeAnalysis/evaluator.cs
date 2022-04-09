@@ -9,6 +9,8 @@ namespace Buckle.CodeAnalysis {
         private readonly BoundProgram program_;
         public DiagnosticQueue diagnostics;
         private readonly Dictionary<VariableSymbol, object> globals_;
+        private readonly Dictionary<FunctionSymbol, BoundBlockStatement> functions_ =
+            new Dictionary<FunctionSymbol, BoundBlockStatement>();
         private readonly Stack<Dictionary<VariableSymbol, object>> locals_ =
             new Stack<Dictionary<VariableSymbol, object>>();
         private object lastValue_;
@@ -18,6 +20,14 @@ namespace Buckle.CodeAnalysis {
             program_ = program;
             diagnostics = new DiagnosticQueue();
             globals_ = globals;
+
+            var current = program;
+            while (current != null) {
+                foreach (var (function, body) in current.functions)
+                    functions_.Add(function, body);
+
+                current = current.previous;
+            }
         }
 
         public object Evaluate() {
@@ -145,7 +155,7 @@ namespace Buckle.CodeAnalysis {
                 }
 
                 locals_.Push(locals);
-                var statement = program_.functions[node.function];
+                var statement = functions_[node.function];
                 var result = EvaluateStatement(statement);
                 locals_.Pop();
                 return result;

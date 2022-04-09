@@ -118,6 +118,11 @@ namespace Buckle {
             }
         }
 
+        private BoundProgram GetProgram() {
+            var previous_ = previous == null ? null : previous.GetProgram();
+            return Binder.BindProgram(previous_, globalScope);
+        }
+
         internal EvaluationResult Evaluate(Dictionary<VariableSymbol, object> variables) {
             foreach (var tree in trees)
                 diagnostics.Move(tree.diagnostics);
@@ -126,7 +131,7 @@ namespace Buckle {
             if (diagnostics.Any())
                 return new EvaluationResult(null, diagnostics);
 
-            var program = Binder.BindProgram(globalScope);
+            var program = GetProgram();
 
             var appPath = Environment.GetCommandLineArgs()[0];
             var appDirectory = Path.GetDirectoryName(appPath);
@@ -152,7 +157,7 @@ namespace Buckle {
         }
 
         internal void EmitTree(TextWriter writer) {
-            var program = Binder.BindProgram(globalScope);
+            var program = GetProgram();
 
             if (program.statement.statements.Any()) {
                 program.statement.WriteTo(writer);
@@ -168,7 +173,7 @@ namespace Buckle {
         }
 
         internal void EmitTree(Symbol symbol, TextWriter writer) {
-            var program = Binder.BindProgram(globalScope);
+            var program = GetProgram();
 
             if (symbol is FunctionSymbol f) {
                 f.WriteTo(writer);
