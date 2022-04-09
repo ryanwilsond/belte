@@ -233,7 +233,10 @@ namespace Buckle.CodeAnalysis.Binding {
 
         public void WriteTo(TextWriter writer) {
             string Quote(string text) {
-                return "\"" + text.Replace("\"", "\\\"") + "\"";
+                return "\"" + text.TrimEnd()
+                    .Replace("\\", "\\\\")
+                    .Replace("\"", "\\\"")
+                    .Replace(Environment.NewLine, "\\l") + "\"";
             }
 
             writer.WriteLine("digraph G {");
@@ -247,8 +250,8 @@ namespace Buckle.CodeAnalysis.Binding {
 
             foreach (var block in blocks) {
                 var id = blockIds[block];
-                var label = Quote(block.ToString().Replace(Environment.NewLine, "\\l"));
-                writer.WriteLine($"    {id} [label = {label} shape = box]");
+                var label = Quote(block.ToString());
+                writer.WriteLine($"    {id} [label = {label}, shape = box]");
             }
 
             foreach (var branch in branches) {
@@ -273,8 +276,8 @@ namespace Buckle.CodeAnalysis.Binding {
             var graph = Create(body);
 
             foreach (var branch in graph.end.incoming) {
-                var lastStatement = branch.from.statements.Last();
-                if (lastStatement.type != BoundNodeType.ReturnStatement)
+                var lastStatement = branch.from.statements.LastOrDefault();
+                if (lastStatement == null || lastStatement.type != BoundNodeType.ReturnStatement)
                     return false;
             }
 

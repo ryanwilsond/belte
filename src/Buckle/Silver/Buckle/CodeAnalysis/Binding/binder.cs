@@ -92,7 +92,7 @@ namespace Buckle.CodeAnalysis.Binding {
             }
 
             var newFunction = new FunctionSymbol(function.identifier.text, parameters.ToImmutable(), type, function);
-            if (!scope_.TryDeclareFunction(newFunction))
+            if (newFunction.declaration.identifier.text != null && !scope_.TryDeclareFunction(newFunction))
                 diagnostics.Push(Error.FunctionAlreadyDeclared(function.identifier.span, newFunction.name));
         }
 
