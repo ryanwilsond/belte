@@ -17,8 +17,6 @@ namespace Buckle {
                 ? new Compilation(syntaxTree)
                 : state.previous.ContinueWith(syntaxTree);
 
-            handle.state.sourceText = compilation.tree.text;
-
             if (state.showTree) syntaxTree.root.WriteTo(Console.Out);
             if (state.showProgram) compilation.EmitTree(Console.Out);
 

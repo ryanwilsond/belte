@@ -109,10 +109,17 @@ namespace Buckle {
         }
 
         /// <summary>
-        /// Removes all diagnostics
+        /// Removes all diagnostics, or all of specific type
         /// </summary>
         public void Clear() {
             diagnostics_.Clear();
+        }
+
+        public void Clear(DiagnosticType type) {
+            for (int i=0; i<diagnostics_.Count; i++) {
+                if (diagnostics_[i].type == type)
+                    diagnostics_.RemoveAt(i--);
+            }
         }
     }
 }

@@ -46,8 +46,9 @@ namespace Buckle {
         }
 
         private void InternalInterpreter() {
-            // * TEMP: Only interprets first file
-            diagnostics.Clear();
+            diagnostics.Clear(DiagnosticType.Warning);
+
+            var syntaxTrees = new List<SyntaxTree>();
 
             for (int i = 0; i < state.tasks.Length; i++) {
                 ref FileState task = ref state.tasks[i];
@@ -55,29 +56,39 @@ namespace Buckle {
                 if (task.stage == CompilerStage.Preprocessed) {
                     var text = string.Join(Environment.NewLine, task.fileContent.lines);
                     var syntaxTree = SyntaxTree.Load(task.inputFilename, text);
-                    var compilation = new Compilation(syntaxTree);
-                    state.sourceText = compilation.tree.text;
-                    diagnostics.Move(compilation.diagnostics);
-
-                    if (diagnostics.Any())
-                        return;
-
-                    var result = compilation.Evaluate(new Dictionary<VariableSymbol, object>());
-                    diagnostics.Move(result.diagnostics);
-
+                    syntaxTrees.Add(syntaxTree);
                     task.stage = CompilerStage.Compiled;
-                    return;
                 }
             }
+
+            var compilation = new Compilation(syntaxTrees.ToArray());
+            diagnostics.Move(compilation.diagnostics);
+
+            if (diagnostics.Any())
+                return;
+
+            var result = compilation.Evaluate(new Dictionary<VariableSymbol, object>());
+            diagnostics.Move(result.diagnostics);
         }
 
         private void InternalCompiler() {
+            diagnostics.Push(DiagnosticType.Fatal, "compilation not supported (yet)");
+
+            var syntaxTrees = new List<SyntaxTree>();
+
             for (int i = 0; i < state.tasks.Length; i++) {
-                if (state.tasks[i].stage == CompilerStage.Preprocessed) {
-                    // ...
-                    state.tasks[i].stage = CompilerStage.Compiled;
+                ref FileState task = ref state.tasks[i];
+
+                if (task.stage == CompilerStage.Preprocessed) {
+                    var text = string.Join(Environment.NewLine, task.fileContent.lines);
+                    var syntaxTree = SyntaxTree.Load(task.inputFilename, text);
+                    syntaxTrees.Add(syntaxTree);
+                    task.stage = CompilerStage.Compiled;
                 }
             }
+
+            var compilation = new Compilation(syntaxTrees.ToArray());
+            diagnostics.Move(compilation.diagnostics);
         }
 
         /// <summary>

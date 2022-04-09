@@ -28,15 +28,20 @@ namespace Buckle.CodeAnalysis.Binding {
             }
         }
 
-        public static BoundGlobalScope BindGlobalScope(BoundGlobalScope previous, CompilationUnit expression) {
+        public static BoundGlobalScope BindGlobalScope(
+            BoundGlobalScope previous, ImmutableArray<SyntaxTree> syntaxTrees) {
             var parentScope = CreateParentScope(previous);
             var binder = new Binder(parentScope, null);
 
-            foreach (var function in expression.members.OfType<FunctionDeclaration>())
+            var functionDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<FunctionDeclaration>();
+
+            foreach (var function in functionDeclarations)
                 binder.BindFunctionDeclaration(function);
 
+            var globalStatements = syntaxTrees.SelectMany(st => st.root.members).OfType<GlobalStatement>();
+
             var statements = ImmutableArray.CreateBuilder<BoundStatement>();
-            foreach (var globalStatement in expression.members.OfType<GlobalStatement>())
+            foreach (var globalStatement in globalStatements)
                 statements.Add(binder.BindStatement(globalStatement.statement));
 
             var functions = binder.scope_.GetDeclaredFunctions();

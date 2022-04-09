@@ -63,39 +63,48 @@ namespace CommandLine {
                             break;
                     }
                 } else {
-                    string filename = arg;
-                    string[] parts = filename.Split('.');
-                    string type = parts[parts.Length - 1];
-                    FileState task = new FileState();
-                    task.inputFilename = filename;
+                    string fileOrDir = arg;
+                    List<string> filenames = new List<string>();
 
-                    if (!File.Exists(task.inputFilename)) {
-                        diagnostics.Push(DiagnosticType.Error, $"{filename}: no such file or directory");
+                    if (Directory.Exists(fileOrDir))
+                        filenames.AddRange(Directory.GetFiles(fileOrDir));
+                    else if (File.Exists(fileOrDir))
+                        filenames.Add(fileOrDir);
+                    else {
+                        diagnostics.Push(DiagnosticType.Error, $"{fileOrDir}: no such file or directory");
                         continue;
                     }
 
-                    switch (type) {
-                        case "ble":
-                            task.stage = CompilerStage.Raw;
-                            break;
-                        case "pble":
-                            task.stage = CompilerStage.Preprocessed;
-                            break;
-                        case "s":
-                        case "asm":
-                            task.stage = CompilerStage.Compiled;
-                            break;
-                        case "o":
-                        case "obj":
-                            task.stage = CompilerStage.Assembled;
-                            break;
-                        default:
-                            diagnostics.Push(DiagnosticType.Warning,
-                                $"unknown file type of input file '{filename}'; ignoring");
-                            break;
-                    }
+                    foreach (var filename in filenames) {
+                        FileState task = new FileState();
+                        task.inputFilename = filename;
 
-                    tasks.Add(task);
+                        string[] parts = task.inputFilename.Split('.');
+                        string type = parts[parts.Length - 1];
+
+                        switch (type) {
+                            case "ble":
+                                task.stage = CompilerStage.Raw;
+                                break;
+                            case "pble":
+                                task.stage = CompilerStage.Preprocessed;
+                                break;
+                            case "s":
+                            case "asm":
+                                task.stage = CompilerStage.Compiled;
+                                break;
+                            case "o":
+                            case "obj":
+                                task.stage = CompilerStage.Assembled;
+                                break;
+                            default:
+                                diagnostics.Push(DiagnosticType.Warning,
+                                    $"unknown file type of input file '{task.inputFilename}'; ignoring");
+                                break;
+                        }
+
+                        tasks.Add(task);
+                    }
                 }
             }
 
@@ -115,8 +124,9 @@ namespace CommandLine {
             return state;
         }
 
-        private static void PrettyPrintDiagnostic(SourceText text, Diagnostic diagnostic) {
+        private static void PrettyPrintDiagnostic(Diagnostic diagnostic) {
             var span = diagnostic.location.span;
+            var text = diagnostic.location.text;
             int lineNumber = text.GetLineIndex(span.start);
             TextLine line = text.lines[lineNumber];
             int column = span.start - line.start + 1;
@@ -206,7 +216,7 @@ namespace CommandLine {
                     Console.WriteLine(diagnostic.msg);
 
                 } else {
-                    PrettyPrintDiagnostic(compiler.state.sourceText, diagnostic);
+                    PrettyPrintDiagnostic(diagnostic);
                 }
 
                 diagnostic = compiler.diagnostics.Pop();
