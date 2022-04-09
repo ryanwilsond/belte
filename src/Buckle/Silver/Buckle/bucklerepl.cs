@@ -4,10 +4,24 @@ using Buckle.CodeAnalysis.Syntax;
 using CommandLine;
 
 namespace Buckle {
+    internal sealed class BuckleReplState : ReplState {
+        public bool showTree = false;
+        public bool showProgram = false;
+    }
 
     public sealed class BuckleRepl : Repl {
+        internal override ReplState state_ { get; set; }
+        internal BuckleReplState state { get { return (BuckleReplState)state_; } set { state_=value; } }
+
         public BuckleRepl(Compiler handle, ErrorHandle errorHandle) : base(handle, errorHandle) {
-            initializerStatements_.Add("#cls");
+            initializerStatements_.Add("#clear");
+            state = new BuckleReplState();
+        }
+
+        internal override void ResetState() {
+            state.showTree = false;
+            state.showProgram = false;
+            base.ResetState();
         }
 
         protected override void EvaluateSubmission(string text) {
@@ -68,27 +82,27 @@ namespace Buckle {
             }
         }
 
-        protected override void EvaluateReplCommand(string line) {
-            switch (line) {
-                case "#showTree":
-                    state.showTree = !state.showTree;
-                    Console.WriteLine(state.showTree ? "Parse-trees visible" : "Parse-trees hidden");
-                    break;
-                case "#showProgram":
-                    state.showProgram = !state.showProgram;
-                    Console.WriteLine(state.showProgram ? "Bound-trees visible" : "Bound-trees hidden");
-                    break;
-                case "#clear":
-                case "#cls":
-                    Console.Clear();
-                    break;
-                case "#reset":
-                    state.previous = null;
-                    break;
-                default:
-                    base.EvaluateReplCommand(line);
-                    break;
-            }
+        [MetaCommand("showTree", "Toggle to display parse tree of each input")]
+        private void EvaluateShowTree() {
+            state.showTree = !state.showTree;
+            Console.WriteLine(state.showTree ? "Parse-trees visible" : "Parse-trees hidden");
+        }
+
+        [MetaCommand("showProgram", "Toggle to display intermediate representation of each input")]
+        private void EvaluateShowProgram() {
+            state.showProgram = !state.showProgram;
+            Console.WriteLine(state.showProgram ? "Bound-trees visible" : "Bound-trees hidden");
+        }
+
+        [MetaCommand("clear", "Clears the screen")]
+        private void EvaluateClear() {
+            Console.Clear();
+        }
+
+        [MetaCommand("reset", "Clears previous submissions")]
+        private void EvaluateReset() {
+            ResetState();
+            EvaluateClear();
         }
 
         protected override bool IsCompleteSubmission(string text) {

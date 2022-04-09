@@ -5,37 +5,51 @@ using System.Collections.Specialized;
 using Buckle;
 using Buckle.CodeAnalysis.Symbols;
 using System.Linq;
+using System.Reflection;
 
 namespace CommandLine {
-    internal struct ReplState {
+    internal class ReplState {
         public Compilation previous;
-        public bool showTree;
-        public bool showProgram;
         public Dictionary<VariableSymbol, object> variables;
         public bool done;
     }
 
     public abstract class Repl {
         public delegate int ErrorHandle(Compiler compiler, string me = null);
-        private List<string> submissionHistory_ = new List<string>();
+
+        private readonly List<string> submissionHistory_ = new List<string>();
+        private readonly List<MetaCommand> metaCommands_ = new List<MetaCommand>();
         private int submissionHistoryIndex_;
+        protected List<string> initializerStatements_ = new List<string>();
         internal Compiler handle;
         internal ErrorHandle errorHandle;
-        internal ReplState state;
-        protected List<string> initializerStatements_ = new List<string>();
+        internal abstract ReplState state_ { get; set; }
 
-        public Repl(Compiler handle_, ErrorHandle errorHandle_) {
+        protected Repl(Compiler handle_, ErrorHandle errorHandle_) {
             handle = handle_;
             errorHandle = errorHandle_;
-            state = new ReplState();
+            state_ = new ReplState();
+            InitializeMetaCommands();
         }
 
-        private void ResetState() {
-            state.showProgram = false;
-            state.showTree = false;
-            state.variables = new Dictionary<VariableSymbol, object>();
-            state.previous = null;
-            state.done = false;
+        private void InitializeMetaCommands() {
+            var methods = GetType()
+                .GetMethods(BindingFlags.NonPublic | BindingFlags.Static |
+                    BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+
+            foreach (var method in methods) {
+                var attribute = (MetaCommandAttribute)method.GetCustomAttribute(typeof(MetaCommandAttribute));
+                if (attribute == null) continue;
+
+                var metaComand = new MetaCommand(attribute.name, attribute.description, method);
+                metaCommands_.Add(metaComand);
+            }
+        }
+
+        internal virtual void ResetState() {
+            state_.variables = new Dictionary<VariableSymbol, object>();
+            state_.previous = null;
+            state_.done = false;
         }
 
         public void Run() {
@@ -144,12 +158,12 @@ namespace CommandLine {
         }
 
         private string EditSubmission() {
-            state.done = false;
+            state_.done = false;
 
             var document = new ObservableCollection<string>() { "" };
             var view = new SubmissionView(RenderLine, document);
 
-            while (!state.done) {
+            while (!state_.done) {
                 var key = Console.ReadKey(true);
                 HandleKey(key, document, view);
             }
@@ -324,7 +338,7 @@ namespace CommandLine {
         }
 
         private void HandleControlEnter(ObservableCollection<string> document, SubmissionView view) {
-            state.done = true;
+            state_.done = true;
         }
 
         private void HandleTyping(ObservableCollection<string> document, SubmissionView view, string text) {
@@ -359,7 +373,7 @@ namespace CommandLine {
         private void HandleEnter(ObservableCollection<string> document, SubmissionView view) {
             var submissionText = string.Join(Environment.NewLine, document);
             if (submissionText.StartsWith('#') || IsCompleteSubmission(submissionText)) {
-                state.done = true;
+                state_.done = true;
                 return;
             }
 
@@ -384,16 +398,56 @@ namespace CommandLine {
             Console.Write(line);
         }
 
-        protected virtual void EvaluateReplCommand(string line) {
-            handle.diagnostics.Push(DiagnosticType.Error, $"unknown repl command '{line}'");
+        private void EvaluateReplCommand(string line) {
+            var commandName = line.Substring(1);
+            var command = metaCommands_.SingleOrDefault(mc => mc.name == commandName);
 
-            if (errorHandle != null)
-                errorHandle(handle, "repl");
-            else
-                handle.diagnostics.Clear();
+            if (command != null) {
+                command.method.Invoke(this, null);
+            } else {
+                handle.diagnostics.Push(DiagnosticType.Error, $"unknown repl command '{line}'");
+
+                if (errorHandle != null)
+                    errorHandle(handle, "repl");
+                else
+                    handle.diagnostics.Clear();
+            }
         }
 
         protected abstract bool IsCompleteSubmission(string text);
         protected abstract void EvaluateSubmission(string text);
+
+        [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
+        protected sealed class MetaCommandAttribute : Attribute {
+            public string name { get; }
+            public string description { get; }
+
+            public MetaCommandAttribute(string name_, string description_) {
+                name = name_;
+                description = description_;
+            }
+        }
+
+        private sealed class MetaCommand {
+            public string name { get; }
+            public string description { get; set; }
+            public MethodInfo method { get; }
+
+            public MetaCommand(string name_, string description_, MethodInfo method_) {
+                name = name_;
+                method = method_;
+                description = description_;
+            }
+        }
+
+        [MetaCommand("help", "Shows this document")]
+        protected void EvaluateHelp() {
+            var maxLength = metaCommands_.Max(mc => mc.name.Length);
+
+            foreach (var metaCommand in metaCommands_.OrderBy(mc => mc.name)) {
+                var paddedName = metaCommand.name.PadRight(maxLength);
+                Console.WriteLine($"#{paddedName}  {metaCommand.description}");
+            }
+        }
     }
 }

@@ -15,13 +15,18 @@ namespace CommandLine {
         const int ERROR_EXIT_CODE = 1;
         const int FATAL_EXIT_CODE = 2;
 
-        private static CompilerState DecodeOptions(string[] args, out DiagnosticQueue diagnostics) {
+        private static void ShowHelpDialog() {
+            Console.WriteLine("under development");
+        }
+
+        private static CompilerState DecodeOptions(string[] args, out DiagnosticQueue diagnostics, out bool showHelp) {
             diagnostics = new DiagnosticQueue();
             CompilerState state = new CompilerState();
             List<FileState> tasks = new List<FileState>();
 
             bool specifyStage = false;
             bool specifyOut = false;
+            showHelp = false;
             state.buildMode = BuildMode.Independent;
             state.finishStage = CompilerStage.Linked;
             state.linkOutputFilename = "a.exe";
@@ -57,6 +62,9 @@ namespace CommandLine {
                             if (i >= args.Length - 1)
                                 diagnostics.Push(DiagnosticType.Fatal, "missing filename after '-o'");
                             state.linkOutputFilename = args[i++];
+                            break;
+                        case "--help":
+                            showHelp = true;
                             break;
                         default:
                             diagnostics.Push(DiagnosticType.Fatal, $"unknown argument '{arg}'");
@@ -315,11 +323,18 @@ namespace CommandLine {
             Compiler compiler = new Compiler();
             compiler.me = Process.GetCurrentProcess().ProcessName;
 
-            compiler.state = DecodeOptions(args, out DiagnosticQueue diagnostics);
+            compiler.state = DecodeOptions(args, out DiagnosticQueue diagnostics, out bool showHelp);
             ResolveOutputFiles(compiler);
             ReadInputFiles(compiler);
             compiler.diagnostics.Move(diagnostics);
+
+            if (showHelp) compiler.diagnostics.Clear(DiagnosticType.Fatal);
             err = ResolveDiagnostics(compiler);
+            if (showHelp) {
+                ShowHelpDialog();
+                return SUCCESS_EXIT_CODE;
+            }
+
             if (err > 0) return err;
 
             // only mode that doesn't go through one-time compilation
