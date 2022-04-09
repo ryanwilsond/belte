@@ -128,8 +128,9 @@ namespace Buckle {
         }
 
         public static Diagnostic InvalidArgumentType(
-                TextLocation location, string parameterName, TypeSymbol expected, TypeSymbol actual) {
-            string msg = $"parameter '{parameterName}' expected argument of type '{expected}', got '{actual}'";
+                TextLocation location, int count, string parameterName, TypeSymbol expected, TypeSymbol actual) {
+            string msg =
+                $"argument {count}: parameter '{parameterName}' expects argument of type '{expected}', got '{actual}'";
             return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 

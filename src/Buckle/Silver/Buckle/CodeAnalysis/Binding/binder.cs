@@ -201,12 +201,6 @@ namespace Buckle.CodeAnalysis.Binding {
             if (expression.arguments.count == 1 && LookupType(expression.identifier.text) is TypeSymbol type)
                 return BindCast(expression.arguments[0], type, true);
 
-            var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
-            foreach (var argument in expression.arguments) {
-                var boundArgument = BindExpression(argument);
-                boundArguments.Add(boundArgument);
-            }
-
             if (!scope_.TryLookupFunction(expression.identifier.text, out var function)) {
                 if (scope_.TryLookupVariable(expression.identifier.text, out _))
                     diagnostics.Push(
@@ -244,15 +238,19 @@ namespace Buckle.CodeAnalysis.Binding {
                 return new BoundErrorExpression();
             }
 
+            var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
             bool hasErrors = false;
             for (int i=0; i<expression.arguments.count; i++) {
-                var argument = boundArguments[i];
+                var argument = expression.arguments[i];
                 var parameter = function.parameters[i];
+                var boundArgument = BindExpression(argument);
+                boundArguments.Add(boundArgument);
 
-                if (argument.lType != parameter.lType) {
-                    if (argument.lType != TypeSymbol.Error)
+                if (boundArgument.lType != parameter.lType) {
+                    if (boundArgument.lType != TypeSymbol.Error)
                         diagnostics.Push(Error.InvalidArgumentType(
-                            expression.arguments[i].location, parameter.name, parameter.lType, argument.lType));
+                            expression.arguments[i].location, i+1,
+                            parameter.name, parameter.lType, boundArgument.lType));
                     hasErrors = true;
                 }
             }
