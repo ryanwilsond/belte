@@ -9,6 +9,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.IO;
 using System.Linq;
 using System;
+using BindingFlags = System.Reflection.BindingFlags;
 
 namespace Buckle {
 
@@ -95,6 +96,16 @@ namespace Buckle {
             var seenSymbolNames = new HashSet<string>();
 
             while (submission != null) {
+                var builtins = typeof(BuiltinFunctions)
+                    .GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
+                    .Where(fi => fi.FieldType == typeof(FunctionSymbol))
+                    .Select(fi => (FunctionSymbol)fi.GetValue(null))
+                    .ToList();
+
+                foreach (var builtin in builtins)
+                    if (seenSymbolNames.Add(builtin.name))
+                        yield return builtin;
+
                 foreach (var function in submission.functions)
                     if (seenSymbolNames.Add(function.name))
                         yield return function;
@@ -160,10 +171,10 @@ namespace Buckle {
             var program = Binder.BindProgram(globalScope);
 
             if (symbol is FunctionSymbol f) {
+                f.WriteTo(writer);
                 if (!program.functions.TryGetValue(f, out var body))
                     return;
 
-                f.WriteTo(writer);
                 body.WriteTo(writer);
             } else {
                 symbol.WriteTo(writer);

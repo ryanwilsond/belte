@@ -39,7 +39,7 @@ namespace CommandLine {
                     BindingFlags.Instance | BindingFlags.FlattenHierarchy);
 
             foreach (var method in methods) {
-                var attribute = (MetaCommandAttribute)method.GetCustomAttribute(typeof(MetaCommandAttribute));
+                var attribute = method.GetCustomAttribute<MetaCommandAttribute>();
                 if (attribute == null) continue;
 
                 var metaComand = new MetaCommand(attribute.name, attribute.description, method);
@@ -459,7 +459,8 @@ namespace CommandLine {
                 return;
             }
 
-            command.method.Invoke(this, args.ToArray());
+            var instance = command.method.IsStatic ? null : this;
+            command.method.Invoke(instance, args.ToArray());
         }
 
         protected abstract bool IsCompleteSubmission(string text);

@@ -13,6 +13,7 @@ namespace Buckle {
     }
 
     public sealed class BuckleRepl : Repl {
+        private static readonly Compilation emptyCompilation = new Compilation();
         internal override ReplState state_ { get; set; }
         internal BuckleReplState state { get { return (BuckleReplState)state_; } set { state_=value; } }
 
@@ -171,10 +172,9 @@ namespace Buckle {
 
         [MetaCommand("ls", "Lists all defined symbols")]
         private void EvaluateLs() {
-            if (state.previous == null)
-                return;
+            var compilation = state.previous ?? emptyCompilation;
+            var symbols = compilation.GetSymbols().OrderBy(s => s.type).ThenBy(s => s.name);
 
-            var symbols = state.previous.GetSymbols().OrderBy(s => s.type).ThenBy(s => s.name);
             foreach (var symbol in symbols) {
                 symbol.WriteTo(Console.Out);
                 Console.WriteLine();
@@ -183,10 +183,8 @@ namespace Buckle {
 
         [MetaCommand("dump", "Shows contents of a symbol")]
         private void EvaluateDump(string name) {
-            if (state.previous == null)
-                return;
-
-            var symbol = state.previous.GetSymbols().SingleOrDefault(f => f.name == name);
+            var compilation = state.previous ?? emptyCompilation;
+            var symbol = compilation.GetSymbols().SingleOrDefault(f => f.name == name);
             if (symbol == null) {
                 handle.diagnostics.Push(DiagnosticType.Error, $"undefined symbol '{name}'");
 
@@ -198,7 +196,7 @@ namespace Buckle {
                 return;
             }
 
-            state.previous.EmitTree(symbol, Console.Out);
+            compilation.EmitTree(symbol, Console.Out);
         }
 
         protected override bool IsCompleteSubmission(string text) {
