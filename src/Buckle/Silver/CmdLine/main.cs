@@ -311,7 +311,7 @@ namespace CommandLine {
         }
 
         public static int Main(string[] args) {
-            int err = SUCCESS_EXIT_CODE;
+            int err;
             Compiler compiler = new Compiler();
             compiler.me = Process.GetCurrentProcess().ProcessName;
 

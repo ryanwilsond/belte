@@ -1,4 +1,3 @@
-
 using System;
 using System.CodeDom.Compiler;
 using System.IO;
@@ -6,22 +5,25 @@ using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.IO {
     internal static class TextWriterExtensions {
-        public static bool IsConsoleOut(this TextWriter writer) {
+        public static bool IsConsole(this TextWriter writer) {
             if (writer == Console.Out)
-                return true;
+                return !Console.IsOutputRedirected;
 
-            if (writer is IndentedTextWriter iw && iw.InnerWriter.IsConsoleOut())
+            if (writer == Console.Error)
+                return !Console.IsErrorRedirected && !Console.IsOutputRedirected;
+
+            if (writer is IndentedTextWriter iw && iw.InnerWriter.IsConsole())
                 return true;
 
             return false;
         }
         public static void SetForeground(this TextWriter writer, ConsoleColor color) {
-            if (writer.IsConsoleOut())
+            if (writer.IsConsole())
                 Console.ForegroundColor = color;
         }
 
         public static void ResetColor(this TextWriter writer) {
-            if (writer.IsConsoleOut())
+            if (writer.IsConsole())
                 Console.ResetColor();
         }
 

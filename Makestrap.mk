@@ -1,4 +1,6 @@
-BB=buckle
+BB:=buckle
+SOURCE:=src/Buckle/Strap
+BBFLAGS=-i
 
 all:
-	$(BB) ...
+	$(BB) $(BBFLAGS) $(SOURCE)
