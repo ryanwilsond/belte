@@ -28,10 +28,10 @@
 		"keywords": {
 			"patterns": [{
 				"name": "keyword.control.belte",
-				"match": "\\b(if|else|while|for|return|yield|switch|case|default|break|continue)\\b"
+				"match": "\\b(if|else|while|for|return|yield|switch|case|default|break|continue|do)\\b"
 			}, {
 				"name": "keyword.other.belte",
-				"match": "\\b(include|operator|get|set|this|auto)\\b"
+				"match": "\\b(include|operator|get|set|this|auto|let)\\b"
 			}, {
 				"name": "keyword.operator.arithmetic.belte",
 				"match": "\\b(/|\\*|(\\*\\*)|\\+|\\-|\\%)\\b"
@@ -58,7 +58,7 @@
 		"storage": {
 			"patterns": [{
 				"name": "storage.type.built-in.belte",
-				"match": "\\b(int|decimal|string|void|bool|byte|datetime|iterator|map|object|set|tuple|type|time|date|guid)\\b"
+				"match": "\\b(int|decimal|string|void|bool|byte|datetime|iterator|map|object|set|tuple|type|time|date|guid|sbyte)\\b"
 			}, {
 				"name": "storage.type.namespace.belte",
 				"match": "\\b(namespace)\\b"

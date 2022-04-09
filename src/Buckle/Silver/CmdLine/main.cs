@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Buckle;
 using Buckle.CodeAnalysis.Text;
+using System.Linq;
 
 namespace CommandLine {
 
@@ -21,7 +22,7 @@ namespace CommandLine {
 
             bool specifyStage = false;
             bool specifyOut = false;
-            state.useRepl = false;
+            state.buildMode = BuildMode.Independent;
             state.finishStage = CompilerStage.Linked;
             state.linkOutputFilename = "a.exe";
 
@@ -43,10 +44,13 @@ namespace CommandLine {
                             state.finishStage = CompilerStage.Assembled;
                             break;
                         case "-r":
-                            state.useRepl = true;
+                            state.buildMode = BuildMode.Repl;
                             if (args.Length != 1)
                                 diagnostics.Push(DiagnosticType.Fatal, "cannot use any other arguments with '-r'");
 
+                            break;
+                        case "-i":
+                            state.buildMode = BuildMode.Interpreter;
                             break;
                         case "-o":
                             specifyOut = true;
@@ -98,10 +102,15 @@ namespace CommandLine {
             state.tasks = tasks.ToArray();
 
             if (specifyOut && specifyStage && state.tasks.Length > 1)
-                diagnostics.Push(DiagnosticType.Fatal,
-                    "cannot specify output file with '-E', '-S', or '-c' with multiple files");
-            if (state.tasks.Length == 0 && !state.useRepl)
+                diagnostics.Push(
+                    DiagnosticType.Fatal, "cannot specify output file with '-E', '-S', or '-c' with multiple files");
+
+            if (state.tasks.Length == 0 && !(state.buildMode == BuildMode.Repl))
                 diagnostics.Push(DiagnosticType.Fatal, "no input files");
+
+            if (specifyStage && state.buildMode == BuildMode.Interpreter)
+                diagnostics.Push(
+                    DiagnosticType.Fatal, "cannot specify output file with '-E', '-S', or '-c' with interpreter");
 
             return state;
         }
@@ -245,6 +254,9 @@ namespace CommandLine {
         }
 
         private static void ResolveCompilerOutput(Compiler compiler) {
+            if (compiler.state.buildMode == BuildMode.Interpreter)
+                return;
+
             if (compiler.state.finishStage == CompilerStage.Linked) {
                 if (compiler.state.linkOutputContent != null)
                     File.WriteAllBytes(compiler.state.linkOutputFilename,
@@ -262,6 +274,27 @@ namespace CommandLine {
             }
         }
 
+        private static void ReadInputFiles(Compiler compiler) {
+            for (int i=0; i<compiler.state.tasks.Length; i++) {
+                ref FileState task = ref compiler.state.tasks[i];
+
+                switch (task.stage) {
+                    case CompilerStage.Raw:
+                    case CompilerStage.Preprocessed:
+                    case CompilerStage.Compiled:
+                        task.fileContent.lines = File.ReadAllLines(task.inputFilename).ToList();
+                        break;
+                    case CompilerStage.Assembled:
+                        task.fileContent.bytes = File.ReadAllBytes(task.inputFilename).ToList();
+                        break;
+                    case CompilerStage.Linked:
+                        compiler.diagnostics.Push(
+                            DiagnosticType.Warning, $"{task.inputFilename}: file already compiled; ignoring");
+                        break;
+                }
+            }
+        }
+
         public static int Main(string[] args) {
             int err = SUCCESS_EXIT_CODE;
             Compiler compiler = new Compiler();
@@ -269,11 +302,13 @@ namespace CommandLine {
 
             compiler.state = DecodeOptions(args, out DiagnosticQueue diagnostics);
             ResolveOutputFiles(compiler);
+            ReadInputFiles(compiler);
             compiler.diagnostics.Move(diagnostics);
             err = ResolveDiagnostics(compiler);
             if (err > 0) return err;
 
-            if (compiler.state.useRepl) {
+            // only mode that doesn't go through one-time compilation
+            if (compiler.state.buildMode == BuildMode.Repl) {
                 var repl = new BuckleRepl(compiler, ResolveDiagnostics);
                 repl.Run();
 

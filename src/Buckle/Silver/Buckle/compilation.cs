@@ -6,7 +6,6 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Text;
 using Buckle.CodeAnalysis.Syntax;
 using System.IO;
-using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.IO;
 using System.Linq;
@@ -34,8 +33,15 @@ namespace Buckle {
         public FileContent fileContent;
     }
 
+    public enum BuildMode {
+        Repl,
+        Interpreter,
+        Independent,
+        Dotnet,
+    }
+
     public struct CompilerState {
-        public bool useRepl;
+        public BuildMode buildMode;
         public CompilerStage finishStage;
         public SourceText sourceText;
         public string linkOutputFilename;

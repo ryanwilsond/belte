@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle {
@@ -36,20 +36,46 @@ namespace Buckle {
             diagnostics.Push(DiagnosticType.Warning, "linking not supported (yet); skipping");
         }
 
-        private void Preprocess() {
+        private void InternalPreprocessor() {
             diagnostics.Push(DiagnosticType.Warning, "preprocessing not supported (yet); skipping");
+
+            for (int i = 0; i < state.tasks.Length; i++) {
+                if (state.tasks[i].stage == CompilerStage.Raw)
+                    state.tasks[i].stage = CompilerStage.Preprocessed;
+            }
         }
 
-        private void PrintTree(Node root) {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            root.WriteTo(Console.Out);
-            Console.ResetColor();
+        private void InternalInterpreter() {
+            // * TEMP: Only interprets first file
+            diagnostics.Clear();
+
+            for (int i = 0; i < state.tasks.Length; i++) {
+                ref FileState task = ref state.tasks[i];
+
+                if (task.stage == CompilerStage.Preprocessed) {
+                    var text = string.Join(Environment.NewLine, task.fileContent.lines);
+                    var syntaxTree = SyntaxTree.Parse(text);
+                    var compilation = new Compilation(syntaxTree);
+                    state.sourceText = compilation.tree.text;
+                    diagnostics.Move(compilation.diagnostics);
+
+                    if (diagnostics.Any())
+                        return;
+
+                    var result = compilation.Evaluate(new Dictionary<VariableSymbol, object>());
+                    diagnostics.Move(result.diagnostics);
+
+                    task.stage = CompilerStage.Compiled;
+                    return;
+                }
+            }
         }
 
         private void InternalCompiler() {
             for (int i = 0; i < state.tasks.Length; i++) {
                 if (state.tasks[i].stage == CompilerStage.Preprocessed) {
                     // ...
+                    state.tasks[i].stage = CompilerStage.Compiled;
                 }
             }
         }
@@ -61,12 +87,17 @@ namespace Buckle {
         public int Compile() {
             int err;
 
-            Preprocess();
+            InternalPreprocessor();
             err = CheckErrors();
             if (err != SUCCESS_EXIT_CODE) return err;
 
             if (state.finishStage == CompilerStage.Preprocessed)
                 return SUCCESS_EXIT_CODE;
+
+            if (state.buildMode == BuildMode.Interpreter) {
+                InternalInterpreter();
+                return CheckErrors();
+            }
 
             InternalCompiler();
             err = CheckErrors();
@@ -75,19 +106,19 @@ namespace Buckle {
             if (state.finishStage == CompilerStage.Compiled)
                 return SUCCESS_EXIT_CODE;
 
-            ExternalAssembler();
-            err = CheckErrors();
-            if (err != SUCCESS_EXIT_CODE) return err;
+            // ExternalAssembler();
+            // err = CheckErrors();
+            // if (err != SUCCESS_EXIT_CODE) return err;
 
-            if (state.finishStage == CompilerStage.Assembled)
-                return SUCCESS_EXIT_CODE;
+            // if (state.finishStage == CompilerStage.Assembled)
+            //     return SUCCESS_EXIT_CODE;
 
-            ExternalLinker();
-            err = CheckErrors();
-            if (err != SUCCESS_EXIT_CODE) return err;
+            // ExternalLinker();
+            // err = CheckErrors();
+            // if (err != SUCCESS_EXIT_CODE) return err;
 
-            if (state.finishStage == CompilerStage.Linked)
-                return SUCCESS_EXIT_CODE;
+            // if (state.finishStage == CompilerStage.Linked)
+            //     return SUCCESS_EXIT_CODE;
 
             return FATAL_EXIT_CODE;
         }
