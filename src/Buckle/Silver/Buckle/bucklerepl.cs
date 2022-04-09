@@ -45,11 +45,14 @@ namespace Buckle {
 
         protected override void RenderLine(string line) {
             var tokens = SyntaxTree.ParseTokens(line);
-            foreach (var token in tokens) {
+            for (int i=0; i<tokens.Length; i++) {
+                var token = tokens[i];
                 var isKeyword = token.type.ToString().EndsWith("_KEYWORD");
                 var isNumber = token.type == SyntaxType.NUMBER;
                 var isIdentifier = token.type == SyntaxType.IDENTIFIER;
                 var isString = token.type == SyntaxType.STRING;
+                var isType = (i < tokens.Length-2) && (tokens[i+1].type == SyntaxType.WHITESPACE) &&
+                    (tokens[i+2].type == SyntaxType.IDENTIFIER) && isIdentifier;
 
                 if (isKeyword)
                     Console.ForegroundColor = ConsoleColor.Blue;
@@ -57,6 +60,8 @@ namespace Buckle {
                     Console.ForegroundColor = ConsoleColor.Cyan;
                 else if (isString)
                     Console.ForegroundColor = ConsoleColor.Yellow;
+                else if (isType)
+                    Console.ForegroundColor = ConsoleColor.Blue;
                 else if (!isIdentifier)
                     Console.ForegroundColor = ConsoleColor.DarkGray;
 

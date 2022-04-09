@@ -262,6 +262,7 @@ namespace CommandLine {
             document.Clear();
             document.Add(string.Empty);
             view.currentLine = 0;
+            view.currentCharacter = 0;
         }
 
         private void HandleTab(ObservableCollection<string> document, SubmissionView view) {

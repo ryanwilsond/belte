@@ -106,32 +106,38 @@ namespace Buckle.IO {
             var needsParenthesis = parentPrecedence >= currentPrecedence;
 
             if (needsParenthesis)
-                writer.WritePunctuation("(");
+                writer.WritePunctuation(SyntaxType.LPAREN);
 
             expression.WriteTo(writer);
 
             if (needsParenthesis)
-                writer.WritePunctuation(")");
+                writer.WritePunctuation(SyntaxType.RPAREN);
         }
 
         private static void WriteDoWhileStatement(BoundDoWhileStatement node, IndentedTextWriter writer) {
-            writer.WriteKeyword("do ");
-            writer.WritePunctuation("{");
+            writer.WriteKeyword(SyntaxType.DO_KEYWORD);
+            writer.WriteSpace();
+            writer.WritePunctuation(SyntaxType.LBRACE);
             writer.WriteLine();
             writer.WriteNestedStatement(node.body);
-            writer.WritePunctuation("}");
-            writer.WriteKeyword(" while ");
-            writer.WritePunctuation("(");
+            writer.WritePunctuation(SyntaxType.RBRACE);
+            writer.WriteSpace();
+            writer.WriteKeyword(SyntaxType.WHILE_KEYWORD);
+            writer.WriteSpace();
+            writer.WritePunctuation(SyntaxType.LPAREN);
             node.condition.WriteTo(writer);
-            writer.WritePunctuation(")");
+            writer.WritePunctuation(SyntaxType.RPAREN);
             writer.WriteLine();
         }
 
         private static void WriteConditionalGotoStatement(
             BoundConditionalGotoStatement node, IndentedTextWriter writer) {
-            writer.WriteKeyword("goto ");
+            writer.WriteKeyword("goto");
+            writer.WriteSpace();
             writer.WriteIdentifier(node.label.name);
-            writer.WriteKeyword(node.jumpIfTrue ? " if " : " unless ");
+            writer.WriteSpace();
+            writer.WriteKeyword(node.jumpIfTrue ? "if" : "unless");
+            writer.WriteSpace();
             node.condition.WriteTo(writer);
             writer.WriteLine();
         }
@@ -150,52 +156,64 @@ namespace Buckle.IO {
         }
 
         private static void WriteGotoStatement(BoundGotoStatement node, IndentedTextWriter writer) {
-            writer.WriteKeyword("goto ");
+            writer.WriteKeyword("goto");
+            writer.WriteSpace();
             writer.WriteIdentifier(node.label.name);
             writer.WriteLine();
         }
 
         private static void WriteForStatement(BoundForStatement node, IndentedTextWriter writer) {
-            writer.WriteKeyword("for ");
-            writer.WritePunctuation("(");
+            writer.WriteKeyword(SyntaxType.FOR_KEYWORD);
+            writer.WriteSpace();
+            writer.WritePunctuation(SyntaxType.LPAREN);
             node.initializer.WriteTo(writer);
-            writer.Write(" ");
+            writer.WriteSpace();
             node.condition.WriteTo(writer);
-            writer.Write(" ");
+            writer.WriteSpace();
             node.step.WriteTo(writer);
-            writer.WritePunctuation(") {");
+            writer.WritePunctuation(SyntaxType.RPAREN);
+            writer.WriteSpace();
+            writer.WritePunctuation(SyntaxType.LBRACE);
             writer.WriteLine();
             writer.WriteNestedStatement(node.body);
-            writer.WritePunctuation("}");
+            writer.WritePunctuation(SyntaxType.RBRACE);
             writer.WriteLine();
         }
 
         private static void WriteWhileStatement(BoundWhileStatement node, IndentedTextWriter writer) {
-            writer.WriteKeyword("while ");
-            writer.WritePunctuation("(");
+            writer.WriteKeyword(SyntaxType.WHILE_KEYWORD);
+            writer.WriteSpace();
+            writer.WritePunctuation(SyntaxType.LPAREN);
             node.condition.WriteTo(writer);
-            writer.WritePunctuation(") {");
+            writer.WritePunctuation(SyntaxType.RPAREN);
+            writer.WriteSpace();
+            writer.WritePunctuation(SyntaxType.LBRACE);
             writer.WriteLine();
             writer.WriteNestedStatement(node.body);
-            writer.WritePunctuation("}");
+            writer.WritePunctuation(SyntaxType.RBRACE);
             writer.WriteLine();
         }
 
         private static void WriteIfStatement(BoundIfStatement node, IndentedTextWriter writer) {
-            writer.WriteKeyword("if ");
-            writer.WritePunctuation("(");
+            writer.WriteKeyword(SyntaxType.IF_KEYWORD);
+            writer.WriteSpace();
+            writer.WritePunctuation(SyntaxType.LPAREN);
             node.condition.WriteTo(writer);
-            writer.WritePunctuation(") {");
+            writer.WritePunctuation(SyntaxType.RPAREN);
+            writer.WriteSpace();
+            writer.WritePunctuation(SyntaxType.LBRACE);
             writer.WriteLine();
             writer.WriteNestedStatement(node.then);
-            writer.WritePunctuation("}");
+            writer.WritePunctuation(SyntaxType.RBRACE);
 
             if (node.elseStatement != null) {
-                writer.WriteKeyword(" else ");
-                writer.WritePunctuation("{");
+                writer.WriteSpace();
+                writer.WriteKeyword(SyntaxType.ELSE_KEYWORD);
+                writer.WriteSpace();
+                writer.WritePunctuation(SyntaxType.LBRACE);
                 writer.WriteLine();
                 writer.WriteNestedStatement(node.elseStatement);
-                writer.WritePunctuation("}");
+                writer.WritePunctuation(SyntaxType.RBRACE);
             }
 
             writer.WriteLine();
@@ -204,9 +222,11 @@ namespace Buckle.IO {
         private static void WriteVariableDeclarationStatement(
             BoundVariableDeclarationStatement node, IndentedTextWriter writer) {
             writer.WriteType(node.variable.lType.name);
-            writer.Write(" ");
+            writer.WriteSpace();
             writer.WriteIdentifier(node.variable.name);
-            writer.WritePunctuation(" = ");
+            writer.WriteSpace();
+            writer.WritePunctuation(SyntaxType.EQUALS);
+            writer.WriteSpace();
             node.initializer.WriteTo(writer);
             writer.WriteLine();
         }
@@ -218,7 +238,7 @@ namespace Buckle.IO {
         }
 
         private static void WriteBlockStatement(BoundBlockStatement node, IndentedTextWriter writer) {
-            writer.WritePunctuation("{");
+            writer.WritePunctuation(SyntaxType.LBRACE);
             writer.WriteLine();
             writer.Indent++;
 
@@ -226,32 +246,34 @@ namespace Buckle.IO {
                 s.WriteTo(writer);
 
             writer.Indent--;
-            writer.WritePunctuation("}");
+            writer.WritePunctuation(SyntaxType.RBRACE);
             writer.WriteLine();
         }
 
         private static void WriteCastExpression(BoundCastExpression node, IndentedTextWriter writer) {
             writer.WriteType(node.lType.name);
-            writer.WritePunctuation("(");
+            writer.WritePunctuation(SyntaxType.LPAREN);
             node.expression.WriteTo(writer);
-            writer.WritePunctuation(")");
+            writer.WritePunctuation(SyntaxType.RPAREN);
         }
 
         private static void WriteCallExpression(BoundCallExpression node, IndentedTextWriter writer) {
             writer.WriteIdentifier(node.function.name);
-            writer.WritePunctuation("(");
+            writer.WritePunctuation(SyntaxType.LPAREN);
 
             var isFirst = true;
             foreach (var argument in node.arguments) {
-                if (isFirst)
+                if (isFirst) {
                     isFirst = false;
-                else
-                    writer.WritePunctuation(", ");
+                } else {
+                    writer.WritePunctuation(SyntaxType.COMMA);
+                    writer.WriteSpace();
+                }
 
                 argument.WriteTo(writer);
             }
 
-            writer.WritePunctuation(")");
+            writer.WritePunctuation(SyntaxType.RPAREN);
         }
 
         private static void WriteErrorExpression(BoundErrorExpression node, IndentedTextWriter writer) {
@@ -262,7 +284,9 @@ namespace Buckle.IO {
 
         private static void WriteAssignmentExpression(BoundAssignmentExpression node, IndentedTextWriter writer) {
             writer.WriteIdentifier(node.variable.name);
-            writer.WritePunctuation(" = ");
+            writer.WriteSpace();
+            writer.WritePunctuation(SyntaxType.EQUALS);
+            writer.WriteSpace();
             node.expression.WriteTo(writer);
         }
 
@@ -275,9 +299,9 @@ namespace Buckle.IO {
             var precedence = SyntaxFacts.GetBinaryPrecedence(node.op.type);
 
             writer.WriteNestedExpression(precedence, node.left);
-            writer.Write(" ");
+            writer.WriteSpace();
             writer.WritePunctuation(op);
-            writer.Write(" ");
+            writer.WriteSpace();
             writer.WriteNestedExpression(precedence, node.right);
         }
 
@@ -297,10 +321,9 @@ namespace Buckle.IO {
         }
 
         private static void WriteUnaryExpression(BoundUnaryExpression node, IndentedTextWriter writer) {
-            var op = SyntaxFacts.GetText(node.op.type);
             var precedence = SyntaxFacts.GetUnaryPrecedence(node.op.type);
 
-            writer.WritePunctuation(op);
+            writer.WritePunctuation(node.op.type);
             writer.WriteNestedExpression(precedence, node.operand);
         }
     }

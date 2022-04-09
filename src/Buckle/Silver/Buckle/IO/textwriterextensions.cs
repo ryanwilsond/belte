@@ -2,6 +2,7 @@
 using System;
 using System.CodeDom.Compiler;
 using System.IO;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.IO {
     internal static class TextWriterExtensions {
@@ -30,6 +31,12 @@ namespace Buckle.IO {
             writer.ResetColor();
         }
 
+        public static void WriteKeyword(this TextWriter writer, SyntaxType type) {
+            writer.SetForeground(ConsoleColor.Blue);
+            writer.Write(SyntaxFacts.GetText(type));
+            writer.ResetColor();
+        }
+
         public static void WriteIdentifier(this TextWriter writer, string text) {
             writer.SetForeground(ConsoleColor.White);
             writer.Write(text);
@@ -54,10 +61,20 @@ namespace Buckle.IO {
             writer.ResetColor();
         }
 
+        public static void WritePunctuation(this TextWriter writer, SyntaxType type) {
+            writer.SetForeground(ConsoleColor.DarkGray);
+            writer.Write(SyntaxFacts.GetText(type));
+            writer.ResetColor();
+        }
+
         public static void WriteType(this TextWriter writer, string text) {
             writer.SetForeground(ConsoleColor.Blue);
             writer.Write(text);
             writer.ResetColor();
+        }
+
+        public static void WriteSpace(this TextWriter writer) {
+            writer.Write(" ");
         }
     }
 }
