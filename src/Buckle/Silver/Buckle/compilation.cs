@@ -112,10 +112,6 @@ namespace Buckle {
                     .Select(fi => (FunctionSymbol)fi.GetValue(null))
                     .ToList();
 
-                foreach (var builtin in builtins)
-                    if (seenSymbolNames.Add(builtin.name))
-                        yield return builtin;
-
                 foreach (var function in submission.functions)
                     if (seenSymbolNames.Add(function.name))
                         yield return function;
@@ -123,6 +119,10 @@ namespace Buckle {
                 foreach (var variable in submission.variables)
                     if (seenSymbolNames.Add(variable.name))
                         yield return variable;
+
+                foreach (var builtin in builtins)
+                    if (seenSymbolNames.Add(builtin.name))
+                        yield return builtin;
 
                 submission = submission.previous;
             }

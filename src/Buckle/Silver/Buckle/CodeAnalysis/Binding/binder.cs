@@ -220,14 +220,17 @@ namespace Buckle.CodeAnalysis.Binding {
             if (expression.arguments.count == 1 && LookupType(expression.identifier.text) is TypeSymbol type)
                 return BindCast(expression.arguments[0], type, true);
 
-            if (!scope_.TryLookupFunction(expression.identifier.text, out var function)) {
-                if (scope_.TryLookupVariable(expression.identifier.text, out _))
-                    diagnostics.Push(
-                        Error.CannotCallNonFunction(expression.identifier.location, expression.identifier.text));
-                else
-                    diagnostics.Push(
-                        Error.UndefinedFunction(expression.identifier.location, expression.identifier.text));
+            var symbol = scope_.LookupSymbol(expression.identifier.text);
+            if (symbol == null) {
+                diagnostics.Push(
+                    Error.UndefinedFunction(expression.identifier.location, expression.identifier.text));
+                return new BoundErrorExpression();
+            }
 
+            var function = symbol as FunctionSymbol;
+            if (function == null) {
+                diagnostics.Push(
+                    Error.CannotCallNonFunction(expression.identifier.location, expression.identifier.text));
                 return new BoundErrorExpression();
             }
 
@@ -258,24 +261,12 @@ namespace Buckle.CodeAnalysis.Binding {
             }
 
             var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
-            bool hasErrors = false;
             for (int i=0; i<expression.arguments.count; i++) {
                 var argument = expression.arguments[i];
                 var parameter = function.parameters[i];
-                var boundArgument = BindExpression(argument);
+                var boundArgument = BindCast(argument.location, BindExpression(argument), parameter.lType );
                 boundArguments.Add(boundArgument);
-
-                if (boundArgument.lType != parameter.lType) {
-                    if (boundArgument.lType != TypeSymbol.Error)
-                        diagnostics.Push(Error.InvalidArgumentType(
-                            expression.arguments[i].location, i+1,
-                            parameter.name, parameter.lType, boundArgument.lType));
-                    hasErrors = true;
-                }
             }
-
-            if (hasErrors)
-                return new BoundErrorExpression();
 
             return new BoundCallExpression(function, boundArguments.ToImmutable());
         }
@@ -306,10 +297,6 @@ namespace Buckle.CodeAnalysis.Binding {
             return new BoundCastExpression(type, expression);
         }
 
-        private BoundExpression BindExpression(Expression expression, TypeSymbol target) {
-            return BindCast(expression, target);
-        }
-
         private BoundStatement BindErrorStatement() {
             return new BoundExpressionStatement(new BoundErrorExpression());
         }
@@ -335,14 +322,14 @@ namespace Buckle.CodeAnalysis.Binding {
         }
 
         private BoundStatement BindWhileStatement(WhileStatement statement) {
-            var condition = BindExpression(statement.condition, TypeSymbol.Bool);
+            var condition = BindCast(statement.condition, TypeSymbol.Bool);
             var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
             return new BoundWhileStatement(condition, body, breakLabel, continueLabel);
         }
 
         private BoundStatement BindDoWhileStatement(DoWhileStatement statement) {
             var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
-            var condition = BindExpression(statement.condition, TypeSymbol.Bool);
+            var condition = BindCast(statement.condition, TypeSymbol.Bool);
             return new BoundDoWhileStatement(body, condition, breakLabel, continueLabel);
         }
 
@@ -350,7 +337,7 @@ namespace Buckle.CodeAnalysis.Binding {
             scope_ = new BoundScope(scope_);
 
             var initializer = BindStatement(statement.initializer);
-            var condition = BindExpression(statement.condition, TypeSymbol.Bool);
+            var condition = BindCast(statement.condition, TypeSymbol.Bool);
             var step = BindExpression(statement.step);
             var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
 
@@ -371,7 +358,7 @@ namespace Buckle.CodeAnalysis.Binding {
         }
 
         private BoundStatement BindIfStatement(IfStatement statement) {
-            var condition = BindExpression(statement.condition, TypeSymbol.Bool);
+            var condition = BindCast(statement.condition, TypeSymbol.Bool);
             var then = BindStatement(statement.then);
             var elseStatement = statement.elseClause == null ? null : BindStatement(statement.elseClause.then);
             return new BoundIfStatement(condition, then, elseStatement);
@@ -446,10 +433,10 @@ namespace Buckle.CodeAnalysis.Binding {
             if (expression.identifier.isMissing)
                 return new BoundErrorExpression();
 
-            if (scope_.TryLookupVariable(name, out var variable))
+            var variable = BindVariableReference(expression.identifier);
+            if (variable == null)
                 return new BoundVariableExpression(variable);
 
-            diagnostics.Push(Error.UndefinedName(expression.identifier.location, name));
             return new BoundErrorExpression();
         }
 
@@ -461,21 +448,29 @@ namespace Buckle.CodeAnalysis.Binding {
             var name = expression.identifier.text;
             var boundExpression = BindExpression(expression.expression);
 
-            if (!scope_.TryLookupVariable(name, out var variable)) {
-                diagnostics.Push(Error.UndefinedName(expression.identifier.location, name));
+            var variable = BindVariableReference(expression.identifier);
+            if (variable == null)
                 return boundExpression;
-            }
 
             if (variable.isReadOnly)
                 diagnostics.Push(Error.ReadonlyAssign(expression.equals.location, name));
 
-            if (boundExpression.lType != variable.lType) {
-                diagnostics.Push(
-                    Error.CannotConvert(expression.expression.location, boundExpression.lType, variable.lType));
-                return boundExpression;
-            }
+            var convertedExpression = BindCast(expression.expression.location, boundExpression, variable.lType);
+            return new BoundAssignmentExpression(variable, convertedExpression);
+        }
 
-            return new BoundAssignmentExpression(variable, boundExpression);
+        private VariableSymbol BindVariableReference(Token identifier) {
+            var name = identifier.text;
+            switch (scope_.LookupSymbol(name)) {
+                case VariableSymbol variable:
+                    return variable;
+                case null:
+                    diagnostics.Push(Error.UndefinedName(identifier.location, name));
+                    return null;
+                default:
+                    diagnostics.Push(Error.NotAVariable(identifier.location, name));
+                    return null;
+            }
         }
 
         private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatement expression) {
@@ -483,8 +478,8 @@ namespace Buckle.CodeAnalysis.Binding {
             var type = BindTypeClause(expression.typeName);
             var initializer = BindExpression(expression.initializer);
             var variableType = type ?? initializer.lType;
-            var castedInitializer = BindCast(expression.initializer.location, initializer, variableType);
             var variable = BindVariable(expression.identifier, isReadOnly, variableType);
+            var castedInitializer = BindCast(expression.initializer.location, initializer, variableType);
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
         }
@@ -515,6 +510,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private TypeSymbol LookupType(string name) {
             switch (name) {
+                case "any": return TypeSymbol.Any;
                 case "bool": return TypeSymbol.Bool;
                 case "int": return TypeSymbol.Int;
                 case "string": return TypeSymbol.String;

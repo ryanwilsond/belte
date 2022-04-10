@@ -176,5 +176,10 @@ namespace Buckle {
             string msg = $"return statement with no value, in function returning non-void";
             return new Diagnostic(DiagnosticType.Error, location, msg);
         }
+
+        internal static Diagnostic NotAVariable(TextLocation location, string name) {
+            string msg = $"'{name}' is not a variable";
+            return new Diagnostic(DiagnosticType.Error, location, msg);
+        }
     }
 }

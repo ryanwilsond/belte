@@ -16,7 +16,7 @@ namespace Buckle.CodeAnalysis.Binding {
         public bool TryDeclareFunction(FunctionSymbol symbol) => TryDeclareSymbol(symbol);
         public bool TryDeclareVariable(VariableSymbol symbol) => TryDeclareSymbol(symbol);
 
-        private bool TryDeclareSymbol<TSymbol>(TSymbol symbol) where TSymbol : Symbol {
+        internal bool TryDeclareSymbol<TSymbol>(TSymbol symbol) where TSymbol : Symbol {
             if (symbols_ == null)
                 symbols_ = new Dictionary<string, Symbol>();
             else if (symbols_.ContainsKey(symbol.name))
@@ -26,25 +26,11 @@ namespace Buckle.CodeAnalysis.Binding {
             return true;
         }
 
-        public bool TryLookupFunction(string name, out FunctionSymbol function) => TryLookupSymbol(name, out function);
-        public bool TryLookupVariable(string name, out VariableSymbol variable) => TryLookupSymbol(name, out variable);
+        internal Symbol LookupSymbol(string name) {
+            if (symbols_ != null && symbols_.TryGetValue(name, out var symbol))
+                return symbol;
 
-        private bool TryLookupSymbol<TSymbol>(string name, out TSymbol symbol) where TSymbol : Symbol {
-            symbol = null;
-
-            if (symbols_ != null && symbols_.TryGetValue(name, out var declaredSymbol)) {
-                if (declaredSymbol is TSymbol matchingSymbol) {
-                    symbol = matchingSymbol;
-                    return true;
-                }
-
-                return false;
-            }
-
-            if (parent == null)
-                return false;
-
-            return parent.TryLookupSymbol(name, out symbol);
+            return parent?.LookupSymbol(name);
         }
 
         public ImmutableArray<VariableSymbol> GetDeclaredVariables() => GetDeclaredSymbols<VariableSymbol>();

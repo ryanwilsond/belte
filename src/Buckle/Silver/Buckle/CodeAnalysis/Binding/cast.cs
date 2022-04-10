@@ -21,14 +21,17 @@ namespace Buckle.CodeAnalysis.Binding {
         public static Cast Classify(TypeSymbol from, TypeSymbol to) {
             if (from == to)
                 return Cast.Identity;
-            if (from == TypeSymbol.Bool || from == TypeSymbol.Int) {
+
+            if (from != TypeSymbol.Void && to == TypeSymbol.Any)
+                return Cast.Implicit;
+            if (from == TypeSymbol.Any && to != TypeSymbol.Void)
+                return Cast.Explicit;
+            if (from == TypeSymbol.Bool || from == TypeSymbol.Int)
                 if (to == TypeSymbol.String)
                     return Cast.Explicit;
-            }
-            if (from == TypeSymbol.String) {
+            if (from == TypeSymbol.String)
                 if (to == TypeSymbol.Bool || to == TypeSymbol.Int)
                     return Cast.Explicit;
-            }
 
             return Cast.None;
         }

@@ -126,6 +126,7 @@ namespace Buckle.CodeAnalysis {
         private object EvaluateCast(BoundCastExpression node) {
             var value = EvaluateExpression(node.expression);
 
+            if (node.lType == TypeSymbol.Any) return value;
             if (node.lType == TypeSymbol.Bool) return Convert.ToBoolean(value);
             if (node.lType == TypeSymbol.Int) return Convert.ToInt32(value);
             if (node.lType == TypeSymbol.String) return Convert.ToString(value);
