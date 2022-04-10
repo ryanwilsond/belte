@@ -64,6 +64,7 @@ namespace Buckle {
     public sealed class Compilation {
         private BoundGlobalScope globalScope_;
         public DiagnosticQueue diagnostics;
+        internal FunctionSymbol mainFunction => globalScope.mainFunction;
         internal ImmutableArray<FunctionSymbol> functions => globalScope.functions;
         internal ImmutableArray<VariableSymbol> variables => globalScope.variables;
         internal ImmutableArray<SyntaxTree> trees { get; }
@@ -143,16 +144,16 @@ namespace Buckle {
 
             var program = GetProgram();
 
-            var appPath = Environment.GetCommandLineArgs()[0];
-            var appDirectory = Path.GetDirectoryName(appPath);
-            var cfgPath = Path.Combine(appDirectory, "cfg.dot");
-            var cfgStatement = !program.statement.statements.Any() && program.functions.Any()
-                ? program.functions.Last().Value
-                : program.statement;
-            var cfg = ControlFlowGraph.Create(cfgStatement);
+            // var appPath = Environment.GetCommandLineArgs()[0];
+            // var appDirectory = Path.GetDirectoryName(appPath);
+            // var cfgPath = Path.Combine(appDirectory, "cfg.dot");
+            // var cfgStatement = !program.statement.statements.Any() && program.functions.Any()
+            // /   ? program.functions.Last().Value
+            //     : program.statement;
+            // var cfg = ControlFlowGraph.Create(cfgStatement);
 
-            using (var streamWriter = new StreamWriter(cfgPath))
-                cfg.WriteTo(streamWriter);
+            // using (var streamWriter = new StreamWriter(cfgPath))
+            //     cfg.WriteTo(streamWriter);
 
             if (program.diagnostics.Any())
                 return new EvaluationResult(null, program.diagnostics);
@@ -163,19 +164,10 @@ namespace Buckle {
         }
 
         internal void EmitTree(TextWriter writer) {
-            var program = GetProgram();
-
-            if (program.statement.statements.Any()) {
-                program.statement.WriteTo(writer);
-            } else {
-                foreach (var functionBody in program.functions) {
-                    if (!globalScope.functions.Contains(functionBody.Key))
-                        continue;
-
-                    functionBody.Key.WriteTo(writer);
-                    functionBody.Value.WriteTo(writer);
-                }
-            }
+            if (globalScope.mainFunction != null)
+                EmitTree(globalScope.mainFunction, writer);
+            else if (globalScope.scriptFunction != null)
+                EmitTree(globalScope.scriptFunction, writer);
         }
 
         internal void EmitTree(Symbol symbol, TextWriter writer) {

@@ -45,13 +45,54 @@ namespace Buckle.CodeAnalysis.Binding {
             foreach (var globalStatement in globalStatements)
                 statements.Add(binder.BindStatement(globalStatement.statement, true));
 
+
+            var firstGlobalPerTree = syntaxTrees
+                .Select(st => st.root.members.OfType<GlobalStatement>().FirstOrDefault())
+                .Where(g => g != null).ToArray();
+
+            if (firstGlobalPerTree.Length > 1)
+                foreach (var globalStatement in firstGlobalPerTree)
+                    binder.diagnostics.Push(Error.GlobalStatementsInMultipleFiles(globalStatement.location));
+
             var functions = binder.scope_.GetDeclaredFunctions();
-            var variables = binder.scope_.GetDeclaredVariables();
+
+            FunctionSymbol mainFunction;
+            FunctionSymbol scriptFunction;
+
+            if (isScript) {
+                if (globalStatements.Any())
+                    scriptFunction = new FunctionSymbol("$eval", ImmutableArray<ParameterSymbol>.Empty, TypeSymbol.Any);
+                else
+                    scriptFunction = null;
+
+                mainFunction = null;
+            } else {
+                scriptFunction = null;
+                mainFunction = functions.FirstOrDefault(f => f.name == "main");
+
+                if (mainFunction != null)
+                    if ((mainFunction.lType != TypeSymbol.Void && mainFunction.lType != TypeSymbol.Int) ||
+                        mainFunction.parameters.Any())
+                        binder.diagnostics.Push(Error.InvalidMain(mainFunction.declaration.location));
+
+                if (globalStatements.Any()) {
+                    if (mainFunction != null) {
+                        binder.diagnostics.Push(Error.MainAndGlobals(mainFunction.declaration.identifier.location));
+
+                        foreach (var globalStatement in firstGlobalPerTree)
+                            binder.diagnostics.Push(Error.MainAndGlobals(globalStatement.location));
+                    } else {
+                        mainFunction = new FunctionSymbol(
+                            "main", ImmutableArray<ParameterSymbol>.Empty, TypeSymbol.Void);
+                    }
+                }
+            }
 
             if (previous != null)
                 binder.diagnostics.diagnostics_.InsertRange(0, previous.diagnostics.diagnostics_);
 
-            return new BoundGlobalScope(previous, binder.diagnostics, functions, variables, statements.ToImmutable());
+            var variables = binder.scope_.GetDeclaredVariables();
+            return new BoundGlobalScope(previous, binder.diagnostics, mainFunction, scriptFunction, functions, variables, statements.ToImmutable());
         }
 
         public static BoundProgram BindProgram(bool isScript, BoundProgram previous, BoundGlobalScope globalScope) {
@@ -71,8 +112,27 @@ namespace Buckle.CodeAnalysis.Binding {
                 diagnostics.Move(binder.diagnostics);
             }
 
-            var statement = Lowerer.Lower(new BoundBlockStatement(globalScope.statements));
-            return new BoundProgram(previous, diagnostics, functionBodies.ToImmutable(), statement);
+            if (globalScope.mainFunction != null && globalScope.statements.Any()) {
+                var body = Lowerer.Lower(new BoundBlockStatement(globalScope.statements));
+                functionBodies.Add(globalScope.mainFunction, body);
+            } else if (globalScope.scriptFunction != null) {
+                var statements = globalScope.statements;
+
+                if (statements.Length == 1 &&
+                    statements[0] is BoundExpressionStatement es &&
+                    es.expression.lType != TypeSymbol.Void) {
+                    statements = statements.SetItem(0, new BoundReturnStatement(es.expression));
+                } else {
+                    var nullValue = new BoundLiteralExpression("");
+                    statements = statements.Add(new BoundReturnStatement(nullValue));
+                }
+
+                var body = Lowerer.Lower(new BoundBlockStatement(statements));
+                functionBodies.Add(globalScope.scriptFunction, body);
+            }
+
+            return new BoundProgram(previous, diagnostics, globalScope.mainFunction,
+                globalScope.scriptFunction, functionBodies.ToImmutable());
         }
 
         private void BindFunctionDeclaration(FunctionDeclaration function) {
@@ -435,9 +495,9 @@ namespace Buckle.CodeAnalysis.Binding {
 
             var variable = BindVariableReference(expression.identifier);
             if (variable == null)
-                return new BoundVariableExpression(variable);
+                return new BoundErrorExpression();
 
-            return new BoundErrorExpression();
+            return new BoundVariableExpression(variable);
         }
 
         private BoundExpression BindEmptyExpression(EmptyExpression expression) {

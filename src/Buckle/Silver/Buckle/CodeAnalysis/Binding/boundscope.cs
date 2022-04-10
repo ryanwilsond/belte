@@ -47,16 +47,21 @@ namespace Buckle.CodeAnalysis.Binding {
     internal sealed class BoundGlobalScope {
         public BoundGlobalScope previous { get; }
         public DiagnosticQueue diagnostics { get; }
+        public FunctionSymbol mainFunction { get; }
+        public FunctionSymbol scriptFunction { get; }
         public ImmutableArray<FunctionSymbol> functions { get; }
         public ImmutableArray<VariableSymbol> variables { get; }
         public ImmutableArray<BoundStatement> statements { get; }
 
         public BoundGlobalScope(
-            BoundGlobalScope previous_, DiagnosticQueue diagnostics_, ImmutableArray<FunctionSymbol> functions_,
+            BoundGlobalScope previous_, DiagnosticQueue diagnostics_, FunctionSymbol mainFunction_,
+            FunctionSymbol scriptFunction_, ImmutableArray<FunctionSymbol> functions_,
             ImmutableArray<VariableSymbol> variables_, ImmutableArray<BoundStatement> statements_) {
             previous = previous_;
             diagnostics = new DiagnosticQueue();
             diagnostics.Move(diagnostics_);
+            mainFunction = mainFunction_;
+            scriptFunction = scriptFunction_;
             functions = functions_;
             variables = variables_;
             statements = statements_;
@@ -66,17 +71,20 @@ namespace Buckle.CodeAnalysis.Binding {
     internal sealed class BoundProgram {
         public BoundProgram previous { get; }
         public DiagnosticQueue diagnostics { get; }
+        public FunctionSymbol mainFunction { get; }
+        public FunctionSymbol scriptFunction { get; }
         public ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functions { get; }
-        public BoundBlockStatement statement { get; }
 
         public BoundProgram(
             BoundProgram previous_, DiagnosticQueue diagnostics_,
-            ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies_,
-            BoundBlockStatement statement_) {
+            FunctionSymbol mainFunction_,
+            FunctionSymbol scriptFunction_,
+            ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies_) {
             previous = previous_;
             diagnostics = diagnostics_;
+            mainFunction = mainFunction_;
+            scriptFunction = scriptFunction_;
             functions = functionBodies_;
-            statement = statement_;
         }
     }
 }

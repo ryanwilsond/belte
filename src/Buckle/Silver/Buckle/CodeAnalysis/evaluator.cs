@@ -31,7 +31,12 @@ namespace Buckle.CodeAnalysis {
         }
 
         public object Evaluate() {
-            return EvaluateStatement(program_.statement);
+            var function = program_.mainFunction ?? program_.scriptFunction;
+            if (function == null)
+                return null;
+
+            var body = functions_[function];
+            return EvaluateStatement(body);
         }
 
         private object EvaluateStatement(BoundBlockStatement statement) {

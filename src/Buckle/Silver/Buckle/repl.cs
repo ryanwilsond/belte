@@ -180,7 +180,10 @@ namespace CommandLine {
             if (key.Modifiers == default(ConsoleModifiers)) {
                 switch (key.Key) {
                     case ConsoleKey.Enter:
-                        HandleEnter(document, view);
+                        if (key.Modifiers == ConsoleModifiers.Shift)
+                            InsertLine(document, view);
+                        else
+                            HandleEnter(document, view);
                         break;
                     case ConsoleKey.LeftArrow:
                         HandleLeftArrow(document, view);
@@ -225,14 +228,6 @@ namespace CommandLine {
                 switch (key.Key) {
                     case ConsoleKey.Enter:
                         HandleControlEnter(document, view);
-                        break;
-                    default:
-                        break;
-                }
-            } else if (key.Modifiers == ConsoleModifiers.Shift) {
-                switch (key.Key) {
-                    case ConsoleKey.Enter:
-                        InsertLine(document, view);
                         break;
                     default:
                         break;

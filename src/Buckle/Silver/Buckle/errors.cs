@@ -47,13 +47,29 @@ namespace Buckle {
             return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic InvalidBinaryOperatorUse(TextLocation location, string op, TypeSymbol left, TypeSymbol right) {
+        public static Diagnostic InvalidBinaryOperatorUse(
+            TextLocation location, string op, TypeSymbol left, TypeSymbol right) {
             string msg = $"operator '{op}' is not defined for types '{left}' and '{right}'";
+            return new Diagnostic(DiagnosticType.Error, location, msg);
+        }
+
+        public static Diagnostic GlobalStatementsInMultipleFiles(TextLocation location) {
+            string msg = $"multiple files with global statements creates ambigous entry point";
             return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
         public static Diagnostic ParameterAlreadyDeclared(TextLocation location, string name) {
             string msg = $"redefinition of parameter '{name}'";
+            return new Diagnostic(DiagnosticType.Error, location, msg);
+        }
+
+        public static Diagnostic InvalidMain(TextLocation location) {
+            string msg = $"invalid main signature: must return void or int and take no arguments";
+            return new Diagnostic(DiagnosticType.Error, location, msg);
+        }
+
+        public static Diagnostic MainAndGlobals(TextLocation location) {
+            string msg = $"declaring a main function and using global statements creates ambigous entry point";
             return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
@@ -177,8 +193,8 @@ namespace Buckle {
             return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        internal static Diagnostic NotAVariable(TextLocation location, string name) {
-            string msg = $"'{name}' is not a variable";
+        public static Diagnostic NotAVariable(TextLocation location, string name) {
+            string msg = $"'{name}' is not a variable (RENAME)";
             return new Diagnostic(DiagnosticType.Error, location, msg);
         }
     }
