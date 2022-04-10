@@ -1,3 +1,4 @@
+using System;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -136,6 +137,11 @@ namespace Buckle {
 
         public static Diagnostic CannotCallNonFunction(TextLocation location, string text) {
             string msg = $"called object '{text}' is not a function";
+            return new Diagnostic(DiagnosticType.Error, location, msg);
+        }
+
+        public static Diagnostic InvalidExpressionStatement(TextLocation location) {
+            string msg = $"only assignment and call expressions can be used as a statement";
             return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 

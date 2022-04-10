@@ -61,7 +61,7 @@ namespace Buckle {
                 }
             }
 
-            var compilation = new Compilation(syntaxTrees.ToArray());
+            var compilation = Compilation.Create(syntaxTrees.ToArray());
             diagnostics.Move(compilation.diagnostics);
 
             if (diagnostics.Any())
@@ -87,7 +87,7 @@ namespace Buckle {
                 }
             }
 
-            var compilation = new Compilation(syntaxTrees.ToArray());
+            var compilation = Compilation.Create(syntaxTrees.ToArray());
             diagnostics.Move(compilation.diagnostics);
         }
 

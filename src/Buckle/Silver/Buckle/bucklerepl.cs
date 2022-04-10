@@ -13,7 +13,7 @@ namespace Buckle {
     }
 
     public sealed class BuckleRepl : Repl {
-        private static readonly Compilation emptyCompilation = new Compilation();
+        private static readonly Compilation emptyCompilation = Compilation.CreateScript(null);
         internal override ReplState state_ { get; set; }
         internal BuckleReplState state { get { return (BuckleReplState)state_; } set { state_=value; } }
 
@@ -34,9 +34,7 @@ namespace Buckle {
         protected override void EvaluateSubmission(string text) {
             var syntaxTree = SyntaxTree.Parse(text);
 
-            var compilation = state.previous == null
-                ? new Compilation(syntaxTree)
-                : state.previous.ContinueWith(syntaxTree);
+            var compilation = Compilation.CreateScript(state.previous, syntaxTree);
 
             if (state.showTree) syntaxTree.root.WriteTo(Console.Out);
             if (state.showProgram) compilation.EmitTree(Console.Out);
@@ -75,7 +73,9 @@ namespace Buckle {
         }
 
         private static void ClearSubmissions() {
-            Directory.Delete(GetSumbissionsDirectory(), true);
+            var path = GetSumbissionsDirectory();
+            if (Directory.Exists(path))
+                Directory.Delete(GetSumbissionsDirectory(), true);
         }
 
         private void LoadSubmissions() {

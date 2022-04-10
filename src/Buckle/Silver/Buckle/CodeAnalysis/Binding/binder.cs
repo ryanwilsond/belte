@@ -11,12 +11,14 @@ namespace Buckle.CodeAnalysis.Binding {
     internal sealed class Binder {
         public DiagnosticQueue diagnostics;
         private BoundScope scope_;
+        private readonly bool isScript_;
         private readonly FunctionSymbol function_;
         private Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> loopStack_ =
             new Stack<(BoundLabel breakLabel, BoundLabel continueLabel)>();
         private int labelCount_;
 
-        public Binder(BoundScope parent, FunctionSymbol function) {
+        public Binder(bool isScript, BoundScope parent, FunctionSymbol function) {
+            isScript_ = isScript;
             diagnostics = new DiagnosticQueue();
             scope_ = new BoundScope(parent);
             function_ = function;
@@ -28,9 +30,9 @@ namespace Buckle.CodeAnalysis.Binding {
         }
 
         public static BoundGlobalScope BindGlobalScope(
-            BoundGlobalScope previous, ImmutableArray<SyntaxTree> syntaxTrees) {
+            bool isScript, BoundGlobalScope previous, ImmutableArray<SyntaxTree> syntaxTrees) {
             var parentScope = CreateParentScope(previous);
-            var binder = new Binder(parentScope, null);
+            var binder = new Binder(isScript, parentScope, null);
 
             var functionDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<FunctionDeclaration>();
 
@@ -41,7 +43,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
             var statements = ImmutableArray.CreateBuilder<BoundStatement>();
             foreach (var globalStatement in globalStatements)
-                statements.Add(binder.BindStatement(globalStatement.statement));
+                statements.Add(binder.BindStatement(globalStatement.statement, true));
 
             var functions = binder.scope_.GetDeclaredFunctions();
             var variables = binder.scope_.GetDeclaredVariables();
@@ -52,13 +54,13 @@ namespace Buckle.CodeAnalysis.Binding {
             return new BoundGlobalScope(previous, binder.diagnostics, functions, variables, statements.ToImmutable());
         }
 
-        public static BoundProgram BindProgram(BoundProgram previous, BoundGlobalScope globalScope) {
+        public static BoundProgram BindProgram(bool isScript, BoundProgram previous, BoundGlobalScope globalScope) {
             var parentScope = CreateParentScope(globalScope);
             var functionBodies = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
             var diagnostics = new DiagnosticQueue();
 
             foreach (var function in globalScope.functions) {
-                var binder = new Binder(parentScope, function);
+                var binder = new Binder(isScript, parentScope, function);
                 var body = binder.BindStatement(function.declaration.body);
                 var loweredBody = Lowerer.Lower(body);
 
@@ -130,7 +132,24 @@ namespace Buckle.CodeAnalysis.Binding {
             return result;
         }
 
-        private BoundStatement BindStatement(Statement syntax) {
+        private BoundStatement BindStatement(Statement syntax, bool isGlobal = false) {
+            var result = BindStatementInternal(syntax);
+
+            if (!isScript_ || !isGlobal) {
+                if (result is BoundExpressionStatement es) {
+                    var isAllowedExpression = es.expression.type == BoundNodeType.CallExpression ||
+                        es.expression.type == BoundNodeType.AssignmentExpression ||
+                        es.expression.type == BoundNodeType.ErrorExpression;
+
+                    if (!isAllowedExpression)
+                        diagnostics.Push(Error.InvalidExpressionStatement(syntax.location));
+                }
+            }
+
+            return result;
+        }
+
+        private BoundStatement BindStatementInternal(Statement syntax) {
             switch (syntax.type) {
                 case SyntaxType.BLOCK_STATEMENT: return BindBlockStatement((BlockStatement)syntax);
                 case SyntaxType.EXPRESSION_STATEMENT: return BindExpressionStatement((ExpressionStatement)syntax);

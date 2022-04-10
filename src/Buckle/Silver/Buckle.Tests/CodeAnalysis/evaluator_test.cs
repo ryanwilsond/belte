@@ -276,7 +276,7 @@ namespace Buckle.Tests.CodeAnalysis {
 
         private void AssertValue(string text, object expectedValue) {
             var tree = SyntaxTree.Parse(text);
-            var compilation = new Compilation(tree);
+            var compilation = Compilation.CreateScript(null, tree);
             var variables = new Dictionary<VariableSymbol, object>();
             var result = compilation.Evaluate(variables);
 
@@ -287,7 +287,7 @@ namespace Buckle.Tests.CodeAnalysis {
         private void AssertDiagnostics(string text, string diagnosticText) {
             var annotatedText = AnnotatedText.Parse(text);
             var syntaxTree = SyntaxTree.Parse(annotatedText.text);
-            var compilation = new Compilation(syntaxTree);
+            var compilation = Compilation.CreateScript(null, syntaxTree);
             var result = compilation.Evaluate(new Dictionary<VariableSymbol, object>());
 
             var expectedDiagnostics = AnnotatedText.UnindentLines(diagnosticText);

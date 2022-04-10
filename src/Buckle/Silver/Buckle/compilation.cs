@@ -64,15 +64,16 @@ namespace Buckle {
     public sealed class Compilation {
         private BoundGlobalScope globalScope_;
         public DiagnosticQueue diagnostics;
-        internal ImmutableArray<SyntaxTree> trees;
         internal ImmutableArray<FunctionSymbol> functions => globalScope.functions;
         internal ImmutableArray<VariableSymbol> variables => globalScope.variables;
-        public Compilation previous;
+        internal ImmutableArray<SyntaxTree> trees { get; }
+        internal Compilation previous { get; }
+        internal bool isScript { get; }
 
         internal BoundGlobalScope globalScope {
             get {
                 if (globalScope_ == null) {
-                    var tempScope = Binder.BindGlobalScope(previous?.globalScope, trees);
+                    var tempScope = Binder.BindGlobalScope(isScript, previous?.globalScope, trees);
                     // makes assignment thread-safe, if multiple threads try to initialize they use whoever did it first
                     Interlocked.CompareExchange(ref globalScope_, tempScope, null);
                 }
@@ -81,14 +82,23 @@ namespace Buckle {
             }
         }
 
-        internal Compilation(params SyntaxTree[] trees) : this(null, trees) { }
-
-        private Compilation(Compilation previous_, params SyntaxTree[] trees_) {
-            diagnostics = new DiagnosticQueue();
-            foreach (var tree in trees_)
-                diagnostics.Move(tree.diagnostics);
+        private Compilation(bool isScript_, Compilation previous_, params SyntaxTree[] syntaxTrees) {
+            isScript = isScript_;
             previous = previous_;
-            trees = trees_.ToImmutableArray();
+            diagnostics = new DiagnosticQueue();
+
+            foreach (var tree in syntaxTrees)
+                diagnostics.Move(tree.diagnostics);
+
+            trees = syntaxTrees.ToImmutableArray();
+        }
+
+        internal static Compilation Create(params SyntaxTree[] syntaxTrees) {
+            return new Compilation(false, null, syntaxTrees);
+        }
+
+        internal static Compilation CreateScript(Compilation previous, params SyntaxTree[] syntaxTrees) {
+            return new Compilation(true, previous, syntaxTrees);
         }
 
         internal IEnumerable<Symbol> GetSymbols() {
@@ -120,7 +130,7 @@ namespace Buckle {
 
         private BoundProgram GetProgram() {
             var previous_ = previous == null ? null : previous.GetProgram();
-            return Binder.BindProgram(previous_, globalScope);
+            return Binder.BindProgram(isScript, previous_, globalScope);
         }
 
         internal EvaluationResult Evaluate(Dictionary<VariableSymbol, object> variables) {
@@ -150,10 +160,6 @@ namespace Buckle {
             var eval = new Evaluator(program, variables);
             var result = new EvaluationResult(eval.Evaluate(), diagnostics);
             return result;
-        }
-
-        internal Compilation ContinueWith(params SyntaxTree[] trees) {
-            return new Compilation(this, trees);
         }
 
         internal void EmitTree(TextWriter writer) {
