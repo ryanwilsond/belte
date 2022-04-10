@@ -20,6 +20,7 @@ namespace Buckle.CodeAnalysis {
             program_ = program;
             diagnostics = new DiagnosticQueue();
             globals_ = globals;
+            locals_.Push(new Dictionary<VariableSymbol, object>());
 
             var current = program;
             while (current != null) {

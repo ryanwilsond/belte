@@ -41,6 +41,10 @@ namespace Buckle.CodeAnalysis.Binding {
 
             var globalStatements = syntaxTrees.SelectMany(st => st.root.members).OfType<GlobalStatement>();
 
+            var statements = ImmutableArray.CreateBuilder<BoundStatement>();
+            foreach (var globalStatement in globalStatements)
+                statements.Add(binder.BindStatement(globalStatement.statement, true));
+
             var firstGlobalPerTree = syntaxTrees
                 .Select(st => st.root.members.OfType<GlobalStatement>().FirstOrDefault())
                 .Where(g => g != null).ToArray();
@@ -83,20 +87,11 @@ namespace Buckle.CodeAnalysis.Binding {
                 }
             }
 
-            var globalFunction = mainFunction ?? scriptFunction;
-            var statements = ImmutableArray.CreateBuilder<BoundStatement>();
-            if (globalFunction != null) {
-                var statementBinder = new Binder(isScript, parentScope, globalFunction);
-                foreach (var globalStatement in globalStatements)
-                    statements.Add(statementBinder.BindStatement(globalStatement.statement, true));
-
-                binder.diagnostics.Move(statementBinder.diagnostics);
-            }
+            var variables = binder.scope_.GetDeclaredVariables();
 
             if (previous != null)
                 binder.diagnostics.diagnostics_.InsertRange(0, previous.diagnostics.diagnostics_);
 
-            var variables = binder.scope_.GetDeclaredVariables();
             return new BoundGlobalScope(previous, binder.diagnostics, mainFunction,
                 scriptFunction, functions, variables, statements.ToImmutable());
         }
@@ -238,18 +233,22 @@ namespace Buckle.CodeAnalysis.Binding {
             var boundExpression = expression.expression == null ? null : BindExpression(expression.expression);
 
             if (function_ == null) {
-                diagnostics.Push(Error.ReturnOutsideFunction(expression.keyword.location));
-                return new BoundExpressionStatement(new BoundErrorExpression());
-            }
-
-            if (function_.lType == TypeSymbol.Void) {
-                if (boundExpression != null)
-                    diagnostics.Push(Error.UnexpectedReturnValue(expression.keyword.location));
+                if (isScript_) {
+                    if (boundExpression == null)
+                        boundExpression = new BoundLiteralExpression("");
+                } else if (boundExpression != null) {
+                    diagnostics.Push(Error.Unsupported.MainReturnValue(expression.keyword.location));
+                }
             } else {
-                if (boundExpression == null)
-                    diagnostics.Push(Error.MissingReturnValue(expression.keyword.location));
-                else
-                    boundExpression = BindCast(expression.expression.location, boundExpression, function_.lType);
+                if (function_.lType == TypeSymbol.Void) {
+                    if (boundExpression != null)
+                        diagnostics.Push(Error.UnexpectedReturnValue(expression.keyword.location));
+                } else {
+                    if (boundExpression == null)
+                        diagnostics.Push(Error.MissingReturnValue(expression.keyword.location));
+                    else
+                        boundExpression = BindCast(expression.expression.location, boundExpression, function_.lType);
+                }
             }
 
             return new BoundReturnStatement(boundExpression);

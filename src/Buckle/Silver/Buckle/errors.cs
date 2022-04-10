@@ -9,6 +9,10 @@ namespace Buckle {
         internal static class Unsupported {
             // temporary errors messages go here
             // given compiler is finished this will be empty
+            internal static Diagnostic MainReturnValue(TextLocation location) {
+                string msg = $"unsupported: main cannot return a value";
+                return new Diagnostic(DiagnosticType.Error, location, msg);
+            }
         }
 
         public static string DiagnosticText(SyntaxType type) {
@@ -194,7 +198,7 @@ namespace Buckle {
         }
 
         public static Diagnostic NotAVariable(TextLocation location, string name) {
-            string msg = $"'{name}' is not a variable (RENAME)";
+            string msg = $"function '{name}' used as a variable";
             return new Diagnostic(DiagnosticType.Error, location, msg);
         }
     }

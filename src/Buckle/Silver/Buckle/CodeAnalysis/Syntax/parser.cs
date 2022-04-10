@@ -74,8 +74,17 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         private Member ParseMember() {
-            if (current.type == SyntaxType.IDENTIFIER && tokens_.Length > 2 && Peek(2).type == SyntaxType.LPAREN)
-                return ParseFunctionDeclaration();
+            if (current.type == SyntaxType.IDENTIFIER && tokens_.Length > 3) {
+                bool openBrace = false;
+
+                for (int i=0; i<tokens_.Length-position_; i++) {
+                    if (Peek(i).type == SyntaxType.SEMICOLON) break;
+                    if (Peek(i).type == SyntaxType.LBRACE) openBrace = true;
+                }
+
+                if (openBrace)
+                    return ParseFunctionDeclaration();
+            }
 
             return ParseGlobalStatement();
         }

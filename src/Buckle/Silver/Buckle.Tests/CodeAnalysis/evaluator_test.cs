@@ -80,18 +80,18 @@ namespace Buckle.Tests.CodeAnalysis {
         [InlineData("4 >= 5;", false)]
         [InlineData("5 >= 4;", true)]
 
-        [InlineData("auto a = 10;", 10)]
-        [InlineData("auto a = 10; a * a;", 100)]
-        [InlineData("auto a = 1; a = 10 * a;", 10)]
+        [InlineData("auto a = 10; return a;", 10)]
+        [InlineData("auto a = 10; return a * a;", 100)]
+        [InlineData("auto a = 1; return 10 * a;", 10)]
 
-        [InlineData("auto a = 0; if (a == 0) { a = 10; } a;", 10)]
-        [InlineData("auto a = 0; if (a == 4) { a = 10; } a;", 0)]
-        [InlineData("auto a = 0; if (a == 0) { a = 10; } else { a = 5; } a;", 10)]
-        [InlineData("auto a = 0; if (a == 4) { a = 10; } else { a = 5; } a;", 5)]
+        [InlineData("auto a = 0; if (a == 0) { a = 10; } return a;", 10)]
+        [InlineData("auto a = 0; if (a == 4) { a = 10; } return a;", 0)]
+        [InlineData("auto a = 0; if (a == 0) { a = 10; } else { a = 5; } return a;", 10)]
+        [InlineData("auto a = 0; if (a == 4) { a = 10; } else { a = 5; } return a;", 5)]
 
-        [InlineData("auto i = 10; auto result = 0; while (i > 0) { result = result + i; i = i - 1; } result;", 55)]
-        [InlineData("auto result = 0; for (auto i=0; i<=10; i=i+1) { result = result + i; } result;", 55)]
-        [InlineData("auto result = 0; do { result = result + 1; } while (result < 10); result;", 10)]
+        [InlineData("auto i = 10; auto result = 0; while (i > 0) { result = result + i; i = i - 1; } return result;", 55)]
+        [InlineData("auto result = 0; for (auto i=0; i<=10; i=i+1) { result = result + i; } return result;", 55)]
+        [InlineData("auto result = 0; do { result = result + 1; } while (result < 10); return result;", 10)]
         public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
             AssertValue(text, expectedValue);
         }
@@ -147,6 +147,20 @@ namespace Buckle.Tests.CodeAnalysis {
         }
 
         [Fact]
+        public void Evaluator_FunctionReturn_Missing() {
+            var text = @"
+                int [add](int a, int b) {
+                }
+            ";
+
+            var diagnostics = @"
+                not all code paths return a value
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
         public void Evaluator_Block_NoInfiniteLoop() {
             var text = @"
                 {
@@ -166,6 +180,47 @@ namespace Buckle.Tests.CodeAnalysis {
             var text = @"
                 auto x = 0;
                 if ([10]) x = 1;
+            ";
+
+            var diagnostics = @"
+                cannot convert from type 'int' to 'bool'
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_WhileStatement_Reports_CannotConvert() {
+            var text = @"
+                auto x = 0;
+                while ([10]) { x = 10; }
+            ";
+
+            var diagnostics = @"
+                cannot convert from type 'int' to 'bool'
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_DoWhileStatement_Reports_CannotConvert() {
+            var text = @"
+                auto x = 0;
+                do { x = 10; } while ([10]);
+            ";
+
+            var diagnostics = @"
+                cannot convert from type 'int' to 'bool'
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_ForStatement_Reports_CannotConvert() {
+            var text = @"
+                for (int i=0; [i]; i=i+1) {}
             ";
 
             var diagnostics = @"
@@ -225,6 +280,17 @@ namespace Buckle.Tests.CodeAnalysis {
         }
 
         [Fact]
+        public void Evaluator_AssignmentExpression_Reports_CannotAssign() {
+            var text = @"[print] = 10;";
+
+            var diagnostics = @"
+                function 'print' used as a variable
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
         public void Evaluator_AssignmentExpression_Reports_Readonly() {
             var text = @"
                 let x = 10;
@@ -247,6 +313,164 @@ namespace Buckle.Tests.CodeAnalysis {
 
             var diagnostics = @"
                 cannot convert from type 'bool' to 'int'
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_CallExpression_Reports_Undefined() {
+            var text = @"[foo]();";
+
+            var diagnostics = @"
+                undefined function 'foo'
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_CallExpression_Reports_CannotCall() {
+            var text = @"
+                auto foo = 4;
+                [foo]();
+            ";
+
+            var diagnostics = @"
+                called object 'foo' is not a function
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_Variables_ShadowsFunction() {
+            var text = @"
+                int print = 4;
+                [print](""test"");
+            ";
+
+            var diagnostics = @"
+                called object 'print' is not a function
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_Function_ShouldNotReturnValue() {
+            var text = @"
+                void func() {
+                    [return] 5;
+                }
+            ";
+
+            var diagnostics = @"
+                return statement with a value, in function returning void
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_Function_ShouldNotReturnVoid() {
+            var text = @"
+                int func() {
+                    [return];
+                }
+            ";
+
+            var diagnostics = @"
+                return statement with no value, in function returning non-void
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_Script_Return() {
+            var text = @"
+                return;
+            ";
+
+            AssertValue(text, "");
+        }
+
+        [Fact]
+        public void Evaluator_Expression_MustHaveValue() {
+            var text = @"
+                void func() {}
+                auto x = [func()];
+            ";
+
+            var diagnostics = @"
+                expression must have a value
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_Break_Invalid() {
+            var text = @"
+                [break];
+            ";
+
+            var diagnostics = @"
+                break statement not within a loop
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_Parameter_AlreadyDeclared() {
+            var text = @"
+                void func(int a, [int a]) {}
+            ";
+
+            var diagnostics = @"
+                redefinition of parameter 'a'
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_Function_MustHaveName() {
+            var text = @"
+                void [(]int a) {}
+            ";
+
+            var diagnostics = @"
+                unexpected token '(', expected identifier
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_Function_WrongArgumentType() {
+            var text = @"
+                void func(int a) {}
+                func([false]);
+            ";
+
+            var diagnostics = @"
+                cannot convert from type 'bool' to 'int'
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_InvalidType() {
+            var text = @"
+                void func([invalidtype] a) {}
+            ";
+
+            var diagnostics = @"
+                unknown type 'invalidtype'
             ";
 
             AssertDiagnostics(text, diagnostics);
