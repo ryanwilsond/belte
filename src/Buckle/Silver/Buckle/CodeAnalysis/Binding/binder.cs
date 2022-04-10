@@ -41,11 +41,6 @@ namespace Buckle.CodeAnalysis.Binding {
 
             var globalStatements = syntaxTrees.SelectMany(st => st.root.members).OfType<GlobalStatement>();
 
-            var statements = ImmutableArray.CreateBuilder<BoundStatement>();
-            foreach (var globalStatement in globalStatements)
-                statements.Add(binder.BindStatement(globalStatement.statement, true));
-
-
             var firstGlobalPerTree = syntaxTrees
                 .Select(st => st.root.members.OfType<GlobalStatement>().FirstOrDefault())
                 .Where(g => g != null).ToArray();
@@ -88,11 +83,22 @@ namespace Buckle.CodeAnalysis.Binding {
                 }
             }
 
+            var globalFunction = mainFunction ?? scriptFunction;
+            var statements = ImmutableArray.CreateBuilder<BoundStatement>();
+            if (globalFunction != null) {
+                var statementBinder = new Binder(isScript, parentScope, globalFunction);
+                foreach (var globalStatement in globalStatements)
+                    statements.Add(statementBinder.BindStatement(globalStatement.statement, true));
+
+                binder.diagnostics.Move(statementBinder.diagnostics);
+            }
+
             if (previous != null)
                 binder.diagnostics.diagnostics_.InsertRange(0, previous.diagnostics.diagnostics_);
 
             var variables = binder.scope_.GetDeclaredVariables();
-            return new BoundGlobalScope(previous, binder.diagnostics, mainFunction, scriptFunction, functions, variables, statements.ToImmutable());
+            return new BoundGlobalScope(previous, binder.diagnostics, mainFunction,
+                scriptFunction, functions, variables, statements.ToImmutable());
         }
 
         public static BoundProgram BindProgram(bool isScript, BoundProgram previous, BoundGlobalScope globalScope) {
@@ -122,7 +128,7 @@ namespace Buckle.CodeAnalysis.Binding {
                     statements[0] is BoundExpressionStatement es &&
                     es.expression.lType != TypeSymbol.Void) {
                     statements = statements.SetItem(0, new BoundReturnStatement(es.expression));
-                } else {
+                } else if (statements.Any() && statements.Last().type != BoundNodeType.ReturnStatement) {
                     var nullValue = new BoundLiteralExpression("");
                     statements = statements.Add(new BoundReturnStatement(nullValue));
                 }
