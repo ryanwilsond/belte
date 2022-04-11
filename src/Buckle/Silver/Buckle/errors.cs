@@ -9,8 +9,8 @@ namespace Buckle {
         internal static class Unsupported {
             // temporary errors messages go here
             // given compiler is finished this will be empty
-            internal static Diagnostic MainReturnValue(TextLocation location) {
-                string msg = $"unsupported: main cannot return a value";
+            internal static Diagnostic GlobalReturnValue(TextLocation location) {
+                string msg = $"unsupported: global return cannot return a value";
                 return new Diagnostic(DiagnosticType.Error, location, msg);
             }
         }

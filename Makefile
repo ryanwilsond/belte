@@ -15,6 +15,10 @@ build:
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/CmdLine.runtimeconfig.json CmdLine.runtimeconfig.json
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/System.Collections.Immutable.dll System.Collections.Immutable.dll
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/System.Runtime.CompilerServices.Unsafe.dll System.Runtime.CompilerServices.Unsafe.dll
+	cp $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.Mdb.dll Mono.Cecil.Mdb.dll
+	cp $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.Pdb.dll Mono.Cecil.Pdb.dll
+	cp $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.Rocks.dll Mono.Cecil.Rocks.dll
+	cp $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.dll Mono.Cecil.dll
 
 test:
 	dotnet test $(TESTDIR)/Buckle.Tests.csproj

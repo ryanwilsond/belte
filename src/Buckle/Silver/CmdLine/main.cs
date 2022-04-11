@@ -52,10 +52,12 @@ namespace CommandLine {
                             state.buildMode = BuildMode.Repl;
                             if (args.Length != 1)
                                 diagnostics.Push(DiagnosticType.Fatal, "cannot use any other arguments with '-r'");
-
                             break;
                         case "-i":
                             state.buildMode = BuildMode.Interpreter;
+                            break;
+                        case "-d":
+                            state.buildMode = BuildMode.Dotnet;
                             break;
                         case "-o":
                             specifyOut = true;
@@ -118,16 +120,19 @@ namespace CommandLine {
 
             state.tasks = tasks.ToArray();
 
-            if (specifyOut && specifyStage && state.tasks.Length > 1)
+            if (specifyStage && state.buildMode == BuildMode.Dotnet)
+                diagnostics.Push(DiagnosticType.Fatal, "cannot specify '-E', '-S', or '-c' with .NET integration");
+
+            if (specifyOut && specifyStage && state.tasks.Length > 1 && !(state.buildMode == BuildMode.Dotnet))
                 diagnostics.Push(
                     DiagnosticType.Fatal, "cannot specify output file with '-E', '-S', or '-c' with multiple files");
 
+            if ((specifyStage || specifyOut) && state.buildMode == BuildMode.Interpreter)
+                diagnostics.Push(
+                    DiagnosticType.Fatal, "cannot specify outfile or use '-E', '-S', or '-c' with interpreter");
+
             if (state.tasks.Length == 0 && !(state.buildMode == BuildMode.Repl))
                 diagnostics.Push(DiagnosticType.Fatal, "no input files");
-
-            if (specifyStage && state.buildMode == BuildMode.Interpreter)
-                diagnostics.Push(
-                    DiagnosticType.Fatal, "cannot specify output file with '-E', '-S', or '-c' with interpreter");
 
             return state;
         }

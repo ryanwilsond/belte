@@ -72,8 +72,6 @@ namespace Buckle {
         }
 
         private void InternalCompiler() {
-            diagnostics.Push(DiagnosticType.Fatal, "compilation not supported (yet)");
-
             var syntaxTrees = new List<SyntaxTree>();
 
             for (int i = 0; i < state.tasks.Length; i++) {
@@ -88,7 +86,12 @@ namespace Buckle {
             }
 
             var compilation = Compilation.Create(syntaxTrees.ToArray());
-            diagnostics.Move(compilation.diagnostics);
+            var result = compilation.Emit(state.moduleName, state.references, state.linkOutputFilename);
+            diagnostics.Move(result);
+        }
+
+        private void InternalCompilerNet() {
+
         }
 
         /// <summary>
@@ -108,14 +111,20 @@ namespace Buckle {
             if (state.buildMode == BuildMode.Interpreter) {
                 InternalInterpreter();
                 return CheckErrors();
+            } else if (state.buildMode == BuildMode.Dotnet) {
+                InternalCompilerNet();
+                return CheckErrors();
             }
 
-            InternalCompiler();
-            err = CheckErrors();
-            if (err != SUCCESS_EXIT_CODE) return err;
+            diagnostics.Push(DiagnosticType.Fatal, "independent compilation not supported (yet)");
+            return CheckErrors();
 
-            if (state.finishStage == CompilerStage.Compiled)
-                return SUCCESS_EXIT_CODE;
+            // InternalCompiler();
+            // err = CheckErrors();
+            // if (err != SUCCESS_EXIT_CODE) return err;
+
+            // if (state.finishStage == CompilerStage.Compiled)
+            //     return SUCCESS_EXIT_CODE;
 
             // ExternalAssembler();
             // err = CheckErrors();
@@ -131,7 +140,7 @@ namespace Buckle {
             // if (state.finishStage == CompilerStage.Linked)
             //     return SUCCESS_EXIT_CODE;
 
-            return FATAL_EXIT_CODE;
+            // return FATAL_EXIT_CODE;
         }
     }
 }

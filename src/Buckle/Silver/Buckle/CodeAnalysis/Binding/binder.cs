@@ -237,7 +237,7 @@ namespace Buckle.CodeAnalysis.Binding {
                     if (boundExpression == null)
                         boundExpression = new BoundLiteralExpression("");
                 } else if (boundExpression != null) {
-                    diagnostics.Push(Error.Unsupported.MainReturnValue(expression.keyword.location));
+                    diagnostics.Push(Error.Unsupported.GlobalReturnValue(expression.keyword.location));
                 }
             } else {
                 if (function_.lType == TypeSymbol.Void) {

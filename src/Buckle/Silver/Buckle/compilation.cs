@@ -10,6 +10,7 @@ using Buckle.IO;
 using System.Linq;
 using System;
 using BindingFlags = System.Reflection.BindingFlags;
+using Buckle.CodeAnalysis.Emitting;
 
 namespace Buckle {
 
@@ -42,6 +43,8 @@ namespace Buckle {
 
     public struct CompilerState {
         public BuildMode buildMode;
+        public string moduleName;
+        public string[] references;
         public CompilerStage finishStage;
         public string linkOutputFilename;
         public List<byte> linkOutputContent;
@@ -182,6 +185,11 @@ namespace Buckle {
             } else {
                 symbol.WriteTo(writer);
             }
+        }
+
+        internal DiagnosticQueue Emit(string moduleName, string[] references, string outputPath) {
+            var program = GetProgram();
+            return Emitter.Emit(program, moduleName, references, outputPath);
         }
     }
 }
