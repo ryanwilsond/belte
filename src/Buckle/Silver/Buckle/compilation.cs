@@ -14,43 +14,6 @@ using Buckle.CodeAnalysis.Emitting;
 
 namespace Buckle {
 
-    public enum CompilerStage {
-        Raw,
-        Preprocessed,
-        Compiled,
-        Assembled,
-        Linked,
-    }
-
-    public struct FileContent {
-        public List<string> lines;
-        public List<byte> bytes;
-    }
-
-    public struct FileState {
-        public string inputFilename;
-        public CompilerStage stage;
-        public string outputFilename;
-        public FileContent fileContent;
-    }
-
-    public enum BuildMode {
-        Repl,
-        Interpreter,
-        Independent,
-        Dotnet,
-    }
-
-    public struct CompilerState {
-        public BuildMode buildMode;
-        public string moduleName;
-        public string[] references;
-        public CompilerStage finishStage;
-        public string linkOutputFilename;
-        public List<byte> linkOutputContent;
-        public FileState[] tasks;
-    }
-
     internal sealed class EvaluationResult {
         public DiagnosticQueue diagnostics;
         public object value;

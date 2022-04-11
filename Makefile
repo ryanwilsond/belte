@@ -9,9 +9,11 @@ all: build
 build:
 	dotnet build $(SLN)
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/Buckle.dll Buckle.dll
-	cp $(PROJDIR)/bin/Debug/$(NETVER)/CmdLine.deps.json CmdLine.deps.json
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/CmdLine.dll CmdLine.dll
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/CmdLine.exe buckle.exe
+
+setup:
+	cp $(PROJDIR)/bin/Debug/$(NETVER)/CmdLine.deps.json CmdLine.deps.json
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/CmdLine.runtimeconfig.json CmdLine.runtimeconfig.json
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/System.Collections.Immutable.dll System.Collections.Immutable.dll
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/System.Runtime.CompilerServices.Unsafe.dll System.Runtime.CompilerServices.Unsafe.dll

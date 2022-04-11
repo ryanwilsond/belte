@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Diagnostics;
-using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Buckle;
 using Buckle.CodeAnalysis.Text;
@@ -9,141 +8,56 @@ using System.Linq;
 
 namespace CommandLine {
 
-    public static class CmdLine {
+    public static partial class CmdLine {
 
-        const int SUCCESS_EXIT_CODE = 0;
-        const int ERROR_EXIT_CODE = 1;
-        const int FATAL_EXIT_CODE = 2;
+        const int SuccessExitCode = 0;
+        const int ErrorExitCode = 1;
+        const int FatalExitCode = 2;
+
+        static readonly string[] AllowedOptions = {
+            // "error", "ignore", "all"
+        };
 
         private static void ShowHelpDialog() {
-            Console.WriteLine("under development");
+            string helpMsg = @"Usage: buckle.exe [options] file...
+Options:
+  -h|--help             Display this information.
+  -p                    Preprocess only, otherwise compiler preprocesses.
+  -s                    Compile only; do not assemble or link.
+  -c                    Compile and assemble; do not link.
+  -r                    Invoke the Repl.
+  -i                    Interpret only.
+  -d                    Compile with .NET integration (cannot stop at assembly or linking).
+  -o <file>             Specify output file.
+  -W<options>           Forward options to various sub-processes.
+  --entry=<symbol>      Specify the entry point of the program.
+  --modulename=<name>   Specify the module name (used with .NET integration only).
+  --ref=<file>          Specify a reference (used with .NET integration only).
+  --dumpmachine         Display the compiler's target system.
+  --version             Dispaly compiler version information.";
+
+            Console.WriteLine(helpMsg);
         }
 
-        private static CompilerState DecodeOptions(string[] args, out DiagnosticQueue diagnostics, out bool showHelp) {
-            diagnostics = new DiagnosticQueue();
-            CompilerState state = new CompilerState();
-            List<FileState> tasks = new List<FileState>();
+        private static void ShowMachineDialog() {
+            string machineMsg = "Machine: x86_64-w64";
+            Console.WriteLine(machineMsg);
+        }
 
-            bool specifyStage = false;
-            bool specifyOut = false;
-            showHelp = false;
-            state.buildMode = BuildMode.Independent;
-            state.finishStage = CompilerStage.Linked;
-            state.linkOutputFilename = "a.exe";
-
-            for (int i = 0; i < args.Length; i++) {
-                string arg = args[i];
-
-                if (arg.StartsWith('-')) {
-                    switch (arg) {
-                        case "-E":
-                            specifyStage = true;
-                            state.finishStage = CompilerStage.Preprocessed;
-                            break;
-                        case "-S":
-                            specifyStage = true;
-                            state.finishStage = CompilerStage.Compiled;
-                            break;
-                        case "-c":
-                            specifyStage = true;
-                            state.finishStage = CompilerStage.Assembled;
-                            break;
-                        case "-r":
-                            state.buildMode = BuildMode.Repl;
-                            if (args.Length != 1)
-                                diagnostics.Push(DiagnosticType.Fatal, "cannot use any other arguments with '-r'");
-                            break;
-                        case "-i":
-                            state.buildMode = BuildMode.Interpreter;
-                            break;
-                        case "-d":
-                            state.buildMode = BuildMode.Dotnet;
-                            break;
-                        case "-o":
-                            specifyOut = true;
-                            if (i >= args.Length - 1)
-                                diagnostics.Push(DiagnosticType.Fatal, "missing filename after '-o'");
-                            state.linkOutputFilename = args[i++];
-                            break;
-                        case "--help":
-                            showHelp = true;
-                            break;
-                        default:
-                            diagnostics.Push(DiagnosticType.Fatal, $"unknown argument '{arg}'");
-                            break;
-                    }
-                } else {
-                    string fileOrDir = arg;
-                    List<string> filenames = new List<string>();
-
-                    if (Directory.Exists(fileOrDir))
-                        filenames.AddRange(Directory.GetFiles(fileOrDir));
-                    else if (File.Exists(fileOrDir))
-                        filenames.Add(fileOrDir);
-                    else {
-                        diagnostics.Push(DiagnosticType.Error, $"{fileOrDir}: no such file or directory");
-                        continue;
-                    }
-
-                    foreach (var filename in filenames) {
-                        FileState task = new FileState();
-                        task.inputFilename = filename;
-
-                        string[] parts = task.inputFilename.Split('.');
-                        string type = parts[parts.Length - 1];
-
-                        switch (type) {
-                            case "ble":
-                                task.stage = CompilerStage.Raw;
-                                break;
-                            case "pble":
-                                task.stage = CompilerStage.Preprocessed;
-                                break;
-                            case "s":
-                            case "asm":
-                                task.stage = CompilerStage.Compiled;
-                                break;
-                            case "o":
-                            case "obj":
-                                task.stage = CompilerStage.Assembled;
-                                break;
-                            default:
-                                diagnostics.Push(DiagnosticType.Warning,
-                                    $"unknown file type of input file '{task.inputFilename}'; ignoring");
-                                break;
-                        }
-
-                        tasks.Add(task);
-                    }
-                }
-            }
-
-            state.tasks = tasks.ToArray();
-
-            if (specifyStage && state.buildMode == BuildMode.Dotnet)
-                diagnostics.Push(DiagnosticType.Fatal, "cannot specify '-E', '-S', or '-c' with .NET integration");
-
-            if (specifyOut && specifyStage && state.tasks.Length > 1 && !(state.buildMode == BuildMode.Dotnet))
-                diagnostics.Push(
-                    DiagnosticType.Fatal, "cannot specify output file with '-E', '-S', or '-c' with multiple files");
-
-            if ((specifyStage || specifyOut) && state.buildMode == BuildMode.Interpreter)
-                diagnostics.Push(
-                    DiagnosticType.Fatal, "cannot specify outfile or use '-E', '-S', or '-c' with interpreter");
-
-            if (state.tasks.Length == 0 && !(state.buildMode == BuildMode.Repl))
-                diagnostics.Push(DiagnosticType.Fatal, "no input files");
-
-            return state;
+        private static void ShowVersionDialog() {
+            string versionMsg = "Version: Buckle 0.0.1";
+            Console.WriteLine(versionMsg);
         }
 
         private static void PrettyPrintDiagnostic(Diagnostic diagnostic) {
-            var span = diagnostic.location.span;
-            var text = diagnostic.location.text;
+            TextSpan span = diagnostic.location.span;
+            SourceText text = diagnostic.location.text;
+
             int lineNumber = text.GetLineIndex(span.start);
             TextLine line = text.lines[lineNumber];
             int column = span.start - line.start + 1;
             string lineText = line.ToString();
+
             string filename = diagnostic.location.fileName;
             if (!string.IsNullOrEmpty(filename))
                 Console.Write($"{filename}:");
@@ -197,7 +111,7 @@ namespace CommandLine {
         }
 
         private static int ResolveDiagnostics(Compiler compiler, string me = null) {
-            if (compiler.diagnostics.count == 0) return SUCCESS_EXIT_CODE;
+            if (compiler.diagnostics.count == 0) return SuccessExitCode;
             DiagnosticType worst = DiagnosticType.Unknown;
             me = me ?? compiler.me;
 
@@ -236,11 +150,11 @@ namespace CommandLine {
             }
 
             switch (worst) {
-                case DiagnosticType.Error: return ERROR_EXIT_CODE;
-                case DiagnosticType.Fatal: return FATAL_EXIT_CODE;
+                case DiagnosticType.Error: return ErrorExitCode;
+                case DiagnosticType.Fatal: return FatalExitCode;
                 case DiagnosticType.Unknown:
                 case DiagnosticType.Warning:
-                default: return SUCCESS_EXIT_CODE;
+                default: return SuccessExitCode;
             }
         }
 
@@ -328,26 +242,32 @@ namespace CommandLine {
             Compiler compiler = new Compiler();
             compiler.me = Process.GetCurrentProcess().ProcessName;
 
-            compiler.state = DecodeOptions(args, out DiagnosticQueue diagnostics, out bool showHelp);
+            compiler.state = DecodeOptions(
+                args, out DiagnosticQueue diagnostics, out bool showHelp, out bool showMachine, out bool showVersion);
+
             ResolveOutputFiles(compiler);
             ReadInputFiles(compiler);
             compiler.diagnostics.Move(diagnostics);
 
-            if (showHelp) compiler.diagnostics.Clear(DiagnosticType.Fatal);
+            if (showHelp || showVersion || showMachine) compiler.diagnostics.Clear(DiagnosticType.Fatal);
             err = ResolveDiagnostics(compiler);
-            if (showHelp) {
-                ShowHelpDialog();
-                return SUCCESS_EXIT_CODE;
-            }
 
+            if (showMachine)
+                ShowMachineDialog();
+            if (showVersion)
+                ShowVersionDialog();
+            if (showHelp)
+                ShowHelpDialog();
+
+            if (showMachine || showVersion || showHelp) return SuccessExitCode;
             if (err > 0) return err;
 
             // only mode that doesn't go through one-time compilation
             if (compiler.state.buildMode == BuildMode.Repl) {
-                var repl = new BuckleRepl(compiler, ResolveDiagnostics);
+                BuckleRepl repl = new BuckleRepl(compiler, ResolveDiagnostics);
                 repl.Run();
 
-                return SUCCESS_EXIT_CODE;
+                return SuccessExitCode;
             }
 
             compiler.Compile();
@@ -355,7 +275,7 @@ namespace CommandLine {
             if (err > 0) return err;
 
             ResolveCompilerOutput(compiler);
-            return SUCCESS_EXIT_CODE;
+            return SuccessExitCode;
         }
     }
 }
