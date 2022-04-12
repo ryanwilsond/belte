@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
-using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using System.IO;
@@ -12,7 +11,7 @@ using System;
 using BindingFlags = System.Reflection.BindingFlags;
 using Buckle.CodeAnalysis.Emitting;
 
-namespace Buckle {
+namespace Buckle.CodeAnalysis {
 
     internal sealed class EvaluationResult {
         public DiagnosticQueue diagnostics;

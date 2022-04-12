@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using Buckle.IO;
+using Buckle.CodeAnalysis;
 
 namespace CommandLine {
     internal class ReplState {

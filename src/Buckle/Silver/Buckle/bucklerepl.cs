@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.IO;
 using CommandLine;
