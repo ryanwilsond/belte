@@ -39,7 +39,7 @@ namespace Buckle {
         public string[] options;
         public string entryPoint;
         public CompilerStage finishStage;
-        public string linkOutputFilename;
+        public string outputFilename;
         public List<byte> linkOutputContent;
         public FileState[] tasks;
     }
@@ -111,6 +111,9 @@ namespace Buckle {
         }
 
         private void InternalCompiler() {
+        }
+
+        private void InternalCompilerNet() {
             var syntaxTrees = new List<SyntaxTree>();
 
             for (int i = 0; i < state.tasks.Length; i++) {
@@ -125,12 +128,8 @@ namespace Buckle {
             }
 
             var compilation = Compilation.Create(syntaxTrees.ToArray());
-            var result = compilation.Emit(state.moduleName, state.references, state.linkOutputFilename);
+            var result = compilation.Emit(state.moduleName, state.references, state.outputFilename);
             diagnostics.Move(result);
-        }
-
-        private void InternalCompilerNet() {
-
         }
 
         /// <summary>
@@ -155,7 +154,8 @@ namespace Buckle {
                 return CheckErrors();
             }
 
-            diagnostics.Push(DiagnosticType.Fatal, "independent compilation not supported (yet)");
+            diagnostics.Push(
+                DiagnosticType.Fatal, "independent compilation not supported (yet); must specify '-i', '-d', or '-r'");
             return CheckErrors();
 
             // InternalCompiler();

@@ -1,7 +1,9 @@
 using System;
+using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
+using Mono.Cecil;
 
 namespace Buckle {
 
@@ -23,6 +25,11 @@ namespace Buckle {
             else if (type.ToString().EndsWith("_EXPRESSION")) return "expression";
             else if (type.ToString().EndsWith("_KEYWORD")) return "keyword";
             else return type.ToString().ToLower();
+        }
+
+        public static Diagnostic InvalidReference(string reference) {
+            string msg = $"{reference}: no such file or invalid file type";
+            return new Diagnostic(DiagnosticType.Error, null, msg);
         }
 
         public static Diagnostic InvalidType(TextLocation location, string text, TypeSymbol type) {
@@ -49,6 +56,18 @@ namespace Buckle {
         public static Diagnostic InvalidUnaryOperatorUse(TextLocation location, string op, TypeSymbol operand) {
             string msg = $"operator '{op}' is not defined for type '{operand}'";
             return new Diagnostic(DiagnosticType.Error, location, msg);
+        }
+
+        public static Diagnostic BuiltinTypeNotFound(TypeSymbol typeSymbol) {
+            string msg = $"could not resolve type '{typeSymbol}' with the given references";
+            return new Diagnostic(DiagnosticType.Error, null, msg);
+        }
+
+        public static Diagnostic BuiltinTypeAmbiguous(TypeSymbol typeSymbol, TypeDefinition[] foundTypes) {
+            var assemblyNames = foundTypes.Select(t => t.Module.Assembly.Name.Name);
+            var nameList = string.Join(", ", assemblyNames);
+            string msg = $"type '{typeSymbol}' was found in multiple references: {nameList}";
+            return new Diagnostic(DiagnosticType.Error, null, msg);
         }
 
         public static Diagnostic InvalidBinaryOperatorUse(

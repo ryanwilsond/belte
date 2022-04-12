@@ -24,7 +24,7 @@ namespace CommandLine {
             showVersion = false;
             state.buildMode = BuildMode.Independent;
             state.finishStage = CompilerStage.Linked;
-            state.linkOutputFilename = "a.exe";
+            state.outputFilename = "a.exe";
             state.moduleName = "a";
 
             for (int i = 0; i < args.Length; i++) {
@@ -38,10 +38,10 @@ namespace CommandLine {
                             if (i >= args.Length - 1) {
                                 diagnostics.Push(DiagnosticType.Error, "missing filename after '-o'");
                             } else {
-                                state.linkOutputFilename = args[++i];
+                                state.outputFilename = args[++i];
                             }
                         } else {
-                            state.linkOutputFilename = arg.Substring(2);
+                            state.outputFilename = arg.Substring(2);
                         }
                     } else if (arg.StartsWith("--modulename")) {
                         if (arg == "--modulename" || arg == "--modulename=") {
@@ -126,6 +126,13 @@ namespace CommandLine {
                 return state;
 
             state.tasks = tasks.ToArray();
+            state.references = references.ToArray();
+            state.options = options.ToArray();
+
+            if (specifyOut) {
+                string[] parts = state.outputFilename.Split('.');
+                state.moduleName = string.Join('.', parts[0..(parts.Length-2)]);
+            }
 
             if (args.Length > 1 && state.buildMode == BuildMode.Repl)
                 diagnostics.Push(DiagnosticType.Warning, "all arguments are ignored when invoking the repl");
@@ -149,10 +156,6 @@ namespace CommandLine {
 
             if (state.tasks.Length == 0 && !(state.buildMode == BuildMode.Repl))
                 diagnostics.Push(DiagnosticType.Fatal, "no input files");
-
-            if (state.buildMode == BuildMode.Independent)
-                diagnostics.Push(DiagnosticType.Fatal,
-                    "independent compilation not support (yet); must specify '-i', '-d', or '-r'");
 
             return state;
         }

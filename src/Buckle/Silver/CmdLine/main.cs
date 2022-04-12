@@ -45,7 +45,7 @@ Options:
         }
 
         private static void ShowVersionDialog() {
-            string versionMsg = "Version: Buckle 0.0.1";
+            string versionMsg = "Version: Buckle 0.1";
             Console.WriteLine(versionMsg);
         }
 
@@ -181,7 +181,7 @@ Options:
 
         private static void CleanOutputFiles(Compiler compiler) {
             if (compiler.state.finishStage == CompilerStage.Linked) {
-                File.Delete(compiler.state.linkOutputFilename);
+                File.Delete(compiler.state.outputFilename);
                 return;
             }
 
@@ -201,7 +201,7 @@ Options:
 
             if (compiler.state.finishStage == CompilerStage.Linked) {
                 if (compiler.state.linkOutputContent != null)
-                    File.WriteAllBytes(compiler.state.linkOutputFilename,
+                    File.WriteAllBytes(compiler.state.outputFilename,
                         compiler.state.linkOutputContent.ToArray());
                 return;
             }
