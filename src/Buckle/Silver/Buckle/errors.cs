@@ -58,15 +58,21 @@ namespace Buckle {
             return new Diagnostic(DiagnosticType.Error, location, msg);
         }
 
-        public static Diagnostic BuiltinTypeNotFound(TypeSymbol typeSymbol) {
-            string msg = $"could not resolve type '{typeSymbol}' with the given references";
+        public static Diagnostic RequiredTypeNotFound(string buckleName, string metadataName) {
+            string msg = buckleName != null
+                ? $"could not resolve type '{buckleName}' ('{metadataName}') with the given references"
+                : $"could not resolve type '{metadataName}' with the given references";
             return new Diagnostic(DiagnosticType.Error, null, msg);
         }
 
-        public static Diagnostic BuiltinTypeAmbiguous(TypeSymbol typeSymbol, TypeDefinition[] foundTypes) {
+        public static Diagnostic RequiredTypeAmbiguous(
+            string buckleName, string metadataName, TypeDefinition[] foundTypes) {
             var assemblyNames = foundTypes.Select(t => t.Module.Assembly.Name.Name);
             var nameList = string.Join(", ", assemblyNames);
-            string msg = $"type '{typeSymbol}' was found in multiple references: {nameList}";
+
+            string msg = buckleName != null
+                ? $"could not resolve type '{buckleName}' ('{metadataName}') with the given references"
+                : $"could not resolve type '{buckleName}' with the given references";
             return new Diagnostic(DiagnosticType.Error, null, msg);
         }
 
@@ -89,6 +95,12 @@ namespace Buckle {
         public static Diagnostic InvalidMain(TextLocation location) {
             string msg = $"invalid main signature: must return void or int and take no arguments";
             return new Diagnostic(DiagnosticType.Error, location, msg);
+        }
+
+        public static Diagnostic RequiredMethodNotFound(string typeName, object methodName, string[] parameterTypeNames) {
+            var parameterList = string.Join(", ", parameterTypeNames);
+            string msg = $"could not resolve method '{typeName}.{methodName}({parameterList})' with the given references";
+            return new Diagnostic(DiagnosticType.Error, null, msg);
         }
 
         public static Diagnostic MainAndGlobals(TextLocation location) {
