@@ -31,16 +31,16 @@
 				"match": "\\b(if|else|while|for|return|yield|switch|case|default|break|continue|do)\\b"
 			}, {
 				"name": "keyword.other.belte",
-				"match": "\\b(include|operator|get|set|this|auto|let)\\b"
+				"match": "\\b(include|operator|get|set|this|auto|let|out)\\b"
 			}, {
 				"name": "keyword.operator.arithmetic.belte",
 				"match": "\\b(/|\\*|(\\*\\*)|\\+|\\-|\\%)\\b"
 			}, {
 				"name": "keyword.operator.logical.belte",
-				"match": "(&&|\\|\\||!)"
+				"match": "(&&|\\|\\||!)(?!\\W)"
 			}, {
 				"name": "keyword.preprocessor.belte",
-				"match": "^\\s*(\\#\\s*(define|pragma|undef|if|elif|else|end|warning|error))\\b"
+				"match": "^\\s*(\\#\\s*(define|pragma|undef|if|elif|else|end|warning|error|run))\\b"
 			}]
 		},
 		"strings": {

@@ -1,8 +1,0 @@
-
-namespace Buckle {
-
-public static class Preprocessor {
-    void preprocess() { }
-}
-
-}

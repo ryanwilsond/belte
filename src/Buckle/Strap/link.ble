@@ -1,8 +1,0 @@
-
-namespace Buckle {
-
-public static class Linker {
-    void link() { }
-}
-
-}
