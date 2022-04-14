@@ -9,8 +9,11 @@ using Mono.Cecil.Cil;
 namespace Buckle.CodeAnalysis.Emitting {
     internal sealed class Emitter {
         public DiagnosticQueue diagnostics = new DiagnosticQueue();
+        private readonly Dictionary<FunctionSymbol, MethodDefinition> methods_ =
+            new Dictionary<FunctionSymbol, MethodDefinition>();
         private readonly AssemblyDefinition assemblyDefinition_;
         private readonly Dictionary<TypeSymbol, TypeReference> knownTypes_;
+        private TypeDefinition typeDefinition_;
         private readonly MethodReference consoleWriteLineReference_;
 
         private Emitter(string moduleName, string[] references) {
@@ -112,23 +115,154 @@ namespace Buckle.CodeAnalysis.Emitting {
                 return diagnostics;
 
             var objectType = knownTypes_[TypeSymbol.Any];
-            var typeDefinition = new TypeDefinition(
+            typeDefinition_ = new TypeDefinition(
                 "", "Program", TypeAttributes.Abstract | TypeAttributes.Sealed, objectType);
-            assemblyDefinition_.MainModule.Types.Add(typeDefinition);
+            assemblyDefinition_.MainModule.Types.Add(typeDefinition_);
 
-            var voidType = knownTypes_[TypeSymbol.Void];
-            var mainMethod = new MethodDefinition("Main", MethodAttributes.Static | MethodAttributes.Private, voidType);
-            typeDefinition.Methods.Add(mainMethod);
+            foreach (var functionWithBody in program.functions)
+                EmitFunctionDeclaration(functionWithBody.Key);
 
-            var ilProcessor = mainMethod.Body.GetILProcessor();
-            ilProcessor.Emit(OpCodes.Ldstr, "Hello world from BELTE-Buckle!");
-            ilProcessor.Emit(OpCodes.Call, consoleWriteLineReference_);
-            ilProcessor.Emit(OpCodes.Ret);
+            foreach (var functionWithBody in program.functions)
+                EmitFunctionBody(functionWithBody.Key, functionWithBody.Value);
 
-            assemblyDefinition_.EntryPoint = mainMethod;
+            if (program.mainFunction != null)
+                assemblyDefinition_.EntryPoint = methods_[program.mainFunction];
+
             assemblyDefinition_.Write(outputPath);
 
             return diagnostics;
+        }
+
+        private void EmitFunctionBody(FunctionSymbol function, BoundBlockStatement body) {
+            var method = methods_[function];
+            var ilProcessor = method.Body.GetILProcessor();
+
+            foreach (var statement in body.statements)
+                EmitStatement(ilProcessor, statement);
+        }
+
+        private void EmitStatement(ILProcessor ilProcessor, BoundStatement statement) {
+            switch (statement.type) {
+                case BoundNodeType.ExpressionStatement:
+                    EmitExpressionStatement(ilProcessor, (BoundExpressionStatement)statement);
+                    break;
+                case BoundNodeType.VariableDeclarationStatement:
+                    EmitVariableDeclarationStatement(ilProcessor, (BoundVariableDeclarationStatement)statement);
+                    break;
+                case BoundNodeType.GotoStatement:
+                    EmitGotoStatement(ilProcessor, (BoundGotoStatement)statement);
+                    break;
+                case BoundNodeType.LabelStatement:
+                    EmitLabelStatement(ilProcessor, (BoundLabelStatement)statement);
+                    break;
+                case BoundNodeType.ConditionalGotoStatement:
+                    EmitConditionalGotoStatement(ilProcessor, (BoundConditionalGotoStatement)statement);
+                    break;
+                case BoundNodeType.ReturnStatement:
+                    EmitReturnStatement(ilProcessor, (BoundReturnStatement)statement);
+                    break;
+                default:
+                    diagnostics.Push(DiagnosticType.Fatal, $"unexpected node '{statement.type}'");
+                    break;
+            }
+        }
+
+        private void EmitReturnStatement(ILProcessor ilProcessor, BoundReturnStatement statement) {
+            throw new NotImplementedException();
+        }
+
+        private void EmitConditionalGotoStatement(ILProcessor ilProcessor, BoundConditionalGotoStatement statement) {
+            throw new NotImplementedException();
+        }
+
+        private void EmitLabelStatement(ILProcessor ilProcessor, BoundLabelStatement statement) {
+            throw new NotImplementedException();
+        }
+
+        private void EmitGotoStatement(ILProcessor ilProcessor, BoundGotoStatement statement) {
+            throw new NotImplementedException();
+        }
+
+        private void EmitVariableDeclarationStatement(ILProcessor ilProcessor, BoundVariableDeclarationStatement statement) {
+            throw new NotImplementedException();
+        }
+
+        private void EmitExpressionStatement(ILProcessor ilProcessor, BoundExpressionStatement statement) {
+            EmitExpression(ilProcessor, statement.expression);
+
+            if (statement.expression.lType != TypeSymbol.Void)
+                ilProcessor.Emit(OpCodes.Pop);
+        }
+
+        private void EmitExpression(ILProcessor ilProcessor, BoundExpression expression) {
+            switch (expression.type) {
+                case BoundNodeType.UnaryExpression:
+                    EmitUnaryExpression(ilProcessor, (BoundUnaryExpression)expression);
+                    break;
+                case BoundNodeType.LiteralExpression:
+                    EmitLiteralExpression(ilProcessor, (BoundLiteralExpression)expression);
+                    break;
+                case BoundNodeType.BinaryExpression:
+                    EmitBinaryExpression(ilProcessor, (BoundBinaryExpression)expression);
+                    break;
+                case BoundNodeType.VariableExpression:
+                    EmitVariableExpression(ilProcessor, (BoundVariableExpression)expression);
+                    break;
+                case BoundNodeType.AssignmentExpression:
+                    EmitAssignmentExpression(ilProcessor, (BoundAssignmentExpression)expression);
+                    break;
+                case BoundNodeType.EmptyExpression:
+                    EmitEmptyExpression(ilProcessor, (BoundEmptyExpression)expression);
+                    break;
+                case BoundNodeType.CallExpression:
+                    EmitCallExpression(ilProcessor, (BoundCallExpression)expression);
+                    break;
+                case BoundNodeType.CastExpression:
+                    EmitCastExpression(ilProcessor, (BoundCastExpression)expression);
+                    break;
+                default:
+                    diagnostics.Push(DiagnosticType.Fatal, $"unexpected node '{expression.type}'");
+                    break;
+            }
+        }
+
+        private void EmitCastExpression(ILProcessor ilProcessor, BoundCastExpression expression) {
+            throw new NotImplementedException();
+        }
+
+        private void EmitCallExpression(ILProcessor ilProcessor, BoundCallExpression expression) {
+            throw new NotImplementedException();
+        }
+
+        private void EmitEmptyExpression(ILProcessor ilProcessor, BoundEmptyExpression expression) {
+            throw new NotImplementedException();
+        }
+
+        private void EmitAssignmentExpression(ILProcessor ilProcessor, BoundAssignmentExpression expression) {
+            throw new NotImplementedException();
+        }
+
+        private void EmitVariableExpression(ILProcessor ilProcessor, BoundVariableExpression expression) {
+            throw new NotImplementedException();
+        }
+
+        private void EmitBinaryExpression(ILProcessor ilProcessor, BoundBinaryExpression expression) {
+            throw new NotImplementedException();
+        }
+
+        private void EmitLiteralExpression(ILProcessor ilProcessor, BoundLiteralExpression expression) {
+            throw new NotImplementedException();
+        }
+
+        private void EmitUnaryExpression(ILProcessor ilProcessor, BoundUnaryExpression expression) {
+            throw new NotImplementedException();
+        }
+
+        private void EmitFunctionDeclaration(FunctionSymbol function) {
+            var voidType = knownTypes_[TypeSymbol.Void];
+            var method = new MethodDefinition(function.name, MethodAttributes.Static | MethodAttributes.Private, voidType);
+            typeDefinition_.Methods.Add(method);
+            methods_.Add(function, method);
         }
 
         public static DiagnosticQueue Emit(
