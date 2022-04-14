@@ -72,7 +72,7 @@ namespace Buckle {
 
             string msg = buckleName != null
                 ? $"could not resolve type '{buckleName}' ('{metadataName}') with the given references"
-                : $"could not resolve type '{buckleName}' with the given references";
+                : $"could not resolve type '{metadataName}' with the given references";
             return new Diagnostic(DiagnosticType.Error, null, msg);
         }
 

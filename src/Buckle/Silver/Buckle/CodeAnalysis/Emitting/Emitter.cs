@@ -7,21 +7,17 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 
 namespace Buckle.CodeAnalysis.Emitting {
-    internal class Emitter {
-        // private readonly DiagnosticQueue diagnostics_ = new DiagnosticQueue();
-        // private readonly List<AssemblyDefinition> assemblies_ = new List<AssemblyDefinition>();
-        // private readonly Dictionary<TypeSymbol, TypeReference> knownTypes_ =
-        //     new Dictionary<TypeSymbol, TypeReference>();
+    internal sealed class Emitter {
+        public DiagnosticQueue diagnostics = new DiagnosticQueue();
+        private readonly AssemblyDefinition assemblyDefinition_;
+        private readonly Dictionary<TypeSymbol, TypeReference> knownTypes_;
+        private readonly MethodReference consoleWriteLineReference_;
 
-        internal static DiagnosticQueue Emit(
-            BoundProgram program, string moduleName, string[] references, string outputPath) {
-            DiagnosticQueue diagnostics = new DiagnosticQueue();
-            diagnostics.Move(program.diagnostics);
+        private Emitter(string moduleName, string[] references) {
+            var assemblies = new List<AssemblyDefinition>();
 
             if (diagnostics.Any())
-                return diagnostics;
-
-            var assemblies = new List<AssemblyDefinition>();
+                return;
 
             foreach (var reference in references) {
                 try {
@@ -33,13 +29,7 @@ namespace Buckle.CodeAnalysis.Emitting {
             }
 
             if (diagnostics.Any())
-                return diagnostics;
-
-            // any      -> System.Object
-            // int      -> System.Int32
-            // string   -> System.String
-            // bool     -> System.Bool
-            // void     -> System.Void
+                return;
 
             var builtinTypes = new List<(TypeSymbol type, string metadataName)>() {
                 (TypeSymbol.Any, "System.Object"),
@@ -50,12 +40,12 @@ namespace Buckle.CodeAnalysis.Emitting {
             };
 
             var assemblyName = new AssemblyNameDefinition(moduleName, new Version(0, 1));
-            var assemblyDefinition = AssemblyDefinition.CreateAssembly(assemblyName, moduleName, ModuleKind.Console);
-            var knownTypes = new Dictionary<TypeSymbol, TypeReference>();
+            assemblyDefinition_ = AssemblyDefinition.CreateAssembly(assemblyName, moduleName, ModuleKind.Console);
+            knownTypes_ = new Dictionary<TypeSymbol, TypeReference>();
 
             foreach (var (typeSymbol, metadataName) in builtinTypes) {
                 var typeReference = ResolveType(typeSymbol.name, metadataName);
-                knownTypes.Add(typeSymbol, typeReference);
+                knownTypes_.Add(typeSymbol, typeReference);
             }
 
             TypeReference ResolveType(string buckleName, string metadataName) {
@@ -65,7 +55,7 @@ namespace Buckle.CodeAnalysis.Emitting {
                     .ToArray();
 
                 if (foundTypes.Length == 1) {
-                    var typeReference = assemblyDefinition.MainModule.ImportReference(foundTypes[0]);
+                    var typeReference = assemblyDefinition_.MainModule.ImportReference(foundTypes[0]);
                     return typeReference;
                 } else if (foundTypes.Length == 0)
                     diagnostics.Push(Error.RequiredTypeNotFound(buckleName, metadataName));
@@ -101,7 +91,7 @@ namespace Buckle.CodeAnalysis.Emitting {
                         if (!allParametersMatch)
                             continue;
 
-                        return assemblyDefinition.MainModule.ImportReference(method);
+                        return assemblyDefinition_.MainModule.ImportReference(method);
                     }
 
                     diagnostics.Push(Error.RequiredMethodNotFound(typeName, methodName, parameterTypeNames));
@@ -114,28 +104,40 @@ namespace Buckle.CodeAnalysis.Emitting {
                 return null;
             }
 
-            var consoleWriteLineReference = ResolveMethod("System.Console", "WriteLine", new [] {"System.String"});
+            consoleWriteLineReference_ = ResolveMethod("System.Console", "WriteLine", new [] {"System.String"});
+        }
 
+        public DiagnosticQueue Emit(BoundProgram program, string outputPath) {
             if (diagnostics.Any())
                 return diagnostics;
 
-            var objectType = knownTypes[TypeSymbol.Any];
+            var objectType = knownTypes_[TypeSymbol.Any];
             var typeDefinition = new TypeDefinition(
                 "", "Program", TypeAttributes.Abstract | TypeAttributes.Sealed, objectType);
-            assemblyDefinition.MainModule.Types.Add(typeDefinition);
+            assemblyDefinition_.MainModule.Types.Add(typeDefinition);
 
-            var voidType = knownTypes[TypeSymbol.Void];
+            var voidType = knownTypes_[TypeSymbol.Void];
             var mainMethod = new MethodDefinition("Main", MethodAttributes.Static | MethodAttributes.Private, voidType);
             typeDefinition.Methods.Add(mainMethod);
 
             var ilProcessor = mainMethod.Body.GetILProcessor();
             ilProcessor.Emit(OpCodes.Ldstr, "Hello world from BELTE-Buckle!");
-            ilProcessor.Emit(OpCodes.Call, consoleWriteLineReference);
+            ilProcessor.Emit(OpCodes.Call, consoleWriteLineReference_);
             ilProcessor.Emit(OpCodes.Ret);
 
-            assemblyDefinition.EntryPoint = mainMethod;
-            assemblyDefinition.Write(outputPath);
+            assemblyDefinition_.EntryPoint = mainMethod;
+            assemblyDefinition_.Write(outputPath);
+
             return diagnostics;
+        }
+
+        public static DiagnosticQueue Emit(
+            BoundProgram program, string moduleName, string[] references, string outputPath) {
+            DiagnosticQueue diagnostics = new DiagnosticQueue();
+            diagnostics.Move(program.diagnostics);
+
+            var emitter = new Emitter(moduleName, references);
+            return emitter.Emit(program, outputPath);
         }
     }
 }
