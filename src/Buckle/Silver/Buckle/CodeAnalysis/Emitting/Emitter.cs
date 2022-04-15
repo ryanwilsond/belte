@@ -5,6 +5,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+using Mono.Cecil.Rocks;
 
 namespace Buckle.CodeAnalysis.Emitting {
     internal sealed class Emitter {
@@ -15,6 +16,10 @@ namespace Buckle.CodeAnalysis.Emitting {
         private readonly Dictionary<TypeSymbol, TypeReference> knownTypes_;
         private TypeDefinition typeDefinition_;
         private readonly MethodReference consoleWriteLineReference_;
+        private readonly MethodReference consoleReadLineReference_;
+        private readonly MethodReference stringConcatReference_;
+        private readonly Dictionary<VariableSymbol, VariableDefinition> locals_ =
+            new Dictionary<VariableSymbol, VariableDefinition>();
 
         private Emitter(string moduleName, string[] references) {
             var assemblies = new List<AssemblyDefinition>();
@@ -108,6 +113,8 @@ namespace Buckle.CodeAnalysis.Emitting {
             }
 
             consoleWriteLineReference_ = ResolveMethod("System.Console", "WriteLine", new [] {"System.String"});
+            consoleReadLineReference_ = ResolveMethod("System.Console", "ReadLine", Array.Empty<string>());
+            stringConcatReference_ = ResolveMethod("System.String", "Concat", new []{"System.String", "System.String"});
         }
 
         public DiagnosticQueue Emit(BoundProgram program, string outputPath) {
@@ -135,10 +142,17 @@ namespace Buckle.CodeAnalysis.Emitting {
 
         private void EmitFunctionBody(FunctionSymbol function, BoundBlockStatement body) {
             var method = methods_[function];
+            locals_.Clear();
             var ilProcessor = method.Body.GetILProcessor();
 
             foreach (var statement in body.statements)
                 EmitStatement(ilProcessor, statement);
+
+            // should make sure the bound tree has explicit returns
+            if (function.lType == TypeSymbol.Void)
+                ilProcessor.Emit(OpCodes.Ret);
+
+            method.Body.OptimizeMacros();
         }
 
         private void EmitStatement(ILProcessor ilProcessor, BoundStatement statement) {
@@ -168,23 +182,26 @@ namespace Buckle.CodeAnalysis.Emitting {
         }
 
         private void EmitReturnStatement(ILProcessor ilProcessor, BoundReturnStatement statement) {
-            throw new NotImplementedException();
         }
 
         private void EmitConditionalGotoStatement(ILProcessor ilProcessor, BoundConditionalGotoStatement statement) {
-            throw new NotImplementedException();
         }
 
         private void EmitLabelStatement(ILProcessor ilProcessor, BoundLabelStatement statement) {
-            throw new NotImplementedException();
         }
 
         private void EmitGotoStatement(ILProcessor ilProcessor, BoundGotoStatement statement) {
-            throw new NotImplementedException();
         }
 
-        private void EmitVariableDeclarationStatement(ILProcessor ilProcessor, BoundVariableDeclarationStatement statement) {
-            throw new NotImplementedException();
+        private void EmitVariableDeclarationStatement(
+            ILProcessor ilProcessor, BoundVariableDeclarationStatement statement) {
+            var typeReference = knownTypes_[statement.variable.lType];
+            var variableDefinition = new VariableDefinition(typeReference);
+            locals_.Add(statement.variable, variableDefinition);
+            ilProcessor.Body.Variables.Add(variableDefinition);
+
+            EmitExpression(ilProcessor, statement.initializer);
+            ilProcessor.Emit(OpCodes.Stloc, variableDefinition);
         }
 
         private void EmitExpressionStatement(ILProcessor ilProcessor, BoundExpressionStatement statement) {
@@ -227,35 +244,65 @@ namespace Buckle.CodeAnalysis.Emitting {
         }
 
         private void EmitCastExpression(ILProcessor ilProcessor, BoundCastExpression expression) {
-            throw new NotImplementedException();
         }
 
         private void EmitCallExpression(ILProcessor ilProcessor, BoundCallExpression expression) {
-            throw new NotImplementedException();
+            foreach (var argument in expression.arguments)
+                EmitExpression(ilProcessor, argument);
+
+            if (expression.function == BuiltinFunctions.Print) {
+                ilProcessor.Emit(OpCodes.Call, consoleWriteLineReference_);
+            } else if (expression.function == BuiltinFunctions.Input) {
+                ilProcessor.Emit(OpCodes.Call, consoleReadLineReference_);
+            } else if (expression.function == BuiltinFunctions.Randint) {
+
+            } else {
+                var methodDefinition = methods_[expression.function];
+                ilProcessor.Emit(OpCodes.Call, methodDefinition);
+            }
         }
 
         private void EmitEmptyExpression(ILProcessor ilProcessor, BoundEmptyExpression expression) {
-            throw new NotImplementedException();
         }
 
         private void EmitAssignmentExpression(ILProcessor ilProcessor, BoundAssignmentExpression expression) {
-            throw new NotImplementedException();
         }
 
         private void EmitVariableExpression(ILProcessor ilProcessor, BoundVariableExpression expression) {
-            throw new NotImplementedException();
+            var variableDefinition = locals_[expression.variable];
+            ilProcessor.Emit(OpCodes.Ldloc, variableDefinition);
         }
 
         private void EmitBinaryExpression(ILProcessor ilProcessor, BoundBinaryExpression expression) {
-            throw new NotImplementedException();
+            if (expression.op.opType == BoundBinaryOperatorType.Addition) {
+                if (expression.left.lType == TypeSymbol.String && expression.right.lType == TypeSymbol.String) {
+                    EmitExpression(ilProcessor, expression.left);
+                    EmitExpression(ilProcessor, expression.right);
+                    ilProcessor.Emit(OpCodes.Call, stringConcatReference_);
+                } else {
+                    throw new NotImplementedException();
+                }
+            } else {
+                throw new NotImplementedException();
+            }
         }
 
         private void EmitLiteralExpression(ILProcessor ilProcessor, BoundLiteralExpression expression) {
-            throw new NotImplementedException();
+            if (expression.lType == TypeSymbol.Int) {
+                // for efficiency can add hardcoded constants e.g. Ldc_I4_0
+                ilProcessor.Emit(OpCodes.Ldc_I4, (int)expression.value);
+            } else if (expression.lType == TypeSymbol.String) {
+                ilProcessor.Emit(OpCodes.Ldstr, (string)expression.value);
+            } else if (expression.lType == TypeSymbol.Bool) {
+                var value = (bool)expression.value;
+                var instruction = value ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0;
+                ilProcessor.Emit(instruction);
+            } else {
+                diagnostics.Push(DiagnosticType.Fatal, $"unexpected literal '{expression.lType}'");
+            }
         }
 
         private void EmitUnaryExpression(ILProcessor ilProcessor, BoundUnaryExpression expression) {
-            throw new NotImplementedException();
         }
 
         private void EmitFunctionDeclaration(FunctionSymbol function) {
