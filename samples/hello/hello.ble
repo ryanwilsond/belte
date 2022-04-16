@@ -1,15 +1,7 @@
 
 void main() {
-    string name = getName();
-    print("Hello " + name + "!");
-}
-
-string getName() {
-    string name = readLine("What's your name?");
-    return name;
-}
-
-string readLine(string message) {
-    print(message);
-    return input();
+    auto x = string(true);
+    auto x = int("42");
+    auto x = any("text");
+    auto x = any(true);
 }

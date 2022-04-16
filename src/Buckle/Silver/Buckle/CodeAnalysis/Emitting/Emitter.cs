@@ -18,6 +18,9 @@ namespace Buckle.CodeAnalysis.Emitting {
         private readonly MethodReference consoleWriteLineReference_;
         private readonly MethodReference consoleReadLineReference_;
         private readonly MethodReference stringConcatReference_;
+        private MethodReference convertToBooleanReference_;
+        private MethodReference convertToInt32Reference_;
+        private MethodReference convertToStringReference_;
         private readonly Dictionary<VariableSymbol, VariableDefinition> locals_ =
             new Dictionary<VariableSymbol, VariableDefinition>();
 
@@ -112,9 +115,13 @@ namespace Buckle.CodeAnalysis.Emitting {
                 return null;
             }
 
-            consoleWriteLineReference_ = ResolveMethod("System.Console", "WriteLine", new [] {"System.String"});
+            consoleWriteLineReference_ = ResolveMethod("System.Console", "WriteLine", new [] { "System.String" });
             consoleReadLineReference_ = ResolveMethod("System.Console", "ReadLine", Array.Empty<string>());
-            stringConcatReference_ = ResolveMethod("System.String", "Concat", new []{"System.String", "System.String"});
+            stringConcatReference_ = ResolveMethod(
+                "System.String", "Concat", new [] { "System.String", "System.String" });
+            convertToBooleanReference_ = ResolveMethod("System.Convert", "ToBoolean", new [] { "System.Object" });
+            convertToInt32Reference_ = ResolveMethod("System.Convert", "ToInt32", new [] { "System.Object" });
+            convertToStringReference_ = ResolveMethod("System.Convert", "ToString", new [] { "System.Object" });
         }
 
         public DiagnosticQueue Emit(BoundProgram program, string outputPath) {
@@ -244,6 +251,24 @@ namespace Buckle.CodeAnalysis.Emitting {
         }
 
         private void EmitCastExpression(ILProcessor ilProcessor, BoundCastExpression expression) {
+            EmitExpression(ilProcessor, expression.expression);
+            var needsBoxing = expression.expression.lType == TypeSymbol.Int ||
+                expression.expression.lType == TypeSymbol.Bool;
+
+            if (needsBoxing)
+                ilProcessor.Emit(OpCodes.Box, knownTypes_[expression.expression.lType]);
+
+            if (expression.lType == TypeSymbol.Any) {
+            } else if (expression.lType == TypeSymbol.Bool) {
+                ilProcessor.Emit(OpCodes.Call, convertToBooleanReference_);
+            } else if (expression.lType == TypeSymbol.Int) {
+                ilProcessor.Emit(OpCodes.Call, convertToInt32Reference_);
+            } else if (expression.lType == TypeSymbol.String) {
+                ilProcessor.Emit(OpCodes.Call, convertToStringReference_);
+            } else {
+                diagnostics.Push(DiagnosticType.Fatal,
+                    $"unexpected cast from '{expression.expression.lType}' to '{expression.lType}'");
+            }
         }
 
         private void EmitCallExpression(ILProcessor ilProcessor, BoundCallExpression expression) {
