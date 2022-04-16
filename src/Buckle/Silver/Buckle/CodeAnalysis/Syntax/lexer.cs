@@ -34,119 +34,119 @@ namespace Buckle.CodeAnalysis.Syntax {
 
             switch (current) {
                 case '\0':
-                    type_ = SyntaxType.EOF;
+                    type_ = SyntaxType.EOF_TOKEN;
                     break;
                 case ',':
                     position_++;
-                    type_ = SyntaxType.COMMA;
+                    type_ = SyntaxType.COMMA_TOKEN;
                     break;
                 case '/':
                     position_++;
-                    type_ = SyntaxType.SLASH;
+                    type_ = SyntaxType.SLASH_TOKEN;
                     break;
                 case '(':
                     position_++;
-                    type_ = SyntaxType.LPAREN;
+                    type_ = SyntaxType.LPAREN_TOKEN;
                     break;
                 case ')':
                     position_++;
-                    type_ = SyntaxType.RPAREN;
+                    type_ = SyntaxType.RPAREN_TOKEN;
                     break;
                 case '{':
                     position_++;
-                    type_ = SyntaxType.LBRACE;
+                    type_ = SyntaxType.LBRACE_TOKEN;
                     break;
                 case '}':
                     position_++;
-                    type_ = SyntaxType.RBRACE;
+                    type_ = SyntaxType.RBRACE_TOKEN;
                     break;
                 case ';':
                     position_++;
-                    type_ = SyntaxType.SEMICOLON;
+                    type_ = SyntaxType.SEMICOLON_TOKEN;
                     break;
                 case '~':
                     position_++;
-                    type_ = SyntaxType.TILDE;
+                    type_ = SyntaxType.TILDE_TOKEN;
                     break;
                 case '^':
                     position_++;
-                    type_ = SyntaxType.CARET;
+                    type_ = SyntaxType.CARET_TOKEN;
                     break;
                 case '+':
                     position_++;
-                    type_ = SyntaxType.PLUS;
+                    type_ = SyntaxType.PLUS_TOKEN;
                     break;
                 case '-':
                     position_++;
-                    type_ = SyntaxType.MINUS;
+                    type_ = SyntaxType.MINUS_TOKEN;
                     break;
                 case '*':
                     position_++;
                     if (current == '*') {
-                        type_ = SyntaxType.DASTERISK;
+                        type_ = SyntaxType.DASTERISK_TOKEN;
                         position_++;
                     } else {
-                        type_ = SyntaxType.ASTERISK;
+                        type_ = SyntaxType.ASTERISK_TOKEN;
                     }
                     break;
                 case '&':
                     position_++;
                     if (current == '&') {
-                        type_ = SyntaxType.DAMPERSAND;
+                        type_ = SyntaxType.DAMPERSAND_TOKEN;
                         position_++;
                     } else {
-                        type_ = SyntaxType.AMPERSAND;
+                        type_ = SyntaxType.AMPERSAND_TOKEN;
                     }
                     break;
                 case '|':
                     position_++;
                     if (current == '|') {
-                        type_ = SyntaxType.DPIPE;
+                        type_ = SyntaxType.DPIPE_TOKEN;
                         position_++;
                     } else {
-                        type_ = SyntaxType.PIPE;
+                        type_ = SyntaxType.PIPE_TOKEN;
                     }
                     break;
                 case '=':
                     position_++;
                     if (current == '=') {
-                        type_ = SyntaxType.DEQUALS;
+                        type_ = SyntaxType.DEQUALS_TOKEN;
                         position_++;
                     } else {
-                        type_ = SyntaxType.EQUALS;
+                        type_ = SyntaxType.EQUALS_TOKEN;
                     }
                     break;
                 case '!':
                     position_++;
                     if (current == '=') {
                         position_++;
-                        type_ = SyntaxType.BANGEQUALS;
+                        type_ = SyntaxType.BANGEQUALS_TOKEN;
                     } else {
-                        type_ = SyntaxType.BANG;
+                        type_ = SyntaxType.BANG_TOKEN;
                     }
                     break;
                 case '<':
                     position_++;
                     if (current == '=') {
                         position_++;
-                        type_ = SyntaxType.LESSEQUAL;
+                        type_ = SyntaxType.LESSEQUAL_TOKEN;
                     } else if (current == '<') {
                         position_++;
-                        type_ = SyntaxType.SHIFTLEFT;
+                        type_ = SyntaxType.SHIFTLEFT_TOKEN;
                     } else {
-                        type_ = SyntaxType.LANGLEBRACKET;
+                        type_ = SyntaxType.LANGLEBRACKET_TOKEN;
                     }
                     break;
                 case '>':
                     position_++;
                     if (current == '=') {
                         position_++;
-                        type_ = SyntaxType.GREATEQUAL;
+                        type_ = SyntaxType.GREATEQUAL_TOKEN;
                     } else if (current == '>') {
                         position_++;
-                        type_ = SyntaxType.SHIFTRIGHT;
+                        type_ = SyntaxType.SHIFTRIGHT_TOKEN;
                     } else {
-                        type_ = SyntaxType.RANGLEBRACKET;
+                        type_ = SyntaxType.RANGLEBRACKET_TOKEN;
                     }
                     break;
                 case '"':
@@ -222,7 +222,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                 }
             }
 
-            type_ = SyntaxType.STRING;
+            type_ = SyntaxType.STRING_TOKEN;
             value_ = sb.ToString();
         }
 
@@ -239,12 +239,12 @@ namespace Buckle.CodeAnalysis.Syntax {
             }
 
             value_ = value;
-            type_ = SyntaxType.NUMBER;
+            type_ = SyntaxType.NUMBER_TOKEN;
         }
 
         private void ReadWhitespaceToken() {
             while (char.IsWhiteSpace(current)) position_++;
-            type_ = SyntaxType.WHITESPACE;
+            type_ = SyntaxType.WHITESPACE_TOKEN;
         }
 
         private void ReadIdentifierOrKeyword() {

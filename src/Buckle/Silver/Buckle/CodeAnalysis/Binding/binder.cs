@@ -104,7 +104,7 @@ namespace Buckle.CodeAnalysis.Binding {
             foreach (var function in globalScope.functions) {
                 var binder = new Binder(isScript, parentScope, function);
                 var body = binder.BindStatement(function.declaration.body);
-                var loweredBody = Lowerer.Lower(body);
+                var loweredBody = Lowerer.Lower(function, body);
 
                 if (function.lType != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
                     binder.diagnostics.Push(Error.NotAllPathsReturn(function.declaration.identifier.location));
@@ -114,7 +114,7 @@ namespace Buckle.CodeAnalysis.Binding {
             }
 
             if (globalScope.mainFunction != null && globalScope.statements.Any()) {
-                var body = Lowerer.Lower(new BoundBlockStatement(globalScope.statements));
+                var body = Lowerer.Lower(globalScope.mainFunction, new BoundBlockStatement(globalScope.statements));
                 functionBodies.Add(globalScope.mainFunction, body);
             } else if (globalScope.scriptFunction != null) {
                 var statements = globalScope.statements;
@@ -128,7 +128,7 @@ namespace Buckle.CodeAnalysis.Binding {
                     statements = statements.Add(new BoundReturnStatement(nullValue));
                 }
 
-                var body = Lowerer.Lower(new BoundBlockStatement(statements));
+                var body = Lowerer.Lower(globalScope.scriptFunction, new BoundBlockStatement(statements));
                 functionBodies.Add(globalScope.scriptFunction, body);
             }
 
@@ -267,14 +267,14 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private BoundExpression BindExpressionInternal(Expression expression) {
             switch (expression.type) {
-                case SyntaxType.LITERAL_EXPR: return BindLiteralExpression((LiteralExpression)expression);
-                case SyntaxType.UNARY_EXPR: return BindUnaryExpression((UnaryExpression)expression);
-                case SyntaxType.BINARY_EXPR: return BindBinaryExpression((BinaryExpression)expression);
-                case SyntaxType.PAREN_EXPR: return BindParenExpression((ParenExpression)expression);
-                case SyntaxType.NAME_EXPR: return BindNameExpression((NameExpression)expression);
-                case SyntaxType.ASSIGN_EXPR: return BindAssignmentExpression((AssignmentExpression)expression);
-                case SyntaxType.CALL_EXPR: return BindCallExpression((CallExpression)expression);
-                case SyntaxType.EMPTY_EXPR: return BindEmptyExpression((EmptyExpression)expression);
+                case SyntaxType.LITERAL_EXPRESSION: return BindLiteralExpression((LiteralExpression)expression);
+                case SyntaxType.UNARY_EXPRESSION: return BindUnaryExpression((UnaryExpression)expression);
+                case SyntaxType.BINARY_EXPRESSION: return BindBinaryExpression((BinaryExpression)expression);
+                case SyntaxType.PAREN_EXPRESSION: return BindParenExpression((ParenExpression)expression);
+                case SyntaxType.NAME_EXPRESSION: return BindNameExpression((NameExpression)expression);
+                case SyntaxType.ASSIGN_EXPRESSION: return BindAssignmentExpression((AssignmentExpression)expression);
+                case SyntaxType.CALL_EXPRESSION: return BindCallExpression((CallExpression)expression);
+                case SyntaxType.EMPTY_EXPRESSION: return BindEmptyExpression((EmptyExpression)expression);
                 default:
                     diagnostics.Push(DiagnosticType.Fatal, $"unexpected syntax {expression.type}");
                     return null;

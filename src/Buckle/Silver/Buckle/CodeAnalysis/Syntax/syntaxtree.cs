@@ -67,7 +67,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                 while (true) {
                     var token = lexer.LexNext();
 
-                    if (token.type == SyntaxType.EOF) {
+                    if (token.type == SyntaxType.EOF_TOKEN) {
                         root = new CompilationUnit(syntaxTree, ImmutableArray<Member>.Empty, token);
                         break;
                     }

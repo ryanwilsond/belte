@@ -148,10 +148,6 @@ namespace Buckle.CodeAnalysis.Emitting {
             foreach (var statement in body.statements)
                 EmitStatement(ilProcessor, statement);
 
-            // should make sure the bound tree has explicit returns
-            if (function.lType == TypeSymbol.Void)
-                ilProcessor.Emit(OpCodes.Ret);
-
             method.Body.OptimizeMacros();
         }
 

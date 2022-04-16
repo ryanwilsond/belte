@@ -108,17 +108,7 @@ namespace Buckle.CodeAnalysis {
                 return new EvaluationResult(null, diagnostics);
 
             var program = GetProgram();
-
-            // var appPath = Environment.GetCommandLineArgs()[0];
-            // var appDirectory = Path.GetDirectoryName(appPath);
-            // var cfgPath = Path.Combine(appDirectory, "cfg.dot");
-            // var cfgStatement = !program.statement.statements.Any() && program.functions.Any()
-            // /   ? program.functions.Last().Value
-            //     : program.statement;
-            // var cfg = ControlFlowGraph.Create(cfgStatement);
-
-            // using (var streamWriter = new StreamWriter(cfgPath))
-            //     cfg.WriteTo(streamWriter);
+            // CreateCfg(program);
 
             if (program.diagnostics.Any())
                 return new EvaluationResult(null, program.diagnostics);
@@ -126,6 +116,22 @@ namespace Buckle.CodeAnalysis {
             var eval = new Evaluator(program, variables);
             var result = new EvaluationResult(eval.Evaluate(), diagnostics);
             return result;
+        }
+
+        private static void CreateCfg(BoundProgram program) {
+            // TODO
+            /*
+            var appPath = Environment.GetCommandLineArgs()[0];
+            var appDirectory = Path.GetDirectoryName(appPath);
+            var cfgPath = Path.Combine(appDirectory, "cfg.dot");
+            var cfgStatement = !program..statements.Any() && program.functions.Any()
+            /   ? program.functions.Last().Value
+                : program.statement;
+            var cfg = ControlFlowGraph.Create(cfgStatement);
+
+            using (var streamWriter = new StreamWriter(cfgPath))
+                cfg.WriteTo(streamWriter);
+            */
         }
 
         internal void EmitTree(TextWriter writer) {

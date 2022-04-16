@@ -108,11 +108,11 @@ namespace Buckle {
             for (int i=0; i<tokens.Length; i++) {
                 var token = tokens[i];
                 var isKeyword = token.type.ToString().EndsWith("_KEYWORD");
-                var isNumber = token.type == SyntaxType.NUMBER;
-                var isIdentifier = token.type == SyntaxType.IDENTIFIER;
-                var isString = token.type == SyntaxType.STRING;
-                var isType = (i < tokens.Length-2) && (tokens[i+1].type == SyntaxType.WHITESPACE) &&
-                    (tokens[i+2].type == SyntaxType.IDENTIFIER) && isIdentifier;
+                var isNumber = token.type == SyntaxType.NUMBER_TOKEN;
+                var isIdentifier = token.type == SyntaxType.IDENTIFIER_TOKEN;
+                var isString = token.type == SyntaxType.STRING_TOKEN;
+                var isType = (i < tokens.Length-2) && (tokens[i+1].type == SyntaxType.WHITESPACE_TOKEN) &&
+                    (tokens[i+2].type == SyntaxType.IDENTIFIER_TOKEN) && isIdentifier;
                 isType |= i == 1 && tokens[0].text == "#";
                 isType &= !(i > 1 && tokens[0].text == "#");
 

@@ -7,34 +7,34 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         public static int GetBinaryPrecedence(this SyntaxType type) {
             switch (type) {
-                case SyntaxType.DASTERISK:
+                case SyntaxType.DASTERISK_TOKEN:
                     return 11;
-                case SyntaxType.ASTERISK:
-                case SyntaxType.SLASH:
+                case SyntaxType.ASTERISK_TOKEN:
+                case SyntaxType.SLASH_TOKEN:
                     return 10;
-                case SyntaxType.PLUS:
-                case SyntaxType.MINUS:
+                case SyntaxType.PLUS_TOKEN:
+                case SyntaxType.MINUS_TOKEN:
                     return 9;
-                case SyntaxType.SHIFTLEFT:
-                case SyntaxType.SHIFTRIGHT:
+                case SyntaxType.SHIFTLEFT_TOKEN:
+                case SyntaxType.SHIFTRIGHT_TOKEN:
                     return 8;
-                case SyntaxType.LANGLEBRACKET:
-                case SyntaxType.RANGLEBRACKET:
-                case SyntaxType.LESSEQUAL:
-                case SyntaxType.GREATEQUAL:
+                case SyntaxType.LANGLEBRACKET_TOKEN:
+                case SyntaxType.RANGLEBRACKET_TOKEN:
+                case SyntaxType.LESSEQUAL_TOKEN:
+                case SyntaxType.GREATEQUAL_TOKEN:
                     return 7;
-                case SyntaxType.DEQUALS:
-                case SyntaxType.BANGEQUALS:
+                case SyntaxType.DEQUALS_TOKEN:
+                case SyntaxType.BANGEQUALS_TOKEN:
                     return 6;
-                case SyntaxType.AMPERSAND:
+                case SyntaxType.AMPERSAND_TOKEN:
                     return 5;
-                case SyntaxType.CARET:
+                case SyntaxType.CARET_TOKEN:
                     return 4;
-                case SyntaxType.PIPE:
+                case SyntaxType.PIPE_TOKEN:
                     return 3;
-                case SyntaxType.DAMPERSAND:
+                case SyntaxType.DAMPERSAND_TOKEN:
                     return 2;
-                case SyntaxType.DPIPE:
+                case SyntaxType.DPIPE_TOKEN:
                     return 1;
                 default: return 0;
             }
@@ -42,10 +42,10 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         public static int GetUnaryPrecedence(this SyntaxType type) {
             switch (type) {
-                case SyntaxType.PLUS:
-                case SyntaxType.MINUS:
-                case SyntaxType.BANG:
-                case SyntaxType.TILDE:
+                case SyntaxType.PLUS_TOKEN:
+                case SyntaxType.MINUS_TOKEN:
+                case SyntaxType.BANG_TOKEN:
+                case SyntaxType.TILDE_TOKEN:
                     return 12;
                 default: return 0;
             }
@@ -65,39 +65,39 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case "break": return SyntaxType.BREAK_KEYWORD;
                 case "continue": return SyntaxType.CONTINUE_KEYWORD;
                 case "return": return SyntaxType.RETURN_KEYWORD;
-                default: return SyntaxType.IDENTIFIER;
+                default: return SyntaxType.IDENTIFIER_TOKEN;
             }
         }
 
         public static string GetText(SyntaxType type) {
             switch (type) {
-                case SyntaxType.COMMA: return ",";
-                case SyntaxType.PLUS: return "+";
-                case SyntaxType.MINUS: return "-";
-                case SyntaxType.ASTERISK: return "*";
-                case SyntaxType.SLASH: return "/";
-                case SyntaxType.LPAREN: return "(";
-                case SyntaxType.RPAREN: return ")";
-                case SyntaxType.EQUALS: return "=";
-                case SyntaxType.TILDE: return "~";
-                case SyntaxType.CARET: return "^";
-                case SyntaxType.AMPERSAND: return "&";
-                case SyntaxType.PIPE: return "|";
-                case SyntaxType.SHIFTLEFT: return "<<";
-                case SyntaxType.SHIFTRIGHT: return ">>";
-                case SyntaxType.BANG: return "!";
-                case SyntaxType.DAMPERSAND: return "&&";
-                case SyntaxType.DPIPE: return "||";
-                case SyntaxType.DASTERISK: return "**";
-                case SyntaxType.LBRACE: return "{";
-                case SyntaxType.RBRACE: return "}";
-                case SyntaxType.SEMICOLON: return ";";
-                case SyntaxType.DEQUALS: return "==";
-                case SyntaxType.BANGEQUALS: return "!=";
-                case SyntaxType.LANGLEBRACKET: return "<";
-                case SyntaxType.RANGLEBRACKET: return ">";
-                case SyntaxType.LESSEQUAL: return "<=";
-                case SyntaxType.GREATEQUAL: return ">=";
+                case SyntaxType.COMMA_TOKEN: return ",";
+                case SyntaxType.PLUS_TOKEN: return "+";
+                case SyntaxType.MINUS_TOKEN: return "-";
+                case SyntaxType.ASTERISK_TOKEN: return "*";
+                case SyntaxType.SLASH_TOKEN: return "/";
+                case SyntaxType.LPAREN_TOKEN: return "(";
+                case SyntaxType.RPAREN_TOKEN: return ")";
+                case SyntaxType.EQUALS_TOKEN: return "=";
+                case SyntaxType.TILDE_TOKEN: return "~";
+                case SyntaxType.CARET_TOKEN: return "^";
+                case SyntaxType.AMPERSAND_TOKEN: return "&";
+                case SyntaxType.PIPE_TOKEN: return "|";
+                case SyntaxType.SHIFTLEFT_TOKEN: return "<<";
+                case SyntaxType.SHIFTRIGHT_TOKEN: return ">>";
+                case SyntaxType.BANG_TOKEN: return "!";
+                case SyntaxType.DAMPERSAND_TOKEN: return "&&";
+                case SyntaxType.DPIPE_TOKEN: return "||";
+                case SyntaxType.DASTERISK_TOKEN: return "**";
+                case SyntaxType.LBRACE_TOKEN: return "{";
+                case SyntaxType.RBRACE_TOKEN: return "}";
+                case SyntaxType.SEMICOLON_TOKEN: return ";";
+                case SyntaxType.DEQUALS_TOKEN: return "==";
+                case SyntaxType.BANGEQUALS_TOKEN: return "!=";
+                case SyntaxType.LANGLEBRACKET_TOKEN: return "<";
+                case SyntaxType.RANGLEBRACKET_TOKEN: return ">";
+                case SyntaxType.LESSEQUAL_TOKEN: return "<=";
+                case SyntaxType.GREATEQUAL_TOKEN: return ">=";
                 case SyntaxType.TRUE_KEYWORD: return "true";
                 case SyntaxType.FALSE_KEYWORD: return "false";
                 case SyntaxType.AUTO_KEYWORD: return "auto";

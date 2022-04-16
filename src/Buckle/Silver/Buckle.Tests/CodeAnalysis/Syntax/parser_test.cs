@@ -16,29 +16,29 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
 
             if (op1Precedence >= op2Precedence) {
                 using (var e = new AssertingEnumerator(expression)) {
-                    e.AssertNode(SyntaxType.BINARY_EXPR);
-                    e.AssertNode(SyntaxType.BINARY_EXPR);
-                    e.AssertNode(SyntaxType.NAME_EXPR);
-                    e.AssertToken(SyntaxType.IDENTIFIER, "a");
+                    e.AssertNode(SyntaxType.BINARY_EXPRESSION);
+                    e.AssertNode(SyntaxType.BINARY_EXPRESSION);
+                    e.AssertNode(SyntaxType.NAME_EXPRESSION);
+                    e.AssertToken(SyntaxType.IDENTIFIER_TOKEN, "a");
                     e.AssertToken(op1, op1Text);
-                    e.AssertNode(SyntaxType.NAME_EXPR);
-                    e.AssertToken(SyntaxType.IDENTIFIER, "b");
+                    e.AssertNode(SyntaxType.NAME_EXPRESSION);
+                    e.AssertToken(SyntaxType.IDENTIFIER_TOKEN, "b");
                     e.AssertToken(op2, op2Text);
-                    e.AssertNode(SyntaxType.NAME_EXPR);
-                    e.AssertToken(SyntaxType.IDENTIFIER, "c");
+                    e.AssertNode(SyntaxType.NAME_EXPRESSION);
+                    e.AssertToken(SyntaxType.IDENTIFIER_TOKEN, "c");
                 }
             } else {
                 using (var e = new AssertingEnumerator(expression)) {
-                    e.AssertNode(SyntaxType.BINARY_EXPR);
-                    e.AssertNode(SyntaxType.NAME_EXPR);
-                    e.AssertToken(SyntaxType.IDENTIFIER, "a");
+                    e.AssertNode(SyntaxType.BINARY_EXPRESSION);
+                    e.AssertNode(SyntaxType.NAME_EXPRESSION);
+                    e.AssertToken(SyntaxType.IDENTIFIER_TOKEN, "a");
                     e.AssertToken(op1, op1Text);
-                    e.AssertNode(SyntaxType.BINARY_EXPR);
-                    e.AssertNode(SyntaxType.NAME_EXPR);
-                    e.AssertToken(SyntaxType.IDENTIFIER, "b");
+                    e.AssertNode(SyntaxType.BINARY_EXPRESSION);
+                    e.AssertNode(SyntaxType.NAME_EXPRESSION);
+                    e.AssertToken(SyntaxType.IDENTIFIER_TOKEN, "b");
                     e.AssertToken(op2, op2Text);
-                    e.AssertNode(SyntaxType.NAME_EXPR);
-                    e.AssertToken(SyntaxType.IDENTIFIER, "c");
+                    e.AssertNode(SyntaxType.NAME_EXPRESSION);
+                    e.AssertToken(SyntaxType.IDENTIFIER_TOKEN, "c");
                 }
             }
         }
@@ -55,25 +55,25 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
 
             if (unaryPrecedence >= binaryPrecedence) {
                 using (var e = new AssertingEnumerator(expression)) {
-                    e.AssertNode(SyntaxType.BINARY_EXPR);
-                    e.AssertNode(SyntaxType.UNARY_EXPR);
+                    e.AssertNode(SyntaxType.BINARY_EXPRESSION);
+                    e.AssertNode(SyntaxType.UNARY_EXPRESSION);
                     e.AssertToken(unaryType, unaryText);
-                    e.AssertNode(SyntaxType.NAME_EXPR);
-                    e.AssertToken(SyntaxType.IDENTIFIER, "a");
+                    e.AssertNode(SyntaxType.NAME_EXPRESSION);
+                    e.AssertToken(SyntaxType.IDENTIFIER_TOKEN, "a");
                     e.AssertToken(binaryType, binaryText);
-                    e.AssertNode(SyntaxType.NAME_EXPR);
-                    e.AssertToken(SyntaxType.IDENTIFIER, "b");
+                    e.AssertNode(SyntaxType.NAME_EXPRESSION);
+                    e.AssertToken(SyntaxType.IDENTIFIER_TOKEN, "b");
                 }
             } else {
                 using (var e = new AssertingEnumerator(expression)) {
-                    e.AssertNode(SyntaxType.UNARY_EXPR);
+                    e.AssertNode(SyntaxType.UNARY_EXPRESSION);
                     e.AssertToken(unaryType, unaryText);
-                    e.AssertNode(SyntaxType.BINARY_EXPR);
-                    e.AssertNode(SyntaxType.NAME_EXPR);
-                    e.AssertToken(SyntaxType.IDENTIFIER, "a");
+                    e.AssertNode(SyntaxType.BINARY_EXPRESSION);
+                    e.AssertNode(SyntaxType.NAME_EXPRESSION);
+                    e.AssertToken(SyntaxType.IDENTIFIER_TOKEN, "a");
                     e.AssertToken(binaryType, binaryText);
-                    e.AssertNode(SyntaxType.NAME_EXPR);
-                    e.AssertToken(SyntaxType.IDENTIFIER, "b");
+                    e.AssertNode(SyntaxType.NAME_EXPRESSION);
+                    e.AssertToken(SyntaxType.IDENTIFIER_TOKEN, "b");
                 }
             }
         }

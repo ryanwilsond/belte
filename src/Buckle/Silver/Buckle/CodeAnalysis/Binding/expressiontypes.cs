@@ -52,43 +52,43 @@ namespace Buckle.CodeAnalysis.Binding {
             : this(type, opType, lType, lType, lType) { }
 
         private static BoundBinaryOperator[] operators_ = {
-            new BoundBinaryOperator(SyntaxType.PLUS, BoundBinaryOperatorType.Addition, TypeSymbol.Int),
-            new BoundBinaryOperator(SyntaxType.MINUS, BoundBinaryOperatorType.Subtraction, TypeSymbol.Int),
-            new BoundBinaryOperator(SyntaxType.ASTERISK, BoundBinaryOperatorType.Multiplication, TypeSymbol.Int),
-            new BoundBinaryOperator(SyntaxType.SLASH, BoundBinaryOperatorType.Division, TypeSymbol.Int),
-            new BoundBinaryOperator(SyntaxType.DASTERISK, BoundBinaryOperatorType.Power, TypeSymbol.Int),
-            new BoundBinaryOperator(SyntaxType.AMPERSAND, BoundBinaryOperatorType.LogicalAnd, TypeSymbol.Int),
-            new BoundBinaryOperator(SyntaxType.PIPE, BoundBinaryOperatorType.LogicalOr, TypeSymbol.Int),
-            new BoundBinaryOperator(SyntaxType.CARET, BoundBinaryOperatorType.LogicalXor, TypeSymbol.Int),
-            new BoundBinaryOperator(SyntaxType.SHIFTLEFT, BoundBinaryOperatorType.LeftShift, TypeSymbol.Int),
-            new BoundBinaryOperator(SyntaxType.SHIFTRIGHT, BoundBinaryOperatorType.RightShift, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.PLUS_TOKEN, BoundBinaryOperatorType.Addition, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.MINUS_TOKEN, BoundBinaryOperatorType.Subtraction, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.ASTERISK_TOKEN, BoundBinaryOperatorType.Multiplication, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.SLASH_TOKEN, BoundBinaryOperatorType.Division, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.DASTERISK_TOKEN, BoundBinaryOperatorType.Power, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.AMPERSAND_TOKEN, BoundBinaryOperatorType.LogicalAnd, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.PIPE_TOKEN, BoundBinaryOperatorType.LogicalOr, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.CARET_TOKEN, BoundBinaryOperatorType.LogicalXor, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.SHIFTLEFT_TOKEN, BoundBinaryOperatorType.LeftShift, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.SHIFTRIGHT_TOKEN, BoundBinaryOperatorType.RightShift, TypeSymbol.Int),
 
             new BoundBinaryOperator(
-                SyntaxType.DEQUALS, BoundBinaryOperatorType.EqualityEquals, TypeSymbol.Int, TypeSymbol.Bool),
+                SyntaxType.DEQUALS_TOKEN, BoundBinaryOperatorType.EqualityEquals, TypeSymbol.Int, TypeSymbol.Bool),
             new BoundBinaryOperator(
-                SyntaxType.BANGEQUALS, BoundBinaryOperatorType.EqualityNotEquals, TypeSymbol.Int, TypeSymbol.Bool),
+                SyntaxType.BANGEQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals, TypeSymbol.Int, TypeSymbol.Bool),
             new BoundBinaryOperator(
-                SyntaxType.LANGLEBRACKET, BoundBinaryOperatorType.LessThan, TypeSymbol.Int, TypeSymbol.Bool),
+                SyntaxType.LANGLEBRACKET_TOKEN, BoundBinaryOperatorType.LessThan, TypeSymbol.Int, TypeSymbol.Bool),
             new BoundBinaryOperator(
-                SyntaxType.RANGLEBRACKET, BoundBinaryOperatorType.GreaterThan, TypeSymbol.Int, TypeSymbol.Bool),
+                SyntaxType.RANGLEBRACKET_TOKEN, BoundBinaryOperatorType.GreaterThan, TypeSymbol.Int, TypeSymbol.Bool),
             new BoundBinaryOperator(
-                SyntaxType.LESSEQUAL, BoundBinaryOperatorType.LessOrEqual, TypeSymbol.Int, TypeSymbol.Bool),
+                SyntaxType.LESSEQUAL_TOKEN, BoundBinaryOperatorType.LessOrEqual, TypeSymbol.Int, TypeSymbol.Bool),
             new BoundBinaryOperator(
-                SyntaxType.GREATEQUAL, BoundBinaryOperatorType.GreatOrEqual, TypeSymbol.Int, TypeSymbol.Bool),
+                SyntaxType.GREATEQUAL_TOKEN, BoundBinaryOperatorType.GreatOrEqual, TypeSymbol.Int, TypeSymbol.Bool),
 
-            new BoundBinaryOperator(SyntaxType.DAMPERSAND, BoundBinaryOperatorType.ConditionalAnd, TypeSymbol.Bool),
-            new BoundBinaryOperator(SyntaxType.DPIPE, BoundBinaryOperatorType.ConditionalOr, TypeSymbol.Bool),
-            new BoundBinaryOperator(SyntaxType.AMPERSAND, BoundBinaryOperatorType.LogicalAnd, TypeSymbol.Bool),
-            new BoundBinaryOperator(SyntaxType.PIPE, BoundBinaryOperatorType.LogicalOr, TypeSymbol.Bool),
-            new BoundBinaryOperator(SyntaxType.CARET, BoundBinaryOperatorType.LogicalXor, TypeSymbol.Bool),
-            new BoundBinaryOperator(SyntaxType.DEQUALS, BoundBinaryOperatorType.EqualityEquals, TypeSymbol.Bool),
-            new BoundBinaryOperator(SyntaxType.BANGEQUALS, BoundBinaryOperatorType.EqualityNotEquals, TypeSymbol.Bool),
+            new BoundBinaryOperator(SyntaxType.DAMPERSAND_TOKEN, BoundBinaryOperatorType.ConditionalAnd, TypeSymbol.Bool),
+            new BoundBinaryOperator(SyntaxType.DPIPE_TOKEN, BoundBinaryOperatorType.ConditionalOr, TypeSymbol.Bool),
+            new BoundBinaryOperator(SyntaxType.AMPERSAND_TOKEN, BoundBinaryOperatorType.LogicalAnd, TypeSymbol.Bool),
+            new BoundBinaryOperator(SyntaxType.PIPE_TOKEN, BoundBinaryOperatorType.LogicalOr, TypeSymbol.Bool),
+            new BoundBinaryOperator(SyntaxType.CARET_TOKEN, BoundBinaryOperatorType.LogicalXor, TypeSymbol.Bool),
+            new BoundBinaryOperator(SyntaxType.DEQUALS_TOKEN, BoundBinaryOperatorType.EqualityEquals, TypeSymbol.Bool),
+            new BoundBinaryOperator(SyntaxType.BANGEQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals, TypeSymbol.Bool),
 
-            new BoundBinaryOperator(SyntaxType.PLUS, BoundBinaryOperatorType.Addition, TypeSymbol.String),
+            new BoundBinaryOperator(SyntaxType.PLUS_TOKEN, BoundBinaryOperatorType.Addition, TypeSymbol.String),
             new BoundBinaryOperator(
-                SyntaxType.DEQUALS, BoundBinaryOperatorType.EqualityEquals, TypeSymbol.String, TypeSymbol.Bool),
+                SyntaxType.DEQUALS_TOKEN, BoundBinaryOperatorType.EqualityEquals, TypeSymbol.String, TypeSymbol.Bool),
             new BoundBinaryOperator(
-                SyntaxType.BANGEQUALS, BoundBinaryOperatorType.EqualityNotEquals, TypeSymbol.String, TypeSymbol.Bool),
+                SyntaxType.BANGEQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals, TypeSymbol.String, TypeSymbol.Bool),
         };
 
         public static BoundBinaryOperator Bind(SyntaxType type, TypeSymbol leftType, TypeSymbol rightType) {
@@ -139,11 +139,11 @@ namespace Buckle.CodeAnalysis.Binding {
             : this(type, opType, operandType, operandType) { }
 
         private static BoundUnaryOperator[] operators_ = {
-            new BoundUnaryOperator(SyntaxType.BANG, BoundUnaryOperatorType.BooleanNegation, TypeSymbol.Bool),
+            new BoundUnaryOperator(SyntaxType.BANG_TOKEN, BoundUnaryOperatorType.BooleanNegation, TypeSymbol.Bool),
 
-            new BoundUnaryOperator(SyntaxType.PLUS, BoundUnaryOperatorType.NumericalIdentity, TypeSymbol.Int),
-            new BoundUnaryOperator(SyntaxType.MINUS, BoundUnaryOperatorType.NumericalNegation, TypeSymbol.Int),
-            new BoundUnaryOperator(SyntaxType.TILDE, BoundUnaryOperatorType.BitwiseCompliment, TypeSymbol.Int),
+            new BoundUnaryOperator(SyntaxType.PLUS_TOKEN, BoundUnaryOperatorType.NumericalIdentity, TypeSymbol.Int),
+            new BoundUnaryOperator(SyntaxType.MINUS_TOKEN, BoundUnaryOperatorType.NumericalNegation, TypeSymbol.Int),
+            new BoundUnaryOperator(SyntaxType.TILDE_TOKEN, BoundUnaryOperatorType.BitwiseCompliment, TypeSymbol.Int),
         };
 
         public static BoundUnaryOperator Bind(SyntaxType type, TypeSymbol operandType) {

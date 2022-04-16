@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Lowering {
     internal sealed class Lowerer : BoundTreeRewriter {
@@ -14,12 +16,12 @@ namespace Buckle.CodeAnalysis.Lowering {
             return new BoundLabel(name);
         }
 
-        public static BoundBlockStatement Lower(BoundStatement statement) {
+        public static BoundBlockStatement Lower(FunctionSymbol function, BoundStatement statement) {
             var lowerer = new Lowerer();
-            return Flatten(lowerer.RewriteStatement(statement));
+            return Flatten(function, lowerer.RewriteStatement(statement));
         }
 
-        private static BoundBlockStatement Flatten(BoundStatement statement) {
+        private static BoundBlockStatement Flatten(FunctionSymbol function, BoundStatement statement) {
             var builder = ImmutableArray.CreateBuilder<BoundStatement>();
             var stack = new Stack<BoundStatement>();
             stack.Push(statement);
@@ -35,7 +37,17 @@ namespace Buckle.CodeAnalysis.Lowering {
                 }
             }
 
+            if (function.lType == TypeSymbol.Void)
+                if (builder.Count == 0 || CanFallThrough(builder.Last()))
+                    builder.Add(new BoundReturnStatement(null));
+
             return new BoundBlockStatement(builder.ToImmutable());
+        }
+
+        private static bool CanFallThrough(BoundStatement boundStatement) {
+            // TODO: rewrite conditional gotos with guaranteed result of condition into nothing or unconditional goto
+            return boundStatement.type != BoundNodeType.ReturnStatement &&
+                boundStatement.type != BoundNodeType.GotoStatement;
         }
 
         protected override BoundStatement RewriteIfStatement(BoundIfStatement node) {

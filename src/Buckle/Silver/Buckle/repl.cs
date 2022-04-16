@@ -154,7 +154,7 @@ namespace CommandLine {
 
             private void UpdateCursorPosition() {
                 Console.CursorTop = cursorTop_ + currentLine_;
-                Console.CursorLeft = 2 + currentCharacter_; // accounts for repl indentation
+                Console.CursorLeft = 2 + currentCharacter_; // +2 comes from repl entry characters
             }
         }
 

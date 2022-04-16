@@ -11,7 +11,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             const string text = "\"test";
             var tokens = SyntaxTree.ParseTokens(text, out var diagnostics);
             var token = Assert.Single(tokens);
-            Assert.Equal(SyntaxType.STRING, token.type);
+            Assert.Equal(SyntaxType.STRING_TOKEN, token.type);
             Assert.Equal(text, token.text);
             Assert.Equal(1, diagnostics.count);
             var diagnostic = diagnostics.Pop();
@@ -25,14 +25,13 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             var tokenTypes = Enum.GetValues(typeof(SyntaxType))
                 .Cast<SyntaxType>()
                 .Where(k => k.ToString().EndsWith("_KEYWORD") ||
-                    (k.ToString().Length - k.ToString().Replace("_", "").Length == 0));
+                    (k.ToString().EndsWith("_TOKEN")));
 
             var testedTokenTypes = GetTokens().Concat(GetSeparators()).Select(t => t.type);
 
             var untestedTokenTypes = new SortedSet<SyntaxType>(tokenTypes);
             untestedTokenTypes.Remove(SyntaxType.Invalid);
-            untestedTokenTypes.Remove(SyntaxType.EOF);
-            untestedTokenTypes.Remove(SyntaxType.PARAMETER); // not a token
+            untestedTokenTypes.Remove(SyntaxType.EOF_TOKEN);
             untestedTokenTypes.ExceptWith(testedTokenTypes);
 
             Assert.Empty(untestedTokenTypes);
@@ -101,12 +100,12 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
                                   .Where(t => t.text != null);
 
             var dynamicTokens = new[] {
-                (SyntaxType.NUMBER, "1"),
-                (SyntaxType.NUMBER, "123"),
-                (SyntaxType.IDENTIFIER, "a"),
-                (SyntaxType.IDENTIFIER, "abc"),
-                (SyntaxType.STRING, "\"Test\""),
-                (SyntaxType.STRING, "\"Te\"\"st\""),
+                (SyntaxType.NUMBER_TOKEN, "1"),
+                (SyntaxType.NUMBER_TOKEN, "123"),
+                (SyntaxType.IDENTIFIER_TOKEN, "a"),
+                (SyntaxType.IDENTIFIER_TOKEN, "abc"),
+                (SyntaxType.STRING_TOKEN, "\"Test\""),
+                (SyntaxType.STRING_TOKEN, "\"Te\"\"st\""),
             };
 
             return fixedTokens.Concat(dynamicTokens);
@@ -114,11 +113,11 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
 
         private static IEnumerable<(SyntaxType type, string text)> GetSeparators() {
             return new[] {
-                (SyntaxType.WHITESPACE, " "),
-                (SyntaxType.WHITESPACE, "  "),
-                (SyntaxType.WHITESPACE, "\r"),
-                (SyntaxType.WHITESPACE, "\n"),
-                (SyntaxType.WHITESPACE, "\r\n")
+                (SyntaxType.WHITESPACE_TOKEN, " "),
+                (SyntaxType.WHITESPACE_TOKEN, "  "),
+                (SyntaxType.WHITESPACE_TOKEN, "\r"),
+                (SyntaxType.WHITESPACE_TOKEN, "\n"),
+                (SyntaxType.WHITESPACE_TOKEN, "\r\n")
             };
         }
 
@@ -126,38 +125,38 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             var t1IsKeyword = t1Type.ToString().EndsWith("KEYWORD");
             var t2IsKeyword = t2Type.ToString().EndsWith("KEYWORD");
 
-            if (t1Type == SyntaxType.IDENTIFIER && t2Type == SyntaxType.IDENTIFIER) return true;
+            if (t1Type == SyntaxType.IDENTIFIER_TOKEN && t2Type == SyntaxType.IDENTIFIER_TOKEN) return true;
             if (t1IsKeyword && t2IsKeyword) return true;
-            if (t1IsKeyword && t2Type == SyntaxType.IDENTIFIER) return true;
-            if (t1Type == SyntaxType.IDENTIFIER && t2IsKeyword) return true;
-            if (t1Type == SyntaxType.NUMBER && t2Type == SyntaxType.NUMBER) return true;
-            if (t1Type == SyntaxType.BANG && t2Type == SyntaxType.EQUALS) return true;
-            if (t1Type == SyntaxType.BANG && t2Type == SyntaxType.DEQUALS) return true;
-            if (t1Type == SyntaxType.EQUALS && t2Type == SyntaxType.EQUALS) return true;
-            if (t1Type == SyntaxType.EQUALS && t2Type == SyntaxType.DEQUALS) return true;
-            if (t1Type == SyntaxType.ASTERISK && t2Type == SyntaxType.ASTERISK) return true;
-            if (t1Type == SyntaxType.DASTERISK && t2Type == SyntaxType.ASTERISK) return true;
-            if (t1Type == SyntaxType.ASTERISK && t2Type == SyntaxType.DASTERISK) return true;
-            if (t1Type == SyntaxType.DASTERISK && t2Type == SyntaxType.DASTERISK) return true;
-            if (t1Type == SyntaxType.LANGLEBRACKET && t2Type == SyntaxType.EQUALS) return true;
-            if (t1Type == SyntaxType.LANGLEBRACKET && t2Type == SyntaxType.DEQUALS) return true;
-            if (t1Type == SyntaxType.RANGLEBRACKET && t2Type == SyntaxType.EQUALS) return true;
-            if (t1Type == SyntaxType.RANGLEBRACKET && t2Type == SyntaxType.DEQUALS) return true;
-            if (t1Type == SyntaxType.PIPE && t2Type == SyntaxType.PIPE) return true;
-            if (t1Type == SyntaxType.PIPE && t2Type == SyntaxType.DPIPE) return true;
-            if (t1Type == SyntaxType.DPIPE && t2Type == SyntaxType.PIPE) return true;
-            if (t1Type == SyntaxType.AMPERSAND && t2Type == SyntaxType.AMPERSAND) return true;
-            if (t1Type == SyntaxType.AMPERSAND && t2Type == SyntaxType.DAMPERSAND) return true;
-            if (t1Type == SyntaxType.DAMPERSAND && t2Type == SyntaxType.AMPERSAND) return true;
-            if (t1Type == SyntaxType.LANGLEBRACKET && t2Type == SyntaxType.LESSEQUAL) return true;
-            if (t1Type == SyntaxType.LANGLEBRACKET && t2Type == SyntaxType.SHIFTLEFT) return true;
-            if (t1Type == SyntaxType.SHIFTLEFT && t2Type == SyntaxType.LESSEQUAL) return true;
-            if (t1Type == SyntaxType.LANGLEBRACKET && t2Type == SyntaxType.LANGLEBRACKET) return true;
-            if (t1Type == SyntaxType.RANGLEBRACKET && t2Type == SyntaxType.GREATEQUAL) return true;
-            if (t1Type == SyntaxType.RANGLEBRACKET && t2Type == SyntaxType.SHIFTRIGHT) return true;
-            if (t1Type == SyntaxType.SHIFTRIGHT && t2Type == SyntaxType.GREATEQUAL) return true;
-            if (t1Type == SyntaxType.RANGLEBRACKET && t2Type == SyntaxType.RANGLEBRACKET) return true;
-            if (t1Type == SyntaxType.STRING && t2Type == SyntaxType.STRING) return true;
+            if (t1IsKeyword && t2Type == SyntaxType.IDENTIFIER_TOKEN) return true;
+            if (t1Type == SyntaxType.IDENTIFIER_TOKEN && t2IsKeyword) return true;
+            if (t1Type == SyntaxType.NUMBER_TOKEN && t2Type == SyntaxType.NUMBER_TOKEN) return true;
+            if (t1Type == SyntaxType.BANG_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.BANG_TOKEN && t2Type == SyntaxType.DEQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.EQUALS_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.EQUALS_TOKEN && t2Type == SyntaxType.DEQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.ASTERISK_TOKEN) return true;
+            if (t1Type == SyntaxType.DASTERISK_TOKEN && t2Type == SyntaxType.ASTERISK_TOKEN) return true;
+            if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.DASTERISK_TOKEN) return true;
+            if (t1Type == SyntaxType.DASTERISK_TOKEN && t2Type == SyntaxType.DASTERISK_TOKEN) return true;
+            if (t1Type == SyntaxType.LANGLEBRACKET_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.LANGLEBRACKET_TOKEN && t2Type == SyntaxType.DEQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.RANGLEBRACKET_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.RANGLEBRACKET_TOKEN && t2Type == SyntaxType.DEQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.PIPE_TOKEN && t2Type == SyntaxType.PIPE_TOKEN) return true;
+            if (t1Type == SyntaxType.PIPE_TOKEN && t2Type == SyntaxType.DPIPE_TOKEN) return true;
+            if (t1Type == SyntaxType.DPIPE_TOKEN && t2Type == SyntaxType.PIPE_TOKEN) return true;
+            if (t1Type == SyntaxType.AMPERSAND_TOKEN && t2Type == SyntaxType.AMPERSAND_TOKEN) return true;
+            if (t1Type == SyntaxType.AMPERSAND_TOKEN && t2Type == SyntaxType.DAMPERSAND_TOKEN) return true;
+            if (t1Type == SyntaxType.DAMPERSAND_TOKEN && t2Type == SyntaxType.AMPERSAND_TOKEN) return true;
+            if (t1Type == SyntaxType.LANGLEBRACKET_TOKEN && t2Type == SyntaxType.LESSEQUAL_TOKEN) return true;
+            if (t1Type == SyntaxType.LANGLEBRACKET_TOKEN && t2Type == SyntaxType.SHIFTLEFT_TOKEN) return true;
+            if (t1Type == SyntaxType.SHIFTLEFT_TOKEN && t2Type == SyntaxType.LESSEQUAL_TOKEN) return true;
+            if (t1Type == SyntaxType.LANGLEBRACKET_TOKEN && t2Type == SyntaxType.LANGLEBRACKET_TOKEN) return true;
+            if (t1Type == SyntaxType.RANGLEBRACKET_TOKEN && t2Type == SyntaxType.GREATEQUAL_TOKEN) return true;
+            if (t1Type == SyntaxType.RANGLEBRACKET_TOKEN && t2Type == SyntaxType.SHIFTRIGHT_TOKEN) return true;
+            if (t1Type == SyntaxType.SHIFTRIGHT_TOKEN && t2Type == SyntaxType.GREATEQUAL_TOKEN) return true;
+            if (t1Type == SyntaxType.RANGLEBRACKET_TOKEN && t2Type == SyntaxType.RANGLEBRACKET_TOKEN) return true;
+            if (t1Type == SyntaxType.STRING_TOKEN && t2Type == SyntaxType.STRING_TOKEN) return true;
 
             return false;
         }

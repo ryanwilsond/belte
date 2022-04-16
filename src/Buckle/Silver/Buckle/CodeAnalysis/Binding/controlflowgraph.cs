@@ -209,7 +209,7 @@ namespace Buckle.CodeAnalysis.Binding {
                     return new BoundLiteralExpression(!value);
                 }
 
-                var op = BoundUnaryOperator.Bind(SyntaxType.BANG, TypeSymbol.Bool);
+                var op = BoundUnaryOperator.Bind(SyntaxType.BANG_TOKEN, TypeSymbol.Bool);
                 return new BoundUnaryExpression(op, condition);
             }
 

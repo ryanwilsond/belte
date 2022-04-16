@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Syntax {
     internal sealed class LiteralExpression : Expression {
         public Token token { get; }
         public object value { get; }
-        public override SyntaxType type => SyntaxType.LITERAL_EXPR;
+        public override SyntaxType type => SyntaxType.LITERAL_EXPRESSION;
 
         public LiteralExpression(SyntaxTree syntaxTree, Token token_, object value_) : base(syntaxTree) {
             token = token_;
@@ -22,7 +22,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Expression left { get; }
         public Token op { get; }
         public Expression right { get; }
-        public override SyntaxType type => SyntaxType.BINARY_EXPR;
+        public override SyntaxType type => SyntaxType.BINARY_EXPRESSION;
 
         public BinaryExpression(SyntaxTree syntaxTree, Expression left_, Token op_, Expression right_)
             : base(syntaxTree) {
@@ -36,7 +36,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Token openParenthesis { get; }
         public Expression expression { get; }
         public Token closeParenthesis { get; }
-        public override SyntaxType type => SyntaxType.PAREN_EXPR;
+        public override SyntaxType type => SyntaxType.PAREN_EXPRESSION;
 
         public ParenExpression(
             SyntaxTree syntaxTree, Token openParenthesis_, Expression expression_, Token closeParenthesis_)
@@ -50,7 +50,7 @@ namespace Buckle.CodeAnalysis.Syntax {
     internal sealed class UnaryExpression : Expression {
         public Token op { get; }
         public Expression operand { get; }
-        public override SyntaxType type => SyntaxType.UNARY_EXPR;
+        public override SyntaxType type => SyntaxType.UNARY_EXPRESSION;
 
         public UnaryExpression(SyntaxTree syntaxTree, Token op_, Expression operand_) : base(syntaxTree) {
             op = op_;
@@ -60,7 +60,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal sealed class NameExpression : Expression {
         public Token identifier { get; }
-        public override SyntaxType type => SyntaxType.NAME_EXPR;
+        public override SyntaxType type => SyntaxType.NAME_EXPRESSION;
 
         public NameExpression(SyntaxTree syntaxTree, Token identifier_) : base(syntaxTree) {
             identifier = identifier_;
@@ -71,7 +71,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Token identifier { get; }
         public Token equals { get; }
         public Expression expression { get; }
-        public override SyntaxType type => SyntaxType.ASSIGN_EXPR;
+        public override SyntaxType type => SyntaxType.ASSIGN_EXPRESSION;
 
         public AssignmentExpression(SyntaxTree syntaxTree, Token identifier_, Token equals_, Expression expression_)
             : base(syntaxTree) {
@@ -82,7 +82,7 @@ namespace Buckle.CodeAnalysis.Syntax {
     }
 
     internal sealed class EmptyExpression : Expression {
-        public override SyntaxType type => SyntaxType.EMPTY_EXPR;
+        public override SyntaxType type => SyntaxType.EMPTY_EXPRESSION;
 
         public EmptyExpression(SyntaxTree syntaxTree) : base(syntaxTree) { }
     }
@@ -92,7 +92,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Token openParenthesis { get; }
         public SeparatedSyntaxList<Expression> arguments { get; }
         public Token closeParenthesis { get; }
-        public override SyntaxType type => SyntaxType.CALL_EXPR;
+        public override SyntaxType type => SyntaxType.CALL_EXPRESSION;
 
         public CallExpression(
             SyntaxTree syntaxTree, Token identifier_, Token openParenthesis_,

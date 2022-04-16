@@ -24,6 +24,8 @@ namespace Buckle {
             if (type.ToString().EndsWith("_STATEMENT")) return "statement";
             else if (type.ToString().EndsWith("_EXPRESSION")) return "expression";
             else if (type.ToString().EndsWith("_KEYWORD")) return "keyword";
+            else if (type.ToString().EndsWith("_TOKEN"))
+                return type.ToString().ToLower().Substring(0, type.ToString().Length-6);
             else return type.ToString().ToLower();
         }
 
@@ -45,7 +47,7 @@ namespace Buckle {
         public static Diagnostic UnexpectedToken(TextLocation location, SyntaxType unexpected, SyntaxType expected) {
             string msg;
 
-            if (unexpected != SyntaxType.EOF)
+            if (unexpected != SyntaxType.EOF_TOKEN)
                 msg = $"unexpected token {DiagnosticText(unexpected)}, expected {DiagnosticText(expected)}";
             else
                 msg = $"expected {DiagnosticText(expected)} at end of input";
