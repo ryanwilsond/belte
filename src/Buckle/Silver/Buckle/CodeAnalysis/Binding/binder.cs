@@ -148,7 +148,7 @@ namespace Buckle.CodeAnalysis.Binding {
                 if (!seenParametersNames.Add(parameterName)) {
                     diagnostics.Push(Error.ParameterAlreadyDeclared(parameter.location, parameter.identifier.text));
                 } else {
-                    var boundParameter = new ParameterSymbol(parameterName, parameterType);
+                    var boundParameter = new ParameterSymbol(parameterName, parameterType, parameters.Count);
                     parameters.Add(boundParameter);
                 }
             }

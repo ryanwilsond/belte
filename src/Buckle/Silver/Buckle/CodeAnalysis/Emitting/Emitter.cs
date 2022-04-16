@@ -182,6 +182,10 @@ namespace Buckle.CodeAnalysis.Emitting {
         }
 
         private void EmitReturnStatement(ILProcessor ilProcessor, BoundReturnStatement statement) {
+            if (statement.expression != null)
+                EmitExpression(ilProcessor, statement.expression);
+
+            ilProcessor.Emit(OpCodes.Ret);
         }
 
         private void EmitConditionalGotoStatement(ILProcessor ilProcessor, BoundConditionalGotoStatement statement) {
@@ -266,11 +270,19 @@ namespace Buckle.CodeAnalysis.Emitting {
         }
 
         private void EmitAssignmentExpression(ILProcessor ilProcessor, BoundAssignmentExpression expression) {
+            var variableDefinition = locals_[expression.variable];
+            EmitExpression(ilProcessor, expression.expression);
+            ilProcessor.Emit(OpCodes.Dup);
+            ilProcessor.Emit(OpCodes.Stloc, variableDefinition);
         }
 
         private void EmitVariableExpression(ILProcessor ilProcessor, BoundVariableExpression expression) {
-            var variableDefinition = locals_[expression.variable];
-            ilProcessor.Emit(OpCodes.Ldloc, variableDefinition);
+            if (expression.variable is ParameterSymbol parameter) {
+                ilProcessor.Emit(OpCodes.Ldarg, parameter.ordinal);
+            } else {
+                var variableDefinition = locals_[expression.variable];
+                ilProcessor.Emit(OpCodes.Ldloc, variableDefinition);
+            }
         }
 
         private void EmitBinaryExpression(ILProcessor ilProcessor, BoundBinaryExpression expression) {
@@ -306,8 +318,17 @@ namespace Buckle.CodeAnalysis.Emitting {
         }
 
         private void EmitFunctionDeclaration(FunctionSymbol function) {
-            var voidType = knownTypes_[TypeSymbol.Void];
-            var method = new MethodDefinition(function.name, MethodAttributes.Static | MethodAttributes.Private, voidType);
+            var functionType = knownTypes_[function.lType];
+            var method = new MethodDefinition(
+                function.name, MethodAttributes.Static | MethodAttributes.Private, functionType);
+
+            foreach (var parameter in function.parameters) {
+                var parameterType = knownTypes_[parameter.lType];
+                var parameterAttributes = ParameterAttributes.None;
+                var parameterDefinition = new ParameterDefinition(parameter.name, parameterAttributes, parameterType);
+                method.Parameters.Add(parameterDefinition);
+            }
+
             typeDefinition_.Methods.Add(method);
             methods_.Add(function, method);
         }
