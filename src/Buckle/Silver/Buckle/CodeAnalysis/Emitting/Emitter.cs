@@ -24,12 +24,16 @@ namespace Buckle.CodeAnalysis.Emitting {
         private readonly List<(int instructionIndex, BoundLabel target)> fixups_ =
             new List<(int instructionIndex, BoundLabel target)>();
         private readonly Dictionary<BoundLabel, int> labels_ = new Dictionary<BoundLabel, int>();
+        private readonly MethodReference convertToBooleanReference_;
+        private readonly MethodReference convertToInt32Reference_;
+        private readonly MethodReference convertToStringReference_;
+        private readonly MethodReference objectEqualsReference_;
+        private readonly MethodReference randomNextReference_;
+        private readonly TypeReference randomReference_;
+        private readonly MethodReference randomCtorReference_;
 
         private TypeDefinition typeDefinition_;
-        private MethodReference convertToBooleanReference_;
-        private MethodReference convertToInt32Reference_;
-        private MethodReference convertToStringReference_;
-        private MethodReference objectEqualsReference_;
+        private FieldDefinition randomFieldDefinition_;
 
         private Emitter(string moduleName, string[] references) {
             var assemblies = new List<AssemblyDefinition>();
@@ -131,6 +135,9 @@ namespace Buckle.CodeAnalysis.Emitting {
             convertToStringReference_ = ResolveMethod("System.Convert", "ToString", new [] { "System.Object" });
             objectEqualsReference_ = ResolveMethod(
                 "System.Object", "Equals", new [] { "System.Object", "System.Object" });
+            randomReference_ = ResolveType(null, "System.Random");
+            randomCtorReference_ = ResolveMethod("System.Random", ".ctor", Array.Empty<string>());
+            randomNextReference_ = ResolveMethod("System.Random", "Next", new [] { "System.Int32" });
         }
 
         public DiagnosticQueue Emit(BoundProgram program, string outputPath) {
@@ -159,8 +166,8 @@ namespace Buckle.CodeAnalysis.Emitting {
         private void EmitFunctionBody(FunctionSymbol function, BoundBlockStatement body) {
             var method = methods_[function];
             locals_.Clear();
-            fixups_.Clear();
             labels_.Clear();
+            fixups_.Clear();
             var ilProcessor = method.Body.GetILProcessor();
 
             foreach (var statement in body.statements)
@@ -215,11 +222,10 @@ namespace Buckle.CodeAnalysis.Emitting {
 
             var opcode = statement.jumpIfTrue ? OpCodes.Brtrue : OpCodes.Brfalse;
             fixups_.Add((ilProcessor.Body.Instructions.Count, statement.label));
-            ilProcessor.Emit(OpCodes.Br, Instruction.Create(OpCodes.Nop));
+            ilProcessor.Emit(opcode, Instruction.Create(OpCodes.Nop));
         }
 
         private void EmitLabelStatement(ILProcessor ilProcessor, BoundLabelStatement statement) {
-            // TODO: fix JIT error
             labels_.Add(statement.label, ilProcessor.Body.Instructions.Count);
         }
 
@@ -300,19 +306,48 @@ namespace Buckle.CodeAnalysis.Emitting {
         }
 
         private void EmitCallExpression(ILProcessor ilProcessor, BoundCallExpression expression) {
+            if (expression.function == BuiltinFunctions.Randint) {
+                if (randomFieldDefinition_ == null) {
+                    EmitRandomField();
+                }
+
+                ilProcessor.Emit(OpCodes.Ldsfld, randomFieldDefinition_);
+            }
+
             foreach (var argument in expression.arguments)
                 EmitExpression(ilProcessor, argument);
+
+            if (expression.function == BuiltinFunctions.Randint) {
+                ilProcessor.Emit(OpCodes.Callvirt, randomNextReference_);
+                return;
+            }
 
             if (expression.function == BuiltinFunctions.Print) {
                 ilProcessor.Emit(OpCodes.Call, consoleWriteLineReference_);
             } else if (expression.function == BuiltinFunctions.Input) {
                 ilProcessor.Emit(OpCodes.Call, consoleReadLineReference_);
-            } else if (expression.function == BuiltinFunctions.Randint) {
-                // TODO: implement
             } else {
                 var methodDefinition = methods_[expression.function];
                 ilProcessor.Emit(OpCodes.Call, methodDefinition);
             }
+        }
+
+        private void EmitRandomField() {
+            randomFieldDefinition_ = new FieldDefinition(
+                                    "$randint", FieldAttributes.Static | FieldAttributes.Private, randomReference_);
+            typeDefinition_.Fields.Add(randomFieldDefinition_);
+            var staticConstructor = new MethodDefinition(
+                ".cctor",
+                MethodAttributes.Static | MethodAttributes.Private |
+                MethodAttributes.RTSpecialName | MethodAttributes.SpecialName,
+                knownTypes_[TypeSymbol.Void]
+            );
+            typeDefinition_.Methods.Insert(0, staticConstructor);
+
+            var iLProcessor = staticConstructor.Body.GetILProcessor();
+            iLProcessor.Emit(OpCodes.Newobj, randomCtorReference_);
+            iLProcessor.Emit(OpCodes.Stsfld, randomFieldDefinition_);
+            iLProcessor.Emit(OpCodes.Ret);
         }
 
         private void EmitEmptyExpression(ILProcessor ilProcessor, BoundEmptyExpression expression) {
