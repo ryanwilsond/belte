@@ -200,7 +200,8 @@ namespace Buckle.CodeAnalysis.Binding {
                 if (result is BoundExpressionStatement es) {
                     var isAllowedExpression = es.expression.type == BoundNodeType.CallExpression ||
                         es.expression.type == BoundNodeType.AssignmentExpression ||
-                        es.expression.type == BoundNodeType.ErrorExpression;
+                        es.expression.type == BoundNodeType.ErrorExpression ||
+                        es.expression.type == BoundNodeType.EmptyExpression;
 
                     if (!isAllowedExpression)
                         diagnostics.Push(Error.InvalidExpressionStatement(syntax.location));

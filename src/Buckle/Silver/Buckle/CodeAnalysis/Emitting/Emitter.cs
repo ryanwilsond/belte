@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
@@ -10,19 +11,25 @@ using Mono.Cecil.Rocks;
 namespace Buckle.CodeAnalysis.Emitting {
     internal sealed class Emitter {
         public DiagnosticQueue diagnostics = new DiagnosticQueue();
+
         private readonly Dictionary<FunctionSymbol, MethodDefinition> methods_ =
             new Dictionary<FunctionSymbol, MethodDefinition>();
         private readonly AssemblyDefinition assemblyDefinition_;
         private readonly Dictionary<TypeSymbol, TypeReference> knownTypes_;
-        private TypeDefinition typeDefinition_;
         private readonly MethodReference consoleWriteLineReference_;
         private readonly MethodReference consoleReadLineReference_;
         private readonly MethodReference stringConcatReference_;
+        private readonly Dictionary<VariableSymbol, VariableDefinition> locals_ =
+            new Dictionary<VariableSymbol, VariableDefinition>();
+        private readonly List<(int instructionIndex, BoundLabel target)> fixups_ =
+            new List<(int instructionIndex, BoundLabel target)>();
+        private readonly Dictionary<BoundLabel, int> labels_ = new Dictionary<BoundLabel, int>();
+
+        private TypeDefinition typeDefinition_;
         private MethodReference convertToBooleanReference_;
         private MethodReference convertToInt32Reference_;
         private MethodReference convertToStringReference_;
-        private readonly Dictionary<VariableSymbol, VariableDefinition> locals_ =
-            new Dictionary<VariableSymbol, VariableDefinition>();
+        private MethodReference objectEqualsReference_;
 
         private Emitter(string moduleName, string[] references) {
             var assemblies = new List<AssemblyDefinition>();
@@ -122,6 +129,8 @@ namespace Buckle.CodeAnalysis.Emitting {
             convertToBooleanReference_ = ResolveMethod("System.Convert", "ToBoolean", new [] { "System.Object" });
             convertToInt32Reference_ = ResolveMethod("System.Convert", "ToInt32", new [] { "System.Object" });
             convertToStringReference_ = ResolveMethod("System.Convert", "ToString", new [] { "System.Object" });
+            objectEqualsReference_ = ResolveMethod(
+                "System.Object", "Equals", new [] { "System.Object", "System.Object" });
         }
 
         public DiagnosticQueue Emit(BoundProgram program, string outputPath) {
@@ -150,10 +159,20 @@ namespace Buckle.CodeAnalysis.Emitting {
         private void EmitFunctionBody(FunctionSymbol function, BoundBlockStatement body) {
             var method = methods_[function];
             locals_.Clear();
+            fixups_.Clear();
+            labels_.Clear();
             var ilProcessor = method.Body.GetILProcessor();
 
             foreach (var statement in body.statements)
                 EmitStatement(ilProcessor, statement);
+
+            foreach (var fixup in fixups_) {
+                var targetLabel = fixup.target;
+                var targetInstructionIndex = labels_[targetLabel];
+                var targetInstruction = ilProcessor.Body.Instructions[targetInstructionIndex];
+                var instructionFix = ilProcessor.Body.Instructions[fixup.instructionIndex];
+                instructionFix.Operand = targetInstruction;
+            }
 
             method.Body.OptimizeMacros();
         }
@@ -192,12 +211,21 @@ namespace Buckle.CodeAnalysis.Emitting {
         }
 
         private void EmitConditionalGotoStatement(ILProcessor ilProcessor, BoundConditionalGotoStatement statement) {
+            EmitExpression(ilProcessor, statement.condition);
+
+            var opcode = statement.jumpIfTrue ? OpCodes.Brtrue : OpCodes.Brfalse;
+            fixups_.Add((ilProcessor.Body.Instructions.Count, statement.label));
+            ilProcessor.Emit(OpCodes.Br, Instruction.Create(OpCodes.Nop));
         }
 
         private void EmitLabelStatement(ILProcessor ilProcessor, BoundLabelStatement statement) {
+            // TODO: fix JIT error
+            labels_.Add(statement.label, ilProcessor.Body.Instructions.Count);
         }
 
         private void EmitGotoStatement(ILProcessor ilProcessor, BoundGotoStatement statement) {
+            fixups_.Add((ilProcessor.Body.Instructions.Count, statement.label));
+            ilProcessor.Emit(OpCodes.Br, Instruction.Create(OpCodes.Nop));
         }
 
         private void EmitVariableDeclarationStatement(
@@ -280,7 +308,7 @@ namespace Buckle.CodeAnalysis.Emitting {
             } else if (expression.function == BuiltinFunctions.Input) {
                 ilProcessor.Emit(OpCodes.Call, consoleReadLineReference_);
             } else if (expression.function == BuiltinFunctions.Randint) {
-
+                // TODO: implement
             } else {
                 var methodDefinition = methods_[expression.function];
                 ilProcessor.Emit(OpCodes.Call, methodDefinition);
@@ -307,16 +335,100 @@ namespace Buckle.CodeAnalysis.Emitting {
         }
 
         private void EmitBinaryExpression(ILProcessor ilProcessor, BoundBinaryExpression expression) {
-            if (expression.op.opType == BoundBinaryOperatorType.Addition) {
-                if (expression.left.lType == TypeSymbol.String && expression.right.lType == TypeSymbol.String) {
-                    EmitExpression(ilProcessor, expression.left);
-                    EmitExpression(ilProcessor, expression.right);
-                    ilProcessor.Emit(OpCodes.Call, stringConcatReference_);
-                } else {
-                    throw new NotImplementedException();
+            EmitExpression(ilProcessor, expression.left);
+            EmitExpression(ilProcessor, expression.right);
+
+            if (expression.op.opType == BoundBinaryOperatorType.EqualityEquals) {
+                if (expression.left.lType == TypeSymbol.String && expression.right.lType == TypeSymbol.String ||
+                    expression.left.lType == TypeSymbol.Any && expression.right.lType == TypeSymbol.Any) {
+                    ilProcessor.Emit(OpCodes.Call, objectEqualsReference_);
+                    return;
                 }
-            } else {
-                throw new NotImplementedException();
+            }
+
+            if (expression.op.opType == BoundBinaryOperatorType.EqualityNotEquals) {
+                if (expression.left.lType == TypeSymbol.String && expression.right.lType == TypeSymbol.String ||
+                    expression.left.lType == TypeSymbol.Any && expression.right.lType == TypeSymbol.Any) {
+                    ilProcessor.Emit(OpCodes.Call, objectEqualsReference_);
+                    ilProcessor.Emit(OpCodes.Ldc_I4_0);
+                    ilProcessor.Emit(OpCodes.Ceq);
+                    return;
+                }
+            }
+
+            if (expression.op.opType == BoundBinaryOperatorType.Addition) {
+                if (expression.left.lType == TypeSymbol.String && expression.right.lType == TypeSymbol.String ||
+                    expression.left.lType == TypeSymbol.Any && expression.right.lType == TypeSymbol.Any) {
+                    ilProcessor.Emit(OpCodes.Call, stringConcatReference_);
+                    return;
+                }
+            }
+
+            switch (expression.op.opType) {
+                case BoundBinaryOperatorType.Addition:
+                    ilProcessor.Emit(OpCodes.Add);
+                    break;
+                case BoundBinaryOperatorType.Subtraction:
+                    ilProcessor.Emit(OpCodes.Sub);
+                    break;
+                case BoundBinaryOperatorType.Multiplication:
+                    ilProcessor.Emit(OpCodes.Mul);
+                    break;
+                case BoundBinaryOperatorType.Division:
+                    ilProcessor.Emit(OpCodes.Div);
+                    break;
+                case BoundBinaryOperatorType.Power:
+                    break;
+                case BoundBinaryOperatorType.LogicalAnd:
+                    // should wait to emit right if left is false
+                    ilProcessor.Emit(OpCodes.And);
+                    break;
+                case BoundBinaryOperatorType.LogicalOr:
+                    ilProcessor.Emit(OpCodes.Or);
+                    break;
+                case BoundBinaryOperatorType.LogicalXor:
+                    ilProcessor.Emit(OpCodes.Xor);
+                    break;
+                case BoundBinaryOperatorType.LeftShift:
+                    ilProcessor.Emit(OpCodes.Shl);
+                    break;
+                case BoundBinaryOperatorType.RightShift:
+                    ilProcessor.Emit(OpCodes.Shr);
+                    break;
+                case BoundBinaryOperatorType.ConditionalAnd:
+                    ilProcessor.Emit(OpCodes.And);
+                    break;
+                case BoundBinaryOperatorType.ConditionalOr:
+                    ilProcessor.Emit(OpCodes.Or);
+                    break;
+                case BoundBinaryOperatorType.EqualityEquals:
+                    ilProcessor.Emit(OpCodes.Ceq);
+                    break;
+                case BoundBinaryOperatorType.EqualityNotEquals:
+                    ilProcessor.Emit(OpCodes.Ceq);
+                    ilProcessor.Emit(OpCodes.Ldc_I4_0);
+                    ilProcessor.Emit(OpCodes.Ceq);
+                    break;
+                case BoundBinaryOperatorType.LessThan:
+                    ilProcessor.Emit(OpCodes.Clt);
+                    break;
+                case BoundBinaryOperatorType.GreaterThan:
+                    ilProcessor.Emit(OpCodes.Cgt);
+                    break;
+                case BoundBinaryOperatorType.LessOrEqual:
+                    ilProcessor.Emit(OpCodes.Cgt);
+                    ilProcessor.Emit(OpCodes.Ldc_I4_0);
+                    ilProcessor.Emit(OpCodes.Ceq);
+                    break;
+                case BoundBinaryOperatorType.GreatOrEqual:
+                    ilProcessor.Emit(OpCodes.Clt);
+                    ilProcessor.Emit(OpCodes.Ldc_I4_0);
+                    ilProcessor.Emit(OpCodes.Ceq);
+                    break;
+                default:
+                    diagnostics.Push(DiagnosticType.Fatal, $"unexpected binary operator" +
+                    $"({expression.left.lType}){SyntaxFacts.GetText(expression.op.type)}({expression.right.lType})");
+                    break;
             }
         }
 
@@ -336,6 +448,20 @@ namespace Buckle.CodeAnalysis.Emitting {
         }
 
         private void EmitUnaryExpression(ILProcessor ilProcessor, BoundUnaryExpression expression) {
+            EmitExpression(ilProcessor, expression.operand);
+
+            if (expression.op.opType == BoundUnaryOperatorType.NumericalIdentity) {
+            } else if (expression.op.opType == BoundUnaryOperatorType.NumericalNegation) {
+                ilProcessor.Emit(OpCodes.Neg);
+            } else if (expression.op.opType == BoundUnaryOperatorType.BooleanNegation) {
+                ilProcessor.Emit(OpCodes.Ldc_I4_0);
+                ilProcessor.Emit(OpCodes.Ceq);
+            } else if (expression.op.opType == BoundUnaryOperatorType.BitwiseCompliment) {
+                ilProcessor.Emit(OpCodes.Not);
+            } else {
+                diagnostics.Push(DiagnosticType.Fatal, $"unexpected unary operator" +
+                    $"{SyntaxFacts.GetText(expression.op.type)}({expression.operand.lType})");
+            }
         }
 
         private void EmitFunctionDeclaration(FunctionSymbol function) {
