@@ -23,7 +23,7 @@ namespace Buckle.CodeAnalysis.Symbols {
         public override SymbolType type => SymbolType.Parameter;
         public int ordinal { get; }
 
-        public ParameterSymbol(string name, TypeSymbol lType, int ordinal_) : base(name, true, lType) {
+        public ParameterSymbol(string name, TypeSymbol lType, int ordinal_) : base(name, true, lType, null) {
             ordinal = ordinal_;
         }
     }

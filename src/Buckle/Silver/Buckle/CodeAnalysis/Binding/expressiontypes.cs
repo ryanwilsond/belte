@@ -206,6 +206,7 @@ namespace Buckle.CodeAnalysis.Binding {
         public VariableSymbol variable { get; }
         public override TypeSymbol lType => variable.lType;
         public override BoundNodeType type => BoundNodeType.VariableExpression;
+        public override BoundConstant constantValue => variable.constantValue;
 
         public BoundVariableExpression(VariableSymbol variable_) {
             variable = variable_;

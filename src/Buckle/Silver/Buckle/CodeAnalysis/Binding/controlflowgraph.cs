@@ -86,6 +86,7 @@ namespace Buckle.CodeAnalysis.Binding {
                             statements_.Add(statement);
                             StartBlock();
                             break;
+                        case BoundNodeType.NopStatement:
                         case BoundNodeType.ExpressionStatement:
                         case BoundNodeType.VariableDeclarationStatement:
                             statements_.Add(statement);
@@ -163,6 +164,7 @@ namespace Buckle.CodeAnalysis.Binding {
                             case BoundNodeType.ReturnStatement:
                                 Connect(current, end_);
                                 break;
+                            case BoundNodeType.NopStatement:
                             case BoundNodeType.ExpressionStatement:
                             case BoundNodeType.VariableDeclarationStatement:
                             case BoundNodeType.LabelStatement:

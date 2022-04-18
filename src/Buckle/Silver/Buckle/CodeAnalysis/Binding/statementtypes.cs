@@ -140,4 +140,9 @@ namespace Buckle.CodeAnalysis.Binding {
             expression = expression_;
         }
     }
+
+    internal sealed class BoundNopStatement : BoundStatement {
+        // basically internal statement varient of BoundEmptyExpression
+        public override BoundNodeType type => BoundNodeType.NopStatement;
+    }
 }

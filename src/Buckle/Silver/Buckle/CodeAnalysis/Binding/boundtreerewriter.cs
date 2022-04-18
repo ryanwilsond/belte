@@ -5,6 +5,8 @@ namespace Buckle.CodeAnalysis.Binding {
     internal abstract class BoundTreeRewriter {
         public virtual BoundStatement RewriteStatement(BoundStatement statement) {
             switch (statement.type) {
+                case BoundNodeType.NopStatement:
+                    return RewriteNopStatement((BoundNopStatement)statement);
                 case BoundNodeType.BlockStatement:
                     return RewriteBlockStatement((BoundBlockStatement)statement);
                 case BoundNodeType.VariableDeclarationStatement:
@@ -29,6 +31,10 @@ namespace Buckle.CodeAnalysis.Binding {
                     return RewriteReturnStatement((BoundReturnStatement)statement);
                 default: return null;
             }
+        }
+
+        protected virtual BoundStatement RewriteNopStatement(BoundNopStatement statement) {
+            return statement;
         }
 
         protected virtual BoundStatement RewriteReturnStatement(BoundReturnStatement statement) {

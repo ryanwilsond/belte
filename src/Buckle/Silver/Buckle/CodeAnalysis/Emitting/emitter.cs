@@ -186,6 +186,9 @@ namespace Buckle.CodeAnalysis.Emitting {
 
         private void EmitStatement(ILProcessor ilProcessor, BoundStatement statement) {
             switch (statement.type) {
+                case BoundNodeType.NopStatement:
+                    EmitNopStatement(ilProcessor, (BoundNopStatement)statement);
+                    break;
                 case BoundNodeType.ExpressionStatement:
                     EmitExpressionStatement(ilProcessor, (BoundExpressionStatement)statement);
                     break;
@@ -208,6 +211,10 @@ namespace Buckle.CodeAnalysis.Emitting {
                     diagnostics.Push(DiagnosticType.Fatal, $"unexpected node '{statement.type}'");
                     break;
             }
+        }
+
+        private void EmitNopStatement(ILProcessor ilProcessor, BoundNopStatement statement) {
+            ilProcessor.Emit(OpCodes.Nop);
         }
 
         private void EmitReturnStatement(ILProcessor ilProcessor, BoundReturnStatement statement) {

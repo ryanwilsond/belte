@@ -53,6 +53,9 @@ namespace Buckle.CodeAnalysis {
                 var s = statement.statements[index];
 
                 switch (s.type) {
+                    case BoundNodeType.NopStatement:
+                        index++;
+                        break;
                     case BoundNodeType.ExpressionStatement:
                         EvaluateExpressionStatement((BoundExpressionStatement)s);
                         index++;

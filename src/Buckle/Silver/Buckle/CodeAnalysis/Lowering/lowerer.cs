@@ -45,7 +45,6 @@ namespace Buckle.CodeAnalysis.Lowering {
         }
 
         private static bool CanFallThrough(BoundStatement boundStatement) {
-            // TODO: rewrite conditional gotos with guaranteed result of condition into nothing or unconditional goto
             return boundStatement.type != BoundNodeType.ReturnStatement &&
                 boundStatement.type != BoundNodeType.GotoStatement;
         }
@@ -185,6 +184,19 @@ namespace Buckle.CodeAnalysis.Lowering {
 
             var result = new BoundBlockStatement(ImmutableArray.Create<BoundStatement>(node.initializer, whileStatement));
             return RewriteStatement(result);
+        }
+
+        protected override BoundStatement RewriteConditionalGotoStatement(BoundConditionalGotoStatement statement) {
+            if (statement.condition.constantValue != null) {
+                var condition = (bool)statement.condition.constantValue.value;
+                condition = statement.jumpIfTrue ? condition : !condition;
+                if (condition)
+                    return new BoundGotoStatement(statement.label);
+                else
+                    return new BoundNopStatement();
+            }
+
+            return base.RewriteConditionalGotoStatement(statement);
         }
     }
 }

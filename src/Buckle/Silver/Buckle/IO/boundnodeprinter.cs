@@ -44,6 +44,9 @@ namespace Buckle.IO {
                 case BoundNodeType.CastExpression:
                     WriteCastExpression((BoundCastExpression)node, writer);
                     break;
+                case BoundNodeType.NopStatement:
+                    WriteNopStatement((BoundNopStatement)node, writer);
+                    break;
                 case BoundNodeType.BlockStatement:
                     WriteBlockStatement((BoundBlockStatement)node, writer);
                     break;
@@ -80,6 +83,11 @@ namespace Buckle.IO {
                 default:
                     throw new Exception($"unexpected node '{node.type}'");
             }
+        }
+
+        private static void WriteNopStatement(BoundNopStatement node, IndentedTextWriter writer) {
+            writer.WriteKeyword("nop");
+            writer.WriteLine();
         }
 
         private static void WriteReturnStatement(BoundReturnStatement node, IndentedTextWriter writer) {

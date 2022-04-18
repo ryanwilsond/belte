@@ -544,7 +544,7 @@ namespace Buckle.CodeAnalysis.Binding {
             var type = BindTypeClause(expression.typeName);
             var initializer = BindExpression(expression.initializer);
             var variableType = type ?? initializer.lType;
-            var variable = BindVariable(expression.identifier, isReadOnly, variableType);
+            var variable = BindVariable(expression.identifier, isReadOnly, variableType, initializer.constantValue);
             var castedInitializer = BindCast(expression.initializer.location, initializer, variableType);
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
@@ -561,12 +561,13 @@ namespace Buckle.CodeAnalysis.Binding {
             return foundType;
         }
 
-        private VariableSymbol BindVariable(Token identifier, bool isReadOnly, TypeSymbol type) {
+        private VariableSymbol BindVariable(
+            Token identifier, bool isReadOnly, TypeSymbol type, BoundConstant constant = null) {
             var name = identifier.text ?? "?";
             var declare = !identifier.isMissing;
             var variable = function_ == null
-                ? (VariableSymbol) new GlobalVariableSymbol(name, isReadOnly, type)
-                : new LocalVariableSymbol(name, isReadOnly, type);
+                ? (VariableSymbol) new GlobalVariableSymbol(name, isReadOnly, type, constant)
+                : new LocalVariableSymbol(name, isReadOnly, type, constant);
 
             if (declare && !scope_.TryDeclareVariable(variable))
                 diagnostics.Push(Error.AlreadyDeclared(identifier.location, name));
