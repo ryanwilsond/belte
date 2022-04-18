@@ -7,7 +7,7 @@ SLN:=src/Buckle/Silver/buckle.sln
 all: build
 
 build:
-	dotnet build $(SLN)
+	dotnet build $(SLN) -t:rebuild
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/Buckle.dll Buckle.dll
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/CmdLine.dll CmdLine.dll
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/CmdLine.exe buckle.exe

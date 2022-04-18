@@ -10,3 +10,4 @@
 *.json
 *.pdb
 *.dot
+*.g.cs

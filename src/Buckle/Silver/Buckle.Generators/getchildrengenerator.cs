@@ -1,5 +1,4 @@
-﻿using System;
-using System.CodeDom.Compiler;
+﻿using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,7 +10,7 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Buckle.Generators {
     [Generator]
-    public class NodeGetChildrenGenerator : ISourceGenerator {
+    public class GetChildrenGenerator : ISourceGenerator {
         public void Initialize(GeneratorInitializationContext context) {
         }
 
@@ -28,6 +27,7 @@ namespace Buckle.Generators {
             SourceText sourceText;
             using (var stringWriter = new StringWriter())
             using (var indentedTextWriter = new IndentedTextWriter(stringWriter, "    ")) {
+                indentedTextWriter.WriteLine("using System;");
                 indentedTextWriter.WriteLine("using System.Collections.Generic;\n");
                 indentedTextWriter.WriteLine("namespace Buckle.CodeAnalysis.Syntax {");
                 indentedTextWriter.Indent++;
@@ -85,12 +85,11 @@ namespace Buckle.Generators {
 
             var nodeFileName = nodeType.DeclaringSyntaxReferences.First().SyntaxTree.FilePath;
             var syntaxDirectory = Path.GetDirectoryName(nodeFileName);
-            // ! Shouldn't use .cs extension
-            var fileName = Path.Combine(syntaxDirectory, "Node_GetChildren.cs");
+            var fileName = Path.Combine(syntaxDirectory, "getchildren.g.cs");
 
             if (!File.Exists(fileName) || File.ReadAllText(fileName) != sourceText.ToString()) {
                 if (!File.Exists(fileName))
-                    context.AddSource("Generated.cs", sourceText);
+                    context.AddSource("generated.cs", sourceText);
 
                 using (var writer = new StreamWriter(fileName))
                     sourceText.Write(writer);
