@@ -40,7 +40,7 @@ namespace Buckle.CodeAnalysis {
             return EvaluateStatement(body);
         }
 
-        private object EvaluateStatement(BoundBlockStatement statement) {
+        internal object EvaluateStatement(BoundBlockStatement statement) {
             var labelToIndex = new Dictionary<BoundLabel, int>();
 
             for (int i = 0; i < statement.statements.Length; i++) {
@@ -95,11 +95,11 @@ namespace Buckle.CodeAnalysis {
             return lastValue_;
         }
 
-        private void EvaluateExpressionStatement(BoundExpressionStatement statement) {
+        internal void EvaluateExpressionStatement(BoundExpressionStatement statement) {
             lastValue_ = EvaluateExpression(statement.expression);
         }
 
-        private void EvaluateVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
+        internal void EvaluateVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
             var value = EvaluateExpression(statement.initializer);
             lastValue_ = value;
             Assign(statement.variable, value);
@@ -114,7 +114,7 @@ namespace Buckle.CodeAnalysis {
             }
         }
 
-        private object EvaluateExpression(BoundExpression node) {
+        internal object EvaluateExpression(BoundExpression node) {
             switch (node.type) {
                 case BoundNodeType.LiteralExpression: return EvaluateLiteral((BoundLiteralExpression)node);
                 case BoundNodeType.VariableExpression: return EvaluateVariable((BoundVariableExpression)node);
@@ -129,7 +129,7 @@ namespace Buckle.CodeAnalysis {
             }
         }
 
-        private object EvaluateCast(BoundCastExpression node) {
+        internal object EvaluateCast(BoundCastExpression node) {
             var value = EvaluateExpression(node.expression);
 
             if (node.lType == TypeSymbol.Any) return value;
@@ -141,7 +141,7 @@ namespace Buckle.CodeAnalysis {
             return null;
         }
 
-        private object EvaluateCall(BoundCallExpression node) {
+        internal object EvaluateCall(BoundCallExpression node) {
             if (node.function == BuiltinFunctions.Input) {
                 return Console.ReadLine();
             } else if (node.function == BuiltinFunctions.Print) {
@@ -171,11 +171,11 @@ namespace Buckle.CodeAnalysis {
             return null;
         }
 
-        private object EvaluateLiteral(BoundLiteralExpression syntax) {
+        internal object EvaluateLiteral(BoundLiteralExpression syntax) {
             return syntax.value;
         }
 
-        private object EvaluateVariable(BoundVariableExpression syntax) {
+        internal object EvaluateVariable(BoundVariableExpression syntax) {
             if (syntax.variable.type == SymbolType.GlobalVariable)
                 return globals_[syntax.variable];
 
@@ -183,14 +183,14 @@ namespace Buckle.CodeAnalysis {
             return locals[syntax.variable];
         }
 
-        private object EvaluateAssignment(BoundAssignmentExpression syntax) {
+        internal object EvaluateAssignment(BoundAssignmentExpression syntax) {
             var value = EvaluateExpression(syntax.expression);
             Assign(syntax.variable, value);
 
             return value;
         }
 
-        private object EvaluateUnary(BoundUnaryExpression syntax) {
+        internal object EvaluateUnary(BoundUnaryExpression syntax) {
             var operand = EvaluateExpression(syntax.operand);
 
             switch (syntax.op.opType) {
@@ -204,7 +204,7 @@ namespace Buckle.CodeAnalysis {
             }
         }
 
-        private object EvaluateBinary(BoundBinaryExpression syntax) {
+        internal object EvaluateBinary(BoundBinaryExpression syntax) {
             var left = EvaluateExpression(syntax.left);
             var right = EvaluateExpression(syntax.right);
 

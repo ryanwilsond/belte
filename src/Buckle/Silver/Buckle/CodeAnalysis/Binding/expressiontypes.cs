@@ -166,12 +166,14 @@ namespace Buckle.CodeAnalysis.Binding {
     internal sealed class BoundUnaryExpression : BoundExpression {
         public override BoundNodeType type => BoundNodeType.UnaryExpression;
         public override TypeSymbol lType => op.resultType;
+        public override BoundConstant constantValue { get; }
         public BoundUnaryOperator op { get; }
         public BoundExpression operand { get; }
 
         public BoundUnaryExpression(BoundUnaryOperator op_, BoundExpression operand_) {
             op = op_;
             operand = operand_;
+            constantValue = ConstantFolding.ComputeConstant(op, operand);
         }
     }
 
@@ -183,19 +185,20 @@ namespace Buckle.CodeAnalysis.Binding {
     internal sealed class BoundLiteralExpression : BoundExpression {
         public override BoundNodeType type => BoundNodeType.LiteralExpression;
         public override TypeSymbol lType { get; }
-        public object value { get; }
+        public override BoundConstant constantValue { get; }
+        public object value => constantValue.value;
 
         public BoundLiteralExpression(object value_) {
-            value = value_;
-
-            if (value is bool)
+            if (value_ is bool)
                 lType = TypeSymbol.Bool;
-            else if (value is int)
+            else if (value_ is int)
                 lType = TypeSymbol.Int;
-            else if (value is string)
+            else if (value_ is string)
                 lType = TypeSymbol.String;
             else
-                throw new Exception($"unexpected literal '{value}' of type '{value.GetType()}'");
+                throw new Exception($"unexpected literal '{value_}' of type '{value_.GetType()}'");
+
+            constantValue = new BoundConstant(value_);
         }
     }
 

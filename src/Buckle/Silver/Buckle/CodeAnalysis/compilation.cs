@@ -6,8 +6,6 @@ using Buckle.CodeAnalysis.Syntax;
 using System.IO;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.IO;
-using System.Linq;
-using BindingFlags = System.Reflection.BindingFlags;
 using Buckle.CodeAnalysis.Emitting;
 
 namespace Buckle.CodeAnalysis {
