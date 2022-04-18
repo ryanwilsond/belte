@@ -7,7 +7,7 @@ using Buckle.CodeAnalysis.Syntax;
 namespace Buckle.CodeAnalysis.Symbols {
     internal static class BuiltinFunctions {
         public static readonly FunctionSymbol Print = new FunctionSymbol(
-            "print", ImmutableArray.Create(new ParameterSymbol("text", TypeSymbol.String, 0)), TypeSymbol.Void);
+            "print", ImmutableArray.Create(new ParameterSymbol("text", TypeSymbol.Any, 0)), TypeSymbol.Void);
         public static readonly FunctionSymbol Input = new FunctionSymbol(
             "input", ImmutableArray<ParameterSymbol>.Empty, TypeSymbol.String);
         public static readonly FunctionSymbol Randint = new FunctionSymbol(

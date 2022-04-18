@@ -69,13 +69,9 @@ namespace Buckle.CodeAnalysis {
         internal IEnumerable<Symbol> GetSymbols() {
             var submission = this;
             var seenSymbolNames = new HashSet<string>();
+            var builtins = BuiltinFunctions.GetAll();
 
             while (submission != null) {
-                var builtins = typeof(BuiltinFunctions)
-                    .GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
-                    .Where(fi => fi.FieldType == typeof(FunctionSymbol))
-                    .Select(fi => (FunctionSymbol)fi.GetValue(null))
-                    .ToList();
 
                 foreach (var function in submission.functions)
                     if (seenSymbolNames.Add(function.name))

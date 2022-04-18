@@ -100,6 +100,19 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         public TextLocation location => new TextLocation(syntaxTree.text, span);
 
+        // TODO
+        // public abstract int GetChildCount();
+        // public abstract Node GetChild(int index);
+
+        // public IEnumerable<Node> GetChildren() {
+        //     List<Node> children = new List<Node>();
+
+        //     for (int i=0; i<GetChildCount(); i++)
+        //         children.Add(GetChild(i));
+
+        //     return children.ToArray();
+        // }
+
         public abstract IEnumerable<Node> GetChildren();
 
         public void WriteTo(TextWriter writer) {

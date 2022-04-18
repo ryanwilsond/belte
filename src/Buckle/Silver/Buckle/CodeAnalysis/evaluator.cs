@@ -145,7 +145,7 @@ namespace Buckle.CodeAnalysis {
             if (node.function == BuiltinFunctions.Input) {
                 return Console.ReadLine();
             } else if (node.function == BuiltinFunctions.Print) {
-                var message = (string)EvaluateExpression(node.arguments[0]);
+                var message = (object)EvaluateExpression(node.arguments[0]);
                 Console.WriteLine(message);
             } else if (node.function == BuiltinFunctions.Randint) {
                 var max = (int)EvaluateExpression(node.arguments[0]);

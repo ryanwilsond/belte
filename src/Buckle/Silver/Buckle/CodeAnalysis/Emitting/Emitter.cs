@@ -126,7 +126,7 @@ namespace Buckle.CodeAnalysis.Emitting {
                 return null;
             }
 
-            consoleWriteLineReference_ = ResolveMethod("System.Console", "WriteLine", new [] { "System.String" });
+            consoleWriteLineReference_ = ResolveMethod("System.Console", "WriteLine", new [] { "System.Object" });
             consoleReadLineReference_ = ResolveMethod("System.Console", "ReadLine", Array.Empty<string>());
             stringConcatReference_ = ResolveMethod(
                 "System.String", "Concat", new [] { "System.String", "System.String" });

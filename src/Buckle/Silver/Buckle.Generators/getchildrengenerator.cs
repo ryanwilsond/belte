@@ -80,6 +80,7 @@ namespace Buckle.Generators {
                 indentedTextWriter.WriteLine("}");
 
                 indentedTextWriter.Flush();
+                stringWriter.Flush();
                 sourceText = SourceText.From(stringWriter.ToString(), Encoding.UTF8);
             }
 
