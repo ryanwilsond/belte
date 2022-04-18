@@ -1,8 +1,10 @@
 
-int MyFunc() {
-    return 3;
+void Main() {
+    print("Hello, world!");
+
+    let x = false;
+    let y = true;
+    let z = x && y;
+
+    while (z) {}
 }
-
-// void Main() {
-
-// }

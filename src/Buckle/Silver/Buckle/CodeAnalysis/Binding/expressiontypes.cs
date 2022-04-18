@@ -109,6 +109,7 @@ namespace Buckle.CodeAnalysis.Binding {
     internal sealed class BoundBinaryExpression : BoundExpression {
         public override BoundNodeType type => BoundNodeType.BinaryExpression;
         public override TypeSymbol lType => op.resultType;
+        public override BoundConstant constantValue { get; }
         public BoundExpression left { get; }
         public BoundBinaryOperator op { get; }
         public BoundExpression right { get; }
@@ -117,6 +118,7 @@ namespace Buckle.CodeAnalysis.Binding {
             left = left_;
             op = op_;
             right = right_;
+            constantValue = ConstantFolding.ComputeConstant(left, op, right);
         }
     }
 
@@ -175,6 +177,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
     internal abstract class BoundExpression : BoundNode {
         public abstract TypeSymbol lType { get; }
+        public virtual BoundConstant constantValue { get; }
     }
 
     internal sealed class BoundLiteralExpression : BoundExpression {

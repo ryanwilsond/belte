@@ -39,4 +39,12 @@ namespace Buckle.CodeAnalysis.Binding {
             }
         }
     }
+
+    internal sealed class BoundConstant {
+        public object value { get; }
+
+        public BoundConstant(object value_) {
+            value = value_;
+        }
+    }
 }
