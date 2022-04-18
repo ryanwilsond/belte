@@ -7,7 +7,6 @@ using System.IO;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.IO;
 using System.Linq;
-using System;
 using BindingFlags = System.Reflection.BindingFlags;
 using Buckle.CodeAnalysis.Emitting;
 

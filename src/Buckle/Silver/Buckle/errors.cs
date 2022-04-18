@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;

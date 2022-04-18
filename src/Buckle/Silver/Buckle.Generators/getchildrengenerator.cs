@@ -131,7 +131,6 @@ namespace Buckle.Generators {
             if (symbol is INamedTypeSymbol type)
                 result.Add(type);
 
-
             foreach (var child in symbol.GetMembers())
                 if (child is INamespaceOrTypeSymbol nsChild)
                     GetAllTypes(result, nsChild);
