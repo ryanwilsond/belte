@@ -6,7 +6,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         protected Statement(SyntaxTree syntaxTree): base(syntaxTree) { }
     }
 
-    internal sealed class VariableDeclarationStatement : Statement {
+    internal sealed partial class VariableDeclarationStatement : Statement {
         public override SyntaxType type => SyntaxType.VARIABLE_DECLARATION_STATEMENT;
         public Token typeName { get; }
         public Token identifier { get; }
@@ -26,7 +26,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
     }
 
-    internal sealed class BlockStatement : Statement {
+    internal sealed partial class BlockStatement : Statement {
         public Token openBrace { get; }
         public ImmutableArray<Statement> statements { get; }
         public Token closeBrace { get; }
@@ -41,7 +41,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
     }
 
-    internal sealed class ExpressionStatement : Statement {
+    internal sealed partial class ExpressionStatement : Statement {
         public Expression expression { get; }
         public Token semicolon { get; }
         public override SyntaxType type => SyntaxType.EXPRESSION_STATEMENT;
@@ -52,7 +52,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
     }
 
-    internal sealed class IfStatement : Statement {
+    internal sealed partial class IfStatement : Statement {
         public Token ifKeyword { get; }
         public Token openParenthesis { get; }
         public Expression condition { get; }
@@ -74,7 +74,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
     }
 
-    internal sealed class ElseClause : Node {
+    internal sealed partial class ElseClause : Node {
         public Token elseKeyword { get; }
         public Statement then { get; }
         public override SyntaxType type => SyntaxType.ELSE_CLAUSE;
@@ -85,7 +85,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
     }
 
-    internal sealed class WhileStatement : Statement {
+    internal sealed partial class WhileStatement : Statement {
         public Token keyword { get; }
         public Token openParenthesis { get; }
         public Expression condition { get; }
@@ -105,7 +105,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
     }
 
-    internal sealed class ForStatement : Statement {
+    internal sealed partial class ForStatement : Statement {
         public Token keyword { get; }
         public Token openParenthesis { get; }
         public Statement initializer { get; }
@@ -131,7 +131,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
     }
 
-    internal sealed class DoWhileStatement : Statement {
+    internal sealed partial class DoWhileStatement : Statement {
         public Token doKeyword { get; }
         public Statement body { get; }
         public Token whileKeyword { get; }
@@ -155,7 +155,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
     }
 
-    internal sealed class ContinueStatement : Statement {
+    internal sealed partial class ContinueStatement : Statement {
         public Token keyword { get; }
         public Token semicolon { get; }
         public override SyntaxType type => SyntaxType.CONTINUE_STATEMENT;
@@ -166,7 +166,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
     }
 
-    internal sealed class BreakStatement : Statement {
+    internal sealed partial class BreakStatement : Statement {
         public Token keyword { get; }
         public Token semicolon { get; }
         public override SyntaxType type => SyntaxType.BREAK_STATEMENT;
@@ -177,7 +177,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
     }
 
-    internal sealed class ReturnStatement : Statement {
+    internal sealed partial class ReturnStatement : Statement {
         public Token keyword { get; }
         public Expression expression { get; }
         public Token semicolon { get; }

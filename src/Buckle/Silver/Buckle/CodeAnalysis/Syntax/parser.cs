@@ -97,14 +97,17 @@ namespace Buckle.CodeAnalysis.Syntax {
             var closeParenthesis = Match(SyntaxType.RPAREN_TOKEN);
             var body = (BlockStatement)ParseBlockStatement();
 
-            return new FunctionDeclaration(syntaxTree_, typeName, identifier, openParenthesis, parameters, closeParenthesis, body);
+            return new FunctionDeclaration(
+                syntaxTree_, typeName, identifier, openParenthesis, parameters, closeParenthesis, body);
         }
 
         private SeparatedSyntaxList<Parameter> ParseParameterList() {
             var nodesAndSeparators = ImmutableArray.CreateBuilder<Node>();
 
             var parseNextParameter = true;
-            while (parseNextParameter && current.type != SyntaxType.RPAREN_TOKEN && current.type != SyntaxType.EOF_TOKEN) {
+            while (parseNextParameter &&
+                current.type != SyntaxType.RPAREN_TOKEN &&
+                current.type != SyntaxType.EOF_TOKEN) {
                 var expression = ParseParameter();
                 nodesAndSeparators.Add(expression);
 
@@ -268,7 +271,8 @@ namespace Buckle.CodeAnalysis.Syntax {
                 invalidElseLocations.RemoveAt(0);
             }
 
-            return new IfStatement(syntaxTree_, keyword, openParenthesis, condition, closeParenthesis, statement, elseClause);
+            return new IfStatement(
+                syntaxTree_, keyword, openParenthesis, condition, closeParenthesis, statement, elseClause);
         }
 
         private ElseClause ParseElseClause() {
@@ -378,7 +382,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             var left = Match(SyntaxType.LPAREN_TOKEN);
             var expression = ParseExpression();
             var right = Match(SyntaxType.RPAREN_TOKEN);
-            return new ParenExpression(syntaxTree_, left, expression, right);
+            return new ParenthesisExpression(syntaxTree_, left, expression, right);
         }
 
         private Expression ParseBooleanLiteral() {
@@ -412,7 +416,9 @@ namespace Buckle.CodeAnalysis.Syntax {
             var nodesAndSeparators = ImmutableArray.CreateBuilder<Node>();
 
             var parseNextArgument = true;
-            while (parseNextArgument && current.type != SyntaxType.RPAREN_TOKEN && current.type != SyntaxType.EOF_TOKEN) {
+            while (parseNextArgument &&
+                current.type != SyntaxType.RPAREN_TOKEN &&
+                current.type != SyntaxType.EOF_TOKEN) {
                 var expression = ParseExpression();
                 nodesAndSeparators.Add(expression);
 

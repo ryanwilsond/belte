@@ -1,16 +1,16 @@
 <Project>
 
-    <Target Name="CreateManifestResourceNames" />
+  <Target Name="CreateManifestResourceNames" />
 
-    <Target Name="CoreCompile" DependsOnTargets="$(CoreCompileDependsOn)">
-        <ItemGroup>
-            <ReferencePath Remove="@(ReferencePath)"
-                Condition="'%(FileName)' != 'System.Runtime' AND
-                    '%(FileName)' != 'System.Console' AND
-                    '%(FileName)' != 'System.Runtime.Extensions'" />
-        </ItemGroup>
-        <Exec Command="dotnet run --project &quot;$(MSBuildThisFileDirectory)\..\src\Buckle\Silver\CmdLine\CmdLine.csproj&quot; -- -d @(Compile->'&quot;%(Identity)&quot;', ' ') -o &quot;@(IntermediateAssembly)&quot; @(ReferencePath->'--ref=&quot;%(Identity)&quot;', ' ')"
-              WorkingDirectory="$(MSBuildProjectDirectory)" />
-    </Target>
+  <Target Name="CoreCompile" DependsOnTargets="$(CoreCompileDependsOn)">
+    <ItemGroup>
+      <ReferencePath Remove="@(ReferencePath)"
+        Condition="'%(FileName)' != 'System.Runtime' AND
+        '%(FileName)' != 'System.Console' AND
+        '%(FileName)' != 'System.Runtime.Extensions'" />
+      </ItemGroup>
+    <Exec Command="dotnet run --project &quot;$(MSBuildThisFileDirectory)\..\src\Buckle\Silver\CmdLine\CmdLine.csproj&quot; -- -d @(Compile->'&quot;%(Identity)&quot;', ' ') -o &quot;@(IntermediateAssembly)&quot; @(ReferencePath->'--ref=&quot;%(Identity)&quot;', ' ')"
+      WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
 
 </Project>

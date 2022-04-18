@@ -271,7 +271,7 @@ namespace Buckle.CodeAnalysis.Binding {
                 case SyntaxType.LITERAL_EXPRESSION: return BindLiteralExpression((LiteralExpression)expression);
                 case SyntaxType.UNARY_EXPRESSION: return BindUnaryExpression((UnaryExpression)expression);
                 case SyntaxType.BINARY_EXPRESSION: return BindBinaryExpression((BinaryExpression)expression);
-                case SyntaxType.PAREN_EXPRESSION: return BindParenExpression((ParenExpression)expression);
+                case SyntaxType.PAREN_EXPRESSION: return BindParenExpression((ParenthesisExpression)expression);
                 case SyntaxType.NAME_EXPRESSION: return BindNameExpression((NameExpression)expression);
                 case SyntaxType.ASSIGN_EXPRESSION: return BindAssignmentExpression((AssignmentExpression)expression);
                 case SyntaxType.CALL_EXPRESSION: return BindCallExpression((CallExpression)expression);
@@ -490,7 +490,7 @@ namespace Buckle.CodeAnalysis.Binding {
             return new BoundBinaryExpression(boundLeft, boundOp, boundRight);
         }
 
-        private BoundExpression BindParenExpression(ParenExpression expression) {
+        private BoundExpression BindParenExpression(ParenthesisExpression expression) {
             return BindExpression(expression.expression);
         }
 

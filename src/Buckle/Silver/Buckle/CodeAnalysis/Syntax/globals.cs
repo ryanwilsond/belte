@@ -5,7 +5,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         protected Member(SyntaxTree syntaxTree) : base(syntaxTree) { }
     }
 
-    internal sealed class GlobalStatement : Member {
+    internal sealed partial class GlobalStatement : Member {
         public Statement statement { get; }
         public override SyntaxType type => SyntaxType.GLOBAL_STATEMENT;
 

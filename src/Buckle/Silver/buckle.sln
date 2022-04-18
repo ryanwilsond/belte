@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Buckle", "Buckle\Buckle.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Buckle.Tests", "Buckle.Tests\Buckle.Tests.csproj", "{01DBA7E1-B71D-441B-8DA1-1296AAD2E1D6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Buckle.Generators", "Buckle.Generators\Buckle.Generators.csproj", "{B3377DBF-9FAB-4798-9AC5-6BF65E0C3D75}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,6 +38,10 @@ Global
 		{01DBA7E1-B71D-441B-8DA1-1296AAD2E1D6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{01DBA7E1-B71D-441B-8DA1-1296AAD2E1D6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{01DBA7E1-B71D-441B-8DA1-1296AAD2E1D6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B3377DBF-9FAB-4798-9AC5-6BF65E0C3D75}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B3377DBF-9FAB-4798-9AC5-6BF65E0C3D75}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B3377DBF-9FAB-4798-9AC5-6BF65E0C3D75}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B3377DBF-9FAB-4798-9AC5-6BF65E0C3D75}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{A46AFE10-BD06-4BF0-AF55-62482020EB15} = {58B8D318-6685-480A-B339-6EF5F43FB43A}

@@ -101,23 +101,25 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         public TextLocation location => new TextLocation(syntaxTree.text, span);
 
-        public IEnumerable<Node> GetChildren() {
-            var properties = GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        public abstract IEnumerable<Node> GetChildren();
 
-            foreach (var property in properties) {
-                if (typeof(Node).IsAssignableFrom(property.PropertyType)) {
-                    var child = (Node)property.GetValue(this);
-                    if (child != null)
-                        yield return child;
-                } else if (typeof(IEnumerable<Node>).IsAssignableFrom(property.PropertyType)) {
-                    var values = (IEnumerable<Node>)property.GetValue(this);
-                    foreach (var child in values) {
-                        if (child != null)
-                            yield return child;
-                    }
-                }
-            }
-        }
+        // public IEnumerable<Node> GetChildren() {
+        //     var properties = GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
+
+        //     foreach (var property in properties) {
+        //         if (typeof(Node).IsAssignableFrom(property.PropertyType)) {
+        //             var child = (Node)property.GetValue(this);
+        //             if (child != null)
+        //                 yield return child;
+        //         } else if (typeof(IEnumerable<Node>).IsAssignableFrom(property.PropertyType)) {
+        //             var values = (IEnumerable<Node>)property.GetValue(this);
+        //             foreach (var child in values) {
+        //                 if (child != null)
+        //                     yield return child;
+        //             }
+        //         }
+        //     }
+        // }
 
         public void WriteTo(TextWriter writer) {
             PrettyPrint(writer, this);
@@ -182,9 +184,13 @@ namespace Buckle.CodeAnalysis.Syntax {
             text = text_;
             value = value_;
         }
+
+        public override IEnumerable<Node> GetChildren() {
+            return Array.Empty<Node>();
+        }
     }
 
-    internal sealed class CompilationUnit : Node {
+    internal sealed partial class CompilationUnit : Node {
         public ImmutableArray<Member> members { get; }
         public Token endOfFile { get; }
         public override SyntaxType type => SyntaxType.COMPILATION_UNIT;

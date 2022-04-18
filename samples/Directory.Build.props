@@ -1,7 +1,7 @@
 <Project>
 
-    <PropertyGroup>
-        <DefaultLanguageSourceExtension>.ble</DefaultLanguageSourceExtension>
-    </PropertyGroup>
+  <PropertyGroup>
+    <DefaultLanguageSourceExtension>.ble</DefaultLanguageSourceExtension>
+  </PropertyGroup>
 
 </Project>

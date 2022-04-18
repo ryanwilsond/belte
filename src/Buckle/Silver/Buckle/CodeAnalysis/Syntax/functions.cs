@@ -1,7 +1,7 @@
 
 namespace Buckle.CodeAnalysis.Syntax {
 
-    internal sealed class Parameter : Node {
+    internal sealed partial class Parameter : Node {
         public Token typeName { get; }
         public Token identifier { get; }
         public override SyntaxType type => SyntaxType.PARAMETER;
@@ -12,7 +12,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
     }
 
-    internal sealed class FunctionDeclaration : Member {
+    internal sealed partial class FunctionDeclaration : Member {
         public Token typeName { get; }
         public Token identifier { get; }
         public Token openParenthesis { get; }
