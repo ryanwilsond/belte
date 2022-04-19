@@ -40,10 +40,6 @@ namespace Buckle.CodeAnalysis.Syntax {
                     position_++;
                     type_ = SyntaxType.COMMA_TOKEN;
                     break;
-                case '/':
-                    position_++;
-                    type_ = SyntaxType.SLASH_TOKEN;
-                    break;
                 case '(':
                     position_++;
                     type_ = SyntaxType.LPAREN_TOKEN;
@@ -83,7 +79,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case '*':
                     position_++;
                     if (current == '*') {
-                        type_ = SyntaxType.DASTERISK_TOKEN;
+                        type_ = SyntaxType.ASTERISK_ASTERISK_TOKEN;
                         position_++;
                     } else {
                         type_ = SyntaxType.ASTERISK_TOKEN;
@@ -92,7 +88,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case '&':
                     position_++;
                     if (current == '&') {
-                        type_ = SyntaxType.DAMPERSAND_TOKEN;
+                        type_ = SyntaxType.AMPERSAND_AMPERSAND_TOKEN;
                         position_++;
                     } else {
                         type_ = SyntaxType.AMPERSAND_TOKEN;
@@ -101,7 +97,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case '|':
                     position_++;
                     if (current == '|') {
-                        type_ = SyntaxType.DPIPE_TOKEN;
+                        type_ = SyntaxType.PIPE_PIPE_TOKEN;
                         position_++;
                     } else {
                         type_ = SyntaxType.PIPE_TOKEN;
@@ -110,7 +106,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case '=':
                     position_++;
                     if (current == '=') {
-                        type_ = SyntaxType.DEQUALS_TOKEN;
+                        type_ = SyntaxType.EQUALS_EQUALS_TOKEN;
                         position_++;
                     } else {
                         type_ = SyntaxType.EQUALS_TOKEN;
@@ -120,7 +116,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                     position_++;
                     if (current == '=') {
                         position_++;
-                        type_ = SyntaxType.BANGEQUALS_TOKEN;
+                        type_ = SyntaxType.BANG_EQUALS_TOKEN;
                     } else {
                         type_ = SyntaxType.BANG_TOKEN;
                     }
@@ -147,6 +143,17 @@ namespace Buckle.CodeAnalysis.Syntax {
                         type_ = SyntaxType.SHIFTRIGHT_TOKEN;
                     } else {
                         type_ = SyntaxType.RANGLEBRACKET_TOKEN;
+                    }
+                    break;
+                case '/':
+                    if (lookahead == '/')
+                        // TODO: docstring comments (xml or doxygen)
+                        ReadSingeLineComment();
+                    else if (lookahead == '*')
+                        ReadMultiLineComment();
+                    else {
+                        position_++;
+                        type_ = SyntaxType.SLASH_TOKEN;
                     }
                     break;
                 case '"':
@@ -189,6 +196,55 @@ namespace Buckle.CodeAnalysis.Syntax {
                 text = text_.ToString(start_, length);
 
             return new Token(syntaxTree_, type_, start_, text, value_);
+        }
+
+        private void ReadSingeLineComment() {
+            position_ += 2;
+            var done = false;
+
+            while (!done) {
+                switch (current) {
+                    case '\r':
+                    case '\n':
+                    case '\0':
+                        done = true;
+                        break;
+                    default:
+                        position_++;
+                        break;
+                }
+            }
+
+            type_ = SyntaxType.SINGLELINE_COMMENT_TRIVIA;
+        }
+
+        private void ReadMultiLineComment() {
+            position_ += 2;
+            var done = false;
+
+            while (!done) {
+                switch (current) {
+                    case '\0':
+                        var span = new TextSpan(start_, 2);
+                        var location = new TextLocation(text_, span);
+                        diagnostics.Push(Error.UnterminatedComment(location));
+                        done = true;
+                        break;
+                    case '*':
+                        if (lookahead == '/') {
+                            position_ += 2;
+                            done = true;
+                        } else {
+                            goto default;
+                        }
+                        break;
+                    default:
+                        position_++;
+                        break;
+                }
+            }
+
+            type_ = SyntaxType.MULTILINE_COMMENT_TRIVIA;
         }
 
         private void ReadString() {
@@ -244,7 +300,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         private void ReadWhitespaceToken() {
             while (char.IsWhiteSpace(current)) position_++;
-            type_ = SyntaxType.WHITESPACE_TOKEN;
+            type_ = SyntaxType.WHITESPACE_TRIVIA;
         }
 
         private void ReadIdentifierOrKeyword() {

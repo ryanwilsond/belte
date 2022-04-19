@@ -22,9 +22,8 @@ namespace Buckle {
 
             if (type.ToString().EndsWith("_STATEMENT")) return "statement";
             else if (type.ToString().EndsWith("_EXPRESSION")) return "expression";
-            else if (type.ToString().EndsWith("_KEYWORD")) return "keyword";
-            else if (type.ToString().EndsWith("_TOKEN"))
-                return type.ToString().ToLower().Substring(0, type.ToString().Length-6);
+            else if (type.IsKeyword()) return "keyword";
+            else if (type.IsToken()) return type.ToString().ToLower().Substring(0, type.ToString().Length-6);
             else return type.ToString().ToLower();
         }
 
@@ -231,6 +230,11 @@ namespace Buckle {
 
         public static Diagnostic NotAVariable(TextLocation location, string name) {
             string msg = $"function '{name}' used as a variable";
+            return new Diagnostic(DiagnosticType.Error, location, msg);
+        }
+
+        public static Diagnostic UnterminatedComment(TextLocation location) {
+            string msg = $"unterminated multi-line comment";
             return new Diagnostic(DiagnosticType.Error, location, msg);
         }
     }

@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         public static int GetBinaryPrecedence(this SyntaxType type) {
             switch (type) {
-                case SyntaxType.DASTERISK_TOKEN:
+                case SyntaxType.ASTERISK_ASTERISK_TOKEN:
                     return 11;
                 case SyntaxType.ASTERISK_TOKEN:
                 case SyntaxType.SLASH_TOKEN:
@@ -23,8 +23,8 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.LESSEQUAL_TOKEN:
                 case SyntaxType.GREATEQUAL_TOKEN:
                     return 7;
-                case SyntaxType.DEQUALS_TOKEN:
-                case SyntaxType.BANGEQUALS_TOKEN:
+                case SyntaxType.EQUALS_EQUALS_TOKEN:
+                case SyntaxType.BANG_EQUALS_TOKEN:
                     return 6;
                 case SyntaxType.AMPERSAND_TOKEN:
                     return 5;
@@ -32,9 +32,9 @@ namespace Buckle.CodeAnalysis.Syntax {
                     return 4;
                 case SyntaxType.PIPE_TOKEN:
                     return 3;
-                case SyntaxType.DAMPERSAND_TOKEN:
+                case SyntaxType.AMPERSAND_AMPERSAND_TOKEN:
                     return 2;
-                case SyntaxType.DPIPE_TOKEN:
+                case SyntaxType.PIPE_PIPE_TOKEN:
                     return 1;
                 default: return 0;
             }
@@ -86,14 +86,14 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.SHIFTLEFT_TOKEN: return "<<";
                 case SyntaxType.SHIFTRIGHT_TOKEN: return ">>";
                 case SyntaxType.BANG_TOKEN: return "!";
-                case SyntaxType.DAMPERSAND_TOKEN: return "&&";
-                case SyntaxType.DPIPE_TOKEN: return "||";
-                case SyntaxType.DASTERISK_TOKEN: return "**";
+                case SyntaxType.AMPERSAND_AMPERSAND_TOKEN: return "&&";
+                case SyntaxType.PIPE_PIPE_TOKEN: return "||";
+                case SyntaxType.ASTERISK_ASTERISK_TOKEN: return "**";
                 case SyntaxType.LBRACE_TOKEN: return "{";
                 case SyntaxType.RBRACE_TOKEN: return "}";
                 case SyntaxType.SEMICOLON_TOKEN: return ";";
-                case SyntaxType.DEQUALS_TOKEN: return "==";
-                case SyntaxType.BANGEQUALS_TOKEN: return "!=";
+                case SyntaxType.EQUALS_EQUALS_TOKEN: return "==";
+                case SyntaxType.BANG_EQUALS_TOKEN: return "!=";
                 case SyntaxType.LANGLEBRACKET_TOKEN: return "<";
                 case SyntaxType.RANGLEBRACKET_TOKEN: return ">";
                 case SyntaxType.LESSEQUAL_TOKEN: return "<=";
@@ -128,6 +128,22 @@ namespace Buckle.CodeAnalysis.Syntax {
                 if (GetBinaryPrecedence(type) > 0)
                     yield return type;
             }
+        }
+
+        public static bool IsKeyword(this SyntaxType type) {
+            return type.ToString().EndsWith("KEYWORD");
+        }
+
+        public static bool IsToken(this SyntaxType type) {
+            return !type.IsTrivia() && (type.IsKeyword() || type.ToString().EndsWith("TOKEN"));
+        }
+
+        public static bool IsTrivia(this SyntaxType type) {
+            return type.ToString().EndsWith("TRIVIA");
+        }
+
+        public static bool IsComment(this SyntaxType type) {
+            return type == SyntaxType.SINGLELINE_COMMENT_TRIVIA || type == SyntaxType.MULTILINE_COMMENT_TRIVIA;
         }
     }
 }

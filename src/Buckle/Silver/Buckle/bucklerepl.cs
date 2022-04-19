@@ -1,12 +1,16 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.IO;
 using CommandLine;
 
 namespace Buckle {
+    // TODO: make subclass
     internal sealed class BuckleReplState : ReplState {
         public bool showTree = false;
         public bool showProgram = false;
@@ -17,6 +21,16 @@ namespace Buckle {
         private static readonly Compilation emptyCompilation = Compilation.CreateScript(null);
         internal override ReplState state_ { get; set; }
         internal BuckleReplState state { get { return (BuckleReplState)state_; } set { state_=value; } }
+
+        private sealed class RenderState {
+            public SourceText text { get; }
+            public ImmutableArray<Token> tokens { get; }
+
+            public RenderState(SourceText text_, ImmutableArray<Token> tokens_) {
+                text = text_;
+                tokens = tokens_;
+            }
+        }
 
         public BuckleRepl(Compiler handle, ErrorHandle errorHandle) : base(handle, errorHandle) {
             state = new BuckleReplState();
@@ -103,20 +117,45 @@ namespace Buckle {
             return submissionsFolder;
         }
 
-        protected override void RenderLine(string line) {
-            var tokens = SyntaxTree.ParseTokens(line);
-            for (int i=0; i<tokens.Length; i++) {
+        protected override object RenderLine(IReadOnlyList<string> lines, int lineIndex, object state) {
+            RenderState renderState;
+
+            if (state == null) {
+                var text = string.Join(Environment.NewLine, lines);
+                var sourceText = SourceText.From(text);
+                var tokens = SyntaxTree.ParseTokens(sourceText);
+                renderState = new RenderState(sourceText, tokens);
+            } else {
+                renderState = (RenderState)state;
+            }
+
+            var lineSpan = renderState.text.lines[lineIndex].span;
+
+            for (int i=0; i<renderState.tokens.Length; i++) {
+                var tokens = renderState.tokens;
                 var token = tokens[i];
-                var isKeyword = token.type.ToString().EndsWith("_KEYWORD");
+
+                if (!lineSpan.OverlapsWith(token.span))
+                    continue;
+
+                var tokenStart = Math.Max(token.span.start, lineSpan.start);
+                var tokenEnd = Math.Min(token.span.end, lineSpan.end);
+                var tokenSpan = TextSpan.FromBounds(tokenStart, tokenEnd);
+                var tokenText = renderState.text.ToString(tokenSpan);
+
+                var isKeyword = token.type.IsKeyword();
                 var isNumber = token.type == SyntaxType.NUMBER_TOKEN;
                 var isIdentifier = token.type == SyntaxType.IDENTIFIER_TOKEN;
                 var isString = token.type == SyntaxType.STRING_TOKEN;
-                var isType = (i < tokens.Length-2) && (tokens[i+1].type == SyntaxType.WHITESPACE_TOKEN) &&
+                var isType = (i < tokens.Length-2) && (tokens[i+1].type == SyntaxType.WHITESPACE_TRIVIA) &&
                     (tokens[i+2].type == SyntaxType.IDENTIFIER_TOKEN) && isIdentifier;
                 isType |= i == 1 && tokens[0].text == "#";
                 isType &= !(i > 1 && tokens[0].text == "#");
+                var isComment = token.type.IsComment();
 
-                if (isKeyword)
+                if (isComment)
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                else if (isKeyword)
                     Console.ForegroundColor = ConsoleColor.Blue;
                 else if (isNumber)
                     Console.ForegroundColor = ConsoleColor.Cyan;
@@ -127,9 +166,11 @@ namespace Buckle {
                 else if (!isIdentifier)
                     Console.ForegroundColor = ConsoleColor.DarkGray;
 
-                Console.Write(token.text);
+                Console.Write(tokenText);
                 Console.ResetColor();
             }
+
+            return state;
         }
 
         [MetaCommand("showTree", "Toggle to display parse tree of each input")]
@@ -216,8 +257,9 @@ namespace Buckle {
 
             if (twoBlankTines) return true;
 
-            var tree = SyntaxTree.Parse(text);
-            if (tree.root.members.Last().GetLastToken().isMissing) return false;
+            var syntaxTree = SyntaxTree.Parse(text);
+            var lastMember = syntaxTree.root.members.LastOrDefault();
+            if (lastMember == null || lastMember.GetLastToken().isMissing) return false;
 
             return true;
         }

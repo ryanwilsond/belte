@@ -17,6 +17,10 @@ namespace Buckle.CodeAnalysis.Text {
             return new TextSpan(start, length);
         }
 
+        public bool OverlapsWith(TextSpan span) {
+            return start < span.end && end > span.start;
+        }
+
         public override string ToString() => $"{start}..{end}";
     }
 

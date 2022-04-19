@@ -11,6 +11,7 @@ using Buckle.IO;
 using Buckle.CodeAnalysis;
 
 namespace CommandLine {
+    // TODO: rewrite as object to allow no Buckle dependencies
     internal class ReplState {
         public Compilation previous;
         public Dictionary<VariableSymbol, object> variables;
@@ -70,8 +71,10 @@ namespace CommandLine {
             }
         }
 
+        private delegate object LineRenderHandler(IReadOnlyList<string> lines, int lineIndex, object state);
+
         private sealed class SubmissionView {
-            private readonly Action<string> lineRenderer_;
+            private readonly LineRenderHandler lineRenderer_;
             private readonly ObservableCollection<string> document_;
             private int cursorTop_;
             private int renderedLineCount_;
@@ -98,7 +101,7 @@ namespace CommandLine {
                 }
             }
 
-            public SubmissionView(Action<string> lineRenderer, ObservableCollection<string> document) {
+            public SubmissionView(LineRenderHandler lineRenderer, ObservableCollection<string> document) {
                 lineRenderer_ = lineRenderer;
                 document_ = document;
                 document_.CollectionChanged += SubmissionDocumentChanged;
@@ -112,7 +115,7 @@ namespace CommandLine {
 
             private void Render() {
                 Console.CursorVisible = false;
-                int lineCount = 0;
+                var lineCount = 0;
 
                 foreach (var line in document_) {
                     if (cursorTop_ + lineCount >= Console.WindowHeight - 1) {
@@ -132,7 +135,7 @@ namespace CommandLine {
                         Console.Write("· ");
 
                     Console.ResetColor();
-                    lineRenderer_(line);
+                    lineRenderer_(document_, lineCount, null);
                     Console.Write(new string(' ', Console.WindowWidth - line.Length - 2));
                     lineCount++;
                 }
@@ -140,7 +143,7 @@ namespace CommandLine {
                 var blankLineCount = renderedLineCount_ - lineCount;
 
                 if (blankLineCount > 0) {
-                    string blankLine = new string(' ', Console.WindowWidth);
+                    var blankLine = new string(' ', Console.WindowWidth);
                     for (int i = 0; i < blankLineCount; i++) {
                         Console.SetCursorPosition(0, cursorTop_ + lineCount + i);
                         Console.WriteLine(blankLine);
@@ -390,8 +393,9 @@ namespace CommandLine {
             submissionHistory_.Clear();
         }
 
-        protected virtual void RenderLine(string line) {
-            Console.Write(line);
+        protected virtual object RenderLine(IReadOnlyList<string> lines, int lineIndex, object state) {
+            Console.Write(lines[lineIndex]);
+            return state;
         }
 
         private void EvaluateReplCommand(string line) {

@@ -43,7 +43,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             do {
                 token = lexer.LexNext();
 
-                if (token.type != SyntaxType.WHITESPACE_TOKEN && token.type != SyntaxType.Invalid)
+                if (!token.type.IsTrivia() && token.type != SyntaxType.Invalid)
                     tokens.Add(token);
             } while (token.type != SyntaxType.EOF_TOKEN);
 

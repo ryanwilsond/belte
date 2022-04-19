@@ -24,14 +24,15 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
         public void Lexer_Covers_AllTokens() {
             var tokenTypes = Enum.GetValues(typeof(SyntaxType))
                 .Cast<SyntaxType>()
-                .Where(k => k.ToString().EndsWith("_KEYWORD") ||
-                    (k.ToString().EndsWith("_TOKEN")));
+                .Where(k => k.IsToken());
 
             var testedTokenTypes = GetTokens().Concat(GetSeparators()).Select(t => t.type);
 
             var untestedTokenTypes = new SortedSet<SyntaxType>(tokenTypes);
             untestedTokenTypes.Remove(SyntaxType.Invalid);
             untestedTokenTypes.Remove(SyntaxType.EOF_TOKEN);
+            untestedTokenTypes.Remove(SyntaxType.SINGLELINE_COMMENT_TRIVIA);
+            untestedTokenTypes.Remove(SyntaxType.MULTILINE_COMMENT_TRIVIA);
             untestedTokenTypes.ExceptWith(testedTokenTypes);
 
             Assert.Empty(untestedTokenTypes);
@@ -113,17 +114,17 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
 
         private static IEnumerable<(SyntaxType type, string text)> GetSeparators() {
             return new[] {
-                (SyntaxType.WHITESPACE_TOKEN, " "),
-                (SyntaxType.WHITESPACE_TOKEN, "  "),
-                (SyntaxType.WHITESPACE_TOKEN, "\r"),
-                (SyntaxType.WHITESPACE_TOKEN, "\n"),
-                (SyntaxType.WHITESPACE_TOKEN, "\r\n")
+                (SyntaxType.WHITESPACE_TRIVIA, " "),
+                (SyntaxType.WHITESPACE_TRIVIA, "  "),
+                (SyntaxType.WHITESPACE_TRIVIA, "\r"),
+                (SyntaxType.WHITESPACE_TRIVIA, "\n"),
+                (SyntaxType.WHITESPACE_TRIVIA, "\r\n")
             };
         }
 
         private static bool RequiresSeparator(SyntaxType t1Type, SyntaxType t2Type) {
-            var t1IsKeyword = t1Type.ToString().EndsWith("KEYWORD");
-            var t2IsKeyword = t2Type.ToString().EndsWith("KEYWORD");
+            var t1IsKeyword = t1Type.IsKeyword();
+            var t2IsKeyword = t2Type.IsKeyword();
 
             if (t1Type == SyntaxType.IDENTIFIER_TOKEN && t2Type == SyntaxType.IDENTIFIER_TOKEN) return true;
             if (t1IsKeyword && t2IsKeyword) return true;
@@ -131,23 +132,24 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             if (t1Type == SyntaxType.IDENTIFIER_TOKEN && t2IsKeyword) return true;
             if (t1Type == SyntaxType.NUMBER_TOKEN && t2Type == SyntaxType.NUMBER_TOKEN) return true;
             if (t1Type == SyntaxType.BANG_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
-            if (t1Type == SyntaxType.BANG_TOKEN && t2Type == SyntaxType.DEQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.BANG_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
             if (t1Type == SyntaxType.EQUALS_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
-            if (t1Type == SyntaxType.EQUALS_TOKEN && t2Type == SyntaxType.DEQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.EQUALS_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
             if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.ASTERISK_TOKEN) return true;
-            if (t1Type == SyntaxType.DASTERISK_TOKEN && t2Type == SyntaxType.ASTERISK_TOKEN) return true;
-            if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.DASTERISK_TOKEN) return true;
-            if (t1Type == SyntaxType.DASTERISK_TOKEN && t2Type == SyntaxType.DASTERISK_TOKEN) return true;
+            if (t1Type == SyntaxType.ASTERISK_ASTERISK_TOKEN && t2Type == SyntaxType.ASTERISK_TOKEN) return true;
+            if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.ASTERISK_ASTERISK_TOKEN) return true;
+            if (t1Type == SyntaxType.ASTERISK_ASTERISK_TOKEN && t2Type == SyntaxType.ASTERISK_ASTERISK_TOKEN)
+                return true;
             if (t1Type == SyntaxType.LANGLEBRACKET_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
-            if (t1Type == SyntaxType.LANGLEBRACKET_TOKEN && t2Type == SyntaxType.DEQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.LANGLEBRACKET_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
             if (t1Type == SyntaxType.RANGLEBRACKET_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
-            if (t1Type == SyntaxType.RANGLEBRACKET_TOKEN && t2Type == SyntaxType.DEQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.RANGLEBRACKET_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
             if (t1Type == SyntaxType.PIPE_TOKEN && t2Type == SyntaxType.PIPE_TOKEN) return true;
-            if (t1Type == SyntaxType.PIPE_TOKEN && t2Type == SyntaxType.DPIPE_TOKEN) return true;
-            if (t1Type == SyntaxType.DPIPE_TOKEN && t2Type == SyntaxType.PIPE_TOKEN) return true;
+            if (t1Type == SyntaxType.PIPE_TOKEN && t2Type == SyntaxType.PIPE_PIPE_TOKEN) return true;
+            if (t1Type == SyntaxType.PIPE_PIPE_TOKEN && t2Type == SyntaxType.PIPE_TOKEN) return true;
             if (t1Type == SyntaxType.AMPERSAND_TOKEN && t2Type == SyntaxType.AMPERSAND_TOKEN) return true;
-            if (t1Type == SyntaxType.AMPERSAND_TOKEN && t2Type == SyntaxType.DAMPERSAND_TOKEN) return true;
-            if (t1Type == SyntaxType.DAMPERSAND_TOKEN && t2Type == SyntaxType.AMPERSAND_TOKEN) return true;
+            if (t1Type == SyntaxType.AMPERSAND_TOKEN && t2Type == SyntaxType.AMPERSAND_AMPERSAND_TOKEN) return true;
+            if (t1Type == SyntaxType.AMPERSAND_AMPERSAND_TOKEN && t2Type == SyntaxType.AMPERSAND_TOKEN) return true;
             if (t1Type == SyntaxType.LANGLEBRACKET_TOKEN && t2Type == SyntaxType.LESSEQUAL_TOKEN) return true;
             if (t1Type == SyntaxType.LANGLEBRACKET_TOKEN && t2Type == SyntaxType.SHIFTLEFT_TOKEN) return true;
             if (t1Type == SyntaxType.SHIFTLEFT_TOKEN && t2Type == SyntaxType.LESSEQUAL_TOKEN) return true;
@@ -157,6 +159,9 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             if (t1Type == SyntaxType.SHIFTRIGHT_TOKEN && t2Type == SyntaxType.GREATEQUAL_TOKEN) return true;
             if (t1Type == SyntaxType.RANGLEBRACKET_TOKEN && t2Type == SyntaxType.RANGLEBRACKET_TOKEN) return true;
             if (t1Type == SyntaxType.STRING_TOKEN && t2Type == SyntaxType.STRING_TOKEN) return true;
+            if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.SLASH_TOKEN) return true;
+            if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.ASTERISK_TOKEN) return true;
+            if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.ASTERISK_ASTERISK_TOKEN) return true;
 
             return false;
         }
@@ -172,7 +177,9 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
         }
 
         private static
-        IEnumerable<(SyntaxType t1Type, string t1Text, SyntaxType separatorType, string separatorText, SyntaxType t2Type, string t2Text)> GetTokenPairsWithSeparator() {
+            IEnumerable<(SyntaxType t1Type, string t1Text, SyntaxType separatorType,
+            string separatorText, SyntaxType t2Type, string t2Text)>
+            GetTokenPairsWithSeparator() {
             foreach (var t1 in GetTokens()) {
                 foreach (var t2 in GetTokens()) {
                     if (RequiresSeparator(t1.type, t2.type)) {
