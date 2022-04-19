@@ -179,7 +179,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
     internal abstract class BoundExpression : BoundNode {
         public abstract TypeSymbol lType { get; }
-        public virtual BoundConstant constantValue { get; }
+        public virtual BoundConstant constantValue => null;
     }
 
     internal sealed class BoundLiteralExpression : BoundExpression {

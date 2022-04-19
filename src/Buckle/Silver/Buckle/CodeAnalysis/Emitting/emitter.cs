@@ -140,6 +140,15 @@ namespace Buckle.CodeAnalysis.Emitting {
             randomNextReference_ = ResolveMethod("System.Random", "Next", new [] { "System.Int32" });
         }
 
+        public static DiagnosticQueue Emit(
+            BoundProgram program, string moduleName, string[] references, string outputPath) {
+            if (program.diagnostics.Any())
+                return program.diagnostics;
+
+            var emitter = new Emitter(moduleName, references);
+            return emitter.Emit(program, outputPath);
+        }
+
         public DiagnosticQueue Emit(BoundProgram program, string outputPath) {
             if (diagnostics.Any())
                 return diagnostics;
@@ -260,12 +269,14 @@ namespace Buckle.CodeAnalysis.Emitting {
         }
 
         private void EmitExpression(ILProcessor ilProcessor, BoundExpression expression) {
+            if (expression.constantValue != null) {
+                EmitConstantExpression(ilProcessor, expression);
+                return;
+            }
+
             switch (expression.type) {
                 case BoundNodeType.UnaryExpression:
                     EmitUnaryExpression(ilProcessor, (BoundUnaryExpression)expression);
-                    break;
-                case BoundNodeType.LiteralExpression:
-                    EmitLiteralExpression(ilProcessor, (BoundLiteralExpression)expression);
                     break;
                 case BoundNodeType.BinaryExpression:
                     EmitBinaryExpression(ilProcessor, (BoundBinaryExpression)expression);
@@ -474,18 +485,20 @@ namespace Buckle.CodeAnalysis.Emitting {
             }
         }
 
-        private void EmitLiteralExpression(ILProcessor ilProcessor, BoundLiteralExpression expression) {
+        private void EmitConstantExpression(ILProcessor ilProcessor, BoundExpression expression) {
             if (expression.lType == TypeSymbol.Int) {
                 // for efficiency can add hardcoded constants e.g. Ldc_I4_0
-                ilProcessor.Emit(OpCodes.Ldc_I4, (int)expression.value);
+                var value = (int)expression.constantValue.value;
+                ilProcessor.Emit(OpCodes.Ldc_I4, value);
             } else if (expression.lType == TypeSymbol.String) {
-                ilProcessor.Emit(OpCodes.Ldstr, (string)expression.value);
+                var value = (string)expression.constantValue.value;
+                ilProcessor.Emit(OpCodes.Ldstr, value);
             } else if (expression.lType == TypeSymbol.Bool) {
-                var value = (bool)expression.value;
+                var value = (bool)expression.constantValue.value;
                 var instruction = value ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0;
                 ilProcessor.Emit(instruction);
             } else {
-                diagnostics.Push(DiagnosticType.Fatal, $"unexpected literal '{expression.lType}'");
+                diagnostics.Push(DiagnosticType.Fatal, $"unexpected constant exression type {expression.lType}");
             }
         }
 
@@ -520,15 +533,6 @@ namespace Buckle.CodeAnalysis.Emitting {
 
             typeDefinition_.Methods.Add(method);
             methods_.Add(function, method);
-        }
-
-        public static DiagnosticQueue Emit(
-            BoundProgram program, string moduleName, string[] references, string outputPath) {
-            DiagnosticQueue diagnostics = new DiagnosticQueue();
-            diagnostics.Move(program.diagnostics);
-
-            var emitter = new Emitter(moduleName, references);
-            return emitter.Emit(program, outputPath);
         }
     }
 }

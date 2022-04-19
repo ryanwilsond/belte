@@ -201,6 +201,11 @@ namespace Buckle {
             compilation.EmitTree(symbol, Console.Out);
         }
 
+        [MetaCommand("exit", "Exits the repl")]
+        private void EvaluateExit() {
+            Environment.Exit(0);
+        }
+
         protected override bool IsCompleteSubmission(string text) {
             if (string.IsNullOrEmpty(text)) return true;
 

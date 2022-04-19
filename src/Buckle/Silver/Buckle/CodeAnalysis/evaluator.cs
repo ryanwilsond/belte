@@ -118,21 +118,23 @@ namespace Buckle.CodeAnalysis {
         }
 
         internal object EvaluateExpression(BoundExpression node) {
+            if (node.constantValue != null)
+                return EvaluateConstantExpression(node);
+
             switch (node.type) {
-                case BoundNodeType.LiteralExpression: return EvaluateLiteral((BoundLiteralExpression)node);
-                case BoundNodeType.VariableExpression: return EvaluateVariable((BoundVariableExpression)node);
-                case BoundNodeType.AssignmentExpression: return EvaluateAssignment((BoundAssignmentExpression)node);
-                case BoundNodeType.UnaryExpression: return EvaluateUnary((BoundUnaryExpression)node);
-                case BoundNodeType.BinaryExpression: return EvaluateBinary((BoundBinaryExpression)node);
-                case BoundNodeType.CallExpression: return EvaluateCall((BoundCallExpression)node);
-                case BoundNodeType.CastExpression: return EvaluateCast((BoundCastExpression)node);
+                case BoundNodeType.VariableExpression: return EvaluateVariableExpression((BoundVariableExpression)node);
+                case BoundNodeType.AssignmentExpression: return EvaluateAssignmentExpresion((BoundAssignmentExpression)node);
+                case BoundNodeType.UnaryExpression: return EvaluateUnaryExpression((BoundUnaryExpression)node);
+                case BoundNodeType.BinaryExpression: return EvaluateBinaryExpression((BoundBinaryExpression)node);
+                case BoundNodeType.CallExpression: return EvaluateCallExpression((BoundCallExpression)node);
+                case BoundNodeType.CastExpression: return EvaluateCastExpression((BoundCastExpression)node);
                 default:
                     diagnostics.Push(DiagnosticType.Fatal, $"unexpected node '{node.type}'");
                     return null;
             }
         }
 
-        internal object EvaluateCast(BoundCastExpression node) {
+        internal object EvaluateCastExpression(BoundCastExpression node) {
             var value = EvaluateExpression(node.expression);
 
             if (node.lType == TypeSymbol.Any) return value;
@@ -144,7 +146,7 @@ namespace Buckle.CodeAnalysis {
             return null;
         }
 
-        internal object EvaluateCall(BoundCallExpression node) {
+        internal object EvaluateCallExpression(BoundCallExpression node) {
             if (node.function == BuiltinFunctions.Input) {
                 return Console.ReadLine();
             } else if (node.function == BuiltinFunctions.Print) {
@@ -174,11 +176,11 @@ namespace Buckle.CodeAnalysis {
             return null;
         }
 
-        internal object EvaluateLiteral(BoundLiteralExpression syntax) {
-            return syntax.value;
+        internal object EvaluateConstantExpression(BoundExpression syntax) {
+            return syntax.constantValue.value;
         }
 
-        internal object EvaluateVariable(BoundVariableExpression syntax) {
+        internal object EvaluateVariableExpression(BoundVariableExpression syntax) {
             if (syntax.variable.type == SymbolType.GlobalVariable)
                 return globals_[syntax.variable];
 
@@ -186,14 +188,14 @@ namespace Buckle.CodeAnalysis {
             return locals[syntax.variable];
         }
 
-        internal object EvaluateAssignment(BoundAssignmentExpression syntax) {
+        internal object EvaluateAssignmentExpresion(BoundAssignmentExpression syntax) {
             var value = EvaluateExpression(syntax.expression);
             Assign(syntax.variable, value);
 
             return value;
         }
 
-        internal object EvaluateUnary(BoundUnaryExpression syntax) {
+        internal object EvaluateUnaryExpression(BoundUnaryExpression syntax) {
             var operand = EvaluateExpression(syntax.operand);
 
             switch (syntax.op.opType) {
@@ -207,7 +209,7 @@ namespace Buckle.CodeAnalysis {
             }
         }
 
-        internal object EvaluateBinary(BoundBinaryExpression syntax) {
+        internal object EvaluateBinaryExpression(BoundBinaryExpression syntax) {
             var left = EvaluateExpression(syntax.left);
             var right = EvaluateExpression(syntax.right);
 

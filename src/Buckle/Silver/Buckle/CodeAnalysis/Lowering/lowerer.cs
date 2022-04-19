@@ -205,9 +205,9 @@ namespace Buckle.CodeAnalysis.Lowering {
                 var condition = (bool)statement.condition.constantValue.value;
                 condition = statement.jumpIfTrue ? condition : !condition;
                 if (condition)
-                    return new BoundGotoStatement(statement.label);
+                    return RewriteStatement(new BoundGotoStatement(statement.label));
                 else
-                    return new BoundNopStatement();
+                    return RewriteStatement(new BoundNopStatement());
             }
 
             return base.RewriteConditionalGotoStatement(statement);

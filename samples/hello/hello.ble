@@ -1,10 +1,5 @@
 
-void Main() {
+void main() {
     print("Hello, world!");
-
-    let x = false;
-    let y = true;
-    let z = x && y;
-
-    while (z) {}
+    int x = 0;
 }

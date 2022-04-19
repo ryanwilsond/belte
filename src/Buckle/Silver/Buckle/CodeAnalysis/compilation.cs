@@ -4,6 +4,7 @@ using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using System.IO;
+using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.IO;
 using Buckle.CodeAnalysis.Emitting;
@@ -29,14 +30,14 @@ namespace Buckle.CodeAnalysis {
         internal FunctionSymbol mainFunction => globalScope.mainFunction;
         internal ImmutableArray<FunctionSymbol> functions => globalScope.functions;
         internal ImmutableArray<VariableSymbol> variables => globalScope.variables;
-        internal ImmutableArray<SyntaxTree> trees { get; }
+        internal ImmutableArray<SyntaxTree> syntaxTrees { get; }
         internal Compilation previous { get; }
         internal bool isScript { get; }
 
         internal BoundGlobalScope globalScope {
             get {
                 if (globalScope_ == null) {
-                    var tempScope = Binder.BindGlobalScope(isScript, previous?.globalScope, trees);
+                    var tempScope = Binder.BindGlobalScope(isScript, previous?.globalScope, syntaxTrees);
                     // makes assignment thread-safe, if multiple threads try to initialize they use whoever did it first
                     Interlocked.CompareExchange(ref globalScope_, tempScope, null);
                 }
@@ -53,7 +54,7 @@ namespace Buckle.CodeAnalysis {
             foreach (var tree in syntaxTrees)
                 diagnostics.Move(tree.diagnostics);
 
-            trees = syntaxTrees.ToImmutableArray();
+            this.syntaxTrees = syntaxTrees.ToImmutableArray<SyntaxTree>();
         }
 
         internal static Compilation Create(params SyntaxTree[] syntaxTrees) {
@@ -93,7 +94,7 @@ namespace Buckle.CodeAnalysis {
         }
 
         internal EvaluationResult Evaluate(Dictionary<VariableSymbol, object> variables) {
-            foreach (var tree in trees)
+            foreach (var tree in syntaxTrees)
                 diagnostics.Move(tree.diagnostics);
 
             diagnostics.Move(globalScope.diagnostics);
@@ -149,6 +150,12 @@ namespace Buckle.CodeAnalysis {
         }
 
         internal DiagnosticQueue Emit(string moduleName, string[] references, string outputPath) {
+            foreach (var syntaxTree in syntaxTrees)
+                diagnostics.Move(syntaxTree.diagnostics);
+
+            if (diagnostics.Any())
+                return diagnostics;
+
             var program = GetProgram();
             return Emitter.Emit(program, moduleName, references, outputPath);
         }
