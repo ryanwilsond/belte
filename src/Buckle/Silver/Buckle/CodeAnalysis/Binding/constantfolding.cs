@@ -9,6 +9,7 @@ namespace Buckle.CodeAnalysis.Binding {
             var rightConstant = right.constantValue;
 
             // and/or allow one side to be null
+            // TODO: track statements with side effects (e.g. function calls) and still execute them left ro right
             if (op.opType == BoundBinaryOperatorType.LogicalAnd) {
                 if (leftConstant != null && !(bool)leftConstant.value ||
                     rightConstant != null && !(bool)rightConstant.value)

@@ -18,7 +18,21 @@ namespace Buckle.CodeAnalysis.Lowering {
 
         public static BoundBlockStatement Lower(FunctionSymbol function, BoundStatement statement) {
             var lowerer = new Lowerer();
-            return Flatten(function, lowerer.RewriteStatement(statement));
+            var block = Flatten(function, lowerer.RewriteStatement(statement));
+            return RemoveDeadCode(block);
+        }
+
+        private static BoundBlockStatement RemoveDeadCode(BoundBlockStatement statement) {
+            var controlFlow = ControlFlowGraph.Create(statement);
+            var reachableStatements = new HashSet<BoundStatement>(controlFlow.blocks.SelectMany(b => b.statements));
+
+            var builder = statement.statements.ToBuilder();
+            for (int i=builder.Count-1; i>=0; i--) {
+                if (!reachableStatements.Contains(builder[i]))
+                    builder.RemoveAt(i);
+            }
+
+            return new BoundBlockStatement(builder.ToImmutable());
         }
 
         private static BoundBlockStatement Flatten(FunctionSymbol function, BoundStatement statement) {
