@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Text;
 
@@ -78,6 +79,17 @@ namespace Buckle {
                 diagnostics_.Add(diagnostic);
                 diagnostic = diagnosticQueue.Pop();
             }
+        }
+
+        /// <summary>
+        /// Pops all diagnostics off all queues and pushes them onto this
+        /// </summary>
+        /// <param name="diagnosticQueues">queues to pop and copy from</param>
+        public void MoveMany(IEnumerable<DiagnosticQueue> diagnosticQueues) {
+            if (diagnosticQueues == null) return;
+
+            foreach (var diagnosticQueue in diagnosticQueues)
+                Move(diagnosticQueue);
         }
 
         /// <summary>

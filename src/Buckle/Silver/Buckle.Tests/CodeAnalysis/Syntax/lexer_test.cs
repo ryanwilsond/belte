@@ -79,6 +79,21 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             Assert.Equal(tokens[2].text, t2Text);
         }
 
+        [Theory]
+        [InlineData("foo")]
+        [InlineData("foo42")]
+        [InlineData("foo_42")]
+        [InlineData("_foo")]
+        public void Lexer_Lexes_Identifiers(string name) {
+            var tokens = SyntaxTree.ParseTokens(name).ToArray();
+
+            Assert.Single(tokens);
+
+            var token = tokens[0];
+            Assert.Equal(SyntaxType.IDENTIFIER_TOKEN, token.type);
+            Assert.Equal(name, token.text);
+        }
+
         public static IEnumerable<object[]> GetTokensData() {
             foreach (var t in GetTokens().Concat(GetSeparators()))
                 yield return new object[] { t.type, t.text };
@@ -162,6 +177,8 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.SLASH_TOKEN) return true;
             if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.ASTERISK_TOKEN) return true;
             if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.ASTERISK_ASTERISK_TOKEN) return true;
+            if (t1Type == SyntaxType.IDENTIFIER_TOKEN && t2Type == SyntaxType.NUMBER_TOKEN) return true;
+            if (t1IsKeyword && t2Type == SyntaxType.NUMBER_TOKEN) return true;
 
             return false;
         }

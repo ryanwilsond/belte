@@ -177,6 +177,9 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case '\r':
                     ReadWhitespaceToken();
                     break;
+                case '_':
+                    ReadIdentifierOrKeyword();
+                    break;
                 default:
                     if (char.IsLetter(current))
                         ReadIdentifierOrKeyword();
@@ -304,7 +307,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         private void ReadIdentifierOrKeyword() {
-            while (char.IsLetter(current)) position_++;
+            while (char.IsLetterOrDigit(current) || current == '_') position_++;
 
             int length = position_ - start_;
             string text = text_.ToString(start_, length);

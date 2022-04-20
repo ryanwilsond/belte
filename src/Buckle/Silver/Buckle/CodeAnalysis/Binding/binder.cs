@@ -17,7 +17,7 @@ namespace Buckle.CodeAnalysis.Binding {
             new Stack<(BoundLabel breakLabel, BoundLabel continueLabel)>();
         private int labelCount_;
 
-        public Binder(bool isScript, BoundScope parent, FunctionSymbol function) {
+        private Binder(bool isScript, BoundScope parent, FunctionSymbol function) {
             isScript_ = isScript;
             diagnostics = new DiagnosticQueue();
             scope_ = new BoundScope(parent);
@@ -33,6 +33,14 @@ namespace Buckle.CodeAnalysis.Binding {
             bool isScript, BoundGlobalScope previous, ImmutableArray<SyntaxTree> syntaxTrees) {
             var parentScope = CreateParentScope(previous);
             var binder = new Binder(isScript, parentScope, null);
+
+            foreach (var syntaxTree in syntaxTrees)
+                binder.diagnostics.Move(syntaxTree.diagnostics);
+
+            if (binder.diagnostics.Any())
+                return new BoundGlobalScope(
+                    previous, binder.diagnostics, null, null, ImmutableArray<FunctionSymbol>.Empty,
+                    ImmutableArray<VariableSymbol>.Empty, ImmutableArray<BoundStatement>.Empty);
 
             var functionDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<FunctionDeclaration>();
 
@@ -98,6 +106,11 @@ namespace Buckle.CodeAnalysis.Binding {
 
         public static BoundProgram BindProgram(bool isScript, BoundProgram previous, BoundGlobalScope globalScope) {
             var parentScope = CreateParentScope(globalScope);
+
+            if (globalScope.diagnostics.Any())
+                return new BoundProgram(previous, globalScope.diagnostics,
+                    null, null, ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty);
+
             var functionBodies = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
             var diagnostics = new DiagnosticQueue();
 

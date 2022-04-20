@@ -94,12 +94,8 @@ namespace Buckle.CodeAnalysis {
         }
 
         internal EvaluationResult Evaluate(Dictionary<VariableSymbol, object> variables) {
-            foreach (var tree in syntaxTrees)
-                diagnostics.Move(tree.diagnostics);
-
-            diagnostics.Move(globalScope.diagnostics);
-            if (diagnostics.Any())
-                return new EvaluationResult(null, diagnostics);
+            if (globalScope.diagnostics.Any())
+                return new EvaluationResult(null, globalScope.diagnostics);
 
             var program = GetProgram();
             // CreateCfg(program);
