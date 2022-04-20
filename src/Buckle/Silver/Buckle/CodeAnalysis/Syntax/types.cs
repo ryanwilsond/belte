@@ -89,10 +89,19 @@ namespace Buckle.CodeAnalysis.Syntax {
     internal abstract class Node {
         public abstract SyntaxType type { get; }
         public SyntaxTree syntaxTree { get; }
+
         public virtual TextSpan span {
             get {
                 var first = GetChildren().First().span;
                 var last = GetChildren().Last().span;
+                return TextSpan.FromBounds(first.start, last.end);
+            }
+        }
+
+        public virtual TextSpan fullSpan {
+            get {
+                var first = GetChildren().First().fullSpan;
+                var last = GetChildren().Last().fullSpan;
                 return TextSpan.FromBounds(first.start, last.end);
             }
         }
@@ -173,6 +182,15 @@ namespace Buckle.CodeAnalysis.Syntax {
         public object value { get; }
         public bool isMissing => text == null;
         public override TextSpan span => new TextSpan(position, text?.Length ?? 0);
+        public override TextSpan fullSpan {
+            get {
+                var start = leadingTrivia.Length == 0 ? position : leadingTrivia[0].span.start;
+                var end = trailingTrivia.Length == 0 ? position : trailingTrivia.Last().span.end;
+                return TextSpan.FromBounds(start, end);
+            }
+        }
+        public ImmutableArray<SyntaxTrivia> leadingTrivia { get; }
+        public ImmutableArray<SyntaxTrivia> trailingTrivia { get; }
 
         public Token(SyntaxTree syntaxTree, SyntaxType type_, int position_, string text_, object value_)
             : base(syntaxTree) {
@@ -197,5 +215,11 @@ namespace Buckle.CodeAnalysis.Syntax {
             members = members_;
             endOfFile = endOfFile_;
         }
+    }
+
+    internal sealed class SyntaxTrivia {
+        public SyntaxType type { get; }
+        public TextSpan span { get; }
+        public string text { get; }
     }
 }
