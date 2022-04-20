@@ -157,6 +157,18 @@ namespace Buckle.CodeAnalysis.Syntax {
 
             writer.Write($"{indent}{marker}");
 
+            /*
+                TODO:
+                foreach (var trivia in token.leadingTrivia)
+                    writer.WriteLine($"L: {trivia.type}");
+
+                if (token.value != null)
+                    writer.Write($" {token.value}");
+
+                foreach (var trivia in token.trailingTrivia)
+                    writer.WriteLine($"L: {trivia.type}");
+            */
+
             if (isConsoleOut)
                 Console.ForegroundColor = node is Token ? ConsoleColor.DarkBlue : ConsoleColor.Cyan;
 
@@ -209,12 +221,15 @@ namespace Buckle.CodeAnalysis.Syntax {
         public ImmutableArray<SyntaxTrivia> leadingTrivia { get; }
         public ImmutableArray<SyntaxTrivia> trailingTrivia { get; }
 
-        public Token(SyntaxTree syntaxTree, SyntaxType type_, int position_, string text_, object value_)
+        public Token(SyntaxTree syntaxTree, SyntaxType type_, int position_, string text_, object value_,
+            ImmutableArray<SyntaxTrivia> leadingTrivia_, ImmutableArray<SyntaxTrivia> trailingTrivia_)
             : base(syntaxTree) {
             type = type_;
             position = position_;
             text = text_;
             value = value_;
+            leadingTrivia = leadingTrivia_;
+            trailingTrivia = trailingTrivia_;
         }
 
         public override IEnumerable<Node> GetChildren() {
@@ -235,8 +250,17 @@ namespace Buckle.CodeAnalysis.Syntax {
     }
 
     internal sealed class SyntaxTrivia {
+        public SyntaxTree syntaxTree { get; }
         public SyntaxType type { get; }
-        public TextSpan span { get; }
+        public int position { get; }
+        public TextSpan span => new TextSpan(position, text?.Length ?? 0);
         public string text { get; }
+
+        public SyntaxTrivia(SyntaxTree syntaxTree_, SyntaxType type_, int position_, string text_) {
+            syntaxTree = syntaxTree_;
+            position = position_;
+            type = type_;
+            text = text_;
+        }
     }
 }

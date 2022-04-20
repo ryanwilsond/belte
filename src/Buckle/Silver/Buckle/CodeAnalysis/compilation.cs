@@ -52,8 +52,8 @@ namespace Buckle.CodeAnalysis {
             previous = previous_;
             diagnostics = new DiagnosticQueue();
 
-            foreach (var tree in syntaxTrees)
-                diagnostics.Move(tree.diagnostics);
+            foreach (var syntaxTree in syntaxTrees)
+                diagnostics.Move(syntaxTree.diagnostics);
 
             this.syntaxTrees = syntaxTrees.ToImmutableArray<SyntaxTree>();
         }

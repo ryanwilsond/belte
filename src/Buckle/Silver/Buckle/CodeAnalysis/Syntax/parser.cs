@@ -15,7 +15,8 @@ namespace Buckle.CodeAnalysis.Syntax {
         private Token Match(SyntaxType type) {
             if (current.type == type) return Next();
             diagnostics.Push(Error.UnexpectedToken(current.location, current.type, type));
-            return new Token(syntaxTree_, type, current.position, null, null);
+            return new Token(syntaxTree_, type, current.position,
+                null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
         }
 
         private Token Next() {

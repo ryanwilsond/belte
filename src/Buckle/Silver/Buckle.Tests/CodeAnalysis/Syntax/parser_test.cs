@@ -79,9 +79,8 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
         }
 
         private static Expression ParseExpression(string text) {
-            var tree = SyntaxTree.Parse(text);
-            var root = tree.root;
-            var member = Assert.Single(root.members);
+            var syntaxTree = SyntaxTree.Parse(text);
+            var member = Assert.Single(syntaxTree.root.members);
             var globalStatement = Assert.IsType<GlobalStatement>(member);
             return Assert.IsType<ExpressionStatement>(globalStatement.statement).expression;
         }

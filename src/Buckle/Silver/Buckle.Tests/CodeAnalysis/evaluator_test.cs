@@ -500,8 +500,8 @@ namespace Buckle.Tests.CodeAnalysis {
         }
 
         private void AssertValue(string text, object expectedValue) {
-            var tree = SyntaxTree.Parse(text);
-            var compilation = Compilation.CreateScript(null, tree);
+            var syntaxTree = SyntaxTree.Parse(text);
+            var compilation = Compilation.CreateScript(null, syntaxTree);
             var variables = new Dictionary<VariableSymbol, object>();
             var result = compilation.Evaluate(variables);
 

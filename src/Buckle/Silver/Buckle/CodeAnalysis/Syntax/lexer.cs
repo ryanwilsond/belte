@@ -1,4 +1,5 @@
 using System.Text;
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Text;
 
@@ -11,6 +12,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         private SyntaxType type_;
         private object value_;
         private SyntaxTree syntaxTree_;
+        private ImmutableArray<SyntaxTrivia>.Builder triviaBuilder_ = ImmutableArray.CreateBuilder<SyntaxTrivia>();
         public DiagnosticQueue diagnostics = new DiagnosticQueue();
 
         public Lexer(SyntaxTree syntaxTree) {
@@ -28,6 +30,71 @@ namespace Buckle.CodeAnalysis.Syntax {
         private char lookahead => Peek(1);
 
         public Token LexNext() {
+            ReadTrivia(true);
+            var leadingTrivia = triviaBuilder_.ToImmutable();
+            var tokenStart = position_;
+
+            ReadToken();
+
+            var tokenType = type_;
+            var tokenValue = value_;
+            var tokenLength = position_ - start_;
+
+            ReadTrivia(false);
+            var trailingTrivia = triviaBuilder_.ToImmutable();
+
+            var tokenText = SyntaxFacts.GetText(tokenType);
+            if (tokenText == null)
+                tokenText = text_.ToString(start_, tokenLength);
+
+            return new Token(syntaxTree_, type_, start_, tokenText, value_, leadingTrivia, trailingTrivia);
+        }
+
+        private void ReadTrivia(bool leading) {
+            triviaBuilder_.Clear();
+            var done = false;
+
+            while (!done) {
+                start_ = position_;
+                type_ = SyntaxType.BAD_TOKEN;
+                value_ = null;
+
+                switch (current) {
+                    case '/':
+                        if (lookahead == '/')
+                            // TODO: docstring comments (xml or doxygen)
+                            ReadSingeLineComment();
+                        else if (lookahead == '*')
+                            ReadMultiLineComment();
+                        else
+                            done = true;
+                        break;
+                    case '\r':
+                    case '\n':
+                        if (!leading)
+                            done = true;
+                        goto case ' ';
+                    case ' ':
+                    case '\t':
+                        ReadWhitespace();
+                        break;
+                    default:
+                        // other whitespace, use case on others because more efficent, negligable
+                        if (char.IsWhiteSpace(current))
+                            ReadWhitespace();
+                        else
+                            done = true;
+                        break;
+                }
+
+                var length = position_ - start_;
+                var text = text_.ToString(start_, length);
+                var trivia = new SyntaxTrivia(syntaxTree_, type_, start_, text);
+                triviaBuilder_.Add(trivia);
+            }
+        }
+
+        private void ReadToken() {
             start_ = position_;
             type_ = SyntaxType.BAD_TOKEN;
             value_ = null;
@@ -75,6 +142,10 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case '-':
                     position_++;
                     type_ = SyntaxType.MINUS_TOKEN;
+                    break;
+                case '/':
+                    position_++;
+                    type_ = SyntaxType.SLASH_TOKEN;
                     break;
                 case '*':
                     position_++;
@@ -145,17 +216,6 @@ namespace Buckle.CodeAnalysis.Syntax {
                         type_ = SyntaxType.GREATER_THAN_TOKEN;
                     }
                     break;
-                case '/':
-                    if (lookahead == '/')
-                        // TODO: docstring comments (xml or doxygen)
-                        ReadSingeLineComment();
-                    else if (lookahead == '*')
-                        ReadMultiLineComment();
-                    else {
-                        position_++;
-                        type_ = SyntaxType.SLASH_TOKEN;
-                    }
-                    break;
                 case '"':
                     ReadString();
                     break;
@@ -171,20 +231,12 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case '9':
                     ReadNumberToken();
                     break;
-                case ' ':
-                case '\t':
-                case '\n':
-                case '\r':
-                    ReadWhitespaceToken();
-                    break;
                 case '_':
                     ReadIdentifierOrKeyword();
                     break;
                 default:
                     if (char.IsLetter(current))
                         ReadIdentifierOrKeyword();
-                    else if (char.IsWhiteSpace(current))
-                        ReadWhitespaceToken();
                     else {
                         var span = new TextSpan(position_, 1);
                         var location = new TextLocation(text_, span);
@@ -192,13 +244,6 @@ namespace Buckle.CodeAnalysis.Syntax {
                     }
                     break;
             }
-
-            int length = position_ - start_;
-            var text = SyntaxFacts.GetText(type_);
-            if (text == null)
-                text = text_.ToString(start_, length);
-
-            return new Token(syntaxTree_, type_, start_, text, value_);
         }
 
         private void ReadSingeLineComment() {
@@ -301,7 +346,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             type_ = SyntaxType.NUMBERIC_LITERAL_TOKEN;
         }
 
-        private void ReadWhitespaceToken() {
+        private void ReadWhitespace() {
             while (char.IsWhiteSpace(current)) position_++;
             type_ = SyntaxType.WHITESPACE_TRIVIA;
         }
