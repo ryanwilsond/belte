@@ -36,7 +36,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Token openParenthesis { get; }
         public Expression expression { get; }
         public Token closeParenthesis { get; }
-        public override SyntaxType type => SyntaxType.PAREN_EXPRESSION;
+        public override SyntaxType type => SyntaxType.PARENTHESIZED_EXPRESSION;
 
         public ParenthesisExpression(
             SyntaxTree syntaxTree, Token openParenthesis_, Expression expression_, Token closeParenthesis_)

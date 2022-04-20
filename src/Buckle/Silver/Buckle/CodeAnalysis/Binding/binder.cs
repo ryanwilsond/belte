@@ -226,7 +226,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private BoundStatement BindStatementInternal(Statement syntax) {
             switch (syntax.type) {
-                case SyntaxType.BLOCK_STATEMENT: return BindBlockStatement((BlockStatement)syntax);
+                case SyntaxType.BLOCK: return BindBlockStatement((BlockStatement)syntax);
                 case SyntaxType.EXPRESSION_STATEMENT: return BindExpressionStatement((ExpressionStatement)syntax);
                 case SyntaxType.VARIABLE_DECLARATION_STATEMENT:
                     return BindVariableDeclarationStatement((VariableDeclarationStatement)syntax);
@@ -284,7 +284,7 @@ namespace Buckle.CodeAnalysis.Binding {
                 case SyntaxType.LITERAL_EXPRESSION: return BindLiteralExpression((LiteralExpression)expression);
                 case SyntaxType.UNARY_EXPRESSION: return BindUnaryExpression((UnaryExpression)expression);
                 case SyntaxType.BINARY_EXPRESSION: return BindBinaryExpression((BinaryExpression)expression);
-                case SyntaxType.PAREN_EXPRESSION: return BindParenExpression((ParenthesisExpression)expression);
+                case SyntaxType.PARENTHESIZED_EXPRESSION: return BindParenExpression((ParenthesisExpression)expression);
                 case SyntaxType.NAME_EXPRESSION: return BindNameExpression((NameExpression)expression);
                 case SyntaxType.ASSIGN_EXPRESSION: return BindAssignmentExpression((AssignmentExpression)expression);
                 case SyntaxType.CALL_EXPRESSION: return BindCallExpression((CallExpression)expression);

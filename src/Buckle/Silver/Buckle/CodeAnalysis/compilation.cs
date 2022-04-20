@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
@@ -109,19 +110,16 @@ namespace Buckle.CodeAnalysis {
         }
 
         private static void CreateCfg(BoundProgram program) {
-            // TODO
-            /*
             var appPath = Environment.GetCommandLineArgs()[0];
             var appDirectory = Path.GetDirectoryName(appPath);
             var cfgPath = Path.Combine(appDirectory, "cfg.dot");
-            var cfgStatement = !program..statements.Any() && program.functions.Any()
-            /   ? program.functions.Last().Value
-                : program.statement;
+            BoundBlockStatement cfgStatement = program.scriptFunction == null
+                ? program.functions[program.mainFunction]
+                : program.functions[program.scriptFunction];
             var cfg = ControlFlowGraph.Create(cfgStatement);
 
             using (var streamWriter = new StreamWriter(cfgPath))
                 cfg.WriteTo(streamWriter);
-            */
         }
 
         internal void EmitTree(TextWriter writer) {

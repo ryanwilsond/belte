@@ -8,53 +8,39 @@ using System.Collections.Immutable;
 namespace Buckle.CodeAnalysis.Syntax {
 
     internal enum SyntaxType {
-        Invalid,
-
         EOF_TOKEN,
-        IDENTIFIER_TOKEN,
-        NUMBER_TOKEN,
+
+        // punctuation
         PLUS_TOKEN,
         MINUS_TOKEN,
         ASTERISK_TOKEN,
         SLASH_TOKEN,
-        LPAREN_TOKEN,
-        RPAREN_TOKEN,
-        LBRACE_TOKEN,
-        RBRACE_TOKEN,
+        OPEN_PAREN_TOKEN,
+        CLOSE_PAREN_TOKEN,
+        OPEN_BRACE_TOKEN,
+        CLOSE_BRACE_TOKEN,
         EQUALS_TOKEN,
-        BANG_TOKEN,
+        EXCLAMATION_TOKEN,
         AMPERSAND_TOKEN,
         PIPE_TOKEN,
         TILDE_TOKEN,
         CARET_TOKEN,
+        COMMA_TOKEN,
+        SEMICOLON_TOKEN,
+        LESS_THAN_TOKEN,
+        GREATER_THAN_TOKEN,
+
         AMPERSAND_AMPERSAND_TOKEN,
         PIPE_PIPE_TOKEN,
-        SEMICOLON_TOKEN,
-        COMMA_TOKEN,
         ASTERISK_ASTERISK_TOKEN,
         EQUALS_EQUALS_TOKEN,
-        BANG_EQUALS_TOKEN,
-        LANGLEBRACKET_TOKEN,
-        RANGLEBRACKET_TOKEN,
-        SHIFTLEFT_TOKEN,
-        SHIFTRIGHT_TOKEN,
-        LESSEQUAL_TOKEN,
-        GREATEQUAL_TOKEN,
-        STRING_TOKEN,
+        EXCLAMATION_EQUALS_TOKEN,
+        LESS_THAN_LESS_THAN_TOKEN,
+        GREATER_THAN_GREATER_THAN_TOKEN,
+        LESS_THAN_EQUALS_TOKEN,
+        GREATER_THAN_EQUALS_TOKEN,
 
-        WHITESPACE_TRIVIA,
-        SINGLELINE_COMMENT_TRIVIA,
-        MULTILINE_COMMENT_TRIVIA,
-
-        LITERAL_EXPRESSION,
-        BINARY_EXPRESSION,
-        UNARY_EXPRESSION,
-        PAREN_EXPRESSION,
-        NAME_EXPRESSION,
-        ASSIGN_EXPRESSION,
-        EMPTY_EXPRESSION,
-        CALL_EXPRESSION,
-
+        // keywords
         TRUE_KEYWORD,
         FALSE_KEYWORD,
         AUTO_KEYWORD,
@@ -68,22 +54,53 @@ namespace Buckle.CodeAnalysis.Syntax {
         CONTINUE_KEYWORD,
         RETURN_KEYWORD,
 
-        BLOCK_STATEMENT,
-        EXPRESSION_STATEMENT,
+        // tokens with text
+        BAD_TOKEN,
+        IDENTIFIER_TOKEN,
+        NUMBERIC_LITERAL_TOKEN,
+        STRING_LITERAL_TOKEN,
+
+        // trivia
+        WHITESPACE_TRIVIA,
+        SINGLELINE_COMMENT_TRIVIA,
+        MULTILINE_COMMENT_TRIVIA,
+
+        // expressions
+        EMPTY_EXPRESSION,
+        LITERAL_EXPRESSION,
+        NAME_EXPRESSION,
+        ASSIGN_EXPRESSION,
+        CALL_EXPRESSION,
+        PARENTHESIZED_EXPRESSION,
+        BINARY_EXPRESSION,
+        UNARY_EXPRESSION,
+
+        // statements
+        BLOCK,
         VARIABLE_DECLARATION_STATEMENT,
-        IF_STATEMENT,
-        WHILE_STATEMENT,
-        FOR_STATEMENT,
-        DO_WHILE_STATEMENT,
-        GLOBAL_STATEMENT,
+        EXPRESSION_STATEMENT,
+        EMPTY_STATEMENT,
+
+        // jump statements
         BREAK_STATEMENT,
         CONTINUE_STATEMENT,
         RETURN_STATEMENT,
 
-        COMPILATION_UNIT,
-        FUNCTION_DECLARATION,
+        IF_STATEMENT,
+        WHILE_STATEMENT,
+        FOR_STATEMENT,
+        DO_WHILE_STATEMENT,
+
+        // checked statements
         ELSE_CLAUSE,
+
+        // type declarations
         PARAMETER,
+        FUNCTION_DECLARATION,
+
+        // declarations
+        GLOBAL_STATEMENT,
+        COMPILATION_UNIT,
     }
 
     internal abstract class Node {

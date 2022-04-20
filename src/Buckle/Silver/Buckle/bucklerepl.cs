@@ -6,21 +6,23 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.IO;
 using CommandLine;
 
 namespace Buckle {
-    // TODO: make subclass
-    internal sealed class BuckleReplState : ReplState {
-        public bool showTree = false;
-        public bool showProgram = false;
-        public bool loadingSubmissions = false;
-    }
-
     public sealed class BuckleRepl : Repl {
         private static readonly Compilation emptyCompilation = Compilation.CreateScript(null);
-        internal override ReplState state_ { get; set; }
+        internal override object state_ { get; set; }
         internal BuckleReplState state { get { return (BuckleReplState)state_; } set { state_=value; } }
+
+        internal sealed class BuckleReplState {
+            public bool showTree = false;
+            public bool showProgram = false;
+            public bool loadingSubmissions = false;
+            public Compilation previous;
+            public Dictionary<VariableSymbol, object> variables;
+        }
 
         private sealed class RenderState {
             public SourceText text { get; }
@@ -43,6 +45,8 @@ namespace Buckle {
             state.showTree = false;
             state.showProgram = false;
             state.loadingSubmissions = false;
+            state.variables = new Dictionary<VariableSymbol, object>();
+            state.previous = null;
             base.ResetState();
         }
 
@@ -144,9 +148,9 @@ namespace Buckle {
                 var tokenText = renderState.text.ToString(tokenSpan);
 
                 var isKeyword = token.type.IsKeyword();
-                var isNumber = token.type == SyntaxType.NUMBER_TOKEN;
+                var isNumber = token.type == SyntaxType.NUMBERIC_LITERAL_TOKEN;
                 var isIdentifier = token.type == SyntaxType.IDENTIFIER_TOKEN;
-                var isString = token.type == SyntaxType.STRING_TOKEN;
+                var isString = token.type == SyntaxType.STRING_LITERAL_TOKEN;
                 var isType = (i < tokens.Length-2) && (tokens[i+1].type == SyntaxType.WHITESPACE_TRIVIA) &&
                     (tokens[i+2].type == SyntaxType.IDENTIFIER_TOKEN) && isIdentifier;
                 isType |= i == 1 && tokens[0].text == "#";

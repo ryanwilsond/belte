@@ -2,36 +2,26 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using Buckle;
-using Buckle.CodeAnalysis.Symbols;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using Buckle.IO;
-using Buckle.CodeAnalysis;
+using Buckle;
 
 namespace CommandLine {
-    // TODO: rewrite as object to allow no Buckle dependencies
-    internal class ReplState {
-        public Compilation previous;
-        public Dictionary<VariableSymbol, object> variables;
-        public bool done;
-    }
-
     public abstract class Repl {
         public delegate int ErrorHandle(Compiler compiler, string me = null);
 
         private readonly List<string> submissionHistory_ = new List<string>();
         private readonly List<MetaCommand> metaCommands_ = new List<MetaCommand>();
         private int submissionHistoryIndex_;
+        private bool done_;
         internal Compiler handle;
         internal ErrorHandle errorHandle;
-        internal abstract ReplState state_ { get; set; }
+        internal abstract object state_ { get; set; }
 
         protected Repl(Compiler handle_, ErrorHandle errorHandle_) {
             handle = handle_;
             errorHandle = errorHandle_;
-            state_ = new ReplState();
             InitializeMetaCommands();
         }
 
@@ -50,9 +40,7 @@ namespace CommandLine {
         }
 
         internal virtual void ResetState() {
-            state_.variables = new Dictionary<VariableSymbol, object>();
-            state_.previous = null;
-            state_.done = false;
+            done_ = false;
         }
 
         public void Run() {
@@ -162,12 +150,12 @@ namespace CommandLine {
         }
 
         private string EditSubmission() {
-            state_.done = false;
+            done_ = false;
 
             var document = new ObservableCollection<string>() { "" };
             var view = new SubmissionView(RenderLine, document);
 
-            while (!state_.done) {
+            while (!done_) {
                 var key = Console.ReadKey(true);
                 HandleKey(key, document, view);
             }
@@ -337,7 +325,7 @@ namespace CommandLine {
         }
 
         private void HandleControlEnter(ObservableCollection<string> document, SubmissionView view) {
-            state_.done = true;
+            done_ = true;
         }
 
         private void HandleTyping(ObservableCollection<string> document, SubmissionView view, string text) {
@@ -372,7 +360,7 @@ namespace CommandLine {
         private void HandleEnter(ObservableCollection<string> document, SubmissionView view) {
             var submissionText = string.Join(Environment.NewLine, document);
             if (submissionText.StartsWith('#') || IsCompleteSubmission(submissionText)) {
-                state_.done = true;
+                done_ = true;
                 return;
             }
 
@@ -509,11 +497,14 @@ namespace CommandLine {
                     name += $" <{parameter.Name}>";
 
                 var paddedName = name.PadRight(maxLength);
-                Console.Out.WritePunctuation("#");
-                Console.Out.WriteIdentifier(paddedName);
-                Console.Out.WriteSpace();
-                Console.Out.WriteSpace();
-                Console.Out.WritePunctuation(metaCommand.description);
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.Out.Write("#");
+                Console.ResetColor();
+                Console.Out.Write(paddedName);
+                Console.Out.Write("  ");
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.Out.Write(metaCommand.description);
+                Console.ResetColor();
                 Console.Out.WriteLine();
             }
         }

@@ -11,7 +11,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             const string text = "\"test";
             var tokens = SyntaxTree.ParseTokens(text, out var diagnostics);
             var token = Assert.Single(tokens);
-            Assert.Equal(SyntaxType.STRING_TOKEN, token.type);
+            Assert.Equal(SyntaxType.STRING_LITERAL_TOKEN, token.type);
             Assert.Equal(text, token.text);
             Assert.Equal(1, diagnostics.count);
             var diagnostic = diagnostics.Pop();
@@ -29,7 +29,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             var testedTokenTypes = GetTokens().Concat(GetSeparators()).Select(t => t.type);
 
             var untestedTokenTypes = new SortedSet<SyntaxType>(tokenTypes);
-            untestedTokenTypes.Remove(SyntaxType.Invalid);
+            untestedTokenTypes.Remove(SyntaxType.BAD_TOKEN);
             untestedTokenTypes.Remove(SyntaxType.EOF_TOKEN);
             untestedTokenTypes.Remove(SyntaxType.SINGLELINE_COMMENT_TRIVIA);
             untestedTokenTypes.Remove(SyntaxType.MULTILINE_COMMENT_TRIVIA);
@@ -116,12 +116,12 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
                                   .Where(t => t.text != null);
 
             var dynamicTokens = new[] {
-                (SyntaxType.NUMBER_TOKEN, "1"),
-                (SyntaxType.NUMBER_TOKEN, "123"),
+                (SyntaxType.NUMBERIC_LITERAL_TOKEN, "1"),
+                (SyntaxType.NUMBERIC_LITERAL_TOKEN, "123"),
                 (SyntaxType.IDENTIFIER_TOKEN, "a"),
                 (SyntaxType.IDENTIFIER_TOKEN, "abc"),
-                (SyntaxType.STRING_TOKEN, "\"Test\""),
-                (SyntaxType.STRING_TOKEN, "\"Te\"\"st\""),
+                (SyntaxType.STRING_LITERAL_TOKEN, "\"Test\""),
+                (SyntaxType.STRING_LITERAL_TOKEN, "\"Te\"\"st\""),
             };
 
             return fixedTokens.Concat(dynamicTokens);
@@ -145,9 +145,9 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             if (t1IsKeyword && t2IsKeyword) return true;
             if (t1IsKeyword && t2Type == SyntaxType.IDENTIFIER_TOKEN) return true;
             if (t1Type == SyntaxType.IDENTIFIER_TOKEN && t2IsKeyword) return true;
-            if (t1Type == SyntaxType.NUMBER_TOKEN && t2Type == SyntaxType.NUMBER_TOKEN) return true;
-            if (t1Type == SyntaxType.BANG_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
-            if (t1Type == SyntaxType.BANG_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.NUMBERIC_LITERAL_TOKEN && t2Type == SyntaxType.NUMBERIC_LITERAL_TOKEN) return true;
+            if (t1Type == SyntaxType.EXCLAMATION_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.EXCLAMATION_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
             if (t1Type == SyntaxType.EQUALS_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
             if (t1Type == SyntaxType.EQUALS_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
             if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.ASTERISK_TOKEN) return true;
@@ -155,30 +155,30 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.ASTERISK_ASTERISK_TOKEN) return true;
             if (t1Type == SyntaxType.ASTERISK_ASTERISK_TOKEN && t2Type == SyntaxType.ASTERISK_ASTERISK_TOKEN)
                 return true;
-            if (t1Type == SyntaxType.LANGLEBRACKET_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
-            if (t1Type == SyntaxType.LANGLEBRACKET_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
-            if (t1Type == SyntaxType.RANGLEBRACKET_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
-            if (t1Type == SyntaxType.RANGLEBRACKET_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.LESS_THAN_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.LESS_THAN_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.GREATER_THAN_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.GREATER_THAN_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
             if (t1Type == SyntaxType.PIPE_TOKEN && t2Type == SyntaxType.PIPE_TOKEN) return true;
             if (t1Type == SyntaxType.PIPE_TOKEN && t2Type == SyntaxType.PIPE_PIPE_TOKEN) return true;
             if (t1Type == SyntaxType.PIPE_PIPE_TOKEN && t2Type == SyntaxType.PIPE_TOKEN) return true;
             if (t1Type == SyntaxType.AMPERSAND_TOKEN && t2Type == SyntaxType.AMPERSAND_TOKEN) return true;
             if (t1Type == SyntaxType.AMPERSAND_TOKEN && t2Type == SyntaxType.AMPERSAND_AMPERSAND_TOKEN) return true;
             if (t1Type == SyntaxType.AMPERSAND_AMPERSAND_TOKEN && t2Type == SyntaxType.AMPERSAND_TOKEN) return true;
-            if (t1Type == SyntaxType.LANGLEBRACKET_TOKEN && t2Type == SyntaxType.LESSEQUAL_TOKEN) return true;
-            if (t1Type == SyntaxType.LANGLEBRACKET_TOKEN && t2Type == SyntaxType.SHIFTLEFT_TOKEN) return true;
-            if (t1Type == SyntaxType.SHIFTLEFT_TOKEN && t2Type == SyntaxType.LESSEQUAL_TOKEN) return true;
-            if (t1Type == SyntaxType.LANGLEBRACKET_TOKEN && t2Type == SyntaxType.LANGLEBRACKET_TOKEN) return true;
-            if (t1Type == SyntaxType.RANGLEBRACKET_TOKEN && t2Type == SyntaxType.GREATEQUAL_TOKEN) return true;
-            if (t1Type == SyntaxType.RANGLEBRACKET_TOKEN && t2Type == SyntaxType.SHIFTRIGHT_TOKEN) return true;
-            if (t1Type == SyntaxType.SHIFTRIGHT_TOKEN && t2Type == SyntaxType.GREATEQUAL_TOKEN) return true;
-            if (t1Type == SyntaxType.RANGLEBRACKET_TOKEN && t2Type == SyntaxType.RANGLEBRACKET_TOKEN) return true;
-            if (t1Type == SyntaxType.STRING_TOKEN && t2Type == SyntaxType.STRING_TOKEN) return true;
+            if (t1Type == SyntaxType.LESS_THAN_TOKEN && t2Type == SyntaxType.LESS_THAN_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.LESS_THAN_TOKEN && t2Type == SyntaxType.LESS_THAN_LESS_THAN_TOKEN) return true;
+            if (t1Type == SyntaxType.LESS_THAN_LESS_THAN_TOKEN && t2Type == SyntaxType.LESS_THAN_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.LESS_THAN_TOKEN && t2Type == SyntaxType.LESS_THAN_TOKEN) return true;
+            if (t1Type == SyntaxType.GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN) return true;
+            if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_TOKEN) return true;
+            if (t1Type == SyntaxType.STRING_LITERAL_TOKEN && t2Type == SyntaxType.STRING_LITERAL_TOKEN) return true;
             if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.SLASH_TOKEN) return true;
             if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.ASTERISK_TOKEN) return true;
             if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.ASTERISK_ASTERISK_TOKEN) return true;
-            if (t1Type == SyntaxType.IDENTIFIER_TOKEN && t2Type == SyntaxType.NUMBER_TOKEN) return true;
-            if (t1IsKeyword && t2Type == SyntaxType.NUMBER_TOKEN) return true;
+            if (t1Type == SyntaxType.IDENTIFIER_TOKEN && t2Type == SyntaxType.NUMBERIC_LITERAL_TOKEN) return true;
+            if (t1IsKeyword && t2Type == SyntaxType.NUMBERIC_LITERAL_TOKEN) return true;
 
             return false;
         }

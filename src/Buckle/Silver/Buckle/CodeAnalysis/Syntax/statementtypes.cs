@@ -30,7 +30,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Token openBrace { get; }
         public ImmutableArray<Statement> statements { get; }
         public Token closeBrace { get; }
-        public override SyntaxType type => SyntaxType.BLOCK_STATEMENT;
+        public override SyntaxType type => SyntaxType.BLOCK;
 
         public BlockStatement(
             SyntaxTree syntaxTree, Token openBrace_, ImmutableArray<Statement> statements_, Token closeBrace_)

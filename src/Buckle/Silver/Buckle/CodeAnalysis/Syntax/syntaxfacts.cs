@@ -15,16 +15,16 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.PLUS_TOKEN:
                 case SyntaxType.MINUS_TOKEN:
                     return 9;
-                case SyntaxType.SHIFTLEFT_TOKEN:
-                case SyntaxType.SHIFTRIGHT_TOKEN:
+                case SyntaxType.LESS_THAN_LESS_THAN_TOKEN:
+                case SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN:
                     return 8;
-                case SyntaxType.LANGLEBRACKET_TOKEN:
-                case SyntaxType.RANGLEBRACKET_TOKEN:
-                case SyntaxType.LESSEQUAL_TOKEN:
-                case SyntaxType.GREATEQUAL_TOKEN:
+                case SyntaxType.LESS_THAN_TOKEN:
+                case SyntaxType.GREATER_THAN_TOKEN:
+                case SyntaxType.LESS_THAN_EQUALS_TOKEN:
+                case SyntaxType.GREATER_THAN_EQUALS_TOKEN:
                     return 7;
                 case SyntaxType.EQUALS_EQUALS_TOKEN:
-                case SyntaxType.BANG_EQUALS_TOKEN:
+                case SyntaxType.EXCLAMATION_EQUALS_TOKEN:
                     return 6;
                 case SyntaxType.AMPERSAND_TOKEN:
                     return 5;
@@ -44,7 +44,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             switch (type) {
                 case SyntaxType.PLUS_TOKEN:
                 case SyntaxType.MINUS_TOKEN:
-                case SyntaxType.BANG_TOKEN:
+                case SyntaxType.EXCLAMATION_TOKEN:
                 case SyntaxType.TILDE_TOKEN:
                     return 12;
                 default: return 0;
@@ -76,28 +76,28 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.MINUS_TOKEN: return "-";
                 case SyntaxType.ASTERISK_TOKEN: return "*";
                 case SyntaxType.SLASH_TOKEN: return "/";
-                case SyntaxType.LPAREN_TOKEN: return "(";
-                case SyntaxType.RPAREN_TOKEN: return ")";
+                case SyntaxType.OPEN_PAREN_TOKEN: return "(";
+                case SyntaxType.CLOSE_PAREN_TOKEN: return ")";
                 case SyntaxType.EQUALS_TOKEN: return "=";
                 case SyntaxType.TILDE_TOKEN: return "~";
                 case SyntaxType.CARET_TOKEN: return "^";
                 case SyntaxType.AMPERSAND_TOKEN: return "&";
                 case SyntaxType.PIPE_TOKEN: return "|";
-                case SyntaxType.SHIFTLEFT_TOKEN: return "<<";
-                case SyntaxType.SHIFTRIGHT_TOKEN: return ">>";
-                case SyntaxType.BANG_TOKEN: return "!";
+                case SyntaxType.LESS_THAN_LESS_THAN_TOKEN: return "<<";
+                case SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN: return ">>";
+                case SyntaxType.EXCLAMATION_TOKEN: return "!";
                 case SyntaxType.AMPERSAND_AMPERSAND_TOKEN: return "&&";
                 case SyntaxType.PIPE_PIPE_TOKEN: return "||";
                 case SyntaxType.ASTERISK_ASTERISK_TOKEN: return "**";
-                case SyntaxType.LBRACE_TOKEN: return "{";
-                case SyntaxType.RBRACE_TOKEN: return "}";
+                case SyntaxType.OPEN_BRACE_TOKEN: return "{";
+                case SyntaxType.CLOSE_BRACE_TOKEN: return "}";
                 case SyntaxType.SEMICOLON_TOKEN: return ";";
                 case SyntaxType.EQUALS_EQUALS_TOKEN: return "==";
-                case SyntaxType.BANG_EQUALS_TOKEN: return "!=";
-                case SyntaxType.LANGLEBRACKET_TOKEN: return "<";
-                case SyntaxType.RANGLEBRACKET_TOKEN: return ">";
-                case SyntaxType.LESSEQUAL_TOKEN: return "<=";
-                case SyntaxType.GREATEQUAL_TOKEN: return ">=";
+                case SyntaxType.EXCLAMATION_EQUALS_TOKEN: return "!=";
+                case SyntaxType.LESS_THAN_TOKEN: return "<";
+                case SyntaxType.GREATER_THAN_TOKEN: return ">";
+                case SyntaxType.LESS_THAN_EQUALS_TOKEN: return "<=";
+                case SyntaxType.GREATER_THAN_EQUALS_TOKEN: return ">=";
                 case SyntaxType.TRUE_KEYWORD: return "true";
                 case SyntaxType.FALSE_KEYWORD: return "false";
                 case SyntaxType.AUTO_KEYWORD: return "auto";

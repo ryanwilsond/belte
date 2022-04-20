@@ -60,21 +60,21 @@ namespace Buckle.CodeAnalysis.Binding {
             new BoundBinaryOperator(SyntaxType.AMPERSAND_TOKEN, BoundBinaryOperatorType.LogicalAnd, TypeSymbol.Int),
             new BoundBinaryOperator(SyntaxType.PIPE_TOKEN, BoundBinaryOperatorType.LogicalOr, TypeSymbol.Int),
             new BoundBinaryOperator(SyntaxType.CARET_TOKEN, BoundBinaryOperatorType.LogicalXor, TypeSymbol.Int),
-            new BoundBinaryOperator(SyntaxType.SHIFTLEFT_TOKEN, BoundBinaryOperatorType.LeftShift, TypeSymbol.Int),
-            new BoundBinaryOperator(SyntaxType.SHIFTRIGHT_TOKEN, BoundBinaryOperatorType.RightShift, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.LESS_THAN_LESS_THAN_TOKEN, BoundBinaryOperatorType.LeftShift, TypeSymbol.Int),
+            new BoundBinaryOperator(SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN, BoundBinaryOperatorType.RightShift, TypeSymbol.Int),
 
             new BoundBinaryOperator(SyntaxType.EQUALS_EQUALS_TOKEN,
                 BoundBinaryOperatorType.EqualityEquals, TypeSymbol.Int, TypeSymbol.Bool),
-            new BoundBinaryOperator(SyntaxType.BANG_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
+            new BoundBinaryOperator(SyntaxType.EXCLAMATION_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
                 TypeSymbol.Int, TypeSymbol.Bool),
             new BoundBinaryOperator(
-                SyntaxType.LANGLEBRACKET_TOKEN, BoundBinaryOperatorType.LessThan, TypeSymbol.Int, TypeSymbol.Bool),
+                SyntaxType.LESS_THAN_TOKEN, BoundBinaryOperatorType.LessThan, TypeSymbol.Int, TypeSymbol.Bool),
             new BoundBinaryOperator(
-                SyntaxType.RANGLEBRACKET_TOKEN, BoundBinaryOperatorType.GreaterThan, TypeSymbol.Int, TypeSymbol.Bool),
+                SyntaxType.GREATER_THAN_TOKEN, BoundBinaryOperatorType.GreaterThan, TypeSymbol.Int, TypeSymbol.Bool),
             new BoundBinaryOperator(
-                SyntaxType.LESSEQUAL_TOKEN, BoundBinaryOperatorType.LessOrEqual, TypeSymbol.Int, TypeSymbol.Bool),
+                SyntaxType.LESS_THAN_EQUALS_TOKEN, BoundBinaryOperatorType.LessOrEqual, TypeSymbol.Int, TypeSymbol.Bool),
             new BoundBinaryOperator(
-                SyntaxType.GREATEQUAL_TOKEN, BoundBinaryOperatorType.GreatOrEqual, TypeSymbol.Int, TypeSymbol.Bool),
+                SyntaxType.GREATER_THAN_EQUALS_TOKEN, BoundBinaryOperatorType.GreatOrEqual, TypeSymbol.Int, TypeSymbol.Bool),
 
             new BoundBinaryOperator(
                 SyntaxType.AMPERSAND_AMPERSAND_TOKEN, BoundBinaryOperatorType.ConditionalAnd, TypeSymbol.Bool),
@@ -85,15 +85,15 @@ namespace Buckle.CodeAnalysis.Binding {
             new BoundBinaryOperator(
                 SyntaxType.EQUALS_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityEquals, TypeSymbol.Bool),
             new BoundBinaryOperator(
-                SyntaxType.BANG_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals, TypeSymbol.Bool),
+                SyntaxType.EXCLAMATION_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals, TypeSymbol.Bool),
 
             new BoundBinaryOperator(SyntaxType.PLUS_TOKEN, BoundBinaryOperatorType.Addition, TypeSymbol.String),
             new BoundBinaryOperator(SyntaxType.EQUALS_EQUALS_TOKEN,
                 BoundBinaryOperatorType.EqualityEquals, TypeSymbol.String, TypeSymbol.Bool),
-            new BoundBinaryOperator(SyntaxType.BANG_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
+            new BoundBinaryOperator(SyntaxType.EXCLAMATION_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
                 TypeSymbol.String, TypeSymbol.Bool),
 
-            new BoundBinaryOperator(SyntaxType.BANG_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
+            new BoundBinaryOperator(SyntaxType.EXCLAMATION_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
                 TypeSymbol.Any, TypeSymbol.Bool),
             new BoundBinaryOperator(SyntaxType.EQUALS_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityEquals,
                 TypeSymbol.Any, TypeSymbol.Bool),
@@ -149,7 +149,7 @@ namespace Buckle.CodeAnalysis.Binding {
             : this(type, opType, operandType, operandType) { }
 
         private static BoundUnaryOperator[] operators_ = {
-            new BoundUnaryOperator(SyntaxType.BANG_TOKEN, BoundUnaryOperatorType.BooleanNegation, TypeSymbol.Bool),
+            new BoundUnaryOperator(SyntaxType.EXCLAMATION_TOKEN, BoundUnaryOperatorType.BooleanNegation, TypeSymbol.Bool),
 
             new BoundUnaryOperator(SyntaxType.PLUS_TOKEN, BoundUnaryOperatorType.NumericalIdentity, TypeSymbol.Int),
             new BoundUnaryOperator(SyntaxType.MINUS_TOKEN, BoundUnaryOperatorType.NumericalNegation, TypeSymbol.Int),

@@ -29,7 +29,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         public Token LexNext() {
             start_ = position_;
-            type_ = SyntaxType.Invalid;
+            type_ = SyntaxType.BAD_TOKEN;
             value_ = null;
 
             switch (current) {
@@ -42,19 +42,19 @@ namespace Buckle.CodeAnalysis.Syntax {
                     break;
                 case '(':
                     position_++;
-                    type_ = SyntaxType.LPAREN_TOKEN;
+                    type_ = SyntaxType.OPEN_PAREN_TOKEN;
                     break;
                 case ')':
                     position_++;
-                    type_ = SyntaxType.RPAREN_TOKEN;
+                    type_ = SyntaxType.CLOSE_PAREN_TOKEN;
                     break;
                 case '{':
                     position_++;
-                    type_ = SyntaxType.LBRACE_TOKEN;
+                    type_ = SyntaxType.OPEN_BRACE_TOKEN;
                     break;
                 case '}':
                     position_++;
-                    type_ = SyntaxType.RBRACE_TOKEN;
+                    type_ = SyntaxType.CLOSE_BRACE_TOKEN;
                     break;
                 case ';':
                     position_++;
@@ -116,33 +116,33 @@ namespace Buckle.CodeAnalysis.Syntax {
                     position_++;
                     if (current == '=') {
                         position_++;
-                        type_ = SyntaxType.BANG_EQUALS_TOKEN;
+                        type_ = SyntaxType.EXCLAMATION_EQUALS_TOKEN;
                     } else {
-                        type_ = SyntaxType.BANG_TOKEN;
+                        type_ = SyntaxType.EXCLAMATION_TOKEN;
                     }
                     break;
                 case '<':
                     position_++;
                     if (current == '=') {
                         position_++;
-                        type_ = SyntaxType.LESSEQUAL_TOKEN;
+                        type_ = SyntaxType.LESS_THAN_EQUALS_TOKEN;
                     } else if (current == '<') {
                         position_++;
-                        type_ = SyntaxType.SHIFTLEFT_TOKEN;
+                        type_ = SyntaxType.LESS_THAN_LESS_THAN_TOKEN;
                     } else {
-                        type_ = SyntaxType.LANGLEBRACKET_TOKEN;
+                        type_ = SyntaxType.LESS_THAN_TOKEN;
                     }
                     break;
                 case '>':
                     position_++;
                     if (current == '=') {
                         position_++;
-                        type_ = SyntaxType.GREATEQUAL_TOKEN;
+                        type_ = SyntaxType.GREATER_THAN_EQUALS_TOKEN;
                     } else if (current == '>') {
                         position_++;
-                        type_ = SyntaxType.SHIFTRIGHT_TOKEN;
+                        type_ = SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN;
                     } else {
-                        type_ = SyntaxType.RANGLEBRACKET_TOKEN;
+                        type_ = SyntaxType.GREATER_THAN_TOKEN;
                     }
                     break;
                 case '/':
@@ -281,7 +281,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                 }
             }
 
-            type_ = SyntaxType.STRING_TOKEN;
+            type_ = SyntaxType.STRING_LITERAL_TOKEN;
             value_ = sb.ToString();
         }
 
@@ -298,7 +298,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             }
 
             value_ = value;
-            type_ = SyntaxType.NUMBER_TOKEN;
+            type_ = SyntaxType.NUMBERIC_LITERAL_TOKEN;
         }
 
         private void ReadWhitespaceToken() {
