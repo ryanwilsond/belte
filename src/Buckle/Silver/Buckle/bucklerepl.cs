@@ -24,16 +24,6 @@ namespace Buckle {
             public Dictionary<VariableSymbol, object> variables;
         }
 
-        private sealed class RenderState {
-            public SourceText text { get; }
-            public ImmutableArray<Token> tokens { get; }
-
-            public RenderState(SourceText text_, ImmutableArray<Token> tokens_) {
-                text = text_;
-                tokens = tokens_;
-            }
-        }
-
         public BuckleRepl(Compiler handle, ErrorHandle errorHandle) : base(handle, errorHandle) {
             state = new BuckleReplState();
             ResetState();
@@ -121,60 +111,58 @@ namespace Buckle {
             return submissionsFolder;
         }
 
-        protected override object RenderLine(IReadOnlyList<string> lines, int lineIndex, object state) {
-            RenderState renderState;
+        protected override object RenderLine(IReadOnlyList<string> lines, int lineIndex, object rState) {
+            SyntaxTree syntaxTree;
 
-            if (state == null) {
+            if (rState == null) {
                 var text = string.Join(Environment.NewLine, lines);
-                var sourceText = SourceText.From(text);
-                var tokens = SyntaxTree.ParseTokens(sourceText);
-                renderState = new RenderState(sourceText, tokens);
+                syntaxTree = SyntaxTree.Parse(text);
             } else {
-                renderState = (RenderState)state;
+                syntaxTree = (SyntaxTree)rState;
             }
 
-            var lineSpan = renderState.text.lines[lineIndex].span;
+            var lineSpan = syntaxTree.text.lines[lineIndex].span;
+            var classifiedSpans = Classifier.Classify(syntaxTree, lineSpan);
 
-            for (int i=0; i<renderState.tokens.Length; i++) {
-                var tokens = renderState.tokens;
-                var token = tokens[i];
+            foreach (var classifiedSpan in classifiedSpans) {
+                var classifiedText = syntaxTree.text.ToString(classifiedSpan.span);
 
-                if (!lineSpan.OverlapsWith(token.span))
-                    continue;
+                // TODO
+                // var isType = (i < tokens.Length-2) && (tokens[i+1].type == SyntaxType.WHITESPACE_TRIVIA) &&
+                //     (tokens[i+2].type == SyntaxType.IDENTIFIER_TOKEN) && isIdentifier;
+                // isType |= i == 1 && tokens[0].text == "#";
+                // isType &= !(i > 1 && tokens[0].text == "#");
 
-                var tokenStart = Math.Max(token.span.start, lineSpan.start);
-                var tokenEnd = Math.Min(token.span.end, lineSpan.end);
-                var tokenSpan = TextSpan.FromBounds(tokenStart, tokenEnd);
-                var tokenText = renderState.text.ToString(tokenSpan);
+                switch (classifiedSpan.classification) {
+                    case Classification.Identifier:
+                        Console.ForegroundColor = ConsoleColor.White;
+                        break;
+                    case Classification.Number:
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        break;
+                    case Classification.String:
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        break;
+                    case Classification.Comment:
+                        Console.ForegroundColor = ConsoleColor.DarkGray;
+                        break;
+                    case Classification.Keyword:
+                        Console.ForegroundColor = ConsoleColor.Blue;
+                        break;
+                    case Classification.Type:
+                        Console.ForegroundColor = ConsoleColor.Blue;
+                        break;
+                    case Classification.Text:
+                    default:
+                        Console.ForegroundColor = ConsoleColor.DarkGray;
+                        break;
+                }
 
-                var isKeyword = token.type.IsKeyword();
-                var isNumber = token.type == SyntaxType.NUMBERIC_LITERAL_TOKEN;
-                var isIdentifier = token.type == SyntaxType.IDENTIFIER_TOKEN;
-                var isString = token.type == SyntaxType.STRING_LITERAL_TOKEN;
-                var isType = (i < tokens.Length-2) && (tokens[i+1].type == SyntaxType.WHITESPACE_TRIVIA) &&
-                    (tokens[i+2].type == SyntaxType.IDENTIFIER_TOKEN) && isIdentifier;
-                isType |= i == 1 && tokens[0].text == "#";
-                isType &= !(i > 1 && tokens[0].text == "#");
-                var isComment = token.type.IsComment();
-
-                if (isComment)
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                else if (isKeyword)
-                    Console.ForegroundColor = ConsoleColor.Blue;
-                else if (isNumber)
-                    Console.ForegroundColor = ConsoleColor.Cyan;
-                else if (isString)
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                else if (isType)
-                    Console.ForegroundColor = ConsoleColor.Blue;
-                else if (!isIdentifier)
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-
-                Console.Write(tokenText);
+                Console.Write(classifiedText);
                 Console.ResetColor();
             }
 
-            return state;
+            return syntaxTree;
         }
 
         [MetaCommand("showTree", "Toggle to display parse tree of each input")]
@@ -266,6 +254,96 @@ namespace Buckle {
             if (lastMember == null || lastMember.GetLastToken().isMissing) return false;
 
             return true;
+        }
+    }
+
+    enum Classification {
+        Identifier,
+        Keyword,
+        Type,
+        Number,
+        String,
+        Comment,
+        Text,
+    }
+
+    class ClassifiedSpan {
+        public TextSpan span { get; }
+        public Classification classification { get; }
+
+        public ClassifiedSpan(TextSpan span_, Classification classification_) {
+            span = span_;
+            classification = classification_;
+        }
+    }
+
+    class Classifier {
+        public static ImmutableArray<ClassifiedSpan> Classify(SyntaxTree syntaxTree, TextSpan span) {
+            var result = ImmutableArray.CreateBuilder<ClassifiedSpan>();
+            ClassifyNode(syntaxTree.root, span, result);
+            return result.ToImmutable();
+        }
+
+        private static void ClassifyNode(Node node, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result) {
+            if (!node.fullSpan.OverlapsWith(span))
+                return;
+
+            if (node is Token token) {
+                ClassifyToken(token, span, result);
+            }
+
+            foreach (var child in node.GetChildren())
+                ClassifyNode(child, span, result);
+        }
+
+        private static void ClassifyToken(Token token, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result) {
+            foreach (var trivia in token.leadingTrivia)
+                ClassifyTrivia(trivia, span, result);
+
+            AddClassification(token.type, token.span, span, result);
+
+            foreach (var trivia in token.trailingTrivia)
+                ClassifyTrivia(trivia, span, result);
+        }
+
+        private static void ClassifyTrivia(
+            SyntaxTrivia trivia, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result) {
+            AddClassification(trivia.type, trivia.span, span, result);
+        }
+
+        private static void AddClassification(SyntaxType elementType, TextSpan elementSpan,
+            TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result) {
+            if (!elementSpan.OverlapsWith(span))
+                return;
+
+            var classification = GetClassification(elementType);
+            var adjustedStart = Math.Max(elementSpan.start, span.start);
+            var adjustedEnd = Math.Min(elementSpan.end, span.end);
+            var adjustedSpan = TextSpan.FromBounds(adjustedStart, adjustedEnd);
+
+            var classifiedSpan = new ClassifiedSpan(adjustedSpan, classification);
+            result.Add(classifiedSpan);
+        }
+
+        private static Classification GetClassification(SyntaxType type) {
+            var isKeyword = type.IsKeyword();
+            var isNumber = type == SyntaxType.NUMBERIC_LITERAL_TOKEN;
+            var isIdentifier = type == SyntaxType.IDENTIFIER_TOKEN;
+            var isString = type == SyntaxType.STRING_LITERAL_TOKEN;
+            var isComment = type.IsComment();
+
+            if (isKeyword)
+                return Classification.Keyword;
+            else if (isIdentifier)
+                return Classification.Identifier;
+            else if (isNumber)
+                return Classification.Number;
+            else if (isString)
+                return Classification.String;
+            else if (isComment)
+                return Classification.Comment;
+            else
+                return Classification.Text;
         }
     }
 }

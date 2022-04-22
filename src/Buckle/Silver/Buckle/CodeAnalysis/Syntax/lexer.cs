@@ -45,9 +45,9 @@ namespace Buckle.CodeAnalysis.Syntax {
 
             var tokenText = SyntaxFacts.GetText(tokenType);
             if (tokenText == null)
-                tokenText = text_.ToString(start_, tokenLength);
+                tokenText = text_.ToString(tokenStart, tokenLength);
 
-            return new Token(syntaxTree_, type_, start_, tokenText, value_, leadingTrivia, trailingTrivia);
+            return new Token(syntaxTree_, tokenType, tokenStart, tokenText, tokenValue, leadingTrivia, trailingTrivia);
         }
 
         private void ReadTrivia(bool leading) {
@@ -60,6 +60,9 @@ namespace Buckle.CodeAnalysis.Syntax {
                 value_ = null;
 
                 switch (current) {
+                    case '\0':
+                        done = true;
+                        break;
                     case '/':
                         if (lookahead == '/')
                             // TODO: docstring comments (xml or doxygen)
@@ -79,7 +82,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                         ReadWhitespace();
                         break;
                     default:
-                        // other whitespace, use case on others because more efficent, negligable
+                        // other whitespace, use case on others because more efficient, negligible
                         if (char.IsWhiteSpace(current))
                             ReadWhitespace();
                         else
@@ -88,9 +91,12 @@ namespace Buckle.CodeAnalysis.Syntax {
                 }
 
                 var length = position_ - start_;
-                var text = text_.ToString(start_, length);
-                var trivia = new SyntaxTrivia(syntaxTree_, type_, start_, text);
-                triviaBuilder_.Add(trivia);
+
+                if (length > 0) {
+                    var text = text_.ToString(start_, length);
+                    var trivia = new SyntaxTrivia(syntaxTree_, type_, start_, text);
+                    triviaBuilder_.Add(trivia);
+                }
             }
         }
 

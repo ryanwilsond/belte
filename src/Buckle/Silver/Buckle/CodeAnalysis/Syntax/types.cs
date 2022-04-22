@@ -149,25 +149,22 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         private void PrettyPrint(TextWriter writer, Node node, string indent = "", bool isLast = true) {
-            bool isConsoleOut = writer == Console.Out;
-            string marker = isLast ? "└─" : "├─";
+            var isConsoleOut = writer == Console.Out;
+            var token = node as Token;
 
             if (isConsoleOut)
                 Console.ForegroundColor = ConsoleColor.DarkGray;
 
-            writer.Write($"{indent}{marker}");
-
-            /*
-                TODO:
-                foreach (var trivia in token.leadingTrivia)
+            if (token != null)
+                foreach (var trivia in token.leadingTrivia) {
+                    writer.Write(indent);
+                    writer.Write("├─");
                     writer.WriteLine($"L: {trivia.type}");
+                }
 
-                if (token.value != null)
-                    writer.Write($" {token.value}");
-
-                foreach (var trivia in token.trailingTrivia)
-                    writer.WriteLine($"L: {trivia.type}");
-            */
+            var hasTrailingTrivia = token != null && token.trailingTrivia.Any();
+            var tokenMarker = !hasTrailingTrivia && isLast ? "└─" : "├─";
+            writer.Write($"{indent}{tokenMarker}");
 
             if (isConsoleOut)
                 Console.ForegroundColor = node is Token ? ConsoleColor.DarkBlue : ConsoleColor.Cyan;
@@ -181,6 +178,16 @@ namespace Buckle.CodeAnalysis.Syntax {
 
             if (isConsoleOut)
                 Console.ResetColor();
+
+            if (token != null)
+                foreach (var trivia in token.trailingTrivia) {
+                    var isLastTrailingTrivia = trivia == token.trailingTrivia.Last();
+                    var triviaMarker = isLastTrailingTrivia ? "└─" : "├─";
+
+                    writer.Write(indent);
+                    writer.Write(triviaMarker);
+                    writer.WriteLine($"T: {trivia.type}");
+                }
 
             indent += isLast ? "  " : "│ ";
             var lastChild = node.GetChildren().LastOrDefault();
