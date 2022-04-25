@@ -8,7 +8,7 @@ using System.Collections.Immutable;
 namespace Buckle.CodeAnalysis.Syntax {
 
     internal enum SyntaxType {
-        EOF_TOKEN,
+        END_OF_FILE_TOKEN,
 
         // punctuation
         PLUS_TOKEN,
@@ -61,9 +61,11 @@ namespace Buckle.CodeAnalysis.Syntax {
         STRING_LITERAL_TOKEN,
 
         // trivia
+        END_OF_LINE_TRIVIA,
         WHITESPACE_TRIVIA,
         SINGLELINE_COMMENT_TRIVIA,
         MULTILINE_COMMENT_TRIVIA,
+        SKIPPED_TOKEN_TRIVIA,
 
         // expressions
         EMPTY_EXPRESSION,
@@ -149,18 +151,23 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         private void PrettyPrint(TextWriter writer, Node node, string indent = "", bool isLast = true) {
+            // TODO: do this in GetChildren(), node should never be null
+            if (node == null)
+                return;
+
             var isConsoleOut = writer == Console.Out;
             var token = node as Token;
 
             if (isConsoleOut)
                 Console.ForegroundColor = ConsoleColor.DarkGray;
 
-            if (token != null)
+            if (token != null) {
                 foreach (var trivia in token.leadingTrivia) {
                     writer.Write(indent);
                     writer.Write("├─");
                     writer.WriteLine($"L: {trivia.type}");
                 }
+            }
 
             var hasTrailingTrivia = token != null && token.trailingTrivia.Any();
             var tokenMarker = !hasTrailingTrivia && isLast ? "└─" : "├─";
@@ -177,17 +184,21 @@ namespace Buckle.CodeAnalysis.Syntax {
             writer.WriteLine();
 
             if (isConsoleOut)
-                Console.ResetColor();
+                Console.ForegroundColor = ConsoleColor.DarkGray;
 
-            if (token != null)
+            if (token != null) {
                 foreach (var trivia in token.trailingTrivia) {
                     var isLastTrailingTrivia = trivia == token.trailingTrivia.Last();
-                    var triviaMarker = isLastTrailingTrivia ? "└─" : "├─";
+                    var triviaMarker = isLast && isLastTrailingTrivia ? "└─" : "├─";
 
                     writer.Write(indent);
                     writer.Write(triviaMarker);
                     writer.WriteLine($"T: {trivia.type}");
                 }
+            }
+
+            if (isConsoleOut)
+                Console.ResetColor();
 
             indent += isLast ? "  " : "│ ";
             var lastChild = node.GetChildren().LastOrDefault();

@@ -36,6 +36,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Parser(SyntaxTree syntaxTree) {
             diagnostics = new DiagnosticQueue();
             var tokens = new List<Token>();
+            var badTokens = new List<Token>();
             Lexer lexer = new Lexer(syntaxTree);
             Token token;
             text_ = syntaxTree.text;
@@ -44,9 +45,33 @@ namespace Buckle.CodeAnalysis.Syntax {
             do {
                 token = lexer.LexNext();
 
-                if (!token.type.IsTrivia() && token.type != SyntaxType.BAD_TOKEN)
+                if (token.type == SyntaxType.BAD_TOKEN) {
+                    badTokens.Add(token);
+                } else {
+                    if (badTokens.Count > 0) {
+                        var leadingTrivia = token.leadingTrivia.ToBuilder();
+                        var index = 0;
+
+                        foreach (var badToken in badTokens) {
+                            foreach (var lt in badToken.leadingTrivia)
+                                leadingTrivia.Insert(index++, lt);
+
+                            var trivia = new SyntaxTrivia(
+                                syntaxTree, SyntaxType.SKIPPED_TOKEN_TRIVIA, badToken.position, badToken.text);
+                            leadingTrivia.Insert(index++, trivia);
+
+                            foreach (var tt in badToken.trailingTrivia)
+                                leadingTrivia.Insert(index++, tt);
+                        }
+
+                        badTokens.Clear();
+                        token = new Token(token.syntaxTree, token.type, token.position,
+                            token.text, token.value, leadingTrivia.ToImmutable(), token.trailingTrivia);
+                    }
+
                     tokens.Add(token);
-            } while (token.type != SyntaxType.EOF_TOKEN);
+                }
+            } while (token.type != SyntaxType.END_OF_FILE_TOKEN);
 
             tokens_ = tokens.ToImmutableArray();
             diagnostics.Move(lexer.diagnostics);
@@ -54,14 +79,14 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         public CompilationUnit ParseCompilationUnit() {
             var members = ParseMembers();
-            var endOfFile = Match(SyntaxType.EOF_TOKEN);
+            var endOfFile = Match(SyntaxType.END_OF_FILE_TOKEN);
             return new CompilationUnit(syntaxTree_, members, endOfFile);
         }
 
         private ImmutableArray<Member> ParseMembers() {
             var members = ImmutableArray.CreateBuilder<Member>();
 
-            while (current.type != SyntaxType.EOF_TOKEN) {
+            while (current.type != SyntaxType.END_OF_FILE_TOKEN) {
                 var startToken = current;
 
                 var member = ParseMember();
@@ -108,7 +133,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             var parseNextParameter = true;
             while (parseNextParameter &&
                 current.type != SyntaxType.CLOSE_PAREN_TOKEN &&
-                current.type != SyntaxType.EOF_TOKEN) {
+                current.type != SyntaxType.END_OF_FILE_TOKEN) {
                 var expression = ParseParameter();
                 nodesAndSeparators.Add(expression);
 
@@ -289,7 +314,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             var openBrace = Match(SyntaxType.OPEN_BRACE_TOKEN);
             var startToken = current;
 
-            while (current.type != SyntaxType.EOF_TOKEN && current.type != SyntaxType.CLOSE_BRACE_TOKEN) {
+            while (current.type != SyntaxType.END_OF_FILE_TOKEN && current.type != SyntaxType.CLOSE_BRACE_TOKEN) {
                 var statement = ParseStatement();
                 statements.Add(statement);
 
@@ -419,7 +444,7 @@ namespace Buckle.CodeAnalysis.Syntax {
             var parseNextArgument = true;
             while (parseNextArgument &&
                 current.type != SyntaxType.CLOSE_PAREN_TOKEN &&
-                current.type != SyntaxType.EOF_TOKEN) {
+                current.type != SyntaxType.END_OF_FILE_TOKEN) {
                 var expression = ParseExpression();
                 nodesAndSeparators.Add(expression);
 

@@ -43,21 +43,23 @@ namespace Buckle.CodeAnalysis.Syntax {
             return new SyntaxTree(text, Parse);
         }
 
-        public static ImmutableArray<Token> ParseTokens(string text) {
+        public static ImmutableArray<Token> ParseTokens(string text, bool includeEOF = false) {
             var sourceText = SourceText.From(text);
-            return ParseTokens(sourceText);
+            return ParseTokens(sourceText, includeEOF);
         }
 
-        public static ImmutableArray<Token> ParseTokens(string text, out DiagnosticQueue diagnostics) {
+        public static ImmutableArray<Token> ParseTokens(
+            string text, out DiagnosticQueue diagnostics, bool includeEOF = false) {
             var sourceText = SourceText.From(text);
-            return ParseTokens(sourceText, out diagnostics);
+            return ParseTokens(sourceText, out diagnostics, includeEOF);
         }
 
-        public static ImmutableArray<Token> ParseTokens(SourceText text) {
-            return ParseTokens(text, out _);
+        public static ImmutableArray<Token> ParseTokens(SourceText text, bool includeEOF = false) {
+            return ParseTokens(text, out _, includeEOF);
         }
 
-        public static ImmutableArray<Token> ParseTokens(SourceText text, out DiagnosticQueue diagnostics) {
+        public static ImmutableArray<Token> ParseTokens(
+            SourceText text, out DiagnosticQueue diagnostics, bool includeEOF = false) {
             var tokens = new List<Token>();
 
             void ParseTokens(SyntaxTree syntaxTree, out CompilationUnit root, out DiagnosticQueue diagnostics) {
@@ -67,12 +69,14 @@ namespace Buckle.CodeAnalysis.Syntax {
                 while (true) {
                     var token = lexer.LexNext();
 
-                    if (token.type == SyntaxType.EOF_TOKEN) {
+                    if (token.type == SyntaxType.END_OF_FILE_TOKEN)
                         root = new CompilationUnit(syntaxTree, ImmutableArray<Member>.Empty, token);
-                        break;
-                    }
 
-                    tokens.Add(token);
+                    if (token.type != SyntaxType.END_OF_FILE_TOKEN || includeEOF)
+                        tokens.Add(token);
+
+                    if (token.type == SyntaxType.END_OF_FILE_TOKEN)
+                        break;
                 }
 
                 diagnostics = new DiagnosticQueue();

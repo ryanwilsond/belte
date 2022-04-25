@@ -45,7 +45,7 @@ namespace Buckle {
         public static Diagnostic UnexpectedToken(TextLocation location, SyntaxType unexpected, SyntaxType expected) {
             string msg;
 
-            if (unexpected != SyntaxType.EOF_TOKEN)
+            if (unexpected != SyntaxType.END_OF_FILE_TOKEN)
                 msg = $"unexpected token {DiagnosticText(unexpected)}, expected {DiagnosticText(expected)}";
             else
                 msg = $"expected {DiagnosticText(expected)} at end of input";

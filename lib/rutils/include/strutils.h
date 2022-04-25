@@ -142,7 +142,7 @@ _NODISCARD inline std::string upper(const std::string& _Str) noexcept
 /// @return string segments back-to-back
 _NODISCARD inline std::vector<std::string> split_str(const std::string& _Str, const std::string& _Delim) noexcept
 {   // Finds instance of delim, then adds substr to vector; increases offset to not repeat chunks
-    std::vector<std::string> _Segs;    
+    std::vector<std::string> _Segs;
     size_type _Off = 0;
     size_type _Pos = 0;
 
@@ -230,13 +230,13 @@ _NODISCARD inline std::string remove_whitespace(const std::string& _Str) noexcep
     return _Copy;
 }
 
-/// Concatenates all elements of vector into string with a seperator
+/// Concatenates all elements of vector into string with a separator
 /// @param _Segs    vector of string segments to concat to string (all elements)
-/// @param _Sep     seperator between every element (not beginning or end)
+/// @param _Sep     separator between every element (not beginning or end)
 /// @return combined string
 _NODISCARD inline std::string join(const std::vector<std::string>& _Segs, const std::string& _Sep) noexcept
 {   // Even though its a vector utility, its specific for string vectors so its here
-    // Iterates vector (apart from last element) appending element and seperator to string
+    // Iterates vector (apart from last element) appending element and separator to string
     // finally adds last vector element
     std::string _Comb;
     const size_type _Segs_size = _Segs.size();

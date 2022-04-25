@@ -30,7 +30,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
 
             var untestedTokenTypes = new SortedSet<SyntaxType>(tokenTypes);
             untestedTokenTypes.Remove(SyntaxType.BAD_TOKEN);
-            untestedTokenTypes.Remove(SyntaxType.EOF_TOKEN);
+            untestedTokenTypes.Remove(SyntaxType.END_OF_FILE_TOKEN);
             untestedTokenTypes.Remove(SyntaxType.SINGLELINE_COMMENT_TRIVIA);
             untestedTokenTypes.Remove(SyntaxType.MULTILINE_COMMENT_TRIVIA);
             untestedTokenTypes.ExceptWith(testedTokenTypes);
@@ -46,6 +46,17 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             var token = Assert.Single(tokens);
             Assert.Equal(type, token.type);
             Assert.Equal(text, token.text);
+        }
+
+        [Theory]
+        [MemberData(nameof(GetSeparatorsData))]
+        internal void Lexer_Lexes_Separator(SyntaxType type, string text) {
+            var tokens = SyntaxTree.ParseTokens(text, true);
+
+            var token = Assert.Single(tokens);
+            var trivia = Assert.Single(token.leadingTrivia);
+            Assert.Equal(type, trivia.type);
+            Assert.Equal(text, trivia.text);
         }
 
         [Theory]
@@ -70,13 +81,16 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             var text = t1Text + separatorText + t2Text;
             var tokens = SyntaxTree.ParseTokens(text).ToArray();
 
-            Assert.Equal(3, tokens.Length);
+            Assert.Equal(2, tokens.Length);
             Assert.Equal(tokens[0].type, t1Type);
             Assert.Equal(tokens[0].text, t1Text);
-            Assert.Equal(tokens[1].type, separatorType);
-            Assert.Equal(tokens[1].text, separatorText);
-            Assert.Equal(tokens[2].type, t2Type);
-            Assert.Equal(tokens[2].text, t2Text);
+
+            var separator = Assert.Single(tokens[0].trailingTrivia);
+            Assert.Equal(separator.text, separatorText);
+            Assert.Equal(separator.type, separatorType);
+
+            Assert.Equal(tokens[1].type, t2Type);
+            Assert.Equal(tokens[1].text, t2Text);
         }
 
         [Theory]
@@ -95,7 +109,12 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
         }
 
         public static IEnumerable<object[]> GetTokensData() {
-            foreach (var t in GetTokens().Concat(GetSeparators()))
+            foreach (var t in GetTokens())
+                yield return new object[] { t.type, t.text };
+        }
+
+        public static IEnumerable<object[]> GetSeparatorsData() {
+            foreach (var t in GetSeparators())
                 yield return new object[] { t.type, t.text };
         }
 
@@ -131,9 +150,9 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             return new[] {
                 (SyntaxType.WHITESPACE_TRIVIA, " "),
                 (SyntaxType.WHITESPACE_TRIVIA, "  "),
-                (SyntaxType.WHITESPACE_TRIVIA, "\r"),
-                (SyntaxType.WHITESPACE_TRIVIA, "\n"),
-                (SyntaxType.WHITESPACE_TRIVIA, "\r\n")
+                (SyntaxType.END_OF_LINE_TRIVIA, "\r"),
+                (SyntaxType.END_OF_LINE_TRIVIA, "\n"),
+                (SyntaxType.END_OF_LINE_TRIVIA, "\r\n")
             };
         }
 
@@ -167,16 +186,21 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             if (t1Type == SyntaxType.AMPERSAND_AMPERSAND_TOKEN && t2Type == SyntaxType.AMPERSAND_TOKEN) return true;
             if (t1Type == SyntaxType.LESS_THAN_TOKEN && t2Type == SyntaxType.LESS_THAN_EQUALS_TOKEN) return true;
             if (t1Type == SyntaxType.LESS_THAN_TOKEN && t2Type == SyntaxType.LESS_THAN_LESS_THAN_TOKEN) return true;
-            if (t1Type == SyntaxType.LESS_THAN_LESS_THAN_TOKEN && t2Type == SyntaxType.LESS_THAN_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.LESS_THAN_LESS_THAN_TOKEN && t2Type == SyntaxType.LESS_THAN_EQUALS_TOKEN)
+                return true;
             if (t1Type == SyntaxType.LESS_THAN_TOKEN && t2Type == SyntaxType.LESS_THAN_TOKEN) return true;
             if (t1Type == SyntaxType.GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_EQUALS_TOKEN) return true;
-            if (t1Type == SyntaxType.GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN) return true;
-            if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN)
+                return true;
+            if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_EQUALS_TOKEN)
+                return true;
             if (t1Type == SyntaxType.GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_TOKEN) return true;
             if (t1Type == SyntaxType.STRING_LITERAL_TOKEN && t2Type == SyntaxType.STRING_LITERAL_TOKEN) return true;
             if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.SLASH_TOKEN) return true;
             if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.ASTERISK_TOKEN) return true;
             if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.ASTERISK_ASTERISK_TOKEN) return true;
+            if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.MULTILINE_COMMENT_TRIVIA) return true;
+            if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.SINGLELINE_COMMENT_TRIVIA) return true;
             if (t1Type == SyntaxType.IDENTIFIER_TOKEN && t2Type == SyntaxType.NUMBERIC_LITERAL_TOKEN) return true;
             if (t1IsKeyword && t2Type == SyntaxType.NUMBERIC_LITERAL_TOKEN) return true;
 

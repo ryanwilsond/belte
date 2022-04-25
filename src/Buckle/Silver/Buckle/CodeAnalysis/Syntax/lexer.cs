@@ -76,13 +76,14 @@ namespace Buckle.CodeAnalysis.Syntax {
                     case '\n':
                         if (!leading)
                             done = true;
-                        goto case ' ';
+                        ReadLineBreak();
+                        break;
                     case ' ':
                     case '\t':
                         ReadWhitespace();
                         break;
                     default:
-                        // other whitespace, use case on others because more efficient, negligible
+                        // other whitespace; use case on most common because more efficient, negligible
                         if (char.IsWhiteSpace(current))
                             ReadWhitespace();
                         else
@@ -107,7 +108,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
             switch (current) {
                 case '\0':
-                    type_ = SyntaxType.EOF_TOKEN;
+                    type_ = SyntaxType.END_OF_FILE_TOKEN;
                     break;
                 case ',':
                     position_++;
@@ -353,8 +354,34 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         private void ReadWhitespace() {
-            while (char.IsWhiteSpace(current)) position_++;
+            var done = false;
+
+            while (!done) {
+                switch (current) {
+                    case '\0':
+                    case '\r':
+                    case '\n':
+                        done = true;
+                        break;
+                    default:
+                        if (!char.IsWhiteSpace(current))
+                            done = true;
+                        else
+                            position_++;
+                        break;
+                }
+            }
+
             type_ = SyntaxType.WHITESPACE_TRIVIA;
+        }
+
+        private void ReadLineBreak() {
+            if (current == '\r' && lookahead == '\n')
+                position_ += 2;
+            else
+                position_++;
+
+            type_ = SyntaxType.END_OF_LINE_TRIVIA;
         }
 
         private void ReadIdentifierOrKeyword() {

@@ -5,9 +5,8 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using Buckle;
 
-namespace CommandLine {
+namespace Buckle {
     public abstract class Repl {
         public delegate int ErrorHandle(Compiler compiler, string me = null);
 
