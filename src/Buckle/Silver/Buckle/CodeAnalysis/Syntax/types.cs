@@ -231,8 +231,8 @@ namespace Buckle.CodeAnalysis.Syntax {
         public override TextSpan span => new TextSpan(position, text?.Length ?? 0);
         public override TextSpan fullSpan {
             get {
-                var start = leadingTrivia.Length == 0 ? position : leadingTrivia[0].span.start;
-                var end = trailingTrivia.Length == 0 ? position : trailingTrivia.Last().span.end;
+                var start = leadingTrivia.Length == 0 ? span.start : leadingTrivia.First().span.start;
+                var end = trailingTrivia.Length == 0 ? span.end : trailingTrivia.Last().span.end;
                 return TextSpan.FromBounds(start, end);
             }
         }
