@@ -98,6 +98,71 @@ namespace Buckle.Tests.CodeAnalysis {
         }
 
         [Fact]
+        public void Evaluator_IfStatement_Reports_NotReachableCode_Warning() {
+            var text = @"
+                function test()
+                {
+                    let x = 4 * 3
+                    if x > 12
+                    {
+                        [print](""x"")
+                    }
+                    else
+                    {
+                        print(""x"")
+                    }
+                }
+            ";
+
+            var diagnostics = @"
+                Unreachable code detected.
+            ";
+            AssertDiagnostics(text, diagnostics, true);
+        }
+
+        [Fact]
+        public void Evaluator_ElseStatement_Reports_NotReachableCode_Warning() {
+            var text = @"
+                function test(): int
+                {
+                    if true
+                    {
+                        return 1
+                    }
+                    else
+                    {
+                        [return] 0
+                    }
+                }
+            ";
+
+            var diagnostics = @"
+                Unreachable code detected.
+            ";
+
+            AssertDiagnostics(text, diagnostics, true);
+        }
+
+        [Fact]
+        public void Evaluator_WhileStatement_Reports_NotReachableCode_Warning() {
+            var text = @"
+                function test()
+                {
+                    while false
+                    {
+                        [continue]
+                    }
+                }
+            ";
+
+            var diagnostics = @"
+                Unreachable code detected.
+            ";
+
+            AssertDiagnostics(text, diagnostics, true);
+        }
+
+        [Fact]
         public void Evaluator_InvokeFunctionArguments_NoInfiniteLoop() {
             var text = @"print(""Hi""[[=]][)];";
 
@@ -509,7 +574,7 @@ namespace Buckle.Tests.CodeAnalysis {
             Assert.Equal(expectedValue, result.value);
         }
 
-        private void AssertDiagnostics(string text, string diagnosticText) {
+        private void AssertDiagnostics(string text, string diagnosticText, bool assertWarnings = false) {
             var annotatedText = AnnotatedText.Parse(text);
             var syntaxTree = SyntaxTree.Parse(annotatedText.text);
             var compilation = Compilation.CreateScript(null, syntaxTree);
@@ -520,6 +585,9 @@ namespace Buckle.Tests.CodeAnalysis {
             if (annotatedText.spans.Length != expectedDiagnostics.Length)
                 throw new Exception("must mark as many spans as there are diagnostics");
 
+            var diagnostics = assertWarnings
+                ? result.diagnostics
+                : result.diagnostics.FilterOut(DiagnosticType.Warning);
             Assert.Equal(expectedDiagnostics.Length, result.diagnostics.count);
 
             for (int i = 0; i < expectedDiagnostics.Length; i++) {

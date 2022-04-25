@@ -51,6 +51,20 @@ namespace Buckle {
             diagnostics_ = new List<Diagnostic>();
         }
 
+        /// <param name="diagnostics">Initialize with enumerable</param>
+        public DiagnosticQueue(IEnumerable<Diagnostic> diagnostics) {
+            diagnostics_ = diagnostics.ToList();
+        }
+
+        /// <summary>
+        /// Checks if any diagnostics of given type
+        /// </summary>
+        /// <param name="type">Type to check for, ignores all other diagnostics</param>
+        /// <returns>If any diagnostics of type</returns>
+        public bool Any(DiagnosticType type) {
+            return diagnostics_.Where(d => d.type == type).Any();
+        }
+
         /// <summary>
         /// Pushes a diagnostic onto the Queue
         /// </summary>
@@ -70,7 +84,7 @@ namespace Buckle {
         /// <summary>
         /// Pops all diagnostics off queue and pushes them onto this
         /// </summary>
-        /// <param name="diagnosticQueue">queue to pop and copy from</param>
+        /// <param name="diagnosticQueue">Queue to pop and copy from</param>
         public void Move(DiagnosticQueue diagnosticQueue) {
             if (diagnosticQueue == null) return;
 
@@ -84,7 +98,7 @@ namespace Buckle {
         /// <summary>
         /// Pops all diagnostics off all queues and pushes them onto this
         /// </summary>
-        /// <param name="diagnosticQueues">queues to pop and copy from</param>
+        /// <param name="diagnosticQueues">Queues to pop and copy from</param>
         public void MoveMany(IEnumerable<DiagnosticQueue> diagnosticQueues) {
             if (diagnosticQueues == null) return;
 
@@ -95,8 +109,8 @@ namespace Buckle {
         /// <summary>
         /// Sorts, removes duplicates, and modifies diagnostics
         /// </summary>
-        /// <param name="diagnostics">queue to modify, doesn't modify queue</param>
-        /// <returns></returns>
+        /// <param name="diagnostics">Queue to copy then clean, doesn't modify queue</param>
+        /// <returns>New cleaned queue</returns>
         public static DiagnosticQueue CleanDiagnostics(DiagnosticQueue diagnostics) {
             var cleanedDiagnostics = new DiagnosticQueue();
 
@@ -112,7 +126,7 @@ namespace Buckle {
         /// <summary>
         /// Removes a diagnostic
         /// </summary>
-        /// <returns>first diagnostic on the queue</returns>
+        /// <returns>First diagnostic on the queue</returns>
         public Diagnostic? Pop() {
             if (diagnostics_.Count == 0) return null;
             Diagnostic diagnostic = diagnostics_[0];
@@ -132,6 +146,10 @@ namespace Buckle {
                 if (diagnostics_[i].type == type)
                     diagnostics_.RemoveAt(i--);
             }
+        }
+
+        public DiagnosticQueue FilterOut(DiagnosticType type) {
+            return new DiagnosticQueue(diagnostics_.Where(d => d.type != type));
         }
     }
 }

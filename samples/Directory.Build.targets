@@ -8,8 +8,14 @@
         Condition="'%(FileName)' != 'System.Runtime' AND
         '%(FileName)' != 'System.Console' AND
         '%(FileName)' != 'System.Runtime.Extensions'" />
-      </ItemGroup>
-    <Exec Command="dotnet run --project &quot;$(MSBuildThisFileDirectory)\..\src\Buckle\Silver\CmdLine\CmdLine.csproj&quot; -- -d @(Compile->'&quot;%(Identity)&quot;', ' ') -o &quot;@(IntermediateAssembly)&quot; @(ReferencePath->'--ref=&quot;%(Identity)&quot;', ' ')"
+    </ItemGroup>
+
+    <PropertyGroup>
+      <BuckleCompilerArgs>@(Compile->'&quot;%(Identity)&quot;', ' ')</BuckleCompilerArgs>
+      <BuckleCompilerArgs>$(BuckleCompilerArgs) -o &quot;@(IntermediateAssembly)&quot;</BuckleCompilerArgs>
+      <BuckleCompilerArgs>$(BuckleCompilerArgs) @(ReferencePath->'--ref=&quot;%(Identity)&quot;', ' ')</BuckleCompilerArgs>
+    </PropertyGroup>
+    <Exec Command="dotnet run --project &quot;$(MSBuildThisFileDirectory)\..\src\Buckle\Silver\CmdLine\CmdLine.csproj&quot; -- -d $(BuckleCompilerArgs)"
       WorkingDirectory="$(MSBuildProjectDirectory)" />
   </Target>
 

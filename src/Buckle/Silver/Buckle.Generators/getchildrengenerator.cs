@@ -24,60 +24,45 @@ namespace Buckle.Generators {
             var nodeType = compilation.GetTypeByMetadataName("Buckle.CodeAnalysis.Syntax.Node");
             var nodeTypes = types.Where(t => !t.IsAbstract && IsDerivedFrom(t, nodeType) && IsPartial(t));
 
+            string indentString = "    ";
             SourceText sourceText;
             using (var stringWriter = new StringWriter())
-            using (var indentedTextWriter = new IndentedTextWriter(stringWriter, "    ")) {
+            using (var indentedTextWriter = new IndentedTextWriter(stringWriter, indentString)) {
                 indentedTextWriter.WriteLine("using System;");
                 indentedTextWriter.WriteLine("using System.Collections.Generic;\n");
-                indentedTextWriter.WriteLine("namespace Buckle.CodeAnalysis.Syntax {");
-                indentedTextWriter.Indent++;
 
-                foreach (var type in nodeTypes) {
-                    indentedTextWriter.WriteLine($"internal sealed partial class {type.Name} {{");
-                    indentedTextWriter.Indent++;
+                using (var namespaceCurly = new CurlyIndenter(
+                    indentedTextWriter, "namespace Buckle.CodeAnalysis.Syntax")) {
+                    foreach (var type in nodeTypes) {
+                        using (var classCurly = new CurlyIndenter(indentedTextWriter, $"partial class {type.Name}"))
+                        using (var getChildCurly = new CurlyIndenter(
+                            indentedTextWriter, "public override IEnumerable<Node> GetChildren()")) {
+                            var properties = type.GetMembers().OfType<IPropertySymbol>();
 
-                    indentedTextWriter.WriteLine("public override IEnumerable<Node> GetChildren() {");
-                    indentedTextWriter.Indent++;
-
-                    var properties = type.GetMembers().OfType<IPropertySymbol>();
-
-                    foreach (var property in properties) {
-                        if (property.Type is INamedTypeSymbol propertyType) {
-                            if (IsDerivedFrom(property.Type, nodeType))
-                                indentedTextWriter.WriteLine($"yield return {property.Name};");
-                            else if (SymbolEqualityComparer.Default.Equals(
-                                propertyType.OriginalDefinition, immutableArrayType) &&
-                                IsDerivedFrom(propertyType.TypeArguments[0], nodeType)) {
-                                indentedTextWriter.WriteLine($"foreach (var child in {property.Name}) {{");
-                                indentedTextWriter.Indent++;
-                                indentedTextWriter.WriteLine("yield return child;");
-                                indentedTextWriter.Indent--;
-                                indentedTextWriter.WriteLine("}");
-                            } else if (SymbolEqualityComparer.Default.Equals(
-                                propertyType.OriginalDefinition, separatedSyntaxListType) &&
-                                IsDerivedFrom(propertyType.TypeArguments[0], nodeType)) {
-                                indentedTextWriter.WriteLine(
-                                    $"foreach (var child in {property.Name}.GetWithSeparators()) {{");
-                                indentedTextWriter.Indent++;
-                                indentedTextWriter.WriteLine("yield return child;");
-                                indentedTextWriter.Indent--;
-                                indentedTextWriter.WriteLine("}");
+                            foreach (var property in properties) {
+                                if (property.Type is INamedTypeSymbol propertyType) {
+                                    if (IsDerivedFrom(property.Type, nodeType))
+                                        indentedTextWriter.WriteLine($"yield return {property.Name};");
+                                    else if (SymbolEqualityComparer.Default.Equals(
+                                        propertyType.OriginalDefinition, immutableArrayType) &&
+                                        IsDerivedFrom(propertyType.TypeArguments[0], nodeType)) {
+                                        indentedTextWriter.WriteLine($"foreach (var child in {property.Name})");
+                                        indentedTextWriter.WriteLine($"{indentString}yield return child;");
+                                    } else if (SymbolEqualityComparer.Default.Equals(
+                                        propertyType.OriginalDefinition, separatedSyntaxListType) &&
+                                        IsDerivedFrom(propertyType.TypeArguments[0], nodeType)) {
+                                        indentedTextWriter.WriteLine(
+                                            $"foreach (var child in {property.Name}.GetWithSeparators())");
+                                        indentedTextWriter.WriteLine($"{indentString}yield return child;");
+                                    }
+                                }
                             }
+
+                            if (properties.ToArray().Length <= 1)
+                                indentedTextWriter.WriteLine("return Array.Empty<Node>();");
                         }
                     }
-
-                    if (properties.ToArray().Length <= 1)
-                        indentedTextWriter.WriteLine("return Array.Empty<Node>();");
-
-                    indentedTextWriter.Indent--;
-                    indentedTextWriter.WriteLine("}");
-
-                    indentedTextWriter.Indent--;
-                    indentedTextWriter.WriteLine("}\n");
                 }
-
-                indentedTextWriter.Indent--;
-                indentedTextWriter.WriteLine("}");
 
                 indentedTextWriter.Flush();
                 stringWriter.Flush();
