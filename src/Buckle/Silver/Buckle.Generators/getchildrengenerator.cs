@@ -24,6 +24,9 @@ namespace Buckle.Generators {
             var nodeType = compilation.GetTypeByMetadataName("Buckle.CodeAnalysis.Syntax.Node");
             var nodeTypes = types.Where(t => !t.IsAbstract && IsDerivedFrom(t, nodeType) && IsPartial(t));
 
+            if (immutableArrayType == null || separatedSyntaxListType == null || nodeType == null)
+                return;
+
             string indentString = "    ";
             SourceText sourceText;
             using (var stringWriter = new StringWriter())

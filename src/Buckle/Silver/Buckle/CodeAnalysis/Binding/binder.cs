@@ -577,7 +577,7 @@ namespace Buckle.CodeAnalysis.Binding {
         }
 
         private TypeSymbol BindTypeClause(Token type) {
-            if (type.type == SyntaxType.AUTO_KEYWORD || type.type == SyntaxType.LET_KEYWORD)
+            if (type.type == SyntaxType.VAR_KEYWORD || type.type == SyntaxType.LET_KEYWORD)
                 return null;
 
             var foundType = LookupType(type.text);

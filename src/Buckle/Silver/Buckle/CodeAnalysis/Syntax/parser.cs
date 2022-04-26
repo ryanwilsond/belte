@@ -164,7 +164,7 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.OPEN_BRACE_TOKEN:
                     return ParseBlockStatement();
                 case SyntaxType.LET_KEYWORD:
-                case SyntaxType.AUTO_KEYWORD:
+                case SyntaxType.VAR_KEYWORD:
                     return ParseVariableDeclarationStatement();
                 case SyntaxType.IF_KEYWORD:
                     return ParseIfStatement();

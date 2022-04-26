@@ -179,7 +179,7 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal sealed partial class ReturnStatement : Statement {
         public Token keyword { get; }
-        public Expression expression { get; }
+        public Expression? expression { get; }
         public Token semicolon { get; }
         public override SyntaxType type => SyntaxType.RETURN_STATEMENT;
 

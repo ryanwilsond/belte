@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Syntax;
 using Xunit;
 
@@ -11,6 +12,10 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             var op2Precedence = SyntaxFacts.GetBinaryPrecedence(op2);
             var op1Text = SyntaxFacts.GetText(op1);
             var op2Text = SyntaxFacts.GetText(op2);
+
+            Debug.Assert(op1Text != null);
+            Debug.Assert(op2Text != null);
+
             var text = $"a {op1Text} b {op2Text} c";
             Expression expression = ParseExpression(text);
 
@@ -50,6 +55,10 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             var binaryPrecedence = SyntaxFacts.GetBinaryPrecedence(binaryType);
             var unaryText = SyntaxFacts.GetText(unaryType);
             var binaryText = SyntaxFacts.GetText(binaryType);
+
+            Debug.Assert(unaryText != null);
+            Debug.Assert(binaryText != null);
+
             var text = $"{unaryText} a {binaryText} b";
             Expression expression = ParseExpression(text);
 

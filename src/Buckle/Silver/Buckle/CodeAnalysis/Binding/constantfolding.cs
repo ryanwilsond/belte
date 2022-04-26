@@ -3,13 +3,13 @@ using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding {
     internal static class ConstantFolding {
-        public static BoundConstant ComputeConstant(
+        public static BoundConstant Fold(
             BoundExpression left, BoundBinaryOperator op, BoundExpression right) {
             var leftConstant = left.constantValue;
             var rightConstant = right.constantValue;
 
             // and/or allow one side to be null
-            // TODO: track statements with side effects (e.g. function calls) and still execute them left ro right
+            // TODO: track statements with side effects (e.g. function calls) and still execute them left to right
             if (op.opType == BoundBinaryOperatorType.ConditionalAnd) {
                 if (leftConstant != null && !(bool)leftConstant.value ||
                     rightConstant != null && !(bool)rightConstant.value)

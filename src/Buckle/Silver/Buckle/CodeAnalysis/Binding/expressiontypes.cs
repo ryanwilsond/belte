@@ -119,7 +119,7 @@ namespace Buckle.CodeAnalysis.Binding {
             left = left_;
             op = op_;
             right = right_;
-            constantValue = ConstantFolding.ComputeConstant(left, op, right);
+            constantValue = ConstantFolding.Fold(left, op, right);
         }
     }
 

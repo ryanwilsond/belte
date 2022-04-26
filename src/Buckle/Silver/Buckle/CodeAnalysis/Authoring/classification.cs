@@ -33,8 +33,7 @@ namespace Buckle.CodeAnalysis.Authoring {
         }
 
         private static void ClassifyNode(Node node, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result) {
-            // TODO: put null check in GetChildren(), which should never return null
-            if (node == null || node.fullSpan == null || !node.fullSpan.OverlapsWith(span))
+            if (!node.fullSpan.OverlapsWith(span))
                 return;
 
             if (node is Token token)

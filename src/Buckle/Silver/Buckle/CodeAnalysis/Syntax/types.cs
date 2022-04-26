@@ -43,7 +43,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         // keywords
         TRUE_KEYWORD,
         FALSE_KEYWORD,
-        AUTO_KEYWORD,
+        VAR_KEYWORD,
         LET_KEYWORD,
         IF_KEYWORD,
         ELSE_KEYWORD,
@@ -157,10 +157,6 @@ namespace Buckle.CodeAnalysis.Syntax {
         }
 
         private void PrettyPrint(TextWriter writer, Node node, string indent = "", bool isLast = true) {
-            // TODO: do this in GetChildren(), node should never be null
-            if (node == null)
-                return;
-
             var isConsoleOut = writer == Console.Out;
             var token = node as Token;
 

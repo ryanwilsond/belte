@@ -1,6 +1,8 @@
 
 void main() {
-    if (true)
-        if (false) ;
-    else ;
+    if (false) {
+        print("test");
+    }
+
+    print("test2");
 }

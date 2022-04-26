@@ -81,18 +81,18 @@ namespace Buckle.Tests.CodeAnalysis {
         [InlineData("4 >= 5;", false)]
         [InlineData("5 >= 4;", true)]
 
-        [InlineData("auto a = 10; return a;", 10)]
-        [InlineData("auto a = 10; return a * a;", 100)]
-        [InlineData("auto a = 1; return 10 * a;", 10)]
+        [InlineData("int a = 10; return a;", 10)]
+        [InlineData("int a = 10; return a * a;", 100)]
+        [InlineData("int a = 1; return 10 * a;", 10)]
 
-        [InlineData("auto a = 0; if (a == 0) { a = 10; } return a;", 10)]
-        [InlineData("auto a = 0; if (a == 4) { a = 10; } return a;", 0)]
-        [InlineData("auto a = 0; if (a == 0) { a = 10; } else { a = 5; } return a;", 10)]
-        [InlineData("auto a = 0; if (a == 4) { a = 10; } else { a = 5; } return a;", 5)]
+        [InlineData("int a = 0; if (a == 0) { a = 10; } return a;", 10)]
+        [InlineData("int a = 0; if (a == 4) { a = 10; } return a;", 0)]
+        [InlineData("int a = 0; if (a == 0) { a = 10; } else { a = 5; } return a;", 10)]
+        [InlineData("int a = 0; if (a == 4) { a = 10; } else { a = 5; } return a;", 5)]
 
-        [InlineData("auto i = 10; auto result = 0; while (i > 0) { result = result + i; i = i - 1; } return result;", 55)]
-        [InlineData("auto result = 0; for (auto i=0; i<=10; i=i+1) { result = result + i; } return result;", 55)]
-        [InlineData("auto result = 0; do { result = result + 1; } while (result < 10); return result;", 10)]
+        [InlineData("int i = 10; int result = 0; while (i > 0) { result = result + i; i = i - 1; } return result;", 55)]
+        [InlineData("int result = 0; for (int i=0; i<=10; i=i+1) { result = result + i; } return result;", 55)]
+        [InlineData("int result = 0; do { result = result + 1; } while (result < 10); return result;", 10)]
         public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
             AssertValue(text, expectedValue);
         }
@@ -235,7 +235,7 @@ namespace Buckle.Tests.CodeAnalysis {
         [Fact]
         public void Evaluator_IfStatement_Reports_CannotConvert() {
             var text = @"
-                auto x = 0;
+                var x = 0;
                 if ([10]) x = 1;
             ";
 
@@ -249,7 +249,7 @@ namespace Buckle.Tests.CodeAnalysis {
         [Fact]
         public void Evaluator_WhileStatement_Reports_CannotConvert() {
             var text = @"
-                auto x = 0;
+                var x = 0;
                 while ([10]) { x = 10; }
             ";
 
@@ -263,7 +263,7 @@ namespace Buckle.Tests.CodeAnalysis {
         [Fact]
         public void Evaluator_DoWhileStatement_Reports_CannotConvert() {
             var text = @"
-                auto x = 0;
+                var x = 0;
                 do { x = 10; } while ([10]);
             ";
 
@@ -290,12 +290,12 @@ namespace Buckle.Tests.CodeAnalysis {
         [Fact]
         public void Evaluator_VariableDelcaration_Reports_Redeclaration() {
             var text = @"
-                auto x = 10;
-                auto y = 100;
+                var x = 10;
+                var y = 100;
                 {
-                    auto x = 10;
+                    var x = 10;
                 }
-                auto [x] = 5;
+                var [x] = 5;
             ";
 
             var diagnostics = @"
@@ -364,7 +364,7 @@ namespace Buckle.Tests.CodeAnalysis {
         [Fact]
         public void Evaluator_AssignmentExpression_Reports_CannotConvert() {
             var text = @"
-                auto x = 10;
+                var x = 10;
                 x = [false];
             ";
 
@@ -389,7 +389,7 @@ namespace Buckle.Tests.CodeAnalysis {
         [Fact]
         public void Evaluator_CallExpression_Reports_CannotCall() {
             var text = @"
-                auto foo = 4;
+                var foo = 4;
                 [foo]();
             ";
 
@@ -457,7 +457,7 @@ namespace Buckle.Tests.CodeAnalysis {
         public void Evaluator_Expression_MustHaveValue() {
             var text = @"
                 void func() {}
-                auto x = [func()];
+                var x = [func()];
             ";
 
             var diagnostics = @"
