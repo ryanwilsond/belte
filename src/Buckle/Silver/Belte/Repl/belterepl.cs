@@ -47,9 +47,14 @@ namespace Belte.Repl {
             if (state.showTree) syntaxTree.root.WriteTo(Console.Out);
             if (state.showProgram) compilation.EmitTree(Console.Out);
 
-            var result = compilation.Evaluate(state.variables);
+            handle.diagnostics.Move(compilation.diagnostics.FilterOut(DiagnosticType.Warning));
+            EvaluationResult result = null;
 
-            handle.diagnostics.Move(result.diagnostics.FilterOut(DiagnosticType.Warning));
+            if (!handle.diagnostics.Any()) {
+                result = compilation.Evaluate(state.variables);
+                handle.diagnostics.Move(result.diagnostics.FilterOut(DiagnosticType.Warning));
+            }
+
             if (handle.diagnostics.Any()) {
                 if (diagnosticHandle != null) {
                     handle.diagnostics = DiagnosticQueue.CleanDiagnostics(handle.diagnostics);

@@ -44,7 +44,8 @@ namespace Buckle.Generators {
                                     if (IsDerivedFrom(property.Type, nodeType)) {
                                         var canBeNull = property.NullableAnnotation == NullableAnnotation.Annotated;
                                         if (canBeNull) {
-                                            indentedTextWriter.WriteLine($"if ({property.Name} != null)");
+                                            indentedTextWriter.WriteLine(
+                                                $"if ({property.Name} != null && {property.Name}.fullSpan != null)");
                                             indentedTextWriter.Indent++;
                                         }
 

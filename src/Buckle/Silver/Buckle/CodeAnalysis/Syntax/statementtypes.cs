@@ -42,7 +42,7 @@ namespace Buckle.CodeAnalysis.Syntax {
     }
 
     internal sealed partial class ExpressionStatement : Statement {
-        public Expression expression { get; }
+        public Expression? expression { get; }
         public Token semicolon { get; }
         public override SyntaxType type => SyntaxType.EXPRESSION_STATEMENT;
 

@@ -128,6 +128,7 @@ namespace Buckle.CodeAnalysis {
                 case BoundNodeType.BinaryExpression: return EvaluateBinaryExpression((BoundBinaryExpression)node);
                 case BoundNodeType.CallExpression: return EvaluateCallExpression((BoundCallExpression)node);
                 case BoundNodeType.CastExpression: return EvaluateCastExpression((BoundCastExpression)node);
+                case BoundNodeType.EmptyExpression: return null;
                 default:
                     diagnostics.Push(DiagnosticType.Fatal, $"unexpected node '{node.type}'");
                     return null;

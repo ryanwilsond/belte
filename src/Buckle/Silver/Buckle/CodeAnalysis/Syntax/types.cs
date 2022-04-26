@@ -111,6 +111,9 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         public virtual TextSpan span {
             get {
+                if (GetChildren().ToArray().Length == 0)
+                    return null;
+
                 var first = GetChildren().First().span;
                 var last = GetChildren().Last().span;
                 return TextSpan.FromBounds(first.start, last.end);
@@ -119,6 +122,9 @@ namespace Buckle.CodeAnalysis.Syntax {
 
         public virtual TextSpan fullSpan {
             get {
+                if (GetChildren().ToArray().Length == 0)
+                    return null;
+
                 var first = GetChildren().First().fullSpan;
                 var last = GetChildren().Last().fullSpan;
                 return TextSpan.FromBounds(first.start, last.end);
