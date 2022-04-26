@@ -159,6 +159,7 @@ namespace Buckle.CodeAnalysis.Emitting {
         }
 
         public DiagnosticQueue Emit(BoundProgram program, string outputPath) {
+            diagnostics.Move(program.diagnostics);
             if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
                 return diagnostics;
 

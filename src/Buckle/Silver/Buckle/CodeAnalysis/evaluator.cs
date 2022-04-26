@@ -17,8 +17,8 @@ namespace Buckle.CodeAnalysis {
         private Random random_;
 
         public Evaluator(BoundProgram program, Dictionary<VariableSymbol, object> globals) {
-            program_ = program;
             diagnostics = new DiagnosticQueue();
+            program_ = program;
             globals_ = globals;
             locals_.Push(new Dictionary<VariableSymbol, object>());
 

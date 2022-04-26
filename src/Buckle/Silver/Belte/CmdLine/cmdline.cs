@@ -63,14 +63,19 @@ Options:
 
             Console.Write($"{lineNumber + 1}:{column}:");
 
+            ConsoleColor highlightColor = ConsoleColor.White;
+
             if (diagnostic.type == DiagnosticType.Error) {
-                Console.ForegroundColor = ConsoleColor.Red;
+                highlightColor = ConsoleColor.Red;
+                Console.ForegroundColor = highlightColor;
                 Console.Write(" error: ");
             } else if (diagnostic.type == DiagnosticType.Fatal) {
-                Console.ForegroundColor = ConsoleColor.Red;
+                highlightColor = ConsoleColor.Red;
+                Console.ForegroundColor = highlightColor;
                 Console.Write(" fatal error: ");
             } else if (diagnostic.type == DiagnosticType.Warning) {
-                Console.ForegroundColor = ConsoleColor.Magenta;
+                highlightColor = ConsoleColor.Magenta;
+                Console.ForegroundColor = highlightColor;
                 Console.Write(" warning: ");
             }
 
@@ -87,15 +92,15 @@ Options:
             string suffix = text.ToString(suffixSpan);
 
             Console.Write($" {prefix}");
-            Console.ForegroundColor = ConsoleColor.Red;
+            Console.ForegroundColor = highlightColor;
             Console.Write(focus);
             Console.ResetColor();
             Console.WriteLine(suffix);
 
-            Console.ForegroundColor = ConsoleColor.Red;
+            Console.ForegroundColor = highlightColor;
             string markerPrefix = " " + Regex.Replace(prefix, @"\S", " ");
             string marker = "^";
-            if (span.length > 0 && span.start != lineText.Length)
+            if (span.length > 0 && column != lineText.Length)
                 marker += new string('~', span.length - 1);
 
             Console.WriteLine(markerPrefix + marker);

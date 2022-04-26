@@ -70,7 +70,8 @@ namespace Buckle {
         /// </summary>
         /// <param name="diagnostic">Diagnostic to copy onto the queue</param>
         public void Push(Diagnostic diagnostic) {
-            diagnostics_.Add(diagnostic);
+            if (diagnostic != null)
+                diagnostics_.Add(diagnostic);
         }
 
         public void Push(DiagnosticType type, TextLocation location, string msg) {

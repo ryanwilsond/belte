@@ -99,13 +99,17 @@ namespace Buckle.CodeAnalysis {
                 return new EvaluationResult(null, globalScope.diagnostics);
 
             var program = GetProgram();
+            program.diagnostics.Move(globalScope.diagnostics);
             // CreateCfg(program);
 
             if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
                 return new EvaluationResult(null, program.diagnostics);
 
+            diagnostics.Move(program.diagnostics);
             var eval = new Evaluator(program, variables);
-            var result = new EvaluationResult(eval.Evaluate(), diagnostics);
+            var evalResult = eval.Evaluate();
+            diagnostics.Move(eval.diagnostics);
+            var result = new EvaluationResult(evalResult, diagnostics);
             return result;
         }
 
@@ -151,6 +155,7 @@ namespace Buckle.CodeAnalysis {
                 return diagnostics;
 
             var program = GetProgram();
+            program.diagnostics.Move(diagnostics);
             return Emitter.Emit(program, moduleName, references, outputPath);
         }
     }

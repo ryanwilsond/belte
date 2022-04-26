@@ -49,7 +49,7 @@ namespace Belte.Repl {
 
             var result = compilation.Evaluate(state.variables);
 
-            handle.diagnostics.Move(result.diagnostics);
+            handle.diagnostics.Move(result.diagnostics.FilterOut(DiagnosticType.Warning));
             if (handle.diagnostics.Any()) {
                 if (diagnosticHandle != null) {
                     handle.diagnostics = DiagnosticQueue.CleanDiagnostics(handle.diagnostics);

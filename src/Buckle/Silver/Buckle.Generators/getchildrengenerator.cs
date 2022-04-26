@@ -41,9 +41,18 @@ namespace Buckle.Generators {
 
                             foreach (var property in properties) {
                                 if (property.Type is INamedTypeSymbol propertyType) {
-                                    if (IsDerivedFrom(property.Type, nodeType))
+                                    if (IsDerivedFrom(property.Type, nodeType)) {
+                                        var canBeNull = property.NullableAnnotation == NullableAnnotation.Annotated;
+                                        if (canBeNull) {
+                                            indentedTextWriter.WriteLine($"if ({property.Name} != null)");
+                                            indentedTextWriter.Indent++;
+                                        }
+
                                         indentedTextWriter.WriteLine($"yield return {property.Name};");
-                                    else if (SymbolEqualityComparer.Default.Equals(
+
+                                        if (canBeNull)
+                                            indentedTextWriter.Indent--;
+                                    } else if (SymbolEqualityComparer.Default.Equals(
                                         propertyType.OriginalDefinition, immutableArrayType) &&
                                         IsDerivedFrom(propertyType.TypeArguments[0], nodeType)) {
                                         indentedTextWriter.WriteLine($"foreach (var child in {property.Name})");

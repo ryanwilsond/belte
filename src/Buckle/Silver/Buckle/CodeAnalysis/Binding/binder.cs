@@ -113,6 +113,7 @@ namespace Buckle.CodeAnalysis.Binding {
 
             var functionBodies = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
             var diagnostics = new DiagnosticQueue();
+            diagnostics.Move(globalScope.diagnostics);
 
             foreach (var function in globalScope.functions) {
                 var binder = new Binder(isScript, parentScope, function);
@@ -403,10 +404,8 @@ namespace Buckle.CodeAnalysis.Binding {
         private BoundStatement BindWhileStatement(WhileStatement statement) {
             var condition = BindCast(statement.condition, TypeSymbol.Bool);
 
-            if (condition.constantValue != null) {
-                if (!(bool)condition.constantValue.value)
-                    diagnostics.Push(Warning.UnreachableCode(statement.body.location));
-            }
+            if (condition.constantValue != null && !(bool)condition.constantValue.value)
+                diagnostics.Push(Warning.UnreachableCode(statement.body));
 
             var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
             return new BoundWhileStatement(condition, body, breakLabel, continueLabel);
@@ -447,9 +446,9 @@ namespace Buckle.CodeAnalysis.Binding {
 
             if (condition.constantValue != null) {
                 if ((bool)condition.constantValue.value == false)
-                    diagnostics.Push(Warning.UnreachableCode(statement.then.location));
+                    diagnostics.Push(Warning.UnreachableCode(statement.then));
                 else if (statement.elseClause != null)
-                    diagnostics.Push(Warning.UnreachableCode(statement.elseClause.then.location));
+                    diagnostics.Push(Warning.UnreachableCode(statement.elseClause.then));
             }
 
             var then = BindStatement(statement.then);

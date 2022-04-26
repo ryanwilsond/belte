@@ -58,7 +58,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         public Expression condition { get; }
         public Token closeParenthesis { get; }
         public Statement then { get; }
-        public ElseClause elseClause { get; }
+        public ElseClause? elseClause { get; }
         public override SyntaxType type => SyntaxType.IF_STATEMENT;
 
         public IfStatement(
