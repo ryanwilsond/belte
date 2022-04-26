@@ -84,6 +84,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         PARENTHESIZED_EXPRESSION,
         BINARY_EXPRESSION,
         UNARY_EXPRESSION,
+        COMPOUND_ASSIGNMENT_EXPRESSION,
 
         // statements
         BLOCK,

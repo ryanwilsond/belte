@@ -69,14 +69,14 @@ namespace Buckle.CodeAnalysis.Syntax {
 
     internal sealed partial class AssignmentExpression : Expression {
         public Token identifier { get; }
-        public Token equals { get; }
+        public Token assignmentToken { get; }
         public Expression expression { get; }
         public override SyntaxType type => SyntaxType.ASSIGN_EXPRESSION;
 
-        public AssignmentExpression(SyntaxTree syntaxTree, Token identifier_, Token equals_, Expression expression_)
+        public AssignmentExpression(SyntaxTree syntaxTree, Token identifier_, Token assignmentToken_, Expression expression_)
             : base(syntaxTree) {
             identifier = identifier_;
-            equals = equals_;
+            assignmentToken = assignmentToken_;
             expression = expression_;
         }
     }

@@ -262,4 +262,17 @@ namespace Buckle.CodeAnalysis.Binding {
             expression = expression_;
         }
     }
+
+    internal sealed class BoundCompoundAssignmentExpression : BoundExpression {
+        public VariableSymbol variable { get; }
+        public BoundBinaryOperator op { get; }
+        public BoundExpression expression { get; }
+        public override BoundNodeType type => BoundNodeType.CompoundAssignmentExpression;
+        public override TypeSymbol lType => expression.lType;
+
+        public BoundCompoundAssignmentExpression(
+            VariableSymbol variable_, BoundBinaryOperator op_, BoundExpression expression_) {
+
+        }
+    }
 }

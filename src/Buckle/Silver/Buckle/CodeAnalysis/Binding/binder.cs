@@ -215,7 +215,8 @@ namespace Buckle.CodeAnalysis.Binding {
                     var isAllowedExpression = es.expression.type == BoundNodeType.CallExpression ||
                         es.expression.type == BoundNodeType.AssignmentExpression ||
                         es.expression.type == BoundNodeType.ErrorExpression ||
-                        es.expression.type == BoundNodeType.EmptyExpression;
+                        es.expression.type == BoundNodeType.EmptyExpression ||
+                        es.expression.type == BoundNodeType.CompoundAssignmentExpression;;
 
                     if (!isAllowedExpression)
                         diagnostics.Push(Error.InvalidExpressionStatement(syntax.location));
@@ -545,10 +546,27 @@ namespace Buckle.CodeAnalysis.Binding {
                 return boundExpression;
 
             if (variable.isReadOnly)
-                diagnostics.Push(Error.ReadonlyAssign(expression.equals.location, name));
+                diagnostics.Push(Error.ReadonlyAssign(expression.assignmentToken.location, name));
 
-            var convertedExpression = BindCast(expression.expression.location, boundExpression, variable.lType);
-            return new BoundAssignmentExpression(variable, convertedExpression);
+            if (expression.assignmentToken.type != SyntaxType.EQUALS_TOKEN) {
+                var equivalentOperatorTokenType = SyntaxFacts.GetBinaryOperatorOfAssignmentOperator(
+                    expression.assignmentToken.type);
+                var boundOperator = BoundBinaryOperator.Bind(
+                    equivalentOperatorTokenType, variable.lType, boundExpression.lType);
+
+                if (boundOperator == null) {
+                    diagnostics.Push(Error.InvalidBinaryOperatorUse(
+                        expression.assignmentToken.location, expression.assignmentToken.text,
+                        variable.lType, boundExpression.lType));
+                    return new BoundErrorExpression();
+                }
+
+                var convertedExpression = BindCast(expression.expression.location, boundExpression, variable.lType);
+                return new BoundCompoundAssignmentExpression(variable, boundOperator, convertedExpression);
+            } else {
+                var convertedExpression = BindCast(expression.expression.location, boundExpression, variable.lType);
+                return new BoundAssignmentExpression(variable, convertedExpression);
+            }
         }
 
         private VariableSymbol BindVariableReference(Token identifier) {

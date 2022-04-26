@@ -15,6 +15,7 @@ namespace Buckle.CodeAnalysis.Binding {
         ErrorExpression,
         CallExpression,
         CastExpression,
+        CompoundAssignmentExpression,
 
         BlockStatement,
         ExpressionStatement,
