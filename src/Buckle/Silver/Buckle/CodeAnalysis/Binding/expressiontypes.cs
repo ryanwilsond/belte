@@ -272,7 +272,9 @@ namespace Buckle.CodeAnalysis.Binding {
 
         public BoundCompoundAssignmentExpression(
             VariableSymbol variable_, BoundBinaryOperator op_, BoundExpression expression_) {
-
+            variable = variable_;
+            op = op_;
+            expression = expression_;
         }
     }
 }
