@@ -30,6 +30,7 @@ namespace Buckle.CodeAnalysis.Syntax {
         LESS_THAN_TOKEN,
         GREATER_THAN_TOKEN,
 
+        // compound punctuation
         AMPERSAND_AMPERSAND_TOKEN,
         PIPE_PIPE_TOKEN,
         ASTERISK_ASTERISK_TOKEN,
@@ -39,6 +40,13 @@ namespace Buckle.CodeAnalysis.Syntax {
         GREATER_THAN_GREATER_THAN_TOKEN,
         LESS_THAN_EQUALS_TOKEN,
         GREATER_THAN_EQUALS_TOKEN,
+        AMPERSAND_EQUALS_TOKEN,
+        PIPE_EQUALS_TOKEN,
+        CARET_EQUALS_TOKEN,
+        PLUS_EQUALS_TOKEN,
+        MINUS_EQUALS_TOKEN,
+        ASTERISK_EQUALS_TOKEN,
+        SLASH_EQUALS_TOKEN,
 
         // keywords
         TRUE_KEYWORD,

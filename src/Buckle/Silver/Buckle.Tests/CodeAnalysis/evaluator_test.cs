@@ -20,6 +20,20 @@ namespace Buckle.Tests.CodeAnalysis {
         [InlineData("9 / 3;", 3)]
         [InlineData("(10);", 10)]
 
+        [InlineData("var a = 1; a += (2 + 3); return a;", 6)]
+        [InlineData("var a = 1; a -= (2 + 3); return a;", -4)]
+        [InlineData("var a = 1; a *= (2 + 3); return a;", 5)]
+        [InlineData("var a = 1; a /= (2 + 3); return a;", 0)]
+        [InlineData("var a = true; a &= (false); return a;", false)]
+        [InlineData("var a = true; a |= (false); return a;", true)]
+        [InlineData("var a = true; a ^= (true); return a;", false)]
+        [InlineData("var a = 1; a |= 0; return a;", 1)]
+        [InlineData("var a = 1; a &= 3; return a;", 1)]
+        [InlineData("var a = 1; a &= 0; return a;", 0)]
+        [InlineData("var a = 1; a ^= 0; return a;", 1)]
+        [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return a;", 6)]
+        [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return b;", 5)]
+
         [InlineData("1 | 2;", 3)]
         [InlineData("1 | 0;", 1)]
         [InlineData("1 & 3;", 1)]
@@ -114,6 +128,45 @@ namespace Buckle.Tests.CodeAnalysis {
                 unreachable code
             ";
             AssertDiagnostics(text, diagnostics, true);
+        }
+
+        [Fact]
+        public void Evaluator_CompoundExpression_Reports_Undefined() {
+            var text = @"var x = 10;
+                         x [+=] false;";
+
+            var diagnostics = @"
+                operator '+=' is not defined for types 'int' and 'bool'
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_CompoundExpression_Assignemnt_NonDefinedVariable_Reports_Undefined() {
+            var text = @"[x] += 10;";
+
+            var diagnostics = @"
+                variable 'x' does not exist
+            ";
+
+            AssertDiagnostics(text, diagnostics);
+        }
+
+        [Fact]
+        public void Evaluator_CompoundDeclarationExpression_Reports_CannotAssign() {
+            var text = @"
+                {
+                    let x = 10;
+                    x [+=] 1;
+                }
+            ";
+
+            var diagnostics = @"
+                variable 'x' is read-only and cannot be assigned to
+            ";
+
+            AssertDiagnostics(text, diagnostics);
         }
 
         [Fact]

@@ -203,6 +203,24 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.SINGLELINE_COMMENT_TRIVIA) return true;
             if (t1Type == SyntaxType.IDENTIFIER_TOKEN && t2Type == SyntaxType.NUMBERIC_LITERAL_TOKEN) return true;
             if (t1IsKeyword && t2Type == SyntaxType.NUMBERIC_LITERAL_TOKEN) return true;
+            if (t1Type == SyntaxType.PLUS_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.PLUS_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.MINUS_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.MINUS_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.AMPERSAND_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.AMPERSAND_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.AMPERSAND_TOKEN && t2Type == SyntaxType.AMPERSAND_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.PIPE_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.PIPE_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.PIPE_TOKEN && t2Type == SyntaxType.PIPE_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.CARET_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.CARET_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.SLASH_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.ASTERISK_EQUALS_TOKEN) return true;
 
             return false;
         }
