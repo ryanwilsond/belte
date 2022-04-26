@@ -147,7 +147,7 @@ namespace Buckle.Tests.CodeAnalysis {
             var text = @"[x] += 10;";
 
             var diagnostics = @"
-                variable 'x' does not exist
+                undefined symbol 'x'
             ";
 
             AssertDiagnostics(text, diagnostics);
@@ -163,7 +163,7 @@ namespace Buckle.Tests.CodeAnalysis {
             ";
 
             var diagnostics = @"
-                variable 'x' is read-only and cannot be assigned to
+                assignment of read-only variable 'x'
             ";
 
             AssertDiagnostics(text, diagnostics);

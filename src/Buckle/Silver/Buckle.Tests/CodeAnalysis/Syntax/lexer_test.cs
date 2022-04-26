@@ -208,7 +208,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax {
             if (t1Type == SyntaxType.MINUS_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
             if (t1Type == SyntaxType.MINUS_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
             if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
-            if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
+            if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.ASTERISK_EQUALS_TOKEN) return true;
             if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
             if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN) return true;
             if (t1Type == SyntaxType.AMPERSAND_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN) return true;
