@@ -5,11 +5,10 @@ using System.Text.RegularExpressions;
 using Buckle;
 using Buckle.CodeAnalysis.Text;
 using System.Linq;
+using Belte.Repl;
 
-namespace CommandLine {
-
-    public static partial class CmdLine {
-
+namespace Belte.CmdLine {
+    public static partial class CommandLine {
         const int SuccessExitCode = 0;
         const int ErrorExitCode = 1;
         const int FatalExitCode = 2;
@@ -237,7 +236,7 @@ Options:
             }
         }
 
-        public static int Main(string[] args) {
+        public static int ProcessArgs(string[] args) {
             int err;
             Compiler compiler = new Compiler();
             compiler.me = Process.GetCurrentProcess().ProcessName;
@@ -264,7 +263,7 @@ Options:
 
             // only mode that doesn't go through one-time compilation
             if (compiler.state.buildMode == BuildMode.Repl) {
-                BuckleRepl repl = new BuckleRepl(compiler, ResolveDiagnostics);
+                BelteRepl repl = new BelteRepl(compiler, ResolveDiagnostics);
                 repl.Run();
 
                 return SuccessExitCode;

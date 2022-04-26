@@ -37,7 +37,7 @@ namespace Buckle.CodeAnalysis.Binding {
             foreach (var syntaxTree in syntaxTrees)
                 binder.diagnostics.Move(syntaxTree.diagnostics);
 
-            if (binder.diagnostics.Any())
+            if (binder.diagnostics.FilterOut(DiagnosticType.Warning).Any())
                 return new BoundGlobalScope(
                     previous, binder.diagnostics, null, null, ImmutableArray<FunctionSymbol>.Empty,
                     ImmutableArray<VariableSymbol>.Empty, ImmutableArray<BoundStatement>.Empty);
@@ -107,7 +107,7 @@ namespace Buckle.CodeAnalysis.Binding {
         public static BoundProgram BindProgram(bool isScript, BoundProgram previous, BoundGlobalScope globalScope) {
             var parentScope = CreateParentScope(globalScope);
 
-            if (globalScope.diagnostics.Any())
+            if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
                 return new BoundProgram(previous, globalScope.diagnostics,
                     null, null, ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty);
 
@@ -402,6 +402,12 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private BoundStatement BindWhileStatement(WhileStatement statement) {
             var condition = BindCast(statement.condition, TypeSymbol.Bool);
+
+            if (condition.constantValue != null) {
+                if (!(bool)condition.constantValue.value)
+                    diagnostics.Push(Warning.UnreachableCode(statement.body.location));
+            }
+
             var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
             return new BoundWhileStatement(condition, body, breakLabel, continueLabel);
         }
@@ -438,6 +444,14 @@ namespace Buckle.CodeAnalysis.Binding {
 
         private BoundStatement BindIfStatement(IfStatement statement) {
             var condition = BindCast(statement.condition, TypeSymbol.Bool);
+
+            if (condition.constantValue != null) {
+                if ((bool)condition.constantValue.value == false)
+                    diagnostics.Push(Warning.UnreachableCode(statement.then.location));
+                else if (statement.elseClause != null)
+                    diagnostics.Push(Warning.UnreachableCode(statement.elseClause.then.location));
+            }
+
             var then = BindStatement(statement.then);
             var elseStatement = statement.elseClause == null ? null : BindStatement(statement.elseClause.then);
             return new BoundIfStatement(condition, then, elseStatement);

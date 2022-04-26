@@ -5,22 +5,23 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using Buckle;
 
-namespace Buckle {
+namespace Belte.Repl {
     public abstract class Repl {
-        public delegate int ErrorHandle(Compiler compiler, string me = null);
+        public delegate int DiagnosticHandle(Compiler compiler, string me = null);
 
         private readonly List<string> submissionHistory_ = new List<string>();
         private readonly List<MetaCommand> metaCommands_ = new List<MetaCommand>();
         private int submissionHistoryIndex_;
         private bool done_;
         internal Compiler handle;
-        internal ErrorHandle errorHandle;
+        internal DiagnosticHandle diagnosticHandle;
         internal abstract object state_ { get; set; }
 
-        protected Repl(Compiler handle_, ErrorHandle errorHandle_) {
+        protected Repl(Compiler handle_, DiagnosticHandle diagnosticHandle_) {
             handle = handle_;
-            errorHandle = errorHandle_;
+            diagnosticHandle = diagnosticHandle_;
             InitializeMetaCommands();
         }
 
@@ -431,8 +432,8 @@ namespace Buckle {
             if (command == null) {
                 handle.diagnostics.Push(DiagnosticType.Error, $"unknown repl command '{line}'");
 
-                if (errorHandle != null)
-                    errorHandle(handle, "repl");
+                if (diagnosticHandle != null)
+                    diagnosticHandle(handle, "repl");
                 else
                     handle.diagnostics.Clear();
 
@@ -446,8 +447,8 @@ namespace Buckle {
                 handle.diagnostics.Push(
                     DiagnosticType.Error, $"invalid number of arguments\nusage: #{command.name} {parameterNames}");
 
-                if (errorHandle != null)
-                    errorHandle(handle, "repl");
+                if (diagnosticHandle != null)
+                    diagnosticHandle(handle, "repl");
                 else
                     handle.diagnostics.Clear();
 

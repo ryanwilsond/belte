@@ -100,22 +100,18 @@ namespace Buckle.Tests.CodeAnalysis {
         [Fact]
         public void Evaluator_IfStatement_Reports_NotReachableCode_Warning() {
             var text = @"
-                function test()
-                {
-                    let x = 4 * 3
-                    if x > 12
-                    {
-                        [print](""x"")
-                    }
-                    else
-                    {
-                        print(""x"")
+                void test() {
+                    let x = 4 * 3;
+                    if (x > 12) {
+                        [print](""x"");
+                    } else {
+                        print(""x"");
                     }
                 }
             ";
 
             var diagnostics = @"
-                Unreachable code detected.
+                unreachable code
             ";
             AssertDiagnostics(text, diagnostics, true);
         }
@@ -123,21 +119,17 @@ namespace Buckle.Tests.CodeAnalysis {
         [Fact]
         public void Evaluator_ElseStatement_Reports_NotReachableCode_Warning() {
             var text = @"
-                function test(): int
-                {
-                    if true
-                    {
-                        return 1
-                    }
-                    else
-                    {
-                        [return] 0
+                int test() {
+                    if (true) {
+                        return 1;
+                    } else {
+                        [return] 0;
                     }
                 }
             ";
 
             var diagnostics = @"
-                Unreachable code detected.
+                unreachable code
             ";
 
             AssertDiagnostics(text, diagnostics, true);
@@ -146,17 +138,15 @@ namespace Buckle.Tests.CodeAnalysis {
         [Fact]
         public void Evaluator_WhileStatement_Reports_NotReachableCode_Warning() {
             var text = @"
-                function test()
-                {
-                    while false
-                    {
-                        [continue]
+                void test() {
+                    while (false) {
+                        [continue];
                     }
                 }
             ";
 
             var diagnostics = @"
-                Unreachable code detected.
+                unreachable code
             ";
 
             AssertDiagnostics(text, diagnostics, true);

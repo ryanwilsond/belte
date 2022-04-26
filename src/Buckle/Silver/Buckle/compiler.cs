@@ -104,6 +104,7 @@ namespace Buckle {
             var compilation = Compilation.Create(syntaxTrees.ToArray());
             diagnostics.Move(compilation.diagnostics);
 
+            diagnostics = diagnostics.FilterOut(DiagnosticType.Warning);
             if (diagnostics.Any())
                 return;
 

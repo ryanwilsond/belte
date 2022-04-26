@@ -42,7 +42,7 @@ namespace Buckle.CodeAnalysis.Emitting {
         private Emitter(string moduleName, string[] references) {
             var assemblies = new List<AssemblyDefinition>();
 
-            if (diagnostics.Any())
+            if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
                 return;
 
             foreach (var reference in references) {
@@ -54,7 +54,7 @@ namespace Buckle.CodeAnalysis.Emitting {
                 }
             }
 
-            if (diagnostics.Any())
+            if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
                 return;
 
             var builtinTypes = new List<(TypeSymbol type, string metadataName)>() {
@@ -151,7 +151,7 @@ namespace Buckle.CodeAnalysis.Emitting {
 
         public static DiagnosticQueue Emit(
             BoundProgram program, string moduleName, string[] references, string outputPath) {
-            if (program.diagnostics.Any())
+            if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
                 return program.diagnostics;
 
             var emitter = new Emitter(moduleName, references);
@@ -159,7 +159,7 @@ namespace Buckle.CodeAnalysis.Emitting {
         }
 
         public DiagnosticQueue Emit(BoundProgram program, string outputPath) {
-            if (diagnostics.Any())
+            if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
                 return diagnostics;
 
             var objectType = knownTypes_[TypeSymbol.Any];

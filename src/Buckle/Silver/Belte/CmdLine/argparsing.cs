@@ -3,10 +3,8 @@ using System.IO;
 using System.Linq;
 using Buckle;
 
-namespace CommandLine {
-
-    public static partial class CmdLine {
-
+namespace Belte.CmdLine {
+    public static partial class CommandLine {
         private static CompilerState DecodeOptions(
             string[] args, out DiagnosticQueue diagnostics, out bool showHelp,
             out bool showMachine, out bool showVersion) {

@@ -95,13 +95,13 @@ namespace Buckle.CodeAnalysis {
         }
 
         internal EvaluationResult Evaluate(Dictionary<VariableSymbol, object> variables) {
-            if (globalScope.diagnostics.Any())
+            if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
                 return new EvaluationResult(null, globalScope.diagnostics);
 
             var program = GetProgram();
             // CreateCfg(program);
 
-            if (program.diagnostics.Any())
+            if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
                 return new EvaluationResult(null, program.diagnostics);
 
             var eval = new Evaluator(program, variables);
@@ -147,7 +147,7 @@ namespace Buckle.CodeAnalysis {
             foreach (var syntaxTree in syntaxTrees)
                 diagnostics.Move(syntaxTree.diagnostics);
 
-            if (diagnostics.Any())
+            if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
                 return diagnostics;
 
             var program = GetProgram();

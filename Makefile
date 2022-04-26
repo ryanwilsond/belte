@@ -1,4 +1,4 @@
-PROJDIR:=src/Buckle/Silver/CmdLine
+PROJDIR:=src/Buckle/Silver/Belte
 TESTDIR:=src/Buckle/Silver/Buckle.Tests
 NETVER:=net5.0
 SYSTEM:=win-x64
@@ -9,12 +9,12 @@ all: build
 build:
 	dotnet build $(SLN) -t:rebuild
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/Buckle.dll Buckle.dll
-	cp $(PROJDIR)/bin/Debug/$(NETVER)/CmdLine.dll CmdLine.dll
-	cp $(PROJDIR)/bin/Debug/$(NETVER)/CmdLine.exe buckle.exe
+	cp $(PROJDIR)/bin/Debug/$(NETVER)/Belte.dll Belte.dll
+	cp $(PROJDIR)/bin/Debug/$(NETVER)/Belte.exe buckle.exe
 
 setup:
-	cp $(PROJDIR)/bin/Debug/$(NETVER)/CmdLine.deps.json CmdLine.deps.json
-	cp $(PROJDIR)/bin/Debug/$(NETVER)/CmdLine.runtimeconfig.json CmdLine.runtimeconfig.json
+	cp $(PROJDIR)/bin/Debug/$(NETVER)/Belte.deps.json Belte.deps.json
+	cp $(PROJDIR)/bin/Debug/$(NETVER)/Belte.runtimeconfig.json Belte.runtimeconfig.json
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/System.Collections.Immutable.dll System.Collections.Immutable.dll
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/System.Runtime.CompilerServices.Unsafe.dll System.Runtime.CompilerServices.Unsafe.dll
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.Mdb.dll Mono.Cecil.Mdb.dll
@@ -26,9 +26,9 @@ test:
 	dotnet test $(TESTDIR)/Buckle.Tests.csproj
 
 release:
-	dotnet publish $(PROJDIR)/CmdLine.csproj -r $(SYSTEM) -p:PublishSingleFile=true --self-contained true \
+	dotnet publish $(PROJDIR)/Belte.csproj -r $(SYSTEM) -p:PublishSingleFile=true --self-contained true \
 		-p:PublishReadyToRunShowWarnings=true -p:IncludeNativeLibrariesForSelfExtract=true --configuration Release
-	cp $(PROJDIR)/bin/Release/$(NETVER)/$(SYSTEM)/publish/CmdLine.exe buckle.exe
+	cp $(PROJDIR)/bin/Release/$(NETVER)/$(SYSTEM)/publish/Belte.exe buckle.exe
 
 clean:
 	rm -f *.dll

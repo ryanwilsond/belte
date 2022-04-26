@@ -7,14 +7,15 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Authoring;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.IO;
+using Buckle;
 
-namespace Buckle {
-    public sealed class BuckleRepl : Repl {
+namespace Belte.Repl {
+    public sealed class BelteRepl : Repl {
         private static readonly Compilation emptyCompilation = Compilation.CreateScript(null);
         internal override object state_ { get; set; }
-        internal BuckleReplState state { get { return (BuckleReplState)state_; } set { state_=value; } }
+        internal BelteReplState state { get { return (BelteReplState)state_; } set { state_=value; } }
 
-        internal sealed class BuckleReplState {
+        internal sealed class BelteReplState {
             public bool showTree = false;
             public bool showProgram = false;
             public bool loadingSubmissions = false;
@@ -22,8 +23,8 @@ namespace Buckle {
             public Dictionary<VariableSymbol, object> variables;
         }
 
-        public BuckleRepl(Compiler handle, ErrorHandle errorHandle) : base(handle, errorHandle) {
-            state = new BuckleReplState();
+        public BelteRepl(Compiler handle, DiagnosticHandle errorHandle) : base(handle, errorHandle) {
+            state = new BelteReplState();
             ResetState();
             EvaluateClear();
             LoadSubmissions();
@@ -50,9 +51,9 @@ namespace Buckle {
 
             handle.diagnostics.Move(result.diagnostics);
             if (handle.diagnostics.Any()) {
-                if (errorHandle != null) {
+                if (diagnosticHandle != null) {
                     handle.diagnostics = DiagnosticQueue.CleanDiagnostics(handle.diagnostics);
-                    errorHandle(handle);
+                    diagnosticHandle(handle);
                 } else {
                     handle.diagnostics.Clear();
                 }
@@ -191,8 +192,8 @@ namespace Buckle {
             if (!File.Exists(path)) {
                 handle.diagnostics.Push(DiagnosticType.Error, $"{path}: no such file");
 
-                if (errorHandle != null)
-                    errorHandle(handle, "repl");
+                if (diagnosticHandle != null)
+                    diagnosticHandle(handle, "repl");
                 else
                     handle.diagnostics.Clear();
 
@@ -221,8 +222,8 @@ namespace Buckle {
             if (symbol == null) {
                 handle.diagnostics.Push(DiagnosticType.Error, $"undefined symbol '{name}'");
 
-                if (errorHandle != null)
-                    errorHandle(handle, "repl");
+                if (diagnosticHandle != null)
+                    diagnosticHandle(handle, "repl");
                 else
                     handle.diagnostics.Clear();
 
