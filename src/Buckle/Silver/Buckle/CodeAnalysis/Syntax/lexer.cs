@@ -140,24 +140,47 @@ namespace Buckle.CodeAnalysis.Syntax {
                     break;
                 case '^':
                     position_++;
-                    type_ = SyntaxType.CARET_TOKEN;
+                    if (current != '=') {
+                        type_ = SyntaxType.CARET_TOKEN;
+                    } else {
+                        type_ = SyntaxType.CARET_EQUALS_TOKEN;
+                        position_++;
+                    }
                     break;
                 case '+':
                     position_++;
-                    type_ = SyntaxType.PLUS_TOKEN;
+                    if (current != '=') {
+                        type_ = SyntaxType.PLUS_TOKEN;
+                    } else {
+                        type_ = SyntaxType.PLUS_EQUALS_TOKEN;
+                        position_++;
+                    }
                     break;
                 case '-':
                     position_++;
-                    type_ = SyntaxType.MINUS_TOKEN;
+                    if (current != '=') {
+                        type_ = SyntaxType.MINUS_TOKEN;
+                    } else {
+                        type_ = SyntaxType.MINUS_EQUALS_TOKEN;
+                        position_++;
+                    }
                     break;
                 case '/':
                     position_++;
-                    type_ = SyntaxType.SLASH_TOKEN;
+                    if (current != '=') {
+                        type_ = SyntaxType.SLASH_TOKEN;
+                    } else {
+                        type_ = SyntaxType.SLASH_EQUALS_TOKEN;
+                        position_++;
+                    }
                     break;
                 case '*':
                     position_++;
                     if (current == '*') {
                         type_ = SyntaxType.ASTERISK_ASTERISK_TOKEN;
+                        position_++;
+                    } else if (current == '=') {
+                        type_ = SyntaxType.ASTERISK_EQUALS_TOKEN;
                         position_++;
                     } else {
                         type_ = SyntaxType.ASTERISK_TOKEN;
@@ -168,6 +191,9 @@ namespace Buckle.CodeAnalysis.Syntax {
                     if (current == '&') {
                         type_ = SyntaxType.AMPERSAND_AMPERSAND_TOKEN;
                         position_++;
+                    } else if (current == '=') {
+                        type_ = SyntaxType.AMPERSAND_EQUALS_TOKEN;
+                        position_++;
                     } else {
                         type_ = SyntaxType.AMPERSAND_TOKEN;
                     }
@@ -176,6 +202,9 @@ namespace Buckle.CodeAnalysis.Syntax {
                     position_++;
                     if (current == '|') {
                         type_ = SyntaxType.PIPE_PIPE_TOKEN;
+                        position_++;
+                    } else if (current == '=') {
+                        type_ = SyntaxType.PIPE_EQUALS_TOKEN;
                         position_++;
                     } else {
                         type_ = SyntaxType.PIPE_TOKEN;
