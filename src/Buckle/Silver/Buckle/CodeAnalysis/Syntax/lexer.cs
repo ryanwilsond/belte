@@ -177,7 +177,12 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case '*':
                     position_++;
                     if (current == '*') {
-                        type_ = SyntaxType.ASTERISK_ASTERISK_TOKEN;
+                        if (lookahead == '=') {
+                            position_++;
+                            type_ = SyntaxType.ASTERISK_ASTERISK_EQUALS_TOKEN;
+                        } else {
+                            type_ = SyntaxType.ASTERISK_ASTERISK_TOKEN;
+                        }
                         position_++;
                     } else if (current == '=') {
                         type_ = SyntaxType.ASTERISK_EQUALS_TOKEN;
@@ -234,8 +239,13 @@ namespace Buckle.CodeAnalysis.Syntax {
                         position_++;
                         type_ = SyntaxType.LESS_THAN_EQUALS_TOKEN;
                     } else if (current == '<') {
+                        if (lookahead == '=') {
+                            position_++;
+                            type_ = SyntaxType.LESS_THAN_LESS_THAN_EQUALS_TOKEN;
+                        } else {
+                            type_ = SyntaxType.LESS_THAN_LESS_THAN_TOKEN;
+                        }
                         position_++;
-                        type_ = SyntaxType.LESS_THAN_LESS_THAN_TOKEN;
                     } else {
                         type_ = SyntaxType.LESS_THAN_TOKEN;
                     }
@@ -246,8 +256,13 @@ namespace Buckle.CodeAnalysis.Syntax {
                         position_++;
                         type_ = SyntaxType.GREATER_THAN_EQUALS_TOKEN;
                     } else if (current == '>') {
+                        if (lookahead == '=') {
+                            position_++;
+                            type_ = SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN;
+                        } else {
+                            type_ = SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN;
+                        }
                         position_++;
-                        type_ = SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN;
                     } else {
                         type_ = SyntaxType.GREATER_THAN_TOKEN;
                     }

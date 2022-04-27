@@ -443,7 +443,7 @@ namespace Buckle.CodeAnalysis.Emitting {
                 case BoundBinaryOperatorType.Power:
                     break;
                 case BoundBinaryOperatorType.LogicalAnd:
-                    // should wait to emit right if left is false
+                    // TODO: should wait to emit right if left is false
                     ilProcessor.Emit(OpCodes.And);
                     break;
                 case BoundBinaryOperatorType.LogicalOr:

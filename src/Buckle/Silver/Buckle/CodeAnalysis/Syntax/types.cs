@@ -47,6 +47,9 @@ namespace Buckle.CodeAnalysis.Syntax {
         MINUS_EQUALS_TOKEN,
         ASTERISK_EQUALS_TOKEN,
         SLASH_EQUALS_TOKEN,
+        ASTERISK_ASTERISK_EQUALS_TOKEN,
+        LESS_THAN_LESS_THAN_EQUALS_TOKEN,
+        GREATER_THAN_GREATER_THAN_EQUALS_TOKEN,
 
         // keywords
         TRUE_KEYWORD,

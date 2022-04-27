@@ -349,6 +349,9 @@ namespace Buckle.CodeAnalysis.Syntax {
                     case SyntaxType.AMPERSAND_EQUALS_TOKEN:
                     case SyntaxType.PIPE_EQUALS_TOKEN:
                     case SyntaxType.CARET_EQUALS_TOKEN:
+                    case SyntaxType.ASTERISK_ASTERISK_EQUALS_TOKEN:
+                    case SyntaxType.LESS_THAN_LESS_THAN_EQUALS_TOKEN:
+                    case SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
                     case SyntaxType.EQUALS_TOKEN:
                         var identifierToken = Next();
                         var operatorToken = Next();

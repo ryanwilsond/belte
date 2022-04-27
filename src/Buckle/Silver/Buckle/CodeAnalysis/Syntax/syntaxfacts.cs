@@ -105,6 +105,9 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.MINUS_EQUALS_TOKEN: return "-=";
                 case SyntaxType.SLASH_EQUALS_TOKEN: return "/=";
                 case SyntaxType.ASTERISK_EQUALS_TOKEN: return "*=";
+                case SyntaxType.ASTERISK_ASTERISK_EQUALS_TOKEN: return "**=";
+                case SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN: return ">>=";
+                case SyntaxType.LESS_THAN_LESS_THAN_EQUALS_TOKEN: return "<<=";
                 case SyntaxType.TRUE_KEYWORD: return "true";
                 case SyntaxType.FALSE_KEYWORD: return "false";
                 case SyntaxType.VAR_KEYWORD: return "var";
@@ -130,6 +133,10 @@ namespace Buckle.CodeAnalysis.Syntax {
                 case SyntaxType.AMPERSAND_EQUALS_TOKEN: return SyntaxType.AMPERSAND_TOKEN;
                 case SyntaxType.PIPE_EQUALS_TOKEN: return SyntaxType.PIPE_TOKEN;
                 case SyntaxType.CARET_EQUALS_TOKEN: return SyntaxType.CARET_TOKEN;
+                case SyntaxType.ASTERISK_ASTERISK_EQUALS_TOKEN: return SyntaxType.ASTERISK_ASTERISK_TOKEN;
+                case SyntaxType.LESS_THAN_LESS_THAN_EQUALS_TOKEN: return SyntaxType.LESS_THAN_LESS_THAN_TOKEN;
+                case SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
+                    return SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN;
                 default:
                     throw new Exception($"unexpected syntax '{type}'");
             }
