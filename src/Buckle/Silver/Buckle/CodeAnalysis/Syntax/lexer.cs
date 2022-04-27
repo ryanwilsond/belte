@@ -1,439 +1,443 @@
 using System.Text;
 using System.Collections.Immutable;
-using Buckle.CodeAnalysis.Symbols;
+using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Text;
+using Buckle.CodeAnalysis.Symbols;
 
-namespace Buckle.CodeAnalysis.Syntax {
+namespace Buckle.CodeAnalysis.Syntax;
 
-    internal sealed class Lexer {
-        private readonly SourceText text_;
-        private int position_;
-        private int start_;
-        private SyntaxType type_;
-        private object value_;
-        private SyntaxTree syntaxTree_;
-        private ImmutableArray<SyntaxTrivia>.Builder triviaBuilder_ = ImmutableArray.CreateBuilder<SyntaxTrivia>();
-        public DiagnosticQueue diagnostics = new DiagnosticQueue();
+internal sealed class Lexer {
+    private readonly SourceText text_;
+    private int position_;
+    private int start_;
+    private SyntaxType type_;
+    private object value_;
+    private SyntaxTree syntaxTree_;
+    private ImmutableArray<SyntaxTrivia>.Builder triviaBuilder_ = ImmutableArray.CreateBuilder<SyntaxTrivia>();
+    public DiagnosticQueue diagnostics = new DiagnosticQueue();
 
-        public Lexer(SyntaxTree syntaxTree) {
-            text_ = syntaxTree.text;
-            syntaxTree_ = syntaxTree;
-        }
+    public Lexer(SyntaxTree syntaxTree) {
+        text_ = syntaxTree.text;
+        syntaxTree_ = syntaxTree;
+    }
 
-        private char Peek(int offset) {
-            int index = position_ + offset;
-            if (index >= text_.length) return '\0';
-            return text_[index];
-        }
+    private char Peek(int offset) {
+        int index = position_ + offset;
 
-        private char current => Peek(0);
-        private char lookahead => Peek(1);
+        if (index >= text_.length)
+            return '\0';
 
-        public Token LexNext() {
-            ReadTrivia(true);
-            var leadingTrivia = triviaBuilder_.ToImmutable();
-            var tokenStart = position_;
+        return text_[index];
+    }
 
-            ReadToken();
+    private char current => Peek(0);
+    private char lookahead => Peek(1);
 
-            var tokenType = type_;
-            var tokenValue = value_;
-            var tokenLength = position_ - start_;
+    public Token LexNext() {
+        ReadTrivia(true);
+        var leadingTrivia = triviaBuilder_.ToImmutable();
+        var tokenStart = position_;
 
-            ReadTrivia(false);
-            var trailingTrivia = triviaBuilder_.ToImmutable();
+        ReadToken();
 
-            var tokenText = SyntaxFacts.GetText(tokenType);
-            if (tokenText == null)
-                tokenText = text_.ToString(tokenStart, tokenLength);
+        var tokenType = type_;
+        var tokenValue = value_;
+        var tokenLength = position_ - start_;
 
-            return new Token(syntaxTree_, tokenType, tokenStart, tokenText, tokenValue, leadingTrivia, trailingTrivia);
-        }
+        ReadTrivia(false);
+        var trailingTrivia = triviaBuilder_.ToImmutable();
 
-        private void ReadTrivia(bool leading) {
-            triviaBuilder_.Clear();
-            var done = false;
+        var tokenText = SyntaxFacts.GetText(tokenType);
+        if (tokenText == null)
+            tokenText = text_.ToString(tokenStart, tokenLength);
 
-            while (!done) {
-                start_ = position_;
-                type_ = SyntaxType.BAD_TOKEN;
-                value_ = null;
+        return new Token(syntaxTree_, tokenType, tokenStart, tokenText, tokenValue, leadingTrivia, trailingTrivia);
+    }
 
-                switch (current) {
-                    case '\0':
-                        done = true;
-                        break;
-                    case '/':
-                        if (lookahead == '/')
-                            // TODO: docstring comments (xml or doxygen)
-                            ReadSingeLineComment();
-                        else if (lookahead == '*')
-                            ReadMultiLineComment();
-                        else
-                            done = true;
-                        break;
-                    case '\r':
-                    case '\n':
-                        if (!leading)
-                            done = true;
-                        ReadLineBreak();
-                        break;
-                    case ' ':
-                    case '\t':
-                        ReadWhitespace();
-                        break;
-                    default:
-                        // other whitespace; use case on most common because more efficient, negligible
-                        if (char.IsWhiteSpace(current))
-                            ReadWhitespace();
-                        else
-                            done = true;
-                        break;
-                }
+    private void ReadTrivia(bool leading) {
+        triviaBuilder_.Clear();
+        var done = false;
 
-                var length = position_ - start_;
-
-                if (length > 0) {
-                    var text = text_.ToString(start_, length);
-                    var trivia = new SyntaxTrivia(syntaxTree_, type_, start_, text);
-                    triviaBuilder_.Add(trivia);
-                }
-            }
-        }
-
-        private void ReadToken() {
+        while (!done) {
             start_ = position_;
             type_ = SyntaxType.BAD_TOKEN;
             value_ = null;
 
             switch (current) {
                 case '\0':
-                    type_ = SyntaxType.END_OF_FILE_TOKEN;
-                    break;
-                case ',':
-                    position_++;
-                    type_ = SyntaxType.COMMA_TOKEN;
-                    break;
-                case '(':
-                    position_++;
-                    type_ = SyntaxType.OPEN_PAREN_TOKEN;
-                    break;
-                case ')':
-                    position_++;
-                    type_ = SyntaxType.CLOSE_PAREN_TOKEN;
-                    break;
-                case '{':
-                    position_++;
-                    type_ = SyntaxType.OPEN_BRACE_TOKEN;
-                    break;
-                case '}':
-                    position_++;
-                    type_ = SyntaxType.CLOSE_BRACE_TOKEN;
-                    break;
-                case ';':
-                    position_++;
-                    type_ = SyntaxType.SEMICOLON_TOKEN;
-                    break;
-                case '~':
-                    position_++;
-                    type_ = SyntaxType.TILDE_TOKEN;
-                    break;
-                case '^':
-                    position_++;
-                    if (current != '=') {
-                        type_ = SyntaxType.CARET_TOKEN;
-                    } else {
-                        type_ = SyntaxType.CARET_EQUALS_TOKEN;
-                        position_++;
-                    }
-                    break;
-                case '+':
-                    position_++;
-                    if (current != '=') {
-                        type_ = SyntaxType.PLUS_TOKEN;
-                    } else {
-                        type_ = SyntaxType.PLUS_EQUALS_TOKEN;
-                        position_++;
-                    }
-                    break;
-                case '-':
-                    position_++;
-                    if (current != '=') {
-                        type_ = SyntaxType.MINUS_TOKEN;
-                    } else {
-                        type_ = SyntaxType.MINUS_EQUALS_TOKEN;
-                        position_++;
-                    }
+                    done = true;
                     break;
                 case '/':
-                    position_++;
-                    if (current != '=') {
-                        type_ = SyntaxType.SLASH_TOKEN;
-                    } else {
-                        type_ = SyntaxType.SLASH_EQUALS_TOKEN;
-                        position_++;
-                    }
+                    if (lookahead == '/')
+                        // TODO: docstring comments (xml or doxygen)
+                        ReadSingeLineComment();
+                    else if (lookahead == '*')
+                        ReadMultiLineComment();
+                    else
+                        done = true;
                     break;
-                case '*':
-                    position_++;
-                    if (current == '*') {
-                        if (lookahead == '=') {
-                            position_++;
-                            type_ = SyntaxType.ASTERISK_ASTERISK_EQUALS_TOKEN;
-                        } else {
-                            type_ = SyntaxType.ASTERISK_ASTERISK_TOKEN;
-                        }
-                        position_++;
-                    } else if (current == '=') {
-                        type_ = SyntaxType.ASTERISK_EQUALS_TOKEN;
-                        position_++;
-                    } else {
-                        type_ = SyntaxType.ASTERISK_TOKEN;
-                    }
+                case '\r':
+                case '\n':
+                    if (!leading)
+                        done = true;
+                    ReadLineBreak();
                     break;
-                case '&':
-                    position_++;
-                    if (current == '&') {
-                        type_ = SyntaxType.AMPERSAND_AMPERSAND_TOKEN;
-                        position_++;
-                    } else if (current == '=') {
-                        type_ = SyntaxType.AMPERSAND_EQUALS_TOKEN;
-                        position_++;
-                    } else {
-                        type_ = SyntaxType.AMPERSAND_TOKEN;
-                    }
-                    break;
-                case '|':
-                    position_++;
-                    if (current == '|') {
-                        type_ = SyntaxType.PIPE_PIPE_TOKEN;
-                        position_++;
-                    } else if (current == '=') {
-                        type_ = SyntaxType.PIPE_EQUALS_TOKEN;
-                        position_++;
-                    } else {
-                        type_ = SyntaxType.PIPE_TOKEN;
-                    }
-                    break;
-                case '=':
-                    position_++;
-                    if (current == '=') {
-                        type_ = SyntaxType.EQUALS_EQUALS_TOKEN;
-                        position_++;
-                    } else {
-                        type_ = SyntaxType.EQUALS_TOKEN;
-                    }
-                    break;
-                case '!':
-                    position_++;
-                    if (current == '=') {
-                        position_++;
-                        type_ = SyntaxType.EXCLAMATION_EQUALS_TOKEN;
-                    } else {
-                        type_ = SyntaxType.EXCLAMATION_TOKEN;
-                    }
-                    break;
-                case '<':
-                    position_++;
-                    if (current == '=') {
-                        position_++;
-                        type_ = SyntaxType.LESS_THAN_EQUALS_TOKEN;
-                    } else if (current == '<') {
-                        if (lookahead == '=') {
-                            position_++;
-                            type_ = SyntaxType.LESS_THAN_LESS_THAN_EQUALS_TOKEN;
-                        } else {
-                            type_ = SyntaxType.LESS_THAN_LESS_THAN_TOKEN;
-                        }
-                        position_++;
-                    } else {
-                        type_ = SyntaxType.LESS_THAN_TOKEN;
-                    }
-                    break;
-                case '>':
-                    position_++;
-                    if (current == '=') {
-                        position_++;
-                        type_ = SyntaxType.GREATER_THAN_EQUALS_TOKEN;
-                    } else if (current == '>') {
-                        if (lookahead == '=') {
-                            position_++;
-                            type_ = SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN;
-                        } else {
-                            type_ = SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN;
-                        }
-                        position_++;
-                    } else {
-                        type_ = SyntaxType.GREATER_THAN_TOKEN;
-                    }
-                    break;
-                case '"':
-                    ReadString();
-                    break;
-                case '0':
-                case '1':
-                case '2':
-                case '3':
-                case '4':
-                case '5':
-                case '6':
-                case '7':
-                case '8':
-                case '9':
-                    ReadNumberToken();
-                    break;
-                case '_':
-                    ReadIdentifierOrKeyword();
+                case ' ':
+                case '\t':
+                    ReadWhitespace();
                     break;
                 default:
-                    if (char.IsLetter(current))
-                        ReadIdentifierOrKeyword();
-                    else {
-                        var span = new TextSpan(position_, 1);
-                        var location = new TextLocation(text_, span);
-                        diagnostics.Push(Error.BadCharacter(location, position_++, current));
+                    // other whitespace; use case on most common because more efficient, negligible
+                    if (char.IsWhiteSpace(current))
+                        ReadWhitespace();
+                    else
+                        done = true;
+                    break;
+            }
+
+            var length = position_ - start_;
+
+            if (length > 0) {
+                var text = text_.ToString(start_, length);
+                var trivia = new SyntaxTrivia(syntaxTree_, type_, start_, text);
+                triviaBuilder_.Add(trivia);
+            }
+        }
+    }
+
+    private void ReadToken() {
+        start_ = position_;
+        type_ = SyntaxType.BAD_TOKEN;
+        value_ = null;
+
+        switch (current) {
+            case '\0':
+                type_ = SyntaxType.END_OF_FILE_TOKEN;
+                break;
+            case ',':
+                position_++;
+                type_ = SyntaxType.COMMA_TOKEN;
+                break;
+            case '(':
+                position_++;
+                type_ = SyntaxType.OPEN_PAREN_TOKEN;
+                break;
+            case ')':
+                position_++;
+                type_ = SyntaxType.CLOSE_PAREN_TOKEN;
+                break;
+            case '{':
+                position_++;
+                type_ = SyntaxType.OPEN_BRACE_TOKEN;
+                break;
+            case '}':
+                position_++;
+                type_ = SyntaxType.CLOSE_BRACE_TOKEN;
+                break;
+            case ';':
+                position_++;
+                type_ = SyntaxType.SEMICOLON_TOKEN;
+                break;
+            case '~':
+                position_++;
+                type_ = SyntaxType.TILDE_TOKEN;
+                break;
+            case '^':
+                position_++;
+                if (current != '=') {
+                    type_ = SyntaxType.CARET_TOKEN;
+                } else {
+                    type_ = SyntaxType.CARET_EQUALS_TOKEN;
+                    position_++;
+                }
+                break;
+            case '+':
+                position_++;
+                if (current != '=') {
+                    type_ = SyntaxType.PLUS_TOKEN;
+                } else {
+                    type_ = SyntaxType.PLUS_EQUALS_TOKEN;
+                    position_++;
+                }
+                break;
+            case '-':
+                position_++;
+                if (current != '=') {
+                    type_ = SyntaxType.MINUS_TOKEN;
+                } else {
+                    type_ = SyntaxType.MINUS_EQUALS_TOKEN;
+                    position_++;
+                }
+                break;
+            case '/':
+                position_++;
+                if (current != '=') {
+                    type_ = SyntaxType.SLASH_TOKEN;
+                } else {
+                    type_ = SyntaxType.SLASH_EQUALS_TOKEN;
+                    position_++;
+                }
+                break;
+            case '*':
+                position_++;
+                if (current == '*') {
+                    if (lookahead == '=') {
+                        position_++;
+                        type_ = SyntaxType.ASTERISK_ASTERISK_EQUALS_TOKEN;
+                    } else {
+                        type_ = SyntaxType.ASTERISK_ASTERISK_TOKEN;
                     }
+                    position_++;
+                } else if (current == '=') {
+                    type_ = SyntaxType.ASTERISK_EQUALS_TOKEN;
+                    position_++;
+                } else {
+                    type_ = SyntaxType.ASTERISK_TOKEN;
+                }
+                break;
+            case '&':
+                position_++;
+                if (current == '&') {
+                    type_ = SyntaxType.AMPERSAND_AMPERSAND_TOKEN;
+                    position_++;
+                } else if (current == '=') {
+                    type_ = SyntaxType.AMPERSAND_EQUALS_TOKEN;
+                    position_++;
+                } else {
+                    type_ = SyntaxType.AMPERSAND_TOKEN;
+                }
+                break;
+            case '|':
+                position_++;
+                if (current == '|') {
+                    type_ = SyntaxType.PIPE_PIPE_TOKEN;
+                    position_++;
+                } else if (current == '=') {
+                    type_ = SyntaxType.PIPE_EQUALS_TOKEN;
+                    position_++;
+                } else {
+                    type_ = SyntaxType.PIPE_TOKEN;
+                }
+                break;
+            case '=':
+                position_++;
+                if (current == '=') {
+                    type_ = SyntaxType.EQUALS_EQUALS_TOKEN;
+                    position_++;
+                } else {
+                    type_ = SyntaxType.EQUALS_TOKEN;
+                }
+                break;
+            case '!':
+                position_++;
+                if (current == '=') {
+                    position_++;
+                    type_ = SyntaxType.EXCLAMATION_EQUALS_TOKEN;
+                } else {
+                    type_ = SyntaxType.EXCLAMATION_TOKEN;
+                }
+                break;
+            case '<':
+                position_++;
+                if (current == '=') {
+                    position_++;
+                    type_ = SyntaxType.LESS_THAN_EQUALS_TOKEN;
+                } else if (current == '<') {
+                    if (lookahead == '=') {
+                        position_++;
+                        type_ = SyntaxType.LESS_THAN_LESS_THAN_EQUALS_TOKEN;
+                    } else {
+                        type_ = SyntaxType.LESS_THAN_LESS_THAN_TOKEN;
+                    }
+                    position_++;
+                } else {
+                    type_ = SyntaxType.LESS_THAN_TOKEN;
+                }
+                break;
+            case '>':
+                position_++;
+                if (current == '=') {
+                    position_++;
+                    type_ = SyntaxType.GREATER_THAN_EQUALS_TOKEN;
+                } else if (current == '>') {
+                    if (lookahead == '=') {
+                        position_++;
+                        type_ = SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN;
+                    } else {
+                        type_ = SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN;
+                    }
+                    position_++;
+                } else {
+                    type_ = SyntaxType.GREATER_THAN_TOKEN;
+                }
+                break;
+            case '"':
+                ReadString();
+                break;
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+                ReadNumberToken();
+                break;
+            case '_':
+                ReadIdentifierOrKeyword();
+                break;
+            default:
+                if (char.IsLetter(current))
+                    ReadIdentifierOrKeyword();
+                else {
+                    var span = new TextSpan(position_, 1);
+                    var location = new TextLocation(text_, span);
+                    diagnostics.Push(Error.BadCharacter(location, position_++, current));
+                }
+                break;
+        }
+    }
+
+    private void ReadSingeLineComment() {
+        position_ += 2;
+        var done = false;
+
+        while (!done) {
+            switch (current) {
+                case '\r':
+                case '\n':
+                case '\0':
+                    done = true;
+                    break;
+                default:
+                    position_++;
                     break;
             }
         }
 
-        private void ReadSingeLineComment() {
-            position_ += 2;
-            var done = false;
+        type_ = SyntaxType.SINGLELINE_COMMENT_TRIVIA;
+    }
 
-            while (!done) {
-                switch (current) {
-                    case '\r':
-                    case '\n':
-                    case '\0':
+    private void ReadMultiLineComment() {
+        position_ += 2;
+        var done = false;
+
+        while (!done) {
+            switch (current) {
+                case '\0':
+                    var span = new TextSpan(start_, 2);
+                    var location = new TextLocation(text_, span);
+                    diagnostics.Push(Error.UnterminatedComment(location));
+                    done = true;
+                    break;
+                case '*':
+                    if (lookahead == '/') {
+                        position_ += 2;
                         done = true;
-                        break;
-                    default:
-                        position_++;
-                        break;
-                }
+                    } else {
+                        goto default;
+                    }
+                    break;
+                default:
+                    position_++;
+                    break;
             }
-
-            type_ = SyntaxType.SINGLELINE_COMMENT_TRIVIA;
         }
 
-        private void ReadMultiLineComment() {
-            position_ += 2;
-            var done = false;
+        type_ = SyntaxType.MULTILINE_COMMENT_TRIVIA;
+    }
 
-            while (!done) {
-                switch (current) {
-                    case '\0':
-                        var span = new TextSpan(start_, 2);
-                        var location = new TextLocation(text_, span);
-                        diagnostics.Push(Error.UnterminatedComment(location));
-                        done = true;
-                        break;
-                    case '*':
-                        if (lookahead == '/') {
-                            position_ += 2;
-                            done = true;
-                        } else {
-                            goto default;
-                        }
-                        break;
-                    default:
-                        position_++;
-                        break;
-                }
-            }
+    private void ReadString() {
+        position_++;
+        var sb = new StringBuilder();
+        bool done = false;
 
-            type_ = SyntaxType.MULTILINE_COMMENT_TRIVIA;
-        }
-
-        private void ReadString() {
-            position_++;
-            var sb = new StringBuilder();
-            bool done = false;
-
-            while (!done) {
-                switch (current) {
-                    case '\0':
-                    case '\r':
-                    case '\n':
-                        var span = new TextSpan(start_, 1);
-                        var location = new TextLocation(text_, span);
-                        diagnostics.Push(Error.UnterminatedString(location));
-                        done = true;
-                        break;
-                    case '"':
-                        if (lookahead == '"') {
-                            sb.Append(current);
-                            position_ += 2;
-                        } else {
-                            position_++;
-                            done = true;
-                        }
-                        break;
-                    default:
+        while (!done) {
+            switch (current) {
+                case '\0':
+                case '\r':
+                case '\n':
+                    var span = new TextSpan(start_, 1);
+                    var location = new TextLocation(text_, span);
+                    diagnostics.Push(Error.UnterminatedString(location));
+                    done = true;
+                    break;
+                case '"':
+                    if (lookahead == '"') {
                         sb.Append(current);
+                        position_ += 2;
+                    } else {
                         position_++;
-                        break;
-                }
-            }
-
-            type_ = SyntaxType.STRING_LITERAL_TOKEN;
-            value_ = sb.ToString();
-        }
-
-        private void ReadNumberToken() {
-            while (char.IsDigit(current)) position_++;
-
-            int length = position_ - start_;
-            string text = text_.ToString(start_, length);
-
-            if (!int.TryParse(text, out var value)) {
-                var span = new TextSpan(start_, length);
-                var location = new TextLocation(text_, span);
-                diagnostics.Push(Error.InvalidType(location, text, TypeSymbol.Int));
-            }
-
-            value_ = value;
-            type_ = SyntaxType.NUMBERIC_LITERAL_TOKEN;
-        }
-
-        private void ReadWhitespace() {
-            var done = false;
-
-            while (!done) {
-                switch (current) {
-                    case '\0':
-                    case '\r':
-                    case '\n':
                         done = true;
-                        break;
-                    default:
-                        if (!char.IsWhiteSpace(current))
-                            done = true;
-                        else
-                            position_++;
-                        break;
-                }
+                    }
+                    break;
+                default:
+                    sb.Append(current);
+                    position_++;
+                    break;
             }
-
-            type_ = SyntaxType.WHITESPACE_TRIVIA;
         }
 
-        private void ReadLineBreak() {
-            if (current == '\r' && lookahead == '\n')
-                position_ += 2;
-            else
-                position_++;
+        type_ = SyntaxType.STRING_LITERAL_TOKEN;
+        value_ = sb.ToString();
+    }
 
-            type_ = SyntaxType.END_OF_LINE_TRIVIA;
+    private void ReadNumberToken() {
+        while (char.IsDigit(current)) position_++;
+
+        int length = position_ - start_;
+        string text = text_.ToString(start_, length);
+
+        if (!int.TryParse(text, out var value)) {
+            var span = new TextSpan(start_, length);
+            var location = new TextLocation(text_, span);
+            diagnostics.Push(Error.InvalidType(location, text, TypeSymbol.Int));
         }
 
-        private void ReadIdentifierOrKeyword() {
-            while (char.IsLetterOrDigit(current) || current == '_') position_++;
+        value_ = value;
+        type_ = SyntaxType.NUMBERIC_LITERAL_TOKEN;
+    }
 
-            int length = position_ - start_;
-            string text = text_.ToString(start_, length);
-            type_ = SyntaxFacts.GetKeywordType(text);
+    private void ReadWhitespace() {
+        var done = false;
+
+        while (!done) {
+            switch (current) {
+                case '\0':
+                case '\r':
+                case '\n':
+                    done = true;
+                    break;
+                default:
+                    if (!char.IsWhiteSpace(current))
+                        done = true;
+                    else
+                        position_++;
+                    break;
+            }
         }
+
+        type_ = SyntaxType.WHITESPACE_TRIVIA;
+    }
+
+    private void ReadLineBreak() {
+        if (current == '\r' && lookahead == '\n')
+            position_ += 2;
+        else
+            position_++;
+
+        type_ = SyntaxType.END_OF_LINE_TRIVIA;
+    }
+
+    private void ReadIdentifierOrKeyword() {
+        while (char.IsLetterOrDigit(current) || current == '_')
+            position_++;
+
+        int length = position_ - start_;
+        string text = text_.ToString(start_, length);
+        type_ = SyntaxFacts.GetKeywordType(text);
     }
 }

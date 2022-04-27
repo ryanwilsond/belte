@@ -1,12 +1,12 @@
 
-namespace Buckle.CodeAnalysis.Binding {
-    internal sealed class BoundLabel {
-        public string name { get; }
+namespace Buckle.CodeAnalysis.Binding;
 
-        internal BoundLabel(string name_) {
-            name = name_;
-        }
+internal sealed class BoundLabel {
+    public string name { get; }
 
-        public override string ToString() => name;
+    internal BoundLabel(string name_) {
+        name = name_;
     }
+
+    public override string ToString() => name;
 }

@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Belte.Repl;
 using Buckle;
+using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Text;
 
 namespace Belte.CmdLine;

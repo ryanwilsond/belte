@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using Xunit;
+using Buckle.Diagnostics;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.Diagnostics;
 
 namespace Buckle.Tests.CodeAnalysis;
 

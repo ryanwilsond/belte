@@ -1,162 +1,161 @@
 using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Threading;
-using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.Syntax;
 using System.IO;
 using System.Linq;
-using Buckle.CodeAnalysis.Symbols;
+using System.Threading;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using Buckle.IO;
+using Buckle.Diagnostics;
+using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Emitting;
 
-namespace Buckle.CodeAnalysis {
+namespace Buckle.CodeAnalysis;
 
-    internal sealed class EvaluationResult {
-        public DiagnosticQueue diagnostics;
-        public object value;
+internal sealed class EvaluationResult {
+    public DiagnosticQueue diagnostics;
+    public object value;
 
-        internal EvaluationResult(object value_, DiagnosticQueue diagnostics_) {
-            value = value_;
-            diagnostics = new DiagnosticQueue();
-            diagnostics.Move(diagnostics_);
-        }
-
-        internal EvaluationResult() : this(null, null) { }
+    internal EvaluationResult(object value_, DiagnosticQueue diagnostics_) {
+        value = value_;
+        diagnostics = new DiagnosticQueue();
+        diagnostics.Move(diagnostics_);
     }
 
-    public sealed class Compilation {
-        private BoundGlobalScope globalScope_;
-        public DiagnosticQueue diagnostics;
-        internal FunctionSymbol mainFunction => globalScope.mainFunction;
-        internal ImmutableArray<FunctionSymbol> functions => globalScope.functions;
-        internal ImmutableArray<VariableSymbol> variables => globalScope.variables;
-        internal ImmutableArray<SyntaxTree> syntaxTrees { get; }
-        internal Compilation previous { get; }
-        internal bool isScript { get; }
+    internal EvaluationResult() : this(null, null) { }
+}
 
-        internal BoundGlobalScope globalScope {
-            get {
-                if (globalScope_ == null) {
-                    var tempScope = Binder.BindGlobalScope(isScript, previous?.globalScope, syntaxTrees);
-                    // makes assignment thread-safe, if multiple threads try to initialize they use whoever did it first
-                    Interlocked.CompareExchange(ref globalScope_, tempScope, null);
-                }
+public sealed class Compilation {
+    private BoundGlobalScope globalScope_;
+    public DiagnosticQueue diagnostics;
+    internal FunctionSymbol mainFunction => globalScope.mainFunction;
+    internal ImmutableArray<FunctionSymbol> functions => globalScope.functions;
+    internal ImmutableArray<VariableSymbol> variables => globalScope.variables;
+    internal ImmutableArray<SyntaxTree> syntaxTrees { get; }
+    internal Compilation previous { get; }
+    internal bool isScript { get; }
 
-                return globalScope_;
+    internal BoundGlobalScope globalScope {
+        get {
+            if (globalScope_ == null) {
+                var tempScope = Binder.BindGlobalScope(isScript, previous?.globalScope, syntaxTrees);
+                // makes assignment thread-safe, if multiple threads try to initialize they use whoever did it first
+                Interlocked.CompareExchange(ref globalScope_, tempScope, null);
             }
+
+            return globalScope_;
         }
+    }
 
-        private Compilation(bool isScript_, Compilation previous_, params SyntaxTree[] syntaxTrees) {
-            isScript = isScript_;
-            previous = previous_;
-            diagnostics = new DiagnosticQueue();
+    private Compilation(bool isScript_, Compilation previous_, params SyntaxTree[] syntaxTrees) {
+        isScript = isScript_;
+        previous = previous_;
+        diagnostics = new DiagnosticQueue();
 
-            foreach (var syntaxTree in syntaxTrees)
-                diagnostics.Move(syntaxTree.diagnostics);
+        foreach (var syntaxTree in syntaxTrees)
+            diagnostics.Move(syntaxTree.diagnostics);
 
-            this.syntaxTrees = syntaxTrees.ToImmutableArray<SyntaxTree>();
+        this.syntaxTrees = syntaxTrees.ToImmutableArray<SyntaxTree>();
+    }
+
+    internal static Compilation Create(params SyntaxTree[] syntaxTrees) {
+        return new Compilation(false, null, syntaxTrees);
+    }
+
+    internal static Compilation CreateScript(Compilation previous, params SyntaxTree[] syntaxTrees) {
+        return new Compilation(true, previous, syntaxTrees);
+    }
+
+    internal IEnumerable<Symbol> GetSymbols() {
+        var submission = this;
+        var seenSymbolNames = new HashSet<string>();
+        var builtins = BuiltinFunctions.GetAll();
+
+        while (submission != null) {
+            foreach (var function in submission.functions)
+                if (seenSymbolNames.Add(function.name))
+                    yield return function;
+
+            foreach (var variable in submission.variables)
+                if (seenSymbolNames.Add(variable.name))
+                    yield return variable;
+
+            foreach (var builtin in builtins)
+                if (seenSymbolNames.Add(builtin.name))
+                    yield return builtin;
+
+            submission = submission.previous;
         }
+    }
 
-        internal static Compilation Create(params SyntaxTree[] syntaxTrees) {
-            return new Compilation(false, null, syntaxTrees);
+    private BoundProgram GetProgram() {
+        var previous_ = previous == null ? null : previous.GetProgram();
+        return Binder.BindProgram(isScript, previous_, globalScope);
+    }
+
+    internal EvaluationResult Evaluate(Dictionary<VariableSymbol, object> variables) {
+        if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
+            return new EvaluationResult(null, globalScope.diagnostics);
+
+        var program = GetProgram();
+        program.diagnostics.Move(globalScope.diagnostics);
+        // CreateCfg(program);
+
+        if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
+            return new EvaluationResult(null, program.diagnostics);
+
+        diagnostics.Move(program.diagnostics);
+        var eval = new Evaluator(program, variables);
+        var evalResult = eval.Evaluate();
+        diagnostics.Move(eval.diagnostics);
+        var result = new EvaluationResult(evalResult, diagnostics);
+        return result;
+    }
+
+    private static void CreateCfg(BoundProgram program) {
+        var appPath = Environment.GetCommandLineArgs()[0];
+        var appDirectory = Path.GetDirectoryName(appPath);
+        var cfgPath = Path.Combine(appDirectory, "cfg.dot");
+        BoundBlockStatement cfgStatement = program.scriptFunction == null
+            ? program.functions[program.mainFunction]
+            : program.functions[program.scriptFunction];
+        var cfg = ControlFlowGraph.Create(cfgStatement);
+
+        using (var streamWriter = new StreamWriter(cfgPath))
+            cfg.WriteTo(streamWriter);
+    }
+
+    internal void EmitTree(TextWriter writer) {
+        if (globalScope.mainFunction != null)
+            EmitTree(globalScope.mainFunction, writer);
+        else if (globalScope.scriptFunction != null)
+            EmitTree(globalScope.scriptFunction, writer);
+    }
+
+    internal void EmitTree(Symbol symbol, TextWriter writer) {
+        var program = GetProgram();
+
+        if (symbol is FunctionSymbol f) {
+            f.WriteTo(writer);
+            if (!program.functions.TryGetValue(f, out var body))
+                return;
+
+            body.WriteTo(writer);
+        } else {
+            symbol.WriteTo(writer);
         }
+    }
 
-        internal static Compilation CreateScript(Compilation previous, params SyntaxTree[] syntaxTrees) {
-            return new Compilation(true, previous, syntaxTrees);
-        }
+    internal DiagnosticQueue Emit(string moduleName, string[] references, string outputPath) {
+        foreach (var syntaxTree in syntaxTrees)
+            diagnostics.Move(syntaxTree.diagnostics);
 
-        internal IEnumerable<Symbol> GetSymbols() {
-            var submission = this;
-            var seenSymbolNames = new HashSet<string>();
-            var builtins = BuiltinFunctions.GetAll();
+        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+            return diagnostics;
 
-            while (submission != null) {
-
-                foreach (var function in submission.functions)
-                    if (seenSymbolNames.Add(function.name))
-                        yield return function;
-
-                foreach (var variable in submission.variables)
-                    if (seenSymbolNames.Add(variable.name))
-                        yield return variable;
-
-                foreach (var builtin in builtins)
-                    if (seenSymbolNames.Add(builtin.name))
-                        yield return builtin;
-
-                submission = submission.previous;
-            }
-        }
-
-        private BoundProgram GetProgram() {
-            var previous_ = previous == null ? null : previous.GetProgram();
-            return Binder.BindProgram(isScript, previous_, globalScope);
-        }
-
-        internal EvaluationResult Evaluate(Dictionary<VariableSymbol, object> variables) {
-            if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
-                return new EvaluationResult(null, globalScope.diagnostics);
-
-            var program = GetProgram();
-            program.diagnostics.Move(globalScope.diagnostics);
-            // CreateCfg(program);
-
-            if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
-                return new EvaluationResult(null, program.diagnostics);
-
-            diagnostics.Move(program.diagnostics);
-            var eval = new Evaluator(program, variables);
-            var evalResult = eval.Evaluate();
-            diagnostics.Move(eval.diagnostics);
-            var result = new EvaluationResult(evalResult, diagnostics);
-            return result;
-        }
-
-        private static void CreateCfg(BoundProgram program) {
-            var appPath = Environment.GetCommandLineArgs()[0];
-            var appDirectory = Path.GetDirectoryName(appPath);
-            var cfgPath = Path.Combine(appDirectory, "cfg.dot");
-            BoundBlockStatement cfgStatement = program.scriptFunction == null
-                ? program.functions[program.mainFunction]
-                : program.functions[program.scriptFunction];
-            var cfg = ControlFlowGraph.Create(cfgStatement);
-
-            using (var streamWriter = new StreamWriter(cfgPath))
-                cfg.WriteTo(streamWriter);
-        }
-
-        internal void EmitTree(TextWriter writer) {
-            if (globalScope.mainFunction != null)
-                EmitTree(globalScope.mainFunction, writer);
-            else if (globalScope.scriptFunction != null)
-                EmitTree(globalScope.scriptFunction, writer);
-        }
-
-        internal void EmitTree(Symbol symbol, TextWriter writer) {
-            var program = GetProgram();
-
-            if (symbol is FunctionSymbol f) {
-                f.WriteTo(writer);
-                if (!program.functions.TryGetValue(f, out var body))
-                    return;
-
-                body.WriteTo(writer);
-            } else {
-                symbol.WriteTo(writer);
-            }
-        }
-
-        internal DiagnosticQueue Emit(string moduleName, string[] references, string outputPath) {
-            foreach (var syntaxTree in syntaxTrees)
-                diagnostics.Move(syntaxTree.diagnostics);
-
-            if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
-                return diagnostics;
-
-            var program = GetProgram();
-            program.diagnostics.Move(diagnostics);
-            return Emitter.Emit(program, moduleName, references, outputPath);
-        }
+        var program = GetProgram();
+        program.diagnostics.Move(diagnostics);
+        return Emitter.Emit(program, moduleName, references, outputPath);
     }
 }

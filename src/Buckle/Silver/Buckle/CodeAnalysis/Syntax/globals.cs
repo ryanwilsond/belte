@@ -1,16 +1,15 @@
 
-namespace Buckle.CodeAnalysis.Syntax {
+namespace Buckle.CodeAnalysis.Syntax;
 
-    internal abstract class Member : Node {
-        protected Member(SyntaxTree syntaxTree) : base(syntaxTree) { }
-    }
+internal abstract class Member : Node {
+    protected Member(SyntaxTree syntaxTree) : base(syntaxTree) { }
+}
 
-    internal sealed partial class GlobalStatement : Member {
-        public Statement statement { get; }
-        public override SyntaxType type => SyntaxType.GLOBAL_STATEMENT;
+internal sealed partial class GlobalStatement : Member {
+    public Statement statement { get; }
+    public override SyntaxType type => SyntaxType.GLOBAL_STATEMENT;
 
-        public GlobalStatement(SyntaxTree syntaxTree, Statement statement_) : base(syntaxTree) {
-            statement = statement_;
-        }
+    public GlobalStatement(SyntaxTree syntaxTree, Statement statement_) : base(syntaxTree) {
+        statement = statement_;
     }
 }

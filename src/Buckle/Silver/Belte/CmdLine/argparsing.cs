@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using System.Collections.Generic;
 using Buckle;
+using Buckle.Diagnostics;
 
 namespace Belte.CmdLine;
 

@@ -1,89 +1,95 @@
 using System.Collections.Immutable;
 
-namespace Buckle.CodeAnalysis.Text {
+namespace Buckle.CodeAnalysis.Text;
 
-    public sealed class SourceText {
-        public ImmutableArray<TextLine> lines { get; }
-        private readonly string text_;
-        public string fileName { get; }
+public sealed class SourceText {
+    public ImmutableArray<TextLine> lines { get; }
+    private readonly string text_;
+    public string fileName { get; }
 
-        public char this[int index] => text_[index];
+    public char this[int index] => text_[index];
 
-        public int length => text_.Length;
+    public int length => text_.Length;
 
-        private SourceText(string fileName_, string text) {
-            lines = ParseLines(this, text);
-            text_ = text;
-            fileName = fileName_;
+    private SourceText(string fileName_, string text) {
+        lines = ParseLines(this, text);
+        text_ = text;
+        fileName = fileName_;
+    }
+
+    public int GetLineIndex(int position) {
+        int lower = 0;
+        int upper = lines.Length - 1;
+
+        while (lower <= upper) {
+            int index = lower + (upper - lower) / 2;
+            int start = lines[index].start;
+
+            if (position == start)
+                return index;
+            if (start > position)
+                upper = index - 1;
+            else
+                lower = index + 1;
         }
 
-        public int GetLineIndex(int position) {
-            int lower = 0;
-            int upper = lines.Length - 1;
+        return lower - 1;
+    }
 
-            while (lower <= upper) {
-                int index = lower + (upper - lower) / 2;
-                int start = lines[index].start;
+    private static ImmutableArray<TextLine> ParseLines(SourceText pointer, string text) {
+        var result = ImmutableArray.CreateBuilder<TextLine>();
 
-                if (position == start) return index;
-                if (start > position) upper = index - 1;
-                else lower = index + 1;
+        int position = 0;
+        int lineStart = 0;
+
+        while (position < text.Length) {
+            var linebreakWidth = GetLineBreakWidth(text, position);
+
+            if (linebreakWidth == 0)
+                position++;
+            else {
+                AddLine(result, pointer, position, lineStart, linebreakWidth);
+                position += linebreakWidth;
+                lineStart = position;
             }
-
-            return lower - 1;
         }
 
-        private static ImmutableArray<TextLine> ParseLines(SourceText pointer, string text) {
-            var result = ImmutableArray.CreateBuilder<TextLine>();
+        if (position >= lineStart)
+            AddLine(result, pointer, position, lineStart, 0);
 
-            int position = 0;
-            int lineStart = 0;
+        return result.ToImmutable();
+    }
 
-            while (position < text.Length) {
-                var linebreakWidth = GetLineBreakWidth(text, position);
+    private static void AddLine(ImmutableArray<TextLine>.Builder result, SourceText pointer,
+        int position, int lineStart, int linebreakWidth) {
+        var lineLength = position - lineStart;
+        var line = new TextLine(pointer, lineStart, lineLength, lineLength + linebreakWidth);
+        result.Add(line);
+    }
 
-                if (linebreakWidth == 0) position++;
-                else {
-                    AddLine(result, pointer, position, lineStart, linebreakWidth);
+    private static int GetLineBreakWidth(string text, int i) {
+        var c = text[i];
+        var l = i + 1 >= text.Length ? '\0' : text[i + 1];
 
-                    position += linebreakWidth;
-                    lineStart = position;
-                }
-            }
+        if (c == '\r' && l == '\n')
+            return 2;
+        if (c == '\r' || c == '\n')
+            return 1;
+        return 0;
+    }
 
-            if (position >= lineStart)
-                AddLine(result, pointer, position, lineStart, 0);
+    public static SourceText From(string text, string filename = "") {
+        return new SourceText(filename, text);
+    }
 
-            return result.ToImmutable();
-        }
+    public override string ToString() => text_;
+    public string ToString(int start, int length) => text_.Substring(start, length);
+    public string ToString(TextSpan span) => ToString(span.start, span.length);
 
-        private static void AddLine(ImmutableArray<TextLine>.Builder result, SourceText pointer,
-            int position, int lineStart, int linebreakWidth) {
-            var lineLength = position - lineStart;
-            var line = new TextLine(pointer, lineStart, lineLength, lineLength + linebreakWidth);
-            result.Add(line);
-        }
+    public bool IsAtEndOfInput(TextSpan span) {
+        if (span.start == text_.Length)
+            return true;
 
-        private static int GetLineBreakWidth(string text, int i) {
-            var c = text[i];
-            var l = i + 1 >= text.Length ? '\0' : text[i + 1];
-
-            if (c == '\r' && l == '\n') return 2;
-            if (c == '\r' || c == '\n') return 1;
-            return 0;
-        }
-
-        public static SourceText From(string text, string filename = "") {
-            return new SourceText(filename, text);
-        }
-
-        public override string ToString() => text_;
-        public string ToString(int start, int length) => text_.Substring(start, length);
-        public string ToString(TextSpan span) => ToString(span.start, span.length);
-
-        public bool IsAtEndOfInput(TextSpan span) {
-            if (span.start == text_.Length) return true;
-            return false;
-        }
+        return false;
     }
 }

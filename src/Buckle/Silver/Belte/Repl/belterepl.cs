@@ -4,6 +4,7 @@ using System.Linq;
 using System.Collections.Generic;
 using Buckle;
 using Buckle.IO;
+using Buckle.Diagnostics;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
