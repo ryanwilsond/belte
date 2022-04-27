@@ -143,7 +143,7 @@ namespace Buckle.Tests.CodeAnalysis {
         }
 
         [Fact]
-        public void Evaluator_CompoundExpression_Assignemnt_NonDefinedVariable_Reports_Undefined() {
+        public void Evaluator_CompoundExpression_Assignment_NonDefinedVariable_Reports_Undefined() {
             var text = @"[x] += 10;";
 
             var diagnostics = @"

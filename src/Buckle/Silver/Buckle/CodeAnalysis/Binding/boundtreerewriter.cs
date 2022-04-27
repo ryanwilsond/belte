@@ -162,8 +162,20 @@ namespace Buckle.CodeAnalysis.Binding {
                     return RewriteCallExpression((BoundCallExpression)expression);
                 case BoundNodeType.CastExpression:
                     return RewriteCastExpression((BoundCastExpression)expression);
+                case BoundNodeType.CompoundAssignmentExpression:
+                    return RewriteCompoundAssignmentExpression((BoundCompoundAssignmentExpression)expression);
                 default: return null;
             }
+        }
+
+        protected virtual BoundExpression RewriteCompoundAssignmentExpression(
+            BoundCompoundAssignmentExpression expression) {
+            var boundVariableExpression = new BoundVariableExpression(expression.variable);
+            var boundBinaryExpression = new BoundBinaryExpression(
+                boundVariableExpression, expression.op, expression.expression);
+            var boundAssignmentExpression = new BoundAssignmentExpression(expression.variable, boundBinaryExpression);
+
+            return RewriteAssignmentExpression(boundAssignmentExpression);
         }
 
         protected virtual BoundExpression RewriteCastExpression(BoundCastExpression expression) {
