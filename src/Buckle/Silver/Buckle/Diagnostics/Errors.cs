@@ -170,7 +170,7 @@ internal static class Error {
     }
 
     public static Diagnostic UndefinedFunction(TextLocation location, string name) {
-        string msg = "undefined function '{name}'";
+        string msg = $"undefined function '{name}'";
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 

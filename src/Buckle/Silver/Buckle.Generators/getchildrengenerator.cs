@@ -33,50 +33,49 @@ public class GetChildrenGenerator : ISourceGenerator {
         using (var stringWriter = new StringWriter())
         using (var indentedTextWriter = new IndentedTextWriter(stringWriter, indentString)) {
             indentedTextWriter.WriteLine("using System;");
-            indentedTextWriter.WriteLine("using System.Collections.Generic;\n");
+            indentedTextWriter.WriteLine("using System.Collections.Generic;");
+            indentedTextWriter.WriteLine("\nnamespace Buckle.CodeAnalysis.Syntax;\n");
 
-            using (var namespaceCurly = new CurlyIndenter(
-                indentedTextWriter, "namespace Buckle.CodeAnalysis.Syntax")) {
+            foreach (var type in nodeTypes) {
+                using (var classCurly = new CurlyIndenter(indentedTextWriter, $"partial class {type.Name}"))
+                using (var getChildCurly = new CurlyIndenter(
+                    indentedTextWriter, "public override IEnumerable<Node> GetChildren()")) {
+                    var properties = type.GetMembers().OfType<IPropertySymbol>();
 
-                foreach (var type in nodeTypes) {
-                    using (var classCurly = new CurlyIndenter(indentedTextWriter, $"partial class {type.Name}"))
-                    using (var getChildCurly = new CurlyIndenter(
-                        indentedTextWriter, "public override IEnumerable<Node> GetChildren()")) {
-                        var properties = type.GetMembers().OfType<IPropertySymbol>();
-
-                        foreach (var property in properties) {
-                            if (property.Type is INamedTypeSymbol propertyType) {
-                                if (IsDerivedFrom(property.Type, nodeType)) {
-                                    var canBeNull = property.NullableAnnotation == NullableAnnotation.Annotated;
-                                    if (canBeNull) {
-                                        indentedTextWriter.WriteLine(
-                                            $"if ({property.Name} != null && {property.Name}.fullSpan != null)");
-                                        indentedTextWriter.Indent++;
-                                    }
-
-                                    indentedTextWriter.WriteLine($"yield return {property.Name};");
-
-                                    if (canBeNull)
-                                        indentedTextWriter.Indent--;
-                                } else if (SymbolEqualityComparer.Default.Equals(
-                                    propertyType.OriginalDefinition, immutableArrayType) &&
-                                    IsDerivedFrom(propertyType.TypeArguments[0], nodeType)) {
-                                    indentedTextWriter.WriteLine($"foreach (var child in {property.Name})");
-                                    indentedTextWriter.WriteLine($"{indentString}yield return child;");
-                                } else if (SymbolEqualityComparer.Default.Equals(
-                                    propertyType.OriginalDefinition, separatedSyntaxListType) &&
-                                    IsDerivedFrom(propertyType.TypeArguments[0], nodeType)) {
+                    foreach (var property in properties) {
+                        if (property.Type is INamedTypeSymbol propertyType) {
+                            if (IsDerivedFrom(property.Type, nodeType)) {
+                                var canBeNull = property.NullableAnnotation == NullableAnnotation.Annotated;
+                                if (canBeNull) {
                                     indentedTextWriter.WriteLine(
-                                        $"foreach (var child in {property.Name}.GetWithSeparators())");
-                                    indentedTextWriter.WriteLine($"{indentString}yield return child;");
+                                        $"if ({property.Name} != null && {property.Name}.fullSpan != null)");
+                                    indentedTextWriter.Indent++;
                                 }
+
+                                indentedTextWriter.WriteLine($"yield return {property.Name};");
+
+                                if (canBeNull)
+                                    indentedTextWriter.Indent--;
+                            } else if (SymbolEqualityComparer.Default.Equals(
+                                propertyType.OriginalDefinition, immutableArrayType) &&
+                                IsDerivedFrom(propertyType.TypeArguments[0], nodeType)) {
+                                indentedTextWriter.WriteLine($"foreach (var child in {property.Name})");
+                                indentedTextWriter.WriteLine($"{indentString}yield return child;");
+                            } else if (SymbolEqualityComparer.Default.Equals(
+                                propertyType.OriginalDefinition, separatedSyntaxListType) &&
+                                IsDerivedFrom(propertyType.TypeArguments[0], nodeType)) {
+                                indentedTextWriter.WriteLine(
+                                    $"foreach (var child in {property.Name}.GetWithSeparators())");
+                                indentedTextWriter.WriteLine($"{indentString}yield return child;");
                             }
                         }
-
-                        if (properties.ToArray().Length <= 1)
-                            indentedTextWriter.WriteLine("return Array.Empty<Node>();");
                     }
+
+                    if (properties.ToArray().Length <= 1)
+                        indentedTextWriter.WriteLine("return Array.Empty<Node>();");
                 }
+
+                indentedTextWriter.WriteLine();
             }
 
             indentedTextWriter.Flush();
@@ -86,7 +85,7 @@ public class GetChildrenGenerator : ISourceGenerator {
 
         var nodeFileName = nodeType.DeclaringSyntaxReferences.First().SyntaxTree.FilePath;
         var syntaxDirectory = Path.GetDirectoryName(nodeFileName);
-        var fileName = Path.Combine(syntaxDirectory, "getchildren.g.cs");
+        var fileName = Path.Combine(syntaxDirectory, "TypesGetChildren.g.cs");
 
         if (!File.Exists(fileName) || File.ReadAllText(fileName) != sourceText.ToString()) {
             if (!File.Exists(fileName))
