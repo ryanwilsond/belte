@@ -4,6 +4,7 @@ using Xunit;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
 
 namespace Buckle.Tests.CodeAnalysis;
 
@@ -389,11 +390,7 @@ public class EvaluatorTests {
 
     [Fact]
     public void Evaluator_NameExpression_Reports_NoErrorForInsertedToken() {
-        var text = @"";
-
-        var diagnostics = @"";
-
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics("", "");
     }
 
     [Fact]
@@ -527,9 +524,7 @@ public class EvaluatorTests {
             return;
         ";
 
-        var diagnostics = @"";
-
-        AssertValue(text, diagnostics);
+        AssertValue(text, "");
     }
 
     [Fact]
