@@ -12,5 +12,5 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added
 
-- All basic grammer
+- Most basic grammar
 - Language icon

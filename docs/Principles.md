@@ -1,6 +1,6 @@
-# BELTE Design Principles
+# Belte Design Principles
 
-This document covers many concepts and inspirations behind BELTE, and also its major design principles.
+This document covers many concepts and inspirations behind Belte, and also its major design principles.
 
 - [Introduction](#introduction--logical-vs-physical)
 - [Optimization](#optimization-tasks)
@@ -10,7 +10,7 @@ This document covers many concepts and inspirations behind BELTE, and also its m
 
 ## Introduction & Logical vs Physical
 
-BELTE is a statically and strongly typed language most similar to C# (BELTE is object oriented), compiled using the
+Belte is a statically and strongly typed language most similar to C# (Belte is object oriented), compiled using the
 Buckle compiler.
 
 This language and compiler is being developed to solve the biggest issue with all modern general purpose programming
@@ -104,13 +104,13 @@ thing, but no matter the object (including C primitive objects like `int`) they 
 specify that it is a reference.
 
 Another point on C# is the use of a modifier (`?`) on a value type to make it nullable. This adds unnecessary
-complexity. All objects in BELTE are nullable.
+complexity. All objects in Belte are nullable.
 
 ___
 
 ## DataTypes
 
-Some of the biggest changes with BELTE from other languages are the unique set of provided types. This goes over types
+Some of the biggest changes with Belte from other languages are the unique set of provided types. This goes over types
 that have notable design changes.
 
 ### NULL
@@ -159,7 +159,7 @@ algorithm to find them without iterating through every key (hashmap).
 
 The one use of structures specifically over classes is anonymous structures for parameters in functions (usually).
 To solve this a C#-style `tuple` will be used instead because they are cleaner, more intuitive, and structures will
-never be added to BELTE.
+never be added to Belte.
 
 ___
 
@@ -169,7 +169,7 @@ List of priorities in order of most important to least important.
 
 ### Functionality
 
-BELTE focusses on functionality as the first goal. This is one of the reasons that the syntax and design of the
+Belte focusses on functionality as the first goal. This is one of the reasons that the syntax and design of the
 language were the first todo. Not biassed by industry standards, ease of implementation, or something similar. This
 language aims to fix issues with programming languages, added a unique spin on a c-style language. It aims to be
 intuitive like Python, robust like C#, high performance like C++, and able to be applicable to most situations.
@@ -177,17 +177,17 @@ intuitive like Python, robust like C#, high performance like C++, and able to be
 ### Consistency
 
 A good way to make a language hard to use is to not keep strict guidelines that hold up the standard of consistency.
-Not only as a style guide, but as the language design itself. Everything in BELTE aims to be as consistent as possible,
+Not only as a style guide, but as the language design itself. Everything in Belte aims to be as consistent as possible,
 reducing the background knowledge the developer is required to have. A good example to highlight how a language can go
 wrong with consistency is value versus reference types in C#. The developer must know whether the object they are using
-is a value or reference type, while in BELTE every type/class is a value type by default. This includes built-ins, and
+is a value or reference type, while in Belte every type/class is a value type by default. This includes built-ins, and
 user defined types. This helps code readability, and ease of developing.
 
 ### Usability
 
 After the core functionality is there, the language also aims to be easy to use. Good for beginners, while also having
 the power of C++. This hopefully makes it very accessible and popular. Python got a lot of its popularity from its
-simplicity, and BELTE aims to do the same.
+simplicity, and Belte aims to do the same.
 
 ### Performance
 
@@ -205,7 +205,7 @@ better in the long run to redesign a system.
 
 ### Likability
 
-The last priority is likeability. While it is still on the minds of the developers, functionality comes first. BELTE
+The last priority is likeability. While it is still on the minds of the developers, functionality comes first. Belte
 is not mainly focussed on having it appeal to the largest crowd, instead to give an example of how to make a better
 language. An simple example is the goto statement. It is in a lot of popular languages like C++, C#, and more. However
 it is believed to not be the best practice, so it is not available. This may be frustrating to some people who use

@@ -1,6 +1,6 @@
 # Using Buckle
 
-Buckle is the BELTE programming language compiler.
+Buckle is the Belte programming language compiler.
 
 ## Options
 

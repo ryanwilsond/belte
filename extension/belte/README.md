@@ -1,8 +1,8 @@
-# BELTE README
+# Belte README
 
-Language support for the BELTE programming language.
+Language support for the Belte programming language.
 
-Read more about BELTE at [flamechain.github.io/BELTE](https://flamechain.github.io/BELTE/)
+Read more about Belte at [flamechain.github.io/Belte](https://flamechain.github.io/Belte/)
 
 ## Features
 
