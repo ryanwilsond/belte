@@ -1,8 +1,0 @@
-
-int MyFunc() {
-    return 3;
-}
-
-void Main() {
-
-}
