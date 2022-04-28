@@ -422,7 +422,7 @@ internal sealed class Parser {
             case SyntaxType.FALSE_KEYWORD:
                 return ParseBooleanLiteral();
             case SyntaxType.NUMBERIC_LITERAL_TOKEN:
-                return ParseNumberLiteral();
+                return ParseNumericLiteral();
             case SyntaxType.STRING_LITERAL_TOKEN:
                 return ParseStringLiteral();
             case SyntaxType.NAME_EXPRESSION:
@@ -431,7 +431,7 @@ internal sealed class Parser {
         }
     }
 
-    private Expression ParseNumberLiteral() {
+    private Expression ParseNumericLiteral() {
         var token = Match(SyntaxType.NUMBERIC_LITERAL_TOKEN);
         return new LiteralExpression(syntaxTree_, token);
     }

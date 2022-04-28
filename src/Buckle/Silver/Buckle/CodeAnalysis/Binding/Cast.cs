@@ -27,12 +27,16 @@ internal sealed class Cast {
             return Cast.Implicit;
         if (from == TypeSymbol.Any && to != TypeSymbol.Void)
             return Cast.Explicit;
-        if (from == TypeSymbol.Bool || from == TypeSymbol.Int)
+        if (from == TypeSymbol.Bool || from == TypeSymbol.Int || from == TypeSymbol.Float)
             if (to == TypeSymbol.String)
                 return Cast.Explicit;
         if (from == TypeSymbol.String)
-            if (to == TypeSymbol.Bool || to == TypeSymbol.Int)
+            if (to == TypeSymbol.Bool || to == TypeSymbol.Int || to == TypeSymbol.Float)
                 return Cast.Explicit;
+        if (from == TypeSymbol.Int && to == TypeSymbol.Float)
+            return Cast.Implicit;
+        if (from == TypeSymbol.Float && to == TypeSymbol.Int)
+            return Cast.Explicit;
 
         return Cast.None;
     }

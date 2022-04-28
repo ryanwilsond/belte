@@ -272,7 +272,7 @@ internal sealed class Lexer {
                 }
                 break;
             case '"':
-                ReadString();
+                ReadStringLiteral();
                 break;
             case '0':
             case '1':
@@ -284,7 +284,7 @@ internal sealed class Lexer {
             case '7':
             case '8':
             case '9':
-                ReadNumberToken();
+                ReadNumericLiteral();
                 break;
             case '_':
                 ReadIdentifierOrKeyword();
@@ -351,7 +351,7 @@ internal sealed class Lexer {
         type_ = SyntaxType.MULTILINE_COMMENT_TRIVIA;
     }
 
-    private void ReadString() {
+    private void ReadStringLiteral() {
         position_++;
         var sb = new StringBuilder();
         bool done = false;
@@ -386,19 +386,44 @@ internal sealed class Lexer {
         value_ = sb.ToString();
     }
 
-    private void ReadNumberToken() {
-        while (char.IsDigit(current)) position_++;
+    private void ReadNumericLiteral() {
+        var done = false;
+        var hasDecimal = false;
+
+        while (!done) {
+            if (!hasDecimal && current == '.') {
+                hasDecimal = true;
+                position_++;
+                continue;
+            }
+
+            if (char.IsDigit(current))
+                position_++;
+            else
+                done = true;
+        }
 
         int length = position_ - start_;
         string text = text_.ToString(start_, length);
 
-        if (!int.TryParse(text, out var value)) {
-            var span = new TextSpan(start_, length);
-            var location = new TextLocation(text_, span);
-            diagnostics.Push(Error.InvalidType(location, text, TypeSymbol.Int));
+        if (!hasDecimal) {
+            if (!int.TryParse(text, out var value)) {
+                var span = new TextSpan(start_, length);
+                var location = new TextLocation(text_, span);
+                diagnostics.Push(Error.InvalidType(location, text, TypeSymbol.Int));
+            } else {
+                value_ = value;
+            }
+        } else {
+            if (!float.TryParse(text, out var value)) {
+                var span = new TextSpan(start_, length);
+                var location = new TextLocation(text_, span);
+                diagnostics.Push(Error.InvalidType(location, text, TypeSymbol.Int));
+            } else {
+                value_ = value;
+            }
         }
 
-        value_ = value;
         type_ = SyntaxType.NUMBERIC_LITERAL_TOKEN;
     }
 
