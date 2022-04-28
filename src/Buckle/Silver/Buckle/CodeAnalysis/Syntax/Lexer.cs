@@ -295,7 +295,8 @@ internal sealed class Lexer {
                 else {
                     var span = new TextSpan(position_, 1);
                     var location = new TextLocation(text_, span);
-                    diagnostics.Push(Error.BadCharacter(location, position_++, current));
+                    diagnostics.Push(Error.BadCharacter(location, position_, current));
+                    position_++;
                 }
                 break;
         }
