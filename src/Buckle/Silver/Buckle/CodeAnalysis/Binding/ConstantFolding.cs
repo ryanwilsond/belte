@@ -29,6 +29,9 @@ internal static class ConstantFolding {
         var leftValue = leftConstant.value;
         var rightValue = rightConstant.value;
 
+        if (leftValue == null || rightValue == null)
+            return new BoundConstant(null);
+
         if (left.lType == TypeSymbol.Bool) {
             leftValue = Convert.ToBoolean(leftValue);
             rightValue = Convert.ToBoolean(rightValue);

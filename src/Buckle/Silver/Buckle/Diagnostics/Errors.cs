@@ -244,4 +244,9 @@ internal static class Error {
         string msg = "unterminated multi-line comment";
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
+
+    public static Diagnostic NullAssignOnImplicit(TextLocation location) {
+        string msg = "cannot assign 'null' to an implicitly-typed variable";
+        return new Diagnostic(DiagnosticType.Error, location, msg);
+    }
 }

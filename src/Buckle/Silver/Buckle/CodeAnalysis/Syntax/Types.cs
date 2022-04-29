@@ -19,6 +19,8 @@ internal enum SyntaxType {
     CLOSE_PAREN_TOKEN,
     OPEN_BRACE_TOKEN,
     CLOSE_BRACE_TOKEN,
+    OPEN_BRACKET_TOKEN,
+    CLOSE_BRACKET_TOKEN,
     EQUALS_TOKEN,
     EXCLAMATION_TOKEN,
     AMPERSAND_TOKEN,
@@ -54,6 +56,7 @@ internal enum SyntaxType {
     // keywords
     TRUE_KEYWORD,
     FALSE_KEYWORD,
+    NULL_KEYWORD,
     VAR_KEYWORD,
     LET_KEYWORD,
     IF_KEYWORD,
@@ -68,7 +71,7 @@ internal enum SyntaxType {
     // tokens with text
     BAD_TOKEN,
     IDENTIFIER_TOKEN,
-    NUMBERIC_LITERAL_TOKEN,
+    NUMERIC_LITERAL_TOKEN,
     STRING_LITERAL_TOKEN,
 
     // trivia

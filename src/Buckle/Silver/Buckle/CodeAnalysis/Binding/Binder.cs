@@ -139,7 +139,7 @@ internal sealed class Binder {
                 es.expression.lType != TypeSymbol.Void) {
                 statements = statements.SetItem(0, new BoundReturnStatement(es.expression));
             } else if (statements.Any() && statements.Last().type != BoundNodeType.ReturnStatement) {
-                var nullValue = new BoundLiteralExpression("");
+                var nullValue = new BoundLiteralExpression(null);
                 statements = statements.Add(new BoundReturnStatement(nullValue));
             }
 
@@ -261,7 +261,7 @@ internal sealed class Binder {
         if (function_ == null) {
             if (isScript_) {
                 if (boundExpression == null)
-                    boundExpression = new BoundLiteralExpression("");
+                    boundExpression = new BoundLiteralExpression(null);
             } else if (boundExpression != null) {
                 diagnostics.Push(Error.Unsupported.GlobalReturnValue(expression.keyword.location));
             }
@@ -496,7 +496,7 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindLiteralExpression(LiteralExpression expression) {
-        var value = expression.value ?? 0;
+        var value = expression.value;
         return new BoundLiteralExpression(value);
     }
 
@@ -605,10 +605,18 @@ internal sealed class Binder {
     private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatement expression) {
         var isReadOnly = expression.typeName.type == SyntaxType.LET_KEYWORD;
         var type = BindTypeClause(expression.typeName);
-        var initializer = BindExpression(expression.initializer);
+        var initializer = expression.initializer != null
+            ? BindExpression(expression.initializer)
+            : new BoundLiteralExpression(null);
         var variableType = type ?? initializer.lType;
+
+        if (variableType == null) {
+            diagnostics.Push(Error.NullAssignOnImplicit(expression.equals.location));
+            return null;
+        }
+
         var variable = BindVariable(expression.identifier, isReadOnly, variableType, initializer.constantValue);
-        var castedInitializer = BindCast(expression.initializer.location, initializer, variableType);
+        var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
 
         return new BoundVariableDeclarationStatement(variable, castedInitializer);
     }

@@ -181,9 +181,15 @@ internal sealed class Parser {
             case SyntaxType.DO_KEYWORD:
                 return ParseDoWhileStatement();
             case SyntaxType.IDENTIFIER_TOKEN:
-                if (Peek(1).type == SyntaxType.IDENTIFIER_TOKEN)
+                var isDeclaration = Peek(1).type == SyntaxType.IDENTIFIER_TOKEN;
+                isDeclaration |= Peek(1).type == SyntaxType.OPEN_BRACKET_TOKEN &&
+                    Peek(2).type == SyntaxType.CLOSE_BRACKET_TOKEN &&
+                    Peek(3).type == SyntaxType.IDENTIFIER_TOKEN;
+
+                if (isDeclaration)
                     return ParseVariableDeclarationStatement();
-                else goto default;
+                else
+                    goto default;
             case SyntaxType.BREAK_KEYWORD:
                 return ParseBreakStatement();
             case SyntaxType.CONTINUE_KEYWORD:
@@ -233,12 +239,29 @@ internal sealed class Parser {
 
     private Statement ParseVariableDeclarationStatement() {
         var typeName = Match(current.type);
+
+        Token openBracket = null;
+        Token closeBracket = null;
+
+        if (current.type == SyntaxType.OPEN_BRACKET_TOKEN) {
+            openBracket = Match(SyntaxType.OPEN_BRACKET_TOKEN);
+            closeBracket = Match(SyntaxType.CLOSE_BRACKET_TOKEN);
+        }
+
         var identifier = Match(SyntaxType.IDENTIFIER_TOKEN);
-        var equals = Match(SyntaxType.EQUALS_TOKEN);
-        var initializer = ParseExpression();
+
+        Token equals = null;
+        Expression initializer = null;
+
+        if (current.type == SyntaxType.EQUALS_TOKEN) {
+            equals = Match(SyntaxType.EQUALS_TOKEN);
+            initializer = ParseExpression();
+        }
+
         var semicolon = Match(SyntaxType.SEMICOLON_TOKEN);
 
-        return new VariableDeclarationStatement(syntaxTree_, typeName, identifier, equals, initializer, semicolon);
+        return new VariableDeclarationStatement(
+            syntaxTree_, typeName, openBracket, closeBracket, identifier, equals, initializer, semicolon);
     }
 
     private Statement ParseWhileStatement() {
@@ -421,18 +444,25 @@ internal sealed class Parser {
             case SyntaxType.TRUE_KEYWORD:
             case SyntaxType.FALSE_KEYWORD:
                 return ParseBooleanLiteral();
-            case SyntaxType.NUMBERIC_LITERAL_TOKEN:
+            case SyntaxType.NUMERIC_LITERAL_TOKEN:
                 return ParseNumericLiteral();
             case SyntaxType.STRING_LITERAL_TOKEN:
                 return ParseStringLiteral();
+            case SyntaxType.NULL_KEYWORD:
+                return ParseNullLiteral();
             case SyntaxType.NAME_EXPRESSION:
             default:
                 return ParseNameOrCallExpression();
         }
     }
 
+    private Expression ParseNullLiteral() {
+        var token = Match(SyntaxType.NULL_KEYWORD);
+        return new LiteralExpression(syntaxTree_, token);
+    }
+
     private Expression ParseNumericLiteral() {
-        var token = Match(SyntaxType.NUMBERIC_LITERAL_TOKEN);
+        var token = Match(SyntaxType.NUMERIC_LITERAL_TOKEN);
         return new LiteralExpression(syntaxTree_, token);
     }
 

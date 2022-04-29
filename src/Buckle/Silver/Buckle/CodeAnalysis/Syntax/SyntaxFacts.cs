@@ -57,6 +57,8 @@ internal static class SyntaxFacts {
                 return SyntaxType.TRUE_KEYWORD;
             case "false":
                 return SyntaxType.FALSE_KEYWORD;
+            case "null":
+                return SyntaxType.NULL_KEYWORD;
             case "var":
                 return SyntaxType.VAR_KEYWORD;
             case "let":
@@ -123,6 +125,10 @@ internal static class SyntaxFacts {
                 return "{";
             case SyntaxType.CLOSE_BRACE_TOKEN:
                 return "}";
+            case SyntaxType.OPEN_BRACKET_TOKEN:
+                return "[";
+            case SyntaxType.CLOSE_BRACKET_TOKEN:
+                return "]";
             case SyntaxType.SEMICOLON_TOKEN:
                 return ";";
             case SyntaxType.EQUALS_EQUALS_TOKEN:
@@ -161,6 +167,8 @@ internal static class SyntaxFacts {
                 return "true";
             case SyntaxType.FALSE_KEYWORD:
                 return "false";
+            case SyntaxType.NULL_KEYWORD:
+                return "null";
             case SyntaxType.VAR_KEYWORD:
                 return "var";
             case SyntaxType.LET_KEYWORD:

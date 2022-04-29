@@ -134,6 +134,14 @@ internal sealed class Lexer {
                 position_++;
                 type_ = SyntaxType.CLOSE_BRACE_TOKEN;
                 break;
+            case '[':
+                position_++;
+                type_ = SyntaxType.OPEN_BRACKET_TOKEN;
+                break;
+            case ']':
+                position_++;
+                type_ = SyntaxType.CLOSE_BRACKET_TOKEN;
+                break;
             case ';':
                 position_++;
                 type_ = SyntaxType.SEMICOLON_TOKEN;
@@ -424,7 +432,7 @@ internal sealed class Lexer {
             }
         }
 
-        type_ = SyntaxType.NUMBERIC_LITERAL_TOKEN;
+        type_ = SyntaxType.NUMERIC_LITERAL_TOKEN;
     }
 
     private void ReadWhitespace() {

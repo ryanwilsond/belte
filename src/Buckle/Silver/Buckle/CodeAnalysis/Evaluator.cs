@@ -105,7 +105,7 @@ internal sealed class Evaluator {
 
     internal void EvaluateVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
         var value = EvaluateExpression(statement.initializer);
-        lastValue_ = value;
+        lastValue_ = null;
         Assign(statement.variable, value);
     }
 
@@ -145,6 +145,9 @@ internal sealed class Evaluator {
 
     internal object EvaluateCastExpression(BoundCastExpression node) {
         var value = EvaluateExpression(node.expression);
+
+        if (value == null)
+            return null;
 
         if (node.lType == TypeSymbol.Any)
             return value;
@@ -214,6 +217,9 @@ internal sealed class Evaluator {
     internal object EvaluateUnaryExpression(BoundUnaryExpression syntax) {
         var operand = EvaluateExpression(syntax.operand);
 
+        if (operand == null)
+            return null;
+
         switch (syntax.op.opType) {
             case BoundUnaryOperatorType.NumericalIdentity:
                 if (syntax.operand.lType == TypeSymbol.Int)
@@ -238,6 +244,9 @@ internal sealed class Evaluator {
     internal object EvaluateBinaryExpression(BoundBinaryExpression syntax) {
         var left = EvaluateExpression(syntax.left);
         var right = EvaluateExpression(syntax.right);
+
+        if (left == null || right == null)
+            return null;
 
         switch (syntax.op.opType) {
             case BoundBinaryOperatorType.Addition:

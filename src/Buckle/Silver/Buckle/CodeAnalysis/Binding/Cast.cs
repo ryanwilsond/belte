@@ -20,7 +20,7 @@ internal sealed class Cast {
     }
 
     public static Cast Classify(TypeSymbol from, TypeSymbol to) {
-        if (from == to)
+        if (from == to || from == null)
             return Cast.Identity;
 
         if (from != TypeSymbol.Void && to == TypeSymbol.Any)

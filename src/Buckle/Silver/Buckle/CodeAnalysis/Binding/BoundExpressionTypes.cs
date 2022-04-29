@@ -241,6 +241,8 @@ internal sealed class BoundLiteralExpression : BoundExpression {
             lType = TypeSymbol.String;
         else if (value_ is float)
             lType = TypeSymbol.Decimal;
+        else if (value_ == null)
+            lType = null;
         else
             throw new Exception($"unexpected literal '{value_}' of type '{value_.GetType()}'");
 

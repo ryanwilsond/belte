@@ -136,8 +136,8 @@ public class LexerTests {
                                 .Where(t => t.text != null);
 
         var dynamicTokens = new[] {
-            (SyntaxType.NUMBERIC_LITERAL_TOKEN, "1"),
-            (SyntaxType.NUMBERIC_LITERAL_TOKEN, "123"),
+            (SyntaxType.NUMERIC_LITERAL_TOKEN, "1"),
+            (SyntaxType.NUMERIC_LITERAL_TOKEN, "123"),
             (SyntaxType.IDENTIFIER_TOKEN, "a"),
             (SyntaxType.IDENTIFIER_TOKEN, "abc"),
             (SyntaxType.STRING_LITERAL_TOKEN, "\"Test\""),
@@ -169,7 +169,7 @@ public class LexerTests {
             return true;
         if (t1Type == SyntaxType.IDENTIFIER_TOKEN && t2IsKeyword)
             return true;
-        if (t1Type == SyntaxType.NUMBERIC_LITERAL_TOKEN && t2Type == SyntaxType.NUMBERIC_LITERAL_TOKEN)
+        if (t1Type == SyntaxType.NUMERIC_LITERAL_TOKEN && t2Type == SyntaxType.NUMERIC_LITERAL_TOKEN)
             return true;
         if (t1Type == SyntaxType.EXCLAMATION_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
             return true;
@@ -237,9 +237,9 @@ public class LexerTests {
             return true;
         if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.ASTERISK_ASTERISK_EQUALS_TOKEN)
             return true;
-        if (t1Type == SyntaxType.IDENTIFIER_TOKEN && t2Type == SyntaxType.NUMBERIC_LITERAL_TOKEN)
+        if (t1Type == SyntaxType.IDENTIFIER_TOKEN && t2Type == SyntaxType.NUMERIC_LITERAL_TOKEN)
             return true;
-        if (t1IsKeyword && t2Type == SyntaxType.NUMBERIC_LITERAL_TOKEN)
+        if (t1IsKeyword && t2Type == SyntaxType.NUMERIC_LITERAL_TOKEN)
             return true;
         if (t1Type == SyntaxType.PLUS_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
             return true;

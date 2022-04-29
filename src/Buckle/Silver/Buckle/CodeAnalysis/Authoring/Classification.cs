@@ -74,7 +74,7 @@ internal static class Classifier {
 
     private static Classification GetClassification(SyntaxType type) {
         var isKeyword = type.IsKeyword();
-        var isNumber = type == SyntaxType.NUMBERIC_LITERAL_TOKEN;
+        var isNumber = type == SyntaxType.NUMERIC_LITERAL_TOKEN;
         var isIdentifier = type == SyntaxType.IDENTIFIER_TOKEN;
         var isString = type == SyntaxType.STRING_LITERAL_TOKEN;
         var isComment = type.IsComment();
