@@ -104,3 +104,18 @@ internal sealed partial class CallExpression : Expression {
         closeParenthesis = closeParenthesis_;
     }
 }
+
+internal sealed partial class InitializerListExpression : Expression {
+    public Token openBrace { get; }
+    public SeparatedSyntaxList<Expression> items { get; }
+    public Token closeBrace { get; }
+    public override SyntaxType type => SyntaxType.LITERAL_EXPRESSION;
+
+    public InitializerListExpression(SyntaxTree syntaxTree,
+        Token openBrace_, SeparatedSyntaxList<Expression> items_, Token closeBrace_)
+        : base(syntaxTree) {
+        openBrace = openBrace_;
+        items = items_;
+        closeBrace = closeBrace_;
+    }
+}

@@ -495,6 +495,22 @@ internal sealed class Binder {
         return new BoundExpressionStatement(expression);
     }
 
+    private BoundExpression BindInitializerListExpression(InitializerListExpression expression, TypeSymbol lType) {
+        var boundItems = ImmutableArray.CreateBuilder<BoundExpression>();
+
+        foreach (var item in expression.items) {
+            if (lType == null) {
+                var tempItem = BindExpression(item); // TODO: make it not bind twice
+                lType = tempItem.lType;
+            }
+
+            var boundItem = BindCast(item.location, BindExpression(item), lType);
+            boundItems.Add(boundItem);
+        }
+
+        return new BoundInitializerListExpression(boundItems.ToImmutable(), lType);
+    }
+
     private BoundExpression BindLiteralExpression(LiteralExpression expression) {
         var value = expression.value;
         return new BoundLiteralExpression(value);
@@ -604,21 +620,53 @@ internal sealed class Binder {
 
     private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatement expression) {
         var isReadOnly = expression.typeName.type == SyntaxType.LET_KEYWORD;
-        var type = BindTypeClause(expression.typeName);
-        var initializer = expression.initializer != null
-            ? BindExpression(expression.initializer)
-            : new BoundLiteralExpression(null);
-        var variableType = type ?? initializer.lType;
+        var itemType = BindTypeClause(expression.typeName);
 
-        if (variableType == null) {
-            diagnostics.Push(Error.NullAssignOnImplicit(expression.equals.location));
+        if (itemType == null && expression.initializer == null) {
+            diagnostics.Push(Error.NoInitOnImplicit(expression.identifier.location));
             return null;
         }
 
-        var variable = BindVariable(expression.identifier, isReadOnly, variableType, initializer.constantValue);
-        var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
+        if (expression.openBracket != null && expression.closeBracket != null) {
+            var initializer = expression.initializer.type != SyntaxType.NULL_KEYWORD
+                ? BindInitializerListExpression((InitializerListExpression)expression.initializer, itemType)
+                : new BoundLiteralExpression(null);
 
-        return new BoundVariableDeclarationStatement(variable, castedInitializer);
+            if (initializer is BoundInitializerListExpression il) {
+                if (il.items.Length == 0) {
+                    diagnostics.Push(Error.EmptyInitializerListOnImplicit(expression.initializer.location));
+                    return null;
+                }
+            }
+
+            itemType = itemType ?? initializer.lType;
+
+            if (itemType == null) {
+                diagnostics.Push(Error.NullAssignOnImplicit(expression.initializer.location));
+                return null;
+            }
+
+            var collectionType = TypeSymbol.Collection;
+            collectionType.itemType = itemType;
+            var variable = BindVariable(expression.identifier, isReadOnly, collectionType);
+
+            return new BoundVariableDeclarationStatement(variable, initializer);
+        } else {
+            var initializer = expression.initializer != null
+                ? BindExpression(expression.initializer)
+                : new BoundLiteralExpression(null);
+            var variableType = itemType ?? initializer.lType;
+
+            if (variableType == null) {
+                diagnostics.Push(Error.NullAssignOnImplicit(expression.initializer.location));
+                return null;
+            }
+
+            var variable = BindVariable(expression.identifier, isReadOnly, variableType, initializer.constantValue);
+            var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
+
+            return new BoundVariableDeclarationStatement(variable, castedInitializer);
+        }
     }
 
     private TypeSymbol BindTypeClause(Token type) {

@@ -249,4 +249,14 @@ internal static class Error {
         string msg = "cannot assign 'null' to an implicitly-typed variable";
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
+
+    public static Diagnostic NoInitOnImplicit(TextLocation location) {
+        string msg = "implicitly-typed variable must have initializer";
+        return new Diagnostic(DiagnosticType.Error, location, msg);
+    }
+
+    public static Diagnostic EmptyInitializerListOnImplicit(TextLocation location) {
+        string msg = "cannot assign empty initializer list to an implicitly-typed variable";
+        return new Diagnostic(DiagnosticType.Error, location, msg);
+    }
 }

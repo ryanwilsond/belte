@@ -299,6 +299,18 @@ internal sealed class BoundCallExpression : BoundExpression {
     }
 }
 
+internal sealed class BoundInitializerListExpression : BoundExpression {
+    public ImmutableArray<BoundExpression> items { get; }
+    public TypeSymbol itemLType { get; }
+    public override BoundNodeType type => BoundNodeType.LiteralExpression;
+    public override TypeSymbol lType => TypeSymbol.Collection;
+
+    public BoundInitializerListExpression(ImmutableArray<BoundExpression> items_, TypeSymbol itemLType_) {
+        items = items_;
+        itemLType = itemLType_;
+    }
+}
+
 internal sealed class BoundCastExpression : BoundExpression {
     public BoundExpression expression { get; }
     public override BoundNodeType type => BoundNodeType.CastExpression;

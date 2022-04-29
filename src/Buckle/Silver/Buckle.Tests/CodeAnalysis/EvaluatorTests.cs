@@ -524,7 +524,7 @@ public class EvaluatorTests {
             return;
         ";
 
-        AssertValue(text, "");
+        AssertValue(text, null);
     }
 
     [Fact]

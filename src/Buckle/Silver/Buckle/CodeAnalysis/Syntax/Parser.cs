@@ -106,12 +106,19 @@ internal sealed class Parser {
     }
 
     private Member ParseMember() {
-        if (current.type == SyntaxType.IDENTIFIER_TOKEN && tokens_.Length > 3) {
+        if (current.type == SyntaxType.IDENTIFIER_TOKEN) {
             bool openBrace = false;
+            bool openParenthesis = false;
 
             for (int i=0; i<tokens_.Length-position_; i++) {
-                if (Peek(i).type == SyntaxType.SEMICOLON_TOKEN) break;
-                if (Peek(i).type == SyntaxType.OPEN_BRACE_TOKEN) openBrace = true;
+                if (Peek(i).type == SyntaxType.SEMICOLON_TOKEN)
+                    break;
+                if (Peek(i).type == SyntaxType.OPEN_PAREN_TOKEN)
+                    openParenthesis = true;
+                if (Peek(i).type == SyntaxType.CLOSE_PAREN_TOKEN && openParenthesis) {
+                    if (Peek(i+1).type == SyntaxType.OPEN_BRACE_TOKEN)
+                        openBrace = true;
+                }
             }
 
             if (openBrace)
@@ -450,10 +457,36 @@ internal sealed class Parser {
                 return ParseStringLiteral();
             case SyntaxType.NULL_KEYWORD:
                 return ParseNullLiteral();
+            case SyntaxType.OPEN_BRACE_TOKEN:
+                return ParseInitializerListExpression();
             case SyntaxType.NAME_EXPRESSION:
             default:
                 return ParseNameOrCallExpression();
         }
+    }
+
+    private Expression ParseInitializerListExpression() {
+        var left = Match(SyntaxType.OPEN_BRACE_TOKEN);
+        var nodesAndSeparators = ImmutableArray.CreateBuilder<Node>();
+
+        var parseNextItem = true;
+        while (parseNextItem &&
+            current.type != SyntaxType.CLOSE_BRACE_TOKEN &&
+            current.type != SyntaxType.END_OF_FILE_TOKEN) {
+            var expression = ParseExpression();
+            nodesAndSeparators.Add(expression);
+
+            if (current.type == SyntaxType.COMMA_TOKEN) {
+                var comma = Match(SyntaxType.COMMA_TOKEN);
+                nodesAndSeparators.Add(comma);
+            } else {
+                parseNextItem = false;
+            }
+        }
+
+        var separatedSyntaxList = new SeparatedSyntaxList<Expression>(nodesAndSeparators.ToImmutable());
+        var right = Match(SyntaxType.CLOSE_BRACE_TOKEN);
+        return new InitializerListExpression(syntaxTree_, left, separatedSyntaxList, right);
     }
 
     private Expression ParseNullLiteral() {
