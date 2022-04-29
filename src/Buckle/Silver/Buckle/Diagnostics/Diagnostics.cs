@@ -116,13 +116,26 @@ public sealed class DiagnosticQueue {
     /// <returns>New cleaned queue</returns>
     public static DiagnosticQueue CleanDiagnostics(DiagnosticQueue diagnostics) {
         var cleanedDiagnostics = new DiagnosticQueue();
+        var specialDiagnostics = new DiagnosticQueue();
 
-        foreach (var diagnostic in diagnostics.diagnostics_.OrderBy(diag => diag.location.fileName)
+        var diagnosticList = diagnostics.diagnostics_;
+
+        for (int i = 0; i < diagnosticList.Count; i++) {
+            var diagnostic = diagnosticList[i];
+
+            if (diagnostic.location == null) {
+                specialDiagnostics.Push(diagnostic);
+                diagnosticList.RemoveAt(i--);
+            }
+        }
+
+        foreach (var diagnostic in diagnosticList.OrderBy(diag => diag.location.fileName)
                 .ThenBy(diag => diag.location.span.start)
                 .ThenBy(diag => diag.location.span.length)) {
             cleanedDiagnostics.Push(diagnostic);
         }
 
+        cleanedDiagnostics.Move(specialDiagnostics);
         return cleanedDiagnostics;
     }
 

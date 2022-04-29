@@ -93,7 +93,7 @@ internal sealed class ControlFlowGraph {
                         statements_.Add(statement);
                         break;
                     default:
-                        throw new Exception($"unexpected statement: {statement.type}");
+                        throw new Exception($"unexpected statement '{statement.type}'");
                 }
             }
 
@@ -175,7 +175,7 @@ internal sealed class ControlFlowGraph {
                                 Connect(current, next);
                             break;
                         default:
-                            throw new Exception($"unexpected statement: {statement.type}");
+                            throw new Exception($"unexpected statement '{statement.type}'");
                     }
                 }
             }

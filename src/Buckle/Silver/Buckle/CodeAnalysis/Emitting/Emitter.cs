@@ -607,7 +607,7 @@ internal sealed class Emitter {
             var instruction = value ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0;
             ilProcessor.Emit(instruction);
         } else {
-            diagnostics.Push(DiagnosticType.Fatal, $"unexpected constant exression type {expression.lType}");
+            diagnostics.Push(DiagnosticType.Fatal, $"unexpected constant exression type '{expression.lType}'");
         }
     }
 

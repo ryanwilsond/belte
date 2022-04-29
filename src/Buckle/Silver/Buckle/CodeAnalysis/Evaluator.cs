@@ -154,8 +154,10 @@ internal sealed class Evaluator {
             return Convert.ToInt32(value);
         if (node.lType == TypeSymbol.String)
             return Convert.ToString(value);
+        if (node.lType == TypeSymbol.Decimal)
+            return Convert.ToSingle(value);
 
-        diagnostics.Push(DiagnosticType.Fatal, $"unexpected type {node.lType}");
+        diagnostics.Push(DiagnosticType.Fatal, $"unexpected type '{node.lType}'");
         return null;
     }
 
@@ -214,9 +216,15 @@ internal sealed class Evaluator {
 
         switch (syntax.op.opType) {
             case BoundUnaryOperatorType.NumericalIdentity:
-                return (int)operand;
+                if (syntax.operand.lType == TypeSymbol.Int)
+                    return (int)operand;
+                else
+                    return (float)operand;
             case BoundUnaryOperatorType.NumericalNegation:
-                return -(int)operand;
+                if (syntax.operand.lType == TypeSymbol.Int)
+                    return -(int)operand;
+                else
+                    return -(float)operand;
             case BoundUnaryOperatorType.BooleanNegation:
                 return !(bool)operand;
             case BoundUnaryOperatorType.BitwiseCompliment:
@@ -235,16 +243,30 @@ internal sealed class Evaluator {
             case BoundBinaryOperatorType.Addition:
                 if (syntax.lType == TypeSymbol.Int)
                     return (int)left + (int)right;
-                else
+                else if (syntax.lType == TypeSymbol.String)
                     return (string)left + (string)right;
+                else
+                    return (float)left + (float)right;
             case BoundBinaryOperatorType.Subtraction:
-                return (int)left - (int)right;
+                if (syntax.lType == TypeSymbol.Int)
+                    return (int)left - (int)right;
+                else
+                    return (float)left - (float)right;
             case BoundBinaryOperatorType.Multiplication:
-                return (int)left * (int)right;
+                if (syntax.lType == TypeSymbol.Int)
+                    return (int)left * (int)right;
+                else
+                    return (float)left * (float)right;
             case BoundBinaryOperatorType.Division:
-                return (int)left / (int)right;
+                if (syntax.lType == TypeSymbol.Int)
+                    return (int)left / (int)right;
+                else
+                    return (float)left / (float)right;
             case BoundBinaryOperatorType.Power:
-                return (int)Math.Pow((int)left, (int)right);
+                if (syntax.lType == TypeSymbol.Int)
+                    return (int)Math.Pow((int)left, (int)right);
+                else
+                    return (float)Math.Pow((float)left, (float)right);
             case BoundBinaryOperatorType.ConditionalAnd:
                 return (bool)left && (bool)right;
             case BoundBinaryOperatorType.ConditionalOr:
@@ -254,13 +276,25 @@ internal sealed class Evaluator {
             case BoundBinaryOperatorType.EqualityNotEquals:
                 return !Equals(left, right);
             case BoundBinaryOperatorType.LessThan:
-                return (int)left < (int)right;
+                if (syntax.lType == TypeSymbol.Int)
+                    return (int)left < (int)right;
+                else
+                    return (float)left < (float)right;
             case BoundBinaryOperatorType.GreaterThan:
-                return (int)left > (int)right;
+                if (syntax.lType == TypeSymbol.Int)
+                    return (int)left > (int)right;
+                else
+                    return (float)left > (float)right;
             case BoundBinaryOperatorType.LessOrEqual:
-                return (int)left <= (int)right;
+                if (syntax.lType == TypeSymbol.Int)
+                    return (int)left <= (int)right;
+                else
+                    return (float)left <= (float)right;
             case BoundBinaryOperatorType.GreatOrEqual:
-                return (int)left >= (int)right;
+                if (syntax.lType == TypeSymbol.Int)
+                    return (int)left >= (int)right;
+                else
+                    return (float)left >= (float)right;
             case BoundBinaryOperatorType.LogicalAnd:
                 if (syntax.lType == TypeSymbol.Int)
                     return (int)left & (int)right;

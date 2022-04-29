@@ -339,6 +339,8 @@ internal static class BoundNodePrinter {
         } else if (node.lType == TypeSymbol.String) {
             value = "\"" + value.Replace("\"", "\"\"") + "\"";
             writer.WriteString(value);
+        } else if (node.lType == TypeSymbol.Decimal) {
+            writer.WriteNumber(value);
         } else {
             throw new Exception($"unexpected type '{node.lType}'");
         }

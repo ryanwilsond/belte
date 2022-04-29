@@ -250,7 +250,7 @@ internal sealed class Binder {
             case SyntaxType.RETURN_STATEMENT:
                 return BindReturnStatement((ReturnStatement)syntax);
             default:
-                diagnostics.Push(DiagnosticType.Fatal, $"unexpected syntax {syntax.type}");
+                diagnostics.Push(DiagnosticType.Fatal, $"unexpected syntax '{syntax.type}'");
                 return null;
         }
     }
@@ -310,7 +310,7 @@ internal sealed class Binder {
             case SyntaxType.EMPTY_EXPRESSION:
                 return BindEmptyExpression((EmptyExpression)expression);
             default:
-                diagnostics.Push(DiagnosticType.Fatal, $"unexpected syntax {expression.type}");
+                diagnostics.Push(DiagnosticType.Fatal, $"unexpected syntax '{expression.type}'");
                 return null;
         }
     }
@@ -646,6 +646,8 @@ internal sealed class Binder {
                 return TypeSymbol.Bool;
             case "int":
                 return TypeSymbol.Int;
+            case "decimal":
+                return TypeSymbol.Decimal;
             case "string":
                 return TypeSymbol.String;
             case "void":
