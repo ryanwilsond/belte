@@ -123,6 +123,11 @@ internal sealed class Evaluator {
             return EvaluateConstantExpression(node);
 
         switch (node.type) {
+            case BoundNodeType.LiteralExpression:
+                if (node is BoundInitializerListExpression il)
+                    return EvaluateInitializerListExpression(il);
+                else
+                    goto default;
             case BoundNodeType.VariableExpression:
                 return EvaluateVariableExpression((BoundVariableExpression)node);
             case BoundNodeType.AssignmentExpression:
@@ -135,12 +140,39 @@ internal sealed class Evaluator {
                 return EvaluateCallExpression((BoundCallExpression)node);
             case BoundNodeType.CastExpression:
                 return EvaluateCastExpression((BoundCastExpression)node);
+            case BoundNodeType.IndexExpression:
+                return EvaluateIndexExpression((BoundIndexExpression)node);
             case BoundNodeType.EmptyExpression:
                 return null;
             default:
                 diagnostics.Push(DiagnosticType.Fatal, $"unexpected node '{node.type}'");
                 return null;
         }
+    }
+
+    internal object EvaluateIndexExpression(BoundIndexExpression node) {
+        object[] variable = null;
+
+        if (node.variable.type == SymbolType.GlobalVariable) {
+            variable = (object[])globals_[node.variable];
+        } else {
+            var locals = locals_.Peek();
+            variable = (object[])locals[node.variable];
+        }
+
+        var index = EvaluateExpression(node.index);
+        return variable[(int)index];
+    }
+
+    internal object EvaluateInitializerListExpression(BoundInitializerListExpression node) {
+        var builder = new List<object>();
+
+        foreach (var item in node.items) {
+            object value = EvaluateExpression(item);
+            builder.Add(value);
+        }
+
+        return builder.ToArray();
     }
 
     internal object EvaluateCastExpression(BoundCastExpression node) {

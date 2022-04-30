@@ -259,4 +259,9 @@ internal static class Error {
         string msg = "cannot assign empty initializer list to an implicitly-typed variable";
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
+
+    public static Diagnostic CannotApplyIndexing(TextLocation location, TypeSymbol type) {
+        string msg = $"cannot apply indexing with [] to an expression of type '{type}'";
+        return new Diagnostic(DiagnosticType.Error, location, msg);
+    }
 }

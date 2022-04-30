@@ -14,6 +14,7 @@ internal enum BoundNodeType {
     EmptyExpression,
     ErrorExpression,
     CallExpression,
+    IndexExpression,
     CastExpression,
     CompoundAssignmentExpression,
 

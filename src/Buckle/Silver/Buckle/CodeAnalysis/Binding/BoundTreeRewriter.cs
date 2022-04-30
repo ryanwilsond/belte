@@ -147,6 +147,8 @@ internal abstract class BoundTreeRewriter {
             case BoundNodeType.BinaryExpression:
                 return RewriteBinaryExpression((BoundBinaryExpression)expression);
             case BoundNodeType.LiteralExpression:
+                if (expression is BoundInitializerListExpression il)
+                    return RewriteInitializerListExpression(il);
                 return RewriteLiteralExpression((BoundLiteralExpression)expression);
             case BoundNodeType.VariableExpression:
                 return RewriteVariableExpression((BoundVariableExpression)expression);
@@ -162,11 +164,48 @@ internal abstract class BoundTreeRewriter {
                 return RewriteCallExpression((BoundCallExpression)expression);
             case BoundNodeType.CastExpression:
                 return RewriteCastExpression((BoundCastExpression)expression);
+            case BoundNodeType.IndexExpression:
+                return RewriteIndexExpression((BoundIndexExpression)expression);
             case BoundNodeType.CompoundAssignmentExpression:
                 return RewriteCompoundAssignmentExpression((BoundCompoundAssignmentExpression)expression);
             default:
                 return null;
         }
+    }
+
+    protected virtual BoundExpression RewriteIndexExpression(BoundIndexExpression expression) {
+        var index = RewriteExpression(expression.index);
+
+        if (index == expression.index)
+            return expression;
+
+        return new BoundIndexExpression(expression.variable, index);
+    }
+
+    protected virtual BoundExpression RewriteInitializerListExpression(BoundInitializerListExpression expression) {
+        ImmutableArray<BoundExpression>.Builder builder = null;
+
+        for (int i=0; i<expression.items.Length; i++) {
+            var oldItem = expression.items[i];
+            var newItem = RewriteExpression(oldItem);
+
+            if (newItem != oldItem) {
+                if (builder == null) {
+                    builder = ImmutableArray.CreateBuilder<BoundExpression>(expression.items.Length);
+
+                    for (int j=0; j<i; j++)
+                        builder.Add(expression.items[j]);
+                }
+            }
+
+            if (builder != null)
+                builder.Add(newItem);
+        }
+
+        if (builder == null)
+            return expression;
+
+        return new BoundInitializerListExpression(builder.MoveToImmutable(), expression.itemLType);
     }
 
     protected virtual BoundExpression RewriteCompoundAssignmentExpression(

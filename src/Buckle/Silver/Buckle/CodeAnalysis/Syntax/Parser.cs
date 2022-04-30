@@ -384,7 +384,7 @@ internal sealed class Parser {
     }
 
     private Expression ParseAssignmentExpression() {
-        if (Peek(0).type == SyntaxType.IDENTIFIER_TOKEN) {
+        if (current.type == SyntaxType.IDENTIFIER_TOKEN) {
             switch (Peek(1).type) {
                 case SyntaxType.PLUS_EQUALS_TOKEN:
                 case SyntaxType.MINUS_EQUALS_TOKEN:
@@ -461,7 +461,7 @@ internal sealed class Parser {
                 return ParseInitializerListExpression();
             case SyntaxType.NAME_EXPRESSION:
             default:
-                return ParseNameOrCallExpression();
+                return ParseNameOrPrimaryOperatorExpression();
         }
     }
 
@@ -517,11 +517,26 @@ internal sealed class Parser {
         return new LiteralExpression(syntaxTree_, stringToken);
     }
 
-    private Expression ParseNameOrCallExpression() {
-        if (Peek(0).type == SyntaxType.IDENTIFIER_TOKEN && Peek(1).type == SyntaxType.OPEN_PAREN_TOKEN)
-            return ParseCallExpression();
+    private Expression ParseNameOrPrimaryOperatorExpression() {
+        if (current.type == SyntaxType.IDENTIFIER_TOKEN) {
+            switch (Peek(1).type) {
+                case SyntaxType.OPEN_PAREN_TOKEN:
+                    return ParseCallExpression();
+                case SyntaxType.OPEN_BRACKET_TOKEN:
+                    return ParseIndexExpression();
+            }
+        }
 
         return ParseNameExpression();
+    }
+
+    private Expression ParseIndexExpression() {
+        var identifer = Match(SyntaxType.IDENTIFIER_TOKEN);
+        var openBracket = Match(SyntaxType.OPEN_BRACKET_TOKEN);
+        var index = ParseExpression();
+        var closeBracket = Match(SyntaxType.CLOSE_BRACKET_TOKEN);
+
+        return new IndexExpression(syntaxTree_, identifer, openBracket, index, closeBracket);
     }
 
     private Expression ParseCallExpression() {

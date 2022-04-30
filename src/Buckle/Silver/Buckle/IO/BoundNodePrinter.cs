@@ -21,7 +21,10 @@ internal static class BoundNodePrinter {
                 WriteUnaryExpression((BoundUnaryExpression)node, writer);
                 break;
             case BoundNodeType.LiteralExpression:
-                WriteLiteralExpression((BoundLiteralExpression)node, writer);
+                if (node is BoundInitializerListExpression il)
+                    WriteInitializerListExpression(il, writer);
+                else
+                    WriteLiteralExpression((BoundLiteralExpression)node, writer);
                 break;
             case BoundNodeType.BinaryExpression:
                 WriteBinaryExpression((BoundBinaryExpression)node, writer);
@@ -298,6 +301,24 @@ internal static class BoundNodePrinter {
         }
 
         writer.WritePunctuation(SyntaxType.CLOSE_PAREN_TOKEN);
+    }
+
+    private static void WriteInitializerListExpression(BoundInitializerListExpression node, IndentedTextWriter writer) {
+        writer.WritePunctuation(SyntaxType.OPEN_BRACE_TOKEN);
+
+        var isFirst = true;
+        foreach (var item in node.items) {
+            if (isFirst) {
+                isFirst = false;
+            } else {
+                writer.WritePunctuation(SyntaxType.COMMA_TOKEN);
+                writer.WriteSpace();
+            }
+
+            item.WriteTo(writer);
+        }
+
+        writer.WritePunctuation(SyntaxType.CLOSE_BRACE_TOKEN);
     }
 
     private static void WriteErrorExpression(BoundErrorExpression node, IndentedTextWriter writer) {

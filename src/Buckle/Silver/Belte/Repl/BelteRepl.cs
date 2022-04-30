@@ -69,12 +69,32 @@ public sealed class BelteRepl : Repl {
         } else {
             if (result.value != null && !state.loadingSubmissions) {
                 Console.ForegroundColor = ConsoleColor.White;
-                Console.WriteLine(result.value);
+                RenderResult(result.value);
                 Console.ResetColor();
             }
 
             state.previous = compilation;
             SaveSubmission(text);
+        }
+    }
+
+    private void RenderResult(object value) {
+        if (value.GetType().IsArray) {
+            Console.Write("{ ");
+            var isFirst = true;
+
+            foreach (object item in (Array)value) {
+                if (isFirst)
+                    isFirst = false;
+                else
+                    Console.Write(", ");
+
+                Console.Write(item);
+            }
+
+            Console.WriteLine(" }");
+        } else {
+            Console.WriteLine(value);
         }
     }
 

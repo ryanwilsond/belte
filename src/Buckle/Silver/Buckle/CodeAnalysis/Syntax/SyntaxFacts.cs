@@ -36,7 +36,8 @@ internal static class SyntaxFacts {
                 return 2;
             case SyntaxType.PIPE_PIPE_TOKEN:
                 return 1;
-            default: return 0;
+            default:
+                return 0;
         }
     }
 
@@ -47,7 +48,8 @@ internal static class SyntaxFacts {
             case SyntaxType.EXCLAMATION_TOKEN:
             case SyntaxType.TILDE_TOKEN:
                 return 12;
-            default: return 0;
+            default:
+                return 0;
         }
     }
 

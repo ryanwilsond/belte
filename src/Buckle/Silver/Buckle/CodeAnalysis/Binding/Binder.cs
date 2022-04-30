@@ -307,11 +307,27 @@ internal sealed class Binder {
                 return BindAssignmentExpression((AssignmentExpression)expression);
             case SyntaxType.CALL_EXPRESSION:
                 return BindCallExpression((CallExpression)expression);
+            case SyntaxType.INDEX_EXPRESSION:
+                return BindIndexExpression((IndexExpression)expression);
             case SyntaxType.EMPTY_EXPRESSION:
                 return BindEmptyExpression((EmptyExpression)expression);
             default:
                 diagnostics.Push(DiagnosticType.Fatal, $"unexpected syntax '{expression.type}'");
                 return null;
+        }
+    }
+
+    private BoundExpression BindIndexExpression(IndexExpression expression) {
+        var variable = BindVariableReference(expression.identifier);
+        if (variable == null)
+            return new BoundErrorExpression();
+
+        if (variable.lType is CollectionTypeSymbol cts) {
+            var index = BindCast(expression.index.location, BindExpression(expression.index), TypeSymbol.Int);
+            return new BoundIndexExpression(variable, index);
+        } else {
+            diagnostics.Push(Error.CannotApplyIndexing(expression.location, variable.lType));
+            return new BoundErrorExpression();
         }
     }
 
@@ -364,7 +380,7 @@ internal sealed class Binder {
         for (int i=0; i<expression.arguments.count; i++) {
             var argument = expression.arguments[i];
             var parameter = function.parameters[i];
-            var boundArgument = BindCast(argument.location, BindExpression(argument), parameter.lType );
+            var boundArgument = BindCast(argument.location, BindExpression(argument), parameter.lType);
             boundArguments.Add(boundArgument);
         }
 
