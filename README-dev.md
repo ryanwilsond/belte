@@ -6,7 +6,7 @@ Github: [github.com/flamechain/belte](https://github.com/flamechain/belte)
 
 Docs/Pages: [flamechain.github.io/belte](https://flamechain.github.io/belte/)
 
-Trello: [trello.com/b/iq8JUTTa/belte](https://trello.com/b/iq8JUTTa)
+Trello: [trello.com/belteindustries](https://trello.com/belteindustries)
 
 ## Tools
 
