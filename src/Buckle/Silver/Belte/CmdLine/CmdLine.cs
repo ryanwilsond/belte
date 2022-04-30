@@ -195,7 +195,8 @@ Options:
 
     private static void CleanOutputFiles(Compiler compiler) {
         if (compiler.state.finishStage == CompilerStage.Linked) {
-            File.Delete(compiler.state.outputFilename);
+            if (File.Exists(compiler.state.outputFilename))
+                File.Delete(compiler.state.outputFilename);
             return;
         }
 

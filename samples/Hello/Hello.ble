@@ -1,8 +1,5 @@
 
 void main() {
-    if (false) {
-        print("test");
-    }
-
-    print("test2");
+    int[] arr = {1, 2, 3};
+    // print(arr[2]);
 }

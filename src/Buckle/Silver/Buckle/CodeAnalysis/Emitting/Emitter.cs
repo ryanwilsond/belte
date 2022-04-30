@@ -33,6 +33,7 @@ internal sealed class Emitter {
     private readonly MethodReference convertToBooleanReference_;
     private readonly MethodReference convertToInt32Reference_;
     private readonly MethodReference convertToStringReference_;
+    private readonly MethodReference convertToSingleReference_;
     private readonly MethodReference objectEqualsReference_;
     private readonly MethodReference randomNextReference_;
     private readonly TypeReference randomReference_;
@@ -63,7 +64,9 @@ internal sealed class Emitter {
             (TypeSymbol.Any, "System.Object"),
             (TypeSymbol.Bool, "System.Boolean"),
             (TypeSymbol.Int, "System.Int32"),
+            (TypeSymbol.Decimal, "System.Single"),
             (TypeSymbol.String, "System.String"),
+            (TypeSymbol.Collection, "System.Object[]"),
             (TypeSymbol.Void, "System.Void"),
         };
 
@@ -143,6 +146,7 @@ internal sealed class Emitter {
         stringConcatArrayReference_ = ResolveMethod("System.String", "Concat", new [] { "System.String[]" });
         convertToBooleanReference_ = ResolveMethod("System.Convert", "ToBoolean", new [] { "System.Object" });
         convertToInt32Reference_ = ResolveMethod("System.Convert", "ToInt32", new [] { "System.Object" });
+        convertToSingleReference_ = ResolveMethod("System.Convert", "ToSingle", new [] { "System.Object" });
         convertToStringReference_ = ResolveMethod("System.Convert", "ToString", new [] { "System.Object" });
         objectEqualsReference_ = ResolveMethod(
             "System.Object", "Equals", new [] { "System.Object", "System.Object" });
@@ -264,7 +268,7 @@ internal sealed class Emitter {
 
     private void EmitVariableDeclarationStatement(
         ILProcessor ilProcessor, BoundVariableDeclarationStatement statement) {
-        var typeReference = knownTypes_[statement.variable.lType];
+        var typeReference = GetType(statement.variable.lType);
         var variableDefinition = new VariableDefinition(typeReference);
         locals_.Add(statement.variable, variableDefinition);
         ilProcessor.Body.Variables.Add(variableDefinition);
@@ -287,6 +291,13 @@ internal sealed class Emitter {
         }
 
         switch (expression.type) {
+            case BoundNodeType.LiteralExpression:
+                if (expression is BoundInitializerListExpression il) {
+                    EmitInitializerListExpression(ilProcessor, il);
+                    break;
+                } else {
+                    goto default;
+                }
             case BoundNodeType.UnaryExpression:
                 EmitUnaryExpression(ilProcessor, (BoundUnaryExpression)expression);
                 break;
@@ -314,13 +325,37 @@ internal sealed class Emitter {
         }
     }
 
+    private void EmitInitializerListExpression(ILProcessor ilProcessor, BoundInitializerListExpression expression) {
+        ilProcessor.Emit(OpCodes.Ldc_I4, expression.items.Length);
+        ilProcessor.Emit(OpCodes.Newarr, GetType(expression.itemLType));
+
+        for (int i = 0; i < expression.items.Length; i++) {
+            var item = expression.items[i];
+            ilProcessor.Emit(OpCodes.Dup);
+            ilProcessor.Emit(OpCodes.Ldc_I4, i);
+            EmitConstantExpression(ilProcessor, item);
+
+            if (item.lType == TypeSymbol.Any)
+                ilProcessor.Emit(OpCodes.Stelem_Any);
+            else if (item.lType == TypeSymbol.Int)
+                ilProcessor.Emit(OpCodes.Stelem_I4);
+            else if (item.lType == TypeSymbol.Decimal)
+                ilProcessor.Emit(OpCodes.Stelem_R4);
+            else if (item.lType == TypeSymbol.String)
+                ilProcessor.Emit(OpCodes.Stelem_Ref);
+            else if (item.lType == TypeSymbol.Bool)
+                ilProcessor.Emit(OpCodes.Stelem_I1);
+        }
+    }
+
     private void EmitCastExpression(ILProcessor ilProcessor, BoundCastExpression expression) {
         EmitExpression(ilProcessor, expression.expression);
         var needsBoxing = expression.expression.lType == TypeSymbol.Int ||
-            expression.expression.lType == TypeSymbol.Bool;
+            expression.expression.lType == TypeSymbol.Bool ||
+            expression.expression.lType == TypeSymbol.Decimal;
 
         if (needsBoxing)
-            ilProcessor.Emit(OpCodes.Box, knownTypes_[expression.expression.lType]);
+            ilProcessor.Emit(OpCodes.Box, GetType(expression.expression.lType));
 
         if (expression.lType == TypeSymbol.Any) {
         } else if (expression.lType == TypeSymbol.Bool) {
@@ -329,6 +364,8 @@ internal sealed class Emitter {
             ilProcessor.Emit(OpCodes.Call, convertToInt32Reference_);
         } else if (expression.lType == TypeSymbol.String) {
             ilProcessor.Emit(OpCodes.Call, convertToStringReference_);
+        } else if (expression.lType == TypeSymbol.Decimal) {
+            ilProcessor.Emit(OpCodes.Call, convertToSingleReference_);
         } else {
             diagnostics.Push(DiagnosticType.Fatal,
                 $"unexpected cast from '{expression.expression.lType}' to '{expression.lType}'");
@@ -606,6 +643,9 @@ internal sealed class Emitter {
             var value = (bool)expression.constantValue.value;
             var instruction = value ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0;
             ilProcessor.Emit(instruction);
+        } else if (expression.lType == TypeSymbol.Decimal) {
+            var value = (float)expression.constantValue.value;
+            ilProcessor.Emit(OpCodes.Ldc_R4, value);
         } else {
             diagnostics.Push(DiagnosticType.Fatal, $"unexpected constant exression type '{expression.lType}'");
         }
@@ -629,12 +669,12 @@ internal sealed class Emitter {
     }
 
     private void EmitFunctionDeclaration(FunctionSymbol function) {
-        var functionType = knownTypes_[function.lType];
+        var functionType = GetType(function.lType);
         var method = new MethodDefinition(
             function.name, MethodAttributes.Static | MethodAttributes.Private, functionType);
 
         foreach (var parameter in function.parameters) {
-            var parameterType = knownTypes_[parameter.lType];
+            var parameterType = GetType(parameter.lType);
             var parameterAttributes = ParameterAttributes.None;
             var parameterDefinition = new ParameterDefinition(parameter.name, parameterAttributes, parameterType);
             method.Parameters.Add(parameterDefinition);
@@ -642,5 +682,12 @@ internal sealed class Emitter {
 
         typeDefinition_.Methods.Add(method);
         methods_.Add(function, method);
+    }
+
+    private TypeReference GetType(TypeSymbol type) {
+        if (type is CollectionTypeSymbol)
+            return knownTypes_[TypeSymbol.Collection];
+        else
+            return knownTypes_[type];
     }
 }

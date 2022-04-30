@@ -194,7 +194,7 @@ public static partial class CommandLine {
                 default:
                     diagnostics.Push(
                         DiagnosticType.Warning, $"unknown file type of input file '{task.inputFilename}'; ignoring");
-                    break;
+                    continue;
             }
 
             tasks.Add(task);
