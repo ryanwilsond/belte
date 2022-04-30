@@ -285,22 +285,22 @@ internal sealed class Evaluator {
             case BoundBinaryOperatorType.EqualityNotEquals:
                 return !Equals(left, right);
             case BoundBinaryOperatorType.LessThan:
-                if (syntax.lType == TypeSymbol.Int)
+                if (syntax.left.lType == TypeSymbol.Int)
                     return (int)left < (int)right;
                 else
                     return (float)left < (float)right;
             case BoundBinaryOperatorType.GreaterThan:
-                if (syntax.lType == TypeSymbol.Int)
+                if (syntax.left.lType == TypeSymbol.Int)
                     return (int)left > (int)right;
                 else
                     return (float)left > (float)right;
             case BoundBinaryOperatorType.LessOrEqual:
-                if (syntax.lType == TypeSymbol.Int)
+                if (syntax.left.lType == TypeSymbol.Int)
                     return (int)left <= (int)right;
                 else
                     return (float)left <= (float)right;
             case BoundBinaryOperatorType.GreatOrEqual:
-                if (syntax.lType == TypeSymbol.Int)
+                if (syntax.left.lType == TypeSymbol.Int)
                     return (int)left >= (int)right;
                 else
                     return (float)left >= (float)right;
