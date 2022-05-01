@@ -214,7 +214,7 @@ internal sealed class ControlFlowGraph {
                 return new BoundLiteralExpression(!value);
             }
 
-            var op = BoundUnaryOperator.Bind(SyntaxType.EXCLAMATION_TOKEN, TypeSymbol.Bool);
+            var op = BoundUnaryOperator.Bind(SyntaxType.EXCLAMATION_TOKEN, new BoundTypeClause(TypeSymbol.Bool));
             return new BoundUnaryExpression(op, condition);
         }
 

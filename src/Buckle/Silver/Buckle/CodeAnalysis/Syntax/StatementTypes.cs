@@ -8,21 +8,17 @@ internal abstract class Statement : Node {
 
 internal sealed partial class VariableDeclarationStatement : Statement {
     public override SyntaxType type => SyntaxType.VARIABLE_DECLARATION_STATEMENT;
-    public Token typeName { get; }
-    public Token? openBracket { get; }
-    public Token? closeBracket { get; }
+    public TypeClause typeClause { get; }
     public Token identifier { get; }
     public Token? equals { get; }
     public Expression? initializer { get; }
     public Token semicolon { get; }
 
     public VariableDeclarationStatement(
-        SyntaxTree syntaxTree, Token typeName_, Token openBracket_, Token closeBracket_,
+        SyntaxTree syntaxTree, TypeClause typeClause_,
         Token identifier_, Token equals_, Expression initializer_, Token semicolon_)
         : base(syntaxTree) {
-        typeName = typeName_;
-        openBracket = openBracket_;
-        closeBracket = closeBracket_;
+        typeClause = typeClause_;
         identifier = identifier_;
         equals = equals_;
         initializer = initializer_;

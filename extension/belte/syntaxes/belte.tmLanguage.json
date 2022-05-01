@@ -31,7 +31,7 @@
 				"match": "\\b(if|else|while|for|return|yield|switch|case|default|break|continue|do)\\b"
 			}, {
 				"name": "keyword.other.belte",
-				"match": "\\b(include|operator|get|set|this|auto|let|out)\\b"
+				"match": "\\b(include|operator|get|set|this|var|let|out|ref)\\b"
 			}, {
 				"name": "keyword.operator.arithmetic.belte",
 				"match": "\\b(/|\\*|(\\*\\*)|\\+|\\-|\\%)\\b"
@@ -85,7 +85,7 @@
 				"match": "\\b(public|private|protected)\\b"
 			}, {
 				"name": "storage.type.modifier.belte",
-				"match": "\\b(virtual|override)\\b"
+				"match": "\\b(virtual|override|explicit)\\b"
 			}, {
 				"name": "storage.modifier.belte",
 				"match": "\\b(static|abstract|sealed|const|async)\\b"

@@ -58,7 +58,8 @@ internal enum SyntaxType {
     FALSE_KEYWORD,
     NULL_KEYWORD,
     VAR_KEYWORD,
-    LET_KEYWORD,
+    CONST_KEYWORD,
+    REF_KEYWORD,
     IF_KEYWORD,
     ELSE_KEYWORD,
     WHILE_KEYWORD,
@@ -113,6 +114,7 @@ internal enum SyntaxType {
     ELSE_CLAUSE,
 
     // type declarations
+    TYPE_CLAUSE,
     PARAMETER,
     FUNCTION_DECLARATION,
 
@@ -284,5 +286,21 @@ internal sealed class SyntaxTrivia {
         position = position_;
         type = type_;
         text = text_;
+    }
+}
+
+internal sealed partial class TypeClause : Node {
+    public Token? constKeyword { get; }
+    public Token? refKeyword { get; }
+    public Token typeName { get; }
+    public ImmutableArray<(Token openBracket, Token closeBracket)> brackets { get; }
+    public override SyntaxType type => SyntaxType.TYPE_CLAUSE;
+
+    public TypeClause(SyntaxTree syntaxTree, Token constKeyword_, Token refKeyword_,
+        Token typeName_, ImmutableArray<(Token, Token)> brackets_) : base(syntaxTree) {
+        constKeyword = constKeyword_;
+        refKeyword = refKeyword_;
+        typeName = typeName_;
+        brackets = brackets_;
     }
 }

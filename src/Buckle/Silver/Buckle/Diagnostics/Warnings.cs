@@ -16,7 +16,7 @@ internal static class Warning {
 
                 return null;
             case SyntaxType.VARIABLE_DECLARATION_STATEMENT:
-                return UnreachableCode(((VariableDeclarationStatement)node).typeName.location);
+                return UnreachableCode(((VariableDeclarationStatement)node).typeClause.location);
             case SyntaxType.IF_STATEMENT:
                 return UnreachableCode(((IfStatement)node).ifKeyword.location);
             case SyntaxType.WHILE_STATEMENT:

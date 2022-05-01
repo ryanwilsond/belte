@@ -106,11 +106,27 @@ internal sealed class Parser {
     }
 
     private Member ParseMember() {
-        if (current.type == SyntaxType.IDENTIFIER_TOKEN) {
+        bool hasTypeClause = false;
+
+        if (current.type == SyntaxType.IDENTIFIER_TOKEN ||
+            current.type == SyntaxType.CONST_KEYWORD ||
+            current.type == SyntaxType.REF_KEYWORD) {
+            int offset = 0;
+            while (Peek(offset).type == SyntaxType.OPEN_BRACKET_TOKEN ||
+                Peek(offset).type == SyntaxType.CLOSE_BRACKET_TOKEN ||
+                Peek(offset).type == SyntaxType.CONST_KEYWORD ||
+                Peek(offset).type == SyntaxType.REF_KEYWORD)
+                offset++;
+
+            if (offset > 0 && Peek(offset).type == SyntaxType.IDENTIFIER_TOKEN) {
+                hasTypeClause = true;
+                offset++;
+            }
+
             bool openBrace = false;
             bool openParenthesis = false;
 
-            for (int i=0; i<tokens_.Length-position_; i++) {
+            for (int i=offset; i<tokens_.Length-position_; i++) {
                 if (Peek(i).type == SyntaxType.SEMICOLON_TOKEN)
                     break;
                 if (Peek(i).type == SyntaxType.OPEN_PAREN_TOKEN)
@@ -125,11 +141,11 @@ internal sealed class Parser {
                 return ParseFunctionDeclaration();
         }
 
-        return ParseGlobalStatement();
+        return ParseGlobalStatement(hasTypeClause);
     }
 
     private Member ParseFunctionDeclaration() {
-        var typeName = Match(SyntaxType.IDENTIFIER_TOKEN);
+        var typeClause = ParseTypeClause();
         var identifier = Match(SyntaxType.IDENTIFIER_TOKEN);
         var openParenthesis = Match(SyntaxType.OPEN_PAREN_TOKEN);
         var parameters = ParseParameterList();
@@ -137,7 +153,7 @@ internal sealed class Parser {
         var body = (BlockStatement)ParseBlockStatement();
 
         return new FunctionDeclaration(
-            syntaxTree_, typeName, identifier, openParenthesis, parameters, closeParenthesis, body);
+            syntaxTree_, typeClause, identifier, openParenthesis, parameters, closeParenthesis, body);
     }
 
     private SeparatedSyntaxList<Parameter> ParseParameterList() {
@@ -162,23 +178,23 @@ internal sealed class Parser {
     }
 
     private Parameter ParseParameter() {
-        var typeName = Match(SyntaxType.IDENTIFIER_TOKEN);
+        var typeClause = ParseTypeClause();
         var identifier = Match(SyntaxType.IDENTIFIER_TOKEN);
-        return new Parameter(syntaxTree_, typeName, identifier);
+        return new Parameter(syntaxTree_, typeClause, identifier);
     }
 
-    private Member ParseGlobalStatement() {
-        var statement = ParseStatement();
+    private Member ParseGlobalStatement(bool typeClause) {
+        var statement = ParseStatement(typeClause);
         return new GlobalStatement(syntaxTree_, statement);
     }
 
-    private Statement ParseStatement() {
+    private Statement ParseStatement(bool typeClause = false) {
+        if (typeClause)
+            return ParseVariableDeclarationStatement();
+
         switch (current.type) {
             case SyntaxType.OPEN_BRACE_TOKEN:
                 return ParseBlockStatement();
-            case SyntaxType.LET_KEYWORD:
-            case SyntaxType.VAR_KEYWORD:
-                return ParseVariableDeclarationStatement();
             case SyntaxType.IF_KEYWORD:
                 return ParseIfStatement();
             case SyntaxType.WHILE_KEYWORD:
@@ -245,15 +261,7 @@ internal sealed class Parser {
     }
 
     private Statement ParseVariableDeclarationStatement() {
-        var typeName = Match(current.type);
-
-        Token openBracket = null;
-        Token closeBracket = null;
-
-        if (current.type == SyntaxType.OPEN_BRACKET_TOKEN) {
-            openBracket = Match(SyntaxType.OPEN_BRACKET_TOKEN);
-            closeBracket = Match(SyntaxType.CLOSE_BRACKET_TOKEN);
-        }
+        var typeClause = ParseTypeClause();
 
         var identifier = Match(SyntaxType.IDENTIFIER_TOKEN);
 
@@ -268,7 +276,28 @@ internal sealed class Parser {
         var semicolon = Match(SyntaxType.SEMICOLON_TOKEN);
 
         return new VariableDeclarationStatement(
-            syntaxTree_, typeName, openBracket, closeBracket, identifier, equals, initializer, semicolon);
+            syntaxTree_, typeClause, identifier, equals, initializer, semicolon);
+    }
+
+    private TypeClause ParseTypeClause() {
+        Token constKeyword = null;
+        Token refKeyword = null;
+
+        if (current.type == SyntaxType.CONST_KEYWORD)
+            constKeyword = Match(SyntaxType.CONST_KEYWORD);
+        if (current.type == SyntaxType.REF_KEYWORD)
+            refKeyword = Match(SyntaxType.REF_KEYWORD);
+
+        var typeName = Match(current.type);
+
+        var brackets = ImmutableArray.CreateBuilder<(Token openBracket, Token closeBracket)>();
+        while (current.type == SyntaxType.OPEN_BRACKET_TOKEN) {
+            var openBracket = Match(SyntaxType.OPEN_BRACKET_TOKEN);
+            var closeBracket = Match(SyntaxType.CLOSE_BRACKET_TOKEN);
+            brackets.Add((openBracket, closeBracket));
+        }
+
+        return new TypeClause(syntaxTree_, constKeyword, refKeyword, typeName, brackets.ToImmutable());
     }
 
     private Statement ParseWhileStatement() {

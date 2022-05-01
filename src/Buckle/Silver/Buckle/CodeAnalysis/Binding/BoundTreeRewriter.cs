@@ -205,7 +205,8 @@ internal abstract class BoundTreeRewriter {
         if (builder == null)
             return expression;
 
-        return new BoundInitializerListExpression(builder.MoveToImmutable(), expression.itemLType);
+        return new BoundInitializerListExpression(
+            builder.MoveToImmutable(), expression.dimensions, expression.itemType);
     }
 
     protected virtual BoundExpression RewriteCompoundAssignmentExpression(
@@ -223,7 +224,7 @@ internal abstract class BoundTreeRewriter {
         if (rewrote == expression.expression)
             return expression;
 
-        return new BoundCastExpression(expression.lType, rewrote);
+        return new BoundCastExpression(expression.typeClause, rewrote);
     }
 
     protected virtual BoundExpression RewriteCallExpression(BoundCallExpression expression) {

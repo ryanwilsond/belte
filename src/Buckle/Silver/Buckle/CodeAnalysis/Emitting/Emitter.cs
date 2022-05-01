@@ -66,7 +66,6 @@ internal sealed class Emitter {
             (TypeSymbol.Int, "System.Int32"),
             (TypeSymbol.Decimal, "System.Single"),
             (TypeSymbol.String, "System.String"),
-            (TypeSymbol.Collection, "System.Object[]"),
             (TypeSymbol.Void, "System.Void"),
         };
 
@@ -268,7 +267,7 @@ internal sealed class Emitter {
 
     private void EmitVariableDeclarationStatement(
         ILProcessor ilProcessor, BoundVariableDeclarationStatement statement) {
-        var typeReference = GetType(statement.variable.lType);
+        var typeReference = GetType(statement.variable.typeClause);
         var variableDefinition = new VariableDefinition(typeReference);
         locals_.Add(statement.variable, variableDefinition);
         ilProcessor.Body.Variables.Add(variableDefinition);
@@ -280,7 +279,7 @@ internal sealed class Emitter {
     private void EmitExpressionStatement(ILProcessor ilProcessor, BoundExpressionStatement statement) {
         EmitExpression(ilProcessor, statement.expression);
 
-        if (statement.expression.lType != TypeSymbol.Void)
+        if (statement.expression.typeClause.lType != TypeSymbol.Void)
             ilProcessor.Emit(OpCodes.Pop);
     }
 
@@ -327,7 +326,7 @@ internal sealed class Emitter {
 
     private void EmitInitializerListExpression(ILProcessor ilProcessor, BoundInitializerListExpression expression) {
         ilProcessor.Emit(OpCodes.Ldc_I4, expression.items.Length);
-        ilProcessor.Emit(OpCodes.Newarr, GetType(expression.itemLType));
+        ilProcessor.Emit(OpCodes.Newarr, GetType(expression.typeClause));
 
         for (int i = 0; i < expression.items.Length; i++) {
             var item = expression.items[i];
@@ -335,40 +334,45 @@ internal sealed class Emitter {
             ilProcessor.Emit(OpCodes.Ldc_I4, i);
             EmitConstantExpression(ilProcessor, item);
 
-            if (item.lType == TypeSymbol.Any)
+            var itemType = item.typeClause.lType;
+
+            if (itemType == TypeSymbol.Any)
                 ilProcessor.Emit(OpCodes.Stelem_Any);
-            else if (item.lType == TypeSymbol.Int)
+            else if (itemType == TypeSymbol.Int)
                 ilProcessor.Emit(OpCodes.Stelem_I4);
-            else if (item.lType == TypeSymbol.Decimal)
+            else if (itemType == TypeSymbol.Decimal)
                 ilProcessor.Emit(OpCodes.Stelem_R4);
-            else if (item.lType == TypeSymbol.String)
+            else if (itemType == TypeSymbol.String)
                 ilProcessor.Emit(OpCodes.Stelem_Ref);
-            else if (item.lType == TypeSymbol.Bool)
+            else if (itemType == TypeSymbol.Bool)
                 ilProcessor.Emit(OpCodes.Stelem_I1);
         }
     }
 
     private void EmitCastExpression(ILProcessor ilProcessor, BoundCastExpression expression) {
         EmitExpression(ilProcessor, expression.expression);
-        var needsBoxing = expression.expression.lType == TypeSymbol.Int ||
-            expression.expression.lType == TypeSymbol.Bool ||
-            expression.expression.lType == TypeSymbol.Decimal;
+        var subExpressionType = expression.expression.typeClause.lType;
+        var expressionType = expression.typeClause.lType;
+
+        var needsBoxing = subExpressionType == TypeSymbol.Int ||
+            subExpressionType == TypeSymbol.Bool ||
+            subExpressionType == TypeSymbol.Decimal;
 
         if (needsBoxing)
-            ilProcessor.Emit(OpCodes.Box, GetType(expression.expression.lType));
+            ilProcessor.Emit(OpCodes.Box, GetType(expression.expression.typeClause));
 
-        if (expression.lType == TypeSymbol.Any) {
-        } else if (expression.lType == TypeSymbol.Bool) {
+        if (expressionType == TypeSymbol.Any) {
+        } else if (expressionType == TypeSymbol.Bool) {
             ilProcessor.Emit(OpCodes.Call, convertToBooleanReference_);
-        } else if (expression.lType == TypeSymbol.Int) {
+        } else if (expressionType == TypeSymbol.Int) {
             ilProcessor.Emit(OpCodes.Call, convertToInt32Reference_);
-        } else if (expression.lType == TypeSymbol.String) {
+        } else if (expressionType == TypeSymbol.String) {
             ilProcessor.Emit(OpCodes.Call, convertToStringReference_);
-        } else if (expression.lType == TypeSymbol.Decimal) {
+        } else if (expressionType == TypeSymbol.Decimal) {
             ilProcessor.Emit(OpCodes.Call, convertToSingleReference_);
         } else {
             diagnostics.Push(DiagnosticType.Fatal,
-                $"unexpected cast from '{expression.expression.lType}' to '{expression.lType}'");
+                $"unexpected cast from '{subExpressionType}' to '{expressionType}'");
         }
     }
 
@@ -437,9 +441,12 @@ internal sealed class Emitter {
     }
 
     private void EmitBinaryExpression(ILProcessor ilProcessor, BoundBinaryExpression expression) {
+        var leftType = expression.left.typeClause.lType;
+        var rightType = expression.right.typeClause.lType;
+
         if (expression.op.opType == BoundBinaryOperatorType.Addition) {
-            if (expression.left.lType == TypeSymbol.String && expression.right.lType == TypeSymbol.String ||
-                expression.left.lType == TypeSymbol.Any && expression.right.lType == TypeSymbol.Any) {
+            if (leftType == TypeSymbol.String && rightType == TypeSymbol.String ||
+                leftType == TypeSymbol.Any && rightType == TypeSymbol.Any) {
                 EmitStringConcatExpression(ilProcessor, expression);
                 return;
             }
@@ -449,16 +456,16 @@ internal sealed class Emitter {
         EmitExpression(ilProcessor, expression.right);
 
         if (expression.op.opType == BoundBinaryOperatorType.EqualityEquals) {
-            if (expression.left.lType == TypeSymbol.String && expression.right.lType == TypeSymbol.String ||
-                expression.left.lType == TypeSymbol.Any && expression.right.lType == TypeSymbol.Any) {
+            if (leftType == TypeSymbol.String && rightType == TypeSymbol.String ||
+                leftType == TypeSymbol.Any && rightType == TypeSymbol.Any) {
                 ilProcessor.Emit(OpCodes.Call, objectEqualsReference_);
                 return;
             }
         }
 
         if (expression.op.opType == BoundBinaryOperatorType.EqualityNotEquals) {
-            if (expression.left.lType == TypeSymbol.String && expression.right.lType == TypeSymbol.String ||
-                expression.left.lType == TypeSymbol.Any && expression.right.lType == TypeSymbol.Any) {
+            if (leftType == TypeSymbol.String && rightType == TypeSymbol.String ||
+                leftType == TypeSymbol.Any && rightType == TypeSymbol.Any) {
                 ilProcessor.Emit(OpCodes.Call, objectEqualsReference_);
                 ilProcessor.Emit(OpCodes.Ldc_I4_0);
                 ilProcessor.Emit(OpCodes.Ceq);
@@ -529,7 +536,7 @@ internal sealed class Emitter {
                 break;
             default:
                 diagnostics.Push(DiagnosticType.Fatal, $"unexpected binary operator" +
-                $"({expression.left.lType}){SyntaxFacts.GetText(expression.op.type)}({expression.right.lType})");
+                $"({leftType}){SyntaxFacts.GetText(expression.op.type)}({rightType})");
                 break;
         }
     }
@@ -588,16 +595,17 @@ internal sealed class Emitter {
         static IEnumerable<BoundExpression> Flatten(BoundExpression node) {
             if (node is BoundBinaryExpression binaryExpression &&
                 binaryExpression.op.opType == BoundBinaryOperatorType.Addition &&
-                binaryExpression.left.lType == TypeSymbol.String &&
-                binaryExpression.right.lType == TypeSymbol.String) {
+                binaryExpression.left.typeClause.lType == TypeSymbol.String &&
+                binaryExpression.right.typeClause.lType == TypeSymbol.String) {
                 foreach (var result in Flatten(binaryExpression.left))
                     yield return result;
 
                 foreach (var result in Flatten(binaryExpression.right))
                     yield return result;
             } else {
-                if (node.lType != TypeSymbol.String)
-                    throw new Exception($"Unexpected node type in string concatenation: {node.lType}");
+                if (node.typeClause.lType != TypeSymbol.String)
+                    // TODO: add typeClause.ToString() to replace Error.DiagnosticText
+                    throw new Exception($"Unexpected node type in string concatenation: {node.typeClause.lType}");
 
                 yield return node;
             }
@@ -632,22 +640,24 @@ internal sealed class Emitter {
     }
 
     private void EmitConstantExpression(ILProcessor ilProcessor, BoundExpression expression) {
-        if (expression.lType == TypeSymbol.Int) {
-            // for efficiency can add hardcoded constants e.g. Ldc_I4_0
+        var expressionType = expression.typeClause.lType;
+
+        if (expressionType == TypeSymbol.Int) {
+            // for efficiency can add hardcoded constants e.g. Ldc_I4_0 (probably negligible)
             var value = (int)expression.constantValue.value;
             ilProcessor.Emit(OpCodes.Ldc_I4, value);
-        } else if (expression.lType == TypeSymbol.String) {
+        } else if (expressionType == TypeSymbol.String) {
             var value = (string)expression.constantValue.value;
             ilProcessor.Emit(OpCodes.Ldstr, value);
-        } else if (expression.lType == TypeSymbol.Bool) {
+        } else if (expressionType == TypeSymbol.Bool) {
             var value = (bool)expression.constantValue.value;
             var instruction = value ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0;
             ilProcessor.Emit(instruction);
-        } else if (expression.lType == TypeSymbol.Decimal) {
+        } else if (expressionType == TypeSymbol.Decimal) {
             var value = (float)expression.constantValue.value;
             ilProcessor.Emit(OpCodes.Ldc_R4, value);
         } else {
-            diagnostics.Push(DiagnosticType.Fatal, $"unexpected constant exression type '{expression.lType}'");
+            diagnostics.Push(DiagnosticType.Fatal, $"unexpected constant exression type '{expressionType}'");
         }
     }
 
@@ -664,17 +674,17 @@ internal sealed class Emitter {
             ilProcessor.Emit(OpCodes.Not);
         } else {
             diagnostics.Push(DiagnosticType.Fatal, $"unexpected unary operator" +
-                $"{SyntaxFacts.GetText(expression.op.type)}({expression.operand.lType})");
+                $"{SyntaxFacts.GetText(expression.op.type)}({expression.operand.typeClause.lType})");
         }
     }
 
     private void EmitFunctionDeclaration(FunctionSymbol function) {
-        var functionType = GetType(function.lType);
+        var functionType = GetType(function.typeClause);
         var method = new MethodDefinition(
             function.name, MethodAttributes.Static | MethodAttributes.Private, functionType);
 
         foreach (var parameter in function.parameters) {
-            var parameterType = GetType(parameter.lType);
+            var parameterType = GetType(parameter.typeClause);
             var parameterAttributes = ParameterAttributes.None;
             var parameterDefinition = new ParameterDefinition(parameter.name, parameterAttributes, parameterType);
             method.Parameters.Add(parameterDefinition);
@@ -684,10 +694,7 @@ internal sealed class Emitter {
         methods_.Add(function, method);
     }
 
-    private TypeReference GetType(TypeSymbol type) {
-        if (type is CollectionTypeSymbol)
-            return knownTypes_[TypeSymbol.Collection];
-        else
-            return knownTypes_[type];
+    private TypeReference GetType(BoundTypeClause type) {
+        return knownTypes_[type.lType];
     }
 }

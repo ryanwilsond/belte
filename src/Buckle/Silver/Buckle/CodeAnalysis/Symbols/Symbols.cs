@@ -29,27 +29,26 @@ internal abstract class Symbol {
 }
 
 internal abstract class VariableSymbol : Symbol {
-    public TypeSymbol lType { get; }
-    public bool isReadOnly { get; }
-    internal BoundConstant constantValue { get; }
+    public BoundTypeClause typeClause { get; }
+    public BoundConstant constantValue { get; }
 
-    internal VariableSymbol(string name, bool isReadOnly_, TypeSymbol lType_, BoundConstant constant) : base(name) {
-        lType = lType_;
-        isReadOnly = isReadOnly_;
-        constantValue = isReadOnly ? constant : null;
+    internal VariableSymbol(string name, BoundTypeClause typeClause_, BoundConstant constant)
+        : base(name) {
+        typeClause = typeClause_;
+        constantValue = typeClause.isConst && !typeClause.isRef ? constant : null;
     }
 }
 
 internal sealed class GlobalVariableSymbol : VariableSymbol {
     public override SymbolType type => SymbolType.GlobalVariable;
 
-    internal GlobalVariableSymbol(string name, bool isReadOnly, TypeSymbol lType, BoundConstant constant)
-        : base(name, isReadOnly, lType, constant) { }
+    internal GlobalVariableSymbol(string name, BoundTypeClause typeClause, BoundConstant constant)
+        : base(name, typeClause, constant) { }
 }
 
 internal class LocalVariableSymbol : VariableSymbol {
     public override SymbolType type => SymbolType.LocalVariable;
 
-    internal LocalVariableSymbol(string name, bool isReadOnly, TypeSymbol lType, BoundConstant constant)
-        : base(name, isReadOnly, lType, constant) { }
+    internal LocalVariableSymbol(string name, BoundTypeClause typeClause, BoundConstant constant)
+        : base(name, typeClause, constant) { }
 }

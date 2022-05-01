@@ -3,6 +3,7 @@ using Mono.Cecil;
 using Buckle.CodeAnalysis.Text;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Binding;
 
 namespace Buckle.Diagnostics;
 
@@ -16,7 +17,7 @@ internal static class Error {
         }
     }
 
-    public static string DiagnosticText(SyntaxType type) {
+    private static string DiagnosticText(SyntaxType type) {
         string factValue = SyntaxFacts.GetText(type);
         if (factValue != null)
             return "'" + factValue + "'";
@@ -31,6 +32,22 @@ internal static class Error {
             return type.ToString().ToLower().Substring(0, type.ToString().Length-6);
         else
             return type.ToString().ToLower();
+    }
+
+    private static string DiagnosticText(BoundTypeClause type) {
+        string text = "";
+
+        if (type.isConst)
+            text += "const ";
+        if (type.isRef)
+            text += "ref ";
+
+        text += type.lType.name;
+
+        for (int i=0; i<type.dimensions; i++)
+            text += "[]";
+
+        return text;
     }
 
     public static Diagnostic InvalidReference(string reference) {
@@ -59,8 +76,8 @@ internal static class Error {
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 
-    public static Diagnostic InvalidUnaryOperatorUse(TextLocation location, string op, TypeSymbol operand) {
-        string msg = $"operator '{op}' is not defined for type '{operand}'";
+    public static Diagnostic InvalidUnaryOperatorUse(TextLocation location, string op, BoundTypeClause operand) {
+        string msg = $"operator '{op}' is not defined for type '{DiagnosticText(operand)}'";
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 
@@ -83,8 +100,8 @@ internal static class Error {
     }
 
     public static Diagnostic InvalidBinaryOperatorUse(
-        TextLocation location, string op, TypeSymbol left, TypeSymbol right) {
-        string msg = $"operator '{op}' is not defined for types '{left}' and '{right}'";
+        TextLocation location, string op, BoundTypeClause left, BoundTypeClause right) {
+        string msg = $"operator '{op}' is not defined for types '{DiagnosticText(left)}' and '{DiagnosticText(right)}'";
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 
@@ -129,8 +146,8 @@ internal static class Error {
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 
-    public static Diagnostic CannotConvert(TextLocation location, TypeSymbol from, TypeSymbol to) {
-        string msg = $"cannot convert from type '{from}' to '{to}'";
+    public static Diagnostic CannotConvert(TextLocation location, BoundTypeClause from, BoundTypeClause to) {
+        string msg = $"cannot convert from type '{DiagnosticText(from)}' to '{DiagnosticText(to)}'";
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 
@@ -139,8 +156,8 @@ internal static class Error {
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 
-    public static Diagnostic ReadonlyAssign(TextLocation location, string name) {
-        string msg = $"assignment of read-only variable '{name}'";
+    public static Diagnostic ConstAssign(TextLocation location, string name) {
+        string msg = $"assignment of constant variable '{name}'";
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 
@@ -180,15 +197,16 @@ internal static class Error {
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 
-    public static Diagnostic UnexpectedType(TextLocation location, TypeSymbol lType) {
-        string msg = $"unexpected type '{lType}'";
+    public static Diagnostic UnexpectedType(TextLocation location, BoundTypeClause type) {
+        string msg = $"unexpected type '{DiagnosticText(type)}'";
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 
     public static Diagnostic InvalidArgumentType(
-            TextLocation location, int count, string parameterName, TypeSymbol expected, TypeSymbol actual) {
+            TextLocation location, int count, string parameterName, BoundTypeClause expected, BoundTypeClause actual) {
         string msg =
-            $"argument {count}: parameter '{parameterName}' expects argument of type '{expected}', got '{actual}'";
+            $"argument {count}: parameter '{parameterName}' expects argument of type " +
+            $"'{DiagnosticText(expected)}', got '{DiagnosticText(actual)}'";
 
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
@@ -208,10 +226,11 @@ internal static class Error {
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 
-    public static Diagnostic CannotConvertImplicitly(TextLocation location, TypeSymbol from, TypeSymbol to) {
+    public static Diagnostic CannotConvertImplicitly(TextLocation location, BoundTypeClause from, BoundTypeClause to) {
         string msg =
-            $"cannot convert from type '{from}' to '{to}'. An explicit conversion exists (are you missing a cast?)";
-        string suggestion = $"{to}(%)";
+            $"cannot convert from type '{DiagnosticText(from)}' to '{DiagnosticText(to)}'." +
+            "An explicit conversion exists (are you missing a cast?)";
+        string suggestion = $"{DiagnosticText(to)}(%)";
         return new Diagnostic(DiagnosticType.Error, location, msg, suggestion);
     }
 
@@ -260,8 +279,18 @@ internal static class Error {
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 
-    public static Diagnostic CannotApplyIndexing(TextLocation location, TypeSymbol type) {
-        string msg = $"cannot apply indexing with [] to an expression of type '{type}'";
+    public static Diagnostic CannotApplyIndexing(TextLocation location, BoundTypeClause type) {
+        string msg = $"cannot apply indexing with [] to an expression of type '{DiagnosticText(type)}'";
+        return new Diagnostic(DiagnosticType.Error, location, msg);
+    }
+
+    public static Diagnostic VoidVariable(TextLocation location) {
+        string msg = "cannot use void as a type";
+        return new Diagnostic(DiagnosticType.Error, location, msg);
+    }
+
+    public static Diagnostic ImpliedDimensions(TextLocation location) {
+        string msg = "collection dimensions are inferred and not necessary";
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 }

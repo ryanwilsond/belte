@@ -63,8 +63,10 @@ internal static class SyntaxFacts {
                 return SyntaxType.NULL_KEYWORD;
             case "var":
                 return SyntaxType.VAR_KEYWORD;
-            case "let":
-                return SyntaxType.LET_KEYWORD;
+            case "const":
+                return SyntaxType.CONST_KEYWORD;
+            case "ref":
+                return SyntaxType.REF_KEYWORD;
             case "if":
                 return SyntaxType.IF_KEYWORD;
             case "else":
@@ -173,8 +175,10 @@ internal static class SyntaxFacts {
                 return "null";
             case SyntaxType.VAR_KEYWORD:
                 return "var";
-            case SyntaxType.LET_KEYWORD:
-                return "let";
+            case SyntaxType.CONST_KEYWORD:
+                return "const";
+            case SyntaxType.REF_KEYWORD:
+                return "ref";
             case SyntaxType.IF_KEYWORD:
                 return "if";
             case SyntaxType.ELSE_KEYWORD:

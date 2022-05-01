@@ -19,7 +19,10 @@ internal sealed class Cast {
         isImplicit = isImplicit_;
     }
 
-    public static Cast Classify(TypeSymbol from, TypeSymbol to) {
+    public static Cast Classify(BoundTypeClause fromType, BoundTypeClause toType) {
+        var from = fromType.lType;
+        var to = toType.lType;
+
         if (from == to || from == null)
             return Cast.Identity;
 

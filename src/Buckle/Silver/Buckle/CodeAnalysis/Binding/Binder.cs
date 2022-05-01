@@ -69,7 +69,8 @@ internal sealed class Binder {
 
         if (isScript) {
             if (globalStatements.Any())
-                scriptFunction = new FunctionSymbol("$eval", ImmutableArray<ParameterSymbol>.Empty, TypeSymbol.Any);
+                scriptFunction = new FunctionSymbol(
+                "$eval", ImmutableArray<ParameterSymbol>.Empty, new BoundTypeClause(TypeSymbol.Any));
             else
                 scriptFunction = null;
 
@@ -79,7 +80,8 @@ internal sealed class Binder {
             mainFunction = functions.FirstOrDefault(f => f.name == "main");
 
             if (mainFunction != null)
-                if ((mainFunction.lType != TypeSymbol.Void && mainFunction.lType != TypeSymbol.Int) ||
+                if ((mainFunction.typeClause.lType != TypeSymbol.Void &&
+                    mainFunction.typeClause.lType != TypeSymbol.Int) ||
                     mainFunction.parameters.Any())
                     binder.diagnostics.Push(Error.InvalidMain(mainFunction.declaration.location));
 
@@ -91,7 +93,7 @@ internal sealed class Binder {
                         binder.diagnostics.Push(Error.MainAndGlobals(globalStatement.location));
                 } else {
                     mainFunction = new FunctionSymbol(
-                        "main", ImmutableArray<ParameterSymbol>.Empty, TypeSymbol.Void);
+                        "main", ImmutableArray<ParameterSymbol>.Empty, new BoundTypeClause(TypeSymbol.Void));
                 }
             }
         }
@@ -121,7 +123,7 @@ internal sealed class Binder {
             var body = binder.BindStatement(function.declaration.body);
             var loweredBody = Lowerer.Lower(function, body);
 
-            if (function.lType != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
+            if (function.typeClause.lType != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
                 binder.diagnostics.Push(Error.NotAllPathsReturn(function.declaration.identifier.location));
 
             functionBodies.Add(function, loweredBody);
@@ -136,7 +138,7 @@ internal sealed class Binder {
 
             if (statements.Length == 1 &&
                 statements[0] is BoundExpressionStatement es &&
-                es.expression.lType != TypeSymbol.Void) {
+                es.expression.typeClause.lType != TypeSymbol.Void) {
                 statements = statements.SetItem(0, new BoundReturnStatement(es.expression));
             } else if (statements.Any() && statements.Last().type != BoundNodeType.ReturnStatement) {
                 var nullValue = new BoundLiteralExpression(null);
@@ -152,13 +154,13 @@ internal sealed class Binder {
     }
 
     private void BindFunctionDeclaration(FunctionDeclaration function) {
-        var type = BindTypeClause(function.typeName);
+        var type = BindTypeClause(function.returnType);
         var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
         var seenParametersNames = new HashSet<string>();
 
         foreach (var parameter in function.parameters) {
             var parameterName = parameter.identifier.text;
-            var parameterType = BindTypeClause(parameter.typeName);
+            var parameterType = BindTypeClause(parameter.typeClause);
 
             if (!seenParametersNames.Add(parameterName)) {
                 diagnostics.Push(Error.ParameterAlreadyDeclared(parameter.location, parameter.identifier.text));
@@ -266,14 +268,14 @@ internal sealed class Binder {
                 diagnostics.Push(Error.Unsupported.GlobalReturnValue(expression.keyword.location));
             }
         } else {
-            if (function_.lType == TypeSymbol.Void) {
+            if (function_.typeClause.lType == TypeSymbol.Void) {
                 if (boundExpression != null)
                     diagnostics.Push(Error.UnexpectedReturnValue(expression.keyword.location));
             } else {
                 if (boundExpression == null)
                     diagnostics.Push(Error.MissingReturnValue(expression.keyword.location));
                 else
-                    boundExpression = BindCast(expression.expression.location, boundExpression, function_.lType);
+                    boundExpression = BindCast(expression.expression.location, boundExpression, function_.typeClause);
             }
         }
 
@@ -283,7 +285,7 @@ internal sealed class Binder {
     private BoundExpression BindExpression(Expression expression, bool canBeVoid=false) {
         var result = BindExpressionInternal(expression);
 
-        if (!canBeVoid && result.lType == TypeSymbol.Void) {
+        if (!canBeVoid && result.typeClause.lType == TypeSymbol.Void) {
             diagnostics.Push(Error.NoValue(expression.location));
             return new BoundErrorExpression();
         }
@@ -322,18 +324,19 @@ internal sealed class Binder {
         if (variable == null)
             return new BoundErrorExpression();
 
-        if (variable.lType is CollectionTypeSymbol cts) {
-            var index = BindCast(expression.index.location, BindExpression(expression.index), TypeSymbol.Int);
+        if (variable.typeClause.dimensions > 0) {
+            var index = BindCast(
+                expression.index.location, BindExpression(expression.index), new BoundTypeClause(TypeSymbol.Int));
             return new BoundIndexExpression(variable, index);
         } else {
-            diagnostics.Push(Error.CannotApplyIndexing(expression.location, variable.lType));
+            diagnostics.Push(Error.CannotApplyIndexing(expression.location, variable.typeClause));
             return new BoundErrorExpression();
         }
     }
 
     private BoundExpression BindCallExpression(CallExpression expression) {
         if (expression.arguments.count == 1 && LookupType(expression.identifier.text) is TypeSymbol type)
-            return BindCast(expression.arguments[0], type, true);
+            return BindCast(expression.arguments[0], new BoundTypeClause(type), true);
 
         var symbol = scope_.LookupSymbol(expression.identifier.text);
         if (symbol == null) {
@@ -380,32 +383,31 @@ internal sealed class Binder {
         for (int i=0; i<expression.arguments.count; i++) {
             var argument = expression.arguments[i];
             var parameter = function.parameters[i];
-            var boundArgument = BindCast(argument.location, BindExpression(argument), parameter.lType);
+            var boundArgument = BindCast(argument.location, BindExpression(argument), parameter.typeClause);
             boundArguments.Add(boundArgument);
         }
 
         return new BoundCallExpression(function, boundArguments.ToImmutable());
     }
 
-    private BoundExpression BindCast(Expression expression, TypeSymbol type, bool allowExplicit = false) {
+    private BoundExpression BindCast(Expression expression, BoundTypeClause type, bool allowExplicit = false) {
         var boundExpression = BindExpression(expression);
         return BindCast(expression.location, boundExpression, type, allowExplicit);
     }
 
     private BoundExpression BindCast(
-        TextLocation diagnosticLocation, BoundExpression expression, TypeSymbol type, bool allowExplicit = false) {
-        var conversion = Cast.Classify(expression.lType, type);
+        TextLocation diagnosticLocation, BoundExpression expression, BoundTypeClause type, bool allowExplicit = false) {
+        var conversion = Cast.Classify(expression.typeClause, type);
 
         if (!conversion.exists) {
-            if (expression.lType != TypeSymbol.Error && type != TypeSymbol.Error)
-                diagnostics.Push(Error.CannotConvert(diagnosticLocation, expression.lType, type));
+            if (expression.typeClause.lType != TypeSymbol.Error && type.lType != TypeSymbol.Error)
+                diagnostics.Push(Error.CannotConvert(diagnosticLocation, expression.typeClause, type));
 
             return new BoundErrorExpression();
         }
 
-        if (!allowExplicit && conversion.isExplicit) {
-            diagnostics.Push(Error.CannotConvertImplicitly(diagnosticLocation, expression.lType, type));
-        }
+        if (!allowExplicit && conversion.isExplicit)
+            diagnostics.Push(Error.CannotConvertImplicitly(diagnosticLocation, expression.typeClause, type));
 
         if (conversion.isIdentity)
             return expression;
@@ -438,7 +440,7 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindWhileStatement(WhileStatement statement) {
-        var condition = BindCast(statement.condition, TypeSymbol.Bool);
+        var condition = BindCast(statement.condition, new BoundTypeClause(TypeSymbol.Bool));
 
         if (condition.constantValue != null && !(bool)condition.constantValue.value)
             diagnostics.Push(Warning.UnreachableCode(statement.body));
@@ -449,7 +451,7 @@ internal sealed class Binder {
 
     private BoundStatement BindDoWhileStatement(DoWhileStatement statement) {
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
-        var condition = BindCast(statement.condition, TypeSymbol.Bool);
+        var condition = BindCast(statement.condition, new BoundTypeClause(TypeSymbol.Bool));
         return new BoundDoWhileStatement(body, condition, breakLabel, continueLabel);
     }
 
@@ -457,7 +459,7 @@ internal sealed class Binder {
         scope_ = new BoundScope(scope_);
 
         var initializer = BindStatement(statement.initializer);
-        var condition = BindCast(statement.condition, TypeSymbol.Bool);
+        var condition = BindCast(statement.condition, new BoundTypeClause(TypeSymbol.Bool));
         var step = BindExpression(statement.step);
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
 
@@ -478,7 +480,7 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindIfStatement(IfStatement statement) {
-        var condition = BindCast(statement.condition, TypeSymbol.Bool);
+        var condition = BindCast(statement.condition, new BoundTypeClause(TypeSymbol.Bool));
 
         if (condition.constantValue != null) {
             if ((bool)condition.constantValue.value == false)
@@ -511,20 +513,20 @@ internal sealed class Binder {
         return new BoundExpressionStatement(expression);
     }
 
-    private BoundExpression BindInitializerListExpression(InitializerListExpression expression, TypeSymbol lType) {
+    private BoundExpression BindInitializerListExpression(InitializerListExpression expression, BoundTypeClause type) {
         var boundItems = ImmutableArray.CreateBuilder<BoundExpression>();
 
         foreach (var item in expression.items) {
-            if (lType == null) {
+            if (type == null) {
                 var tempItem = BindExpression(item); // TODO: make it not bind twice
-                lType = tempItem.lType;
+                type = tempItem.typeClause;
             }
 
-            var boundItem = BindCast(item.location, BindExpression(item), lType);
+            var boundItem = BindCast(item.location, BindExpression(item), type);
             boundItems.Add(boundItem);
         }
 
-        return new BoundInitializerListExpression(boundItems.ToImmutable(), lType);
+        return new BoundInitializerListExpression(boundItems.ToImmutable(), 1, type);
     }
 
     private BoundExpression BindLiteralExpression(LiteralExpression expression) {
@@ -535,14 +537,14 @@ internal sealed class Binder {
     private BoundExpression BindUnaryExpression(UnaryExpression expression) {
         var boundOperand = BindExpression(expression.operand);
 
-        if (boundOperand.lType == TypeSymbol.Error)
+        if (boundOperand.typeClause.lType == TypeSymbol.Error)
             return new BoundErrorExpression();
 
-        var boundOp = BoundUnaryOperator.Bind(expression.op.type, boundOperand.lType);
+        var boundOp = BoundUnaryOperator.Bind(expression.op.type, boundOperand.typeClause);
 
         if (boundOp == null) {
             diagnostics.Push(
-                Error.InvalidUnaryOperatorUse(expression.op.location, expression.op.text, boundOperand.lType));
+                Error.InvalidUnaryOperatorUse(expression.op.location, expression.op.text, boundOperand.typeClause));
             return new BoundErrorExpression();
         }
 
@@ -553,14 +555,14 @@ internal sealed class Binder {
         var boundLeft = BindExpression(expression.left);
         var boundRight = BindExpression(expression.right);
 
-        if (boundLeft.lType == TypeSymbol.Error || boundRight.lType == TypeSymbol.Error)
+        if (boundLeft.typeClause.lType == TypeSymbol.Error || boundRight.typeClause.lType == TypeSymbol.Error)
             return new BoundErrorExpression();
 
-        var boundOp = BoundBinaryOperator.Bind(expression.op.type, boundLeft.lType, boundRight.lType);
+        var boundOp = BoundBinaryOperator.Bind(expression.op.type, boundLeft.typeClause, boundRight.typeClause);
 
         if (boundOp == null) {
             diagnostics.Push(Error.InvalidBinaryOperatorUse(
-                    expression.op.location, expression.op.text, boundLeft.lType, boundRight.lType));
+                    expression.op.location, expression.op.text, boundLeft.typeClause, boundRight.typeClause));
             return new BoundErrorExpression();
         }
 
@@ -595,26 +597,26 @@ internal sealed class Binder {
         if (variable == null)
             return boundExpression;
 
-        if (variable.isReadOnly)
-            diagnostics.Push(Error.ReadonlyAssign(expression.assignmentToken.location, name));
+        if (variable.typeClause.isConst)
+            diagnostics.Push(Error.ConstAssign(expression.assignmentToken.location, name));
 
         if (expression.assignmentToken.type != SyntaxType.EQUALS_TOKEN) {
             var equivalentOperatorTokenType = SyntaxFacts.GetBinaryOperatorOfAssignmentOperator(
                 expression.assignmentToken.type);
             var boundOperator = BoundBinaryOperator.Bind(
-                equivalentOperatorTokenType, variable.lType, boundExpression.lType);
+                equivalentOperatorTokenType, variable.typeClause, boundExpression.typeClause);
 
             if (boundOperator == null) {
                 diagnostics.Push(Error.InvalidBinaryOperatorUse(
                     expression.assignmentToken.location, expression.assignmentToken.text,
-                    variable.lType, boundExpression.lType));
+                    variable.typeClause, boundExpression.typeClause));
                 return new BoundErrorExpression();
             }
 
-            var convertedExpression = BindCast(expression.expression.location, boundExpression, variable.lType);
+            var convertedExpression = BindCast(expression.expression.location, boundExpression, variable.typeClause);
             return new BoundCompoundAssignmentExpression(variable, boundOperator, convertedExpression);
         } else {
-            var convertedExpression = BindCast(expression.expression.location, boundExpression, variable.lType);
+            var convertedExpression = BindCast(expression.expression.location, boundExpression, variable.typeClause);
             return new BoundAssignmentExpression(variable, convertedExpression);
         }
     }
@@ -635,17 +637,23 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatement expression) {
-        var isReadOnly = expression.typeName.type == SyntaxType.LET_KEYWORD;
-        var itemType = BindTypeClause(expression.typeName);
+        var typeClause = BindTypeClause(expression.typeClause);
 
-        if (itemType == null && expression.initializer == null) {
+        if (typeClause.isImplicit && expression.initializer == null) {
             diagnostics.Push(Error.NoInitOnImplicit(expression.identifier.location));
             return null;
         }
 
-        if (expression.openBracket != null && expression.closeBracket != null) {
+        if (typeClause.lType == TypeSymbol.Void) {
+            diagnostics.Push(Error.VoidVariable(expression.typeClause.typeName.location));
+            return null;
+        }
+
+        if (typeClause.dimensions > 0 ||
+            (typeClause.isImplicit && expression.initializer is InitializerListExpression)) {
             var initializer = expression.initializer.type != SyntaxType.NULL_KEYWORD
-                ? BindInitializerListExpression((InitializerListExpression)expression.initializer, itemType)
+                ? BindInitializerListExpression(
+                    (InitializerListExpression)expression.initializer, typeClause.ChildType())
                 : new BoundLiteralExpression(null);
 
             if (initializer is BoundInitializerListExpression il) {
@@ -655,54 +663,62 @@ internal sealed class Binder {
                 }
             }
 
-            itemType = itemType ?? initializer.lType;
-
-            if (itemType == null) {
-                diagnostics.Push(Error.NullAssignOnImplicit(expression.initializer.location));
+            if (typeClause.isImplicit && typeClause.dimensions > 0) {
+                diagnostics.Push(Error.ImpliedDimensions(expression.initializer.location));
                 return null;
             }
 
-            var collectionType = TypeSymbol.Collection;
-            collectionType.itemType = itemType;
-            var variable = BindVariable(expression.identifier, isReadOnly, collectionType);
+            var itemType = typeClause.isImplicit
+                ? initializer.typeClause.BaseType()
+                : typeClause.BaseType();
+
+            if (initializer is BoundLiteralExpression le) {
+                if (le.value == null && typeClause.isImplicit) {
+                    diagnostics.Push(Error.NullAssignOnImplicit(expression.initializer.location));
+                    return null;
+                }
+            }
+
+            var variable = BindVariable(expression.identifier,
+                new BoundTypeClause(itemType.BaseType().lType, typeClause.isImplicit,
+                typeClause.isConst, typeClause.isRef, typeClause.dimensions));
 
             return new BoundVariableDeclarationStatement(variable, initializer);
         } else {
             var initializer = expression.initializer != null
                 ? BindExpression(expression.initializer)
                 : new BoundLiteralExpression(null);
-            var variableType = itemType ?? initializer.lType;
+            var variableType = typeClause.isImplicit
+                ? initializer.typeClause
+                : typeClause;
 
-            if (variableType == null) {
-                diagnostics.Push(Error.NullAssignOnImplicit(expression.initializer.location));
-                return null;
-            }
-
-            var variable = BindVariable(expression.identifier, isReadOnly, variableType, initializer.constantValue);
+            var variable = BindVariable(expression.identifier, variableType, initializer.constantValue);
             var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
         }
     }
 
-    private TypeSymbol BindTypeClause(Token type) {
-        if (type.type == SyntaxType.VAR_KEYWORD || type.type == SyntaxType.LET_KEYWORD)
-            return null;
+    private BoundTypeClause BindTypeClause(TypeClause type) {
+        var isConst = type.constKeyword != null;
+        var isRef = type.refKeyword != null;
+        var isImplicit = type.type == SyntaxType.VAR_KEYWORD;
+        var dimensions = type.brackets.Length;
 
-        var foundType = LookupType(type.text);
+        var foundType = LookupType(type.typeName.text);
         if (foundType == null)
-            diagnostics.Push(Error.UnknownType(type.location, type.text));
+            diagnostics.Push(Error.UnknownType(type.location, type.typeName.text));
 
-        return foundType;
+        return new BoundTypeClause(foundType, isImplicit, isConst, isRef, dimensions);
     }
 
     private VariableSymbol BindVariable(
-        Token identifier, bool isReadOnly, TypeSymbol type, BoundConstant constant = null) {
+        Token identifier, BoundTypeClause type, BoundConstant constant = null) {
         var name = identifier.text ?? "?";
         var declare = !identifier.isMissing;
         var variable = function_ == null
-            ? (VariableSymbol) new GlobalVariableSymbol(name, isReadOnly, type, constant)
-            : new LocalVariableSymbol(name, isReadOnly, type, constant);
+            ? (VariableSymbol) new GlobalVariableSymbol(name, type, constant)
+            : new LocalVariableSymbol(name, type, constant);
 
         if (declare && !scope_.TryDeclareVariable(variable))
             diagnostics.Push(Error.AlreadyDeclared(identifier.location, name));

@@ -52,7 +52,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             }
         }
 
-        if (function.lType == TypeSymbol.Void)
+        if (function.typeClause.lType == TypeSymbol.Void)
             if (builder.Count == 0 || CanFallThrough(builder.Last()))
                 builder.Add(new BoundReturnStatement(null));
 

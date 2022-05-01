@@ -32,25 +32,25 @@ internal static class SymbolPrinter {
     }
 
     private static void WriteParameter(ParameterSymbol symbol, TextWriter writer) {
-        writer.WriteType(symbol.lType.name);
+        writer.WriteType(symbol.typeClause.lType.name);
         writer.Write(" ");
         writer.WriteIdentifier(symbol.name);
     }
 
     private static void WriteGlobalVariable(GlobalVariableSymbol symbol, TextWriter writer) {
-        writer.WriteType(symbol.lType.name);
+        writer.WriteType(symbol.typeClause.lType.name);
         writer.Write(" ");
         writer.WriteIdentifier(symbol.name);
     }
 
     private static void WriteLocalVariable(LocalVariableSymbol symbol, TextWriter writer) {
-        writer.WriteType(symbol.lType.name);
+        writer.WriteType(symbol.typeClause.lType.name);
         writer.Write(" ");
         writer.WriteIdentifier(symbol.name);
     }
 
     private static void WriteFunction(FunctionSymbol symbol, TextWriter writer) {
-        writer.WriteType(symbol.lType.name);
+        writer.WriteType(symbol.typeClause.lType.name);
         writer.Write(" ");
         writer.WriteIdentifier(symbol.name);
         writer.WritePunctuation("(");

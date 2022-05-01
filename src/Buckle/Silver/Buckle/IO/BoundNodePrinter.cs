@@ -246,7 +246,7 @@ internal static class BoundNodePrinter {
 
     private static void WriteVariableDeclarationStatement(
         BoundVariableDeclarationStatement node, IndentedTextWriter writer) {
-        writer.WriteType(node.variable.lType.name);
+        writer.WriteType(node.variable.typeClause.lType.name);
         writer.WriteSpace();
         writer.WriteIdentifier(node.variable.name);
         writer.WriteSpace();
@@ -278,7 +278,7 @@ internal static class BoundNodePrinter {
     }
 
     private static void WriteCastExpression(BoundCastExpression node, IndentedTextWriter writer) {
-        writer.WriteType(node.lType.name);
+        writer.WriteType(node.typeClause.lType.name);
         writer.WritePunctuation(SyntaxType.OPEN_PAREN_TOKEN);
         node.expression.WriteTo(writer);
         writer.WritePunctuation(SyntaxType.CLOSE_PAREN_TOKEN);
@@ -353,17 +353,17 @@ internal static class BoundNodePrinter {
     private static void WriteLiteralExpression(BoundLiteralExpression node, IndentedTextWriter writer) {
         var value = node.value.ToString();
 
-        if (node.lType == TypeSymbol.Bool) {
+        if (node.typeClause.lType == TypeSymbol.Bool) {
             writer.WriteKeyword(value);
-        } else if (node.lType == TypeSymbol.Int) {
+        } else if (node.typeClause.lType == TypeSymbol.Int) {
             writer.WriteNumber(value);
-        } else if (node.lType == TypeSymbol.String) {
+        } else if (node.typeClause.lType == TypeSymbol.String) {
             value = "\"" + value.Replace("\"", "\"\"") + "\"";
             writer.WriteString(value);
-        } else if (node.lType == TypeSymbol.Decimal) {
+        } else if (node.typeClause.lType == TypeSymbol.Decimal) {
             writer.WriteNumber(value);
         } else {
-            throw new Exception($"unexpected type '{node.lType}'");
+            throw new Exception($"unexpected type '{node.typeClause.lType}'");
         }
     }
 
