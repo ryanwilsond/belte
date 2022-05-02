@@ -78,7 +78,7 @@ public sealed class Compiler {
     }
 
     private void InternalPreprocessor() {
-        diagnostics.Push(DiagnosticType.Warning, "preprocessing not supported (yet); skipping");
+        // TODO: doesn't do anything
 
         for (int i = 0; i < state.tasks.Length; i++) {
             if (state.tasks[i].stage == CompilerStage.Raw)

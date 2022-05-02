@@ -1,5 +1,28 @@
 
 void main() {
-    int[] a = {1, 2};
-    print(a[1]);
+    print("Calculator App\n\n");
+
+    print("Enter number 1: ");
+    decimal num1 = decimal(input());
+    print("Enter operator: ");
+    string op = input();
+    print("Enter number 2: ");
+    decimal num2 = decimal(input());
+
+    decimal result = 0;
+
+    if (op == "+") {
+        result = num1 + num2;
+    } else if (op == "-") {
+        result = num1 - num2;
+    } else if (op == "*") {
+        result = num1 * num2;
+    } else if (op == "/") {
+        result = num1 / num2;
+    } else {
+        print("Unknown operator '" + op + "'\n");
+        return;
+    }
+
+    print("Result: " + string(result) + "\n");
 }

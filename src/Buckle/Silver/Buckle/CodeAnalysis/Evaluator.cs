@@ -203,7 +203,7 @@ internal sealed class Evaluator {
             return Console.ReadLine();
         } else if (node.function == BuiltinFunctions.Print) {
             var message = (object)EvaluateExpression(node.arguments[0]);
-            Console.WriteLine(message);
+            Console.Write(message);
         } else if (node.function == BuiltinFunctions.Randint) {
             var max = (int)EvaluateExpression(node.arguments[0]);
 

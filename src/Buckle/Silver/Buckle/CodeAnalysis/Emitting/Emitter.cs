@@ -20,7 +20,7 @@ internal sealed class Emitter {
         new Dictionary<FunctionSymbol, MethodDefinition>();
     private readonly AssemblyDefinition assemblyDefinition_;
     private readonly Dictionary<TypeSymbol, TypeReference> knownTypes_;
-    private readonly MethodReference consoleWriteLineReference_;
+    private readonly MethodReference consoleWriteReference_;
     private readonly MethodReference consoleReadLineReference_;
     private readonly MethodReference stringConcat2Reference_;
     private readonly MethodReference stringConcat3Reference_;
@@ -77,7 +77,7 @@ internal sealed class Emitter {
             knownTypes_.Add(typeSymbol, typeReference);
         }
 
-        consoleWriteLineReference_ = ResolveMethod("System.Console", "WriteLine", new [] { "System.Object" });
+        consoleWriteReference_ = ResolveMethod("System.Console", "Write", new [] { "System.Object" });
         consoleReadLineReference_ = ResolveMethod("System.Console", "ReadLine", Array.Empty<string>());
         stringConcat2Reference_ = ResolveMethod(
             "System.String", "Concat", new [] { "System.String", "System.String" });
@@ -278,7 +278,7 @@ internal sealed class Emitter {
     private void EmitExpressionStatement(ILProcessor ilProcessor, BoundExpressionStatement statement) {
         EmitExpression(ilProcessor, statement.expression);
 
-        if (statement.expression.typeClause.lType != TypeSymbol.Void)
+        if (statement.expression.typeClause?.lType != TypeSymbol.Void)
             ilProcessor.Emit(OpCodes.Pop);
     }
 
@@ -403,7 +403,7 @@ internal sealed class Emitter {
         }
 
         if (expression.function == BuiltinFunctions.Print) {
-            ilProcessor.Emit(OpCodes.Call, consoleWriteLineReference_);
+            ilProcessor.Emit(OpCodes.Call, consoleWriteReference_);
         } else if (expression.function == BuiltinFunctions.Input) {
             ilProcessor.Emit(OpCodes.Call, consoleReadLineReference_);
         } else {
@@ -431,7 +431,8 @@ internal sealed class Emitter {
     }
 
     private void EmitEmptyExpression(ILProcessor ilProcessor, BoundEmptyExpression expression) {
-        ilProcessor.Emit(OpCodes.Nop);
+        // TODO: breaks control flow
+        // ilProcessor.Emit(OpCodes.Nop);
     }
 
     private void EmitAssignmentExpression(ILProcessor ilProcessor, BoundAssignmentExpression expression) {
@@ -667,6 +668,7 @@ internal sealed class Emitter {
             var value = (float)expression.constantValue.value;
             ilProcessor.Emit(OpCodes.Ldc_R4, value);
         } else {
+            // TODO: add nullable types
             diagnostics.Push(DiagnosticType.Fatal, $"unexpected constant exression type '{expressionType}'");
         }
     }

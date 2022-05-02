@@ -383,6 +383,55 @@ internal sealed class Lexer {
                         done = true;
                     }
                     break;
+                case '\\':
+                    position_++;
+
+                    switch (current) {
+                        case 'a':
+                            sb.Append('\a');
+                            position_++;
+                            break;
+                        case 'b':
+                            sb.Append('\b');
+                            position_++;
+                            break;
+                        case 'f':
+                            sb.Append('\f');
+                            position_++;
+                            break;
+                        case 'n':
+                            sb.Append('\n');
+                            position_++;
+                            break;
+                        case 'r':
+                            sb.Append('\r');
+                            position_++;
+                            break;
+                        case 't':
+                            sb.Append('\t');
+                            position_++;
+                            break;
+                        case 'v':
+                            sb.Append('\v');
+                            position_++;
+                            break;
+                        case '\'':
+                            sb.Append('\'');
+                            position_++;
+                            break;
+                        case '"':
+                            sb.Append('"');
+                            position_++;
+                            break;
+                        case '\\':
+                            sb.Append('\\');
+                            position_++;
+                            break;
+                        default:
+                            sb.Append('\\');
+                            break;
+                    }
+                    break;
                 default:
                     sb.Append(current);
                     position_++;
