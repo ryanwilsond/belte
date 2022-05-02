@@ -138,7 +138,7 @@ internal sealed class Binder {
 
             if (statements.Length == 1 &&
                 statements[0] is BoundExpressionStatement es &&
-                es.expression.typeClause.lType != TypeSymbol.Void) {
+                es.expression.typeClause?.lType != TypeSymbol.Void) {
                 statements = statements.SetItem(0, new BoundReturnStatement(es.expression));
             } else if (statements.Any() && statements.Last().type != BoundNodeType.ReturnStatement) {
                 var nullValue = new BoundLiteralExpression(null);
@@ -644,6 +644,13 @@ internal sealed class Binder {
             return null;
         }
 
+        if (expression.initializer is LiteralExpression le) {
+            if (le.token.type == SyntaxType.NULL_KEYWORD && typeClause.isImplicit) {
+                diagnostics.Push(Error.NullAssignOnImplicit(expression.initializer.location));
+                return null;
+            }
+        }
+
         if (typeClause.lType == TypeSymbol.Void) {
             diagnostics.Push(Error.VoidVariable(expression.typeClause.typeName.location));
             return null;
@@ -672,13 +679,6 @@ internal sealed class Binder {
                 ? initializer.typeClause.BaseType()
                 : typeClause.BaseType();
 
-            if (initializer is BoundLiteralExpression le) {
-                if (le.value == null && typeClause.isImplicit) {
-                    diagnostics.Push(Error.NullAssignOnImplicit(expression.initializer.location));
-                    return null;
-                }
-            }
-
             var variable = BindVariable(expression.identifier,
                 new BoundTypeClause(itemType.BaseType().lType, typeClause.isImplicit,
                 typeClause.isConst, typeClause.isRef, typeClause.dimensions));
@@ -702,11 +702,11 @@ internal sealed class Binder {
     private BoundTypeClause BindTypeClause(TypeClause type) {
         var isConst = type.constKeyword != null;
         var isRef = type.refKeyword != null;
-        var isImplicit = type.type == SyntaxType.VAR_KEYWORD;
+        var isImplicit = type.typeName.type == SyntaxType.VAR_KEYWORD;
         var dimensions = type.brackets.Length;
 
         var foundType = LookupType(type.typeName.text);
-        if (foundType == null)
+        if (foundType == null && !isImplicit)
             diagnostics.Push(Error.UnknownType(type.location, type.typeName.text));
 
         return new BoundTypeClause(foundType, isImplicit, isConst, isRef, dimensions);

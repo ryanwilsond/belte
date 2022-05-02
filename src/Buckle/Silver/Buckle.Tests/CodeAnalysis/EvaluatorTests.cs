@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Xunit;
+using Xunit.Abstractions;
 using Buckle.Diagnostics;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Symbols;
@@ -9,6 +10,12 @@ using Buckle.CodeAnalysis.Syntax;
 namespace Buckle.Tests.CodeAnalysis;
 
 public class EvaluatorTests {
+    private readonly ITestOutputHelper writer;
+
+    public EvaluatorTests(ITestOutputHelper writer_) {
+        writer = writer_;
+    }
+
     [Theory]
     [InlineData(";", null)]
 
@@ -120,7 +127,7 @@ public class EvaluatorTests {
     public void Evaluator_IfStatement_Reports_NotReachableCode_Warning() {
         var text = @"
             void test() {
-                let x = 4 * 3;
+                const int x = 4 * 3;
                 if (x > 12) {
                     [print](""x"");
                 } else {
@@ -166,13 +173,13 @@ public class EvaluatorTests {
     public void Evaluator_CompoundDeclarationExpression_Reports_CannotAssign() {
         var text = @"
             {
-                let x = 10;
+                const int x = 10;
                 x [+=] 1;
             }
         ";
 
         var diagnostics = @"
-            assignment of read-only variable 'x'
+            assignment of constant variable 'x'
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -214,19 +221,18 @@ public class EvaluatorTests {
         AssertDiagnostics(text, diagnostics, true);
     }
 
-    // TODO: commented tests don't pass, but when testing externally they should, unexpected diagnostic count
-    // [Fact]
-    // public void Evaluator_InvokeFunctionArguments_NoInfiniteLoop() {
-    //     var text = @"print(""Hi""[[=]][)];";
+    [Fact]
+    public void Evaluator_InvokeFunctionArguments_NoInfiniteLoop() {
+        var text = @"print(""Hi""[[=]][)];";
 
-    //     var diagnostics = @"
-    //         unexpected token '=', expected ')'
-    //         unexpected token '=', expected identifier
-    //         unexpected token ')', expected identifier
-    //     ";
+        var diagnostics = @"
+            unexpected token '=', expected ')'
+            unexpected token '=', expected identifier
+            unexpected token ')', expected identifier
+        ";
 
-    //     AssertDiagnostics(text, diagnostics);
-    // }
+        AssertDiagnostics(text, diagnostics);
+    }
 
     [Fact]
     public void Evaluator_InvokeFunctionArguments_Missing() {
@@ -287,20 +293,20 @@ public class EvaluatorTests {
         AssertDiagnostics(text, diagnostics);
     }
 
-    // [Fact]
-    // public void Evaluator_Block_NoInfiniteLoop() {
-    //     var text = @"
-    //         {
-    //         [)][]
-    //     ";
+    [Fact]
+    public void Evaluator_Block_NoInfiniteLoop() {
+        var text = @"
+            {
+            [)][]
+        ";
 
-    //     var diagnostics = @"
-    //         unexpected token ')', expected identifier
-    //         expected '}' at end of input
-    //     ";
+        var diagnostics = @"
+            unexpected token ')', expected identifier
+            expected '}' at end of input
+        ";
 
-    //     AssertDiagnostics(text, diagnostics);
-    // }
+        AssertDiagnostics(text, diagnostics);
+    }
 
     [Fact]
     public void Evaluator_IfStatement_Reports_CannotConvert() {
@@ -422,12 +428,12 @@ public class EvaluatorTests {
     [Fact]
     public void Evaluator_AssignmentExpression_Reports_Readonly() {
         var text = @"
-            let x = 10;
+            const int x = 10;
             x [=] 0;
         ";
 
         var diagnostics = @"
-            assignment of read-only variable 'x'
+            assignment of constant variable 'x'
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -657,6 +663,11 @@ public class EvaluatorTests {
         var diagnostics = assertWarnings
             ? result.diagnostics
             : result.diagnostics.FilterOut(DiagnosticType.Warning);
+        if (expectedDiagnostics.Length != diagnostics.count) {
+            writer.WriteLine($"Input: {annotatedText.text}");
+            foreach (var diagnostic in diagnostics.diagnostics_)
+                writer.WriteLine($"Diagnostic ({diagnostic.type}): {diagnostic.msg}");
+        }
         Assert.Equal(expectedDiagnostics.Length, diagnostics.count);
 
         for (int i = 0; i < expectedDiagnostics.Length; i++) {

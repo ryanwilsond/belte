@@ -105,28 +105,38 @@ internal sealed class Parser {
         return members.ToImmutable();
     }
 
-    private Member ParseMember() {
-        bool hasTypeClause = false;
+    private bool PeekIsTypeClause(out int offset, out bool hasName) {
+        offset = 0;
+        hasName = false;
 
         if (current.type == SyntaxType.IDENTIFIER_TOKEN ||
             current.type == SyntaxType.CONST_KEYWORD ||
-            current.type == SyntaxType.REF_KEYWORD) {
-            int offset = 0;
-            while (Peek(offset).type == SyntaxType.OPEN_BRACKET_TOKEN ||
-                Peek(offset).type == SyntaxType.CLOSE_BRACKET_TOKEN ||
-                Peek(offset).type == SyntaxType.CONST_KEYWORD ||
-                Peek(offset).type == SyntaxType.REF_KEYWORD)
+            current.type == SyntaxType.REF_KEYWORD ||
+            current.type == SyntaxType.VAR_KEYWORD) {
+            while (Peek(offset).type == SyntaxType.CONST_KEYWORD ||
+                Peek(offset).type == SyntaxType.REF_KEYWORD ||
+                Peek(offset).type == SyntaxType.VAR_KEYWORD)
                 offset++;
 
-            if (offset > 0 && Peek(offset).type == SyntaxType.IDENTIFIER_TOKEN) {
-                hasTypeClause = true;
+            if (Peek(offset).type == SyntaxType.IDENTIFIER_TOKEN) {
                 offset++;
+
+                if (Peek(offset).type == SyntaxType.IDENTIFIER_TOKEN)
+                    hasName = true;
+
+                return true;
             }
+        }
 
+        return false;
+    }
+
+    private Member ParseMember() {
+        if (PeekIsTypeClause(out var offset, out _) && offset > 0) {
             bool openBrace = false;
             bool openParenthesis = false;
 
-            for (int i=offset; i<tokens_.Length-position_; i++) {
+            for (int i=0; i<tokens_.Length-position_; i++) {
                 if (Peek(i).type == SyntaxType.SEMICOLON_TOKEN)
                     break;
                 if (Peek(i).type == SyntaxType.OPEN_PAREN_TOKEN)
@@ -141,7 +151,7 @@ internal sealed class Parser {
                 return ParseFunctionDeclaration();
         }
 
-        return ParseGlobalStatement(hasTypeClause);
+        return ParseGlobalStatement();
     }
 
     private Member ParseFunctionDeclaration() {
@@ -183,13 +193,13 @@ internal sealed class Parser {
         return new Parameter(syntaxTree_, typeClause, identifier);
     }
 
-    private Member ParseGlobalStatement(bool typeClause) {
-        var statement = ParseStatement(typeClause);
+    private Member ParseGlobalStatement() {
+        var statement = ParseStatement();
         return new GlobalStatement(syntaxTree_, statement);
     }
 
-    private Statement ParseStatement(bool typeClause = false) {
-        if (typeClause)
+    private Statement ParseStatement() {
+        if (PeekIsTypeClause(out _, out var hasName) && hasName)
             return ParseVariableDeclarationStatement();
 
         switch (current.type) {
