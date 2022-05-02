@@ -15,6 +15,7 @@ namespace Buckle.CodeAnalysis.Emitting;
 internal sealed class Emitter {
     public DiagnosticQueue diagnostics = new DiagnosticQueue();
 
+    private readonly List<AssemblyDefinition> assemblies = new List<AssemblyDefinition>();
     private readonly Dictionary<FunctionSymbol, MethodDefinition> methods_ =
         new Dictionary<FunctionSymbol, MethodDefinition>();
     private readonly AssemblyDefinition assemblyDefinition_;
@@ -43,8 +44,6 @@ internal sealed class Emitter {
     private FieldDefinition randomFieldDefinition_;
 
     private Emitter(string moduleName, string[] references) {
-        var assemblies = new List<AssemblyDefinition>();
-
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return;
 
@@ -78,62 +77,6 @@ internal sealed class Emitter {
             knownTypes_.Add(typeSymbol, typeReference);
         }
 
-        TypeReference ResolveType(string buckleName, string metadataName) {
-            var foundTypes = assemblies.SelectMany(a => a.Modules)
-                .SelectMany(m => m.Types)
-                .Where(t => t.FullName == metadataName)
-                .ToArray();
-
-            if (foundTypes.Length == 1) {
-                var typeReference = assemblyDefinition_.MainModule.ImportReference(foundTypes[0]);
-                return typeReference;
-            } else if (foundTypes.Length == 0)
-                diagnostics.Push(Error.RequiredTypeNotFound(buckleName, metadataName));
-            else
-                diagnostics.Push(Error.RequiredTypeAmbiguous(buckleName, metadataName, foundTypes));
-
-            return null;
-        }
-
-        MethodReference ResolveMethod(string typeName, string methodName, string[] parameterTypeNames) {
-            var foundTypes = assemblies.SelectMany(a => a.Modules)
-                .SelectMany(m => m.Types)
-                .Where(t => t.FullName == typeName)
-                .ToArray();
-
-            if (foundTypes.Length == 1) {
-                var foundType = foundTypes[0];
-                var methods = foundType.Methods.Where(m => m.Name == methodName);
-
-                foreach (var method in methods) {
-                    if (method.Parameters.Count != parameterTypeNames.Length)
-                        continue;
-
-                    var allParametersMatch = true;
-
-                    for (int i=0; i<parameterTypeNames.Length; i++) {
-                        if (method.Parameters[i].ParameterType.FullName != parameterTypeNames[i]) {
-                            allParametersMatch = false;
-                            break;
-                        }
-                    }
-
-                    if (!allParametersMatch)
-                        continue;
-
-                    return assemblyDefinition_.MainModule.ImportReference(method);
-                }
-
-                diagnostics.Push(Error.RequiredMethodNotFound(typeName, methodName, parameterTypeNames));
-                return null;
-            } else if (foundTypes.Length == 0)
-                diagnostics.Push(Error.RequiredTypeNotFound(null, typeName));
-            else
-                diagnostics.Push(Error.RequiredTypeAmbiguous(null, typeName, foundTypes));
-
-            return null;
-        }
-
         consoleWriteLineReference_ = ResolveMethod("System.Console", "WriteLine", new [] { "System.Object" });
         consoleReadLineReference_ = ResolveMethod("System.Console", "ReadLine", Array.Empty<string>());
         stringConcat2Reference_ = ResolveMethod(
@@ -152,6 +95,62 @@ internal sealed class Emitter {
         randomReference_ = ResolveType(null, "System.Random");
         randomCtorReference_ = ResolveMethod("System.Random", ".ctor", Array.Empty<string>());
         randomNextReference_ = ResolveMethod("System.Random", "Next", new [] { "System.Int32" });
+    }
+
+    TypeReference ResolveType(string buckleName, string metadataName) {
+        var foundTypes = assemblies.SelectMany(a => a.Modules)
+            .SelectMany(m => m.Types)
+            .Where(t => t.FullName == metadataName)
+            .ToArray();
+
+        if (foundTypes.Length == 1) {
+            var typeReference = assemblyDefinition_.MainModule.ImportReference(foundTypes[0]);
+            return typeReference;
+        } else if (foundTypes.Length == 0)
+            diagnostics.Push(Error.RequiredTypeNotFound(buckleName, metadataName));
+        else
+            diagnostics.Push(Error.RequiredTypeAmbiguous(buckleName, metadataName, foundTypes));
+
+        return null;
+    }
+
+    MethodReference ResolveMethod(string typeName, string methodName, string[] parameterTypeNames) {
+        var foundTypes = assemblies.SelectMany(a => a.Modules)
+            .SelectMany(m => m.Types)
+            .Where(t => t.FullName == typeName)
+            .ToArray();
+
+        if (foundTypes.Length == 1) {
+            var foundType = foundTypes[0];
+            var methods = foundType.Methods.Where(m => m.Name == methodName);
+
+            foreach (var method in methods) {
+                if (method.Parameters.Count != parameterTypeNames.Length)
+                    continue;
+
+                var allParametersMatch = true;
+
+                for (int i=0; i<parameterTypeNames.Length; i++) {
+                    if (method.Parameters[i].ParameterType.FullName != parameterTypeNames[i]) {
+                        allParametersMatch = false;
+                        break;
+                    }
+                }
+
+                if (!allParametersMatch)
+                    continue;
+
+                return assemblyDefinition_.MainModule.ImportReference(method);
+            }
+
+            diagnostics.Push(Error.RequiredMethodNotFound(typeName, methodName, parameterTypeNames));
+            return null;
+        } else if (foundTypes.Length == 0)
+            diagnostics.Push(Error.RequiredTypeNotFound(null, typeName));
+        else
+            diagnostics.Push(Error.RequiredTypeAmbiguous(null, typeName, foundTypes));
+
+        return null;
     }
 
     public static DiagnosticQueue Emit(
@@ -315,6 +314,9 @@ internal sealed class Emitter {
             case BoundNodeType.CallExpression:
                 EmitCallExpression(ilProcessor, (BoundCallExpression)expression);
                 break;
+            case BoundNodeType.IndexExpression:
+                EmitIndexExpression(ilProcessor, (BoundIndexExpression)expression);
+                break;
             case BoundNodeType.CastExpression:
                 EmitCastExpression(ilProcessor, (BoundCastExpression)expression);
                 break;
@@ -322,6 +324,13 @@ internal sealed class Emitter {
                 diagnostics.Push(DiagnosticType.Fatal, $"unexpected node '{expression.type}'");
                 break;
         }
+    }
+
+    private void EmitIndexExpression(ILProcessor ilProcessor, BoundIndexExpression expression) {
+        var variableDefinition = locals_[expression.variable];
+        ilProcessor.Emit(OpCodes.Ldloc, variableDefinition);
+        ilProcessor.Emit(OpCodes.Ldc_I4, (int)expression.index.constantValue.value);
+        ilProcessor.Emit(OpCodes.Ldelem_I4);
     }
 
     private void EmitInitializerListExpression(ILProcessor ilProcessor, BoundInitializerListExpression expression) {
@@ -415,13 +424,14 @@ internal sealed class Emitter {
         );
         typeDefinition_.Methods.Insert(0, staticConstructor);
 
-        var iLProcessor = staticConstructor.Body.GetILProcessor();
-        iLProcessor.Emit(OpCodes.Newobj, randomCtorReference_);
-        iLProcessor.Emit(OpCodes.Stsfld, randomFieldDefinition_);
-        iLProcessor.Emit(OpCodes.Ret);
+        var ilProcessor = staticConstructor.Body.GetILProcessor();
+        ilProcessor.Emit(OpCodes.Newobj, randomCtorReference_);
+        ilProcessor.Emit(OpCodes.Stsfld, randomFieldDefinition_);
+        ilProcessor.Emit(OpCodes.Ret);
     }
 
     private void EmitEmptyExpression(ILProcessor ilProcessor, BoundEmptyExpression expression) {
+        ilProcessor.Emit(OpCodes.Nop);
     }
 
     private void EmitAssignmentExpression(ILProcessor ilProcessor, BoundAssignmentExpression expression) {

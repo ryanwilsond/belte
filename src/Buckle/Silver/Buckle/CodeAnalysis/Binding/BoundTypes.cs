@@ -84,4 +84,20 @@ internal sealed class BoundTypeClause : BoundNode {
         else
             return this;
     }
+
+    public override string ToString() {
+        string text = "";
+
+        if (isConst)
+            text += "const ";
+        if (isRef)
+            text += "ref ";
+
+        text += lType.name;
+
+        for (int i=0; i<dimensions; i++)
+            text += "[]";
+
+        return text;
+    }
 }

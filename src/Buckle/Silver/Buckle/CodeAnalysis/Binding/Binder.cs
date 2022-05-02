@@ -515,6 +515,7 @@ internal sealed class Binder {
 
     private BoundExpression BindInitializerListExpression(InitializerListExpression expression, BoundTypeClause type) {
         var boundItems = ImmutableArray.CreateBuilder<BoundExpression>();
+        // TODO: make InitializerListExpression a literal to allow multidimensional arrays with minimal overhead
 
         foreach (var item in expression.items) {
             if (type == null) {
@@ -675,15 +676,18 @@ internal sealed class Binder {
                 return null;
             }
 
-            var itemType = typeClause.isImplicit
-                ? initializer.typeClause.BaseType()
-                : typeClause.BaseType();
+            var variableType = typeClause.isImplicit
+                ? initializer.typeClause
+                : typeClause;
+
+            var itemType = variableType.BaseType();
 
             var variable = BindVariable(expression.identifier,
-                new BoundTypeClause(itemType.BaseType().lType, typeClause.isImplicit,
-                typeClause.isConst, typeClause.isRef, typeClause.dimensions));
+                new BoundTypeClause(itemType.lType, typeClause.isImplicit,
+                typeClause.isConst, typeClause.isRef, variableType.dimensions));
+            var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
 
-            return new BoundVariableDeclarationStatement(variable, initializer);
+            return new BoundVariableDeclarationStatement(variable, castedInitializer);
         } else {
             var initializer = expression.initializer != null
                 ? BindExpression(expression.initializer)

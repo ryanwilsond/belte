@@ -34,22 +34,6 @@ internal static class Error {
             return type.ToString().ToLower();
     }
 
-    private static string DiagnosticText(BoundTypeClause type) {
-        string text = "";
-
-        if (type.isConst)
-            text += "const ";
-        if (type.isRef)
-            text += "ref ";
-
-        text += type.lType.name;
-
-        for (int i=0; i<type.dimensions; i++)
-            text += "[]";
-
-        return text;
-    }
-
     public static Diagnostic InvalidReference(string reference) {
         string msg = $"{reference}: no such file or invalid file type";
         return new Diagnostic(DiagnosticType.Error, null, msg);
@@ -77,7 +61,7 @@ internal static class Error {
     }
 
     public static Diagnostic InvalidUnaryOperatorUse(TextLocation location, string op, BoundTypeClause operand) {
-        string msg = $"operator '{op}' is not defined for type '{DiagnosticText(operand)}'";
+        string msg = $"operator '{op}' is not defined for type '{operand}'";
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 
@@ -101,7 +85,7 @@ internal static class Error {
 
     public static Diagnostic InvalidBinaryOperatorUse(
         TextLocation location, string op, BoundTypeClause left, BoundTypeClause right) {
-        string msg = $"operator '{op}' is not defined for types '{DiagnosticText(left)}' and '{DiagnosticText(right)}'";
+        string msg = $"operator '{op}' is not defined for types '{left}' and '{right}'";
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 
@@ -147,7 +131,7 @@ internal static class Error {
     }
 
     public static Diagnostic CannotConvert(TextLocation location, BoundTypeClause from, BoundTypeClause to) {
-        string msg = $"cannot convert from type '{DiagnosticText(from)}' to '{DiagnosticText(to)}'";
+        string msg = $"cannot convert from type '{from}' to '{to}'";
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 
@@ -198,7 +182,7 @@ internal static class Error {
     }
 
     public static Diagnostic UnexpectedType(TextLocation location, BoundTypeClause type) {
-        string msg = $"unexpected type '{DiagnosticText(type)}'";
+        string msg = $"unexpected type '{type}'";
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 
@@ -206,7 +190,7 @@ internal static class Error {
             TextLocation location, int count, string parameterName, BoundTypeClause expected, BoundTypeClause actual) {
         string msg =
             $"argument {count}: parameter '{parameterName}' expects argument of type " +
-            $"'{DiagnosticText(expected)}', got '{DiagnosticText(actual)}'";
+            $"'{expected}', got '{actual}'";
 
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
@@ -228,9 +212,9 @@ internal static class Error {
 
     public static Diagnostic CannotConvertImplicitly(TextLocation location, BoundTypeClause from, BoundTypeClause to) {
         string msg =
-            $"cannot convert from type '{DiagnosticText(from)}' to '{DiagnosticText(to)}'." +
+            $"cannot convert from type '{from}' to '{to}'." +
             "An explicit conversion exists (are you missing a cast?)";
-        string suggestion = $"{DiagnosticText(to)}(%)";
+        string suggestion = $"{to}(%)";
         return new Diagnostic(DiagnosticType.Error, location, msg, suggestion);
     }
 
@@ -280,7 +264,7 @@ internal static class Error {
     }
 
     public static Diagnostic CannotApplyIndexing(TextLocation location, BoundTypeClause type) {
-        string msg = $"cannot apply indexing with [] to an expression of type '{DiagnosticText(type)}'";
+        string msg = $"cannot apply indexing with [] to an expression of type '{type}'";
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 
@@ -291,6 +275,11 @@ internal static class Error {
 
     public static Diagnostic ImpliedDimensions(TextLocation location) {
         string msg = "collection dimensions are inferred and not necessary";
+        return new Diagnostic(DiagnosticType.Error, location, msg);
+    }
+
+    public static Diagnostic CannotUseImplicit(TextLocation location) {
+        string msg = "cannot use implicit-typing in this context";
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
 }

@@ -15,6 +15,22 @@ internal static class BoundNodePrinter {
             WriteTo(node, new IndentedTextWriter(writer));
     }
 
+    public static void WriteTypeClause(BoundTypeClause type, IndentedTextWriter writer) {
+        writer.WriteType(type.BaseType().ToString());
+        var brackets = "";
+        for (int i=0; i<type.dimensions; i++)
+            brackets += "[]";
+        writer.WritePunctuation(brackets);
+    }
+
+    public static void WriteTypeClause(BoundTypeClause type, TextWriter writer) {
+        writer.WriteType(type.BaseType().ToString());
+        var brackets = "";
+        for (int i=0; i<type.dimensions; i++)
+            brackets += "[]";
+        writer.WritePunctuation(brackets);
+    }
+
     public static void WriteTo(this BoundNode node, IndentedTextWriter writer) {
         switch (node.type) {
             case BoundNodeType.UnaryExpression:
@@ -246,7 +262,7 @@ internal static class BoundNodePrinter {
 
     private static void WriteVariableDeclarationStatement(
         BoundVariableDeclarationStatement node, IndentedTextWriter writer) {
-        writer.WriteType(node.variable.typeClause.lType.name);
+        WriteTypeClause(node.variable.typeClause, writer);
         writer.WriteSpace();
         writer.WriteIdentifier(node.variable.name);
         writer.WriteSpace();

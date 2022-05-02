@@ -114,12 +114,15 @@ internal sealed class Parser {
             current.type == SyntaxType.REF_KEYWORD ||
             current.type == SyntaxType.VAR_KEYWORD) {
             while (Peek(offset).type == SyntaxType.CONST_KEYWORD ||
-                Peek(offset).type == SyntaxType.REF_KEYWORD ||
-                Peek(offset).type == SyntaxType.VAR_KEYWORD)
+                Peek(offset).type == SyntaxType.REF_KEYWORD)
                 offset++;
 
-            if (Peek(offset).type == SyntaxType.IDENTIFIER_TOKEN) {
+            if (Peek(offset).type == SyntaxType.IDENTIFIER_TOKEN || Peek(offset).type == SyntaxType.VAR_KEYWORD) {
                 offset++;
+
+                while (Peek(offset).type == SyntaxType.OPEN_BRACKET_TOKEN ||
+                    Peek(offset).type == SyntaxType.CLOSE_BRACKET_TOKEN)
+                    offset++;
 
                 if (Peek(offset).type == SyntaxType.IDENTIFIER_TOKEN)
                     hasName = true;
@@ -155,7 +158,7 @@ internal sealed class Parser {
     }
 
     private Member ParseFunctionDeclaration() {
-        var typeClause = ParseTypeClause();
+        var typeClause = ParseTypeClause(false);
         var identifier = Match(SyntaxType.IDENTIFIER_TOKEN);
         var openParenthesis = Match(SyntaxType.OPEN_PAREN_TOKEN);
         var parameters = ParseParameterList();
@@ -188,7 +191,7 @@ internal sealed class Parser {
     }
 
     private Parameter ParseParameter() {
-        var typeClause = ParseTypeClause();
+        var typeClause = ParseTypeClause(false);
         var identifier = Match(SyntaxType.IDENTIFIER_TOKEN);
         return new Parameter(syntaxTree_, typeClause, identifier);
     }
@@ -272,7 +275,6 @@ internal sealed class Parser {
 
     private Statement ParseVariableDeclarationStatement() {
         var typeClause = ParseTypeClause();
-
         var identifier = Match(SyntaxType.IDENTIFIER_TOKEN);
 
         Token equals = null;
@@ -289,16 +291,24 @@ internal sealed class Parser {
             syntaxTree_, typeClause, identifier, equals, initializer, semicolon);
     }
 
-    private TypeClause ParseTypeClause() {
+    private TypeClause ParseTypeClause(bool allowImplicit = true) {
         Token constKeyword = null;
         Token refKeyword = null;
+        Token typeName = null;
 
         if (current.type == SyntaxType.CONST_KEYWORD)
             constKeyword = Match(SyntaxType.CONST_KEYWORD);
         if (current.type == SyntaxType.REF_KEYWORD)
             refKeyword = Match(SyntaxType.REF_KEYWORD);
 
-        var typeName = Match(current.type);
+        if (current.type == SyntaxType.VAR_KEYWORD) {
+            typeName = Match(SyntaxType.VAR_KEYWORD);
+
+            if (!allowImplicit)
+                diagnostics.Push(Error.CannotUseImplicit(typeName.location));
+        } else {
+            typeName = Match(SyntaxType.IDENTIFIER_TOKEN);
+        }
 
         var brackets = ImmutableArray.CreateBuilder<(Token openBracket, Token closeBracket)>();
         while (current.type == SyntaxType.OPEN_BRACKET_TOKEN) {

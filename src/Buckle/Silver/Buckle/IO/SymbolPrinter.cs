@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Binding;
 
 namespace Buckle.IO;
 
@@ -20,37 +21,33 @@ internal static class SymbolPrinter {
                 WriteParameter((ParameterSymbol)symbol, writer);
                 break;
             case SymbolType.Type:
-                WriteType((TypeSymbol)symbol, writer);
+                BoundNodePrinter.WriteTypeClause(new BoundTypeClause((TypeSymbol)symbol), writer);
                 break;
             default:
                 throw new Exception($"unexpected symbol '{symbol.type}'");
         }
     }
 
-    private static void WriteType(TypeSymbol symbol, TextWriter writer) {
-        writer.WriteType(symbol.name);
-    }
-
     private static void WriteParameter(ParameterSymbol symbol, TextWriter writer) {
-        writer.WriteType(symbol.typeClause.lType.name);
+        BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
         writer.Write(" ");
         writer.WriteIdentifier(symbol.name);
     }
 
     private static void WriteGlobalVariable(GlobalVariableSymbol symbol, TextWriter writer) {
-        writer.WriteType(symbol.typeClause.lType.name);
+        BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
         writer.Write(" ");
         writer.WriteIdentifier(symbol.name);
     }
 
     private static void WriteLocalVariable(LocalVariableSymbol symbol, TextWriter writer) {
-        writer.WriteType(symbol.typeClause.lType.name);
+        BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
         writer.Write(" ");
         writer.WriteIdentifier(symbol.name);
     }
 
     private static void WriteFunction(FunctionSymbol symbol, TextWriter writer) {
-        writer.WriteType(symbol.typeClause.lType.name);
+        BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
         writer.Write(" ");
         writer.WriteIdentifier(symbol.name);
         writer.WritePunctuation("(");
