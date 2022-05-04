@@ -315,6 +315,8 @@ internal sealed class Binder {
                 return BindEmptyExpression((EmptyExpression)expression);
             case SyntaxType.POSTFIX_EXPRESSION:
                 return BindPostfixExpression((PostfixExpression)expression);
+            case SyntaxType.PREFIX_EXPRESSION:
+                return BindPrefixExpression((PrefixExpression)expression);
             default:
                 diagnostics.Push(DiagnosticType.Fatal, $"unexpected syntax '{expression.type}'");
                 return null;
@@ -322,6 +324,36 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindPostfixExpression(PostfixExpression expression) {
+        var name = expression.identifier.text;
+
+        var variable = BindVariableReference(expression.identifier);
+        if (variable == null)
+            return new BoundErrorExpression();
+
+        if (variable.typeClause.isConst)
+            diagnostics.Push(Error.ConstAssign(expression.op.location, name));
+
+        var value = new BoundLiteralExpression(1);
+        BoundBinaryOperator boundOperator = null;
+        BoundBinaryOperator reversalOperator = null;
+
+        if (expression.op.type == SyntaxType.PLUS_PLUS_TOKEN) {
+            boundOperator = BoundBinaryOperator.Bind(
+                SyntaxType.PLUS_TOKEN, variable.typeClause, value.typeClause);
+            reversalOperator = BoundBinaryOperator.Bind(
+                SyntaxType.MINUS_TOKEN, variable.typeClause, value.typeClause);
+        } else if (expression.op.type == SyntaxType.MINUS_MINUS_TOKEN) {
+            boundOperator = BoundBinaryOperator.Bind(
+                SyntaxType.MINUS_TOKEN, variable.typeClause, value.typeClause);
+            reversalOperator = BoundBinaryOperator.Bind(
+                SyntaxType.PLUS_TOKEN, variable.typeClause, value.typeClause);
+        }
+
+        var assignmentExpression = new BoundCompoundAssignmentExpression(variable, boundOperator, value);
+        return new BoundBinaryExpression(assignmentExpression, reversalOperator, value);
+    }
+
+    private BoundExpression BindPrefixExpression(PrefixExpression expression) {
         var name = expression.identifier.text;
 
         var variable = BindVariableReference(expression.identifier);

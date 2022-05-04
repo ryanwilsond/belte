@@ -108,6 +108,11 @@ public sealed class Compilation {
         diagnostics.Move(program.diagnostics);
         var eval = new Evaluator(program, variables);
         var evalResult = eval.Evaluate();
+
+        // TODO: hack to prevent repl overwriting text when user doesn't add newline
+        if (eval.hasPrint)
+            Console.WriteLine();
+
         diagnostics.Move(eval.diagnostics);
         var result = new EvaluationResult(evalResult, diagnostics);
         return result;

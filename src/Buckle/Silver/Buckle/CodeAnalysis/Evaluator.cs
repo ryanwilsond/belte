@@ -16,6 +16,7 @@ internal sealed class Evaluator {
         new Stack<Dictionary<VariableSymbol, object>>();
     private object lastValue_;
     private Random random_;
+    internal bool hasPrint = false;
 
     public Evaluator(BoundProgram program, Dictionary<VariableSymbol, object> globals) {
         diagnostics = new DiagnosticQueue();
@@ -204,6 +205,7 @@ internal sealed class Evaluator {
         } else if (node.function == BuiltinFunctions.Print) {
             var message = (object)EvaluateExpression(node.arguments[0]);
             Console.Write(message);
+            hasPrint = true;
         } else if (node.function == BuiltinFunctions.Randint) {
             var max = (int)EvaluateExpression(node.arguments[0]);
 

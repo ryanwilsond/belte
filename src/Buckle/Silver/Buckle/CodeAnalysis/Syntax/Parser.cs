@@ -459,8 +459,14 @@ internal sealed class Parser {
 
         if (unaryPrecedence != 0 && unaryPrecedence >= parentPrecedence) {
             var op = Next();
-            var operand = ParseBinaryExpression(unaryPrecedence);
-            left = new UnaryExpression(syntaxTree_, op, operand);
+
+            if (op.type == SyntaxType.PLUS_PLUS_TOKEN || op.type == SyntaxType.MINUS_MINUS_TOKEN) {
+                var operand = Match(SyntaxType.IDENTIFIER_TOKEN);
+                left = new PrefixExpression(syntaxTree_, op, operand);
+            } else {
+                var operand = ParseBinaryExpression(unaryPrecedence);
+                left = new UnaryExpression(syntaxTree_, op, operand);
+            }
         } else {
             left = ParsePrimaryExpression();
         }

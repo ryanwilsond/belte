@@ -44,6 +44,17 @@ internal sealed partial class PostfixExpression : Expression {
     }
 }
 
+internal sealed partial class PrefixExpression : Expression {
+    public Token op { get; }
+    public Token identifier { get; }
+    public override SyntaxType type => SyntaxType.PREFIX_EXPRESSION;
+
+    public PrefixExpression(SyntaxTree syntaxTree, Token op_, Token identifier_)
+        : base(syntaxTree) {
+        op = op_;
+        identifier = identifier_;
+    }
+}
 internal sealed partial class ParenthesisExpression : Expression {
     public Token openParenthesis { get; }
     public Expression expression { get; }
