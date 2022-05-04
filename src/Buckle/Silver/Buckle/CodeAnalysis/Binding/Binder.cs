@@ -245,6 +245,8 @@ internal sealed class Binder {
                 return BindForStatement((ForStatement)syntax);
             case SyntaxType.DO_WHILE_STATEMENT:
                 return BindDoWhileStatement((DoWhileStatement)syntax);
+            case SyntaxType.TRY_STATEMENT:
+                return BindTryStatement((TryStatement)syntax);
             case SyntaxType.BREAK_STATEMENT:
                 return BindBreakStatement((BreakStatement)syntax);
             case SyntaxType.CONTINUE_STATEMENT:
@@ -255,6 +257,15 @@ internal sealed class Binder {
                 diagnostics.Push(DiagnosticType.Fatal, $"unexpected syntax '{syntax.type}'");
                 return null;
         }
+    }
+
+    private BoundStatement BindTryStatement(TryStatement expression) {
+        var body = BindBlockStatement(expression.body);
+        var catchBody = expression.catchClause == null ? null : BindBlockStatement(expression.catchClause.body);
+        var finallyBody = expression.finallyClause == null ? null : BindBlockStatement(expression.finallyClause.body);
+
+        return new BoundTryStatement(
+            (BoundBlockStatement)body, (BoundBlockStatement)catchBody, (BoundBlockStatement)finallyBody);
     }
 
     private BoundStatement BindReturnStatement(ReturnStatement expression) {
@@ -543,11 +554,11 @@ internal sealed class Binder {
             if ((bool)condition.constantValue.value == false)
                 diagnostics.Push(Warning.UnreachableCode(statement.then));
             else if (statement.elseClause != null)
-                diagnostics.Push(Warning.UnreachableCode(statement.elseClause.then));
+                diagnostics.Push(Warning.UnreachableCode(statement.elseClause.body));
         }
 
         var then = BindStatement(statement.then);
-        var elseStatement = statement.elseClause == null ? null : BindStatement(statement.elseClause.then);
+        var elseStatement = statement.elseClause == null ? null : BindStatement(statement.elseClause.body);
         return new BoundIfStatement(condition, then, elseStatement);
     }
 

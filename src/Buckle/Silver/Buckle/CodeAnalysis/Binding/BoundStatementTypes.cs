@@ -47,6 +47,20 @@ internal sealed class BoundIfStatement : BoundStatement {
     }
 }
 
+internal sealed class BoundTryStatement : BoundStatement {
+    public BoundBlockStatement body { get; }
+    public BoundBlockStatement catchBody { get; }
+    public BoundBlockStatement finallyBody { get; }
+    public override BoundNodeType type => BoundNodeType.TryStatement;
+
+    public BoundTryStatement(
+        BoundBlockStatement body_, BoundBlockStatement catchBody_, BoundBlockStatement finallyBody_) {
+        body = body_;
+        catchBody = catchBody_;
+        finallyBody = finallyBody_;
+    }
+}
+
 internal abstract class BoundLoopStatement : BoundStatement {
     public BoundLabel breakLabel { get; }
     public BoundLabel continueLabel { get; }

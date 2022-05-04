@@ -52,6 +52,46 @@ internal sealed partial class ExpressionStatement : Statement {
     }
 }
 
+internal sealed partial class TryStatement : Statement {
+    public Token tryKeyword { get; }
+    public BlockStatement body { get; }
+    public CatchClause? catchClause { get; }
+    public FinallyClause? finallyClause { get; }
+    public override SyntaxType type => SyntaxType.TRY_STATEMENT;
+
+    public TryStatement(
+        SyntaxTree syntaxTree, Token tryKeyword_, BlockStatement body_,
+        CatchClause catchClause_, FinallyClause finallyClause_)
+        : base(syntaxTree) {
+        tryKeyword = tryKeyword_;
+        body = body_;
+        catchClause = catchClause_;
+        finallyClause = finallyClause_;
+    }
+}
+
+internal sealed partial class CatchClause : Node {
+    public Token catchKeyword { get; }
+    public BlockStatement body { get; }
+    public override SyntaxType type => SyntaxType.CATCH_CLAUSE;
+
+    public CatchClause(SyntaxTree syntaxTree, Token catchKeyword_, BlockStatement body_) : base(syntaxTree) {
+        catchKeyword = catchKeyword_;
+        body = body_;
+    }
+}
+
+internal sealed partial class FinallyClause : Node {
+    public Token finallyKeyword { get; }
+    public BlockStatement body { get; }
+    public override SyntaxType type => SyntaxType.FINALLY_CLAUSE;
+
+    public FinallyClause(SyntaxTree syntaxTree, Token finallyKeyword_, BlockStatement body_) : base(syntaxTree) {
+        finallyKeyword = finallyKeyword_;
+        body = body_;
+    }
+}
+
 internal sealed partial class IfStatement : Statement {
     public Token ifKeyword { get; }
     public Token openParenthesis { get; }
@@ -76,12 +116,12 @@ internal sealed partial class IfStatement : Statement {
 
 internal sealed partial class ElseClause : Node {
     public Token elseKeyword { get; }
-    public Statement then { get; }
+    public Statement body { get; }
     public override SyntaxType type => SyntaxType.ELSE_CLAUSE;
 
-    public ElseClause(SyntaxTree syntaxTree, Token elseKeyword_, Statement then_) : base(syntaxTree) {
+    public ElseClause(SyntaxTree syntaxTree, Token elseKeyword_, Statement body_) : base(syntaxTree) {
         elseKeyword = elseKeyword_;
-        then = then_;
+        body = body_;
     }
 }
 

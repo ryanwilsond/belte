@@ -115,6 +115,29 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
     }
 
+    protected override BoundStatement RewriteTryStatement(BoundTryStatement statement) {
+        /*
+        try <body>
+        catch <catchBody>
+        finally <finallyBody>
+
+        ---->
+
+        try
+            <body>
+            leave.s tryEnd
+        catch
+            <catchBody>
+            leave.s tryEnd
+        finally
+            <finallyBody>
+            leave.s tryEnd
+
+        tryEnd:
+        */
+        // TODO
+    }
+
     protected override BoundStatement RewriteWhileStatement(BoundWhileStatement node) {
         /*
         while <condition>

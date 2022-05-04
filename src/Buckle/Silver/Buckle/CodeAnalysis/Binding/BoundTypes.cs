@@ -29,6 +29,7 @@ internal enum BoundNodeType {
     LabelStatement,
     ConditionalGotoStatement,
     DoWhileStatement,
+    TryStatement,
     ReturnStatement,
     NopStatement,
 

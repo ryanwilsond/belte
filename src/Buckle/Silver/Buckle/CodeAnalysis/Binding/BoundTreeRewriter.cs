@@ -29,9 +29,24 @@ internal abstract class BoundTreeRewriter {
                 return RewriteDoWhileStatement((BoundDoWhileStatement)statement);
             case BoundNodeType.ReturnStatement:
                 return RewriteReturnStatement((BoundReturnStatement)statement);
+            case BoundNodeType.TryStatement:
+                return RewriteTryStatement((BoundTryStatement)statement);
             default:
                 return null;
         }
+    }
+
+    protected virtual BoundStatement RewriteTryStatement(BoundTryStatement statement) {
+        var body = (BoundBlockStatement)RewriteBlockStatement(statement.body);
+        var catchBody = statement.catchBody == null
+            ? null : (BoundBlockStatement)RewriteBlockStatement(statement.catchBody);
+        var finallyBody = statement.finallyBody == null
+            ? null : (BoundBlockStatement)RewriteBlockStatement(statement.finallyBody);
+
+        if (body == statement.body && catchBody == statement.catchBody && finallyBody == statement.finallyBody)
+            return statement;
+
+        return new BoundTryStatement(body, catchBody, finallyBody);
     }
 
     protected virtual BoundStatement RewriteNopStatement(BoundNopStatement statement) {

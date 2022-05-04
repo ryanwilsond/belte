@@ -149,7 +149,7 @@ internal sealed class Parser {
         var openParenthesis = Match(SyntaxType.OPEN_PAREN_TOKEN);
         var parameters = ParseParameterList();
         var closeParenthesis = Match(SyntaxType.CLOSE_PAREN_TOKEN);
-        var body = (BlockStatement)ParseBlockStatement();
+        var body = (BlockStatement)ParseBlockOrInlineStatement();
 
         return new FunctionDeclaration(
             syntaxTree_, typeClause, identifier, openParenthesis, parameters, closeParenthesis, body);
@@ -193,7 +193,7 @@ internal sealed class Parser {
 
         switch (current.type) {
             case SyntaxType.OPEN_BRACE_TOKEN:
-                return ParseBlockStatement();
+                return ParseBlockOrInlineStatement();
             case SyntaxType.IF_KEYWORD:
                 return ParseIfStatement();
             case SyntaxType.WHILE_KEYWORD:
@@ -202,16 +202,8 @@ internal sealed class Parser {
                 return ParseForStatement();
             case SyntaxType.DO_KEYWORD:
                 return ParseDoWhileStatement();
-            case SyntaxType.IDENTIFIER_TOKEN:
-                var isDeclaration = Peek(1).type == SyntaxType.IDENTIFIER_TOKEN;
-                isDeclaration |= Peek(1).type == SyntaxType.OPEN_BRACKET_TOKEN &&
-                    Peek(2).type == SyntaxType.CLOSE_BRACKET_TOKEN &&
-                    Peek(3).type == SyntaxType.IDENTIFIER_TOKEN;
-
-                if (isDeclaration)
-                    return ParseVariableDeclarationStatement();
-                else
-                    goto default;
+            case SyntaxType.TRY_KEYWORD:
+                return ParseTryStatement();
             case SyntaxType.BREAK_KEYWORD:
                 return ParseBreakStatement();
             case SyntaxType.CONTINUE_KEYWORD:
@@ -221,6 +213,36 @@ internal sealed class Parser {
             default:
                 return ParseExpressionStatement();
         }
+    }
+
+    private Statement ParseTryStatement() {
+        var tryKeyword = Match(SyntaxType.TRY_KEYWORD);
+        var body = ParseBlockStatement();
+        var catchClause = ParseCatchClause();
+        var finallyClause = ParseFinallyClause();
+
+        if (catchClause == null && finallyClause == null)
+            diagnostics.Push(Error.NoCatchOrFinally(tryKeyword.location));
+
+        return new TryStatement(syntaxTree_, tryKeyword, (BlockStatement)body, catchClause, finallyClause);
+    }
+
+    private CatchClause ParseCatchClause() {
+        if (current.type != SyntaxType.CATCH_KEYWORD)
+            return null;
+
+        var keyword = Next();
+        var body = ParseBlockStatement();
+        return new CatchClause(syntaxTree_, keyword, (BlockStatement)body);
+    }
+
+    private FinallyClause ParseFinallyClause() {
+        if (current.type != SyntaxType.FINALLY_KEYWORD)
+            return null;
+
+        var keyword = Next();
+        var body = ParseBlockStatement();
+        return new FinallyClause(syntaxTree_, keyword, (BlockStatement)body);
     }
 
     private Statement ParseReturnStatement() {
@@ -382,6 +404,10 @@ internal sealed class Parser {
         var keyword = Next();
         var statement = ParseStatement();
         return new ElseClause(syntaxTree_, keyword, statement);
+    }
+
+    private Statement ParseBlockOrInlineStatement() {
+        return ParseBlockStatement();
     }
 
     private Statement ParseBlockStatement() {

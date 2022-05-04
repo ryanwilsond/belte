@@ -69,6 +69,9 @@ internal enum SyntaxType {
     DO_KEYWORD,
     BREAK_KEYWORD,
     CONTINUE_KEYWORD,
+    TRY_KEYWORD,
+    CATCH_KEYWORD,
+    FINALLY_KEYWORD,
     RETURN_KEYWORD,
 
     // tokens with text
@@ -113,9 +116,12 @@ internal enum SyntaxType {
     WHILE_STATEMENT,
     FOR_STATEMENT,
     DO_WHILE_STATEMENT,
+    TRY_STATEMENT,
 
     // checked statements
     ELSE_CLAUSE,
+    CATCH_CLAUSE,
+    FINALLY_CLAUSE,
 
     // type declarations
     TYPE_CLAUSE,

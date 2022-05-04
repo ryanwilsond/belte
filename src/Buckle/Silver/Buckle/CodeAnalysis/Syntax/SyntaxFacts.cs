@@ -83,6 +83,12 @@ internal static class SyntaxFacts {
                 return SyntaxType.BREAK_KEYWORD;
             case "continue":
                 return SyntaxType.CONTINUE_KEYWORD;
+            case "try":
+                return SyntaxType.TRY_KEYWORD;
+            case "catch":
+                return SyntaxType.CATCH_KEYWORD;
+            case "finally":
+                return SyntaxType.FINALLY_KEYWORD;
             case "return":
                 return SyntaxType.RETURN_KEYWORD;
             default: return SyntaxType.IDENTIFIER_TOKEN;
@@ -199,6 +205,12 @@ internal static class SyntaxFacts {
                 return "break";
             case SyntaxType.CONTINUE_KEYWORD:
                 return "continue";
+            case SyntaxType.TRY_KEYWORD:
+                return "try";
+            case SyntaxType.CATCH_KEYWORD:
+                return "catch";
+            case SyntaxType.FINALLY_KEYWORD:
+                return "finally";
             case SyntaxType.RETURN_KEYWORD:
                 return "return";
             default:
