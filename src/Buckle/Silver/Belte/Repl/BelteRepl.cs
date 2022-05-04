@@ -179,7 +179,7 @@ public sealed class BelteRepl : Repl {
                 case Classification.Keyword:
                     Console.ForegroundColor = ConsoleColor.Blue;
                     break;
-                case Classification.Type:
+                case Classification.TypeName:
                     Console.ForegroundColor = ConsoleColor.Blue;
                     break;
                 case Classification.Text:

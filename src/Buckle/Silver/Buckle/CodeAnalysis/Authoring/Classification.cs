@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Authoring;
 internal enum Classification {
     Identifier,
     Keyword,
-    Type,
+    TypeName,
     Number,
     String,
     Comment,
@@ -33,7 +33,8 @@ internal static class Classifier {
     }
 
     private static void ClassifyNode(Node node, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result) {
-        if (!node.fullSpan.OverlapsWith(span))
+        // TODO: node is null when deleting text from previous lines,
+        if (node == null || !node.fullSpan.OverlapsWith(span))
             return;
 
         if (node is Token token)
