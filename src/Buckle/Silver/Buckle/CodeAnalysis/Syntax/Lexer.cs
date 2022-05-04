@@ -152,38 +152,44 @@ internal sealed class Lexer {
                 break;
             case '^':
                 position_++;
-                if (current != '=') {
-                    type_ = SyntaxType.CARET_TOKEN;
-                } else {
+                if (current == '=') {
                     type_ = SyntaxType.CARET_EQUALS_TOKEN;
                     position_++;
+                } else {
+                    type_ = SyntaxType.CARET_TOKEN;
                 }
                 break;
             case '+':
                 position_++;
-                if (current != '=') {
-                    type_ = SyntaxType.PLUS_TOKEN;
-                } else {
+                if (current == '=') {
                     type_ = SyntaxType.PLUS_EQUALS_TOKEN;
                     position_++;
+                } else if (current == '+') {
+                    type_ = SyntaxType.PLUS_PLUS_TOKEN;
+                    position_++;
+                } else {
+                    type_ = SyntaxType.PLUS_TOKEN;
                 }
                 break;
             case '-':
                 position_++;
-                if (current != '=') {
-                    type_ = SyntaxType.MINUS_TOKEN;
-                } else {
+                if (current == '=') {
                     type_ = SyntaxType.MINUS_EQUALS_TOKEN;
                     position_++;
+                } else if (current == '-') {
+                    type_ = SyntaxType.MINUS_MINUS_TOKEN;
+                    position_++;
+                } else {
+                    type_ = SyntaxType.MINUS_TOKEN;
                 }
                 break;
             case '/':
                 position_++;
-                if (current != '=') {
-                    type_ = SyntaxType.SLASH_TOKEN;
-                } else {
+                if (current == '=') {
                     type_ = SyntaxType.SLASH_EQUALS_TOKEN;
                     position_++;
+                } else {
+                    type_ = SyntaxType.SLASH_TOKEN;
                 }
                 break;
             case '*':

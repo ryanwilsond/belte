@@ -32,6 +32,18 @@ internal sealed partial class BinaryExpression : Expression {
     }
 }
 
+internal sealed partial class PostfixExpression : Expression {
+    public Token identifier { get; }
+    public Token op { get; }
+    public override SyntaxType type => SyntaxType.POSTFIX_EXPRESSION;
+
+    public PostfixExpression(SyntaxTree syntaxTree, Token identifier_, Token op_)
+        : base(syntaxTree) {
+        identifier = identifier_;
+        op = op_;
+    }
+}
+
 internal sealed partial class ParenthesisExpression : Expression {
     public Token openParenthesis { get; }
     public Expression expression { get; }

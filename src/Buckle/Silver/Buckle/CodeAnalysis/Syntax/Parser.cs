@@ -135,22 +135,8 @@ internal sealed class Parser {
     }
 
     private Member ParseMember() {
-        if (PeekIsTypeClause(out var offset, out _) && offset > 0) {
-            bool openBrace = false;
-            bool openParenthesis = false;
-
-            for (int i=0; i<tokens_.Length-position_; i++) {
-                if (Peek(i).type == SyntaxType.SEMICOLON_TOKEN)
-                    break;
-                if (Peek(i).type == SyntaxType.OPEN_PAREN_TOKEN)
-                    openParenthesis = true;
-                if (Peek(i).type == SyntaxType.CLOSE_PAREN_TOKEN && openParenthesis) {
-                    if (Peek(i+1).type == SyntaxType.OPEN_BRACE_TOKEN)
-                        openBrace = true;
-                }
-            }
-
-            if (openBrace)
+        if (PeekIsTypeClause(out var offset, out var _)) {
+            if (Peek(offset+1).type == SyntaxType.OPEN_PAREN_TOKEN)
                 return ParseFunctionDeclaration();
         }
 
@@ -508,10 +494,27 @@ internal sealed class Parser {
                 return ParseNullLiteral();
             case SyntaxType.OPEN_BRACE_TOKEN:
                 return ParseInitializerListExpression();
+            case SyntaxType.IDENTIFIER_TOKEN:
+                if (Peek(1).type == SyntaxType.PLUS_PLUS_TOKEN || Peek(1).type == SyntaxType.MINUS_MINUS_TOKEN)
+                    return ParsePostfixExpression();
+                else
+                    goto default;
             case SyntaxType.NAME_EXPRESSION:
             default:
                 return ParseNameOrPrimaryOperatorExpression();
         }
+    }
+
+    private Expression ParsePostfixExpression() {
+        var operand = Match(SyntaxType.IDENTIFIER_TOKEN);
+        Token op = null;
+
+        if (current.type == SyntaxType.MINUS_MINUS_TOKEN)
+            op = Match(SyntaxType.MINUS_MINUS_TOKEN);
+        if (current.type == SyntaxType.PLUS_PLUS_TOKEN)
+            op = Match(SyntaxType.PLUS_PLUS_TOKEN);
+
+        return new PostfixExpression(syntaxTree_, operand, op);
     }
 
     private Expression ParseInitializerListExpression() {

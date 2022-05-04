@@ -43,6 +43,8 @@ internal static class SyntaxFacts {
 
     public static int GetUnaryPrecedence(this SyntaxType type) {
         switch (type) {
+            case SyntaxType.PLUS_PLUS_TOKEN:
+            case SyntaxType.MINUS_MINUS_TOKEN:
             case SyntaxType.PLUS_TOKEN:
             case SyntaxType.MINUS_TOKEN:
             case SyntaxType.EXCLAMATION_TOKEN:
@@ -125,6 +127,10 @@ internal static class SyntaxFacts {
                 return "||";
             case SyntaxType.ASTERISK_ASTERISK_TOKEN:
                 return "**";
+            case SyntaxType.PLUS_PLUS_TOKEN:
+                return "++";
+            case SyntaxType.MINUS_MINUS_TOKEN:
+                return "--";
             case SyntaxType.OPEN_BRACE_TOKEN:
                 return "{";
             case SyntaxType.CLOSE_BRACE_TOKEN:
