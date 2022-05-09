@@ -99,9 +99,34 @@ internal static class BoundNodePrinter {
             case BoundNodeType.ReturnStatement:
                 WriteReturnStatement((BoundReturnStatement)node, writer);
                 break;
+            case BoundNodeType.TryStatement:
+                WriteTryStatement((BoundTryStatement)node, writer);
+                break;
             default:
                 throw new Exception($"unexpected node '{node.type}'");
         }
+    }
+
+    private static void WriteTryStatement(BoundTryStatement node, IndentedTextWriter writer) {
+        writer.WriteKeyword(SyntaxType.TRY_KEYWORD);
+        writer.WriteSpace();
+        WriteBlockStatement(node.body, writer, false);
+
+        if (node.catchBody != null) {
+            writer.WriteSpace();
+            writer.WriteKeyword(SyntaxType.CATCH_KEYWORD);
+            writer.WriteSpace();
+            WriteBlockStatement(node.catchBody, writer, false);
+        }
+
+        if (node.finallyBody != null) {
+            writer.WriteSpace();
+            writer.WriteKeyword(SyntaxType.FINALLY_KEYWORD);
+            writer.WriteSpace();
+            WriteBlockStatement(node.finallyBody, writer, false);
+        }
+
+        writer.WriteLine();
     }
 
     private static void WriteNopStatement(BoundNopStatement node, IndentedTextWriter writer) {
@@ -280,7 +305,7 @@ internal static class BoundNodePrinter {
         writer.WriteLine();
     }
 
-    private static void WriteBlockStatement(BoundBlockStatement node, IndentedTextWriter writer) {
+    private static void WriteBlockStatement(BoundBlockStatement node, IndentedTextWriter writer, bool newLine = true) {
         writer.WritePunctuation(SyntaxType.OPEN_BRACE_TOKEN);
         writer.WriteLine();
         writer.Indent++;
@@ -290,7 +315,9 @@ internal static class BoundNodePrinter {
 
         writer.Indent--;
         writer.WritePunctuation(SyntaxType.CLOSE_BRACE_TOKEN);
-        writer.WriteLine();
+
+        if (newLine)
+            writer.WriteLine();
     }
 
     private static void WriteCastExpression(BoundCastExpression node, IndentedTextWriter writer) {
@@ -367,6 +394,11 @@ internal static class BoundNodePrinter {
     }
 
     private static void WriteLiteralExpression(BoundLiteralExpression node, IndentedTextWriter writer) {
+        if (node.value == null) {
+            writer.WriteKeyword(SyntaxType.NULL_KEYWORD);
+            return;
+        }
+
         var value = node.value.ToString();
 
         if (node.typeClause.lType == TypeSymbol.Bool) {

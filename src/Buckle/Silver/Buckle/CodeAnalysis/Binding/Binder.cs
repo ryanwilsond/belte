@@ -260,12 +260,15 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindTryStatement(TryStatement expression) {
-        var body = BindBlockStatement(expression.body);
-        var catchBody = expression.catchClause == null ? null : BindBlockStatement(expression.catchClause.body);
-        var finallyBody = expression.finallyClause == null ? null : BindBlockStatement(expression.finallyClause.body);
+        var body = (BoundBlockStatement)BindBlockStatement(expression.body);
+        var catchBody = expression.catchClause == null
+            ? null
+            : (BoundBlockStatement)BindBlockStatement(expression.catchClause.body);
+        var finallyBody = expression.finallyClause == null
+            ? null
+            : (BoundBlockStatement)BindBlockStatement(expression.finallyClause.body);
 
-        return new BoundTryStatement(
-            (BoundBlockStatement)body, (BoundBlockStatement)catchBody, (BoundBlockStatement)finallyBody);
+        return new BoundTryStatement(body, catchBody, finallyBody);
     }
 
     private BoundStatement BindReturnStatement(ReturnStatement expression) {

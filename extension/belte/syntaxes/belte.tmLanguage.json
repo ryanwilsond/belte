@@ -28,7 +28,7 @@
 		"keywords": {
 			"patterns": [{
 				"name": "keyword.control.belte",
-				"match": "\\b(if|else|while|for|return|yield|switch|case|default|break|continue|do)\\b"
+				"match": "\\b(if|else|while|for|return|yield|switch|case|default|break|continue|do|try|catch|finally)\\b"
 			}, {
 				"name": "keyword.other.belte",
 				"match": "\\b(include|operator|get|set|this|var|let|out|ref)\\b"

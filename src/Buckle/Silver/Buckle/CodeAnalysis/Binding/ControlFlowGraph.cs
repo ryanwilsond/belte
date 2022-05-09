@@ -90,6 +90,7 @@ internal sealed class ControlFlowGraph {
                     case BoundNodeType.NopStatement:
                     case BoundNodeType.ExpressionStatement:
                     case BoundNodeType.VariableDeclarationStatement:
+                    case BoundNodeType.TryStatement:
                         statements_.Add(statement);
                         break;
                     default:
@@ -170,6 +171,7 @@ internal sealed class ControlFlowGraph {
                         case BoundNodeType.NopStatement:
                         case BoundNodeType.ExpressionStatement:
                         case BoundNodeType.VariableDeclarationStatement:
+                        case BoundNodeType.TryStatement:
                         case BoundNodeType.LabelStatement:
                             if (isLastStatement)
                                 Connect(current, next);
