@@ -70,6 +70,7 @@ public sealed class BelteRepl : Repl {
             if (result.value != null && !state.loadingSubmissions) {
                 Console.ForegroundColor = ConsoleColor.White;
                 RenderResult(result.value);
+                Console.WriteLine();
                 Console.ResetColor();
             }
 
@@ -89,12 +90,12 @@ public sealed class BelteRepl : Repl {
                 else
                     Console.Write(", ");
 
-                Console.Write(item);
+                RenderResult(item);
             }
 
-            Console.WriteLine(" }");
+            Console.Write(" }");
         } else {
-            Console.WriteLine(value);
+            Console.Write(value);
         }
     }
 

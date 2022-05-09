@@ -1,12 +1,5 @@
 
-void main() {
-    int a = 0;
-
-    try {
-        a = int("a");
-    } catch {
-        a = int("3");
-    } finally {
-        PrintLine(a);
-    }
+void Main() {
+    int[] a = {1, 2, 3};
+    print(a[1]);
 }

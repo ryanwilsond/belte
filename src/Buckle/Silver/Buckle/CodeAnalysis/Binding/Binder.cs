@@ -77,7 +77,7 @@ internal sealed class Binder {
             mainFunction = null;
         } else {
             scriptFunction = null;
-            mainFunction = functions.FirstOrDefault(f => f.name == "main");
+            mainFunction = functions.FirstOrDefault(f => f.name == "Main" || f.name == "main");
 
             if (mainFunction != null)
                 if ((mainFunction.typeClause.lType != TypeSymbol.Void &&
@@ -93,7 +93,7 @@ internal sealed class Binder {
                         binder.diagnostics.Push(Error.MainAndGlobals(globalStatement.location));
                 } else {
                     mainFunction = new FunctionSymbol(
-                        "main", ImmutableArray<ParameterSymbol>.Empty, new BoundTypeClause(TypeSymbol.Void));
+                        "Main", ImmutableArray<ParameterSymbol>.Empty, new BoundTypeClause(TypeSymbol.Void));
                 }
             }
         }
@@ -310,7 +310,10 @@ internal sealed class Binder {
     private BoundExpression BindExpressionInternal(Expression expression) {
         switch (expression.type) {
             case SyntaxType.LITERAL_EXPRESSION:
-                return BindLiteralExpression((LiteralExpression)expression);
+                if (expression is InitializerListExpression il)
+                    return BindInitializerListExpression(il, null);
+                else
+                    return BindLiteralExpression((LiteralExpression)expression);
             case SyntaxType.UNARY_EXPRESSION:
                 return BindUnaryExpression((UnaryExpression)expression);
             case SyntaxType.BINARY_EXPRESSION:
@@ -586,19 +589,20 @@ internal sealed class Binder {
 
     private BoundExpression BindInitializerListExpression(InitializerListExpression expression, BoundTypeClause type) {
         var boundItems = ImmutableArray.CreateBuilder<BoundExpression>();
-        // TODO: make InitializerListExpression a literal to allow multidimensional arrays with minimal overhead
 
         foreach (var item in expression.items) {
-            if (type == null) {
-                var tempItem = BindExpression(item); // TODO: make it not bind twice
-                type = tempItem.typeClause;
-            }
+            BoundExpression tempItem = BindExpression(item);
 
-            var boundItem = BindCast(item.location, BindExpression(item), type);
+            if (type == null)
+                type = new BoundTypeClause(tempItem.typeClause.lType, false,
+                    tempItem.typeClause.isConst, tempItem.typeClause.isRef, tempItem.typeClause.dimensions + 1);
+
+            var childType = type.ChildType();
+            var boundItem = BindCast(item.location, tempItem, childType);
             boundItems.Add(boundItem);
         }
 
-        return new BoundInitializerListExpression(boundItems.ToImmutable(), 1, type);
+        return new BoundInitializerListExpression(boundItems.ToImmutable(), type.dimensions, type.ChildType());
     }
 
     private BoundExpression BindLiteralExpression(LiteralExpression expression) {
@@ -736,7 +740,7 @@ internal sealed class Binder {
                 : new BoundLiteralExpression(null);
 
             if (initializer is BoundInitializerListExpression il) {
-                if (il.items.Length == 0) {
+                if (il.items.Length == 0 && typeClause.isImplicit) {
                     diagnostics.Push(Error.EmptyInitializerListOnImplicit(expression.initializer.location));
                     return null;
                 }

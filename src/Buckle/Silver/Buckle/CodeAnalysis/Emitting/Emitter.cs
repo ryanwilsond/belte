@@ -16,6 +16,7 @@ internal sealed class Emitter {
     public DiagnosticQueue diagnostics = new DiagnosticQueue();
 
     private readonly List<AssemblyDefinition> assemblies = new List<AssemblyDefinition>();
+    private readonly List<(TypeSymbol type, string metadataName)> builtinTypes;
     private readonly Dictionary<FunctionSymbol, MethodDefinition> methods_ =
         new Dictionary<FunctionSymbol, MethodDefinition>();
     private readonly AssemblyDefinition assemblyDefinition_;
@@ -60,7 +61,7 @@ internal sealed class Emitter {
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return;
 
-        var builtinTypes = new List<(TypeSymbol type, string metadataName)>() {
+        builtinTypes = new List<(TypeSymbol type, string metadataName)>() {
             (TypeSymbol.Any, "System.Object"),
             (TypeSymbol.Bool, "System.Boolean"),
             (TypeSymbol.Int, "System.Int32"),
@@ -835,6 +836,27 @@ internal sealed class Emitter {
     }
 
     private TypeReference GetType(BoundTypeClause type) {
-        return knownTypes_[type.lType];
+        if (type.dimensions == 0)
+            return knownTypes_[type.lType];
+
+        var name = builtinTypes.Where(t => t.type == type.BaseType().lType).Single().metadataName;
+
+        for (int i=0; i<type.dimensions; i++)
+            name += "[]";
+
+        var foundTypes = assemblies.SelectMany(a => a.Modules)
+            .SelectMany(m => m.Types)
+            .Where(t => t.FullName == name)
+            .ToArray();
+
+        if (foundTypes.Length == 1) {
+            var typeReference = assemblyDefinition_.MainModule.ImportReference(foundTypes[0]);
+            return typeReference;
+        } else if (foundTypes.Length == 0)
+            diagnostics.Push(Error.RequiredTypeNotFound(type.ToString(), name));
+        else
+            diagnostics.Push(Error.RequiredTypeAmbiguous(type.ToString(), name, foundTypes));
+
+        return null;
     }
 }
