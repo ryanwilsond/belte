@@ -21,6 +21,7 @@ internal sealed class Emitter {
     private readonly AssemblyDefinition assemblyDefinition_;
     private readonly Dictionary<TypeSymbol, TypeReference> knownTypes_;
     private readonly MethodReference consoleWriteReference_;
+    private readonly MethodReference consoleWriteLineReference_;
     private readonly MethodReference consoleReadLineReference_;
     private readonly MethodReference stringConcat2Reference_;
     private readonly MethodReference stringConcat3Reference_;
@@ -78,6 +79,7 @@ internal sealed class Emitter {
         }
 
         consoleWriteReference_ = ResolveMethod("System.Console", "Write", new [] { "System.Object" });
+        consoleWriteLineReference_ = ResolveMethod("System.Console", "WriteLine", new [] { "System.Object" });
         consoleReadLineReference_ = ResolveMethod("System.Console", "ReadLine", Array.Empty<string>());
         stringConcat2Reference_ = ResolveMethod(
             "System.String", "Concat", new [] { "System.String", "System.String" });
@@ -343,7 +345,6 @@ internal sealed class Emitter {
                 CatchType=knownTypes_[TypeSymbol.Any],
             };
 
-
             foreach (var node in finallyBody)
                 EmitStatement(iLProcessor, node, method);
 
@@ -513,9 +514,8 @@ internal sealed class Emitter {
 
     private void EmitCallExpression(ILProcessor iLProcessor, BoundCallExpression expression) {
         if (expression.function == BuiltinFunctions.Randint) {
-            if (randomFieldDefinition_ == null) {
+            if (randomFieldDefinition_ == null)
                 EmitRandomField();
-            }
 
             iLProcessor.Emit(OpCodes.Ldsfld, randomFieldDefinition_);
         }
@@ -530,6 +530,8 @@ internal sealed class Emitter {
 
         if (expression.function == BuiltinFunctions.Print) {
             iLProcessor.Emit(OpCodes.Call, consoleWriteReference_);
+        } else if (expression.function == BuiltinFunctions.PrintLine) {
+            iLProcessor.Emit(OpCodes.Call, consoleWriteLineReference_);
         } else if (expression.function == BuiltinFunctions.Input) {
             iLProcessor.Emit(OpCodes.Call, consoleReadLineReference_);
         } else {

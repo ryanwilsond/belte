@@ -7,6 +7,6 @@ void main() {
     } catch {
         a = int("3");
     } finally {
-        print(a);
+        PrintLine(a);
     }
 }

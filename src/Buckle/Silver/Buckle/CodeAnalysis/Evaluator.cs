@@ -206,6 +206,9 @@ internal sealed class Evaluator {
             var message = (object)EvaluateExpression(node.arguments[0]);
             Console.Write(message);
             hasPrint = true;
+        } else if (node.function == BuiltinFunctions.PrintLine) {
+            var message = (object)EvaluateExpression(node.arguments[0]);
+            Console.WriteLine(message);
         } else if (node.function == BuiltinFunctions.Randint) {
             var max = (int)EvaluateExpression(node.arguments[0]);
 
