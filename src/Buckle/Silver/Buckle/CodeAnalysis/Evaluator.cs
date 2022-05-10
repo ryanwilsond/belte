@@ -152,17 +152,10 @@ internal sealed class Evaluator {
     }
 
     internal object EvaluateIndexExpression(BoundIndexExpression node) {
-        object[] variable = null;
-
-        if (node.variable.type == SymbolType.GlobalVariable) {
-            variable = (object[])globals_[node.variable];
-        } else {
-            var locals = locals_.Peek();
-            variable = (object[])locals[node.variable];
-        }
-
+        var variable = EvaluateExpression(node.expression);
         var index = EvaluateExpression(node.index);
-        return variable[(int)index];
+
+        return ((object[])variable)[(int)index];
     }
 
     internal object EvaluateInitializerListExpression(BoundInitializerListExpression node) {

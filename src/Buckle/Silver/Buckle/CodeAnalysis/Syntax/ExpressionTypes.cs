@@ -129,16 +129,16 @@ internal sealed partial class CallExpression : Expression {
 }
 
 internal sealed partial class  IndexExpression : Expression {
-    public Token identifier { get; }
+    public Expression expression { get; }
     public Token openBracket { get; }
     public Expression index { get; }
     public Token closeBracket { get; }
     public override SyntaxType type => SyntaxType.INDEX_EXPRESSION;
 
     public IndexExpression(
-        SyntaxTree syntaxTree, Token identifier_, Token openBracket_, Expression index_, Token closeBracket_)
+        SyntaxTree syntaxTree, Expression expression_, Token openBracket_, Expression index_, Token closeBracket_)
         : base(syntaxTree) {
-        identifier = identifier_;
+        expression = expression_;
         openBracket = openBracket_;
         index = index_;
         closeBracket = closeBracket_;

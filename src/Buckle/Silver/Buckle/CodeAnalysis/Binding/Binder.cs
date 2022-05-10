@@ -394,16 +394,14 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindIndexExpression(IndexExpression expression) {
-        var variable = BindVariableReference(expression.identifier);
-        if (variable == null)
-            return new BoundErrorExpression();
+        var boundExpression = BindExpression(expression.expression);
 
-        if (variable.typeClause.dimensions > 0) {
+        if (boundExpression.typeClause.dimensions > 0) {
             var index = BindCast(
                 expression.index.location, BindExpression(expression.index), new BoundTypeClause(TypeSymbol.Int));
-            return new BoundIndexExpression(variable, index);
+            return new BoundIndexExpression(boundExpression, index);
         } else {
-            diagnostics.Push(Error.CannotApplyIndexing(expression.location, variable.typeClause));
+            diagnostics.Push(Error.CannotApplyIndexing(expression.location, boundExpression.typeClause));
             return new BoundErrorExpression();
         }
     }

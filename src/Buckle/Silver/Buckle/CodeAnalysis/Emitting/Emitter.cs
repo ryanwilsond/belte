@@ -453,10 +453,21 @@ internal sealed class Emitter {
     }
 
     private void EmitIndexExpression(ILProcessor iLProcessor, BoundIndexExpression expression) {
-        var variableDefinition = locals_[expression.variable];
-        iLProcessor.Emit(OpCodes.Ldloc, variableDefinition);
+        // var variableDefinition = locals_[expression.expression];
+        // iLProcessor.Emit(OpCodes.Ldloc, variableDefinition);
+        EmitExpression(iLProcessor, expression.expression);
         iLProcessor.Emit(OpCodes.Ldc_I4, (int)expression.index.constantValue.value);
-        iLProcessor.Emit(OpCodes.Ldelem_I4);
+
+        if (expression.expression.typeClause.lType == TypeSymbol.Int)
+            iLProcessor.Emit(OpCodes.Ldelem_I4);
+        else if (expression.expression.typeClause.lType == TypeSymbol.Any)
+            iLProcessor.Emit(OpCodes.Ldelem_Any);
+        else if (expression.expression.typeClause.lType == TypeSymbol.Decimal)
+            iLProcessor.Emit(OpCodes.Ldelem_R4);
+        else if (expression.expression.typeClause.lType == TypeSymbol.Bool)
+            iLProcessor.Emit(OpCodes.Ldelem_U1);
+        else
+            iLProcessor.Emit(OpCodes.Ldelem_Ref);
     }
 
     private void EmitInitializerListExpression(ILProcessor iLProcessor, BoundInitializerListExpression expression) {

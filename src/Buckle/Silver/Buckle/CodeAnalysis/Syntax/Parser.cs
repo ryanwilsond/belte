@@ -602,25 +602,34 @@ internal sealed class Parser {
     }
 
     private Expression ParseNameOrPrimaryOperatorExpression() {
+        // TODO: support statements like `myfunc()()` for callbacks
         if (current.type == SyntaxType.IDENTIFIER_TOKEN) {
-            switch (Peek(1).type) {
-                case SyntaxType.OPEN_PAREN_TOKEN:
-                    return ParseCallExpression();
-                case SyntaxType.OPEN_BRACKET_TOKEN:
-                    return ParseIndexExpression();
-            }
+            if (Peek(1).type == SyntaxType.OPEN_PAREN_TOKEN)
+                return ParseCallExpression();
+
+            var name = ParseNameExpression();
+
+            if (current.type == SyntaxType.OPEN_BRACKET_TOKEN)
+                return ParseIndexExpression(name);
+
+            return name;
         }
 
-        return ParseNameExpression();
+        // ! infinite loop
+        var left = ParseExpression();
+
+        if (current.type == SyntaxType.OPEN_BRACKET_TOKEN)
+            return ParseIndexExpression(left);
+
+        return left;
     }
 
-    private Expression ParseIndexExpression() {
-        var identifer = Match(SyntaxType.IDENTIFIER_TOKEN);
+    private Expression ParseIndexExpression(Expression expression) {
         var openBracket = Match(SyntaxType.OPEN_BRACKET_TOKEN);
         var index = ParseExpression();
         var closeBracket = Match(SyntaxType.CLOSE_BRACKET_TOKEN);
 
-        return new IndexExpression(syntaxTree_, identifer, openBracket, index, closeBracket);
+        return new IndexExpression(syntaxTree_, expression, openBracket, index, closeBracket);
     }
 
     private Expression ParseCallExpression() {

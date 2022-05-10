@@ -324,13 +324,13 @@ internal sealed class BoundCallExpression : BoundExpression {
 }
 
 internal sealed class BoundIndexExpression : BoundExpression {
-    public VariableSymbol variable { get; }
+    public BoundExpression expression { get; }
     public BoundExpression index { get; }
     public override BoundNodeType type => BoundNodeType.IndexExpression;
-    public override BoundTypeClause typeClause => variable.typeClause.BaseType();
+    public override BoundTypeClause typeClause => expression.typeClause.BaseType();
 
-    public BoundIndexExpression(VariableSymbol variable_, BoundExpression index_) {
-        variable = variable_;
+    public BoundIndexExpression(BoundExpression expression_, BoundExpression index_) {
+        expression = expression_;
         index = index_;
     }
 }
