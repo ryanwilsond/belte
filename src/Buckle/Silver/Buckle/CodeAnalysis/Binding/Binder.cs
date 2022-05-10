@@ -736,7 +736,7 @@ internal sealed class Binder {
             (typeClause.isImplicit && expression.initializer is InitializerListExpression)) {
             var initializer = expression.initializer.type != SyntaxType.NULL_KEYWORD
                 ? BindInitializerListExpression(
-                    (InitializerListExpression)expression.initializer, typeClause.ChildType())
+                    (InitializerListExpression)expression.initializer, typeClause)
                 : new BoundLiteralExpression(null);
 
             if (initializer is BoundInitializerListExpression il) {

@@ -196,10 +196,8 @@ internal sealed class Emitter {
         fixups_.Clear();
         var iLProcessor = method.Body.GetILProcessor();
 
-        foreach (var statement in body.statements) {
-            Console.WriteLine($"{statement.type}");
+        foreach (var statement in body.statements)
             EmitStatement(iLProcessor, statement, method);
-        }
 
         foreach (var fixup in fixups_) {
             var targetLabel = fixup.target;
@@ -463,7 +461,7 @@ internal sealed class Emitter {
 
     private void EmitInitializerListExpression(ILProcessor iLProcessor, BoundInitializerListExpression expression) {
         iLProcessor.Emit(OpCodes.Ldc_I4, expression.items.Length);
-        iLProcessor.Emit(OpCodes.Newarr, GetType(expression.typeClause));
+        iLProcessor.Emit(OpCodes.Newarr, GetType(expression.typeClause.ChildType()));
 
         for (int i = 0; i < expression.items.Length; i++) {
             var item = expression.items[i];
@@ -844,19 +842,8 @@ internal sealed class Emitter {
         for (int i=0; i<type.dimensions; i++)
             name += "[]";
 
-        var foundTypes = assemblies.SelectMany(a => a.Modules)
-            .SelectMany(m => m.Types)
-            .Where(t => t.FullName == name)
-            .ToArray();
-
-        if (foundTypes.Length == 1) {
-            var typeReference = assemblyDefinition_.MainModule.ImportReference(foundTypes[0]);
-            return typeReference;
-        } else if (foundTypes.Length == 0)
-            diagnostics.Push(Error.RequiredTypeNotFound(type.ToString(), name));
-        else
-            diagnostics.Push(Error.RequiredTypeAmbiguous(type.ToString(), name, foundTypes));
-
-        return null;
+        // * this seems a little dirty, but works
+        var typeReference = assemblyDefinition_.MainModule.ImportReference(Type.GetType(name));
+        return typeReference;
     }
 }

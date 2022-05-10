@@ -1,5 +1,5 @@
 
 void Main() {
-    int[] a = {1, 2, 3};
-    print(a[1]);
+    int[][] a = {{1, 2, 3}};
+    PrintLine(a[0][1]);
 }
