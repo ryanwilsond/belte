@@ -327,7 +327,7 @@ internal sealed class BoundIndexExpression : BoundExpression {
     public BoundExpression expression { get; }
     public BoundExpression index { get; }
     public override BoundNodeType type => BoundNodeType.IndexExpression;
-    public override BoundTypeClause typeClause => expression.typeClause.BaseType();
+    public override BoundTypeClause typeClause => expression.typeClause.ChildType();
 
     public BoundIndexExpression(BoundExpression expression_, BoundExpression index_) {
         expression = expression_;

@@ -394,7 +394,7 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindIndexExpression(IndexExpression expression) {
-        var boundExpression = BindExpression(expression.expression);
+        var boundExpression = BindExpression(expression.operand);
 
         if (boundExpression.typeClause.dimensions > 0) {
             var index = BindCast(
@@ -407,23 +407,25 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindCallExpression(CallExpression expression) {
-        if (expression.arguments.count == 1 && LookupType(expression.identifier.text) is TypeSymbol type)
+        var name = expression.identifier.identifier.text;
+
+        if (expression.arguments.count == 1 && LookupType(name) is TypeSymbol type)
             return BindCast(expression.arguments[0], new BoundTypeClause(type), true);
 
-        var symbol = scope_.LookupSymbol(expression.identifier.text);
+        var symbol = scope_.LookupSymbol(name);
         if (symbol == null) {
-            diagnostics.Push(Error.UndefinedFunction(expression.identifier.location, expression.identifier.text));
+            diagnostics.Push(Error.UndefinedFunction(expression.identifier.location, name));
             return new BoundErrorExpression();
         }
 
         var function = symbol as FunctionSymbol;
         if (function == null) {
-            diagnostics.Push(Error.CannotCallNonFunction(expression.identifier.location, expression.identifier.text));
+            diagnostics.Push(Error.CannotCallNonFunction(expression.identifier.location, name));
             return new BoundErrorExpression();
         }
 
         if (function == null) {
-            diagnostics.Push(Error.UndefinedFunction(expression.identifier.location, expression.identifier.text));
+            diagnostics.Push(Error.UndefinedFunction(expression.identifier.location, name));
             return new BoundErrorExpression();
         }
 

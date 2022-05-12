@@ -287,4 +287,9 @@ internal static class Error {
         string msg = "try statement must have a catch or finally";
         return new Diagnostic(DiagnosticType.Error, location, msg);
     }
+
+    public static Diagnostic ExpectedMethodName(TextLocation location) {
+        string msg = "expected method name";
+        return new Diagnostic(DiagnosticType.Error, location, msg);
+    }
 }

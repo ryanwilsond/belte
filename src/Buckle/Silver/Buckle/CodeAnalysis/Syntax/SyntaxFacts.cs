@@ -41,6 +41,16 @@ internal static class SyntaxFacts {
         }
     }
 
+    public static int GetPrimaryPrecedence(this SyntaxType type) {
+        switch (type) {
+            case SyntaxType.OPEN_BRACKET_TOKEN:
+            case SyntaxType.OPEN_PAREN_TOKEN:
+                return 13;
+            default:
+                return 0;
+        }
+    }
+
     public static int GetUnaryPrecedence(this SyntaxType type) {
         switch (type) {
             case SyntaxType.PLUS_PLUS_TOKEN:

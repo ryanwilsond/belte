@@ -111,14 +111,14 @@ internal sealed partial class EmptyExpression : Expression {
 }
 
 internal sealed partial class CallExpression : Expression {
-    public Token identifier { get; }
+    public NameExpression identifier { get; }
     public Token openParenthesis { get; }
     public SeparatedSyntaxList<Expression> arguments { get; }
     public Token closeParenthesis { get; }
     public override SyntaxType type => SyntaxType.CALL_EXPRESSION;
 
     public CallExpression(
-        SyntaxTree syntaxTree, Token identifier_, Token openParenthesis_,
+        SyntaxTree syntaxTree, NameExpression identifier_, Token openParenthesis_,
         SeparatedSyntaxList<Expression> arguments_, Token closeParenthesis_)
         : base(syntaxTree) {
         identifier = identifier_;
@@ -129,16 +129,16 @@ internal sealed partial class CallExpression : Expression {
 }
 
 internal sealed partial class  IndexExpression : Expression {
-    public Expression expression { get; }
+    public Expression operand { get; }
     public Token openBracket { get; }
     public Expression index { get; }
     public Token closeBracket { get; }
     public override SyntaxType type => SyntaxType.INDEX_EXPRESSION;
 
     public IndexExpression(
-        SyntaxTree syntaxTree, Expression expression_, Token openBracket_, Expression index_, Token closeBracket_)
+        SyntaxTree syntaxTree, Expression operand_, Token openBracket_, Expression index_, Token closeBracket_)
         : base(syntaxTree) {
-        expression = expression_;
+        operand = operand_;
         openBracket = openBracket_;
         index = index_;
         closeBracket = closeBracket_;

@@ -601,44 +601,53 @@ internal sealed class Parser {
         return new LiteralExpression(syntaxTree_, stringToken);
     }
 
-    private Expression ParseNameOrPrimaryOperatorExpression() {
-        // TODO: support statements like `myfunc()()` for callbacks
-        if (current.type == SyntaxType.IDENTIFIER_TOKEN) {
-            if (Peek(1).type == SyntaxType.OPEN_PAREN_TOKEN)
-                return ParseCallExpression();
-
-            var name = ParseNameExpression();
-
+    private Expression ParsePrimaryOperatorExpression(Expression operand, int parentPrecedence = 0) {
+        Expression ParseCorrectPrimaryOperator(Expression operand) {
+            if (current.type == SyntaxType.OPEN_PAREN_TOKEN)
+                return ParseCallExpression(operand);
             if (current.type == SyntaxType.OPEN_BRACKET_TOKEN)
-                return ParseIndexExpression(name);
+                return ParseIndexExpression(operand);
 
-            return name;
+            return operand;
         }
 
-        // ! infinite loop
-        var left = ParseExpression();
+        while (true) {
+            var precedence = current.type.GetPrimaryPrecedence();
 
-        if (current.type == SyntaxType.OPEN_BRACKET_TOKEN)
-            return ParseIndexExpression(left);
+            if (precedence == 0 || precedence <= parentPrecedence)
+                break;
 
-        return left;
+            var expression = ParseCorrectPrimaryOperator(operand);
+            operand = ParsePrimaryOperatorExpression(expression, precedence);
+        }
+
+        return operand;
     }
 
-    private Expression ParseIndexExpression(Expression expression) {
+    private Expression ParseNameOrPrimaryOperatorExpression() {
+        var left = ParseNameExpression();
+        return ParsePrimaryOperatorExpression(left);
+    }
+
+    private Expression ParseIndexExpression(Expression operand) {
         var openBracket = Match(SyntaxType.OPEN_BRACKET_TOKEN);
         var index = ParseExpression();
         var closeBracket = Match(SyntaxType.CLOSE_BRACKET_TOKEN);
 
-        return new IndexExpression(syntaxTree_, expression, openBracket, index, closeBracket);
+        return new IndexExpression(syntaxTree_, operand, openBracket, index, closeBracket);
     }
 
-    private Expression ParseCallExpression() {
-        var identifier = Match(SyntaxType.IDENTIFIER_TOKEN);
+    private Expression ParseCallExpression(Expression operand) {
+        if (operand.type != SyntaxType.NAME_EXPRESSION) {
+            diagnostics.Push(Error.ExpectedMethodName(operand.location));
+            return operand;
+        }
+
         var openParenthesis = Match(SyntaxType.OPEN_PAREN_TOKEN);
         var arguments = ParseArguments();
         var closeParenthesis = Match(SyntaxType.CLOSE_PAREN_TOKEN);
 
-        return new CallExpression(syntaxTree_, identifier, openParenthesis, arguments, closeParenthesis);
+        return new CallExpression(syntaxTree_, (NameExpression)operand, openParenthesis, arguments, closeParenthesis);
     }
 
     private SeparatedSyntaxList<Expression> ParseArguments() {
