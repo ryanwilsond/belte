@@ -152,7 +152,10 @@ public sealed class BelteRepl : Repl {
             syntaxTree = (SyntaxTree)rState;
         }
 
+        var texts = new List<(string text, ConsoleColor color)>();
+        var fullText = syntaxTree.text.lines[lineIndex].text.ToString();
         var lineSpan = syntaxTree.text.lines[lineIndex].span;
+
         var classifiedSpans = Classifier.Classify(syntaxTree, lineSpan);
 
         foreach (var classifiedSpan in classifiedSpans) {
@@ -164,34 +167,68 @@ public sealed class BelteRepl : Repl {
             // isType |= i == 1 && tokens[0].text == "#";
             // isType &= !(i > 1 && tokens[0].text == "#");
 
+            var color = ConsoleColor.DarkGray;
+
             switch (classifiedSpan.classification) {
                 case Classification.Identifier:
-                    Console.ForegroundColor = ConsoleColor.White;
+                    color = ConsoleColor.White;
                     break;
                 case Classification.Number:
-                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    color = ConsoleColor.Cyan;
                     break;
                 case Classification.String:
-                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    color = ConsoleColor.Yellow;
                     break;
                 case Classification.Comment:
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    color = ConsoleColor.DarkGray;
                     break;
                 case Classification.Keyword:
-                    Console.ForegroundColor = ConsoleColor.Blue;
+                    color = ConsoleColor.Blue;
                     break;
                 case Classification.TypeName:
-                    Console.ForegroundColor = ConsoleColor.Blue;
+                    color = ConsoleColor.Blue;
                     break;
                 case Classification.Text:
-                default:
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    color = ConsoleColor.DarkGray;
                     break;
             }
 
-            Console.Write(classifiedText);
-            Console.ResetColor();
+            texts.Add((classifiedText, color));
         }
+
+        // TODO make this work: adds text that wasn't classified so even error texts prints
+        int offset = 0;
+
+        for (int i=0; i<texts.Count(); i++) {
+            var line = texts[i].text;
+
+            if (fullText.Substring(offset, line.Length) == line) {
+                offset += line.Length;
+            } else {
+                if (i == texts.Count() - 1) {
+                    texts.Add((fullText.Substring(offset), ConsoleColor.White));
+                    break;
+                }
+
+                string extra = "";
+
+                while (true) {
+                    if (fullText.Substring(offset, texts[i+1].text.Length) == texts[i+1].text) {
+                        texts.Insert(i, (extra, ConsoleColor.White));
+                        break;
+                    }
+
+                    extra += fullText[offset++];
+                }
+            }
+        }
+
+        foreach (var text in texts) {
+            Console.ForegroundColor = text.color;
+            Console.Write(text.text);
+        }
+
+        Console.ResetColor();
 
         return syntaxTree;
     }
