@@ -453,21 +453,28 @@ internal sealed class Emitter {
     }
 
     private void EmitIndexExpression(ILProcessor iLProcessor, BoundIndexExpression expression) {
-        // var variableDefinition = locals_[expression.expression];
-        // iLProcessor.Emit(OpCodes.Ldloc, variableDefinition);
         EmitExpression(iLProcessor, expression.expression);
         iLProcessor.Emit(OpCodes.Ldc_I4, (int)expression.index.constantValue.value);
 
-        if (expression.expression.typeClause.lType == TypeSymbol.Int)
-            iLProcessor.Emit(OpCodes.Ldelem_I4);
-        else if (expression.expression.typeClause.lType == TypeSymbol.Any)
-            iLProcessor.Emit(OpCodes.Ldelem_Any);
-        else if (expression.expression.typeClause.lType == TypeSymbol.Decimal)
-            iLProcessor.Emit(OpCodes.Ldelem_R4);
-        else if (expression.expression.typeClause.lType == TypeSymbol.Bool)
-            iLProcessor.Emit(OpCodes.Ldelem_U1);
-        else
-            iLProcessor.Emit(OpCodes.Ldelem_Ref);
+        var type = expression.expression.typeClause.lType;
+
+        if (expression.expression.typeClause.ChildType().dimensions == 0) {
+            if (type == TypeSymbol.Int) {
+                iLProcessor.Emit(OpCodes.Ldelem_I4);
+                return;
+            } else if (type == TypeSymbol.Any) {
+                iLProcessor.Emit(OpCodes.Ldelem_Any);
+                return;
+            } else if (type == TypeSymbol.Decimal) {
+                iLProcessor.Emit(OpCodes.Ldelem_R4);
+                return;
+            } else if (type == TypeSymbol.Bool) {
+                iLProcessor.Emit(OpCodes.Ldelem_U1);
+                return;
+            }
+        }
+
+        iLProcessor.Emit(OpCodes.Ldelem_Ref);
     }
 
     private void EmitInitializerListExpression(ILProcessor iLProcessor, BoundInitializerListExpression expression) {
@@ -478,20 +485,27 @@ internal sealed class Emitter {
             var item = expression.items[i];
             iLProcessor.Emit(OpCodes.Dup);
             iLProcessor.Emit(OpCodes.Ldc_I4, i);
-            EmitConstantExpression(iLProcessor, item);
+            EmitExpression(iLProcessor, item);
 
             var itemType = item.typeClause.lType;
 
-            if (itemType == TypeSymbol.Any)
-                iLProcessor.Emit(OpCodes.Stelem_Any);
-            else if (itemType == TypeSymbol.Int)
-                iLProcessor.Emit(OpCodes.Stelem_I4);
-            else if (itemType == TypeSymbol.Decimal)
-                iLProcessor.Emit(OpCodes.Stelem_R4);
-            else if (itemType == TypeSymbol.String)
-                iLProcessor.Emit(OpCodes.Stelem_Ref);
-            else if (itemType == TypeSymbol.Bool)
-                iLProcessor.Emit(OpCodes.Stelem_I1);
+            if (item.typeClause.dimensions == 0) {
+                if (itemType == TypeSymbol.Any) {
+                    iLProcessor.Emit(OpCodes.Stelem_Any);
+                    continue;
+                } else if (itemType == TypeSymbol.Int) {
+                    iLProcessor.Emit(OpCodes.Stelem_I4);
+                    continue;
+                } else if (itemType == TypeSymbol.Decimal) {
+                    iLProcessor.Emit(OpCodes.Stelem_R4);
+                    continue;
+                } else if (itemType == TypeSymbol.Bool) {
+                    iLProcessor.Emit(OpCodes.Stelem_I1);
+                    continue;
+                }
+            }
+
+            iLProcessor.Emit(OpCodes.Stelem_Ref);
         }
     }
 
