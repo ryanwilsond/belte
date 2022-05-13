@@ -1,15 +1,14 @@
 
 .*/
 !.github
-!extension/*.json
-!extension/syntaxes/*.json
 
 **/obj/*
 **/bin/*
 *.o
 *.exe
 *.dll
-*.json
+*.deps.json
+*.runtimeconfig.json
 *.pdb
 *.dot
 *.g.cs
