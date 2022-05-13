@@ -27,7 +27,7 @@ public static partial class CommandLine {
         state.outputFilename = "a.exe";
         state.moduleName = "a";
 
-        for (int i = 0; i < args.Length; i++) {
+        for (int i=0; i<args.Length; i++) {
             string arg = args[i];
 
             if (arg.StartsWith('-')) {

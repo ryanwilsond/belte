@@ -248,6 +248,8 @@ Options:
                     compiler.diagnostics.Push(
                         DiagnosticType.Warning, $"{task.inputFilename}: file already compiled; ignoring");
                     break;
+                default:
+                    break;
             }
         }
     }

@@ -117,7 +117,7 @@ public class EvaluatorTests {
     [InlineData("int a = 0; if (a == 4) { a = 10; } else { a = 5; } return a;", 5)]
 
     [InlineData("int i = 10; int result = 0; while (i > 0) { result = result + i; i = i - 1; } return result;", 55)]
-    [InlineData("int result = 0; for (int i=0; i<=10; i=i+1) { result = result + i; } return result;", 55)]
+    [InlineData("int result = 0; for (int i=0; i<=10; i++) { result = result + i; } return result;", 55)]
     [InlineData("int result = 0; do { result = result + 1; } while (result < 10); return result;", 10)]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
         AssertValue(text, expectedValue);
@@ -316,7 +316,8 @@ public class EvaluatorTests {
     public void Evaluator_IfStatement_Reports_CannotConvert() {
         var text = @"
             var x = 0;
-            if ([10]) x = 1;
+            if ([10])
+                x = 1;
         ";
 
         var diagnostics = @"
@@ -357,7 +358,7 @@ public class EvaluatorTests {
     [Fact]
     public void Evaluator_ForStatement_Reports_CannotConvert() {
         var text = @"
-            for (int i=0; [i]; i=i+1) {}
+            for (int i=0; [i]; i++) {}
         ";
 
         var diagnostics = @"
@@ -676,7 +677,7 @@ public class EvaluatorTests {
         }
         Assert.Equal(expectedDiagnostics.Length, diagnostics.count);
 
-        for (int i = 0; i < expectedDiagnostics.Length; i++) {
+        for (int i=0; i<expectedDiagnostics.Length; i++) {
             var diagnostic = diagnostics.Pop();
 
             var expectedMessage = expectedDiagnostics[i];

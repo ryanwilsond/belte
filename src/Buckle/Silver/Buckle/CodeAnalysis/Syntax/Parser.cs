@@ -465,6 +465,8 @@ internal sealed class Parser {
                     var operatorToken = Next();
                     var right = ParseAssignmentExpression();
                     return new AssignmentExpression(syntaxTree_, identifierToken, operatorToken, right);
+                default:
+                    break;
             }
         }
 

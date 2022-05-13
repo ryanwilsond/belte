@@ -137,7 +137,7 @@ public abstract class Repl {
             if (blankLineCount > 0) {
                 var blankLine = new string(' ', Console.WindowWidth);
 
-                for (int i = 0; i < blankLineCount; i++) {
+                for (int i=0; i<blankLineCount; i++) {
                     Console.SetCursorPosition(0, cursorTop_ + lineCount + i);
                     Console.WriteLine(blankLine);
                 }

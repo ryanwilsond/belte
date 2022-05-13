@@ -64,7 +64,8 @@ public sealed class Compiler {
 
     private int CheckErrors() {
         foreach (Diagnostic diagnostic in diagnostics)
-            if (diagnostic.type == DiagnosticType.Error) return ERROR_EXIT_CODE;
+            if (diagnostic.type == DiagnosticType.Error)
+                return ERROR_EXIT_CODE;
 
         return SUCCESS_EXIT_CODE;
     }
@@ -80,17 +81,16 @@ public sealed class Compiler {
     private void InternalPreprocessor() {
         // TODO: doesn't do anything
 
-        for (int i = 0; i < state.tasks.Length; i++) {
+        for (int i=0; i<state.tasks.Length; i++)
             if (state.tasks[i].stage == CompilerStage.Raw)
                 state.tasks[i].stage = CompilerStage.Preprocessed;
-        }
     }
 
     private void InternalInterpreter() {
         diagnostics.Clear(DiagnosticType.Warning);
         var syntaxTrees = new List<SyntaxTree>();
 
-        for (int i = 0; i < state.tasks.Length; i++) {
+        for (int i=0; i<state.tasks.Length; i++) {
             ref FileState task = ref state.tasks[i];
 
             if (task.stage == CompilerStage.Preprocessed) {
@@ -117,7 +117,7 @@ public sealed class Compiler {
     private void InternalCompilerNet() {
         var syntaxTrees = new List<SyntaxTree>();
 
-        for (int i = 0; i < state.tasks.Length; i++) {
+        for (int i=0; i<state.tasks.Length; i++) {
             ref FileState task = ref state.tasks[i];
 
             if (task.stage == CompilerStage.Preprocessed) {
@@ -164,21 +164,24 @@ public sealed class Compiler {
 
         // InternalCompiler();
         // err = CheckErrors();
-        // if (err != SUCCESS_EXIT_CODE) return err;
+        // if (err != SUCCESS_EXIT_CODE)
+        //     return err;
 
         // if (state.finishStage == CompilerStage.Compiled)
         //     return SUCCESS_EXIT_CODE;
 
         // ExternalAssembler();
         // err = CheckErrors();
-        // if (err != SUCCESS_EXIT_CODE) return err;
+        // if (err != SUCCESS_EXIT_CODE)
+        //     return err;
 
         // if (state.finishStage == CompilerStage.Assembled)
         //     return SUCCESS_EXIT_CODE;
 
         // ExternalLinker();
         // err = CheckErrors();
-        // if (err != SUCCESS_EXIT_CODE) return err;
+        // if (err != SUCCESS_EXIT_CODE)
+        //     return err;
 
         // if (state.finishStage == CompilerStage.Linked)
         //     return SUCCESS_EXIT_CODE;

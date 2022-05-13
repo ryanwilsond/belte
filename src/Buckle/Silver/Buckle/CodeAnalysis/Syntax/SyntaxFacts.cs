@@ -101,7 +101,8 @@ internal static class SyntaxFacts {
                 return SyntaxType.FINALLY_KEYWORD;
             case "return":
                 return SyntaxType.RETURN_KEYWORD;
-            default: return SyntaxType.IDENTIFIER_TOKEN;
+            default:
+                return SyntaxType.IDENTIFIER_TOKEN;
         }
     }
 

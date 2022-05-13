@@ -141,7 +141,7 @@ internal sealed class ControlFlowGraph {
                 }
             }
 
-            for (int i = 0; i < blocks.Count; i++) {
+            for (int i=0; i<blocks.Count; i++) {
                 var current = blocks[i];
                 var next = i == blocks.Count - 1 ? end_ : blocks[i+1];
 

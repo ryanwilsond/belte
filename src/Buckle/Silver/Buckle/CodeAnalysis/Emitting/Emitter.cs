@@ -481,7 +481,7 @@ internal sealed class Emitter {
         iLProcessor.Emit(OpCodes.Ldc_I4, expression.items.Length);
         iLProcessor.Emit(OpCodes.Newarr, GetType(expression.typeClause.ChildType()));
 
-        for (int i = 0; i < expression.items.Length; i++) {
+        for (int i=0; i<expression.items.Length; i++) {
             var item = expression.items[i];
             iLProcessor.Emit(OpCodes.Dup);
             iLProcessor.Emit(OpCodes.Ldc_I4, i);
@@ -742,7 +742,7 @@ internal sealed class Emitter {
                 iLProcessor.Emit(OpCodes.Ldc_I4, nodes.Count);
                 iLProcessor.Emit(OpCodes.Newarr, knownTypes_[TypeSymbol.String]);
 
-                for (var i = 0; i < nodes.Count; i++) {
+                for (var i=0; i<nodes.Count; i++) {
                     iLProcessor.Emit(OpCodes.Dup);
                     iLProcessor.Emit(OpCodes.Ldc_I4, i);
                     EmitExpression(iLProcessor, nodes[i]);

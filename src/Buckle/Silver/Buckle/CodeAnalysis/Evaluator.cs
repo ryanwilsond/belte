@@ -46,7 +46,7 @@ internal sealed class Evaluator {
         try {
             var labelToIndex = new Dictionary<BoundLabel, int>();
 
-            for (int i = 0; i < statement.statements.Length; i++) {
+            for (int i=0; i<statement.statements.Length; i++) {
                 if (statement.statements[i] is BoundLabelStatement l)
                     labelToIndex.Add(l.label, i + 1);
             }
@@ -219,6 +219,7 @@ internal sealed class Evaluator {
             return random_.Next(max);
         } else {
             var locals = new Dictionary<VariableSymbol, object>();
+
             for (int i=0; i<node.arguments.Length; i++) {
                 var parameter = node.function.parameters[i];
                 var value = EvaluateExpression(node.arguments[i]);
@@ -229,6 +230,7 @@ internal sealed class Evaluator {
             var statement = functions_[node.function];
             var result = EvaluateStatement(statement);
             locals_.Pop();
+
             return result;
         }
 

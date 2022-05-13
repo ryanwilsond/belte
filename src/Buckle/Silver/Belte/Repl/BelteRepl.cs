@@ -191,6 +191,8 @@ public sealed class BelteRepl : Repl {
                 case Classification.Text:
                     color = ConsoleColor.DarkGray;
                     break;
+                default:
+                    break;
             }
 
             texts.Add((classifiedText, color));
@@ -306,18 +308,22 @@ public sealed class BelteRepl : Repl {
     }
 
     protected override bool IsCompleteSubmission(string text) {
-        if (string.IsNullOrEmpty(text)) return true;
+        if (string.IsNullOrEmpty(text))
+            return true;
 
         var twoBlankTines = text.Split(Environment.NewLine).Reverse()
             .TakeWhile(s => string.IsNullOrEmpty(s))
             .Take(2)
             .Count() == 2;
 
-        if (twoBlankTines) return true;
+        if (twoBlankTines)
+            return true;
 
         var syntaxTree = SyntaxTree.Parse(text);
         var lastMember = syntaxTree.root.members.LastOrDefault();
-        if (lastMember == null || lastMember.GetLastToken().isMissing) return false;
+
+        if (lastMember == null || lastMember.GetLastToken().isMissing)
+            return false;
 
         return true;
     }

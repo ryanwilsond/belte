@@ -120,7 +120,7 @@ public sealed class DiagnosticQueue {
 
         var diagnosticList = diagnostics.diagnostics_;
 
-        for (int i = 0; i < diagnosticList.Count; i++) {
+        for (int i=0; i<diagnosticList.Count; i++) {
             var diagnostic = diagnosticList[i];
 
             if (diagnostic.location == null) {
