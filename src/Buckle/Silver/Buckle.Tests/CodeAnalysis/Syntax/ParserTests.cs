@@ -57,6 +57,9 @@ public class ParserTests {
         var unaryText = SyntaxFacts.GetText(unaryType);
         var binaryText = SyntaxFacts.GetText(binaryType);
 
+        if (unaryText == "--" || unaryText == "++")
+            return;
+
         Debug.Assert(unaryText != null);
         Debug.Assert(binaryText != null);
 

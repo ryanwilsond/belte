@@ -135,8 +135,11 @@ internal sealed class Parser {
     }
 
     private Member ParseMember() {
-        if (PeekIsTypeClause(out var offset, out var _)) {
-            if (Peek(offset+1).type == SyntaxType.OPEN_PAREN_TOKEN)
+        if (PeekIsTypeClause(out var offset, out var hasName)) {
+            if (hasName)
+                offset++;
+
+            if (Peek(offset).type == SyntaxType.OPEN_PAREN_TOKEN)
                 return ParseFunctionDeclaration();
         }
 

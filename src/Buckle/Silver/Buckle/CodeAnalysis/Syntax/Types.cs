@@ -299,7 +299,7 @@ internal sealed class SyntaxTrivia {
     }
 }
 
-internal sealed partial class TypeClause : Node {
+internal sealed class TypeClause : Node {
     public Token? constKeyword { get; }
     public Token? refKeyword { get; }
     public Token typeName { get; }
@@ -312,5 +312,20 @@ internal sealed partial class TypeClause : Node {
         refKeyword = refKeyword_;
         typeName = typeName_;
         brackets = brackets_;
+    }
+
+    public override IEnumerable<Node> GetChildren() {
+        if (constKeyword != null && constKeyword.fullSpan != null)
+            yield return constKeyword;
+
+        if (refKeyword != null && refKeyword.fullSpan != null)
+            yield return refKeyword;
+
+        yield return typeName;
+
+        foreach (var pair in brackets) {
+            yield return pair.openBracket;
+            yield return pair.closeBracket;
+        }
     }
 }

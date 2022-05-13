@@ -245,9 +245,21 @@ public class LexerTests {
             return true;
         if (t1Type == SyntaxType.PLUS_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
             return true;
+        if (t1Type == SyntaxType.PLUS_TOKEN && t2Type == SyntaxType.PLUS_TOKEN)
+            return true;
+        if (t1Type == SyntaxType.PLUS_TOKEN && t2Type == SyntaxType.PLUS_EQUALS_TOKEN)
+            return true;
+        if (t1Type == SyntaxType.PLUS_TOKEN && t2Type == SyntaxType.PLUS_PLUS_TOKEN)
+            return true;
         if (t1Type == SyntaxType.MINUS_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
             return true;
         if (t1Type == SyntaxType.MINUS_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
+            return true;
+        if (t1Type == SyntaxType.MINUS_TOKEN && t2Type == SyntaxType.MINUS_TOKEN)
+            return true;
+        if (t1Type == SyntaxType.MINUS_TOKEN && t2Type == SyntaxType.MINUS_EQUALS_TOKEN)
+            return true;
+        if (t1Type == SyntaxType.MINUS_TOKEN && t2Type == SyntaxType.MINUS_MINUS_TOKEN)
             return true;
         if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
             return true;

@@ -153,8 +153,8 @@ public sealed class BelteRepl : Repl {
         }
 
         var texts = new List<(string text, ConsoleColor color)>();
-        var fullText = syntaxTree.text.lines[lineIndex].text.ToString();
         var lineSpan = syntaxTree.text.lines[lineIndex].span;
+        var fullText = syntaxTree.text.ToString(lineSpan);
 
         var classifiedSpans = Classifier.Classify(syntaxTree, lineSpan);
 
@@ -196,7 +196,6 @@ public sealed class BelteRepl : Repl {
             texts.Add((classifiedText, color));
         }
 
-        // TODO make this work: adds text that wasn't classified so even error texts prints
         int offset = 0;
 
         for (int i=0; i<texts.Count(); i++) {
@@ -205,15 +204,10 @@ public sealed class BelteRepl : Repl {
             if (fullText.Substring(offset, line.Length) == line) {
                 offset += line.Length;
             } else {
-                if (i == texts.Count() - 1) {
-                    texts.Add((fullText.Substring(offset), ConsoleColor.White));
-                    break;
-                }
-
                 string extra = "";
 
                 while (true) {
-                    if (fullText.Substring(offset, texts[i+1].text.Length) == texts[i+1].text) {
+                    if (fullText.Substring(offset, texts[i].text.Length) == texts[i].text) {
                         texts.Insert(i, (extra, ConsoleColor.White));
                         break;
                     }
@@ -222,6 +216,9 @@ public sealed class BelteRepl : Repl {
                 }
             }
         }
+
+        if (texts.Count() == 0)
+            texts.Add((fullText, ConsoleColor.White));
 
         foreach (var text in texts) {
             Console.ForegroundColor = text.color;

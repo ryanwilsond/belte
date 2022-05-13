@@ -43,61 +43,69 @@ internal sealed class Evaluator {
     }
 
     internal object EvaluateStatement(BoundBlockStatement statement) {
-        var labelToIndex = new Dictionary<BoundLabel, int>();
+        try {
+            var labelToIndex = new Dictionary<BoundLabel, int>();
 
-        for (int i = 0; i < statement.statements.Length; i++) {
-            if (statement.statements[i] is BoundLabelStatement l)
-                labelToIndex.Add(l.label, i + 1);
-        }
-
-        var index = 0;
-        while (index < statement.statements.Length) {
-            var s = statement.statements[index];
-
-            switch (s.type) {
-                case BoundNodeType.NopStatement:
-                    index++;
-                    break;
-                case BoundNodeType.ExpressionStatement:
-                    EvaluateExpressionStatement((BoundExpressionStatement)s);
-                    index++;
-                    break;
-                case BoundNodeType.VariableDeclarationStatement:
-                    EvaluateVariableDeclarationStatement((BoundVariableDeclarationStatement)s);
-                    index++;
-                    break;
-                case BoundNodeType.GotoStatement:
-                    var gs = (BoundGotoStatement)s;
-                    index = labelToIndex[gs.label];
-                    break;
-                case BoundNodeType.ConditionalGotoStatement:
-                    var cgs = (BoundConditionalGotoStatement)s;
-                    var condition = (bool)EvaluateExpression(cgs.condition);
-
-                    if (condition == cgs.jumpIfTrue)
-                        index = labelToIndex[cgs.label];
-                    else
-                        index++;
-
-                    break;
-                case BoundNodeType.LabelStatement:
-                    index++;
-                    break;
-                case BoundNodeType.ReturnStatement:
-                    var returnStatement = (BoundReturnStatement)s;
-                    var lastValue_ = returnStatement.expression == null
-                        ? null
-                        : EvaluateExpression(returnStatement.expression);
-
-                    return lastValue_;
-                default:
-                    diagnostics.Push(DiagnosticType.Fatal, $"unexpected statement '{s.type}'");
-                    index++;
-                    break;
+            for (int i = 0; i < statement.statements.Length; i++) {
+                if (statement.statements[i] is BoundLabelStatement l)
+                    labelToIndex.Add(l.label, i + 1);
             }
-        }
 
-        return lastValue_;
+            var index = 0;
+            while (index < statement.statements.Length) {
+                var s = statement.statements[index];
+
+                switch (s.type) {
+                    case BoundNodeType.NopStatement:
+                        index++;
+                        break;
+                    case BoundNodeType.ExpressionStatement:
+                        EvaluateExpressionStatement((BoundExpressionStatement)s);
+                        index++;
+                        break;
+                    case BoundNodeType.VariableDeclarationStatement:
+                        EvaluateVariableDeclarationStatement((BoundVariableDeclarationStatement)s);
+                        index++;
+                        break;
+                    case BoundNodeType.GotoStatement:
+                        var gs = (BoundGotoStatement)s;
+                        index = labelToIndex[gs.label];
+                        break;
+                    case BoundNodeType.ConditionalGotoStatement:
+                        var cgs = (BoundConditionalGotoStatement)s;
+                        var condition = (bool)EvaluateExpression(cgs.condition);
+
+                        if (condition == cgs.jumpIfTrue)
+                            index = labelToIndex[cgs.label];
+                        else
+                            index++;
+
+                        break;
+                    case BoundNodeType.LabelStatement:
+                        index++;
+                        break;
+                    case BoundNodeType.ReturnStatement:
+                        var returnStatement = (BoundReturnStatement)s;
+                        var lastValue_ = returnStatement.expression == null
+                            ? null
+                            : EvaluateExpression(returnStatement.expression);
+
+                        return lastValue_;
+                    default:
+                        diagnostics.Push(DiagnosticType.Fatal, $"unexpected statement '{s.type}'");
+                        index++;
+                        break;
+                }
+            }
+
+            return lastValue_;
+        } catch (Exception e) {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.Write("Unhandled exception: ");
+            Console.ResetColor();
+            Console.WriteLine(e.Message);
+            return null;
+        }
     }
 
     internal void EvaluateExpressionStatement(BoundExpressionStatement statement) {
