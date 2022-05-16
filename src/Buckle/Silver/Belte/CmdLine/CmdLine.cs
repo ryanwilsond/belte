@@ -211,7 +211,8 @@ Options:
     }
 
     private static void ResolveCompilerOutput(Compiler compiler) {
-        if (compiler.state.buildMode == BuildMode.Interpreter)
+        if (compiler.state.buildMode == BuildMode.Interpreter ||
+            compiler.state.buildMode == BuildMode.Dotnet)
             return;
 
         if (compiler.state.finishStage == CompilerStage.Linked) {
@@ -226,7 +227,7 @@ Options:
                 if (file.stage == CompilerStage.Assembled)
                     File.WriteAllBytes(file.outputFilename, file.fileContent.bytes.ToArray());
                 else
-                    File.WriteAllLines(file.outputFilename, file.fileContent.lines.ToArray());
+                    File.WriteAllText(file.outputFilename, file.fileContent.text);
             }
         }
     }
@@ -239,7 +240,7 @@ Options:
                 case CompilerStage.Raw:
                 case CompilerStage.Preprocessed:
                 case CompilerStage.Compiled:
-                    task.fileContent.lines = File.ReadAllLines(task.inputFilename).ToList();
+                    task.fileContent.text = File.ReadAllText(task.inputFilename);
                     break;
                 case CompilerStage.Assembled:
                     task.fileContent.bytes = File.ReadAllBytes(task.inputFilename).ToList();
@@ -292,11 +293,13 @@ Options:
         }
 
         compiler.Compile();
+
         err = ResolveDiagnostics(compiler);
         if (err > 0)
             return err;
 
         ResolveCompilerOutput(compiler);
+
         return SuccessExitCode;
     }
 }

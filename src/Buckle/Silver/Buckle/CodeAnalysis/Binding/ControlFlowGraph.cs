@@ -182,13 +182,18 @@ internal sealed class ControlFlowGraph {
                 }
             }
 
-        ScanAgain:
-            foreach (var block in blocks) {
-                if (!block.incoming.Any()) {
-                    RemoveBlock(blocks, block);
-                    goto ScanAgain;
+            // TODO: test to make sure this works
+            void Scan() {
+                foreach (var block in blocks) {
+                    if (!block.incoming.Any()) {
+                        RemoveBlock(blocks, block);
+                        Scan();
+                        return;
+                    }
                 }
             }
+
+            Scan();
 
             blocks.Insert(0, start_);
             blocks.Add(end_);

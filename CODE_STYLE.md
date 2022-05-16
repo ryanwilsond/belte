@@ -26,6 +26,7 @@ This code style is most similar to C++ standards, and is what the Belte Standard
 - Decorators precede declarations by a line
 - Control of flow must use braces (unless single body statement) and start body statements on new line
 - Newline before and after control of flow unless the statement is specifically related to the control of flow
+- No newline before using statements at the beginning of the file
 
 ## Naming
 

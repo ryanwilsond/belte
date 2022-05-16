@@ -16,7 +16,7 @@ public enum CompilerStage {
 }
 
 public struct FileContent {
-    public List<string> lines;
+    public string text;
     public List<byte> bytes;
 }
 
@@ -79,11 +79,17 @@ public sealed class Compiler {
     }
 
     private void InternalPreprocessor() {
-        // TODO: doesn't do anything
+        var preprocessor = new Preprocessor();
 
-        for (int i=0; i<state.tasks.Length; i++)
-            if (state.tasks[i].stage == CompilerStage.Raw)
-                state.tasks[i].stage = CompilerStage.Preprocessed;
+        for (int i=0; i<state.tasks.Length; i++) {
+            ref FileState task = ref state.tasks[i];
+
+            if (task.stage == CompilerStage.Raw)
+                task.stage = CompilerStage.Preprocessed;
+
+            var text = preprocessor.PreprocessText(task.inputFilename, task.fileContent.text);
+            task.fileContent.text = text;
+        }
     }
 
     private void InternalInterpreter() {
@@ -94,8 +100,7 @@ public sealed class Compiler {
             ref FileState task = ref state.tasks[i];
 
             if (task.stage == CompilerStage.Preprocessed) {
-                var text = string.Join(Environment.NewLine, task.fileContent.lines);
-                var syntaxTree = SyntaxTree.Load(task.inputFilename, text);
+                var syntaxTree = SyntaxTree.Load(task.inputFilename, task.fileContent.text);
                 syntaxTrees.Add(syntaxTree);
                 task.stage = CompilerStage.Compiled;
             }
@@ -121,8 +126,7 @@ public sealed class Compiler {
             ref FileState task = ref state.tasks[i];
 
             if (task.stage == CompilerStage.Preprocessed) {
-                var text = string.Join(Environment.NewLine, task.fileContent.lines);
-                var syntaxTree = SyntaxTree.Load(task.inputFilename, text);
+                var syntaxTree = SyntaxTree.Load(task.inputFilename, task.fileContent.text);
                 syntaxTrees.Add(syntaxTree);
                 task.stage = CompilerStage.Compiled;
             }
