@@ -4,6 +4,8 @@ using System.Collections.Immutable;
 using System.Text.RegularExpressions;
 using Buckle.CodeAnalysis.Text;
 
+// * Needs to use the lexer, parser, and constant evaluator to evaluate statements like #run, #if, #elif, and #define
+
 namespace Buckle;
 
 public abstract class PreprocessLine {
@@ -21,6 +23,10 @@ public sealed class PreprocessPragma : PreprocessLine { }
 public sealed class PreprocessDefine : PreprocessLine { }
 
 public sealed class PreprocessUndefine : PreprocessLine { }
+
+public sealed class PreprocessWarning : PreprocessLine { }
+
+public sealed class PreprocessError : PreprocessLine { }
 
 public sealed class PreprocessRun : PreprocessLine { }
 

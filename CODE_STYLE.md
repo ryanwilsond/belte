@@ -46,6 +46,6 @@ This code style is most similar to C++ standards, and is what the Belte Standard
 
 ## Other
 
-- All switch statements must implement a default label
+- All switch statements must implement the default label
 - Prefer diagnostics over exceptions
-- Gotos only allowed inside switch-case unless necessary
+- Gotos only allowed inside switch-case unless necessary (which is never)

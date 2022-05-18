@@ -4,7 +4,7 @@ Preprocessor directives are used to do basic computation before compiling. A com
 some code depending on the build system.
 
 ```belte
-#if def(win64)
+#if defined(win64)
 ...
 #else
 ...
@@ -22,9 +22,9 @@ Allows for conditionals/branching, however it must be able to resolve at preproc
 
 ```belte
 // Allowed
-#if def(win64)
+#if defined(win64)
 ...
-#elif def(win32)
+#elif defined(win32)
 ...
 #end
 
@@ -62,7 +62,7 @@ They can also be used as flags, with out any value.
 ```belte
 #define MY_FLAG
 
-#if def(MY_FLAG)
+#if defined(MY_FLAG)
 ...
 #endif
 ```
