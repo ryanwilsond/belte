@@ -41,6 +41,7 @@ internal sealed class Emitter {
     private readonly MethodReference randomNextReference_;
     private readonly TypeReference randomReference_;
     private readonly MethodReference randomCtorReference_;
+    private readonly MethodReference nullableCtorReference_;
 
     private TypeDefinition typeDefinition_;
     private FieldDefinition randomFieldDefinition_;
@@ -98,6 +99,8 @@ internal sealed class Emitter {
         randomReference_ = ResolveType(null, "System.Random");
         randomCtorReference_ = ResolveMethod("System.Random", ".ctor", Array.Empty<string>());
         randomNextReference_ = ResolveMethod("System.Random", "Next", new [] { "System.Int32" });
+        // TODO: figure out the correct way to reference this
+        nullableCtorReference_ = ResolveMethod("System.Nullable`1", ".ctor", null);
     }
 
     TypeReference ResolveType(string buckleName, string metadataName) {
@@ -126,6 +129,9 @@ internal sealed class Emitter {
         if (foundTypes.Length == 1) {
             var foundType = foundTypes[0];
             var methods = foundType.Methods.Where(m => m.Name == methodName);
+
+            if (methods.ToArray().Length == 1 && parameterTypeNames == null)
+                return assemblyDefinition_.MainModule.ImportReference(methods.Single());
 
             foreach (var method in methods) {
                 if (method.Parameters.Count != parameterTypeNames.Length)
@@ -397,8 +403,9 @@ internal sealed class Emitter {
         locals_.Add(statement.variable, variableDefinition);
         iLProcessor.Body.Variables.Add(variableDefinition);
 
+        iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
         EmitExpression(iLProcessor, statement.initializer);
-        iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
+        // iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
     }
 
     private void EmitExpressionStatement(ILProcessor iLProcessor, BoundExpressionStatement statement) {
@@ -589,9 +596,12 @@ internal sealed class Emitter {
 
     private void EmitAssignmentExpression(ILProcessor iLProcessor, BoundAssignmentExpression expression) {
         var variableDefinition = locals_[expression.variable];
+
+        iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
         EmitExpression(iLProcessor, expression.expression);
-        iLProcessor.Emit(OpCodes.Dup);
-        iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
+        iLProcessor.Emit(OpCodes.Call, nullableCtorReference_);
+        // iLProcessor.Emit(OpCodes.Dup);
+        // iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
     }
 
     private void EmitVariableExpression(ILProcessor iLProcessor, BoundVariableExpression expression) {
@@ -820,8 +830,8 @@ internal sealed class Emitter {
             var value = (float)expression.constantValue.value;
             iLProcessor.Emit(OpCodes.Ldc_R4, value);
         } else {
-            // TODO: add nullable types
-            diagnostics.Push(DiagnosticType.Fatal, $"unexpected constant exression type '{expressionType}'");
+            iLProcessor.Emit(OpCodes.Initobj, GetNullType());
+            // diagnostics.Push(DiagnosticType.Fatal, $"unexpected constant expression type '{expressionType}'");
         }
     }
 
@@ -864,11 +874,18 @@ internal sealed class Emitter {
 
         var name = builtinTypes.Where(t => t.type == type.BaseType().lType).Single().metadataName;
 
+        name = "System.Nullable`1[" + name + "]";
+
         for (int i=0; i<type.dimensions; i++)
             name += "[]";
 
         // * this seems a little dirty, but works
         var typeReference = assemblyDefinition_.MainModule.ImportReference(Type.GetType(name));
+        return typeReference;
+    }
+
+    private TypeReference GetNullType() {
+        var typeReference = assemblyDefinition_.MainModule.ImportReference("System.Nullable`1");
         return typeReference;
     }
 }

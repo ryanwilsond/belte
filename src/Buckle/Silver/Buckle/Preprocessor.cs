@@ -33,13 +33,18 @@ public sealed class PreprocessRun : PreprocessLine { }
 public sealed class PreprocessSand : PreprocessLine { }
 
 public sealed class PreprocessFile {
-    public ImmutableArray<PreprocessLine> lines = new ImmutableArray<PreprocessLine>();
+    public ImmutableArray<PreprocessLine> lines;
 
     private PreprocessFile() { }
 
     public static PreprocessFile Parse(ImmutableArray<TextLine> lines) {
+        var preprocessFile = new PreprocessFile();
+
+        var builder = ImmutableArray.CreateBuilder<PreprocessLine>();
+        preprocessFile.lines = builder.ToImmutable();
+
         // ! just so it compiles
-        return new PreprocessFile();
+        return preprocessFile;
     }
 }
 
@@ -55,7 +60,6 @@ public class Preprocessor {
         foreach (var line in preprocessFile.lines) {
 
         }
-
 
         // ! just so it compiles
         return text;
