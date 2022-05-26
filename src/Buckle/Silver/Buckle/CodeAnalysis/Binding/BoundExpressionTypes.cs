@@ -272,6 +272,11 @@ internal sealed class BoundLiteralExpression : BoundExpression {
 
         constantValue = new BoundConstant(value_);
     }
+
+    public BoundLiteralExpression(object value_, BoundTypeClause override_) {
+        typeClause = override_;
+        constantValue = new BoundConstant(value_);
+    }
 }
 
 internal sealed class BoundVariableExpression : BoundExpression {
@@ -358,7 +363,11 @@ internal sealed class BoundCastExpression : BoundExpression {
 
     public BoundCastExpression(BoundTypeClause typeClause_, BoundExpression expression_) {
         typeClause = typeClause_;
-        expression = expression_;
+
+        if (expression_ is BoundLiteralExpression le)
+            expression = new BoundLiteralExpression(expression_.constantValue.value, typeClause);
+        else
+            expression = expression_;
     }
 }
 

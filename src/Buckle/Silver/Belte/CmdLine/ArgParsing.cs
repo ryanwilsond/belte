@@ -25,7 +25,7 @@ public static partial class CommandLine {
         state.buildMode = BuildMode.Independent;
         state.finishStage = CompilerStage.Linked;
         state.outputFilename = "a.exe";
-        state.moduleName = "a";
+        state.moduleName = "defaultModuleName";
 
         for (int i=0; i<args.Length; i++) {
             string arg = args[i];

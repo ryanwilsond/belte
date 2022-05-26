@@ -15,7 +15,7 @@ internal static class BoundNodePrinter {
             WriteTo(node, new IndentedTextWriter(writer));
     }
 
-    public static void WriteTypeClause(BoundTypeClause type, IndentedTextWriter writer) {
+    public static void WriteTypeClause(BoundTypeClause type, TextWriter writer) {
         writer.WriteType(type.BaseType().ToString());
         var brackets = "";
 
@@ -23,10 +23,6 @@ internal static class BoundNodePrinter {
             brackets += "[]";
 
         writer.WritePunctuation(brackets);
-    }
-
-    public static void WriteTypeClause(BoundTypeClause type, TextWriter writer) {
-        WriteTypeClause(type, (IndentedTextWriter)writer);
     }
 
     public static void WriteTo(this BoundNode node, IndentedTextWriter writer) {

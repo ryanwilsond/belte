@@ -42,6 +42,7 @@ internal sealed class Emitter {
     private readonly TypeReference randomReference_;
     private readonly MethodReference randomCtorReference_;
     private readonly MethodReference nullableCtorReference_;
+    private bool useNullRef = false;
 
     private TypeDefinition typeDefinition_;
     private FieldDefinition randomFieldDefinition_;
@@ -411,8 +412,10 @@ internal sealed class Emitter {
     private void EmitExpressionStatement(ILProcessor iLProcessor, BoundExpressionStatement statement) {
         EmitExpression(iLProcessor, statement.expression);
 
-        if (statement.expression.typeClause?.lType != TypeSymbol.Void)
+        if (statement.expression.typeClause?.lType != TypeSymbol.Void && !useNullRef)
             iLProcessor.Emit(OpCodes.Pop);
+
+        useNullRef = false;
     }
 
     private void EmitExpression(ILProcessor iLProcessor, BoundExpression expression) {
@@ -517,6 +520,13 @@ internal sealed class Emitter {
     }
 
     private void EmitCastExpression(ILProcessor iLProcessor, BoundCastExpression expression) {
+        Console.WriteLine($"{expression.expression.type}");
+        if (expression.expression is BoundLiteralExpression le && le.constantValue.value == null) {
+            Console.WriteLine("here");
+            EmitExpression(iLProcessor, new BoundLiteralExpression(le.value, expression.typeClause));
+            return;
+        }
+
         EmitExpression(iLProcessor, expression.expression);
         var subExpressionType = expression.expression.typeClause.lType;
         var expressionType = expression.typeClause.lType;
@@ -600,6 +610,7 @@ internal sealed class Emitter {
         iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
         EmitExpression(iLProcessor, expression.expression);
         iLProcessor.Emit(OpCodes.Call, nullableCtorReference_);
+        useNullRef = true;
         // iLProcessor.Emit(OpCodes.Dup);
         // iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
     }
@@ -813,6 +824,12 @@ internal sealed class Emitter {
     }
 
     private void EmitConstantExpression(ILProcessor iLProcessor, BoundExpression expression) {
+        if (expression.constantValue.value == null) {
+            Console.WriteLine(expression.type);
+            iLProcessor.Emit(OpCodes.Initobj, GetType(expression.typeClause, true));
+            return;
+        }
+
         var expressionType = expression.typeClause.lType;
 
         if (expressionType == TypeSymbol.Int) {
@@ -830,8 +847,7 @@ internal sealed class Emitter {
             var value = (float)expression.constantValue.value;
             iLProcessor.Emit(OpCodes.Ldc_R4, value);
         } else {
-            iLProcessor.Emit(OpCodes.Initobj, GetNullType());
-            // diagnostics.Push(DiagnosticType.Fatal, $"unexpected constant expression type '{expressionType}'");
+            throw new Exception($"unexpected constant expression type {expressionType}");
         }
     }
 
@@ -868,12 +884,12 @@ internal sealed class Emitter {
         methods_.Add(function, method);
     }
 
-    private TypeReference GetType(BoundTypeClause type) {
-        if (type.dimensions == 0)
+    private TypeReference GetType(BoundTypeClause type, bool isNull = false) {
+        if (type.dimensions == 0 && !isNull)
             return knownTypes_[type.lType];
 
-        var name = builtinTypes.Where(t => t.type == type.BaseType().lType).Single().metadataName;
-
+        Console.WriteLine($"{type.lType.name}, {type.isConst} {type.isRef} {type.isImplicit}");
+        string name = builtinTypes.Where(t => t.type == type.BaseType().lType).Single().metadataName;
         name = "System.Nullable`1[" + name + "]";
 
         for (int i=0; i<type.dimensions; i++)
@@ -881,11 +897,6 @@ internal sealed class Emitter {
 
         // * this seems a little dirty, but works
         var typeReference = assemblyDefinition_.MainModule.ImportReference(Type.GetType(name));
-        return typeReference;
-    }
-
-    private TypeReference GetNullType() {
-        var typeReference = assemblyDefinition_.MainModule.ImportReference("System.Nullable`1");
         return typeReference;
     }
 }

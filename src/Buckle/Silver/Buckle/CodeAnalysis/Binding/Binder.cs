@@ -483,8 +483,10 @@ internal sealed class Binder {
         if (!allowExplicit && conversion.isExplicit)
             diagnostics.Push(Error.CannotConvertImplicitly(diagnosticLocation, expression.typeClause, type));
 
-        if (conversion.isIdentity)
-            return expression;
+        if (conversion.isIdentity) {
+            if (expression is BoundLiteralExpression le && le.typeClause.lType == null) ;
+            else return expression;
+        }
 
         return new BoundCastExpression(type, expression);
     }
@@ -757,22 +759,24 @@ internal sealed class Binder {
 
             var itemType = variableType.BaseType();
 
+            var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
             var variable = BindVariable(expression.identifier,
                 new BoundTypeClause(itemType.lType, typeClause.isImplicit,
                 typeClause.isConst, typeClause.isRef, variableType.dimensions));
-            var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
         } else {
             var initializer = expression.initializer != null
                 ? BindExpression(expression.initializer)
                 : new BoundLiteralExpression(null);
+
             var variableType = typeClause.isImplicit
                 ? initializer.typeClause
                 : typeClause;
 
-            var variable = BindVariable(expression.identifier, variableType, initializer.constantValue);
             var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
+                System.Console.WriteLine($"{castedInitializer.constantValue == null}, {castedInitializer.typeClause.lType}");
+            var variable = BindVariable(expression.identifier, variableType, initializer.constantValue);
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
         }
