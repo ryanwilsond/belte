@@ -127,7 +127,7 @@ public static partial class CommandLine {
 
         if (specifyOut) {
             string[] parts = state.outputFilename.Split('.');
-            state.moduleName = string.Join('.', parts[0..(parts.Length-2)]);
+            // state.moduleName = string.Join('.', parts[0..(parts.Length-2)]);
         }
 
         if (args.Length > 1 && state.buildMode == BuildMode.Repl)

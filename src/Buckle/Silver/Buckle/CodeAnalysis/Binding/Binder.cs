@@ -484,8 +484,8 @@ internal sealed class Binder {
             diagnostics.Push(Error.CannotConvertImplicitly(diagnosticLocation, expression.typeClause, type));
 
         if (conversion.isIdentity) {
-            if (expression is BoundLiteralExpression le && le.typeClause.lType == null) ;
-            else return expression;
+            if (expression is not BoundLiteralExpression le || le.typeClause.lType != null)
+                return expression;
         }
 
         return new BoundCastExpression(type, expression);
@@ -715,7 +715,7 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatement expression) {
-        var typeClause = BindTypeClause(expression.typeClause);
+        var typeClause = BindTypeClause(expression.typeClause, true);
 
         if (typeClause.isImplicit && expression.initializer == null) {
             diagnostics.Push(Error.NoInitOnImplicit(expression.identifier.location));
@@ -775,14 +775,13 @@ internal sealed class Binder {
                 : typeClause;
 
             var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
-                System.Console.WriteLine($"{castedInitializer.constantValue == null}, {castedInitializer.typeClause.lType}");
             var variable = BindVariable(expression.identifier, variableType, initializer.constantValue);
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
         }
     }
 
-    private BoundTypeClause BindTypeClause(TypeClause type) {
+    private BoundTypeClause BindTypeClause(TypeClause type, bool isNullable = false) {
         var isConst = type.constKeyword != null;
         var isRef = type.refKeyword != null;
         var isImplicit = type.typeName.type == SyntaxType.VAR_KEYWORD;
@@ -792,7 +791,7 @@ internal sealed class Binder {
         if (foundType == null && !isImplicit)
             diagnostics.Push(Error.UnknownType(type.location, type.typeName.text));
 
-        return new BoundTypeClause(foundType, isImplicit, isConst, isRef, dimensions);
+        return new BoundTypeClause(foundType, isImplicit, isConst, isRef, dimensions, isNullable);
     }
 
     private VariableSymbol BindVariable(

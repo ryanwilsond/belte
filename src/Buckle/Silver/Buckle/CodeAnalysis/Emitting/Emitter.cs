@@ -41,6 +41,7 @@ internal sealed class Emitter {
     private readonly MethodReference randomNextReference_;
     private readonly TypeReference randomReference_;
     private readonly MethodReference randomCtorReference_;
+    private readonly TypeReference nullableReference_;
     private readonly MethodReference nullableCtorReference_;
     private bool useNullRef = false;
 
@@ -72,7 +73,7 @@ internal sealed class Emitter {
             (TypeSymbol.Void, "System.Void"),
         };
 
-        var assemblyName = new AssemblyNameDefinition(moduleName, new Version(0, 1));
+        var assemblyName = new AssemblyNameDefinition(moduleName, new Version(1, 0));
         assemblyDefinition_ = AssemblyDefinition.CreateAssembly(assemblyName, moduleName, ModuleKind.Console);
         knownTypes_ = new Dictionary<TypeSymbol, TypeReference>();
 
@@ -100,8 +101,17 @@ internal sealed class Emitter {
         randomReference_ = ResolveType(null, "System.Random");
         randomCtorReference_ = ResolveMethod("System.Random", ".ctor", Array.Empty<string>());
         randomNextReference_ = ResolveMethod("System.Random", "Next", new [] { "System.Int32" });
-        // TODO: figure out the correct way to reference this
+        nullableReference_ = ResolveType(null, "System.Nullable`1");
         nullableCtorReference_ = ResolveMethod("System.Nullable`1", ".ctor", null);
+
+        foreach (var assembly in assemblies) {
+            Console.WriteLine(assembly.Name.Name);
+            foreach (var module in assembly.Modules) {
+                foreach (var type in module.Types) {
+                    Console.WriteLine($"  {type.Name}");
+                }
+            }
+        }
     }
 
     TypeReference ResolveType(string buckleName, string metadataName) {
@@ -121,7 +131,9 @@ internal sealed class Emitter {
         return null;
     }
 
-    MethodReference ResolveMethod(string typeName, string methodName, string[] parameterTypeNames) {
+    MethodReference ResolveMethod(
+        string typeName, string methodName, string[] parameterTypeNames) {
+
         var foundTypes = assemblies.SelectMany(a => a.Modules)
             .SelectMany(m => m.Types)
             .Where(t => t.FullName == typeName)
@@ -520,9 +532,7 @@ internal sealed class Emitter {
     }
 
     private void EmitCastExpression(ILProcessor iLProcessor, BoundCastExpression expression) {
-        Console.WriteLine($"{expression.expression.type}");
         if (expression.expression is BoundLiteralExpression le && le.constantValue.value == null) {
-            Console.WriteLine("here");
             EmitExpression(iLProcessor, new BoundLiteralExpression(le.value, expression.typeClause));
             return;
         }
@@ -788,7 +798,6 @@ internal sealed class Emitter {
                     yield return result;
             } else {
                 if (node.typeClause.lType != TypeSymbol.String)
-                    // TODO: add typeClause.ToString() to replace Error.DiagnosticText
                     throw new Exception($"Unexpected node type in string concatenation: {node.typeClause.lType}");
 
                 yield return node;
@@ -825,8 +834,8 @@ internal sealed class Emitter {
 
     private void EmitConstantExpression(ILProcessor iLProcessor, BoundExpression expression) {
         if (expression.constantValue.value == null) {
-            Console.WriteLine(expression.type);
-            iLProcessor.Emit(OpCodes.Initobj, GetType(expression.typeClause, true));
+            // iLProcessor.Emit(OpCodes.Initobj, GetType(expression.typeClause));
+            iLProcessor.Emit(OpCodes.Initobj, nullableReference_);
             return;
         }
 
@@ -884,11 +893,10 @@ internal sealed class Emitter {
         methods_.Add(function, method);
     }
 
-    private TypeReference GetType(BoundTypeClause type, bool isNull = false) {
-        if (type.dimensions == 0 && !isNull)
+    private TypeReference GetType(BoundTypeClause type) {
+        if (type.dimensions == 0 && !type.isNullable)
             return knownTypes_[type.lType];
 
-        Console.WriteLine($"{type.lType.name}, {type.isConst} {type.isRef} {type.isImplicit}");
         string name = builtinTypes.Where(t => t.type == type.BaseType().lType).Single().metadataName;
         name = "System.Nullable`1[" + name + "]";
 
@@ -897,6 +905,15 @@ internal sealed class Emitter {
 
         // * this seems a little dirty, but works
         var typeReference = assemblyDefinition_.MainModule.ImportReference(Type.GetType(name));
+        typeReference.Resolve(); // ? what does this do
+        // TODO: figure out TypeRefernece.MakeArrayType(rank = dimensions?)
+        // TODO: figure out how to specify Generic Parameters (template arguments)
+        // should replace Type.GetType(string)
+        // ? TypeReference inherits from IGenericParameterProvider so should be able to do something like
+            var myTemplateArg = new GenericParameter(typeReference);
+
+        Console.WriteLine($"{typeReference.FullName}, {typeReference.ContainsGenericParameter}, {typeReference.GenericParameters}");
+        // TODO: probably need to use IGenericParameterProvider?
         return typeReference;
     }
 }

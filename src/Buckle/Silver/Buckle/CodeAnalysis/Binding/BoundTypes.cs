@@ -60,16 +60,18 @@ internal sealed class BoundTypeClause : BoundNode {
     public bool isImplicit { get; }
     public bool isConst { get; }
     public bool isRef { get; }
+    public bool isNullable { get; }
     public int dimensions { get; }
     public override BoundNodeType type => BoundNodeType.TypeClause;
 
     public BoundTypeClause(
         TypeSymbol lType_, bool isImplicit_ = false, bool isConst_ = false,
-        bool isRef_ = false, int dimensions_ = 0) {
+        bool isRef_ = false, int dimensions_ = 0, bool isNullable_ = false) {
         lType = lType_;
         isImplicit = isImplicit_;
         isConst = isConst_;
         isRef = isRef_;
+        isNullable = isNullable_;
         dimensions = dimensions_;
     }
 
