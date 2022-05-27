@@ -1,8 +1,8 @@
 
 void Main() {
-    // int[][] a = {{1, 2, 3}, {4, 5, 6}};
-    // PrintLine(a[1][2]);
-    int a = null;
-    a = 3;
-    PrintLine(a);
+    int[][] a = {{1, 2}, {4, 5}};
+    PrintLine(a[1][1]);
+    int b = null;
+    b = 3;
+    PrintLine(b);
 }

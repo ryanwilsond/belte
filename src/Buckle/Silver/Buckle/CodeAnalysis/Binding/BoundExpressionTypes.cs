@@ -346,7 +346,7 @@ internal sealed class BoundInitializerListExpression : BoundExpression {
     public BoundTypeClause itemType { get; }
     public override BoundNodeType type => BoundNodeType.LiteralExpression;
     public override BoundTypeClause typeClause => new BoundTypeClause(
-        itemType.lType, itemType.isImplicit, itemType.isConst, itemType.isRef, dimensions);
+        itemType.lType, itemType.isImplicit, itemType.isConst, itemType.isRef, dimensions, true);
 
     public BoundInitializerListExpression(
         ImmutableArray<BoundExpression> items_, int dimensions_, BoundTypeClause itemType_) {

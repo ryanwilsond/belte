@@ -103,15 +103,6 @@ internal sealed class Emitter {
         randomNextReference_ = ResolveMethod("System.Random", "Next", new [] { "System.Int32" });
         nullableReference_ = ResolveType(null, "System.Nullable`1");
         nullableCtorReference_ = ResolveMethod("System.Nullable`1", ".ctor", null);
-
-        foreach (var assembly in assemblies) {
-            Console.WriteLine(assembly.Name.Name);
-            foreach (var module in assembly.Modules) {
-                foreach (var type in module.Types) {
-                    Console.WriteLine($"  {type.Name}");
-                }
-            }
-        }
     }
 
     TypeReference ResolveType(string buckleName, string metadataName) {
@@ -416,9 +407,13 @@ internal sealed class Emitter {
         locals_.Add(statement.variable, variableDefinition);
         iLProcessor.Body.Variables.Add(variableDefinition);
 
-        iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
+        if (statement.initializer.typeClause.dimensions == 0)
+            iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
+
         EmitExpression(iLProcessor, statement.initializer);
-        // iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
+
+        if (statement.initializer.typeClause.dimensions > 0)
+            iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
     }
 
     private void EmitExpressionStatement(ILProcessor iLProcessor, BoundExpressionStatement statement) {
@@ -478,25 +473,13 @@ internal sealed class Emitter {
         EmitExpression(iLProcessor, expression.expression);
         iLProcessor.Emit(OpCodes.Ldc_I4, (int)expression.index.constantValue.value);
 
-        var type = expression.expression.typeClause.lType;
+        var typeClause = expression.expression.typeClause;
 
-        if (expression.expression.typeClause.ChildType().dimensions == 0) {
-            if (type == TypeSymbol.Int) {
-                iLProcessor.Emit(OpCodes.Ldelem_I4);
-                return;
-            } else if (type == TypeSymbol.Any) {
-                iLProcessor.Emit(OpCodes.Ldelem_Any);
-                return;
-            } else if (type == TypeSymbol.Decimal) {
-                iLProcessor.Emit(OpCodes.Ldelem_R4);
-                return;
-            } else if (type == TypeSymbol.Bool) {
-                iLProcessor.Emit(OpCodes.Ldelem_U1);
-                return;
-            }
+        if (typeClause.ChildType().dimensions == 0) {
+            iLProcessor.Emit(OpCodes.Ldelem_Any, GetType(typeClause.BaseType()));
+        } else {
+            iLProcessor.Emit(OpCodes.Ldelem_Ref);
         }
-
-        iLProcessor.Emit(OpCodes.Ldelem_Ref);
     }
 
     private void EmitInitializerListExpression(ILProcessor iLProcessor, BoundInitializerListExpression expression) {
@@ -509,25 +492,12 @@ internal sealed class Emitter {
             iLProcessor.Emit(OpCodes.Ldc_I4, i);
             EmitExpression(iLProcessor, item);
 
-            var itemType = item.typeClause.lType;
-
             if (item.typeClause.dimensions == 0) {
-                if (itemType == TypeSymbol.Any) {
-                    iLProcessor.Emit(OpCodes.Stelem_Any);
-                    continue;
-                } else if (itemType == TypeSymbol.Int) {
-                    iLProcessor.Emit(OpCodes.Stelem_I4);
-                    continue;
-                } else if (itemType == TypeSymbol.Decimal) {
-                    iLProcessor.Emit(OpCodes.Stelem_R4);
-                    continue;
-                } else if (itemType == TypeSymbol.Bool) {
-                    iLProcessor.Emit(OpCodes.Stelem_I1);
-                    continue;
-                }
+                iLProcessor.Emit(OpCodes.Newobj, GetNullableCtor(item.typeClause));
+                iLProcessor.Emit(OpCodes.Stelem_Any, GetType(item.typeClause, true));
+            } else {
+                iLProcessor.Emit(OpCodes.Stelem_Ref);
             }
-
-            iLProcessor.Emit(OpCodes.Stelem_Ref);
         }
     }
 
@@ -614,15 +584,25 @@ internal sealed class Emitter {
         // iLProcessor.Emit(OpCodes.Nop);
     }
 
+    private MethodReference GetNullableCtor(BoundTypeClause type) {
+        var genericArgumentType =
+            assemblyDefinition_.MainModule.ImportReference(knownTypes_[type.lType]);
+        var methodReference = assemblyDefinition_.MainModule.ImportReference(nullableCtorReference_);
+        methodReference.DeclaringType = new GenericInstanceType(nullableReference_);
+        (methodReference.DeclaringType as GenericInstanceType).GenericArguments.Add(genericArgumentType);
+        methodReference.Resolve();
+
+        return methodReference;
+    }
+
     private void EmitAssignmentExpression(ILProcessor iLProcessor, BoundAssignmentExpression expression) {
         var variableDefinition = locals_[expression.variable];
 
         iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
         EmitExpression(iLProcessor, expression.expression);
-        iLProcessor.Emit(OpCodes.Call, nullableCtorReference_);
+
+        iLProcessor.Emit(OpCodes.Call, GetNullableCtor(expression.typeClause));
         useNullRef = true;
-        // iLProcessor.Emit(OpCodes.Dup);
-        // iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
     }
 
     private void EmitVariableExpression(ILProcessor iLProcessor, BoundVariableExpression expression) {
@@ -834,8 +814,7 @@ internal sealed class Emitter {
 
     private void EmitConstantExpression(ILProcessor iLProcessor, BoundExpression expression) {
         if (expression.constantValue.value == null) {
-            // iLProcessor.Emit(OpCodes.Initobj, GetType(expression.typeClause));
-            iLProcessor.Emit(OpCodes.Initobj, nullableReference_);
+            iLProcessor.Emit(OpCodes.Initobj, GetType(expression.typeClause));
             return;
         }
 
@@ -893,27 +872,21 @@ internal sealed class Emitter {
         methods_.Add(function, method);
     }
 
-    private TypeReference GetType(BoundTypeClause type) {
-        if (type.dimensions == 0 && !type.isNullable)
+    private TypeReference GetType(BoundTypeClause type, bool overrideNullability = false) {
+        if (type.dimensions == 0 && !type.isNullable && !overrideNullability)
             return knownTypes_[type.lType];
 
-        string name = builtinTypes.Where(t => t.type == type.BaseType().lType).Single().metadataName;
-        name = "System.Nullable`1[" + name + "]";
+        var genericArgumentType = assemblyDefinition_.MainModule.ImportReference(knownTypes_[type.lType]);
+        var typeReference = new GenericInstanceType(nullableReference_);
+        typeReference.GenericArguments.Add(genericArgumentType);
 
-        for (int i=0; i<type.dimensions; i++)
-            name += "[]";
-
-        // * this seems a little dirty, but works
-        var typeReference = assemblyDefinition_.MainModule.ImportReference(Type.GetType(name));
-        typeReference.Resolve(); // ? what does this do
-        // TODO: figure out TypeRefernece.MakeArrayType(rank = dimensions?)
-        // TODO: figure out how to specify Generic Parameters (template arguments)
-        // should replace Type.GetType(string)
-        // ? TypeReference inherits from IGenericParameterProvider so should be able to do something like
-            var myTemplateArg = new GenericParameter(typeReference);
-
-        Console.WriteLine($"{typeReference.FullName}, {typeReference.ContainsGenericParameter}, {typeReference.GenericParameters}");
-        // TODO: probably need to use IGenericParameterProvider?
-        return typeReference;
+        if (type.dimensions == 0) {
+            typeReference.Resolve();
+            return typeReference;
+        } else {
+            var arrayType = typeReference.MakeArrayType(type.dimensions);
+            arrayType.Resolve();
+            return arrayType;
+        }
     }
 }

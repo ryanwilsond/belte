@@ -395,6 +395,7 @@ internal sealed class Binder {
 
     private BoundExpression BindIndexExpression(IndexExpression expression) {
         var boundExpression = BindExpression(expression.operand);
+        boundExpression.typeClause.isNullable = true;
 
         if (boundExpression.typeClause.dimensions > 0) {
             var index = BindCast(
@@ -594,10 +595,11 @@ internal sealed class Binder {
 
         foreach (var item in expression.items) {
             BoundExpression tempItem = BindExpression(item);
+            tempItem.typeClause.isNullable = true;
 
             if (type == null)
                 type = new BoundTypeClause(tempItem.typeClause.lType, false,
-                    tempItem.typeClause.isConst, tempItem.typeClause.isRef, tempItem.typeClause.dimensions + 1);
+                    tempItem.typeClause.isConst, tempItem.typeClause.isRef, tempItem.typeClause.dimensions + 1, true);
 
             var childType = type.ChildType();
             var boundItem = BindCast(item.location, tempItem, childType);

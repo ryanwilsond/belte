@@ -60,7 +60,8 @@ internal sealed class BoundTypeClause : BoundNode {
     public bool isImplicit { get; }
     public bool isConst { get; }
     public bool isRef { get; }
-    public bool isNullable { get; }
+    // only mutable part of this tree, has to be to simplify converting literals to nullable
+    public bool isNullable { get; set; }
     public int dimensions { get; }
     public override BoundNodeType type => BoundNodeType.TypeClause;
 
@@ -77,14 +78,14 @@ internal sealed class BoundTypeClause : BoundNode {
 
     public BoundTypeClause ChildType() {
         if (dimensions > 0)
-            return new BoundTypeClause(lType, isImplicit, isConst, isRef, dimensions - 1);
+            return new BoundTypeClause(lType, isImplicit, isConst, isRef, dimensions - 1, isNullable);
         else
             return null;
     }
 
     public BoundTypeClause BaseType() {
         if (dimensions > 0)
-            return new BoundTypeClause(lType, isImplicit, isConst, isRef, 0);
+            return new BoundTypeClause(lType, isImplicit, isConst, isRef, 0, isNullable);
         else
             return this;
     }
