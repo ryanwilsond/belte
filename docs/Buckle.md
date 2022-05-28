@@ -21,4 +21,47 @@ Buckle is the Belte programming language compiler.
 | --dumpmachine | Display the compiler's target system. |
 | --version | Display the compiler version information. |
 
-## Using
+## Building with Dotnet
+
+To start, make a `Directory.Build.props` file with the following contents to tell dotnet to look for belte files:
+
+```xml
+<Project>
+  <PropertyGroup>
+    <DefaultLanguageSourceExtension>.ble</DefaultLanguageSourceExtension>
+  </PropertyGroup>
+</Project>
+```
+
+You will also need to create a `Directory.Build.targets` file to tell dotnet how to invoke buckle. Here is a full
+example:
+
+```xml
+<Project>
+
+  <Target Name="CreateManifestResourceNames" />
+
+  <Target Name="CoreCompile" DependsOnTargets="$(CoreCompileDependsOn)">
+    <ItemGroup>
+      <ReferencePath Remove="@(ReferencePath)"
+        Condition="'%(FileName)' != 'System.Runtime' AND
+        '%(FileName)' != 'System.Console' AND
+        '%(FileName)' != 'System.Runtime.Extensions'" />
+    </ItemGroup>
+
+    <PropertyGroup>
+      <BuckleCompilerArgs>@(Compile->'&quot;%(Identity)&quot;', ' ')</BuckleCompilerArgs>
+      <BuckleCompilerArgs>$(BuckleCompilerArgs) -o &quot;@(IntermediateAssembly)&quot;</BuckleCompilerArgs>
+      <BuckleCompilerArgs>$(BuckleCompilerArgs) @(ReferencePath->'--ref=&quot;%(Identity)&quot;', ' ')</BuckleCompilerArgs>
+    </PropertyGroup>
+    <Exec Command="dotnet run --project &quot;$(MSBuildThisFileDirectory)\..\src\Buckle\Silver\Belte\Belte.csproj&quot; -- -d $(BuckleCompilerArgs)"
+      WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+</Project>
+```
+
+This first tells dotnet to only reference `System.Runtime`, `System.Console`, and `System.Runtime.Extensions`. This part
+is optional, but referencing all default libraries may slow down compilation. Then it defines how to invoke buckle
+pointing to its project file. Alternatively you can add buckle to environment variables path, and call it directly
+instead of wrapping it inside of `dotnet run`.

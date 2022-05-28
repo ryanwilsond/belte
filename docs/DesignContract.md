@@ -7,13 +7,23 @@ int, you can add a bound to an int to make it greater than or equal to 0.
 Declaring an unsigned int in C vs Belte:
 
 ```cpp
-int myint;
-unsigned int myuint;
+int myInt;
+unsigned int myUint;
 ```
 
 ```belte
-int myint;
-int<0> myuint;
+int myInt;
+int<0> myUint;
+```
+
+Some restrictions you can add to all types are nullability and simple evaluation checks. For example, you can explicitly
+declare that a type cannot be null (as they can be by default). You can also give a type an expression that must
+evaluate to true for every value passing into it.
+
+```belte
+int<T => T > 2 && T < 10> myVar;
+myVar = 8;
+myVar = 1; // throws
 ```
 
 ## Integers
