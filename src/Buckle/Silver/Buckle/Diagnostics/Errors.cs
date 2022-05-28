@@ -4,6 +4,7 @@ using Buckle.CodeAnalysis.Text;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Binding;
+using System;
 
 namespace Buckle.Diagnostics;
 
@@ -12,8 +13,8 @@ internal static class Error {
         // temporary errors messages go here
         // given compiler is finished this will be empty
         public static Diagnostic GlobalReturnValue(TextLocation location) {
-            string msg = $"unsupported: global return cannot return a value";
-            return new Diagnostic(DiagnosticType.Error, location, msg);
+            string message = $"unsupported: global return cannot return a value";
+            return new Diagnostic(DiagnosticType.Error, location, message);
         }
     }
 
@@ -35,41 +36,41 @@ internal static class Error {
     }
 
     public static Diagnostic InvalidReference(string reference) {
-        string msg = $"{reference}: no such file or invalid file type";
-        return new Diagnostic(DiagnosticType.Error, null, msg);
+        string message = $"{reference}: no such file or invalid file type";
+        return new Diagnostic(DiagnosticType.Error, null, message);
     }
 
     public static Diagnostic InvalidType(TextLocation location, string text, TypeSymbol type) {
-        string msg = $"'{text}' is not a valid '{type}'";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = $"'{text}' is not a valid '{type}'";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic BadCharacter(TextLocation location, int position, char input) {
-        string msg = $"unknown character '{input}'";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = $"unknown character '{input}'";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic UnexpectedToken(TextLocation location, SyntaxType unexpected, SyntaxType expected) {
-        string msg;
+        string message;
 
         if (unexpected != SyntaxType.END_OF_FILE_TOKEN)
-            msg = $"unexpected token {DiagnosticText(unexpected)}, expected {DiagnosticText(expected)}";
+            message = $"unexpected token {DiagnosticText(unexpected)}, expected {DiagnosticText(expected)}";
         else
-            msg = $"expected {DiagnosticText(expected)} at end of input";
+            message = $"expected {DiagnosticText(expected)} at end of input";
 
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic InvalidUnaryOperatorUse(TextLocation location, string op, BoundTypeClause operand) {
-        string msg = $"operator '{op}' is not defined for type '{operand}'";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = $"operator '{op}' is not defined for type '{operand}'";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic RequiredTypeNotFound(string buckleName, string metadataName) {
-        string msg = buckleName != null
+        string message = buckleName != null
             ? $"could not resolve type '{buckleName}' ('{metadataName}') with the given references"
             : $"could not resolve type '{metadataName}' with the given references";
-        return new Diagnostic(DiagnosticType.Error, null, msg);
+        return new Diagnostic(DiagnosticType.Error, null, message);
     }
 
     public static Diagnostic RequiredTypeAmbiguous(
@@ -77,219 +78,262 @@ internal static class Error {
         var assemblyNames = foundTypes.Select(t => t.Module.Assembly.Name.Name);
         var nameList = string.Join(", ", assemblyNames);
 
-        string msg = buckleName != null
+        string message = buckleName != null
             ? $"could not resolve type '{buckleName}' ('{metadataName}') with the given references"
             : $"could not resolve type '{metadataName}' with the given references";
-        return new Diagnostic(DiagnosticType.Error, null, msg);
+        return new Diagnostic(DiagnosticType.Error, null, message);
     }
 
     public static Diagnostic InvalidBinaryOperatorUse(
         TextLocation location, string op, BoundTypeClause left, BoundTypeClause right) {
-        string msg = $"operator '{op}' is not defined for types '{left}' and '{right}'";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = $"operator '{op}' is not defined for types '{left}' and '{right}'";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic GlobalStatementsInMultipleFiles(TextLocation location) {
-        string msg = "multiple files with global statements creates ambigous entry point";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "multiple files with global statements creates ambigous entry point";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic ParameterAlreadyDeclared(TextLocation location, string name) {
-        string msg = $"redefinition of parameter '{name}'";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = $"redefinition of parameter '{name}'";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic InvalidMain(TextLocation location) {
-        string msg = "invalid main signature: must return void or int and take no arguments";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "invalid main signature: must return void or int and take no arguments";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic RequiredMethodNotFound(string typeName, object methodName, string[] parameterTypeNames) {
-        var parameterList = string.Join(", ", parameterTypeNames);
-        string msg = $"could not resolve method '{typeName}.{methodName}({parameterList})' with the given references";
-        return new Diagnostic(DiagnosticType.Error, null, msg);
+        string message;
+
+        if (parameterTypeNames == null) {
+            message = $"could not resolve method '{typeName}.{methodName}' with the given references";
+        } else {
+            var parameterList = string.Join(", ", parameterTypeNames);
+            message =
+                $"could not resolve method '{typeName}.{methodName}({parameterList})' with the given references";
+        }
+
+        return new Diagnostic(DiagnosticType.Fatal, null, message);
     }
 
     public static Diagnostic MainAndGlobals(TextLocation location) {
-        string msg = "declaring a main function and using global statements creates ambigous entry point";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "declaring a main function and using global statements creates ambigous entry point";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic UndefinedName(TextLocation location, string name) {
-        string msg = $"undefined symbol '{name}'";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = $"undefined symbol '{name}'";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic FunctionAlreadyDeclared(TextLocation location, string name) {
-        string msg = $"redefinition of function '{name}'";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = $"redefinition of function '{name}'";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic NotAllPathsReturn(TextLocation location) {
-        string msg = "not all code paths return a value";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "not all code paths return a value";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic CannotConvert(TextLocation location, BoundTypeClause from, BoundTypeClause to) {
-        string msg = $"cannot convert from type '{from}' to '{to}'";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = $"cannot convert from type '{from}' to '{to}'";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic AlreadyDeclared(TextLocation location, string name) {
-        string msg = $"redefinition of '{name}'";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = $"redefinition of '{name}'";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic ConstAssign(TextLocation location, string name) {
-        string msg = $"assignment of constant variable '{name}'";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = $"assignment of constant variable '{name}'";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic AmbiguousElse(TextLocation location) {
-        string msg = "ambiguous what if-statement else-clause belongs to";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "ambiguous what if-statement else-clause belongs to";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic NoValue(TextLocation location) {
-        string msg = "expression must have a value";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "expression must have a value";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic ExpectedExpression(TextLocation location) {
-        string msg = "expected expression";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "expected expression";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic ExpectedStatement(TextLocation location) {
-        string msg = "expected statement";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "expected statement";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic UnterminatedString(TextLocation location) {
-        string msg = "unterminated string literal";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "unterminated string literal";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic UndefinedFunction(TextLocation location, string name) {
-        string msg = $"undefined function '{name}'";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = $"undefined function '{name}'";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic IncorrectArgumentsCount(TextLocation location, string name, int expected, int actual) {
         var argWord = expected == 1 ? "argument" : "arguments";
-        string msg = $"function '{name}' expects {expected} {argWord}, got {actual}";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = $"function '{name}' expects {expected} {argWord}, got {actual}";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic UnexpectedType(TextLocation location, BoundTypeClause type) {
-        string msg = $"unexpected type '{type}'";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = $"unexpected type '{type}'";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic InvalidArgumentType(
             TextLocation location, int count, string parameterName, BoundTypeClause expected, BoundTypeClause actual) {
-        string msg =
+        string message =
             $"argument {count}: parameter '{parameterName}' expects argument of type " +
             $"'{expected}', got '{actual}'";
 
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic CannotCallNonFunction(TextLocation location, string text) {
-        string msg = $"called object '{text}' is not a function";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = $"called object '{text}' is not a function";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic InvalidExpressionStatement(TextLocation location) {
-        string msg = "only assignment and call expressions can be used as a statement";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "only assignment and call expressions can be used as a statement";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic UnknownType(TextLocation location, string text) {
-        string msg = $"unknown type '{text}'";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = $"unknown type '{text}'";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic CannotConvertImplicitly(TextLocation location, BoundTypeClause from, BoundTypeClause to) {
-        string msg =
+        string message =
             $"cannot convert from type '{from}' to '{to}'." +
             "An explicit conversion exists (are you missing a cast?)";
         string suggestion = $"{to}(%)";
-        return new Diagnostic(DiagnosticType.Error, location, msg, suggestion);
+        return new Diagnostic(DiagnosticType.Error, location, message, suggestion);
     }
 
     public static Diagnostic InvalidBreakOrContinue(TextLocation location, string text) {
-        string msg = $"{text} statement not within a loop";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = $"{text} statement not within a loop";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic ReturnOutsideFunction(TextLocation location) {
-        string msg = "return statement not within a function";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "return statement not within a function";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic UnexpectedReturnValue(TextLocation location) {
-        string msg = "return statement with a value, in function returning void";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "return statement with a value, in function returning void";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic MissingReturnValue(TextLocation location) {
-        string msg = "return statement with no value, in function returning non-void";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "return statement with no value, in function returning non-void";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic NotAVariable(TextLocation location, string name) {
-        string msg = $"function '{name}' used as a variable";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = $"function '{name}' used as a variable";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic UnterminatedComment(TextLocation location) {
-        string msg = "unterminated multi-line comment";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "unterminated multi-line comment";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic NullAssignOnImplicit(TextLocation location) {
-        string msg = "cannot assign 'null' to an implicitly-typed variable";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "cannot assign 'null' to an implicitly-typed variable";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic NoInitOnImplicit(TextLocation location) {
-        string msg = "implicitly-typed variable must have initializer";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "implicitly-typed variable must have initializer";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic EmptyInitializerListOnImplicit(TextLocation location) {
-        string msg = "cannot assign empty initializer list to an implicitly-typed variable";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "cannot assign empty initializer list to an implicitly-typed variable";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic CannotApplyIndexing(TextLocation location, BoundTypeClause type) {
-        string msg = $"cannot apply indexing with [] to an expression of type '{type}'";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = $"cannot apply indexing with [] to an expression of type '{type}'";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic VoidVariable(TextLocation location) {
-        string msg = "cannot use void as a type";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "cannot use void as a type";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic ImpliedDimensions(TextLocation location) {
-        string msg = "collection dimensions are inferred and not necessary";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "collection dimensions are inferred and not necessary";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic CannotUseImplicit(TextLocation location) {
-        string msg = "cannot use implicit-typing in this context";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "cannot use implicit-typing in this context";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic NoCatchOrFinally(TextLocation location) {
-        string msg = "try statement must have a catch or finally";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "try statement must have a catch or finally";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 
     public static Diagnostic ExpectedMethodName(TextLocation location) {
-        string msg = "expected method name";
-        return new Diagnostic(DiagnosticType.Error, location, msg);
+        string message = "expected method name";
+        return new Diagnostic(DiagnosticType.Error, location, message);
+    }
+
+    public static Diagnostic ReferenceNoInitialization(TextLocation location) {
+        string message = "reference variable must have an initializer";
+        return new Diagnostic(DiagnosticType.Error, location, message);
+    }
+
+    public static Diagnostic ReferenceWrongInitialization(TextLocation location) {
+        string message = "reference variable must be initialized with a reference";
+        return new Diagnostic(DiagnosticType.Error, location, message);
+    }
+
+    public static Diagnostic WrongInitializationReference(TextLocation location) {
+        string message = "cannot initialize variable with reference";
+        return new Diagnostic(DiagnosticType.Error, location, message);
+    }
+
+    public static Diagnostic UnknownAttribute(TextLocation location, string text) {
+        string message = $"unknown attribute '{text}'";
+        return new Diagnostic(DiagnosticType.Error, location, message);
+    }
+
+    public static Diagnostic NullAssignOnNotNull(TextLocation location) {
+        string message = "cannot assign null to non-nullable variable";
+        return new Diagnostic(DiagnosticType.Error, location, message);
+    }
+
+    public static Diagnostic InconsistentReturnTypes(TextLocation location) {
+        string message = "all return statements must return the same type";
+        return new Diagnostic(DiagnosticType.Error, location, message);
+    }
+
+    public static Diagnostic MissingReturnStatement(TextLocation location) {
+        string message = "missing return statement in inline function";
+        return new Diagnostic(DiagnosticType.Error, location, message);
     }
 }

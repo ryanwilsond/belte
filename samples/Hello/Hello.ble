@@ -1,8 +1,115 @@
 
+// void MyFunc(ref int a) {
+//     a++;
+// }
+
 void Main() {
-    int[][] a = {{1, 2}, {4, 5}};
-    PrintLine(a[1][1]);
-    int b = null;
-    b = 3;
+    // int a = 3;
+    // ref int b = ref a;
+    // b = 4;
+    // a = 5;
+    // PrintLine(a); // 5
+
+    // const int c = 3;
+    // ref const int d = ref c;
+    // PrintLine(d); // 3
+
+    // TODO
+    // int e = 2;
+    // const ref int f = ref e;
+    // f++;
+    // PrintLine(e); // 3
+
+    // const int g = 5;
+    // const ref const int h = ref g;
+    // PrintLine(h); // 5
+
+    // int i = 4;
+    // MyFunc(ref i);
+    // PrintLine(i); // 5
+
+    // int j = 4;
+    // ref int k = ref j;
+    // int l = k;
+    // PrintLine(l); // 4
+
+    // int m = 1;
+    // ref int n = ref m;
+    // bool o = n == 1;
+    // bool p = m == 1;
+    // PrintLine(o); // true
+    // PrintLine(p); // true
+
+    // int q = 5;
+    // ref int r = ref q;
+    // int s = -r;
+    // PrintLine(s); // -5
+
+    // string t = "test";
+    // ref string u = ref t;
+    // string v = u + "ing";
+    // PrintLine(v); // testing
+
+    // int w = 2;
+    // ref int x = ref w;
+    // bool y = 1 == w;
+    // bool z = 1 == x;
+    // PrintLine(y); // false
+    // PrintLine(z); // false
+
+    // int aa = 4;
+    // ref int ab = ref aa;
+    // int ac = 100 + ab;
+    // int ad = 100 + aa;
+    // PrintLine(ac); // 104
+    // PrintLine(ad); // 104
+
+    // int ae = 4;
+    // ref int af = ref ae;
+    // int ag = af += 4;
+    // int ah = ae + 4;
+    // PrintLine(ag); // 8
+    // PrintLine(ah); // 12
+
+    // TODO
+    // int a = 2;
+    // int b = {
+    //         int left0 = null;
+    //         if (a != null) {
+    //             left0 = a + 1;
+    //         }
+    //         return left0;
+    //     }
+    // PrintLine(b);
+
+    // TODO
+    // int a = 1;
+    // bool b = a == 1;
+    // PrintLine(b); // true
+
+    // int c = 1;
+    // int d = c == null;
+    // PrintLine(d); // false
+
+    // int e = 1;
+    // bool f = 1 == e;
+    // PrintLine(f); // true
+
+    // int g = 1;
+    // int h = null == g;
+    // PrintLine(h); // false
+
+    // int i = 1;
+    // int j = null;
+    // int k = i == j;
+    // PrintLine(k); // false
+
+    int a = 3;
+    int b = {
+        if (a > 2)
+            return 2;
+        else
+            return 1;
+        };
     PrintLine(b);
 }

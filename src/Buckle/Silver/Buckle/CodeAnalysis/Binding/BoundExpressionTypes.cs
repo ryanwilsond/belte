@@ -166,7 +166,8 @@ internal sealed class BoundBinaryExpression : BoundExpression {
     public BoundBinaryOperator op { get; }
     public BoundExpression right { get; }
 
-    public BoundBinaryExpression(BoundExpression left_, BoundBinaryOperator op_, BoundExpression right_) {
+    public BoundBinaryExpression(
+        BoundExpression left_, BoundBinaryOperator op_, BoundExpression right_) {
         left = left_;
         op = op_;
         right = right_;
@@ -258,15 +259,15 @@ internal sealed class BoundLiteralExpression : BoundExpression {
 
     public BoundLiteralExpression(object value_) {
         if (value_ is bool)
-            typeClause = new BoundTypeClause(TypeSymbol.Bool);
+            typeClause = new BoundTypeClause(TypeSymbol.Bool, isLiteral_: true);
         else if (value_ is int)
-            typeClause = new BoundTypeClause(TypeSymbol.Int);
+            typeClause = new BoundTypeClause(TypeSymbol.Int, isLiteral_: true);
         else if (value_ is string)
-            typeClause = new BoundTypeClause(TypeSymbol.String);
+            typeClause = new BoundTypeClause(TypeSymbol.String, isLiteral_: true);
         else if (value_ is float)
-            typeClause = new BoundTypeClause(TypeSymbol.Decimal);
+            typeClause = new BoundTypeClause(TypeSymbol.Decimal, isLiteral_: true);
         else if (value_ == null)
-            typeClause = new BoundTypeClause(null);
+            typeClause = new BoundTypeClause(null, isLiteral_: true);
         else
             throw new Exception($"unexpected literal '{value_}' of type '{value_.GetType()}'");
 
@@ -274,7 +275,10 @@ internal sealed class BoundLiteralExpression : BoundExpression {
     }
 
     public BoundLiteralExpression(object value_, BoundTypeClause override_) {
-        typeClause = override_;
+        typeClause = new BoundTypeClause(
+            override_.lType, override_.isImplicit, override_.isConstantReference, override_.isReference,
+            override_.isConstant, override_.isNullable, true, override_.dimensions);
+
         constantValue = new BoundConstant(value_);
     }
 }
@@ -299,6 +303,18 @@ internal sealed class BoundAssignmentExpression : BoundExpression {
     public BoundAssignmentExpression(VariableSymbol variable_, BoundExpression expression_) {
         variable = variable_;
         expression = expression_;
+    }
+}
+
+internal sealed class BoundInlineFunctionExpression : BoundExpression {
+    public BoundBlockStatement body { get; }
+    public BoundTypeClause returnType { get; }
+    public override BoundNodeType type => BoundNodeType.InlineFunctionExpression;
+    public override BoundTypeClause typeClause => returnType;
+
+    public BoundInlineFunctionExpression(BoundBlockStatement body_, BoundTypeClause returnType_) {
+        body = body_;
+        returnType = returnType_;
     }
 }
 
@@ -345,8 +361,9 @@ internal sealed class BoundInitializerListExpression : BoundExpression {
     public int dimensions { get; }
     public BoundTypeClause itemType { get; }
     public override BoundNodeType type => BoundNodeType.LiteralExpression;
-    public override BoundTypeClause typeClause => new BoundTypeClause(
-        itemType.lType, itemType.isImplicit, itemType.isConst, itemType.isRef, dimensions, true);
+    public override BoundTypeClause typeClause => new BoundTypeClause( // the con if immutable design is this
+        itemType.lType, itemType.isImplicit, itemType.isConstantReference,
+        itemType.isReference, itemType.isConstant, true, itemType.isLiteral, dimensions);
 
     public BoundInitializerListExpression(
         ImmutableArray<BoundExpression> items_, int dimensions_, BoundTypeClause itemType_) {
@@ -383,5 +400,16 @@ internal sealed class BoundCompoundAssignmentExpression : BoundExpression {
         variable = variable_;
         op = op_;
         expression = expression_;
+    }
+}
+
+internal sealed class BoundReferenceExpression : BoundExpression {
+    public VariableSymbol variable { get; }
+    public override BoundNodeType type => BoundNodeType.ReferenceExpression;
+    public override BoundTypeClause typeClause { get; }
+
+    public BoundReferenceExpression(VariableSymbol variable_, BoundTypeClause typeClause_) {
+        variable = variable_;
+        typeClause = typeClause_;
     }
 }

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Text;
+using System;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
@@ -112,7 +113,17 @@ internal sealed class Parser {
         if (current.type == SyntaxType.IDENTIFIER_TOKEN ||
             current.type == SyntaxType.CONST_KEYWORD ||
             current.type == SyntaxType.REF_KEYWORD ||
-            current.type == SyntaxType.VAR_KEYWORD) {
+            current.type == SyntaxType.VAR_KEYWORD ||
+            current.type == SyntaxType.OPEN_BRACKET_TOKEN) {
+            while (Peek(offset).type == SyntaxType.OPEN_BRACKET_TOKEN) {
+                offset++;
+
+                if (Peek(offset).type == SyntaxType.IDENTIFIER_TOKEN)
+                    offset++;
+                if (Peek(offset).type == SyntaxType.CLOSE_BRACKET_TOKEN)
+                    offset++;
+            }
+
             while (Peek(offset).type == SyntaxType.CONST_KEYWORD ||
                 Peek(offset).type == SyntaxType.REF_KEYWORD)
                 offset++;
@@ -152,7 +163,7 @@ internal sealed class Parser {
         var openParenthesis = Match(SyntaxType.OPEN_PAREN_TOKEN);
         var parameters = ParseParameterList();
         var closeParenthesis = Match(SyntaxType.CLOSE_PAREN_TOKEN);
-        var body = (BlockStatement)ParseBlockOrInlineStatement();
+        var body = (BlockStatement)ParseBlockStatement();
 
         return new FunctionDeclaration(
             syntaxTree_, typeClause, identifier, openParenthesis, parameters, closeParenthesis, body);
@@ -196,7 +207,10 @@ internal sealed class Parser {
 
         switch (current.type) {
             case SyntaxType.OPEN_BRACE_TOKEN:
-                return ParseBlockOrInlineStatement();
+                if (!PeekIsInlineFunctionExpression())
+                    return ParseBlockStatement();
+                else
+                    goto default;
             case SyntaxType.IF_KEYWORD:
                 return ParseIfStatement();
             case SyntaxType.WHILE_KEYWORD:
@@ -303,14 +317,26 @@ internal sealed class Parser {
     }
 
     private TypeClause ParseTypeClause(bool allowImplicit = true) {
-        Token constKeyword = null;
+        var attributes = ImmutableArray.CreateBuilder<(Token openBracket, Token identifier, Token closeBracket)>();
+
+        while (current.type == SyntaxType.OPEN_BRACKET_TOKEN) {
+            var openBracket = Match(SyntaxType.OPEN_BRACKET_TOKEN);
+            var identifier = Match(SyntaxType.IDENTIFIER_TOKEN);
+            var closeBracket = Match(SyntaxType.CLOSE_BRACKET_TOKEN);
+            attributes.Add((openBracket, identifier, closeBracket));
+        }
+
+        Token constRefKeyword = null;
         Token refKeyword = null;
+        Token constKeyword = null;
         Token typeName = null;
 
-        if (current.type == SyntaxType.CONST_KEYWORD)
-            constKeyword = Match(SyntaxType.CONST_KEYWORD);
+        if (current.type == SyntaxType.CONST_KEYWORD && Peek(1).type == SyntaxType.REF_KEYWORD)
+            constRefKeyword = Match(SyntaxType.CONST_KEYWORD);
         if (current.type == SyntaxType.REF_KEYWORD)
             refKeyword = Match(SyntaxType.REF_KEYWORD);
+        if (current.type == SyntaxType.CONST_KEYWORD)
+            constKeyword = Match(SyntaxType.CONST_KEYWORD);
 
         if (current.type == SyntaxType.VAR_KEYWORD) {
             typeName = Match(SyntaxType.VAR_KEYWORD);
@@ -322,13 +348,16 @@ internal sealed class Parser {
         }
 
         var brackets = ImmutableArray.CreateBuilder<(Token openBracket, Token closeBracket)>();
+
         while (current.type == SyntaxType.OPEN_BRACKET_TOKEN) {
             var openBracket = Match(SyntaxType.OPEN_BRACKET_TOKEN);
             var closeBracket = Match(SyntaxType.CLOSE_BRACKET_TOKEN);
             brackets.Add((openBracket, closeBracket));
         }
 
-        return new TypeClause(syntaxTree_, constKeyword, refKeyword, typeName, brackets.ToImmutable());
+        return new TypeClause(
+            syntaxTree_, attributes.ToImmutable(), constRefKeyword,
+            refKeyword, constKeyword, typeName, brackets.ToImmutable());
     }
 
     private Statement ParseWhileStatement() {
@@ -409,11 +438,43 @@ internal sealed class Parser {
         return new ElseClause(syntaxTree_, keyword, statement);
     }
 
-    private Statement ParseBlockOrInlineStatement() {
-        return ParseBlockStatement();
+    private bool PeekIsInlineFunctionExpression() {
+        var offset = 1;
+        var stack = 1;
+
+        if (current.type != SyntaxType.OPEN_BRACE_TOKEN)
+            return false;
+
+        while (Peek(offset).type != SyntaxType.END_OF_FILE_TOKEN && stack > 0) {
+            if (Peek(offset).type == SyntaxType.RETURN_KEYWORD)
+                return true;
+            else if (Peek(offset).type == SyntaxType.OPEN_BRACE_TOKEN)
+                stack++;
+            else if (Peek(offset).type == SyntaxType.CLOSE_BRACE_TOKEN)
+                stack--;
+
+            offset++;
+        }
+
+        return false;
     }
 
     private Statement ParseBlockStatement() {
+        return (Statement)ParseBlockStatementOrInlineFunctionExpression(true);
+    }
+
+    private Expression ParseInlineFunctionExpression() {
+        var node = ParseBlockStatementOrInlineFunctionExpression(false);
+
+        if (node.type == SyntaxType.INLINE_FUNCTION) {
+            return (Expression)node;
+        } else {
+            diagnostics.Push(Error.MissingReturnStatement(((BlockStatement)node).closeBrace.location));
+            return null;
+        }
+    }
+
+    private Node ParseBlockStatementOrInlineFunctionExpression(bool isBlock = false) {
         var statements = ImmutableArray.CreateBuilder<Statement>();
         var openBrace = Match(SyntaxType.OPEN_BRACE_TOKEN);
         var startToken = current;
@@ -430,7 +491,10 @@ internal sealed class Parser {
 
         var closeBrace = Match(SyntaxType.CLOSE_BRACE_TOKEN);
 
-        return new BlockStatement(syntaxTree_, openBrace, statements.ToImmutable(), closeBrace);
+        if (isBlock)
+            return new BlockStatement(syntaxTree_, openBrace, statements.ToImmutable(), closeBrace);
+        else
+            return new InlineFunctionExpression(syntaxTree_, openBrace, statements.ToImmutable(), closeBrace);
     }
 
     private Statement ParseExpressionStatement() {
@@ -530,7 +594,12 @@ internal sealed class Parser {
             case SyntaxType.NULL_KEYWORD:
                 return ParseNullLiteral();
             case SyntaxType.OPEN_BRACE_TOKEN:
-                return ParseInitializerListExpression();
+                if (PeekIsInlineFunctionExpression())
+                    return ParseInlineFunctionExpression();
+                else
+                    return ParseInitializerListExpression();
+            case SyntaxType.REF_KEYWORD:
+                return ParseReferenceExpression();
             case SyntaxType.IDENTIFIER_TOKEN:
                 if (Peek(1).type == SyntaxType.PLUS_PLUS_TOKEN || Peek(1).type == SyntaxType.MINUS_MINUS_TOKEN)
                     return ParsePostfixExpression();
@@ -540,6 +609,13 @@ internal sealed class Parser {
             default:
                 return ParseNameOrPrimaryOperatorExpression();
         }
+    }
+
+    private Expression ParseReferenceExpression() {
+        var refKeyword = Match(SyntaxType.REF_KEYWORD);
+        var identifier = Match(SyntaxType.IDENTIFIER_TOKEN);
+
+        return new ReferenceExpression(syntaxTree_, refKeyword, identifier);
     }
 
     private Expression ParsePostfixExpression() {

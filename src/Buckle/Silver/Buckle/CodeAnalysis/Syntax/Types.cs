@@ -88,6 +88,7 @@ internal enum SyntaxType {
     SKIPPED_TOKEN_TRIVIA,
 
     // expressions
+    INLINE_FUNCTION,
     EMPTY_EXPRESSION,
     LITERAL_EXPRESSION,
     NAME_EXPRESSION,
@@ -100,6 +101,7 @@ internal enum SyntaxType {
     PREFIX_EXPRESSION,
     POSTFIX_EXPRESSION,
     COMPOUND_ASSIGNMENT_EXPRESSION,
+    REFERENCE_EXPRESSION,
 
     // statements
     BLOCK,
@@ -300,26 +302,34 @@ internal sealed class SyntaxTrivia {
 }
 
 internal sealed class TypeClause : Node {
-    public Token? constKeyword { get; }
+    public ImmutableArray<(Token openBracket, Token identifier, Token closeBracket)> attributes { get; }
+    public Token? constRefKeyword { get; }
     public Token? refKeyword { get; }
+    public Token? constKeyword { get; }
     public Token typeName { get; }
     public ImmutableArray<(Token openBracket, Token closeBracket)> brackets { get; }
     public override SyntaxType type => SyntaxType.TYPE_CLAUSE;
 
-    public TypeClause(SyntaxTree syntaxTree, Token constKeyword_, Token refKeyword_,
-        Token typeName_, ImmutableArray<(Token, Token)> brackets_) : base(syntaxTree) {
-        constKeyword = constKeyword_;
+    public TypeClause(SyntaxTree syntaxTree, ImmutableArray<(Token, Token, Token)> attributes_,
+        Token constRefKeyword_, Token refKeyword_, Token constKeyword_, Token typeName_,
+        ImmutableArray<(Token, Token)> brackets_) : base(syntaxTree) {
+        attributes = attributes_;
+        constRefKeyword = constRefKeyword_;
         refKeyword = refKeyword_;
+        constKeyword = constKeyword_;
         typeName = typeName_;
         brackets = brackets_;
     }
 
     public override IEnumerable<Node> GetChildren() {
-        if (constKeyword != null && constKeyword.fullSpan != null)
-            yield return constKeyword;
+        if (constRefKeyword != null && constRefKeyword.fullSpan != null)
+            yield return constRefKeyword;
 
         if (refKeyword != null && refKeyword.fullSpan != null)
             yield return refKeyword;
+
+        if (constKeyword != null && constKeyword.fullSpan != null)
+            yield return constKeyword;
 
         yield return typeName;
 

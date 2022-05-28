@@ -183,9 +183,26 @@ internal abstract class BoundTreeRewriter {
                 return RewriteIndexExpression((BoundIndexExpression)expression);
             case BoundNodeType.CompoundAssignmentExpression:
                 return RewriteCompoundAssignmentExpression((BoundCompoundAssignmentExpression)expression);
+            case BoundNodeType.ReferenceExpression:
+                return RewriteReferenceExpression((BoundReferenceExpression)expression);
+            case BoundNodeType.InlineFunctionExpression:
+                return RewriteInlineFunctionExpression((BoundInlineFunctionExpression)expression);
             default:
                 return null;
         }
+    }
+
+    protected virtual BoundExpression RewriteInlineFunctionExpression(BoundInlineFunctionExpression expression) {
+        var rewrittenBlock = (BoundBlockStatement)RewriteBlockStatement(expression.body);
+
+        if (rewrittenBlock == expression.body)
+            return expression;
+
+        return new BoundInlineFunctionExpression(rewrittenBlock, expression.returnType);
+    }
+
+    protected virtual BoundExpression RewriteReferenceExpression(BoundReferenceExpression expression) {
+        return expression;
     }
 
     protected virtual BoundExpression RewriteIndexExpression(BoundIndexExpression expression) {

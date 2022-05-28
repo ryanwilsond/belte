@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
@@ -156,6 +157,32 @@ internal sealed partial class InitializerListExpression : Expression {
         : base(syntaxTree) {
         openBrace = openBrace_;
         items = items_;
+        closeBrace = closeBrace_;
+    }
+}
+
+internal sealed partial class ReferenceExpression : Expression {
+    public Token refKeyword { get; }
+    public Token identifier { get; }
+    public override SyntaxType type => SyntaxType.REFERENCE_EXPRESSION;
+
+    public ReferenceExpression(SyntaxTree syntaxTree, Token refKeyword_, Token identifier_) : base(syntaxTree) {
+        refKeyword = refKeyword_;
+        identifier = identifier_;
+    }
+}
+
+internal sealed partial class InlineFunctionExpression : Expression {
+    public Token openBrace { get; }
+    public ImmutableArray<Statement> statements { get; }
+    public Token closeBrace { get; }
+    public override SyntaxType type => SyntaxType.INLINE_FUNCTION;
+
+    public InlineFunctionExpression(
+        SyntaxTree syntaxTree, Token openBrace_, ImmutableArray<Statement> statements_, Token closeBrace_)
+        : base(syntaxTree) {
+        openBrace = openBrace_;
+        statements = statements_;
         closeBrace = closeBrace_;
     }
 }

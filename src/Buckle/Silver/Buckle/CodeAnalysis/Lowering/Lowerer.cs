@@ -9,16 +9,27 @@ namespace Buckle.CodeAnalysis.Lowering;
 
 internal sealed class Lowerer : BoundTreeRewriter {
     private int labelCount_;
+    private int inlineFunctionCount_;
+    private ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Builder functionBodies_;
 
-    private Lowerer() { }
+    private Lowerer(ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Builder functionBodies) {
+        functionBodies_ = functionBodies;
+    }
 
     private BoundLabel GenerateLabel() {
         var name = $"Label{++labelCount_}";
         return new BoundLabel(name);
     }
 
-    public static BoundBlockStatement Lower(FunctionSymbol function, BoundStatement statement) {
-        var lowerer = new Lowerer();
+    private FunctionSymbol GenerateFunction(BoundTypeClause returnType) {
+        var name = $"$Inline{++inlineFunctionCount_}";
+        return new FunctionSymbol(name, ImmutableArray<ParameterSymbol>.Empty, returnType);
+    }
+
+    public static BoundBlockStatement Lower(
+        FunctionSymbol function, BoundStatement statement,
+        ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Builder functionBodies) {
+        var lowerer = new Lowerer(functionBodies);
         var block = Flatten(function, lowerer.RewriteStatement(statement));
         return RemoveDeadCode(block);
     }
@@ -214,5 +225,95 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         return base.RewriteConditionalGotoStatement(statement);
+    }
+
+    protected override BoundExpression RewriteBinaryExpression(BoundBinaryExpression expression) {
+        /*
+        <left> <op> <right>
+
+        ---> (left is nullable)
+
+        {
+            <type> left0 = null;
+            if (<left> != null) {
+                [NotNull]<type> left1 = <left>;
+                left0 = left1 <op> <right>;
+            }
+            return left0;
+        }
+
+        ---> (right is nullable)
+
+        {
+            <type> right0 = null;
+            if (<right> != null) {
+                [NotNull]<type> right1 = <right>;
+                right0 = <left> <op> right1;
+            }
+            return right0;
+        }
+
+        ---> (left and right are nullable)
+
+        {
+            <type> left0 = null;
+            if (<left> != null && <right> != null) {
+                [NotNull]<type> left1 = <left>;
+                [NotNull]<type> right1 = <right>;
+                left0 = left1 <op> right1;
+            }
+            return left0;
+        }
+
+        */
+        if (expression.op.opType == BoundBinaryOperatorType.EqualityEquals ||
+            expression.op.opType == BoundBinaryOperatorType.EqualityNotEquals ||
+            expression.op.opType == BoundBinaryOperatorType.GreaterThan ||
+            expression.op.opType == BoundBinaryOperatorType.GreatOrEqual ||
+            expression.op.opType == BoundBinaryOperatorType.LessThan ||
+            expression.op.opType == BoundBinaryOperatorType.LessOrEqual)
+            return expression;
+
+        // TODO: make sure that when rewriting again it doesnt loop back here infinitely
+        return expression;
+    }
+
+    protected override BoundExpression RewriteUnaryExpression(BoundUnaryExpression expression) {
+        /*
+        <op> <operand>
+
+        ---> (operand is nullable)
+
+        {
+            <type> operand0 = null;
+            if (<operand> != null) {
+                [NotNull]<type> operand1 = <operand>;
+                left0 = <op> operand1;
+            }
+            return operand0;
+        }
+
+        */
+        // TODO: make sure that when rewriting again it doesnt loop back here infinitely
+        return expression;
+    }
+
+    protected override BoundExpression RewriteInlineFunctionExpression(BoundInlineFunctionExpression expression) {
+        /*
+        ...<body>...
+
+        --->
+
+        <returnType> inline0() <body>
+
+        ...inline0()...
+
+        */
+        var inlineFunction = GenerateFunction(expression.returnType);
+        var rewrittenBody = (BoundBlockStatement)RewriteBlockStatement(expression.body);
+        rewrittenBody = Flatten(inlineFunction, rewrittenBody);
+        functionBodies_.Add(inlineFunction, rewrittenBody);
+
+        return RewriteExpression(new BoundCallExpression(inlineFunction, ImmutableArray<BoundExpression>.Empty));
     }
 }

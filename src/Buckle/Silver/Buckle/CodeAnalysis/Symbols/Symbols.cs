@@ -35,7 +35,7 @@ internal abstract class VariableSymbol : Symbol {
     internal VariableSymbol(string name, BoundTypeClause typeClause_, BoundConstant constant)
         : base(name) {
         typeClause = typeClause_;
-        constantValue = typeClause.isConst && !typeClause.isRef ? constant : null;
+        constantValue = typeClause.isConstant && !typeClause.isReference ? constant : null;
     }
 }
 

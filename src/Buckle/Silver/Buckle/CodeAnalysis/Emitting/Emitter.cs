@@ -43,6 +43,7 @@ internal sealed class Emitter {
     private readonly MethodReference randomCtorReference_;
     private readonly TypeReference nullableReference_;
     private readonly MethodReference nullableCtorReference_;
+    private readonly MethodReference nullableValueReference_;
     private bool useNullRef = false;
 
     private TypeDefinition typeDefinition_;
@@ -103,6 +104,7 @@ internal sealed class Emitter {
         randomNextReference_ = ResolveMethod("System.Random", "Next", new [] { "System.Int32" });
         nullableReference_ = ResolveType(null, "System.Nullable`1");
         nullableCtorReference_ = ResolveMethod("System.Nullable`1", ".ctor", null);
+        nullableValueReference_ = ResolveMethod("System.Nullable`1", "get_Value", null);
     }
 
     TypeReference ResolveType(string buckleName, string metadataName) {
@@ -247,8 +249,7 @@ internal sealed class Emitter {
                 EmitTryStatement(iLProcessor, (BoundTryStatement)statement, method);
                 break;
             default:
-                diagnostics.Push(DiagnosticType.Fatal, $"unexpected node '{statement.type}'");
-                break;
+                throw new Exception($"unexpected node '{statement.type}'");
         }
     }
 
@@ -407,12 +408,24 @@ internal sealed class Emitter {
         locals_.Add(statement.variable, variableDefinition);
         iLProcessor.Body.Variables.Add(variableDefinition);
 
-        if (statement.initializer.typeClause.dimensions == 0)
+        if (statement.variable.typeClause.isReference) {
+            if (statement.variable is ParameterSymbol parameter) {
+                iLProcessor.Emit(OpCodes.Ldarga_S, parameter.ordinal);
+            } else {
+                var referenceVariable = locals_[((BoundReferenceExpression)statement.initializer).variable];
+                iLProcessor.Emit(OpCodes.Ldloca_S, referenceVariable);
+            }
+
+            iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
+            return;
+        }
+
+        if (statement.variable.typeClause.dimensions == 0 && statement.variable.typeClause.isNullable)
             iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
 
-        EmitExpression(iLProcessor, statement.initializer);
+        EmitExpression(iLProcessor, statement.initializer, nullable: statement.variable.typeClause.isNullable);
 
-        if (statement.initializer.typeClause.dimensions > 0)
+        if (statement.variable.typeClause.dimensions > 0 || !statement.variable.typeClause.isNullable)
             iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
     }
 
@@ -425,9 +438,10 @@ internal sealed class Emitter {
         useNullRef = false;
     }
 
-    private void EmitExpression(ILProcessor iLProcessor, BoundExpression expression) {
+    private void EmitExpression(
+        ILProcessor iLProcessor, BoundExpression expression, bool referenceAssign = false, bool nullable = true) {
         if (expression.constantValue != null) {
-            EmitConstantExpression(iLProcessor, expression);
+            EmitConstantExpression(iLProcessor, expression, referenceAssign, nullable);
             return;
         }
 
@@ -446,7 +460,7 @@ internal sealed class Emitter {
                 EmitBinaryExpression(iLProcessor, (BoundBinaryExpression)expression);
                 break;
             case BoundNodeType.VariableExpression:
-                EmitVariableExpression(iLProcessor, (BoundVariableExpression)expression);
+                EmitVariableExpression(iLProcessor, (BoundVariableExpression)expression, nullable);
                 break;
             case BoundNodeType.AssignmentExpression:
                 EmitAssignmentExpression(iLProcessor, (BoundAssignmentExpression)expression);
@@ -464,8 +478,7 @@ internal sealed class Emitter {
                 EmitCastExpression(iLProcessor, (BoundCastExpression)expression);
                 break;
             default:
-                diagnostics.Push(DiagnosticType.Fatal, $"unexpected node '{expression.type}'");
-                break;
+                throw new Exception($"unexpected node '{expression.type}'");
         }
     }
 
@@ -516,7 +529,7 @@ internal sealed class Emitter {
             subExpressionType == TypeSymbol.Decimal;
 
         if (needsBoxing)
-            iLProcessor.Emit(OpCodes.Box, GetType(expression.expression.typeClause));
+            iLProcessor.Emit(OpCodes.Box, GetType(expression.expression.typeClause, ignoreReference: true));
 
         if (expressionType == TypeSymbol.Any) {
         } else if (expressionType == TypeSymbol.Bool) {
@@ -528,8 +541,7 @@ internal sealed class Emitter {
         } else if (expressionType == TypeSymbol.Decimal) {
             iLProcessor.Emit(OpCodes.Call, convertToSingleReference_);
         } else {
-            diagnostics.Push(DiagnosticType.Fatal,
-                $"unexpected cast from '{subExpressionType}' to '{expressionType}'");
+            throw new Exception($"unexpected cast from '{subExpressionType}' to '{expressionType}'");
         }
     }
 
@@ -595,26 +607,60 @@ internal sealed class Emitter {
         return methodReference;
     }
 
+    private MethodReference GetNullableValue(BoundTypeClause type) {
+        var genericArgumentType =
+            assemblyDefinition_.MainModule.ImportReference(knownTypes_[type.lType]);
+        var methodReference = assemblyDefinition_.MainModule.ImportReference(nullableValueReference_);
+        methodReference.DeclaringType = new GenericInstanceType(nullableReference_);
+        (methodReference.DeclaringType as GenericInstanceType).GenericArguments.Add(genericArgumentType);
+        methodReference.Resolve();
+
+        return methodReference;
+    }
+
     private void EmitAssignmentExpression(ILProcessor iLProcessor, BoundAssignmentExpression expression) {
         var variableDefinition = locals_[expression.variable];
 
-        iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
-        EmitExpression(iLProcessor, expression.expression);
+        if (expression.variable.typeClause.isReference)
+            iLProcessor.Emit(OpCodes.Ldloc_S, variableDefinition);
+        else
+            iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
 
-        iLProcessor.Emit(OpCodes.Call, GetNullableCtor(expression.typeClause));
+        EmitExpression(iLProcessor, expression.expression, expression.variable.typeClause.isReference);
         useNullRef = true;
     }
 
-    private void EmitVariableExpression(ILProcessor iLProcessor, BoundVariableExpression expression) {
+    private void EmitVariableExpression(
+        ILProcessor iLProcessor, BoundVariableExpression expression, bool nullable = true) {
         if (expression.variable is ParameterSymbol parameter) {
-            iLProcessor.Emit(OpCodes.Ldarg, parameter.ordinal);
+            if (!nullable)
+                iLProcessor.Emit(OpCodes.Ldarga_S, parameter.ordinal);
+            else
+                iLProcessor.Emit(OpCodes.Ldarg, parameter.ordinal);
         } else {
             var variableDefinition = locals_[expression.variable];
-            iLProcessor.Emit(OpCodes.Ldloc, variableDefinition);
+
+            if (!nullable)
+                iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
+            else
+                iLProcessor.Emit(OpCodes.Ldloc, variableDefinition);
         }
+
+        if (!nullable)
+            iLProcessor.Emit(OpCodes.Call, GetNullableValue(expression.variable.typeClause));
+
+        if (expression.variable.typeClause.isReference)
+            iLProcessor.Emit(OpCodes.Ldobj, GetType(expression.variable.typeClause, ignoreReference: true));
     }
 
     private void EmitBinaryExpression(ILProcessor iLProcessor, BoundBinaryExpression expression) {
+        // TODO: conditional operators handling null
+        // if (expression.left.typeClause.isReference || expression.right.typeClause.isReference) {
+
+
+        //     return;
+        // }
+
         var leftType = expression.left.typeClause.lType;
         var rightType = expression.right.typeClause.lType;
 
@@ -647,6 +693,11 @@ internal sealed class Emitter {
             }
         }
 
+        EmitBinaryOperator(iLProcessor, expression, leftType, rightType);
+    }
+
+    private void EmitBinaryOperator(
+        ILProcessor iLProcessor, BoundBinaryExpression expression, TypeSymbol leftType, TypeSymbol rightType) {
         switch (expression.op.opType) {
             case BoundBinaryOperatorType.Addition:
                 iLProcessor.Emit(OpCodes.Add);
@@ -709,9 +760,8 @@ internal sealed class Emitter {
                 iLProcessor.Emit(OpCodes.Ceq);
                 break;
             default:
-                diagnostics.Push(DiagnosticType.Fatal, $"unexpected binary operator" +
-                $"({leftType}){SyntaxFacts.GetText(expression.op.type)}({rightType})");
-                break;
+                throw new Exception($"unexpected binary operator" +
+                    $"({leftType}){SyntaxFacts.GetText(expression.op.type)}({rightType})");
         }
     }
 
@@ -812,7 +862,8 @@ internal sealed class Emitter {
         }
     }
 
-    private void EmitConstantExpression(ILProcessor iLProcessor, BoundExpression expression) {
+    private void EmitConstantExpression(
+        ILProcessor iLProcessor, BoundExpression expression, bool referenceAssign = false, bool nullable = true) {
         if (expression.constantValue.value == null) {
             iLProcessor.Emit(OpCodes.Initobj, GetType(expression.typeClause));
             return;
@@ -837,6 +888,13 @@ internal sealed class Emitter {
         } else {
             throw new Exception($"unexpected constant expression type {expressionType}");
         }
+
+        if (referenceAssign) {
+            iLProcessor.Emit(OpCodes.Newobj, GetNullableCtor(expression.typeClause));
+            iLProcessor.Emit(OpCodes.Stobj, GetType(expression.typeClause));
+        } else if (nullable) {
+            iLProcessor.Emit(OpCodes.Call, GetNullableCtor(expression.typeClause));
+        }
     }
 
     private void EmitUnaryExpression(ILProcessor iLProcessor, BoundUnaryExpression expression) {
@@ -851,7 +909,7 @@ internal sealed class Emitter {
         } else if (expression.op.opType == BoundUnaryOperatorType.BitwiseCompliment) {
             iLProcessor.Emit(OpCodes.Not);
         } else {
-            diagnostics.Push(DiagnosticType.Fatal, $"unexpected unary operator" +
+            throw new Exception($"unexpected unary operator" +
                 $"{SyntaxFacts.GetText(expression.op.type)}({expression.operand.typeClause.lType})");
         }
     }
@@ -872,19 +930,33 @@ internal sealed class Emitter {
         methods_.Add(function, method);
     }
 
-    private TypeReference GetType(BoundTypeClause type, bool overrideNullability = false) {
+    private TypeReference GetType(
+        BoundTypeClause type, bool overrideNullability = false, bool ignoreReference = false) {
         if (type.dimensions == 0 && !type.isNullable && !overrideNullability)
             return knownTypes_[type.lType];
 
         var genericArgumentType = assemblyDefinition_.MainModule.ImportReference(knownTypes_[type.lType]);
         var typeReference = new GenericInstanceType(nullableReference_);
         typeReference.GenericArguments.Add(genericArgumentType);
+        // only used sometimes
+        var referenceType = new ByReferenceType(typeReference);
 
         if (type.dimensions == 0) {
-            typeReference.Resolve();
-            return typeReference;
+            if (type.isReference && !ignoreReference) {
+                referenceType.Resolve();
+                return referenceType;
+            } else {
+                typeReference.Resolve();
+                return typeReference;
+            }
         } else {
-            var arrayType = typeReference.MakeArrayType(type.dimensions);
+            ArrayType arrayType;
+
+            if (type.isReference && !ignoreReference)
+                arrayType = referenceType.MakeArrayType(type.dimensions);
+            else
+                arrayType = typeReference.MakeArrayType(type.dimensions);
+
             arrayType.Resolve();
             return arrayType;
         }

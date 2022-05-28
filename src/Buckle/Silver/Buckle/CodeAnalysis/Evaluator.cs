@@ -92,9 +92,7 @@ internal sealed class Evaluator {
 
                         return lastValue_;
                     default:
-                        diagnostics.Push(DiagnosticType.Fatal, $"unexpected statement '{s.type}'");
-                        index++;
-                        break;
+                        throw new Exception($"unexpected statement '{s.type}'");
                 }
             }
 
@@ -154,8 +152,7 @@ internal sealed class Evaluator {
             case BoundNodeType.EmptyExpression:
                 return null;
             default:
-                diagnostics.Push(DiagnosticType.Fatal, $"unexpected node '{node.type}'");
-                return null;
+                throw new Exception($"unexpected node '{node.type}'");
         }
     }
 
@@ -196,8 +193,7 @@ internal sealed class Evaluator {
         if (type == TypeSymbol.Decimal)
             return Convert.ToSingle(value);
 
-        diagnostics.Push(DiagnosticType.Fatal, $"unexpected type '{node.typeClause}'");
-        return null;
+        throw new Exception($"unexpected type '{node.typeClause}'");
     }
 
     internal object EvaluateCallExpression(BoundCallExpression node) {
@@ -278,8 +274,7 @@ internal sealed class Evaluator {
             case BoundUnaryOperatorType.BitwiseCompliment:
                 return ~(int)operand;
             default:
-                diagnostics.Push(DiagnosticType.Fatal, $"unknown unary operator '{syntax.op}'");
-                return null;
+                throw new Exception($"unknown unary operator '{syntax.op}'");
         }
     }
 
@@ -369,8 +364,7 @@ internal sealed class Evaluator {
             case BoundBinaryOperatorType.RightShift:
                 return (int)left >> (int)right;
             default:
-                diagnostics.Push(DiagnosticType.Fatal, $"unknown binary operator '{syntax.op}'");
-                return null;
+                throw new Exception($"unknown binary operator '{syntax.op}'");
         }
     }
 }
