@@ -822,14 +822,14 @@ internal sealed class Binder {
             return null;
         }
 
-        if (!typeClause.isReference && expression.initializer.type == SyntaxType.REFERENCE_EXPRESSION) {
+        if (!typeClause.isReference && expression.initializer?.type == SyntaxType.REFERENCE_EXPRESSION) {
             diagnostics.Push(Error.WrongInitializationReference(expression.equals.location));
             return null;
         }
 
         var nullable = typeClause.isNullable;
 
-        if (expression.initializer.type == SyntaxType.REFERENCE_EXPRESSION) {
+        if (expression.initializer?.type == SyntaxType.REFERENCE_EXPRESSION) {
             var initializer = BindReferenceExpression((ReferenceExpression)expression.initializer);
             // references cant have implicit casts
             var variable = BindVariable(expression.identifier, typeClause, initializer.constantValue);

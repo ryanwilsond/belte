@@ -150,8 +150,15 @@ internal sealed class Parser {
             if (hasName)
                 offset++;
 
-            if (Peek(offset).type == SyntaxType.OPEN_PAREN_TOKEN)
-                return ParseFunctionDeclaration();
+            if (Peek(offset).type == SyntaxType.OPEN_PAREN_TOKEN) {
+                while (Peek(offset).type != SyntaxType.END_OF_FILE_TOKEN) {
+                    if (Peek(offset).type == SyntaxType.CLOSE_PAREN_TOKEN &&
+                        Peek(offset+1).type == SyntaxType.OPEN_BRACE_TOKEN)
+                        return ParseFunctionDeclaration();
+                    else
+                        offset++;
+                }
+            }
         }
 
         return ParseGlobalStatement();
