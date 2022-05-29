@@ -178,6 +178,65 @@ internal sealed class Binder {
             diagnostics.Push(Error.FunctionAlreadyDeclared(function.identifier.location, newFunction.name));
     }
 
+    private void ResolveLocalFunctionDeclaration(LocalFunctionDeclaration statement) {
+        var type = BindTypeClause(statement.returnType);
+        var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
+        var seenParametersNames = new HashSet<string>();
+
+        foreach (var parameter in statement.parameters) {
+            var parameterName = parameter.identifier.text;
+            var parameterType = BindTypeClause(parameter.typeClause);
+
+            if (!seenParametersNames.Add(parameterName)) {
+                diagnostics.Push(Error.ParameterAlreadyDeclared(parameter.location, parameter.identifier.text));
+            } else {
+                var boundParameter = new ParameterSymbol(parameterName, parameterType, parameters.Count);
+                parameters.Add(boundParameter);
+            }
+        }
+
+        var declaredLocals = new List<string>();
+        var usedLocals = new List<string>();
+
+        foreach (var bodyStatement in statement.body.statements)
+            if (bodyStatement is VariableDeclarationStatement vds)
+                declaredLocals.Add(vds.identifier.text);
+
+        void FindLocals(Node node) {
+            if (node is Token t) {
+                if (t.type == SyntaxType.IDENTIFIER_TOKEN)
+                    usedLocals.Add(t.text);
+            } else {
+                // find all symbols apart from types
+                if (node.type != SyntaxType.TYPE_CLAUSE) {
+                    foreach (var child in node.GetChildren())
+                        FindLocals(child);
+                }
+            }
+        }
+
+        foreach (var local in declaredLocals)
+            if (usedLocals.Contains(local))
+                usedLocals.Remove(local);
+
+        foreach (var parameter in parameters)
+            if (usedLocals.Contains(parameter.name))
+                usedLocals.Remove(parameter.name);
+
+        // TODO: need to add function delegates?
+        // check all farther up scopes for the rest and add them to parameters, functions?
+        // need to revise code so functions can be used before declarations (forward declaration)
+        // then need to actually bind
+
+        var declaration = new FunctionDeclaration(
+            statement.syntaxTree, statement.returnType, statement.identifier, statement.openParenthesis,
+            statement.parameters, statement.closeParenthesis, statement.body);
+
+        var function = new FunctionSymbol(statement.identifier.text, parameters.ToImmutable(), type, declaration);
+        if (function.declaration.identifier.text != null && !scope_.TryDeclareFunction(function))
+            diagnostics.Push(Error.FunctionAlreadyDeclared(statement.identifier.location, function.name));
+    }
+
     private static BoundScope CreateParentScope(BoundGlobalScope previous) {
         var stack = new Stack<BoundGlobalScope>();
 
@@ -256,6 +315,9 @@ internal sealed class Binder {
                 return BindContinueStatement((ContinueStatement)syntax);
             case SyntaxType.RETURN_STATEMENT:
                 return BindReturnStatement((ReturnStatement)syntax, insideInline);
+            case SyntaxType.LOCAL_FUNCTION_DECLARATION:
+                // basically noop because they are resolved ahead of time
+                return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
             default:
                 throw new Exception($"unexpected syntax '{syntax.type}'");
         }

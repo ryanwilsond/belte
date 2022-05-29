@@ -127,10 +127,11 @@ internal enum SyntaxType {
 
     // type declarations
     TYPE_CLAUSE,
-    PARAMETER,
-    FUNCTION_DECLARATION,
 
     // declarations
+    PARAMETER,
+    FUNCTION_DECLARATION,
+    LOCAL_FUNCTION_DECLARATION,
     GLOBAL_STATEMENT,
     COMPILATION_UNIT,
 }

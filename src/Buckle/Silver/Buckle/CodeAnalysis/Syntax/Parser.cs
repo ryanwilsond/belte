@@ -106,6 +106,28 @@ internal sealed class Parser {
         return members.ToImmutable();
     }
 
+    private bool PeekIsFunctionDeclaration() {
+        if (PeekIsTypeClause(out var offset, out var hasName)) {
+            if (hasName)
+                offset++;
+
+            if (Peek(offset).type == SyntaxType.OPEN_PAREN_TOKEN) {
+                while (Peek(offset).type != SyntaxType.END_OF_FILE_TOKEN) {
+                    if (Peek(offset).type == SyntaxType.CLOSE_PAREN_TOKEN) {
+                        if (Peek(offset+1).type == SyntaxType.OPEN_BRACE_TOKEN)
+                            return true;
+                        else
+                            return false;
+                    } else {
+                        offset++;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
     private bool PeekIsTypeClause(out int offset, out bool hasName) {
         offset = 0;
         hasName = false;
@@ -146,20 +168,8 @@ internal sealed class Parser {
     }
 
     private Member ParseMember() {
-        if (PeekIsTypeClause(out var offset, out var hasName)) {
-            if (hasName)
-                offset++;
-
-            if (Peek(offset).type == SyntaxType.OPEN_PAREN_TOKEN) {
-                while (Peek(offset).type != SyntaxType.END_OF_FILE_TOKEN) {
-                    if (Peek(offset).type == SyntaxType.CLOSE_PAREN_TOKEN &&
-                        Peek(offset+1).type == SyntaxType.OPEN_BRACE_TOKEN)
-                        return ParseFunctionDeclaration();
-                    else
-                        offset++;
-                }
-            }
-        }
+        if (PeekIsFunctionDeclaration())
+            return ParseFunctionDeclaration();
 
         return ParseGlobalStatement();
     }
@@ -173,6 +183,18 @@ internal sealed class Parser {
         var body = (BlockStatement)ParseBlockStatement();
 
         return new FunctionDeclaration(
+            syntaxTree_, typeClause, identifier, openParenthesis, parameters, closeParenthesis, body);
+    }
+
+    private Statement ParseLocalFunctionDeclaration() {
+        var typeClause = ParseTypeClause(false);
+        var identifier = Match(SyntaxType.IDENTIFIER_TOKEN);
+        var openParenthesis = Match(SyntaxType.OPEN_PAREN_TOKEN);
+        var parameters = ParseParameterList();
+        var closeParenthesis = Match(SyntaxType.CLOSE_PAREN_TOKEN);
+        var body = (BlockStatement)ParseBlockStatement();
+
+        return new LocalFunctionDeclaration(
             syntaxTree_, typeClause, identifier, openParenthesis, parameters, closeParenthesis, body);
     }
 
@@ -209,6 +231,9 @@ internal sealed class Parser {
     }
 
     private Statement ParseStatement() {
+        if (PeekIsFunctionDeclaration())
+            return ParseLocalFunctionDeclaration();
+
         if (PeekIsTypeClause(out _, out var hasName) && hasName)
             return ParseVariableDeclarationStatement();
 

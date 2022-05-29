@@ -230,3 +230,25 @@ internal sealed partial class ReturnStatement : Statement {
         semicolon = semicolon_;
     }
 }
+
+internal sealed partial class LocalFunctionDeclaration : Statement {
+    public TypeClause returnType { get; }
+    public Token identifier { get; }
+    public Token openParenthesis { get; }
+    public SeparatedSyntaxList<Parameter> parameters { get; }
+    public Token closeParenthesis { get; }
+    public BlockStatement body { get; }
+    public override SyntaxType type => SyntaxType.LOCAL_FUNCTION_DECLARATION;
+
+    public LocalFunctionDeclaration(
+        SyntaxTree syntaxTree, TypeClause returnType_, Token identifier_, Token openParenthesis_,
+        SeparatedSyntaxList<Parameter> parameters_, Token closeParenthesis_, BlockStatement body_)
+        : base(syntaxTree) {
+        returnType = returnType_;
+        identifier = identifier_;
+        openParenthesis = openParenthesis_;
+        parameters = parameters_;
+        closeParenthesis = closeParenthesis_;
+        body = body_;
+    }
+}
