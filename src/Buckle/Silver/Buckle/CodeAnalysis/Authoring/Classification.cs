@@ -32,23 +32,42 @@ internal static class Classifier {
         return result.ToImmutable();
     }
 
-    private static void ClassifyNode(Node node, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result) {
-        // TODO: node is null when deleting text from previous lines,
+    private static void ClassifyNode(
+        Node node, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result, bool isTypeName = false) {
         if (node == null || !node.fullSpan.OverlapsWith(span))
             return;
 
         if (node is Token token)
-            ClassifyToken(token, span, result);
+            ClassifyToken(token, span, result, isTypeName);
 
-        foreach (var child in node.GetChildren())
-            ClassifyNode(child, span, result);
+        if (node is TypeClause) {
+            bool inAttribute = false;
+            isTypeName = false;
+
+            foreach (var child in node.GetChildren()) {
+                // doesn't matter that it catches on array brackets because they don't contain identifiers
+                if (child.type == SyntaxType.OPEN_BRACKET_TOKEN)
+                    inAttribute = true;
+                if (child.type == SyntaxType.CLOSE_BRACKET_TOKEN)
+                    inAttribute = false;
+
+                if (child.type == SyntaxType.IDENTIFIER_TOKEN && !inAttribute)
+                    isTypeName = true;
+
+                ClassifyNode(child, span, result, isTypeName);
+            }
+        } else {
+            foreach (var child in node.GetChildren())
+                ClassifyNode(child, span, result);
+        }
     }
 
-    private static void ClassifyToken(Token token, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result) {
+    private static void ClassifyToken(
+        Token token, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result, bool isTypeName) {
         foreach (var trivia in token.leadingTrivia)
             ClassifyTrivia(trivia, span, result);
 
-        AddClassification(token.type, token.span, span, result);
+        AddClassification(token.type, token.span, span, result, isTypeName);
 
         foreach (var trivia in token.trailingTrivia)
             ClassifyTrivia(trivia, span, result);
@@ -56,15 +75,15 @@ internal static class Classifier {
 
     private static void ClassifyTrivia(
         SyntaxTrivia trivia, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result) {
-        AddClassification(trivia.type, trivia.span, span, result);
+        AddClassification(trivia.type, trivia.span, span, result, false);
     }
 
     private static void AddClassification(SyntaxType elementType, TextSpan elementSpan,
-        TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result) {
+        TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result, bool isTypeName) {
         if (!elementSpan.OverlapsWith(span))
             return;
 
-        var classification = GetClassification(elementType);
+        var classification = GetClassification(elementType, isTypeName);
         var adjustedStart = Math.Max(elementSpan.start, span.start);
         var adjustedEnd = Math.Min(elementSpan.end, span.end);
         var adjustedSpan = TextSpan.FromBounds(adjustedStart, adjustedEnd);
@@ -73,14 +92,16 @@ internal static class Classifier {
         result.Add(classifiedSpan);
     }
 
-    private static Classification GetClassification(SyntaxType type) {
+    private static Classification GetClassification(SyntaxType type, bool isTypeName) {
         var isKeyword = type.IsKeyword();
         var isNumber = type == SyntaxType.NUMERIC_LITERAL_TOKEN;
         var isIdentifier = type == SyntaxType.IDENTIFIER_TOKEN;
         var isString = type == SyntaxType.STRING_LITERAL_TOKEN;
         var isComment = type.IsComment();
 
-        if (isKeyword)
+        if (isTypeName)
+            return Classification.TypeName;
+        else if (isKeyword)
             return Classification.Keyword;
         else if (isIdentifier)
             return Classification.Identifier;

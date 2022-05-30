@@ -160,13 +160,6 @@ public sealed class BelteRepl : Repl {
 
         foreach (var classifiedSpan in classifiedSpans) {
             var classifiedText = syntaxTree.text.ToString(classifiedSpan.span);
-
-            // TODO
-            // var isType = (i < tokens.Length-2) && (tokens[i+1].type == SyntaxType.WHITESPACE_TRIVIA) &&
-            //     (tokens[i+2].type == SyntaxType.IDENTIFIER_TOKEN) && isIdentifier;
-            // isType |= i == 1 && tokens[0].text == "#";
-            // isType &= !(i > 1 && tokens[0].text == "#");
-
             var color = ConsoleColor.DarkGray;
 
             switch (classifiedSpan.classification) {

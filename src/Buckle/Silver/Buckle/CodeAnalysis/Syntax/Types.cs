@@ -323,6 +323,12 @@ internal sealed class TypeClause : Node {
     }
 
     public override IEnumerable<Node> GetChildren() {
+        foreach (var attribute in attributes) {
+            yield return attribute.openBracket;
+            yield return attribute.identifier;
+            yield return attribute.closeBracket;
+        }
+
         if (constRefKeyword != null && constRefKeyword.fullSpan != null)
             yield return constRefKeyword;
 
