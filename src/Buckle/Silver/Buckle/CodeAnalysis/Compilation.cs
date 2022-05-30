@@ -123,8 +123,8 @@ public sealed class Compilation {
         var appDirectory = Path.GetDirectoryName(appPath);
         var cfgPath = Path.Combine(appDirectory, "cfg.dot");
         BoundBlockStatement cfgStatement = program.scriptFunction == null
-            ? program.functions[program.mainFunction]
-            : program.functions[program.scriptFunction];
+            ? program.functionBodies[program.mainFunction]
+            : program.functionBodies[program.scriptFunction];
         var cfg = ControlFlowGraph.Create(cfgStatement);
 
         using (var streamWriter = new StreamWriter(cfgPath))
@@ -143,7 +143,7 @@ public sealed class Compilation {
 
         if (symbol is FunctionSymbol f) {
             f.WriteTo(writer);
-            if (!program.functions.TryGetValue(f, out var body))
+            if (!program.functionBodies.TryGetValue(f, out var body))
                 return;
 
             body.WriteTo(writer);

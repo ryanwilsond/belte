@@ -187,10 +187,10 @@ internal sealed class Emitter {
             "", "Program", TypeAttributes.Abstract | TypeAttributes.Sealed, objectType);
         assemblyDefinition_.MainModule.Types.Add(typeDefinition_);
 
-        foreach (var functionWithBody in program.functions)
+        foreach (var functionWithBody in program.functionBodies)
             EmitFunctionDeclaration(functionWithBody.Key);
 
-        foreach (var functionWithBody in program.functions)
+        foreach (var functionWithBody in program.functionBodies)
             EmitFunctionBody(functionWithBody.Key, functionWithBody.Value);
 
         if (program.mainFunction != null)
@@ -423,7 +423,8 @@ internal sealed class Emitter {
         if (statement.variable.typeClause.dimensions == 0 && statement.variable.typeClause.isNullable)
             iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
 
-        EmitExpression(iLProcessor, statement.initializer, nullable: statement.variable.typeClause.isNullable);
+        EmitExpression(
+            iLProcessor, statement.initializer, nullable: statement.variable.typeClause.isNullable, stack: false);
 
         if (statement.variable.typeClause.dimensions > 0 || !statement.variable.typeClause.isNullable)
             iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
@@ -439,9 +440,10 @@ internal sealed class Emitter {
     }
 
     private void EmitExpression(
-        ILProcessor iLProcessor, BoundExpression expression, bool referenceAssign = false, bool nullable = true) {
+        ILProcessor iLProcessor, BoundExpression expression, bool referenceAssign = false,
+        bool nullable = true, bool stack = true) {
         if (expression.constantValue != null) {
-            EmitConstantExpression(iLProcessor, expression, referenceAssign, nullable);
+            EmitConstantExpression(iLProcessor, expression, referenceAssign, nullable, stack);
             return;
         }
 
@@ -626,7 +628,7 @@ internal sealed class Emitter {
         else
             iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
 
-        EmitExpression(iLProcessor, expression.expression, expression.variable.typeClause.isReference);
+        EmitExpression(iLProcessor, expression.expression, expression.variable.typeClause.isReference, stack: false);
         useNullRef = true;
     }
 
@@ -863,7 +865,8 @@ internal sealed class Emitter {
     }
 
     private void EmitConstantExpression(
-        ILProcessor iLProcessor, BoundExpression expression, bool referenceAssign = false, bool nullable = true) {
+        ILProcessor iLProcessor, BoundExpression expression, bool referenceAssign = false,
+        bool nullable = true, bool stack = true) {
         if (expression.constantValue.value == null) {
             iLProcessor.Emit(OpCodes.Initobj, GetType(expression.typeClause));
             return;
@@ -892,6 +895,8 @@ internal sealed class Emitter {
         if (referenceAssign) {
             iLProcessor.Emit(OpCodes.Newobj, GetNullableCtor(expression.typeClause));
             iLProcessor.Emit(OpCodes.Stobj, GetType(expression.typeClause));
+        } else if (nullable && stack) {
+            iLProcessor.Emit(OpCodes.Newobj, GetNullableCtor(expression.typeClause));
         } else if (nullable) {
             iLProcessor.Emit(OpCodes.Call, GetNullableCtor(expression.typeClause));
         }
@@ -932,7 +937,8 @@ internal sealed class Emitter {
 
     private TypeReference GetType(
         BoundTypeClause type, bool overrideNullability = false, bool ignoreReference = false) {
-        if (type.dimensions == 0 && !type.isNullable && !overrideNullability)
+        if ((type.dimensions == 0 && !type.isNullable && !overrideNullability) ||
+            type.lType == TypeSymbol.Void)
             return knownTypes_[type.lType];
 
         var genericArgumentType = assemblyDefinition_.MainModule.ImportReference(knownTypes_[type.lType]);

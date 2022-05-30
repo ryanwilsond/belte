@@ -26,7 +26,7 @@ internal sealed class Evaluator {
 
         var current = program;
         while (current != null) {
-            foreach (var (function, body) in current.functions)
+            foreach (var (function, body) in current.functionBodies)
                 functions_.Add(function, body);
 
             current = current.previous;

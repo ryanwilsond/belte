@@ -104,12 +104,19 @@ void Main() {
     // int k = i == j;
     // PrintLine(k); // false
 
+    // int a = 3;
+    // int b = {
+    //     if (a > 2)
+    //         return 2;
+    //     else
+    //         return 1;
+    //     };
+    // PrintLine(b);
+    PrintLine(MyInner());
+
     int a = 3;
-    int b = {
-        if (a > 2)
-            return 2;
-        else
-            return 1;
-        };
-    PrintLine(b);
+
+    int MyInner() {
+        return a;
+    }
 }
