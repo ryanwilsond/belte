@@ -297,24 +297,8 @@ internal abstract class BoundTreeRewriter {
         var left = RewriteExpression(expression.left);
         var right = RewriteExpression(expression.right);
 
-        if (expression.op.opType == BoundBinaryOperatorType.Power) {
-            /*
-            <left> ** <right>
-
-            --->
-
-            {
-                int <n> = <left>;
-                for (int i = 1; i < <right>; i+=1)
-                    <n> *= <left>;
-
-                return <n>;
-            }
-            */
-            // TODO (requires inline block evaluations)
-        } else if (left == expression.left && right == expression.right) {
+        if (left == expression.left && right == expression.right)
             return expression;
-        }
 
         return new BoundBinaryExpression(left, expression.op, right);
     }

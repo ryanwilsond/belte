@@ -249,7 +249,7 @@ internal sealed class Emitter {
                 EmitTryStatement(iLProcessor, (BoundTryStatement)statement, method);
                 break;
             default:
-                throw new Exception($"unexpected node '{statement.type}'");
+                throw new Exception($"EmitStatement: unexpected node '{statement.type}'");
         }
     }
 
@@ -480,7 +480,7 @@ internal sealed class Emitter {
                 EmitCastExpression(iLProcessor, (BoundCastExpression)expression);
                 break;
             default:
-                throw new Exception($"unexpected node '{expression.type}'");
+                throw new Exception($"EmitExpression: unexpected node '{expression.type}'");
         }
     }
 
@@ -543,7 +543,7 @@ internal sealed class Emitter {
         } else if (expressionType == TypeSymbol.Decimal) {
             iLProcessor.Emit(OpCodes.Call, convertToSingleReference_);
         } else {
-            throw new Exception($"unexpected cast from '{subExpressionType}' to '{expressionType}'");
+            throw new Exception($"EmitCastExpression: unexpected cast from '{subExpressionType}' to '{expressionType}'");
         }
     }
 
@@ -762,7 +762,7 @@ internal sealed class Emitter {
                 iLProcessor.Emit(OpCodes.Ceq);
                 break;
             default:
-                throw new Exception($"unexpected binary operator" +
+                throw new Exception($"EmitBinaryOperator: unexpected binary operator" +
                     $"({leftType}){SyntaxFacts.GetText(expression.op.type)}({rightType})");
         }
     }
@@ -830,7 +830,8 @@ internal sealed class Emitter {
                     yield return result;
             } else {
                 if (node.typeClause.lType != TypeSymbol.String)
-                    throw new Exception($"Unexpected node type in string concatenation: {node.typeClause.lType}");
+                    throw new Exception(
+                        $"Flatten: unexpected node type in string concatenation '{node.typeClause.lType}'");
 
                 yield return node;
             }
@@ -889,7 +890,7 @@ internal sealed class Emitter {
             var value = (float)expression.constantValue.value;
             iLProcessor.Emit(OpCodes.Ldc_R4, value);
         } else {
-            throw new Exception($"unexpected constant expression type {expressionType}");
+            throw new Exception($"EmitConstantExpression: unexpected constant expression type {expressionType}");
         }
 
         if (referenceAssign) {
@@ -914,7 +915,7 @@ internal sealed class Emitter {
         } else if (expression.op.opType == BoundUnaryOperatorType.BitwiseCompliment) {
             iLProcessor.Emit(OpCodes.Not);
         } else {
-            throw new Exception($"unexpected unary operator" +
+            throw new Exception($"EmitUnaryExpression: unexpected unary operator" +
                 $"{SyntaxFacts.GetText(expression.op.type)}({expression.operand.typeClause.lType})");
         }
     }

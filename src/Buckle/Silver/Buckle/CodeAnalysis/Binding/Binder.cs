@@ -269,7 +269,7 @@ internal sealed class Binder {
             case SyntaxType.LOCAL_FUNCTION_DECLARATION:
                 return BindLocalFunctionDeclaration((LocalFunctionDeclaration)syntax);
             default:
-                throw new Exception($"unexpected syntax '{syntax.type}'");
+                throw new Exception($"BindStatementInternal: unexpected syntax '{syntax.type}'");
         }
     }
 
@@ -374,7 +374,7 @@ internal sealed class Binder {
             case SyntaxType.INLINE_FUNCTION:
                 return BindInlineFunctionExpression((InlineFunctionExpression)expression);
             default:
-                throw new Exception($"unexpected syntax '{expression.type}'");
+                throw new Exception($"BindExpressionInternal: unexpected syntax '{expression.type}'");
         }
     }
 

@@ -24,7 +24,7 @@ internal static class SymbolPrinter {
                 BoundNodePrinter.WriteTypeClause(new BoundTypeClause((TypeSymbol)symbol), writer);
                 break;
             default:
-                throw new Exception($"unexpected symbol '{symbol.type}'");
+                throw new Exception($"WriteTo: unexpected symbol '{symbol.type}'");
         }
     }
 

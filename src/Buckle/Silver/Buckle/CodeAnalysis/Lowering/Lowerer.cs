@@ -265,17 +265,40 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return left0;
         }
 
+        ==============================
+
+        <left> ** <right>
+
+        --->
+
+        {
+            int <n> = <left>;
+            for (int i = 1; i < <right>; i+=1)
+                <n> *= <left>; // this will rewrite to account for null
+
+            return <n>;
+        }
+
         */
+        var left = RewriteExpression(expression.left);
+        var right = RewriteExpression(expression.right);
+
         if (expression.op.opType == BoundBinaryOperatorType.EqualityEquals ||
             expression.op.opType == BoundBinaryOperatorType.EqualityNotEquals ||
             expression.op.opType == BoundBinaryOperatorType.GreaterThan ||
             expression.op.opType == BoundBinaryOperatorType.GreatOrEqual ||
             expression.op.opType == BoundBinaryOperatorType.LessThan ||
-            expression.op.opType == BoundBinaryOperatorType.LessOrEqual)
-            return expression;
+            expression.op.opType == BoundBinaryOperatorType.LessOrEqual) {
+            if (left == expression.left && right == expression.right)
+                return expression;
+            else
+                return new BoundBinaryExpression(left, expression.op, right);
+        }
 
         // TODO: make sure that when rewriting again it doesnt loop back here infinitely
-        return expression;
+
+        // BoundTreeRewriter code:
+        return new BoundBinaryExpression(left, expression.op, right);
     }
 
     protected override BoundExpression RewriteUnaryExpression(BoundUnaryExpression expression) {
@@ -295,7 +318,13 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         */
         // TODO: make sure that when rewriting again it doesnt loop back here infinitely
-        return expression;
+
+        // BoundTreeRewriter code:
+        var operand = RewriteExpression(expression.operand);
+        if (operand == expression.operand)
+            return expression;
+
+        return new BoundUnaryExpression(expression.op, operand);
     }
 
     protected override BoundExpression RewriteInlineFunctionExpression(BoundInlineFunctionExpression expression) {

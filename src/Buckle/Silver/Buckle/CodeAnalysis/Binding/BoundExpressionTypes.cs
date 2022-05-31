@@ -269,7 +269,7 @@ internal sealed class BoundLiteralExpression : BoundExpression {
         else if (value_ == null)
             typeClause = new BoundTypeClause(null, isLiteral_: true);
         else
-            throw new Exception($"unexpected literal '{value_}' of type '{value_.GetType()}'");
+            throw new Exception($"BoundLiteralExpression: unexpected literal '{value_}' of type '{value_.GetType()}'");
 
         constantValue = new BoundConstant(value_);
     }

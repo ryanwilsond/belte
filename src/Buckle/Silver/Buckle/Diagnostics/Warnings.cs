@@ -37,7 +37,7 @@ internal static class Warning {
             case SyntaxType.CALL_EXPRESSION:
                 return UnreachableCode(((CallExpression)node).identifier.location);
             default:
-                throw new Exception($"Unexpected syntax {node.type}");
+                throw new Exception($"UnreachableCode: unexpected syntax {node.type}");
         }
     }
 

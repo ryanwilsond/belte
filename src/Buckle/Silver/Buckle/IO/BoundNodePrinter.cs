@@ -97,7 +97,7 @@ internal static class BoundNodePrinter {
                 WriteTryStatement((BoundTryStatement)node, writer);
                 break;
             default:
-                throw new Exception($"unexpected node '{node.type}'");
+                throw new Exception($"WriteTo: unexpected node '{node.type}'");
         }
     }
 
@@ -405,7 +405,7 @@ internal static class BoundNodePrinter {
         } else if (node.typeClause.lType == TypeSymbol.Decimal) {
             writer.WriteNumber(value);
         } else {
-            throw new Exception($"unexpected type '{node.typeClause.lType}'");
+            throw new Exception($"WriteLiteralExpression: unexpected type '{node.typeClause.lType}'");
         }
     }
 

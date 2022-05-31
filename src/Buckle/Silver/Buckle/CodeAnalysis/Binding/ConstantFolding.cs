@@ -123,7 +123,7 @@ internal static class ConstantFolding {
             case BoundBinaryOperatorType.RightShift:
                 return new BoundConstant((int)leftValue >> (int)rightValue);
             default:
-                throw new Exception($"unexpected binary operator '{op.opType}'");
+                throw new Exception($"Fold: unexpected binary operator '{op.opType}'");
         }
     }
 
@@ -147,7 +147,7 @@ internal static class ConstantFolding {
                 case BoundUnaryOperatorType.BitwiseCompliment:
                     return new BoundConstant(~(int)operand.constantValue.value);
                 default:
-                    throw new Exception($"unexpected unary operator '{op.opType}'");
+                    throw new Exception($"ComputeConstant: unexpected unary operator '{op.opType}'");
             }
         }
 

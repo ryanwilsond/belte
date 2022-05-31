@@ -252,7 +252,7 @@ internal static class SyntaxFacts {
             case SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
                 return SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN;
             default:
-                throw new Exception($"unexpected syntax '{type}'");
+                throw new Exception($"GetBinaryOperatorOfAssignmentOperator: unexpected syntax '{type}'");
         }
     }
 
