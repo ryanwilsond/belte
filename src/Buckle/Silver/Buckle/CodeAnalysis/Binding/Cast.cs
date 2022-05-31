@@ -24,13 +24,12 @@ internal sealed class Cast {
         var to = toType.lType;
         var cast = Cast.None;
 
-        if (from == to)
-            cast = Cast.Identity;
-
         if (from == null)
             return Cast.Identity;
 
-        if (from != TypeSymbol.Void && to == TypeSymbol.Any)
+        if (from == to)
+            cast = Cast.Identity;
+        else if (from != TypeSymbol.Void && to == TypeSymbol.Any)
             cast = Cast.Implicit;
         else if (from == TypeSymbol.Any && to != TypeSymbol.Void)
             cast = Cast.Explicit;

@@ -71,6 +71,12 @@ internal sealed class BoundTypeClause : BoundNode {
     public int dimensions { get; }
     public override BoundNodeType type => BoundNodeType.TypeClause;
 
+    public static readonly BoundTypeClause NullableDecimal = new BoundTypeClause(TypeSymbol.Decimal, isNullable_: true);
+    public static readonly BoundTypeClause NullableInt = new BoundTypeClause(TypeSymbol.Int, isNullable_: true);
+    public static readonly BoundTypeClause NullableString = new BoundTypeClause(TypeSymbol.String, isNullable_: true);
+    public static readonly BoundTypeClause NullableBool = new BoundTypeClause(TypeSymbol.Bool, isNullable_: true);
+    public static readonly BoundTypeClause NullableAny = new BoundTypeClause(TypeSymbol.Any, isNullable_: true);
+
     public BoundTypeClause(
         TypeSymbol lType_, bool isImplicit_ = false, bool isConstRef_ = false, bool isRef_ = false,
         bool isConst_ = false, bool isNullable_ = false, bool isLiteral_ = false, int dimensions_ = 0) {
