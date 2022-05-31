@@ -22,25 +22,33 @@ internal sealed class Cast {
     public static Cast Classify(BoundTypeClause fromType, BoundTypeClause toType) {
         var from = fromType.lType;
         var to = toType.lType;
+        var cast = Cast.None;
 
-        if (from == to || from == null)
+        if (from == to)
+            cast = Cast.Identity;
+
+        if (from == null)
             return Cast.Identity;
 
         if (from != TypeSymbol.Void && to == TypeSymbol.Any)
-            return Cast.Implicit;
-        if (from == TypeSymbol.Any && to != TypeSymbol.Void)
-            return Cast.Explicit;
-        if (from == TypeSymbol.Bool || from == TypeSymbol.Int || from == TypeSymbol.Decimal)
+            cast = Cast.Implicit;
+        else if (from == TypeSymbol.Any && to != TypeSymbol.Void)
+            cast = Cast.Explicit;
+        else if (from == TypeSymbol.Bool || from == TypeSymbol.Int || from == TypeSymbol.Decimal)
             if (to == TypeSymbol.String)
-                return Cast.Explicit;
-        if (from == TypeSymbol.String)
+                cast = Cast.Explicit;
+        else if (from == TypeSymbol.String)
             if (to == TypeSymbol.Bool || to == TypeSymbol.Int || to == TypeSymbol.Decimal)
-                return Cast.Explicit;
-        if (from == TypeSymbol.Int && to == TypeSymbol.Decimal)
-            return Cast.Implicit;
-        if (from == TypeSymbol.Decimal && to == TypeSymbol.Int)
-            return Cast.Explicit;
+                cast = Cast.Explicit;
+        else if (from == TypeSymbol.Int && to == TypeSymbol.Decimal)
+            cast = Cast.Implicit;
+        else if (from == TypeSymbol.Decimal && to == TypeSymbol.Int)
+            cast = Cast.Explicit;
 
-        return Cast.None;
+        if (cast != Cast.None && ((!fromType.isLiteral && !fromType.isNullable && toType.isNullable) ||
+            (fromType.isNullable && !toType.isNullable && !toType.isLiteral)))
+            cast = Cast.Explicit;
+
+        return cast;
     }
 }

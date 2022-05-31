@@ -102,6 +102,7 @@ internal enum SyntaxType {
     POSTFIX_EXPRESSION,
     COMPOUND_ASSIGNMENT_EXPRESSION,
     REFERENCE_EXPRESSION,
+    CAST_EXPRESSION,
 
     // statements
     BLOCK,

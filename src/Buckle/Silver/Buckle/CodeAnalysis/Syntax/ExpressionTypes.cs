@@ -186,3 +186,21 @@ internal sealed partial class InlineFunctionExpression : Expression {
         closeBrace = closeBrace_;
     }
 }
+
+internal sealed partial class CastExpression : Expression {
+    public Token openParenthesis { get; }
+    public TypeClause typeClause { get; }
+    public Token closeParenthesis { get; }
+    public Expression expression { get; }
+    public override SyntaxType type => SyntaxType.CAST_EXPRESSION;
+
+    public CastExpression(
+        SyntaxTree syntaxTree, Token openParenthesis_, TypeClause typeClause_,
+        Token closeParenthesis_, Expression expression_)
+        : base(syntaxTree) {
+        openParenthesis = openParenthesis_;
+        typeClause = typeClause_;
+        closeParenthesis = closeParenthesis_;
+        expression = expression_;
+    }
+}

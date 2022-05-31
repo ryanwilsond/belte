@@ -323,7 +323,8 @@ internal sealed class Binder {
                     if (boundExpression == null)
                         diagnostics.Push(Error.MissingReturnValue(expression.keyword.location));
                     else
-                        boundExpression = BindCast(expression.expression.location, boundExpression, function_.typeClause);
+                        boundExpression = BindCast(
+                            expression.expression.location, boundExpression, function_.typeClause);
                 }
             }
         }
@@ -373,6 +374,8 @@ internal sealed class Binder {
                 return BindReferenceExpression((ReferenceExpression)expression);
             case SyntaxType.INLINE_FUNCTION:
                 return BindInlineFunctionExpression((InlineFunctionExpression)expression);
+            case SyntaxType.CAST_EXPRESSION:
+                return BindCastExpression((CastExpression)expression);
             default:
                 throw new Exception($"BindExpressionInternal: unexpected syntax '{expression.type}'");
         }
@@ -461,9 +464,6 @@ internal sealed class Binder {
     private BoundExpression BindCallExpression(CallExpression expression) {
         var name = expression.identifier.identifier.text;
 
-        if (expression.arguments.count == 1 && LookupType(name) is TypeSymbol type)
-            return BindCast(expression.arguments[0], new BoundTypeClause(type), true);
-
         var symbol = scope_.LookupSymbol(name);
         if (symbol == null) {
             diagnostics.Push(Error.UndefinedFunction(expression.identifier.location, name));
@@ -519,6 +519,13 @@ internal sealed class Binder {
     private BoundExpression BindCast(Expression expression, BoundTypeClause type, bool allowExplicit = false) {
         var boundExpression = BindExpression(expression);
         return BindCast(expression.location, boundExpression, type, allowExplicit);
+    }
+
+    private BoundExpression BindCastExpression(CastExpression expression) {
+        var toType = BindTypeClause(expression.typeClause);
+        var boundExpression = BindExpression(expression.expression);
+
+        return BindCast(expression.location, boundExpression, toType, true);
     }
 
     private BoundExpression BindCast(

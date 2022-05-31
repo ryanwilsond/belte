@@ -103,6 +103,9 @@ internal sealed class BoundTypeClause : BoundNode {
     public override string ToString() {
         string text = "";
 
+        if (!isNullable && !isLiteral)
+            text += "[NotNull]";
+
         if (isConstantReference)
             text += "const ";
         if (isReference)

@@ -107,7 +107,7 @@ internal sealed class Parser {
     }
 
     private bool PeekIsFunctionDeclaration() {
-        if (PeekIsTypeClause(out var offset, out var hasName)) {
+        if (PeekIsTypeClause(0, out var offset, out var hasName)) {
             if (hasName)
                 offset++;
 
@@ -128,8 +128,8 @@ internal sealed class Parser {
         return false;
     }
 
-    private bool PeekIsTypeClause(out int offset, out bool hasName) {
-        offset = 0;
+    private bool PeekIsTypeClause(int offset, out int finalOffset, out bool hasName) {
+        finalOffset = offset;
         hasName = false;
 
         if (current.type == SyntaxType.IDENTIFIER_TOKEN ||
@@ -137,27 +137,27 @@ internal sealed class Parser {
             current.type == SyntaxType.REF_KEYWORD ||
             current.type == SyntaxType.VAR_KEYWORD ||
             current.type == SyntaxType.OPEN_BRACKET_TOKEN) {
-            while (Peek(offset).type == SyntaxType.OPEN_BRACKET_TOKEN) {
-                offset++;
+            while (Peek(finalOffset).type == SyntaxType.OPEN_BRACKET_TOKEN) {
+                finalOffset++;
 
-                if (Peek(offset).type == SyntaxType.IDENTIFIER_TOKEN)
-                    offset++;
-                if (Peek(offset).type == SyntaxType.CLOSE_BRACKET_TOKEN)
-                    offset++;
+                if (Peek(finalOffset).type == SyntaxType.IDENTIFIER_TOKEN)
+                    finalOffset++;
+                if (Peek(finalOffset).type == SyntaxType.CLOSE_BRACKET_TOKEN)
+                    finalOffset++;
             }
 
-            while (Peek(offset).type == SyntaxType.CONST_KEYWORD ||
-                Peek(offset).type == SyntaxType.REF_KEYWORD)
-                offset++;
+            while (Peek(finalOffset).type == SyntaxType.CONST_KEYWORD ||
+                Peek(finalOffset).type == SyntaxType.REF_KEYWORD)
+                finalOffset++;
 
-            if (Peek(offset).type == SyntaxType.IDENTIFIER_TOKEN || Peek(offset).type == SyntaxType.VAR_KEYWORD) {
-                offset++;
+            if (Peek(finalOffset).type == SyntaxType.IDENTIFIER_TOKEN || Peek(finalOffset).type == SyntaxType.VAR_KEYWORD) {
+                finalOffset++;
 
-                while (Peek(offset).type == SyntaxType.OPEN_BRACKET_TOKEN ||
-                    Peek(offset).type == SyntaxType.CLOSE_BRACKET_TOKEN)
-                    offset++;
+                while (Peek(finalOffset).type == SyntaxType.OPEN_BRACKET_TOKEN ||
+                    Peek(finalOffset).type == SyntaxType.CLOSE_BRACKET_TOKEN)
+                    finalOffset++;
 
-                if (Peek(offset).type == SyntaxType.IDENTIFIER_TOKEN)
+                if (Peek(finalOffset).type == SyntaxType.IDENTIFIER_TOKEN)
                     hasName = true;
 
                 return true;
@@ -234,7 +234,7 @@ internal sealed class Parser {
         if (PeekIsFunctionDeclaration())
             return ParseLocalFunctionDeclaration();
 
-        if (PeekIsTypeClause(out _, out var hasName) && hasName)
+        if (PeekIsTypeClause(0, out _, out var hasName) && hasName)
             return ParseVariableDeclarationStatement();
 
         switch (current.type) {
@@ -615,7 +615,10 @@ internal sealed class Parser {
     private Expression ParsePrimaryExpression() {
         switch (current.type) {
             case SyntaxType.OPEN_PAREN_TOKEN:
-                return ParseParenExpression();
+                if (PeekIsTypeClause(1, out _, out _))
+                    return ParseCastExpression();
+                else
+                    return ParseParenthesizedExpression();
             case SyntaxType.TRUE_KEYWORD:
             case SyntaxType.FALSE_KEYWORD:
                 return ParseBooleanLiteral();
@@ -641,6 +644,15 @@ internal sealed class Parser {
             default:
                 return ParseNameOrPrimaryOperatorExpression();
         }
+    }
+
+    private Expression ParseCastExpression() {
+        var openParenthesis = Match(SyntaxType.OPEN_PAREN_TOKEN);
+        var typeClause = ParseTypeClause();
+        var closeParenthesis = Match(SyntaxType.CLOSE_PAREN_TOKEN);
+        var expression = ParseExpression();
+
+        return new CastExpression(syntaxTree_, openParenthesis, typeClause, closeParenthesis, expression);
     }
 
     private Expression ParseReferenceExpression() {
@@ -696,7 +708,7 @@ internal sealed class Parser {
         return new LiteralExpression(syntaxTree_, token);
     }
 
-    private Expression ParseParenExpression() {
+    private Expression ParseParenthesizedExpression() {
         var left = Match(SyntaxType.OPEN_PAREN_TOKEN);
         var expression = ParseExpression();
         var right = Match(SyntaxType.CLOSE_PAREN_TOKEN);
