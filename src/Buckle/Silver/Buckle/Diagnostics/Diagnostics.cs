@@ -15,7 +15,7 @@ public enum DiagnosticType {
 
 public sealed class Diagnostic {
     public DiagnosticType type { get; }
-    public string msg { get; }
+    public string message { get; }
     public TextLocation location { get; }
     public string suggestion { get; }
 
@@ -24,15 +24,16 @@ public sealed class Diagnostic {
     /// </summary>
     /// <param name="type_">Severity of diagnostic</param>
     /// <param name="span_">Location of the diagnostic</param>
-    /// <param name="msg_">Message/info on the diagnostic</param>
-    public Diagnostic(DiagnosticType type_, TextLocation location_, string msg_, string suggestion_) {
+    /// <param name="message_">Message/info on the diagnostic</param>
+    public Diagnostic(DiagnosticType type_, TextLocation location_, string message_, string suggestion_) {
         type = type_;
-        msg = msg_;
+        message = message_;
         location = location_;
         suggestion = suggestion_;
     }
 
-    public Diagnostic(DiagnosticType type, TextLocation location, string msg) : this(type, location, msg, null) { }
+    public Diagnostic(DiagnosticType type, TextLocation location, string message)
+        : this(type, location, message, null) { }
 }
 
 public sealed class DiagnosticQueue {
@@ -74,13 +75,13 @@ public sealed class DiagnosticQueue {
             diagnostics_.Add(diagnostic);
     }
 
-    public void Push(DiagnosticType type, TextLocation location, string msg) {
-        Push(new Diagnostic(type, location, msg));
+    public void Push(DiagnosticType type, TextLocation location, string message) {
+        Push(new Diagnostic(type, location, message));
     }
 
-    public void Push(TextLocation location, string msg) { Push(DiagnosticType.Error, location, msg); }
-    public void Push(DiagnosticType type, string msg) { Push(type, null, msg); }
-    public void Push(string msg) { Push(DiagnosticType.Error, null, msg); }
+    public void Push(TextLocation location, string message) { Push(DiagnosticType.Error, location, message); }
+    public void Push(DiagnosticType type, string message) { Push(type, null, message); }
+    public void Push(string message) { Push(DiagnosticType.Error, null, message); }
 
     /// <summary>
     /// Pops all diagnostics off queue and pushes them onto this

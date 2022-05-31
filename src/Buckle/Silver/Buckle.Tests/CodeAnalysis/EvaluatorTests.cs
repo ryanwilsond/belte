@@ -673,7 +673,7 @@ public class EvaluatorTests {
         if (expectedDiagnostics.Length != diagnostics.count) {
             writer.WriteLine($"Input: {annotatedText.text}");
             foreach (var diagnostic in diagnostics.diagnostics_)
-                writer.WriteLine($"Diagnostic ({diagnostic.type}): {diagnostic.msg}");
+                writer.WriteLine($"Diagnostic ({diagnostic.type}): {diagnostic.message}");
         }
         Assert.Equal(expectedDiagnostics.Length, diagnostics.count);
 
@@ -681,7 +681,7 @@ public class EvaluatorTests {
             var diagnostic = diagnostics.Pop();
 
             var expectedMessage = expectedDiagnostics[i];
-            var actualMessage = diagnostic.msg;
+            var actualMessage = diagnostic.message;
             Assert.Equal(expectedMessage, actualMessage);
 
             var expectedSpan = annotatedText.spans[i];

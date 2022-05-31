@@ -37,12 +37,17 @@ internal static class Warning {
             case SyntaxType.CALL_EXPRESSION:
                 return UnreachableCode(((CallExpression)node).identifier.location);
             default:
-                throw new Exception($"UnreachableCode: unexpected syntax {node.type}");
+                throw new Exception($"UnreachableCode: unexpected syntax '{node.type}'");
         }
     }
 
     internal static Diagnostic UnreachableCode(TextLocation location) {
-        string msg = "unreachable code";
-        return new Diagnostic(DiagnosticType.Warning, location, msg);
+        var message = "unreachable code";
+        return new Diagnostic(DiagnosticType.Warning, location, message);
+    }
+
+    internal static Diagnostic AlwaysValue(TextLocation location, object value) {
+        var message = $"expression will always result in '{value}'";
+        return new Diagnostic(DiagnosticType.Warning, location, message);
     }
 }

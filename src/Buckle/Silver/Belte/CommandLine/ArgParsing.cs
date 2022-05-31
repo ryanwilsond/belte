@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using Buckle;
 using Buckle.Diagnostics;
 
-namespace Belte.CmdLine;
+namespace Belte.CommandLine;
 
-public static partial class CommandLine {
+public static partial class BuckleCommandLine {
     private static CompilerState DecodeOptions(
         string[] args, out DiagnosticQueue diagnostics, out bool showHelp,
         out bool showMachine, out bool showVersion) {

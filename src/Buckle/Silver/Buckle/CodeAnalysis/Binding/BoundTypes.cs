@@ -101,7 +101,7 @@ internal sealed class BoundTypeClause : BoundNode {
     }
 
     public override string ToString() {
-        string text = "";
+        var text = "";
 
         if (!isNullable && !isLiteral)
             text += "[NotNull]";

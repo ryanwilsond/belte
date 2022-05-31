@@ -18,7 +18,7 @@ public class LexerTests {
         var diagnostic = diagnostics.Pop();
         Assert.Equal(0, diagnostic.location.span.start);
         Assert.Equal(1, diagnostic.location.span.length);
-        Assert.Equal("unterminated string literal", diagnostic.msg);
+        Assert.Equal("unterminated string literal", diagnostic.message);
     }
 
     [Fact]

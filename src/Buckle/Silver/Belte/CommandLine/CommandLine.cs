@@ -8,9 +8,9 @@ using Buckle;
 using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Text;
 
-namespace Belte.CmdLine;
+namespace Belte.CommandLine;
 
-public static partial class CommandLine {
+public static partial class BuckleCommandLine {
     const int SuccessExitCode = 0;
     const int ErrorExitCode = 1;
     const int FatalExitCode = 2;
@@ -20,7 +20,7 @@ public static partial class CommandLine {
     };
 
     private static void ShowHelpDialog() {
-        string helpMsg = @"Usage: buckle.exe [options] file...
+        string helpMessage = @"Usage: buckle.exe [options] file...
 Options:
 -h|--help             Display this information.
 -p                    Preprocess only, otherwise compiler preprocesses.
@@ -37,17 +37,17 @@ Options:
 --dumpmachine         Display the compiler's target system.
 --version             Dispaly compiler version information.";
 
-        Console.WriteLine(helpMsg);
+        Console.WriteLine(helpMessage);
     }
 
     private static void ShowMachineDialog() {
-        string machineMsg = "Machine: x86_64-w64";
-        Console.WriteLine(machineMsg);
+        string machineMessage = "Machine: x86_64-w64";
+        Console.WriteLine(machineMessage);
     }
 
     private static void ShowVersionDialog() {
-        string versionMsg = "Version: Buckle 0.1";
-        Console.WriteLine(versionMsg);
+        string versionMessage = "Version: Buckle 0.1";
+        Console.WriteLine(versionMessage);
     }
 
     private static void PrettyPrintDiagnostic(Diagnostic diagnostic) {
@@ -82,7 +82,7 @@ Options:
         }
 
         Console.ResetColor();
-        Console.WriteLine(diagnostic.msg);
+        Console.WriteLine(diagnostic.message);
 
         if (text.IsAtEndOfInput(span))
             return;
@@ -149,7 +149,7 @@ Options:
                 }
 
                 Console.ResetColor();
-                Console.WriteLine(diagnostic.msg);
+                Console.WriteLine(diagnostic.message);
 
             } else {
                 PrettyPrintDiagnostic(diagnostic);

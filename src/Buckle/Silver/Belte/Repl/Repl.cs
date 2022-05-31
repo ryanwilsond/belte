@@ -48,7 +48,7 @@ public abstract class Repl {
 
     public void Run() {
         while (true) {
-            string text = EditSubmission();
+            var text = EditSubmission();
 
             if (string.IsNullOrEmpty(text))
                 return;
@@ -261,6 +261,7 @@ public abstract class Repl {
 
         var historyItem = submissionHistory_[submissionHistoryIndex_];
         var lines = historyItem.Split(Environment.NewLine);
+
         foreach (var line in lines)
             document.Add(line);
 
@@ -277,6 +278,7 @@ public abstract class Repl {
 
     private void HandleTab(ObservableCollection<string> document, SubmissionView view) {
         const int tabWidth = 4;
+
         var start = view.currentCharacter;
         var remainingSpaces = tabWidth - start % tabWidth;
         var line = document[view.currentLine];

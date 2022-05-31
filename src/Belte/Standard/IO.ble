@@ -21,8 +21,12 @@ namespace Standard {
             White
         }
 
-        static void Print(string msg, string end="\n");
-        static string Input(string msg);
+        static void PrintLine(string message);
+        static void PrintLine(object value);
+        static void Print(string message);
+        static void Print(object value);
+        static string Input(string message);
+        static string Input(object value);
         static void SetForegroundColor(Color color);
         static void SetBackgroundColor(Color color);
         static void ResetColor();

@@ -43,7 +43,6 @@ public sealed class BelteRepl : Repl {
 
     protected override void EvaluateSubmission(string text) {
         var syntaxTree = SyntaxTree.Parse(text);
-
         var compilation = Compilation.CreateScript(state.previous, syntaxTree);
 
         if (state.showTree)
@@ -112,6 +111,7 @@ public sealed class BelteRepl : Repl {
 
     private static void ClearSubmissions() {
         var path = GetSumbissionsDirectory();
+
         if (Directory.Exists(path))
             Directory.Delete(GetSumbissionsDirectory(), true);
     }
@@ -191,7 +191,7 @@ public sealed class BelteRepl : Repl {
             texts.Add((classifiedText, color));
         }
 
-        int offset = 0;
+        var offset = 0;
 
         for (int i=0; i<texts.Count(); i++) {
             var line = texts[i].text;
@@ -199,7 +199,7 @@ public sealed class BelteRepl : Repl {
             if (fullText.Substring(offset, line.Length) == line) {
                 offset += line.Length;
             } else {
-                string extra = "";
+                var extra = "";
 
                 while (true) {
                     if (fullText.Substring(offset, texts[i].text.Length) == texts[i].text) {

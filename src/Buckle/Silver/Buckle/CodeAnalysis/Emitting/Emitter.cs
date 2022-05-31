@@ -890,7 +890,7 @@ internal sealed class Emitter {
             var value = (float)expression.constantValue.value;
             iLProcessor.Emit(OpCodes.Ldc_R4, value);
         } else {
-            throw new Exception($"EmitConstantExpression: unexpected constant expression type {expressionType}");
+            throw new Exception($"EmitConstantExpression: unexpected constant expression type '{expressionType}'");
         }
 
         if (referenceAssign) {

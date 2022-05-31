@@ -764,6 +764,17 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
+        // could possible move this to ComputeConstant
+        if (boundOp.opType == BoundBinaryOperatorType.LessThan ||
+            boundOp.opType == BoundBinaryOperatorType.LessOrEqual ||
+            boundOp.opType == BoundBinaryOperatorType.GreaterThan ||
+            boundOp.opType == BoundBinaryOperatorType.GreatOrEqual ||
+            boundOp.opType == BoundBinaryOperatorType.EqualityEquals ||
+            boundOp.opType == BoundBinaryOperatorType.EqualityNotEquals) {
+            if ((boundLeft.constantValue == null) != (boundRight.constantValue == null))
+                diagnostics.Push(Warning.AlwaysValue(expression.location, false));
+        }
+
         return new BoundBinaryExpression(boundLeft, boundOp, boundRight);
     }
 
@@ -772,7 +783,7 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindNameExpression(NameExpression expression) {
-        string name = expression.identifier.text;
+        var name = expression.identifier.text;
         if (expression.identifier.isMissing)
             return new BoundErrorExpression();
 

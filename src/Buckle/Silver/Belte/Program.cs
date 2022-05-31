@@ -1,9 +1,9 @@
-using Belte.CmdLine;
+using Belte.CommandLine;
 
 namespace Belte;
 
 public static class Program {
     public static int Main(string[] args) {
-        return CommandLine.ProcessArgs(args);
+        return BuckleCommandLine.ProcessArgs(args);
     }
 }
