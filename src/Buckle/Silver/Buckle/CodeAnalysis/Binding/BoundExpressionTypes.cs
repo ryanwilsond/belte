@@ -147,8 +147,10 @@ internal sealed class BoundBinaryOperator {
 
     public static BoundBinaryOperator Bind(SyntaxType type, BoundTypeClause leftType, BoundTypeClause rightType) {
         foreach (var op in operators_) {
-            var leftIsCorrect = Cast.Classify(leftType, op.leftType).isImplicit;
-            var rightIsCorrect = Cast.Classify(rightType, op.rightType).isImplicit;
+            var leftClassify = Cast.Classify(leftType, op.leftType);
+            var leftIsCorrect = leftClassify.isImplicit || leftClassify.isIdentity;
+            var rightClassify = Cast.Classify(rightType, op.rightType);
+            var rightIsCorrect = rightClassify.isImplicit || rightClassify.isIdentity;
 
             if (op.type == type && leftIsCorrect && rightIsCorrect)
                 return op;

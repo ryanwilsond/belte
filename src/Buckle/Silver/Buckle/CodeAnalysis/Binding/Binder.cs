@@ -749,6 +749,7 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindBinaryExpression(BinaryExpression expression) {
+        // TODO: can optimize to see if non-nullable var is compared to null and create a warning
         var boundLeft = BindExpression(expression.left);
         var boundRight = BindExpression(expression.right);
 

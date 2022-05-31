@@ -236,7 +236,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         {
             <type> left0 = null;
             if (<left> != null) {
-                [NotNull]<type> left1 = <left>;
+                [NotNull]<type> left1 = ([NotNull]<type>)<left>;
                 left0 = left1 <op> <right>;
             }
             return left0;
@@ -247,7 +247,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         {
             <type> right0 = null;
             if (<right> != null) {
-                [NotNull]<type> right1 = <right>;
+                [NotNull]<type> right1 = ([NotNull]<type>)<right>;
                 right0 = <left> <op> right1;
             }
             return right0;
@@ -258,23 +258,32 @@ internal sealed class Lowerer : BoundTreeRewriter {
         {
             <type> left0 = null;
             if (<left> != null && <right> != null) {
-                [NotNull]<type> left1 = <left>;
-                [NotNull]<type> right1 = <right>;
-                left0 = left1 <op> right1;
+                [NotNull]<type> left1 = ([NotNull]<type>)<left>;
+                [NotNull]<type> right0 = ([NotNull]<type>)<right>;
+                left0 = left1 <op> right0;
             }
             return left0;
         }
 
-        ==============================
+        ---> <op> is <, >, <=, or >=
 
-        <left> ** <right>
+        {
+            [NotNull]bool left0 = false;
+            if (<left> != null && <right> != null) {
+                [NotNull]<type> left1 = ([NotNull]<type>)<left>;
+                [NotNull]<type> right0 = ([NotNull]<type>)<right>;
+                left0 = left1 <op> right0;
+            }
 
-        --->
+            return left0;
+        }
+
+        ---> <op> is **
 
         {
             int <n> = <left>;
             for (int i = 1; i < <right>; i+=1)
-                <n> *= <left>; // this will rewrite to account for null
+                <n> *= <left>; // this will rewrite again to account for null
 
             return <n>;
         }
@@ -283,12 +292,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var left = RewriteExpression(expression.left);
         var right = RewriteExpression(expression.right);
 
+        // equality are special cases that the emitter handles
         if (expression.op.opType == BoundBinaryOperatorType.EqualityEquals ||
-            expression.op.opType == BoundBinaryOperatorType.EqualityNotEquals ||
-            expression.op.opType == BoundBinaryOperatorType.GreaterThan ||
-            expression.op.opType == BoundBinaryOperatorType.GreatOrEqual ||
-            expression.op.opType == BoundBinaryOperatorType.LessThan ||
-            expression.op.opType == BoundBinaryOperatorType.LessOrEqual) {
+            expression.op.opType == BoundBinaryOperatorType.EqualityNotEquals) {
             if (left == expression.left && right == expression.right)
                 return expression;
             else
@@ -297,7 +303,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         // TODO: make sure that when rewriting again it doesnt loop back here infinitely
 
-        // BoundTreeRewriter code:
+        // <, >, <=, >= rewrite to return false if <left> or <right> are null
+        // all other operators return null if <left> or <right> are null
+
         return new BoundBinaryExpression(left, expression.op, right);
     }
 
@@ -310,8 +318,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
         {
             <type> operand0 = null;
             if (<operand> != null) {
-                [NotNull]<type> operand1 = <operand>;
-                left0 = <op> operand1;
+                [NotNull]<type> operand1 = ([NotNull]<type>)<operand>;
+                operand0 = <op> operand1;
             }
             return operand0;
         }
@@ -319,7 +327,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         */
         // TODO: make sure that when rewriting again it doesnt loop back here infinitely
 
-        // BoundTreeRewriter code:
         var operand = RewriteExpression(expression.operand);
         if (operand == expression.operand)
             return expression;
@@ -338,6 +345,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         ...inline0()...
 
         */
+        // TODO: need to actually lower inline functions during the binding process
+        // to allow an immediate call to BindLocalFunctionDeclaration
+
         var inlineFunction = GenerateFunction(expression.returnType);
         var rewrittenBody = (BoundBlockStatement)RewriteBlockStatement(expression.body);
         rewrittenBody = Flatten(inlineFunction, rewrittenBody);

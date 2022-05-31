@@ -282,6 +282,36 @@ internal sealed class Evaluator {
         var left = EvaluateExpression(syntax.left);
         var right = EvaluateExpression(syntax.right);
 
+        // comparison operators are the only operators that can work with null
+        switch (syntax.op.opType) {
+            case BoundBinaryOperatorType.EqualityEquals:
+                return Equals(left, right);
+            case BoundBinaryOperatorType.EqualityNotEquals:
+                return !Equals(left, right);
+            case BoundBinaryOperatorType.LessThan:
+                if (left == null || right == null)
+                    return false;
+
+                break;
+            case BoundBinaryOperatorType.GreaterThan:
+                if (left == null || right == null)
+                    return false;
+
+                break;
+            case BoundBinaryOperatorType.LessOrEqual:
+                if (left == null || right == null)
+                    return false;
+
+                break;
+            case BoundBinaryOperatorType.GreatOrEqual:
+                if (left == null || right == null)
+                    return false;
+
+                break;
+            default:
+                break;
+        }
+
         if (left == null || right == null)
             return null;
 
@@ -320,10 +350,6 @@ internal sealed class Evaluator {
                 return (bool)left && (bool)right;
             case BoundBinaryOperatorType.ConditionalOr:
                 return (bool)left || (bool)right;
-            case BoundBinaryOperatorType.EqualityEquals:
-                return Equals(left, right);
-            case BoundBinaryOperatorType.EqualityNotEquals:
-                return !Equals(left, right);
             case BoundBinaryOperatorType.LessThan:
                 if (leftType == TypeSymbol.Int)
                     return (int)left < (int)right;

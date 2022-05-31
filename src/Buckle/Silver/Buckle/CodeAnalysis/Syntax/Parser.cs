@@ -132,11 +132,11 @@ internal sealed class Parser {
         finalOffset = offset;
         hasName = false;
 
-        if (current.type == SyntaxType.IDENTIFIER_TOKEN ||
-            current.type == SyntaxType.CONST_KEYWORD ||
-            current.type == SyntaxType.REF_KEYWORD ||
-            current.type == SyntaxType.VAR_KEYWORD ||
-            current.type == SyntaxType.OPEN_BRACKET_TOKEN) {
+        if (Peek(finalOffset).type == SyntaxType.IDENTIFIER_TOKEN ||
+            Peek(finalOffset).type == SyntaxType.CONST_KEYWORD ||
+            Peek(finalOffset).type == SyntaxType.REF_KEYWORD ||
+            Peek(finalOffset).type == SyntaxType.VAR_KEYWORD ||
+            Peek(finalOffset).type == SyntaxType.OPEN_BRACKET_TOKEN) {
             while (Peek(finalOffset).type == SyntaxType.OPEN_BRACKET_TOKEN) {
                 finalOffset++;
 

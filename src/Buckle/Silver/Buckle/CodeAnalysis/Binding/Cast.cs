@@ -45,9 +45,15 @@ internal sealed class Cast {
         else if (from == TypeSymbol.Decimal && to == TypeSymbol.Int)
             cast = Cast.Explicit;
 
-        if (cast != Cast.None && ((!fromType.isLiteral && !fromType.isNullable && toType.isNullable) ||
-            (fromType.isNullable && !toType.isNullable && !toType.isLiteral)))
-            cast = Cast.Explicit;
+        if (cast != Cast.None) {
+            // [NotNull]var -> var : implicit
+            // var -> [NotNull]var : explicit
+            if (!fromType.isLiteral && !fromType.isNullable && toType.isNullable)
+                cast = Cast.Implicit;
+
+            if (fromType.isNullable && !toType.isNullable && !toType.isLiteral)
+                cast = Cast.Explicit;
+        }
 
         return cast;
     }

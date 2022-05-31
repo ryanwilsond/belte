@@ -9,16 +9,16 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal static class BuiltinFunctions {
     public static readonly FunctionSymbol Print = new FunctionSymbol("Print",
-        ImmutableArray.Create(new ParameterSymbol("text", new BoundTypeClause(TypeSymbol.Any), 0)),
+        ImmutableArray.Create(new ParameterSymbol("text", new BoundTypeClause(TypeSymbol.Any, isNullable_: true), 0)),
         new BoundTypeClause(TypeSymbol.Void));
     public static readonly FunctionSymbol PrintLine = new FunctionSymbol("PrintLine",
-        ImmutableArray.Create(new ParameterSymbol("text", new BoundTypeClause(TypeSymbol.Any), 0)),
+        ImmutableArray.Create(new ParameterSymbol("text", new BoundTypeClause(TypeSymbol.Any, isNullable_: true), 0)),
         new BoundTypeClause(TypeSymbol.Void));
     public static readonly FunctionSymbol Input = new FunctionSymbol("Input",
         ImmutableArray<ParameterSymbol>.Empty,
         new BoundTypeClause(TypeSymbol.String));
     public static readonly FunctionSymbol Randint = new FunctionSymbol("RandInt",
-        ImmutableArray.Create(new ParameterSymbol("max", new BoundTypeClause(TypeSymbol.Int), 0)),
+        ImmutableArray.Create(new ParameterSymbol("max", new BoundTypeClause(TypeSymbol.Int, isNullable_: true), 0)),
         new BoundTypeClause(TypeSymbol.Int));
 
     internal static IEnumerable<FunctionSymbol> GetAll()

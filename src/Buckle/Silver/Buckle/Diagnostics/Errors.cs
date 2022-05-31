@@ -221,9 +221,9 @@ internal static class Error {
 
     public static Diagnostic CannotConvertImplicitly(TextLocation location, BoundTypeClause from, BoundTypeClause to) {
         string message =
-            $"cannot convert from type '{from}' to '{to}'." +
+            $"cannot convert from type '{from}' to '{to}'. " +
             "An explicit conversion exists (are you missing a cast?)";
-        string suggestion = $"{to}(%)";
+        string suggestion = $"({to})%"; // % is replaced with all the text at `location`
         return new Diagnostic(DiagnosticType.Error, location, message, suggestion);
     }
 
