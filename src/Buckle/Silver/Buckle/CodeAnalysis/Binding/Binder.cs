@@ -276,6 +276,7 @@ internal sealed class Binder {
     private BoundStatement BindLocalFunctionDeclaration(LocalFunctionDeclaration statement) {
         var result = (FunctionSymbol)scope_.LookupSymbol(statement.identifier.text);
         var binder = new Binder(false, scope_, result);
+        // need to track all used symbols somehow, and then look them all up and add them to the parameter list
         var body = (BoundBlockStatement)binder.BindBlockStatement(result.declaration.body);
 
         var builder = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
@@ -631,12 +632,6 @@ internal sealed class Binder {
 
         foreach (var statementSyntax in statement.statements) {
             if (statementSyntax is LocalFunctionDeclaration fd) {
-                // TODO
-                // need to go through these statements and search for declarations
-                // then need to add them to the parameter list with some sort of marker
-                // so that calls of the local can be modified to automatically pass in
-                // these uses parameters without the coder knowing
-
                 var declaration = new FunctionDeclaration(
                     fd.syntaxTree, fd.returnType, fd.identifier, fd.openParenthesis,
                     fd.parameters, fd.closeParenthesis, fd.body);
