@@ -33,6 +33,9 @@
 				"name": "keyword.other.belte",
 				"match": "\\b(include|operator|get|set|this|var|let|out|ref)\\b"
 			}, {
+				"name": "keyword.contract.belte",
+				"match": "\\b(attribute|where)\\b"
+			}, {
 				"name": "keyword.operator.arithmetic.belte",
 				"match": "\\b(/|\\*|(\\*\\*)|\\+|\\-|\\%)\\b"
 			}, {

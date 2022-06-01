@@ -1,6 +1,9 @@
 
 namespace Base {
-    public class object {
+    public class object<attribute NotNull>
+        where {
+            !(NotNull && value == null);
+        } {
 
         object();
         ~object();
