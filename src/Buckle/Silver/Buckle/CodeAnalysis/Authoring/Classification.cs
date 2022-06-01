@@ -34,7 +34,10 @@ internal static class Classifier {
 
     private static void ClassifyNode(
         Node node, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result, bool isTypeName = false) {
-        if (node == null || !node.fullSpan.OverlapsWith(span))
+        if (node == null)
+            return;
+
+        if (node.fullSpan != null && !node.fullSpan.OverlapsWith(span))
             return;
 
         if (node is Token token)

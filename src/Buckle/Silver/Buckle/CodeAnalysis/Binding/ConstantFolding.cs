@@ -26,6 +26,35 @@ internal static class ConstantFolding {
         if (leftConstant == null || rightConstant == null)
             return null;
 
+        switch (op.opType) {
+            case BoundBinaryOperatorType.EqualityEquals:
+                return new BoundConstant(Equals(leftConstant.value, rightConstant.value));
+            case BoundBinaryOperatorType.EqualityNotEquals:
+                return new BoundConstant(!Equals(leftConstant.value, rightConstant.value));
+            case BoundBinaryOperatorType.LessThan:
+                if (leftConstant.value == null || rightConstant.value == null)
+                    return new BoundConstant(false);
+
+                break;
+            case BoundBinaryOperatorType.GreaterThan:
+                if (leftConstant.value == null || rightConstant.value == null)
+                    return new BoundConstant(false);
+
+                break;
+            case BoundBinaryOperatorType.LessOrEqual:
+                if (leftConstant.value == null || rightConstant.value == null)
+                    return new BoundConstant(false);
+
+                break;
+            case BoundBinaryOperatorType.GreatOrEqual:
+                if (leftConstant.value == null || rightConstant.value == null)
+                    return new BoundConstant(false);
+
+                break;
+            default:
+                break;
+        }
+
         var leftValue = leftConstant.value;
         var rightValue = rightConstant.value;
         var leftType = left.typeClause.lType;

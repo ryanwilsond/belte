@@ -116,9 +116,9 @@ public class EvaluatorTests {
     [InlineData("int a = 0; if (a == 0) { a = 10; } else { a = 5; } return a;", 10)]
     [InlineData("int a = 0; if (a == 4) { a = 10; } else { a = 5; } return a;", 5)]
 
-    [InlineData("int i = 10; int result = 0; while (i > 0) { result = result + i; i = i - 1; } return result;", 55)]
-    [InlineData("int result = 0; for (int i=0; i<=10; i++) { result = result + i; } return result;", 55)]
-    [InlineData("int result = 0; do { result = result + 1; } while (result < 10); return result;", 10)]
+    [InlineData("int i = 10; int result = 0; while (i > 0) { result++; i--; } return result;", 55)]
+    [InlineData("int result = 0; for (int i=0; i<=10; i++) { result++; } return result;", 55)]
+    [InlineData("int result = 0; do { result++; } while (result < 10); return result;", 10)]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
         AssertValue(text, expectedValue);
     }

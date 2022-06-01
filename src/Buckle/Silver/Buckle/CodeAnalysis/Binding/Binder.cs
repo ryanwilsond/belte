@@ -73,7 +73,7 @@ internal sealed class Binder {
         if (isScript) {
             if (globalStatements.Any())
                 scriptFunction = new FunctionSymbol(
-                "$eval", ImmutableArray<ParameterSymbol>.Empty, new BoundTypeClause(TypeSymbol.Any));
+                "<Eval>$", ImmutableArray<ParameterSymbol>.Empty, BoundTypeClause.NullableAny);
             else
                 scriptFunction = null;
 
@@ -771,7 +771,8 @@ internal sealed class Binder {
             boundOp.opType == BoundBinaryOperatorType.GreatOrEqual ||
             boundOp.opType == BoundBinaryOperatorType.EqualityEquals ||
             boundOp.opType == BoundBinaryOperatorType.EqualityNotEquals) {
-            if ((boundLeft.constantValue == null) != (boundRight.constantValue == null))
+            if (boundLeft.constantValue != null && boundRight.constantValue != null &&
+                (boundLeft.constantValue.value == null) != (boundRight.constantValue.value == null))
                 diagnostics.Push(Warning.AlwaysValue(expression.location, false));
         }
 

@@ -99,7 +99,6 @@ public sealed class Compilation {
             return new EvaluationResult(null, globalScope.diagnostics);
 
         var program = GetProgram();
-        program.diagnostics.Move(globalScope.diagnostics);
         // CreateCfg(program);
 
         if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())

@@ -112,11 +112,21 @@ void Main() {
     //         return 1;
     //     };
     // PrintLine(b);
-    PrintLine(MyInner());
+    // PrintLine(MyInner());
 
-    int a = 3;
+    // int a = 3;
 
-    int MyInner() {
-        return a;
+    // int MyInner() {
+    //     return a;
+    // }
+    int i = 10;
+    int result = 0;
+
+    while (i > 0) {
+        result++;
+        i--;
     }
+
+    PrintLine("Result: " + (string)result);
+    PrintLine("i: " + (string)i);
 }

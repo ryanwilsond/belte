@@ -76,6 +76,11 @@ internal sealed class BoundTypeClause : BoundNode {
     public static readonly BoundTypeClause NullableString = new BoundTypeClause(TypeSymbol.String, isNullable_: true);
     public static readonly BoundTypeClause NullableBool = new BoundTypeClause(TypeSymbol.Bool, isNullable_: true);
     public static readonly BoundTypeClause NullableAny = new BoundTypeClause(TypeSymbol.Any, isNullable_: true);
+    public static readonly BoundTypeClause Decimal = new BoundTypeClause(TypeSymbol.Decimal);
+    public static readonly BoundTypeClause Int = new BoundTypeClause(TypeSymbol.Int);
+    public static readonly BoundTypeClause String = new BoundTypeClause(TypeSymbol.String);
+    public static readonly BoundTypeClause Bool = new BoundTypeClause(TypeSymbol.Bool);
+    public static readonly BoundTypeClause Any = new BoundTypeClause(TypeSymbol.Any);
 
     public BoundTypeClause(
         TypeSymbol lType_, bool isImplicit_ = false, bool isConstRef_ = false, bool isRef_ = false,

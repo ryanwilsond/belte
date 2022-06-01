@@ -74,17 +74,17 @@ internal sealed class BoundBinaryOperator {
         new BoundBinaryOperator(SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN, BoundBinaryOperatorType.RightShift,
             BoundTypeClause.NullableInt),
         new BoundBinaryOperator(SyntaxType.EQUALS_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityEquals,
-            BoundTypeClause.NullableInt, BoundTypeClause.NullableBool),
+            BoundTypeClause.NullableInt, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.EXCLAMATION_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
-            BoundTypeClause.NullableInt, BoundTypeClause.NullableBool),
+            BoundTypeClause.NullableInt, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.LESS_THAN_TOKEN, BoundBinaryOperatorType.LessThan,
-            BoundTypeClause.NullableInt, BoundTypeClause.NullableBool),
+            BoundTypeClause.NullableInt, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.GREATER_THAN_TOKEN, BoundBinaryOperatorType.GreaterThan,
-            BoundTypeClause.NullableInt, BoundTypeClause.NullableBool),
+            BoundTypeClause.NullableInt, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.LESS_THAN_EQUALS_TOKEN, BoundBinaryOperatorType.LessOrEqual,
-            BoundTypeClause.NullableInt, BoundTypeClause.NullableBool),
+            BoundTypeClause.NullableInt, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.GREATER_THAN_EQUALS_TOKEN, BoundBinaryOperatorType.GreatOrEqual,
-            BoundTypeClause.NullableInt, BoundTypeClause.NullableBool),
+            BoundTypeClause.NullableInt, BoundTypeClause.Bool),
 
         // boolean
         new BoundBinaryOperator(SyntaxType.AMPERSAND_AMPERSAND_TOKEN, BoundBinaryOperatorType.ConditionalAnd,
@@ -102,17 +102,17 @@ internal sealed class BoundBinaryOperator {
         new BoundBinaryOperator(SyntaxType.EXCLAMATION_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
             BoundTypeClause.NullableBool),
         new BoundBinaryOperator(SyntaxType.EXCLAMATION_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
-            BoundTypeClause.NullableAny, BoundTypeClause.NullableBool),
+            BoundTypeClause.NullableAny, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.EQUALS_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityEquals,
-            BoundTypeClause.NullableAny, BoundTypeClause.NullableBool),
+            BoundTypeClause.NullableAny, BoundTypeClause.Bool),
 
         // string
         new BoundBinaryOperator(SyntaxType.PLUS_TOKEN, BoundBinaryOperatorType.Addition,
             BoundTypeClause.NullableString),
         new BoundBinaryOperator(SyntaxType.EQUALS_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityEquals,
-            BoundTypeClause.NullableString, BoundTypeClause.NullableBool),
+            BoundTypeClause.NullableString, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.EXCLAMATION_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
-            BoundTypeClause.NullableString, BoundTypeClause.NullableBool),
+            BoundTypeClause.NullableString, BoundTypeClause.Bool),
 
         // decimal
         new BoundBinaryOperator(SyntaxType.PLUS_TOKEN, BoundBinaryOperatorType.Addition,
@@ -126,31 +126,29 @@ internal sealed class BoundBinaryOperator {
         new BoundBinaryOperator(SyntaxType.ASTERISK_ASTERISK_TOKEN, BoundBinaryOperatorType.Power,
             BoundTypeClause.NullableDecimal),
         new BoundBinaryOperator(SyntaxType.EQUALS_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityEquals,
-            BoundTypeClause.NullableDecimal, BoundTypeClause.NullableBool),
+            BoundTypeClause.NullableDecimal, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.EXCLAMATION_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
-            BoundTypeClause.NullableDecimal, BoundTypeClause.NullableBool),
+            BoundTypeClause.NullableDecimal, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.LESS_THAN_TOKEN, BoundBinaryOperatorType.LessThan,
-            BoundTypeClause.NullableDecimal, BoundTypeClause.NullableBool),
+            BoundTypeClause.NullableDecimal, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.GREATER_THAN_TOKEN, BoundBinaryOperatorType.GreaterThan,
-            BoundTypeClause.NullableDecimal, BoundTypeClause.NullableBool),
+            BoundTypeClause.NullableDecimal, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.LESS_THAN_EQUALS_TOKEN, BoundBinaryOperatorType.LessOrEqual,
-            BoundTypeClause.NullableDecimal, BoundTypeClause.NullableBool),
+            BoundTypeClause.NullableDecimal, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.GREATER_THAN_EQUALS_TOKEN, BoundBinaryOperatorType.GreatOrEqual,
-            BoundTypeClause.NullableDecimal, BoundTypeClause.NullableBool),
+            BoundTypeClause.NullableDecimal, BoundTypeClause.Bool),
 
         // any
         new BoundBinaryOperator(SyntaxType.EXCLAMATION_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
-            BoundTypeClause.NullableAny, BoundTypeClause.NullableBool),
+            BoundTypeClause.NullableAny, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.EQUALS_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityEquals,
-            BoundTypeClause.NullableAny, BoundTypeClause.NullableBool),
+            BoundTypeClause.NullableAny, BoundTypeClause.Bool),
     };
 
     public static BoundBinaryOperator Bind(SyntaxType type, BoundTypeClause leftType, BoundTypeClause rightType) {
         foreach (var op in operators_) {
-            var leftClassify = Cast.Classify(leftType, op.leftType);
-            var leftIsCorrect = leftClassify.isImplicit || leftClassify.isIdentity;
-            var rightClassify = Cast.Classify(rightType, op.rightType);
-            var rightIsCorrect = rightClassify.isImplicit || rightClassify.isIdentity;
+            var leftIsCorrect = Cast.Classify(leftType, op.leftType).isImplicit;
+            var rightIsCorrect = Cast.Classify(rightType, op.rightType).isImplicit;
 
             if (op.type == type && leftIsCorrect && rightIsCorrect)
                 return op;
