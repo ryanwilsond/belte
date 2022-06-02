@@ -20,6 +20,9 @@ internal sealed class Binder {
     private readonly List<(FunctionSymbol function, BoundBlockStatement body)> functionBodies_ =
         new List<(FunctionSymbol function, BoundBlockStatement body)>();
     private int labelCount_;
+    // functions should be available correctly, so only track variables
+    private Stack<List<VariableSymbol>> trackedSymbols_ = new Stack<List<VariableSymbol>>();
+    private bool trackSymbols_ = false;
 
     private Binder(bool isScript, BoundScope parent, FunctionSymbol function) {
         isScript_ = isScript;
@@ -274,18 +277,35 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindLocalFunctionDeclaration(LocalFunctionDeclaration statement) {
-        var result = (FunctionSymbol)scope_.LookupSymbol(statement.identifier.text);
-        var binder = new Binder(false, scope_, result);
+        var functionSymbol = (FunctionSymbol)scope_.LookupSymbol(statement.identifier.text);
+        var binder = new Binder(false, scope_, functionSymbol);
         // need to track all used symbols somehow, and then look them all up and add them to the parameter list
-        var body = (BoundBlockStatement)binder.BindBlockStatement(result.declaration.body);
+        trackSymbols_ = true;
+        trackedSymbols_.Push(new List<VariableSymbol>());
+        var body = (BoundBlockStatement)binder.BindBlockStatement(functionSymbol.declaration.body);
+        trackSymbols_ = false;
+
+        // TODO: this process is way to complicated
+        var usedVariables = trackedSymbols_.Pop();
+        foreach (var variable in usedVariables) {
+            var name = $"${variable.name}";
+            var typeClause = variable.typeClause;
+            var attributes = ImmutableArray.CreateBuilder<(Token, Token, Token)>();
+            if (!typeClause.isNullable) {
+                var openBracket = new Token(null, SyntaxType.OPEN_BRACKET_TOKEN, null, "[", null, )
+                attributes.Add((new Token(null, SyntaxType.OPEN_BRACKET_TOKEN, null, "[", null, )))
+            }
+            var parameter = new Parameter(null, new TypeClause(null, ))
+            functionSymbol.declaration.parameters.Append(new Parameter(null, variable.typeClause, name));
+        }
 
         var builder = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
-        var loweredBody = Lowerer.Lower(result, body, builder);
+        var loweredBody = Lowerer.Lower(functionSymbol, body, builder);
 
         foreach (var function in builder.ToImmutable())
             functionBodies_.Add((function.Key, function.Value));
 
-        functionBodies_.Add((result, loweredBody));
+        functionBodies_.Add((functionSymbol, loweredBody));
         diagnostics.Move(binder.diagnostics);
         functionBodies_.AddRange(binder.functionBodies_);
 

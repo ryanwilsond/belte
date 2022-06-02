@@ -109,7 +109,6 @@ void Main() {
     //         return 1;
     //     };
     // PrintLine(b);
-    // PrintLine(MyInner());
 
     // int a = 2;
     // int b = {
@@ -122,11 +121,13 @@ void Main() {
     // PrintLine(b);
 
     // * nested tests
-    // int a = 3;
+    int a = 3;
 
-    // int MyInner() {
-    //     return a;
-    // }
+    int MyInner() {
+        return a;
+    }
+
+    PrintLine(MyInner());
 
     // * loop tests
     // int i = 10;

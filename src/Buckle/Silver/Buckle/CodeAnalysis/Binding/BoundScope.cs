@@ -34,6 +34,16 @@ internal sealed class BoundScope {
         return parent?.LookupSymbol(name);
     }
 
+    public bool TryModifySymbol(string name, Symbol newSymbol) {
+        var symbol = LookupSymbol(name);
+
+        if (symbol == null)
+            return false;
+
+        symbols_[name] = newSymbol;
+        return true;
+    }
+
     public ImmutableArray<VariableSymbol> GetDeclaredVariables() => GetDeclaredSymbols<VariableSymbol>();
     public ImmutableArray<FunctionSymbol> GetDeclaredFunctions() => GetDeclaredSymbols<FunctionSymbol>();
 
