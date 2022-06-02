@@ -1,9 +1,17 @@
+/*
 
+    File for testing the compiler.
+    Tests that are not currently being used are commented instead of in functions to make the IL less cluttered.
+
+*/
+
+// * reference and null tests
 // void MyFunc(ref int a) {
 //     a++;
 // }
 
 void Main() {
+    // * reference and null tests
     // int a = 3;
     // ref int b = ref a;
     // b = 4;
@@ -14,7 +22,6 @@ void Main() {
     // ref const int d = ref c;
     // PrintLine(d); // 3
 
-    // TODO
     // int e = 2;
     // const ref int f = ref e;
     // f++;
@@ -71,18 +78,7 @@ void Main() {
     // PrintLine(ag); // 8
     // PrintLine(ah); // 12
 
-    // TODO
-    // int a = 2;
-    // int b = {
-    //         int left0 = null;
-    //         if (a != null) {
-    //             left0 = a + 1;
-    //         }
-    //         return left0;
-    //     }
-    // PrintLine(b);
-
-    // TODO
+    // * null comparison tests
     // int a = 1;
     // bool b = a == 1;
     // PrintLine(b); // true
@@ -104,6 +100,7 @@ void Main() {
     // int k = i == j;
     // PrintLine(k); // false
 
+    // * inline tests
     // int a = 3;
     // int b = {
     //     if (a > 2)
@@ -114,19 +111,36 @@ void Main() {
     // PrintLine(b);
     // PrintLine(MyInner());
 
+    // int a = 2;
+    // int b = {
+    //         int left0 = null;
+    //         if (a != null) {
+    //             left0 = a + 1;
+    //         }
+    //         return left0;
+    //     }
+    // PrintLine(b);
+
+    // * nested tests
     // int a = 3;
 
     // int MyInner() {
     //     return a;
     // }
-    int i = 10;
-    int result = 0;
 
-    while (i > 0) {
-        result++;
-        i--;
-    }
+    // * loop tests
+    // int i = 10;
+    // int result = 0;
 
-    PrintLine("Result: " + (string)result);
-    PrintLine("i: " + (string)i);
+    // while (i > 0) {
+    //     result++;
+    //     i--;
+    // }
+
+    // PrintLine("Result: " + (string)result);
+    // PrintLine("i: " + (string)i);
+
+    // * casting tests
+    // decimal a = 3;
+    // int b = (int)a;
 }

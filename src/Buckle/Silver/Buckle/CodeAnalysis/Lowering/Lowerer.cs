@@ -231,7 +231,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         /*
         <left> <op> <right>
 
-        ---> (left is nullable)
+        ---> <left> is nullable
 
         {
             <type> left0 = null;
@@ -242,7 +242,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return left0;
         }
 
-        ---> (right is nullable)
+        ---> <right> is nullable
 
         {
             <type> right0 = null;
@@ -253,7 +253,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return right0;
         }
 
-        ---> (left and right are nullable)
+        ---> <left> and <right> are nullable
 
         {
             <type> left0 = null;
@@ -313,7 +313,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         /*
         <op> <operand>
 
-        ---> (operand is nullable)
+        ---> <operand> is nullable
 
         {
             <type> operand0 = null;
@@ -326,6 +326,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         */
         // TODO: make sure that when rewriting again it doesnt loop back here infinitely
+        // * Solve this by lowering in the binder, also need to do that because inlines need to lower during binding
 
         var operand = RewriteExpression(expression.operand);
         if (operand == expression.operand)
@@ -354,5 +355,31 @@ internal sealed class Lowerer : BoundTreeRewriter {
         functionBodies_.Add(inlineFunction, rewrittenBody);
 
         return RewriteExpression(new BoundCallExpression(inlineFunction, ImmutableArray<BoundExpression>.Empty));
+    }
+
+    protected override BoundExpression RewriteCastExpression(BoundCastExpression expression) {
+        /*
+
+        (<type>)<expression>
+
+        ---> <type> and <expression> is nullable
+
+        {
+            <expressionType> expression0 = null;
+            if (<expression> != null) {
+                [NotNull]<expressionType> expression1 = ([NotNull]<expressionType>)<expression>;
+                expression0 = (<type>)expression1;
+            }
+            return expression0;
+        }
+
+        */
+        // * Note that this code doesnt loop because only rewrite when both types are nullable
+        // TODO emit implicit casts to use the conv instruction
+        var rewrote = RewriteExpression(expression.expression);
+        if (rewrote == expression.expression)
+            return expression;
+
+        return new BoundCastExpression(expression.typeClause, rewrote);
     }
 }
