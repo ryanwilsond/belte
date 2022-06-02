@@ -876,18 +876,17 @@ internal sealed class Emitter {
         var expressionType = expression.typeClause.lType;
 
         if (expressionType == TypeSymbol.Int) {
-            // for efficiency can add hardcoded constants e.g. Ldc_I4_0 (probably negligible)
-            var value = (int)expression.constantValue.value;
+            var value = Convert.ToInt32(expression.constantValue.value);
             iLProcessor.Emit(OpCodes.Ldc_I4, value);
         } else if (expressionType == TypeSymbol.String) {
-            var value = (string)expression.constantValue.value;
+            var value = Convert.ToString(expression.constantValue.value);
             iLProcessor.Emit(OpCodes.Ldstr, value);
         } else if (expressionType == TypeSymbol.Bool) {
-            var value = (bool)expression.constantValue.value;
+            var value = Convert.ToBoolean(expression.constantValue.value);
             var instruction = value ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0;
             iLProcessor.Emit(instruction);
         } else if (expressionType == TypeSymbol.Decimal) {
-            var value = (float)expression.constantValue.value;
+            var value = Convert.ToSingle(expression.constantValue.value);
             iLProcessor.Emit(OpCodes.Ldc_R4, value);
         } else {
             throw new Exception($"EmitConstantExpression: unexpected constant expression type '{expressionType}'");

@@ -169,7 +169,8 @@
 				"match": "//.*"
 			}, {
 				"name": "comment.block",
-				"match": "/\\*[\\s\\S]*\\*/"
+				"begin": "/\\*",
+				"end": "\\*/"
 			}, {
 				"name": "comment.line.double-slash.documentation",
 				"match": "///.*"
