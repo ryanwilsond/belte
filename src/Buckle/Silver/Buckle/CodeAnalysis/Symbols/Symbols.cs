@@ -13,6 +13,7 @@ internal enum SymbolType {
 }
 
 internal abstract class Symbol {
+    // has to be mutable for nested functions
     public string name { get; }
     public abstract SymbolType type { get; }
 

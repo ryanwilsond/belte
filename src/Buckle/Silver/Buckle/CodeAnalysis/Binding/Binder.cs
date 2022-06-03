@@ -23,6 +23,7 @@ internal sealed class Binder {
     // functions should be available correctly, so only track variables
     private Stack<List<VariableSymbol>> trackedSymbols_ = new Stack<List<VariableSymbol>>();
     private bool trackSymbols_ = false;
+    private Stack<string> innerPrefix_ = new Stack<string>();
 
     private Binder(bool isScript, BoundScope parent, FunctionSymbol function) {
         isScript_ = isScript;
@@ -51,8 +52,10 @@ internal sealed class Binder {
 
         var functionDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<FunctionDeclaration>();
 
-        foreach (var function in functionDeclarations)
+        foreach (var function in functionDeclarations) {
+
             binder.BindFunctionDeclaration(function);
+        }
 
         var globalStatements = syntaxTrees.SelectMany(st => st.root.members).OfType<GlobalStatement>();
 
@@ -130,6 +133,10 @@ internal sealed class Binder {
 
         foreach (var function in globalScope.functions) {
             var binder = new Binder(isScript, parentScope, function);
+
+            binder.innerPrefix_ = new Stack<string>();
+            binder.innerPrefix_.Push(function.name);
+
             var body = binder.BindStatement(function.declaration.body);
             var loweredBody = Lowerer.Lower(function, body, functionBodies);
 
@@ -280,34 +287,49 @@ internal sealed class Binder {
         var functionSymbol = (FunctionSymbol)scope_.LookupSymbol(statement.identifier.text);
         var binder = new Binder(false, scope_, functionSymbol);
         // need to track all used symbols somehow, and then look them all up and add them to the parameter list
-        trackSymbols_ = true;
-        trackedSymbols_.Push(new List<VariableSymbol>());
+        var oldTrackSymbols = trackSymbols_;
+        binder.trackSymbols_ = true;
+        binder.trackedSymbols_ = trackedSymbols_;
+        binder.trackedSymbols_.Push(new List<VariableSymbol>());
+        innerPrefix_.Push(functionSymbol.name);
         var body = (BoundBlockStatement)binder.BindBlockStatement(functionSymbol.declaration.body);
-        trackSymbols_ = false;
+        trackSymbols_ = oldTrackSymbols;
+        innerPrefix_.Pop();
 
-        // TODO: this process is way to complicated
-        var usedVariables = trackedSymbols_.Pop();
+        var innerName = "<";
+
+        foreach (var frame in innerPrefix_.Reverse())
+            innerName += $"{frame}::";
+
+        innerName += $"{functionSymbol.name}>$";
+
+        var usedVariables = binder.trackedSymbols_.Pop();
+        var ordinal = functionSymbol.parameters.Count();
+        var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
+
+        foreach (var parameter in functionSymbol.parameters)
+            parameters.Add(parameter);
+
         foreach (var variable in usedVariables) {
-            var name = $"${variable.name}";
-            var typeClause = variable.typeClause;
-            var attributes = ImmutableArray.CreateBuilder<(Token, Token, Token)>();
-            if (!typeClause.isNullable) {
-                var openBracket = new Token(null, SyntaxType.OPEN_BRACKET_TOKEN, null, "[", null, )
-                attributes.Add((new Token(null, SyntaxType.OPEN_BRACKET_TOKEN, null, "[", null, )))
-            }
-            var parameter = new Parameter(null, new TypeClause(null, ))
-            functionSymbol.declaration.parameters.Append(new Parameter(null, variable.typeClause, name));
+            var parameter = new ParameterSymbol($"${variable.name}", variable.typeClause, ordinal++);
+            parameters.Add(parameter);
         }
 
+        var newFunctionSymbol = new FunctionSymbol(
+            innerName, parameters.ToImmutable(), functionSymbol.typeClause, functionSymbol.declaration);
+
         var builder = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
-        var loweredBody = Lowerer.Lower(functionSymbol, body, builder);
+        var loweredBody = Lowerer.Lower(newFunctionSymbol, body, builder);
 
         foreach (var function in builder.ToImmutable())
             functionBodies_.Add((function.Key, function.Value));
 
-        functionBodies_.Add((functionSymbol, loweredBody));
+        functionBodies_.Add((newFunctionSymbol, loweredBody));
         diagnostics.Move(binder.diagnostics);
         functionBodies_.AddRange(binder.functionBodies_);
+
+        if (!scope_.TryModifySymbol(functionSymbol.name, newFunctionSymbol))
+            throw new Exception($"BindLocalFunction: failed to set function '{functionSymbol.name}'");
 
         return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
     }
@@ -490,38 +512,45 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
+        var isInner = symbol.name.EndsWith("$");
+
         var function = symbol as FunctionSymbol;
         if (function == null) {
             diagnostics.Push(Error.CannotCallNonFunction(expression.identifier.location, name));
             return new BoundErrorExpression();
         }
 
-        if (function == null) {
-            diagnostics.Push(Error.UndefinedFunction(expression.identifier.location, name));
-            return new BoundErrorExpression();
-        }
-
         if (expression.arguments.count != function.parameters.Length) {
-            TextSpan span;
+            var count = 0;
 
-            if (expression.arguments.count > function.parameters.Length) {
-                Node firstExceedingNode;
-
-                if (function.parameters.Length > 0)
-                    firstExceedingNode = expression.arguments.GetSeparator(function.parameters.Length - 1);
-                else
-                    firstExceedingNode = expression.arguments[0];
-
-                var lastExceedingNode = expression.arguments.Last();
-                span = TextSpan.FromBounds(firstExceedingNode.span.start, lastExceedingNode.span.end);
-            } else {
-                span = expression.closeParenthesis.span;
+            if (isInner) {
+                foreach (var parameter in function.parameters)
+                    if (parameter.name.StartsWith("$"))
+                        count++;
             }
 
-            var location = new TextLocation(expression.syntaxTree.text, span);
-            diagnostics.Push(Error.IncorrectArgumentsCount(
-                location, function.name, function.parameters.Length, expression.arguments.count));
-            return new BoundErrorExpression();
+            if (!isInner || expression.arguments.count + count != function.parameters.Length) {
+                TextSpan span;
+
+                if (expression.arguments.count > function.parameters.Length) {
+                    Node firstExceedingNode;
+
+                    if (function.parameters.Length > 0)
+                        firstExceedingNode = expression.arguments.GetSeparator(function.parameters.Length - 1);
+                    else
+                        firstExceedingNode = expression.arguments[0];
+
+                    var lastExceedingNode = expression.arguments.Last();
+                    span = TextSpan.FromBounds(firstExceedingNode.span.start, lastExceedingNode.span.end);
+                } else {
+                    span = expression.closeParenthesis.span;
+                }
+
+                var location = new TextLocation(expression.syntaxTree.text, span);
+                diagnostics.Push(Error.IncorrectArgumentsCount(
+                    location, function.name, function.parameters.Length, expression.arguments.count));
+                return new BoundErrorExpression();
+            }
         }
 
         var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
@@ -531,6 +560,25 @@ internal sealed class Binder {
             var parameter = function.parameters[i];
             var boundArgument = BindCast(argument.location, BindExpression(argument), parameter.typeClause);
             boundArguments.Add(boundArgument);
+        }
+
+        if (isInner) {
+            for (int i=expression.arguments.count; i<function.parameters.Length; i++) {
+                var parameter = function.parameters[i];
+
+                var oldTrackSymbols = trackSymbols_;
+                trackSymbols_ = false;
+
+                var argument = new NameExpression(null, new Token(
+                    null, SyntaxType.IDENTIFIER_TOKEN, -1, parameter.name.Substring(1), null,
+                    ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty)
+                );
+
+                trackSymbols_ = oldTrackSymbols;
+                // should never fail
+                var boundArgument = BindCast(null, BindExpression(argument), parameter.typeClause);
+                boundArguments.Add(boundArgument);
+            }
         }
 
         return new BoundCallExpression(function, boundArguments.ToImmutable());
@@ -860,17 +908,25 @@ internal sealed class Binder {
 
     private VariableSymbol BindVariableReference(Token identifier) {
         var name = identifier.text;
+        VariableSymbol reference = null;
 
         switch (scope_.LookupSymbol(name)) {
             case VariableSymbol variable:
-                return variable;
+                reference = variable;
+                break;
             case null:
                 diagnostics.Push(Error.UndefinedName(identifier.location, name));
-                return null;
+                break;
             default:
                 diagnostics.Push(Error.NotAVariable(identifier.location, name));
-                return null;
+                break;
         }
+
+        if (reference != null && trackSymbols_)
+            foreach (var frame in trackedSymbols_)
+                frame.Add(reference);
+
+        return reference;
     }
 
     private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatement expression) {
