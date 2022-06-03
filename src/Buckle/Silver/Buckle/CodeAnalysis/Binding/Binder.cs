@@ -52,10 +52,8 @@ internal sealed class Binder {
 
         var functionDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<FunctionDeclaration>();
 
-        foreach (var function in functionDeclarations) {
-
+        foreach (var function in functionDeclarations)
             binder.BindFunctionDeclaration(function);
-        }
 
         var globalStatements = syntaxTrees.SelectMany(st => st.root.members).OfType<GlobalStatement>();
 
@@ -145,8 +143,25 @@ internal sealed class Binder {
 
             functionBodies.Add(function, loweredBody);
 
-            foreach (var functionBody in binder.functionBodies_)
-                functionBodies.Add(functionBody.function, functionBody.body);
+            foreach (var functionBody in binder.functionBodies_) {
+                var newParameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
+
+                foreach (var parameter in functionBody.function.parameters) {
+                    var name = parameter.name;
+
+                    if (name.StartsWith("$"))
+                        name = name.Substring(1);
+
+                    var newParameter = new ParameterSymbol(name, parameter.typeClause, parameter.ordinal);
+                    newParameters.Add(newParameter);
+                }
+
+                var newFunction = new FunctionSymbol(
+                    functionBody.function.name, newParameters.ToImmutable(), functionBody.function.typeClause,
+                    functionBody.function.declaration);
+
+                functionBodies.Add(newFunction, functionBody.body);
+            }
 
             diagnostics.Move(binder.diagnostics);
         }

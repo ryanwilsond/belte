@@ -570,6 +570,7 @@ internal sealed class Emitter {
         } else if (expression.function == BuiltinFunctions.Input) {
             iLProcessor.Emit(OpCodes.Call, consoleReadLineReference_);
         } else {
+            // TODO: fix this
             var methodDefinition = methods_[expression.function];
             iLProcessor.Emit(OpCodes.Call, methodDefinition);
         }
