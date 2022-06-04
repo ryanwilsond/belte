@@ -382,4 +382,45 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         return new BoundCastExpression(expression.typeClause, rewrote);
     }
+
+    protected override BoundExpression RewriteCallExpression(BoundCallExpression expression) {
+        var function = expression.function;
+        var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
+
+        foreach (var oldParameter in function.parameters) {
+            var name = oldParameter.name.StartsWith("$")
+                ? oldParameter.name.Substring(1)
+                : oldParameter.name;
+
+            var parameter = new ParameterSymbol(name, oldParameter.typeClause, oldParameter.ordinal);
+            parameters.Add(parameter);
+        }
+
+        ImmutableArray<BoundExpression>.Builder builder = null;
+
+        for (int i=0; i<expression.arguments.Length; i++) {
+            var oldArgument = expression.arguments[i];
+            var newArgument = RewriteExpression(oldArgument);
+
+            if (newArgument != oldArgument) {
+                if (builder == null) {
+                    builder = ImmutableArray.CreateBuilder<BoundExpression>(expression.arguments.Length);
+
+                    for (int j=0; j<i; j++)
+                        builder.Add(expression.arguments[j]);
+                }
+            }
+
+            if (builder != null)
+                builder.Add(newArgument);
+        }
+
+        var newFunction = new FunctionSymbol(
+            function.name, parameters.ToImmutable(), function.typeClause, function.declaration);
+
+        if (builder == null)
+            return new BoundCallExpression(newFunction, expression.arguments);
+        else
+            return new BoundCallExpression(newFunction, builder.ToImmutable());
+    }
 }

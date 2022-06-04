@@ -45,6 +45,7 @@ internal sealed class Emitter {
     private readonly MethodReference nullableCtorReference_;
     private readonly MethodReference nullableValueReference_;
     private bool useNullRef = false;
+    private FunctionSymbol currentFunction_;
 
     private TypeDefinition typeDefinition_;
     private FieldDefinition randomFieldDefinition_;
@@ -184,14 +185,16 @@ internal sealed class Emitter {
 
         var objectType = knownTypes_[TypeSymbol.Any];
         typeDefinition_ = new TypeDefinition(
-            "", "Program", TypeAttributes.Abstract | TypeAttributes.Sealed, objectType);
+            "", "<Program>$", TypeAttributes.Abstract | TypeAttributes.Sealed, objectType);
         assemblyDefinition_.MainModule.Types.Add(typeDefinition_);
 
         foreach (var functionWithBody in program.functionBodies)
             EmitFunctionDeclaration(functionWithBody.Key);
 
-        foreach (var functionWithBody in program.functionBodies)
+        foreach (var functionWithBody in program.functionBodies) {
+            currentFunction_ = functionWithBody.Key;
             EmitFunctionBody(functionWithBody.Key, functionWithBody.Value);
+        }
 
         if (program.mainFunction != null)
             assemblyDefinition_.EntryPoint = methods_[program.mainFunction];
@@ -420,13 +423,15 @@ internal sealed class Emitter {
             return;
         }
 
-        if (statement.variable.typeClause.dimensions == 0 && statement.variable.typeClause.isNullable)
+        if (statement.variable.typeClause.dimensions == 0 && statement.variable.typeClause.isNullable &&
+            statement.initializer.type != BoundNodeType.CallExpression)
             iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
 
         EmitExpression(
             iLProcessor, statement.initializer, nullable: statement.variable.typeClause.isNullable, stack: false);
 
-        if (statement.variable.typeClause.dimensions > 0 || !statement.variable.typeClause.isNullable)
+        if (statement.variable.typeClause.dimensions > 0 || !statement.variable.typeClause.isNullable ||
+            statement.initializer.type == BoundNodeType.CallExpression)
             iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
     }
 
@@ -563,17 +568,43 @@ internal sealed class Emitter {
             return;
         }
 
-        if (expression.function == BuiltinFunctions.Print) {
+        if (MethodsMatch(expression.function, BuiltinFunctions.Print)) {
             iLProcessor.Emit(OpCodes.Call, consoleWriteReference_);
-        } else if (expression.function == BuiltinFunctions.PrintLine) {
+        } else if (MethodsMatch(expression.function, BuiltinFunctions.PrintLine)) {
             iLProcessor.Emit(OpCodes.Call, consoleWriteLineReference_);
-        } else if (expression.function == BuiltinFunctions.Input) {
+        } else if (MethodsMatch(expression.function, BuiltinFunctions.Input)) {
             iLProcessor.Emit(OpCodes.Call, consoleReadLineReference_);
         } else {
-            // TODO: fix this
-            var methodDefinition = methods_[expression.function];
+            var methodDefinition = LookupMethod(expression.function);
             iLProcessor.Emit(OpCodes.Call, methodDefinition);
         }
+    }
+
+    private bool MethodsMatch(FunctionSymbol left, FunctionSymbol right) {
+        if (left.name == right.name && left.parameters.Length == right.parameters.Length) {
+            var parametersMatch = true;
+
+            for (int i=0; i<left.parameters.Length; i++) {
+                var checkParameter = left.parameters[i];
+                var parameter = right.parameters[i];
+
+                if (checkParameter.name != parameter.name || checkParameter.typeClause != parameter.typeClause)
+                    parametersMatch = false;
+            }
+
+            if (parametersMatch)
+                return true;
+        }
+
+        return false;
+    }
+
+    private MethodDefinition LookupMethod(FunctionSymbol function) {
+        foreach (var pair in methods_)
+            if (MethodsMatch(pair.Key, function))
+                return pair.Value;
+
+        throw new Exception($"EmitCallExpression: could not find method '{function.name}'");
     }
 
     private void EmitRandomField() {
@@ -641,12 +672,31 @@ internal sealed class Emitter {
             else
                 iLProcessor.Emit(OpCodes.Ldarg, parameter.ordinal);
         } else {
-            var variableDefinition = locals_[expression.variable];
+            try {
+                var variableDefinition = locals_[expression.variable];
 
-            if (!nullable)
-                iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
-            else
-                iLProcessor.Emit(OpCodes.Ldloc, variableDefinition);
+                if (!nullable)
+                    iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
+                else
+                    iLProcessor.Emit(OpCodes.Ldloc, variableDefinition);
+            } catch {
+                // ! This may have side affects
+                ParameterSymbol foundParameter = null;
+
+                foreach (var parameterSymbol in currentFunction_.parameters)
+                    if (parameterSymbol.name == expression.variable.name)
+                        foundParameter = parameterSymbol;
+
+                if (foundParameter != null) {
+                    if (!nullable)
+                        iLProcessor.Emit(OpCodes.Ldarga_S, foundParameter.ordinal);
+                    else
+                        iLProcessor.Emit(OpCodes.Ldarg, foundParameter.ordinal);
+                } else {
+                    throw new Exception(
+                        $"EmitVariableExpression: could not find variable '{expression.variable.name}'");
+                }
+            }
         }
 
         if (!nullable)

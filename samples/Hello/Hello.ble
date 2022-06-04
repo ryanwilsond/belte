@@ -123,11 +123,11 @@ void Main() {
     // * nested tests
     int a = 3;
 
+    PrintLine(MyInner());
+
     int MyInner() {
         return a;
     }
-
-    int b = MyInner();
 
     // * loop tests
     // int i = 10;

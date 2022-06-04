@@ -24,6 +24,10 @@ internal sealed class Binder {
     private Stack<List<VariableSymbol>> trackedSymbols_ = new Stack<List<VariableSymbol>>();
     private bool trackSymbols_ = false;
     private Stack<string> innerPrefix_ = new Stack<string>();
+    private Stack<List<string>> localLocals_ = new Stack<List<string>>();
+    private List<string> resolvedLocals_ = new List<string>();
+    private Dictionary<string, LocalFunctionDeclaration> unresolvedLocals_ =
+        new Dictionary<string, LocalFunctionDeclaration>();
 
     private Binder(bool isScript, BoundScope parent, FunctionSymbol function) {
         isScript_ = isScript;
@@ -100,7 +104,7 @@ internal sealed class Binder {
                         binder.diagnostics.Push(Error.MainAndGlobals(globalStatement.location));
                 } else {
                     mainFunction = new FunctionSymbol(
-                        "Main", ImmutableArray<ParameterSymbol>.Empty, new BoundTypeClause(TypeSymbol.Void));
+                        "<Main>$", ImmutableArray<ParameterSymbol>.Empty, new BoundTypeClause(TypeSymbol.Void));
                 }
             }
         }
@@ -147,10 +151,9 @@ internal sealed class Binder {
                 var newParameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
 
                 foreach (var parameter in functionBody.function.parameters) {
-                    var name = parameter.name;
-
-                    if (name.StartsWith("$"))
-                        name = name.Substring(1);
+                    var name = parameter.name.StartsWith("$")
+                        ? parameter.name.Substring(1)
+                        : parameter.name;
 
                     var newParameter = new ParameterSymbol(name, parameter.typeClause, parameter.ordinal);
                     newParameters.Add(newParameter);
@@ -292,7 +295,7 @@ internal sealed class Binder {
             case SyntaxType.RETURN_STATEMENT:
                 return BindReturnStatement((ReturnStatement)syntax, insideInline);
             case SyntaxType.LOCAL_FUNCTION_DECLARATION:
-                return BindLocalFunctionDeclaration((LocalFunctionDeclaration)syntax);
+                return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
             default:
                 throw new Exception($"BindStatementInternal: unexpected syntax '{syntax.type}'");
         }
@@ -301,7 +304,6 @@ internal sealed class Binder {
     private BoundStatement BindLocalFunctionDeclaration(LocalFunctionDeclaration statement) {
         var functionSymbol = (FunctionSymbol)scope_.LookupSymbol(statement.identifier.text);
         var binder = new Binder(false, scope_, functionSymbol);
-        // need to track all used symbols somehow, and then look them all up and add them to the parameter list
         var oldTrackSymbols = trackSymbols_;
         binder.trackSymbols_ = true;
         binder.trackedSymbols_ = trackedSymbols_;
@@ -528,6 +530,16 @@ internal sealed class Binder {
         }
 
         var isInner = symbol.name.EndsWith("$");
+        innerPrefix_.Push(name);
+        var innerName = ConstructInnerName();
+        innerPrefix_.Pop();
+
+        if (unresolvedLocals_.ContainsKey(innerName) && !resolvedLocals_.Contains(innerName)) {
+            BindLocalFunctionDeclaration(unresolvedLocals_[innerName]);
+            resolvedLocals_.Add(innerName);
+            symbol = scope_.LookupSymbol(name);
+            isInner = true;
+        }
 
         var function = symbol as FunctionSymbol;
         if (function == null) {
@@ -720,6 +732,14 @@ internal sealed class Binder {
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
         scope_ = new BoundScope(scope_);
 
+        var frame = new List<string>();
+
+        if (localLocals_.Count() > 0) {
+            var lastFrame = localLocals_.Pop();
+            frame.AddRange(lastFrame);
+            localLocals_.Push(lastFrame);
+        }
+
         foreach (var statementSyntax in statement.statements) {
             if (statementSyntax is LocalFunctionDeclaration fd) {
                 var declaration = new FunctionDeclaration(
@@ -727,17 +747,37 @@ internal sealed class Binder {
                     fd.parameters, fd.closeParenthesis, fd.body);
 
                 BindFunctionDeclaration(declaration);
+                frame.Add(fd.identifier.text);
+                innerPrefix_.Push(fd.identifier.text);
+
+                unresolvedLocals_.Add(ConstructInnerName(), fd);
+                innerPrefix_.Pop();
             }
         }
+
+        localLocals_.Push(frame);
 
         foreach (var statementSyntax in statement.statements) {
             var state = BindStatement(statementSyntax, insideInline: insideInline);
             statements.Add(state);
         }
 
+        localLocals_.Pop();
         scope_ = scope_.parent;
 
         return new BoundBlockStatement(statements.ToImmutable());
+    }
+
+    private string ConstructInnerName() {
+        var name = "<";
+
+        foreach (var frame in innerPrefix_.Reverse())
+            name += $"{frame}::";
+
+        name = name.Substring(0, name.Length-2);
+        name += ">$";
+
+        return name;
     }
 
     private BoundExpression BindInlineFunctionExpression(InlineFunctionExpression statement) {
