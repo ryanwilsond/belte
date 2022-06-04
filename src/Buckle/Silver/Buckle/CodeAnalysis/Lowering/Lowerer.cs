@@ -10,11 +10,8 @@ namespace Buckle.CodeAnalysis.Lowering;
 internal sealed class Lowerer : BoundTreeRewriter {
     private int labelCount_;
     private int inlineFunctionCount_;
-    private ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Builder functionBodies_;
 
-    private Lowerer(ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Builder functionBodies) {
-        functionBodies_ = functionBodies;
-    }
+    private Lowerer() { }
 
     private BoundLabel GenerateLabel() {
         var name = $"Label{++labelCount_}";
@@ -26,10 +23,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return new FunctionSymbol(name, ImmutableArray<ParameterSymbol>.Empty, returnType);
     }
 
-    public static BoundBlockStatement Lower(
-        FunctionSymbol function, BoundStatement statement,
-        ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Builder functionBodies) {
-        var lowerer = new Lowerer(functionBodies);
+    public static BoundBlockStatement Lower(FunctionSymbol function, BoundStatement statement) {
+        var lowerer = new Lowerer();
         var block = Flatten(function, lowerer.RewriteStatement(statement));
         return RemoveDeadCode(block);
     }
@@ -136,17 +131,17 @@ internal sealed class Lowerer : BoundTreeRewriter {
         continue:
         gotoFalse <condition> end
         <body>
-        goto check
+        goto continue
         break:
         */
         var continueLabel = node.continueLabel;
         var breakLabel = node.breakLabel;
         var gotoFalse = new BoundConditionalGotoStatement(breakLabel, node.condition, false);
-        var gotoCheck = new BoundGotoStatement(continueLabel);
+        var gotoContinue = new BoundGotoStatement(continueLabel);
         var continueLabelStatement = new BoundLabelStatement(continueLabel);
         var breakLabelStatement = new BoundLabelStatement(breakLabel);
         var result = new BoundBlockStatement(ImmutableArray.Create<BoundStatement>(
-            continueLabelStatement, gotoFalse, node.body, gotoCheck, breakLabelStatement
+            continueLabelStatement, gotoFalse, node.body, gotoContinue, breakLabelStatement
         ));
 
         return RewriteStatement(result);
@@ -333,28 +328,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return expression;
 
         return new BoundUnaryExpression(expression.op, operand);
-    }
-
-    protected override BoundExpression RewriteInlineFunctionExpression(BoundInlineFunctionExpression expression) {
-        /*
-        ...<body>...
-
-        --->
-
-        <returnType> inline0() <body>
-
-        ...inline0()...
-
-        */
-        // TODO: need to actually lower inline functions during the binding process
-        // to allow an immediate call to BindLocalFunctionDeclaration
-
-        var inlineFunction = GenerateFunction(expression.returnType);
-        var rewrittenBody = (BoundBlockStatement)RewriteBlockStatement(expression.body);
-        rewrittenBody = Flatten(inlineFunction, rewrittenBody);
-        functionBodies_.Add(inlineFunction, rewrittenBody);
-
-        return RewriteExpression(new BoundCallExpression(inlineFunction, ImmutableArray<BoundExpression>.Empty));
     }
 
     protected override BoundExpression RewriteCastExpression(BoundCastExpression expression) {

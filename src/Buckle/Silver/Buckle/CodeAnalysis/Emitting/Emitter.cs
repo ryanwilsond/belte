@@ -382,7 +382,7 @@ internal sealed class Emitter {
 
     private void EmitReturnStatement(ILProcessor iLProcessor, BoundReturnStatement statement) {
         if (statement.expression != null)
-            EmitExpression(iLProcessor, statement.expression);
+            EmitExpression(iLProcessor, statement.expression, nullable: statement.expression.typeClause.isNullable);
 
         iLProcessor.Emit(OpCodes.Ret);
     }
@@ -390,7 +390,10 @@ internal sealed class Emitter {
     private void EmitConditionalGotoStatement(ILProcessor iLProcessor, BoundConditionalGotoStatement statement) {
         EmitExpression(iLProcessor, statement.condition);
 
-        var opcode = statement.jumpIfTrue ? OpCodes.Brtrue : OpCodes.Brfalse;
+        // TODO: this is getting messed up
+        var opcode = statement.jumpIfTrue
+            ? OpCodes.Brtrue
+            : OpCodes.Brfalse;
         fixups_.Add((iLProcessor.Body.Instructions.Count, statement.label));
         iLProcessor.Emit(opcode, Instruction.Create(OpCodes.Nop));
     }
@@ -657,11 +660,18 @@ internal sealed class Emitter {
 
         if (expression.variable.typeClause.isReference)
             iLProcessor.Emit(OpCodes.Ldloc_S, variableDefinition);
-        else
+        else if (expression.typeClause.isNullable)
             iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
+        else
+            iLProcessor.Emit(OpCodes.Ldloc, variableDefinition);
 
-        EmitExpression(iLProcessor, expression.expression, expression.variable.typeClause.isReference, stack: false);
-        useNullRef = true;
+        var nullable = expression.typeClause.isNullable;
+
+        EmitExpression(
+            iLProcessor, expression.expression, expression.variable.typeClause.isReference,
+            nullable: nullable, stack: false);
+
+        useNullRef = true && nullable;
     }
 
     private void EmitVariableExpression(
@@ -674,11 +684,8 @@ internal sealed class Emitter {
         } else {
             try {
                 var variableDefinition = locals_[expression.variable];
-
-                if (!nullable)
-                    iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
-                else
-                    iLProcessor.Emit(OpCodes.Ldloc, variableDefinition);
+                // ? when is Ldarga_S used
+                iLProcessor.Emit(OpCodes.Ldloc, variableDefinition);
             } catch {
                 // ! This may have side affects
                 ParameterSymbol foundParameter = null;
@@ -688,10 +695,8 @@ internal sealed class Emitter {
                         foundParameter = parameterSymbol;
 
                 if (foundParameter != null) {
-                    if (!nullable)
-                        iLProcessor.Emit(OpCodes.Ldarga_S, foundParameter.ordinal);
-                    else
-                        iLProcessor.Emit(OpCodes.Ldarg, foundParameter.ordinal);
+                    // ? when is Ldarga_S used
+                    iLProcessor.Emit(OpCodes.Ldarg, foundParameter.ordinal);
                 } else {
                     throw new Exception(
                         $"EmitVariableExpression: could not find variable '{expression.variable.name}'");
@@ -699,7 +704,7 @@ internal sealed class Emitter {
             }
         }
 
-        if (!nullable)
+        if (!nullable && expression.variable.typeClause.isNullable)
             iLProcessor.Emit(OpCodes.Call, GetNullableValue(expression.variable.typeClause));
 
         if (expression.variable.typeClause.isReference)
@@ -725,8 +730,8 @@ internal sealed class Emitter {
             }
         }
 
-        EmitExpression(iLProcessor, expression.left);
-        EmitExpression(iLProcessor, expression.right);
+        EmitExpression(iLProcessor, expression.left, nullable: false);
+        EmitExpression(iLProcessor, expression.right, nullable: false);
 
         if (expression.op.opType == BoundBinaryOperatorType.EqualityEquals) {
             if (leftType == TypeSymbol.String && rightType == TypeSymbol.String ||
@@ -954,7 +959,7 @@ internal sealed class Emitter {
     }
 
     private void EmitUnaryExpression(ILProcessor iLProcessor, BoundUnaryExpression expression) {
-        EmitExpression(iLProcessor, expression.operand);
+        EmitExpression(iLProcessor, expression.operand, nullable: false);
 
         if (expression.op.opType == BoundUnaryOperatorType.NumericalIdentity) {
         } else if (expression.op.opType == BoundUnaryOperatorType.NumericalNegation) {

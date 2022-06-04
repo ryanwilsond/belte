@@ -101,8 +101,8 @@ void Main() {
     // PrintLine(k); // false
 
     // * inline tests
-    // int a = 3;
-    // int b = {
+    // [NotNull]int a = 3;
+    // [NotNull]int b = {
     //     if (a > 2)
     //         return 2;
     //     else
@@ -120,26 +120,17 @@ void Main() {
     //     }
     // PrintLine(b);
 
-    // * nested tests
-    int a = 3;
+    // * loop tests
+    [NotNull]int i = 10;
+    [NotNull]int result = 0;
 
-    PrintLine(MyInner());
-
-    int MyInner() {
-        return a;
+    while (i > 0) {
+        result++;
+        i--;
     }
 
-    // * loop tests
-    // int i = 10;
-    // int result = 0;
-
-    // while (i > 0) {
-    //     result++;
-    //     i--;
-    // }
-
-    // PrintLine("Result: " + (string)result);
-    // PrintLine("i: " + (string)i);
+    PrintLine(result);
+    PrintLine(i);
 
     // * casting tests
     // decimal a = 3;

@@ -20,6 +20,7 @@ internal sealed class Binder {
     private readonly List<(FunctionSymbol function, BoundBlockStatement body)> functionBodies_ =
         new List<(FunctionSymbol function, BoundBlockStatement body)>();
     private int labelCount_;
+    private int inlineCount_;
     // functions should be available correctly, so only track variables
     private Stack<List<VariableSymbol>> trackedSymbols_ = new Stack<List<VariableSymbol>>();
     private bool trackSymbols_ = false;
@@ -140,7 +141,7 @@ internal sealed class Binder {
             binder.innerPrefix_.Push(function.name);
 
             var body = binder.BindStatement(function.declaration.body);
-            var loweredBody = Lowerer.Lower(function, body, functionBodies);
+            var loweredBody = Lowerer.Lower(function, body);
 
             if (function.typeClause.lType != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
                 binder.diagnostics.Push(Error.NotAllPathsReturn(function.declaration.identifier.location));
@@ -170,9 +171,7 @@ internal sealed class Binder {
         }
 
         if (globalScope.mainFunction != null && globalScope.statements.Any()) {
-            var body = Lowerer.Lower(
-                globalScope.mainFunction, new BoundBlockStatement(globalScope.statements), functionBodies);
-
+            var body = Lowerer.Lower(globalScope.mainFunction, new BoundBlockStatement(globalScope.statements));
             functionBodies.Add(globalScope.mainFunction, body);
         } else if (globalScope.scriptFunction != null) {
             var statements = globalScope.statements;
@@ -186,7 +185,7 @@ internal sealed class Binder {
                 statements = statements.Add(new BoundReturnStatement(nullValue));
             }
 
-            var body = Lowerer.Lower(globalScope.scriptFunction, new BoundBlockStatement(statements), functionBodies);
+            var body = Lowerer.Lower(globalScope.scriptFunction, new BoundBlockStatement(statements));
             functionBodies.Add(globalScope.scriptFunction, body);
         }
 
@@ -335,11 +334,10 @@ internal sealed class Binder {
         var newFunctionSymbol = new FunctionSymbol(
             innerName, parameters.ToImmutable(), functionSymbol.typeClause, functionSymbol.declaration);
 
-        var builder = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
-        var loweredBody = Lowerer.Lower(newFunctionSymbol, body, builder);
+        var loweredBody = Lowerer.Lower(newFunctionSymbol, body);
 
-        foreach (var function in builder.ToImmutable())
-            functionBodies_.Add((function.Key, function.Value));
+        if (newFunctionSymbol.typeClause.lType != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
+            diagnostics.Push(Error.NotAllPathsReturn(newFunctionSymbol.declaration.identifier.location));
 
         functionBodies_.Add((newFunctionSymbol, loweredBody));
         diagnostics.Move(binder.diagnostics);
@@ -781,22 +779,24 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindInlineFunctionExpression(InlineFunctionExpression statement) {
+        // want to bind to resolve return type, then through away the binding result and bind later
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
+        var block = new BlockStatement(null, null, statement.statements, null);
         scope_ = new BoundScope(scope_);
+        var returnType = new BoundTypeClause(TypeSymbol.Any);
+        var tempFunction = new FunctionSymbol("$temp", ImmutableArray<ParameterSymbol>.Empty, returnType);
+        var binder = new Binder(false, scope_, tempFunction);
 
         foreach (var statementSyntax in statement.statements) {
-            var boundStatement = BindStatement(statementSyntax, insideInline: true);
+            var boundStatement = binder.BindStatement(statementSyntax, insideInline: true);
             statements.Add(boundStatement);
         }
 
+        // the contents of the inline are thrown away
         scope_ = scope_.parent;
 
         var boundBlockStatement = new BoundBlockStatement(statements.ToImmutable());
-        var returnType = new BoundTypeClause(TypeSymbol.Any);
-
-        var tempFunction = new FunctionSymbol("$Inline", ImmutableArray<ParameterSymbol>.Empty, returnType);
-        var tempBuilder = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
-        var loweredBlock = Lowerer.Lower(tempFunction, boundBlockStatement, tempBuilder);
+        var loweredBlock = Lowerer.Lower(tempFunction, boundBlockStatement);
 
         returnType = null;
 
@@ -815,10 +815,66 @@ internal sealed class Binder {
             }
         }
 
-        if (!ControlFlowGraph.AllPathsReturn(loweredBlock))
-            diagnostics.Push(Error.NotAllPathsReturn(statement.closeBrace.location));
+        var name = $"Inline{inlineCount_++}";
+        var oldTypeClause = ReconstructTypeClause(returnType);
+        var identifier = CreateToken(SyntaxType.IDENTIFIER_TOKEN, name);
 
-        return new BoundInlineFunctionExpression(boundBlockStatement, returnType);
+        var declaration = new FunctionDeclaration(
+            null, oldTypeClause, identifier, null,
+            new SeparatedSyntaxList<Parameter>(ImmutableArray<Node>.Empty), null, block);
+
+        scope_.TryDeclareFunction(
+            new FunctionSymbol(name, ImmutableArray<ParameterSymbol>.Empty, returnType, declaration));
+
+        var localFunctionDeclaration = new LocalFunctionDeclaration(
+            null, oldTypeClause, identifier, null,
+            new SeparatedSyntaxList<Parameter>(ImmutableArray<Node>.Empty), null, block
+        );
+
+        BindLocalFunctionDeclaration(localFunctionDeclaration);
+
+        var callExpression = new CallExpression(
+            null, new NameExpression(null, identifier), null,
+            new SeparatedSyntaxList<Expression>(ImmutableArray<Node>.Empty), null);
+
+        // constructing and binding here allows less code duplicate with local function handling
+        return BindCallExpression(callExpression);
+    }
+
+    private Token CreateToken(SyntaxType type, string name = null, object value = null) {
+        // this function ideally wouldn't exist, but used for hacks around the binder
+        return new Token(
+            null, type, -1, name, value,
+            ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
+    }
+
+    private TypeClause ReconstructTypeClause(BoundTypeClause type) {
+        var attributes = ImmutableArray.CreateBuilder<(Token, Token, Token)>();
+        var brackets = ImmutableArray.CreateBuilder<(Token, Token)>();
+
+        if (!type.isNullable)
+            attributes.Add((null, CreateToken(SyntaxType.IDENTIFIER_TOKEN, "NotNull"), null));
+
+        var constRefKeyword = type.isConstantReference
+            ? CreateToken(SyntaxType.CONST_KEYWORD)
+            : null;
+
+        var refKeyword = type.isConstantReference
+            ? CreateToken(SyntaxType.REF_KEYWORD)
+            : null;
+
+        var constKeyword = type.isConstantReference
+            ? CreateToken(SyntaxType.CONST_KEYWORD)
+            : null;
+
+        var typeName = CreateToken(SyntaxType.IDENTIFIER_TOKEN, type.lType.name);
+
+        for (int i=0; i<type.dimensions; i++)
+            brackets.Add((CreateToken(SyntaxType.OPEN_BRACKET_TOKEN), CreateToken(SyntaxType.CLOSE_BRACKET_TOKEN)));
+
+        return new TypeClause(
+            null, attributes.ToImmutable(), constRefKeyword, refKeyword,
+            constKeyword, typeName, brackets.ToImmutable());
     }
 
     private BoundStatement BindExpressionStatement(ExpressionStatement statement) {
