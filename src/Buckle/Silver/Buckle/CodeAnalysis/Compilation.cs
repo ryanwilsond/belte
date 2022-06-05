@@ -142,8 +142,10 @@ public sealed class Compilation {
 
         if (symbol is FunctionSymbol f) {
             f.WriteTo(writer);
-            if (!program.functionBodies.TryGetValue(f, out var body))
+            if (!program.functionBodies.TryGetValue(f, out var body)) {
+                writer.WriteLine();
                 return;
+            }
 
             body.WriteTo(writer);
         } else {

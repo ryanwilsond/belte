@@ -230,7 +230,7 @@ internal sealed class Parser {
         return new GlobalStatement(syntaxTree_, statement);
     }
 
-    private Statement ParseStatement() {
+    private Statement ParseStatement(bool disableInlines = false) {
         if (PeekIsFunctionDeclaration())
             return ParseLocalFunctionDeclaration();
 
@@ -239,7 +239,7 @@ internal sealed class Parser {
 
         switch (current.type) {
             case SyntaxType.OPEN_BRACE_TOKEN:
-                if (!PeekIsInlineFunctionExpression())
+                if (!PeekIsInlineFunctionExpression() || disableInlines)
                     return ParseBlockStatement();
                 else
                     goto default;
@@ -319,7 +319,7 @@ internal sealed class Parser {
 
     private Statement ParseDoWhileStatement() {
         var doKeyword = Match(SyntaxType.DO_KEYWORD);
-        var body = ParseStatement();
+        var body = ParseStatement(true);
         var whileKeyword = Match(SyntaxType.WHILE_KEYWORD);
         var openParenthesis = Match(SyntaxType.OPEN_PAREN_TOKEN);
         var condition = ParseExpression();
@@ -397,7 +397,7 @@ internal sealed class Parser {
         var openParenthesis = Match(SyntaxType.OPEN_PAREN_TOKEN);
         var condition = ParseExpression();
         var closeParenthesis = Match(SyntaxType.CLOSE_PAREN_TOKEN);
-        var body = ParseStatement();
+        var body = ParseStatement(true);
 
         return new WhileStatement(syntaxTree_, keyword, openParenthesis, condition, closeParenthesis, body);
     }
@@ -406,7 +406,7 @@ internal sealed class Parser {
         var keyword = Match(SyntaxType.FOR_KEYWORD);
         var openParenthesis = Match(SyntaxType.OPEN_PAREN_TOKEN);
 
-        var initializer = ParseStatement();
+        var initializer = ParseStatement(true);
         var condition = ParseExpression();
         var semicolon = Match(SyntaxType.SEMICOLON_TOKEN);
 
@@ -428,7 +428,7 @@ internal sealed class Parser {
         var openParenthesis = Match(SyntaxType.OPEN_PAREN_TOKEN);
         var condition = ParseExpression();
         var closeParenthesis = Match(SyntaxType.CLOSE_PAREN_TOKEN);
-        var statement = ParseStatement();
+        var statement = ParseStatement(true);
 
         // not allow nested if statements with else clause without braces; prevents ambiguous else statements
         bool nestedIf = false;
@@ -465,8 +465,8 @@ internal sealed class Parser {
         if (current.type != SyntaxType.ELSE_KEYWORD)
             return null;
 
-        var keyword = Next();
-        var statement = ParseStatement();
+        var keyword = Match(SyntaxType.ELSE_KEYWORD);
+        var statement = ParseStatement(true);
         return new ElseClause(syntaxTree_, keyword, statement);
     }
 

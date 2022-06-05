@@ -38,7 +38,7 @@ internal sealed class Evaluator {
         if (function == null)
             return null;
 
-        var body = functions_[function];
+        var body = LookupMethod(function);
         return EvaluateStatement(body);
     }
 
@@ -223,7 +223,7 @@ internal sealed class Evaluator {
             }
 
             locals_.Push(locals);
-            var statement = functions_[node.function];
+            var statement = LookupMethod(node.function);
             var result = EvaluateStatement(statement);
             locals_.Pop();
 
@@ -231,6 +231,33 @@ internal sealed class Evaluator {
         }
 
         return null;
+    }
+
+    private BoundBlockStatement LookupMethod(FunctionSymbol function) {
+        foreach (var pair in functions_)
+            if (MethodsMatch(pair.Key, function))
+                return pair.Value;
+
+        throw new Exception($"EmitCallExpression: could not find method '{function.name}'");
+    }
+
+    private bool MethodsMatch(FunctionSymbol left, FunctionSymbol right) {
+        if (left.name == right.name && left.parameters.Length == right.parameters.Length) {
+            var parametersMatch = true;
+
+            for (int i=0; i<left.parameters.Length; i++) {
+                var checkParameter = left.parameters[i];
+                var parameter = right.parameters[i];
+
+                if (checkParameter.name != parameter.name || checkParameter.typeClause != parameter.typeClause)
+                    parametersMatch = false;
+            }
+
+            if (parametersMatch)
+                return true;
+        }
+
+        return false;
     }
 
     internal object EvaluateConstantExpression(BoundExpression syntax) {

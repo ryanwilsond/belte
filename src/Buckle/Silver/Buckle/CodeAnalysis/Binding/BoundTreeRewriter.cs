@@ -83,7 +83,7 @@ internal abstract class BoundTreeRewriter {
         if (condition == statement.condition)
             return statement;
 
-        return new BoundConditionalGotoStatement(statement.label, condition);
+        return new BoundConditionalGotoStatement(statement.label, condition, statement.jumpIfTrue);
     }
 
     protected virtual BoundStatement RewriteExpressionStatement(BoundExpressionStatement statement) {

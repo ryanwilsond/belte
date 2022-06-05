@@ -116,16 +116,12 @@ public class EvaluatorTests {
     [InlineData("int a = 0; if (a == 0) { a = 10; } else { a = 5; } return a;", 10)]
     [InlineData("int a = 0; if (a == 4) { a = 10; } else { a = 5; } return a;", 5)]
 
-    [InlineData("int i = 10; int result = 0; while (i > 0) { result++; i--; } return result;", 55)]
-    [InlineData("int result = 0; for (int i=0; i<=10; i++) { result++; } return result;", 55)]
+    [InlineData("int i = 10; int result = 0; while (i > 0) { result++; i--; } return result;", 10)]
+    [InlineData("int result = 1; for (int i=0; i<=10; i++) { result+=result; } return result;", 2048)]
     [InlineData("int result = 0; do { result++; } while (result < 10); return result;", 10)]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
         AssertValue(text, expectedValue);
     }
-
-    /*
-
-    ! These tests are broken for unknown reason
 
     [Fact]
     public void Evaluator_IfStatement_Reports_NotReachableCode_Warning() {
@@ -133,9 +129,9 @@ public class EvaluatorTests {
             void test() {
                 const int x = 4 * 3;
                 if (x > 12) {
-                    [print](""x"");
+                    [PrintLine(""x"")];
                 } else {
-                    print(""x"");
+                    PrintLine(""x"");
                 }
             }
         ";
@@ -193,11 +189,10 @@ public class EvaluatorTests {
     public void Evaluator_ElseStatement_Reports_NotReachableCode_Warning() {
         var text = @"
             int test() {
-                if (true) {
+                if (true)
                     return 1;
-                } else {
+                else
                     [return] 0;
-                }
             }
         ";
 
@@ -227,7 +222,7 @@ public class EvaluatorTests {
 
     [Fact]
     public void Evaluator_InvokeFunctionArguments_NoInfiniteLoop() {
-        var text = @"print(""Hi""[[=]][)];";
+        var text = @"PrintLine(""Hi""[[=]][)];";
 
         var diagnostics = @"
             unexpected token '=', expected ')'
@@ -241,11 +236,11 @@ public class EvaluatorTests {
     [Fact]
     public void Evaluator_InvokeFunctionArguments_Missing() {
         var text = @"
-            print([)];
+            PrintLine([)];
         ";
 
         var diagnostics = @"
-            function 'print' expects 1 argument, got 0
+            function 'PrintLine' expects 1 argument, got 0
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -254,11 +249,11 @@ public class EvaluatorTests {
     [Fact]
     public void Evaluator_InvokeFunctionArguments_Exceeding() {
         var text = @"
-            print(""Hello""[, "" "", "" world!""]);
+            PrintLine(""Hello""[, "" "", "" world!""]);
         ";
 
         var diagnostics = @"
-            function 'print' expects 1 argument, got 3
+            function 'PrintLine' expects 1 argument, got 3
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -268,7 +263,7 @@ public class EvaluatorTests {
     public void Evaluator_FunctionParameters_NoInfiniteLoop() {
         var text = @"
             void hi(string name[[[=]]][)] {
-                print(""Hi "" + name + ""!"");
+                PrintLine(""Hi "" + name + ""!"");
             }[]
         ";
 
@@ -321,7 +316,7 @@ public class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int' to 'bool'
+            cannot convert from type 'int' to '[NotNull]bool'
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -335,7 +330,7 @@ public class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int' to 'bool'
+            cannot convert from type 'int' to '[NotNull]bool'
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -349,7 +344,7 @@ public class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int' to 'bool'
+            cannot convert from type 'int' to '[NotNull]bool'
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -362,7 +357,7 @@ public class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int' to 'bool'
+            cannot convert from type 'int' to '[NotNull]bool'
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -420,11 +415,11 @@ public class EvaluatorTests {
     [Fact]
     public void Evaluator_AssignmentExpression_Reports_CannotAssign() {
         var text = @"
-            [print] = 10;
+            [PrintLine] = 10;
         ";
 
         var diagnostics = @"
-            function 'print' used as a variable
+            function 'PrintLine' used as a variable
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -488,12 +483,12 @@ public class EvaluatorTests {
     [Fact]
     public void Evaluator_Variables_ShadowsFunction() {
         var text = @"
-            int print = 4;
-            [print](""test"");
+            int PrintLine = 4;
+            [PrintLine](""test"");
         ";
 
         var diagnostics = @"
-            called object 'print' is not a function
+            called object 'PrintLine' is not a function
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -643,8 +638,6 @@ public class EvaluatorTests {
 
         AssertDiagnostics(text, diagnostics);
     }
-
-    // */
 
     private void AssertValue(string text, object expectedValue) {
         var syntaxTree = SyntaxTree.Parse(text);

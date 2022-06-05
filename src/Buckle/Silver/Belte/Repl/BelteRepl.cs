@@ -55,7 +55,7 @@ public sealed class BelteRepl : Repl {
 
         if (!handle.diagnostics.Any()) {
             result = compilation.Evaluate(state.variables);
-            handle.diagnostics.Move(result.diagnostics/*.FilterOut(DiagnosticType.Warning)*/);
+            handle.diagnostics.Move(result.diagnostics.FilterOut(DiagnosticType.Warning));
         }
 
         if (handle.diagnostics.Any()) {

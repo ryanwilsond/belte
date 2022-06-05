@@ -200,7 +200,7 @@ internal sealed class Binder {
 
         foreach (var parameter in function.parameters) {
             var parameterName = parameter.identifier.text;
-            var parameterType = BindTypeClause(parameter.typeClause);
+            var parameterType = BindTypeClause(parameter.typeClause, true);
 
             if (!seenParametersNames.Add(parameterName)) {
                 diagnostics.Push(Error.ParameterAlreadyDeclared(parameter.location, parameter.identifier.text));
