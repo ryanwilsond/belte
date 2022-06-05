@@ -668,7 +668,7 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindWhileStatement(WhileStatement statement, bool insideInline = false) {
-        var condition = BindCast(statement.condition, new BoundTypeClause(TypeSymbol.Bool));
+        var condition = BindCast(statement.condition, BoundTypeClause.NullableBool);
 
         if (condition.constantValue != null && !(bool)condition.constantValue.value)
             diagnostics.Push(Warning.UnreachableCode(statement.body));
@@ -679,7 +679,7 @@ internal sealed class Binder {
 
     private BoundStatement BindDoWhileStatement(DoWhileStatement statement, bool insideInline = false) {
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel, insideInline);
-        var condition = BindCast(statement.condition, new BoundTypeClause(TypeSymbol.Bool));
+        var condition = BindCast(statement.condition, BoundTypeClause.NullableBool);
         return new BoundDoWhileStatement(body, condition, breakLabel, continueLabel);
     }
 
@@ -687,7 +687,7 @@ internal sealed class Binder {
         scope_ = new BoundScope(scope_);
 
         var initializer = BindStatement(statement.initializer, insideInline: insideInline);
-        var condition = BindCast(statement.condition, new BoundTypeClause(TypeSymbol.Bool));
+        var condition = BindCast(statement.condition, BoundTypeClause.NullableBool);
         var step = BindExpression(statement.step);
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel, insideInline);
 
@@ -709,7 +709,7 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindIfStatement(IfStatement statement, bool insideInline = false) {
-        var condition = BindCast(statement.condition, new BoundTypeClause(TypeSymbol.Bool));
+        var condition = BindCast(statement.condition, BoundTypeClause.NullableBool);
 
         if (condition.constantValue != null) {
             if ((bool)condition.constantValue.value == false)

@@ -260,25 +260,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return left0;
         }
 
-        ---> <op> is <, >, <=, or >=
-
-        {
-            [NotNull]bool left0 = false;
-            if (<left> != null && <right> != null) {
-                [NotNull]<type> left1 = ([NotNull]<type>)<left>;
-                [NotNull]<type> right0 = ([NotNull]<type>)<right>;
-                left0 = left1 <op> right0;
-            }
-
-            return left0;
-        }
-
         ---> <op> is **
 
         {
             int <n> = <left>;
             for (int i = 1; i < <right>; i+=1)
-                <n> *= <left>; // this will rewrite again to account for null
+                <n> *= <left>;
 
             return <n>;
         }
@@ -297,9 +284,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         // TODO: make sure that when rewriting again it doesnt loop back here infinitely
-
-        // <, >, <=, >= rewrite to return false if <left> or <right> are null
-        // all other operators return null if <left> or <right> are null
 
         return new BoundBinaryExpression(left, expression.op, right);
     }

@@ -316,7 +316,7 @@ public class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int' to '[NotNull]bool'
+            cannot convert from type 'int' to 'bool'
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -330,7 +330,7 @@ public class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int' to '[NotNull]bool'
+            cannot convert from type 'int' to 'bool'
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -344,7 +344,7 @@ public class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int' to '[NotNull]bool'
+            cannot convert from type 'int' to 'bool'
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -357,7 +357,7 @@ public class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int' to '[NotNull]bool'
+            cannot convert from type 'int' to 'bool'
         ";
 
         AssertDiagnostics(text, diagnostics);
