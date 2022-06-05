@@ -612,7 +612,7 @@ internal sealed class Emitter {
 
     private void EmitRandomField() {
         randomFieldDefinition_ = new FieldDefinition(
-                                "$randint", FieldAttributes.Static | FieldAttributes.Private, randomReference_);
+                                "$randInt", FieldAttributes.Static | FieldAttributes.Private, randomReference_);
         typeDefinition_.Fields.Add(randomFieldDefinition_);
         var staticConstructor = new MethodDefinition(
             ".cctor",

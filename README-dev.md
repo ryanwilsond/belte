@@ -17,7 +17,7 @@ gcc/g++ for building. Buckle Strap is a bootstrapping compiler, this uses the Bu
 
 The tools required for building are listed above.
 
-All the following methods put the final exectuable into `./buckle.exe`.
+All the following methods put the final executable into `./buckle.exe`.
 
 ### Buckle Bronze
 
@@ -26,8 +26,8 @@ To setup the environment for the first time run `$ make -f Makebronze.mk setup`.
 
 ### Buckle Silver
 
-Since dotnet handles directories, there is no setup. Run `$ make` to build the project and copy into ./ and run
-`$ make test` to build the test project and run the unit tests.
+Similar with Buckle Bronze, for first time setup run `$ make setup`. Run `$ make` to build the project and copy into ./,
+and run `$ make test` to build the test project and run the unit tests.
 
 ### Buckle Strap
 

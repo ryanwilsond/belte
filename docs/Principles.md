@@ -68,11 +68,11 @@ closer to the machine. This is why some assembly languages and C have them, but 
 hardware level, for speed and space efficiency) there is a benefit to structures, but the developer should not care,
 hence the compiler doing these optimizations without the input of the developer.
 
-One design challange is should bad statements be added because they are commonly used and people would not appreicate
+One design challenge is should bad statements be added because they are commonly used and people would not appreciate
 if they are gone. This is where the choice can be made to either keep on the path of doing it right, or aiming to make
-it accepted by the public. Some examples of this are the `goto` and `do while` statements, lamdas, and the `?:`
+it accepted by the public. Some examples of this are the `goto` and `do while` statements, lambdas, and the `?:`
 operator. All of these examples are hard to read. Goto is a harder to read function, or a hack to exit a nested loop.
-Do while makes you go to the bottom of the statement to read the condition. Lamdas are harder to read inline functions,
+Do while makes you go to the bottom of the statement to read the condition. Lambdas are harder to read inline functions,
 similar to macros. The ?: operator is a harder to read if-else statement, especially because it is not in every
 language.
 
@@ -81,14 +81,102 @@ language ever.
 
 ___
 
+## Design by Contract
+
+Belte supports and encourages contract programming by making it native and very easy with built-in types. This also
+allows built-in types to be more versatile, and reduces the amount of types. For example, instead of having an unsigned
+int, you can add a bound to an int to make it greater than or equal to 0.
+
+Declaring an unsigned int in C vs Belte:
+
+```cpp
+int myInt;
+unsigned int myUint;
+```
+
+```belte
+int myInt;
+int<0> myUint;
+```
+
+Some restrictions you can add to all types are nullability and simple evaluation checks. For example, you can explicitly
+declare that a type cannot be null (as they can be by default). You can also give a type an expression that must
+evaluate to true for every value passing into it. This is achieved by using a `where` statement when inheriting from
+`int`.
+
+```belte
+class MyCustomInt : int where { value > 2; value < 10; } { }
+
+MyCustomInt myVar = 8;
+myVar = 1; // throws
+```
+
+### Integers
+
+The two most important constraints on integers are minimum and maximum. This feature can be used in many scenarios. For
+example, the C# `CompareTo()` method of IComparable returns an int. The return value can mean less than, equal to, or
+greater than. Instead of returning a normal int, Belte would return an `int<-1,1>` to restrict it to 3 values, because
+that is all that is needed (-1 being the minimum with 1 the maximum).
+
+### Strings
+
+Similar to integers, strings have a minimum and maximum bound for length, as well as an exact length and regex match. An
+example is the `char` type is defined as `class char : string<1>` (constant length 1), and not its own unique type.
+
+As mentioned you can enforce a regular expression where the string always needs to comply, else an error is thrown.
+
+```belte
+string<match="^(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$"> phone_number;
+
+phone_number = "123-456-7890";
+phone_number = "(123) 456-7890";
+phone_number = "123 456 7890";
+phone_number = "123.456.7890";
+phone_number = "Hello, world!"; // error
+```
+
+In this example, the string `phone_number` must always be a 10-digit phone number.
+
+___
+
+## First Class Nullability & Attributes
+
+Unlike C# where it was added after the initial release thus making it feel like it was tacked on, Belte makes
+nullability very important in the language. All objects inherit from the object base class, like C#, and part of this
+class includes a attribute template that specifies nullability.
+
+```belte
+class object<attribute NotNull> where { !(NotNull && value == null); } {
+    ...
+}
+```
+
+An attribute is a template argument / generic parameter where instead of passing a value, you just use the attribute
+name as a flag that converts to a boolean true if specified. In the object example, all objects are nullable by default
+but you can specify the `NotNull` attribute to say that the value cannot be null.
+
+```belte
+int<NotNull> myVar = 3;
+myVar = null; // throws
+```
+
+A change from C# is that comparison operators (like <, >, <=, >=) return null if either side is null instead of false.
+This means control of flow statements can have null as the condition, but it will throw a runtime error. This is because
+whenever null is involved anywhere, it means that there is the lack of a value or you don't know the value, so if
+prompted with `null < 5`, null could be anything so it is not always false. This distinction that null is not just the
+lack of a value is important because it is a place where programming ignores the mathematical concept of null partially,
+because of physical concerns.
+
+___
+
 ## Optimization Tasks
 
 A big part of the language is being able to create routines in a class definition to tell the compiler how to optimize
-it if conditions are met. Most of the STI use these to make the smart compiler optimizations possible and implemented.
-This is the unique part of the compiler where niche developers (e.g. STI implementation) go low-level for efficiency.
-This also allows developers to make code and think about optimization later, because they can add these routines to
-object definitions without changing any of their original code\*. This will encourage the creation of more readable and
-intuitive code first, and keeping it like that in the future even if it is a little inefficient,
+it if conditions are met. Most of the STI (Standard Type Implementations) use these to make the smart compiler
+optimizations possible and implemented. This is the unique part of the compiler where niche developers go low-level for
+efficiency. This also allows developers to make code and think about optimization later, because they can add these
+routines to object definitions without changing any of their original code\*. This will encourage the creation of more
+readable and intuitive code first, and keeping it like that in the future even if it is a little inefficient,
 
 \* Of course in a lot of situations the original approach is inefficient and this does not apply. Mostly just for
 custom object implementations.
@@ -113,7 +201,7 @@ ___
 Some of the biggest changes with Belte from other languages are the unique set of provided types. This goes over types
 that have notable design changes.
 
-### NULL
+### Null
 
 Null can be used on any object, and it prevents using the object (calling methods, accessing members). Note that null
 is **not** the same as 0, false, empty string, etc.

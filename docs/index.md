@@ -14,7 +14,6 @@ Also consider taking [this survey.](https://docs.google.com/forms/d/e/1FAIpQLSca
 > For more info about the language try [Principles](Principles.md).
 
 - [Principles](Principles.md)
-- [Design by Contract](DesignContract.md)
 - [Using Buckle](Buckle.md)
 - Standard Library (Shipped-with)
   - [Base](STD/Base.md)\*

@@ -364,7 +364,7 @@ public class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_VariableDelcaration_Reports_Redeclaration() {
+    public void Evaluator_VariableDeclaration_Reports_Redeclaration() {
         var text = @"
             var x = 10;
             var y = 100;
@@ -603,11 +603,11 @@ public class EvaluatorTests {
     [Fact]
     public void Evaluator_InvalidType() {
         var text = @"
-            void func([invalidtype] a) {}
+            void func([invalidType] a) {}
         ";
 
         var diagnostics = @"
-            unknown type 'invalidtype'
+            unknown type 'invalidType'
         ";
 
         AssertDiagnostics(text, diagnostics);
