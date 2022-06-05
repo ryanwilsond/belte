@@ -3,6 +3,8 @@
 This document covers many concepts and inspirations behind Belte, and also its major design principles.
 
 - [Introduction](#introduction--logical-vs-physical)
+- [Design by Contract](#design-by-contract)
+- [Nullability & Attributes](#first-class-nullability--attributes)
 - [Optimization](#optimization-tasks)
 - [Consistency](#consistency)
 - [Data Types](#datatypes)
