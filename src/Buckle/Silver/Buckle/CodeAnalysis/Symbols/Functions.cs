@@ -9,17 +9,17 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal static class BuiltinFunctions {
     public static readonly FunctionSymbol Print = new FunctionSymbol("Print",
-        ImmutableArray.Create(new ParameterSymbol("text", new BoundTypeClause(TypeSymbol.Any, isNullable_: true), 0)),
+        ImmutableArray.Create(new ParameterSymbol("text", BoundTypeClause.NullableAny, 0)),
         new BoundTypeClause(TypeSymbol.Void));
     public static readonly FunctionSymbol PrintLine = new FunctionSymbol("PrintLine",
-        ImmutableArray.Create(new ParameterSymbol("text", new BoundTypeClause(TypeSymbol.Any, isNullable_: true), 0)),
+        ImmutableArray.Create(new ParameterSymbol("text", BoundTypeClause.NullableAny, 0)),
         new BoundTypeClause(TypeSymbol.Void));
     public static readonly FunctionSymbol Input = new FunctionSymbol("Input",
-        ImmutableArray<ParameterSymbol>.Empty,
-        new BoundTypeClause(TypeSymbol.String));
+        ImmutableArray<ParameterSymbol>.Empty, BoundTypeClause.String);
     public static readonly FunctionSymbol Randint = new FunctionSymbol("RandInt",
-        ImmutableArray.Create(new ParameterSymbol("max", new BoundTypeClause(TypeSymbol.Int, isNullable_: true), 0)),
-        new BoundTypeClause(TypeSymbol.Int));
+        ImmutableArray.Create(new ParameterSymbol("max", BoundTypeClause.NullableInt, 0)), BoundTypeClause.Int);
+    public static readonly FunctionSymbol Value = new FunctionSymbol("Value",
+        ImmutableArray.Create(new ParameterSymbol("value", BoundTypeClause.NullableAny, 0)), BoundTypeClause.Any);
 
     internal static IEnumerable<FunctionSymbol> GetAll()
         => typeof(BuiltinFunctions).GetFields(BindingFlags.Public | BindingFlags.Static)

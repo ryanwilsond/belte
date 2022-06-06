@@ -142,4 +142,10 @@ internal sealed class BoundTypeClause : BoundNode {
 
         return true;
     }
+
+    public static BoundTypeClause Copy(BoundTypeClause value) {
+        return new BoundTypeClause(
+            value.lType, value.isImplicit, value.isConstantReference, value.isReference,
+            value.isConstant, value.isNullable, value.isLiteral, value.dimensions);
+    }
 }

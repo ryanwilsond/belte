@@ -121,18 +121,18 @@ void Main() {
     // PrintLine(b);
 
     // * loop tests
-    [NotNull]int i = 10;
-    [NotNull]int result = 0;
+    // [NotNull]int i = 10;
+    // [NotNull]int result = 0;
 
-    while (i > 0) {
-        result++;
-        i--;
-    }
+    // while (i > 0) {
+    //     result++;
+    //     i--;
+    // }
 
-    PrintLine(result);
-    PrintLine(i);
+    // PrintLine(result);
+    // PrintLine(i);
 
     // * casting tests
-    // decimal a = 3;
+    decimal a = 3;
     // int b = (int)a;
 }

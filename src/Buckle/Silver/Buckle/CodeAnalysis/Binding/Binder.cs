@@ -22,7 +22,8 @@ internal sealed class Binder {
     private int labelCount_;
     private int inlineCount_;
     // functions should be available correctly, so only track variables
-    private Stack<List<VariableSymbol>> trackedSymbols_ = new Stack<List<VariableSymbol>>();
+    private Stack<HashSet<VariableSymbol>> trackedSymbols_ = new Stack<HashSet<VariableSymbol>>();
+    private Stack<HashSet<VariableSymbol>> trackedDeclarations_ = new Stack<HashSet<VariableSymbol>>();
     private bool trackSymbols_ = false;
     private Stack<string> innerPrefix_ = new Stack<string>();
     private Stack<List<string>> localLocals_ = new Stack<List<string>>();
@@ -146,7 +147,7 @@ internal sealed class Binder {
             if (function.typeClause.lType != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
                 binder.diagnostics.Push(Error.NotAllPathsReturn(function.declaration.identifier.location));
 
-            functionBodies.Add(function, loweredBody);
+            binder.functionBodies_.Add((function, loweredBody));
 
             foreach (var functionBody in binder.functionBodies_) {
                 var newParameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
@@ -194,13 +195,13 @@ internal sealed class Binder {
     }
 
     private void BindFunctionDeclaration(FunctionDeclaration function) {
-        var type = BindTypeClause(function.returnType, true);
+        var type = BindTypeClause(function.returnType);
         var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
         var seenParametersNames = new HashSet<string>();
 
         foreach (var parameter in function.parameters) {
             var parameterName = parameter.identifier.text;
-            var parameterType = BindTypeClause(parameter.typeClause, true);
+            var parameterType = BindTypeClause(parameter.typeClause);
 
             if (!seenParametersNames.Add(parameterName)) {
                 diagnostics.Push(Error.ParameterAlreadyDeclared(parameter.location, parameter.identifier.text));
@@ -306,7 +307,9 @@ internal sealed class Binder {
         var oldTrackSymbols = trackSymbols_;
         binder.trackSymbols_ = true;
         binder.trackedSymbols_ = trackedSymbols_;
-        binder.trackedSymbols_.Push(new List<VariableSymbol>());
+        binder.trackedDeclarations_ = trackedDeclarations_;
+        binder.trackedSymbols_.Push(new HashSet<VariableSymbol>());
+        binder.trackedDeclarations_.Push(new HashSet<VariableSymbol>());
         innerPrefix_.Push(functionSymbol.name);
         var body = (BoundBlockStatement)binder.BindBlockStatement(functionSymbol.declaration.body);
         trackSymbols_ = oldTrackSymbols;
@@ -320,6 +323,7 @@ internal sealed class Binder {
         innerName += $"{functionSymbol.name}>$";
 
         var usedVariables = binder.trackedSymbols_.Pop();
+        var declaredVariables = binder.trackedDeclarations_.Pop();
         var ordinal = functionSymbol.parameters.Count();
         var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
 
@@ -327,6 +331,9 @@ internal sealed class Binder {
             parameters.Add(parameter);
 
         foreach (var variable in usedVariables) {
+            if (declaredVariables.Contains(variable))
+                continue;
+
             var parameter = new ParameterSymbol($"${variable.name}", variable.typeClause, ordinal++);
             parameters.Add(parameter);
         }
@@ -615,10 +622,72 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindCastExpression(CastExpression expression) {
+        StartEmulation();
+
         var toType = BindTypeClause(expression.typeClause);
         var boundExpression = BindExpression(expression.expression);
+        var expressionType = boundExpression.typeClause;
 
-        return BindCast(expression.location, boundExpression, toType, true);
+        EndEmulation();
+
+        if (toType.isNullable && expressionType.isNullable) {
+            /*
+
+            {
+                <type> result = null;
+                if (<expression> != null) {
+                    result = (<type>)Value(<expression>);
+                }
+                return result;
+            }
+
+            */
+            var result = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<result>$");
+            var nullLiteral = new LiteralExpression(null, CreateToken(SyntaxType.NULL_KEYWORD), null);
+
+            var ifCondition = new BinaryExpression(
+                null, expression.expression, CreateToken(SyntaxType.EXCLAMATION_EQUALS_TOKEN), nullLiteral);
+
+            var callExpression = new CallExpression(
+                null, new NameExpression(null, CreateToken(SyntaxType.IDENTIFIER_TOKEN, "Value")),
+                null, new SeparatedSyntaxList<Expression>(ImmutableArray.Create<Node>(expression.expression)), null);
+
+            var castExpression = new CastExpression(null, null, ReconstructTypeClause(toType), null, callExpression);
+
+            var assignment = new AssignmentExpression(
+                null, result, CreateToken(SyntaxType.EQUALS_TOKEN), castExpression);
+
+            var resultAssignment = new ExpressionStatement(null, assignment, null);
+
+            var ifBody = new BlockStatement(null, null, ImmutableArray.Create<Statement>(resultAssignment), null);
+
+            var body = ImmutableArray.Create<Statement>(new Statement[] {
+                new VariableDeclarationStatement(
+                    null, ReconstructTypeClause(toType), result, null, nullLiteral, null),
+                new IfStatement(null, null, null, ifCondition, null, ifBody, null),
+                new ReturnStatement(null, null, new NameExpression(null, result), null)
+            });
+
+            return BindInlineFunctionExpression(new InlineFunctionExpression(null, null, body, null));
+        } else if (expressionType.isNullable) {
+            /*
+
+            (<type>)Value(<expression>);
+
+            */
+            var realToType = BindTypeClause(expression.typeClause);
+
+            var callExpression = BindCallExpression(
+                new CallExpression(null, new NameExpression(null, CreateToken(SyntaxType.IDENTIFIER_TOKEN, "Value")),
+                null, new SeparatedSyntaxList<Expression>(ImmutableArray.Create<Node>(expression.expression)), null));
+
+            return BindCast(expression.location, callExpression, realToType, true);
+        } else {
+            var realToType = BindTypeClause(expression.typeClause);
+            var realBoundExpression = BindExpression(expression.expression);
+
+            return BindCast(expression.location, realBoundExpression, realToType, true);
+        }
     }
 
     private BoundExpression BindCast(
@@ -782,7 +851,8 @@ internal sealed class Binder {
         // want to bind to resolve return type, then through away the binding result and bind later
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
         var block = new BlockStatement(null, null, statement.statements, null);
-        scope_ = new BoundScope(scope_);
+
+        StartEmulation();
         var returnType = new BoundTypeClause(TypeSymbol.Any);
         var tempFunction = new FunctionSymbol("$temp", ImmutableArray<ParameterSymbol>.Empty, returnType);
         var binder = new Binder(false, scope_, tempFunction);
@@ -792,8 +862,7 @@ internal sealed class Binder {
             statements.Add(boundStatement);
         }
 
-        // the contents of the inline are thrown away
-        scope_ = scope_.parent;
+        EndEmulation();
 
         var boundBlockStatement = new BoundBlockStatement(statements.ToImmutable());
         var loweredBlock = Lowerer.Lower(tempFunction, boundBlockStatement);
@@ -815,7 +884,11 @@ internal sealed class Binder {
             }
         }
 
-        var name = $"Inline{inlineCount_++}";
+        var name = $"$Inline{inlineCount_++}";
+        innerPrefix_.Push(name);
+        var innerName = ConstructInnerName();
+        innerPrefix_.Pop();
+
         var oldTypeClause = ReconstructTypeClause(returnType);
         var identifier = CreateToken(SyntaxType.IDENTIFIER_TOKEN, name);
 
@@ -831,13 +904,12 @@ internal sealed class Binder {
             new SeparatedSyntaxList<Parameter>(ImmutableArray<Node>.Empty), null, block
         );
 
-        BindLocalFunctionDeclaration(localFunctionDeclaration);
+        unresolvedLocals_[innerName] = localFunctionDeclaration;
 
         var callExpression = new CallExpression(
             null, new NameExpression(null, identifier), null,
             new SeparatedSyntaxList<Expression>(ImmutableArray<Node>.Empty), null);
 
-        // constructing and binding here allows less code duplicate with local function handling
         return BindCallExpression(callExpression);
     }
 
@@ -911,51 +983,300 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindUnaryExpression(UnaryExpression expression) {
-        var boundOperand = BindExpression(expression.operand);
+        StartEmulation();
 
-        if (boundOperand.typeClause.lType == TypeSymbol.Error)
-            return new BoundErrorExpression();
+        var operandTemp = BindExpression(expression.operand);
+        var operandType = operandTemp.typeClause;
+        var operandTempType = BoundTypeClause.Copy(operandType);
+        operandTempType.isNullable = false;
 
-        var boundOp = BoundUnaryOperator.Bind(expression.op.type, boundOperand.typeClause);
+        var tempOp = BoundUnaryOperator.Bind(expression.op.type, operandTempType);
+        var opType = tempOp.typeClause;
 
-        if (boundOp == null) {
-            diagnostics.Push(
-                Error.InvalidUnaryOperatorUse(expression.op.location, expression.op.text, boundOperand.typeClause));
-            return new BoundErrorExpression();
+        EndEmulation();
+
+        if (!operandType.isNullable) {
+            var boundOperand = BindExpression(expression.operand);
+
+            if (boundOperand.typeClause.lType == TypeSymbol.Error)
+                return new BoundErrorExpression();
+
+            var boundOp = BoundUnaryOperator.Bind(expression.op.type, boundOperand.typeClause);
+
+            if (boundOp == null) {
+                diagnostics.Push(
+                    Error.InvalidUnaryOperatorUse(expression.op.location, expression.op.text, boundOperand.typeClause));
+                return new BoundErrorExpression();
+            }
+
+            return new BoundUnaryExpression(boundOp, boundOperand);
         }
 
-        return new BoundUnaryExpression(boundOp, boundOperand);
+        /*
+        <op> <operand>
+
+        ---> <operand> is nullable
+
+        {
+            <type> operand0 = null;
+            if (<operand> != null) {
+                [NotNull]<type> operand1 = ([NotNull]<type>)<operand>;
+                operand0 = <op> operand1;
+            }
+            return operand0;
+        }
+
+        */
+        var result = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<result>$");
+        var resultType = BoundTypeClause.Copy(opType);
+        resultType.isNullable = true;
+        var nullLiteral = new LiteralExpression(null, CreateToken(SyntaxType.NULL_KEYWORD), null);
+
+        var ifCondition = new BinaryExpression(
+            null, expression.operand, CreateToken(SyntaxType.EXCLAMATION_EQUALS_TOKEN), nullLiteral);
+
+        var operand0Type = BoundTypeClause.Copy(operandType);
+        operand0Type.isNullable = false;
+        var operand0Identifier = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<operand0>$");
+        var operand0Cast = new CastExpression(
+            null, null, ReconstructTypeClause(operand0Type), null, expression.operand);
+
+        var operand0 = new VariableDeclarationStatement(
+            null, ReconstructTypeClause(operand0Type), operand0Identifier, null, operand0Cast, null);
+
+        var unaryExpression = new UnaryExpression(null, expression.op, new NameExpression(null, operand0Identifier));
+
+        var assignment = new AssignmentExpression(
+            null, result, CreateToken(SyntaxType.EQUALS_TOKEN), unaryExpression);
+
+        var resultAssignment = new ExpressionStatement(null, assignment, null);
+
+        var ifBody = new BlockStatement(
+            null, null, ImmutableArray.Create<Statement>(new Statement[]{ operand0, resultAssignment }), null);
+
+        var body = ImmutableArray.Create<Statement>(new Statement[] {
+            new VariableDeclarationStatement(
+                null, ReconstructTypeClause(resultType), result, null, nullLiteral, null),
+            new IfStatement(null, null, null, ifCondition, null, ifBody, null),
+            new ReturnStatement(null, null, new NameExpression(null, result), null)
+        });
+
+        return BindInlineFunctionExpression(new InlineFunctionExpression(null, null, body, null));
     }
 
     private BoundExpression BindBinaryExpression(BinaryExpression expression) {
-        // TODO: can optimize to see if non-nullable var is compared to null and create a warning
-        var boundLeft = BindExpression(expression.left);
-        var boundRight = BindExpression(expression.right);
+        /*
+        <left> <op> <right>
 
-        if (boundLeft.typeClause.lType == TypeSymbol.Error || boundRight.typeClause.lType == TypeSymbol.Error)
-            return new BoundErrorExpression();
+        TODO
+        ---> <op> is **
 
-        var boundOp = BoundBinaryOperator.Bind(expression.op.type, boundLeft.typeClause, boundRight.typeClause);
+        {
+            int <n> = <left>;
+            for (int i = 1; i < <right>; i+=1)
+                <n> *= <left>;
 
-        if (boundOp == null) {
-            diagnostics.Push(Error.InvalidBinaryOperatorUse(
-                    expression.op.location, expression.op.text, boundLeft.typeClause, boundRight.typeClause));
-            return new BoundErrorExpression();
+            return <n>;
         }
 
-        // could possible move this to ComputeConstant
-        if (boundOp.opType == BoundBinaryOperatorType.LessThan ||
-            boundOp.opType == BoundBinaryOperatorType.LessOrEqual ||
-            boundOp.opType == BoundBinaryOperatorType.GreaterThan ||
-            boundOp.opType == BoundBinaryOperatorType.GreatOrEqual ||
-            boundOp.opType == BoundBinaryOperatorType.EqualityEquals ||
-            boundOp.opType == BoundBinaryOperatorType.EqualityNotEquals) {
-            if (boundLeft.constantValue != null && boundRight.constantValue != null &&
-                (boundLeft.constantValue.value == null) != (boundRight.constantValue.value == null))
-                diagnostics.Push(Warning.AlwaysValue(expression.location, false));
+        */
+        StartEmulation();
+
+        var leftTemp = BindExpression(expression.left);
+        var leftType = leftTemp.typeClause;
+        var leftTempType = BoundTypeClause.Copy(leftType);
+        leftTempType.isNullable = false;
+
+        var rightTemp = BindExpression(expression.right);
+        var rightType = rightTemp.typeClause;
+        var rightTempType = BoundTypeClause.Copy(rightType);
+        rightTempType.isNullable = false;
+
+        var tempOp = BoundBinaryOperator.Bind(expression.op.type, leftTempType, rightTempType);
+        var opType = tempOp.typeClause;
+
+        EndEmulation();
+
+        if ((!leftType.isNullable && !rightType.isNullable) ||
+            (expression.op.type == SyntaxType.EQUALS_EQUALS_TOKEN ||
+            expression.op.type == SyntaxType.EXCLAMATION_EQUALS_TOKEN)) {
+            var boundLeft = BindExpression(expression.left);
+            var boundRight = BindExpression(expression.right);
+
+            if (boundLeft.typeClause.lType == TypeSymbol.Error || boundRight.typeClause.lType == TypeSymbol.Error)
+                return new BoundErrorExpression();
+
+            var boundOp = BoundBinaryOperator.Bind(expression.op.type, boundLeft.typeClause, boundRight.typeClause);
+
+            if (boundOp == null) {
+                diagnostics.Push(Error.InvalidBinaryOperatorUse(
+                        expression.op.location, expression.op.text, boundLeft.typeClause, boundRight.typeClause));
+                return new BoundErrorExpression();
+            }
+
+            // could possible move this to ComputeConstant
+            if (boundOp.opType == BoundBinaryOperatorType.EqualityEquals ||
+                boundOp.opType == BoundBinaryOperatorType.EqualityNotEquals) {
+                if (boundLeft.constantValue != null && boundRight.constantValue != null &&
+                    (boundLeft.constantValue.value == null) != (boundRight.constantValue.value == null))
+                    diagnostics.Push(Warning.AlwaysValue(expression.location, false));
+            }
+
+            if (boundOp.opType == BoundBinaryOperatorType.LessThan ||
+                boundOp.opType == BoundBinaryOperatorType.LessOrEqual ||
+                boundOp.opType == BoundBinaryOperatorType.GreaterThan ||
+                boundOp.opType == BoundBinaryOperatorType.GreatOrEqual) {
+                if (boundLeft.constantValue != null && boundRight.constantValue != null &&
+                    (boundLeft.constantValue.value == null) != (boundRight.constantValue.value == null))
+                    diagnostics.Push(Warning.AlwaysValue(expression.location, null));
+            }
+
+            return new BoundBinaryExpression(boundLeft, boundOp, boundRight);
         }
 
-        return new BoundBinaryExpression(boundLeft, boundOp, boundRight);
+        var result = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<result>$");
+        var resultType = BoundTypeClause.Copy(opType);
+        resultType.isNullable = true;
+        var nullLiteral = new LiteralExpression(null, CreateToken(SyntaxType.NULL_KEYWORD), null);
+        Expression ifCondition = new LiteralExpression(null, CreateToken(SyntaxType.FALSE_KEYWORD), false);
+        var ifBody = new BlockStatement(null, null, ImmutableArray<Statement>.Empty, null);
+
+        if (leftType.isNullable && rightType.isNullable) {
+            /*
+
+            {
+                <type> result = null;
+                if (<left> != null && <right> != null) {
+                    [NotNull]<type> left0 = ([NotNull]<type>)<left>;
+                    [NotNull]<type> right0 = ([NotNull]<type>)<right>;
+                    result = left0 <op> right0;
+                }
+                return result;
+            }
+
+            */
+            var leftCheck = new BinaryExpression(
+                null, expression.left, CreateToken(SyntaxType.EXCLAMATION_EQUALS_TOKEN), nullLiteral);
+            var rightCheck = new BinaryExpression(
+                null, expression.right, CreateToken(SyntaxType.EXCLAMATION_EQUALS_TOKEN), nullLiteral);
+
+            ifCondition = new BinaryExpression(
+                null, leftCheck, CreateToken(SyntaxType.AMPERSAND_AMPERSAND_TOKEN), rightCheck);
+
+            var left0Type = BoundTypeClause.Copy(leftType);
+            left0Type.isNullable = false;
+            var left0Identifier = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<left0>$");
+            var left0Cast = new CastExpression(null, null, ReconstructTypeClause(left0Type), null, expression.left);
+
+            var right0Type = BoundTypeClause.Copy(rightType);
+            right0Type.isNullable = false;
+            var right0Identifier = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<right0>$");
+            var right0Cast = new CastExpression(null, null, ReconstructTypeClause(right0Type), null, expression.right);
+
+            var left0 = new VariableDeclarationStatement(
+                null, ReconstructTypeClause(left0Type), left0Identifier, null, left0Cast, null);
+            var right0 = new VariableDeclarationStatement(
+                null, ReconstructTypeClause(right0Type), right0Identifier, null, right0Cast, null);
+
+            var binaryExpression = new BinaryExpression(
+                null, new NameExpression(null, left0Identifier),
+                expression.op, new NameExpression(null, right0Identifier));
+
+            var assignment = new AssignmentExpression(
+                null, result, CreateToken(SyntaxType.EQUALS_TOKEN), binaryExpression);
+
+            var resultAssignment = new ExpressionStatement(null, assignment, null);
+
+            ifBody = new BlockStatement(
+                null, null, ImmutableArray.Create<Statement>(new Statement[]{ left0, right0, resultAssignment }), null);
+        } else if (leftType.isNullable) {
+            /*
+
+            {
+                <type> result = null;
+                if (<left> != null) {
+                    [NotNull]<type> left0 = ([NotNull]<type>)<left>;
+                    result = left0 <op> <right>;
+                }
+                return result;
+            }
+
+            */
+            ifCondition = new BinaryExpression(
+                null, expression.left, CreateToken(SyntaxType.EXCLAMATION_EQUALS_TOKEN), nullLiteral);
+
+            var left0Type = BoundTypeClause.Copy(leftType);
+            left0Type.isNullable = false;
+            var left0Identifier = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<left0>$");
+            var left0Cast = new CastExpression(null, null, ReconstructTypeClause(left0Type), null, expression.left);
+
+            var left0 = new VariableDeclarationStatement(
+                null, ReconstructTypeClause(left0Type), left0Identifier, null, left0Cast, null);
+
+            var binaryExpression = new BinaryExpression(
+                null, new NameExpression(null, left0Identifier),
+                expression.op, expression.right);
+
+            var assignment = new AssignmentExpression(
+                null, result, CreateToken(SyntaxType.EQUALS_TOKEN), binaryExpression);
+
+            var resultAssignment = new ExpressionStatement(null, assignment, null);
+
+            ifBody = new BlockStatement(
+                null, null, ImmutableArray.Create<Statement>(new Statement[]{ left0, resultAssignment }), null);
+        } else if (rightType.isNullable) {
+            /*
+
+            {
+                <type> result = null;
+                if (<right> != null) {
+                    [NotNull]<type> right0 = ([NotNull]<type>)<right>;
+                    result = <left> <op> right0;
+                }
+                return result;
+            }
+
+            */
+            ifCondition = new BinaryExpression(
+                null, expression.right, CreateToken(SyntaxType.EXCLAMATION_EQUALS_TOKEN), nullLiteral);
+
+            var right0Type = BoundTypeClause.Copy(rightType);
+            right0Type.isNullable = false;
+            var right0Identifier = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<right0>$");
+            var right0Cast = new CastExpression(null, null, ReconstructTypeClause(right0Type), null, expression.right);
+
+            var right0 = new VariableDeclarationStatement(
+                null, ReconstructTypeClause(right0Type), right0Identifier, null, right0Cast, null);
+
+            var binaryExpression = new BinaryExpression(
+                null, expression.left,
+                expression.op, new NameExpression(null, right0Identifier));
+
+            var assignment = new AssignmentExpression(
+                null, result, CreateToken(SyntaxType.EQUALS_TOKEN), binaryExpression);
+
+            var resultAssignment = new ExpressionStatement(null, assignment, null);
+
+            ifBody = new BlockStatement(
+                null, null, ImmutableArray.Create<Statement>(new Statement[]{ right0, resultAssignment }), null);
+        }
+
+        var body = ImmutableArray.Create<Statement>(new Statement[] {
+            new VariableDeclarationStatement(
+                null, ReconstructTypeClause(resultType), result, null, nullLiteral, null),
+            new IfStatement(null, null, null, ifCondition, null, ifBody, null),
+            new ReturnStatement(null, null, new NameExpression(null, result), null)
+        });
+
+        return BindInlineFunctionExpression(new InlineFunctionExpression(null, null, body, null));
+    }
+
+    private void EndEmulation() {
+        scope_ = scope_.parent;
+    }
+
+    private void StartEmulation() {
+        scope_ = new BoundScope(scope_);
     }
 
     private BoundExpression BindParenExpression(ParenthesisExpression expression) {
@@ -1041,7 +1362,7 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatement expression) {
-        var typeClause = BindTypeClause(expression.typeClause, true);
+        var typeClause = BindTypeClause(expression.typeClause);
 
         if (typeClause.isImplicit && expression.initializer == null) {
             diagnostics.Push(Error.NoInitOnImplicit(expression.identifier.location));
@@ -1146,7 +1467,9 @@ internal sealed class Binder {
         }
     }
 
-    private BoundTypeClause BindTypeClause(TypeClause type, bool isNullable = false) {
+    private BoundTypeClause BindTypeClause(TypeClause type) {
+        bool isNullable = true;
+
         foreach (var attribute in type.attributes) {
             if (attribute.identifier.text == "NotNull")
                 isNullable = false;
@@ -1178,6 +1501,10 @@ internal sealed class Binder {
 
         if (declare && !scope_.TryDeclareVariable(variable))
             diagnostics.Push(Error.AlreadyDeclared(identifier.location, name));
+
+        if (trackSymbols_)
+            foreach (var frame in trackedDeclarations_)
+                frame.Add(variable);
 
         return variable;
     }

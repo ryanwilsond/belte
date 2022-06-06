@@ -213,6 +213,13 @@ internal sealed class Evaluator {
                 random_ = new Random();
 
             return random_.Next(max);
+        } else if (node.function.name == "Value") {
+            object? value = EvaluateExpression(node.arguments[0]);
+
+            if (value == null)
+                throw new NullReferenceException();
+
+            return value;
         } else {
             var locals = new Dictionary<VariableSymbol, object>();
 
@@ -238,7 +245,7 @@ internal sealed class Evaluator {
             if (MethodsMatch(pair.Key, function))
                 return pair.Value;
 
-        throw new Exception($"EmitCallExpression: could not find method '{function.name}'");
+        throw new Exception($"LookupMethod: could not find method '{function.name}'");
     }
 
     private bool MethodsMatch(FunctionSymbol left, FunctionSymbol right) {

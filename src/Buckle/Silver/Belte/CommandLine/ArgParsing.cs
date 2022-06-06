@@ -121,6 +121,14 @@ public static partial class BuckleCommandLine {
         if (showMachine || showHelp || showVersion)
             return state;
 
+        if (state.buildMode == BuildMode.Dotnet) {
+            references.AddRange(new string[] {
+                "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/3.1.0/ref/netcoreapp3.1/System.Console.dll",
+                "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/3.1.0/ref/netcoreapp3.1/System.Runtime.dll",
+                "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/3.1.0/ref/netcoreapp3.1/System.Runtime.Extensions.dll"
+            });
+        }
+
         state.tasks = tasks.ToArray();
         state.references = references.ToArray();
         state.options = options.ToArray();
@@ -142,7 +150,7 @@ public static partial class BuckleCommandLine {
 
         if ((specifyStage || specifyOut) && state.buildMode == BuildMode.Interpreter)
             diagnostics.Push(
-                DiagnosticType.Fatal, "cannot specify outfile or use '-p', '-s', or '-c' with interpreter");
+                DiagnosticType.Fatal, "cannot specify output path or use '-p', '-s', or '-c' with interpreter");
 
         if (specifyModule && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(DiagnosticType.Fatal, "cannot specify module name without .NET integration");
@@ -152,6 +160,8 @@ public static partial class BuckleCommandLine {
 
         if (state.tasks.Length == 0 && !(state.buildMode == BuildMode.Repl))
             diagnostics.Push(DiagnosticType.Fatal, "no input files");
+
+        state.outputFilename = state.outputFilename.Trim();
 
         return state;
     }

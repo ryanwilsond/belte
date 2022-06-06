@@ -57,9 +57,9 @@ internal sealed partial class PrefixExpression : Expression {
     }
 }
 internal sealed partial class ParenthesisExpression : Expression {
-    public Token openParenthesis { get; }
+    public Token? openParenthesis { get; }
     public Expression expression { get; }
-    public Token closeParenthesis { get; }
+    public Token? closeParenthesis { get; }
     public override SyntaxType type => SyntaxType.PARENTHESIZED_EXPRESSION;
 
     public ParenthesisExpression(
@@ -113,9 +113,9 @@ internal sealed partial class EmptyExpression : Expression {
 
 internal sealed partial class CallExpression : Expression {
     public NameExpression identifier { get; }
-    public Token openParenthesis { get; }
+    public Token? openParenthesis { get; }
     public SeparatedSyntaxList<Expression> arguments { get; }
-    public Token closeParenthesis { get; }
+    public Token? closeParenthesis { get; }
     public override SyntaxType type => SyntaxType.CALL_EXPRESSION;
 
     public CallExpression(
@@ -131,9 +131,9 @@ internal sealed partial class CallExpression : Expression {
 
 internal sealed partial class  IndexExpression : Expression {
     public Expression operand { get; }
-    public Token openBracket { get; }
+    public Token? openBracket { get; }
     public Expression index { get; }
-    public Token closeBracket { get; }
+    public Token? closeBracket { get; }
     public override SyntaxType type => SyntaxType.INDEX_EXPRESSION;
 
     public IndexExpression(
@@ -147,9 +147,9 @@ internal sealed partial class  IndexExpression : Expression {
 }
 
 internal sealed partial class InitializerListExpression : Expression {
-    public Token openBrace { get; }
+    public Token? openBrace { get; }
     public SeparatedSyntaxList<Expression> items { get; }
-    public Token closeBrace { get; }
+    public Token? closeBrace { get; }
     public override SyntaxType type => SyntaxType.LITERAL_EXPRESSION;
 
     public InitializerListExpression(SyntaxTree syntaxTree,
@@ -173,9 +173,9 @@ internal sealed partial class ReferenceExpression : Expression {
 }
 
 internal sealed partial class InlineFunctionExpression : Expression {
-    public Token openBrace { get; }
+    public Token? openBrace { get; }
     public ImmutableArray<Statement> statements { get; }
-    public Token closeBrace { get; }
+    public Token? closeBrace { get; }
     public override SyntaxType type => SyntaxType.INLINE_FUNCTION;
 
     public InlineFunctionExpression(
@@ -188,9 +188,9 @@ internal sealed partial class InlineFunctionExpression : Expression {
 }
 
 internal sealed partial class CastExpression : Expression {
-    public Token openParenthesis { get; }
+    public Token? openParenthesis { get; }
     public TypeClause typeClause { get; }
-    public Token closeParenthesis { get; }
+    public Token? closeParenthesis { get; }
     public Expression expression { get; }
     public override SyntaxType type => SyntaxType.CAST_EXPRESSION;
 

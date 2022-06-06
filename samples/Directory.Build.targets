@@ -4,10 +4,7 @@
 
   <Target Name="CoreCompile" DependsOnTargets="$(CoreCompileDependsOn)">
     <ItemGroup>
-      <ReferencePath Remove="@(ReferencePath)"
-        Condition="'%(FileName)' != 'System.Runtime' AND
-        '%(FileName)' != 'System.Console' AND
-        '%(FileName)' != 'System.Runtime.Extensions'" />
+      <ReferencePath Remove="@(ReferencePath)"/>
     </ItemGroup>
 
     <PropertyGroup>

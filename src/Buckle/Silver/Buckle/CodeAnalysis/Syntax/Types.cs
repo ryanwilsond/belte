@@ -167,7 +167,7 @@ internal abstract class Node {
         syntaxTree = syntaxTree_;
     }
 
-    public TextLocation location => new TextLocation(syntaxTree.text, span);
+    public TextLocation location => syntaxTree == null ? null : new TextLocation(syntaxTree.text, span);
 
     public abstract IEnumerable<Node> GetChildren();
 
