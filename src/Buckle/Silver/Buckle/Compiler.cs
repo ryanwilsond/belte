@@ -64,7 +64,7 @@ public sealed class Compiler {
 
     private int CheckErrors() {
         foreach (Diagnostic diagnostic in diagnostics)
-            if (diagnostic.type == DiagnosticType.Error)
+            if (diagnostic.info.severity == DiagnosticType.Error)
                 return ERROR_EXIT_CODE;
 
         return SUCCESS_EXIT_CODE;

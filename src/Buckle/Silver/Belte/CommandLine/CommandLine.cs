@@ -67,19 +67,24 @@ Options:
 
         ConsoleColor highlightColor = ConsoleColor.White;
 
-        if (diagnostic.type == DiagnosticType.Error) {
+        if (diagnostic.info.severity == DiagnosticType.Error) {
             highlightColor = ConsoleColor.Red;
             Console.ForegroundColor = highlightColor;
-            Console.Write(" error: ");
-        } else if (diagnostic.type == DiagnosticType.Fatal) {
+            Console.Write(" error");
+        } else if (diagnostic.info.severity == DiagnosticType.Fatal) {
             highlightColor = ConsoleColor.Red;
             Console.ForegroundColor = highlightColor;
-            Console.Write(" fatal error: ");
-        } else if (diagnostic.type == DiagnosticType.Warning) {
+            Console.Write(" fatal error");
+        } else if (diagnostic.info.severity == DiagnosticType.Warning) {
             highlightColor = ConsoleColor.Magenta;
             Console.ForegroundColor = highlightColor;
-            Console.Write(" warning: ");
+            Console.Write(" warning");
         }
+
+        if (diagnostic.info.code != null)
+            Console.Write($"BU{}: ");
+        else
+            Console.WriteLine(:)
 
         Console.ResetColor();
         Console.WriteLine(diagnostic.message);
@@ -126,23 +131,23 @@ Options:
 
         Diagnostic diagnostic = compiler.diagnostics.Pop();
         while (diagnostic != null) {
-            if (diagnostic.type == DiagnosticType.Unknown) {
+            if (diagnostic.info.severity == DiagnosticType.Unknown) {
             } else if (diagnostic.location == null) {
                 Console.Write($"{me}: ");
 
-                if (diagnostic.type == DiagnosticType.Warning) {
+                if (diagnostic.info.severity == DiagnosticType.Warning) {
                     if (worst == DiagnosticType.Unknown)
                         worst = DiagnosticType.Warning;
 
                     Console.ForegroundColor = ConsoleColor.Magenta;
                     Console.Write("warning: ");
-                } else if (diagnostic.type == DiagnosticType.Error) {
+                } else if (diagnostic.info.severity == DiagnosticType.Error) {
                     if (worst != DiagnosticType.Fatal)
                         worst = DiagnosticType.Error;
 
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.Write("error: ");
-                } else if (diagnostic.type == DiagnosticType.Fatal) {
+                } else if (diagnostic.info.severity == DiagnosticType.Fatal) {
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.Write("fatal error: ");
                     worst = DiagnosticType.Fatal;

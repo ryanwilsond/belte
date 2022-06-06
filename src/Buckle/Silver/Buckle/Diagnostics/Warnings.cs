@@ -21,6 +21,10 @@ internal static class Warning {
         return UnreachableCode(node.GetChildren().FirstOrDefault().location);
     }
 
+    private static DiagnosticInfo WarningInfo(DiagnosticCode code) {
+        return new DiagnosticInfo((int)code, DiagnosticType.Warning);
+    }
+
     internal static Diagnostic UnreachableCode(TextLocation location) {
         var message = "unreachable code";
         return new Diagnostic(DiagnosticType.Warning, location, message);

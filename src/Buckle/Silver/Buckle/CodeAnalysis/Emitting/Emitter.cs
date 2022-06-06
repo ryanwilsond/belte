@@ -21,6 +21,14 @@ internal sealed class Emitter {
         new Dictionary<FunctionSymbol, MethodDefinition>();
     private readonly AssemblyDefinition assemblyDefinition_;
     private readonly Dictionary<TypeSymbol, TypeReference> knownTypes_;
+    private readonly Dictionary<VariableSymbol, VariableDefinition> locals_ =
+        new Dictionary<VariableSymbol, VariableDefinition>();
+    private readonly List<(int instructionIndex, BoundLabel target)> fixups_ =
+        new List<(int instructionIndex, BoundLabel target)>();
+    private readonly Dictionary<BoundLabel, int> labels_ = new Dictionary<BoundLabel, int>();
+    private bool useNullRef = false;
+    private FunctionSymbol currentFunction_;
+
     private readonly MethodReference consoleWriteReference_;
     private readonly MethodReference consoleWriteLineReference_;
     private readonly MethodReference consoleReadLineReference_;
@@ -28,11 +36,6 @@ internal sealed class Emitter {
     private readonly MethodReference stringConcat3Reference_;
     private readonly MethodReference stringConcat4Reference_;
     private readonly MethodReference stringConcatArrayReference_;
-    private readonly Dictionary<VariableSymbol, VariableDefinition> locals_ =
-        new Dictionary<VariableSymbol, VariableDefinition>();
-    private readonly List<(int instructionIndex, BoundLabel target)> fixups_ =
-        new List<(int instructionIndex, BoundLabel target)>();
-    private readonly Dictionary<BoundLabel, int> labels_ = new Dictionary<BoundLabel, int>();
     private readonly MethodReference convertToBooleanReference_;
     private readonly MethodReference convertToInt32Reference_;
     private readonly MethodReference convertToStringReference_;
@@ -45,8 +48,6 @@ internal sealed class Emitter {
     private readonly MethodReference nullableCtorReference_;
     private readonly MethodReference nullableValueReference_;
     private readonly MethodReference nullableHasValueReference_;
-    private bool useNullRef = false;
-    private FunctionSymbol currentFunction_;
 
     private TypeDefinition typeDefinition_;
     private FieldDefinition randomFieldDefinition_;

@@ -1364,6 +1364,9 @@ internal sealed class Binder {
     private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatement expression) {
         var typeClause = BindTypeClause(expression.typeClause);
 
+        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+            return null;
+
         if (typeClause.isImplicit && expression.initializer == null) {
             diagnostics.Push(Error.NoInitOnImplicit(expression.identifier.location));
             return null;

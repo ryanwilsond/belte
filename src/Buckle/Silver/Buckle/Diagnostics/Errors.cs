@@ -4,7 +4,6 @@ using Buckle.CodeAnalysis.Text;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Binding;
-using System;
 
 namespace Buckle.Diagnostics;
 
@@ -14,8 +13,12 @@ internal static class Error {
         // given compiler is finished this will be empty
         public static Diagnostic GlobalReturnValue(TextLocation location) {
             var message = $"unsupported: global return cannot return a value";
-            return new Diagnostic(DiagnosticType.Error, location, message);
+            return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_GlobalReturnValue), location, message);
         }
+    }
+
+    private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
+        return new DiagnosticInfo((int)code, DiagnosticType.Error);
     }
 
     private static string DiagnosticText(SyntaxType type) {
@@ -37,17 +40,17 @@ internal static class Error {
 
     public static Diagnostic InvalidReference(string reference) {
         var message = $"{reference}: no such file or invalid file type";
-        return new Diagnostic(DiagnosticType.Error, null, message);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidReference), null, message);
     }
 
     public static Diagnostic InvalidType(TextLocation location, string text, TypeSymbol type) {
         var message = $"'{text}' is not a valid '{type}'";
-        return new Diagnostic(DiagnosticType.Error, location, message);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidType), location, message);
     }
 
     public static Diagnostic BadCharacter(TextLocation location, int position, char input) {
         var message = $"unknown character '{input}'";
-        return new Diagnostic(DiagnosticType.Error, location, message);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_BadCharacter), location, message);
     }
 
     public static Diagnostic UnexpectedToken(TextLocation location, SyntaxType unexpected, SyntaxType expected) {
@@ -58,7 +61,7 @@ internal static class Error {
         else
             message = $"expected {DiagnosticText(expected)} at end of input";
 
-        return new Diagnostic(DiagnosticType.Error, location, message);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnexpectedToken), location, message);
     }
 
     public static Diagnostic InvalidUnaryOperatorUse(TextLocation location, string op, BoundTypeClause operand) {
@@ -224,7 +227,7 @@ internal static class Error {
             $"cannot convert from type '{from}' to '{to}'. " +
             "An explicit conversion exists (are you missing a cast?)";
         var suggestion = $"({to})%"; // % is replaced with all the text at `location`
-        return new Diagnostic(DiagnosticType.Error, location, message, suggestion);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotConvertImplicity), location, message, suggestion);
     }
 
     public static Diagnostic InvalidBreakOrContinue(TextLocation location, string text) {

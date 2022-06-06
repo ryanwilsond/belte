@@ -1,7 +1,6 @@
 using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.Diagnostics;
@@ -13,8 +12,33 @@ public enum DiagnosticType {
     Unknown,
 }
 
+public sealed class DiagnosticInfo {
+    internal DiagnosticType severity { get; }
+    internal int? code { get; }
+
+    internal DiagnosticInfo() {
+        code = null;
+        severity = DiagnosticType.Unknown;
+    }
+
+    internal DiagnosticInfo(int code_) {
+        code = code_;
+        severity = DiagnosticType.Unknown;
+    }
+
+    internal DiagnosticInfo(DiagnosticType severity_) {
+        code = null;
+        severity = severity_;
+    }
+
+    internal DiagnosticInfo(int code_, DiagnosticType severity_) {
+        code = code_;
+        severity = severity_;
+    }
+}
+
 public sealed class Diagnostic {
-    public DiagnosticType type { get; }
+    public DiagnosticInfo info { get; }
     public string message { get; }
     public TextLocation location { get; }
     public string suggestion { get; }
@@ -22,18 +46,23 @@ public sealed class Diagnostic {
     /// <summary>
     /// A diagnostic message with a specific location
     /// </summary>
-    /// <param name="type_">Severity of diagnostic</param>
-    /// <param name="span_">Location of the diagnostic</param>
+    /// <param name="info_">Severity and code of diagnostic</param>
+    /// <param name="location_">Location of the diagnostic</param>
     /// <param name="message_">Message/info on the diagnostic</param>
-    public Diagnostic(DiagnosticType type_, TextLocation location_, string message_, string suggestion_) {
-        type = type_;
+    /// <param name="suggestion_">A possible solution to the problem</param>
+    public Diagnostic(
+        DiagnosticInfo info_, TextLocation location_, string message_, string suggestion_) {
+        info = info_;
         message = message_;
         location = location_;
         suggestion = suggestion_;
     }
 
+    public Diagnostic(DiagnosticInfo info, TextLocation location, string message)
+        : this(info, location, message, null) { }
+
     public Diagnostic(DiagnosticType type, TextLocation location, string message)
-        : this(type, location, message, null) { }
+        : this(new DiagnosticInfo(type), location, message, null) { }
 }
 
 public sealed class DiagnosticQueue {
@@ -63,7 +92,7 @@ public sealed class DiagnosticQueue {
     /// <param name="type">Type to check for, ignores all other diagnostics</param>
     /// <returns>If any diagnostics of type</returns>
     public bool Any(DiagnosticType type) {
-        return diagnostics_.Where(d => d.type == type).Any();
+        return diagnostics_.Where(d => d.info.severity == type).Any();
     }
 
     /// <summary>
@@ -162,12 +191,12 @@ public sealed class DiagnosticQueue {
 
     public void Clear(DiagnosticType type) {
         for (int i=0; i<diagnostics_.Count; i++) {
-            if (diagnostics_[i].type == type)
+            if (diagnostics_[i].info.severity == type)
                 diagnostics_.RemoveAt(i--);
         }
     }
 
     public DiagnosticQueue FilterOut(DiagnosticType type) {
-        return new DiagnosticQueue(diagnostics_.Where(d => d.type != type));
+        return new DiagnosticQueue(diagnostics_.Where(d => d.info.severity != type));
     }
 }

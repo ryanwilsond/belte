@@ -142,7 +142,7 @@ public sealed class Compilation {
 
         if (symbol is FunctionSymbol f) {
             f.WriteTo(writer);
-            if (!TryGetFunction(program, f, out var body)) {
+            if (!program.functionBodies.TryGetValue(f, out var body)) {
                 writer.WriteLine();
                 return;
             }
@@ -151,52 +151,6 @@ public sealed class Compilation {
         } else {
             symbol.WriteTo(writer);
         }
-    }
-
-    private bool TryGetFunction(BoundProgram program, FunctionSymbol function, out BoundBlockStatement body) {
-        // TODO this shouldn't need to be done, but for some reason it does
-        var newParameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
-
-        foreach (var parameter in function.parameters) {
-            var name = parameter.name.StartsWith("$")
-                ? parameter.name.Substring(1)
-                : parameter.name;
-
-            var newParameter = new ParameterSymbol(name, parameter.typeClause, parameter.ordinal);
-            newParameters.Add(newParameter);
-        }
-
-        var newFunction = new FunctionSymbol(
-            function.name, newParameters.ToImmutable(), function.typeClause, function.declaration);
-
-        bool MethodsMatch(FunctionSymbol left, FunctionSymbol right) {
-            if (left.name == right.name && left.parameters.Length == right.parameters.Length) {
-                var parametersMatch = true;
-
-                for (int i=0; i<left.parameters.Length; i++) {
-                    var checkParameter = left.parameters[i];
-                    var parameter = right.parameters[i];
-
-                    if (checkParameter.name != parameter.name || checkParameter.typeClause != parameter.typeClause)
-                        parametersMatch = false;
-                }
-
-                if (parametersMatch)
-                    return true;
-            }
-
-            return false;
-        }
-
-        foreach (var pair in program.functionBodies) {
-            if (MethodsMatch(pair.Key, newFunction)) {
-                body = pair.Value;
-                return true;
-            }
-        }
-
-        body = null;
-        return false;
     }
 
     internal DiagnosticQueue Emit(string moduleName, string[] references, string outputPath) {

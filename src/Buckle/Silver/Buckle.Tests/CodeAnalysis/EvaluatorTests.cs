@@ -666,7 +666,7 @@ public class EvaluatorTests {
         if (expectedDiagnostics.Length != diagnostics.count) {
             writer.WriteLine($"Input: {annotatedText.text}");
             foreach (var diagnostic in diagnostics.diagnostics_)
-                writer.WriteLine($"Diagnostic ({diagnostic.type}): {diagnostic.message}");
+                writer.WriteLine($"Diagnostic ({diagnostic.info.severity}): {diagnostic.message}");
         }
         Assert.Equal(expectedDiagnostics.Length, diagnostics.count);
 
