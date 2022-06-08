@@ -6,10 +6,16 @@ using Buckle.Diagnostics;
 
 namespace Belte.CommandLine;
 
+public struct ShowDialogs {
+    public bool help;
+    public bool machine;
+    public bool version;
+    public int? error;
+}
+
 public static partial class BuckleCommandLine {
     private static CompilerState DecodeOptions(
-        string[] args, out DiagnosticQueue diagnostics, out bool showHelp,
-        out bool showMachine, out bool showVersion) {
+        string[] args, out DiagnosticQueue diagnostics, out ShowDialogs dialogs) {
         CompilerState state = new CompilerState();
         List<FileState> tasks = new List<FileState>();
         List<string> references = new List<string>();
@@ -19,9 +25,10 @@ public static partial class BuckleCommandLine {
         bool specifyStage = false;
         bool specifyOut = false;
         bool specifyModule = false;
-        showHelp = false;
-        showMachine = false;
-        showVersion = false;
+        dialogs.help = false;
+        dialogs.machine = false;
+        dialogs.version = false;
+        dialogs.error = null;
         state.buildMode = BuildMode.Independent;
         state.finishStage = CompilerStage.Linked;
         state.outputFilename = "a.exe";
@@ -42,6 +49,8 @@ public static partial class BuckleCommandLine {
                     } else {
                         state.outputFilename = arg.Substring(2);
                     }
+                } else if (arg.StartsWith("--explain")) {
+                    // TODO
                 } else if (arg.StartsWith("--modulename")) {
                     if (arg == "--modulename" || arg == "--modulename=") {
                         diagnostics.Push(
@@ -100,13 +109,13 @@ public static partial class BuckleCommandLine {
                             break;
                         case "-h":
                         case "--help":
-                            showHelp = true;
+                            dialogs.help = true;
                             break;
                         case "--dumpmachine":
-                            showMachine = true;
+                            dialogs.machine = true;
                             break;
                         case "--version":
-                            showVersion = true;
+                            dialogs.version = true;
                             break;
                         default:
                             diagnostics.Push(DiagnosticType.Error, $"unrecognized command line option '{arg}'");
@@ -118,7 +127,7 @@ public static partial class BuckleCommandLine {
             }
         }
 
-        if (showMachine || showHelp || showVersion)
+        if (dialogs.machine || dialogs.help || dialogs.version || dialogs.error.HasValue)
             return state;
 
         if (state.buildMode == BuildMode.Dotnet) {

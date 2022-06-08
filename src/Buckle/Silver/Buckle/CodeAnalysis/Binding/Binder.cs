@@ -462,7 +462,7 @@ internal sealed class Binder {
             return new BoundErrorExpression();
 
         if (variable.typeClause.isConstant)
-            diagnostics.Push(Error.ConstAssign(expression.op.location, name));
+            diagnostics.Push(Error.ConstantAssignment(expression.op.location, name));
 
         var value = new BoundLiteralExpression(1);
         BoundBinaryOperator boundOperator = null;
@@ -496,7 +496,7 @@ internal sealed class Binder {
             return new BoundErrorExpression();
 
         if (variable.typeClause.isConstant)
-            diagnostics.Push(Error.ConstAssign(expression.op.location, name));
+            diagnostics.Push(Error.ConstantAssignment(expression.op.location, name));
 
         var value = new BoundLiteralExpression(1);
         BoundBinaryOperator boundOperator = null;
@@ -579,7 +579,7 @@ internal sealed class Binder {
                 }
 
                 var location = new TextLocation(expression.syntaxTree.text, span);
-                diagnostics.Push(Error.IncorrectArgumentsCount(
+                diagnostics.Push(Error.IncorrectArgumentCount(
                     location, function.name, function.parameters.Length, expression.arguments.count));
                 return new BoundErrorExpression();
             }
@@ -1315,7 +1315,7 @@ internal sealed class Binder {
         if ((variable.typeClause.isReference && variable.typeClause.isConstantReference &&
             boundExpression.type == BoundNodeType.ReferenceExpression) ||
             (variable.typeClause.isConstant && boundExpression.type != BoundNodeType.ReferenceExpression))
-            diagnostics.Push(Error.ConstAssign(expression.assignmentToken.location, name));
+            diagnostics.Push(Error.ConstantAssignment(expression.assignmentToken.location, name));
 
         if (expression.assignmentToken.type != SyntaxType.EQUALS_TOKEN) {
             var equivalentOperatorTokenType = SyntaxFacts.GetBinaryOperatorOfAssignmentOperator(

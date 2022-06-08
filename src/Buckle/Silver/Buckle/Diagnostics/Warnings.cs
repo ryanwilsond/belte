@@ -27,7 +27,7 @@ internal static class Warning {
 
     internal static Diagnostic UnreachableCode(TextLocation location) {
         var message = "unreachable code";
-        return new Diagnostic(DiagnosticType.Warning, location, message);
+        return new Diagnostic(WarningInfo(DiagnosticCode.WRN_UnreachableCode), location, message);
     }
 
     internal static Diagnostic AlwaysValue(TextLocation location, object value) {
@@ -37,6 +37,6 @@ internal static class Warning {
             valueString = valueString.ToLower(); // False -> false
 
         var message = $"expression will always result to '{value}'";
-        return new Diagnostic(DiagnosticType.Warning, location, message);
+        return new Diagnostic(WarningInfo(DiagnosticCode.WRN_AlwaysValue), location, message);
     }
 }

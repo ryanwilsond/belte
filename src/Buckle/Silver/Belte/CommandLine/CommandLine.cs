@@ -19,6 +19,10 @@ public static partial class BuckleCommandLine {
         // "error", "ignore", "all"
     };
 
+    private static void ShowErrorHelp(int error) {
+        // TODO
+    }
+
     private static void ShowHelpDialog() {
         string helpMessage = @"Usage: buckle.exe [options] file...
 Options:
@@ -81,10 +85,12 @@ Options:
             Console.Write(" warning");
         }
 
-        if (diagnostic.info.code != null)
-            Console.Write($"BU{}: ");
-        else
-            Console.WriteLine(:)
+        if (diagnostic.info.code != null && diagnostic.info.code > 0) {
+            var number = diagnostic.info.code.ToString();
+            Console.Write($" BU{number.PadLeft(4, '0')}: ");
+        } else {
+            Console.Write(": ");
+        }
 
         Console.ResetColor();
         Console.WriteLine(diagnostic.message);
@@ -266,25 +272,27 @@ Options:
         compiler.me = Process.GetCurrentProcess().ProcessName;
 
         compiler.state = DecodeOptions(
-            args, out DiagnosticQueue diagnostics, out bool showHelp, out bool showMachine, out bool showVersion);
+            args, out DiagnosticQueue diagnostics, out ShowDialogs dialogs);
 
         ResolveOutputFiles(compiler);
         ReadInputFiles(compiler);
         compiler.diagnostics.Move(diagnostics);
 
-        if (showHelp || showVersion || showMachine)
+        if (dialogs.help || dialogs.version || dialogs.machine || dialogs.error.HasValue)
             compiler.diagnostics.Clear(DiagnosticType.Fatal);
 
         err = ResolveDiagnostics(compiler);
 
-        if (showMachine)
+        if (dialogs.machine)
             ShowMachineDialog();
-        if (showVersion)
+        if (dialogs.version)
             ShowVersionDialog();
-        if (showHelp)
+        if (dialogs.help)
             ShowHelpDialog();
+        if (dialogs.error.HasValue)
+            ShowErrorHelp(dialogs.error.Value);
 
-        if (showMachine || showVersion || showHelp)
+        if (dialogs.machine || dialogs.version || dialogs.help || dialogs.error.HasValue)
             return SuccessExitCode;
         if (err > 0)
             return err;
