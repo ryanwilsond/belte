@@ -3,6 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using Buckle;
 using Buckle.Diagnostics;
+using System;
 
 namespace Belte.CommandLine;
 
@@ -50,7 +51,23 @@ public static partial class BuckleCommandLine {
                         state.outputFilename = arg.Substring(2);
                     }
                 } else if (arg.StartsWith("--explain")) {
-                    // TODO
+                    if (arg == "--explain") {
+                        if (i >= args.Length - 1) {
+                            diagnostics.Push(DiagnosticType.Error, "missing diagnostic code after '--explain'");
+                        } else {
+                            i++;
+
+                            if (args[i].StartsWith("BU"))
+                                dialogs.error = Convert.ToInt32(args[i].Substring(2));
+                            else
+                                dialogs.error = Convert.ToInt32(args[i]);
+                        }
+                    } else {
+                        if (args[i].Substring().StartsWith("BU"))
+                            dialogs.error = Convert.ToInt32(args[i].Substring(2));
+                        else
+                            dialogs.error = Convert.ToInt32(args[i]);
+                    }
                 } else if (arg.StartsWith("--modulename")) {
                     if (arg == "--modulename" || arg == "--modulename=") {
                         diagnostics.Push(
