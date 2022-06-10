@@ -2,6 +2,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Buckle\Buckle.csproj" />
+    <Content Update="Resources/help.txt">
+    </Content>
   </ItemGroup>
 
   <PropertyGroup>

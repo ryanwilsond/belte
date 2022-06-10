@@ -1,0 +1,16 @@
+Usage: buckle.exe [options] file...
+Options:
+-h|--help             Display this information.
+-p                    Preprocess only, otherwise compiler preprocesses.
+-s                    Compile only; do not assemble or link.
+-c                    Compile and assemble; do not link.
+-r                    Invoke the Repl.
+-i                    Interpret only.
+-d                    Compile with .NET integration (cannot stop at assembly or linking).
+-o <file>             Specify output file.
+-W<options>           Forward options to various sub-processes.
+--entry=<symbol>      Specify the entry point of the program.
+--modulename=<name>   Specify the module name (used with .NET integration only).
+--ref=<file>          Specify a reference (used with .NET integration only).
+--dumpmachine         Display the compiler's target system.
+--version             Dispaly compiler version information.

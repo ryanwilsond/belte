@@ -11,6 +11,8 @@ build:
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/Buckle.dll Buckle.dll
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/Belte.dll Belte.dll
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/Belte.exe buckle.exe
+	rm -f -r Resources
+	cp -r $(PROJDIR)/Resources Resources
 
 setup:
 	cp $(PROJDIR)/bin/Debug/$(NETVER)/Belte.deps.json Belte.deps.json
@@ -29,6 +31,8 @@ release:
 	dotnet publish $(PROJDIR)/Belte.csproj -r $(SYSTEM) -p:PublishSingleFile=true --self-contained true \
 		-p:PublishReadyToRunShowWarnings=true -p:IncludeNativeLibrariesForSelfExtract=true --configuration Release
 	cp $(PROJDIR)/bin/Release/$(NETVER)/$(SYSTEM)/publish/Belte.exe buckle.exe
+	rm -f -r Resources
+	cp -r $(PROJDIR)/Resources Resources
 
 clean:
 	rm -f *.dll

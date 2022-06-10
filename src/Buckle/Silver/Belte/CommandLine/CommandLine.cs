@@ -7,6 +7,8 @@ using Belte.Repl;
 using Buckle;
 using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Text;
+using System.Reflection;
+using System.Collections.Generic;
 
 namespace Belte.CommandLine;
 
@@ -16,31 +18,45 @@ public static partial class BuckleCommandLine {
     const int FatalExitCode = 2;
 
     static readonly string[] AllowedOptions = {
+        // TODO
         // "error", "ignore", "all"
     };
 
-    private static void ShowErrorHelp(int error) {
-        // TODO
+    private static void ShowErrorHelp(int error, string errorString, Compiler compiler) {
+        // TODO this only works for debug
+        string execLocation = Assembly.GetExecutingAssembly().Location;
+        string execPath = System.IO.Path.GetDirectoryName(execLocation);
+        string path = Path.Combine(execPath, "Resources/explain.txt");
+
+        string allMessages = File.ReadAllText(path);
+        Dictionary<int, string> messages = new Dictionary<int, string>();
+
+        foreach (string message in allMessages.Split("$BU")) {
+            try {
+                string code = message.Substring(0, 4);
+                messages[Convert.ToInt32(code)] = message.Substring(4);
+            } catch (ArgumentOutOfRangeException) {
+            }
+        }
+
+        if (messages.ContainsKey(error)) {
+            string message = messages[error].Substring(2);
+
+            if (message.EndsWith('\n'))
+                message = message.Substring(0, message.Length-1);
+
+            Console.WriteLine(message);
+        } else {
+            compiler.diagnostics.Push(DiagnosticType.Error, $"'{errorString}' is not a valid error code");
+        }
     }
 
     private static void ShowHelpDialog() {
-        string helpMessage = @"Usage: buckle.exe [options] file...
-Options:
--h|--help             Display this information.
--p                    Preprocess only, otherwise compiler preprocesses.
--s                    Compile only; do not assemble or link.
--c                    Compile and assemble; do not link.
--r                    Invoke the Repl.
--i                    Interpret only.
--d                    Compile with .NET integration (cannot stop at assembly or linking).
--o <file>             Specify output file.
--W<options>           Forward options to various sub-processes.
---entry=<symbol>      Specify the entry point of the program.
---modulename=<name>   Specify the module name (used with .NET integration only).
---ref=<file>          Specify a reference (used with .NET integration only).
---dumpmachine         Display the compiler's target system.
---version             Dispaly compiler version information.";
+        string execLocation = Assembly.GetExecutingAssembly().Location;
+        string execPath = System.IO.Path.GetDirectoryName(execLocation);
+        string path = Path.Combine(execPath, "Resources/help.txt");
 
+        string helpMessage = File.ReadAllText(path);
         Console.WriteLine(helpMessage);
     }
 
@@ -274,14 +290,10 @@ Options:
         compiler.state = DecodeOptions(
             args, out DiagnosticQueue diagnostics, out ShowDialogs dialogs);
 
-        ResolveOutputFiles(compiler);
-        ReadInputFiles(compiler);
-        compiler.diagnostics.Move(diagnostics);
+        bool hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error.HasValue;
 
-        if (dialogs.help || dialogs.version || dialogs.machine || dialogs.error.HasValue)
-            compiler.diagnostics.Clear(DiagnosticType.Fatal);
-
-        err = ResolveDiagnostics(compiler);
+        if (hasDialog)
+            compiler.diagnostics.Clear();
 
         if (dialogs.machine)
             ShowMachineDialog();
@@ -290,10 +302,19 @@ Options:
         if (dialogs.help)
             ShowHelpDialog();
         if (dialogs.error.HasValue)
-            ShowErrorHelp(dialogs.error.Value);
+            ShowErrorHelp(dialogs.error.Value, dialogs.errorString, compiler);
 
-        if (dialogs.machine || dialogs.version || dialogs.help || dialogs.error.HasValue)
+        if (hasDialog) {
+            ResolveDiagnostics(compiler);
             return SuccessExitCode;
+        }
+
+        ResolveOutputFiles(compiler);
+        ReadInputFiles(compiler);
+        compiler.diagnostics.Move(diagnostics);
+
+        err = ResolveDiagnostics(compiler);
+
         if (err > 0)
             return err;
 

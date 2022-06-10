@@ -63,6 +63,9 @@ public sealed class Diagnostic {
 
     public Diagnostic(DiagnosticType type, TextLocation location, string message)
         : this(new DiagnosticInfo(type), location, message, null) { }
+
+    public Diagnostic(DiagnosticType type, string message)
+        : this(new DiagnosticInfo(type), null, message, null) { }
 }
 
 public sealed class DiagnosticQueue {

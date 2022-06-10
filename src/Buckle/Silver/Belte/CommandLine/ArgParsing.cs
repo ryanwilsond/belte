@@ -12,6 +12,7 @@ public struct ShowDialogs {
     public bool machine;
     public bool version;
     public int? error;
+    public string errorString;
 }
 
 public static partial class BuckleCommandLine {
@@ -26,10 +27,13 @@ public static partial class BuckleCommandLine {
         bool specifyStage = false;
         bool specifyOut = false;
         bool specifyModule = false;
+
+        dialogs = new ShowDialogs();
         dialogs.help = false;
         dialogs.machine = false;
         dialogs.version = false;
         dialogs.error = null;
+
         state.buildMode = BuildMode.Independent;
         state.finishStage = CompilerStage.Linked;
         state.outputFilename = "a.exe";
@@ -51,11 +55,17 @@ public static partial class BuckleCommandLine {
                         state.outputFilename = arg.Substring(2);
                     }
                 } else if (arg.StartsWith("--explain")) {
+                    if (dialogs.error != null) {
+                        diagnostics.Push(DiagnosticType.Error, "'--explain' specified more than once");
+                        continue;
+                    }
+
                     if (arg == "--explain") {
                         if (i >= args.Length - 1) {
                             diagnostics.Push(DiagnosticType.Error, "missing diagnostic code after '--explain'");
                         } else {
                             i++;
+                            dialogs.errorString = args[i];
 
                             if (args[i].StartsWith("BU"))
                                 dialogs.error = Convert.ToInt32(args[i].Substring(2));
@@ -63,10 +73,13 @@ public static partial class BuckleCommandLine {
                                 dialogs.error = Convert.ToInt32(args[i]);
                         }
                     } else {
-                        if (args[i].Substring().StartsWith("BU"))
-                            dialogs.error = Convert.ToInt32(args[i].Substring(2));
+                        var errorCode = args[i].Substring(9);
+                        dialogs.errorString = errorCode;
+
+                        if (errorCode.StartsWith("BU"))
+                            dialogs.error = Convert.ToInt32(errorCode.Substring(2));
                         else
-                            dialogs.error = Convert.ToInt32(args[i]);
+                            dialogs.error = Convert.ToInt32(errorCode);
                     }
                 } else if (arg.StartsWith("--modulename")) {
                     if (arg == "--modulename" || arg == "--modulename=") {
