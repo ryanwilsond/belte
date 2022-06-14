@@ -264,3 +264,38 @@ int myInt = myCollection[2]; // `myCollection` is a collection type, so this is 
 iny mySecondInt = myInt[1]; // `myInt` is not a collection type, so this is not allowed
 ```
 $BU0026
+When the compiler detects unreachable code, it will produce this warning. This is
+not an error because the compiler will continue the compilation process, removing
+the unreachable code from the assembly.
+
+For example:
+
+```
+if (true) {
+    int myInt = 2;
+} else {
+    int myInt = 3; // true is always true, so this else-clause can never execute
+}
+```
+$BU0027
+Every string is started with a double-quote and ended the same way. If the ending
+quote is missing, the compiler does not know when the string ends. In that case
+this error is produced.
+
+For example:
+
+```
+string myString = "Hello, world!
+int myInt = 2; // the string was never terminated, this statement is part of the string
+```
+$BU0028
+A functions must have a declaration, so when a function without a declaration is
+called, the compiler does not know what function is being referenced. In this
+case the compiler produces this error.
+
+For example:
+
+```
+int myInt = MyFunction(); // `MyFunction` does not exist in this scope, not allowed
+```
+$BU0029

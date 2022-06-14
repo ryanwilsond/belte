@@ -200,8 +200,8 @@ internal sealed class Parser {
 
     private SeparatedSyntaxList<Parameter> ParseParameterList() {
         var nodesAndSeparators = ImmutableArray.CreateBuilder<Node>();
-
         var parseNextParameter = true;
+
         while (parseNextParameter &&
             current.type != SyntaxType.CLOSE_PAREN_TOKEN &&
             current.type != SyntaxType.END_OF_FILE_TOKEN) {
@@ -782,8 +782,10 @@ internal sealed class Parser {
         while (parseNextArgument &&
             current.type != SyntaxType.CLOSE_PAREN_TOKEN &&
             current.type != SyntaxType.END_OF_FILE_TOKEN) {
-            var expression = ParseExpression();
-            nodesAndSeparators.Add(expression);
+            if (current.type != SyntaxType.COMMA_TOKEN) {
+                var expression = ParseExpression();
+                nodesAndSeparators.Add(expression);
+            }
 
             if (current.type == SyntaxType.COMMA_TOKEN) {
                 var comma = Match(SyntaxType.COMMA_TOKEN);
