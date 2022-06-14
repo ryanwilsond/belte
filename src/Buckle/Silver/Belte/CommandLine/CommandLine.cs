@@ -49,7 +49,7 @@ public static partial class BuckleCommandLine {
             int count = 0;
 
             while (count < lines.Length) {
-                if (count > 21) {
+                if (count > Console.WindowHeight - 2) { // extra -1 is because we are printing -- More --
                     char key = ' ';
 
                     do {
@@ -57,18 +57,13 @@ public static partial class BuckleCommandLine {
                         key = Console.ReadKey().KeyChar;
                         int currentLineCursor = Console.CursorTop;
                         Console.SetCursorPosition(0, Console.CursorTop);
-                        Console.Write(new string(' ', Console.WindowWidth));
+                        Console.Write(new string(' ', Console.WindowWidth - 1)); // ? doesn't need this -1 on powershell
                         Console.SetCursorPosition(0, currentLineCursor);
                     } while (key != '\n' && key != '\r');
                 }
 
                 string line = lines[count++];
-                Console.Write(line);
-
-                if (line.Length == -1)
-                    Console.WriteLine("          ");
-                else
-                    Console.WriteLine();
+                Console.WriteLine(line);
             }
         } else {
             compiler.diagnostics.Push(DiagnosticType.Error, $"'{errorString}' is not a valid error code");
