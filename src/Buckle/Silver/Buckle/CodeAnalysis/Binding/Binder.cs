@@ -931,11 +931,11 @@ internal sealed class Binder {
             ? CreateToken(SyntaxType.CONST_KEYWORD)
             : null;
 
-        var refKeyword = type.isConstantReference
+        var refKeyword = type.isReference
             ? CreateToken(SyntaxType.REF_KEYWORD)
             : null;
 
-        var constKeyword = type.isConstantReference
+        var constKeyword = type.isConstant
             ? CreateToken(SyntaxType.CONST_KEYWORD)
             : null;
 

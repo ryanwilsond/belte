@@ -177,10 +177,7 @@ public abstract class Repl {
         if (key.Modifiers == default(ConsoleModifiers)) {
             switch (key.Key) {
                 case ConsoleKey.Enter:
-                    if (key.Modifiers == ConsoleModifiers.Shift)
-                        InsertLine(document, view);
-                    else
-                        HandleEnter(document, view);
+                    HandleEnter(document, view);
                     break;
                 case ConsoleKey.LeftArrow:
                     HandleLeftArrow(document, view);
@@ -225,6 +222,14 @@ public abstract class Repl {
             switch (key.Key) {
                 case ConsoleKey.Enter:
                     HandleControlEnter(document, view);
+                    break;
+                default:
+                    break;
+            }
+        } else if (key.Modifiers == ConsoleModifiers.Shift) {
+            switch (key.Key) {
+                case ConsoleKey.Enter:
+                    InsertLine(document, view);
                     break;
                 default:
                     break;

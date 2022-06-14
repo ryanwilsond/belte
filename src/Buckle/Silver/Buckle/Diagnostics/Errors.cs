@@ -100,7 +100,7 @@ internal static class Error {
 
     public static Diagnostic ParameterAlreadyDeclared(TextLocation location, string name) {
         var message = $"redefinition of parameter '{name}'";
-        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_ParameterAleadyDeclared), location, message);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_ParameterAlreadyDeclared), location, message);
     }
 
     public static Diagnostic InvalidMain(TextLocation location) {
@@ -167,16 +167,6 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_NoValue), location, message);
     }
 
-    public static Diagnostic ExpectedExpression(TextLocation location) {
-        var message = "expected expression";
-        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedExpression), location, message);
-    }
-
-    public static Diagnostic ExpectedStatement(TextLocation location) {
-        var message = "expected statement";
-        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedStatement), location, message);
-    }
-
     public static Diagnostic UnterminatedString(TextLocation location) {
         var message = "unterminated string literal";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnterminatedString), location, message);
@@ -209,7 +199,7 @@ internal static class Error {
 
     public static Diagnostic CannotCallNonFunction(TextLocation location, string text) {
         var message = $"called object '{text}' is not a function";
-        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotCallNonFunctino), location, message);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotCallNonFunction), location, message);
     }
 
     public static Diagnostic InvalidExpressionStatement(TextLocation location) {
@@ -227,7 +217,7 @@ internal static class Error {
             $"cannot convert from type '{from}' to '{to}'. " +
             "An explicit conversion exists (are you missing a cast?)";
         var suggestion = $"({to})%"; // % is replaced with all the text at `location`
-        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotConvertImplicity), location, message, suggestion);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotConvertImplicitly), location, message, suggestion);
     }
 
     public static Diagnostic InvalidBreakOrContinue(TextLocation location, string text) {

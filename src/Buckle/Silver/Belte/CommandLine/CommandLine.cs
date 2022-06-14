@@ -45,7 +45,31 @@ public static partial class BuckleCommandLine {
             if (message.EndsWith('\n'))
                 message = message.Substring(0, message.Length-1);
 
-            Console.WriteLine(message);
+            string[] lines = message.Split('\n');
+            int count = 0;
+
+            while (count < lines.Length) {
+                if (count > 21) {
+                    char key = ' ';
+
+                    do {
+                        Console.Write("-- More --");
+                        key = Console.ReadKey().KeyChar;
+                        int currentLineCursor = Console.CursorTop;
+                        Console.SetCursorPosition(0, Console.CursorTop);
+                        Console.Write(new string(' ', Console.WindowWidth));
+                        Console.SetCursorPosition(0, currentLineCursor);
+                    } while (key != '\n' && key != '\r');
+                }
+
+                string line = lines[count++];
+                Console.Write(line);
+
+                if (line.Length == -1)
+                    Console.WriteLine("          ");
+                else
+                    Console.WriteLine();
+            }
         } else {
             compiler.diagnostics.Push(DiagnosticType.Error, $"'{errorString}' is not a valid error code");
         }
