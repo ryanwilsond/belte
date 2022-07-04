@@ -1,10 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <ItemGroup>
+    <ProjectReference Include="..\Buckle\Buckle\Buckle.csproj" />
+    <ProjectReference Include="..\Buckle\Diagnostics\Diagnostics.csproj" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net5.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>preview</LangVersion>
     <Nullable>annotations</Nullable>
+    <Features>strict</Features>
   </PropertyGroup>
 
 </Project>

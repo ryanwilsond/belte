@@ -12,11 +12,18 @@ Trello: [trello.com/belteindustries](https://trello.com/belteindustries)
 
 This project uses the .NET SDK (5.0) for building, wrapped with GNU Make.
 
-## Building
+## Building Buckle
 
-The tools required for building are listed above.
+The final executable is put into `./buckle.exe`.
 
-All the following methods put the final executable into `./buckle.exe`.
+For first time setup run `$ make debugbuild` followed by `$ make setup`.
 
-For first time setup run `$ make setup`. Run `$ make` to build the project, copying the output executable into ./,
-and run `$ make test` to build the test project and run the unit tests.
+Run `$ make` to build the project, and run `$ make test` to run the unit tests.
+
+## Building Sander
+
+The final executable is put into `./sander.exe`.
+
+For first time setup run `$ make debugsander` followed by `$ make sandersetup`.
+
+Run `$ make sander` to build the project.

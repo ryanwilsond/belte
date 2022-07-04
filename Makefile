@@ -4,20 +4,27 @@ BUCKDIR:=src/Buckle/Buckle
 TESTDIR:=src/Buckle/Buckle.Tests
 DIAGDIR:=src/Buckle/Diagnostics
 REPLDIR:=src/Buckle/Repl
+SANDDIR:=src/Sander
+
 NETVER:=net5.0
 SYSTEM:=win-x64
-SLN:=src/Buckle/buckle.sln
+SLN:=src/Buckle/Buckle.sln
+SSLN:=src/Sander/Sander.sln
 CP=cp
 RM=rm
 
 all: build
 
-build: debugbuild resources
+build: debugbuild debugcopy resources
 
 debugbuild:
 	dotnet build $(SLN) -t:rebuild
+
+debugcopy:
 	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Buckle.dll Buckle.dll
 	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.dll Belte.dll
+	$(CP) $(DIAGDIR)/bin/Debug/$(NETVER)/Diagnostics.dll Diagnostics.dll
+	$(CP) $(REPLDIR)/bin/Debug/$(NETVER)/Repl.dll Repl.dll
 	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.exe buckle.exe
 
 setup:
@@ -29,8 +36,6 @@ setup:
 	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.Pdb.dll Mono.Cecil.Pdb.dll
 	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.Rocks.dll Mono.Cecil.Rocks.dll
 	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.dll Mono.Cecil.dll
-	$(CP) $(DIAGDIR)/bin/Debug/$(NETVER)/Diagnostics.dll Diagnostics.dll
-	$(CP) $(REPLDIR)/bin/Debug/$(NETVER)/Repl.dll Repl.dll
 
 .PHONY: resources
 resources:
@@ -54,3 +59,19 @@ clean:
 	$(RM) *.dll
 	$(RM) *.exe
 	$(RM) *.json
+
+sandersetup:
+	$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.deps.json Sander.deps.json
+	$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.runtimeconfig.json Sander.runtimeconfig.json
+
+debugsander:
+	dotnet build $(SSLN)
+
+copysander:
+	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Buckle.dll Buckle.dll
+	$(CP) $(REPLDIR)/bin/Debug/$(NETVER)/Repl.dll Repl.dll
+	$(CP) $(DIAGDIR)/bin/Debug/$(NETVER)/Diagnostics.dll Diagnostics.dll
+	$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.dll Sander.dll
+	$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.exe sander.exe
+
+sander: debugsander copysander
