@@ -9,11 +9,12 @@ using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Emitting;
 
 internal sealed class Emitter {
-    public DiagnosticQueue diagnostics = new DiagnosticQueue();
+    public BelteDiagnosticQueue diagnostics = new BelteDiagnosticQueue();
 
     private readonly List<AssemblyDefinition> assemblies = new List<AssemblyDefinition>();
     private readonly List<(TypeSymbol type, string metadataName)> builtinTypes;
@@ -172,7 +173,7 @@ internal sealed class Emitter {
         return null;
     }
 
-    public static DiagnosticQueue Emit(
+    public static BelteDiagnosticQueue Emit(
         BoundProgram program, string moduleName, string[] references, string outputPath) {
         if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return program.diagnostics;
@@ -181,7 +182,7 @@ internal sealed class Emitter {
         return emitter.Emit(program, outputPath);
     }
 
-    public DiagnosticQueue Emit(BoundProgram program, string outputPath) {
+    public BelteDiagnosticQueue Emit(BoundProgram program, string outputPath) {
         diagnostics.Move(program.diagnostics);
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return diagnostics;

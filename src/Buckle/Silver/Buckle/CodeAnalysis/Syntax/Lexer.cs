@@ -14,7 +14,7 @@ internal sealed class Lexer {
     private object value_;
     private SyntaxTree syntaxTree_;
     private ImmutableArray<SyntaxTrivia>.Builder triviaBuilder_ = ImmutableArray.CreateBuilder<SyntaxTrivia>();
-    public DiagnosticQueue diagnostics = new DiagnosticQueue();
+    public BelteDiagnosticQueue diagnostics = new BelteDiagnosticQueue();
 
     public Lexer(SyntaxTree syntaxTree) {
         text_ = syntaxTree.text;

@@ -10,14 +10,14 @@ internal sealed class SyntaxTree {
     public CompilationUnit root { get; }
     public Token endOfFile { get; }
     public SourceText text { get; }
-    public DiagnosticQueue diagnostics;
+    public BelteDiagnosticQueue diagnostics;
 
     private delegate void ParseHandler(
-        SyntaxTree syntaxTree, out CompilationUnit root, out DiagnosticQueue diagnostics);
+        SyntaxTree syntaxTree, out CompilationUnit root, out BelteDiagnosticQueue diagnostics);
 
     private SyntaxTree(SourceText text_, ParseHandler handler) {
         text = text_;
-        diagnostics = new DiagnosticQueue();
+        diagnostics = new BelteDiagnosticQueue();
 
         handler(this, out var root_, out diagnostics);
 
@@ -50,7 +50,7 @@ internal sealed class SyntaxTree {
     }
 
     public static ImmutableArray<Token> ParseTokens(
-        string text, out DiagnosticQueue diagnostics, bool includeEOF = false) {
+        string text, out BelteDiagnosticQueue diagnostics, bool includeEOF = false) {
         var sourceText = SourceText.From(text);
         return ParseTokens(sourceText, out diagnostics, includeEOF);
     }
@@ -60,10 +60,10 @@ internal sealed class SyntaxTree {
     }
 
     public static ImmutableArray<Token> ParseTokens(
-        SourceText text, out DiagnosticQueue diagnostics, bool includeEOF = false) {
+        SourceText text, out BelteDiagnosticQueue diagnostics, bool includeEOF = false) {
         var tokens = new List<Token>();
 
-        void ParseTokens(SyntaxTree syntaxTree, out CompilationUnit root, out DiagnosticQueue diagnostics) {
+        void ParseTokens(SyntaxTree syntaxTree, out CompilationUnit root, out BelteDiagnosticQueue diagnostics) {
             root = null;
             Lexer lexer = new Lexer(syntaxTree);
 
@@ -80,20 +80,20 @@ internal sealed class SyntaxTree {
                     break;
             }
 
-            diagnostics = new DiagnosticQueue();
+            diagnostics = new BelteDiagnosticQueue();
             diagnostics.Move(lexer.diagnostics);
         }
 
         var syntaxTree = new SyntaxTree(text, ParseTokens);
-        diagnostics = new DiagnosticQueue();
+        diagnostics = new BelteDiagnosticQueue();
         diagnostics.Move(syntaxTree.diagnostics);
         return tokens.ToImmutableArray();
     }
 
-    private static void Parse(SyntaxTree syntaxTree, out CompilationUnit root, out DiagnosticQueue diagnostics) {
+    private static void Parse(SyntaxTree syntaxTree, out CompilationUnit root, out BelteDiagnosticQueue diagnostics) {
         var parser = new Parser(syntaxTree);
         root = parser.ParseCompilationUnit();
-        diagnostics = new DiagnosticQueue();
+        diagnostics = new BelteDiagnosticQueue();
         diagnostics.Move(parser.diagnostics);
     }
 }

@@ -9,6 +9,7 @@ using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Authoring;
+using Diagnostics;
 
 namespace Belte.Repl;
 
@@ -60,7 +61,7 @@ public sealed class BelteRepl : Repl {
 
         if (handle.diagnostics.Any()) {
             if (diagnosticHandle != null) {
-                handle.diagnostics = DiagnosticQueue.CleanDiagnostics(handle.diagnostics);
+                handle.diagnostics = BelteDiagnosticQueue.CleanDiagnostics(handle.diagnostics);
                 diagnosticHandle(handle);
             } else {
                 handle.diagnostics.Clear();
@@ -251,7 +252,7 @@ public sealed class BelteRepl : Repl {
     [MetaCommand("load", "Loads in text from file")]
     private void EvaluateLoad(string path) {
         if (!File.Exists(path)) {
-            handle.diagnostics.Push(DiagnosticType.Error, $"{path}: no such file");
+            handle.diagnostics.Push(new BelteDiagnostic(Belte.Diagnostics.Error.NoSuchFile(path)));
 
             if (diagnosticHandle != null)
                 diagnosticHandle(handle, "repl");
@@ -282,7 +283,7 @@ public sealed class BelteRepl : Repl {
         var symbol = compilation.GetSymbols().SingleOrDefault(f => f.name == name);
 
         if (symbol == null) {
-            handle.diagnostics.Push(DiagnosticType.Error, $"undefined symbol '{name}'");
+            handle.diagnostics.Push(new BelteDiagnostic(Belte.Diagnostics.Error.UndefinedSymbol(name)));
 
             if (diagnosticHandle != null)
                 diagnosticHandle(handle, "repl");

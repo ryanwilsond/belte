@@ -1,6 +1,7 @@
 # Works with bash and powershell
 PROJDIR:=src/Buckle/Silver/Belte
 TESTDIR:=src/Buckle/Silver/Buckle.Tests
+DIAGDIR:=src/Buckle/Silver/Diagnostics
 NETVER:=net5.0
 SYSTEM:=win-x64
 SLN:=src/Buckle/Silver/buckle.sln
@@ -26,6 +27,7 @@ setup:
 	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.Pdb.dll Mono.Cecil.Pdb.dll
 	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.Rocks.dll Mono.Cecil.Rocks.dll
 	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.dll Mono.Cecil.dll
+	$(CP) $(DIAGDIR)/bin/Debug/$(NETVER)/Diagnostics.dll Diagnostics.dll
 
 .PHONY: resources
 resources:

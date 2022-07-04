@@ -12,7 +12,7 @@ internal sealed class Parser {
     private readonly SourceText text_;
     private readonly SyntaxTree syntaxTree_;
 
-    public DiagnosticQueue diagnostics;
+    public BelteDiagnosticQueue diagnostics;
 
     private Token Match(SyntaxType type) {
         if (current.type == type)
@@ -41,7 +41,7 @@ internal sealed class Parser {
     private Token current => Peek(0);
 
     public Parser(SyntaxTree syntaxTree) {
-        diagnostics = new DiagnosticQueue();
+        diagnostics = new BelteDiagnosticQueue();
         var tokens = new List<Token>();
         var badTokens = new List<Token>();
         Lexer lexer = new Lexer(syntaxTree);
@@ -538,7 +538,7 @@ internal sealed class Parser {
         popLast = popLast && previousCount != diagnostics.count;
 
         if (popLast)
-            diagnostics.RemoveAt(diagnostics.count - 1);
+            diagnostics.Pop();
 
         return new ExpressionStatement(syntaxTree_, expression, semicolon);
     }

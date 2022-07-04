@@ -6,6 +6,7 @@ using Buckle.Diagnostics;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Diagnostics;
 
 namespace Buckle.Tests.CodeAnalysis;
 
@@ -665,7 +666,7 @@ public class EvaluatorTests {
             : result.diagnostics.FilterOut(DiagnosticType.Warning);
         if (expectedDiagnostics.Length != diagnostics.count) {
             writer.WriteLine($"Input: {annotatedText.text}");
-            foreach (var diagnostic in diagnostics.diagnostics_)
+            foreach (var diagnostic in diagnostics.AsList())
                 writer.WriteLine($"Diagnostic ({diagnostic.info.severity}): {diagnostic.message}");
         }
         Assert.Equal(expectedDiagnostics.Length, diagnostics.count);

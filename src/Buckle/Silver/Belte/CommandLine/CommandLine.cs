@@ -5,10 +5,11 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Belte.Repl;
 using Buckle;
-using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Text;
 using System.Reflection;
 using System.Collections.Generic;
+using Diagnostics;
+using Buckle.Diagnostics;
 
 namespace Belte.CommandLine;
 
@@ -22,11 +23,12 @@ public static partial class BuckleCommandLine {
         // "error", "ignore", "all"
     };
 
-    private static void ShowErrorHelp(int error, string errorString, Compiler compiler) {
+    private static void ShowErrorHelp(int error, string errorString, out DiagnosticQueue<Diagnostic> diagnostics) {
         // TODO this only works for debug
         string execLocation = Assembly.GetExecutingAssembly().Location;
         string execPath = System.IO.Path.GetDirectoryName(execLocation);
-        string path = Path.Combine(execPath, "Resources/explain.txt");
+        string path = Path.Combine(execPath, "Resources/ErrorDescriptions.txt");
+        diagnostics = new DiagnosticQueue<Diagnostic>();
 
         string allMessages = File.ReadAllText(path);
         Dictionary<int, string> messages = new Dictionary<int, string>();
@@ -66,14 +68,14 @@ public static partial class BuckleCommandLine {
                 Console.WriteLine(line);
             }
         } else {
-            compiler.diagnostics.Push(DiagnosticType.Error, $"'{errorString}' is not a valid error code");
+            diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(errorString));
         }
     }
 
     private static void ShowHelpDialog() {
         string execLocation = Assembly.GetExecutingAssembly().Location;
         string execPath = System.IO.Path.GetDirectoryName(execLocation);
-        string path = Path.Combine(execPath, "Resources/help.txt");
+        string path = Path.Combine(execPath, "Resources/HelpPrompt.txt");
 
         string helpMessage = File.ReadAllText(path);
         Console.WriteLine(helpMessage);
@@ -89,7 +91,7 @@ public static partial class BuckleCommandLine {
         Console.WriteLine(versionMessage);
     }
 
-    private static void PrettyPrintDiagnostic(Diagnostic diagnostic) {
+    private static void PrettyPrintDiagnostic(BelteDiagnostic diagnostic) {
         TextSpan span = diagnostic.location.span;
         SourceText text = diagnostic.location.text;
 
@@ -163,17 +165,16 @@ public static partial class BuckleCommandLine {
         Console.ResetColor();
     }
 
-    private static int ResolveDiagnostics(Compiler compiler, string me = null) {
-        if (compiler.diagnostics.count == 0)
+    private static int ResolveDiagnostics<Type>(DiagnosticQueue<Type> diagnostics, string me)
+        where Type : Diagnostic {
+        if (diagnostics.count == 0)
             return SuccessExitCode;
 
         DiagnosticType worst = DiagnosticType.Unknown;
-        me = me ?? compiler.me;
-
-        Diagnostic diagnostic = compiler.diagnostics.Pop();
+        Diagnostic diagnostic = diagnostics.Pop();
         while (diagnostic != null) {
             if (diagnostic.info.severity == DiagnosticType.Unknown) {
-            } else if (diagnostic.location == null) {
+            } else if (diagnostic is not BelteDiagnostic || (diagnostic is BelteDiagnostic bd && bd.location == null)) {
                 Console.Write($"{me}: ");
 
                 if (diagnostic.info.severity == DiagnosticType.Warning) {
@@ -196,12 +197,11 @@ public static partial class BuckleCommandLine {
 
                 Console.ResetColor();
                 Console.WriteLine(diagnostic.message);
-
             } else {
-                PrettyPrintDiagnostic(diagnostic);
+                PrettyPrintDiagnostic(diagnostic as BelteDiagnostic);
             }
 
-            diagnostic = compiler.diagnostics.Pop();
+            diagnostic = diagnostics.Pop();
         }
 
         switch (worst) {
@@ -214,6 +214,10 @@ public static partial class BuckleCommandLine {
             default:
                 return SuccessExitCode;
         }
+    }
+
+    private static int ResolveDiagnostics(Compiler compiler, string me = null) {
+        return ResolveDiagnostics(compiler.diagnostics, me ?? compiler.me);
     }
 
     private static void ProduceOutputFiles(Compiler compiler) {
@@ -278,7 +282,9 @@ public static partial class BuckleCommandLine {
         }
     }
 
-    private static void ReadInputFiles(Compiler compiler) {
+    private static void ReadInputFiles(Compiler compiler, out DiagnosticQueue<Diagnostic> diagnostics) {
+        diagnostics = new DiagnosticQueue<Diagnostic>();
+
         for (int i=0; i<compiler.state.tasks.Length; i++) {
             ref FileState task = ref compiler.state.tasks[i];
 
@@ -292,8 +298,7 @@ public static partial class BuckleCommandLine {
                     task.fileContent.bytes = File.ReadAllBytes(task.inputFilename).ToList();
                     break;
                 case CompilerStage.Linked:
-                    compiler.diagnostics.Push(
-                        DiagnosticType.Warning, $"{task.inputFilename}: file already compiled; ignoring");
+                    diagnostics.Push(Belte.Diagnostics.Warning.IgnoringCompiledFile(task.inputFilename));
                     break;
                 default:
                     break;
@@ -307,32 +312,41 @@ public static partial class BuckleCommandLine {
         compiler.me = Process.GetCurrentProcess().ProcessName;
 
         compiler.state = DecodeOptions(
-            args, out DiagnosticQueue diagnostics, out ShowDialogs dialogs);
+            args, out DiagnosticQueue<Diagnostic> diagnostics, out ShowDialogs dialogs);
 
         bool hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error.HasValue;
 
         if (hasDialog)
-            compiler.diagnostics.Clear();
+            diagnostics.Clear();
 
         if (dialogs.machine)
             ShowMachineDialog();
+
         if (dialogs.version)
             ShowVersionDialog();
+
         if (dialogs.help)
             ShowHelpDialog();
-        if (dialogs.error.HasValue)
-            ShowErrorHelp(dialogs.error.Value, dialogs.errorString, compiler);
+
+        if (dialogs.error.HasValue) {
+            ShowErrorHelp(dialogs.error.Value, dialogs.errorString, out DiagnosticQueue<Diagnostic> dialogDiagnostics);
+            diagnostics.Move(dialogDiagnostics);
+        }
 
         if (hasDialog) {
-            ResolveDiagnostics(compiler);
+            ResolveDiagnostics(diagnostics, compiler.me);
             return SuccessExitCode;
         }
 
-        ResolveOutputFiles(compiler);
-        ReadInputFiles(compiler);
-        compiler.diagnostics.Move(diagnostics);
+        err = ResolveDiagnostics(diagnostics, compiler.me);
 
-        err = ResolveDiagnostics(compiler);
+        if (err > 0)
+            return err;
+
+        ResolveOutputFiles(compiler);
+        ReadInputFiles(compiler, out diagnostics);
+
+        err = ResolveDiagnostics(diagnostics, compiler.me);
 
         if (err > 0)
             return err;

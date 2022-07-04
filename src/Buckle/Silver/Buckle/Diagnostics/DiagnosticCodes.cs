@@ -5,7 +5,7 @@ internal enum DiagnosticCode : int {
     Unknown = 0,
 
     WRN_AlwaysValue = 1,
-    ERR_GlobalReturnValue = 2,
+
     ERR_InvalidReference = 3,
     ERR_InvalidType = 4,
     ERR_BadCharacter = 5,
@@ -59,4 +59,10 @@ internal enum DiagnosticCode : int {
     ERR_InconsistentReturnTypes = 53,
     ERR_MissingReturnStatement = 54,
     ERR_VoidVariable = 55,
+
+    // Carving out >=9000 for unsupported errors
+    UNS_GlobalReturnValue = 9000,
+    UNS_Assembling = 9001,
+    UNS_Linking = 9002,
+    UNS_IndependentCompilation = 9003,
 }

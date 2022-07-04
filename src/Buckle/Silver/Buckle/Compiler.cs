@@ -1,9 +1,9 @@
-using System;
 using System.Collections.Generic;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
+using Diagnostics;
 
 namespace Buckle;
 
@@ -56,10 +56,10 @@ public sealed class Compiler {
 
     public CompilerState state;
     public string me;
-    public DiagnosticQueue diagnostics;
+    public BelteDiagnosticQueue diagnostics;
 
     public Compiler() {
-        diagnostics = new DiagnosticQueue();
+        diagnostics = new BelteDiagnosticQueue();
     }
 
     private int CheckErrors() {
@@ -71,11 +71,11 @@ public sealed class Compiler {
     }
 
     private void ExternalAssembler() {
-        diagnostics.Push(DiagnosticType.Warning, "assembling not supported (yet); skipping");
+        diagnostics.Push(Warning.Unsupported.Assembling());
     }
 
     private void ExternalLinker() {
-        diagnostics.Push(DiagnosticType.Warning, "linking not supported (yet); skipping");
+        diagnostics.Push(Warning.Unsupported.Linking());
     }
 
     private void InternalPreprocessor() {
@@ -161,8 +161,7 @@ public sealed class Compiler {
             return CheckErrors();
         }
 
-        diagnostics.Push(
-            DiagnosticType.Fatal, "independent compilation not supported (yet); must specify '-i', '-d', or '-r'");
+        diagnostics.Push(Error.Unsupported.IndependentCompilation());
 
         return CheckErrors();
 

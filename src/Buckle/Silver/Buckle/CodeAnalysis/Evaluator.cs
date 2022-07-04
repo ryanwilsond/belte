@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis;
 
 internal sealed class Evaluator {
     private readonly BoundProgram program_;
-    public DiagnosticQueue diagnostics;
+    public BelteDiagnosticQueue diagnostics;
     private readonly Dictionary<VariableSymbol, object> globals_;
     private readonly Dictionary<FunctionSymbol, BoundBlockStatement> functions_ =
         new Dictionary<FunctionSymbol, BoundBlockStatement>();
@@ -19,7 +19,7 @@ internal sealed class Evaluator {
     internal bool hasPrint = false;
 
     public Evaluator(BoundProgram program, Dictionary<VariableSymbol, object> globals) {
-        diagnostics = new DiagnosticQueue();
+        diagnostics = new BelteDiagnosticQueue();
         program_ = program;
         globals_ = globals;
         locals_.Push(new Dictionary<VariableSymbol, object>());

@@ -449,7 +449,7 @@ public abstract class Repl {
         var command = metaCommands_.SingleOrDefault(mc => mc.name == commandName);
 
         if (command == null) {
-            handle.diagnostics.Push(DiagnosticType.Error, $"unknown repl command '{line}'");
+            handle.diagnostics.Push(new BelteDiagnostic(Belte.Diagnostics.Error.UnknownReplCommand(line)));
 
             if (diagnosticHandle != null)
                 diagnosticHandle(handle, "repl");
@@ -464,7 +464,7 @@ public abstract class Repl {
         if (args.Count != parameters.Length) {
             var parameterNames = string.Join(" ", parameters.Select(p => $"<{p.Name}>"));
             handle.diagnostics.Push(
-                DiagnosticType.Error, $"invalid number of arguments\nusage: #{command.name} {parameterNames}");
+                new BelteDiagnostic(Belte.Diagnostics.Error.WrongArgumentCount(command.name, parameterNames)));
 
             if (diagnosticHandle != null)
                 diagnosticHandle(handle, "repl");

@@ -10,16 +10,17 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Emitting;
+using Diagnostics;
 
 namespace Buckle.CodeAnalysis;
 
 internal sealed class EvaluationResult {
-    public DiagnosticQueue diagnostics;
+    public BelteDiagnosticQueue diagnostics;
     public object value;
 
-    internal EvaluationResult(object value_, DiagnosticQueue diagnostics_) {
+    internal EvaluationResult(object value_, BelteDiagnosticQueue diagnostics_) {
         value = value_;
-        diagnostics = new DiagnosticQueue();
+        diagnostics = new BelteDiagnosticQueue();
         diagnostics.Move(diagnostics_);
     }
 
@@ -28,7 +29,7 @@ internal sealed class EvaluationResult {
 
 public sealed class Compilation {
     private BoundGlobalScope globalScope_;
-    public DiagnosticQueue diagnostics;
+    public BelteDiagnosticQueue diagnostics;
     internal FunctionSymbol mainFunction => globalScope.mainFunction;
     internal ImmutableArray<FunctionSymbol> functions => globalScope.functions;
     internal ImmutableArray<VariableSymbol> variables => globalScope.variables;
@@ -51,7 +52,7 @@ public sealed class Compilation {
     private Compilation(bool isScript_, Compilation previous_, params SyntaxTree[] syntaxTrees) {
         isScript = isScript_;
         previous = previous_;
-        diagnostics = new DiagnosticQueue();
+        diagnostics = new BelteDiagnosticQueue();
 
         foreach (var syntaxTree in syntaxTrees)
             diagnostics.Move(syntaxTree.diagnostics);
@@ -153,7 +154,7 @@ public sealed class Compilation {
         }
     }
 
-    internal DiagnosticQueue Emit(string moduleName, string[] references, string outputPath) {
+    internal BelteDiagnosticQueue Emit(string moduleName, string[] references, string outputPath) {
         foreach (var syntaxTree in syntaxTrees)
             diagnostics.Move(syntaxTree.diagnostics);
 

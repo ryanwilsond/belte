@@ -58,7 +58,7 @@ internal sealed class BoundScope {
 internal sealed class BoundGlobalScope {
     public ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)> functionBodies { get; }
     public BoundGlobalScope previous { get; }
-    public DiagnosticQueue diagnostics { get; }
+    public BelteDiagnosticQueue diagnostics { get; }
     public FunctionSymbol mainFunction { get; }
     public FunctionSymbol scriptFunction { get; }
     public ImmutableArray<FunctionSymbol> functions { get; }
@@ -67,12 +67,12 @@ internal sealed class BoundGlobalScope {
 
     public BoundGlobalScope(
         ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)> functionBodies_,
-        BoundGlobalScope previous_, DiagnosticQueue diagnostics_, FunctionSymbol mainFunction_,
+        BoundGlobalScope previous_, BelteDiagnosticQueue diagnostics_, FunctionSymbol mainFunction_,
         FunctionSymbol scriptFunction_, ImmutableArray<FunctionSymbol> functions_,
         ImmutableArray<VariableSymbol> variables_, ImmutableArray<BoundStatement> statements_) {
         functionBodies = functionBodies_;
         previous = previous_;
-        diagnostics = new DiagnosticQueue();
+        diagnostics = new BelteDiagnosticQueue();
         diagnostics.Move(diagnostics_);
         mainFunction = mainFunction_;
         scriptFunction = scriptFunction_;
@@ -84,13 +84,13 @@ internal sealed class BoundGlobalScope {
 
 internal sealed class BoundProgram {
     public BoundProgram previous { get; }
-    public DiagnosticQueue diagnostics { get; }
+    public BelteDiagnosticQueue diagnostics { get; }
     public FunctionSymbol mainFunction { get; }
     public FunctionSymbol scriptFunction { get; }
     public ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies { get; }
 
     public BoundProgram(
-        BoundProgram previous_, DiagnosticQueue diagnostics_,
+        BoundProgram previous_, BelteDiagnosticQueue diagnostics_,
         FunctionSymbol mainFunction_,
         FunctionSymbol scriptFunction_,
         ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies_) {

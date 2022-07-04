@@ -1,12 +1,24 @@
-using System;
 using System.Linq;
 using Buckle.CodeAnalysis.Text;
 using Buckle.CodeAnalysis.Syntax;
+using Diagnostics;
 
 namespace Buckle.Diagnostics;
 
 internal static class Warning {
-    public static Diagnostic UnreachableCode(Node node) {
+    internal static class Unsupported {
+        public static BelteDiagnostic Assembling() {
+            var message = "assembling not supported (yet); skipping";
+            return new BelteDiagnostic(WarningInfo(DiagnosticCode.UNS_Assembling), message);
+        }
+
+        public static BelteDiagnostic Linking() {
+            var message = "linking not supported (yet); skipping";
+            return new BelteDiagnostic(WarningInfo(DiagnosticCode.UNS_Linking), message);
+        }
+    }
+
+    public static BelteDiagnostic UnreachableCode(Node node) {
         if (node.type == SyntaxType.BLOCK) {
             var firstStatement = ((BlockStatement)node).statements.FirstOrDefault();
             // Report just for non empty blocks.
@@ -25,18 +37,18 @@ internal static class Warning {
         return new DiagnosticInfo((int)code, DiagnosticType.Warning);
     }
 
-    internal static Diagnostic UnreachableCode(TextLocation location) {
+    internal static BelteDiagnostic UnreachableCode(TextLocation location) {
         var message = "unreachable code";
-        return new Diagnostic(WarningInfo(DiagnosticCode.WRN_UnreachableCode), location, message);
+        return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_UnreachableCode), location, message);
     }
 
-    internal static Diagnostic AlwaysValue(TextLocation location, object value) {
+    internal static BelteDiagnostic AlwaysValue(TextLocation location, object value) {
         var valueString = value.ToString();
 
         if (value is bool)
             valueString = valueString.ToLower(); // False -> false
 
         var message = $"expression will always result to '{value}'";
-        return new Diagnostic(WarningInfo(DiagnosticCode.WRN_AlwaysValue), location, message);
+        return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_AlwaysValue), location, message);
     }
 }

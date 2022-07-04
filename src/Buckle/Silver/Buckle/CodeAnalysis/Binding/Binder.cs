@@ -7,11 +7,12 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Lowering;
 using System;
+using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 internal sealed class Binder {
-    public DiagnosticQueue diagnostics;
+    public BelteDiagnosticQueue diagnostics;
     private BoundScope scope_;
     private readonly bool isScript_;
     private readonly FunctionSymbol function_;
@@ -33,7 +34,7 @@ internal sealed class Binder {
 
     private Binder(bool isScript, BoundScope parent, FunctionSymbol function) {
         isScript_ = isScript;
-        diagnostics = new DiagnosticQueue();
+        diagnostics = new BelteDiagnosticQueue();
         scope_ = new BoundScope(parent);
         function_ = function;
 
@@ -114,7 +115,7 @@ internal sealed class Binder {
         var variables = binder.scope_.GetDeclaredVariables();
 
         if (previous != null)
-            binder.diagnostics.diagnostics_.InsertRange(0, previous.diagnostics.diagnostics_);
+            binder.diagnostics.CopyToFront(previous.diagnostics);
 
         var functionBodies = previous == null
             ? binder.functionBodies_.ToImmutableArray()
@@ -132,7 +133,7 @@ internal sealed class Binder {
                 null, null, ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty);
 
         var functionBodies = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
-        var diagnostics = new DiagnosticQueue();
+        var diagnostics = new BelteDiagnosticQueue();
         diagnostics.Move(globalScope.diagnostics);
 
         foreach (var function in globalScope.functions) {

@@ -1,9 +1,6 @@
-using System.Linq;
 using System.Collections;
-using System.Collections.Generic;
-using Buckle.CodeAnalysis.Text;
 
-namespace Buckle.Diagnostics;
+namespace Diagnostics;
 
 public enum DiagnosticType {
     Error,
@@ -13,79 +10,72 @@ public enum DiagnosticType {
 }
 
 public sealed class DiagnosticInfo {
-    internal DiagnosticType severity { get; }
-    internal int? code { get; }
+    public DiagnosticType severity { get; }
+    public int? code { get; }
 
-    internal DiagnosticInfo() {
+    public DiagnosticInfo() {
         code = null;
         severity = DiagnosticType.Unknown;
     }
 
-    internal DiagnosticInfo(int code_) {
+    public DiagnosticInfo(int code_) {
         code = code_;
         severity = DiagnosticType.Unknown;
     }
 
-    internal DiagnosticInfo(DiagnosticType severity_) {
+    public DiagnosticInfo(DiagnosticType severity_) {
         code = null;
         severity = severity_;
     }
 
-    internal DiagnosticInfo(int code_, DiagnosticType severity_) {
+    public DiagnosticInfo(int code_, DiagnosticType severity_) {
         code = code_;
         severity = severity_;
     }
 }
 
-public sealed class Diagnostic {
+public class Diagnostic {
     public DiagnosticInfo info { get; }
     public string message { get; }
-    public TextLocation location { get; }
     public string suggestion { get; }
 
     /// <summary>
     /// A diagnostic message with a specific location
     /// </summary>
     /// <param name="info_">Severity and code of diagnostic</param>
-    /// <param name="location_">Location of the diagnostic</param>
     /// <param name="message_">Message/info on the diagnostic</param>
     /// <param name="suggestion_">A possible solution to the problem</param>
     public Diagnostic(
-        DiagnosticInfo info_, TextLocation location_, string message_, string suggestion_) {
+        DiagnosticInfo info_, string message_, string suggestion_) {
         info = info_;
         message = message_;
-        location = location_;
         suggestion = suggestion_;
     }
 
-    public Diagnostic(DiagnosticInfo info, TextLocation location, string message)
-        : this(info, location, message, null) { }
-
-    public Diagnostic(DiagnosticType type, TextLocation location, string message)
-        : this(new DiagnosticInfo(type), location, message, null) { }
+    public Diagnostic(DiagnosticInfo info, string message)
+        : this(info, message, null) { }
 
     public Diagnostic(DiagnosticType type, string message)
-        : this(new DiagnosticInfo(type), null, message, null) { }
+        : this(new DiagnosticInfo(type), message, null) { }
 }
 
-public sealed class DiagnosticQueue {
-    internal List<Diagnostic> diagnostics_;
+public class DiagnosticQueue<Type> where Type : Diagnostic {
+    internal List<Type> diagnostics_;
     public int count => diagnostics_.Count;
     public bool Any() => diagnostics_.Any();
 
     public IEnumerator GetEnumerator() => diagnostics_.GetEnumerator();
     public Diagnostic[] ToArray() => diagnostics_.ToArray();
-    internal void RemoveAt(int index) => diagnostics_.RemoveAt(index);
 
     /// <summary>
     /// Queue structure for organizing diagnostics
     /// </summary>
     public DiagnosticQueue() {
-        diagnostics_ = new List<Diagnostic>();
+        diagnostics_ = new List<Type>();
     }
 
     /// <param name="diagnostics">Initialize with enumerable</param>
-    public DiagnosticQueue(IEnumerable<Diagnostic> diagnostics) {
+    public DiagnosticQueue(IEnumerable<Type> diagnostics) {
         diagnostics_ = diagnostics.ToList();
     }
 
@@ -102,28 +92,20 @@ public sealed class DiagnosticQueue {
     /// Pushes a diagnostic onto the Queue
     /// </summary>
     /// <param name="diagnostic">Diagnostic to copy onto the queue</param>
-    public void Push(Diagnostic diagnostic) {
+    public void Push(Type diagnostic) {
         if (diagnostic != null)
             diagnostics_.Add(diagnostic);
     }
-
-    public void Push(DiagnosticType type, TextLocation location, string message) {
-        Push(new Diagnostic(type, location, message));
-    }
-
-    public void Push(TextLocation location, string message) { Push(DiagnosticType.Error, location, message); }
-    public void Push(DiagnosticType type, string message) { Push(type, null, message); }
-    public void Push(string message) { Push(DiagnosticType.Error, null, message); }
 
     /// <summary>
     /// Pops all diagnostics off queue and pushes them onto this
     /// </summary>
     /// <param name="diagnosticQueue">Queue to pop and copy from</param>
-    public void Move(DiagnosticQueue diagnosticQueue) {
+    public void Move(DiagnosticQueue<Type> diagnosticQueue) {
         if (diagnosticQueue == null)
             return;
 
-        Diagnostic diagnostic = diagnosticQueue.Pop();
+        Type diagnostic = diagnosticQueue.Pop();
         while (diagnostic != null) {
             diagnostics_.Add(diagnostic);
             diagnostic = diagnosticQueue.Pop();
@@ -134,7 +116,7 @@ public sealed class DiagnosticQueue {
     /// Pops all diagnostics off all queues and pushes them onto this
     /// </summary>
     /// <param name="diagnosticQueues">Queues to pop and copy from</param>
-    public void MoveMany(IEnumerable<DiagnosticQueue> diagnosticQueues) {
+    public void MoveMany(IEnumerable<DiagnosticQueue<Type>> diagnosticQueues) {
         if (diagnosticQueues == null)
             return;
 
@@ -143,44 +125,14 @@ public sealed class DiagnosticQueue {
     }
 
     /// <summary>
-    /// Sorts, removes duplicates, and modifies diagnostics
-    /// </summary>
-    /// <param name="diagnostics">Queue to copy then clean, doesn't modify queue</param>
-    /// <returns>New cleaned queue</returns>
-    public static DiagnosticQueue CleanDiagnostics(DiagnosticQueue diagnostics) {
-        var cleanedDiagnostics = new DiagnosticQueue();
-        var specialDiagnostics = new DiagnosticQueue();
-
-        var diagnosticList = diagnostics.diagnostics_;
-
-        for (int i=0; i<diagnosticList.Count; i++) {
-            var diagnostic = diagnosticList[i];
-
-            if (diagnostic.location == null) {
-                specialDiagnostics.Push(diagnostic);
-                diagnosticList.RemoveAt(i--);
-            }
-        }
-
-        foreach (var diagnostic in diagnosticList.OrderBy(diag => diag.location.fileName)
-                .ThenBy(diag => diag.location.span.start)
-                .ThenBy(diag => diag.location.span.length)) {
-            cleanedDiagnostics.Push(diagnostic);
-        }
-
-        cleanedDiagnostics.Move(specialDiagnostics);
-        return cleanedDiagnostics;
-    }
-
-    /// <summary>
     /// Removes a diagnostic
     /// </summary>
     /// <returns>First diagnostic on the queue</returns>
-    public Diagnostic? Pop() {
+    public Type? Pop() {
         if (diagnostics_.Count == 0)
             return null;
 
-        Diagnostic diagnostic = diagnostics_[0];
+        Type diagnostic = diagnostics_[0];
         diagnostics_.RemoveAt(0);
         return diagnostic;
     }
@@ -199,7 +151,33 @@ public sealed class DiagnosticQueue {
         }
     }
 
-    public DiagnosticQueue FilterOut(DiagnosticType type) {
-        return new DiagnosticQueue(diagnostics_.Where(d => d.info.severity != type));
+    /// <summary>
+    /// Returns a list of all the diagnostics in the queue in order
+    /// Can optionally cast all diagnostics to a child class of diagnostic
+    /// </summary>
+    /// <returns>List of diagnostics</returns>
+    public List<Type> AsList() {
+        return diagnostics_;
+    }
+
+    public List<NewType> AsList<NewType>() where NewType : Diagnostic {
+        return diagnostics_ as List<NewType>;
+    }
+
+    /// <summary>
+    /// Returns a new queue without a specific type of diagnostic, does not affect this instance
+    /// </summary>
+    /// <param name="type">Which diagnostic type to exclude</param>
+    /// <returns>New diagnostic queue without any diagnostics of type `type`</returns>
+    public DiagnosticQueue<Type> FilterOut(DiagnosticType type) {
+        return new DiagnosticQueue<Type>(diagnostics_.Where(d => d.info.severity != type));
+    }
+
+    /// <summary>
+    /// Copies another diagnostic queue to the front of this queue
+    /// </summary>
+    /// <param name="queue">Diagnostic queue to copy, does not modify this queue</param>
+    public void CopyToFront(DiagnosticQueue<Type> queue) {
+        diagnostics_.InsertRange(0, queue.diagnostics_);
     }
 }

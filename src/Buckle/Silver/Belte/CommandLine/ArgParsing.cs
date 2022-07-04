@@ -2,8 +2,9 @@ using System.IO;
 using System.Linq;
 using System.Collections.Generic;
 using Buckle;
-using Buckle.Diagnostics;
+using Diagnostics;
 using System;
+using Buckle.Diagnostics;
 
 namespace Belte.CommandLine;
 
@@ -17,12 +18,12 @@ public struct ShowDialogs {
 
 public static partial class BuckleCommandLine {
     private static CompilerState DecodeOptions(
-        string[] args, out DiagnosticQueue diagnostics, out ShowDialogs dialogs) {
+        string[] args, out DiagnosticQueue<Diagnostic> diagnostics, out ShowDialogs dialogs) {
         CompilerState state = new CompilerState();
         List<FileState> tasks = new List<FileState>();
         List<string> references = new List<string>();
         List<string> options = new List<string>();
-        diagnostics = new DiagnosticQueue();
+        diagnostics = new DiagnosticQueue<Diagnostic>();
 
         bool specifyStage = false;
         bool specifyOut = false;
@@ -48,7 +49,7 @@ public static partial class BuckleCommandLine {
 
                     if (arg == "-o") {
                         if (i >= args.Length - 1)
-                            diagnostics.Push(DiagnosticType.Error, "missing filename after '-o'");
+                            diagnostics.Push(Belte.Diagnostics.Error.MissingFilenameO());
                         else
                             state.outputFilename = args[++i];
                     } else {
@@ -56,13 +57,13 @@ public static partial class BuckleCommandLine {
                     }
                 } else if (arg.StartsWith("--explain")) {
                     if (dialogs.error != null) {
-                        diagnostics.Push(DiagnosticType.Error, "'--explain' specified more than once");
+                        diagnostics.Push(Belte.Diagnostics.Error.MultipleExplains());
                         continue;
                     }
 
                     if (arg == "--explain") {
                         if (i >= args.Length - 1) {
-                            diagnostics.Push(DiagnosticType.Error, "missing diagnostic code after '--explain'");
+                            diagnostics.Push(Belte.Diagnostics.Error.MissingCodeExplain());
                         } else {
                             i++;
                             dialogs.errorString = args[i];
@@ -83,33 +84,31 @@ public static partial class BuckleCommandLine {
                     }
                 } else if (arg.StartsWith("--modulename")) {
                     if (arg == "--modulename" || arg == "--modulename=") {
-                        diagnostics.Push(
-                            DiagnosticType.Error, $"missing name after '{arg}' (usage: '--modulename=<name>')");
+                        diagnostics.Push(Belte.Diagnostics.Error.MissingModuleName(arg));
                     } else {
                         specifyModule = true;
                         state.moduleName = arg.Substring(13);
                     }
                 } else if (arg.StartsWith("--ref")) {
                     if (arg == "--ref" || arg == "--ref=")
-                        diagnostics.Push(DiagnosticType.Error, $"missing name after '{arg}' (usage: '--ref=<name>')");
+                        diagnostics.Push(Belte.Diagnostics.Error.MissingReference(arg));
                     else
                         references.Add(arg.Substring(6));
                 } else if (arg.StartsWith("--entry")) {
                     if (arg == "--entry" || arg == "--entry=") {
-                        diagnostics.Push(
-                            DiagnosticType.Error, $"missing symbol after '{arg}' (usage: '--entry=<symbol>')");
+                        diagnostics.Push(Belte.Diagnostics.Error.MissingEntrySymbol(arg));
                     } else {
                         state.entryPoint = arg.Substring(8);
                     }
                 } else if (arg.StartsWith("-W")) {
                     if (arg.Length == 2) {
-                        diagnostics.Push(DiagnosticType.Error, "must specify option after '-W' (usage: '-W<options>'");
+                        diagnostics.Push(Belte.Diagnostics.Error.NoOptionAfterW());
                     } else {
                         string[] wArgs = arg.Substring(2).Split(',');
 
                         foreach (string wArg in wArgs) {
                             if (!AllowedOptions.Contains(wArg))
-                                diagnostics.Push(DiagnosticType.Error, $"unrecognized option '{wArg}'");
+                                diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedWOption(wArg));
                             else
                                 options.Add(wArg);
                         }
@@ -148,7 +147,7 @@ public static partial class BuckleCommandLine {
                             dialogs.version = true;
                             break;
                         default:
-                            diagnostics.Push(DiagnosticType.Error, $"unrecognized command line option '{arg}'");
+                            diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
                             break;
                     }
                 }
@@ -174,47 +173,51 @@ public static partial class BuckleCommandLine {
 
         if (specifyOut) {
             string[] parts = state.outputFilename.Split('.');
+            // ? Not sure if there are consequences of making moduleName default to 'a'
             // state.moduleName = string.Join('.', parts[0..(parts.Length-2)]);
         }
 
         if (args.Length > 1 && state.buildMode == BuildMode.Repl)
-            diagnostics.Push(DiagnosticType.Warning, "all arguments are ignored when invoking the repl");
+            diagnostics.Push(Belte.Diagnostics.Warning.ReplInvokeIgnore());
 
         if (specifyStage && state.buildMode == BuildMode.Dotnet)
-            diagnostics.Push(DiagnosticType.Fatal, "cannot specify '-p', '-s', or '-c' with .NET integration");
+            diagnostics.Push(Belte.Diagnostics.Error.CannotSpecifyWithDotnet());
 
         if (specifyOut && specifyStage && state.tasks.Length > 1 && !(state.buildMode == BuildMode.Dotnet))
-            diagnostics.Push(
-                DiagnosticType.Fatal, "cannot specify output file with '-p', '-s', or '-c' with multiple files");
+            diagnostics.Push(Belte.Diagnostics.Error.CannotSpecifyWithMultipleFiles());
 
         if ((specifyStage || specifyOut) && state.buildMode == BuildMode.Interpreter)
-            diagnostics.Push(
-                DiagnosticType.Fatal, "cannot specify output path or use '-p', '-s', or '-c' with interpreter");
+            diagnostics.Push(Belte.Diagnostics.Error.CannotSpecifyWithInterpreter());
 
         if (specifyModule && state.buildMode != BuildMode.Dotnet)
-            diagnostics.Push(DiagnosticType.Fatal, "cannot specify module name without .NET integration");
+            diagnostics.Push(Belte.Diagnostics.Error.CannotSpecifyModuleNameWithDotnet());
 
         if (references.Count != 0 && state.buildMode != BuildMode.Dotnet)
-            diagnostics.Push(DiagnosticType.Fatal, "cannot specify references without .NET integration");
+            diagnostics.Push(Belte.Diagnostics.Error.CannotSpecifyReferencesWithDotnet());
 
         if (state.tasks.Length == 0 && !(state.buildMode == BuildMode.Repl))
-            diagnostics.Push(DiagnosticType.Fatal, "no input files");
+            diagnostics.Push(Belte.Diagnostics.Error.NoInputFiles());
 
         state.outputFilename = state.outputFilename.Trim();
 
         return state;
     }
 
-    private static DiagnosticQueue ResolveInputFileOrDir(string name, ref List<FileState> tasks) {
+    private static DiagnosticQueue<Diagnostic> ResolveInputFileOrDir(string name, ref List<FileState> tasks) {
+        return ResolveInputFileOrDir(name, ref tasks, new string[]{"ble", "pble", "s", "asm", "o", "obj"});
+    }
+
+    private static DiagnosticQueue<Diagnostic> ResolveInputFileOrDir(
+        string name, ref List<FileState> tasks, string[] allowedExtensions) {
         List<string> filenames = new List<string>();
-        DiagnosticQueue diagnostics = new DiagnosticQueue();
+        DiagnosticQueue<Diagnostic> diagnostics = new DiagnosticQueue<Diagnostic>();
 
         if (Directory.Exists(name)) {
             filenames.AddRange(Directory.GetFiles(name));
         } else if (File.Exists(name)) {
             filenames.Add(name);
         } else {
-            diagnostics.Push(DiagnosticType.Error, $"{name}: no such file or directory");
+            diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(name));
             return diagnostics;
         }
 
@@ -227,22 +230,49 @@ public static partial class BuckleCommandLine {
 
             switch (type) {
                 case "ble":
-                    task.stage = CompilerStage.Raw;
+                    if (allowedExtensions.Contains("ble"))
+                        task.stage = CompilerStage.Raw;
+                    else
+                        goto default;
+
                     break;
                 case "pble":
-                    task.stage = CompilerStage.Preprocessed;
+                    if (allowedExtensions.Contains("pble"))
+                        task.stage = CompilerStage.Preprocessed;
+                    else
+                        goto default;
+
                     break;
                 case "s":
+                    if (allowedExtensions.Contains("s"))
+                        task.stage = CompilerStage.Compiled;
+                    else
+                        goto default;
+
+                    break;
                 case "asm":
-                    task.stage = CompilerStage.Compiled;
+                    if (allowedExtensions.Contains("asm"))
+                        task.stage = CompilerStage.Compiled;
+                    else
+                        goto default;
+
                     break;
                 case "o":
+                    if (allowedExtensions.Contains("o"))
+                        task.stage = CompilerStage.Assembled;
+                    else
+                        goto default;
+
+                    break;
                 case "obj":
-                    task.stage = CompilerStage.Assembled;
+                    if (allowedExtensions.Contains("obj"))
+                        task.stage = CompilerStage.Assembled;
+                    else
+                        goto default;
+
                     break;
                 default:
-                    diagnostics.Push(
-                        DiagnosticType.Warning, $"unknown file type of input file '{task.inputFilename}'; ignoring");
+                    diagnostics.Push(Belte.Diagnostics.Warning.IgnoringUnknownFileType(task.inputFilename));
                     continue;
             }
 
