@@ -1,5 +1,6 @@
 # Works with bash and powershell
 PROJDIR:=src/Buckle/Silver/Belte
+BUCKDIR:=src/Buckle/Silver/Buckle
 TESTDIR:=src/Buckle/Silver/Buckle.Tests
 DIAGDIR:=src/Buckle/Silver/Diagnostics
 NETVER:=net5.0
@@ -31,8 +32,10 @@ setup:
 
 .PHONY: resources
 resources:
-	$(RM) -r Resources
-	$(CP) -r $(PROJDIR)/Resources Resources
+	$(RM) -f -r Resources
+	mkdir Resources
+	$(CP) -a $(PROJDIR)/Resources/. Resources
+	$(CP) -a $(BUCKDIR)/Resources/. Resources
 
 test:
 	dotnet test $(TESTDIR)/Buckle.Tests.csproj

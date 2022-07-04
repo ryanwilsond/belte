@@ -62,14 +62,20 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_NoOptionAfterW), message);
     }
 
-    public static Diagnostic InvalidErrorCode(string errorString) {
-        var message = $"'{errorString}' is not a valid error code";
+    public static Diagnostic InvalidErrorCode(string error) {
+        var message = $"'{error}' is not a valid error code; must be in the format: [BU|CL][code]" +
+            "\n\texamples: BU0001, CL0001, BU12, CL054";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidErrorCode), message);
     }
 
     public static Diagnostic UnrecognizedWOption(string wArg) {
         var message = $"unrecognized option '{wArg}'";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnrecognizedWOption), message);
+    }
+
+    public static Diagnostic UnusedErrorCode(string error) {
+        var message = $"'{error}' is not a used error code";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnusedErrorCode), message);
     }
 
     public static Diagnostic UnrecognizedOption(string arg) {

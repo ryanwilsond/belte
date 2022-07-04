@@ -19,30 +19,47 @@ public static partial class BuckleCommandLine {
     const int FatalExitCode = 2;
 
     static readonly string[] AllowedOptions = {
-        // TODO
+        // TODO add W options
         // "error", "ignore", "all"
     };
 
-    private static void ShowErrorHelp(int error, string errorString, out DiagnosticQueue<Diagnostic> diagnostics) {
-        // TODO this only works for debug
+    private static void ShowErrorHelp(string error, out DiagnosticQueue<Diagnostic> diagnostics) {
+        // TODO this only works for debug builds currently, not release
         string execLocation = Assembly.GetExecutingAssembly().Location;
         string execPath = System.IO.Path.GetDirectoryName(execLocation);
-        string path = Path.Combine(execPath, "Resources/ErrorDescriptions.txt");
+        string prefix = error.Substring(0, 2);
         diagnostics = new DiagnosticQueue<Diagnostic>();
+
+        if (prefix != "BU" && prefix != "CL") {
+            diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
+            return;
+        }
+
+        int errorCode = 0;
+
+        try {
+            errorCode = Convert.ToInt32(error.Substring(2));
+        } catch {
+            diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
+            return;
+        }
+
+        string path = Path.Combine(execPath, $"Resources/ErrorDescriptions{prefix}.txt");
 
         string allMessages = File.ReadAllText(path);
         Dictionary<int, string> messages = new Dictionary<int, string>();
 
-        foreach (string message in allMessages.Split("$BU")) {
+        foreach (string message in allMessages.Split($"${prefix}")) {
             try {
                 string code = message.Substring(0, 4);
                 messages[Convert.ToInt32(code)] = message.Substring(4);
             } catch (ArgumentOutOfRangeException) {
+                // ! This is bad practice
             }
         }
 
-        if (messages.ContainsKey(error)) {
-            string message = messages[error].Substring(2);
+        if (messages.ContainsKey(errorCode)) {
+            string message = messages[errorCode].Substring(2);
 
             if (message.EndsWith('\n'))
                 message = message.Substring(0, message.Length-1);
@@ -51,7 +68,9 @@ public static partial class BuckleCommandLine {
             int count = 0;
 
             while (count < lines.Length) {
-                if (count > Console.WindowHeight - 2) { // extra -1 is because we are printing -- More --
+                // first -1 is required, second -1 is because we are printing -- More --
+                // -2 is to account for the next terminal input line
+                if (count > Console.WindowHeight - 1 - 1 - 2) {
                     char key = ' ';
 
                     do {
@@ -68,7 +87,7 @@ public static partial class BuckleCommandLine {
                 Console.WriteLine(line);
             }
         } else {
-            diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(errorString));
+            diagnostics.Push(Belte.Diagnostics.Error.UnusedErrorCode(error));
         }
     }
 
@@ -172,6 +191,7 @@ public static partial class BuckleCommandLine {
 
         DiagnosticType worst = DiagnosticType.Unknown;
         Diagnostic diagnostic = diagnostics.Pop();
+
         while (diagnostic != null) {
             if (diagnostic.info.severity == DiagnosticType.Unknown) {
             } else if (diagnostic is not BelteDiagnostic || (diagnostic is BelteDiagnostic bd && bd.location == null)) {
@@ -182,18 +202,26 @@ public static partial class BuckleCommandLine {
                         worst = DiagnosticType.Warning;
 
                     Console.ForegroundColor = ConsoleColor.Magenta;
-                    Console.Write("warning: ");
+                    Console.Write("warning ");
                 } else if (diagnostic.info.severity == DiagnosticType.Error) {
                     if (worst != DiagnosticType.Fatal)
                         worst = DiagnosticType.Error;
 
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("error: ");
+                    Console.Write("error ");
                 } else if (diagnostic.info.severity == DiagnosticType.Fatal) {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("fatal error: ");
+                    Console.Write("fatal error ");
                     worst = DiagnosticType.Fatal;
                 }
+
+                string errorCode = diagnostic.info.code.Value.ToString();
+                errorCode = errorCode.PadLeft(4, '0');
+
+                if (diagnostic is BelteDiagnostic)
+                    Console.Write($"BU{errorCode}: ");
+                else
+                    Console.Write($"CL{errorCode}: ");
 
                 Console.ResetColor();
                 Console.WriteLine(diagnostic.message);
@@ -247,6 +275,7 @@ public static partial class BuckleCommandLine {
         if (compiler.state.finishStage == CompilerStage.Linked) {
             if (File.Exists(compiler.state.outputFilename))
                 File.Delete(compiler.state.outputFilename);
+
             return;
         }
 
@@ -314,7 +343,7 @@ public static partial class BuckleCommandLine {
         compiler.state = DecodeOptions(
             args, out DiagnosticQueue<Diagnostic> diagnostics, out ShowDialogs dialogs);
 
-        bool hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error.HasValue;
+        bool hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error != null;
 
         if (hasDialog)
             diagnostics.Clear();
@@ -328,8 +357,8 @@ public static partial class BuckleCommandLine {
         if (dialogs.help)
             ShowHelpDialog();
 
-        if (dialogs.error.HasValue) {
-            ShowErrorHelp(dialogs.error.Value, dialogs.errorString, out DiagnosticQueue<Diagnostic> dialogDiagnostics);
+        if (dialogs.error != null) {
+            ShowErrorHelp(dialogs.error, out DiagnosticQueue<Diagnostic> dialogDiagnostics);
             diagnostics.Move(dialogDiagnostics);
         }
 

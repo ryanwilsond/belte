@@ -12,8 +12,7 @@ public struct ShowDialogs {
     public bool help;
     public bool machine;
     public bool version;
-    public int? error;
-    public string errorString;
+    public string error;
 }
 
 public static partial class BuckleCommandLine {
@@ -23,22 +22,63 @@ public static partial class BuckleCommandLine {
         List<FileState> tasks = new List<FileState>();
         List<string> references = new List<string>();
         List<string> options = new List<string>();
+        DiagnosticQueue<Diagnostic> diagnosticsCL = new DiagnosticQueue<Diagnostic>();
         diagnostics = new DiagnosticQueue<Diagnostic>();
 
         bool specifyStage = false;
         bool specifyOut = false;
         bool specifyModule = false;
 
-        dialogs = new ShowDialogs();
-        dialogs.help = false;
-        dialogs.machine = false;
-        dialogs.version = false;
-        dialogs.error = null;
+        ShowDialogs tempDialogs = new ShowDialogs();
+
+        tempDialogs.help = false;
+        tempDialogs.machine = false;
+        tempDialogs.version = false;
+        tempDialogs.error = null;
 
         state.buildMode = BuildMode.Independent;
         state.finishStage = CompilerStage.Linked;
         state.outputFilename = "a.exe";
         state.moduleName = "defaultModuleName";
+
+        void DecodeSimpleOption(string arg) {
+            switch (arg) {
+                case "-p":
+                    specifyStage = true;
+                    state.finishStage = CompilerStage.Preprocessed;
+                    break;
+                case "-s":
+                    specifyStage = true;
+                    state.finishStage = CompilerStage.Compiled;
+                    break;
+                case "-c":
+                    specifyStage = true;
+                    state.finishStage = CompilerStage.Assembled;
+                    break;
+                case "-r":
+                    state.buildMode = BuildMode.Repl;
+                    break;
+                case "-i":
+                    state.buildMode = BuildMode.Interpreter;
+                    break;
+                case "-d":
+                    state.buildMode = BuildMode.Dotnet;
+                    break;
+                case "-h":
+                case "--help":
+                    tempDialogs.help = true;
+                    break;
+                case "--dumpmachine":
+                    tempDialogs.machine = true;
+                    break;
+                case "--version":
+                    tempDialogs.version = true;
+                    break;
+                default:
+                    diagnosticsCL.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
+                    break;
+            }
+        }
 
         for (int i=0; i<args.Length; i++) {
             string arg = args[i];
@@ -56,7 +96,7 @@ public static partial class BuckleCommandLine {
                         state.outputFilename = arg.Substring(2);
                     }
                 } else if (arg.StartsWith("--explain")) {
-                    if (dialogs.error != null) {
+                    if (tempDialogs.error != null) {
                         diagnostics.Push(Belte.Diagnostics.Error.MultipleExplains());
                         continue;
                     }
@@ -66,21 +106,11 @@ public static partial class BuckleCommandLine {
                             diagnostics.Push(Belte.Diagnostics.Error.MissingCodeExplain());
                         } else {
                             i++;
-                            dialogs.errorString = args[i];
-
-                            if (args[i].StartsWith("BU"))
-                                dialogs.error = Convert.ToInt32(args[i].Substring(2));
-                            else
-                                dialogs.error = Convert.ToInt32(args[i]);
+                            tempDialogs.error = args[i];
                         }
                     } else {
                         var errorCode = args[i].Substring(9);
-                        dialogs.errorString = errorCode;
-
-                        if (errorCode.StartsWith("BU"))
-                            dialogs.error = Convert.ToInt32(errorCode.Substring(2));
-                        else
-                            dialogs.error = Convert.ToInt32(errorCode);
+                        tempDialogs.error = errorCode;
                     }
                 } else if (arg.StartsWith("--modulename")) {
                     if (arg == "--modulename" || arg == "--modulename=") {
@@ -114,49 +144,17 @@ public static partial class BuckleCommandLine {
                         }
                     }
                 } else {
-                    switch (arg) {
-                        case "-p":
-                            specifyStage = true;
-                            state.finishStage = CompilerStage.Preprocessed;
-                            break;
-                        case "-s":
-                            specifyStage = true;
-                            state.finishStage = CompilerStage.Compiled;
-                            break;
-                        case "-c":
-                            specifyStage = true;
-                            state.finishStage = CompilerStage.Assembled;
-                            break;
-                        case "-r":
-                            state.buildMode = BuildMode.Repl;
-                            break;
-                        case "-i":
-                            state.buildMode = BuildMode.Interpreter;
-                            break;
-                        case "-d":
-                            state.buildMode = BuildMode.Dotnet;
-                            break;
-                        case "-h":
-                        case "--help":
-                            dialogs.help = true;
-                            break;
-                        case "--dumpmachine":
-                            dialogs.machine = true;
-                            break;
-                        case "--version":
-                            dialogs.version = true;
-                            break;
-                        default:
-                            diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
-                            break;
-                    }
+                    DecodeSimpleOption(arg);
                 }
             } else {
                 diagnostics.Move(ResolveInputFileOrDir(arg, ref tasks));
             }
         }
 
-        if (dialogs.machine || dialogs.help || dialogs.version || dialogs.error.HasValue)
+        dialogs = tempDialogs;
+        diagnostics.Move(diagnosticsCL);
+
+        if (dialogs.machine || dialogs.help || dialogs.version || dialogs.error != null)
             return state;
 
         if (state.buildMode == BuildMode.Dotnet) {

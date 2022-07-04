@@ -28,4 +28,5 @@ internal enum DiagnosticCode : int {
     WRN_IgnoringUnknownFileType = 22,
     ERR_InvalidErrorCode = 23,
     WRN_IgnoringCompiledFile = 24,
+    ERR_UnusedErrorCode = 25,
 }
