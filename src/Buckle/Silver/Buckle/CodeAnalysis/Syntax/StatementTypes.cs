@@ -7,14 +7,14 @@ internal abstract class Statement : Node {
 }
 
 internal sealed partial class VariableDeclarationStatement : Statement {
-    public override SyntaxType type => SyntaxType.VARIABLE_DECLARATION_STATEMENT;
-    public TypeClause typeClause { get; }
-    public Token identifier { get; }
-    public Token? equals { get; }
-    public Expression? initializer { get; }
-    public Token semicolon { get; }
+    internal override SyntaxType type => SyntaxType.VARIABLE_DECLARATION_STATEMENT;
+    internal TypeClause typeClause { get; }
+    internal Token identifier { get; }
+    internal Token? equals { get; }
+    internal Expression? initializer { get; }
+    internal Token semicolon { get; }
 
-    public VariableDeclarationStatement(
+    internal VariableDeclarationStatement(
         SyntaxTree syntaxTree, TypeClause typeClause_,
         Token identifier_, Token equals_, Expression initializer_, Token semicolon_)
         : base(syntaxTree) {
@@ -27,12 +27,12 @@ internal sealed partial class VariableDeclarationStatement : Statement {
 }
 
 internal sealed partial class BlockStatement : Statement {
-    public Token openBrace { get; }
-    public ImmutableArray<Statement> statements { get; }
-    public Token closeBrace { get; }
-    public override SyntaxType type => SyntaxType.BLOCK;
+    internal Token openBrace { get; }
+    internal ImmutableArray<Statement> statements { get; }
+    internal Token closeBrace { get; }
+    internal override SyntaxType type => SyntaxType.BLOCK;
 
-    public BlockStatement(
+    internal BlockStatement(
         SyntaxTree syntaxTree, Token openBrace_, ImmutableArray<Statement> statements_, Token closeBrace_)
         : base(syntaxTree) {
         openBrace = openBrace_;
@@ -42,24 +42,24 @@ internal sealed partial class BlockStatement : Statement {
 }
 
 internal sealed partial class ExpressionStatement : Statement {
-    public Expression? expression { get; }
-    public Token semicolon { get; }
-    public override SyntaxType type => SyntaxType.EXPRESSION_STATEMENT;
+    internal Expression? expression { get; }
+    internal Token semicolon { get; }
+    internal override SyntaxType type => SyntaxType.EXPRESSION_STATEMENT;
 
-    public ExpressionStatement(SyntaxTree syntaxTree, Expression expression_, Token semicolon_) : base(syntaxTree) {
+    internal ExpressionStatement(SyntaxTree syntaxTree, Expression expression_, Token semicolon_) : base(syntaxTree) {
         expression = expression_;
         semicolon = semicolon_;
     }
 }
 
 internal sealed partial class TryStatement : Statement {
-    public Token tryKeyword { get; }
-    public BlockStatement body { get; }
-    public CatchClause? catchClause { get; }
-    public FinallyClause? finallyClause { get; }
-    public override SyntaxType type => SyntaxType.TRY_STATEMENT;
+    internal Token tryKeyword { get; }
+    internal BlockStatement body { get; }
+    internal CatchClause? catchClause { get; }
+    internal FinallyClause? finallyClause { get; }
+    internal override SyntaxType type => SyntaxType.TRY_STATEMENT;
 
-    public TryStatement(
+    internal TryStatement(
         SyntaxTree syntaxTree, Token tryKeyword_, BlockStatement body_,
         CatchClause catchClause_, FinallyClause finallyClause_)
         : base(syntaxTree) {
@@ -71,37 +71,37 @@ internal sealed partial class TryStatement : Statement {
 }
 
 internal sealed partial class CatchClause : Node {
-    public Token catchKeyword { get; }
-    public BlockStatement body { get; }
-    public override SyntaxType type => SyntaxType.CATCH_CLAUSE;
+    internal Token catchKeyword { get; }
+    internal BlockStatement body { get; }
+    internal override SyntaxType type => SyntaxType.CATCH_CLAUSE;
 
-    public CatchClause(SyntaxTree syntaxTree, Token catchKeyword_, BlockStatement body_) : base(syntaxTree) {
+    internal CatchClause(SyntaxTree syntaxTree, Token catchKeyword_, BlockStatement body_) : base(syntaxTree) {
         catchKeyword = catchKeyword_;
         body = body_;
     }
 }
 
 internal sealed partial class FinallyClause : Node {
-    public Token finallyKeyword { get; }
-    public BlockStatement body { get; }
-    public override SyntaxType type => SyntaxType.FINALLY_CLAUSE;
+    internal Token finallyKeyword { get; }
+    internal BlockStatement body { get; }
+    internal override SyntaxType type => SyntaxType.FINALLY_CLAUSE;
 
-    public FinallyClause(SyntaxTree syntaxTree, Token finallyKeyword_, BlockStatement body_) : base(syntaxTree) {
+    internal FinallyClause(SyntaxTree syntaxTree, Token finallyKeyword_, BlockStatement body_) : base(syntaxTree) {
         finallyKeyword = finallyKeyword_;
         body = body_;
     }
 }
 
 internal sealed partial class IfStatement : Statement {
-    public Token ifKeyword { get; }
-    public Token openParenthesis { get; }
-    public Expression condition { get; }
-    public Token closeParenthesis { get; }
-    public Statement then { get; }
-    public ElseClause? elseClause { get; }
-    public override SyntaxType type => SyntaxType.IF_STATEMENT;
+    internal Token ifKeyword { get; }
+    internal Token openParenthesis { get; }
+    internal Expression condition { get; }
+    internal Token closeParenthesis { get; }
+    internal Statement then { get; }
+    internal ElseClause? elseClause { get; }
+    internal override SyntaxType type => SyntaxType.IF_STATEMENT;
 
-    public IfStatement(
+    internal IfStatement(
         SyntaxTree syntaxTree, Token ifKeyword_, Token openParenthesis_, Expression condition_,
         Token closeParenthesis_, Statement then_, ElseClause elseClause_)
         : base(syntaxTree) {
@@ -115,25 +115,25 @@ internal sealed partial class IfStatement : Statement {
 }
 
 internal sealed partial class ElseClause : Node {
-    public Token elseKeyword { get; }
-    public Statement body { get; }
-    public override SyntaxType type => SyntaxType.ELSE_CLAUSE;
+    internal Token elseKeyword { get; }
+    internal Statement body { get; }
+    internal override SyntaxType type => SyntaxType.ELSE_CLAUSE;
 
-    public ElseClause(SyntaxTree syntaxTree, Token elseKeyword_, Statement body_) : base(syntaxTree) {
+    internal ElseClause(SyntaxTree syntaxTree, Token elseKeyword_, Statement body_) : base(syntaxTree) {
         elseKeyword = elseKeyword_;
         body = body_;
     }
 }
 
 internal sealed partial class WhileStatement : Statement {
-    public Token keyword { get; }
-    public Token openParenthesis { get; }
-    public Expression condition { get; }
-    public Token closeParenthesis { get; }
-    public Statement body { get; }
-    public override SyntaxType type => SyntaxType.WHILE_STATEMENT;
+    internal Token keyword { get; }
+    internal Token openParenthesis { get; }
+    internal Expression condition { get; }
+    internal Token closeParenthesis { get; }
+    internal Statement body { get; }
+    internal override SyntaxType type => SyntaxType.WHILE_STATEMENT;
 
-    public WhileStatement(
+    internal WhileStatement(
         SyntaxTree syntaxTree, Token keyword_, Token openParenthesis_,
         Expression condition_, Token closeParenthesis_, Statement body_)
         : base(syntaxTree) {
@@ -146,17 +146,17 @@ internal sealed partial class WhileStatement : Statement {
 }
 
 internal sealed partial class ForStatement : Statement {
-    public Token keyword { get; }
-    public Token openParenthesis { get; }
-    public Statement initializer { get; }
-    public Expression condition { get; }
-    public Token semicolon { get; }
-    public Expression step { get; }
-    public Token closeParenthesis { get; }
-    public Statement body { get; }
-    public override SyntaxType type => SyntaxType.FOR_STATEMENT;
+    internal Token keyword { get; }
+    internal Token openParenthesis { get; }
+    internal Statement initializer { get; }
+    internal Expression condition { get; }
+    internal Token semicolon { get; }
+    internal Expression step { get; }
+    internal Token closeParenthesis { get; }
+    internal Statement body { get; }
+    internal override SyntaxType type => SyntaxType.FOR_STATEMENT;
 
-    public ForStatement(
+    internal ForStatement(
         SyntaxTree syntaxTree, Token keyword_, Token openParenthesis_, Statement initializer_,
         Expression condition_, Token semicolon_, Expression step_, Token closeParenthesis_, Statement body_)
         : base(syntaxTree) {
@@ -172,16 +172,16 @@ internal sealed partial class ForStatement : Statement {
 }
 
 internal sealed partial class DoWhileStatement : Statement {
-    public Token doKeyword { get; }
-    public Statement body { get; }
-    public Token whileKeyword { get; }
-    public Token openParenthesis { get; }
-    public Expression condition { get; }
-    public Token closeParenthesis { get; }
-    public Token semicolon { get; }
-    public override SyntaxType type => SyntaxType.DO_WHILE_STATEMENT;
+    internal Token doKeyword { get; }
+    internal Statement body { get; }
+    internal Token whileKeyword { get; }
+    internal Token openParenthesis { get; }
+    internal Expression condition { get; }
+    internal Token closeParenthesis { get; }
+    internal Token semicolon { get; }
+    internal override SyntaxType type => SyntaxType.DO_WHILE_STATEMENT;
 
-    public DoWhileStatement(
+    internal DoWhileStatement(
         SyntaxTree syntaxTree, Token doKeyword_, Statement body_, Token whileKeyword_,
         Token openParenthesis_, Expression condition_, Token closeParenthesis_, Token semicolon_)
         : base(syntaxTree) {
@@ -196,34 +196,34 @@ internal sealed partial class DoWhileStatement : Statement {
 }
 
 internal sealed partial class ContinueStatement : Statement {
-    public Token keyword { get; }
-    public Token semicolon { get; }
-    public override SyntaxType type => SyntaxType.CONTINUE_STATEMENT;
+    internal Token keyword { get; }
+    internal Token semicolon { get; }
+    internal override SyntaxType type => SyntaxType.CONTINUE_STATEMENT;
 
-    public ContinueStatement(SyntaxTree syntaxTree, Token keyword_, Token semicolon_) : base(syntaxTree) {
+    internal ContinueStatement(SyntaxTree syntaxTree, Token keyword_, Token semicolon_) : base(syntaxTree) {
         keyword = keyword_;
         semicolon = semicolon_;
     }
 }
 
 internal sealed partial class BreakStatement : Statement {
-    public Token keyword { get; }
-    public Token semicolon { get; }
-    public override SyntaxType type => SyntaxType.BREAK_STATEMENT;
+    internal Token keyword { get; }
+    internal Token semicolon { get; }
+    internal override SyntaxType type => SyntaxType.BREAK_STATEMENT;
 
-    public BreakStatement(SyntaxTree syntaxTree, Token keyword_, Token semicolon_) : base(syntaxTree) {
+    internal BreakStatement(SyntaxTree syntaxTree, Token keyword_, Token semicolon_) : base(syntaxTree) {
         keyword = keyword_;
         semicolon = semicolon_;
     }
 }
 
 internal sealed partial class ReturnStatement : Statement {
-    public Token keyword { get; }
-    public Expression? expression { get; }
-    public Token semicolon { get; }
-    public override SyntaxType type => SyntaxType.RETURN_STATEMENT;
+    internal Token keyword { get; }
+    internal Expression? expression { get; }
+    internal Token semicolon { get; }
+    internal override SyntaxType type => SyntaxType.RETURN_STATEMENT;
 
-    public ReturnStatement(SyntaxTree syntaxTree, Token keyword_, Expression expression_, Token semicolon_)
+    internal ReturnStatement(SyntaxTree syntaxTree, Token keyword_, Expression expression_, Token semicolon_)
         : base(syntaxTree) {
         keyword = keyword_;
         expression = expression_;
@@ -232,15 +232,15 @@ internal sealed partial class ReturnStatement : Statement {
 }
 
 internal sealed partial class LocalFunctionDeclaration : Statement {
-    public TypeClause returnType { get; }
-    public Token identifier { get; }
-    public Token openParenthesis { get; }
-    public SeparatedSyntaxList<Parameter> parameters { get; }
-    public Token closeParenthesis { get; }
-    public BlockStatement body { get; }
-    public override SyntaxType type => SyntaxType.LOCAL_FUNCTION_DECLARATION;
+    internal TypeClause returnType { get; }
+    internal Token identifier { get; }
+    internal Token openParenthesis { get; }
+    internal SeparatedSyntaxList<Parameter> parameters { get; }
+    internal Token closeParenthesis { get; }
+    internal BlockStatement body { get; }
+    internal override SyntaxType type => SyntaxType.LOCAL_FUNCTION_DECLARATION;
 
-    public LocalFunctionDeclaration(
+    internal LocalFunctionDeclaration(
         SyntaxTree syntaxTree, TypeClause returnType_, Token identifier_, Token openParenthesis_,
         SeparatedSyntaxList<Parameter> parameters_, Token closeParenthesis_, BlockStatement body_)
         : base(syntaxTree) {

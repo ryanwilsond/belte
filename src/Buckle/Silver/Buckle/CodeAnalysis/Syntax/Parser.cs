@@ -12,7 +12,7 @@ internal sealed class Parser {
     private readonly SourceText text_;
     private readonly SyntaxTree syntaxTree_;
 
-    public BelteDiagnosticQueue diagnostics;
+    internal BelteDiagnosticQueue diagnostics;
 
     private Token Match(SyntaxType type) {
         if (current.type == type)
@@ -40,7 +40,7 @@ internal sealed class Parser {
 
     private Token current => Peek(0);
 
-    public Parser(SyntaxTree syntaxTree) {
+    internal Parser(SyntaxTree syntaxTree) {
         diagnostics = new BelteDiagnosticQueue();
         var tokens = new List<Token>();
         var badTokens = new List<Token>();
@@ -84,7 +84,7 @@ internal sealed class Parser {
         diagnostics.Move(lexer.diagnostics);
     }
 
-    public CompilationUnit ParseCompilationUnit() {
+    internal CompilationUnit ParseCompilationUnit() {
         var members = ParseMembers();
         var endOfFile = Match(SyntaxType.END_OF_FILE_TOKEN);
         return new CompilationUnit(syntaxTree_, members, endOfFile);
@@ -431,6 +431,7 @@ internal sealed class Parser {
         var statement = ParseStatement(true);
 
         // not allow nested if statements with else clause without braces; prevents ambiguous else statements
+        // * see BU0023
         bool nestedIf = false;
         List<TextLocation> invalidElseLocations = new List<TextLocation>();
         var inter = statement;

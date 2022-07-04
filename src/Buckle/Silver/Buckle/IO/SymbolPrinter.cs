@@ -6,7 +6,7 @@ using Buckle.CodeAnalysis.Binding;
 namespace Buckle.IO;
 
 internal static class SymbolPrinter {
-    public static void WriteTo(this Symbol symbol, TextWriter writer) {
+    internal static void WriteTo(this Symbol symbol, TextWriter writer) {
         switch (symbol.type) {
             case SymbolType.Function:
                 WriteFunction((FunctionSymbol)symbol, writer);

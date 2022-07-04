@@ -2,26 +2,26 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 internal sealed partial class Parameter : Node {
-    public TypeClause typeClause { get; }
-    public Token identifier { get; }
-    public override SyntaxType type => SyntaxType.PARAMETER;
+    internal TypeClause typeClause { get; }
+    internal Token identifier { get; }
+    internal override SyntaxType type => SyntaxType.PARAMETER;
 
-    public Parameter(SyntaxTree syntaxTree, TypeClause typeClause_, Token identifier_) : base(syntaxTree) {
+    internal Parameter(SyntaxTree syntaxTree, TypeClause typeClause_, Token identifier_) : base(syntaxTree) {
         typeClause = typeClause_;
         identifier = identifier_;
     }
 }
 
 internal sealed partial class FunctionDeclaration : Member {
-    public TypeClause returnType { get; }
-    public Token identifier { get; }
-    public Token openParenthesis { get; }
-    public SeparatedSyntaxList<Parameter> parameters { get; }
-    public Token closeParenthesis { get; }
-    public BlockStatement body { get; }
-    public override SyntaxType type => SyntaxType.FUNCTION_DECLARATION;
+    internal TypeClause returnType { get; }
+    internal Token identifier { get; }
+    internal Token openParenthesis { get; }
+    internal SeparatedSyntaxList<Parameter> parameters { get; }
+    internal Token closeParenthesis { get; }
+    internal BlockStatement body { get; }
+    internal override SyntaxType type => SyntaxType.FUNCTION_DECLARATION;
 
-    public FunctionDeclaration(
+    internal FunctionDeclaration(
         SyntaxTree syntaxTree, TypeClause returnType_, Token identifier_, Token openParenthesis_,
         SeparatedSyntaxList<Parameter> parameters_, Token closeParenthesis_, BlockStatement body_)
         : base(syntaxTree) {

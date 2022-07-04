@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using Buckle;
 using Diagnostics;
 using System;
-using Buckle.Diagnostics;
 
 namespace Belte.CommandLine;
 

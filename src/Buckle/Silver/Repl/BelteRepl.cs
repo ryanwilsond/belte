@@ -1,7 +1,3 @@
-using System;
-using System.IO;
-using System.Linq;
-using System.Collections.Generic;
 using Buckle;
 using Buckle.IO;
 using Buckle.Diagnostics;
@@ -11,9 +7,9 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Authoring;
 using Diagnostics;
 
-namespace Belte.Repl;
+namespace Repl;
 
-public sealed class BelteRepl : Repl {
+public sealed class BelteRepl : ReplBase {
     private static readonly Compilation emptyCompilation = Compilation.CreateScript(null);
     internal override object state_ { get; set; }
     internal BelteReplState state { get { return (BelteReplState)state_; } set { state_=value; } }
@@ -103,7 +99,7 @@ public sealed class BelteRepl : Repl {
         if (state.loadingSubmissions)
             return;
 
-        var submissionsFolder = GetSumbissionsDirectory();
+        var submissionsFolder = GetSubmissionsDirectory();
         var count = Directory.GetFiles(submissionsFolder).Length;
         var name = $"submission{count:0000}";
         var fileName = Path.Combine(submissionsFolder, name);
@@ -111,14 +107,14 @@ public sealed class BelteRepl : Repl {
     }
 
     private static void ClearSubmissions() {
-        var path = GetSumbissionsDirectory();
+        var path = GetSubmissionsDirectory();
 
         if (Directory.Exists(path))
-            Directory.Delete(GetSumbissionsDirectory(), true);
+            Directory.Delete(GetSubmissionsDirectory(), true);
     }
 
     private void LoadSubmissions() {
-        var files = Directory.GetFiles(GetSumbissionsDirectory()).OrderBy(f => f).ToArray();
+        var files = Directory.GetFiles(GetSubmissionsDirectory()).OrderBy(f => f).ToArray();
         var keyword = files.Length == 1 ? "submission" : "submissions";
         Console.Out.WritePunctuation($"loaded {files.Length} {keyword}");
         Console.WriteLine();
@@ -133,7 +129,7 @@ public sealed class BelteRepl : Repl {
         state.loadingSubmissions = false;
     }
 
-    private static string GetSumbissionsDirectory() {
+    private static string GetSubmissionsDirectory() {
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         var submissionsFolder = Path.Combine(localAppData, "Buckle", "Submissions");
 
@@ -252,7 +248,7 @@ public sealed class BelteRepl : Repl {
     [MetaCommand("load", "Loads in text from file")]
     private void EvaluateLoad(string path) {
         if (!File.Exists(path)) {
-            handle.diagnostics.Push(new BelteDiagnostic(Belte.Diagnostics.Error.NoSuchFile(path)));
+            handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.NoSuchFile(path)));
 
             if (diagnosticHandle != null)
                 diagnosticHandle(handle, "repl");
@@ -283,7 +279,7 @@ public sealed class BelteRepl : Repl {
         var symbol = compilation.GetSymbols().SingleOrDefault(f => f.name == name);
 
         if (symbol == null) {
-            handle.diagnostics.Push(new BelteDiagnostic(Belte.Diagnostics.Error.UndefinedSymbol(name)));
+            handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.UndefinedSymbol(name)));
 
             if (diagnosticHandle != null)
                 diagnosticHandle(handle, "repl");

@@ -15,8 +15,8 @@ using Diagnostics;
 namespace Buckle.CodeAnalysis;
 
 internal sealed class EvaluationResult {
-    public BelteDiagnosticQueue diagnostics;
-    public object value;
+    internal BelteDiagnosticQueue diagnostics;
+    internal object value;
 
     internal EvaluationResult(object value_, BelteDiagnosticQueue diagnostics_) {
         value = value_;
@@ -100,6 +100,7 @@ public sealed class Compilation {
             return new EvaluationResult(null, globalScope.diagnostics);
 
         var program = GetProgram();
+        // * only for debugging purposes
         // CreateCfg(program);
 
         if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
@@ -109,7 +110,7 @@ public sealed class Compilation {
         var eval = new Evaluator(program, variables);
         var evalResult = eval.Evaluate();
 
-        // TODO: hack to prevent repl overwriting text when user doesn't add newline
+        // TODO: hack to prevent repl overwriting text when user doesn't add newline, could probably be cleaner
         if (eval.hasPrint)
             Console.WriteLine();
 

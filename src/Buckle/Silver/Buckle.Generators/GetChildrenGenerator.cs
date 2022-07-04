@@ -12,8 +12,16 @@ namespace Buckle.Generators;
 
 [Generator]
 public class GetChildrenGenerator : ISourceGenerator {
+    /// <summary>
+    /// Initializes generator
+    /// </summary>
+    /// <param name="context">Generator context</param>
     public void Initialize(GeneratorInitializationContext context) { }
 
+    /// <summary>
+    /// Generates source
+    /// </summary>
+    /// <param name="context">Generator context</param>
     public void Execute(GeneratorExecutionContext context) {
         var compilation = (CSharpCompilation)context.Compilation;
 
@@ -39,7 +47,7 @@ public class GetChildrenGenerator : ISourceGenerator {
             foreach (var type in nodeTypes) {
                 using (var classCurly = new CurlyIndenter(indentedTextWriter, $"partial class {type.Name}"))
                 using (var getChildCurly = new CurlyIndenter(
-                    indentedTextWriter, "public override IEnumerable<Node> GetChildren()")) {
+                    indentedTextWriter, "internal override IEnumerable<Node> GetChildren()")) {
                     var properties = type.GetMembers().OfType<IPropertySymbol>();
 
                     foreach (var property in properties) {

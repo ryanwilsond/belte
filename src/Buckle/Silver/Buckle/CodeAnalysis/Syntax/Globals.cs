@@ -6,10 +6,10 @@ internal abstract class Member : Node {
 }
 
 internal sealed partial class GlobalStatement : Member {
-    public Statement statement { get; }
-    public override SyntaxType type => SyntaxType.GLOBAL_STATEMENT;
+    internal Statement statement { get; }
+    internal override SyntaxType type => SyntaxType.GLOBAL_STATEMENT;
 
-    public GlobalStatement(SyntaxTree syntaxTree, Statement statement_) : base(syntaxTree) {
+    internal GlobalStatement(SyntaxTree syntaxTree, Statement statement_) : base(syntaxTree) {
         statement = statement_;
     }
 }

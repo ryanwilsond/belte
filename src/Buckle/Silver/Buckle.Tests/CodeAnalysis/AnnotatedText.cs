@@ -8,15 +8,15 @@ using Buckle.CodeAnalysis.Text;
 namespace Buckle.Tests.CodeAnalysis;
 
 internal sealed class AnnotatedText {
-    public string text { get; }
-    public ImmutableArray<TextSpan> spans { get; }
+    internal string text { get; }
+    internal ImmutableArray<TextSpan> spans { get; }
 
     private AnnotatedText(string text_, ImmutableArray<TextSpan> spans_) {
         text = text_;
         spans = spans_;
     }
 
-    public static AnnotatedText Parse(string text) {
+    internal static AnnotatedText Parse(string text) {
         text = Unindent(text);
 
         var textBuilder = new StringBuilder();
@@ -53,7 +53,7 @@ internal sealed class AnnotatedText {
         return string.Join(Environment.NewLine, lines);
     }
 
-    public static string[] UnindentLines(string text) {
+    internal static string[] UnindentLines(string text) {
         var lines = new List<string>();
 
         using (var stringReader = new StringReader(text)) {

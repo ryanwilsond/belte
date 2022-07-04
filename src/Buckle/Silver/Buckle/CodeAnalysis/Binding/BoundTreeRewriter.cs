@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 namespace Buckle.CodeAnalysis.Binding;
 
 internal abstract class BoundTreeRewriter {
-    public virtual BoundStatement RewriteStatement(BoundStatement statement) {
+    internal virtual BoundStatement RewriteStatement(BoundStatement statement) {
         switch (statement.type) {
             case BoundNodeType.NopStatement:
                 return RewriteNopStatement((BoundNopStatement)statement);
@@ -157,7 +157,7 @@ internal abstract class BoundTreeRewriter {
         return new BoundBlockStatement(builder.MoveToImmutable());
     }
 
-    public virtual BoundExpression RewriteExpression(BoundExpression expression) {
+    internal virtual BoundExpression RewriteExpression(BoundExpression expression) {
         switch (expression.type) {
             case BoundNodeType.BinaryExpression:
                 return RewriteBinaryExpression((BoundBinaryExpression)expression);

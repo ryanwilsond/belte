@@ -1,16 +1,13 @@
-using System;
 using System.Text;
-using System.Linq;
 using System.Reflection;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using Buckle;
 using Buckle.Diagnostics;
 
-namespace Belte.Repl;
+namespace Repl;
 
-public abstract class Repl {
+public abstract class ReplBase {
     public delegate int DiagnosticHandle(Compiler compiler, string me = null);
 
     private readonly List<string> submissionHistory_ = new List<string>();
@@ -21,7 +18,7 @@ public abstract class Repl {
     internal DiagnosticHandle diagnosticHandle;
     internal abstract object state_ { get; set; }
 
-    protected Repl(Compiler handle_, DiagnosticHandle diagnosticHandle_) {
+    protected ReplBase(Compiler handle_, DiagnosticHandle diagnosticHandle_) {
         handle = handle_;
         diagnosticHandle = diagnosticHandle_;
         InitializeMetaCommands();
@@ -73,7 +70,7 @@ public abstract class Repl {
         private int currentLine_;
         private int currentCharacter_;
 
-        public int currentLine {
+        internal int currentLine {
             get => currentLine_;
             set {
                 if (currentLine_ != value) {
@@ -83,7 +80,8 @@ public abstract class Repl {
                 }
             }
         }
-        public int currentCharacter {
+
+        internal int currentCharacter {
             get => currentCharacter_;
             set {
                 if (currentCharacter_ != value) {
@@ -93,7 +91,7 @@ public abstract class Repl {
             }
         }
 
-        public SubmissionView(LineRenderHandler lineRenderer, ObservableCollection<string> document) {
+        internal SubmissionView(LineRenderHandler lineRenderer, ObservableCollection<string> document) {
             lineRenderer_ = lineRenderer;
             document_ = document;
             document_.CollectionChanged += SubmissionDocumentChanged;
@@ -449,7 +447,7 @@ public abstract class Repl {
         var command = metaCommands_.SingleOrDefault(mc => mc.name == commandName);
 
         if (command == null) {
-            handle.diagnostics.Push(new BelteDiagnostic(Belte.Diagnostics.Error.UnknownReplCommand(line)));
+            handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.UnknownReplCommand(line)));
 
             if (diagnosticHandle != null)
                 diagnosticHandle(handle, "repl");
@@ -464,7 +462,7 @@ public abstract class Repl {
         if (args.Count != parameters.Length) {
             var parameterNames = string.Join(" ", parameters.Select(p => $"<{p.Name}>"));
             handle.diagnostics.Push(
-                new BelteDiagnostic(Belte.Diagnostics.Error.WrongArgumentCount(command.name, parameterNames)));
+                new BelteDiagnostic(Repl.Diagnostics.Error.WrongArgumentCount(command.name, parameterNames)));
 
             if (diagnosticHandle != null)
                 diagnosticHandle(handle, "repl");

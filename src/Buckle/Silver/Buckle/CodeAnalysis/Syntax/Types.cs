@@ -138,10 +138,10 @@ internal enum SyntaxType {
 }
 
 internal abstract class Node {
-    public abstract SyntaxType type { get; }
-    public SyntaxTree syntaxTree { get; }
+    internal abstract SyntaxType type { get; }
+    internal SyntaxTree syntaxTree { get; }
 
-    public virtual TextSpan span {
+    internal virtual TextSpan span {
         get {
             if (GetChildren().ToArray().Length == 0)
                 return null;
@@ -152,7 +152,7 @@ internal abstract class Node {
         }
     }
 
-    public virtual TextSpan fullSpan {
+    internal virtual TextSpan fullSpan {
         get {
             if (GetChildren().ToArray().Length == 0)
                 return null;
@@ -167,11 +167,15 @@ internal abstract class Node {
         syntaxTree = syntaxTree_;
     }
 
-    public TextLocation location => syntaxTree == null ? null : new TextLocation(syntaxTree.text, span);
+    internal TextLocation location => syntaxTree == null ? null : new TextLocation(syntaxTree.text, span);
 
+    /// <summary>
+    /// Gets all child nodes (non-recursive)
+    /// </summary>
+    /// <returns>All child nodes</returns>
     public abstract IEnumerable<Node> GetChildren();
 
-    public void WriteTo(TextWriter writer) {
+    internal void WriteTo(TextWriter writer) {
         PrettyPrint(writer, this);
     }
 
@@ -235,7 +239,7 @@ internal abstract class Node {
         }
     }
 
-    public Token GetLastToken() {
+    internal Token GetLastToken() {
         if (this is Token t)
             return t;
 
@@ -244,23 +248,23 @@ internal abstract class Node {
 }
 
 internal sealed class Token : Node {
-    public override SyntaxType type { get; }
-    public int position { get; }
-    public string text { get; }
-    public object value { get; }
-    public bool isMissing => text == null;
-    public override TextSpan span => new TextSpan(position, text?.Length ?? 0);
-    public override TextSpan fullSpan {
+    internal override SyntaxType type { get; }
+    internal int position { get; }
+    internal string text { get; }
+    internal object value { get; }
+    internal bool isMissing => text == null;
+    internal override TextSpan span => new TextSpan(position, text?.Length ?? 0);
+    internal override TextSpan fullSpan {
         get {
             var start = leadingTrivia.Length == 0 ? span.start : leadingTrivia.First().span.start;
             var end = trailingTrivia.Length == 0 ? span.end : trailingTrivia.Last().span.end;
             return TextSpan.FromBounds(start, end);
         }
     }
-    public ImmutableArray<SyntaxTrivia> leadingTrivia { get; }
-    public ImmutableArray<SyntaxTrivia> trailingTrivia { get; }
+    internal ImmutableArray<SyntaxTrivia> leadingTrivia { get; }
+    internal ImmutableArray<SyntaxTrivia> trailingTrivia { get; }
 
-    public Token(SyntaxTree syntaxTree, SyntaxType type_, int position_, string text_, object value_,
+    internal Token(SyntaxTree syntaxTree, SyntaxType type_, int position_, string text_, object value_,
         ImmutableArray<SyntaxTrivia> leadingTrivia_, ImmutableArray<SyntaxTrivia> trailingTrivia_)
         : base(syntaxTree) {
         type = type_;
@@ -277,11 +281,11 @@ internal sealed class Token : Node {
 }
 
 internal sealed partial class CompilationUnit : Node {
-    public ImmutableArray<Member> members { get; }
-    public Token endOfFile { get; }
-    public override SyntaxType type => SyntaxType.COMPILATION_UNIT;
+    internal ImmutableArray<Member> members { get; }
+    internal Token endOfFile { get; }
+    internal override SyntaxType type => SyntaxType.COMPILATION_UNIT;
 
-    public CompilationUnit(SyntaxTree syntaxTree, ImmutableArray<Member> members_, Token endOfFile_)
+    internal CompilationUnit(SyntaxTree syntaxTree, ImmutableArray<Member> members_, Token endOfFile_)
         : base(syntaxTree) {
         members = members_;
         endOfFile = endOfFile_;
@@ -289,13 +293,13 @@ internal sealed partial class CompilationUnit : Node {
 }
 
 internal sealed class SyntaxTrivia {
-    public SyntaxTree syntaxTree { get; }
-    public SyntaxType type { get; }
-    public int position { get; }
-    public TextSpan span => new TextSpan(position, text?.Length ?? 0);
-    public string text { get; }
+    internal SyntaxTree syntaxTree { get; }
+    internal SyntaxType type { get; }
+    internal int position { get; }
+    internal TextSpan span => new TextSpan(position, text?.Length ?? 0);
+    internal string text { get; }
 
-    public SyntaxTrivia(SyntaxTree syntaxTree_, SyntaxType type_, int position_, string text_) {
+    internal SyntaxTrivia(SyntaxTree syntaxTree_, SyntaxType type_, int position_, string text_) {
         syntaxTree = syntaxTree_;
         position = position_;
         type = type_;
@@ -304,15 +308,15 @@ internal sealed class SyntaxTrivia {
 }
 
 internal sealed class TypeClause : Node {
-    public ImmutableArray<(Token openBracket, Token identifier, Token closeBracket)> attributes { get; }
-    public Token? constRefKeyword { get; }
-    public Token? refKeyword { get; }
-    public Token? constKeyword { get; }
-    public Token typeName { get; }
-    public ImmutableArray<(Token openBracket, Token closeBracket)> brackets { get; }
-    public override SyntaxType type => SyntaxType.TYPE_CLAUSE;
+    internal ImmutableArray<(Token openBracket, Token identifier, Token closeBracket)> attributes { get; }
+    internal Token? constRefKeyword { get; }
+    internal Token? refKeyword { get; }
+    internal Token? constKeyword { get; }
+    internal Token typeName { get; }
+    internal ImmutableArray<(Token openBracket, Token closeBracket)> brackets { get; }
+    internal override SyntaxType type => SyntaxType.TYPE_CLAUSE;
 
-    public TypeClause(SyntaxTree syntaxTree, ImmutableArray<(Token, Token, Token)> attributes_,
+    internal TypeClause(SyntaxTree syntaxTree, ImmutableArray<(Token, Token, Token)> attributes_,
         Token constRefKeyword_, Token refKeyword_, Token constKeyword_, Token typeName_,
         ImmutableArray<(Token, Token)> brackets_) : base(syntaxTree) {
         attributes = attributes_;

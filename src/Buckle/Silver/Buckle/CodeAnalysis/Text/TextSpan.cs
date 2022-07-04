@@ -24,7 +24,7 @@ public sealed class TextSpan {
     public override string ToString() => $"{start}..{end}";
 }
 
-internal class SpanComparer : IComparer<TextSpan> {
+public class SpanComparer : IComparer<TextSpan> {
     public int Compare(TextSpan x, TextSpan y) {
         int cmp = x.start - y.start;
 

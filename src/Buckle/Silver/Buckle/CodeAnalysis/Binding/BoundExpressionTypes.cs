@@ -28,11 +28,11 @@ internal enum BoundBinaryOperatorType {
 }
 
 internal sealed class BoundBinaryOperator {
-    public SyntaxType type { get; }
-    public BoundBinaryOperatorType opType { get; }
-    public BoundTypeClause leftType { get; }
-    public BoundTypeClause rightType { get; }
-    public BoundTypeClause typeClause { get; }
+    internal SyntaxType type { get; }
+    internal BoundBinaryOperatorType opType { get; }
+    internal BoundTypeClause leftType { get; }
+    internal BoundTypeClause rightType { get; }
+    internal BoundTypeClause typeClause { get; }
 
     private BoundBinaryOperator(
         SyntaxType type_, BoundBinaryOperatorType opType_,
@@ -52,7 +52,7 @@ internal sealed class BoundBinaryOperator {
         : this(type, opType, typeClause, typeClause, typeClause) { }
 
     internal static BoundBinaryOperator[] operators_ = {
-        // integers
+        // integer
         new BoundBinaryOperator(
             SyntaxType.PLUS_TOKEN, BoundBinaryOperatorType.Addition, BoundTypeClause.Int),
         new BoundBinaryOperator(
@@ -141,7 +141,14 @@ internal sealed class BoundBinaryOperator {
             BoundTypeClause.NullableAny, BoundTypeClause.Bool),
     };
 
-    public static BoundBinaryOperator Bind(SyntaxType type, BoundTypeClause leftType, BoundTypeClause rightType) {
+    /// <summary>
+    /// Attempts to bind an operator with given sides
+    /// </summary>
+    /// <param name="type">Operator type</param>
+    /// <param name="leftType">Left operand type</param>
+    /// <param name="rightType">Right operand type</param>
+    /// <returns>Bound operator if an operator exists, otherwise null</returns>
+    internal static BoundBinaryOperator Bind(SyntaxType type, BoundTypeClause leftType, BoundTypeClause rightType) {
         foreach (var op in operators_) {
             var leftIsCorrect = Cast.Classify(leftType, op.leftType).isImplicit;
             var rightIsCorrect = Cast.Classify(rightType, op.rightType).isImplicit;
@@ -155,14 +162,14 @@ internal sealed class BoundBinaryOperator {
 }
 
 internal sealed class BoundBinaryExpression : BoundExpression {
-    public override BoundNodeType type => BoundNodeType.BinaryExpression;
-    public override BoundTypeClause typeClause => op.typeClause;
-    public override BoundConstant constantValue { get; }
-    public BoundExpression left { get; }
-    public BoundBinaryOperator op { get; }
-    public BoundExpression right { get; }
+    internal override BoundNodeType type => BoundNodeType.BinaryExpression;
+    internal override BoundTypeClause typeClause => op.typeClause;
+    internal override BoundConstant constantValue { get; }
+    internal BoundExpression left { get; }
+    internal BoundBinaryOperator op { get; }
+    internal BoundExpression right { get; }
 
-    public BoundBinaryExpression(
+    internal BoundBinaryExpression(
         BoundExpression left_, BoundBinaryOperator op_, BoundExpression right_) {
         left = left_;
         op = op_;
@@ -180,10 +187,10 @@ internal enum BoundUnaryOperatorType {
 }
 
 internal sealed class BoundUnaryOperator {
-    public SyntaxType type { get; }
-    public BoundUnaryOperatorType opType { get; }
-    public BoundTypeClause operandType { get; }
-    public BoundTypeClause typeClause { get; }
+    internal SyntaxType type { get; }
+    internal BoundUnaryOperatorType opType { get; }
+    internal BoundTypeClause operandType { get; }
+    internal BoundTypeClause typeClause { get; }
 
     private BoundUnaryOperator(
         SyntaxType type_, BoundUnaryOperatorType opType_, BoundTypeClause operandType_, BoundTypeClause resultType_) {
@@ -216,7 +223,13 @@ internal sealed class BoundUnaryOperator {
             BoundTypeClause.Decimal),
     };
 
-    public static BoundUnaryOperator Bind(SyntaxType type, BoundTypeClause operandType) {
+    /// <summary>
+    /// Attempts to bind an operator with given operand
+    /// </summary>
+    /// <param name="type">Operator type</param>
+    /// <param name="operandType">Operand type</param>
+    /// <returns>Bound operator if an operator exists, otherwise null</returns>
+    internal static BoundUnaryOperator Bind(SyntaxType type, BoundTypeClause operandType) {
         foreach (var op in operators_) {
             var operandIsCorrect = Cast.Classify(operandType, op.operandType).isImplicit;
 
@@ -229,13 +242,13 @@ internal sealed class BoundUnaryOperator {
 }
 
 internal sealed class BoundUnaryExpression : BoundExpression {
-    public override BoundNodeType type => BoundNodeType.UnaryExpression;
-    public override BoundTypeClause typeClause => op.typeClause;
-    public override BoundConstant constantValue { get; }
-    public BoundUnaryOperator op { get; }
-    public BoundExpression operand { get; }
+    internal override BoundNodeType type => BoundNodeType.UnaryExpression;
+    internal override BoundTypeClause typeClause => op.typeClause;
+    internal override BoundConstant constantValue { get; }
+    internal BoundUnaryOperator op { get; }
+    internal BoundExpression operand { get; }
 
-    public BoundUnaryExpression(BoundUnaryOperator op_, BoundExpression operand_) {
+    internal BoundUnaryExpression(BoundUnaryOperator op_, BoundExpression operand_) {
         op = op_;
         operand = operand_;
         constantValue = ConstantFolding.ComputeConstant(op, operand);
@@ -243,17 +256,17 @@ internal sealed class BoundUnaryExpression : BoundExpression {
 }
 
 internal abstract class BoundExpression : BoundNode {
-    public abstract BoundTypeClause typeClause { get; }
-    public virtual BoundConstant constantValue => null;
+    internal abstract BoundTypeClause typeClause { get; }
+    internal virtual BoundConstant constantValue => null;
 }
 
 internal sealed class BoundLiteralExpression : BoundExpression {
-    public override BoundNodeType type => BoundNodeType.LiteralExpression;
-    public override BoundTypeClause typeClause { get; }
-    public override BoundConstant constantValue { get; }
-    public object value => constantValue.value;
+    internal override BoundNodeType type => BoundNodeType.LiteralExpression;
+    internal override BoundTypeClause typeClause { get; }
+    internal override BoundConstant constantValue { get; }
+    internal object value => constantValue.value;
 
-    public BoundLiteralExpression(object value_) {
+    internal BoundLiteralExpression(object value_) {
         if (value_ is bool)
             typeClause = new BoundTypeClause(TypeSymbol.Bool, isLiteral_: true);
         else if (value_ is int)
@@ -270,7 +283,7 @@ internal sealed class BoundLiteralExpression : BoundExpression {
         constantValue = new BoundConstant(value_);
     }
 
-    public BoundLiteralExpression(object value_, BoundTypeClause override_) {
+    internal BoundLiteralExpression(object value_, BoundTypeClause override_) {
         typeClause = new BoundTypeClause(
             override_.lType, override_.isImplicit, override_.isConstantReference, override_.isReference,
             override_.isConstant, override_.isNullable, true, override_.dimensions);
@@ -280,88 +293,89 @@ internal sealed class BoundLiteralExpression : BoundExpression {
 }
 
 internal sealed class BoundVariableExpression : BoundExpression {
-    public VariableSymbol variable { get; }
-    public override BoundTypeClause typeClause => variable.typeClause;
-    public override BoundNodeType type => BoundNodeType.VariableExpression;
-    public override BoundConstant constantValue => variable.constantValue;
+    internal VariableSymbol variable { get; }
+    internal override BoundTypeClause typeClause => variable.typeClause;
+    internal override BoundNodeType type => BoundNodeType.VariableExpression;
+    internal override BoundConstant constantValue => variable.constantValue;
 
-    public BoundVariableExpression(VariableSymbol variable_) {
+    internal BoundVariableExpression(VariableSymbol variable_) {
         variable = variable_;
     }
 }
 
 internal sealed class BoundAssignmentExpression : BoundExpression {
-    public VariableSymbol variable { get; }
-    public BoundExpression expression { get; }
-    public override BoundNodeType type => BoundNodeType.AssignmentExpression;
-    public override BoundTypeClause typeClause => expression.typeClause;
+    internal VariableSymbol variable { get; }
+    internal BoundExpression expression { get; }
+    internal override BoundNodeType type => BoundNodeType.AssignmentExpression;
+    internal override BoundTypeClause typeClause => expression.typeClause;
 
-    public BoundAssignmentExpression(VariableSymbol variable_, BoundExpression expression_) {
+    internal BoundAssignmentExpression(VariableSymbol variable_, BoundExpression expression_) {
         variable = variable_;
         expression = expression_;
     }
 }
 
 internal sealed class BoundInlineFunctionExpression : BoundExpression {
-    public BoundBlockStatement body { get; }
-    public BoundTypeClause returnType { get; }
-    public override BoundNodeType type => BoundNodeType.InlineFunctionExpression;
-    public override BoundTypeClause typeClause => returnType;
+    internal BoundBlockStatement body { get; }
+    internal BoundTypeClause returnType { get; }
+    internal override BoundNodeType type => BoundNodeType.InlineFunctionExpression;
+    internal override BoundTypeClause typeClause => returnType;
 
-    public BoundInlineFunctionExpression(BoundBlockStatement body_, BoundTypeClause returnType_) {
+    internal BoundInlineFunctionExpression(BoundBlockStatement body_, BoundTypeClause returnType_) {
         body = body_;
         returnType = returnType_;
     }
 }
 
 internal sealed class BoundEmptyExpression : BoundExpression {
-    public override BoundNodeType type => BoundNodeType.EmptyExpression;
-    public override BoundTypeClause typeClause => null;
+    internal override BoundNodeType type => BoundNodeType.EmptyExpression;
+    internal override BoundTypeClause typeClause => null;
 
-    public BoundEmptyExpression() { }
+    internal BoundEmptyExpression() { }
 }
 
 internal sealed class BoundErrorExpression : BoundExpression {
-    public override BoundNodeType type => BoundNodeType.ErrorExpression;
-    public override BoundTypeClause typeClause => new BoundTypeClause(null);
+    internal override BoundNodeType type => BoundNodeType.ErrorExpression;
+    internal override BoundTypeClause typeClause => new BoundTypeClause(null);
 
-    public BoundErrorExpression() { }
+    internal BoundErrorExpression() { }
 }
 
 internal sealed class BoundCallExpression : BoundExpression {
-    public FunctionSymbol function { get; }
-    public ImmutableArray<BoundExpression> arguments { get; }
-    public override BoundNodeType type => BoundNodeType.CallExpression;
-    public override BoundTypeClause typeClause => function.typeClause;
+    internal FunctionSymbol function { get; }
+    internal ImmutableArray<BoundExpression> arguments { get; }
+    internal override BoundNodeType type => BoundNodeType.CallExpression;
+    internal override BoundTypeClause typeClause => function.typeClause;
 
-    public BoundCallExpression(FunctionSymbol function_, ImmutableArray<BoundExpression> arguments_) {
+    internal BoundCallExpression(FunctionSymbol function_, ImmutableArray<BoundExpression> arguments_) {
         function = function_;
         arguments = arguments_;
     }
 }
 
 internal sealed class BoundIndexExpression : BoundExpression {
-    public BoundExpression expression { get; }
-    public BoundExpression index { get; }
-    public override BoundNodeType type => BoundNodeType.IndexExpression;
-    public override BoundTypeClause typeClause => expression.typeClause.ChildType();
+    internal BoundExpression expression { get; }
+    internal BoundExpression index { get; }
+    internal override BoundNodeType type => BoundNodeType.IndexExpression;
+    internal override BoundTypeClause typeClause => expression.typeClause.ChildType();
 
-    public BoundIndexExpression(BoundExpression expression_, BoundExpression index_) {
+    internal BoundIndexExpression(BoundExpression expression_, BoundExpression index_) {
         expression = expression_;
         index = index_;
     }
 }
 
 internal sealed class BoundInitializerListExpression : BoundExpression {
-    public ImmutableArray<BoundExpression> items { get; }
-    public int dimensions { get; }
-    public BoundTypeClause itemType { get; }
-    public override BoundNodeType type => BoundNodeType.LiteralExpression;
-    public override BoundTypeClause typeClause => new BoundTypeClause( // the con if immutable design is this
+    internal ImmutableArray<BoundExpression> items { get; }
+    internal int dimensions { get; }
+    internal BoundTypeClause itemType { get; }
+    internal override BoundNodeType type => BoundNodeType.LiteralExpression;
+    // TODO: consider factoring out this mass copy into a static method
+    internal override BoundTypeClause typeClause => new BoundTypeClause( // immutable design makes this required
         itemType.lType, itemType.isImplicit, itemType.isConstantReference,
         itemType.isReference, itemType.isConstant, true, itemType.isLiteral, dimensions);
 
-    public BoundInitializerListExpression(
+    internal BoundInitializerListExpression(
         ImmutableArray<BoundExpression> items_, int dimensions_, BoundTypeClause itemType_) {
         items = items_;
         dimensions = dimensions_;
@@ -370,11 +384,11 @@ internal sealed class BoundInitializerListExpression : BoundExpression {
 }
 
 internal sealed class BoundCastExpression : BoundExpression {
-    public BoundExpression expression { get; }
-    public override BoundNodeType type => BoundNodeType.CastExpression;
-    public override BoundTypeClause typeClause { get; }
+    internal BoundExpression expression { get; }
+    internal override BoundNodeType type => BoundNodeType.CastExpression;
+    internal override BoundTypeClause typeClause { get; }
 
-    public BoundCastExpression(BoundTypeClause typeClause_, BoundExpression expression_) {
+    internal BoundCastExpression(BoundTypeClause typeClause_, BoundExpression expression_) {
         typeClause = typeClause_;
 
         if (expression_ is BoundLiteralExpression le)
@@ -385,13 +399,13 @@ internal sealed class BoundCastExpression : BoundExpression {
 }
 
 internal sealed class BoundCompoundAssignmentExpression : BoundExpression {
-    public VariableSymbol variable { get; }
-    public BoundBinaryOperator op { get; }
-    public BoundExpression expression { get; }
-    public override BoundNodeType type => BoundNodeType.CompoundAssignmentExpression;
-    public override BoundTypeClause typeClause => expression.typeClause;
+    internal VariableSymbol variable { get; }
+    internal BoundBinaryOperator op { get; }
+    internal BoundExpression expression { get; }
+    internal override BoundNodeType type => BoundNodeType.CompoundAssignmentExpression;
+    internal override BoundTypeClause typeClause => expression.typeClause;
 
-    public BoundCompoundAssignmentExpression(
+    internal BoundCompoundAssignmentExpression(
         VariableSymbol variable_, BoundBinaryOperator op_, BoundExpression expression_) {
         variable = variable_;
         op = op_;
@@ -400,11 +414,11 @@ internal sealed class BoundCompoundAssignmentExpression : BoundExpression {
 }
 
 internal sealed class BoundReferenceExpression : BoundExpression {
-    public VariableSymbol variable { get; }
-    public override BoundNodeType type => BoundNodeType.ReferenceExpression;
-    public override BoundTypeClause typeClause { get; }
+    internal VariableSymbol variable { get; }
+    internal override BoundNodeType type => BoundNodeType.ReferenceExpression;
+    internal override BoundTypeClause typeClause { get; }
 
-    public BoundReferenceExpression(VariableSymbol variable_, BoundTypeClause typeClause_) {
+    internal BoundReferenceExpression(VariableSymbol variable_, BoundTypeClause typeClause_) {
         variable = variable_;
         typeClause = typeClause_;
     }

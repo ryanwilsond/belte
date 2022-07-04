@@ -8,14 +8,14 @@ using Buckle.CodeAnalysis.Syntax;
 namespace Buckle.IO;
 
 internal static class BoundNodePrinter {
-    public static void WriteTo(this BoundNode node, TextWriter writer) {
+    internal static void WriteTo(this BoundNode node, TextWriter writer) {
         if (writer is IndentedTextWriter iw)
             WriteTo(node, iw);
         else
             WriteTo(node, new IndentedTextWriter(writer));
     }
 
-    public static void WriteTypeClause(BoundTypeClause type, TextWriter writer) {
+    internal static void WriteTypeClause(BoundTypeClause type, TextWriter writer) {
         writer.WriteType(type.BaseType().ToString());
         var brackets = "";
 
@@ -25,7 +25,7 @@ internal static class BoundNodePrinter {
         writer.WritePunctuation(brackets);
     }
 
-    public static void WriteTo(this BoundNode node, IndentedTextWriter writer) {
+    internal static void WriteTo(this BoundNode node, IndentedTextWriter writer) {
         switch (node.type) {
             case BoundNodeType.UnaryExpression:
                 WriteUnaryExpression((BoundUnaryExpression)node, writer);

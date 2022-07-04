@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
-using Belte.Repl;
+using Repl;
 using Buckle;
 using Buckle.CodeAnalysis.Text;
 using System.Reflection;
@@ -30,7 +30,7 @@ public static partial class BuckleCommandLine {
         string prefix = error.Substring(0, 2);
         diagnostics = new DiagnosticQueue<Diagnostic>();
 
-        if (prefix != "BU" && prefix != "CL") {
+        if (prefix != "BU" && prefix != "CL" && prefix != "RE") {
             diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
             return;
         }
@@ -47,6 +47,7 @@ public static partial class BuckleCommandLine {
         string path = Path.Combine(execPath, $"Resources/ErrorDescriptions{prefix}.txt");
 
         string allMessages = File.ReadAllText(path);
+
         Dictionary<int, string> messages = new Dictionary<int, string>();
 
         foreach (string message in allMessages.Split($"${prefix}")) {
@@ -78,7 +79,9 @@ public static partial class BuckleCommandLine {
                         key = Console.ReadKey().KeyChar;
                         int currentLineCursor = Console.CursorTop;
                         Console.SetCursorPosition(0, Console.CursorTop);
-                        Console.Write(new string(' ', Console.WindowWidth - 1)); // ? doesn't need this -1 on powershell
+                        // * doesn't need -1 in some terminals
+                        // unfortunately the program cant tell what terminal is being used
+                        Console.Write(new string(' ', Console.WindowWidth - 1));
                         Console.SetCursorPosition(0, currentLineCursor);
                     } while (key != '\n' && key != '\r');
                 }
@@ -194,7 +197,7 @@ public static partial class BuckleCommandLine {
 
         while (diagnostic != null) {
             if (diagnostic.info.severity == DiagnosticType.Unknown) {
-            } else if (diagnostic is not BelteDiagnostic || (diagnostic is BelteDiagnostic bd && bd.location == null)) {
+            } else if (diagnostic.info.module != "BU" || (diagnostic is BelteDiagnostic bd && bd.location == null)) {
                 Console.Write($"{me}: ");
 
                 if (diagnostic.info.severity == DiagnosticType.Warning) {
@@ -217,11 +220,7 @@ public static partial class BuckleCommandLine {
 
                 string errorCode = diagnostic.info.code.Value.ToString();
                 errorCode = errorCode.PadLeft(4, '0');
-
-                if (diagnostic is BelteDiagnostic)
-                    Console.Write($"BU{errorCode}: ");
-                else
-                    Console.Write($"CL{errorCode}: ");
+                Console.Write($"{diagnostic.info.module}{errorCode}: ");
 
                 Console.ResetColor();
                 Console.WriteLine(diagnostic.message);
@@ -335,6 +334,11 @@ public static partial class BuckleCommandLine {
         }
     }
 
+    /// <summary>
+    /// Processes/decodes command-line arguments, and invokes compiler
+    /// </summary>
+    /// <param name="args">Command-line arguments from Main</param>
+    /// <returns>Error code, 0 = success</returns>
     public static int ProcessArgs(string[] args) {
         int err;
         Compiler compiler = new Compiler();

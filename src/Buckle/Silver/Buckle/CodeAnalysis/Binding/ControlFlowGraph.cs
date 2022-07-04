@@ -9,10 +9,10 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 internal sealed class ControlFlowGraph {
-    public BasicBlock start { get; }
-    public BasicBlock end { get; }
-    public List<BasicBlock> blocks { get; }
-    public List<BasicBlockBranch> branches { get; }
+    internal BasicBlock start { get; }
+    internal BasicBlock end { get; }
+    internal List<BasicBlock> blocks { get; }
+    internal List<BasicBlockBranch> branches { get; }
 
     private ControlFlowGraph(
         BasicBlock start_, BasicBlock end_, List<BasicBlock> blocks_, List<BasicBlockBranch> branch_) {
@@ -22,16 +22,16 @@ internal sealed class ControlFlowGraph {
         branches = branch_;
     }
 
-    public sealed class BasicBlock {
-        public List<BoundStatement> statements { get; } = new List<BoundStatement>();
-        public List<BasicBlockBranch> incoming { get; } = new List<BasicBlockBranch>();
-        public List<BasicBlockBranch> outgoing { get; } = new List<BasicBlockBranch>();
-        public bool isStart { get; }
-        public bool isEnd { get; }
+    internal sealed class BasicBlock {
+        internal List<BoundStatement> statements { get; } = new List<BoundStatement>();
+        internal List<BasicBlockBranch> incoming { get; } = new List<BasicBlockBranch>();
+        internal List<BasicBlockBranch> outgoing { get; } = new List<BasicBlockBranch>();
+        internal bool isStart { get; }
+        internal bool isEnd { get; }
 
-        public BasicBlock() {}
+        internal BasicBlock() {}
 
-        public BasicBlock(bool isStart_) {
+        internal BasicBlock(bool isStart_) {
             isStart = isStart_;
             isEnd = !isStart_;
         }
@@ -51,12 +51,12 @@ internal sealed class ControlFlowGraph {
         }
     }
 
-    public sealed class BasicBlockBranch {
-        public BasicBlock from { get; }
-        public BasicBlock to { get; }
-        public BoundExpression condition { get; }
+    internal sealed class BasicBlockBranch {
+        internal BasicBlock from { get; }
+        internal BasicBlock to { get; }
+        internal BoundExpression condition { get; }
 
-        public BasicBlockBranch(BasicBlock from_, BasicBlock to_, BoundExpression condition_) {
+        internal BasicBlockBranch(BasicBlock from_, BasicBlock to_, BoundExpression condition_) {
             from = from_;
             to = to_;
             condition = condition_;
@@ -70,11 +70,11 @@ internal sealed class ControlFlowGraph {
         }
     }
 
-    public sealed class BasicBlockBuilder {
+    internal sealed class BasicBlockBuilder {
         private List<BasicBlock> blocks_ = new List<BasicBlock>();
         private List<BoundStatement> statements_ = new List<BoundStatement>();
 
-        public List<BasicBlock> Build(BoundBlockStatement block) {
+        internal List<BasicBlock> Build(BoundBlockStatement block) {
             foreach (var statement in block.statements) {
                 switch (statement.type) {
                     case BoundNodeType.LabelStatement:
@@ -116,7 +116,7 @@ internal sealed class ControlFlowGraph {
         }
     }
 
-    public sealed class GraphBuilder {
+    internal sealed class GraphBuilder {
         private Dictionary<BoundStatement, BasicBlock> blockFromStatement_ =
             new Dictionary<BoundStatement, BasicBlock>();
         private Dictionary<BoundLabel, BasicBlock> blockFromLabel_ = new Dictionary<BoundLabel, BasicBlock>();
@@ -124,7 +124,7 @@ internal sealed class ControlFlowGraph {
         private BasicBlock start_ = new BasicBlock(true);
         private BasicBlock end_ = new BasicBlock(false);
 
-        public ControlFlowGraph Build(List<BasicBlock> blocks) {
+        internal ControlFlowGraph Build(List<BasicBlock> blocks) {
             var basicBlockBuilder = new BasicBlockBuilder();
 
             if (!blocks.Any())
@@ -182,7 +182,7 @@ internal sealed class ControlFlowGraph {
                 }
             }
 
-            // TODO: test to make sure this works
+            // TODO: test to make sure this works like the original goto implementation
             void Scan() {
                 foreach (var block in blocks) {
                     if (!block.incoming.Any()) {
@@ -242,7 +242,7 @@ internal sealed class ControlFlowGraph {
         }
     }
 
-    public void WriteTo(TextWriter writer) {
+    internal void WriteTo(TextWriter writer) {
         string Quote(string text) {
             return "\"" + text.TrimEnd()
                 .Replace("\\", "\\\\")
@@ -275,7 +275,7 @@ internal sealed class ControlFlowGraph {
         writer.WriteLine("}");
     }
 
-    public static ControlFlowGraph Create(BoundBlockStatement body) {
+    internal static ControlFlowGraph Create(BoundBlockStatement body) {
         var basicBlockBuilder = new BasicBlockBuilder();
         var blocks = basicBlockBuilder.Build(body);
 
@@ -283,7 +283,7 @@ internal sealed class ControlFlowGraph {
         return graphBuilder.Build(blocks);
     }
 
-    public static bool AllPathsReturn(BoundBlockStatement body) {
+    internal static bool AllPathsReturn(BoundBlockStatement body) {
         var graph = Create(body);
 
         foreach (var branch in graph.end.incoming) {

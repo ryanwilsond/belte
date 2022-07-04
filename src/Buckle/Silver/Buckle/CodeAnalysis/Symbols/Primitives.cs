@@ -2,15 +2,15 @@
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal class TypeSymbol : Symbol {
-    public static readonly TypeSymbol Error = new TypeSymbol("?");
-    public static readonly TypeSymbol Int = new TypeSymbol("int");
-    public static readonly TypeSymbol Decimal = new TypeSymbol("decimal");
-    public static readonly TypeSymbol Bool = new TypeSymbol("bool");
-    public static readonly TypeSymbol String = new TypeSymbol("string");
-    public static readonly TypeSymbol Any = new TypeSymbol("any");
-    public static readonly TypeSymbol Void = new TypeSymbol("void");
+    internal static readonly TypeSymbol Error = new TypeSymbol("?");
+    internal static readonly TypeSymbol Int = new TypeSymbol("int");
+    internal static readonly TypeSymbol Decimal = new TypeSymbol("decimal");
+    internal static readonly TypeSymbol Bool = new TypeSymbol("bool");
+    internal static readonly TypeSymbol String = new TypeSymbol("string");
+    internal static readonly TypeSymbol Any = new TypeSymbol("any");
+    internal static readonly TypeSymbol Void = new TypeSymbol("void");
 
-    public override SymbolType type => SymbolType.Type;
+    internal override SymbolType type => SymbolType.Type;
 
     internal TypeSymbol(string name) : base(name) { }
 }

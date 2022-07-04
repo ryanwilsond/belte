@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis;
 
 internal sealed class Evaluator {
     private readonly BoundProgram program_;
-    public BelteDiagnosticQueue diagnostics;
+    internal BelteDiagnosticQueue diagnostics;
     private readonly Dictionary<VariableSymbol, object> globals_;
     private readonly Dictionary<FunctionSymbol, BoundBlockStatement> functions_ =
         new Dictionary<FunctionSymbol, BoundBlockStatement>();
@@ -18,7 +18,7 @@ internal sealed class Evaluator {
     private Random random_;
     internal bool hasPrint = false;
 
-    public Evaluator(BoundProgram program, Dictionary<VariableSymbol, object> globals) {
+    internal Evaluator(BoundProgram program, Dictionary<VariableSymbol, object> globals) {
         diagnostics = new BelteDiagnosticQueue();
         program_ = program;
         globals_ = globals;
@@ -33,7 +33,11 @@ internal sealed class Evaluator {
         }
     }
 
-    public object Evaluate() {
+    /// <summary>
+    /// Evaluates a program/script in memory
+    /// </summary>
+    /// <returns>Value result from script</returns>
+    internal object Evaluate() {
         var function = program_.mainFunction ?? program_.scriptFunction;
         if (function == null)
             return null;
@@ -316,6 +320,7 @@ internal sealed class Evaluator {
         var left = EvaluateExpression(syntax.left);
         var right = EvaluateExpression(syntax.right);
 
+        // TODO: treat comparison operators normally, `is` is the only operator that handles null comparing
         // comparison operators are the only operators that can work with null
         switch (syntax.op.opType) {
             case BoundBinaryOperatorType.EqualityEquals:

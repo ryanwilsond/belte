@@ -6,7 +6,7 @@ namespace Buckle.Generators;
 internal class CurlyIndenter : IDisposable {
     private IndentedTextWriter indentedTextWriter_;
 
-    public CurlyIndenter(IndentedTextWriter indentedTextWriter, string openingLine = "") {
+    internal CurlyIndenter(IndentedTextWriter indentedTextWriter, string openingLine = "") {
         indentedTextWriter_ = indentedTextWriter;
 
         if (!string.IsNullOrWhiteSpace(openingLine))
@@ -16,6 +16,9 @@ internal class CurlyIndenter : IDisposable {
         indentedTextWriter.Indent++;
     }
 
+    /// <summary>
+    /// Exits scope
+    /// </summary>
     public void Dispose() {
         indentedTextWriter_.Indent--;
         indentedTextWriter_.WriteLine("}");

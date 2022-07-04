@@ -3,6 +3,7 @@ PROJDIR:=src/Buckle/Silver/Belte
 BUCKDIR:=src/Buckle/Silver/Buckle
 TESTDIR:=src/Buckle/Silver/Buckle.Tests
 DIAGDIR:=src/Buckle/Silver/Diagnostics
+REPLDIR:=src/Buckle/Silver/Repl
 NETVER:=net5.0
 SYSTEM:=win-x64
 SLN:=src/Buckle/Silver/buckle.sln
@@ -29,6 +30,7 @@ setup:
 	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.Rocks.dll Mono.Cecil.Rocks.dll
 	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.dll Mono.Cecil.dll
 	$(CP) $(DIAGDIR)/bin/Debug/$(NETVER)/Diagnostics.dll Diagnostics.dll
+	$(CP) $(REPLDIR)/bin/Debug/$(NETVER)/Repl.dll Repl.dll
 
 .PHONY: resources
 resources:
@@ -36,6 +38,7 @@ resources:
 	mkdir Resources
 	$(CP) -a $(PROJDIR)/Resources/. Resources
 	$(CP) -a $(BUCKDIR)/Resources/. Resources
+	$(CP) -a $(REPLDIR)/Resources/. Resources
 
 test:
 	dotnet test $(TESTDIR)/Buckle.Tests.csproj

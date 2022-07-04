@@ -12,14 +12,17 @@ public enum DiagnosticType {
 public sealed class DiagnosticInfo {
     public DiagnosticType severity { get; }
     public int? code { get; }
+    public string module { get; }
 
     public DiagnosticInfo() {
         code = null;
+        module = null;
         severity = DiagnosticType.Unknown;
     }
 
-    public DiagnosticInfo(int code_) {
+    public DiagnosticInfo(int code_, string module_) {
         code = code_;
+        module = module_;
         severity = DiagnosticType.Unknown;
     }
 
@@ -28,8 +31,9 @@ public sealed class DiagnosticInfo {
         severity = severity_;
     }
 
-    public DiagnosticInfo(int code_, DiagnosticType severity_) {
+    public DiagnosticInfo(int code_, string module_, DiagnosticType severity_) {
         code = code_;
+        module = module_;
         severity = severity_;
     }
 }

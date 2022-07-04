@@ -60,7 +60,7 @@ internal enum DiagnosticCode : int {
     ERR_MissingReturnStatement = 54,
     ERR_VoidVariable = 55,
 
-    // Carving out >=9000 for unsupported errors
+    // carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,
     UNS_Assembling = 9001,
     UNS_Linking = 9002,

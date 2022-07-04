@@ -4,7 +4,7 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 internal static class ConstantFolding {
-    public static BoundConstant Fold(
+    internal static BoundConstant Fold(
         BoundExpression left, BoundBinaryOperator op, BoundExpression right) {
         var leftConstant = left.constantValue;
         var rightConstant = right.constantValue;
@@ -156,7 +156,7 @@ internal static class ConstantFolding {
         }
     }
 
-    public static BoundConstant ComputeConstant(BoundUnaryOperator op, BoundExpression operand) {
+    internal static BoundConstant ComputeConstant(BoundUnaryOperator op, BoundExpression operand) {
         var operandType = operand.typeClause.lType;
 
         if (operand.constantValue != null && operand.constantValue.value is int value) {

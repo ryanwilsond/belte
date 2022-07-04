@@ -8,14 +8,14 @@ namespace Buckle.CodeAnalysis.Binding;
 
 internal sealed class BoundScope {
     private Dictionary<string, Symbol> symbols_;
-    public BoundScope parent;
+    internal BoundScope parent;
 
-    public BoundScope(BoundScope parent_) {
+    internal BoundScope(BoundScope parent_) {
         parent = parent_;
     }
 
-    public bool TryDeclareFunction(FunctionSymbol symbol) => TryDeclareSymbol(symbol);
-    public bool TryDeclareVariable(VariableSymbol symbol) => TryDeclareSymbol(symbol);
+    internal bool TryDeclareFunction(FunctionSymbol symbol) => TryDeclareSymbol(symbol);
+    internal bool TryDeclareVariable(VariableSymbol symbol) => TryDeclareSymbol(symbol);
 
     internal bool TryDeclareSymbol<TSymbol>(TSymbol symbol) where TSymbol : Symbol {
         if (symbols_ == null)
@@ -34,7 +34,7 @@ internal sealed class BoundScope {
         return parent?.LookupSymbol(name);
     }
 
-    public bool TryModifySymbol(string name, Symbol newSymbol) {
+    internal bool TryModifySymbol(string name, Symbol newSymbol) {
         var symbol = LookupSymbol(name);
 
         if (symbol == null)
@@ -44,8 +44,8 @@ internal sealed class BoundScope {
         return true;
     }
 
-    public ImmutableArray<VariableSymbol> GetDeclaredVariables() => GetDeclaredSymbols<VariableSymbol>();
-    public ImmutableArray<FunctionSymbol> GetDeclaredFunctions() => GetDeclaredSymbols<FunctionSymbol>();
+    internal ImmutableArray<VariableSymbol> GetDeclaredVariables() => GetDeclaredSymbols<VariableSymbol>();
+    internal ImmutableArray<FunctionSymbol> GetDeclaredFunctions() => GetDeclaredSymbols<FunctionSymbol>();
 
     private ImmutableArray<TSymbol> GetDeclaredSymbols<TSymbol>() where TSymbol : Symbol {
         if (symbols_ == null)
@@ -56,16 +56,16 @@ internal sealed class BoundScope {
 }
 
 internal sealed class BoundGlobalScope {
-    public ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)> functionBodies { get; }
-    public BoundGlobalScope previous { get; }
-    public BelteDiagnosticQueue diagnostics { get; }
-    public FunctionSymbol mainFunction { get; }
-    public FunctionSymbol scriptFunction { get; }
-    public ImmutableArray<FunctionSymbol> functions { get; }
-    public ImmutableArray<VariableSymbol> variables { get; }
-    public ImmutableArray<BoundStatement> statements { get; }
+    internal ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)> functionBodies { get; }
+    internal BoundGlobalScope previous { get; }
+    internal BelteDiagnosticQueue diagnostics { get; }
+    internal FunctionSymbol mainFunction { get; }
+    internal FunctionSymbol scriptFunction { get; }
+    internal ImmutableArray<FunctionSymbol> functions { get; }
+    internal ImmutableArray<VariableSymbol> variables { get; }
+    internal ImmutableArray<BoundStatement> statements { get; }
 
-    public BoundGlobalScope(
+    internal BoundGlobalScope(
         ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)> functionBodies_,
         BoundGlobalScope previous_, BelteDiagnosticQueue diagnostics_, FunctionSymbol mainFunction_,
         FunctionSymbol scriptFunction_, ImmutableArray<FunctionSymbol> functions_,
@@ -83,13 +83,13 @@ internal sealed class BoundGlobalScope {
 }
 
 internal sealed class BoundProgram {
-    public BoundProgram previous { get; }
-    public BelteDiagnosticQueue diagnostics { get; }
-    public FunctionSymbol mainFunction { get; }
-    public FunctionSymbol scriptFunction { get; }
-    public ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies { get; }
+    internal BoundProgram previous { get; }
+    internal BelteDiagnosticQueue diagnostics { get; }
+    internal FunctionSymbol mainFunction { get; }
+    internal FunctionSymbol scriptFunction { get; }
+    internal ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies { get; }
 
-    public BoundProgram(
+    internal BoundProgram(
         BoundProgram previous_, BelteDiagnosticQueue diagnostics_,
         FunctionSymbol mainFunction_,
         FunctionSymbol scriptFunction_,

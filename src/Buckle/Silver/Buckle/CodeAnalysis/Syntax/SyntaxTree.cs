@@ -7,10 +7,10 @@ using Buckle.CodeAnalysis.Text;
 namespace Buckle.CodeAnalysis.Syntax;
 
 internal sealed class SyntaxTree {
-    public CompilationUnit root { get; }
-    public Token endOfFile { get; }
-    public SourceText text { get; }
-    public BelteDiagnosticQueue diagnostics;
+    internal CompilationUnit root { get; }
+    internal Token endOfFile { get; }
+    internal SourceText text { get; }
+    internal BelteDiagnosticQueue diagnostics;
 
     private delegate void ParseHandler(
         SyntaxTree syntaxTree, out CompilationUnit root, out BelteDiagnosticQueue diagnostics);
@@ -24,42 +24,42 @@ internal sealed class SyntaxTree {
         root = root_;
     }
 
-    public static SyntaxTree Load(string fileName, string text) {
+    internal static SyntaxTree Load(string fileName, string text) {
         var sourceText = SourceText.From(text, fileName);
         return Parse(sourceText);
     }
 
-    public static SyntaxTree Load(string fileName) {
+    internal static SyntaxTree Load(string fileName) {
         var text = File.ReadAllText(fileName);
         var sourceText = SourceText.From(text, fileName);
         return Parse(sourceText);
     }
 
-    public static SyntaxTree Parse(string text) {
+    internal static SyntaxTree Parse(string text) {
         var sourceText = SourceText.From(text);
         return Parse(sourceText);
     }
 
-    public static SyntaxTree Parse(SourceText text) {
+    internal static SyntaxTree Parse(SourceText text) {
         return new SyntaxTree(text, Parse);
     }
 
-    public static ImmutableArray<Token> ParseTokens(string text, bool includeEOF = false) {
+    internal static ImmutableArray<Token> ParseTokens(string text, bool includeEOF = false) {
         var sourceText = SourceText.From(text);
         return ParseTokens(sourceText, includeEOF);
     }
 
-    public static ImmutableArray<Token> ParseTokens(
+    internal static ImmutableArray<Token> ParseTokens(
         string text, out BelteDiagnosticQueue diagnostics, bool includeEOF = false) {
         var sourceText = SourceText.From(text);
         return ParseTokens(sourceText, out diagnostics, includeEOF);
     }
 
-    public static ImmutableArray<Token> ParseTokens(SourceText text, bool includeEOF = false) {
+    internal static ImmutableArray<Token> ParseTokens(SourceText text, bool includeEOF = false) {
         return ParseTokens(text, out _, includeEOF);
     }
 
-    public static ImmutableArray<Token> ParseTokens(
+    internal static ImmutableArray<Token> ParseTokens(
         SourceText text, out BelteDiagnosticQueue diagnostics, bool includeEOF = false) {
         var tokens = new List<Token>();
 

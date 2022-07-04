@@ -3,15 +3,15 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 internal sealed class Cast {
-    public bool exists { get; }
-    public bool isIdentity { get; }
-    public bool isImplicit { get; }
-    public bool isExplicit => exists && !isImplicit;
+    internal bool exists { get; }
+    internal bool isIdentity { get; }
+    internal bool isImplicit { get; }
+    internal bool isExplicit => exists && !isImplicit;
 
-    public static readonly Cast None = new Cast(false, false, false);
-    public static readonly Cast Identity = new Cast(true, true, true);
-    public static readonly Cast Implicit = new Cast(true, false, true);
-    public static readonly Cast Explicit = new Cast(true, false, false);
+    internal static readonly Cast None = new Cast(false, false, false);
+    internal static readonly Cast Identity = new Cast(true, true, true);
+    internal static readonly Cast Implicit = new Cast(true, false, true);
+    internal static readonly Cast Explicit = new Cast(true, false, false);
 
     private Cast(bool exists_, bool isIdentity_, bool isImplicit_) {
         exists = exists_;
@@ -19,7 +19,7 @@ internal sealed class Cast {
         isImplicit = isImplicit_;
     }
 
-    public static Cast Classify(BoundTypeClause fromType, BoundTypeClause toType) {
+    internal static Cast Classify(BoundTypeClause fromType, BoundTypeClause toType) {
         var from = fromType.lType;
         var to = toType.lType;
 

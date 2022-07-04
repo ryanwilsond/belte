@@ -140,7 +140,7 @@ public sealed class Compiler {
     /// <summary>
     /// Handles preprocessing, compiling, assembling, and linking of a set of files
     /// </summary>
-    /// <returns>error</returns>
+    /// <returns>Error code, 0 = success</returns>
     public int Compile() {
         int err;
 
@@ -165,6 +165,7 @@ public sealed class Compiler {
 
         return CheckErrors();
 
+        // * This code is only relevant when independent compilation becomes supported
         // InternalCompiler();
         // err = CheckErrors();
         // if (err != SUCCESS_EXIT_CODE)

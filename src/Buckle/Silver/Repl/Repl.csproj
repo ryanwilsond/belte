@@ -2,18 +2,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Buckle\Buckle.csproj" />
-    <Content Update="Resources/help.txt">
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\Diagnostics\Diagnostics.csproj" />
-    <ProjectReference Include="..\Repl\Repl.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>net5.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>annotations</Nullable>
   </PropertyGroup>
 
 </Project>

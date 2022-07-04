@@ -1,43 +1,42 @@
-using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Text.RegularExpressions;
 using Buckle.CodeAnalysis.Text;
 
+// TODO finish preprocessor
 // * Needs to use the lexer, parser, and constant evaluator to evaluate statements like #run, #if, #elif, and #define
 
 namespace Buckle;
 
-public abstract class PreprocessLine {
-    public TextLine text;
+internal abstract class PreprocessLine {
+    internal TextLine text;
 
-    public PreprocessLine() { }
+    internal PreprocessLine() { }
 }
 
-public sealed class PreprocessIf : PreprocessLine {
+internal sealed class PreprocessIf : PreprocessLine {
     // includes elif, else, and end
 }
 
-public sealed class PreprocessPragma : PreprocessLine { }
+internal sealed class PreprocessPragma : PreprocessLine { }
 
-public sealed class PreprocessDefine : PreprocessLine { }
+internal sealed class PreprocessDefine : PreprocessLine { }
 
-public sealed class PreprocessUndefine : PreprocessLine { }
+internal sealed class PreprocessUndefine : PreprocessLine { }
 
-public sealed class PreprocessWarning : PreprocessLine { }
+internal sealed class PreprocessWarning : PreprocessLine { }
 
-public sealed class PreprocessError : PreprocessLine { }
+internal sealed class PreprocessError : PreprocessLine { }
 
-public sealed class PreprocessRun : PreprocessLine { }
+internal sealed class PreprocessRun : PreprocessLine { }
 
-public sealed class PreprocessSand : PreprocessLine { }
+internal sealed class PreprocessSand : PreprocessLine { }
 
-public sealed class PreprocessFile {
-    public ImmutableArray<PreprocessLine> lines;
+internal sealed class PreprocessFile {
+    internal ImmutableArray<PreprocessLine> lines;
 
     private PreprocessFile() { }
 
-    public static PreprocessFile Parse(ImmutableArray<TextLine> lines) {
+    internal static PreprocessFile Parse(ImmutableArray<TextLine> lines) {
         var preprocessFile = new PreprocessFile();
 
         var builder = ImmutableArray.CreateBuilder<PreprocessLine>();
@@ -48,11 +47,17 @@ public sealed class PreprocessFile {
     }
 }
 
-public class Preprocessor {
+internal class Preprocessor {
     private Dictionary<string, string> symbols = new Dictionary<string, string>();
 
-    public string PreprocessText(string fileName, string text) {
-        var sourceText = SourceText.From(text, fileName);
+    /// <summary>
+    /// Preprocesses a file
+    /// </summary>
+    /// <param name="filename">Name of input file</param>
+    /// <param name="text">Contents of file</param>
+    /// <returns>Preprocessed text</returns>
+    internal string PreprocessText(string filename, string text) {
+        var sourceText = SourceText.From(text, filename);
         var lines = sourceText.lines;
 
         var preprocessFile = PreprocessFile.Parse(lines);

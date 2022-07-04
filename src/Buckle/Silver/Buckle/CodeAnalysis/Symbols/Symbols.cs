@@ -13,9 +13,8 @@ internal enum SymbolType {
 }
 
 internal abstract class Symbol {
-    // has to be mutable for nested functions
-    public string name { get; }
-    public abstract SymbolType type { get; }
+    internal string name { get; }
+    internal abstract SymbolType type { get; }
 
     private protected Symbol(string name_) {
         name = name_;
@@ -30,8 +29,8 @@ internal abstract class Symbol {
 }
 
 internal abstract class VariableSymbol : Symbol {
-    public BoundTypeClause typeClause { get; }
-    public BoundConstant constantValue { get; }
+    internal BoundTypeClause typeClause { get; }
+    internal BoundConstant constantValue { get; }
 
     internal VariableSymbol(string name, BoundTypeClause typeClause_, BoundConstant constant)
         : base(name) {
@@ -41,14 +40,14 @@ internal abstract class VariableSymbol : Symbol {
 }
 
 internal sealed class GlobalVariableSymbol : VariableSymbol {
-    public override SymbolType type => SymbolType.GlobalVariable;
+    internal override SymbolType type => SymbolType.GlobalVariable;
 
     internal GlobalVariableSymbol(string name, BoundTypeClause typeClause, BoundConstant constant)
         : base(name, typeClause, constant) { }
 }
 
 internal class LocalVariableSymbol : VariableSymbol {
-    public override SymbolType type => SymbolType.LocalVariable;
+    internal override SymbolType type => SymbolType.LocalVariable;
 
     internal LocalVariableSymbol(string name, BoundTypeClause typeClause, BoundConstant constant)
         : base(name, typeClause, constant) { }

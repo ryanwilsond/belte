@@ -6,41 +6,41 @@ namespace Buckle.CodeAnalysis.Binding;
 internal abstract class BoundStatement : BoundNode { }
 
 internal sealed class BoundBlockStatement : BoundStatement {
-    public ImmutableArray<BoundStatement> statements { get; }
-    public override BoundNodeType type => BoundNodeType.BlockStatement;
+    internal ImmutableArray<BoundStatement> statements { get; }
+    internal override BoundNodeType type => BoundNodeType.BlockStatement;
 
-    public BoundBlockStatement(ImmutableArray<BoundStatement> statements_) {
+    internal BoundBlockStatement(ImmutableArray<BoundStatement> statements_) {
         statements = statements_;
     }
 }
 
 internal sealed class BoundExpressionStatement : BoundStatement {
-    public BoundExpression expression { get; }
-    public override BoundNodeType type => BoundNodeType.ExpressionStatement;
+    internal BoundExpression expression { get; }
+    internal override BoundNodeType type => BoundNodeType.ExpressionStatement;
 
-    public BoundExpressionStatement(BoundExpression expression_) {
+    internal BoundExpressionStatement(BoundExpression expression_) {
         expression = expression_;
     }
 }
 
 internal sealed class BoundVariableDeclarationStatement : BoundStatement {
-    public VariableSymbol variable { get; }
-    public BoundExpression initializer { get; }
-    public override BoundNodeType type => BoundNodeType.VariableDeclarationStatement;
+    internal VariableSymbol variable { get; }
+    internal BoundExpression initializer { get; }
+    internal override BoundNodeType type => BoundNodeType.VariableDeclarationStatement;
 
-    public BoundVariableDeclarationStatement(VariableSymbol variable_, BoundExpression initializer_) {
+    internal BoundVariableDeclarationStatement(VariableSymbol variable_, BoundExpression initializer_) {
         variable = variable_;
         initializer = initializer_;
     }
 }
 
 internal sealed class BoundIfStatement : BoundStatement {
-    public BoundExpression condition { get; }
-    public BoundStatement then { get; }
-    public BoundStatement elseStatement { get; }
-    public override BoundNodeType type => BoundNodeType.IfStatement;
+    internal BoundExpression condition { get; }
+    internal BoundStatement then { get; }
+    internal BoundStatement elseStatement { get; }
+    internal override BoundNodeType type => BoundNodeType.IfStatement;
 
-    public BoundIfStatement(BoundExpression condition_, BoundStatement then_, BoundStatement elseStatement_) {
+    internal BoundIfStatement(BoundExpression condition_, BoundStatement then_, BoundStatement elseStatement_) {
         condition = condition_;
         then = then_;
         elseStatement = elseStatement_;
@@ -48,12 +48,12 @@ internal sealed class BoundIfStatement : BoundStatement {
 }
 
 internal sealed class BoundTryStatement : BoundStatement {
-    public BoundBlockStatement body { get; }
-    public BoundBlockStatement catchBody { get; }
-    public BoundBlockStatement finallyBody { get; }
-    public override BoundNodeType type => BoundNodeType.TryStatement;
+    internal BoundBlockStatement body { get; }
+    internal BoundBlockStatement catchBody { get; }
+    internal BoundBlockStatement finallyBody { get; }
+    internal override BoundNodeType type => BoundNodeType.TryStatement;
 
-    public BoundTryStatement(
+    internal BoundTryStatement(
         BoundBlockStatement body_, BoundBlockStatement catchBody_, BoundBlockStatement finallyBody_) {
         body = body_;
         catchBody = catchBody_;
@@ -62,8 +62,8 @@ internal sealed class BoundTryStatement : BoundStatement {
 }
 
 internal abstract class BoundLoopStatement : BoundStatement {
-    public BoundLabel breakLabel { get; }
-    public BoundLabel continueLabel { get; }
+    internal BoundLabel breakLabel { get; }
+    internal BoundLabel continueLabel { get; }
 
     protected BoundLoopStatement(BoundLabel breakLabel_, BoundLabel continueLabel_) {
         breakLabel = breakLabel_;
@@ -72,11 +72,11 @@ internal abstract class BoundLoopStatement : BoundStatement {
 }
 
 internal sealed class BoundWhileStatement : BoundLoopStatement {
-    public BoundExpression condition { get; }
-    public BoundStatement body { get; }
-    public override BoundNodeType type => BoundNodeType.WhileStatement;
+    internal BoundExpression condition { get; }
+    internal BoundStatement body { get; }
+    internal override BoundNodeType type => BoundNodeType.WhileStatement;
 
-    public BoundWhileStatement(
+    internal BoundWhileStatement(
         BoundExpression condition_, BoundStatement body_, BoundLabel breakLabel, BoundLabel continueLabel)
         : base(breakLabel, continueLabel) {
         condition = condition_;
@@ -85,13 +85,13 @@ internal sealed class BoundWhileStatement : BoundLoopStatement {
 }
 
 internal sealed class BoundForStatement : BoundLoopStatement {
-    public BoundStatement initializer { get; }
-    public BoundExpression condition { get; }
-    public BoundExpression step { get; }
-    public BoundStatement body { get; }
-    public override BoundNodeType type => BoundNodeType.ForStatement;
+    internal BoundStatement initializer { get; }
+    internal BoundExpression condition { get; }
+    internal BoundExpression step { get; }
+    internal BoundStatement body { get; }
+    internal override BoundNodeType type => BoundNodeType.ForStatement;
 
-    public BoundForStatement(
+    internal BoundForStatement(
         BoundStatement initializer_, BoundExpression condition_, BoundExpression step_,
         BoundStatement body_, BoundLabel breakLabel, BoundLabel continueLabel)
         : base(breakLabel, continueLabel) {
@@ -103,11 +103,11 @@ internal sealed class BoundForStatement : BoundLoopStatement {
 }
 
 internal sealed class BoundDoWhileStatement : BoundLoopStatement {
-    public BoundStatement body { get; }
-    public BoundExpression condition { get; }
-    public override BoundNodeType type => BoundNodeType.DoWhileStatement;
+    internal BoundStatement body { get; }
+    internal BoundExpression condition { get; }
+    internal override BoundNodeType type => BoundNodeType.DoWhileStatement;
 
-    public BoundDoWhileStatement(
+    internal BoundDoWhileStatement(
         BoundStatement body_, BoundExpression condition_, BoundLabel breakLabel, BoundLabel continueLabel)
         : base(breakLabel, continueLabel) {
         body = body_;
@@ -116,21 +116,21 @@ internal sealed class BoundDoWhileStatement : BoundLoopStatement {
 }
 
 internal sealed class BoundGotoStatement : BoundStatement {
-    public BoundLabel label { get; }
-    public override BoundNodeType type => BoundNodeType.GotoStatement;
+    internal BoundLabel label { get; }
+    internal override BoundNodeType type => BoundNodeType.GotoStatement;
 
-    public BoundGotoStatement(BoundLabel label_) {
+    internal BoundGotoStatement(BoundLabel label_) {
         label = label_;
     }
 }
 
 internal sealed class BoundConditionalGotoStatement : BoundStatement {
-    public BoundLabel label { get; }
-    public BoundExpression condition { get; }
-    public bool jumpIfTrue { get; }
-    public override BoundNodeType type => BoundNodeType.ConditionalGotoStatement;
+    internal BoundLabel label { get; }
+    internal BoundExpression condition { get; }
+    internal bool jumpIfTrue { get; }
+    internal override BoundNodeType type => BoundNodeType.ConditionalGotoStatement;
 
-    public BoundConditionalGotoStatement(BoundLabel label_, BoundExpression condition_, bool jumpIfTrue_ = true) {
+    internal BoundConditionalGotoStatement(BoundLabel label_, BoundExpression condition_, bool jumpIfTrue_ = true) {
         label = label_;
         condition = condition_;
         jumpIfTrue = jumpIfTrue_;
@@ -138,24 +138,23 @@ internal sealed class BoundConditionalGotoStatement : BoundStatement {
 }
 
 internal sealed class BoundLabelStatement : BoundStatement {
-    public BoundLabel label { get; }
-    public override BoundNodeType type => BoundNodeType.LabelStatement;
+    internal BoundLabel label { get; }
+    internal override BoundNodeType type => BoundNodeType.LabelStatement;
 
-    public BoundLabelStatement(BoundLabel label_) {
+    internal BoundLabelStatement(BoundLabel label_) {
         label = label_;
     }
 }
 
 internal sealed class BoundReturnStatement : BoundStatement {
-    public BoundExpression expression { get; }
-    public override BoundNodeType type => BoundNodeType.ReturnStatement;
+    internal BoundExpression expression { get; }
+    internal override BoundNodeType type => BoundNodeType.ReturnStatement;
 
-    public BoundReturnStatement(BoundExpression expression_) {
+    internal BoundReturnStatement(BoundExpression expression_) {
         expression = expression_;
     }
 }
 
 internal sealed class BoundNopStatement : BoundStatement {
-    // basically internal statement varient of BoundEmptyExpression
-    public override BoundNodeType type => BoundNodeType.NopStatement;
+    internal override BoundNodeType type => BoundNodeType.NopStatement;
 }

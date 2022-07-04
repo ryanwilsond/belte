@@ -23,7 +23,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return new FunctionSymbol(name, ImmutableArray<ParameterSymbol>.Empty, returnType);
     }
 
-    public static BoundBlockStatement Lower(FunctionSymbol function, BoundStatement statement) {
+    internal static BoundBlockStatement Lower(FunctionSymbol function, BoundStatement statement) {
         var lowerer = new Lowerer();
         var block = Flatten(function, lowerer.RewriteStatement(statement));
         return RemoveDeadCode(block);

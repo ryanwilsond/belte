@@ -5,7 +5,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 
 internal static class SyntaxFacts {
 
-    public static int GetBinaryPrecedence(this SyntaxType type) {
+    internal static int GetBinaryPrecedence(this SyntaxType type) {
         switch (type) {
             case SyntaxType.ASTERISK_ASTERISK_TOKEN:
                 return 11;
@@ -41,7 +41,7 @@ internal static class SyntaxFacts {
         }
     }
 
-    public static int GetPrimaryPrecedence(this SyntaxType type) {
+    internal static int GetPrimaryPrecedence(this SyntaxType type) {
         switch (type) {
             case SyntaxType.OPEN_BRACKET_TOKEN:
             case SyntaxType.OPEN_PAREN_TOKEN:
@@ -51,7 +51,7 @@ internal static class SyntaxFacts {
         }
     }
 
-    public static int GetUnaryPrecedence(this SyntaxType type) {
+    internal static int GetUnaryPrecedence(this SyntaxType type) {
         switch (type) {
             case SyntaxType.PLUS_PLUS_TOKEN:
             case SyntaxType.MINUS_MINUS_TOKEN:
@@ -65,7 +65,7 @@ internal static class SyntaxFacts {
         }
     }
 
-    public static SyntaxType GetKeywordType(string text) {
+    internal static SyntaxType GetKeywordType(string text) {
         switch (text) {
             case "true":
                 return SyntaxType.TRUE_KEYWORD;
@@ -106,7 +106,7 @@ internal static class SyntaxFacts {
         }
     }
 
-    public static string GetText(SyntaxType type) {
+    internal static string GetText(SyntaxType type) {
         switch (type) {
             case SyntaxType.COMMA_TOKEN:
                 return ",";
@@ -229,7 +229,7 @@ internal static class SyntaxFacts {
         }
     }
 
-    public static SyntaxType GetBinaryOperatorOfAssignmentOperator(SyntaxType type) {
+    internal static SyntaxType GetBinaryOperatorOfAssignmentOperator(SyntaxType type) {
         switch (type) {
             case SyntaxType.PLUS_EQUALS_TOKEN:
                 return SyntaxType.PLUS_TOKEN;
@@ -256,7 +256,7 @@ internal static class SyntaxFacts {
         }
     }
 
-    public static IEnumerable<SyntaxType> GetUnaryOperatorTypes() {
+    internal static IEnumerable<SyntaxType> GetUnaryOperatorTypes() {
         var types = (SyntaxType[])Enum.GetValues(typeof(SyntaxType));
         foreach (var type in types) {
             if (GetUnaryPrecedence(type) > 0)
@@ -264,7 +264,7 @@ internal static class SyntaxFacts {
         }
     }
 
-    public static IEnumerable<SyntaxType> GetBinaryOperatorTypes() {
+    internal static IEnumerable<SyntaxType> GetBinaryOperatorTypes() {
         var types = (SyntaxType[])Enum.GetValues(typeof(SyntaxType));
         foreach (var type in types) {
             if (GetBinaryPrecedence(type) > 0)
@@ -272,19 +272,19 @@ internal static class SyntaxFacts {
         }
     }
 
-    public static bool IsKeyword(this SyntaxType type) {
+    internal static bool IsKeyword(this SyntaxType type) {
         return type.ToString().EndsWith("KEYWORD");
     }
 
-    public static bool IsToken(this SyntaxType type) {
+    internal static bool IsToken(this SyntaxType type) {
         return !type.IsTrivia() && (type.IsKeyword() || type.ToString().EndsWith("TOKEN"));
     }
 
-    public static bool IsTrivia(this SyntaxType type) {
+    internal static bool IsTrivia(this SyntaxType type) {
         return type.ToString().EndsWith("TRIVIA");
     }
 
-    public static bool IsComment(this SyntaxType type) {
+    internal static bool IsComment(this SyntaxType type) {
         return type == SyntaxType.SINGLELINE_COMMENT_TRIVIA || type == SyntaxType.MULTILINE_COMMENT_TRIVIA;
     }
 }

@@ -14,9 +14,9 @@ internal sealed class Lexer {
     private object value_;
     private SyntaxTree syntaxTree_;
     private ImmutableArray<SyntaxTrivia>.Builder triviaBuilder_ = ImmutableArray.CreateBuilder<SyntaxTrivia>();
-    public BelteDiagnosticQueue diagnostics = new BelteDiagnosticQueue();
+    internal BelteDiagnosticQueue diagnostics = new BelteDiagnosticQueue();
 
-    public Lexer(SyntaxTree syntaxTree) {
+    internal Lexer(SyntaxTree syntaxTree) {
         text_ = syntaxTree.text;
         syntaxTree_ = syntaxTree;
     }
@@ -33,7 +33,7 @@ internal sealed class Lexer {
     private char current => Peek(0);
     private char lookahead => Peek(1);
 
-    public Token LexNext() {
+    internal Token LexNext() {
         ReadTrivia(true);
         var leadingTrivia = triviaBuilder_.ToImmutable();
         var tokenStart = position_;
@@ -87,7 +87,8 @@ internal sealed class Lexer {
                     ReadWhitespace();
                     break;
                 default:
-                    // other whitespace; use case on most common because more efficient, negligible
+                    // other whitespace; use case labels on most common whitespace because its faster
+                    // ! however the speed gain is almost definitely negligible and probably not worth the readability loss
                     if (char.IsWhiteSpace(current))
                         ReadWhitespace();
                     else

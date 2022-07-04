@@ -12,7 +12,7 @@ using Diagnostics;
 namespace Buckle.CodeAnalysis.Binding;
 
 internal sealed class Binder {
-    public BelteDiagnosticQueue diagnostics;
+    internal BelteDiagnosticQueue diagnostics;
     private BoundScope scope_;
     private readonly bool isScript_;
     private readonly FunctionSymbol function_;
@@ -44,7 +44,7 @@ internal sealed class Binder {
         }
     }
 
-    public static BoundGlobalScope BindGlobalScope(
+    internal static BoundGlobalScope BindGlobalScope(
         bool isScript, BoundGlobalScope previous, ImmutableArray<SyntaxTree> syntaxTrees) {
         var parentScope = CreateParentScope(previous);
         var binder = new Binder(isScript, parentScope, null);
@@ -125,7 +125,7 @@ internal sealed class Binder {
             scriptFunction, functions, variables, statements.ToImmutable());
     }
 
-    public static BoundProgram BindProgram(bool isScript, BoundProgram previous, BoundGlobalScope globalScope) {
+    internal static BoundProgram BindProgram(bool isScript, BoundProgram previous, BoundGlobalScope globalScope) {
         var parentScope = CreateParentScope(globalScope);
 
         if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
@@ -608,7 +608,6 @@ internal sealed class Binder {
                 );
 
                 trackSymbols_ = oldTrackSymbols;
-                // should never fail
                 var boundArgument = BindCast(null, BindExpression(argument), parameter.typeClause);
                 boundArguments.Add(boundArgument);
             }
@@ -915,7 +914,7 @@ internal sealed class Binder {
     }
 
     private Token CreateToken(SyntaxType type, string name = null, object value = null) {
-        // this function ideally wouldn't exist, but used for hacks around the binder
+        // TODO: binder uses a hack to create code in the parse tree, probably better solution
         return new Token(
             null, type, -1, name, value,
             ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);

@@ -8,17 +8,17 @@ using Buckle.CodeAnalysis.Binding;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal static class BuiltinFunctions {
-    public static readonly FunctionSymbol Print = new FunctionSymbol("Print",
+    internal static readonly FunctionSymbol Print = new FunctionSymbol("Print",
         ImmutableArray.Create(new ParameterSymbol("text", BoundTypeClause.NullableAny, 0)),
         new BoundTypeClause(TypeSymbol.Void));
-    public static readonly FunctionSymbol PrintLine = new FunctionSymbol("PrintLine",
+    internal static readonly FunctionSymbol PrintLine = new FunctionSymbol("PrintLine",
         ImmutableArray.Create(new ParameterSymbol("text", BoundTypeClause.NullableAny, 0)),
         new BoundTypeClause(TypeSymbol.Void));
-    public static readonly FunctionSymbol Input = new FunctionSymbol("Input",
+    internal static readonly FunctionSymbol Input = new FunctionSymbol("Input",
         ImmutableArray<ParameterSymbol>.Empty, BoundTypeClause.String);
-    public static readonly FunctionSymbol Randint = new FunctionSymbol("RandInt",
+    internal static readonly FunctionSymbol Randint = new FunctionSymbol("RandInt",
         ImmutableArray.Create(new ParameterSymbol("max", BoundTypeClause.NullableInt, 0)), BoundTypeClause.Int);
-    public static readonly FunctionSymbol Value = new FunctionSymbol("Value",
+    internal static readonly FunctionSymbol Value = new FunctionSymbol("Value",
         ImmutableArray.Create(new ParameterSymbol("value", BoundTypeClause.NullableAny, 0)), BoundTypeClause.Any);
 
     internal static IEnumerable<FunctionSymbol> GetAll()
@@ -28,21 +28,21 @@ internal static class BuiltinFunctions {
 }
 
 internal sealed class ParameterSymbol : LocalVariableSymbol {
-    public override SymbolType type => SymbolType.Parameter;
-    public int ordinal { get; }
+    internal override SymbolType type => SymbolType.Parameter;
+    internal int ordinal { get; }
 
-    public ParameterSymbol(string name, BoundTypeClause typeClause, int ordinal_) : base(name, typeClause, null) {
+    internal ParameterSymbol(string name, BoundTypeClause typeClause, int ordinal_) : base(name, typeClause, null) {
         ordinal = ordinal_;
     }
 }
 
 internal sealed class FunctionSymbol : Symbol {
-    public ImmutableArray<ParameterSymbol> parameters { get; }
-    public BoundTypeClause typeClause { get; }
-    public FunctionDeclaration declaration { get; }
-    public override SymbolType type => SymbolType.Function;
+    internal ImmutableArray<ParameterSymbol> parameters { get; }
+    internal BoundTypeClause typeClause { get; }
+    internal FunctionDeclaration declaration { get; }
+    internal override SymbolType type => SymbolType.Function;
 
-    public FunctionSymbol(
+    internal FunctionSymbol(
         string name, ImmutableArray<ParameterSymbol> parameters_,
         BoundTypeClause typeClause_, FunctionDeclaration declaration_ = null)
         : base(name) {

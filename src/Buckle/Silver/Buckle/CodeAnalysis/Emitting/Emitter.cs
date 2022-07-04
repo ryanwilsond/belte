@@ -11,10 +11,13 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Diagnostics;
 
+// TODO: this entire file is spaghetti code, need to rewrite with a better understanding of when to use:
+// ldarg vs ldarga vs ldarga.s, newobj vs initobj vs call, etc.
+
 namespace Buckle.CodeAnalysis.Emitting;
 
 internal sealed class Emitter {
-    public BelteDiagnosticQueue diagnostics = new BelteDiagnosticQueue();
+    internal BelteDiagnosticQueue diagnostics = new BelteDiagnosticQueue();
 
     private readonly List<AssemblyDefinition> assemblies = new List<AssemblyDefinition>();
     private readonly List<(TypeSymbol type, string metadataName)> builtinTypes;
@@ -173,7 +176,7 @@ internal sealed class Emitter {
         return null;
     }
 
-    public static BelteDiagnosticQueue Emit(
+    internal static BelteDiagnosticQueue Emit(
         BoundProgram program, string moduleName, string[] references, string outputPath) {
         if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return program.diagnostics;
@@ -182,7 +185,7 @@ internal sealed class Emitter {
         return emitter.Emit(program, outputPath);
     }
 
-    public BelteDiagnosticQueue Emit(BoundProgram program, string outputPath) {
+    internal BelteDiagnosticQueue Emit(BoundProgram program, string outputPath) {
         diagnostics.Move(program.diagnostics);
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return diagnostics;
@@ -394,7 +397,6 @@ internal sealed class Emitter {
     private void EmitConditionalGotoStatement(ILProcessor iLProcessor, BoundConditionalGotoStatement statement) {
         EmitExpression(iLProcessor, statement.condition);
 
-        // TODO: this is getting messed up
         var opcode = statement.jumpIfTrue
             ? OpCodes.Brtrue
             : OpCodes.Brfalse;
@@ -714,7 +716,7 @@ internal sealed class Emitter {
                 // ? when is Ldarga_S used
                 iLProcessor.Emit(OpCodes.Ldloc, variableDefinition);
             } catch {
-                // ! This may have side affects
+                // ! this may have side affects
                 ParameterSymbol foundParameter = null;
 
                 foreach (var parameterSymbol in currentFunction_.parameters)
@@ -873,11 +875,11 @@ internal sealed class Emitter {
     }
 
     private void EmitStringConcatExpression(ILProcessor iLProcessor, BoundBinaryExpression expression) {
-        // Flatten the expression tree to a sequence of nodes to concatenate,
+        // flatten the expression tree to a sequence of nodes to concatenate,
         // then fold consecutive constants in that sequence.
-        // This approach enables constant folding of non-sibling nodes,
+        // this approach enables constant folding of non-sibling nodes,
         // which cannot be done in theConstantFolding class as it would require changing the tree.
-        // Example: folding b and c in ((a + b) + c) if they are constant.
+        // example: folding b and c in ((a + b) + c) if they are constant.
 
         var nodes = FoldConstants(Flatten(expression)).ToList();
 
@@ -922,6 +924,7 @@ internal sealed class Emitter {
         }
 
         // TODO: use similar logic for other data types and operators (e.g. 2 * x * 4 -> 8 * x)
+
         // (a + b) + (c + d) --> [a, b, c, d]
         static IEnumerable<BoundExpression> Flatten(BoundExpression node) {
             if (node is BoundBinaryExpression binaryExpression &&
@@ -997,8 +1000,6 @@ internal sealed class Emitter {
             throw new Exception($"EmitConstantExpression: unexpected constant expression type '{expressionType}'");
         }
 
-        // TODO: this entire file is spaghetti code, need to rewrite with a better understanding of when to use
-        // ldarg vs ldarga vs ldarga.s, newobj vs initobj vs call, etc.
         if (referenceAssign && handleAssignment) {
             iLProcessor.Emit(OpCodes.Newobj, GetNullableCtor(expression.typeClause));
             iLProcessor.Emit(OpCodes.Stobj, GetType(expression.typeClause));
@@ -1051,7 +1052,6 @@ internal sealed class Emitter {
         var genericArgumentType = assemblyDefinition_.MainModule.ImportReference(knownTypes_[type.lType]);
         var typeReference = new GenericInstanceType(nullableReference_);
         typeReference.GenericArguments.Add(genericArgumentType);
-        // only used sometimes
         var referenceType = new ByReferenceType(typeReference);
 
         if (type.dimensions == 0) {

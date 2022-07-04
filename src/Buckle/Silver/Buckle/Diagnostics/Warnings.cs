@@ -7,21 +7,21 @@ namespace Buckle.Diagnostics;
 
 internal static class Warning {
     internal static class Unsupported {
-        public static BelteDiagnostic Assembling() {
+        internal static BelteDiagnostic Assembling() {
             var message = "assembling not supported (yet); skipping";
             return new BelteDiagnostic(WarningInfo(DiagnosticCode.UNS_Assembling), message);
         }
 
-        public static BelteDiagnostic Linking() {
+        internal static BelteDiagnostic Linking() {
             var message = "linking not supported (yet); skipping";
             return new BelteDiagnostic(WarningInfo(DiagnosticCode.UNS_Linking), message);
         }
     }
 
-    public static BelteDiagnostic UnreachableCode(Node node) {
+    internal static BelteDiagnostic UnreachableCode(Node node) {
         if (node.type == SyntaxType.BLOCK) {
             var firstStatement = ((BlockStatement)node).statements.FirstOrDefault();
-            // Report just for non empty blocks.
+            // report just for non empty blocks.
             if (firstStatement != null)
                 return UnreachableCode(firstStatement);
 
@@ -34,7 +34,7 @@ internal static class Warning {
     }
 
     private static DiagnosticInfo WarningInfo(DiagnosticCode code) {
-        return new DiagnosticInfo((int)code, DiagnosticType.Warning);
+        return new DiagnosticInfo((int)code, "BU", DiagnosticType.Warning);
     }
 
     internal static BelteDiagnostic UnreachableCode(TextLocation location) {
