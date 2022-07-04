@@ -169,11 +169,7 @@ internal abstract class Node {
 
     internal TextLocation location => syntaxTree == null ? null : new TextLocation(syntaxTree.text, span);
 
-    /// <summary>
-    /// Gets all child nodes (non-recursive)
-    /// </summary>
-    /// <returns>All child nodes</returns>
-    public abstract IEnumerable<Node> GetChildren();
+    internal abstract IEnumerable<Node> GetChildren();
 
     internal void WriteTo(TextWriter writer) {
         PrettyPrint(writer, this);
@@ -275,7 +271,7 @@ internal sealed class Token : Node {
         trailingTrivia = trailingTrivia_;
     }
 
-    public override IEnumerable<Node> GetChildren() {
+    internal override IEnumerable<Node> GetChildren() {
         return Array.Empty<Node>();
     }
 }
@@ -327,7 +323,7 @@ internal sealed class TypeClause : Node {
         brackets = brackets_;
     }
 
-    public override IEnumerable<Node> GetChildren() {
+    internal override IEnumerable<Node> GetChildren() {
         foreach (var attribute in attributes) {
             yield return attribute.openBracket;
             yield return attribute.identifier;
