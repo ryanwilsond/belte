@@ -201,11 +201,6 @@ public static partial class BuckleCommandLine {
     }
 
     private static DiagnosticQueue<Diagnostic> ResolveInputFileOrDir(string name, ref List<FileState> tasks) {
-        return ResolveInputFileOrDir(name, ref tasks, new string[]{"ble", "pble", "s", "asm", "o", "obj"});
-    }
-
-    private static DiagnosticQueue<Diagnostic> ResolveInputFileOrDir(
-        string name, ref List<FileState> tasks, string[] allowedExtensions) {
         List<string> filenames = new List<string>();
         DiagnosticQueue<Diagnostic> diagnostics = new DiagnosticQueue<Diagnostic>();
 
@@ -227,46 +222,18 @@ public static partial class BuckleCommandLine {
 
             switch (type) {
                 case "ble":
-                    if (allowedExtensions.Contains("ble"))
-                        task.stage = CompilerStage.Raw;
-                    else
-                        goto default;
-
+                    task.stage = CompilerStage.Raw;
                     break;
                 case "pble":
-                    if (allowedExtensions.Contains("pble"))
-                        task.stage = CompilerStage.Preprocessed;
-                    else
-                        goto default;
-
+                    task.stage = CompilerStage.Preprocessed;
                     break;
                 case "s":
-                    if (allowedExtensions.Contains("s"))
-                        task.stage = CompilerStage.Compiled;
-                    else
-                        goto default;
-
-                    break;
                 case "asm":
-                    if (allowedExtensions.Contains("asm"))
-                        task.stage = CompilerStage.Compiled;
-                    else
-                        goto default;
-
+                    task.stage = CompilerStage.Compiled;
                     break;
                 case "o":
-                    if (allowedExtensions.Contains("o"))
-                        task.stage = CompilerStage.Assembled;
-                    else
-                        goto default;
-
-                    break;
                 case "obj":
-                    if (allowedExtensions.Contains("obj"))
-                        task.stage = CompilerStage.Assembled;
-                    else
-                        goto default;
-
+                    task.stage = CompilerStage.Assembled;
                     break;
                 default:
                     diagnostics.Push(Belte.Diagnostics.Warning.IgnoringUnknownFileType(task.inputFilename));

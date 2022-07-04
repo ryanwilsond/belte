@@ -1,12 +1,12 @@
 # Works with bash and powershell
-PROJDIR:=src/Buckle/Silver/Belte
-BUCKDIR:=src/Buckle/Silver/Buckle
-TESTDIR:=src/Buckle/Silver/Buckle.Tests
-DIAGDIR:=src/Buckle/Silver/Diagnostics
-REPLDIR:=src/Buckle/Silver/Repl
+PROJDIR:=src/Buckle/Belte
+BUCKDIR:=src/Buckle/Buckle
+TESTDIR:=src/Buckle/Buckle.Tests
+DIAGDIR:=src/Buckle/Diagnostics
+REPLDIR:=src/Buckle/Repl
 NETVER:=net5.0
 SYSTEM:=win-x64
-SLN:=src/Buckle/Silver/buckle.sln
+SLN:=src/Buckle/buckle.sln
 CP=cp
 RM=rm
 

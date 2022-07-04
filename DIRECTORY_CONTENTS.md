@@ -12,10 +12,8 @@ Brief descriptions of all the directories to help browsing the repo.
 | src/Belte | Belte Standard Libraries |
 | src/Sander | Belte linter (not started) |
 | src/Buckle | Belte compiler |
-| src/Buckle/Bronze | C++ implementation (old) |
-| src/Buckle/Strap | Belte implementation (bootstrap, not started) |
-| src/Buckle/Silver | C# implementation (maintained) |
-| src/Buckle/Silver/Belte | Non-compiler specific source, command-line utility |
-| src/Buckle/Silver/Buckle | Compiler source files |
-| src/Buckle/Silver/Buckle.Generators | Generator for some compiler source files |
-| src/Buckle/Silver/Buckle.Tests | Unit tests for Buckle |
+| src/Buckle/Belte | Non-compiler specific source, command-line utility |
+| src/Buckle/Buckle | Compiler source files |
+| src/Buckle/Buckle.Generators | Generator for some compiler source files |
+| src/Buckle/Buckle.Tests | Unit tests for Buckle |
+| src/Buckle/Repl | Belte Repl |

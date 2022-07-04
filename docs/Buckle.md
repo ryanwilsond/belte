@@ -54,7 +54,7 @@ example:
       <BuckleCompilerArgs>$(BuckleCompilerArgs) -o &quot;@(IntermediateAssembly)&quot;</BuckleCompilerArgs>
       <BuckleCompilerArgs>$(BuckleCompilerArgs) @(ReferencePath->'--ref=&quot;%(Identity)&quot;', ' ')</BuckleCompilerArgs>
     </PropertyGroup>
-    <Exec Command="dotnet run --project &quot;$(MSBuildThisFileDirectory)\..\src\Buckle\Silver\Belte\Belte.csproj&quot; -- -d $(BuckleCompilerArgs)"
+    <Exec Command="dotnet run --project &quot;$(MSBuildThisFileDirectory)\..\src\Buckle\Belte\Belte.csproj&quot; -- -d $(BuckleCompilerArgs)"
       WorkingDirectory="$(MSBuildProjectDirectory)" />
   </Target>
 
