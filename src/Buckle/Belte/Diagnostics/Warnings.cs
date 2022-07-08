@@ -1,3 +1,4 @@
+using System;
 using Diagnostics;
 
 namespace Belte.Diagnostics;
@@ -20,5 +21,11 @@ internal static class Warning {
     internal static Diagnostic IgnoringCompiledFile(string filename) {
         var message = $"{filename}: file already compiled; ignoring";
         return new Diagnostic(WarningInfo(DiagnosticCode.WRN_IgnoringCompiledFile), message);
+    }
+
+    internal static Diagnostic CorruptInstallation() {
+        var message =
+            $"installation is corrupt; all compiler features are enabled except the `--explain` and `--help` options";
+        return new Diagnostic(WarningInfo(DiagnosticCode.WRN_CorruptInstallation), message);
     }
 }

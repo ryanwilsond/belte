@@ -25,15 +25,8 @@ public static partial class BuckleCommandLine {
 
     private static void ShowErrorHelp(string error, out DiagnosticQueue<Diagnostic> diagnostics) {
         // TODO this only works for debug builds currently, not release
-        string execLocation = Assembly.GetExecutingAssembly().Location;
-        string execPath = System.IO.Path.GetDirectoryName(execLocation);
         string prefix = error.Substring(0, 2);
         diagnostics = new DiagnosticQueue<Diagnostic>();
-
-        if (prefix != "BU" && prefix != "CL" && prefix != "RE") {
-            diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
-            return;
-        }
 
         int errorCode = 0;
 
@@ -44,7 +37,12 @@ public static partial class BuckleCommandLine {
             return;
         }
 
-        string path = Path.Combine(execPath, $"Resources/ErrorDescriptions{prefix}.txt");
+        string path = Path.Combine(GetExecutingPath(), $"Resources/ErrorDescriptions{prefix}.txt");
+
+        if (!File.Exists(path)) {
+            diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
+            return;
+        }
 
         string allMessages = File.ReadAllText(path);
 
@@ -95,12 +93,15 @@ public static partial class BuckleCommandLine {
     }
 
     private static void ShowHelpDialog() {
-        string execLocation = Assembly.GetExecutingAssembly().Location;
-        string execPath = System.IO.Path.GetDirectoryName(execLocation);
-        string path = Path.Combine(execPath, "Resources/HelpPrompt.txt");
-
+        string path = Path.Combine(GetExecutingPath(), "Resources/HelpPrompt.txt");
         string helpMessage = File.ReadAllText(path);
         Console.WriteLine(helpMessage);
+    }
+
+    private static string GetExecutingPath() {
+        string executingLocation = Assembly.GetExecutingAssembly().Location;
+        string executingPath = System.IO.Path.GetDirectoryName(executingLocation);
+        return executingPath;
     }
 
     private static void ShowMachineDialog() {
@@ -187,8 +188,36 @@ public static partial class BuckleCommandLine {
         Console.ResetColor();
     }
 
-    private static int ResolveDiagnostics<Type>(DiagnosticQueue<Type> diagnostics, string me)
-        where Type : Diagnostic {
+    private static DiagnosticType ResolveDiagnostic<Type>(Type diagnostic, string me) where Type : Diagnostic {
+        if (diagnostic.info.severity == DiagnosticType.Unknown) {
+        } else if (diagnostic.info.module != "BU" || (diagnostic is BelteDiagnostic bd && bd.location == null)) {
+            Console.Write($"{me}: ");
+
+            if (diagnostic.info.severity == DiagnosticType.Warning) {
+                Console.ForegroundColor = ConsoleColor.Magenta;
+                Console.Write("warning ");
+            } else if (diagnostic.info.severity == DiagnosticType.Error) {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Write("error ");
+            } else if (diagnostic.info.severity == DiagnosticType.Fatal) {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Write("fatal error ");
+            }
+
+            string errorCode = diagnostic.info.code.Value.ToString();
+            errorCode = errorCode.PadLeft(4, '0');
+            Console.Write($"{diagnostic.info.module}{errorCode}: ");
+
+            Console.ResetColor();
+            Console.WriteLine(diagnostic.message);
+        } else {
+            PrettyPrintDiagnostic(diagnostic as BelteDiagnostic);
+        }
+
+        return diagnostic.info.severity;
+    }
+
+    private static int ResolveDiagnostics<Type>(DiagnosticQueue<Type> diagnostics, string me) where Type : Diagnostic {
         if (diagnostics.count == 0)
             return SuccessExitCode;
 
@@ -196,36 +225,22 @@ public static partial class BuckleCommandLine {
         Diagnostic diagnostic = diagnostics.Pop();
 
         while (diagnostic != null) {
-            if (diagnostic.info.severity == DiagnosticType.Unknown) {
-            } else if (diagnostic.info.module != "BU" || (diagnostic is BelteDiagnostic bd && bd.location == null)) {
-                Console.Write($"{me}: ");
+            DiagnosticType temp = ResolveDiagnostic(diagnostic, me);
 
-                if (diagnostic.info.severity == DiagnosticType.Warning) {
+            switch (temp) {
+                case DiagnosticType.Warning:
                     if (worst == DiagnosticType.Unknown)
-                        worst = DiagnosticType.Warning;
+                        worst = temp;
 
-                    Console.ForegroundColor = ConsoleColor.Magenta;
-                    Console.Write("warning ");
-                } else if (diagnostic.info.severity == DiagnosticType.Error) {
+                    break;
+                case DiagnosticType.Error:
                     if (worst != DiagnosticType.Fatal)
-                        worst = DiagnosticType.Error;
+                        worst = temp;
 
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("error ");
-                } else if (diagnostic.info.severity == DiagnosticType.Fatal) {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("fatal error ");
-                    worst = DiagnosticType.Fatal;
-                }
-
-                string errorCode = diagnostic.info.code.Value.ToString();
-                errorCode = errorCode.PadLeft(4, '0');
-                Console.Write($"{diagnostic.info.module}{errorCode}: ");
-
-                Console.ResetColor();
-                Console.WriteLine(diagnostic.message);
-            } else {
-                PrettyPrintDiagnostic(diagnostic as BelteDiagnostic);
+                    break;
+                case DiagnosticType.Fatal:
+                    worst = temp;
+                    break;
             }
 
             diagnostic = diagnostics.Pop();
@@ -349,6 +364,14 @@ public static partial class BuckleCommandLine {
 
         bool hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error != null;
 
+        string resources = Path.Combine(GetExecutingPath(), "Resources");
+        bool corrupt = false;
+
+        if (!Directory.Exists(resources)) {
+            corrupt = true;
+            ResolveDiagnostic(Belte.Diagnostics.Warning.CorruptInstallation(), compiler.me);
+        }
+
         if (hasDialog)
             diagnostics.Clear();
 
@@ -358,10 +381,10 @@ public static partial class BuckleCommandLine {
         if (dialogs.version)
             ShowVersionDialog();
 
-        if (dialogs.help)
+        if (dialogs.help && !corrupt)
             ShowHelpDialog();
 
-        if (dialogs.error != null) {
+        if (dialogs.error != null && !corrupt) {
             ShowErrorHelp(dialogs.error, out DiagnosticQueue<Diagnostic> dialogDiagnostics);
             diagnostics.Move(dialogDiagnostics);
         }

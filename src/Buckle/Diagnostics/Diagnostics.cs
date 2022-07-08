@@ -93,12 +93,21 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     }
 
     /// <summary>
-    /// Pushes a diagnostic onto the Queue
+    /// Pushes a diagnostic onto the queue
     /// </summary>
     /// <param name="diagnostic">Diagnostic to copy onto the queue</param>
     public void Push(Type diagnostic) {
         if (diagnostic != null)
             diagnostics_.Add(diagnostic);
+    }
+
+    /// <summary>
+    /// Pushes a diagnostic to the front of the queue
+    /// </summary>
+    /// <param name="diagnostic">Diagnostic to copy onto the queue</param>
+    public void PushToFront(Type diagnostic) {
+        if (diagnostic != null)
+            diagnostics_.Insert(0, diagnostic);
     }
 
     /// <summary>
