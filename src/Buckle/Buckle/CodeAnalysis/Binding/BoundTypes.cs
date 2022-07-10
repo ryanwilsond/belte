@@ -84,13 +84,13 @@ internal sealed class BoundTypeClause : BoundNode {
     internal static readonly BoundTypeClause Any = new BoundTypeClause(TypeSymbol.Any);
 
     internal BoundTypeClause(
-        TypeSymbol lType_, bool isImplicit_ = false, bool isConstRef_ = false, bool isRef_ = false,
-        bool isConst_ = false, bool isNullable_ = false, bool isLiteral_ = false, int dimensions_ = 0) {
+        TypeSymbol lType_, bool isImplicit_ = false, bool isConstantReference_ = false, bool isReference_ = false,
+        bool isConstant_ = false, bool isNullable_ = false, bool isLiteral_ = false, int dimensions_ = 0) {
         lType = lType_;
         isImplicit = isImplicit_;
-        isConstantReference = isConst_;
-        isReference = isRef_;
-        isConstant = isConst_;
+        isConstantReference = isConstantReference_;
+        isReference = isReference_;
+        isConstant = isConstant_;
         isNullable = isNullable_;
         isLiteral = isLiteral_;
         dimensions = dimensions_;

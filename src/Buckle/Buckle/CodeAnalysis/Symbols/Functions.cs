@@ -22,7 +22,7 @@ internal static class BuiltinFunctions {
         ImmutableArray.Create(new ParameterSymbol("value", BoundTypeClause.NullableAny, 0)), BoundTypeClause.Any);
 
     internal static IEnumerable<FunctionSymbol> GetAll()
-        => typeof(BuiltinFunctions).GetFields(BindingFlags.Public | BindingFlags.Static)
+        => typeof(BuiltinFunctions).GetFields(BindingFlags.NonPublic | BindingFlags.Static)
         .Where(f => f.FieldType == typeof(FunctionSymbol))
         .Select(f => (FunctionSymbol)f.GetValue(null));
 }

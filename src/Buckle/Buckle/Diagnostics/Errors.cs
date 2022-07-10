@@ -64,13 +64,16 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_BadCharacter), location, message);
     }
 
-    internal static BelteDiagnostic UnexpectedToken(TextLocation location, SyntaxType unexpected, SyntaxType expected) {
+    internal static BelteDiagnostic UnexpectedToken(
+        TextLocation location, SyntaxType unexpected, SyntaxType? expected=null) {
         string message;
 
-        if (unexpected != SyntaxType.END_OF_FILE_TOKEN)
-            message = $"unexpected token {DiagnosticText(unexpected)}, expected {DiagnosticText(expected)}";
+        if (expected == null)
+            message = $"unexpected token {DiagnosticText(unexpected)}";
+        else if (unexpected != SyntaxType.END_OF_FILE_TOKEN)
+            message = $"unexpected token {DiagnosticText(unexpected)}, expected {DiagnosticText(expected.Value)}";
         else
-            message = $"expected {DiagnosticText(expected)} at end of input";
+            message = $"expected {DiagnosticText(expected.Value)} at end of input";
 
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnexpectedToken), location, message);
     }

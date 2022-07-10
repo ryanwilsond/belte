@@ -226,9 +226,7 @@ public class EvaluatorTests {
         var text = @"PrintLine(""Hi""[[=]][)];";
 
         var diagnostics = @"
-            unexpected token '=', expected ')'
-            unexpected token '=', expected identifier
-            unexpected token ')', expected identifier
+            unexpected token '='
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -269,11 +267,7 @@ public class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            unexpected token '=', expected ')'
-            unexpected token '=', expected '{'
-            unexpected token '=', expected identifier
-            unexpected token ')', expected identifier
-            expected '}' at end of input
+            unexpected token '='
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -664,11 +658,13 @@ public class EvaluatorTests {
         var diagnostics = assertWarnings
             ? result.diagnostics
             : result.diagnostics.FilterOut(DiagnosticType.Warning);
+
         if (expectedDiagnostics.Length != diagnostics.count) {
             writer.WriteLine($"Input: {annotatedText.text}");
             foreach (var diagnostic in diagnostics.AsList())
                 writer.WriteLine($"Diagnostic ({diagnostic.info.severity}): {diagnostic.message}");
         }
+
         Assert.Equal(expectedDiagnostics.Length, diagnostics.count);
 
         for (int i=0; i<expectedDiagnostics.Length; i++) {

@@ -18,9 +18,17 @@ internal sealed class Parser {
         if (current.type == type)
             return Next();
 
-        diagnostics.Push(Error.UnexpectedToken(current.location, current.type, type));
-        return new Token(syntaxTree_, type, current.position,
-            null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
+        if (Peek(1).type != type) {
+            diagnostics.Push(Error.UnexpectedToken(current.location, current.type, type));
+            return new Token(syntaxTree_, type, current.position,
+                null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
+        } else {
+            diagnostics.Push(Error.UnexpectedToken(current.location, current.type));
+            position_++;
+            Token cur = current;
+            position_++;
+            return cur;
+        }
     }
 
     private Token Next() {
@@ -208,6 +216,7 @@ internal sealed class Parser {
             var expression = ParseParameter();
             nodesAndSeparators.Add(expression);
 
+            // TODO: optional parameters
             if (current.type == SyntaxType.COMMA_TOKEN) {
                 var comma = Match(SyntaxType.COMMA_TOKEN);
                 nodesAndSeparators.Add(comma);

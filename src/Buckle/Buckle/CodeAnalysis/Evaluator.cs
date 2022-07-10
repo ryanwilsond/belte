@@ -201,23 +201,23 @@ internal sealed class Evaluator {
     }
 
     internal object EvaluateCallExpression(BoundCallExpression node) {
-        if (node.function == BuiltinFunctions.Input) {
+        if (MethodsMatch(node.function, BuiltinFunctions.Input)) {
             return Console.ReadLine();
-        } else if (node.function == BuiltinFunctions.Print) {
+        } else if (MethodsMatch(node.function, BuiltinFunctions.Print)) {
             var message = (object)EvaluateExpression(node.arguments[0]);
             Console.Write(message);
             hasPrint = true;
-        } else if (node.function == BuiltinFunctions.PrintLine) {
+        } else if (MethodsMatch(node.function, BuiltinFunctions.PrintLine)) {
             var message = (object)EvaluateExpression(node.arguments[0]);
             Console.WriteLine(message);
-        } else if (node.function == BuiltinFunctions.Randint) {
+        } else if (MethodsMatch(node.function, BuiltinFunctions.Randint)) {
             var max = (int)EvaluateExpression(node.arguments[0]);
 
             if (random_ == null)
                 random_ = new Random();
 
             return random_.Next(max);
-        } else if (node.function.name == "Value") {
+        } else if (MethodsMatch(node.function, BuiltinFunctions.Value)) {
             object? value = EvaluateExpression(node.arguments[0]);
 
             if (value == null)

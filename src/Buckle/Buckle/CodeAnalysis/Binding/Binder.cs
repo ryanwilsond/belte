@@ -630,7 +630,10 @@ internal sealed class Binder {
 
         EndEmulation();
 
-        if (toType.isNullable && expressionType.isNullable) {
+        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+            return new BoundErrorExpression();
+
+        if (toType.isNullable && expressionType.isNullable && boundExpression.constantValue == null) {
             /*
 
             {
@@ -669,7 +672,7 @@ internal sealed class Binder {
             });
 
             return BindInlineFunctionExpression(new InlineFunctionExpression(null, null, body, null));
-        } else if (expressionType.isNullable) {
+        } else if (expressionType.isNullable && boundExpression.constantValue == null) {
             /*
 
             (<type>)Value(<expression>);
@@ -995,7 +998,10 @@ internal sealed class Binder {
 
         EndEmulation();
 
-        if (!operandType.isNullable) {
+        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+            return new BoundErrorExpression();
+
+        if (!operandType.isNullable || operandTemp.constantValue != null) {
             var boundOperand = BindExpression(expression.operand);
 
             if (boundOperand.typeClause.lType == TypeSymbol.Error)
@@ -1097,6 +1103,9 @@ internal sealed class Binder {
 
         EndEmulation();
 
+        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+            return new BoundErrorExpression();
+
         if ((!leftType.isNullable && !rightType.isNullable) ||
             (expression.op.type == SyntaxType.EQUALS_EQUALS_TOKEN ||
             expression.op.type == SyntaxType.EXCLAMATION_EQUALS_TOKEN)) {
@@ -1141,7 +1150,8 @@ internal sealed class Binder {
         Expression ifCondition = new LiteralExpression(null, CreateToken(SyntaxType.FALSE_KEYWORD), false);
         var ifBody = new BlockStatement(null, null, ImmutableArray<Statement>.Empty, null);
 
-        if (leftType.isNullable && rightType.isNullable) {
+        if (leftType.isNullable && rightType.isNullable &&
+            leftTemp.constantValue == null && rightTemp.constantValue == null) {
             /*
 
             {
@@ -1189,7 +1199,7 @@ internal sealed class Binder {
 
             ifBody = new BlockStatement(
                 null, null, ImmutableArray.Create<Statement>(new Statement[]{ left0, right0, resultAssignment }), null);
-        } else if (leftType.isNullable) {
+        } else if (leftType.isNullable && leftTemp.constantValue == null) {
             /*
 
             {
@@ -1224,7 +1234,7 @@ internal sealed class Binder {
 
             ifBody = new BlockStatement(
                 null, null, ImmutableArray.Create<Statement>(new Statement[]{ left0, resultAssignment }), null);
-        } else if (rightType.isNullable) {
+        } else if (rightType.isNullable && rightTemp.constantValue == null) {
             /*
 
             {
@@ -1480,8 +1490,8 @@ internal sealed class Binder {
                 diagnostics.Push(Error.UnknownAttribute(attribute.identifier.location, attribute.identifier.text));
         }
 
-        var isConstRef = type.constRefKeyword != null;
         var isRef = type.refKeyword != null;
+        var isConstRef = type.constRefKeyword != null && isRef;
         var isConst = type.constKeyword != null;
         var isImplicit = type.typeName.type == SyntaxType.VAR_KEYWORD;
         var dimensions = type.brackets.Length;
