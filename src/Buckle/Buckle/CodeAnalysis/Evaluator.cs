@@ -224,6 +224,13 @@ internal sealed class Evaluator {
                 throw new NullReferenceException();
 
             return value;
+        } else if (MethodsMatch(node.function, BuiltinFunctions.HasValue)) {
+            object? value = EvaluateExpression(node.arguments[0]);
+
+            if (value == null)
+                return false;
+
+            return true;
         } else {
             var locals = new Dictionary<VariableSymbol, object>();
 

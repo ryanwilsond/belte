@@ -73,6 +73,8 @@ internal enum SyntaxType {
     CATCH_KEYWORD,
     FINALLY_KEYWORD,
     RETURN_KEYWORD,
+    IS_KEYWORD,
+    ISNT_KEYWORD,
 
     // tokens with text
     BAD_TOKEN,

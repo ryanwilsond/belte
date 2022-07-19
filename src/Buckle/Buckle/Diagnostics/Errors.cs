@@ -19,8 +19,13 @@ internal static class Error {
         }
 
         internal static BelteDiagnostic IndependentCompilation() {
-            var message = "unsupported: cannot compile independently (yet); must specify '-i', '-d', or '-r'";
+            var message = "unsupported: cannot compile independently; must specify '-i', '-d', or '-r'";
             return new BelteDiagnostic(FatalErrorInfo(DiagnosticCode.UNS_IndependentCompilation), message);
+        }
+
+        internal static BelteDiagnostic IsWithoutNull() {
+            var message = "unsupported: cannot use 'is' or 'isnt' operators against non-null values";
+            return new BelteDiagnostic(FatalErrorInfo(DiagnosticCode.UNS_IsWithoutNull), message);
         }
     }
 
@@ -47,6 +52,11 @@ internal static class Error {
             return type.ToString().ToLower().Substring(0, type.ToString().Length-6);
         else
             return type.ToString().ToLower();
+    }
+
+    internal static BelteDiagnostic ExpectedToken(TextLocation location, SyntaxType type) {
+        var message = $"expected {DiagnosticText(type)}";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedToken), message);
     }
 
     internal static BelteDiagnostic InvalidReference(string reference) {

@@ -14,9 +14,16 @@ internal sealed class Parser {
 
     internal BelteDiagnosticQueue diagnostics;
 
-    private Token Match(SyntaxType type) {
+    private Token Match(SyntaxType type, SyntaxType? nextWanted = null) {
         if (current.type == type)
             return Next();
+
+        // TODO
+        // if (nextWanted != null && current.type == nextWanted) {
+        //     diagnostics.Push(Error.ExpectedToken(current.location, type));
+        //     return new Token(syntaxTree_, type, current.position,
+        //         null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
+        // }
 
         if (Peek(1).type != type) {
             diagnostics.Push(Error.UnexpectedToken(current.location, current.type, type));
@@ -218,7 +225,7 @@ internal sealed class Parser {
 
             // TODO: optional parameters
             if (current.type == SyntaxType.COMMA_TOKEN) {
-                var comma = Match(SyntaxType.COMMA_TOKEN);
+                var comma = Next();
                 nodesAndSeparators.Add(comma);
             } else {
                 parseNextParameter = false;
@@ -347,7 +354,7 @@ internal sealed class Parser {
         Expression initializer = null;
 
         if (current.type == SyntaxType.EQUALS_TOKEN) {
-            equals = Match(SyntaxType.EQUALS_TOKEN);
+            equals = Next();
             initializer = ParseExpression();
         }
 
@@ -361,7 +368,7 @@ internal sealed class Parser {
         var attributes = ImmutableArray.CreateBuilder<(Token openBracket, Token identifier, Token closeBracket)>();
 
         while (current.type == SyntaxType.OPEN_BRACKET_TOKEN) {
-            var openBracket = Match(SyntaxType.OPEN_BRACKET_TOKEN);
+            var openBracket = Next();
             var identifier = Match(SyntaxType.IDENTIFIER_TOKEN);
             var closeBracket = Match(SyntaxType.CLOSE_BRACKET_TOKEN);
             attributes.Add((openBracket, identifier, closeBracket));
@@ -373,14 +380,14 @@ internal sealed class Parser {
         Token typeName = null;
 
         if (current.type == SyntaxType.CONST_KEYWORD && Peek(1).type == SyntaxType.REF_KEYWORD)
-            constRefKeyword = Match(SyntaxType.CONST_KEYWORD);
+            constRefKeyword = Next();
         if (current.type == SyntaxType.REF_KEYWORD)
-            refKeyword = Match(SyntaxType.REF_KEYWORD);
+            refKeyword = Next();
         if (current.type == SyntaxType.CONST_KEYWORD)
-            constKeyword = Match(SyntaxType.CONST_KEYWORD);
+            constKeyword = Next();
 
         if (current.type == SyntaxType.VAR_KEYWORD) {
-            typeName = Match(SyntaxType.VAR_KEYWORD);
+            typeName = Next();
 
             if (!allowImplicit)
                 diagnostics.Push(Error.CannotUseImplicit(typeName.location));
@@ -391,7 +398,7 @@ internal sealed class Parser {
         var brackets = ImmutableArray.CreateBuilder<(Token openBracket, Token closeBracket)>();
 
         while (current.type == SyntaxType.OPEN_BRACKET_TOKEN) {
-            var openBracket = Match(SyntaxType.OPEN_BRACKET_TOKEN);
+            var openBracket = Next();
             var closeBracket = Match(SyntaxType.CLOSE_BRACKET_TOKEN);
             brackets.Add((openBracket, closeBracket));
         }
@@ -676,10 +683,8 @@ internal sealed class Parser {
         var operand = Match(SyntaxType.IDENTIFIER_TOKEN);
         Token op = null;
 
-        if (current.type == SyntaxType.MINUS_MINUS_TOKEN)
-            op = Match(SyntaxType.MINUS_MINUS_TOKEN);
-        if (current.type == SyntaxType.PLUS_PLUS_TOKEN)
-            op = Match(SyntaxType.PLUS_PLUS_TOKEN);
+        if (current.type == SyntaxType.MINUS_MINUS_TOKEN || current.type == SyntaxType.PLUS_PLUS_TOKEN)
+            op = Next();
 
         return new PostfixExpression(syntaxTree_, operand, op);
     }
@@ -696,7 +701,7 @@ internal sealed class Parser {
             nodesAndSeparators.Add(expression);
 
             if (current.type == SyntaxType.COMMA_TOKEN) {
-                var comma = Match(SyntaxType.COMMA_TOKEN);
+                var comma = Next();
                 nodesAndSeparators.Add(comma);
             } else {
                 parseNextItem = false;
@@ -798,7 +803,7 @@ internal sealed class Parser {
             }
 
             if (current.type == SyntaxType.COMMA_TOKEN) {
-                var comma = Match(SyntaxType.COMMA_TOKEN);
+                var comma = Next();
                 nodesAndSeparators.Add(comma);
             } else {
                 parseNextArgument = false;

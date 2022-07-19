@@ -26,35 +26,6 @@ internal static class ConstantFolding {
         if (leftConstant == null || rightConstant == null)
             return null;
 
-        switch (op.opType) {
-            case BoundBinaryOperatorType.EqualityEquals:
-                return new BoundConstant(Equals(leftConstant.value, rightConstant.value));
-            case BoundBinaryOperatorType.EqualityNotEquals:
-                return new BoundConstant(!Equals(leftConstant.value, rightConstant.value));
-            case BoundBinaryOperatorType.LessThan:
-                if (leftConstant.value == null || rightConstant.value == null)
-                    return new BoundConstant(false);
-
-                break;
-            case BoundBinaryOperatorType.GreaterThan:
-                if (leftConstant.value == null || rightConstant.value == null)
-                    return new BoundConstant(false);
-
-                break;
-            case BoundBinaryOperatorType.LessOrEqual:
-                if (leftConstant.value == null || rightConstant.value == null)
-                    return new BoundConstant(false);
-
-                break;
-            case BoundBinaryOperatorType.GreatOrEqual:
-                if (leftConstant.value == null || rightConstant.value == null)
-                    return new BoundConstant(false);
-
-                break;
-            default:
-                break;
-        }
-
         var leftValue = leftConstant.value;
         var rightValue = rightConstant.value;
         var leftType = left.typeClause.lType;
@@ -77,7 +48,8 @@ internal static class ConstantFolding {
             rightValue = Convert.ToString(rightValue);
         }
 
-        switch (op.opType) {case BoundBinaryOperatorType.Addition:
+        switch (op.opType) {
+            case BoundBinaryOperatorType.Addition:
                 if (leftType == TypeSymbol.Int)
                     return new BoundConstant((int)leftValue + (int)rightValue);
                 else if (leftType == TypeSymbol.String)
@@ -156,7 +128,7 @@ internal static class ConstantFolding {
         }
     }
 
-    internal static BoundConstant ComputeConstant(BoundUnaryOperator op, BoundExpression operand) {
+    internal static BoundConstant Fold(BoundUnaryOperator op, BoundExpression operand) {
         var operandType = operand.typeClause.lType;
 
         if (operand.constantValue != null && operand.constantValue.value is int value) {
@@ -176,7 +148,7 @@ internal static class ConstantFolding {
                 case BoundUnaryOperatorType.BitwiseCompliment:
                     return new BoundConstant(~(int)operand.constantValue.value);
                 default:
-                    throw new Exception($"ComputeConstant: unexpected unary operator '{op.opType}'");
+                    throw new Exception($"Fold: unexpected unary operator '{op.opType}'");
             }
         }
 

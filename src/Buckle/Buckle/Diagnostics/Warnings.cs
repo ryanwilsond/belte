@@ -43,7 +43,7 @@ internal static class Warning {
     }
 
     internal static BelteDiagnostic AlwaysValue(TextLocation location, object value) {
-        var valueString = value.ToString();
+        var valueString = value == null ? "null" : value.ToString();
 
         if (value is bool)
             valueString = valueString.ToLower(); // False -> false

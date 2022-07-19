@@ -25,6 +25,8 @@ internal enum BoundBinaryOperatorType {
     GreaterThan,
     LessOrEqual,
     GreatOrEqual,
+    Is,
+    Isnt,
 }
 
 internal sealed class BoundBinaryOperator {
@@ -74,9 +76,9 @@ internal sealed class BoundBinaryOperator {
         new BoundBinaryOperator(SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN, BoundBinaryOperatorType.RightShift,
             BoundTypeClause.Int),
         new BoundBinaryOperator(SyntaxType.EQUALS_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityEquals,
-            BoundTypeClause.NullableInt, BoundTypeClause.Bool),
+            BoundTypeClause.Int, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.EXCLAMATION_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
-            BoundTypeClause.NullableInt, BoundTypeClause.Bool),
+            BoundTypeClause.Int, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.LESS_THAN_TOKEN, BoundBinaryOperatorType.LessThan,
             BoundTypeClause.Int, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.GREATER_THAN_TOKEN, BoundBinaryOperatorType.GreaterThan,
@@ -98,17 +100,17 @@ internal sealed class BoundBinaryOperator {
         new BoundBinaryOperator(SyntaxType.CARET_TOKEN, BoundBinaryOperatorType.LogicalXor,
             BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.EQUALS_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityEquals,
-            BoundTypeClause.NullableBool, BoundTypeClause.Bool),
+            BoundTypeClause.Bool, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.EXCLAMATION_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
-            BoundTypeClause.NullableBool, BoundTypeClause.Bool),
+            BoundTypeClause.Bool, BoundTypeClause.Bool),
 
         // string
         new BoundBinaryOperator(SyntaxType.PLUS_TOKEN, BoundBinaryOperatorType.Addition,
             BoundTypeClause.String),
         new BoundBinaryOperator(SyntaxType.EQUALS_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityEquals,
-            BoundTypeClause.NullableString, BoundTypeClause.Bool),
+            BoundTypeClause.String, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.EXCLAMATION_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
-            BoundTypeClause.NullableString, BoundTypeClause.Bool),
+            BoundTypeClause.String, BoundTypeClause.Bool),
 
         // decimal
         new BoundBinaryOperator(SyntaxType.PLUS_TOKEN, BoundBinaryOperatorType.Addition,
@@ -122,9 +124,9 @@ internal sealed class BoundBinaryOperator {
         new BoundBinaryOperator(SyntaxType.ASTERISK_ASTERISK_TOKEN, BoundBinaryOperatorType.Power,
             BoundTypeClause.Decimal),
         new BoundBinaryOperator(SyntaxType.EQUALS_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityEquals,
-            BoundTypeClause.NullableDecimal, BoundTypeClause.Bool),
+            BoundTypeClause.Decimal, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.EXCLAMATION_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
-            BoundTypeClause.NullableDecimal, BoundTypeClause.Bool),
+            BoundTypeClause.Decimal, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.LESS_THAN_TOKEN, BoundBinaryOperatorType.LessThan,
             BoundTypeClause.Decimal, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.GREATER_THAN_TOKEN, BoundBinaryOperatorType.GreaterThan,
@@ -135,9 +137,9 @@ internal sealed class BoundBinaryOperator {
             BoundTypeClause.Decimal, BoundTypeClause.Bool),
 
         // any
-        new BoundBinaryOperator(SyntaxType.EXCLAMATION_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
+        new BoundBinaryOperator(SyntaxType.IS_KEYWORD, BoundBinaryOperatorType.Is,
             BoundTypeClause.NullableAny, BoundTypeClause.Bool),
-        new BoundBinaryOperator(SyntaxType.EQUALS_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityEquals,
+        new BoundBinaryOperator(SyntaxType.ISNT_KEYWORD, BoundBinaryOperatorType.Isnt,
             BoundTypeClause.NullableAny, BoundTypeClause.Bool),
     };
 
@@ -251,7 +253,7 @@ internal sealed class BoundUnaryExpression : BoundExpression {
     internal BoundUnaryExpression(BoundUnaryOperator op_, BoundExpression operand_) {
         op = op_;
         operand = operand_;
-        constantValue = ConstantFolding.ComputeConstant(op, operand);
+        constantValue = ConstantFolding.Fold(op, operand);
     }
 }
 
@@ -386,6 +388,7 @@ internal sealed class BoundInitializerListExpression : BoundExpression {
 internal sealed class BoundCastExpression : BoundExpression {
     internal BoundExpression expression { get; }
     internal override BoundNodeType type => BoundNodeType.CastExpression;
+    internal override BoundConstant constantValue { get; }
     internal override BoundTypeClause typeClause { get; }
 
     internal BoundCastExpression(BoundTypeClause typeClause_, BoundExpression expression_) {
@@ -395,6 +398,8 @@ internal sealed class BoundCastExpression : BoundExpression {
             expression = new BoundLiteralExpression(expression_.constantValue.value, typeClause);
         else
             expression = expression_;
+
+        constantValue = expression.constantValue;
     }
 }
 

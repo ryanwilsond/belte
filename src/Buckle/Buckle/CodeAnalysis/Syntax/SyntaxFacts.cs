@@ -18,6 +18,8 @@ internal static class SyntaxFacts {
             case SyntaxType.LESS_THAN_LESS_THAN_TOKEN:
             case SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN:
                 return 8;
+            case SyntaxType.IS_KEYWORD:
+            case SyntaxType.ISNT_KEYWORD:
             case SyntaxType.LESS_THAN_TOKEN:
             case SyntaxType.GREATER_THAN_TOKEN:
             case SyntaxType.LESS_THAN_EQUALS_TOKEN:
@@ -101,6 +103,10 @@ internal static class SyntaxFacts {
                 return SyntaxType.FINALLY_KEYWORD;
             case "return":
                 return SyntaxType.RETURN_KEYWORD;
+            case "is":
+                return SyntaxType.IS_KEYWORD;
+            case "isnt":
+                return SyntaxType.ISNT_KEYWORD;
             default:
                 return SyntaxType.IDENTIFIER_TOKEN;
         }
@@ -224,6 +230,10 @@ internal static class SyntaxFacts {
                 return "finally";
             case SyntaxType.RETURN_KEYWORD:
                 return "return";
+            case SyntaxType.IS_KEYWORD:
+                return "is";
+            case SyntaxType.ISNT_KEYWORD:
+                return "isnt";
             default:
                 return null;
         }

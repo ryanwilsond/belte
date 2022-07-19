@@ -12,7 +12,7 @@ using Buckle.CodeAnalysis.Syntax;
 using Diagnostics;
 
 // TODO: this entire file is spaghetti code, need to rewrite with a better understanding of when to use:
-// ldarg vs ldarga vs ldarga.s, newobj vs initobj vs call, etc.
+// ldarg vs ldarga vs ldarga.s, newobj vs initobj vs call
 
 namespace Buckle.CodeAnalysis.Emitting;
 
@@ -555,7 +555,7 @@ internal sealed class Emitter {
     }
 
     private void EmitCallExpression(ILProcessor iLProcessor, BoundCallExpression expression) {
-        if (expression.function == BuiltinFunctions.Randint) {
+        if (MethodsMatch(expression.function, BuiltinFunctions.Randint)) {
             if (randomFieldDefinition_ == null)
                 EmitRandomField();
 
@@ -565,7 +565,7 @@ internal sealed class Emitter {
         foreach (var argument in expression.arguments)
             EmitExpression(iLProcessor, argument);
 
-        if (expression.function == BuiltinFunctions.Randint) {
+        if (MethodsMatch(expression.function, BuiltinFunctions.Randint)) {
             iLProcessor.Emit(OpCodes.Callvirt, randomNextReference_);
             return;
         }
@@ -576,9 +576,12 @@ internal sealed class Emitter {
             iLProcessor.Emit(OpCodes.Call, consoleWriteLineReference_);
         } else if (MethodsMatch(expression.function, BuiltinFunctions.Input)) {
             iLProcessor.Emit(OpCodes.Call, consoleReadLineReference_);
-        } else if (expression.function.name == "Value") {
+        } else if (MethodsMatch(expression.function, BuiltinFunctions.Value)) {
             EmitExpression(iLProcessor, expression.arguments[0]);
             iLProcessor.Emit(OpCodes.Call, GetNullableValue(expression.arguments[0].typeClause));
+        } else if (MethodsMatch(expression.function, BuiltinFunctions.HasValue)) {
+            EmitExpression(iLProcessor, expression.arguments[0]);
+            iLProcessor.Emit(OpCodes.Call, GetNullableHasValue(expression.arguments[0].typeClause));
         } else {
             var methodDefinition = LookupMethod(expression.function);
             iLProcessor.Emit(OpCodes.Call, methodDefinition);

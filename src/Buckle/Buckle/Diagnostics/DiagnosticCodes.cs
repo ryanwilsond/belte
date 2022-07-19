@@ -59,10 +59,12 @@ internal enum DiagnosticCode : int {
     ERR_InconsistentReturnTypes = 53,
     ERR_MissingReturnStatement = 54,
     ERR_VoidVariable = 55,
+    ERR_ExpectedToken = 56,
 
     // carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,
     UNS_Assembling = 9001,
     UNS_Linking = 9002,
     UNS_IndependentCompilation = 9003,
+    UNS_IsWithoutNull = 9004,
 }

@@ -20,6 +20,8 @@ internal static class BuiltinFunctions {
         ImmutableArray.Create(new ParameterSymbol("max", BoundTypeClause.NullableInt, 0)), BoundTypeClause.Int);
     internal static readonly FunctionSymbol Value = new FunctionSymbol("Value",
         ImmutableArray.Create(new ParameterSymbol("value", BoundTypeClause.NullableAny, 0)), BoundTypeClause.Any);
+    internal static readonly FunctionSymbol HasValue = new FunctionSymbol("HasValue",
+        ImmutableArray.Create(new ParameterSymbol("value", BoundTypeClause.NullableAny, 0)), BoundTypeClause.Bool);
 
     internal static IEnumerable<FunctionSymbol> GetAll()
         => typeof(BuiltinFunctions).GetFields(BindingFlags.NonPublic | BindingFlags.Static)

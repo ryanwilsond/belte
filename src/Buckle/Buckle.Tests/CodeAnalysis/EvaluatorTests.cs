@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Xunit;
 using Xunit.Abstractions;
-using Buckle.Diagnostics;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -261,9 +260,9 @@ public class EvaluatorTests {
     [Fact]
     public void Evaluator_FunctionParameters_NoInfiniteLoop() {
         var text = @"
-            void hi(string name[[[=]]][)] {
+            void hi(string name[=]) {
                 PrintLine(""Hi "" + name + ""!"");
-            }[]
+            }
         ";
 
         var diagnostics = @"

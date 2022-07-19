@@ -638,7 +638,7 @@ internal sealed class Binder {
 
             {
                 <type> result = null;
-                if (<expression> != null) {
+                if (<expression> isnt null) {
                     result = (<type>)Value(<expression>);
                 }
                 return result;
@@ -649,7 +649,7 @@ internal sealed class Binder {
             var nullLiteral = new LiteralExpression(null, CreateToken(SyntaxType.NULL_KEYWORD), null);
 
             var ifCondition = new BinaryExpression(
-                null, expression.expression, CreateToken(SyntaxType.EXCLAMATION_EQUALS_TOKEN), nullLiteral);
+                null, expression.expression, CreateToken(SyntaxType.ISNT_KEYWORD), nullLiteral);
 
             var callExpression = new CallExpression(
                 null, new NameExpression(null, CreateToken(SyntaxType.IDENTIFIER_TOKEN, "Value")),
@@ -1025,7 +1025,7 @@ internal sealed class Binder {
 
         {
             <type> operand0 = null;
-            if (<operand> != null) {
+            if (<operand> isnt null) {
                 [NotNull]<type> operand1 = ([NotNull]<type>)<operand>;
                 operand0 = <op> operand1;
             }
@@ -1039,7 +1039,7 @@ internal sealed class Binder {
         var nullLiteral = new LiteralExpression(null, CreateToken(SyntaxType.NULL_KEYWORD), null);
 
         var ifCondition = new BinaryExpression(
-            null, expression.operand, CreateToken(SyntaxType.EXCLAMATION_EQUALS_TOKEN), nullLiteral);
+            null, expression.operand, CreateToken(SyntaxType.ISNT_KEYWORD), nullLiteral);
 
         var operand0Type = BoundTypeClause.Copy(operandType);
         operand0Type.isNullable = false;
@@ -1099,23 +1099,56 @@ internal sealed class Binder {
         rightTempType.isNullable = false;
 
         var tempOp = BoundBinaryOperator.Bind(expression.op.type, leftTempType, rightTempType);
-        var opType = tempOp.typeClause;
+        var opResultType = tempOp.typeClause;
 
         EndEmulation();
 
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return new BoundErrorExpression();
 
-        if ((!leftType.isNullable && !rightType.isNullable) ||
-            (expression.op.type == SyntaxType.EQUALS_EQUALS_TOKEN ||
-            expression.op.type == SyntaxType.EXCLAMATION_EQUALS_TOKEN)) {
+        if (tempOp.opType == BoundBinaryOperatorType.Is || tempOp.opType == BoundBinaryOperatorType.Isnt) {
+            /*
+
+            ---> <op> is 'is'
+
+            HasValue(<left>) == false
+
+            ---> <op> is 'isnt'
+
+            HasValue(<left>) == true
+
+            */
+            var leftIsNull = leftTemp.constantValue?.value == null && leftTemp.constantValue != null;
+            if ((!leftType.isNullable && !leftIsNull) ||
+                rightTemp.constantValue == null || rightTemp.constantValue?.value != null) {
+                diagnostics.Push(Error.Unsupported.IsWithoutNull());
+                return new BoundErrorExpression();
+            }
+
+            var boolean = tempOp.opType == BoundBinaryOperatorType.Is
+                ? new LiteralExpression(null, CreateToken(SyntaxType.FALSE_KEYWORD), false)
+                : new LiteralExpression(null, CreateToken(SyntaxType.TRUE_KEYWORD), true);
+            var leftHasValue = new CallExpression(
+                null, new NameExpression(null, CreateToken(SyntaxType.IDENTIFIER_TOKEN, "HasValue")),
+                null, new SeparatedSyntaxList<Expression>(ImmutableArray.Create<Node>(expression.left)), null);
+
+            var condition =
+                new BinaryExpression(null, leftHasValue, CreateToken(SyntaxType.EQUALS_EQUALS_TOKEN), boolean);
+
+            return BindBinaryExpression(condition);
+        }
+
+        var rightIsNotNull = rightTemp.constantValue != null || rightType.isNullable == false;
+        var leftIsNotNull = leftTemp.constantValue != null || leftType.isNullable == false;
+
+        if (rightIsNotNull && leftIsNotNull) {
             var boundLeft = BindExpression(expression.left);
             var boundRight = BindExpression(expression.right);
 
             if (boundLeft.typeClause.lType == TypeSymbol.Error || boundRight.typeClause.lType == TypeSymbol.Error)
                 return new BoundErrorExpression();
 
-            var boundOp = BoundBinaryOperator.Bind(expression.op.type, boundLeft.typeClause, boundRight.typeClause);
+            var boundOp = BoundBinaryOperator.Bind(expression.op.type, leftTempType, rightTempType);
 
             if (boundOp == null) {
                 diagnostics.Push(Error.InvalidBinaryOperatorUse(
@@ -1125,18 +1158,13 @@ internal sealed class Binder {
 
             // could possible move this to ComputeConstant
             if (boundOp.opType == BoundBinaryOperatorType.EqualityEquals ||
-                boundOp.opType == BoundBinaryOperatorType.EqualityNotEquals) {
-                if (boundLeft.constantValue != null && boundRight.constantValue != null &&
-                    (boundLeft.constantValue.value == null) != (boundRight.constantValue.value == null))
-                    diagnostics.Push(Warning.AlwaysValue(expression.location, false));
-            }
-
-            if (boundOp.opType == BoundBinaryOperatorType.LessThan ||
+                boundOp.opType == BoundBinaryOperatorType.EqualityNotEquals ||
+                boundOp.opType == BoundBinaryOperatorType.LessThan ||
                 boundOp.opType == BoundBinaryOperatorType.LessOrEqual ||
                 boundOp.opType == BoundBinaryOperatorType.GreaterThan ||
                 boundOp.opType == BoundBinaryOperatorType.GreatOrEqual) {
                 if (boundLeft.constantValue != null && boundRight.constantValue != null &&
-                    (boundLeft.constantValue.value == null) != (boundRight.constantValue.value == null))
+                    (boundLeft.constantValue.value == null) || (boundRight.constantValue.value == null))
                     diagnostics.Push(Warning.AlwaysValue(expression.location, null));
             }
 
@@ -1144,19 +1172,18 @@ internal sealed class Binder {
         }
 
         var result = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<result>$");
-        var resultType = BoundTypeClause.Copy(opType);
+        var resultType = BoundTypeClause.Copy(opResultType);
         resultType.isNullable = true;
         var nullLiteral = new LiteralExpression(null, CreateToken(SyntaxType.NULL_KEYWORD), null);
         Expression ifCondition = new LiteralExpression(null, CreateToken(SyntaxType.FALSE_KEYWORD), false);
         var ifBody = new BlockStatement(null, null, ImmutableArray<Statement>.Empty, null);
 
-        if (leftType.isNullable && rightType.isNullable &&
-            leftTemp.constantValue == null && rightTemp.constantValue == null) {
+        if (leftType.isNullable && rightType.isNullable) {
             /*
 
             {
                 <type> result = null;
-                if (<left> != null && <right> != null) {
+                if (<left> isnt null && <right> isnt null) {
                     [NotNull]<type> left0 = ([NotNull]<type>)<left>;
                     [NotNull]<type> right0 = ([NotNull]<type>)<right>;
                     result = left0 <op> right0;
@@ -1166,9 +1193,9 @@ internal sealed class Binder {
 
             */
             var leftCheck = new BinaryExpression(
-                null, expression.left, CreateToken(SyntaxType.EXCLAMATION_EQUALS_TOKEN), nullLiteral);
+                null, expression.left, CreateToken(SyntaxType.ISNT_KEYWORD), nullLiteral);
             var rightCheck = new BinaryExpression(
-                null, expression.right, CreateToken(SyntaxType.EXCLAMATION_EQUALS_TOKEN), nullLiteral);
+                null, expression.right, CreateToken(SyntaxType.ISNT_KEYWORD), nullLiteral);
 
             ifCondition = new BinaryExpression(
                 null, leftCheck, CreateToken(SyntaxType.AMPERSAND_AMPERSAND_TOKEN), rightCheck);
@@ -1199,12 +1226,12 @@ internal sealed class Binder {
 
             ifBody = new BlockStatement(
                 null, null, ImmutableArray.Create<Statement>(new Statement[]{ left0, right0, resultAssignment }), null);
-        } else if (leftType.isNullable && leftTemp.constantValue == null) {
+        } else if (leftType.isNullable) {
             /*
 
             {
                 <type> result = null;
-                if (<left> != null) {
+                if (<left> isnt null) {
                     [NotNull]<type> left0 = ([NotNull]<type>)<left>;
                     result = left0 <op> <right>;
                 }
@@ -1213,7 +1240,7 @@ internal sealed class Binder {
 
             */
             ifCondition = new BinaryExpression(
-                null, expression.left, CreateToken(SyntaxType.EXCLAMATION_EQUALS_TOKEN), nullLiteral);
+                null, expression.left, CreateToken(SyntaxType.ISNT_KEYWORD), nullLiteral);
 
             var left0Type = BoundTypeClause.Copy(leftType);
             left0Type.isNullable = false;
@@ -1234,12 +1261,12 @@ internal sealed class Binder {
 
             ifBody = new BlockStatement(
                 null, null, ImmutableArray.Create<Statement>(new Statement[]{ left0, resultAssignment }), null);
-        } else if (rightType.isNullable && rightTemp.constantValue == null) {
+        } else if (rightType.isNullable) {
             /*
 
             {
                 <type> result = null;
-                if (<right> != null) {
+                if (<right> isnt null) {
                     [NotNull]<type> right0 = ([NotNull]<type>)<right>;
                     result = <left> <op> right0;
                 }
@@ -1248,7 +1275,7 @@ internal sealed class Binder {
 
             */
             ifCondition = new BinaryExpression(
-                null, expression.right, CreateToken(SyntaxType.EXCLAMATION_EQUALS_TOKEN), nullLiteral);
+                null, expression.right, CreateToken(SyntaxType.ISNT_KEYWORD), nullLiteral);
 
             var right0Type = BoundTypeClause.Copy(rightType);
             right0Type.isNullable = false;
@@ -1269,6 +1296,8 @@ internal sealed class Binder {
 
             ifBody = new BlockStatement(
                 null, null, ImmutableArray.Create<Statement>(new Statement[]{ right0, resultAssignment }), null);
+        } else {
+            throw new Exception("BindBinaryExpression: unexpected combinations of types");
         }
 
         var body = ImmutableArray.Create<Statement>(new Statement[] {
