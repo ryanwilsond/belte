@@ -14,26 +14,30 @@ internal sealed class Parser {
 
     internal BelteDiagnosticQueue diagnostics;
 
-    private Token Match(SyntaxType type, SyntaxType? nextWanted = null) {
+    private Token Match(SyntaxType type, SyntaxType? nextWanted = null, bool suppressErrors = false) {
         if (current.type == type)
             return Next();
 
-        // TODO
-        // if (nextWanted != null && current.type == nextWanted) {
-        //     diagnostics.Push(Error.ExpectedToken(current.location, type));
-        //     return new Token(syntaxTree_, type, current.position,
-        //         null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
-        // }
+        if (nextWanted != null && current.type == nextWanted) {
+            if (!suppressErrors)
+                diagnostics.Push(Error.ExpectedToken(current.location, type));
 
-        if (Peek(1).type != type) {
-            diagnostics.Push(Error.UnexpectedToken(current.location, current.type, type));
+            return new Token(syntaxTree_, type, current.position,
+                null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
+        } else if (Peek(1).type != type) {
+            if (!suppressErrors)
+                diagnostics.Push(Error.UnexpectedToken(current.location, current.type, type));
+
             return new Token(syntaxTree_, type, current.position,
                 null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
         } else {
-            diagnostics.Push(Error.UnexpectedToken(current.location, current.type));
+            if (!suppressErrors)
+                diagnostics.Push(Error.UnexpectedToken(current.location, current.type));
+
             position_++;
             Token cur = current;
             position_++;
+
             return cur;
         }
     }
@@ -191,7 +195,7 @@ internal sealed class Parser {
 
     private Member ParseFunctionDeclaration() {
         var typeClause = ParseTypeClause(false);
-        var identifier = Match(SyntaxType.IDENTIFIER_TOKEN);
+        var identifier = Match(SyntaxType.IDENTIFIER_TOKEN, SyntaxType.OPEN_PAREN_TOKEN);
         var openParenthesis = Match(SyntaxType.OPEN_PAREN_TOKEN);
         var parameters = ParseParameterList();
         var closeParenthesis = Match(SyntaxType.CLOSE_PAREN_TOKEN);
@@ -223,7 +227,7 @@ internal sealed class Parser {
             var expression = ParseParameter();
             nodesAndSeparators.Add(expression);
 
-            // TODO: optional parameters
+            // TODO optional parameters
             if (current.type == SyntaxType.COMMA_TOKEN) {
                 var comma = Next();
                 nodesAndSeparators.Add(comma);
@@ -555,7 +559,7 @@ internal sealed class Parser {
         popLast = popLast && previousCount != diagnostics.count;
 
         if (popLast)
-            diagnostics.Pop();
+            diagnostics.PopBack();
 
         return new ExpressionStatement(syntaxTree_, expression, semicolon);
     }
@@ -741,7 +745,8 @@ internal sealed class Parser {
         return new LiteralExpression(syntaxTree_, stringToken);
     }
 
-    private Expression ParsePrimaryOperatorExpression(Expression operand, int parentPrecedence = 0) {
+    private Expression ParsePrimaryOperatorExpression(
+        Expression operand, int parentPrecedence = 0, Token maybeUnexpected=null) {
         Expression ParseCorrectPrimaryOperator(Expression operand) {
             if (current.type == SyntaxType.OPEN_PAREN_TOKEN)
                 return ParseCallExpression(operand);
@@ -751,6 +756,8 @@ internal sealed class Parser {
             return operand;
         }
 
+        var completeIterations = 0;
+
         while (true) {
             var precedence = current.type.GetPrimaryPrecedence();
 
@@ -759,14 +766,19 @@ internal sealed class Parser {
 
             var expression = ParseCorrectPrimaryOperator(operand);
             operand = ParsePrimaryOperatorExpression(expression, precedence);
+            completeIterations++;
         }
+
+        if (completeIterations == 0 && operand is NameExpression ne && ne.identifier.isMissing)
+            diagnostics.Push(Error.UnexpectedToken(maybeUnexpected.location, maybeUnexpected.type));
 
         return operand;
     }
 
     private Expression ParseNameOrPrimaryOperatorExpression() {
-        var left = ParseNameExpression();
-        return ParsePrimaryOperatorExpression(left);
+        var maybeUnexpected = current;
+        var left = ParseNameExpression(true);
+        return ParsePrimaryOperatorExpression(left, maybeUnexpected: maybeUnexpected);
     }
 
     private Expression ParseIndexExpression(Expression operand) {
@@ -813,8 +825,8 @@ internal sealed class Parser {
         return new SeparatedSyntaxList<Expression>(nodesAndSeparators.ToImmutable());
     }
 
-    private Expression ParseNameExpression() {
-        var identifier = Match(SyntaxType.IDENTIFIER_TOKEN);
+    private Expression ParseNameExpression(bool suppressErrors = false) {
+        var identifier = Match(SyntaxType.IDENTIFIER_TOKEN, suppressErrors: suppressErrors);
         return new NameExpression(syntaxTree_, identifier);
     }
 }

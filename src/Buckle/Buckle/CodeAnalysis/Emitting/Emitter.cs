@@ -11,7 +11,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Diagnostics;
 
-// TODO: this entire file is spaghetti code, need to rewrite with a better understanding of when to use:
+// TODO this entire file is spaghetti code, need to rewrite with a better understanding of when to use:
 // ldarg vs ldarga vs ldarga.s, newobj vs initobj vs call
 
 namespace Buckle.CodeAnalysis.Emitting;
@@ -634,7 +634,7 @@ internal sealed class Emitter {
     }
 
     private void EmitEmptyExpression(ILProcessor iLProcessor, BoundEmptyExpression expression) {
-        // TODO: breaks control flow
+        // TODO breaks control flow
         // iLProcessor.Emit(OpCodes.Nop);
     }
 
@@ -826,7 +826,7 @@ internal sealed class Emitter {
             case BoundBinaryOperatorType.Power:
                 break;
             case BoundBinaryOperatorType.LogicalAnd:
-                // TODO: should wait to emit right if left is false
+                // TODO should wait to emit right if left is false
                 iLProcessor.Emit(OpCodes.And);
                 break;
             case BoundBinaryOperatorType.LogicalOr:
@@ -926,7 +926,7 @@ internal sealed class Emitter {
                 break;
         }
 
-        // TODO: use similar logic for other data types and operators (e.g. 2 * x * 4 -> 8 * x)
+        // TODO use similar logic for other data types and operators (e.g. 2 * x * 4 -> 8 * x)
 
         // (a + b) + (c + d) --> [a, b, c, d]
         static IEnumerable<BoundExpression> Flatten(BoundExpression node) {

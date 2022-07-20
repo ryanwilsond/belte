@@ -466,19 +466,20 @@ internal sealed class Binder {
             diagnostics.Push(Error.ConstantAssignment(expression.op.location, name));
 
         var value = new BoundLiteralExpression(1);
+        var nonNullableType = BoundTypeClause.NonNullable(variable.typeClause);
         BoundBinaryOperator boundOperator = null;
         BoundBinaryOperator reversalOperator = null;
 
         if (expression.op.type == SyntaxType.PLUS_PLUS_TOKEN) {
             boundOperator = BoundBinaryOperator.Bind(
-                SyntaxType.PLUS_TOKEN, variable.typeClause, value.typeClause);
+                SyntaxType.PLUS_TOKEN, nonNullableType, value.typeClause);
             reversalOperator = BoundBinaryOperator.Bind(
-                SyntaxType.MINUS_TOKEN, variable.typeClause, value.typeClause);
+                SyntaxType.MINUS_TOKEN, nonNullableType, value.typeClause);
         } else if (expression.op.type == SyntaxType.MINUS_MINUS_TOKEN) {
             boundOperator = BoundBinaryOperator.Bind(
-                SyntaxType.MINUS_TOKEN, variable.typeClause, value.typeClause);
+                SyntaxType.MINUS_TOKEN, nonNullableType, value.typeClause);
             reversalOperator = BoundBinaryOperator.Bind(
-                SyntaxType.PLUS_TOKEN, variable.typeClause, value.typeClause);
+                SyntaxType.PLUS_TOKEN, nonNullableType, value.typeClause);
         }
 
         var assignmentExpression = new BoundCompoundAssignmentExpression(variable, boundOperator, value);
@@ -500,14 +501,15 @@ internal sealed class Binder {
             diagnostics.Push(Error.ConstantAssignment(expression.op.location, name));
 
         var value = new BoundLiteralExpression(1);
+        var nonNullableType = BoundTypeClause.NonNullable(variable.typeClause);
         BoundBinaryOperator boundOperator = null;
 
         if (expression.op.type == SyntaxType.PLUS_PLUS_TOKEN)
             boundOperator = BoundBinaryOperator.Bind(
-                SyntaxType.PLUS_TOKEN, variable.typeClause, value.typeClause);
+                SyntaxType.PLUS_TOKEN, nonNullableType, value.typeClause);
         else if (expression.op.type == SyntaxType.MINUS_MINUS_TOKEN)
             boundOperator = BoundBinaryOperator.Bind(
-                SyntaxType.MINUS_TOKEN, variable.typeClause, value.typeClause);
+                SyntaxType.MINUS_TOKEN, nonNullableType, value.typeClause);
 
         return new BoundCompoundAssignmentExpression(variable, boundOperator, value);
     }
@@ -917,7 +919,7 @@ internal sealed class Binder {
     }
 
     private Token CreateToken(SyntaxType type, string name = null, object value = null) {
-        // TODO: binder uses a hack to create code in the parse tree, probably better solution
+        // TODO binder uses a hack to create code in the parse tree, probably better solution
         return new Token(
             null, type, -1, name, value,
             ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
@@ -990,16 +992,20 @@ internal sealed class Binder {
 
         var operandTemp = BindExpression(expression.operand);
         var operandType = operandTemp.typeClause;
-        var operandTempType = BoundTypeClause.Copy(operandType);
-        operandTempType.isNullable = false;
+        var operandTempType = BoundTypeClause.NonNullable(operandType);
 
         var tempOp = BoundUnaryOperator.Bind(expression.op.type, operandTempType);
-        var opType = tempOp.typeClause;
+
+        if (tempOp == null)
+            diagnostics.Push(
+                Error.InvalidUnaryOperatorUse(expression.op.location, expression.op.text, operandType));
 
         EndEmulation();
 
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return new BoundErrorExpression();
+
+        var opType = tempOp.typeClause;
 
         if (!operandType.isNullable || operandTemp.constantValue != null) {
             var boundOperand = BindExpression(expression.operand);
@@ -1034,15 +1040,13 @@ internal sealed class Binder {
 
         */
         var result = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<result>$");
-        var resultType = BoundTypeClause.Copy(opType);
-        resultType.isNullable = true;
+        var resultType = BoundTypeClause.NonNullable(opType);
         var nullLiteral = new LiteralExpression(null, CreateToken(SyntaxType.NULL_KEYWORD), null);
 
         var ifCondition = new BinaryExpression(
             null, expression.operand, CreateToken(SyntaxType.ISNT_KEYWORD), nullLiteral);
 
-        var operand0Type = BoundTypeClause.Copy(operandType);
-        operand0Type.isNullable = false;
+        var operand0Type = BoundTypeClause.NonNullable(operandType);
         var operand0Identifier = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<operand0>$");
         var operand0Cast = new CastExpression(
             null, null, ReconstructTypeClause(operand0Type), null, expression.operand);
@@ -1074,7 +1078,7 @@ internal sealed class Binder {
         /*
         <left> <op> <right>
 
-        TODO
+        TODO implement this operator
         ---> <op> is **
 
         {
@@ -1090,21 +1094,24 @@ internal sealed class Binder {
 
         var leftTemp = BindExpression(expression.left);
         var leftType = leftTemp.typeClause;
-        var leftTempType = BoundTypeClause.Copy(leftType);
-        leftTempType.isNullable = false;
+        var leftTempType = BoundTypeClause.NonNullable(leftType);
 
         var rightTemp = BindExpression(expression.right);
         var rightType = rightTemp.typeClause;
-        var rightTempType = BoundTypeClause.Copy(rightType);
-        rightTempType.isNullable = false;
+        var rightTempType = BoundTypeClause.NonNullable(rightType);
 
         var tempOp = BoundBinaryOperator.Bind(expression.op.type, leftTempType, rightTempType);
-        var opResultType = tempOp.typeClause;
+
+        if (tempOp == null)
+            diagnostics.Push(
+                Error.InvalidBinaryOperatorUse(expression.op.location, expression.op.text, leftType, rightType));
 
         EndEmulation();
 
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return new BoundErrorExpression();
+
+        var opResultType = tempOp.typeClause;
 
         if (tempOp.opType == BoundBinaryOperatorType.Is || tempOp.opType == BoundBinaryOperatorType.Isnt) {
             /*
@@ -1172,8 +1179,7 @@ internal sealed class Binder {
         }
 
         var result = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<result>$");
-        var resultType = BoundTypeClause.Copy(opResultType);
-        resultType.isNullable = true;
+        var resultType = BoundTypeClause.Nullable(opResultType);
         var nullLiteral = new LiteralExpression(null, CreateToken(SyntaxType.NULL_KEYWORD), null);
         Expression ifCondition = new LiteralExpression(null, CreateToken(SyntaxType.FALSE_KEYWORD), false);
         var ifBody = new BlockStatement(null, null, ImmutableArray<Statement>.Empty, null);
@@ -1200,13 +1206,11 @@ internal sealed class Binder {
             ifCondition = new BinaryExpression(
                 null, leftCheck, CreateToken(SyntaxType.AMPERSAND_AMPERSAND_TOKEN), rightCheck);
 
-            var left0Type = BoundTypeClause.Copy(leftType);
-            left0Type.isNullable = false;
+            var left0Type = BoundTypeClause.NonNullable(leftType);
             var left0Identifier = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<left0>$");
             var left0Cast = new CastExpression(null, null, ReconstructTypeClause(left0Type), null, expression.left);
 
-            var right0Type = BoundTypeClause.Copy(rightType);
-            right0Type.isNullable = false;
+            var right0Type = BoundTypeClause.NonNullable(rightType);
             var right0Identifier = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<right0>$");
             var right0Cast = new CastExpression(null, null, ReconstructTypeClause(right0Type), null, expression.right);
 
@@ -1242,8 +1246,7 @@ internal sealed class Binder {
             ifCondition = new BinaryExpression(
                 null, expression.left, CreateToken(SyntaxType.ISNT_KEYWORD), nullLiteral);
 
-            var left0Type = BoundTypeClause.Copy(leftType);
-            left0Type.isNullable = false;
+            var left0Type = BoundTypeClause.NonNullable(leftType);
             var left0Identifier = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<left0>$");
             var left0Cast = new CastExpression(null, null, ReconstructTypeClause(left0Type), null, expression.left);
 
@@ -1277,8 +1280,7 @@ internal sealed class Binder {
             ifCondition = new BinaryExpression(
                 null, expression.right, CreateToken(SyntaxType.ISNT_KEYWORD), nullLiteral);
 
-            var right0Type = BoundTypeClause.Copy(rightType);
-            right0Type.isNullable = false;
+            var right0Type = BoundTypeClause.NonNullable(rightType);
             var right0Identifier = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<right0>$");
             var right0Cast = new CastExpression(null, null, ReconstructTypeClause(right0Type), null, expression.right);
 
@@ -1360,7 +1362,8 @@ internal sealed class Binder {
             var equivalentOperatorTokenType = SyntaxFacts.GetBinaryOperatorOfAssignmentOperator(
                 expression.assignmentToken.type);
             var boundOperator = BoundBinaryOperator.Bind(
-                equivalentOperatorTokenType, variable.typeClause, boundExpression.typeClause);
+                equivalentOperatorTokenType, BoundTypeClause.NonNullable(variable.typeClause),
+                boundExpression.typeClause);
 
             if (boundOperator == null) {
                 diagnostics.Push(Error.InvalidBinaryOperatorUse(
@@ -1469,7 +1472,10 @@ internal sealed class Binder {
                 ? initializer.typeClause
                 : typeClause;
 
-            variableType.isNullable = nullable;
+            if (nullable)
+                variableType = BoundTypeClause.Nullable(variableType);
+            else
+                variableType = BoundTypeClause.NonNullable(variableType);
 
             if (!variableType.isNullable && initializer is BoundLiteralExpression ble && ble.value == null) {
                 diagnostics.Push(Error.NullAssignOnNotNull(expression.initializer.location));
@@ -1495,7 +1501,10 @@ internal sealed class Binder {
                 ? initializer.typeClause
                 : typeClause;
 
-            variableType.isNullable = nullable;
+            if (nullable)
+                variableType = BoundTypeClause.Nullable(variableType);
+            else
+                variableType = BoundTypeClause.NonNullable(variableType);
 
             if (!variableType.isNullable && initializer is BoundLiteralExpression ble && ble.value == null) {
                 diagnostics.Push(Error.NullAssignOnNotNull(expression.initializer.location));

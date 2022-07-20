@@ -65,8 +65,8 @@ internal sealed class BoundTypeClause : BoundNode {
     internal bool isConstantReference { get; }
     internal bool isReference { get; }
     internal bool isConstant { get; }
-    // only mutable part of this tree, has to be to simplify converting literals to nullable
-    // TODO: consider making this immutable and solving another way to keep immutable design consistent
+    // TODO figure out if all code can avoid using set
+    // ! Use NonNullable and Nullable methods whenever possible
     internal bool isNullable { get; set; }
     internal bool isLiteral { get; }
     internal int dimensions { get; }
@@ -144,9 +144,21 @@ internal sealed class BoundTypeClause : BoundNode {
         return true;
     }
 
-    internal static BoundTypeClause Copy(BoundTypeClause value) {
+    internal static BoundTypeClause Copy(BoundTypeClause typeClause) {
         return new BoundTypeClause(
-            value.lType, value.isImplicit, value.isConstantReference, value.isReference,
-            value.isConstant, value.isNullable, value.isLiteral, value.dimensions);
+            typeClause.lType, typeClause.isImplicit, typeClause.isConstantReference, typeClause.isReference,
+            typeClause.isConstant, typeClause.isNullable, typeClause.isLiteral, typeClause.dimensions);
+    }
+
+    internal static BoundTypeClause NonNullable(BoundTypeClause typeClause) {
+        return new BoundTypeClause(
+            typeClause.lType, typeClause.isImplicit, typeClause.isConstantReference, typeClause.isReference,
+            typeClause.isConstant, false, typeClause.isLiteral, typeClause.dimensions);
+    }
+
+    internal static BoundTypeClause Nullable(BoundTypeClause typeClause) {
+        return new BoundTypeClause(
+            typeClause.lType, typeClause.isImplicit, typeClause.isConstantReference, typeClause.isReference,
+            typeClause.isConstant, true, typeClause.isLiteral, typeClause.dimensions);
     }
 }

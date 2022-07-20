@@ -56,7 +56,7 @@ internal static class Error {
 
     internal static BelteDiagnostic ExpectedToken(TextLocation location, SyntaxType type) {
         var message = $"expected {DiagnosticText(type)}";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedToken), message);
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedToken), location, message);
     }
 
     internal static BelteDiagnostic InvalidReference(string reference) {

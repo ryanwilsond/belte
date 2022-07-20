@@ -222,7 +222,7 @@ public class EvaluatorTests {
 
     [Fact]
     public void Evaluator_InvokeFunctionArguments_NoInfiniteLoop() {
-        var text = @"PrintLine(""Hi""[[=]][)];";
+        var text = @"PrintLine(""Hi""[=]);";
 
         var diagnostics = @"
             unexpected token '='
@@ -294,7 +294,7 @@ public class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            unexpected token ')', expected identifier
+            unexpected token ')'
             expected '}' at end of input
         ";
 
@@ -574,7 +574,7 @@ public class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            unexpected token '(', expected identifier
+            expected identifier
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -675,8 +675,11 @@ public class EvaluatorTests {
 
             var expectedSpan = annotatedText.spans[i];
             var actualSpan = diagnostic.location.span;
+            writer.WriteLine($"start: {expectedSpan.start}, {actualSpan.start}");
             Assert.Equal(expectedSpan.start, actualSpan.start);
+            writer.WriteLine($"end: {expectedSpan.end}, {actualSpan.end}");
             Assert.Equal(expectedSpan.end, actualSpan.end);
+            writer.WriteLine($"length: {expectedSpan.length}, {actualSpan.length}");
             Assert.Equal(expectedSpan.length, actualSpan.length);
         }
     }

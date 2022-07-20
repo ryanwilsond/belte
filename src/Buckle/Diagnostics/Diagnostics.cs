@@ -138,7 +138,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     }
 
     /// <summary>
-    /// Removes a diagnostic
+    /// Removes first diagnostic
     /// </summary>
     /// <returns>First diagnostic on the queue</returns>
     public Type? Pop() {
@@ -147,6 +147,19 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
 
         Type diagnostic = diagnostics_[0];
         diagnostics_.RemoveAt(0);
+        return diagnostic;
+    }
+
+    /// <summary>
+    /// Removes last diagnostic
+    /// </summary>
+    /// <returns>Last diagnostic on the queue</returns>
+    public Type? PopBack() {
+        if (diagnostics_.Count == 0)
+            return null;
+
+        Type diagnostic = diagnostics_[diagnostics_.Count - 1];
+        diagnostics_.RemoveAt(diagnostics_.Count - 1);
         return diagnostic;
     }
 

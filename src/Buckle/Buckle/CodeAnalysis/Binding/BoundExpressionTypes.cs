@@ -372,7 +372,7 @@ internal sealed class BoundInitializerListExpression : BoundExpression {
     internal int dimensions { get; }
     internal BoundTypeClause itemType { get; }
     internal override BoundNodeType type => BoundNodeType.LiteralExpression;
-    // TODO: consider factoring out this mass copy into a static method
+    // TODO consider factoring out this mass copy into a static method
     internal override BoundTypeClause typeClause => new BoundTypeClause( // immutable design makes this required
         itemType.lType, itemType.isImplicit, itemType.isConstantReference,
         itemType.isReference, itemType.isConstant, true, itemType.isLiteral, dimensions);

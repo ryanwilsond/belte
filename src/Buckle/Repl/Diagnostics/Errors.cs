@@ -2,8 +2,6 @@ using Diagnostics;
 
 namespace Repl.Diagnostics;
 
-// TODO: fix code duplication with ErrorInfo and FatalErrorInfo
-
 internal static class Error {
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "RE", DiagnosticType.Error);

@@ -110,7 +110,7 @@ public sealed class Compilation {
         var eval = new Evaluator(program, variables);
         var evalResult = eval.Evaluate();
 
-        // TODO: hack to prevent repl overwriting text when user doesn't add newline, could probably be cleaner
+        // TODO hack to prevent repl overwriting text when user doesn't add newline, could probably be cleaner
         if (eval.hasPrint)
             Console.WriteLine();
 
