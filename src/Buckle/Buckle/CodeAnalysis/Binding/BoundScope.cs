@@ -7,7 +7,7 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 internal sealed class BoundScope {
-    private Dictionary<string, Symbol> symbols_;
+    private List<Symbol> symbols_;
     internal BoundScope parent;
 
     internal BoundScope(BoundScope parent_) {
@@ -18,40 +18,116 @@ internal sealed class BoundScope {
     internal bool TryDeclareVariable(VariableSymbol symbol) => TryDeclareSymbol(symbol);
 
     internal bool TryDeclareSymbol<TSymbol>(TSymbol symbol) where TSymbol : Symbol {
-        if (symbols_ == null)
-            symbols_ = new Dictionary<string, Symbol>();
-        else if (symbols_.ContainsKey(symbol.name))
+        if (symbols_ == null) {
+            symbols_ = new List<Symbol>();
+        } else if (Contains(symbol.name)) {
+            if (symbol is FunctionSymbol fs) {
+                foreach (var s in symbols_)
+                    if (FunctionsMatch(s as FunctionSymbol, fs))
+                        return false;
+            } else {
+                return false;
+            }
+        }
+
+        symbols_.Add(symbol);
+        return true;
+    }
+
+    private bool FunctionsMatch(FunctionSymbol a, FunctionSymbol b) {
+        if (a.name != b.name)
             return false;
 
-        symbols_.Add(symbol.name, symbol);
+        if (a.parameters.Length != b.parameters.Length)
+            return false;
+
+        for (int i=0; i<a.parameters.Length; i++)
+            if (!BoundTypeClause.Equals(a.parameters[i].typeClause, b.parameters[i].typeClause))
+                return false;
+
         return true;
     }
 
     internal Symbol LookupSymbol(string name) {
-        if (symbols_ != null && symbols_.TryGetValue(name, out var symbol))
-            return symbol;
+        // use LookupOverloads for functions
+        if (symbols_ != null)
+            foreach (var symbol in symbols_)
+                if (symbol.name == name)
+                    return symbol;
 
         return parent?.LookupSymbol(name);
     }
 
     internal bool TryModifySymbol(string name, Symbol newSymbol) {
+        // doesn't work with overloads
         var symbol = LookupSymbol(name);
 
         if (symbol == null)
             return false;
 
-        symbols_[name] = newSymbol;
+        for (int i=0; i<symbols_.Count; i++) {
+            if (symbols_[i].name == name) {
+                symbols_[i] = newSymbol;
+                break;
+            }
+        }
+
         return true;
     }
 
     internal ImmutableArray<VariableSymbol> GetDeclaredVariables() => GetDeclaredSymbols<VariableSymbol>();
     internal ImmutableArray<FunctionSymbol> GetDeclaredFunctions() => GetDeclaredSymbols<FunctionSymbol>();
 
+    private bool Contains(string name) {
+        foreach (var symbol in symbols_)
+            if (symbol.name == name)
+                return true;
+
+        return false;
+    }
+
     private ImmutableArray<TSymbol> GetDeclaredSymbols<TSymbol>() where TSymbol : Symbol {
         if (symbols_ == null)
             return ImmutableArray<TSymbol>.Empty;
 
-        return symbols_.Values.OfType<TSymbol>().ToImmutableArray();
+        return symbols_.OfType<TSymbol>().ToImmutableArray();
+    }
+
+    internal void CopyInlines(BoundScope scope) {
+        foreach (var inline in scope.GetDeclaredFunctions().Where(i => i.name.StartsWith("$Inline")))
+            TryDeclareFunction(inline); // ignore failures, don't override higher level symbols
+    }
+
+    internal ImmutableArray<FunctionSymbol> LookupOverloads(
+        string name, ImmutableArray<FunctionSymbol>? current = null) {
+        var overloads = ImmutableArray.CreateBuilder<FunctionSymbol>();
+
+        if (symbols_ != null) {
+            foreach (var symbol in symbols_) {
+                if (symbol is FunctionSymbol fs && symbol.name == name) {
+                    if (current != null) {
+                        var skip = false;
+
+                        foreach (var cs in current.Value) {
+                            if (FunctionsMatch(fs, cs)) {
+                                skip = true;
+                                break;
+                            }
+                        }
+
+                        if (skip)
+                            continue;
+                    }
+
+                    overloads.Add(fs);
+                }
+            }
+        }
+
+        if (parent != null)
+            overloads.AddRange(parent?.LookupOverloads(name, overloads.ToImmutable()));
+
+        return overloads.ToImmutable();
     }
 }
 

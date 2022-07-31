@@ -144,6 +144,28 @@ internal sealed class BoundTypeClause : BoundNode {
         return true;
     }
 
+    internal static bool Equals(BoundTypeClause a, BoundTypeClause b) {
+        // a little brute force
+        if (a.lType != b.lType)
+            return false;
+        if (a.isImplicit != b.isImplicit)
+            return false;
+        if (a.isConstantReference != b.isConstantReference)
+            return false;
+        if (a.isReference != b.isReference)
+            return false;
+        if (a.isConstant != b.isConstant)
+            return false;
+        if (a.isNullable != b.isNullable)
+            return false;
+        if (a.isLiteral != b.isLiteral)
+            return false;
+        if (a.dimensions != b.dimensions)
+            return false;
+
+        return true;
+    }
+
     internal static BoundTypeClause Copy(BoundTypeClause typeClause) {
         return new BoundTypeClause(
             typeClause.lType, typeClause.isImplicit, typeClause.isConstantReference, typeClause.isReference,

@@ -72,6 +72,7 @@ public sealed class Compilation {
         var submission = this;
         var seenSymbolNames = new HashSet<string>();
         var builtins = BuiltinFunctions.GetAll();
+        // TODO doesn't show overloads
 
         while (submission != null) {
             foreach (var function in submission.functions)

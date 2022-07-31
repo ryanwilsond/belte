@@ -3,6 +3,7 @@
 !.github
 Resources/*
 old/*
+database/*
 
 **/obj/*
 **/bin/*

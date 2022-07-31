@@ -18,8 +18,17 @@ internal static class BuiltinFunctions {
         ImmutableArray<ParameterSymbol>.Empty, BoundTypeClause.String);
     internal static readonly FunctionSymbol Randint = new FunctionSymbol("RandInt",
         ImmutableArray.Create(new ParameterSymbol("max", BoundTypeClause.NullableInt, 0)), BoundTypeClause.Int);
-    internal static readonly FunctionSymbol Value = new FunctionSymbol("Value",
+    internal static readonly FunctionSymbol ValueAny = new FunctionSymbol("Value",
         ImmutableArray.Create(new ParameterSymbol("value", BoundTypeClause.NullableAny, 0)), BoundTypeClause.Any);
+    internal static readonly FunctionSymbol ValueBool = new FunctionSymbol("Value",
+        ImmutableArray.Create(new ParameterSymbol("value", BoundTypeClause.NullableBool, 0)), BoundTypeClause.Bool);
+    internal static readonly FunctionSymbol ValueDecimal = new FunctionSymbol("Value",
+        ImmutableArray.Create(new ParameterSymbol("value", BoundTypeClause.NullableDecimal, 0)),
+        BoundTypeClause.Decimal);
+    internal static readonly FunctionSymbol ValueInt = new FunctionSymbol("Value",
+        ImmutableArray.Create(new ParameterSymbol("value", BoundTypeClause.NullableInt, 0)), BoundTypeClause.Int);
+    internal static readonly FunctionSymbol ValueString = new FunctionSymbol("Value",
+        ImmutableArray.Create(new ParameterSymbol("value", BoundTypeClause.NullableString, 0)), BoundTypeClause.String);
     internal static readonly FunctionSymbol HasValue = new FunctionSymbol("HasValue",
         ImmutableArray.Create(new ParameterSymbol("value", BoundTypeClause.NullableAny, 0)), BoundTypeClause.Bool);
 

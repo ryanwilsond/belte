@@ -151,9 +151,12 @@ internal sealed class BoundBinaryOperator {
     /// <param name="rightType">Right operand type</param>
     /// <returns>Bound operator if an operator exists, otherwise null</returns>
     internal static BoundBinaryOperator Bind(SyntaxType type, BoundTypeClause leftType, BoundTypeClause rightType) {
+        var nonNullableLeft = BoundTypeClause.NonNullable(leftType);
+        var nonNullableRight = BoundTypeClause.NonNullable(rightType);
+
         foreach (var op in operators_) {
-            var leftIsCorrect = Cast.Classify(leftType, op.leftType).isImplicit;
-            var rightIsCorrect = Cast.Classify(rightType, op.rightType).isImplicit;
+            var leftIsCorrect = Cast.Classify(nonNullableLeft, op.leftType).isImplicit;
+            var rightIsCorrect = Cast.Classify(nonNullableRight, op.rightType).isImplicit;
 
             if (op.type == type && leftIsCorrect && rightIsCorrect)
                 return op;
@@ -232,8 +235,10 @@ internal sealed class BoundUnaryOperator {
     /// <param name="operandType">Operand type</param>
     /// <returns>Bound operator if an operator exists, otherwise null</returns>
     internal static BoundUnaryOperator Bind(SyntaxType type, BoundTypeClause operandType) {
+        var nonNullableOperand = BoundTypeClause.NonNullable(operandType);
+
         foreach (var op in operators_) {
-            var operandIsCorrect = Cast.Classify(operandType, op.operandType).isImplicit;
+            var operandIsCorrect = Cast.Classify(nonNullableOperand, op.operandType).isImplicit;
 
             if (op.type == type && operandIsCorrect)
                 return op;

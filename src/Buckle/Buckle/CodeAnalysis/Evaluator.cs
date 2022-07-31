@@ -217,7 +217,7 @@ internal sealed class Evaluator {
                 random_ = new Random();
 
             return random_.Next(max);
-        } else if (MethodsMatch(node.function, BuiltinFunctions.Value)) {
+        } else if (node.function.name == "Value") {
             object? value = EvaluateExpression(node.arguments[0]);
 
             if (value == null)

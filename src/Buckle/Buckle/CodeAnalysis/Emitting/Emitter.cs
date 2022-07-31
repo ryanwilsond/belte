@@ -576,7 +576,7 @@ internal sealed class Emitter {
             iLProcessor.Emit(OpCodes.Call, consoleWriteLineReference_);
         } else if (MethodsMatch(expression.function, BuiltinFunctions.Input)) {
             iLProcessor.Emit(OpCodes.Call, consoleReadLineReference_);
-        } else if (MethodsMatch(expression.function, BuiltinFunctions.Value)) {
+        } else if (expression.function.name == "Value") {
             EmitExpression(iLProcessor, expression.arguments[0]);
             iLProcessor.Emit(OpCodes.Call, GetNullableValue(expression.arguments[0].typeClause));
         } else if (MethodsMatch(expression.function, BuiltinFunctions.HasValue)) {

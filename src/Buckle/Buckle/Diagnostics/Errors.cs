@@ -353,4 +353,14 @@ internal static class Error {
         var message = "missing return statement in inline function";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MissingReturnStatement), location, message);
     }
+
+    internal static BelteDiagnostic NoOverload(TextLocation location, string name) {
+        var message = $"no overload for function '{name}' matches parameter list";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoOverload), location, message);
+    }
+
+    internal static BelteDiagnostic AmbiguousOverload(TextLocation location, string name) {
+        var message = $"multiple overloads for function '{name}' match parameter list";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AmbiguousOverload), location, message);
+    }
 }
