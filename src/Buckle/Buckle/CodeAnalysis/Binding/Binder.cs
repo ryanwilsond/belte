@@ -536,7 +536,7 @@ internal sealed class Binder {
     private BoundExpression BindCallExpression(CallExpression expression) {
         var name = expression.identifier.identifier.text;
         var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
-        FunctionSymbol function = null;
+        FunctionSymbol finalFunction = null;
 
         var symbols = scope_.LookupOverloads(name);
 
@@ -548,7 +548,16 @@ internal sealed class Binder {
         var tempDiagnostics = new BelteDiagnosticQueue();
         tempDiagnostics.Move(diagnostics);
 
-        var possibleOverloads = new Dictionary<FunctionSymbol, int>();
+        var preBoundArgumentsBuilder = ImmutableArray.CreateBuilder<BoundExpression>();
+
+        for (int i=0; i<expression.arguments.count; i++) {
+            var boundArgument = BindExpression(expression.arguments[i]);
+            preBoundArgumentsBuilder.Add(boundArgument);
+        }
+
+        var preBoundArguments = preBoundArgumentsBuilder.ToImmutable();
+        var minScore = Int32.MaxValue;
+        var possibleOverloads = 0;
 
         foreach (var symbol in symbols) {
             var beforeCount = diagnostics.count;
@@ -566,7 +575,7 @@ internal sealed class Binder {
                 isInner = true;
             }
 
-            function = actualSymbol as FunctionSymbol;
+            var function = actualSymbol as FunctionSymbol;
 
             if (function == null) {
                 diagnostics.Push(Error.CannotCallNonFunction(expression.identifier.location, name));
@@ -606,22 +615,25 @@ internal sealed class Binder {
                 }
             }
 
-            boundArguments.Clear();
+            var currentBoundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
 
-            for (int i=0; i<expression.arguments.count; i++) {
-                var argument = expression.arguments[i];
-                var tempBoundArgument = BindExpression(argument);
+            for (int i=0; i<preBoundArguments.Length; i++) {
+                var argument = preBoundArguments[i];
                 var parameter = function.parameters[i];
                 var boundArgument =
-                    BindCast(argument.location, tempBoundArgument, parameter.typeClause, out var castType);
+                    BindCast(expression.arguments[i].location, argument, parameter.typeClause, out var castType);
 
                 if (castType.isImplicit && !castType.isIdentity)
                     score++;
 
-                boundArguments.Add(boundArgument);
+                currentBoundArguments.Add(boundArgument);
             }
 
             if (isInner) {
+                // no need to worry about currentBoundArguments because generated inlines never have overloads
+                if (symbols.Length != 1)
+                    throw new Exception("BindCallExpression: overloaded inline");
+
                 for (int i=expression.arguments.count; i<function.parameters.Length; i++) {
                     var parameter = function.parameters[i];
 
@@ -652,8 +664,19 @@ internal sealed class Binder {
                     return new BoundErrorExpression();
             }
 
-            if (diagnostics.count == beforeCount)
-                possibleOverloads.Add(function, score);
+            if (diagnostics.count == beforeCount) {
+                if (score < minScore) {
+                    boundArguments.Clear();
+                    boundArguments.AddRange(currentBoundArguments);
+                    minScore = score;
+                    possibleOverloads = 0;
+                }
+
+                if (score == minScore) {
+                    possibleOverloads++;
+                    finalFunction = function;
+                }
+            }
         }
 
         if (symbols.Length > 1) {
@@ -661,35 +684,15 @@ internal sealed class Binder {
             diagnostics.Move(tempDiagnostics);
         }
 
-        if (symbols.Length > 1 && possibleOverloads.Count == 0) {
+        if (symbols.Length > 1 && possibleOverloads == 0) {
             diagnostics.Push(Error.NoOverload(expression.identifier.location, name));
             return new BoundErrorExpression();
-        } else if (symbols.Length > 1) {
-            var min = Int32.MaxValue;
-            var minFunctions = new List<FunctionSymbol>();
-
-            foreach (var pair in possibleOverloads) {
-                if (pair.Value < min) {
-                    minFunctions.Clear();
-                    min = pair.Value;
-                }
-
-                if (pair.Value == min)
-                    minFunctions.Add(pair.Key);
-            }
-
-            if (minFunctions.Count > 1) {
-                diagnostics.Push(Error.AmbiguousOverload(expression.identifier.location, name));
-                return new BoundErrorExpression();
-            } else if (minFunctions.Count == 0) {
-                throw new Exception("BindCallExpression: something went wrong");
-            } else {
-                function = minFunctions[0];
-            }
+        } else if (symbols.Length > 1 && possibleOverloads > 1) {
+            diagnostics.Push(Error.AmbiguousOverload(expression.identifier.location, name));
+            return new BoundErrorExpression();
         }
 
-        // ! here
-        return new BoundCallExpression(function, boundArguments.ToImmutable());
+        return new BoundCallExpression(finalFunction, boundArguments.ToImmutable());
     }
 
     private BoundExpression BindCast(Expression expression, BoundTypeClause type, bool allowExplicit = false) {
