@@ -33,10 +33,6 @@ internal sealed class Evaluator {
         }
     }
 
-    /// <summary>
-    /// Evaluates a program/script in memory
-    /// </summary>
-    /// <returns>Value result from script</returns>
     internal object Evaluate() {
         var function = program_.mainFunction ?? program_.scriptFunction;
         if (function == null)
