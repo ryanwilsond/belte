@@ -94,7 +94,7 @@ internal sealed class BoundScope {
     }
 
     internal void CopyInlines(BoundScope scope) {
-        foreach (var inline in scope.GetDeclaredFunctions().Where(i => i.name.StartsWith("$Inline")))
+        foreach (var inline in scope.GetDeclaredFunctions().Where(i => i.name.StartsWith("<$Inline")))
             TryDeclareFunction(inline); // ignore failures, don't override higher level symbols
     }
 

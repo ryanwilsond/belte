@@ -33,6 +33,13 @@ internal sealed class Binder {
     private Dictionary<string, LocalFunctionDeclaration> unresolvedLocals_ =
         new Dictionary<string, LocalFunctionDeclaration>();
 
+    private struct BinderState {
+        internal BelteDiagnosticQueue diagnostics;
+        internal List<(FunctionSymbol function, BoundBlockStatement body)> functionBodies;
+        internal List<string> resolvedLocals;
+        internal Dictionary<string, LocalFunctionDeclaration> unresolvedLocals;
+    }
+
     private Binder(bool isScript, BoundScope parent, FunctionSymbol function) {
         isScript_ = isScript;
         diagnostics = new BelteDiagnosticQueue();
@@ -707,13 +714,13 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindCastExpression(CastExpression expression) {
-        StartEmulation();
+        var binderSaveState = StartEmulation();
 
         var toType = BindTypeClause(expression.typeClause);
         var boundExpression = BindExpression(expression.expression);
         var expressionType = boundExpression.typeClause;
 
-        EndEmulation();
+        EndEmulation(binderSaveState);
 
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return new BoundErrorExpression();
@@ -888,11 +895,11 @@ internal sealed class Binder {
 
         */
 
-        StartEmulation();
+        var binderSaveState = StartEmulation();
 
         var expressionTemp = BindExpression(expression);
 
-        EndEmulation();
+        EndEmulation(binderSaveState);
 
         if (expressionTemp.typeClause.isNullable) {
             var callExpression = new CallExpression(
@@ -981,7 +988,7 @@ internal sealed class Binder {
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
         var block = new BlockStatement(null, null, statement.statements, null);
 
-        StartEmulation();
+        var binderSaveState = StartEmulation();
 
         var returnType = new BoundTypeClause(TypeSymbol.Any);
         var tempFunction = new FunctionSymbol("$temp", ImmutableArray<ParameterSymbol>.Empty, returnType);
@@ -992,7 +999,7 @@ internal sealed class Binder {
             statements.Add(boundStatement);
         }
 
-        EndEmulation();
+        EndEmulation(binderSaveState);
 
         var boundBlockStatement = new BoundBlockStatement(statements.ToImmutable());
         var loweredBlock = Lowerer.Lower(tempFunction, boundBlockStatement);
@@ -1114,7 +1121,7 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindUnaryExpression(UnaryExpression expression) {
-        StartEmulation();
+        var binderSaveState = StartEmulation();
 
         var operandTemp = BindExpression(expression.operand);
         var operandType = operandTemp.typeClause;
@@ -1125,7 +1132,7 @@ internal sealed class Binder {
             diagnostics.Push(
                 Error.InvalidUnaryOperatorUse(expression.op.location, expression.op.text, operandType));
 
-        EndEmulation();
+        EndEmulation(binderSaveState);
 
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return new BoundErrorExpression();
@@ -1215,7 +1222,7 @@ internal sealed class Binder {
         }
 
         */
-        StartEmulation();
+        var binderSaveState = StartEmulation();
 
         var leftTemp = BindExpression(expression.left);
         var leftType = leftTemp.typeClause;
@@ -1229,7 +1236,7 @@ internal sealed class Binder {
             diagnostics.Push(
                 Error.InvalidBinaryOperatorUse(expression.op.location, expression.op.text, leftType, rightType));
 
-        EndEmulation();
+        EndEmulation(binderSaveState);
 
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return new BoundErrorExpression();
@@ -1249,10 +1256,17 @@ internal sealed class Binder {
 
             */
             var leftIsNull = leftTemp.constantValue?.value == null && leftTemp.constantValue != null;
-            if ((!leftType.isNullable && !leftIsNull) ||
-                rightTemp.constantValue == null || rightTemp.constantValue?.value != null) {
+
+            if (rightTemp.constantValue == null || rightTemp.constantValue?.value != null) {
                 diagnostics.Push(Error.Unsupported.IsWithoutNull());
                 return new BoundErrorExpression();
+            }
+
+            if (!leftType.isNullable && !leftIsNull) {
+                diagnostics.Push(
+                    Warning.AlwaysValue(expression.location, tempOp.opType == BoundBinaryOperatorType.Isnt));
+
+                return new BoundLiteralExpression(tempOp.opType == BoundBinaryOperatorType.Isnt);
             }
 
             var boolean = tempOp.opType == BoundBinaryOperatorType.Is
@@ -1294,8 +1308,10 @@ internal sealed class Binder {
                 boundOp.opType == BoundBinaryOperatorType.GreaterThan ||
                 boundOp.opType == BoundBinaryOperatorType.GreatOrEqual) {
                 if (boundLeft.constantValue != null && boundRight.constantValue != null &&
-                    (boundLeft.constantValue.value == null) || (boundRight.constantValue.value == null))
+                    (boundLeft.constantValue.value == null) || (boundRight.constantValue.value == null)) {
                     diagnostics.Push(Warning.AlwaysValue(expression.location, null));
+                    return new BoundLiteralExpression(null);
+                }
             }
 
             return new BoundBinaryExpression(boundLeft, boundOp, boundRight);
@@ -1435,14 +1451,30 @@ internal sealed class Binder {
         return BindInlineFunctionExpression(new InlineFunctionExpression(null, null, body, null));
     }
 
-    private void EndEmulation() {
-        scope_ = scope_.parent;
-        inlineCount_ = inlineCounts_.Pop();
-    }
+    private BinderState StartEmulation() {
+        var state = new BinderState();
+        state.functionBodies = new List<(FunctionSymbol function, BoundBlockStatement body)>(functionBodies_);
+        state.resolvedLocals = new List<string>(resolvedLocals_);
+        state.unresolvedLocals = new Dictionary<string, LocalFunctionDeclaration>(unresolvedLocals_);
+        state.diagnostics = new BelteDiagnosticQueue();
+        state.diagnostics.Move(diagnostics);
 
-    private void StartEmulation() {
         scope_ = new BoundScope(scope_);
         inlineCounts_.Push(inlineCount_);
+
+        return state;
+    }
+
+    private void EndEmulation(BinderState oldState) {
+        scope_ = scope_.parent;
+        inlineCount_ = inlineCounts_.Pop();
+
+        resolvedLocals_ = new List<string>(oldState.resolvedLocals);
+        unresolvedLocals_ = new Dictionary<string, LocalFunctionDeclaration>(oldState.unresolvedLocals);
+        functionBodies_.Clear();
+        functionBodies_.AddRange(oldState.functionBodies);
+        diagnostics.Clear();
+        diagnostics.Move(oldState.diagnostics);
     }
 
     private BoundExpression BindParenExpression(ParenthesisExpression expression) {
