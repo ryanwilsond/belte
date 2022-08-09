@@ -1,5 +1,13 @@
 # Belte
 
+## Important Note
+
+Belte is under development and does not support all the features highlighted in [Principles.md](docs/Principles.md).
+
+Belte does not currently have a stable release, so expect bugs if you clone the master branch.
+
+___
+
 Belte is a programming language created to see if a better programming language could be made.
 
 To know what makes Belte unique from other languages, read [Principles.md](docs/Principles.md).
