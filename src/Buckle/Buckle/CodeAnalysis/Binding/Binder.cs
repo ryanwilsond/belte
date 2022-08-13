@@ -150,14 +150,23 @@ internal sealed class Binder {
             binder.innerPrefix_ = new Stack<string>();
             binder.innerPrefix_.Push(function.name);
 
-            var body = binder.BindStatement(function.declaration.body);
-            diagnostics.Move(binder.diagnostics);
+            BoundBlockStatement loweredBody = null;
 
-            if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
-                return new BoundProgram(previous, diagnostics,
-                    null, null, ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty);
+            if (!function.name.StartsWith("<$Inline")) {
+                var body = binder.BindStatement(function.declaration.body);
+                diagnostics.Move(binder.diagnostics);
 
-            var loweredBody = Lowerer.Lower(function, body);
+                if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+                    return new BoundProgram(previous, diagnostics,
+                        null, null, ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty);
+
+                loweredBody = Lowerer.Lower(function, body);
+            } else {
+                // inlines are bound when they are called for the first time in BindCallExpression
+                // using function.declaration.body uses a temporary old body
+                var functionBody = globalScope.functionBodies.Where(t => t.function == function).Single();
+                loweredBody = Lowerer.Lower(function, functionBody.body);
+            }
 
             if (function.typeClause.lType != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
                 binder.diagnostics.Push(Error.NotAllPathsReturn(function.declaration.identifier.location));
