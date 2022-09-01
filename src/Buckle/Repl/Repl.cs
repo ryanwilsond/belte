@@ -14,6 +14,9 @@ public abstract class ReplBase {
     private readonly List<MetaCommand> metaCommands_ = new List<MetaCommand>();
     private int submissionHistoryIndex_;
     private bool done_;
+
+    const int tabWidth = 4;
+
     internal Compiler handle;
     internal DiagnosticHandle diagnosticHandle;
     internal abstract object state_ { get; set; }
@@ -90,6 +93,9 @@ public abstract class ReplBase {
                 }
             }
         }
+
+        internal Stack<(char, int)> currentBlockTabbing = new Stack<(char, int)>();
+        internal int currentTypingTabbing = 0;
 
         internal SubmissionView(LineRenderHandler lineRenderer, ObservableCollection<string> document) {
             lineRenderer_ = lineRenderer;
@@ -216,10 +222,42 @@ public abstract class ReplBase {
                 default:
                     break;
             }
+        } else if (key.Modifiers == (ConsoleModifiers.Control & ConsoleModifiers.Shift)) {
+            switch (key.Key) {
+                case ConsoleKey.Backspace:
+                    HandleControlBackspace(document, view);
+                    break;
+                case ConsoleKey.Delete:
+                    HandleControlDelete(document, view);
+                    break;
+                case ConsoleKey.Enter:
+                    HandleControlShiftEnter(document, view);
+                    break;
+                case ConsoleKey.LeftArrow:
+                    HandleControlLeftArrow(document, view);
+                    break;
+                case ConsoleKey.RightArrow:
+                    HandleControlRightArrow(document, view);
+                    break;
+                default:
+                    break;
+            }
         } else if (key.Modifiers == ConsoleModifiers.Control) {
             switch (key.Key) {
+                case ConsoleKey.Backspace:
+                    HandleControlBackspace(document, view);
+                    break;
+                case ConsoleKey.Delete:
+                    HandleControlDelete(document, view);
+                    break;
                 case ConsoleKey.Enter:
                     HandleControlEnter(document, view);
+                    break;
+                case ConsoleKey.LeftArrow:
+                    HandleControlLeftArrow(document, view);
+                    break;
+                case ConsoleKey.RightArrow:
+                    HandleControlRightArrow(document, view);
                     break;
                 default:
                     break;
@@ -229,6 +267,21 @@ public abstract class ReplBase {
                 case ConsoleKey.Enter:
                     InsertLine(document, view);
                     break;
+                case ConsoleKey.Backspace:
+                    HandleBackspace(document, view);
+                    break;
+                case ConsoleKey.Delete:
+                    HandleDelete(document, view);
+                    break;
+                case ConsoleKey.Tab:
+                    HandleShiftTab(document, view);
+                    break;
+                case ConsoleKey.LeftArrow:
+                    HandleLeftArrow(document, view);
+                    break;
+                case ConsoleKey.RightArrow:
+                    HandleRightArrow(document, view);
+                    break;
                 default:
                     break;
             }
@@ -236,6 +289,295 @@ public abstract class ReplBase {
 
         if (key.Key != ConsoleKey.Backspace && key.KeyChar >= ' ')
             HandleTyping(document, view, key.KeyChar.ToString());
+    }
+
+    internal virtual void SpecialEscapeSequence() {
+        done_ = true;
+    }
+
+    private void HandleControlShiftEnter(ObservableCollection<string> document, SubmissionView view) {
+        SpecialEscapeSequence();
+    }
+
+    private void HandleShiftTab(ObservableCollection<string> document, SubmissionView view) {
+        var line = document[view.currentLine];
+        var whitespace = line.Length - line.TrimStart().Length;
+        var remainingSpaces = whitespace % tabWidth;
+
+        if (remainingSpaces == 0 && whitespace > 0)
+            remainingSpaces = 4;
+
+        document[view.currentLine] = line.Substring(remainingSpaces);
+        view.currentCharacter -= remainingSpaces;
+
+        view.currentTypingTabbing--;
+    }
+
+    private void HandleControlRightArrow(ObservableCollection<string> document, SubmissionView view) {
+        var line = document[view.currentLine];
+
+        if (view.currentCharacter <= line.Length - 1) {
+            var offset = GetWordBoundaryFront(document, view);
+            view.currentCharacter += offset;
+        }
+    }
+
+    private void HandleControlDelete(ObservableCollection<string> document, SubmissionView view) {
+        var lineIndex = view.currentLine;
+        var line = document[lineIndex];
+        var start = view.currentCharacter;
+
+        if (start >= line.Length) {
+            if (view.currentLine == document.Count - 1)
+                return;
+
+            var nextLine = document[view.currentLine + 1];
+            document[view.currentLine] += nextLine;
+            document.RemoveAt(view.currentLine + 1);
+            return;
+        }
+
+        var offset = GetWordBoundaryFront(document, view, strict: true);
+        var before = line.Substring(0, start);
+        var after = line.Substring(start + offset);
+
+        if (ContainsOpening(line.Substring(start, offset)))
+            view.currentBlockTabbing.Clear();
+
+        document[lineIndex] = before + after;
+    }
+
+    private void HandleControlLeftArrow(ObservableCollection<string> document, SubmissionView view) {
+        if (view.currentCharacter > 0) {
+            var offset = GetWordBoundaryBack(document, view);
+            view.currentCharacter -= offset;
+        }
+    }
+
+    private void HandleControlBackspace(ObservableCollection<string> document, SubmissionView view) {
+        var start = view.currentCharacter;
+
+        if (start == 0) {
+            if (view.currentLine == 0)
+                return;
+
+            var currentLine = document[view.currentLine];
+            var previousLine = document[view.currentLine - 1];
+            document.RemoveAt(view.currentLine);
+            view.currentLine--;
+            document[view.currentLine] = previousLine + currentLine;
+            view.currentCharacter = previousLine.Length;
+        } else {
+            var offset = GetWordBoundaryBack(document, view, strict: true);
+
+            var lineIndex = view.currentLine;
+            var line = document[lineIndex];
+            var before = line.Substring(0, start - offset);
+            var after = line.Substring(start);
+
+            if (ContainsOpening(line.Substring(start - offset, offset)))
+                view.currentBlockTabbing.Clear();
+
+            document[lineIndex] = before + after;
+            view.currentCharacter -= offset;
+        }
+    }
+
+    private bool ContainsOpening(string line) {
+        return line.Contains('{') || line.Contains('(') || line.Contains('[');
+    }
+
+    private int GetWordBoundaryFront(ObservableCollection<string> document, SubmissionView view, bool strict = false) {
+        var line = document[view.currentLine];
+        var maxLength = line.Length - 1;
+        var start = view.currentCharacter;
+        var offset = 0;
+
+        char GetChar(int extraOffset = 0) {
+            return line.Substring(GetPos(extraOffset), 1).Single();
+        }
+
+        int GetPos(int extraOffset = 0) {
+            return start + offset + extraOffset;
+        }
+
+        var current = GetChar();
+
+        bool IsTokenName(char current) {
+            if (Char.IsLetterOrDigit(current) || current == '_')
+                return true;
+
+            return false;
+        }
+
+        if (!strict) {
+            while (Char.IsWhiteSpace(current)) {
+                if (GetPos() > maxLength)
+                    return offset;
+
+                offset++;
+
+                if (GetPos() > maxLength)
+                    return offset;
+
+                current = GetChar();
+            }
+
+            if (GetPos() < maxLength) {
+                if (Char.IsPunctuation(current) && IsTokenName(GetChar(1)))
+                    offset++;
+            }
+        } else {
+            if (GetPos() < maxLength) {
+                if (Char.IsWhiteSpace(current)) {
+                    if (!Char.IsWhiteSpace(GetChar(1))) {
+                        offset++;
+                    } else {
+                        while (Char.IsWhiteSpace(current)) {
+                            if (GetPos() > maxLength)
+                                return offset;
+
+                            offset++;
+
+                            if (GetPos() > maxLength)
+                                return offset;
+
+                            current = GetChar();
+                        }
+
+                        return offset;
+                    }
+                }
+            }
+        }
+
+        current = GetChar();
+
+        if (Char.IsLetterOrDigit(current)) {
+            while (GetPos() <= maxLength) {
+                offset++;
+
+                if (GetPos() > maxLength)
+                    break;
+
+                current = GetChar();
+
+                if (!IsTokenName(current))
+                    break;
+            }
+
+            return offset;
+        } else if (Char.IsPunctuation(current)) {
+            while (GetPos() <= maxLength) {
+                offset++;
+
+                if (GetPos() > maxLength)
+                    break;
+
+                current = GetChar();
+
+                if (!Char.IsPunctuation(current))
+                    break;
+            }
+        }
+
+        return offset;
+    }
+
+    private int GetWordBoundaryBack(ObservableCollection<string> document, SubmissionView view, bool strict = false) {
+        var line = document[view.currentLine];
+        var start = view.currentCharacter;
+        var offset = 1;
+
+        char GetChar(int extraOffset = 0) {
+            return line.Substring(GetPos(extraOffset), 1).Single();
+        }
+
+        int GetPos(int extraOffset = 0) {
+            return start - offset - extraOffset;
+        }
+
+        var current = GetChar();
+
+        bool IsTokenName(char current) {
+            if (Char.IsLetterOrDigit(current) || current == '_')
+                return true;
+
+            return false;
+        }
+
+        if (!strict) {
+            while (Char.IsWhiteSpace(current)) {
+                offset++;
+
+                if (GetPos() == 0)
+                    return offset;
+
+                current = GetChar();
+
+                if (GetPos() == 0)
+                    return offset;
+            }
+
+            if (GetPos() > 1) {
+                if (Char.IsPunctuation(current) && IsTokenName(GetChar(1)))
+                    offset++;
+            }
+        } else {
+            if (GetPos() > 1) {
+                if (Char.IsWhiteSpace(current)) {
+                    if (!Char.IsWhiteSpace(GetChar(1))) {
+                        offset++;
+                    } else {
+                        while (GetPos() > 0) {
+                            offset++;
+
+                            if (GetPos(1) < 0)
+                                break;
+
+                            var previous = GetChar(1);
+
+                            if (!Char.IsWhiteSpace(previous))
+                                break;
+                        }
+
+                        return offset;
+                    }
+                }
+            }
+        }
+
+        current = GetChar();
+
+        if (Char.IsLetterOrDigit(current)) {
+            while (GetPos() > 0) {
+                offset++;
+
+                if (GetPos(1) < 0)
+                    break;
+
+                var previous = GetChar(1);
+
+                if (!IsTokenName(previous))
+                    break;
+            }
+
+            return offset;
+        } else if (Char.IsPunctuation(current)) {
+            while (GetPos() > 0) {
+                offset++;
+
+                if (GetPos(1) < 0)
+                    break;
+
+                var previous = GetChar(1);
+
+                if (!Char.IsPunctuation(previous))
+                    break;
+            }
+        }
+
+        return offset;
     }
 
     private void HandlePageDown(ObservableCollection<string> document, SubmissionView view) {
@@ -280,13 +622,13 @@ public abstract class ReplBase {
     }
 
     private void HandleTab(ObservableCollection<string> document, SubmissionView view) {
-        const int tabWidth = 4;
-
         var start = view.currentCharacter;
         var remainingSpaces = tabWidth - start % tabWidth;
         var line = document[view.currentLine];
         document[view.currentLine] = line.Insert(start, new string(' ', remainingSpaces));
         view.currentCharacter += remainingSpaces;
+
+        view.currentTypingTabbing++;
     }
 
     private void HandleHome(ObservableCollection<string> document, SubmissionView view) {
@@ -314,6 +656,10 @@ public abstract class ReplBase {
 
         var before = line.Substring(0, start);
         var after = line.Substring(start + 1);
+
+        if (ContainsOpening(line.Substring(start, 1)))
+            view.currentBlockTabbing.Clear();
+
         document[lineIndex] = before + after;
     }
 
@@ -333,11 +679,46 @@ public abstract class ReplBase {
         } else {
             var lineIndex = view.currentLine;
             var line = document[lineIndex];
-            var before = line.Substring(0, start - 1);
+
+            var offset = GetTabBoundaryBack(document, view);
+
+            var before = line.Substring(0, start - offset);
             var after = line.Substring(start);
+
+            if (ContainsOpening(line.Substring(start - offset, offset)))
+                view.currentBlockTabbing.Clear();
+
             document[lineIndex] = before + after;
-            view.currentCharacter--;
+            view.currentCharacter -= offset;
         }
+    }
+
+    private int GetTabBoundaryBack(ObservableCollection<string> document, SubmissionView view) {
+        var line = document[view.currentLine];
+        var maxOffset = line.Length % tabWidth;
+
+        if (maxOffset == 0)
+            maxOffset = tabWidth;
+
+        var start = view.currentCharacter;
+        var offset = 1;
+
+        while (offset < maxOffset) {
+            offset++;
+
+            if (start - offset - 1 < 0)
+                break;
+
+            var previous = line.Substring(start - offset - 1, 1).Single();
+
+            if (!Char.IsWhiteSpace(previous))
+                break;
+        }
+
+        if (String.IsNullOrWhiteSpace(line.Substring(start - offset, offset)))
+            return offset;
+
+        return 1;
     }
 
     private void HandleControlEnter(ObservableCollection<string> document, SubmissionView view) {
@@ -346,6 +727,43 @@ public abstract class ReplBase {
 
     private void HandleTyping(ObservableCollection<string> document, SubmissionView view, string text) {
         var lineIndex = view.currentLine;
+
+        Dictionary<char, char> pairs = new Dictionary<char, char>(){
+            {'{', '}'},
+            {'[', ']'},
+            {'(', ')'}
+        };
+
+        if (text == "{" || text == "(" || text == "[")
+            view.currentBlockTabbing.Push((pairs[text.Single()], view.currentTypingTabbing));
+
+        if ((text == "}" || text == ")" || text == "]") && String.IsNullOrWhiteSpace(document[lineIndex])) {
+            var foundPair = false;
+
+            if (view.currentBlockTabbing.Count > 0) {
+                var targetTabbing = view.currentBlockTabbing.Pop();
+
+                while (targetTabbing.Item1 != text.Single()) {
+                    if (view.currentBlockTabbing.Count == 0)
+                        break;
+
+                    targetTabbing = view.currentBlockTabbing.Pop();
+                }
+
+                if (targetTabbing.Item1 == text.Single()) {
+                    foundPair = true;
+
+                    for (int i=view.currentTypingTabbing; i>targetTabbing.Item2; i--)
+                        HandleShiftTab(document, view);
+                }
+            }
+
+            if (!foundPair) {
+                document[lineIndex] = "";
+                view.currentCharacter = 0;
+            }
+        }
+
         var start = view.currentCharacter;
         document[lineIndex] = document[lineIndex].Insert(start, text);
         view.currentCharacter += text.Length;
@@ -384,7 +802,7 @@ public abstract class ReplBase {
         InsertLine(document, view);
     }
 
-    private static void InsertLine(ObservableCollection<string> document, SubmissionView view) {
+    private void InsertLine(ObservableCollection<string> document, SubmissionView view) {
         var remainder = document[view.currentLine].Substring(view.currentCharacter);
         document[view.currentLine] = document[view.currentLine].Substring(0, view.currentCharacter);
 
@@ -392,6 +810,16 @@ public abstract class ReplBase {
         document.Insert(lineIndex, remainder);
         view.currentCharacter = 0;
         view.currentLine = lineIndex;
+
+        var previousLine = document[view.currentLine - 1];
+        var whitespace = (previousLine.Length - previousLine.TrimStart().Length) / tabWidth;
+
+        if (ContainsOpening(previousLine[^1].ToString())) {
+            view.currentTypingTabbing++;
+            whitespace++;
+        }
+
+        HandleTyping(document, view, new String(' ', whitespace * tabWidth));
     }
 
     protected void ClearHistory() {

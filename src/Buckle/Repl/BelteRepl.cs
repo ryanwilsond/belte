@@ -212,6 +212,12 @@ public sealed class BelteRepl : ReplBase {
         if (texts.Count() == 0)
             texts.Add((fullText, ConsoleColor.White));
 
+        var pureTexts = texts.Select(t => t.text).ToList();
+        var textsLength = String.Join("", pureTexts).Length;
+
+        if (textsLength < fullText.Length)
+            texts.Add((fullText.Substring(textsLength), ConsoleColor.White));
+
         foreach (var text in texts) {
             Console.ForegroundColor = text.color;
             Console.Write(text.text);

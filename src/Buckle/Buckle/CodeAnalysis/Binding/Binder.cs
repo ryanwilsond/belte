@@ -924,18 +924,24 @@ internal sealed class Binder {
     private BoundStatement BindIfStatement(IfStatement statement, bool insideInline = false) {
         var conditionValue = RemoveNullability(statement.condition);
         var condition = BindCast(conditionValue, BoundTypeClause.Bool);
+        BoundLiteralExpression constant = null;
 
         if (condition.constantValue != null) {
             if ((bool)condition.constantValue.value == false)
                 diagnostics.Push(Warning.UnreachableCode(statement.then));
             else if (statement.elseClause != null)
                 diagnostics.Push(Warning.UnreachableCode(statement.elseClause.body));
+
+            constant = new BoundLiteralExpression(condition.constantValue.value);
         }
 
         var then = BindStatement(statement.then, insideInline: insideInline);
         var elseStatement = statement.elseClause == null
             ? null
             : BindStatement(statement.elseClause.body, insideInline: insideInline);
+
+        if (constant != null)
+            return new BoundIfStatement(constant, then, elseStatement);
 
         return new BoundIfStatement(condition, then, elseStatement);
     }
