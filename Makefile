@@ -25,7 +25,8 @@ debugcopy:
 	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.dll Belte.dll
 	$(CP) $(DIAGDIR)/bin/Debug/$(NETVER)/Diagnostics.dll Diagnostics.dll
 	$(CP) $(REPLDIR)/bin/Debug/$(NETVER)/Repl.dll Repl.dll
-	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.exe buckle.exe
+	-$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.exe buckle.exe
+	-$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte buckle.exe
 
 setup:
 	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.deps.json Belte.deps.json
