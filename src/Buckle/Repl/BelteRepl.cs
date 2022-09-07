@@ -15,15 +15,15 @@ public sealed class BelteRepl : ReplBase {
     internal BelteReplState state { get { return (BelteReplState)state_; } set { state_=value; } }
 
     internal enum Page {
-        repl,
-        settings
+        Repl,
+        Settings
     }
 
     internal sealed class BelteReplState {
         public bool showTree = false;
         public bool showProgram = false;
         public bool loadingSubmissions = false;
-        public Page currentPage = Page.repl;
+        public Page currentPage = Page.Repl;
         public Compilation previous;
         public Dictionary<VariableSymbol, object> variables;
     }
@@ -41,7 +41,7 @@ public sealed class BelteRepl : ReplBase {
         state.loadingSubmissions = false;
         state.variables = new Dictionary<VariableSymbol, object>();
         state.previous = null;
-        state.currentPage = Page.repl;
+        state.currentPage = Page.Repl;
         base.ResetState();
     }
 
@@ -312,7 +312,7 @@ public sealed class BelteRepl : ReplBase {
 
     [MetaCommand("settings", "Opens settings page")]
     private void EvaluateSettings() {
-
+        state.currentPage = Page.Settings;
     }
 
     protected override bool IsCompleteSubmission(string text) {
