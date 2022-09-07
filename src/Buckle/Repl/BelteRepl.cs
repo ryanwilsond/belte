@@ -312,7 +312,7 @@ public sealed class BelteRepl : ReplBase {
 
     [MetaCommand("settings", "Opens settings page")]
     private void EvaluateSettings() {
-        state.currentPage = Page.Settings; // test
+        state.currentPage = Page.Settings;
     }
 
     protected override bool IsCompleteSubmission(string text) {
