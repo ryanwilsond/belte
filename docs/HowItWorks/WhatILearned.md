@@ -2,7 +2,7 @@
 
 The documents in this folder will fully explain how the compiler works, and some interesting things I learned along the
 way. The reason for this is because while developing this compiler, I found it very hard to find in depth details on a
-couple essential topics making it very hard to develope. This has the goal of helping people who also want to make a
+couple essential topics making it very hard to develop. This has the goal of helping people who also want to make a
 similar compiler.
 
 ## Why Not to Use C++
