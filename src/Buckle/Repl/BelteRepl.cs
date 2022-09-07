@@ -14,10 +14,16 @@ public sealed class BelteRepl : ReplBase {
     internal override object state_ { get; set; }
     internal BelteReplState state { get { return (BelteReplState)state_; } set { state_=value; } }
 
+    internal enum Page {
+        repl,
+        settings
+    }
+
     internal sealed class BelteReplState {
         public bool showTree = false;
         public bool showProgram = false;
         public bool loadingSubmissions = false;
+        public Page currentPage = Page.repl;
         public Compilation previous;
         public Dictionary<VariableSymbol, object> variables;
     }
@@ -35,6 +41,7 @@ public sealed class BelteRepl : ReplBase {
         state.loadingSubmissions = false;
         state.variables = new Dictionary<VariableSymbol, object>();
         state.previous = null;
+        state.currentPage = Page.repl;
         base.ResetState();
     }
 
@@ -301,6 +308,11 @@ public sealed class BelteRepl : ReplBase {
     [MetaCommand("exit", "Exits the repl")]
     private void EvaluateExit() {
         Environment.Exit(0);
+    }
+
+    [MetaCommand("settings", "Opens settings page")]
+    private void EvaluateSettings() {
+
     }
 
     protected override bool IsCompleteSubmission(string text) {
