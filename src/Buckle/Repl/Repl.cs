@@ -37,8 +37,8 @@ public abstract class ReplBase {
             if (attribute == null)
                 continue;
 
-            var metaComand = new MetaCommand(attribute.name, attribute.description, method);
-            metaCommands_.Add(metaComand);
+            var metaCommand = new MetaCommand(attribute.name, attribute.description, method);
+            metaCommands_.Add(metaCommand);
         }
     }
 
@@ -814,7 +814,7 @@ public abstract class ReplBase {
         var previousLine = document[view.currentLine - 1];
         var whitespace = (previousLine.Length - previousLine.TrimStart().Length) / tabWidth;
 
-        if (ContainsOpening(previousLine[^1].ToString())) {
+        if (previousLine.Length > 0 && ContainsOpening(previousLine[^1].ToString())) {
             view.currentTypingTabbing++;
             whitespace++;
         }
