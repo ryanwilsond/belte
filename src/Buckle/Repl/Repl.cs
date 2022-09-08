@@ -66,6 +66,7 @@ public abstract class ReplBase {
 
     private class OutputCapture : TextWriter, IDisposable {
         private TextWriter outWriter_;
+        private int offset_;
         internal TextWriter captured { get; private set; }
         public override Encoding Encoding { get { return Encoding.ASCII; } }
 
@@ -76,13 +77,31 @@ public abstract class ReplBase {
         }
 
         public override void Write(string output) {
+            var text = captured.ToString();
+            captured.Flush();
+            captured.Write(text.Substring(0, offset_));
             captured.Write(output);
             outWriter_.Write(output);
+            offset_ += output.Length;
         }
 
         public override void WriteLine(string output) {
+            var text = captured.ToString();
+            captured.Flush();
+            captured.Write(text.Substring(0, offset_));
             captured.WriteLine(output);
             outWriter_.WriteLine(output);
+            offset_ += output.Length + 1;
+        }
+
+        public void SetCursorPosition(int left, int top) {
+            var text = captured.ToString().Split('\n');
+
+            for (int i=0; i<top; i++)
+                offset_ += text[i].Length;
+
+            offset_ += left;
+            Console.SetCursorPosition(left, top);
         }
     }
 
@@ -95,7 +114,7 @@ public abstract class ReplBase {
         private int renderedLineCount_;
         private int currentLine_;
         private int currentCharacter_;
-        private TextWriter writer_;
+        private OutputCapture writer_;
 
         internal int currentLine {
             get => currentLine_;
@@ -122,7 +141,7 @@ public abstract class ReplBase {
         internal int currentTypingTabbing = 0;
 
         internal SubmissionView(
-            LineRenderHandler lineRenderer, ObservableCollection<string> document, TextWriter writer) {
+            LineRenderHandler lineRenderer, ObservableCollection<string> document, OutputCapture writer) {
             lineRenderer_ = lineRenderer;
             document_ = document;
             document_.CollectionChanged += SubmissionDocumentChanged;
@@ -141,14 +160,14 @@ public abstract class ReplBase {
 
             foreach (var line in document_) {
                 if (cursorTop_ + lineCount >= Console.WindowHeight - 1) {
-                    Console.SetCursorPosition(0, Console.WindowHeight - 1);
+                    writer_.SetCursorPosition(0, Console.WindowHeight - 1);
                     writer_.WriteLine();
 
                     if (cursorTop_ > 0)
                         cursorTop_--;
                 }
 
-                Console.SetCursorPosition(0, cursorTop_ + lineCount);
+                writer_.SetCursorPosition(0, cursorTop_ + lineCount);
                 Console.ForegroundColor = ConsoleColor.Green;
 
                 if (lineCount == 0)
@@ -168,7 +187,7 @@ public abstract class ReplBase {
                 var blankLine = new string(' ', Console.WindowWidth);
 
                 for (int i=0; i<blankLineCount; i++) {
-                    Console.SetCursorPosition(0, cursorTop_ + lineCount + i);
+                    writer_.SetCursorPosition(0, cursorTop_ + lineCount + i);
                     writer_.WriteLine(blankLine);
                 }
             }
