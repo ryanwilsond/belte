@@ -160,14 +160,14 @@ public abstract class ReplBase {
 
             foreach (var line in document_) {
                 if (cursorTop_ + lineCount >= Console.WindowHeight - 1) {
-                    writer_.SetCursorPosition(0, Console.WindowHeight - 1);
+                    Console.SetCursorPosition(0, Console.WindowHeight - 1);
                     writer_.WriteLine();
 
                     if (cursorTop_ > 0)
                         cursorTop_--;
                 }
 
-                writer_.SetCursorPosition(0, cursorTop_ + lineCount);
+                Console.SetCursorPosition(0, cursorTop_ + lineCount);
                 Console.ForegroundColor = ConsoleColor.Green;
 
                 if (lineCount == 0)
@@ -187,7 +187,7 @@ public abstract class ReplBase {
                 var blankLine = new string(' ', Console.WindowWidth);
 
                 for (int i=0; i<blankLineCount; i++) {
-                    writer_.SetCursorPosition(0, cursorTop_ + lineCount + i);
+                    Console.SetCursorPosition(0, cursorTop_ + lineCount + i);
                     writer_.WriteLine(blankLine);
                 }
             }
