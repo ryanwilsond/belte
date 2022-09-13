@@ -98,7 +98,7 @@ public abstract class ReplBase {
             var text = captured.ToString().Split('\n');
 
             for (int i=0; i<top; i++)
-                offset_ += text[i].Length + 1;
+                offset_ += text[i].Length;
 
             offset_ += left;
             Console.SetCursorPosition(left, top);
