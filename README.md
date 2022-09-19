@@ -14,6 +14,15 @@ To know what makes Belte unique from other languages, read [Principles.md](docs/
 
 If you are wanting to look around the repo, consider taking a look at the [directory contents](DIRECTORY_CONTENTS.md).
 
+___
+
+## References
+
+Immo Landwerth's [Building a Compiler](https://www.youtube.com/playlist?list=PLRAdsfhKI4OWNOSfS7EUu5GRAVmze1t2y)
+series is really good for learning the basics of compiler implementation.
+
+___
+
 ## Links
 
 Github: [github.com/flamechain](https://github.com/flamechain)
