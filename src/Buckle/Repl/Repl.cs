@@ -14,7 +14,7 @@ public abstract class ReplBase {
     private readonly List<MetaCommand> metaCommands_ = new List<MetaCommand>();
     private int submissionHistoryIndex_;
     private bool done_;
-    private OutputCapture writer_ = new OutputCapture();
+    internal OutputCapture writer_ = new OutputCapture();
 
     const int tabWidth = 4;
 
@@ -64,42 +64,28 @@ public abstract class ReplBase {
         }
     }
 
-    private class OutputCapture : TextWriter, IDisposable {
+    internal class OutputCapture : TextWriter, IDisposable {
         private int offset_;
         internal TextWriter captured { get; private set; }
         public override Encoding Encoding { get { return Encoding.ASCII; } }
 
         internal OutputCapture() {
-            // outWriter_ = Console.Out;
-            // Console.SetOut(this);
             captured = new StringWriter();
         }
 
         public override void Write(string output) {
-            // var text = captured.ToString();
-            // captured.Flush();
-            // captured.Write(text.Substring(0, offset_));
-            // captured.Write(output);
             Console.Write(output);
-            // offset_ += output.Length;
         }
 
         public override void WriteLine(string output) {
-            // var text = captured.ToString();
-            // captured.Flush();
-            // captured.Write(text.Substring(0, offset_));
-            // captured.Write(output + Environment.NewLine);
             Console.WriteLine(output);
-            // offset_ += output.Length + 1;
+        }
+
+        public override void WriteLine() {
+            Console.WriteLine();
         }
 
         public void SetCursorPosition(int left, int top) {
-            // var text = captured.ToString().Split('\n');
-
-            // for (int i=0; i<top; i++)
-            //     offset_ += text[i].Length + 1;
-
-            // offset_ += left;
             Console.SetCursorPosition(left, top);
         }
     }
@@ -186,7 +172,7 @@ public abstract class ReplBase {
                 var blankLine = new string(' ', Console.WindowWidth);
 
                 for (int i=0; i<blankLineCount; i++) {
-                    Console.SetCursorPosition(0, cursorTop_ + lineCount + i);
+                    writer_.SetCursorPosition(0, cursorTop_ + lineCount + i);
                     writer_.WriteLine(blankLine);
                 }
             }
