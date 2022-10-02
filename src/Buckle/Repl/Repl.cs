@@ -14,7 +14,7 @@ public abstract class ReplBase {
     private readonly List<MetaCommand> metaCommands_ = new List<MetaCommand>();
     private int submissionHistoryIndex_;
     private bool done_;
-    private OutputCapture writer_ = new OutputCapture();
+    internal OutputCapture writer_ = new OutputCapture();
 
     const int tabWidth = 4;
 
@@ -64,25 +64,29 @@ public abstract class ReplBase {
         }
     }
 
-    private class OutputCapture : TextWriter, IDisposable {
-        private TextWriter outWriter_;
+    internal class OutputCapture : TextWriter, IDisposable {
+        private int offset_;
         internal TextWriter captured { get; private set; }
         public override Encoding Encoding { get { return Encoding.ASCII; } }
 
         internal OutputCapture() {
-            outWriter_ = Console.Out;
-            Console.SetOut(this);
             captured = new StringWriter();
         }
 
         public override void Write(string output) {
-            captured.Write(output);
-            outWriter_.Write(output);
+            Console.Write(output);
         }
 
         public override void WriteLine(string output) {
-            captured.WriteLine(output);
-            outWriter_.WriteLine(output);
+            Console.WriteLine(output);
+        }
+
+        public override void WriteLine() {
+            Console.WriteLine();
+        }
+
+        public void SetCursorPosition(int left, int top) {
+            Console.SetCursorPosition(left, top);
         }
     }
 
@@ -95,7 +99,7 @@ public abstract class ReplBase {
         private int renderedLineCount_;
         private int currentLine_;
         private int currentCharacter_;
-        private TextWriter writer_;
+        private OutputCapture writer_;
 
         internal int currentLine {
             get => currentLine_;
@@ -122,7 +126,7 @@ public abstract class ReplBase {
         internal int currentTypingTabbing = 0;
 
         internal SubmissionView(
-            LineRenderHandler lineRenderer, ObservableCollection<string> document, TextWriter writer) {
+            LineRenderHandler lineRenderer, ObservableCollection<string> document, OutputCapture writer) {
             lineRenderer_ = lineRenderer;
             document_ = document;
             document_.CollectionChanged += SubmissionDocumentChanged;
@@ -141,14 +145,14 @@ public abstract class ReplBase {
 
             foreach (var line in document_) {
                 if (cursorTop_ + lineCount >= Console.WindowHeight - 1) {
-                    Console.SetCursorPosition(0, Console.WindowHeight - 1);
+                    writer_.SetCursorPosition(0, Console.WindowHeight - 1);
                     writer_.WriteLine();
 
                     if (cursorTop_ > 0)
                         cursorTop_--;
                 }
 
-                Console.SetCursorPosition(0, cursorTop_ + lineCount);
+                writer_.SetCursorPosition(0, cursorTop_ + lineCount);
                 Console.ForegroundColor = ConsoleColor.Green;
 
                 if (lineCount == 0)
@@ -168,7 +172,7 @@ public abstract class ReplBase {
                 var blankLine = new string(' ', Console.WindowWidth);
 
                 for (int i=0; i<blankLineCount; i++) {
-                    Console.SetCursorPosition(0, cursorTop_ + lineCount + i);
+                    writer_.SetCursorPosition(0, cursorTop_ + lineCount + i);
                     writer_.WriteLine(blankLine);
                 }
             }
@@ -179,8 +183,9 @@ public abstract class ReplBase {
         }
 
         private void UpdateCursorPosition() {
-            Console.CursorTop = cursorTop_ + currentLine_;
-            Console.CursorLeft = 2 + currentCharacter_; // +2 comes from repl entry characters
+            writer_.SetCursorPosition(2 + currentCharacter_, cursorTop_ + currentLine_);
+            // Console.CursorTop = cursorTop_ + currentLine_;
+            // Console.CursorLeft = 2 + currentCharacter_; // +2 comes from repl entry characters
         }
     }
 
@@ -624,6 +629,7 @@ public abstract class ReplBase {
         UpdateDocumentFromHistory(document, view);
     }
 
+    // TODO intercept submissionHistory?
     private void UpdateDocumentFromHistory(ObservableCollection<string> document, SubmissionView view) {
         if (submissionHistory_.Count == 0)
             return;
@@ -972,19 +978,19 @@ public abstract class ReplBase {
 
             var paddedName = name.PadRight(maxLength);
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Out.Write("#");
+            writer_.Write("#");
             Console.ResetColor();
-            Console.Out.Write(paddedName);
-            Console.Out.Write("  ");
+            writer_.Write(paddedName);
+            writer_.Write("  ");
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Out.Write(metaCommand.description);
+            writer_.Write(metaCommand.description);
             Console.ResetColor();
-            Console.Out.WriteLine();
+            writer_.WriteLine();
         }
     }
 
     internal void ReviveDocument() {
         Console.Clear();
-        Console.Write(writer_.captured.ToString());
+        writer_.Write(writer_.captured.ToString());
     }
 }

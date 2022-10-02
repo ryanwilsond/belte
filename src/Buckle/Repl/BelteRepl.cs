@@ -73,7 +73,7 @@ public sealed class BelteRepl : ReplBase {
             if (result.value != null && !state.loadingSubmissions) {
                 Console.ForegroundColor = ConsoleColor.White;
                 RenderResult(result.value);
-                Console.WriteLine();
+                writer_.WriteLine();
                 Console.ResetColor();
             }
 
@@ -84,21 +84,21 @@ public sealed class BelteRepl : ReplBase {
 
     private void RenderResult(object value) {
         if (value.GetType().IsArray) {
-            Console.Write("{ ");
+            writer_.Write("{ ");
             var isFirst = true;
 
             foreach (object item in (Array)value) {
                 if (isFirst)
                     isFirst = false;
                 else
-                    Console.Write(", ");
+                    writer_.Write(", ");
 
                 RenderResult(item);
             }
 
-            Console.Write(" }");
+            writer_.Write(" }");
         } else {
-            Console.Write(value);
+            writer_.Write(value);
         }
     }
 
@@ -124,7 +124,7 @@ public sealed class BelteRepl : ReplBase {
         var files = Directory.GetFiles(GetSubmissionsDirectory()).OrderBy(f => f).ToArray();
         var keyword = files.Length == 1 ? "submission" : "submissions";
         Console.Out.WritePunctuation($"loaded {files.Length} {keyword}");
-        Console.WriteLine();
+        writer_.WriteLine();
 
         state.loadingSubmissions = true;
 
@@ -227,7 +227,7 @@ public sealed class BelteRepl : ReplBase {
 
         foreach (var text in texts) {
             Console.ForegroundColor = text.color;
-            Console.Write(text.text);
+            writer_.Write(text.text);
         }
 
         Console.ResetColor();
@@ -238,13 +238,13 @@ public sealed class BelteRepl : ReplBase {
     [MetaCommand("showTree", "Toggle to display parse tree of each input")]
     private void EvaluateShowTree() {
         state.showTree = !state.showTree;
-        Console.WriteLine(state.showTree ? "Parse-trees visible" : "Parse-trees hidden");
+        writer_.WriteLine(state.showTree ? "Parse-trees visible" : "Parse-trees hidden");
     }
 
     [MetaCommand("showProgram", "Toggle to display intermediate representation of each input")]
     private void EvaluateShowProgram() {
         state.showProgram = !state.showProgram;
-        Console.WriteLine(state.showProgram ? "Bound-trees visible" : "Bound-trees hidden");
+        writer_.WriteLine(state.showProgram ? "Bound-trees visible" : "Bound-trees hidden");
     }
 
     [MetaCommand("clear", "Clears the screen")]
@@ -282,7 +282,7 @@ public sealed class BelteRepl : ReplBase {
 
         foreach (var symbol in symbols) {
             symbol.WriteTo(Console.Out);
-            Console.WriteLine();
+            writer_.WriteLine();
         }
     }
 
@@ -314,7 +314,7 @@ public sealed class BelteRepl : ReplBase {
     private void EvaluateSettings() {
         state.currentPage = Page.Settings;
         Console.Clear();
-        Console.WriteLine("Settings");
+        writer_.WriteLine("Settings");
         Console.ReadKey();
         ReviveDocument();
     }
