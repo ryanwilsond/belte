@@ -14,6 +14,54 @@ public sealed class BelteRepl : ReplBase {
     internal override object state_ { get; set; }
     internal BelteReplState state { get { return (BelteReplState)state_; } set { state_=value; } }
 
+    internal abstract class ColorTheme {
+        internal abstract ConsoleColor @default { get; }
+        internal abstract ConsoleColor selection { get; }
+        internal abstract ConsoleColor textDefault { get; }
+        internal abstract ConsoleColor result { get; }
+        internal abstract ConsoleColor background { get; }
+        internal abstract ConsoleColor identifier { get; }
+        internal abstract ConsoleColor number { get; }
+        internal abstract ConsoleColor @string { get; }
+        internal abstract ConsoleColor comment { get; }
+        internal abstract ConsoleColor keyword { get; }
+        internal abstract ConsoleColor typeName { get; }
+        internal abstract ConsoleColor text { get; }
+        internal abstract ConsoleColor errorText { get; }
+    }
+
+    internal class DarkTheme : ColorTheme {
+        internal override ConsoleColor @default => ConsoleColor.DarkGray;
+        internal override ConsoleColor selection => ConsoleColor.DarkGray;
+        internal override ConsoleColor textDefault => ConsoleColor.White;
+        internal override ConsoleColor result => ConsoleColor.White;
+        internal override ConsoleColor background => ConsoleColor.Black;
+        internal override ConsoleColor identifier => ConsoleColor.White;
+        internal override ConsoleColor number => ConsoleColor.Cyan;
+        internal override ConsoleColor @string => ConsoleColor.Yellow;
+        internal override ConsoleColor comment => ConsoleColor.DarkGray;
+        internal override ConsoleColor keyword => ConsoleColor.Blue;
+        internal override ConsoleColor typeName => ConsoleColor.Blue;
+        internal override ConsoleColor text => ConsoleColor.DarkGray;
+        internal override ConsoleColor errorText => ConsoleColor.White;
+    }
+
+    internal class LightTheme : ColorTheme {
+        internal override ConsoleColor @default => ConsoleColor.DarkGray;
+        internal override ConsoleColor selection => ConsoleColor.DarkGray;
+        internal override ConsoleColor textDefault => ConsoleColor.Black;
+        internal override ConsoleColor result => ConsoleColor.Black;
+        internal override ConsoleColor background => ConsoleColor.White;
+        internal override ConsoleColor identifier => ConsoleColor.Black;
+        internal override ConsoleColor number => ConsoleColor.DarkCyan;
+        internal override ConsoleColor @string => ConsoleColor.DarkYellow;
+        internal override ConsoleColor comment => ConsoleColor.DarkGray;
+        internal override ConsoleColor keyword => ConsoleColor.DarkBlue;
+        internal override ConsoleColor typeName => ConsoleColor.DarkBlue;
+        internal override ConsoleColor text => ConsoleColor.DarkGray;
+        internal override ConsoleColor errorText => ConsoleColor.Black;
+    }
+
     internal enum Page {
         Repl,
         Settings
@@ -23,6 +71,7 @@ public sealed class BelteRepl : ReplBase {
         public bool showTree = false;
         public bool showProgram = false;
         public bool loadingSubmissions = false;
+        public ColorTheme colorTheme = new DarkTheme();
         public Page currentPage = Page.Repl;
         public Compilation previous;
         public Dictionary<VariableSymbol, object> variables;
@@ -31,6 +80,7 @@ public sealed class BelteRepl : ReplBase {
     public BelteRepl(Compiler handle, DiagnosticHandle errorHandle) : base(handle, errorHandle) {
         state = new BelteReplState();
         ResetState();
+        Console.BackgroundColor = state.colorTheme.background;
         EvaluateClear();
         LoadSubmissions();
     }
@@ -65,16 +115,16 @@ public sealed class BelteRepl : ReplBase {
         if (handle.diagnostics.Any()) {
             if (diagnosticHandle != null) {
                 handle.diagnostics = BelteDiagnosticQueue.CleanDiagnostics(handle.diagnostics);
-                diagnosticHandle(handle);
+                diagnosticHandle(handle, textColor: state.colorTheme.textDefault);
             } else {
                 handle.diagnostics.Clear();
             }
         } else {
             if (result.value != null && !state.loadingSubmissions) {
-                Console.ForegroundColor = ConsoleColor.White;
+                Console.ForegroundColor = state.colorTheme.result;
                 RenderResult(result.value);
                 writer_.WriteLine();
-                Console.ResetColor();
+                Console.ForegroundColor = state.colorTheme.@default;
             }
 
             state.previous = compilation;
@@ -164,29 +214,29 @@ public sealed class BelteRepl : ReplBase {
 
         foreach (var classifiedSpan in classifiedSpans) {
             var classifiedText = syntaxTree.text.ToString(classifiedSpan.span);
-            var color = ConsoleColor.DarkGray;
+            var color = state.colorTheme.@default;
 
             switch (classifiedSpan.classification) {
                 case Classification.Identifier:
-                    color = ConsoleColor.White;
+                    color = state.colorTheme.identifier;
                     break;
                 case Classification.Number:
-                    color = ConsoleColor.Cyan;
+                    color = state.colorTheme.number;
                     break;
                 case Classification.String:
-                    color = ConsoleColor.Yellow;
+                    color = state.colorTheme.@string;
                     break;
                 case Classification.Comment:
-                    color = ConsoleColor.DarkGray;
+                    color = state.colorTheme.comment;
                     break;
                 case Classification.Keyword:
-                    color = ConsoleColor.Blue;
+                    color = state.colorTheme.keyword;
                     break;
                 case Classification.TypeName:
-                    color = ConsoleColor.Blue;
+                    color = state.colorTheme.typeName;
                     break;
                 case Classification.Text:
-                    color = ConsoleColor.DarkGray;
+                    color = state.colorTheme.text;
                     break;
                 default:
                     break;
@@ -207,7 +257,7 @@ public sealed class BelteRepl : ReplBase {
 
                 while (true) {
                     if (fullText.Substring(offset, texts[i].text.Length) == texts[i].text) {
-                        texts.Insert(i, (extra, ConsoleColor.White));
+                        texts.Insert(i, (extra, state.colorTheme.errorText));
                         break;
                     }
 
@@ -217,20 +267,20 @@ public sealed class BelteRepl : ReplBase {
         }
 
         if (texts.Count() == 0)
-            texts.Add((fullText, ConsoleColor.White));
+            texts.Add((fullText, state.colorTheme.errorText));
 
         var pureTexts = texts.Select(t => t.text).ToList();
         var textsLength = String.Join("", pureTexts).Length;
 
         if (textsLength < fullText.Length)
-            texts.Add((fullText.Substring(textsLength), ConsoleColor.White));
+            texts.Add((fullText.Substring(textsLength), state.colorTheme.errorText));
 
         foreach (var text in texts) {
             Console.ForegroundColor = text.color;
             writer_.Write(text.text);
         }
 
-        Console.ResetColor();
+        Console.ForegroundColor = state.colorTheme.@default;
 
         return syntaxTree;
     }
@@ -264,7 +314,7 @@ public sealed class BelteRepl : ReplBase {
             handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.NoSuchFile(path)));
 
             if (diagnosticHandle != null)
-                diagnosticHandle(handle, "repl");
+                diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
             else
                 handle.diagnostics.Clear();
 
@@ -295,7 +345,7 @@ public sealed class BelteRepl : ReplBase {
             handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.UndefinedSymbol(name)));
 
             if (diagnosticHandle != null)
-                diagnosticHandle(handle, "repl");
+                diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
             else
                 handle.diagnostics.Clear();
 
@@ -313,10 +363,56 @@ public sealed class BelteRepl : ReplBase {
     [MetaCommand("settings", "Opens settings page")]
     private void EvaluateSettings() {
         state.currentPage = Page.Settings;
-        Console.Clear();
-        writer_.WriteLine("Settings");
-        Console.ReadKey();
+
+        void UpdatePage() {
+            Console.BackgroundColor = state.colorTheme.background;
+            Console.ForegroundColor = state.colorTheme.textDefault;
+            Console.Clear();
+            writer_.WriteLine("Settings\n");
+            writer_.Write("Theme: ");
+
+            if (state.colorTheme is DarkTheme) {
+                writer_.SetCursorPosition(7, 2);
+                Console.BackgroundColor = state.colorTheme.background;
+                writer_.Write("Light   ");
+                writer_.SetCursorPosition(7, 3);
+                Console.BackgroundColor = state.colorTheme.selection;
+                writer_.Write("Dark    ");
+            } else if (state.colorTheme is LightTheme) {
+                writer_.SetCursorPosition(7, 2);
+                Console.BackgroundColor = state.colorTheme.selection;
+                writer_.Write("Light   ");
+                writer_.SetCursorPosition(7, 3);
+                Console.BackgroundColor = state.colorTheme.background;
+                writer_.Write("Dark    ");
+            }
+        }
+
+        while (true) {
+            UpdatePage();
+
+            if (state.colorTheme is LightTheme)
+                writer_.SetCursorPosition(7, 2);
+            else if (state.colorTheme is DarkTheme)
+                writer_.SetCursorPosition(7, 3);
+
+            var key = Console.ReadKey(true);
+
+            if (key.Key == ConsoleKey.Enter) {
+                Console.BackgroundColor = state.colorTheme.background;
+                break;
+            } else if (key.Key == ConsoleKey.UpArrow) {
+                state.colorTheme = new LightTheme();
+                writer_.SetCursorPosition(7, 2);
+            } else if (key.Key == ConsoleKey.DownArrow) {
+                state.colorTheme = new DarkTheme();
+                writer_.SetCursorPosition(7, 3);
+            }
+        }
+
+        Console.BackgroundColor = state.colorTheme.background;
         ReviveDocument();
+        state.currentPage = Page.Repl;
     }
 
     protected override bool IsCompleteSubmission(string text) {
