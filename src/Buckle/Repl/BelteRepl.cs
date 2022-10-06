@@ -417,7 +417,7 @@ public sealed class BelteRepl : ReplBase {
 
     protected override bool IsCompleteSubmission(string text) {
         if (string.IsNullOrEmpty(text))
-            return true;
+            return true; // ! temp
 
         var twoBlankTines = text.Split(Environment.NewLine).Reverse()
             .TakeWhile(s => string.IsNullOrEmpty(s))
