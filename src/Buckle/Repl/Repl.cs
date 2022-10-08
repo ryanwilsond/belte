@@ -8,7 +8,8 @@ using Buckle.Diagnostics;
 namespace Repl;
 
 public abstract class ReplBase {
-    public delegate int DiagnosticHandle(Compiler compiler, string me = null);
+    public delegate int DiagnosticHandle(
+        Compiler compiler, string me = null, ConsoleColor textColor = ConsoleColor.White);
 
     private readonly List<string> submissionHistory_ = new List<string>();
     private readonly List<MetaCommand> metaCommands_ = new List<MetaCommand>();
@@ -65,12 +66,11 @@ public abstract class ReplBase {
     }
 
     internal class OutputCapture : TextWriter, IDisposable {
-        private int offset_;
-        internal TextWriter captured { get; private set; }
+        // internal List<List<String>> captured { get; private set; }
         public override Encoding Encoding { get { return Encoding.ASCII; } }
 
         internal OutputCapture() {
-            captured = new StringWriter();
+            // captured = new List<List<string>>();
         }
 
         public override void Write(string output) {
@@ -153,6 +153,7 @@ public abstract class ReplBase {
                 }
 
                 writer_.SetCursorPosition(0, cursorTop_ + lineCount);
+                var previous = Console.ForegroundColor;
                 Console.ForegroundColor = ConsoleColor.Green;
 
                 if (lineCount == 0)
@@ -160,7 +161,7 @@ public abstract class ReplBase {
                 else
                     writer_.Write("· ");
 
-                Console.ResetColor();
+                Console.ForegroundColor = previous;
                 lineRenderer_(document_, lineCount, null);
                 writer_.Write(new string(' ', Console.WindowWidth - line.Length - 2));
                 lineCount++;
@@ -184,8 +185,6 @@ public abstract class ReplBase {
 
         private void UpdateCursorPosition() {
             writer_.SetCursorPosition(2 + currentCharacter_, cursorTop_ + currentLine_);
-            // Console.CursorTop = cursorTop_ + currentLine_;
-            // Console.CursorLeft = 2 + currentCharacter_; // +2 comes from repl entry characters
         }
     }
 
@@ -629,7 +628,6 @@ public abstract class ReplBase {
         UpdateDocumentFromHistory(document, view);
     }
 
-    // TODO intercept submissionHistory?
     private void UpdateDocumentFromHistory(ObservableCollection<string> document, SubmissionView view) {
         if (submissionHistory_.Count == 0)
             return;
@@ -970,6 +968,8 @@ public abstract class ReplBase {
             .Max(mc => mc.name.Length + string.Join(" ", mc.method.GetParameters()
             .SelectMany(p => p.Name).ToList()).Length);
 
+        var previous = Console.ForegroundColor;
+
         foreach (var metaCommand in metaCommands_.OrderBy(mc => mc.name)) {
             var name = metaCommand.name;
 
@@ -979,18 +979,17 @@ public abstract class ReplBase {
             var paddedName = name.PadRight(maxLength);
             Console.ForegroundColor = ConsoleColor.DarkGray;
             writer_.Write("#");
-            Console.ResetColor();
+            Console.ForegroundColor = previous;
             writer_.Write(paddedName);
             writer_.Write("  ");
             Console.ForegroundColor = ConsoleColor.DarkGray;
             writer_.Write(metaCommand.description);
-            Console.ResetColor();
+            Console.ForegroundColor = previous;
             writer_.WriteLine();
         }
     }
 
     internal void ReviveDocument() {
         Console.Clear();
-        writer_.Write(writer_.captured.ToString());
     }
 }

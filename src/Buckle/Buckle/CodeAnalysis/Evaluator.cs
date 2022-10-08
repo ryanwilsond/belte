@@ -98,9 +98,10 @@ internal sealed class Evaluator {
 
             return lastValue_;
         } catch (Exception e) {
+            var previous = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Red;
             Console.Write("Unhandled exception: ");
-            Console.ResetColor();
+            Console.ForegroundColor = previous;
             Console.WriteLine(e.Message);
             return null;
         }

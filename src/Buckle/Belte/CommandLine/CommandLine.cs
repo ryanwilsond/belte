@@ -114,7 +114,14 @@ public static partial class BuckleCommandLine {
         Console.WriteLine(versionMessage);
     }
 
-    private static void PrettyPrintDiagnostic(BelteDiagnostic diagnostic) {
+    private static void PrettyPrintDiagnostic(BelteDiagnostic diagnostic, ConsoleColor? textColor) {
+        void ResetColor() {
+            if (textColor != null)
+                Console.ForegroundColor = textColor.Value;
+            else
+                Console.ResetColor();
+        }
+
         TextSpan span = diagnostic.location.span;
         SourceText text = diagnostic.location.text;
 
@@ -152,7 +159,7 @@ public static partial class BuckleCommandLine {
             Console.Write(": ");
         }
 
-        Console.ResetColor();
+        ResetColor();
         Console.WriteLine(diagnostic.message);
 
         if (text.IsAtEndOfInput(span))
@@ -168,7 +175,7 @@ public static partial class BuckleCommandLine {
         Console.Write($" {prefix}");
         Console.ForegroundColor = highlightColor;
         Console.Write(focus);
-        Console.ResetColor();
+        ResetColor();
         Console.WriteLine(suffix);
 
         Console.ForegroundColor = highlightColor;
@@ -185,10 +192,23 @@ public static partial class BuckleCommandLine {
             Console.WriteLine(markerPrefix + suggestion);
         }
 
-        Console.ResetColor();
+        ResetColor();
     }
 
-    private static DiagnosticType ResolveDiagnostic<Type>(Type diagnostic, string me) where Type : Diagnostic {
+    private static DiagnosticType ResolveDiagnostic<Type>(
+        Type diagnostic, string me, ConsoleColor? textColor = null)
+        where Type : Diagnostic {
+        ConsoleColor previous = Console.ForegroundColor;
+
+        void ResetColor() {
+            if (textColor != null)
+                Console.ForegroundColor = textColor.Value;
+            else
+                Console.ResetColor();
+        }
+
+        ResetColor();
+
         if (diagnostic.info.severity == DiagnosticType.Unknown) {
         } else if (diagnostic.info.module != "BU" || (diagnostic is BelteDiagnostic bd && bd.location == null)) {
             Console.Write($"{me}: ");
@@ -208,16 +228,19 @@ public static partial class BuckleCommandLine {
             errorCode = errorCode.PadLeft(4, '0');
             Console.Write($"{diagnostic.info.module}{errorCode}: ");
 
-            Console.ResetColor();
+            ResetColor();
             Console.WriteLine(diagnostic.message);
         } else {
-            PrettyPrintDiagnostic(diagnostic as BelteDiagnostic);
+            PrettyPrintDiagnostic(diagnostic as BelteDiagnostic, textColor);
         }
 
+        Console.ForegroundColor = previous;
         return diagnostic.info.severity;
     }
 
-    private static int ResolveDiagnostics<Type>(DiagnosticQueue<Type> diagnostics, string me) where Type : Diagnostic {
+    private static int ResolveDiagnostics<Type>(
+        DiagnosticQueue<Type> diagnostics, string me, ConsoleColor? textColor = null)
+        where Type : Diagnostic {
         if (diagnostics.count == 0)
             return SuccessExitCode;
 
@@ -225,7 +248,7 @@ public static partial class BuckleCommandLine {
         Diagnostic diagnostic = diagnostics.Pop();
 
         while (diagnostic != null) {
-            DiagnosticType temp = ResolveDiagnostic(diagnostic, me);
+            DiagnosticType temp = ResolveDiagnostic(diagnostic, me, textColor);
 
             switch (temp) {
                 case DiagnosticType.Warning:
@@ -258,8 +281,9 @@ public static partial class BuckleCommandLine {
         }
     }
 
-    private static int ResolveDiagnostics(Compiler compiler, string me = null) {
-        return ResolveDiagnostics(compiler.diagnostics, me ?? compiler.me);
+    private static int ResolveDiagnostics(
+        Compiler compiler, string me = null, ConsoleColor textColor = ConsoleColor.White) {
+        return ResolveDiagnostics(compiler.diagnostics, me ?? compiler.me, textColor);
     }
 
     private static void ProduceOutputFiles(Compiler compiler) {
