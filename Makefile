@@ -6,7 +6,7 @@ DIAGDIR:=src/Buckle/Diagnostics
 REPLDIR:=src/Buckle/Repl
 SANDDIR:=src/Sander
 
-NETVER:=net5.0
+NETVER:=net6.0
 SYSTEM:=win-x64
 SLN:=src/Buckle/Buckle.sln
 SSLN:=src/Sander/Sander.sln
@@ -31,12 +31,6 @@ debugcopy:
 setup:
 	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.deps.json Belte.deps.json
 	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.runtimeconfig.json Belte.runtimeconfig.json
-	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/System.Collections.Immutable.dll System.Collections.Immutable.dll
-	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/System.Runtime.CompilerServices.Unsafe.dll System.Runtime.CompilerServices.Unsafe.dll
-	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.Mdb.dll Mono.Cecil.Mdb.dll
-	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.Pdb.dll Mono.Cecil.Pdb.dll
-	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.Rocks.dll Mono.Cecil.Rocks.dll
-	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.dll Mono.Cecil.dll
 
 .PHONY: resources
 resources:
