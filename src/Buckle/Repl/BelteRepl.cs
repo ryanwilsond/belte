@@ -302,7 +302,10 @@ public sealed class BelteRepl : ReplBase {
         Console.Clear();
     }
 
-    // TODO @Logan add a meta command called 'cls' that clears the terminal
+    [MetaCommand("cls", "Clears the screen")]
+    private void EvaluateCls() {
+        Console.Clear();
+    }
 
     [MetaCommand("reset", "Clears previous submissions")]
     private void EvaluateReset() {
