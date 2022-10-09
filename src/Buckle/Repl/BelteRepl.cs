@@ -302,6 +302,11 @@ public sealed class BelteRepl : ReplBase {
         Console.Clear();
     }
 
+    [MetaCommand("cls", "Clears the screen")]
+    private void EvaluateCls() {
+        Console.Clear();
+    }
+
     [MetaCommand("reset", "Clears previous submissions")]
     private void EvaluateReset() {
         ResetState();
