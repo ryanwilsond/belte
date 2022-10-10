@@ -62,6 +62,11 @@ public sealed class BelteRepl : ReplBase {
         internal override ConsoleColor errorText => ConsoleColor.Black;
     }
 
+    Dictionary<String, ColorTheme> InUse = new Dictionary<String, ColorTheme>() {
+        {"Dark", new DarkTheme()},
+        {"Light", new LightTheme()},
+    };
+
     internal enum Page {
         Repl,
         Settings
@@ -369,37 +374,45 @@ public sealed class BelteRepl : ReplBase {
     private void EvaluateSettings() {
         state.currentPage = Page.Settings;
 
-        void UpdatePage() {
+        void UpdatePage(int targetIndex) {
+            targetIndex -= 2;
+            state.colorTheme = InUse[InUse.Keys.ToArray()[targetIndex]];
+
             Console.BackgroundColor = state.colorTheme.background;
             Console.ForegroundColor = state.colorTheme.textDefault;
             Console.Clear();
             writer_.WriteLine("Settings\n");
             writer_.Write("Theme: ");
 
-            if (state.colorTheme is DarkTheme) {
-                writer_.SetCursorPosition(7, 2);
-                Console.BackgroundColor = state.colorTheme.background;
-                writer_.Write("Light   ");
-                writer_.SetCursorPosition(7, 3);
-                Console.BackgroundColor = state.colorTheme.selection;
-                writer_.Write("Dark    ");
-            } else if (state.colorTheme is LightTheme) {
-                writer_.SetCursorPosition(7, 2);
-                Console.BackgroundColor = state.colorTheme.selection;
-                writer_.Write("Light   ");
-                writer_.SetCursorPosition(7, 3);
-                Console.BackgroundColor = state.colorTheme.background;
-                writer_.Write("Dark    ");
+            int index = 2;
+
+            foreach (var (Key, Value) in InUse) {
+                writer_.SetCursorPosition(7, index++);
+
+                if (state.colorTheme.GetType() == Value.GetType()) {
+                    Console.BackgroundColor = state.colorTheme.selection;
+                } else {
+                    Console.BackgroundColor = state.colorTheme.background;
+                }
+
+                writer_.Write(Key.PadRight(8));
             }
+
+            writer_.SetCursorPosition(7, targetIndex + 2);
+        }
+
+        int targetIndex = 2;
+        int index = 2;
+
+        foreach (var (Key, Value) in InUse) {
+            if (state.colorTheme.GetType() == Value.GetType())
+                targetIndex = index;
+            else
+                index++;
         }
 
         while (true) {
-            UpdatePage();
-
-            if (state.colorTheme is LightTheme)
-                writer_.SetCursorPosition(7, 2);
-            else if (state.colorTheme is DarkTheme)
-                writer_.SetCursorPosition(7, 3);
+            UpdatePage(targetIndex);
 
             var key = Console.ReadKey(true);
 
@@ -407,11 +420,11 @@ public sealed class BelteRepl : ReplBase {
                 Console.BackgroundColor = state.colorTheme.background;
                 break;
             } else if (key.Key == ConsoleKey.UpArrow) {
-                state.colorTheme = new LightTheme();
-                writer_.SetCursorPosition(7, 2);
+                if (targetIndex - 2 > 0)
+                    targetIndex--;
             } else if (key.Key == ConsoleKey.DownArrow) {
-                state.colorTheme = new DarkTheme();
-                writer_.SetCursorPosition(7, 3);
+                if (targetIndex - 2 < InUse.Count - 1)
+                    targetIndex++;
             }
         }
 
