@@ -14,7 +14,6 @@ return statement in the block and checking for a semicolon at the end.
 
 After creating a parse tree, control passes onto the binder which does most the heavy lifting including type checking.
 
-
 ### Mentioned Components
 
 -> [Lexer](Lexer.md)
