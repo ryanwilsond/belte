@@ -8,6 +8,9 @@ Docs/Pages: [flamechain.github.io/belte](https://flamechain.github.io/belte/)
 
 Trello: [trello.com/belteindustries](https://trello.com/belteindustries)
 
+OnBoarding:
+[Belte Industries OnBoarding Presentation](https://docs.google.com/presentation/d/1OPQQ2u9eYoLJ0EJMaahhTUQPkZ3FQ6KigO9uWFbu9zQ/edit?usp=sharing)
+
 ## Tools
 
 This project uses the .NET SDK (5.0) for building, wrapped with GNU Make.

@@ -16,4 +16,5 @@ Brief descriptions of all the directories to help browsing the repo.
 | src/Buckle/Buckle | Compiler source files |
 | src/Buckle/Buckle.Generators | Generator for some compiler source files |
 | src/Buckle/Buckle.Tests | Unit tests for Buckle |
+| src/Buckle/Diagnostics | Generic diagnostic handling support |
 | src/Buckle/Repl | Belte Repl |
