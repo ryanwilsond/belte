@@ -62,9 +62,26 @@ public sealed class BelteRepl : ReplBase {
         internal override ConsoleColor errorText => ConsoleColor.Black;
     }
 
+    internal class GreenTheme : ColorTheme {
+        internal override ConsoleColor @default => ConsoleColor.DarkGray;
+        internal override ConsoleColor selection => ConsoleColor.DarkGray;
+        internal override ConsoleColor textDefault => ConsoleColor.Black;
+        internal override ConsoleColor result => ConsoleColor.DarkGreen;
+        internal override ConsoleColor background => ConsoleColor.Green;
+        internal override ConsoleColor identifier => ConsoleColor.White;
+        internal override ConsoleColor number => ConsoleColor.DarkCyan;
+        internal override ConsoleColor @string => ConsoleColor.DarkMagenta;
+        internal override ConsoleColor comment => ConsoleColor.DarkGray;
+        internal override ConsoleColor keyword => ConsoleColor.DarkBlue;
+        internal override ConsoleColor typeName => ConsoleColor.Red;
+        internal override ConsoleColor text => ConsoleColor.DarkGray;
+        internal override ConsoleColor errorText => ConsoleColor.Gray;
+    }
+
     Dictionary<String, ColorTheme> InUse = new Dictionary<String, ColorTheme>() {
         {"Dark", new DarkTheme()},
         {"Light", new LightTheme()},
+        {"Green", new GreenTheme()},
     };
 
     internal enum Page {
