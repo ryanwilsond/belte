@@ -856,6 +856,10 @@ public abstract class ReplBase {
         submissionHistory_.Clear();
     }
 
+    internal List<string> GetSubmissionHistory() {
+        return submissionHistory_;
+    }
+
     protected virtual object RenderLine(IReadOnlyList<string> lines, int lineIndex, object state) {
         writer_.Write(lines[lineIndex]);
         return state;
@@ -920,16 +924,22 @@ public abstract class ReplBase {
         var parameters = command.method.GetParameters();
 
         if (args.Count != parameters.Length) {
-            var parameterNames = string.Join(" ", parameters.Select(p => $"<{p.Name}>"));
-            handle.diagnostics.Push(
-                new BelteDiagnostic(Repl.Diagnostics.Error.WrongArgumentCount(command.name, parameterNames)));
+            if (args.Count == command.method.GetParameters()
+                .Where(t => t.HasDefaultValue == false).ToArray().Length) {
+                foreach (var parameter in command.method.GetParameters().Where(p => p.HasDefaultValue == true))
+                    args.Add(parameter.DefaultValue.ToString());
+            } else {
+                var parameterNames = string.Join(" ", parameters.Select(p => $"<{p.Name}>"));
+                handle.diagnostics.Push(new BelteDiagnostic(
+                        Repl.Diagnostics.Error.WrongArgumentCount(command.name, parameterNames)));
 
-            if (diagnosticHandle != null)
-                diagnosticHandle(handle, "repl");
-            else
-                handle.diagnostics.Clear();
+                if (diagnosticHandle != null)
+                    diagnosticHandle(handle, "repl");
+                else
+                    handle.diagnostics.Clear();
 
-            return;
+                return;
+            }
         }
 
         var instance = command.method.IsStatic ? null : this;
@@ -964,6 +974,7 @@ public abstract class ReplBase {
 
     [MetaCommand("help", "Shows this document")]
     protected void EvaluateHelp() {
+        // TODO doesn't calculate length of default values
         var maxLength = metaCommands_
             .Max(mc => mc.name.Length + string.Join(" ", mc.method.GetParameters()
             .SelectMany(p => p.Name).ToList()).Length);
@@ -973,8 +984,12 @@ public abstract class ReplBase {
         foreach (var metaCommand in metaCommands_.OrderBy(mc => mc.name)) {
             var name = metaCommand.name;
 
-            foreach (var parameter in metaCommand.method.GetParameters())
-                name += $" <{parameter.Name}>";
+            foreach (var parameter in metaCommand.method.GetParameters()) {
+                if (parameter.HasDefaultValue)
+                    name += $" <{parameter.Name}={parameter.DefaultValue}>";
+                else
+                    name += $" <{parameter.Name}>";
+            }
 
             var paddedName = name.PadRight(maxLength);
             Console.ForegroundColor = ConsoleColor.DarkGray;

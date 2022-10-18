@@ -30,4 +30,9 @@ internal static class Error {
         var message = $"{name}: no such file";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuchFile), message);
     }
+
+    internal static Diagnostic InvalidArgument(object value, Type expected) {
+        var message = $"Invalid argument '{value}'; expected argument of type {expected}";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidArgument), message);
+    }
 }
