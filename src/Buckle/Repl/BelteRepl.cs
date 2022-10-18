@@ -78,7 +78,7 @@ public sealed class BelteRepl : ReplBase {
         internal override ConsoleColor errorText => ConsoleColor.Gray;
     }
 
-    Dictionary<String, ColorTheme> InUse = new Dictionary<String, ColorTheme>() {
+    Dictionary<string, ColorTheme> InUse = new Dictionary<string, ColorTheme>() {
         {"Dark", new DarkTheme()},
         {"Light", new LightTheme()},
         {"Green", new GreenTheme()},
@@ -193,6 +193,7 @@ public sealed class BelteRepl : ReplBase {
     }
 
     private void LoadSubmissions() {
+        // TODO make console handle null so evaluator doesn't print output?
         var files = Directory.GetFiles(GetSubmissionsDirectory()).OrderBy(f => f).ToArray();
         var keyword = files.Length == 1 ? "submission" : "submissions";
         Console.Out.WritePunctuation($"loaded {files.Length} {keyword}");
@@ -222,7 +223,7 @@ public sealed class BelteRepl : ReplBase {
         SyntaxTree syntaxTree;
 
         if (rState == null) {
-            var text = string.Join(Environment.NewLine, lines);
+            var text = String.Join(Environment.NewLine, lines);
             syntaxTree = SyntaxTree.Parse(text);
         } else {
             syntaxTree = (SyntaxTree)rState;
@@ -319,23 +320,23 @@ public sealed class BelteRepl : ReplBase {
         writer_.WriteLine(state.showProgram ? "Bound-trees visible" : "Bound-trees hidden");
     }
 
-    [MetaCommand("clear", "Clears the screen")]
+    [MetaCommand("clear", "Clear the screen")]
     private void EvaluateClear() {
         Console.Clear();
     }
 
-    [MetaCommand("cls", "Clears the screen")]
+    [MetaCommand("cls", "Clear the screen")]
     private void EvaluateCls() {
         Console.Clear();
     }
 
-    [MetaCommand("reset", "Clears previous submissions")]
+    [MetaCommand("reset", "Clear previous submissions")]
     private void EvaluateReset() {
         ResetState();
         ClearSubmissions();
     }
 
-    [MetaCommand("load", "Loads in text from file")]
+    [MetaCommand("load", "Load in text from <path>")]
     private void EvaluateLoad(string path) {
         if (!File.Exists(path)) {
             handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.NoSuchFile(path)));
@@ -352,7 +353,7 @@ public sealed class BelteRepl : ReplBase {
         EvaluateSubmission(text);
     }
 
-    [MetaCommand("ls", "Lists all defined symbols")]
+    [MetaCommand("ls", "List all defined symbols")]
     private void EvaluateLs() {
         var compilation = state.previous ?? emptyCompilation;
         var symbols = compilation.GetSymbols().OrderBy(s => s.type).ThenBy(s => s.name);
@@ -363,7 +364,7 @@ public sealed class BelteRepl : ReplBase {
         }
     }
 
-    [MetaCommand("dump", "Shows contents of a symbol")]
+    [MetaCommand("dump", "Show contents of symbol <name>")]
     private void EvaluateDump(string name) {
         var compilation = state.previous ?? emptyCompilation;
         var symbol = compilation.GetSymbols().SingleOrDefault(f => f.name == name);
@@ -382,12 +383,66 @@ public sealed class BelteRepl : ReplBase {
         compilation.EmitTree(symbol, Console.Out);
     }
 
-    [MetaCommand("exit", "Exits the repl")]
+    [MetaCommand("exit", "Exit the repl")]
     private void EvaluateExit() {
         Environment.Exit(0);
     }
 
-    [MetaCommand("settings", "Opens settings page")]
+    [MetaCommand("saveToFile", "Save previous <count> submissions to <path>")]
+    private void EvaluateSaveToFile(string path, string count = "1") {
+        if (!Int32.TryParse(count, out var countInt)) {
+            handle.diagnostics.Push(
+                new BelteDiagnostic(Repl.Diagnostics.Error.InvalidArgument(count, typeof(Int32))));
+
+            if (diagnosticHandle != null)
+                diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
+            else
+                handle.diagnostics.Clear();
+
+            return;
+        }
+
+        if (File.Exists(path)) {
+            Console.ForegroundColor = state.colorTheme.textDefault;
+            writer_.Write("File already exists, continue? [y/n] ");
+            var response = Console.ReadKey().KeyChar;
+            writer_.WriteLine();
+
+            if (response != 'y') {
+                writer_.WriteLine("Aborting");
+                return;
+            }
+        } else {
+            File.Create(path);
+        }
+
+        var submissions = GetSubmissionHistory();
+
+        if (countInt > submissions.Count)
+            countInt = submissions.Count;
+
+        var subset = submissions.GetRange(submissions.Count - countInt, countInt);
+
+        var joined = String.Join(Environment.NewLine, subset);
+        var split = joined.Split(Environment.NewLine);
+
+        var wrote = false;
+
+        for (int i=0; i<3; i++) {
+            try {
+                File.WriteAllLines(path, subset);
+                wrote = true;
+                break;
+            } catch { }
+        }
+
+        if (wrote)
+            writer_.WriteLine($"Wrote {split.Length} lines");
+        else
+            writer_.WriteLine($"Failed to write to file");
+    }
+
+    [MetaCommand("settings", "Open settings page")]
     private void EvaluateSettings() {
         state.currentPage = Page.Settings;
 
@@ -398,10 +453,11 @@ public sealed class BelteRepl : ReplBase {
             Console.BackgroundColor = state.colorTheme.background;
             Console.ForegroundColor = state.colorTheme.textDefault;
             Console.Clear();
-            writer_.WriteLine("Settings\n");
+            writer_.WriteLine("Settings");
+            writer_.WriteLine();
             writer_.Write("Theme: ");
 
-            int index = 2;
+            var index = 2;
 
             foreach (var (Key, Value) in InUse) {
                 writer_.SetCursorPosition(7, index++);
@@ -418,8 +474,8 @@ public sealed class BelteRepl : ReplBase {
             writer_.SetCursorPosition(7, targetIndex + 2);
         }
 
-        int targetIndex = 2;
-        int index = 2;
+        var targetIndex = 2;
+        var index = 2;
 
         foreach (var (Key, Value) in InUse) {
             if (state.colorTheme.GetType() == Value.GetType())
@@ -451,11 +507,11 @@ public sealed class BelteRepl : ReplBase {
     }
 
     protected override bool IsCompleteSubmission(string text) {
-        if (string.IsNullOrEmpty(text))
+        if (String.IsNullOrEmpty(text))
             return true;
 
         var twoBlankTines = text.Split(Environment.NewLine).Reverse()
-            .TakeWhile(s => string.IsNullOrEmpty(s))
+            .TakeWhile(s => String.IsNullOrEmpty(s))
             .Take(2)
             .Count() == 2;
 
