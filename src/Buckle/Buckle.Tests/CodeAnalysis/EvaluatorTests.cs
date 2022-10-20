@@ -480,6 +480,7 @@ public class EvaluatorTests {
             int PrintLine = 4;
             [PrintLine](""test"");
         ";
+        // TODO maybe binder is skipping variables when going up the scopes to search for the function?
 
         var diagnostics = @"
             called object 'PrintLine' is not a function

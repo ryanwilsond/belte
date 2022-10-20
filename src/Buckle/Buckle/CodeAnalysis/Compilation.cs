@@ -102,6 +102,7 @@ public sealed class Compilation {
 
         var program = GetProgram();
         // * only for debugging purposes
+        // TODO update this function to work
         // CreateCfg(program);
 
         if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())

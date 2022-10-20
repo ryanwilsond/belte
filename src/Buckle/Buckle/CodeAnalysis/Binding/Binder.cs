@@ -850,6 +850,7 @@ internal sealed class Binder {
     private BoundStatement BindWhileStatement(WhileStatement statement, bool insideInline = false) {
         var conditionValue = RemoveNullability(statement.condition);
         var condition = BindCast(conditionValue, BoundTypeClause.NullableBool);
+        condition = new BoundCastExpression(BoundTypeClause.Bool, condition);
 
         if (condition.constantValue != null && !(bool)condition.constantValue.value)
             diagnostics.Push(Warning.UnreachableCode(statement.body));
@@ -862,6 +863,7 @@ internal sealed class Binder {
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel, insideInline);
         var conditionValue = RemoveNullability(statement.condition);
         var condition = BindCast(conditionValue, BoundTypeClause.NullableBool);
+        condition = new BoundCastExpression(BoundTypeClause.Bool, condition);
 
         return new BoundDoWhileStatement(body, condition, breakLabel, continueLabel);
     }
@@ -872,6 +874,7 @@ internal sealed class Binder {
         var initializer = BindStatement(statement.initializer, insideInline: insideInline);
         var conditionValue = RemoveNullability(statement.condition);
         var condition = BindCast(conditionValue, BoundTypeClause.NullableBool);
+        condition = new BoundCastExpression(BoundTypeClause.Bool, condition);
         var step = BindExpression(statement.step);
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel, insideInline);
 
@@ -923,7 +926,10 @@ internal sealed class Binder {
 
     private BoundStatement BindIfStatement(IfStatement statement, bool insideInline = false) {
         var conditionValue = RemoveNullability(statement.condition);
-        var condition = BindCast(conditionValue, BoundTypeClause.Bool);
+        var condition = BindCast(conditionValue, BoundTypeClause.NullableBool);
+        // recast under the hood, because if statements can take null as abstraction but should throw
+        // if actually null
+        condition = new BoundCastExpression(BoundTypeClause.Bool, condition);
         BoundLiteralExpression constant = null;
 
         if (condition.constantValue != null) {
