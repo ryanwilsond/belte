@@ -412,8 +412,6 @@ public sealed class BelteRepl : ReplBase {
                 writer_.WriteLine("Aborting");
                 return;
             }
-        } else {
-            File.Create(path);
         }
 
         var submissions = GetSubmissionHistory();
@@ -433,8 +431,12 @@ public sealed class BelteRepl : ReplBase {
                 File.WriteAllLines(path, subset);
                 wrote = true;
                 break;
-            } catch { }
+            } catch {
+                Thread.Sleep(100); // in case file is being used by another process, retry
+            }
         }
+
+        Console.ForegroundColor = state.colorTheme.textDefault;
 
         if (wrote)
             writer_.WriteLine($"Wrote {split.Length} lines");
