@@ -873,6 +873,8 @@ internal sealed class Binder {
 
         var initializer = BindStatement(statement.initializer, insideInline: insideInline);
         var conditionValue = RemoveNullability(statement.condition);
+        // error message needs to use nullable type, but RemoveNullability call needs to happen before the cast
+        // TODO solve this ^
         var condition = BindCast(conditionValue, BoundTypeClause.NullableBool);
         condition = new BoundCastExpression(BoundTypeClause.Bool, condition);
         var step = BindExpression(statement.step);
