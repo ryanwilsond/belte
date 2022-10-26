@@ -848,9 +848,8 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindWhileStatement(WhileStatement statement, bool insideInline = false) {
-        var conditionValue = RemoveNullability(statement.condition);
-        var condition = BindCast(conditionValue, BoundTypeClause.NullableBool);
-        condition = new BoundCastExpression(BoundTypeClause.Bool, condition);
+        var condition = BindDoubleCastRemovingNullability(
+            statement.condition, BoundTypeClause.NullableBool, BoundTypeClause.Bool);
 
         if (condition.constantValue != null && !(bool)condition.constantValue.value)
             diagnostics.Push(Warning.UnreachableCode(statement.body));
@@ -861,9 +860,8 @@ internal sealed class Binder {
 
     private BoundStatement BindDoWhileStatement(DoWhileStatement statement, bool insideInline = false) {
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel, insideInline);
-        var conditionValue = RemoveNullability(statement.condition);
-        var condition = BindCast(conditionValue, BoundTypeClause.NullableBool);
-        condition = new BoundCastExpression(BoundTypeClause.Bool, condition);
+        var condition = BindDoubleCastRemovingNullability(
+            statement.condition, BoundTypeClause.NullableBool, BoundTypeClause.Bool);
 
         return new BoundDoWhileStatement(body, condition, breakLabel, continueLabel);
     }
@@ -902,12 +900,8 @@ internal sealed class Binder {
         scope_ = new BoundScope(scope_);
 
         var initializer = BindStatement(statement.initializer, insideInline: insideInline);
-        // Error message needs to use nullable type, but RemoveNullability call needs to happen before the cast
-        // TODO Solve this ^
-
-        var condition = BindDoubleCast(statement.condition)
-
-
+        var condition = BindDoubleCastRemovingNullability(
+            statement.condition, BoundTypeClause.NullableBool, BoundTypeClause.Bool);
         var step = BindExpression(statement.step);
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel, insideInline);
 
@@ -958,11 +952,11 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindIfStatement(IfStatement statement, bool insideInline = false) {
-        var conditionValue = RemoveNullability(statement.condition);
-        var condition = BindCast(conditionValue, BoundTypeClause.NullableBool);
         // Recast under the hood, because if statements can take null as abstraction but should throw
         // If actually null
-        condition = new BoundCastExpression(BoundTypeClause.Bool, condition);
+        var condition = BindDoubleCastRemovingNullability(
+            statement.condition, BoundTypeClause.NullableBool, BoundTypeClause.Bool);
+
         BoundLiteralExpression constant = null;
 
         if (condition.constantValue != null) {
