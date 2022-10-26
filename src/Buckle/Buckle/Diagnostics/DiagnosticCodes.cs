@@ -63,7 +63,7 @@ internal enum DiagnosticCode : int {
     ERR_NoOverload = 57,
     ERR_AmbiguousOverload = 58,
 
-    // carving out >=9000 for unsupported errors
+    // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,
     UNS_Assembling = 9001,
     UNS_Linking = 9002,

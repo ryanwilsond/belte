@@ -974,7 +974,7 @@ public abstract class ReplBase {
 
     [MetaCommand("help", "Shows this document")]
     protected void EvaluateHelp() {
-        // TODO doesn't calculate length of default values
+        // TODO Does not calculate length of default values
         var maxLength = metaCommands_
             .Max(mc => mc.name.Length + string.Join(" ", mc.method.GetParameters()
             .SelectMany(p => p.Name).ToList()).Length);

@@ -32,7 +32,7 @@ For these reasons a similar language like Java would probably work very well.
 
 There is not a section on the Evaluator because it is fairly simply, and will probably be discontinued soon. In that
 case interpreting will just emit an IL executable in memory and run it within a wrapper. There is also not a section
-on assembly emitting, because that hasn't been developed (yet).
+on assembly emitting, because that has not been developed (yet).
 
 - [Command Line](CommandLine.md)
 - [Lexer](Lexer.md)

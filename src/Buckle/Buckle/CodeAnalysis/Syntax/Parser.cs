@@ -227,7 +227,7 @@ internal sealed class Parser {
             var expression = ParseParameter();
             nodesAndSeparators.Add(expression);
 
-            // TODO optional parameters
+            // TODO Optional parameters
             if (current.type == SyntaxType.COMMA_TOKEN) {
                 var comma = Next();
                 nodesAndSeparators.Add(comma);
@@ -450,8 +450,8 @@ internal sealed class Parser {
         var closeParenthesis = Match(SyntaxType.CLOSE_PAREN_TOKEN);
         var statement = ParseStatement(true);
 
-        // not allow nested if statements with else clause without braces; prevents ambiguous else statements
-        // * see BU0023
+        // Not allow nested if statements with else clause without braces; prevents ambiguous else statements
+        // * See BU0023
         bool nestedIf = false;
         List<TextLocation> invalidElseLocations = new List<TextLocation>();
         var inter = statement;

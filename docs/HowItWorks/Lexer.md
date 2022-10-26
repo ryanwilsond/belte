@@ -6,7 +6,7 @@ rather trivia to the surrounding tokens. Each token has its own leading and trai
 whitespace to most relevant token.
 
 Apart from trivia, the only other challenge when making a lexer is handling line endings. The source text handles the
-three types of line endings (LF, CRLF, and CR). After handled this problem doesn't come up in any other parts of the
+three types of line endings (LF, CRLF, and CR). After handled this problem does not come up in any other parts of the
 compiler, but it can create a few off-by-one errors while trying to tackle.
 
 After lexing, the controlling syntax tree hands off the token list to the parser.

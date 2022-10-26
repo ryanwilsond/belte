@@ -10,7 +10,7 @@ internal static class ConstantFolding {
         var rightConstant = right.constantValue;
 
         // and/or allow one side to be null
-        // TODO track statements with side effects (e.g. function calls) and still execute them left to right
+        // TODO Track statements with side effects (e.g. function calls) and still execute them left to right
         if (op?.opType == BoundBinaryOperatorType.ConditionalAnd) {
             if (leftConstant != null && !(bool)leftConstant.value ||
                 rightConstant != null && !(bool)rightConstant.value)

@@ -11,8 +11,8 @@ namespace Buckle.Diagnostics;
 
 internal static class Error {
     internal static class Unsupported {
-        // * temporary errors messages go here
-        // thus once the compiler is finished this class will be unnecessary
+        // * Temporary errors messages go here
+        // Thus once the compiler is finished this class will be unnecessary
         internal static BelteDiagnostic GlobalReturnValue(TextLocation location) {
             var message = "unsupported: global return cannot return a value";
             return new BelteDiagnostic(ErrorInfo(DiagnosticCode.UNS_GlobalReturnValue), location, message);
