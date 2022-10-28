@@ -1,0 +1,66 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/src/Buckle/Belte/Belte.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "publish",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "publish",
+                "${workspaceFolder}/src/Buckle/Belte/Belte.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "watch",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "watch",
+                "run",
+                "--project",
+                "${workspaceFolder}/src/Buckle/Belte/Belte.csproj"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "belte-run",
+            "command": "buckle",
+            "type": "process",
+            "args": [
+                "-i", "${file}"
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "problemMatcher": {
+                "fileLocation": "absolute",
+                "pattern": [{
+                    "regexp": "^(([^\\\\s].*):\\\\d+:\\\\d+): error:\\\\s*(.*)$",
+                    "file": 2,
+                    "location": 1,
+                    "message": 3
+                }]
+            }
+        }
+    ]
+}
