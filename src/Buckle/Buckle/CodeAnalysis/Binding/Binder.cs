@@ -1283,12 +1283,15 @@ internal sealed class Binder {
         var rightType = rightTemp.typeClause;
 
         var tempOp = BoundBinaryOperator.Bind(expression.op.type, leftType, rightType);
+        var tempDiagnostics = new BelteDiagnosticQueue();
 
         if (tempOp == null)
-            diagnostics.Push(
+            tempDiagnostics.Push(
                 Error.InvalidBinaryOperatorUse(expression.op.location, expression.op.text, leftType, rightType));
 
         EndEmulation(binderSaveState);
+
+        diagnostics.Move(tempDiagnostics);
 
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return new BoundErrorExpression();
