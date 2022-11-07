@@ -99,18 +99,18 @@ internal sealed class BoundScope {
             TryDeclareFunction(inline);
     }
 
-    internal ImmutableArray<FunctionSymbol> LookupOverloads(
-        string name, ImmutableArray<FunctionSymbol>? current = null) {
-        var overloads = ImmutableArray.CreateBuilder<FunctionSymbol>();
+    internal ImmutableArray<Symbol> LookupOverloads(
+        string name, ImmutableArray<Symbol>? current = null) {
+        var overloads = ImmutableArray.CreateBuilder<Symbol>();
 
         if (symbols_ != null) {
             foreach (var symbol in symbols_) {
-                if (symbol is FunctionSymbol fs && symbol.name == name) {
+                if (symbol is Symbol s && symbol.name == name) {
                     if (current != null) {
                         var skip = false;
 
                         foreach (var cs in current.Value) {
-                            if (FunctionsMatch(fs, cs)) {
+                            if (s is FunctionSymbol fs && cs is FunctionSymbol fcs && FunctionsMatch(fs, fcs)) {
                                 skip = true;
                                 break;
                             }
@@ -120,7 +120,7 @@ internal sealed class BoundScope {
                             continue;
                     }
 
-                    overloads.Add(fs);
+                    overloads.Add(s);
                 }
             }
         }
