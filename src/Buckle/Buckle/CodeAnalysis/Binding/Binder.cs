@@ -556,7 +556,7 @@ internal sealed class Binder {
 
         var symbols = scope_.LookupOverloads(name);
 
-        if (symbols == null) {
+        if (symbols == null || symbols.Length == 0) {
             diagnostics.Push(Error.UndefinedFunction(expression.identifier.location, name));
             return new BoundErrorExpression();
         }

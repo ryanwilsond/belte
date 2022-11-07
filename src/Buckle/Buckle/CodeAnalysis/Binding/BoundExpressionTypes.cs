@@ -352,7 +352,7 @@ internal sealed class BoundCallExpression : BoundExpression {
     internal FunctionSymbol function { get; }
     internal ImmutableArray<BoundExpression> arguments { get; }
     internal override BoundNodeType type => BoundNodeType.CallExpression;
-    internal override BoundTypeClause typeClause => function.typeClause;
+    internal override BoundTypeClause typeClause => function?.typeClause;
 
     internal BoundCallExpression(FunctionSymbol function_, ImmutableArray<BoundExpression> arguments_) {
         function = function_;
