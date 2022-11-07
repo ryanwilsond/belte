@@ -1,6 +1,8 @@
 
-.*/
+.*/*
 !.github
+!.vscode/launch.json
+!.vscode/tasks.json
 Resources/*
 old/*
 database/*
