@@ -1175,17 +1175,21 @@ internal sealed class Binder {
         var operandType = operandTemp.typeClause;
 
         var tempOp = BoundUnaryOperator.Bind(expression.op.type, operandType);
+        var tempDiagnostics = new BelteDiagnosticQueue();
 
         if (tempOp == null)
-            diagnostics.Push(
+            tempDiagnostics.Push(
                 Error.InvalidUnaryOperatorUse(expression.op.location, expression.op.text, operandType));
 
         EndEmulation(binderSaveState);
 
+        // catch casting errors before they happen
+        diagnostics.Move(tempDiagnostics);
+
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return new BoundErrorExpression();
 
-        var opType = tempOp.typeClause;
+        var opType = tempOp?.typeClause;
 
         if (!operandType.isNullable || operandTemp.constantValue != null) {
             var boundOperand = BindExpression(expression.operand);

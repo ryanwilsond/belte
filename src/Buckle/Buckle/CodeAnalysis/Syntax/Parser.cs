@@ -169,7 +169,8 @@ internal sealed class Parser {
                 Peek(finalOffset).type == SyntaxType.REF_KEYWORD)
                 finalOffset++;
 
-            if (Peek(finalOffset).type == SyntaxType.IDENTIFIER_TOKEN || Peek(finalOffset).type == SyntaxType.VAR_KEYWORD) {
+            if (Peek(finalOffset).type == SyntaxType.IDENTIFIER_TOKEN ||
+                Peek(finalOffset).type == SyntaxType.VAR_KEYWORD) {
                 finalOffset++;
 
                 while (Peek(finalOffset).type == SyntaxType.OPEN_BRACKET_TOKEN ||
