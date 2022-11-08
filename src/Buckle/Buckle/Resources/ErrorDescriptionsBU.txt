@@ -16,19 +16,19 @@ For example:
 
 ```
 if (2 == 2)
-    return; // this is allowed
+    return; // This is allowed
 else
-    return 3; // this is not allowed
+    return 3; // This is not allowed
 ```
 $BU0003
-The compiler produces this error when it either can't find a reference, or it is
+The compiler produces this error when it either ca not find a reference, or it is
 the wrong file type. This usually means that a reference specified on the command
 line is in a different location.
 
 For example:
 
 ```
-$ buckle --ref=some/fake/reference.dll // correct format, but doesn't exist
+$ buckle --ref=some/fake/reference.dll // Correct format, but does not exist
 ```
 $BU0004
 When the compiler fails to parse a literal it produces this error.
@@ -36,7 +36,7 @@ When the compiler fails to parse a literal it produces this error.
 For example:
 
 ```
-int myInt = 9999999999; // exceeds integer limit, cannot parse
+int myInt = 9999999999; // Exceeds integer limit, cannot parse
 ```
 $BU0005
 When the compiler is given an unhandled character when scanning the input files,
@@ -45,7 +45,7 @@ it produces this error.
 For example:
 
 ```
-@ // the compiler does not currently handle this character
+@ // The compiler does not currently handle this character
 ```
 $BU0006
 When the compiler expects a certain piece of text, and does not find it, this error
@@ -53,7 +53,7 @@ is produced.
 
 For example:
 ```
-if (true { } // the compiler expected a closing parenthesis before the open bracket
+if (true { } // The compiler expected a closing parenthesis before the open bracket
 ```
 $BU0007
 Some casts are implied, but others must be explicitly specified. When an explicit
@@ -62,8 +62,8 @@ cast is not specified explicitly, this error is produced.
 For example:
 
 ```
-decimal myDecimal = 4; // implicit cast from integer to decimal, allowed
-int myInt = 3.4; // explicit cast from decimal to integer, produces error
+decimal myDecimal = 4; // Implicit cast from integer to decimal, allowed
+int myInt = 3.4; // Explicit cast from decimal to integer, produces error
 ```
 
 When possible the compiler will give a suggestion on how to make the cast explicit.
@@ -74,7 +74,7 @@ For example:
 
 ```
 int myInt = ~4; // ~ is allowed for integer types
-decimal myDecimal = ~3.4; // but not for decimal types
+decimal myDecimal = ~3.4; // But not for decimal types
 ```
 $BU0009
 When the compiler fails to resolve a builtin type when assembling, it produces
@@ -91,7 +91,7 @@ For example:
 
 ```
 int myInt = 3 + 4; // + is allowed for two integers
-bool myBool = true + 3; // but not for a boolean and an integer
+bool myBool = true + 3; // But not for a boolean and an integer
 ```
 $BU0012
 Without a `Main` function, the compiler will run files top-down. However when
@@ -105,7 +105,7 @@ must have a unique name, even if they are different types.
 For example:
 
 ```
-int MyFunction(int myParam, bool myParam) { } // not allowed because both parameters have the same name
+int MyFunction(int myParam, bool myParam) { } // Not allowed because both parameters have the same name
 ```
 $BU0014
 `Main` can only return void, or an integer. If a `Main` function is declared
@@ -127,7 +127,7 @@ function is declared, global statements are not allowed.
 For example:
 
 ```
-PrintLine("Hello, world!"); // not allowed, because `Main` is where execution starts
+PrintLine("Hello, world!"); // Not allowed, because `Main` is where execution starts
 
 void Main() { }
 ```
@@ -162,7 +162,7 @@ For example:
 int MyFunction(int myParam) {
     if (myParam > 3)
         return myParam + 1;
-    // if `myParam` is not greater than 3 this function does not return, not allowed
+    // If `myParam` is not greater than 3 this function does not return, not allowed
 }
 ```
 $BU0020
@@ -171,7 +171,7 @@ If a cast is not specified between two types, the compiler produces this error.
 For example:
 
 ```
-int[] myCollection = (int[])"test"; // cannot cast from string to integer collection
+int[] myCollection = (int[])"test"; // Cannot cast from string to integer collection
 ```
 $BU0021
 Variables in the same scope have to have unique names. When an attempt is made to
@@ -209,8 +209,8 @@ to redefine a constant, the compiler produces this error.
 For example:
 
 ```
-const int myConst = 4; // initial definition, allowed and required
-myConst = 5; // redefinition, not allowed
+const int myConst = 4; // Initial definition, allowed and required
+myConst = 5; // Redefinition, not allowed
 ```
 $BU0023
 Because of the way if-statements are parsed, they can become ambiguous. The compiler
@@ -247,9 +247,9 @@ value. If void is used in most other scenarios, the compiler produces this error
 For example:
 
 ```
-void MyFunction() { } // allowed
+void MyFunction() { } // Allowed
 
-void myVar; // not allowed
+void myVar; // Not allowed
 ```
 $BU0025
 Indexing allows retrieving elements from a collection. However, indexing is only
@@ -274,7 +274,7 @@ For example:
 if (true) {
     int myInt = 2;
 } else {
-    int myInt = 3; // true is always true, so this else-clause can never execute
+    int myInt = 3; // True is always true, so this else-clause can never execute
 }
 ```
 $BU0027
@@ -286,7 +286,7 @@ For example:
 
 ```
 string myString = "Hello, world!
-int myInt = 2; // the string was never terminated, this statement is part of the string
+int myInt = 2; // The string was never terminated, this statement is part of the string
 ```
 $BU0028
 A functions must have a declaration, so when a function without a declaration is

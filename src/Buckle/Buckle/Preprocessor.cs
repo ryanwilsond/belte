@@ -14,7 +14,7 @@ internal abstract class PreprocessLine {
 }
 
 internal sealed class PreprocessIf : PreprocessLine {
-    // includes elif, else, and end
+    // Includes elif, else, and end
 }
 
 internal sealed class PreprocessPragma : PreprocessLine { }
@@ -42,7 +42,7 @@ internal sealed class PreprocessFile {
         var builder = ImmutableArray.CreateBuilder<PreprocessLine>();
         preprocessFile.lines = builder.ToImmutable();
 
-        // ! just so it compiles
+        // ! Temp code - just so it compiles
         return preprocessFile;
     }
 }
@@ -66,7 +66,7 @@ internal class Preprocessor {
 
         }
 
-        // ! just so it compiles
+        // ! Temp code - just so it compiles
         return text;
     }
 }

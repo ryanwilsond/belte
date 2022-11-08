@@ -193,7 +193,7 @@ public sealed class BelteRepl : ReplBase {
     }
 
     private void LoadSubmissions() {
-        // TODO make console handle null so evaluator doesn't print output?
+        // TODO Make console handle null so evaluator does not print output?
         var files = Directory.GetFiles(GetSubmissionsDirectory()).OrderBy(f => f).ToArray();
         var keyword = files.Length == 1 ? "submission" : "submissions";
         Console.Out.WritePunctuation($"loaded {files.Length} {keyword}");
@@ -432,7 +432,8 @@ public sealed class BelteRepl : ReplBase {
                 wrote = true;
                 break;
             } catch {
-                Thread.Sleep(100); // in case file is being used by another process, retry
+                // In case file is being used by another process, retry
+                Thread.Sleep(100);
             }
         }
 

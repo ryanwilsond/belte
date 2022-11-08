@@ -49,7 +49,7 @@ internal sealed class BoundScope {
     }
 
     internal Symbol LookupSymbol(string name) {
-        // use LookupOverloads for functions
+        // Use LookupOverloads for functions
         if (symbols_ != null)
             foreach (var symbol in symbols_)
                 if (symbol.name == name)
@@ -59,7 +59,7 @@ internal sealed class BoundScope {
     }
 
     internal bool TryModifySymbol(string name, Symbol newSymbol) {
-        // doesn't work with overloads
+        // Does not work with overloads
         var symbol = LookupSymbol(name);
 
         if (symbol == null)
@@ -95,21 +95,22 @@ internal sealed class BoundScope {
 
     internal void CopyInlines(BoundScope scope) {
         foreach (var inline in scope.GetDeclaredFunctions().Where(i => i.name.StartsWith("<$Inline")))
-            TryDeclareFunction(inline); // ignore failures, don't override higher level symbols
+            // Ignore failures, do not override higher level symbols
+            TryDeclareFunction(inline);
     }
 
-    internal ImmutableArray<FunctionSymbol> LookupOverloads(
-        string name, ImmutableArray<FunctionSymbol>? current = null) {
-        var overloads = ImmutableArray.CreateBuilder<FunctionSymbol>();
+    internal ImmutableArray<Symbol> LookupOverloads(
+        string name, ImmutableArray<Symbol>? current = null) {
+        var overloads = ImmutableArray.CreateBuilder<Symbol>();
 
         if (symbols_ != null) {
             foreach (var symbol in symbols_) {
-                if (symbol is FunctionSymbol fs && symbol.name == name) {
+                if (symbol is Symbol s && symbol.name == name) {
                     if (current != null) {
                         var skip = false;
 
                         foreach (var cs in current.Value) {
-                            if (FunctionsMatch(fs, cs)) {
+                            if (s is FunctionSymbol fs && cs is FunctionSymbol fcs && FunctionsMatch(fs, fcs)) {
                                 skip = true;
                                 break;
                             }
@@ -119,7 +120,7 @@ internal sealed class BoundScope {
                             continue;
                     }
 
-                    overloads.Add(fs);
+                    overloads.Add(s);
                 }
             }
         }

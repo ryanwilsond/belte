@@ -5,13 +5,13 @@
 
 */
 
-// * reference and null tests
+// * Reference and null tests
 // void MyFunc(ref int a) {
 //     a++;
 // }
 
 void Main() {
-    // * reference and null tests
+    // * Reference and null tests
     // int a = 3;
     // ref int b = ref a;
     // b = 4;
@@ -78,7 +78,7 @@ void Main() {
     // PrintLine(ag); // 8
     // PrintLine(ah); // 12
 
-    // * null comparison tests
+    // * Null comparison tests
     // int a = 1;
     // bool b = a == 1;
     // PrintLine(b); // true
@@ -100,7 +100,7 @@ void Main() {
     // int k = i == j;
     // PrintLine(k); // false
 
-    // * inline tests
+    // * Inline tests
     // [NotNull]int a = 3;
     // [NotNull]int b = {
     //     if (a > 2)
@@ -120,7 +120,7 @@ void Main() {
     //     }
     // PrintLine(b);
 
-    // * loop tests
+    // * Loop tests
     // [NotNull]int i = 10;
     // [NotNull]int result = 0;
 
@@ -132,7 +132,7 @@ void Main() {
     // PrintLine(result);
     // PrintLine(i);
 
-    // * casting tests
+    // * Casting tests
     decimal a = 3;
     // int b = (int)a;
 }

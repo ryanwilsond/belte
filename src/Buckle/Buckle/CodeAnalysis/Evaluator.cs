@@ -324,8 +324,8 @@ internal sealed class Evaluator {
         var left = EvaluateExpression(syntax.left);
         var right = EvaluateExpression(syntax.right);
 
-        // TODO treat comparison operators normally, `is` is the only operator that handles null comparing
-        // comparison operators are the only operators that can work with null
+        // TODO Treat comparison operators normally, `is` is the only operator that handles null comparing
+        // Comparison operators are the only operators that can work with null
         switch (syntax.op.opType) {
             case BoundBinaryOperatorType.EqualityEquals:
                 return Equals(left, right);

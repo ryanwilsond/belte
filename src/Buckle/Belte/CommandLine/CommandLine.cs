@@ -19,12 +19,12 @@ public static partial class BuckleCommandLine {
     const int FatalExitCode = 2;
 
     static readonly string[] AllowedOptions = {
-        // TODO add W options
+        // TODO Add W options
         // "error", "ignore", "all"
     };
 
     private static void ShowErrorHelp(string error, out DiagnosticQueue<Diagnostic> diagnostics) {
-        // TODO this only works for debug builds currently, not release
+        // TODO This only works for debug builds currently, not release
         string prefix = error.Substring(0, 2);
         diagnostics = new DiagnosticQueue<Diagnostic>();
 
@@ -67,7 +67,7 @@ public static partial class BuckleCommandLine {
             int count = 0;
 
             while (count < lines.Length) {
-                // first -1 is required, second -1 is because we are printing -- More --
+                // First -1 is required, second -1 is because we are printing -- More --
                 // -2 is to account for the next terminal input line
                 if (count > Console.WindowHeight - 1 - 1 - 2) {
                     char key = ' ';
@@ -77,8 +77,8 @@ public static partial class BuckleCommandLine {
                         key = Console.ReadKey().KeyChar;
                         int currentLineCursor = Console.CursorTop;
                         Console.SetCursorPosition(0, Console.CursorTop);
-                        // * doesn't need -1 in some terminals
-                        // unfortunately the program cant tell what terminal is being used
+                        // * Does not need -1 in some terminals
+                        // Unfortunately the program cant tell what terminal is being used
                         Console.Write(new string(' ', Console.WindowWidth - 1));
                         Console.SetCursorPosition(0, currentLineCursor);
                     } while (key != '\n' && key != '\r');
@@ -431,7 +431,7 @@ public static partial class BuckleCommandLine {
         if (err > 0)
             return err;
 
-        // only mode that doesn't go through one-time compilation
+        // Only mode that does not go through one-time compilation
         if (compiler.state.buildMode == BuildMode.Repl) {
             BelteRepl repl = new BelteRepl(compiler, ResolveDiagnostics);
             repl.Run();
