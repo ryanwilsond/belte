@@ -6,6 +6,7 @@ using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Diagnostics;
+using Buckle.Diagnostics;
 
 namespace Buckle.Tests.CodeAnalysis;
 
@@ -649,8 +650,17 @@ public class EvaluatorTests {
     private void AssertDiagnostics(string text, string diagnosticText, bool assertWarnings = false) {
         var annotatedText = AnnotatedText.Parse(text);
         var syntaxTree = SyntaxTree.Parse(annotatedText.text);
-        var compilation = Compilation.CreateScript(null, syntaxTree);
-        var result = compilation.Evaluate(new Dictionary<VariableSymbol, object>());
+
+        var tempDiagnostics = new BelteDiagnosticQueue();
+
+        // TODO currently all tests pass, but remind, does execution stop if parser has errors?
+        if (syntaxTree.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
+            tempDiagnostics.Move(syntaxTree.diagnostics);
+        } else {
+            var compilation = Compilation.CreateScript(null, syntaxTree);
+            var result = compilation.Evaluate(new Dictionary<VariableSymbol, object>());
+            tempDiagnostics = result.diagnostics;
+        }
 
         var expectedDiagnostics = AnnotatedText.UnindentLines(diagnosticText);
 
@@ -658,8 +668,8 @@ public class EvaluatorTests {
             throw new Exception("must mark as many spans as there are diagnostics");
 
         var diagnostics = assertWarnings
-            ? result.diagnostics
-            : result.diagnostics.FilterOut(DiagnosticType.Warning);
+            ? tempDiagnostics
+            : tempDiagnostics.FilterOut(DiagnosticType.Warning);
 
         if (expectedDiagnostics.Length != diagnostics.count) {
             writer.WriteLine($"Input: {annotatedText.text}");
