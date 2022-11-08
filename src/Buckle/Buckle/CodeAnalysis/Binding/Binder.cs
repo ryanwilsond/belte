@@ -667,17 +667,10 @@ internal sealed class Binder {
                 }
             }
 
-            if (symbols.Length == 1) {
-                var failed = false;
-
-                if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
-                    failed = true;
-
+            if (symbols.Length == 1 && diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
                 tempDiagnostics.Move(diagnostics);
                 diagnostics.Move(tempDiagnostics);
-
-                if (failed)
-                    return new BoundErrorExpression();
+                return new BoundErrorExpression();
             }
 
             if (diagnostics.count == beforeCount) {
@@ -697,6 +690,9 @@ internal sealed class Binder {
 
         if (symbols.Length > 1) {
             diagnostics.Clear();
+            diagnostics.Move(tempDiagnostics);
+        } else if (symbols.Length == 1) {
+            tempDiagnostics.Move(diagnostics);
             diagnostics.Move(tempDiagnostics);
         }
 
