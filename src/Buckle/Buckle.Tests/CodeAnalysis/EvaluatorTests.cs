@@ -108,6 +108,16 @@ public class EvaluatorTests {
     [InlineData("4 >= 5;", false)]
     [InlineData("5 >= 4;", true)]
 
+    // TODO add builtin truncate function
+    // TODO @abiral remove need for casts
+    [InlineData("3.2 + 3.4;", (float)6.6000004)]
+    [InlineData("3.2 - 3.4;", -(float)0.20000005)]
+    [InlineData("10 * 1.5;", 15)]
+    [InlineData("9 / 2;", 4)]
+    [InlineData("9.0 / 2;", (float)4.5)]
+    [InlineData("4.1 ** 2;", (float)16.81)]
+    [InlineData("4.1 ** 2.1;", (float)19.357355)]
+
     [InlineData("int a = 10; return a;", 10)]
     [InlineData("int a = 10; return a * a;", 100)]
     [InlineData("int a = 1; return 10 * a;", 10)]
