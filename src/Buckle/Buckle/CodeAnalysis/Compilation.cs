@@ -41,7 +41,7 @@ public sealed class Compilation {
         get {
             if (globalScope_ == null) {
                 var tempScope = Binder.BindGlobalScope(isScript, previous?.globalScope, syntaxTrees);
-                // makes assignment thread-safe, if multiple threads try to initialize they use whoever did it first
+                // Makes assignment thread-safe, if multiple threads try to initialize they use whoever did it first
                 Interlocked.CompareExchange(ref globalScope_, tempScope, null);
             }
 
@@ -72,7 +72,7 @@ public sealed class Compilation {
         var submission = this;
         var seenSymbolNames = new HashSet<string>();
         var builtins = BuiltinFunctions.GetAll();
-        // TODO doesn't show overloads
+        // TODO Does not show overloads
 
         while (submission != null) {
             foreach (var function in submission.functions)
@@ -101,7 +101,8 @@ public sealed class Compilation {
             return new EvaluationResult(null, globalScope.diagnostics);
 
         var program = GetProgram();
-        // * only for debugging purposes
+        // * Only for debugging purposes
+        // TODO Update this function to work
         // CreateCfg(program);
 
         if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
@@ -111,7 +112,7 @@ public sealed class Compilation {
         var eval = new Evaluator(program, variables);
         var evalResult = eval.Evaluate();
 
-        // TODO hack to prevent repl overwriting text when user doesn't add newline, could probably be cleaner
+        // TODO Hack to prevent repl overwriting text when user does not add newline, could probably be cleaner
         if (eval.hasPrint)
             Console.WriteLine();
 

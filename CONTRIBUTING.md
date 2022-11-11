@@ -7,7 +7,6 @@ Guidelines for contributing to the Belte repo.
 - Follow this repos [code style guidelines](CODE_STYLE.md)
 - Do not submit large code formatting changes
 - Do not modify source code functionality under the samples directory
-- C++ source code changes are most likely going to be ignored
 
 ## Creating Issues
 

@@ -10,7 +10,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 internal enum SyntaxType {
     END_OF_FILE_TOKEN,
 
-    // punctuation
+    // Punctuation
     PLUS_TOKEN,
     MINUS_TOKEN,
     ASTERISK_TOKEN,
@@ -32,7 +32,7 @@ internal enum SyntaxType {
     LESS_THAN_TOKEN,
     GREATER_THAN_TOKEN,
 
-    // compound punctuation
+    // Compound punctuation
     AMPERSAND_AMPERSAND_TOKEN,
     PIPE_PIPE_TOKEN,
     ASTERISK_ASTERISK_TOKEN,
@@ -55,7 +55,7 @@ internal enum SyntaxType {
     PLUS_PLUS_TOKEN,
     MINUS_MINUS_TOKEN,
 
-    // keywords
+    // Keywords
     TRUE_KEYWORD,
     FALSE_KEYWORD,
     NULL_KEYWORD,
@@ -76,20 +76,20 @@ internal enum SyntaxType {
     IS_KEYWORD,
     ISNT_KEYWORD,
 
-    // tokens with text
+    // Tokens with text
     BAD_TOKEN,
     IDENTIFIER_TOKEN,
     NUMERIC_LITERAL_TOKEN,
     STRING_LITERAL_TOKEN,
 
-    // trivia
+    // Trivia
     END_OF_LINE_TRIVIA,
     WHITESPACE_TRIVIA,
     SINGLELINE_COMMENT_TRIVIA,
     MULTILINE_COMMENT_TRIVIA,
     SKIPPED_TOKEN_TRIVIA,
 
-    // expressions
+    // Expressions
     INLINE_FUNCTION,
     EMPTY_EXPRESSION,
     LITERAL_EXPRESSION,
@@ -106,13 +106,13 @@ internal enum SyntaxType {
     REFERENCE_EXPRESSION,
     CAST_EXPRESSION,
 
-    // statements
+    // Statements
     BLOCK,
     VARIABLE_DECLARATION_STATEMENT,
     EXPRESSION_STATEMENT,
     EMPTY_STATEMENT,
 
-    // jump statements
+    // Jump statements
     BREAK_STATEMENT,
     CONTINUE_STATEMENT,
     RETURN_STATEMENT,
@@ -123,15 +123,15 @@ internal enum SyntaxType {
     DO_WHILE_STATEMENT,
     TRY_STATEMENT,
 
-    // checked statements
+    // Checked statements
     ELSE_CLAUSE,
     CATCH_CLAUSE,
     FINALLY_CLAUSE,
 
-    // type declarations
+    // Type declarations
     TYPE_CLAUSE,
 
-    // declarations
+    // Declarations
     PARAMETER,
     FUNCTION_DECLARATION,
     LOCAL_FUNCTION_DECLARATION,

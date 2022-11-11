@@ -11,7 +11,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Diagnostics;
 
-// TODO this entire file is spaghetti code, need to rewrite with a better understanding of when to use:
+// TODO This entire file is spaghetti code, need to rewrite with a better understanding of when to use:
 // ldarg vs ldarga vs ldarga.s, newobj vs initobj vs call
 
 namespace Buckle.CodeAnalysis.Emitting;
@@ -674,7 +674,7 @@ internal class _Emitter {
     }
 
     private void EmitEmptyExpression(ILProcessor iLProcessor, BoundEmptyExpression expression) {
-        // TODO breaks control flow
+        // TODO Breaks control flow
         // iLProcessor.Emit(OpCodes.Nop);
     }
 
@@ -762,10 +762,10 @@ internal class _Emitter {
         } else {
             try {
                 var variableDefinition = locals_[expression.variable];
-                // ? when is Ldarga_S used
+                // ? When is Ldarga_S used
                 iLProcessor.Emit(OpCodes.Ldloc, variableDefinition);
             } catch {
-                // ! this may have side affects
+                // ! This may have side affects
                 ParameterSymbol foundParameter = null;
 
                 foreach (var parameterSymbol in currentFunction_.parameters)
@@ -773,7 +773,7 @@ internal class _Emitter {
                         foundParameter = parameterSymbol;
 
                 if (foundParameter != null) {
-                    // ? when is Ldarga_S used
+                    // ? When is Ldarga_S used
                     iLProcessor.Emit(OpCodes.Ldarg, foundParameter.ordinal);
                 } else {
                     throw new Exception(
@@ -872,7 +872,7 @@ internal class _Emitter {
             case BoundBinaryOperatorType.Power:
                 break;
             case BoundBinaryOperatorType.LogicalAnd:
-                // TODO should wait to emit right if left is false
+                // TODO Should wait to emit right if left is false
                 iLProcessor.Emit(OpCodes.And);
                 break;
             case BoundBinaryOperatorType.LogicalOr:
@@ -924,11 +924,11 @@ internal class _Emitter {
     }
 
     private void EmitStringConcatExpression(ILProcessor iLProcessor, BoundBinaryExpression expression) {
-        // flatten the expression tree to a sequence of nodes to concatenate,
-        // then fold consecutive constants in that sequence.
-        // this approach enables constant folding of non-sibling nodes,
-        // which cannot be done in theConstantFolding class as it would require changing the tree.
-        // example: folding b and c in ((a + b) + c) if they are constant.
+        // Flatten the expression tree to a sequence of nodes to concatenate,
+        // Then fold consecutive constants in that sequence.
+        // This approach enables constant folding of non-sibling nodes,
+        // Which cannot be done in theConstantFolding class as it would require changing the tree.
+        // Example: folding b and c in ((a + b) + c) if they are constant.
 
         var nodes = FoldConstants(Flatten(expression)).ToList();
 
@@ -972,7 +972,7 @@ internal class _Emitter {
                 break;
         }
 
-        // TODO use similar logic for other data types and operators (e.g. 2 * x * 4 -> 8 * x)
+        // TODO Use similar logic for other data types and operators (e.g. 2 * x * 4 -> 8 * x)
 
         // (a + b) + (c + d) --> [a, b, c, d]
         static IEnumerable<BoundExpression> Flatten(BoundExpression node) {

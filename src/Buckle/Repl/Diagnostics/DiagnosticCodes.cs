@@ -8,4 +8,5 @@ internal enum DiagnosticCode : int {
     ERR_WrongArgumentCount = 2,
     ERR_UndefinedSymbol = 3,
     ERR_NoSuchFile = 4,
+    ERR_InvalidArgument = 5,
 }

@@ -21,7 +21,7 @@ internal static class Warning {
     internal static BelteDiagnostic UnreachableCode(Node node) {
         if (node.type == SyntaxType.BLOCK) {
             var firstStatement = ((BlockStatement)node).statements.FirstOrDefault();
-            // report just for non empty blocks.
+            // Report just for non empty blocks.
             if (firstStatement != null)
                 return UnreachableCode(firstStatement);
 
@@ -46,7 +46,8 @@ internal static class Warning {
         var valueString = value == null ? "null" : value.ToString();
 
         if (value is bool)
-            valueString = valueString.ToLower(); // False -> false
+            // False -> false
+            valueString = valueString.ToLower();
 
         var message = $"expression will always result to '{value}'";
         return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_AlwaysValue), location, message);

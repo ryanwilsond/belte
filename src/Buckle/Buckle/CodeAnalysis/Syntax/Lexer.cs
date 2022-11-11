@@ -69,7 +69,7 @@ internal sealed class Lexer {
                     break;
                 case '/':
                     if (lookahead == '/')
-                        // TODO docstring comments (xml or doxygen)
+                        // TODO Docstring comments (xml or doxygen)
                         ReadSingeLineComment();
                     else if (lookahead == '*')
                         ReadMultiLineComment();
@@ -87,8 +87,8 @@ internal sealed class Lexer {
                     ReadWhitespace();
                     break;
                 default:
-                    // other whitespace; use case labels on most common whitespace because its faster
-                    // ! however the speed gain is almost definitely negligible and probably not worth the readability loss
+                    // Other whitespace; use case labels on most common whitespace because its faster
+                    // ! However the speed gain is almost definitely negligible and probably not worth the readability loss
                     if (char.IsWhiteSpace(current))
                         ReadWhitespace();
                     else

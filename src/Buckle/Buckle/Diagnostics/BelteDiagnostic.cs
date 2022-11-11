@@ -13,7 +13,7 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     /// <summary>
     /// Sorts, removes duplicates, and modifies diagnostics
     /// </summary>
-    /// <param name="diagnostics">Queue to copy then clean, doesn't modify queue</param>
+    /// <param name="diagnostics">Queue to copy then clean, does not modify queue</param>
     /// <returns>New cleaned queue</returns>
     public static BelteDiagnosticQueue CleanDiagnostics(BelteDiagnosticQueue diagnostics) {
         var cleanedDiagnostics = new BelteDiagnosticQueue();

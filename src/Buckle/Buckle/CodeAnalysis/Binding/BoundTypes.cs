@@ -65,7 +65,7 @@ internal sealed class BoundTypeClause : BoundNode {
     internal bool isConstantReference { get; }
     internal bool isReference { get; }
     internal bool isConstant { get; }
-    // TODO figure out if all code can avoid using set
+    // TODO Figure out if all code can avoid using set
     // ! Use NonNullable and Nullable methods whenever possible
     internal bool isNullable { get; set; }
     internal bool isLiteral { get; }
@@ -145,7 +145,7 @@ internal sealed class BoundTypeClause : BoundNode {
     }
 
     internal static bool Equals(BoundTypeClause a, BoundTypeClause b) {
-        // a little brute force
+        // A little brute force
         if (a.lType != b.lType)
             return false;
         if (a.isImplicit != b.isImplicit)

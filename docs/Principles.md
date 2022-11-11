@@ -110,7 +110,7 @@ evaluate to true for every value passing into it. This is achieved by using a `w
 class MyCustomInt : int where { value > 2; value < 10; } { }
 
 MyCustomInt myVar = 8;
-myVar = 1; // throws
+myVar = 1; // Throws
 ```
 
 ### Integers
@@ -134,7 +134,7 @@ phone_number = "123-456-7890";
 phone_number = "(123) 456-7890";
 phone_number = "123 456 7890";
 phone_number = "123.456.7890";
-phone_number = "Hello, world!"; // error
+phone_number = "Hello, world!"; // Error
 ```
 
 In this example, the string `phone_number` must always be a 10-digit phone number.
@@ -159,12 +159,12 @@ but you can specify the `NotNull` attribute to say that the value cannot be null
 
 ```belte
 int<NotNull> myVar = 3;
-myVar = null; // throws
+myVar = null; // Throws
 ```
 
 A change from C# is that comparison operators (like <, >, <=, >=) return null if either side is null instead of false.
 This means control of flow statements can have null as the condition, but it will throw a runtime error. This is because
-whenever null is involved anywhere, it means that there is the lack of a value or you don't know the value, so if
+whenever null is involved anywhere, it means that there is the lack of a value or you do not know the value, so if
 prompted with `null < 5`, null could be anything so it is not always false. This distinction that null is not just the
 lack of a value is important because it is a place where programming ignores the mathematical concept of null partially,
 because of physical concerns.

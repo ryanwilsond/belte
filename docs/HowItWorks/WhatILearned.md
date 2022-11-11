@@ -5,6 +5,9 @@ way. The reason for this is because while developing this compiler, I found it v
 couple essential topics making it very hard to develop. This has the goal of helping people who also want to make a
 similar compiler.
 
+The documents in this folder also serve to elaborate on the summaries given in the Belte Industries OnBoarding
+presentation.
+
 ## Why Not to Use C++
 
 I stopped using C++ very early because of its limited OOP capabilities. Now these are critical because compilers like
@@ -29,7 +32,7 @@ For these reasons a similar language like Java would probably work very well.
 
 There is not a section on the Evaluator because it is fairly simply, and will probably be discontinued soon. In that
 case interpreting will just emit an IL executable in memory and run it within a wrapper. There is also not a section
-on assembly emitting, because that hasn't been developed (yet).
+on assembly emitting, because that has not been developed (yet).
 
 - [Command Line](CommandLine.md)
 - [Lexer](Lexer.md)

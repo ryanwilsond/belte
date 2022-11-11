@@ -23,7 +23,7 @@ internal sealed class Binder {
     private int labelCount_;
     private Stack<int> inlineCounts_ = new Stack<int>();
     private int inlineCount_;
-    // functions should be available correctly, so only track variables
+    // Functions should be available correctly, so only track variables
     private Stack<HashSet<VariableSymbol>> trackedSymbols_ = new Stack<HashSet<VariableSymbol>>();
     private Stack<HashSet<VariableSymbol>> trackedDeclarations_ = new Stack<HashSet<VariableSymbol>>();
     private bool trackSymbols_ = false;
@@ -162,8 +162,8 @@ internal sealed class Binder {
 
                 loweredBody = Lowerer.Lower(function, body);
             } else {
-                // inlines are bound when they are called for the first time in BindCallExpression
-                // using function.declaration.body uses a temporary old body
+                // Inlines are bound when they are called for the first time in BindCallExpression
+                // Using function.declaration.body uses a temporary old body
                 var functionBody = globalScope.functionBodies.Where(t => t.function == function).Single();
                 loweredBody = Lowerer.Lower(function, functionBody.body);
             }
@@ -556,7 +556,7 @@ internal sealed class Binder {
 
         var symbols = scope_.LookupOverloads(name);
 
-        if (symbols == null) {
+        if (symbols == null || symbols.Length == 0) {
             diagnostics.Push(Error.UndefinedFunction(expression.identifier.location, name));
             return new BoundErrorExpression();
         }
@@ -646,7 +646,7 @@ internal sealed class Binder {
             }
 
             if (isInner) {
-                // no need to worry about currentBoundArguments because generated inlines never have overloads
+                // No need to worry about currentBoundArguments because generated inlines never have overloads
                 if (symbols.Length != 1)
                     throw new Exception("BindCallExpression: overloaded inline");
 
@@ -667,17 +667,10 @@ internal sealed class Binder {
                 }
             }
 
-            if (symbols.Length == 1) {
-                var failed = false;
-
-                if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
-                    failed = true;
-
+            if (symbols.Length == 1 && diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
                 tempDiagnostics.Move(diagnostics);
                 diagnostics.Move(tempDiagnostics);
-
-                if (failed)
-                    return new BoundErrorExpression();
+                return new BoundErrorExpression();
             }
 
             if (diagnostics.count == beforeCount) {
@@ -697,6 +690,9 @@ internal sealed class Binder {
 
         if (symbols.Length > 1) {
             diagnostics.Clear();
+            diagnostics.Move(tempDiagnostics);
+        } else if (symbols.Length == 1) {
+            tempDiagnostics.Move(diagnostics);
             diagnostics.Move(tempDiagnostics);
         }
 
@@ -848,8 +844,8 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindWhileStatement(WhileStatement statement, bool insideInline = false) {
-        var conditionValue = RemoveNullability(statement.condition);
-        var condition = BindCast(conditionValue, BoundTypeClause.NullableBool);
+        var condition = BindDoubleCastRemovingNullability(
+            statement.condition, BoundTypeClause.NullableBool, BoundTypeClause.Bool);
 
         if (condition.constantValue != null && !(bool)condition.constantValue.value)
             diagnostics.Push(Warning.UnreachableCode(statement.body));
@@ -860,18 +856,48 @@ internal sealed class Binder {
 
     private BoundStatement BindDoWhileStatement(DoWhileStatement statement, bool insideInline = false) {
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel, insideInline);
-        var conditionValue = RemoveNullability(statement.condition);
-        var condition = BindCast(conditionValue, BoundTypeClause.NullableBool);
+        var condition = BindDoubleCastRemovingNullability(
+            statement.condition, BoundTypeClause.NullableBool, BoundTypeClause.Bool);
 
         return new BoundDoWhileStatement(body, condition, breakLabel, continueLabel);
+    }
+
+    private BoundExpression BindDoubleCastRemovingNullability(
+        Expression expression, BoundTypeClause intermediateType, BoundTypeClause type) {
+        // * Fairly specific function
+        // Used to allow null values for conditions during compile time then throw during runtime
+        var nonNullableExpression = RemoveNullability(expression);
+
+        var state = StartEmulation();
+        var diagnosticCount = diagnostics.count;
+        var _ = BindCast(expression, intermediateType);
+        var newDiagnostics = new BelteDiagnosticQueue();
+
+        while (diagnostics.count > diagnosticCount)
+            newDiagnostics.Push(diagnostics.Pop());
+
+        EndEmulation(state);
+
+        BoundExpression boundExpression;
+
+        if (newDiagnostics.count > 0) {
+            diagnostics.Move(newDiagnostics);
+            boundExpression = new BoundErrorExpression();
+        } else {
+            boundExpression = BindCast(nonNullableExpression, intermediateType);
+            boundExpression = new BoundCastExpression(type, boundExpression);
+            // TODO What if diagnostics get added here? should never happen but if it does it will not be handled
+        }
+
+        return boundExpression;
     }
 
     private BoundStatement BindForStatement(ForStatement statement, bool insideInline = false) {
         scope_ = new BoundScope(scope_);
 
         var initializer = BindStatement(statement.initializer, insideInline: insideInline);
-        var conditionValue = RemoveNullability(statement.condition);
-        var condition = BindCast(conditionValue, BoundTypeClause.NullableBool);
+        var condition = BindDoubleCastRemovingNullability(
+            statement.condition, BoundTypeClause.NullableBool, BoundTypeClause.Bool);
         var step = BindExpression(statement.step);
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel, insideInline);
 
@@ -922,8 +948,11 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindIfStatement(IfStatement statement, bool insideInline = false) {
-        var conditionValue = RemoveNullability(statement.condition);
-        var condition = BindCast(conditionValue, BoundTypeClause.Bool);
+        // Recast under the hood, because if statements can take null as abstraction but should throw
+        // If actually null
+        var condition = BindDoubleCastRemovingNullability(
+            statement.condition, BoundTypeClause.NullableBool, BoundTypeClause.Bool);
+
         BoundLiteralExpression constant = null;
 
         if (condition.constantValue != null) {
@@ -999,7 +1028,7 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindInlineFunctionExpression(InlineFunctionExpression statement) {
-        // want to bind to resolve return type, then through away the binding result and bind later
+        // Want to bind to resolve return type, then through away the binding result and bind later
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
         var block = new BlockStatement(null, null, statement.statements, null);
 
@@ -1067,7 +1096,7 @@ internal sealed class Binder {
     }
 
     private Token CreateToken(SyntaxType type, string name = null, object value = null) {
-        // TODO binder uses a hack to create code in the parse tree, probably better solution
+        // TODO Binder uses a hack to create code in the parse tree, probably better solution
         return new Token(
             null, type, -1, name, value,
             ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
@@ -1142,17 +1171,21 @@ internal sealed class Binder {
         var operandType = operandTemp.typeClause;
 
         var tempOp = BoundUnaryOperator.Bind(expression.op.type, operandType);
+        var tempDiagnostics = new BelteDiagnosticQueue();
 
         if (tempOp == null)
-            diagnostics.Push(
+            tempDiagnostics.Push(
                 Error.InvalidUnaryOperatorUse(expression.op.location, expression.op.text, operandType));
 
         EndEmulation(binderSaveState);
 
+        // catch casting errors before they happen
+        diagnostics.Move(tempDiagnostics);
+
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return new BoundErrorExpression();
 
-        var opType = tempOp.typeClause;
+        var opType = tempOp?.typeClause;
 
         if (!operandType.isNullable || operandTemp.constantValue != null) {
             var boundOperand = BindExpression(expression.operand);
@@ -1246,12 +1279,15 @@ internal sealed class Binder {
         var rightType = rightTemp.typeClause;
 
         var tempOp = BoundBinaryOperator.Bind(expression.op.type, leftType, rightType);
+        var tempDiagnostics = new BelteDiagnosticQueue();
 
         if (tempOp == null)
-            diagnostics.Push(
+            tempDiagnostics.Push(
                 Error.InvalidBinaryOperatorUse(expression.op.location, expression.op.text, leftType, rightType));
 
         EndEmulation(binderSaveState);
+
+        diagnostics.Move(tempDiagnostics);
 
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return new BoundErrorExpression();
@@ -1315,7 +1351,7 @@ internal sealed class Binder {
                 return new BoundErrorExpression();
             }
 
-            // could possible move this to ComputeConstant
+            // Could possible move this to ComputeConstant
             if (boundOp.opType == BoundBinaryOperatorType.EqualityEquals ||
                 boundOp.opType == BoundBinaryOperatorType.EqualityNotEquals ||
                 boundOp.opType == BoundBinaryOperatorType.LessThan ||
@@ -1616,7 +1652,7 @@ internal sealed class Binder {
 
         if (expression.initializer?.type == SyntaxType.REFERENCE_EXPRESSION) {
             var initializer = BindReferenceExpression((ReferenceExpression)expression.initializer);
-            // references cant have implicit casts
+            // References cant have implicit casts
             var variable = BindVariable(expression.identifier, typeClause, initializer.constantValue);
 
             return new BoundVariableDeclarationStatement(variable, initializer);

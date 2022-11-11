@@ -48,7 +48,7 @@ internal static class Classifier {
             isTypeName = false;
 
             foreach (var child in node.GetChildren()) {
-                // doesn't matter that it catches on array brackets because they don't contain identifiers
+                // Does not matter that it catches on array brackets because they do not contain identifiers
                 if (child.type == SyntaxType.OPEN_BRACKET_TOKEN)
                     inAttribute = true;
                 if (child.type == SyntaxType.CLOSE_BRACKET_TOKEN)
