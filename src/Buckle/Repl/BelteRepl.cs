@@ -491,18 +491,69 @@ public sealed class BelteRepl : ReplBase {
     /// All required fields to implement for a REPL color theme (only supported if using System.Console as out).
     /// </summary>
     internal abstract class ColorTheme {
+        /// <summary>
+        /// Default color to result to for unformatted text.
+        /// </summary>
         internal abstract ConsoleColor @default { get; }
+
+        /// <summary>
+        /// Background color to indicate selected text.
+        /// </summary>
         internal abstract ConsoleColor selection { get; }
+
+        /// <summary>
+        /// Default color for text with no special color.
+        /// </summary>
         internal abstract ConsoleColor textDefault { get; }
+
+        /// <summary>
+        /// Color of all results.
+        /// </summary>
         internal abstract ConsoleColor result { get; }
+
+        /// <summary>
+        /// Background color of terminal.
+        /// </summary>
         internal abstract ConsoleColor background { get; }
+
+        /// <summary>
+        /// Color of identifer tokens.
+        /// </summary>
         internal abstract ConsoleColor identifier { get; }
+
+        /// <summary>
+        /// Color of number literals.
+        /// </summary>
         internal abstract ConsoleColor number { get; }
+
+        /// <summary>
+        /// Color of string literals.
+        /// </summary>
         internal abstract ConsoleColor @string { get; }
+
+        /// <summary>
+        /// Color of comments (all types).
+        /// </summary>
         internal abstract ConsoleColor comment { get; }
+
+        /// <summary>
+        /// Color of keywords.
+        /// </summary>
         internal abstract ConsoleColor keyword { get; }
+
+        /// <summary>
+        /// Color of type names (not full type clauses).
+        /// </summary>
         internal abstract ConsoleColor typeName { get; }
+
+        /// <summary>
+        /// Color any other code text.
+        /// </summary>
         internal abstract ConsoleColor text { get; }
+
+        /// <summary>
+        /// Color of code text that could not parse.
+        /// </summary>
         internal abstract ConsoleColor errorText { get; }
     }
 
@@ -567,12 +618,40 @@ public sealed class BelteRepl : ReplBase {
     /// REPL specific state, maintained throughout instance, recreated every instance.
     /// </summary>
     internal sealed class BelteReplState {
+        /// <summary>
+        /// Show the parse tree after a submission.
+        /// </summary>
         public bool showTree = false;
+
+        /// <summary>
+        /// Show the lowered code after a submission.
+        /// </summary>
         public bool showProgram = false;
+
+        /// <summary>
+        /// If to ignore statements with side effects (Print, PrintLine, etc.).
+        /// </summary>
         public bool loadingSubmissions = false;
+
+        /// <summary>
+        /// What color theme to use (can change).
+        /// </summary>
         public ColorTheme colorTheme = new DarkTheme();
+
+        /// <summary>
+        /// Current page the user is viewing (see Page)
+        /// </summary>
         public Page currentPage = Page.Repl;
+
+        /// <summary>
+        /// Previous compilation (used to build of previous).
+        /// </summary>
         public Compilation previous;
+
+        /// <summary>
+        /// Current defined variables.
+        /// Not tracked after REPL instance is over, instead previous submissions are reevaluated.
+        /// </summary>
         public Dictionary<VariableSymbol, object> variables;
     }
 }

@@ -16,17 +16,13 @@ public enum DiagnosticType {
 /// Information about a diagnostic including severity (see DiagnosticType), code, and module.
 /// </summary>
 public sealed class DiagnosticInfo {
-    private readonly DiagnosticType severity_;
-    private readonly int? code_;
-    private readonly string module_;
-
     /// <summary>
     /// Creates an empty DiagnosticInfo (severity is set to DiagnosticType.Unknown).
     /// </summary>
     public DiagnosticInfo() {
-        code_ = null;
-        module_ = null;
-        severity_ = DiagnosticType.Unknown;
+        code = null;
+        module = null;
+        severity = DiagnosticType.Unknown;
     }
 
     /// <summary>
@@ -35,9 +31,9 @@ public sealed class DiagnosticInfo {
     /// <param name="code">User defined code for what caused the diagnostic</param>
     /// <param name="module">What module of code produced the diagnostic (user defined)</param>
     public DiagnosticInfo(int code, string module) {
-        code_ = code;
-        module_ = module;
-        severity_ = DiagnosticType.Unknown;
+        this.code = code;
+        this.module = module;
+        this.severity = DiagnosticType.Unknown;
     }
 
     /// <summary>
@@ -45,8 +41,8 @@ public sealed class DiagnosticInfo {
     /// </summary>
     /// <param name="severity">Severity of diagnostic (see DiagnosticType)</param>
     public DiagnosticInfo(DiagnosticType severity) {
-        code_ = null;
-        severity_ = severity;
+        code = null;
+        this.severity = severity;
     }
 
     /// <summary>
@@ -56,25 +52,25 @@ public sealed class DiagnosticInfo {
     /// <param name="module">What module of code produced the diagnostic (user defined)</param>
     /// <param name="severity">Severity of diagnostic (see DiagnosticType)</param>
     public DiagnosticInfo(int code, string module, DiagnosticType severity) {
-        code_ = code;
-        module_ = module;
-        severity_ = severity;
+        this.code = code;
+        this.module = module;
+        this.severity = severity;
     }
 
     /// <summary>
     /// The severity of this diagnostic (see DiagnosticType).
     /// </summary>
-    public DiagnosticType severity => severity_;
+    public DiagnosticType severity { get; }
 
     /// <summary>
     /// The user defined code to describe what caused this diagnostic.
     /// </summary>
-    public int? code => code_;
+    public int? code { get; }
 
     /// <summary>
     /// What module of code produced this diagnostic.
     /// </summary>
-    public string module => module_;
+    public string module { get; }
 }
 
 /// <summary>
@@ -82,10 +78,6 @@ public sealed class DiagnosticInfo {
 /// Usually indicates either an issue, or a warning to be logged or displayed to the user.
 /// </summary>
 public class Diagnostic {
-    private readonly DiagnosticInfo info_;
-    private readonly string message_;
-    private readonly string suggestion_;
-
     /// <summary>
     /// Creates a diagnostic.
     /// </summary>
@@ -94,9 +86,9 @@ public class Diagnostic {
     /// <param name="suggestion">A possible solution to the problem</param>
     public Diagnostic(
         DiagnosticInfo info, string message, string suggestion) {
-        info_ = info;
-        message_ = message;
-        suggestion_ = suggestion;
+        this.info = info;
+        this.message = message;
+        this.suggestion = suggestion;
     }
 
     /// <summary>
@@ -118,18 +110,18 @@ public class Diagnostic {
     /// <summary>
     /// Information about the diagnostic including severity, code, and module.
     /// </summary>
-    public DiagnosticInfo info => info_;
+    public DiagnosticInfo info { get; }
 
     /// <summary>
     /// The message given with the diagnostic.
     /// If the diagnostic is shown to the user this is usually the message they see.
     /// </summary>
-    public string message => message_;
+    public string message { get; }
 
     /// <summary>
     /// A suggestion message to help guide a possible fix to the problem.
     /// </summary>
-    public string suggestion => suggestion_;
+    public string suggestion { get; }
 }
 
 /// <summary>
@@ -137,6 +129,10 @@ public class Diagnostic {
 /// </summary>
 /// <typeparam name="Type">The type of diagnostic to store</typeparam>
 public class DiagnosticQueue<Type> where Type : Diagnostic {
+    /// <summary>
+    /// Diagnostics in queue currently.
+    /// Queue is a wrapper to simulate a list, but internal representation of diagnostics is a list.
+    /// </summary>
     internal List<Type> diagnostics_;
 
     /// <summary>

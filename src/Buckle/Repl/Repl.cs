@@ -946,25 +946,49 @@ public abstract class ReplBase {
     /// Wrapper around the System.Console class.
     /// </summary>
     internal class OutputCapture : TextWriter, IDisposable {
-        // internal List<List<String>> captured { get; private set; }
-        public override Encoding Encoding { get { return Encoding.ASCII; } }
-
+        /// <summary>
+        /// Creates an out.
+        /// </summary>
         internal OutputCapture() {
             // captured = new List<List<string>>();
         }
 
+        // internal List<List<String>> captured { get; private set; }
+
+        /// <summary>
+        /// Encoding to use, constant.
+        /// </summary>
+        /// <value>Ascii</value>
+        public override Encoding Encoding { get { return Encoding.ASCII; } }
+
+        /// <summary>
+        /// Writes content to out without newline.
+        /// </summary>
+        /// <param name="output">What to write</param>
         public override void Write(string output) {
             Console.Write(output);
         }
 
+        /// <summary>
+        /// Writes content to out with a newline placed after the content.
+        /// </summary>
+        /// <param name="output">What to write</param>
         public override void WriteLine(string output) {
             Console.WriteLine(output);
         }
 
+        /// <summary>
+        /// Writes a newline.
+        /// </summary>
         public override void WriteLine() {
             Console.WriteLine();
         }
 
+        /// <summary>
+        /// Changes Console cursor position.
+        /// </summary>
+        /// <param name="left">Column position (left (0) -> right)</param>
+        /// <param name="top">Row position (top (0) -> down)</param>
         public void SetCursorPosition(int left, int top) {
             Console.SetCursorPosition(left, top);
         }
@@ -972,13 +996,13 @@ public abstract class ReplBase {
 
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
     protected sealed class MetaCommandAttribute : Attribute {
-        public string name { get; }
-        public string description { get; }
-
         public MetaCommandAttribute(string name_, string description_) {
             name = name_;
             description = description_;
         }
+
+        public string name { get; }
+        public string description { get; }
     }
 
     private sealed class MetaCommand {
