@@ -10,16 +10,19 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Buckle.Generators;
 
+/// <summary>
+/// Generates a more optimized but brute force child getter for syntax expressions and statements.
+/// </summary>
 [Generator]
 public class GetChildrenGenerator : ISourceGenerator {
     /// <summary>
-    /// Initializes generator
+    /// Initializes generator.
     /// </summary>
     /// <param name="context">Generator context</param>
     public void Initialize(GeneratorInitializationContext context) { }
 
     /// <summary>
-    /// Generates source
+    /// Generates source.
     /// </summary>
     /// <param name="context">Generator context</param>
     public void Execute(GeneratorExecutionContext context) {

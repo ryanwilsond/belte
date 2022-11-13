@@ -17,6 +17,7 @@ public class EvaluatorTests {
         writer = writer_;
     }
 
+    // Put all simple tests that want a specific result from the evaluator here
     [Theory]
     [InlineData(";", null)]
 
@@ -108,13 +109,14 @@ public class EvaluatorTests {
     [InlineData("4 >= 5;", false)]
     [InlineData("5 >= 4;", true)]
 
-    // TODO add builtin truncate function
     // TODO @abiral remove need for casts
     [InlineData("3.2 + 3.4;", (float)6.6000004)]
     [InlineData("3.2 - 3.4;", -(float)0.20000005)]
-    [InlineData("10 * 1.5;", 15)]
+    [InlineData("10 * 1.5;", (float)15)]
+    [InlineData("10 * (int)1.5;", 10)]
     [InlineData("9 / 2;", 4)]
     [InlineData("9.0 / 2;", (float)4.5)]
+    [InlineData("9 / 2.0;", (float)4.5)]
     [InlineData("4.1 ** 2;", (float)16.81)]
     [InlineData("4.1 ** 2.1;", (float)19.357355)]
 
@@ -130,10 +132,22 @@ public class EvaluatorTests {
     [InlineData("int i = 10; int result = 0; while (i > 0) { result++; i--; } return result;", 10)]
     [InlineData("int result = 1; for (int i=0; i<=10; i++) { result+=result; } return result;", 2048)]
     [InlineData("int result = 0; do { result++; } while (result < 10); return result;", 10)]
+
+    [InlineData("[NotNull]int a = 10; return a;", 10)]
+    [InlineData("[NotNull]int a = 10; return a * a;", 100)]
+    [InlineData("[NotNull]int a = 1; return 10 * a;", 10)]
+    [InlineData("[NotNull]int a = 0; if (a == 0) { a = 10; } return a;", 10)]
+    [InlineData("[NotNull]int a = 0; if (a == 4) { a = 10; } return a;", 0)]
+    [InlineData("[NotNull]int a = 0; if (a == 0) { a = 10; } else { a = 5; } return a;", 10)]
+    [InlineData("[NotNull]int a = 0; if (a == 4) { a = 10; } else { a = 5; } return a;", 5)]
+
+    [InlineData("decimal[] a = {3.1, 2.56, 5.23123}; return a[2];", (float)5.23123)]
+    [InlineData("var a = {3.1, 2.56, 5.23123}; return a[0];", (float)3.1)]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
         AssertValue(text, expectedValue);
     }
 
+    // All other complex tests go here
     [Fact]
     public void Evaluator_IfStatement_Reports_NotReachableCode_Warning() {
         var text = @"
@@ -150,6 +164,7 @@ public class EvaluatorTests {
         var diagnostics = @"
             unreachable code
         ";
+
         AssertDiagnostics(text, diagnostics, true);
     }
 
@@ -270,8 +285,6 @@ public class EvaluatorTests {
 
     [Fact]
     public void Evaluator_FunctionParameters_NoInfiniteLoop() {
-        // TODO doesn't throw when debugging, but does normally??
-        // need to debug the test
         var text = @"
             void hi(string name[=]) {
                 PrintLine(""Hi "" + name + ""!"");
@@ -642,6 +655,44 @@ public class EvaluatorTests {
 
         var diagnostics = @"
             operator '+' is not defined for types 'int' and 'bool'
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_DivideByZero_ThrowsException() {
+        // TODO need a way to assert exceptions
+        var text = @"
+            56/0;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    // [Fact]
+    // public void Evaluator_Function_CanDeclare() {
+    //     var text = @"
+    //         int myFunction(int num1, int num2) {
+    //             Print(num1 + num2 / 3.14159);
+    //         }
+    //     ";
+
+    //     var diagnostics = @"";
+
+    //     AssertDiagnostics(text, diagnostics);
+    // }
+
+    [Fact]
+    public void Evaluator_CallExpression_ExpectedCloseParenthesis() {
+        var text = @"
+            Print(num ** 2 [(]
+        ";
+
+        var diagnostics = @"
+            unexpected token '(', expected ')'
         ";
 
         AssertDiagnostics(text, diagnostics);

@@ -13,15 +13,95 @@ using Buckle.Diagnostics;
 
 namespace Belte.CommandLine;
 
+/// <summary>
+/// Handles all command line interaction, argument parsing, and compiler invocation.
+/// </summary>
 public static partial class BuckleCommandLine {
-    const int SuccessExitCode = 0;
-    const int ErrorExitCode = 1;
-    const int FatalExitCode = 2;
+    private const int SuccessExitCode = 0;
+    private const int ErrorExitCode = 1;
+    private const int FatalExitCode = 2;
 
-    static readonly string[] AllowedOptions = {
+    private static readonly string[] AllowedOptions = {
         // TODO Add W options
         // "error", "ignore", "all"
     };
+
+    /// <summary>
+    /// Processes/decodes command-line arguments, and invokes compiler.
+    /// </summary>
+    /// <param name="args">Command-line arguments from Main</param>
+    /// <returns>Error code, 0 = success</returns>
+    public static int ProcessArgs(string[] args) {
+        int err;
+        Compiler compiler = new Compiler();
+        compiler.me = Process.GetCurrentProcess().ProcessName;
+
+        compiler.state = DecodeOptions(
+            args, out DiagnosticQueue<Diagnostic> diagnostics, out ShowDialogs dialogs);
+
+        bool hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error != null;
+
+        string resources = Path.Combine(GetExecutingPath(), "Resources");
+        bool corrupt = false;
+
+        if (!Directory.Exists(resources)) {
+            corrupt = true;
+            ResolveDiagnostic(Belte.Diagnostics.Warning.CorruptInstallation(), compiler.me);
+        }
+
+        if (hasDialog)
+            diagnostics.Clear();
+
+        if (dialogs.machine)
+            ShowMachineDialog();
+
+        if (dialogs.version)
+            ShowVersionDialog();
+
+        if (dialogs.help && !corrupt)
+            ShowHelpDialog();
+
+        if (dialogs.error != null && !corrupt) {
+            ShowErrorHelp(dialogs.error, out DiagnosticQueue<Diagnostic> dialogDiagnostics);
+            diagnostics.Move(dialogDiagnostics);
+        }
+
+        if (hasDialog) {
+            ResolveDiagnostics(diagnostics, compiler.me);
+            return SuccessExitCode;
+        }
+
+        err = ResolveDiagnostics(diagnostics, compiler.me);
+
+        if (err > 0)
+            return err;
+
+        ResolveOutputFiles(compiler);
+        ReadInputFiles(compiler, out diagnostics);
+
+        err = ResolveDiagnostics(diagnostics, compiler.me);
+
+        if (err > 0)
+            return err;
+
+        // Only mode that does not go through one-time compilation
+        if (compiler.state.buildMode == BuildMode.Repl) {
+            BelteRepl repl = new BelteRepl(compiler, ResolveDiagnostics);
+            repl.Run();
+
+            return SuccessExitCode;
+        }
+
+        compiler.Compile();
+
+        err = ResolveDiagnostics(compiler);
+        if (err > 0)
+            return err;
+
+        ResolveCompilerOutput(compiler);
+
+        return SuccessExitCode;
+    }
 
     private static void ShowErrorHelp(string error, out DiagnosticQueue<Diagnostic> diagnostics) {
         // TODO This only works for debug builds currently, not release
@@ -371,82 +451,5 @@ public static partial class BuckleCommandLine {
                     break;
             }
         }
-    }
-
-    /// <summary>
-    /// Processes/decodes command-line arguments, and invokes compiler
-    /// </summary>
-    /// <param name="args">Command-line arguments from Main</param>
-    /// <returns>Error code, 0 = success</returns>
-    public static int ProcessArgs(string[] args) {
-        int err;
-        Compiler compiler = new Compiler();
-        compiler.me = Process.GetCurrentProcess().ProcessName;
-
-        compiler.state = DecodeOptions(
-            args, out DiagnosticQueue<Diagnostic> diagnostics, out ShowDialogs dialogs);
-
-        bool hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error != null;
-
-        string resources = Path.Combine(GetExecutingPath(), "Resources");
-        bool corrupt = false;
-
-        if (!Directory.Exists(resources)) {
-            corrupt = true;
-            ResolveDiagnostic(Belte.Diagnostics.Warning.CorruptInstallation(), compiler.me);
-        }
-
-        if (hasDialog)
-            diagnostics.Clear();
-
-        if (dialogs.machine)
-            ShowMachineDialog();
-
-        if (dialogs.version)
-            ShowVersionDialog();
-
-        if (dialogs.help && !corrupt)
-            ShowHelpDialog();
-
-        if (dialogs.error != null && !corrupt) {
-            ShowErrorHelp(dialogs.error, out DiagnosticQueue<Diagnostic> dialogDiagnostics);
-            diagnostics.Move(dialogDiagnostics);
-        }
-
-        if (hasDialog) {
-            ResolveDiagnostics(diagnostics, compiler.me);
-            return SuccessExitCode;
-        }
-
-        err = ResolveDiagnostics(diagnostics, compiler.me);
-
-        if (err > 0)
-            return err;
-
-        ResolveOutputFiles(compiler);
-        ReadInputFiles(compiler, out diagnostics);
-
-        err = ResolveDiagnostics(diagnostics, compiler.me);
-
-        if (err > 0)
-            return err;
-
-        // Only mode that does not go through one-time compilation
-        if (compiler.state.buildMode == BuildMode.Repl) {
-            BelteRepl repl = new BelteRepl(compiler, ResolveDiagnostics);
-            repl.Run();
-
-            return SuccessExitCode;
-        }
-
-        compiler.Compile();
-
-        err = ResolveDiagnostics(compiler);
-        if (err > 0)
-            return err;
-
-        ResolveCompilerOutput(compiler);
-
-        return SuccessExitCode;
     }
 }

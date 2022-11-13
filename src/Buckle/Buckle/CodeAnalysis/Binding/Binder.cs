@@ -1143,7 +1143,7 @@ internal sealed class Binder {
             BoundExpression tempItem = BindExpression(item);
             tempItem.typeClause.isNullable = true;
 
-            if (type == null) {
+            if (type == null || type.isImplicit) {
                 var typeClause = tempItem.typeClause;
 
                 type = new BoundTypeClause(
@@ -1179,7 +1179,7 @@ internal sealed class Binder {
 
         EndEmulation(binderSaveState);
 
-        // catch casting errors before they happen
+        // Catch casting errors before they happen
         diagnostics.Move(tempDiagnostics);
 
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())

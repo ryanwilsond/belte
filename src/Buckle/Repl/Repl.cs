@@ -7,26 +7,179 @@ using Buckle.Diagnostics;
 
 namespace Repl;
 
+/// <summary>
+/// Overrides default console handling and controls all keystrokes. Adds framework for meta commands and submissions.
+/// </summary>
 public abstract class ReplBase {
-    public delegate int DiagnosticHandle(
-        Compiler compiler, string me = null, ConsoleColor textColor = ConsoleColor.White);
+    /// <summary>
+    /// Handles outputting REPL text to an out.
+    /// </summary>
+    internal OutputCapture writer_ = new OutputCapture();
+
+    /// <summary>
+    /// Compiler object representing entirety of compilation.
+    /// </summary>
+    internal Compiler handle;
+
+    /// <summary>
+    /// Particular DiagnosticHandle used to handle diagnostics in the REPL.
+    /// </summary>
+    internal DiagnosticHandle diagnosticHandle;
 
     private readonly List<string> submissionHistory_ = new List<string>();
     private readonly List<MetaCommand> metaCommands_ = new List<MetaCommand>();
     private int submissionHistoryIndex_;
     private bool done_;
-    internal OutputCapture writer_ = new OutputCapture();
-
-    const int tabWidth = 4;
-
-    internal Compiler handle;
-    internal DiagnosticHandle diagnosticHandle;
-    internal abstract object state_ { get; set; }
+    private const int tabWidth = 4;
+    private bool evaluate_;
 
     protected ReplBase(Compiler handle_, DiagnosticHandle diagnosticHandle_) {
         handle = handle_;
         diagnosticHandle = diagnosticHandle_;
         InitializeMetaCommands();
+    }
+
+    /// <summary>
+    /// Callback to handle diagnostics, be it logging or displaying to the console.
+    /// </summary>
+    /// <param name="compiler">Compiler object representing entirety of compilation</param>
+    /// <param name="me">Display name of the program</param>
+    /// <param name="textColor">Color to display diagnostics (if displaying)</param>
+    /// <returns>C-Style error code of most severe diagnostic</returns>
+    public delegate int DiagnosticHandle(
+        Compiler compiler, string me = null, ConsoleColor textColor = ConsoleColor.White);
+
+    private delegate object LineRenderHandler(IReadOnlyList<string> lines, int lineIndex, object state);
+
+    /// <summary>
+    /// REPL specific state used by child classes.
+    /// </summary>
+    internal abstract object state_ { get; set; }
+
+    /// <summary>
+    /// Resets all state.
+    /// </summary>
+    internal virtual void ResetState() {
+        done_ = false;
+        evaluate_ = true;
+    }
+
+    /// <summary>
+    /// Run loop of the REPL (exited with ctrl + c or entering blank lines).
+    /// Does not initialize REPL, only runs it.
+    /// </summary>
+    public void Run() {
+        while (true) {
+            var text = EditSubmission();
+
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            if (evaluate_) {
+                if (!text.Contains(Environment.NewLine) && text.StartsWith('#'))
+                    EvaluateReplCommand(text);
+                else
+                    EvaluateSubmission(text);
+            }
+
+            evaluate_ = true;
+
+            submissionHistory_.Add(text);
+            submissionHistoryIndex_ = 0;
+        }
+    }
+
+    /// <summary>
+    /// Reloads REPL to start accepting submissions again.
+    /// </summary>
+    internal void ReviveDocument() {
+        // TODO redisplay previous submissions
+        Console.Clear();
+    }
+
+    /// <summary>
+    /// Safely terminates an in-progress submission without evaluating it for a result.
+    /// </summary>
+    internal virtual void SpecialEscapeSequence() {
+        done_ = true;
+        evaluate_ = false;
+    }
+
+    /// <summary>
+    /// Gets all previous submissions submitted in current instance (does not access previous instances' submissions).
+    /// </summary>
+    /// <returns>Internal representation of submissions</returns>
+    internal List<string> GetSubmissionHistory() {
+        return submissionHistory_;
+    }
+
+    protected virtual object RenderLine(IReadOnlyList<string> lines, int lineIndex, object state) {
+        writer_.Write(lines[lineIndex]);
+        return state;
+    }
+
+    protected void ClearHistory() {
+        submissionHistory_.Clear();
+    }
+
+    protected abstract bool IsCompleteSubmission(string text);
+    protected abstract void EvaluateSubmission(string text);
+
+    [MetaCommand("help", "Shows this document")]
+    protected void EvaluateHelp() {
+        // TODO Does not calculate length of default values
+        var maxLength = metaCommands_
+            .Max(mc => mc.name.Length + string.Join(" ", mc.method.GetParameters()
+            .SelectMany(p => p.Name).ToList()).Length);
+
+        var previous = Console.ForegroundColor;
+
+        foreach (var metaCommand in metaCommands_.OrderBy(mc => mc.name)) {
+            var name = metaCommand.name;
+
+            foreach (var parameter in metaCommand.method.GetParameters()) {
+                if (parameter.HasDefaultValue)
+                    name += $" <{parameter.Name}={parameter.DefaultValue}>";
+                else
+                    name += $" <{parameter.Name}>";
+            }
+
+            var paddedName = name.PadRight(maxLength);
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            writer_.Write("#");
+            Console.ForegroundColor = previous;
+            writer_.Write(paddedName);
+            writer_.Write("  ");
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            writer_.Write(metaCommand.description);
+            Console.ForegroundColor = previous;
+            writer_.WriteLine();
+        }
+    }
+
+    private string EditSubmission() {
+        done_ = false;
+
+        var document = new ObservableCollection<string>() { "" };
+        var view = new SubmissionView(RenderLine, document, writer_);
+
+
+        while (!done_) {
+            // Allow ctrl + c to exit at all times except getting user input
+            // This allows custom behavior, but still keeps ctrl + c protection if app freezes
+            Console.TreatControlCAsInput = true;
+            var key = Console.ReadKey(true);
+            Console.TreatControlCAsInput = false;
+            HandleKey(key, document, view);
+        }
+
+
+        view.currentLine = document.Count - 1;
+        view.currentCharacter = document[view.currentLine].Length;
+
+        writer_.WriteLine();
+
+        return string.Join(Environment.NewLine, document);
     }
 
     private void InitializeMetaCommands() {
@@ -42,169 +195,6 @@ public abstract class ReplBase {
             var metaCommand = new MetaCommand(attribute.name, attribute.description, method);
             metaCommands_.Add(metaCommand);
         }
-    }
-
-    internal virtual void ResetState() {
-        done_ = false;
-    }
-
-    public void Run() {
-        while (true) {
-            var text = EditSubmission();
-
-            if (string.IsNullOrEmpty(text))
-                return;
-
-            if (!text.Contains(Environment.NewLine) && text.StartsWith('#'))
-                EvaluateReplCommand(text);
-            else
-                EvaluateSubmission(text);
-
-            submissionHistory_.Add(text);
-            submissionHistoryIndex_ = 0;
-        }
-    }
-
-    internal class OutputCapture : TextWriter, IDisposable {
-        // internal List<List<String>> captured { get; private set; }
-        public override Encoding Encoding { get { return Encoding.ASCII; } }
-
-        internal OutputCapture() {
-            // captured = new List<List<string>>();
-        }
-
-        public override void Write(string output) {
-            Console.Write(output);
-        }
-
-        public override void WriteLine(string output) {
-            Console.WriteLine(output);
-        }
-
-        public override void WriteLine() {
-            Console.WriteLine();
-        }
-
-        public void SetCursorPosition(int left, int top) {
-            Console.SetCursorPosition(left, top);
-        }
-    }
-
-    private delegate object LineRenderHandler(IReadOnlyList<string> lines, int lineIndex, object state);
-
-    private sealed class SubmissionView {
-        private readonly LineRenderHandler lineRenderer_;
-        private readonly ObservableCollection<string> document_;
-        private int cursorTop_;
-        private int renderedLineCount_;
-        private int currentLine_;
-        private int currentCharacter_;
-        private OutputCapture writer_;
-
-        internal int currentLine {
-            get => currentLine_;
-            set {
-                if (currentLine_ != value) {
-                    currentLine_ = value;
-                    currentCharacter_ = Math.Min(document_[currentLine_].Length, currentCharacter_);
-                    UpdateCursorPosition();
-                }
-            }
-        }
-
-        internal int currentCharacter {
-            get => currentCharacter_;
-            set {
-                if (currentCharacter_ != value) {
-                    currentCharacter_ = value;
-                    UpdateCursorPosition();
-                }
-            }
-        }
-
-        internal Stack<(char, int)> currentBlockTabbing = new Stack<(char, int)>();
-        internal int currentTypingTabbing = 0;
-
-        internal SubmissionView(
-            LineRenderHandler lineRenderer, ObservableCollection<string> document, OutputCapture writer) {
-            lineRenderer_ = lineRenderer;
-            document_ = document;
-            document_.CollectionChanged += SubmissionDocumentChanged;
-            cursorTop_ = Console.CursorTop;
-            writer_ = writer;
-            Render();
-        }
-
-        private void SubmissionDocumentChanged(object sender, NotifyCollectionChangedEventArgs e) {
-            Render();
-        }
-
-        private void Render() {
-            Console.CursorVisible = false;
-            var lineCount = 0;
-
-            foreach (var line in document_) {
-                if (cursorTop_ + lineCount >= Console.WindowHeight - 1) {
-                    writer_.SetCursorPosition(0, Console.WindowHeight - 1);
-                    writer_.WriteLine();
-
-                    if (cursorTop_ > 0)
-                        cursorTop_--;
-                }
-
-                writer_.SetCursorPosition(0, cursorTop_ + lineCount);
-                var previous = Console.ForegroundColor;
-                Console.ForegroundColor = ConsoleColor.Green;
-
-                if (lineCount == 0)
-                    writer_.Write("» ");
-                else
-                    writer_.Write("· ");
-
-                Console.ForegroundColor = previous;
-                lineRenderer_(document_, lineCount, null);
-                writer_.Write(new string(' ', Console.WindowWidth - line.Length - 2));
-                lineCount++;
-            }
-
-            var blankLineCount = renderedLineCount_ - lineCount;
-
-            if (blankLineCount > 0) {
-                var blankLine = new string(' ', Console.WindowWidth);
-
-                for (int i=0; i<blankLineCount; i++) {
-                    writer_.SetCursorPosition(0, cursorTop_ + lineCount + i);
-                    writer_.WriteLine(blankLine);
-                }
-            }
-
-            renderedLineCount_ = lineCount;
-            Console.CursorVisible = true;
-            UpdateCursorPosition();
-        }
-
-        private void UpdateCursorPosition() {
-            writer_.SetCursorPosition(2 + currentCharacter_, cursorTop_ + currentLine_);
-        }
-    }
-
-    private string EditSubmission() {
-        done_ = false;
-
-        var document = new ObservableCollection<string>() { "" };
-        var view = new SubmissionView(RenderLine, document, writer_);
-
-        while (!done_) {
-            var key = Console.ReadKey(true);
-            HandleKey(key, document, view);
-        }
-
-        view.currentLine = document.Count - 1;
-        view.currentCharacter = document[view.currentLine].Length;
-
-        writer_.WriteLine();
-
-        return string.Join(Environment.NewLine, document);
     }
 
     private void HandleKey(ConsoleKeyInfo key, ObservableCollection<string> document, SubmissionView view) {
@@ -289,6 +279,9 @@ public abstract class ReplBase {
                 case ConsoleKey.RightArrow:
                     HandleControlRightArrow(document, view);
                     break;
+                case ConsoleKey.C:
+                    HandleControlC(document, view);
+                    break;
                 default:
                     break;
             }
@@ -315,18 +308,34 @@ public abstract class ReplBase {
                 default:
                     break;
             }
+        } else if (key.Modifiers == ConsoleModifiers.Alt) {
+            switch (key.Key) {
+                case ConsoleKey.Enter:
+                    HandleAltEnter(document, view);
+                    break;
+                default:
+                    break;
+            }
         }
 
         if (key.Key != ConsoleKey.Backspace && key.KeyChar >= ' ')
             HandleTyping(document, view, key.KeyChar.ToString());
     }
 
-    internal virtual void SpecialEscapeSequence() {
-        done_ = true;
-    }
-
     private void HandleControlShiftEnter(ObservableCollection<string> document, SubmissionView view) {
         SpecialEscapeSequence();
+    }
+
+    private void HandleAltEnter(ObservableCollection<string> document, SubmissionView view) {
+        SpecialEscapeSequence();
+    }
+
+    private void HandleControlC(ObservableCollection<string> document, SubmissionView view) {
+        if (done_ == false)
+            SpecialEscapeSequence();
+        else
+            // Normal ctrl + c behavior
+            System.Environment.Exit(1);
     }
 
     private void HandleShiftTab(ObservableCollection<string> document, SubmissionView view) {
@@ -852,19 +861,6 @@ public abstract class ReplBase {
         HandleTyping(document, view, new String(' ', whitespace * tabWidth));
     }
 
-    protected void ClearHistory() {
-        submissionHistory_.Clear();
-    }
-
-    internal List<string> GetSubmissionHistory() {
-        return submissionHistory_;
-    }
-
-    protected virtual object RenderLine(IReadOnlyList<string> lines, int lineIndex, object state) {
-        writer_.Write(lines[lineIndex]);
-        return state;
-    }
-
     private void EvaluateReplCommand(string line) {
         var position = 1;
         var sb = new StringBuilder();
@@ -946,8 +942,33 @@ public abstract class ReplBase {
         command.method.Invoke(instance, args.ToArray());
     }
 
-    protected abstract bool IsCompleteSubmission(string text);
-    protected abstract void EvaluateSubmission(string text);
+    /// <summary>
+    /// Wrapper around the System.Console class.
+    /// </summary>
+    internal class OutputCapture : TextWriter, IDisposable {
+        // internal List<List<String>> captured { get; private set; }
+        public override Encoding Encoding { get { return Encoding.ASCII; } }
+
+        internal OutputCapture() {
+            // captured = new List<List<string>>();
+        }
+
+        public override void Write(string output) {
+            Console.Write(output);
+        }
+
+        public override void WriteLine(string output) {
+            Console.WriteLine(output);
+        }
+
+        public override void WriteLine() {
+            Console.WriteLine();
+        }
+
+        public void SetCursorPosition(int left, int top) {
+            Console.SetCursorPosition(left, top);
+        }
+    }
 
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
     protected sealed class MetaCommandAttribute : Attribute {
@@ -972,39 +993,99 @@ public abstract class ReplBase {
         }
     }
 
-    [MetaCommand("help", "Shows this document")]
-    protected void EvaluateHelp() {
-        // TODO Does not calculate length of default values
-        var maxLength = metaCommands_
-            .Max(mc => mc.name.Length + string.Join(" ", mc.method.GetParameters()
-            .SelectMany(p => p.Name).ToList()).Length);
+    private sealed class SubmissionView {
+        private readonly LineRenderHandler lineRenderer_;
+        private readonly ObservableCollection<string> document_;
+        private int cursorTop_;
+        private int renderedLineCount_;
+        private int currentLine_;
+        private int currentCharacter_;
+        private OutputCapture writer_;
 
-        var previous = Console.ForegroundColor;
+        internal int currentLine {
+            get => currentLine_;
+            set {
+                if (currentLine_ != value) {
+                    currentLine_ = value;
+                    currentCharacter_ = Math.Min(document_[currentLine_].Length, currentCharacter_);
+                    UpdateCursorPosition();
+                }
+            }
+        }
 
-        foreach (var metaCommand in metaCommands_.OrderBy(mc => mc.name)) {
-            var name = metaCommand.name;
+        internal int currentCharacter {
+            get => currentCharacter_;
+            set {
+                if (currentCharacter_ != value) {
+                    currentCharacter_ = value;
+                    UpdateCursorPosition();
+                }
+            }
+        }
 
-            foreach (var parameter in metaCommand.method.GetParameters()) {
-                if (parameter.HasDefaultValue)
-                    name += $" <{parameter.Name}={parameter.DefaultValue}>";
+        internal Stack<(char, int)> currentBlockTabbing = new Stack<(char, int)>();
+        internal int currentTypingTabbing = 0;
+
+        internal SubmissionView(
+            LineRenderHandler lineRenderer, ObservableCollection<string> document, OutputCapture writer) {
+            lineRenderer_ = lineRenderer;
+            document_ = document;
+            document_.CollectionChanged += SubmissionDocumentChanged;
+            cursorTop_ = Console.CursorTop;
+            writer_ = writer;
+            Render();
+        }
+
+        private void SubmissionDocumentChanged(object sender, NotifyCollectionChangedEventArgs e) {
+            Render();
+        }
+
+        private void Render() {
+            Console.CursorVisible = false;
+            var lineCount = 0;
+
+            foreach (var line in document_) {
+                if (cursorTop_ + lineCount >= Console.WindowHeight - 1) {
+                    writer_.SetCursorPosition(0, Console.WindowHeight - 1);
+                    writer_.WriteLine();
+
+                    if (cursorTop_ > 0)
+                        cursorTop_--;
+                }
+
+                writer_.SetCursorPosition(0, cursorTop_ + lineCount);
+                var previous = Console.ForegroundColor;
+                Console.ForegroundColor = ConsoleColor.Green;
+
+                if (lineCount == 0)
+                    writer_.Write("» ");
                 else
-                    name += $" <{parameter.Name}>";
+                    writer_.Write("· ");
+
+                Console.ForegroundColor = previous;
+                lineRenderer_(document_, lineCount, null);
+                writer_.Write(new string(' ', Console.WindowWidth - line.Length - 2));
+                lineCount++;
             }
 
-            var paddedName = name.PadRight(maxLength);
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            writer_.Write("#");
-            Console.ForegroundColor = previous;
-            writer_.Write(paddedName);
-            writer_.Write("  ");
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            writer_.Write(metaCommand.description);
-            Console.ForegroundColor = previous;
-            writer_.WriteLine();
-        }
-    }
+            var blankLineCount = renderedLineCount_ - lineCount;
 
-    internal void ReviveDocument() {
-        Console.Clear();
+            if (blankLineCount > 0) {
+                var blankLine = new string(' ', Console.WindowWidth);
+
+                for (int i=0; i<blankLineCount; i++) {
+                    writer_.SetCursorPosition(0, cursorTop_ + lineCount + i);
+                    writer_.WriteLine(blankLine);
+                }
+            }
+
+            renderedLineCount_ = lineCount;
+            Console.CursorVisible = true;
+            UpdateCursorPosition();
+        }
+
+        private void UpdateCursorPosition() {
+            writer_.SetCursorPosition(2 + currentCharacter_, cursorTop_ + currentLine_);
+        }
     }
 }

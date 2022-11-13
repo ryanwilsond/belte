@@ -52,7 +52,7 @@ internal sealed class Cast {
         if (cast != Cast.None) {
             // [NotNull]var -> var : implicit
             // var -> [NotNull]var : explicit
-            if (!fromType.isLiteral && !fromType.isNullable && toType.isNullable)
+            if (!fromType.isLiteral && !fromType.isNullable && toType.isNullable && cast != Cast.Implicit)
                 cast = Cast.Implicit;
 
             if (fromType.isNullable && !toType.isNullable && !toType.isLiteral)

@@ -7,6 +7,9 @@ using System;
 
 namespace Belte.CommandLine;
 
+/// <summary>
+/// Flags that tell command line what dialogs to display.
+/// </summary>
 public struct ShowDialogs {
     public bool help;
     public bool machine;

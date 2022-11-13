@@ -28,7 +28,10 @@ internal sealed class Parser {
             if (!suppressErrors)
                 diagnostics.Push(Error.UnexpectedToken(current.location, current.type, type));
 
-            return new Token(syntaxTree_, type, current.position,
+            Token cur = current;
+            position_++;
+
+            return new Token(syntaxTree_, type, cur.position,
                 null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
         } else {
             if (!suppressErrors)
@@ -760,6 +763,7 @@ internal sealed class Parser {
         var completeIterations = 0;
 
         while (true) {
+            var startToken = current;
             var precedence = current.type.GetPrimaryPrecedence();
 
             if (precedence == 0 || precedence <= parentPrecedence)
@@ -767,7 +771,11 @@ internal sealed class Parser {
 
             var expression = ParseCorrectPrimaryOperator(operand);
             operand = ParsePrimaryOperatorExpression(expression, precedence);
+
             completeIterations++;
+
+            if (startToken == current)
+                Next();
         }
 
         if (completeIterations == 0 && operand is NameExpression ne && ne.identifier.isMissing)
