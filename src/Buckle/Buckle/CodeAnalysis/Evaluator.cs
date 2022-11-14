@@ -6,9 +6,11 @@ using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis;
 
+/// <summary>
+/// Evaluates statements as an interpreter, inline.
+/// </summary>
 internal sealed class Evaluator {
     private readonly BoundProgram program_;
-    internal BelteDiagnosticQueue diagnostics;
     private readonly Dictionary<VariableSymbol, object> globals_;
     private readonly Dictionary<FunctionSymbol, BoundBlockStatement> functions_ =
         new Dictionary<FunctionSymbol, BoundBlockStatement>();
@@ -16,8 +18,13 @@ internal sealed class Evaluator {
         new Stack<Dictionary<VariableSymbol, object>>();
     private object lastValue_;
     private Random random_;
-    internal bool hasPrint = false;
+    private bool hasPrint_ = false;
 
+    /// <summary>
+    /// Creates an evaluator that can evaluate a program (provided globals).
+    /// </summary>
+    /// <param name="program">Program</param>
+    /// <param name="globals">Globals</param>
     internal Evaluator(BoundProgram program, Dictionary<VariableSymbol, object> globals) {
         diagnostics = new BelteDiagnosticQueue();
         program_ = program;
@@ -33,6 +40,26 @@ internal sealed class Evaluator {
         }
     }
 
+    /// <summary>
+    /// If it has a Print statement, adds a line break to avoid formatting issues (mostly with the REPL).
+    /// </summary>
+    internal bool hasPrint {
+        get {
+            return hasPrint_;
+        } set {
+            hasPrint_ = value;
+        }
+    }
+
+    /// <summary>
+    /// Diagnostics specific to the evaluator.
+    /// </summary>
+    internal BelteDiagnosticQueue diagnostics { get; set; }
+
+    /// <summary>
+    /// Evaluate the provided program.
+    /// </summary>
+    /// <returns>Result of program (if applicable)</returns>
     internal object Evaluate() {
         var function = program_.mainFunction ?? program_.scriptFunction;
         if (function == null)
@@ -42,7 +69,7 @@ internal sealed class Evaluator {
         return EvaluateStatement(body);
     }
 
-    internal object EvaluateStatement(BoundBlockStatement statement) {
+    private object EvaluateStatement(BoundBlockStatement statement) {
         try {
             var labelToIndex = new Dictionary<BoundLabel, int>();
 
@@ -107,11 +134,11 @@ internal sealed class Evaluator {
         }
     }
 
-    internal void EvaluateExpressionStatement(BoundExpressionStatement statement) {
+    private void EvaluateExpressionStatement(BoundExpressionStatement statement) {
         lastValue_ = EvaluateExpression(statement.expression);
     }
 
-    internal void EvaluateVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
+    private void EvaluateVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
         var value = EvaluateExpression(statement.initializer);
         lastValue_ = null;
         Assign(statement.variable, value);
@@ -126,7 +153,7 @@ internal sealed class Evaluator {
         }
     }
 
-    internal object EvaluateExpression(BoundExpression node) {
+    private object EvaluateExpression(BoundExpression node) {
         if (node.constantValue != null)
             return EvaluateConstantExpression(node);
 
@@ -157,14 +184,14 @@ internal sealed class Evaluator {
         }
     }
 
-    internal object EvaluateIndexExpression(BoundIndexExpression node) {
+    private object EvaluateIndexExpression(BoundIndexExpression node) {
         var variable = EvaluateExpression(node.expression);
         var index = EvaluateExpression(node.index);
 
         return ((object[])variable)[(int)index];
     }
 
-    internal object EvaluateInitializerListExpression(BoundInitializerListExpression node) {
+    private object EvaluateInitializerListExpression(BoundInitializerListExpression node) {
         var builder = new List<object>();
 
         foreach (var item in node.items) {
@@ -175,7 +202,7 @@ internal sealed class Evaluator {
         return builder.ToArray();
     }
 
-    internal object EvaluateCastExpression(BoundCastExpression node) {
+    private object EvaluateCastExpression(BoundCastExpression node) {
         var value = EvaluateExpression(node.expression);
 
         if (value == null)
@@ -197,7 +224,7 @@ internal sealed class Evaluator {
         throw new Exception($"EvaluateCastExpression: unexpected type '{node.typeClause}'");
     }
 
-    internal object EvaluateCallExpression(BoundCallExpression node) {
+    private object EvaluateCallExpression(BoundCallExpression node) {
         if (MethodsMatch(node.function, BuiltinFunctions.Input)) {
             return Console.ReadLine();
         } else if (MethodsMatch(node.function, BuiltinFunctions.Print)) {
@@ -207,7 +234,7 @@ internal sealed class Evaluator {
         } else if (MethodsMatch(node.function, BuiltinFunctions.PrintLine)) {
             var message = (object)EvaluateExpression(node.arguments[0]);
             Console.WriteLine(message);
-        } else if (MethodsMatch(node.function, BuiltinFunctions.Randint)) {
+        } else if (MethodsMatch(node.function, BuiltinFunctions.RandInt)) {
             var max = (int)EvaluateExpression(node.arguments[0]);
 
             if (random_ == null)
@@ -275,11 +302,11 @@ internal sealed class Evaluator {
         return false;
     }
 
-    internal object EvaluateConstantExpression(BoundExpression syntax) {
+    private object EvaluateConstantExpression(BoundExpression syntax) {
         return syntax.constantValue.value;
     }
 
-    internal object EvaluateVariableExpression(BoundVariableExpression syntax) {
+    private object EvaluateVariableExpression(BoundVariableExpression syntax) {
         if (syntax.variable.type == SymbolType.GlobalVariable)
             return globals_[syntax.variable];
 
@@ -287,14 +314,14 @@ internal sealed class Evaluator {
         return locals[syntax.variable];
     }
 
-    internal object EvaluateAssignmentExpresion(BoundAssignmentExpression syntax) {
+    private object EvaluateAssignmentExpresion(BoundAssignmentExpression syntax) {
         var value = EvaluateExpression(syntax.expression);
         Assign(syntax.variable, value);
 
         return value;
     }
 
-    internal object EvaluateUnaryExpression(BoundUnaryExpression syntax) {
+    private object EvaluateUnaryExpression(BoundUnaryExpression syntax) {
         var operand = EvaluateExpression(syntax.operand);
 
         if (operand == null)
@@ -320,7 +347,7 @@ internal sealed class Evaluator {
         }
     }
 
-    internal object EvaluateBinaryExpression(BoundBinaryExpression syntax) {
+    private object EvaluateBinaryExpression(BoundBinaryExpression syntax) {
         var left = EvaluateExpression(syntax.left);
         var right = EvaluateExpression(syntax.right);
 

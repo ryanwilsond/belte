@@ -218,6 +218,23 @@ public sealed class BelteRepl : ReplBase {
         return true;
     }
 
+    private static void ClearSubmissions() {
+        var path = GetSubmissionsDirectory();
+
+        if (Directory.Exists(path))
+            Directory.Delete(GetSubmissionsDirectory(), true);
+    }
+
+    private static string GetSubmissionsDirectory() {
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var submissionsFolder = Path.Combine(localAppData, "Buckle", "Submissions");
+
+        if (!Directory.Exists(submissionsFolder))
+            Directory.CreateDirectory(submissionsFolder);
+
+        return submissionsFolder;
+    }
+
     private void RenderResult(object value) {
         if (value.GetType().IsArray) {
             writer_.Write("{ ");
@@ -249,13 +266,6 @@ public sealed class BelteRepl : ReplBase {
         File.WriteAllText(fileName, text);
     }
 
-    private static void ClearSubmissions() {
-        var path = GetSubmissionsDirectory();
-
-        if (Directory.Exists(path))
-            Directory.Delete(GetSubmissionsDirectory(), true);
-    }
-
     private void LoadSubmissions() {
         // TODO Make console handle null so evaluator does not print output?
         var files = Directory.GetFiles(GetSubmissionsDirectory()).OrderBy(f => f).ToArray();
@@ -274,16 +284,6 @@ public sealed class BelteRepl : ReplBase {
 
         state.loadingSubmissions = false;
         Console.SetOut(@out);
-    }
-
-    private static string GetSubmissionsDirectory() {
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var submissionsFolder = Path.Combine(localAppData, "Buckle", "Submissions");
-
-        if (!Directory.Exists(submissionsFolder))
-            Directory.CreateDirectory(submissionsFolder);
-
-        return submissionsFolder;
     }
 
     [MetaCommand("showTree", "Toggle to display parse tree of each input")]

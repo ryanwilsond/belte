@@ -595,7 +595,7 @@ internal class _Emitter {
     }
 
     private void EmitCallExpression(ILProcessor iLProcessor, BoundCallExpression expression) {
-        if (MethodsMatch(expression.function, BuiltinFunctions.Randint)) {
+        if (MethodsMatch(expression.function, BuiltinFunctions.RandInt)) {
             if (randomFieldDefinition_ == null)
                 EmitRandomField();
 
@@ -605,7 +605,7 @@ internal class _Emitter {
         foreach (var argument in expression.arguments)
             EmitExpression(iLProcessor, argument);
 
-        if (MethodsMatch(expression.function, BuiltinFunctions.Randint)) {
+        if (MethodsMatch(expression.function, BuiltinFunctions.RandInt)) {
             iLProcessor.Emit(OpCodes.Callvirt, methodReferences_[NetMethodReference.RandomNext]);
             return;
         }

@@ -962,7 +962,7 @@ public abstract class ReplBase {
         public override Encoding Encoding { get { return Encoding.ASCII; } }
 
         /// <summary>
-        /// Writes content to out without newline.
+        /// Writes content to out without line break.
         /// </summary>
         /// <param name="output">What to write</param>
         public override void Write(string output) {
@@ -970,7 +970,7 @@ public abstract class ReplBase {
         }
 
         /// <summary>
-        /// Writes content to out with a newline placed after the content.
+        /// Writes content to out with a line break placed after the content.
         /// </summary>
         /// <param name="output">What to write</param>
         public override void WriteLine(string output) {
@@ -978,7 +978,7 @@ public abstract class ReplBase {
         }
 
         /// <summary>
-        /// Writes a newline.
+        /// Writes a line break.
         /// </summary>
         public override void WriteLine() {
             Console.WriteLine();
@@ -1006,15 +1006,15 @@ public abstract class ReplBase {
     }
 
     private sealed class MetaCommand {
-        public string name { get; }
-        public string description { get; set; }
-        public MethodInfo method { get; }
-
         public MetaCommand(string name_, string description_, MethodInfo method_) {
             name = name_;
             method = method_;
             description = description_;
         }
+
+        public string name { get; }
+        public string description { get; set; }
+        public MethodInfo method { get; }
     }
 
     private sealed class SubmissionView {
@@ -1025,6 +1025,16 @@ public abstract class ReplBase {
         private int currentLine_;
         private int currentCharacter_;
         private OutputCapture writer_;
+
+        internal SubmissionView(
+            LineRenderHandler lineRenderer, ObservableCollection<string> document, OutputCapture writer) {
+            lineRenderer_ = lineRenderer;
+            document_ = document;
+            document_.CollectionChanged += SubmissionDocumentChanged;
+            cursorTop_ = Console.CursorTop;
+            writer_ = writer;
+            Render();
+        }
 
         internal int currentLine {
             get => currentLine_;
@@ -1049,16 +1059,6 @@ public abstract class ReplBase {
 
         internal Stack<(char, int)> currentBlockTabbing = new Stack<(char, int)>();
         internal int currentTypingTabbing = 0;
-
-        internal SubmissionView(
-            LineRenderHandler lineRenderer, ObservableCollection<string> document, OutputCapture writer) {
-            lineRenderer_ = lineRenderer;
-            document_ = document;
-            document_.CollectionChanged += SubmissionDocumentChanged;
-            cursorTop_ = Console.CursorTop;
-            writer_ = writer;
-            Render();
-        }
 
         private void SubmissionDocumentChanged(object sender, NotifyCollectionChangedEventArgs e) {
             Render();
