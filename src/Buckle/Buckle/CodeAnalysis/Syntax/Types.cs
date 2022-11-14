@@ -7,6 +7,9 @@ using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
+/// <summary>
+/// All types of things to be found in a source file.
+/// </summary>
 internal enum SyntaxType {
     END_OF_FILE_TOKEN,
 
@@ -139,10 +142,27 @@ internal enum SyntaxType {
     COMPILATION_UNIT,
 }
 
+/// <summary>
+/// Base building block of all things.
+/// </summary>
 internal abstract class Node {
+    protected Node(SyntaxTree syntaxTree_) {
+        syntaxTree = syntaxTree_;
+    }
+
+    /// <summary>
+    /// Type of node (see SyntaxType).
+    /// </summary>
     internal abstract SyntaxType type { get; }
+
+    /// <summary>
+    /// Syntax tree this node resides in.
+    /// </summary>
     internal SyntaxTree syntaxTree { get; }
 
+    /// <summary>
+    /// Span of where the node is in the source text (not including line break).
+    /// </summary>
     internal virtual TextSpan span {
         get {
             if (GetChildren().ToArray().Length == 0)
@@ -154,6 +174,9 @@ internal abstract class Node {
         }
     }
 
+    /// <summary>
+    /// Span of where the node is in the source text (including line break).
+    /// </summary>
     internal virtual TextSpan fullSpan {
         get {
             if (GetChildren().ToArray().Length == 0)
@@ -165,16 +188,45 @@ internal abstract class Node {
         }
     }
 
-    protected Node(SyntaxTree syntaxTree_) {
-        syntaxTree = syntaxTree_;
-    }
-
+    /// <summary>
+    /// Location of where the node is in the source text.
+    /// </summary>
     internal TextLocation location => syntaxTree == null ? null : new TextLocation(syntaxTree.text, span);
 
+    /// <summary>
+    /// Gets all child nodes.
+    /// Order should be consistent of how they look in a file, but calling code should not depend on that.
+    /// </summary>
     internal abstract IEnumerable<Node> GetChildren();
 
+    /// <summary>
+    /// Text representation of node (including all child nodes, recursive).
+    /// </summary>
+    /// <returns>Text representation</returns>
+    public override string ToString() {
+        using (var writer = new StringWriter()) {
+            WriteTo(writer);
+            return writer.ToString();
+        }
+    }
+
+    /// <summary>
+    /// Write text representation of this node to an out.
+    /// </summary>
+    /// <param name="writer">Out</param>
     internal void WriteTo(TextWriter writer) {
         PrettyPrint(writer, this);
+    }
+
+    /// <summary>
+    /// Gets last token (of all children, recursive) under this node.
+    /// </summary>
+    /// <returns>Last token</returns>
+    internal Token GetLastToken() {
+        if (this is Token t)
+            return t;
+
+        return GetChildren().Last().GetLastToken();
     }
 
     private void PrettyPrint(TextWriter writer, Node node, string indent = "", bool isLast = true) {
@@ -229,29 +281,66 @@ internal abstract class Node {
         foreach (var child in node.GetChildren())
             PrettyPrint(writer, child, indent, child == lastChild);
     }
-
-    public override string ToString() {
-        using (var writer = new StringWriter()) {
-            WriteTo(writer);
-            return writer.ToString();
-        }
-    }
-
-    internal Token GetLastToken() {
-        if (this is Token t)
-            return t;
-
-        return GetChildren().Last().GetLastToken();
-    }
 }
 
+/// <summary>
+/// Token type.
+/// </summary>
 internal sealed class Token : Node {
+    /// <summary>
+    /// Creates a token.
+    /// </summary>
+    /// <param name="syntaxTree">Syntax tree this node resides in</param>
+    /// <param name="type">Syntax type of token</param>
+    /// <param name="position">Position of token (indexed by the node, not character in source text)</param>
+    /// <param name="text">Text related to token (if applicable)</param>
+    /// <param name="value">Value related to token (if applicable)</param>
+    /// <param name="leadingTrivia">Trivia before token (anything)</param>
+    /// <param name="trailingTrivia">Trivia after token (same line)</param>
+    internal Token(SyntaxTree syntaxTree, SyntaxType type, int position, string text, object value,
+        ImmutableArray<SyntaxTrivia> leadingTrivia, ImmutableArray<SyntaxTrivia> trailingTrivia)
+        : base(syntaxTree) {
+        this.type = type;
+        this.position = position;
+        this.text = text;
+        this.value = value;
+        this.leadingTrivia = leadingTrivia;
+        this.trailingTrivia = trailingTrivia;
+    }
+
+    /// <summary>
+    /// Type of node (see SyntaxType).
+    /// </summary>
     internal override SyntaxType type { get; }
+
+    /// <summary>
+    /// Position of token (indexed by the node, not character in source text).
+    /// </summary>
     internal int position { get; }
+
+    /// <summary>
+    /// Text related to token (if applicable).
+    /// </summary>
     internal string text { get; }
+
+    /// <summary>
+    /// Value related to token (if applicable).
+    /// </summary>
     internal object value { get; }
+
+    /// <summary>
+    /// If token was created artificially, or if it came from the source text.
+    /// </summary>
     internal bool isMissing => text == null;
+
+    /// <summary>
+    /// Span of where the node is in the source text (not including line break).
+    /// </summary>
     internal override TextSpan span => new TextSpan(position, text?.Length ?? 0);
+
+    /// <summary>
+    /// Span of where the node is in the source text (including line break).
+    /// </summary>
     internal override TextSpan fullSpan {
         get {
             var start = leadingTrivia.Length == 0 ? span.start : leadingTrivia.First().span.start;
@@ -259,25 +348,26 @@ internal sealed class Token : Node {
             return TextSpan.FromBounds(start, end);
         }
     }
+
+    /// <summary>
+    /// Trivia before token (anything).
+    /// </summary>
     internal ImmutableArray<SyntaxTrivia> leadingTrivia { get; }
+
+    /// <summary>
+    /// Trivia after token (same line).
+    /// </summary>
     internal ImmutableArray<SyntaxTrivia> trailingTrivia { get; }
 
-    internal Token(SyntaxTree syntaxTree, SyntaxType type_, int position_, string text_, object value_,
-        ImmutableArray<SyntaxTrivia> leadingTrivia_, ImmutableArray<SyntaxTrivia> trailingTrivia_)
-        : base(syntaxTree) {
-        type = type_;
-        position = position_;
-        text = text_;
-        value = value_;
-        leadingTrivia = leadingTrivia_;
-        trailingTrivia = trailingTrivia_;
-    }
-
+    /// <summary>
+    /// Gets all child nodes, which is none.
+    /// </summary>
     internal override IEnumerable<Node> GetChildren() {
         return Array.Empty<Node>();
     }
 }
 
+// TODO Here is where left off (need to do Lexer, ExpressionTypes, Parser, StatementTypes, Emitting and Binding)
 internal sealed partial class CompilationUnit : Node {
     internal ImmutableArray<Member> members { get; }
     internal Token endOfFile { get; }
