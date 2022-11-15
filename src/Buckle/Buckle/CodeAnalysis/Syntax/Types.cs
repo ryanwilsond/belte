@@ -367,54 +367,150 @@ internal sealed class Token : Node {
     }
 }
 
-// TODO Here is where left off (need to do Lexer, ExpressionTypes, Parser, StatementTypes, Emitting and Binding)
+/// <summary>
+/// A node representing a source file, the root node of a syntax tree.
+/// </summary>
 internal sealed partial class CompilationUnit : Node {
-    internal ImmutableArray<Member> members { get; }
-    internal Token endOfFile { get; }
-    internal override SyntaxType type => SyntaxType.COMPILATION_UNIT;
-
-    internal CompilationUnit(SyntaxTree syntaxTree, ImmutableArray<Member> members_, Token endOfFile_)
+    /// <summary>
+    /// Creates a compilation unit.
+    /// </summary>
+    /// <param name="syntaxTree">Syntax tree this node resides in</param>
+    /// <param name="members">The top level nodes (global)</param>
+    /// <param name="endOfFile">EOF token</param>
+    internal CompilationUnit(SyntaxTree syntaxTree, ImmutableArray<Member> members, Token endOfFile)
         : base(syntaxTree) {
-        members = members_;
-        endOfFile = endOfFile_;
+        this.members = members;
+        this.endOfFile = endOfFile;
     }
+
+    /// <summary>
+    /// The top level nodes (global) in the source file.
+    /// </summary>
+    internal ImmutableArray<Member> members { get; }
+
+    /// <summary>
+    /// EOF token.
+    /// </summary>
+    internal Token endOfFile { get; }
+
+    /// <summary>
+    /// Type of node (see SyntaxType).
+    /// </summary>
+    internal override SyntaxType type => SyntaxType.COMPILATION_UNIT;
 }
 
+/// <summary>
+/// All trivia: comments and whitespace. Text that does not affect compilation.
+/// </summary>
 internal sealed class SyntaxTrivia {
-    internal SyntaxTree syntaxTree { get; }
-    internal SyntaxType type { get; }
-    internal int position { get; }
-    internal TextSpan span => new TextSpan(position, text?.Length ?? 0);
-    internal string text { get; }
-
-    internal SyntaxTrivia(SyntaxTree syntaxTree_, SyntaxType type_, int position_, string text_) {
-        syntaxTree = syntaxTree_;
-        position = position_;
-        type = type_;
-        text = text_;
+    /// <summary>
+    /// Creates a syntax trivia.
+    /// </summary>
+    /// <param name="syntaxTree">Syntax tree this trivia resides in</param>
+    /// <param name="type">Type of syntax trivia</param>
+    /// <param name="position">Position of the trivia (indexed by nodes, not by character)</param>
+    /// <param name="text">Text associated with the trivia</param>
+    internal SyntaxTrivia(SyntaxTree syntaxTree, SyntaxType type, int position, string text) {
+        this.syntaxTree = syntaxTree;
+        this.position = position;
+        this.type = type;
+        this.text = text;
     }
+
+    /// <summary>
+    /// Syntax tree this trivia resides in.
+    /// </summary>
+    internal SyntaxTree syntaxTree { get; }
+
+    /// <summary>
+    /// The type of syntax trivia.
+    /// </summary>
+    internal SyntaxType type { get; }
+
+    /// <summary>
+    /// The position of the trivia.
+    /// </summary>
+    internal int position { get; }
+
+    /// <summary>
+    /// The span of where the trivia is in the source text.
+    /// </summary>
+    internal TextSpan span => new TextSpan(position, text?.Length ?? 0);
+
+    /// <summary>
+    /// Text associated with the trivia.
+    /// </summary>
+    internal string text { get; }
 }
 
+/// <summary>
+/// A type clause, includes array dimensions, type name, and attributes.
+/// </summary>
 internal sealed class TypeClause : Node {
+    /// <summary>
+    /// Creates a type clause.
+    /// </summary>
+    /// <param name="syntaxTree">Syntax tree this node resides in</param>
+    /// <param name="attributes">Simple flag modifiers on a type (e.g. [NotNull])</param>
+    /// <param name="constRefKeyword">Const keyword referring to a constant reference type</param>
+    /// <param name="refKeyword">Ref keyword referring to a reference type</param>
+    /// <param name="constKeyword">Const keyword referring to a constant type</param>
+    /// <param name="typeName">Type name</param>
+    /// <param name="brackets">Brackets, determine array dimensions</param>
+    internal TypeClause(SyntaxTree syntaxTree, ImmutableArray<(Token, Token, Token)> attributes,
+        Token constRefKeyword, Token refKeyword, Token constKeyword, Token typeName,
+        ImmutableArray<(Token, Token)> brackets) : base(syntaxTree) {
+        this.attributes = attributes;
+        this.constRefKeyword = constRefKeyword;
+        this.refKeyword = refKeyword;
+        this.constKeyword = constKeyword;
+        this.typeName = typeName;
+        this.brackets = brackets;
+    }
+
+    /// <summary>
+    /// Simple flag modifiers on a type.
+    /// </summary>
+    /// <param name="openBracket">Open square bracket token</param>
+    /// <param name="identifier">Name of the attribute</param>
+    /// <param name="closeBracket">Close square bracket token</param>
     internal ImmutableArray<(Token openBracket, Token identifier, Token closeBracket)> attributes { get; }
+
+    /// <summary>
+    /// Const keyword referring to a constant reference type, only valid if the refKeyword field is also set.
+    /// </summary>
     internal Token? constRefKeyword { get; }
+
+    /// <summary>
+    /// Ref keyword referring to a reference type.
+    /// </summary>
     internal Token? refKeyword { get; }
+
+    /// <summary>
+    /// Const keyword referring to a constant type.
+    /// </summary>
     internal Token? constKeyword { get; }
+
+    /// <summary>
+    /// Type name of the type.
+    /// </summary>
     internal Token typeName { get; }
+
+    /// <summary>
+    /// Brackets defining array dimensions ([] -> 1 dimension, [][] -> 2 dimensions).
+    /// </summary>
+    /// <param name="openBracket">Open square bracket token</param>
+    /// <param name="closeBracket">Close square bracket token</param>
     internal ImmutableArray<(Token openBracket, Token closeBracket)> brackets { get; }
+
+    /// <summary>
+    /// Type of node (see SyntaxType).
+    /// </summary>
     internal override SyntaxType type => SyntaxType.TYPE_CLAUSE;
 
-    internal TypeClause(SyntaxTree syntaxTree, ImmutableArray<(Token, Token, Token)> attributes_,
-        Token constRefKeyword_, Token refKeyword_, Token constKeyword_, Token typeName_,
-        ImmutableArray<(Token, Token)> brackets_) : base(syntaxTree) {
-        attributes = attributes_;
-        constRefKeyword = constRefKeyword_;
-        refKeyword = refKeyword_;
-        constKeyword = constKeyword_;
-        typeName = typeName_;
-        brackets = brackets_;
-    }
-
+    /// <summary>
+    /// Gets all child nodes.
+    /// </summary>
     internal override IEnumerable<Node> GetChildren() {
         foreach (var attribute in attributes) {
             yield return attribute.openBracket;
