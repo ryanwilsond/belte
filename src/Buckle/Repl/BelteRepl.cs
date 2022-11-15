@@ -196,7 +196,7 @@ public sealed class BelteRepl : ReplBase {
             return true;
 
         var twoBlankTines = text.Split(Environment.NewLine).Reverse()
-            .TakeWhile(s => String.IsNullOrEmpty(s))
+            .TakeWhile(s => (String.IsNullOrEmpty(s) || String.IsNullOrWhiteSpace(s)))
             .Take(2)
             .Count() == 2;
 

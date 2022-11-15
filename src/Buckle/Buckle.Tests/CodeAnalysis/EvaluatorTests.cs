@@ -672,18 +672,32 @@ public class EvaluatorTests {
         AssertDiagnostics(text, diagnostics);
     }
 
-    // [Fact]
-    // public void Evaluator_Function_CanDeclare() {
-    //     var text = @"
-    //         int myFunction(int num1, int num2) {
-    //             Print(num1 + num2 / 3.14159);
-    //         }
-    //     ";
+    [Fact]
+    public void Evaluator_Function_CanDeclare() {
+        var text = @"
+            int myFunction(int num1, int num2) {
+                Print(num1 + num2 / 3.14159);
+            }
+        ";
 
-    //     var diagnostics = @"";
+        var diagnostics = @"";
 
-    //     AssertDiagnostics(text, diagnostics);
-    // }
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Function_CanCall() {
+        var text = @"
+            int myFunction(int num) {
+                Print(num ** 2);
+            }
+            myFunction(2);
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics);
+    }
 
     [Fact]
     public void Evaluator_CallExpression_ExpectedCloseParenthesis() {

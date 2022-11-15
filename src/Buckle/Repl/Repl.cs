@@ -163,7 +163,6 @@ public abstract class ReplBase {
         var document = new ObservableCollection<string>() { "" };
         var view = new SubmissionView(RenderLine, document, writer_);
 
-
         while (!done_) {
             // Allow ctrl + c to exit at all times except getting user input
             // This allows custom behavior, but still keeps ctrl + c protection if app freezes
@@ -172,7 +171,6 @@ public abstract class ReplBase {
             Console.TreatControlCAsInput = false;
             HandleKey(key, document, view);
         }
-
 
         view.currentLine = document.Count - 1;
         view.currentCharacter = document[view.currentLine].Length;
