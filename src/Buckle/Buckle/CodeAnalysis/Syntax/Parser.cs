@@ -2,63 +2,22 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Text;
-using System;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
+/// <summary>
+/// Lexes then parses text into a tree of nodes, in doing so doing syntax checking.
+/// </summary>
 internal sealed class Parser {
     private readonly ImmutableArray<Token> tokens_;
-    private int position_;
     private readonly SourceText text_;
     private readonly SyntaxTree syntaxTree_;
+    private int position_;
 
-    internal BelteDiagnosticQueue diagnostics;
-
-    private Token Match(SyntaxType type, SyntaxType? nextWanted = null, bool suppressErrors = false) {
-        if (current.type == type)
-            return Next();
-
-        if (nextWanted != null && current.type == nextWanted) {
-            if (!suppressErrors)
-                diagnostics.Push(Error.ExpectedToken(current.location, type));
-
-            return new Token(syntaxTree_, type, current.position,
-                null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
-        } else if (Peek(1).type != type) {
-            if (!suppressErrors)
-                diagnostics.Push(Error.UnexpectedToken(current.location, current.type, type));
-
-            return new Token(syntaxTree_, type, current.position,
-                null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
-        } else {
-            if (!suppressErrors)
-                diagnostics.Push(Error.UnexpectedToken(current.location, current.type));
-
-            position_++;
-            Token cur = current;
-            position_++;
-
-            return cur;
-        }
-    }
-
-    private Token Next() {
-        Token cur = current;
-        position_++;
-        return cur;
-    }
-
-    private Token Peek(int offset) {
-        int index = position_ + offset;
-
-        if (index >= tokens_.Length)
-            return tokens_[tokens_.Length - 1];
-
-        return tokens_[index];
-    }
-
-    private Token current => Peek(0);
-
+    /// <summary>
+    /// Creates a new parser, requiring a fully initialized syntax tree.
+    /// </summary>
+    /// <param name="syntaxTree">Syntax tree to parse from</param>
     internal Parser(SyntaxTree syntaxTree) {
         diagnostics = new BelteDiagnosticQueue();
         var tokens = new List<Token>();
@@ -103,10 +62,67 @@ internal sealed class Parser {
         diagnostics.Move(lexer.diagnostics);
     }
 
+    /// <summary>
+    /// Diagnostics produced during the parsing process.
+    /// </summary>
+    internal BelteDiagnosticQueue diagnostics { get; set; }
+
+    private Token current => Peek(0);
+
+    /// <summary>
+    /// Parses the entirety of a single file.
+    /// </summary>
+    /// <returns>The parsed file</returns>
     internal CompilationUnit ParseCompilationUnit() {
         var members = ParseMembers();
         var endOfFile = Match(SyntaxType.END_OF_FILE_TOKEN);
         return new CompilationUnit(syntaxTree_, members, endOfFile);
+    }
+
+    private Token Match(SyntaxType type, SyntaxType? nextWanted = null, bool suppressErrors = false) {
+        if (current.type == type)
+            return Next();
+
+        if (nextWanted != null && current.type == nextWanted) {
+            if (!suppressErrors)
+                diagnostics.Push(Error.ExpectedToken(current.location, type));
+
+            return new Token(syntaxTree_, type, current.position,
+                null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
+        } else if (Peek(1).type != type) {
+            if (!suppressErrors)
+                diagnostics.Push(Error.UnexpectedToken(current.location, current.type, type));
+
+            Token cur = current;
+            position_++;
+
+            return new Token(syntaxTree_, type, cur.position,
+                null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
+        } else {
+            if (!suppressErrors)
+                diagnostics.Push(Error.UnexpectedToken(current.location, current.type));
+
+            position_++;
+            Token cur = current;
+            position_++;
+
+            return cur;
+        }
+    }
+
+    private Token Next() {
+        Token cur = current;
+        position_++;
+        return cur;
+    }
+
+    private Token Peek(int offset) {
+        int index = position_ + offset;
+
+        if (index >= tokens_.Length)
+            return tokens_[tokens_.Length - 1];
+
+        return tokens_[index];
     }
 
     private ImmutableArray<Member> ParseMembers() {
@@ -760,6 +776,7 @@ internal sealed class Parser {
         var completeIterations = 0;
 
         while (true) {
+            var startToken = current;
             var precedence = current.type.GetPrimaryPrecedence();
 
             if (precedence == 0 || precedence <= parentPrecedence)
@@ -767,7 +784,11 @@ internal sealed class Parser {
 
             var expression = ParseCorrectPrimaryOperator(operand);
             operand = ParsePrimaryOperatorExpression(expression, precedence);
+
             completeIterations++;
+
+            if (startToken == current)
+                Next();
         }
 
         if (completeIterations == 0 && operand is NameExpression ne && ne.identifier.isMissing)

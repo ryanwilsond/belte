@@ -5,7 +5,15 @@ using Buckle.CodeAnalysis.Binding;
 
 namespace Buckle.IO;
 
+/// <summary>
+/// Prints a symbol.
+/// </summary>
 internal static class SymbolPrinter {
+    /// <summary>
+    /// Writes a single symbol.
+    /// </summary>
+    /// <param name="symbol">Symbol to print (not modified)</param>
+    /// <param name="writer">Where to write to (out)</param>
     internal static void WriteTo(this Symbol symbol, TextWriter writer) {
         switch (symbol.type) {
             case SymbolType.Function:

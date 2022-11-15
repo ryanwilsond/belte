@@ -6,6 +6,10 @@ using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
+/// <summary>
+/// Converts source text into parsable tokens.
+/// E.g. int myInt; -> IdentiferToken IdentifierToken SemicolonToken
+/// </summary>
 internal sealed class Lexer {
     private readonly SourceText text_;
     private int position_;
@@ -13,26 +17,29 @@ internal sealed class Lexer {
     private SyntaxType type_;
     private object value_;
     private SyntaxTree syntaxTree_;
+    private char current => Peek(0);
+    private char lookahead => Peek(1);
     private ImmutableArray<SyntaxTrivia>.Builder triviaBuilder_ = ImmutableArray.CreateBuilder<SyntaxTrivia>();
-    internal BelteDiagnosticQueue diagnostics = new BelteDiagnosticQueue();
 
+    /// <summary>
+    /// Creates a new lexer, requires a fully initialized syntax tree.
+    /// </summary>
+    /// <param name="syntaxTree">Syntax tree to lex from</param>
     internal Lexer(SyntaxTree syntaxTree) {
         text_ = syntaxTree.text;
         syntaxTree_ = syntaxTree;
+        diagnostics = new BelteDiagnosticQueue();
     }
 
-    private char Peek(int offset) {
-        int index = position_ + offset;
+    /// <summary>
+    /// Diagnostics produced during lexing process
+    /// </summary>
+    internal BelteDiagnosticQueue diagnostics { get; set; }
 
-        if (index >= text_.length)
-            return '\0';
-
-        return text_[index];
-    }
-
-    private char current => Peek(0);
-    private char lookahead => Peek(1);
-
+    /// <summary>
+    /// Lexes the next un-lexed text to create a single token.
+    /// </summary>
+    /// <returns>A new token</returns>
     internal Token LexNext() {
         ReadTrivia(true);
         var leadingTrivia = triviaBuilder_.ToImmutable();
@@ -52,6 +59,15 @@ internal sealed class Lexer {
             tokenText = text_.ToString(tokenStart, tokenLength);
 
         return new Token(syntaxTree_, tokenType, tokenStart, tokenText, tokenValue, leadingTrivia, trailingTrivia);
+    }
+
+    private char Peek(int offset) {
+        int index = position_ + offset;
+
+        if (index >= text_.length)
+            return '\0';
+
+        return text_[index];
     }
 
     private void ReadTrivia(bool leading) {

@@ -7,7 +7,15 @@ using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.IO;
 
+/// <summary>
+/// Writes user friendly representation of bound nodes.
+/// </summary>
 internal static class BoundNodePrinter {
+    /// <summary>
+    /// Writes a single bound node.
+    /// </summary>
+    /// <param name="node">Bound node to print (not modified)</param>
+    /// <param name="writer">Where to write to (out)</param>
     internal static void WriteTo(this BoundNode node, TextWriter writer) {
         if (writer is IndentedTextWriter iw)
             WriteTo(node, iw);
@@ -15,6 +23,11 @@ internal static class BoundNodePrinter {
             WriteTo(node, new IndentedTextWriter(writer));
     }
 
+    /// <summary>
+    /// Writes a single bound type clause.
+    /// </summary>
+    /// <param name="type">Bound type clause to print (not modified)</param>
+    /// <param name="writer">Where to write to (out)</param>
     internal static void WriteTypeClause(BoundTypeClause type, TextWriter writer) {
         writer.WriteType(type.BaseType().ToString());
         var brackets = "";
@@ -25,6 +38,11 @@ internal static class BoundNodePrinter {
         writer.WritePunctuation(brackets);
     }
 
+    /// <summary>
+    /// Writes a single bound node using an indented writer.
+    /// </summary>
+    /// <param name="node">Bound node to print (not modified)</param>
+    /// <param name="writer">Where to write to with indentation (out)</param>
     internal static void WriteTo(this BoundNode node, IndentedTextWriter writer) {
         switch (node.type) {
             case BoundNodeType.UnaryExpression:

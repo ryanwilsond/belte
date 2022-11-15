@@ -2,6 +2,9 @@ using System.Collections;
 
 namespace Diagnostics;
 
+/// <summary>
+/// Severity of diagnostic, does not effect how the DiagnosticQueue interacts with them.
+/// </summary>
 public enum DiagnosticType {
     Error,
     Warning,
@@ -9,82 +12,169 @@ public enum DiagnosticType {
     Unknown,
 }
 
+/// <summary>
+/// Information about a diagnostic including severity (see DiagnosticType), code, and module.
+/// </summary>
 public sealed class DiagnosticInfo {
-    public DiagnosticType severity { get; }
-    public int? code { get; }
-    public string module { get; }
-
+    /// <summary>
+    /// Creates an empty DiagnosticInfo (severity is set to DiagnosticType.Unknown).
+    /// </summary>
     public DiagnosticInfo() {
         code = null;
         module = null;
         severity = DiagnosticType.Unknown;
     }
 
-    public DiagnosticInfo(int code_, string module_) {
-        code = code_;
-        module = module_;
-        severity = DiagnosticType.Unknown;
+    /// <summary>
+    /// Creates a new DiagnosticInfo (severity is set to DiagnosticType.Unknown).
+    /// </summary>
+    /// <param name="code">User defined code for what caused the diagnostic</param>
+    /// <param name="module">What module of code produced the diagnostic (user defined)</param>
+    public DiagnosticInfo(int code, string module) {
+        this.code = code;
+        this.module = module;
+        this.severity = DiagnosticType.Unknown;
     }
-
-    public DiagnosticInfo(DiagnosticType severity_) {
-        code = null;
-        severity = severity_;
-    }
-
-    public DiagnosticInfo(int code_, string module_, DiagnosticType severity_) {
-        code = code_;
-        module = module_;
-        severity = severity_;
-    }
-}
-
-public class Diagnostic {
-    public DiagnosticInfo info { get; }
-    public string message { get; }
-    public string suggestion { get; }
 
     /// <summary>
-    /// A diagnostic message with a specific location
+    /// Creates am empty DiagnosticInfo with a severity.
     /// </summary>
-    /// <param name="info_">Severity and code of diagnostic</param>
-    /// <param name="message_">Message/info on the diagnostic</param>
-    /// <param name="suggestion_">A possible solution to the problem</param>
-    public Diagnostic(
-        DiagnosticInfo info_, string message_, string suggestion_) {
-        info = info_;
-        message = message_;
-        suggestion = suggestion_;
+    /// <param name="severity">Severity of diagnostic (see DiagnosticType)</param>
+    public DiagnosticInfo(DiagnosticType severity) {
+        code = null;
+        this.severity = severity;
     }
 
+    /// <summary>
+    /// Creates a new DiagnosticInfo.
+    /// </summary>
+    /// <param name="code">User defined code for what caused the diagnostic</param>
+    /// <param name="module">What module of code produced the diagnostic (user defined)</param>
+    /// <param name="severity">Severity of diagnostic (see DiagnosticType)</param>
+    public DiagnosticInfo(int code, string module, DiagnosticType severity) {
+        this.code = code;
+        this.module = module;
+        this.severity = severity;
+    }
+
+    /// <summary>
+    /// The severity of this diagnostic (see DiagnosticType).
+    /// </summary>
+    public DiagnosticType severity { get; }
+
+    /// <summary>
+    /// The user defined code to describe what caused this diagnostic.
+    /// </summary>
+    public int? code { get; }
+
+    /// <summary>
+    /// What module of code produced this diagnostic.
+    /// </summary>
+    public string module { get; }
+}
+
+/// <summary>
+/// A message that needs to be tracked about the execution of the program.
+/// Usually indicates either an issue, or a warning to be logged or displayed to the user.
+/// </summary>
+public class Diagnostic {
+    /// <summary>
+    /// Creates a diagnostic.
+    /// </summary>
+    /// <param name="info">Severity and code of diagnostic</param>
+    /// <param name="message">Message/info on the diagnostic</param>
+    /// <param name="suggestion">A possible solution to the problem</param>
+    public Diagnostic(
+        DiagnosticInfo info, string message, string suggestion) {
+        this.info = info;
+        this.message = message;
+        this.suggestion = suggestion;
+    }
+
+    /// <summary>
+    /// Creates a diagnostic without a suggestion.
+    /// </summary>
+    /// <param name="info">Severity and code of diagnostic</param>
+    /// <param name="message">Message/info on the diagnostic</param>
     public Diagnostic(DiagnosticInfo info, string message)
         : this(info, message, null) { }
 
+    /// <summary>
+    /// Creates a diagnostic with a DiagnosticType instead of DiagnosticInfo (no suggestion).
+    /// </summary>
+    /// <param name="type">Severity of diagnostic (see DiagnosticType)</param>
+    /// <param name="message">Message/info on the diagnostic</param>
     public Diagnostic(DiagnosticType type, string message)
         : this(new DiagnosticInfo(type), message, null) { }
-}
-
-public class DiagnosticQueue<Type> where Type : Diagnostic {
-    internal List<Type> diagnostics_;
-    public int count => diagnostics_.Count;
-    public bool Any() => diagnostics_.Any();
-
-    public IEnumerator GetEnumerator() => diagnostics_.GetEnumerator();
-    public Diagnostic[] ToArray() => diagnostics_.ToArray();
 
     /// <summary>
-    /// Queue structure for organizing diagnostics
+    /// Information about the diagnostic including severity, code, and module.
+    /// </summary>
+    public DiagnosticInfo info { get; }
+
+    /// <summary>
+    /// The message given with the diagnostic.
+    /// If the diagnostic is shown to the user this is usually the message they see.
+    /// </summary>
+    public string message { get; }
+
+    /// <summary>
+    /// A suggestion message to help guide a possible fix to the problem.
+    /// </summary>
+    public string suggestion { get; }
+}
+
+/// <summary>
+/// A queue style data structure that handles storing and retrieving many diagnostics.
+/// </summary>
+/// <typeparam name="Type">The type of diagnostic to store</typeparam>
+public class DiagnosticQueue<Type> where Type : Diagnostic {
+    /// <summary>
+    /// Diagnostics in queue currently.
+    /// Queue is a wrapper to simulate a list, but internal representation of diagnostics is a list.
+    /// </summary>
+    internal List<Type> diagnostics_;
+
+    /// <summary>
+    /// Creates an empty DiagnosticQueue (no diagnostics)
     /// </summary>
     public DiagnosticQueue() {
         diagnostics_ = new List<Type>();
     }
 
-    /// <param name="diagnostics">Initialize with enumerable</param>
+    /// <summary>
+    /// Creates a DiagnosticQueue with items (ordered from oldest -> newest).
+    /// </summary>
+    /// <param name="diagnostics">Initialize with enumerable (copy)</param>
     public DiagnosticQueue(IEnumerable<Type> diagnostics) {
         diagnostics_ = diagnostics.ToList();
     }
 
     /// <summary>
-    /// Checks if any diagnostics of given type
+    /// How many diagnostics are currently stored in the queue.
+    /// </summary>
+    public int count => diagnostics_.Count;
+
+    /// <summary>
+    /// Checks for any diagnostics in the queue.
+    /// </summary>
+    /// <returns>True if there are at least 1 diagnostic in the queue</returns>
+    public bool Any() => diagnostics_.Any();
+
+    /// <summary>
+    /// Gets an enumerator for the queue collection (sidestepping the queue structure).
+    /// </summary>
+    /// <returns>The enumerator for the queue as if it were a list</returns>
+    public IEnumerator GetEnumerator() => diagnostics_.GetEnumerator();
+
+    /// <summary>
+    /// Converts the queue into an array (ordered from oldest -> newest item added to queue).
+    /// </summary>
+    /// <returns>Array copy of the queue (not a reference)</returns>
+    public Diagnostic[] ToArray() => diagnostics_.ToArray();
+
+    /// <summary>
+    /// Checks if any diagnostics of given type.
     /// </summary>
     /// <param name="type">Type to check for, ignores all other diagnostics</param>
     /// <returns>If any diagnostics of type</returns>
@@ -93,7 +183,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     }
 
     /// <summary>
-    /// Pushes a diagnostic onto the queue
+    /// Pushes a diagnostic onto the queue.
     /// </summary>
     /// <param name="diagnostic">Diagnostic to copy onto the queue</param>
     public void Push(Type diagnostic) {
@@ -102,7 +192,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     }
 
     /// <summary>
-    /// Pushes a diagnostic to the front of the queue
+    /// Pushes a diagnostic to the front of the queue.
     /// </summary>
     /// <param name="diagnostic">Diagnostic to copy onto the queue</param>
     public void PushToFront(Type diagnostic) {
@@ -111,7 +201,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     }
 
     /// <summary>
-    /// Pops all diagnostics off queue and pushes them onto this
+    /// Pops all diagnostics off queue and pushes them onto this.
     /// </summary>
     /// <param name="diagnosticQueue">Queue to pop and copy from</param>
     public void Move(DiagnosticQueue<Type> diagnosticQueue) {
@@ -126,7 +216,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     }
 
     /// <summary>
-    /// Pops all diagnostics off all queues and pushes them onto this
+    /// Pops all diagnostics off all queues and pushes them onto this.
     /// </summary>
     /// <param name="diagnosticQueues">Queues to pop and copy from</param>
     public void MoveMany(IEnumerable<DiagnosticQueue<Type>> diagnosticQueues) {
@@ -138,7 +228,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     }
 
     /// <summary>
-    /// Removes first diagnostic
+    /// Removes first diagnostic.
     /// </summary>
     /// <returns>First diagnostic on the queue</returns>
     public Type? Pop() {
@@ -151,7 +241,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     }
 
     /// <summary>
-    /// Removes last diagnostic
+    /// Removes last diagnostic.
     /// </summary>
     /// <returns>Last diagnostic on the queue</returns>
     public Type? PopBack() {
@@ -164,12 +254,16 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     }
 
     /// <summary>
-    /// Removes all diagnostics, or all of specific type
+    /// Removes all diagnostics.
     /// </summary>
     public void Clear() {
         diagnostics_.Clear();
     }
 
+    /// <summary>
+    /// Removes all diagnostics of a specific severity (see DiagnosticType).
+    /// </summary>
+    /// <param name="type">Severity of diagnostics to remove</param>
     public void Clear(DiagnosticType type) {
         for (int i=0; i<diagnostics_.Count; i++) {
             if (diagnostics_[i].info.severity == type)
@@ -178,20 +272,24 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     }
 
     /// <summary>
-    /// Returns a list of all the diagnostics in the queue in order
-    /// Can optionally cast all diagnostics to a child class of diagnostic
+    /// Returns a list of all the diagnostics in the queue in order.
     /// </summary>
-    /// <returns>List of diagnostics</returns>
+    /// <returns>List of diagnostics (ordered oldest -> newest)</returns>
     public List<Type> AsList() {
         return diagnostics_;
     }
 
+    /// <summary>
+    /// Returns a list of all the diagnostics in the queue in order, and casts them to a new diagnostic child type.
+    /// </summary>
+    /// <typeparam name="NewType">Type of diagnostic to cast existing diagnostics to</typeparam>
+    /// <returns>List of diagnostics (ordered oldest -> newest)</returns>
     public List<NewType> AsList<NewType>() where NewType : Diagnostic {
         return diagnostics_ as List<NewType>;
     }
 
     /// <summary>
-    /// Returns a new queue without a specific type of diagnostic, does not affect this instance
+    /// Returns a new queue without a specific type of diagnostic, does not affect this instance.
     /// </summary>
     /// <param name="type">Which diagnostic type to exclude</param>
     /// <returns>New diagnostic queue without any diagnostics of type `type`</returns>
@@ -200,7 +298,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     }
 
     /// <summary>
-    /// Copies another diagnostic queue to the front of this queue
+    /// Copies another diagnostic queue to the front of this queue.
     /// </summary>
     /// <param name="queue">Diagnostic queue to copy, does not modify this queue</param>
     public void CopyToFront(DiagnosticQueue<Type> queue) {
