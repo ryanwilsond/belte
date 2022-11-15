@@ -13,8 +13,8 @@ namespace Buckle.Tests.CodeAnalysis;
 public class EvaluatorTests {
     private readonly ITestOutputHelper writer;
 
-    public EvaluatorTests(ITestOutputHelper writer_) {
-        writer = writer_;
+    public EvaluatorTests(ITestOutputHelper writer) {
+        this.writer = writer;
     }
 
     // Put all simple tests that want a specific result from the evaluator here

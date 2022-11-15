@@ -39,9 +39,6 @@ public sealed class BelteRepl : ReplBase {
         Settings
     }
 
-    /// <summary>
-    /// Override of REPL specific state, managed by base class.
-    /// </summary>
     internal override object state_ { get; set; }
 
     /// <summary>
@@ -56,9 +53,6 @@ public sealed class BelteRepl : ReplBase {
         }
     }
 
-    /// <summary>
-    /// Resets all REPL specific state, including deleting all.
-    /// </summary>
     internal override void ResetState() {
         state.showTree = false;
         state.showProgram = false;

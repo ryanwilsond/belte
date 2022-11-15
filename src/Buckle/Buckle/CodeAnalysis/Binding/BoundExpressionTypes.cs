@@ -5,6 +5,9 @@ using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
+/// <summary>
+/// All binary operator types.
+/// </summary>
 internal enum BoundBinaryOperatorType {
     Invalid,
     Addition,
@@ -29,21 +32,18 @@ internal enum BoundBinaryOperatorType {
     Isnt,
 }
 
+/// <summary>
+/// Bound binary operator, checks for a known operator otherwise null.
+/// </summary>
 internal sealed class BoundBinaryOperator {
-    internal SyntaxType type { get; }
-    internal BoundBinaryOperatorType opType { get; }
-    internal BoundTypeClause leftType { get; }
-    internal BoundTypeClause rightType { get; }
-    internal BoundTypeClause typeClause { get; }
-
     private BoundBinaryOperator(
-        SyntaxType type_, BoundBinaryOperatorType opType_,
-        BoundTypeClause leftType_, BoundTypeClause rightType_, BoundTypeClause resultType_) {
-        type = type_;
-        opType = opType_;
-        leftType = leftType_;
-        rightType = rightType_;
-        typeClause = resultType_;
+        SyntaxType type, BoundBinaryOperatorType opType,
+        BoundTypeClause leftType, BoundTypeClause rightType, BoundTypeClause resultType) {
+        this.type = type;
+        this.opType = opType;
+        this.leftType = leftType;
+        this.rightType = rightType;
+        typeClause = resultType;
     }
 
     private BoundBinaryOperator(
@@ -53,6 +53,9 @@ internal sealed class BoundBinaryOperator {
     private BoundBinaryOperator(SyntaxType type, BoundBinaryOperatorType opType, BoundTypeClause typeClause)
         : this(type, opType, typeClause, typeClause, typeClause) { }
 
+    /// <summary>
+    /// All defined possible operators, and their operand types.
+    /// </summary>
     internal static BoundBinaryOperator[] operators_ = {
         // integer
         new BoundBinaryOperator(
@@ -143,8 +146,30 @@ internal sealed class BoundBinaryOperator {
             BoundTypeClause.NullableAny, BoundTypeClause.Bool),
     };
 
+    internal SyntaxType type { get; }
+
     /// <summary>
-    /// Attempts to bind an operator with given sides
+    /// Operator type.
+    /// </summary>
+    internal BoundBinaryOperatorType opType { get; }
+
+    /// <summary>
+    /// Left side operand type.
+    /// </summary>
+    internal BoundTypeClause leftType { get; }
+
+    /// <summary>
+    /// Right side operand type.
+    /// </summary>
+    internal BoundTypeClause rightType { get; }
+
+    /// <summary>
+    /// Result value type.
+    /// </summary>
+    internal BoundTypeClause typeClause { get; }
+
+    /// <summary>
+    /// Attempts to bind an operator with given sides.
     /// </summary>
     /// <param name="type">Operator type</param>
     /// <param name="leftType">Left operand type</param>
@@ -166,23 +191,34 @@ internal sealed class BoundBinaryOperator {
     }
 }
 
+/// <summary>
+/// A bound binary expression, bound from a parser BinaryExpression.
+/// </summary>
 internal sealed class BoundBinaryExpression : BoundExpression {
-    internal override BoundNodeType type => BoundNodeType.BinaryExpression;
-    internal override BoundTypeClause typeClause => op.typeClause;
-    internal override BoundConstant constantValue { get; }
-    internal BoundExpression left { get; }
-    internal BoundBinaryOperator op { get; }
-    internal BoundExpression right { get; }
-
     internal BoundBinaryExpression(
-        BoundExpression left_, BoundBinaryOperator op_, BoundExpression right_) {
-        left = left_;
-        op = op_;
-        right = right_;
-        constantValue = ConstantFolding.Fold(left, op, right);
+        BoundExpression left, BoundBinaryOperator op, BoundExpression right) {
+        this.left = left;
+        this.op = op;
+        this.right = right;
+        constantValue = ConstantFolding.Fold(this.left, this.op, this.right);
     }
+
+    internal override BoundNodeType type => BoundNodeType.BinaryExpression;
+
+    internal override BoundTypeClause typeClause => op.typeClause;
+
+    internal override BoundConstant constantValue { get; }
+
+    internal BoundExpression left { get; }
+
+    internal BoundBinaryOperator op { get; }
+
+    internal BoundExpression right { get; }
 }
 
+/// <summary>
+/// All unary operator types.
+/// </summary>
 internal enum BoundUnaryOperatorType {
     Invalid,
     NumericalIdentity,
@@ -191,23 +227,24 @@ internal enum BoundUnaryOperatorType {
     BitwiseCompliment,
 }
 
+/// <summary>
+/// Bound unary operator, checks for a known operator otherwise null.
+/// </summary>
 internal sealed class BoundUnaryOperator {
-    internal SyntaxType type { get; }
-    internal BoundUnaryOperatorType opType { get; }
-    internal BoundTypeClause operandType { get; }
-    internal BoundTypeClause typeClause { get; }
-
     private BoundUnaryOperator(
-        SyntaxType type_, BoundUnaryOperatorType opType_, BoundTypeClause operandType_, BoundTypeClause resultType_) {
-        type = type_;
-        opType = opType_;
-        operandType = operandType_;
-        typeClause = resultType_;
+        SyntaxType type, BoundUnaryOperatorType opType, BoundTypeClause operandType, BoundTypeClause resultType) {
+        this.type = type;
+        this.opType = opType;
+        this.operandType = operandType;
+        typeClause = resultType;
     }
 
     private BoundUnaryOperator(SyntaxType type, BoundUnaryOperatorType opType, BoundTypeClause operandType)
         : this(type, opType, operandType, operandType) { }
 
+    /// <summary>
+    /// All defined possible operators, and their operand type.
+    /// </summary>
     internal static BoundUnaryOperator[] operators_ = {
         // integer
         new BoundUnaryOperator(SyntaxType.PLUS_TOKEN, BoundUnaryOperatorType.NumericalIdentity,
@@ -228,8 +265,22 @@ internal sealed class BoundUnaryOperator {
             BoundTypeClause.Decimal),
     };
 
+    internal SyntaxType type { get; }
+
     /// <summary>
-    /// Attempts to bind an operator with given operand
+    /// Operator type.
+    /// </summary>
+    internal BoundUnaryOperatorType opType { get; }
+
+    internal BoundTypeClause operandType { get; }
+
+    /// <summary>
+    /// Result value type.
+    /// </summary>
+    internal BoundTypeClause typeClause { get; }
+
+    /// <summary>
+    /// Attempts to bind an operator with given operand.
     /// </summary>
     /// <param name="type">Operator type</param>
     /// <param name="operandType">Operand type</param>
@@ -248,189 +299,280 @@ internal sealed class BoundUnaryOperator {
     }
 }
 
+/// <summary>
+/// A bound unary expression, bound from a parser UnaryExpression.
+/// </summary>
 internal sealed class BoundUnaryExpression : BoundExpression {
-    internal override BoundNodeType type => BoundNodeType.UnaryExpression;
-    internal override BoundTypeClause typeClause => op.typeClause;
-    internal override BoundConstant constantValue { get; }
-    internal BoundUnaryOperator op { get; }
-    internal BoundExpression operand { get; }
-
-    internal BoundUnaryExpression(BoundUnaryOperator op_, BoundExpression operand_) {
-        op = op_;
-        operand = operand_;
-        constantValue = ConstantFolding.Fold(op, operand);
+    internal BoundUnaryExpression(BoundUnaryOperator op, BoundExpression operand) {
+        this.op = op;
+        this.operand = operand;
+        constantValue = ConstantFolding.Fold(this.op, this.operand);
     }
+
+    internal override BoundNodeType type => BoundNodeType.UnaryExpression;
+
+    internal override BoundTypeClause typeClause => op.typeClause;
+
+    internal override BoundConstant constantValue { get; }
+
+    internal BoundUnaryOperator op { get; }
+
+    internal BoundExpression operand { get; }
 }
 
+/// <summary>
+/// A bound expression, bound from a parser Expression.
+/// All expressions have a possible constant value, used for constant folding.
+/// If folding is not possible, constant value is null.
+/// </summary>
 internal abstract class BoundExpression : BoundNode {
     internal abstract BoundTypeClause typeClause { get; }
+
     internal virtual BoundConstant constantValue => null;
 }
 
+/// <summary>
+/// A bound literal expression, bound from a parser LiteralExpression.
+/// </summary>
 internal sealed class BoundLiteralExpression : BoundExpression {
-    internal override BoundNodeType type => BoundNodeType.LiteralExpression;
-    internal override BoundTypeClause typeClause { get; }
-    internal override BoundConstant constantValue { get; }
-    internal object value => constantValue.value;
-
-    internal BoundLiteralExpression(object value_) {
-        if (value_ is bool)
-            typeClause = new BoundTypeClause(TypeSymbol.Bool, isLiteral_: true);
-        else if (value_ is int)
-            typeClause = new BoundTypeClause(TypeSymbol.Int, isLiteral_: true);
-        else if (value_ is string)
-            typeClause = new BoundTypeClause(TypeSymbol.String, isLiteral_: true);
-        else if (value_ is float)
-            typeClause = new BoundTypeClause(TypeSymbol.Decimal, isLiteral_: true);
-        else if (value_ == null)
-            typeClause = new BoundTypeClause(null, isLiteral_: true);
+    internal BoundLiteralExpression(object value) {
+        if (value is bool)
+            typeClause = new BoundTypeClause(TypeSymbol.Bool, isLiteral: true);
+        else if (value is int)
+            typeClause = new BoundTypeClause(TypeSymbol.Int, isLiteral: true);
+        else if (value is string)
+            typeClause = new BoundTypeClause(TypeSymbol.String, isLiteral: true);
+        else if (value is float)
+            typeClause = new BoundTypeClause(TypeSymbol.Decimal, isLiteral: true);
+        else if (value == null)
+            typeClause = new BoundTypeClause(null, isLiteral: true);
         else
-            throw new Exception($"BoundLiteralExpression: unexpected literal '{value_}' of type '{value_.GetType()}'");
+            throw new Exception($"BoundLiteralExpression: unexpected literal '{value}' of type '{value.GetType()}'");
 
-        constantValue = new BoundConstant(value_);
+        constantValue = new BoundConstant(value);
     }
 
-    internal BoundLiteralExpression(object value_, BoundTypeClause override_) {
+    /// <param name="override">Forces a type clause on a value instead of implying</param>
+    internal BoundLiteralExpression(object value, BoundTypeClause @override) {
         typeClause = new BoundTypeClause(
-            override_.lType, override_.isImplicit, override_.isConstantReference, override_.isReference,
-            override_.isConstant, override_.isNullable, true, override_.dimensions);
+            @override.lType, @override.isImplicit, @override.isConstantReference, @override.isReference,
+            @override.isConstant, @override.isNullable, true, @override.dimensions);
 
-        constantValue = new BoundConstant(value_);
+        constantValue = new BoundConstant(value);
     }
-}
 
-internal sealed class BoundVariableExpression : BoundExpression {
-    internal VariableSymbol variable { get; }
-    internal override BoundTypeClause typeClause => variable.typeClause;
-    internal override BoundNodeType type => BoundNodeType.VariableExpression;
-    internal override BoundConstant constantValue => variable.constantValue;
-
-    internal BoundVariableExpression(VariableSymbol variable_) {
-        variable = variable_;
-    }
-}
-
-internal sealed class BoundAssignmentExpression : BoundExpression {
-    internal VariableSymbol variable { get; }
-    internal BoundExpression expression { get; }
-    internal override BoundNodeType type => BoundNodeType.AssignmentExpression;
-    internal override BoundTypeClause typeClause => expression.typeClause;
-
-    internal BoundAssignmentExpression(VariableSymbol variable_, BoundExpression expression_) {
-        variable = variable_;
-        expression = expression_;
-    }
-}
-
-internal sealed class BoundInlineFunctionExpression : BoundExpression {
-    internal BoundBlockStatement body { get; }
-    internal BoundTypeClause returnType { get; }
-    internal override BoundNodeType type => BoundNodeType.InlineFunctionExpression;
-    internal override BoundTypeClause typeClause => returnType;
-
-    internal BoundInlineFunctionExpression(BoundBlockStatement body_, BoundTypeClause returnType_) {
-        body = body_;
-        returnType = returnType_;
-    }
-}
-
-internal sealed class BoundEmptyExpression : BoundExpression {
-    internal override BoundNodeType type => BoundNodeType.EmptyExpression;
-    internal override BoundTypeClause typeClause => null;
-
-    internal BoundEmptyExpression() { }
-}
-
-internal sealed class BoundErrorExpression : BoundExpression {
-    internal override BoundNodeType type => BoundNodeType.ErrorExpression;
-    internal override BoundTypeClause typeClause => new BoundTypeClause(null);
-
-    internal BoundErrorExpression() { }
-}
-
-internal sealed class BoundCallExpression : BoundExpression {
-    internal FunctionSymbol function { get; }
-    internal ImmutableArray<BoundExpression> arguments { get; }
-    internal override BoundNodeType type => BoundNodeType.CallExpression;
-    internal override BoundTypeClause typeClause => function?.typeClause;
-
-    internal BoundCallExpression(FunctionSymbol function_, ImmutableArray<BoundExpression> arguments_) {
-        function = function_;
-        arguments = arguments_;
-    }
-}
-
-internal sealed class BoundIndexExpression : BoundExpression {
-    internal BoundExpression expression { get; }
-    internal BoundExpression index { get; }
-    internal override BoundNodeType type => BoundNodeType.IndexExpression;
-    internal override BoundTypeClause typeClause => expression.typeClause.ChildType();
-
-    internal BoundIndexExpression(BoundExpression expression_, BoundExpression index_) {
-        expression = expression_;
-        index = index_;
-    }
-}
-
-internal sealed class BoundInitializerListExpression : BoundExpression {
-    internal ImmutableArray<BoundExpression> items { get; }
-    internal int dimensions { get; }
-    internal BoundTypeClause itemType { get; }
     internal override BoundNodeType type => BoundNodeType.LiteralExpression;
+
+    internal override BoundTypeClause typeClause { get; }
+
+    internal override BoundConstant constantValue { get; }
+
+    internal object value => constantValue.value;
+}
+
+/// <summary>
+/// A bound variable expression, bound from a parser VariableExpresion.
+/// </summary>
+internal sealed class BoundVariableExpression : BoundExpression {
+    internal BoundVariableExpression(VariableSymbol variable) {
+        this.variable = variable;
+    }
+
+    internal VariableSymbol variable { get; }
+
+    internal override BoundTypeClause typeClause => variable.typeClause;
+
+    internal override BoundNodeType type => BoundNodeType.VariableExpression;
+
+    internal override BoundConstant constantValue => variable.constantValue;
+}
+
+/// <summary>
+/// A bound assignment expression, bound from a parser AssignmentExpression.
+/// </summary>
+internal sealed class BoundAssignmentExpression : BoundExpression {
+    internal BoundAssignmentExpression(VariableSymbol variable, BoundExpression expression) {
+        this.variable = variable;
+        this.expression = expression;
+    }
+
+    internal VariableSymbol variable { get; }
+
+    internal BoundExpression expression { get; }
+
+    internal override BoundNodeType type => BoundNodeType.AssignmentExpression;
+
+    internal override BoundTypeClause typeClause => expression.typeClause;
+}
+
+/// <summary>
+/// A bound inline function expression, bound from a parser InlineFunctionExpression.
+/// </summary>
+internal sealed class BoundInlineFunctionExpression : BoundExpression {
+    internal BoundInlineFunctionExpression(BoundBlockStatement body, BoundTypeClause returnType) {
+        this.body = body;
+        this.returnType = returnType;
+    }
+
+    internal BoundBlockStatement body { get; }
+
+    internal BoundTypeClause returnType { get; }
+
+    internal override BoundNodeType type => BoundNodeType.InlineFunctionExpression;
+
+    internal override BoundTypeClause typeClause => returnType;
+}
+
+/// <summary>
+/// A bound empty expression, bound from a parser EmptyExpression.
+/// Converted to NOP statements eventually.
+/// </summary>
+internal sealed class BoundEmptyExpression : BoundExpression {
+    internal BoundEmptyExpression() { }
+
+    internal override BoundNodeType type => BoundNodeType.EmptyExpression;
+
+    internal override BoundTypeClause typeClause => null;
+}
+
+/// <summary>
+/// A bound error expression, signally that binding a expression failed.
+/// Using at temporary error expression allows catching of future unrelated issues before quitting.
+/// Also prevents cascading errors, as if a error expression is seen the Binder ignores it as it knows the error
+/// Was already reported.
+/// </summary>
+internal sealed class BoundErrorExpression : BoundExpression {
+    internal BoundErrorExpression() { }
+
+    internal override BoundNodeType type => BoundNodeType.ErrorExpression;
+
+    internal override BoundTypeClause typeClause => new BoundTypeClause(null);
+}
+
+/// <summary>
+/// A bound call expression, bound from a parser CallExpression.
+/// </summary>
+internal sealed class BoundCallExpression : BoundExpression {
+    internal BoundCallExpression(FunctionSymbol function, ImmutableArray<BoundExpression> arguments) {
+        this.function = function;
+        this.arguments = arguments;
+    }
+
+    internal FunctionSymbol function { get; }
+
+    internal ImmutableArray<BoundExpression> arguments { get; }
+
+    internal override BoundNodeType type => BoundNodeType.CallExpression;
+
+    internal override BoundTypeClause typeClause => function?.typeClause;
+}
+
+/// <summary>
+/// A bound index expression, bound from a parser IndexExpression.
+/// </summary>
+internal sealed class BoundIndexExpression : BoundExpression {
+    internal BoundIndexExpression(BoundExpression expression, BoundExpression index) {
+        this.expression = expression;
+        this.index = index;
+    }
+
+    internal BoundExpression expression { get; }
+
+    internal BoundExpression index { get; }
+
+    internal override BoundNodeType type => BoundNodeType.IndexExpression;
+
+    internal override BoundTypeClause typeClause => expression.typeClause.ChildType();
+}
+
+/// <summary>
+/// A bound initializer list expression, bound from a parser InitializerListExpression.
+/// </summary>
+internal sealed class BoundInitializerListExpression : BoundExpression {
+    internal BoundInitializerListExpression(
+        ImmutableArray<BoundExpression> items, int dimensions, BoundTypeClause itemType) {
+        this.items = items;
+        this.dimensions = dimensions;
+        this.itemType = itemType;
+    }
+
+    internal ImmutableArray<BoundExpression> items { get; }
+
+    internal int dimensions { get; }
+
+    internal BoundTypeClause itemType { get; }
+
+    internal override BoundNodeType type => BoundNodeType.LiteralExpression;
+
     // TODO Consider factoring out this mass copy into a static method
     // Immutable design makes this required
     internal override BoundTypeClause typeClause => new BoundTypeClause(
         itemType.lType, itemType.isImplicit, itemType.isConstantReference,
         itemType.isReference, itemType.isConstant, true, itemType.isLiteral, dimensions);
-
-    internal BoundInitializerListExpression(
-        ImmutableArray<BoundExpression> items_, int dimensions_, BoundTypeClause itemType_) {
-        items = items_;
-        dimensions = dimensions_;
-        itemType = itemType_;
-    }
 }
 
+/// <summary>
+/// A bound cast expression, bound from a parser CastExpression.
+/// In addition, a bound cast expression can be produced from a call expression using a type name as the function name.
+/// E.g. int(3.4)
+/// </summary>
 internal sealed class BoundCastExpression : BoundExpression {
-    internal BoundExpression expression { get; }
-    internal override BoundNodeType type => BoundNodeType.CastExpression;
-    internal override BoundConstant constantValue { get; }
-    internal override BoundTypeClause typeClause { get; }
+    internal BoundCastExpression(BoundTypeClause typeClause, BoundExpression expression) {
+        this.typeClause = typeClause;
 
-    internal BoundCastExpression(BoundTypeClause typeClause_, BoundExpression expression_) {
-        typeClause = typeClause_;
-
-        if (expression_ is BoundLiteralExpression le)
-            expression = new BoundLiteralExpression(expression_.constantValue.value, typeClause);
+        if (expression is BoundLiteralExpression le)
+            this.expression = new BoundLiteralExpression(expression.constantValue.value, this.typeClause);
         else
-            expression = expression_;
+            this.expression = expression;
 
-        constantValue = expression.constantValue;
+        constantValue = this.expression.constantValue;
     }
-}
 
-internal sealed class BoundCompoundAssignmentExpression : BoundExpression {
-    internal VariableSymbol variable { get; }
-    internal BoundBinaryOperator op { get; }
     internal BoundExpression expression { get; }
-    internal override BoundNodeType type => BoundNodeType.CompoundAssignmentExpression;
-    internal override BoundTypeClause typeClause => expression.typeClause;
 
-    internal BoundCompoundAssignmentExpression(
-        VariableSymbol variable_, BoundBinaryOperator op_, BoundExpression expression_) {
-        variable = variable_;
-        op = op_;
-        expression = expression_;
-    }
+    internal override BoundNodeType type => BoundNodeType.CastExpression;
+
+    internal override BoundConstant constantValue { get; }
+
+    internal override BoundTypeClause typeClause { get; }
 }
 
-internal sealed class BoundReferenceExpression : BoundExpression {
-    internal VariableSymbol variable { get; }
-    internal override BoundNodeType type => BoundNodeType.ReferenceExpression;
-    internal override BoundTypeClause typeClause { get; }
-
-    internal BoundReferenceExpression(VariableSymbol variable_, BoundTypeClause typeClause_) {
-        variable = variable_;
-        typeClause = typeClause_;
+/// <summary>
+/// A bound compound assignment expression, bound from a parser CompoundAssignmentExpression.
+/// All parser PrefixExpression and PostfixExpressions are converted to bound compound assignment expressions.
+/// E.g. x++ -> x+=1
+/// </summary>
+internal sealed class BoundCompoundAssignmentExpression : BoundExpression {
+    internal BoundCompoundAssignmentExpression(
+        VariableSymbol variable, BoundBinaryOperator op, BoundExpression expression) {
+        this.variable = variable;
+        this.op = op;
+        this.expression = expression;
     }
+
+    internal VariableSymbol variable { get; }
+
+    internal BoundBinaryOperator op { get; }
+
+    internal BoundExpression expression { get; }
+
+    internal override BoundNodeType type => BoundNodeType.CompoundAssignmentExpression;
+
+    internal override BoundTypeClause typeClause => expression.typeClause;
+}
+
+/// <summary>
+/// A bound reference expression, bound from a parser ReferenceExpression.
+/// </summary>
+internal sealed class BoundReferenceExpression : BoundExpression {
+    internal BoundReferenceExpression(VariableSymbol variable, BoundTypeClause typeClause) {
+        this.variable = variable;
+        this.typeClause = typeClause;
+    }
+
+    internal VariableSymbol variable { get; }
+
+    internal override BoundNodeType type => BoundNodeType.ReferenceExpression;
+
+    internal override BoundTypeClause typeClause { get; }
 }

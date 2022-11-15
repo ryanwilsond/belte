@@ -2,23 +2,63 @@ using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
+/// <summary>
+/// A cast from any type to any type (can be the same).
+/// </summary>
 internal sealed class Cast {
-    internal bool exists { get; }
-    internal bool isIdentity { get; }
-    internal bool isImplicit { get; }
-    internal bool isExplicit => exists && !isImplicit;
-
+    /// <summary>
+    /// No cast.
+    /// </summary>
     internal static readonly Cast None = new Cast(false, false, false);
+
+    /// <summary>
+    /// Cast where both types are the same.
+    /// </summary>
     internal static readonly Cast Identity = new Cast(true, true, true);
+
+    /// <summary>
+    /// Lossless cast, can be done automatically.
+    /// </summary>
     internal static readonly Cast Implicit = new Cast(true, false, true);
+
+    /// <summary>
+    /// Lossy cast, cannot be done implicitly.
+    /// </summary>
     internal static readonly Cast Explicit = new Cast(true, false, false);
 
-    private Cast(bool exists_, bool isIdentity_, bool isImplicit_) {
-        exists = exists_;
-        isIdentity = isIdentity_;
-        isImplicit = isImplicit_;
+    private Cast(bool exists, bool isIdentity, bool isImplicit) {
+        this.exists = exists;
+        this.isIdentity = isIdentity;
+        this.isImplicit = isImplicit;
     }
 
+    /// <summary>
+    /// If a cast exists (otherwise you cant go from one type to the other).
+    /// </summary>
+    internal bool exists { get; }
+
+    /// <summary>
+    /// If the cast is an identity cast.
+    /// </summary>
+    internal bool isIdentity { get; }
+
+    /// <summary>
+    /// If the cast is an implicit cast.
+    /// </summary>
+    internal bool isImplicit { get; }
+
+    /// <summary>
+    /// If the cast is an explicit cast.
+    /// A cast cannot be implicit and explicit.
+    /// </summary>
+    internal bool isExplicit => exists && !isImplicit;
+
+    /// <summary>
+    /// Classify what type of cast is required to go from one type to the other.
+    /// </summary>
+    /// <param name="fromType">Target type</param>
+    /// <param name="toType">Existing/current type</param>
+    /// <returns>Created cast</returns>
     internal static Cast Classify(BoundTypeClause fromType, BoundTypeClause toType) {
         var from = fromType.lType;
         var to = toType.lType;

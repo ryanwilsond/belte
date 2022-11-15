@@ -33,9 +33,9 @@ public abstract class ReplBase {
     private const int tabWidth = 4;
     private bool evaluate_;
 
-    protected ReplBase(Compiler handle_, DiagnosticHandle diagnosticHandle_) {
-        handle = handle_;
-        diagnosticHandle = diagnosticHandle_;
+    protected ReplBase(Compiler handle, DiagnosticHandle diagnosticHandle) {
+        this.handle = handle;
+        this.diagnosticHandle = diagnosticHandle;
         InitializeMetaCommands();
     }
 
@@ -961,25 +961,14 @@ public abstract class ReplBase {
         /// <value>Ascii</value>
         public override Encoding Encoding { get { return Encoding.ASCII; } }
 
-        /// <summary>
-        /// Writes content to out without line break.
-        /// </summary>
-        /// <param name="output">What to write</param>
         public override void Write(string output) {
             Console.Write(output);
         }
 
-        /// <summary>
-        /// Writes content to out with a line break placed after the content.
-        /// </summary>
-        /// <param name="output">What to write</param>
         public override void WriteLine(string output) {
             Console.WriteLine(output);
         }
 
-        /// <summary>
-        /// Writes a line break.
-        /// </summary>
         public override void WriteLine() {
             Console.WriteLine();
         }
@@ -996,9 +985,9 @@ public abstract class ReplBase {
 
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
     protected sealed class MetaCommandAttribute : Attribute {
-        public MetaCommandAttribute(string name_, string description_) {
-            name = name_;
-            description = description_;
+        public MetaCommandAttribute(string name, string description) {
+            this.name = name;
+            this.description = description;
         }
 
         public string name { get; }
@@ -1006,10 +995,10 @@ public abstract class ReplBase {
     }
 
     private sealed class MetaCommand {
-        public MetaCommand(string name_, string description_, MethodInfo method_) {
-            name = name_;
-            method = method_;
-            description = description_;
+        public MetaCommand(string name, string description, MethodInfo method) {
+            this.name = name;
+            this.method = method;
+            this.description = description;
         }
 
         public string name { get; }

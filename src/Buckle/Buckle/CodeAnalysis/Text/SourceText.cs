@@ -70,10 +70,6 @@ public sealed class SourceText {
         return lower - 1;
     }
 
-    /// <summary>
-    /// String representation of entire text.
-    /// </summary>
-    /// <returns>Entire text (not modified)</returns>
     public override string ToString() => text_;
 
     /// <summary>

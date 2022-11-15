@@ -50,9 +50,9 @@ internal sealed class EvaluationResult {
 public sealed class Compilation {
     private BoundGlobalScope globalScope_;
 
-    private Compilation(bool isScript_, Compilation previous_, params SyntaxTree[] syntaxTrees) {
-        isScript = isScript_;
-        previous = previous_;
+    private Compilation(bool isScript, Compilation previous, params SyntaxTree[] syntaxTrees) {
+        this.isScript = isScript;
+        this.previous = previous;
         diagnostics = new BelteDiagnosticQueue();
 
         foreach (var syntaxTree in syntaxTrees)

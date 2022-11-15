@@ -50,10 +50,6 @@ internal sealed class SeparatedSyntaxList<T> : SeparatedSyntaxList, IEnumerable<
         return (Token)nodesAndSeparators_[index * 2 + 1];
     }
 
-    /// <summary>
-    /// Gets both nodes and separators.
-    /// </summary>
-    /// <returns>All nodes in collection</returns>
     internal override ImmutableArray<Node> GetWithSeparators() => nodesAndSeparators_;
 
     /// <summary>

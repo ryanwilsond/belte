@@ -98,9 +98,6 @@ internal sealed class ParameterSymbol : LocalVariableSymbol {
         this.ordinal = ordinal;
     }
 
-    /// <summary>
-    /// Type of symbol (see SymbolType).
-    /// </summary>
     internal override SymbolType type => SymbolType.Parameter;
 
     /// <summary>
@@ -144,8 +141,5 @@ internal sealed class FunctionSymbol : Symbol {
     /// </summary>
     internal FunctionDeclaration declaration { get; }
 
-    /// <summary>
-    /// Type of symbol (see SymbolType).
-    /// </summary>
     internal override SymbolType type => SymbolType.Function;
 }

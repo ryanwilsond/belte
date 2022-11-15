@@ -51,10 +51,6 @@ public sealed class TextSpan {
         return start < span.end && end > span.start;
     }
 
-    /// <summary>
-    /// Represents the span as its index bounds.
-    /// </summary>
-    /// <returns>String representation</returns>
     public override string ToString() => $"{start}..{end}";
 }
 

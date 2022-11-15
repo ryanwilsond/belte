@@ -146,8 +146,8 @@ internal enum SyntaxType {
 /// Base building block of all things.
 /// </summary>
 internal abstract class Node {
-    protected Node(SyntaxTree syntaxTree_) {
-        syntaxTree = syntaxTree_;
+    protected Node(SyntaxTree syntaxTree) {
+        this.syntaxTree = syntaxTree;
     }
 
     /// <summary>
@@ -199,10 +199,6 @@ internal abstract class Node {
     /// </summary>
     internal abstract IEnumerable<Node> GetChildren();
 
-    /// <summary>
-    /// Text representation of node (including all child nodes, recursive).
-    /// </summary>
-    /// <returns>Text representation</returns>
     public override string ToString() {
         using (var writer = new StringWriter()) {
             WriteTo(writer);
@@ -325,14 +321,8 @@ internal sealed class Token : Node {
     /// </summary>
     internal bool isMissing => text == null;
 
-    /// <summary>
-    /// Span of where the node is in the source text (not including line break).
-    /// </summary>
     internal override TextSpan span => new TextSpan(position, text?.Length ?? 0);
 
-    /// <summary>
-    /// Span of where the node is in the source text (including line break).
-    /// </summary>
     internal override TextSpan fullSpan {
         get {
             var start = leadingTrivia.Length == 0 ? span.start : leadingTrivia.First().span.start;

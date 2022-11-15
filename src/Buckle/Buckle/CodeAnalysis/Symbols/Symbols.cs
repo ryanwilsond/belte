@@ -33,10 +33,6 @@ internal abstract class Symbol {
     /// </summary>
     internal abstract SymbolType type { get; }
 
-    /// <summary>
-    /// String representation of the symbol (see TextWriterExtensions)
-    /// </summary>
-    /// <returns>String representation</returns>
     public override string ToString() {
         using (var writer = new StringWriter()) {
             this.WriteTo(writer);
@@ -104,8 +100,5 @@ internal class LocalVariableSymbol : VariableSymbol {
     internal LocalVariableSymbol(string name, BoundTypeClause typeClause, BoundConstant constant)
         : base(name, typeClause, constant) { }
 
-    /// <summary>
-    /// Type of symbol (see SymbolType).
-    /// </summary>
     internal override SymbolType type => SymbolType.LocalVariable;
 }

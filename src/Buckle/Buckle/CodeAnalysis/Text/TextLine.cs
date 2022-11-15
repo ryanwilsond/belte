@@ -51,9 +51,5 @@ public sealed class TextLine {
     /// </summary>
     public TextSpan spanWithBreak => new TextSpan(start, lengthWithBreak);
 
-    /// <summary>
-    /// The string representation of the span (not including line break).
-    /// </summary>
-    /// <returns>String representation</returns>
     public override string ToString() => text.ToString(span);
 }
