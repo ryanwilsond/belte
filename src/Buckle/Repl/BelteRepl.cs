@@ -11,100 +11,46 @@ namespace Repl;
 
 public sealed class BelteRepl : ReplBase {
     private static readonly Compilation emptyCompilation = Compilation.CreateScript(null);
-    internal override object state_ { get; set; }
-    internal BelteReplState state { get { return (BelteReplState)state_; } set { state_=value; } }
-
-    internal abstract class ColorTheme {
-        internal abstract ConsoleColor @default { get; }
-        internal abstract ConsoleColor selection { get; }
-        internal abstract ConsoleColor textDefault { get; }
-        internal abstract ConsoleColor result { get; }
-        internal abstract ConsoleColor background { get; }
-        internal abstract ConsoleColor identifier { get; }
-        internal abstract ConsoleColor number { get; }
-        internal abstract ConsoleColor @string { get; }
-        internal abstract ConsoleColor comment { get; }
-        internal abstract ConsoleColor keyword { get; }
-        internal abstract ConsoleColor typeName { get; }
-        internal abstract ConsoleColor text { get; }
-        internal abstract ConsoleColor errorText { get; }
-    }
-
-    internal class DarkTheme : ColorTheme {
-        internal override ConsoleColor @default => ConsoleColor.DarkGray;
-        internal override ConsoleColor selection => ConsoleColor.DarkGray;
-        internal override ConsoleColor textDefault => ConsoleColor.White;
-        internal override ConsoleColor result => ConsoleColor.White;
-        internal override ConsoleColor background => ConsoleColor.Black;
-        internal override ConsoleColor identifier => ConsoleColor.White;
-        internal override ConsoleColor number => ConsoleColor.Cyan;
-        internal override ConsoleColor @string => ConsoleColor.Yellow;
-        internal override ConsoleColor comment => ConsoleColor.DarkGray;
-        internal override ConsoleColor keyword => ConsoleColor.Blue;
-        internal override ConsoleColor typeName => ConsoleColor.Blue;
-        internal override ConsoleColor text => ConsoleColor.DarkGray;
-        internal override ConsoleColor errorText => ConsoleColor.White;
-    }
-
-    internal class LightTheme : ColorTheme {
-        internal override ConsoleColor @default => ConsoleColor.DarkGray;
-        internal override ConsoleColor selection => ConsoleColor.DarkGray;
-        internal override ConsoleColor textDefault => ConsoleColor.Black;
-        internal override ConsoleColor result => ConsoleColor.Black;
-        internal override ConsoleColor background => ConsoleColor.White;
-        internal override ConsoleColor identifier => ConsoleColor.Black;
-        internal override ConsoleColor number => ConsoleColor.DarkCyan;
-        internal override ConsoleColor @string => ConsoleColor.DarkYellow;
-        internal override ConsoleColor comment => ConsoleColor.DarkGray;
-        internal override ConsoleColor keyword => ConsoleColor.DarkBlue;
-        internal override ConsoleColor typeName => ConsoleColor.DarkBlue;
-        internal override ConsoleColor text => ConsoleColor.DarkGray;
-        internal override ConsoleColor errorText => ConsoleColor.Black;
-    }
-
-    internal class GreenTheme : ColorTheme {
-        internal override ConsoleColor @default => ConsoleColor.DarkGray;
-        internal override ConsoleColor selection => ConsoleColor.DarkGray;
-        internal override ConsoleColor textDefault => ConsoleColor.Black;
-        internal override ConsoleColor result => ConsoleColor.DarkGreen;
-        internal override ConsoleColor background => ConsoleColor.Green;
-        internal override ConsoleColor identifier => ConsoleColor.White;
-        internal override ConsoleColor number => ConsoleColor.DarkCyan;
-        internal override ConsoleColor @string => ConsoleColor.DarkMagenta;
-        internal override ConsoleColor comment => ConsoleColor.DarkGray;
-        internal override ConsoleColor keyword => ConsoleColor.DarkBlue;
-        internal override ConsoleColor typeName => ConsoleColor.Red;
-        internal override ConsoleColor text => ConsoleColor.DarkGray;
-        internal override ConsoleColor errorText => ConsoleColor.Gray;
-    }
-
-    Dictionary<string, ColorTheme> InUse = new Dictionary<string, ColorTheme>() {
+    private Dictionary<string, ColorTheme> InUse = new Dictionary<string, ColorTheme>() {
         {"Dark", new DarkTheme()},
         {"Light", new LightTheme()},
         {"Green", new GreenTheme()},
     };
 
-    internal enum Page {
-        Repl,
-        Settings
-    }
-
-    internal sealed class BelteReplState {
-        public bool showTree = false;
-        public bool showProgram = false;
-        public bool loadingSubmissions = false;
-        public ColorTheme colorTheme = new DarkTheme();
-        public Page currentPage = Page.Repl;
-        public Compilation previous;
-        public Dictionary<VariableSymbol, object> variables;
-    }
-
+    /// <summary>
+    /// Creates a new instance of a Belte REPL, can run in parallel with other REPLs with unique outs.
+    /// Uses System.Console by default, which cannot be used more than once.
+    /// </summary>
+    /// <param name="handle">Compiler object that represents entirety of compilation</param>
+    /// <param name="errorHandle">Callback to handle diagnostics</param>
     public BelteRepl(Compiler handle, DiagnosticHandle errorHandle) : base(handle, errorHandle) {
         state = new BelteReplState();
         ResetState();
         Console.BackgroundColor = state.colorTheme.background;
         EvaluateClear();
         LoadSubmissions();
+    }
+
+    /// <summary>
+    /// Indicated to the state what page is being displayed to the user.
+    /// </summary>
+    internal enum Page {
+        Repl,
+        Settings
+    }
+
+    internal override object state_ { get; set; }
+
+    /// <summary>
+    /// Cast of REPL specific state that has this REPL's related state.
+    /// </summary>
+    internal BelteReplState state {
+        get {
+            return (BelteReplState)state_;
+        }
+        set {
+            state_=value;
+        }
     }
 
     internal override void ResetState() {
@@ -115,108 +61,6 @@ public sealed class BelteRepl : ReplBase {
         state.previous = null;
         state.currentPage = Page.Repl;
         base.ResetState();
-    }
-
-    protected override void EvaluateSubmission(string text) {
-        var syntaxTree = SyntaxTree.Parse(text);
-        var compilation = Compilation.CreateScript(state.previous, syntaxTree);
-
-        if (state.showTree)
-            syntaxTree.root.WriteTo(Console.Out);
-        if (state.showProgram)
-            compilation.EmitTree(Console.Out);
-
-        handle.diagnostics.Move(compilation.diagnostics.FilterOut(DiagnosticType.Warning));
-        EvaluationResult result = null;
-
-        if (!handle.diagnostics.Any()) {
-            result = compilation.Evaluate(state.variables);
-            handle.diagnostics.Move(result.diagnostics.FilterOut(DiagnosticType.Warning));
-        }
-
-        if (handle.diagnostics.Any()) {
-            if (diagnosticHandle != null) {
-                handle.diagnostics = BelteDiagnosticQueue.CleanDiagnostics(handle.diagnostics);
-                diagnosticHandle(handle, textColor: state.colorTheme.textDefault);
-            } else {
-                handle.diagnostics.Clear();
-            }
-        } else {
-            if (result.value != null && !state.loadingSubmissions) {
-                Console.ForegroundColor = state.colorTheme.result;
-                RenderResult(result.value);
-                writer_.WriteLine();
-                Console.ForegroundColor = state.colorTheme.@default;
-            }
-
-            state.previous = compilation;
-            SaveSubmission(text);
-        }
-    }
-
-    private void RenderResult(object value) {
-        if (value.GetType().IsArray) {
-            writer_.Write("{ ");
-            var isFirst = true;
-
-            foreach (object item in (Array)value) {
-                if (isFirst)
-                    isFirst = false;
-                else
-                    writer_.Write(", ");
-
-                RenderResult(item);
-            }
-
-            writer_.Write(" }");
-        } else {
-            writer_.Write(value);
-        }
-    }
-
-    private void SaveSubmission(string text) {
-        if (state.loadingSubmissions)
-            return;
-
-        var submissionsFolder = GetSubmissionsDirectory();
-        var count = Directory.GetFiles(submissionsFolder).Length;
-        var name = $"submission{count:0000}";
-        var fileName = Path.Combine(submissionsFolder, name);
-        File.WriteAllText(fileName, text);
-    }
-
-    private static void ClearSubmissions() {
-        var path = GetSubmissionsDirectory();
-
-        if (Directory.Exists(path))
-            Directory.Delete(GetSubmissionsDirectory(), true);
-    }
-
-    private void LoadSubmissions() {
-        // TODO Make console handle null so evaluator does not print output?
-        var files = Directory.GetFiles(GetSubmissionsDirectory()).OrderBy(f => f).ToArray();
-        var keyword = files.Length == 1 ? "submission" : "submissions";
-        Console.Out.WritePunctuation($"loaded {files.Length} {keyword}");
-        writer_.WriteLine();
-
-        state.loadingSubmissions = true;
-
-        foreach (var file in files) {
-            var text = File.ReadAllText(file);
-            EvaluateSubmission(text);
-        }
-
-        state.loadingSubmissions = false;
-    }
-
-    private static string GetSubmissionsDirectory() {
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var submissionsFolder = Path.Combine(localAppData, "Buckle", "Submissions");
-
-        if (!Directory.Exists(submissionsFolder))
-            Directory.CreateDirectory(submissionsFolder);
-
-        return submissionsFolder;
     }
 
     protected override object RenderLine(IReadOnlyList<string> lines, int lineIndex, object rState) {
@@ -306,6 +150,134 @@ public sealed class BelteRepl : ReplBase {
         Console.ForegroundColor = state.colorTheme.@default;
 
         return syntaxTree;
+    }
+
+    protected override void EvaluateSubmission(string text) {
+        var syntaxTree = SyntaxTree.Parse(text);
+        var compilation = Compilation.CreateScript(state.previous, syntaxTree);
+
+        if (state.showTree)
+            syntaxTree.root.WriteTo(Console.Out);
+        if (state.showProgram)
+            compilation.EmitTree(Console.Out);
+
+        handle.diagnostics.Move(compilation.diagnostics.FilterOut(DiagnosticType.Warning));
+        EvaluationResult result = null;
+
+        Console.ForegroundColor = state.colorTheme.result;
+
+        if (!handle.diagnostics.Any()) {
+            result = compilation.Evaluate(state.variables);
+            handle.diagnostics.Move(result.diagnostics.FilterOut(DiagnosticType.Warning));
+        }
+
+        if (handle.diagnostics.Any()) {
+            if (diagnosticHandle != null) {
+                handle.diagnostics = BelteDiagnosticQueue.CleanDiagnostics(handle.diagnostics);
+                diagnosticHandle(handle, textColor: state.colorTheme.textDefault);
+            } else {
+                handle.diagnostics.Clear();
+            }
+        } else {
+            if (result.value != null && !state.loadingSubmissions) {
+                RenderResult(result.value);
+                writer_.WriteLine();
+            }
+
+            state.previous = compilation;
+            SaveSubmission(text);
+        }
+
+        Console.ForegroundColor = state.colorTheme.@default;
+    }
+
+    protected override bool IsCompleteSubmission(string text) {
+        if (String.IsNullOrEmpty(text))
+            return true;
+
+        var twoBlankTines = text.Split(Environment.NewLine).Reverse()
+            .TakeWhile(s => (String.IsNullOrEmpty(s) || String.IsNullOrWhiteSpace(s)))
+            .Take(2)
+            .Count() == 2;
+
+        if (twoBlankTines)
+            return true;
+
+        var syntaxTree = SyntaxTree.Parse(text);
+        var lastMember = syntaxTree.root.members.LastOrDefault();
+
+        if (lastMember == null || lastMember.GetLastToken().isMissing)
+            return false;
+
+        return true;
+    }
+
+    private static void ClearSubmissions() {
+        var path = GetSubmissionsDirectory();
+
+        if (Directory.Exists(path))
+            Directory.Delete(GetSubmissionsDirectory(), true);
+    }
+
+    private static string GetSubmissionsDirectory() {
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var submissionsFolder = Path.Combine(localAppData, "Buckle", "Submissions");
+
+        if (!Directory.Exists(submissionsFolder))
+            Directory.CreateDirectory(submissionsFolder);
+
+        return submissionsFolder;
+    }
+
+    private void RenderResult(object value) {
+        if (value.GetType().IsArray) {
+            writer_.Write("{ ");
+            var isFirst = true;
+
+            foreach (object item in (Array)value) {
+                if (isFirst)
+                    isFirst = false;
+                else
+                    writer_.Write(", ");
+
+                RenderResult(item);
+            }
+
+            writer_.Write(" }");
+        } else {
+            writer_.Write(value);
+        }
+    }
+
+    private void SaveSubmission(string text) {
+        if (state.loadingSubmissions)
+            return;
+
+        var submissionsFolder = GetSubmissionsDirectory();
+        var count = Directory.GetFiles(submissionsFolder).Length;
+        var name = $"submission{count:0000}";
+        var fileName = Path.Combine(submissionsFolder, name);
+        File.WriteAllText(fileName, text);
+    }
+
+    private void LoadSubmissions() {
+        // TODO Make console handle null so evaluator does not print output?
+        var files = Directory.GetFiles(GetSubmissionsDirectory()).OrderBy(f => f).ToArray();
+        var keyword = files.Length == 1 ? "submission" : "submissions";
+        Console.Out.WritePunctuation($"loaded {files.Length} {keyword}");
+        writer_.WriteLine();
+
+        var @out = Console.Out;
+        Console.SetOut(new StreamWriter(Stream.Null));
+        state.loadingSubmissions = true;
+
+        foreach (var file in files) {
+            var text = File.ReadAllText(file);
+            EvaluateSubmission(text);
+        }
+
+        state.loadingSubmissions = false;
+        Console.SetOut(@out);
     }
 
     [MetaCommand("showTree", "Toggle to display parse tree of each input")]
@@ -509,24 +481,171 @@ public sealed class BelteRepl : ReplBase {
         state.currentPage = Page.Repl;
     }
 
-    protected override bool IsCompleteSubmission(string text) {
-        if (String.IsNullOrEmpty(text))
-            return true;
+    /// <summary>
+    /// All required fields to implement for a REPL color theme (only supported if using System.Console as out).
+    /// </summary>
+    internal abstract class ColorTheme {
+        /// <summary>
+        /// Default color to result to for unformatted text.
+        /// </summary>
+        internal abstract ConsoleColor @default { get; }
 
-        var twoBlankTines = text.Split(Environment.NewLine).Reverse()
-            .TakeWhile(s => String.IsNullOrEmpty(s))
-            .Take(2)
-            .Count() == 2;
+        /// <summary>
+        /// Background color to indicate selected text.
+        /// </summary>
+        internal abstract ConsoleColor selection { get; }
 
-        if (twoBlankTines)
-            return true;
+        /// <summary>
+        /// Default color for text with no special color.
+        /// </summary>
+        internal abstract ConsoleColor textDefault { get; }
 
-        var syntaxTree = SyntaxTree.Parse(text);
-        var lastMember = syntaxTree.root.members.LastOrDefault();
+        /// <summary>
+        /// Color of all results.
+        /// </summary>
+        internal abstract ConsoleColor result { get; }
 
-        if (lastMember == null || lastMember.GetLastToken().isMissing)
-            return false;
+        /// <summary>
+        /// Background color of terminal.
+        /// </summary>
+        internal abstract ConsoleColor background { get; }
 
-        return true;
+        /// <summary>
+        /// Color of identifer tokens.
+        /// </summary>
+        internal abstract ConsoleColor identifier { get; }
+
+        /// <summary>
+        /// Color of number literals.
+        /// </summary>
+        internal abstract ConsoleColor number { get; }
+
+        /// <summary>
+        /// Color of string literals.
+        /// </summary>
+        internal abstract ConsoleColor @string { get; }
+
+        /// <summary>
+        /// Color of comments (all types).
+        /// </summary>
+        internal abstract ConsoleColor comment { get; }
+
+        /// <summary>
+        /// Color of keywords.
+        /// </summary>
+        internal abstract ConsoleColor keyword { get; }
+
+        /// <summary>
+        /// Color of type names (not full type clauses).
+        /// </summary>
+        internal abstract ConsoleColor typeName { get; }
+
+        /// <summary>
+        /// Color any other code text.
+        /// </summary>
+        internal abstract ConsoleColor text { get; }
+
+        /// <summary>
+        /// Color of code text that could not parse.
+        /// </summary>
+        internal abstract ConsoleColor errorText { get; }
+    }
+
+    /// <summary>
+    /// Dark theme (default). Mostly dark colors and pairs well with dark themed terminals.
+    /// </summary>
+    internal class DarkTheme : ColorTheme {
+        internal override ConsoleColor @default => ConsoleColor.DarkGray;
+        internal override ConsoleColor selection => ConsoleColor.DarkGray;
+        internal override ConsoleColor textDefault => ConsoleColor.White;
+        internal override ConsoleColor result => ConsoleColor.White;
+        internal override ConsoleColor background => ConsoleColor.Black;
+        internal override ConsoleColor identifier => ConsoleColor.White;
+        internal override ConsoleColor number => ConsoleColor.Cyan;
+        internal override ConsoleColor @string => ConsoleColor.Yellow;
+        internal override ConsoleColor comment => ConsoleColor.DarkGray;
+        internal override ConsoleColor keyword => ConsoleColor.Blue;
+        internal override ConsoleColor typeName => ConsoleColor.Blue;
+        internal override ConsoleColor text => ConsoleColor.DarkGray;
+        internal override ConsoleColor errorText => ConsoleColor.White;
+    }
+
+    /// <summary>
+    /// Light theme. Mostly bright colors and pairs well with light themed terminals.
+    /// </summary>
+    internal class LightTheme : ColorTheme {
+        internal override ConsoleColor @default => ConsoleColor.DarkGray;
+        internal override ConsoleColor selection => ConsoleColor.DarkGray;
+        internal override ConsoleColor textDefault => ConsoleColor.Black;
+        internal override ConsoleColor result => ConsoleColor.Black;
+        internal override ConsoleColor background => ConsoleColor.White;
+        internal override ConsoleColor identifier => ConsoleColor.Black;
+        internal override ConsoleColor number => ConsoleColor.DarkCyan;
+        internal override ConsoleColor @string => ConsoleColor.DarkYellow;
+        internal override ConsoleColor comment => ConsoleColor.DarkGray;
+        internal override ConsoleColor keyword => ConsoleColor.DarkBlue;
+        internal override ConsoleColor typeName => ConsoleColor.DarkBlue;
+        internal override ConsoleColor text => ConsoleColor.DarkGray;
+        internal override ConsoleColor errorText => ConsoleColor.Black;
+    }
+
+    /// <summary>
+    /// Green theme. Mostly dark colors with green background.
+    /// </summary>
+    internal class GreenTheme : ColorTheme {
+        internal override ConsoleColor @default => ConsoleColor.DarkGray;
+        internal override ConsoleColor selection => ConsoleColor.DarkGray;
+        internal override ConsoleColor textDefault => ConsoleColor.Black;
+        internal override ConsoleColor result => ConsoleColor.DarkGreen;
+        internal override ConsoleColor background => ConsoleColor.Green;
+        internal override ConsoleColor identifier => ConsoleColor.White;
+        internal override ConsoleColor number => ConsoleColor.DarkCyan;
+        internal override ConsoleColor @string => ConsoleColor.DarkMagenta;
+        internal override ConsoleColor comment => ConsoleColor.DarkGray;
+        internal override ConsoleColor keyword => ConsoleColor.DarkBlue;
+        internal override ConsoleColor typeName => ConsoleColor.Red;
+        internal override ConsoleColor text => ConsoleColor.DarkGray;
+        internal override ConsoleColor errorText => ConsoleColor.Gray;
+    }
+
+    /// <summary>
+    /// REPL specific state, maintained throughout instance, recreated every instance.
+    /// </summary>
+    internal sealed class BelteReplState {
+        /// <summary>
+        /// Show the parse tree after a submission.
+        /// </summary>
+        public bool showTree = false;
+
+        /// <summary>
+        /// Show the lowered code after a submission.
+        /// </summary>
+        public bool showProgram = false;
+
+        /// <summary>
+        /// If to ignore statements with side effects (Print, PrintLine, etc.).
+        /// </summary>
+        public bool loadingSubmissions = false;
+
+        /// <summary>
+        /// What color theme to use (can change).
+        /// </summary>
+        public ColorTheme colorTheme = new DarkTheme();
+
+        /// <summary>
+        /// Current page the user is viewing (see Page)
+        /// </summary>
+        public Page currentPage = Page.Repl;
+
+        /// <summary>
+        /// Previous compilation (used to build of previous).
+        /// </summary>
+        public Compilation previous;
+
+        /// <summary>
+        /// Current defined variables.
+        /// Not tracked after REPL instance is over, instead previous submissions are reevaluated.
+        /// </summary>
+        public Dictionary<VariableSymbol, object> variables;
     }
 }

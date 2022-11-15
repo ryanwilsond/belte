@@ -7,67 +7,25 @@ using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
+/// <summary>
+/// Lowers statements to be simpler and use less language features.
+/// </summary>
 internal sealed class Lowerer : BoundTreeRewriter {
     private int labelCount_;
     private int inlineFunctionCount_;
 
     private Lowerer() { }
 
-    private BoundLabel GenerateLabel() {
-        var name = $"Label{++labelCount_}";
-        return new BoundLabel(name);
-    }
-
-    private FunctionSymbol GenerateFunction(BoundTypeClause returnType) {
-        var name = $"$Inline{++inlineFunctionCount_}";
-        return new FunctionSymbol(name, ImmutableArray<ParameterSymbol>.Empty, returnType);
-    }
-
+    /// <summary>
+    /// Lowers a function.
+    /// </summary>
+    /// <param name="function">Function symbol</param>
+    /// <param name="statement">Function body</param>
+    /// <returns>Lowered function body (same type)</returns>
     internal static BoundBlockStatement Lower(FunctionSymbol function, BoundStatement statement) {
         var lowerer = new Lowerer();
         var block = Flatten(function, lowerer.RewriteStatement(statement));
         return RemoveDeadCode(block);
-    }
-
-    private static BoundBlockStatement RemoveDeadCode(BoundBlockStatement statement) {
-        var controlFlow = ControlFlowGraph.Create(statement);
-        var reachableStatements = new HashSet<BoundStatement>(controlFlow.blocks.SelectMany(b => b.statements));
-
-        var builder = statement.statements.ToBuilder();
-        for (int i=builder.Count-1; i>=0; i--) {
-            if (!reachableStatements.Contains(builder[i]))
-                builder.RemoveAt(i);
-        }
-
-        return new BoundBlockStatement(builder.ToImmutable());
-    }
-
-    private static BoundBlockStatement Flatten(FunctionSymbol function, BoundStatement statement) {
-        var builder = ImmutableArray.CreateBuilder<BoundStatement>();
-        var stack = new Stack<BoundStatement>();
-        stack.Push(statement);
-
-        while (stack.Count > 0) {
-            var current = stack.Pop();
-
-            if (current is BoundBlockStatement block) {
-                foreach (var s in block.statements.Reverse())
-                    stack.Push(s);
-            } else {
-                builder.Add(current);
-            }
-        }
-
-        if (function.typeClause.lType == TypeSymbol.Void)
-            if (builder.Count == 0 || CanFallThrough(builder.Last()))
-                builder.Add(new BoundReturnStatement(null));
-
-        return new BoundBlockStatement(builder.ToImmutable());
-    }
-
-    private static bool CanFallThrough(BoundStatement boundStatement) {
-        return boundStatement.type != BoundNodeType.ReturnStatement &&
-            boundStatement.type != BoundNodeType.GotoStatement;
     }
 
     protected override BoundStatement RewriteIfStatement(BoundIfStatement node) {
@@ -261,5 +219,57 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return new BoundCallExpression(newFunction, expression.arguments);
         else
             return new BoundCallExpression(newFunction, builder.ToImmutable());
+    }
+
+
+    private static BoundBlockStatement RemoveDeadCode(BoundBlockStatement statement) {
+        var controlFlow = ControlFlowGraph.Create(statement);
+        var reachableStatements = new HashSet<BoundStatement>(controlFlow.blocks.SelectMany(b => b.statements));
+
+        var builder = statement.statements.ToBuilder();
+        for (int i=builder.Count-1; i>=0; i--) {
+            if (!reachableStatements.Contains(builder[i]))
+                builder.RemoveAt(i);
+        }
+
+        return new BoundBlockStatement(builder.ToImmutable());
+    }
+
+    private static BoundBlockStatement Flatten(FunctionSymbol function, BoundStatement statement) {
+        var builder = ImmutableArray.CreateBuilder<BoundStatement>();
+        var stack = new Stack<BoundStatement>();
+        stack.Push(statement);
+
+        while (stack.Count > 0) {
+            var current = stack.Pop();
+
+            if (current is BoundBlockStatement block) {
+                foreach (var s in block.statements.Reverse())
+                    stack.Push(s);
+            } else {
+                builder.Add(current);
+            }
+        }
+
+        if (function.typeClause.lType == TypeSymbol.Void)
+            if (builder.Count == 0 || CanFallThrough(builder.Last()))
+                builder.Add(new BoundReturnStatement(null));
+
+        return new BoundBlockStatement(builder.ToImmutable());
+    }
+
+    private static bool CanFallThrough(BoundStatement boundStatement) {
+        return boundStatement.type != BoundNodeType.ReturnStatement &&
+            boundStatement.type != BoundNodeType.GotoStatement;
+    }
+
+    private BoundLabel GenerateLabel() {
+        var name = $"Label{++labelCount_}";
+        return new BoundLabel(name);
+    }
+
+    private FunctionSymbol GenerateFunction(BoundTypeClause returnType) {
+        var name = $"$Inline{++inlineFunctionCount_}";
+        return new FunctionSymbol(name, ImmutableArray<ParameterSymbol>.Empty, returnType);
     }
 }

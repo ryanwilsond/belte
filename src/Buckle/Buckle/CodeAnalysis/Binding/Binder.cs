@@ -11,15 +11,20 @@ using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Binding;
 
+/// <summary>
+/// Binds a parser output into a immutable "bound" tree.
+/// This is where most error checking happens.
+/// The Lowerer is also called here to simplify the code, and convert control of flow into gotos and labels.
+/// Dead code is also removed here, as well as other optimizations.
+/// </summary>
 internal sealed class Binder {
-    internal BelteDiagnosticQueue diagnostics;
-    private BoundScope scope_;
     private readonly bool isScript_;
     private readonly FunctionSymbol function_;
-    private Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> loopStack_ =
-        new Stack<(BoundLabel breakLabel, BoundLabel continueLabel)>();
     private readonly List<(FunctionSymbol function, BoundBlockStatement body)> functionBodies_ =
         new List<(FunctionSymbol function, BoundBlockStatement body)>();
+    private BoundScope scope_;
+    private Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> loopStack_ =
+        new Stack<(BoundLabel breakLabel, BoundLabel continueLabel)>();
     private int labelCount_;
     private Stack<int> inlineCounts_ = new Stack<int>();
     private int inlineCount_;
@@ -33,13 +38,6 @@ internal sealed class Binder {
     private Dictionary<string, LocalFunctionDeclaration> unresolvedLocals_ =
         new Dictionary<string, LocalFunctionDeclaration>();
 
-    private struct BinderState {
-        internal BelteDiagnosticQueue diagnostics;
-        internal List<(FunctionSymbol function, BoundBlockStatement body)> functionBodies;
-        internal List<string> resolvedLocals;
-        internal Dictionary<string, LocalFunctionDeclaration> unresolvedLocals;
-    }
-
     private Binder(bool isScript, BoundScope parent, FunctionSymbol function) {
         isScript_ = isScript;
         diagnostics = new BelteDiagnosticQueue();
@@ -52,6 +50,18 @@ internal sealed class Binder {
         }
     }
 
+    /// <summary>
+    /// Diagnostics produced by the Binder (and Lowerer).
+    /// </summary>
+    internal BelteDiagnosticQueue diagnostics { get; set; }
+
+    /// <summary>
+    /// Binds everything in the global scope.
+    /// </summary>
+    /// <param name="isScript">If being bound as a script (used by the REPL), otherwise an application</param>
+    /// <param name="previous">Previous scope (if applicable)</param>
+    /// <param name="syntaxTrees">All syntax trees, as files are bound together</param>
+    /// <returns>A bound global scope</returns>
     internal static BoundGlobalScope BindGlobalScope(
         bool isScript, BoundGlobalScope previous, ImmutableArray<SyntaxTree> syntaxTrees) {
         var parentScope = CreateParentScope(previous);
@@ -133,6 +143,13 @@ internal sealed class Binder {
             scriptFunction, functions, variables, statements.ToImmutable());
     }
 
+    /// <summary>
+    /// Binds a program.
+    /// </summary>
+    /// <param name="isScript">If being bound as a script (used by the REPL), otherwise an application</param>
+    /// <param name="previous">Previous program (if applicable)</param>
+    /// <param name="globalScope">The already bound global scope</param>
+    /// <returns>A bound/finished program (then either emitted or evaluated)</returns>
     internal static BoundProgram BindProgram(bool isScript, BoundProgram previous, BoundGlobalScope globalScope) {
         var parentScope = CreateParentScope(globalScope);
 
@@ -218,28 +235,6 @@ internal sealed class Binder {
             globalScope.scriptFunction, functionBodies.ToImmutable());
     }
 
-    private void BindFunctionDeclaration(FunctionDeclaration function) {
-        var type = BindTypeClause(function.returnType);
-        var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
-        var seenParametersNames = new HashSet<string>();
-
-        foreach (var parameter in function.parameters) {
-            var parameterName = parameter.identifier.text;
-            var parameterType = BindTypeClause(parameter.typeClause);
-
-            if (!seenParametersNames.Add(parameterName)) {
-                diagnostics.Push(Error.ParameterAlreadyDeclared(parameter.location, parameter.identifier.text));
-            } else {
-                var boundParameter = new ParameterSymbol(parameterName, parameterType, parameters.Count);
-                parameters.Add(boundParameter);
-            }
-        }
-
-        var newFunction = new FunctionSymbol(function.identifier.text, parameters.ToImmutable(), type, function);
-        if (newFunction.declaration.identifier.text != null && !scope_.TryDeclareFunction(newFunction))
-            diagnostics.Push(Error.FunctionAlreadyDeclared(function.identifier.location, newFunction.name));
-    }
-
     private static BoundScope CreateParentScope(BoundGlobalScope previous) {
         var stack = new Stack<BoundGlobalScope>();
 
@@ -273,6 +268,28 @@ internal sealed class Binder {
             result.TryDeclareFunction(f);
 
         return result;
+    }
+
+    private void BindFunctionDeclaration(FunctionDeclaration function) {
+        var type = BindTypeClause(function.returnType);
+        var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
+        var seenParametersNames = new HashSet<string>();
+
+        foreach (var parameter in function.parameters) {
+            var parameterName = parameter.identifier.text;
+            var parameterType = BindTypeClause(parameter.typeClause);
+
+            if (!seenParametersNames.Add(parameterName)) {
+                diagnostics.Push(Error.ParameterAlreadyDeclared(parameter.location, parameter.identifier.text));
+            } else {
+                var boundParameter = new ParameterSymbol(parameterName, parameterType, parameters.Count);
+                parameters.Add(boundParameter);
+            }
+        }
+
+        var newFunction = new FunctionSymbol(function.identifier.text, parameters.ToImmutable(), type, function);
+        if (newFunction.declaration.identifier.text != null && !scope_.TryDeclareFunction(newFunction))
+            diagnostics.Push(Error.FunctionAlreadyDeclared(function.identifier.location, newFunction.name));
     }
 
     private BoundStatement BindStatement(Statement syntax, bool isGlobal = false, bool insideInline = false) {
@@ -1143,7 +1160,7 @@ internal sealed class Binder {
             BoundExpression tempItem = BindExpression(item);
             tempItem.typeClause.isNullable = true;
 
-            if (type == null) {
+            if (type == null || type.isImplicit) {
                 var typeClause = tempItem.typeClause;
 
                 type = new BoundTypeClause(
@@ -1179,7 +1196,7 @@ internal sealed class Binder {
 
         EndEmulation(binderSaveState);
 
-        // catch casting errors before they happen
+        // Catch casting errors before they happen
         diagnostics.Move(tempDiagnostics);
 
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
@@ -1784,5 +1801,12 @@ internal sealed class Binder {
             default:
                 return null;
         }
+    }
+
+    private struct BinderState {
+        internal BelteDiagnosticQueue diagnostics;
+        internal List<(FunctionSymbol function, BoundBlockStatement body)> functionBodies;
+        internal List<string> resolvedLocals;
+        internal Dictionary<string, LocalFunctionDeclaration> unresolvedLocals;
     }
 }

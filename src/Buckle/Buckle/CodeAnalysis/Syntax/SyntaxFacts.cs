@@ -3,8 +3,15 @@ using System.Collections.Generic;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
+/// <summary>
+/// Basic syntax facts references by parser and lexer.
+/// </summary>
 internal static class SyntaxFacts {
-
+    /// <summary>
+    /// Gets binary operator precedence of a syntax type.
+    /// </summary>
+    /// <param name="type">Syntax type</param>
+    /// <returns>Precedence</returns>
     internal static int GetBinaryPrecedence(this SyntaxType type) {
         switch (type) {
             case SyntaxType.ASTERISK_ASTERISK_TOKEN:
@@ -43,6 +50,11 @@ internal static class SyntaxFacts {
         }
     }
 
+    /// <summary>
+    /// Gets primary operator precedence of a syntax type.
+    /// </summary>
+    /// <param name="type">Syntax type</param>
+    /// <returns>Precedence</returns>
     internal static int GetPrimaryPrecedence(this SyntaxType type) {
         switch (type) {
             case SyntaxType.OPEN_BRACKET_TOKEN:
@@ -53,6 +65,11 @@ internal static class SyntaxFacts {
         }
     }
 
+    /// <summary>
+    /// Gets unary operator precedence of a syntax type.
+    /// </summary>
+    /// <param name="type">Syntax type</param>
+    /// <returns>Precedence</returns>
     internal static int GetUnaryPrecedence(this SyntaxType type) {
         switch (type) {
             case SyntaxType.PLUS_PLUS_TOKEN:
@@ -67,6 +84,11 @@ internal static class SyntaxFacts {
         }
     }
 
+    /// <summary>
+    /// Attempts to get a syntax type from a text representation of a keyword.
+    /// </summary>
+    /// <param name="text">Text representation</param>
+    /// <returns>Keyword type, defaults to identifer if failed</returns>
     internal static SyntaxType GetKeywordType(string text) {
         switch (text) {
             case "true":
@@ -112,6 +134,11 @@ internal static class SyntaxFacts {
         }
     }
 
+    /// <summary>
+    /// Gets text representation of a token or keyword.
+    /// </summary>
+    /// <param name="type">Syntax type</param>
+    /// <returns>Text representation, default to null if not text representation exists</returns>
     internal static string GetText(SyntaxType type) {
         switch (type) {
             case SyntaxType.COMMA_TOKEN:
@@ -239,6 +266,11 @@ internal static class SyntaxFacts {
         }
     }
 
+    /// <summary>
+    /// Gets base operator type of assignment operator type (e.g. += -> +).
+    /// </summary>
+    /// <param name="type">Syntax type</param>
+    /// <returns>Binary operator type</returns>
     internal static SyntaxType GetBinaryOperatorOfAssignmentOperator(SyntaxType type) {
         switch (type) {
             case SyntaxType.PLUS_EQUALS_TOKEN:
@@ -266,6 +298,10 @@ internal static class SyntaxFacts {
         }
     }
 
+    /// <summary>
+    /// Gets all unary operator types.
+    /// </summary>
+    /// <returns>Unary operator types (calling code should not depend on order)</returns>
     internal static IEnumerable<SyntaxType> GetUnaryOperatorTypes() {
         var types = (SyntaxType[])Enum.GetValues(typeof(SyntaxType));
         foreach (var type in types) {
@@ -274,6 +310,10 @@ internal static class SyntaxFacts {
         }
     }
 
+    /// <summary>
+    /// Gets all binary operator types.
+    /// </summary>
+    /// <returns>Binary operator types (calling code should not depend on order)</returns>
     internal static IEnumerable<SyntaxType> GetBinaryOperatorTypes() {
         var types = (SyntaxType[])Enum.GetValues(typeof(SyntaxType));
         foreach (var type in types) {
@@ -282,18 +322,38 @@ internal static class SyntaxFacts {
         }
     }
 
+    /// <summary>
+    /// Checks if a syntax type is a keyword.
+    /// </summary>
+    /// <param name="type">Syntax type</param>
+    /// <returns>If the syntax type is a keyword</returns>
     internal static bool IsKeyword(this SyntaxType type) {
         return type.ToString().EndsWith("KEYWORD");
     }
 
+    /// <summary>
+    /// Checks if a syntax type is a token.
+    /// </summary>
+    /// <param name="type">Syntax type</param>
+    /// <returns>If the syntax type is a token</returns>
     internal static bool IsToken(this SyntaxType type) {
         return !type.IsTrivia() && (type.IsKeyword() || type.ToString().EndsWith("TOKEN"));
     }
 
+    /// <summary>
+    /// Checks if a syntax type is trivia.
+    /// </summary>
+    /// <param name="type">Syntax type</param>
+    /// <returns>If the syntax type is trivia</returns>
     internal static bool IsTrivia(this SyntaxType type) {
         return type.ToString().EndsWith("TRIVIA");
     }
 
+    /// <summary>
+    /// Checks if a syntax type is a comment.
+    /// </summary>
+    /// <param name="type">Syntax type</param>
+    /// <returns>If the syntax type is a comment</returns>
     internal static bool IsComment(this SyntaxType type) {
         return type == SyntaxType.SINGLELINE_COMMENT_TRIVIA || type == SyntaxType.MULTILINE_COMMENT_TRIVIA;
     }
