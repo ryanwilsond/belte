@@ -285,6 +285,8 @@ public class EvaluatorTests {
 
     [Fact]
     public void Evaluator_FunctionParameters_NoInfiniteLoop() {
+        // TODO doesn't throw when debugging, but does normally??
+        // need to debug the test
         var text = @"
             void hi(string name[=]) {
                 PrintLine(""Hi "" + name + ""!"");
