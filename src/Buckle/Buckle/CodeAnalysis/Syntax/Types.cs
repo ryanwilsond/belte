@@ -287,11 +287,6 @@ internal abstract class Node {
 /// Token type.
 /// </summary>
 internal sealed class Token : Node {
-    /// <summary>
-    /// Creates a token.
-    /// </summary>
-    /// <param name="syntaxTree">Syntax tree this node resides in</param>
-    /// <param name="type">Syntax type of token</param>
     /// <param name="position">Position of token (indexed by the node, not character in source text)</param>
     /// <param name="text">Text related to token (if applicable)</param>
     /// <param name="value">Value related to token (if applicable)</param>
@@ -308,9 +303,6 @@ internal sealed class Token : Node {
         this.trailingTrivia = trailingTrivia;
     }
 
-    /// <summary>
-    /// Type of node (see SyntaxType).
-    /// </summary>
     internal override SyntaxType type { get; }
 
     /// <summary>
@@ -371,10 +363,6 @@ internal sealed class Token : Node {
 /// A node representing a source file, the root node of a syntax tree.
 /// </summary>
 internal sealed partial class CompilationUnit : Node {
-    /// <summary>
-    /// Creates a compilation unit.
-    /// </summary>
-    /// <param name="syntaxTree">Syntax tree this node resides in</param>
     /// <param name="members">The top level nodes (global)</param>
     /// <param name="endOfFile">EOF token</param>
     internal CompilationUnit(SyntaxTree syntaxTree, ImmutableArray<Member> members, Token endOfFile)
@@ -393,9 +381,6 @@ internal sealed partial class CompilationUnit : Node {
     /// </summary>
     internal Token endOfFile { get; }
 
-    /// <summary>
-    /// Type of node (see SyntaxType).
-    /// </summary>
     internal override SyntaxType type => SyntaxType.COMPILATION_UNIT;
 }
 
@@ -403,11 +388,6 @@ internal sealed partial class CompilationUnit : Node {
 /// All trivia: comments and whitespace. Text that does not affect compilation.
 /// </summary>
 internal sealed class SyntaxTrivia {
-    /// <summary>
-    /// Creates a syntax trivia.
-    /// </summary>
-    /// <param name="syntaxTree">Syntax tree this trivia resides in</param>
-    /// <param name="type">Type of syntax trivia</param>
     /// <param name="position">Position of the trivia (indexed by nodes, not by character)</param>
     /// <param name="text">Text associated with the trivia</param>
     internal SyntaxTrivia(SyntaxTree syntaxTree, SyntaxType type, int position, string text) {
@@ -417,14 +397,8 @@ internal sealed class SyntaxTrivia {
         this.text = text;
     }
 
-    /// <summary>
-    /// Syntax tree this trivia resides in.
-    /// </summary>
     internal SyntaxTree syntaxTree { get; }
 
-    /// <summary>
-    /// The type of syntax trivia.
-    /// </summary>
     internal SyntaxType type { get; }
 
     /// <summary>
@@ -447,15 +421,10 @@ internal sealed class SyntaxTrivia {
 /// A type clause, includes array dimensions, type name, and attributes.
 /// </summary>
 internal sealed class TypeClause : Node {
-    /// <summary>
-    /// Creates a type clause.
-    /// </summary>
-    /// <param name="syntaxTree">Syntax tree this node resides in</param>
     /// <param name="attributes">Simple flag modifiers on a type (e.g. [NotNull])</param>
     /// <param name="constRefKeyword">Const keyword referring to a constant reference type</param>
     /// <param name="refKeyword">Ref keyword referring to a reference type</param>
     /// <param name="constKeyword">Const keyword referring to a constant type</param>
-    /// <param name="typeName">Type name</param>
     /// <param name="brackets">Brackets, determine array dimensions</param>
     internal TypeClause(SyntaxTree syntaxTree, ImmutableArray<(Token, Token, Token)> attributes,
         Token constRefKeyword, Token refKeyword, Token constKeyword, Token typeName,
@@ -491,9 +460,6 @@ internal sealed class TypeClause : Node {
     /// </summary>
     internal Token? constKeyword { get; }
 
-    /// <summary>
-    /// Type name of the type.
-    /// </summary>
     internal Token typeName { get; }
 
     /// <summary>
@@ -503,14 +469,8 @@ internal sealed class TypeClause : Node {
     /// <param name="closeBracket">Close square bracket token</param>
     internal ImmutableArray<(Token openBracket, Token closeBracket)> brackets { get; }
 
-    /// <summary>
-    /// Type of node (see SyntaxType).
-    /// </summary>
     internal override SyntaxType type => SyntaxType.TYPE_CLAUSE;
 
-    /// <summary>
-    /// Gets all child nodes.
-    /// </summary>
     internal override IEnumerable<Node> GetChildren() {
         foreach (var attribute in attributes) {
             yield return attribute.openBracket;
