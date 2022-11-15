@@ -2,17 +2,82 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Text;
-using System;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
+/// <summary>
+/// Lexes then parses text into a tree of nodes, in doing so doing syntax checking.
+/// </summary>
 internal sealed class Parser {
     private readonly ImmutableArray<Token> tokens_;
-    private int position_;
     private readonly SourceText text_;
     private readonly SyntaxTree syntaxTree_;
+    private int position_;
 
-    internal BelteDiagnosticQueue diagnostics;
+    /// <summary>
+    /// Creates a new parser, requiring a fully initialized syntax tree.
+    /// </summary>
+    /// <param name="syntaxTree">Syntax tree to parse from</param>
+    internal Parser(SyntaxTree syntaxTree) {
+        diagnostics = new BelteDiagnosticQueue();
+        var tokens = new List<Token>();
+        var badTokens = new List<Token>();
+        Lexer lexer = new Lexer(syntaxTree);
+        Token token;
+        text_ = syntaxTree.text;
+        syntaxTree_ = syntaxTree;
+
+        do {
+            token = lexer.LexNext();
+
+            if (token.type == SyntaxType.BAD_TOKEN) {
+                badTokens.Add(token);
+            } else {
+                if (badTokens.Count > 0) {
+                    var leadingTrivia = token.leadingTrivia.ToBuilder();
+                    var index = 0;
+
+                    foreach (var badToken in badTokens) {
+                        foreach (var lt in badToken.leadingTrivia)
+                            leadingTrivia.Insert(index++, lt);
+
+                        var trivia = new SyntaxTrivia(
+                            syntaxTree, SyntaxType.SKIPPED_TOKEN_TRIVIA, badToken.position, badToken.text);
+                        leadingTrivia.Insert(index++, trivia);
+
+                        foreach (var tt in badToken.trailingTrivia)
+                            leadingTrivia.Insert(index++, tt);
+                    }
+
+                    badTokens.Clear();
+                    token = new Token(token.syntaxTree, token.type, token.position,
+                        token.text, token.value, leadingTrivia.ToImmutable(), token.trailingTrivia);
+                }
+
+                tokens.Add(token);
+            }
+        } while (token.type != SyntaxType.END_OF_FILE_TOKEN);
+
+        tokens_ = tokens.ToImmutableArray();
+        diagnostics.Move(lexer.diagnostics);
+    }
+
+    /// <summary>
+    /// Diagnostics produced during the parsing process.
+    /// </summary>
+    internal BelteDiagnosticQueue diagnostics { get; set; }
+
+    private Token current => Peek(0);
+
+    /// <summary>
+    /// Parses the entirety of a single file.
+    /// </summary>
+    /// <returns>The parsed file</returns>
+    internal CompilationUnit ParseCompilationUnit() {
+        var members = ParseMembers();
+        var endOfFile = Match(SyntaxType.END_OF_FILE_TOKEN);
+        return new CompilationUnit(syntaxTree_, members, endOfFile);
+    }
 
     private Token Match(SyntaxType type, SyntaxType? nextWanted = null, bool suppressErrors = false) {
         if (current.type == type)
@@ -58,58 +123,6 @@ internal sealed class Parser {
             return tokens_[tokens_.Length - 1];
 
         return tokens_[index];
-    }
-
-    private Token current => Peek(0);
-
-    internal Parser(SyntaxTree syntaxTree) {
-        diagnostics = new BelteDiagnosticQueue();
-        var tokens = new List<Token>();
-        var badTokens = new List<Token>();
-        Lexer lexer = new Lexer(syntaxTree);
-        Token token;
-        text_ = syntaxTree.text;
-        syntaxTree_ = syntaxTree;
-
-        do {
-            token = lexer.LexNext();
-
-            if (token.type == SyntaxType.BAD_TOKEN) {
-                badTokens.Add(token);
-            } else {
-                if (badTokens.Count > 0) {
-                    var leadingTrivia = token.leadingTrivia.ToBuilder();
-                    var index = 0;
-
-                    foreach (var badToken in badTokens) {
-                        foreach (var lt in badToken.leadingTrivia)
-                            leadingTrivia.Insert(index++, lt);
-
-                        var trivia = new SyntaxTrivia(
-                            syntaxTree, SyntaxType.SKIPPED_TOKEN_TRIVIA, badToken.position, badToken.text);
-                        leadingTrivia.Insert(index++, trivia);
-
-                        foreach (var tt in badToken.trailingTrivia)
-                            leadingTrivia.Insert(index++, tt);
-                    }
-
-                    badTokens.Clear();
-                    token = new Token(token.syntaxTree, token.type, token.position,
-                        token.text, token.value, leadingTrivia.ToImmutable(), token.trailingTrivia);
-                }
-
-                tokens.Add(token);
-            }
-        } while (token.type != SyntaxType.END_OF_FILE_TOKEN);
-
-        tokens_ = tokens.ToImmutableArray();
-        diagnostics.Move(lexer.diagnostics);
-    }
-
-    internal CompilationUnit ParseCompilationUnit() {
-        var members = ParseMembers();
-        var endOfFile = Match(SyntaxType.END_OF_FILE_TOKEN);
-        return new CompilationUnit(syntaxTree_, members, endOfFile);
     }
 
     private ImmutableArray<Member> ParseMembers() {
