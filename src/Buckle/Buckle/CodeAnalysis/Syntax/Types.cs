@@ -78,6 +78,7 @@ internal enum SyntaxType {
     RETURN_KEYWORD,
     IS_KEYWORD,
     ISNT_KEYWORD,
+    TYPEOF_KEYWORD,
 
     // Tokens with text
     BAD_TOKEN,
@@ -108,6 +109,7 @@ internal enum SyntaxType {
     COMPOUND_ASSIGNMENT_EXPRESSION,
     REFERENCE_EXPRESSION,
     CAST_EXPRESSION,
+    TYPEOF_EXPRESSION,
 
     // Statements
     BLOCK,

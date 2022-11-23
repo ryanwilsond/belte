@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -195,9 +196,15 @@ internal abstract class BoundTreeRewriter {
                 return RewriteReferenceExpression((BoundReferenceExpression)expression);
             case BoundNodeType.InlineFunctionExpression:
                 return RewriteInlineFunctionExpression((BoundInlineFunctionExpression)expression);
+            case BoundNodeType.TypeofExpression:
+                return RewriteTypeofExpression((BoundTypeofExpression)expression);
             default:
                 return null;
         }
+    }
+
+    protected virtual BoundExpression RewriteTypeofExpression(BoundTypeofExpression expression) {
+        return expression;
     }
 
     protected virtual BoundExpression RewriteInlineFunctionExpression(BoundInlineFunctionExpression expression) {

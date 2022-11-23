@@ -481,9 +481,17 @@ internal sealed class Binder {
                 return BindInlineFunctionExpression((InlineFunctionExpression)expression);
             case SyntaxType.CAST_EXPRESSION:
                 return BindCastExpression((CastExpression)expression);
+            case SyntaxType.TYPEOF_EXPRESSION:
+                return BindTypeofExpression((TypeofExpression)expression);
             default:
                 throw new Exception($"BindExpressionInternal: unexpected syntax '{expression.type}'");
         }
+    }
+
+    private BoundExpression BindTypeofExpression(TypeofExpression expression) {
+        var typeClause = BindTypeClause(expression.typeClause);
+
+        return new BoundTypeofExpression(typeClause);
     }
 
     private BoundExpression BindReferenceExpression(ReferenceExpression expression) {
@@ -1311,6 +1319,8 @@ internal sealed class Binder {
 
         var opResultType = tempOp.typeClause;
 
+        // TODO support is/isnt type statements
+        // E.g. 3 is int
         if (tempOp.opType == BoundBinaryOperatorType.Is || tempOp.opType == BoundBinaryOperatorType.Isnt) {
             /*
 
@@ -1798,6 +1808,8 @@ internal sealed class Binder {
                 return TypeSymbol.String;
             case "void":
                 return TypeSymbol.Void;
+            case "type":
+                return TypeSymbol.Type;
             default:
                 return null;
         }

@@ -25,6 +25,7 @@ internal enum BoundNodeType {
     CompoundAssignmentExpression,
     ReferenceExpression,
     InlineFunctionExpression,
+    TypeofExpression,
 
     BlockStatement,
     ExpressionStatement,
@@ -98,6 +99,11 @@ internal sealed class BoundTypeClause : BoundNode {
     internal static readonly BoundTypeClause NullableAny = new BoundTypeClause(TypeSymbol.Any, isNullable: true);
 
     /// <summary>
+    /// The type type, value can be a type clause, can be null.
+    /// </summary>
+    internal static readonly BoundTypeClause NullableType = new BoundTypeClause(TypeSymbol.Type, isNullable: true);
+
+    /// <summary>
     /// Decimal type that cannot be null.
     /// </summary>
     internal static readonly BoundTypeClause Decimal = new BoundTypeClause(TypeSymbol.Decimal);
@@ -121,6 +127,11 @@ internal sealed class BoundTypeClause : BoundNode {
     /// Any type that cannot be null.
     /// </summary>
     internal static readonly BoundTypeClause Any = new BoundTypeClause(TypeSymbol.Any);
+
+    /// <summary>
+    /// The type type, value can be a type clause, cannot be null.
+    /// </summary>
+    internal static readonly BoundTypeClause Type = new BoundTypeClause(TypeSymbol.Type);
 
     /// <param name="lType">The language type, not the node type</param>
     /// <param name="isImplicit">If the type was assumed by the var or let keywords</param>

@@ -576,3 +576,18 @@ internal sealed class BoundReferenceExpression : BoundExpression {
 
     internal override BoundTypeClause typeClause { get; }
 }
+
+/// <summary>
+/// A bound typeof expression, bound from a parser TypeofExpression.
+/// </summary>
+internal sealed class BoundTypeofExpression : BoundExpression {
+    internal BoundTypeofExpression(BoundTypeClause typeClause) {
+        this.typeofTypeClause = typeClause;
+    }
+
+    internal BoundTypeClause typeofTypeClause { get; }
+
+    internal override BoundNodeType type => BoundNodeType.TypeofExpression;
+
+    internal override BoundTypeClause typeClause => BoundTypeClause.Type;
+}
