@@ -178,6 +178,7 @@ public class EvaluatorTests {
 
     [InlineData("int x = 2; int y = { return 2 * x; }; return y;", 4)]
     [InlineData("int funcA() { int funcB() { return 2; } return funcB() + 1; } return funcA(); ", 3)]
+    [InlineData("int funcA() { int funcB() { int funcA() { return 2; } return funcA() + 1; } return funcB() + 1; } return funcA();", 3)]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
         AssertValue(text, expectedValue);
     }
