@@ -177,11 +177,25 @@ internal sealed class Evaluator {
                 return EvaluateCastExpression((BoundCastExpression)node);
             case BoundNodeType.IndexExpression:
                 return EvaluateIndexExpression((BoundIndexExpression)node);
+            case BoundNodeType.ReferenceExpression:
+                return EvaluateReferenceExpression((BoundReferenceExpression)node);
+            case BoundNodeType.TypeofExpression:
+                return EvaluateTypeofExpression((BoundTypeofExpression)node);
             case BoundNodeType.EmptyExpression:
                 return null;
             default:
                 throw new Exception($"EvaluateExpression: unexpected node '{node.type}'");
         }
+    }
+
+    private object EvaluateTypeofExpression(BoundTypeofExpression node) {
+        // TODO implement typeof and type types
+        return null;
+    }
+
+    private object EvaluateReferenceExpression(BoundReferenceExpression node) {
+        // TODO implement references in the Evaluator
+        return null;
     }
 
     private object EvaluateIndexExpression(BoundIndexExpression node) {
@@ -205,23 +219,31 @@ internal sealed class Evaluator {
     private object EvaluateCastExpression(BoundCastExpression node) {
         var value = EvaluateExpression(node.expression);
 
+        return EvaluateCast(value, node.typeClause);
+    }
+
+    private object EvaluateCast(object value, BoundTypeClause typeClause) {
         if (value == null)
             return null;
 
-        var type = node.typeClause.lType;
+        var type = typeClause.lType;
 
-        if (type == TypeSymbol.Any)
+        if (type == TypeSymbol.Any) {
             return value;
-        if (type == TypeSymbol.Bool)
+        } else if (type == TypeSymbol.Bool) {
             return Convert.ToBoolean(value);
-        if (type == TypeSymbol.Int)
-            return Convert.ToInt32(value);
-        if (type == TypeSymbol.String)
-            return Convert.ToString(value);
-        if (type == TypeSymbol.Decimal)
-            return Convert.ToSingle(value);
+        } else if (type == TypeSymbol.Int) {
+            if (value is Single)
+                value = Math.Truncate((Single)value);
 
-        throw new Exception($"EvaluateCastExpression: unexpected type '{node.typeClause}'");
+            return Convert.ToInt32(value);
+        } else if (type == TypeSymbol.String) {
+            return Convert.ToString(value);
+        } else if (type == TypeSymbol.Decimal) {
+            return Convert.ToSingle(value);
+        }
+
+        throw new Exception($"EvaluateCast: unexpected type '{typeClause}'");
     }
 
     private object EvaluateCallExpression(BoundCallExpression node) {
@@ -303,7 +325,7 @@ internal sealed class Evaluator {
     }
 
     private object EvaluateConstantExpression(BoundExpression syntax) {
-        return syntax.constantValue.value;
+        return EvaluateCast(syntax.constantValue.value, syntax.typeClause);
     }
 
     private object EvaluateVariableExpression(BoundVariableExpression syntax) {

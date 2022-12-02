@@ -40,6 +40,11 @@ internal class TypeSymbol : Symbol {
     /// </summary>
     internal static readonly TypeSymbol Void = new TypeSymbol("void");
 
+    /// <summary>
+    /// Type type (contains a type, e.g. type myVar = typeof(int) ).
+    /// </summary>
+    internal static readonly TypeSymbol Type = new TypeSymbol("type");
+
     internal override SymbolType type => SymbolType.Type;
 
     /// <summary>

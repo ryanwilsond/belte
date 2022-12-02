@@ -11,16 +11,23 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundScope {
     private List<Symbol> symbols_;
+    private BoundScope parent_;
 
     /// <summary>
     /// Creates a new scope with an optional parent.
     /// </summary>
     /// <param name="parent">Enclosing scope</param>
     internal BoundScope(BoundScope parent) {
-        this.parent = parent;
+        this.parent_ = parent;
     }
 
-    internal BoundScope parent { get; set; }
+    internal BoundScope parent {
+        get {
+            return parent_;
+        } set {
+            parent_ = value;
+        }
+    }
 
     /// <summary>
     /// Attempts to declare a function.
@@ -74,19 +81,36 @@ internal sealed class BoundScope {
     /// <returns>If the symbol was found and successfully updated</returns>
     internal bool TryModifySymbol(string name, Symbol newSymbol) {
         // Does not work with overloads
+        // TODO need to allow overloads, as someone may try to define overloads for a nested function
         var symbol = LookupSymbol(name);
 
         if (symbol == null)
             return false;
 
-        for (int i=0; i<symbols_.Count; i++) {
-            if (symbols_[i].name == name) {
-                symbols_[i] = newSymbol;
+        var succeeded = false;
+        ref BoundScope parentRef = ref parent_;
+        ref List<Symbol> symbols = ref symbols_;
+
+        while (true) {
+            if (symbols != null) {
+                for (int i=0; i<symbols.Count; i++) {
+                    if (symbols[i].name == name) {
+                        symbols[i] = newSymbol;
+                        succeeded = true;
+                        break;
+                    }
+                }
+            }
+
+            if (parentRef == null || succeeded)
                 break;
+            else {
+                symbols = ref parentRef.symbols_;
+                parentRef = ref parentRef.parent_;
             }
         }
 
-        return true;
+        return succeeded;
     }
 
     /// <summary>
@@ -113,7 +137,8 @@ internal sealed class BoundScope {
 
         if (symbols_ != null) {
             foreach (var symbol in symbols_) {
-                if (symbol is Symbol s && symbol.name == name) {
+                // If it is a nested function, the name will be something like <funcName::name>$
+                if (symbol is Symbol s && (symbol.name == name || symbol.name.EndsWith($"::{name}>$"))) {
                     if (current_ != null) {
                         var skip = false;
 

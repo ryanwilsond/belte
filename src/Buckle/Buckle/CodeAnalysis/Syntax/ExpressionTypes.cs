@@ -383,3 +383,30 @@ internal sealed partial class CastExpression : Expression {
 
     internal override SyntaxType type => SyntaxType.CAST_EXPRESSION;
 }
+
+/// <summary>
+/// Typeof expression (C#-Style).
+/// E.g. typeof(int)
+/// </summary>
+internal sealed partial class TypeofExpression : Expression {
+    /// <param name="typeCLause">The type to get the type type from</param>
+    internal TypeofExpression(
+        SyntaxTree syntaxTree, Token typeofKeyword, Token openParenthesis,
+        TypeClause typeClause, Token closeParenthesis)
+        : base(syntaxTree) {
+        this.typeofKeyword = typeofKeyword;
+        this.openParenthesis = openParenthesis;
+        this.typeClause = typeClause;
+        this.closeParenthesis = closeParenthesis;
+    }
+
+    internal Token typeofKeyword { get;  }
+
+    internal Token openParenthesis { get;  }
+
+    internal TypeClause typeClause { get; }
+
+    internal Token closeParenthesis { get; }
+
+    internal override SyntaxType type => SyntaxType.TYPEOF_EXPRESSION;
+}

@@ -37,6 +37,13 @@ internal sealed class Binder {
     private List<string> resolvedLocals_ = new List<string>();
     private Dictionary<string, LocalFunctionDeclaration> unresolvedLocals_ =
         new Dictionary<string, LocalFunctionDeclaration>();
+    // The following fields are purely used for debugging
+    private int emulationDepth_ = 0;
+    private bool isEmulating_ {
+        get {
+            return emulationDepth_ > 0;
+        }
+    }
 
     private Binder(bool isScript, BoundScope parent, FunctionSymbol function) {
         isScript_ = isScript;
@@ -345,6 +352,7 @@ internal sealed class Binder {
     private BoundStatement BindLocalFunctionDeclaration(LocalFunctionDeclaration statement) {
         var functionSymbol = (FunctionSymbol)scope_.LookupSymbol(statement.identifier.text);
         var binder = new Binder(false, scope_, functionSymbol);
+        binder.innerPrefix_ = new Stack<String>(innerPrefix_);
         var oldTrackSymbols = trackSymbols_;
         binder.trackSymbols_ = true;
         binder.trackedSymbols_ = trackedSymbols_;
@@ -481,9 +489,17 @@ internal sealed class Binder {
                 return BindInlineFunctionExpression((InlineFunctionExpression)expression);
             case SyntaxType.CAST_EXPRESSION:
                 return BindCastExpression((CastExpression)expression);
+            case SyntaxType.TYPEOF_EXPRESSION:
+                return BindTypeofExpression((TypeofExpression)expression);
             default:
                 throw new Exception($"BindExpressionInternal: unexpected syntax '{expression.type}'");
         }
+    }
+
+    private BoundExpression BindTypeofExpression(TypeofExpression expression) {
+        var typeClause = BindTypeClause(expression.typeClause);
+
+        return new BoundTypeofExpression(typeClause);
     }
 
     private BoundExpression BindReferenceExpression(ReferenceExpression expression) {
@@ -1311,6 +1327,8 @@ internal sealed class Binder {
 
         var opResultType = tempOp.typeClause;
 
+        // TODO support is/isnt type statements
+        // E.g. 3 is int
         if (tempOp.opType == BoundBinaryOperatorType.Is || tempOp.opType == BoundBinaryOperatorType.Isnt) {
             /*
 
@@ -1529,6 +1547,7 @@ internal sealed class Binder {
 
         scope_ = new BoundScope(scope_);
         inlineCounts_.Push(inlineCount_);
+        emulationDepth_++;
 
         return state;
     }
@@ -1543,6 +1562,7 @@ internal sealed class Binder {
         functionBodies_.AddRange(oldState.functionBodies);
         diagnostics.Clear();
         diagnostics.Move(oldState.diagnostics);
+        emulationDepth_--;
     }
 
     private BoundExpression BindParenExpression(ParenthesisExpression expression) {
@@ -1798,6 +1818,8 @@ internal sealed class Binder {
                 return TypeSymbol.String;
             case "void":
                 return TypeSymbol.Void;
+            case "type":
+                return TypeSymbol.Type;
             default:
                 return null;
         }

@@ -109,7 +109,7 @@ public class EvaluatorTests {
     [InlineData("4 >= 5;", false)]
     [InlineData("5 >= 4;", true)]
 
-    // TODO @abiral remove need for casts
+    // TODO @Abiral remove need for casts
     [InlineData("3.2 + 3.4;", (float)6.6000004)]
     [InlineData("3.2 - 3.4;", -(float)0.20000005)]
     [InlineData("10 * 1.5;", (float)15)]
@@ -143,6 +143,42 @@ public class EvaluatorTests {
 
     [InlineData("decimal[] a = {3.1, 2.56, 5.23123}; return a[2];", (float)5.23123)]
     [InlineData("var a = {3.1, 2.56, 5.23123}; return a[0];", (float)3.1)]
+
+    [InlineData("(null + 3) is null;", true)]
+    [InlineData("(null > 3) is null;", true)]
+    [InlineData("null || true;", true)]
+
+    // TODO add these tests and implement required features (refs and is/isnt type)
+    // It is commented out right now because theses features are bigger than was expected,
+    // So these features are not going to be added in this PR
+    // [InlineData("int x = 4; ref int y = ref x; x++; return y;", 5)]
+
+    // [InlineData("3 is int;", true)]
+    // [InlineData("null is int;", false)]
+    // [InlineData("4 is decimal;", false)]
+    // [InlineData("(decimal)4 is decimal;", true)]
+    // [InlineData("4.0 is decimal;", true)]
+    // [InlineData("4.0 isnt bool;", true)]
+    // [InlineData("4 is any;", false)]
+    // [InlineData("null isnt int;", true)]
+    [InlineData("null is null;", true)]
+    [InlineData("3 isnt null;", true)]
+    [InlineData("null isnt null;", false)]
+    [InlineData("var a = 3; return a is null;", false)]
+    [InlineData("var a = 3; return a isnt null;", true)]
+    [InlineData("int a = 3; a += null; return a is null;", true)]
+    [InlineData("int a = 3; a += null; return a isnt null;", false)]
+
+    [InlineData("type a = typeof(int[]);", null)]
+
+    [InlineData("(decimal)3;", (float)3)]
+    [InlineData("(int)3.4;", 3)]
+    [InlineData("(int)3.6;", 3)]
+    [InlineData("([NotNull]int)3;", 3)]
+
+    [InlineData("int x = 2; int y = { return 2 * x; }; return y;", 4)]
+    [InlineData("int funcA() { int funcB() { return 2; } return funcB() + 1; } return funcA(); ", 3)]
+    [InlineData("int funcA() { int funcB() { int funcA() { return 2; } return funcA() + 1; } return funcB() + 1; } return funcA();", 3)]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
         AssertValue(text, expectedValue);
     }
@@ -677,9 +713,10 @@ public class EvaluatorTests {
     [Fact]
     public void Evaluator_Function_CanDeclare() {
         var text = @"
-            int myFunction(int num1, int num2) {
+            void myFunction(int num1, int num2) {
                 Print(num1 + num2 / 3.14159);
             }
+            myFunction(1, 2);
         ";
 
         var diagnostics = @"";
@@ -690,7 +727,7 @@ public class EvaluatorTests {
     [Fact]
     public void Evaluator_Function_CanCall() {
         var text = @"
-            int myFunction(int num) {
+            void myFunction(int num) {
                 Print(num ** 2);
             }
             myFunction(2);
@@ -720,7 +757,7 @@ public class EvaluatorTests {
         var variables = new Dictionary<VariableSymbol, object>();
         var result = compilation.Evaluate(variables);
 
-        Assert.Empty(result.diagnostics.ToArray());
+        Assert.Empty(result.diagnostics.FilterOut(DiagnosticType.Warning).ToArray());
         Assert.Equal(expectedValue, result.value);
     }
 

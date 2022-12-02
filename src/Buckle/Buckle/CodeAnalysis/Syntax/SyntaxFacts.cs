@@ -15,36 +15,36 @@ internal static class SyntaxFacts {
     internal static int GetBinaryPrecedence(this SyntaxType type) {
         switch (type) {
             case SyntaxType.ASTERISK_ASTERISK_TOKEN:
-                return 11;
+                return 14;
             case SyntaxType.ASTERISK_TOKEN:
             case SyntaxType.SLASH_TOKEN:
-                return 10;
+                return 13;
             case SyntaxType.PLUS_TOKEN:
             case SyntaxType.MINUS_TOKEN:
-                return 9;
+                return 12;
             case SyntaxType.LESS_THAN_LESS_THAN_TOKEN:
             case SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN:
-                return 8;
+                return 11;
             case SyntaxType.IS_KEYWORD:
             case SyntaxType.ISNT_KEYWORD:
             case SyntaxType.LESS_THAN_TOKEN:
             case SyntaxType.GREATER_THAN_TOKEN:
             case SyntaxType.LESS_THAN_EQUALS_TOKEN:
             case SyntaxType.GREATER_THAN_EQUALS_TOKEN:
-                return 7;
+                return 10;
             case SyntaxType.EQUALS_EQUALS_TOKEN:
             case SyntaxType.EXCLAMATION_EQUALS_TOKEN:
-                return 6;
+                return 9;
             case SyntaxType.AMPERSAND_TOKEN:
-                return 5;
+                return 8;
             case SyntaxType.CARET_TOKEN:
-                return 4;
+                return 7;
             case SyntaxType.PIPE_TOKEN:
-                return 3;
+                return 6;
             case SyntaxType.AMPERSAND_AMPERSAND_TOKEN:
-                return 2;
+                return 5;
             case SyntaxType.PIPE_PIPE_TOKEN:
-                return 1;
+                return 4;
             default:
                 return 0;
         }
@@ -57,9 +57,10 @@ internal static class SyntaxFacts {
     /// <returns>Precedence</returns>
     internal static int GetPrimaryPrecedence(this SyntaxType type) {
         switch (type) {
+            case SyntaxType.TYPEOF_KEYWORD:
             case SyntaxType.OPEN_BRACKET_TOKEN:
             case SyntaxType.OPEN_PAREN_TOKEN:
-                return 13;
+                return 18;
             default:
                 return 0;
         }
@@ -78,7 +79,7 @@ internal static class SyntaxFacts {
             case SyntaxType.MINUS_TOKEN:
             case SyntaxType.EXCLAMATION_TOKEN:
             case SyntaxType.TILDE_TOKEN:
-                return 12;
+                return 17;
             default:
                 return 0;
         }
@@ -129,6 +130,8 @@ internal static class SyntaxFacts {
                 return SyntaxType.IS_KEYWORD;
             case "isnt":
                 return SyntaxType.ISNT_KEYWORD;
+            case "typeof":
+                return SyntaxType.TYPEOF_KEYWORD;
             default:
                 return SyntaxType.IDENTIFIER_TOKEN;
         }
@@ -261,6 +264,8 @@ internal static class SyntaxFacts {
                 return "is";
             case SyntaxType.ISNT_KEYWORD:
                 return "isnt";
+            case SyntaxType.TYPEOF_KEYWORD:
+                return "typeof";
             default:
                 return null;
         }

@@ -6,6 +6,7 @@ using Buckle;
 using Buckle.Diagnostics;
 
 namespace Repl;
+// TODO crashes when fill a line completely
 
 /// <summary>
 /// Overrides default console handling and controls all keystrokes. Adds framework for meta commands and submissions.

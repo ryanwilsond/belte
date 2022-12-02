@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Text;
+using System;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
@@ -679,6 +680,7 @@ internal sealed class Parser {
                 else
                     goto default;
             case SyntaxType.NAME_EXPRESSION:
+            case SyntaxType.TYPEOF_KEYWORD:
             default:
                 return ParseNameOrPrimaryOperatorExpression();
         }
@@ -763,12 +765,14 @@ internal sealed class Parser {
     }
 
     private Expression ParsePrimaryOperatorExpression(
-        Expression operand, int parentPrecedence = 0, Token maybeUnexpected=null) {
-        Expression ParseCorrectPrimaryOperator(Expression operand) {
-            if (current.type == SyntaxType.OPEN_PAREN_TOKEN)
-                return ParseCallExpression(operand);
-            if (current.type == SyntaxType.OPEN_BRACKET_TOKEN)
-                return ParseIndexExpression(operand);
+        Node operand, int parentPrecedence = 0, Token maybeUnexpected=null) {
+        Node ParseCorrectPrimaryOperator(Node operand) {
+            if (operand.type == SyntaxType.TYPEOF_KEYWORD)
+                return ParseTypeofExpression();
+            else if (current.type == SyntaxType.OPEN_PAREN_TOKEN)
+                return ParseCallExpression((Expression)operand);
+            else if (current.type == SyntaxType.OPEN_BRACKET_TOKEN)
+                return ParseIndexExpression((Expression)operand);
 
             return operand;
         }
@@ -794,12 +798,28 @@ internal sealed class Parser {
         if (completeIterations == 0 && operand is NameExpression ne && ne.identifier.isMissing)
             diagnostics.Push(Error.UnexpectedToken(maybeUnexpected.location, maybeUnexpected.type));
 
-        return operand;
+        // Assuming that all typeof operators are handled and do not fall through
+        return (Expression)operand;
+    }
+
+    private Expression ParseTypeofExpression() {
+        var typeofKeyword = Next();
+        var openParenthesis = Match(SyntaxType.OPEN_PAREN_TOKEN);
+        var typeClause = ParseTypeClause(false);
+        var closeParenthesis = Match(SyntaxType.CLOSE_PAREN_TOKEN);
+
+        return new TypeofExpression(syntaxTree_, typeofKeyword, openParenthesis, typeClause, closeParenthesis);
     }
 
     private Expression ParseNameOrPrimaryOperatorExpression() {
         var maybeUnexpected = current;
-        var left = ParseNameExpression(true);
+
+        Node left;
+        if (current.type == SyntaxType.TYPEOF_KEYWORD)
+            left = current;
+        else
+            left = ParseNameExpression(true);
+
         return ParsePrimaryOperatorExpression(left, maybeUnexpected: maybeUnexpected);
     }
 

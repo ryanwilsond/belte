@@ -22,14 +22,14 @@ internal static class ConstantFolding {
         // With and/or operators allow one side to be null
         // TODO Track statements with side effects (e.g. function calls) and still execute them left to right
         if (op?.opType == BoundBinaryOperatorType.ConditionalAnd) {
-            if (leftConstant != null && !(bool)leftConstant.value ||
-                rightConstant != null && !(bool)rightConstant.value)
+            if ((leftConstant != null && leftConstant.value != null && !(bool)leftConstant.value) ||
+                (rightConstant != null && rightConstant.value != null && !(bool)rightConstant.value))
                 return new BoundConstant(false);
         }
 
         if (op?.opType == BoundBinaryOperatorType.ConditionalOr) {
-            if (leftConstant != null && (bool)leftConstant.value ||
-                rightConstant != null && (bool)rightConstant.value)
+            if ((leftConstant != null && leftConstant.value != null && (bool)leftConstant.value) ||
+                (rightConstant != null && rightConstant.value != null && (bool)rightConstant.value))
                 return new BoundConstant(true);
         }
 
@@ -38,8 +38,6 @@ internal static class ConstantFolding {
 
         var leftValue = leftConstant.value;
         var rightValue = rightConstant.value;
-        // var leftType = left.typeClause.lType;
-        // var rightType = right.typeClause.lType;
         var leftType = op.leftType.lType;
         var rightType = op.rightType.lType;
 
@@ -50,6 +48,7 @@ internal static class ConstantFolding {
             leftValue = Convert.ToBoolean(leftValue);
             rightValue = Convert.ToBoolean(rightValue);
         } else if (leftType == TypeSymbol.Int) {
+            // Prevents bankers rounding from Convert.ToInt32, instead always truncate (no rounding)
             if (leftValue is Single)
                 leftValue = Math.Truncate((Single)leftValue);
             if (rightValue is Single)
