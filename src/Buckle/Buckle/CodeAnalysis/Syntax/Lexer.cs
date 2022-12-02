@@ -303,6 +303,14 @@ internal sealed class Lexer {
                     if (lookahead == '=') {
                         position_++;
                         type_ = SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN;
+                    } else if (lookahead == '>') {
+                        if (Peek(2) == '=') {
+                            position_++;
+                            type_ = SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_EQUALS_TOKEN;
+                        } else {
+                            type_ = SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN;
+                        }
+                        position_++;
                     } else {
                         type_ = SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN;
                     }

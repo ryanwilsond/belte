@@ -144,6 +144,8 @@ internal static class ConstantFolding {
                 return new BoundConstant((int)leftValue << (int)rightValue);
             case BoundBinaryOperatorType.RightShift:
                 return new BoundConstant((int)leftValue >> (int)rightValue);
+            case BoundBinaryOperatorType.UnsignedRightShift:
+                return new BoundConstant((int)leftValue >>> (int)rightValue);
             case BoundBinaryOperatorType.Modulo:
                 if (leftType == TypeSymbol.Int)
                     return new BoundConstant((int)leftValue % (int)rightValue);

@@ -481,6 +481,8 @@ internal sealed class Evaluator {
                 return (int)left << (int)right;
             case BoundBinaryOperatorType.RightShift:
                 return (int)left >> (int)right;
+            case BoundBinaryOperatorType.UnsignedRightShift:
+                return (int)left >>> (int)right;
             case BoundBinaryOperatorType.Modulo:
                 if (syntaxType == TypeSymbol.Int)
                     return (int)left % (int)right;
