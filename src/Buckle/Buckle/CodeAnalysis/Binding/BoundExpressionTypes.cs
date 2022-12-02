@@ -80,8 +80,8 @@ internal sealed class BoundBinaryOperator {
             BoundTypeClause.Int),
         new BoundBinaryOperator(SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN, BoundBinaryOperatorType.RightShift,
             BoundTypeClause.Int),
-        new BoundBinaryOperator(SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN, BoundBinaryOperatorType.
-            UnsignedRightShift,BoundTypeClause.Int),
+        new BoundBinaryOperator(SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN,
+            BoundBinaryOperatorType.UnsignedRightShift, BoundTypeClause.Int),
         new BoundBinaryOperator(SyntaxType.EQUALS_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityEquals,
             BoundTypeClause.Int, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.EXCLAMATION_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
@@ -93,8 +93,6 @@ internal sealed class BoundBinaryOperator {
         new BoundBinaryOperator(SyntaxType.LESS_THAN_EQUALS_TOKEN, BoundBinaryOperatorType.LessOrEqual,
             BoundTypeClause.Int, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.GREATER_THAN_EQUALS_TOKEN, BoundBinaryOperatorType.GreatOrEqual,
-            BoundTypeClause.Int, BoundTypeClause.Bool),
-        new BoundBinaryOperator(SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_EQUALS_TOKEN, BoundBinaryOperatorType.GreatOrEqual,
             BoundTypeClause.Int, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.PERCENT_TOKEN, BoundBinaryOperatorType.Modulo, BoundTypeClause.Int),
 
