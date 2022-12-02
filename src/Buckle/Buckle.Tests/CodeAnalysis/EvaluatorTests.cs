@@ -114,7 +114,12 @@ public class EvaluatorTests {
     [InlineData("4 >= 5;", false)]
     [InlineData("5 >= 4;", true)]
 
-    // TODO @Abiral remove need for casts
+
+    [InlineData("var a = 8; a >>>= 1; return a;", 4)]
+    [InlineData("var a = -8; a >>>= 1; return a;", 2147483644)]
+    [InlineData("var a = 12; a >>>= 5; return a;", 0)]
+
+    // TODO @Logan remove need for casts
     [InlineData("3.2 + 3.4;", (float)6.6000004)]
     [InlineData("3.2 - 3.4;", -(float)0.20000005)]
     [InlineData("10 * 1.5;", (float)15)]
