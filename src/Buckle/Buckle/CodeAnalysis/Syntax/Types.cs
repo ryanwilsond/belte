@@ -34,6 +34,7 @@ internal enum SyntaxType {
     SEMICOLON_TOKEN,
     LESS_THAN_TOKEN,
     GREATER_THAN_TOKEN,
+    PERCENT_TOKEN,
 
     // Compound punctuation
     AMPERSAND_AMPERSAND_TOKEN,
@@ -57,6 +58,7 @@ internal enum SyntaxType {
     GREATER_THAN_GREATER_THAN_EQUALS_TOKEN,
     PLUS_PLUS_TOKEN,
     MINUS_MINUS_TOKEN,
+    PERCENT_EQUALS_TOKEN,
 
     // Keywords
     TRUE_KEYWORD,

@@ -167,6 +167,15 @@ internal sealed class Lexer {
                 position_++;
                 type_ = SyntaxType.TILDE_TOKEN;
                 break;
+            case '%':
+                position_++;
+                if (current == '=') {
+                    type_ = SyntaxType.PERCENT_EQUALS_TOKEN;
+                    position_++;
+                } else {
+                    type_ = SyntaxType.PERCENT_TOKEN;
+                }
+                break;
             case '^':
                 position_++;
                 if (current == '=') {

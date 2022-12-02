@@ -481,6 +481,11 @@ internal sealed class Evaluator {
                 return (int)left << (int)right;
             case BoundBinaryOperatorType.RightShift:
                 return (int)left >> (int)right;
+            case BoundBinaryOperatorType.Modulo:
+                if (syntaxType == TypeSymbol.Int)
+                    return (int)left % (int)right;
+                else
+                    return (float)left % (float)right;
             default:
                 throw new Exception($"EvaluateBinaryExpression: unknown binary operator '{syntax.op}'");
         }
