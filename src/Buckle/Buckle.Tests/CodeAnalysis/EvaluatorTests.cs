@@ -114,7 +114,6 @@ public class EvaluatorTests {
     [InlineData("4 >= 5;", false)]
     [InlineData("5 >= 4;", true)]
 
-
     [InlineData("var a = 8; a >>>= 1; return a;", 4)]
     [InlineData("var a = -8; a >>>= 1; return a;", 2147483644)]
     [InlineData("var a = 12; a >>>= 5; return a;", 0)]
