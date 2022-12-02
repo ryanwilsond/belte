@@ -30,6 +30,7 @@ internal enum BoundBinaryOperatorType {
     GreatOrEqual,
     Is,
     Isnt,
+    Modulo,
 }
 
 /// <summary>
@@ -90,6 +91,7 @@ internal sealed class BoundBinaryOperator {
             BoundTypeClause.Int, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.GREATER_THAN_EQUALS_TOKEN, BoundBinaryOperatorType.GreatOrEqual,
             BoundTypeClause.Int, BoundTypeClause.Bool),
+        new BoundBinaryOperator(SyntaxType.PERCENT_TOKEN, BoundBinaryOperatorType.Modulo, BoundTypeClause.Int),
 
         // boolean
         new BoundBinaryOperator(SyntaxType.AMPERSAND_AMPERSAND_TOKEN, BoundBinaryOperatorType.ConditionalAnd,
@@ -138,6 +140,7 @@ internal sealed class BoundBinaryOperator {
             BoundTypeClause.Decimal, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.GREATER_THAN_EQUALS_TOKEN, BoundBinaryOperatorType.GreatOrEqual,
             BoundTypeClause.Decimal, BoundTypeClause.Bool),
+        new BoundBinaryOperator(SyntaxType.PERCENT_TOKEN, BoundBinaryOperatorType.Modulo, BoundTypeClause.Decimal),
 
         // any
         new BoundBinaryOperator(SyntaxType.IS_KEYWORD, BoundBinaryOperatorType.Is,

@@ -18,6 +18,7 @@ internal static class SyntaxFacts {
                 return 14;
             case SyntaxType.ASTERISK_TOKEN:
             case SyntaxType.SLASH_TOKEN:
+            case SyntaxType.PERCENT_TOKEN:
                 return 13;
             case SyntaxType.PLUS_TOKEN:
             case SyntaxType.MINUS_TOKEN:
@@ -202,6 +203,8 @@ internal static class SyntaxFacts {
                 return "<";
             case SyntaxType.GREATER_THAN_TOKEN:
                 return ">";
+            case SyntaxType.PERCENT_TOKEN:
+                return "%";
             case SyntaxType.LESS_THAN_EQUALS_TOKEN:
                 return "<=";
             case SyntaxType.GREATER_THAN_EQUALS_TOKEN:
@@ -226,6 +229,8 @@ internal static class SyntaxFacts {
                 return ">>=";
             case SyntaxType.LESS_THAN_LESS_THAN_EQUALS_TOKEN:
                 return "<<=";
+            case SyntaxType.PERCENT_EQUALS_TOKEN:
+                return "%=";
             case SyntaxType.TRUE_KEYWORD:
                 return "true";
             case SyntaxType.FALSE_KEYWORD:
@@ -298,6 +303,8 @@ internal static class SyntaxFacts {
                 return SyntaxType.LESS_THAN_LESS_THAN_TOKEN;
             case SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
                 return SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN;
+            case SyntaxType.PERCENT_EQUALS_TOKEN:
+                return SyntaxType.PERCENT_TOKEN;
             default:
                 throw new Exception($"GetBinaryOperatorOfAssignmentOperator: unexpected syntax '{type}'");
         }

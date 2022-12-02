@@ -144,6 +144,11 @@ internal static class ConstantFolding {
                 return new BoundConstant((int)leftValue << (int)rightValue);
             case BoundBinaryOperatorType.RightShift:
                 return new BoundConstant((int)leftValue >> (int)rightValue);
+            case BoundBinaryOperatorType.Modulo:
+                if (leftType == TypeSymbol.Int)
+                    return new BoundConstant((int)leftValue % (int)rightValue);
+                else
+                    return new BoundConstant((float)leftValue % (float)rightValue);
             default:
                 throw new Exception($"Fold: unexpected binary operator '{op.opType}'");
         }
