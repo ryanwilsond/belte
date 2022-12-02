@@ -25,6 +25,7 @@ internal static class SyntaxFacts {
                 return 12;
             case SyntaxType.LESS_THAN_LESS_THAN_TOKEN:
             case SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN:
+            case SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN:
                 return 11;
             case SyntaxType.IS_KEYWORD:
             case SyntaxType.ISNT_KEYWORD:
@@ -173,6 +174,8 @@ internal static class SyntaxFacts {
                 return "<<";
             case SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN:
                 return ">>";
+            case SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN:
+                return ">>>";
             case SyntaxType.EXCLAMATION_TOKEN:
                 return "!";
             case SyntaxType.AMPERSAND_AMPERSAND_TOKEN:
@@ -227,6 +230,8 @@ internal static class SyntaxFacts {
                 return "**=";
             case SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
                 return ">>=";
+            case SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
+                return ">>>=";
             case SyntaxType.LESS_THAN_LESS_THAN_EQUALS_TOKEN:
                 return "<<=";
             case SyntaxType.PERCENT_EQUALS_TOKEN:
@@ -303,6 +308,8 @@ internal static class SyntaxFacts {
                 return SyntaxType.LESS_THAN_LESS_THAN_TOKEN;
             case SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
                 return SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN;
+            case SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
+                return SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN;
             case SyntaxType.PERCENT_EQUALS_TOKEN:
                 return SyntaxType.PERCENT_TOKEN;
             default:

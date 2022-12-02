@@ -595,6 +595,7 @@ internal sealed class Parser {
                 case SyntaxType.ASTERISK_ASTERISK_EQUALS_TOKEN:
                 case SyntaxType.LESS_THAN_LESS_THAN_EQUALS_TOKEN:
                 case SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
+                case SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
                 case SyntaxType.PERCENT_EQUALS_TOKEN:
                 case SyntaxType.EQUALS_TOKEN:
                     var identifierToken = Next();
