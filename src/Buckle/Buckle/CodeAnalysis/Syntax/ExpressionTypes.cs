@@ -326,7 +326,7 @@ internal sealed partial class ReferenceExpression : Expression {
     internal override SyntaxType type => SyntaxType.REFERENCE_EXPRESSION;
 }
 
-// TODO make sure that block statements can still have return statements (they might)
+// TODO Make sure that block statements can still have return statements (they might)
 /// <summary>
 /// Inline function expression, similar to local function but is evaluated immediately and has no signature.
 /// E.g. { ... statements (including a return statement) ... }

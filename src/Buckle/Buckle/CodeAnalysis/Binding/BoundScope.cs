@@ -81,7 +81,7 @@ internal sealed class BoundScope {
     /// <returns>If the symbol was found and successfully updated</returns>
     internal bool TryModifySymbol(string name, Symbol newSymbol) {
         // Does not work with overloads
-        // TODO need to allow overloads, as someone may try to define overloads for a nested function
+        // TODO Need to allow overloads, as someone may try to define overloads for a nested function
         var symbol = LookupSymbol(name);
 
         if (symbol == null)

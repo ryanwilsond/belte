@@ -505,7 +505,7 @@ internal class Emitter {
     }
 
     private void EmitEmptyExpression(ILProcessor iLProcessor, BoundEmptyExpression expression) {
-        // TODO Breaks control flow
+        // TODO Breaks control flow, debug why this does not work
         // iLProcessor.Emit(OpCodes.Nop);
     }
 

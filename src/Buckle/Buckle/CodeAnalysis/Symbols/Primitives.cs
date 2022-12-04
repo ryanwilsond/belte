@@ -16,7 +16,7 @@ internal class TypeSymbol : Symbol {
     internal static readonly TypeSymbol Int = new TypeSymbol("int");
 
     /// <summary>
-    /// Decimal type (any decimal number, precision TBD).
+    /// Decimal type (any floating point number, precision TBD).
     /// </summary>
     internal static readonly TypeSymbol Decimal = new TypeSymbol("decimal");
 

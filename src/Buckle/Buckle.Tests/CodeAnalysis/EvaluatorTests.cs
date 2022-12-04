@@ -156,7 +156,7 @@ public class EvaluatorTests {
     [InlineData("(null > 3) is null;", true)]
     [InlineData("null || true;", true)]
 
-    // TODO add these tests and implement required features (refs and is/isnt type)
+    // TODO Add these tests and implement required features (refs and is/isnt type)
     // It is commented out right now because theses features are bigger than was expected,
     // So these features are not going to be added in this PR
     // [InlineData("int x = 4; ref int y = ref x; x++; return y;", 5)]
@@ -329,8 +329,6 @@ public class EvaluatorTests {
 
     [Fact]
     public void Evaluator_FunctionParameters_NoInfiniteLoop() {
-        // TODO doesn't throw when debugging, but does normally??
-        // need to debug the test
         var text = @"
             void hi(string name[=]) {
                 PrintLine(""Hi "" + name + ""!"");
@@ -552,7 +550,6 @@ public class EvaluatorTests {
             int PrintLine = 4;
             [PrintLine](""test"");
         ";
-        // TODO Maybe binder is skipping variables when going up the scopes to search for the function?
 
         var diagnostics = @"
             called object 'PrintLine' is not a function
@@ -708,7 +705,7 @@ public class EvaluatorTests {
 
     [Fact]
     public void Evaluator_DivideByZero_ThrowsException() {
-        // TODO need a way to assert exceptions
+        // TODO Need a way to assert exceptions
         var text = @"
             56/0;
         ";
@@ -778,7 +775,6 @@ public class EvaluatorTests {
 
         var tempDiagnostics = new BelteDiagnosticQueue();
 
-        // TODO currently all tests pass, but remind, does execution stop if parser has errors?
         if (syntaxTree.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
             tempDiagnostics.Move(syntaxTree.diagnostics);
         } else {

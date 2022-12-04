@@ -919,7 +919,6 @@ internal sealed class Binder {
         } else {
             boundExpression = BindCast(nonNullableExpression, intermediateType);
             boundExpression = new BoundCastExpression(type, boundExpression);
-            // TODO What if diagnostics get added here? should never happen but if it does it will not be handled
         }
 
         return boundExpression;
@@ -1291,7 +1290,7 @@ internal sealed class Binder {
         /*
         <left> <op> <right>
 
-        TODO implement this operator
+        TODO Implement this operator
         ---> <op> is **
 
         {
@@ -1327,7 +1326,7 @@ internal sealed class Binder {
 
         var opResultType = tempOp.typeClause;
 
-        // TODO support is/isnt type statements
+        // TODO Support is/isnt type statements
         // E.g. 3 is int
         if (tempOp.opType == BoundBinaryOperatorType.Is || tempOp.opType == BoundBinaryOperatorType.Isnt) {
             /*
