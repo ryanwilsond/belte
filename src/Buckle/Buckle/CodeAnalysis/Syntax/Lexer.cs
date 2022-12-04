@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Text;
 using Buckle.CodeAnalysis.Symbols;
+using System;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
@@ -486,25 +487,56 @@ internal sealed class Lexer {
     private void ReadNumericLiteral() {
         var done = false;
         var hasDecimal = false;
+        var isBinary = false;
+        var isHexadecimal = false;
+
+        if (current == '0') {
+            if (lookahead == 'b' || lookahead == 'B') {
+                isBinary = true;
+                position_ += 2;
+            } else if (lookahead == 'x' || lookahead == 'X') {
+                isHexadecimal = true;
+                position_ += 2;
+            }
+        }
 
         while (!done) {
-            if (!hasDecimal && current == '.') {
+            if (!isBinary && !isHexadecimal && !hasDecimal && current == '.') {
                 hasDecimal = true;
                 position_++;
                 continue;
             }
 
-            if (char.IsDigit(current))
+            if (isBinary && current == '0' || current == '1') {
                 position_++;
-            else
+            } else if (isHexadecimal && char.IsAsciiHexDigit(current)) {
+                position_++;
+            } else if (!isBinary && !isHexadecimal && char.IsDigit(current)) {
+                position_++;
+            } else {
                 done = true;
+            }
         }
 
         int length = position_ - start_;
         string text = text_.ToString(start_, length);
 
         if (!hasDecimal) {
-            if (!int.TryParse(text, out var value)) {
+            var @base = isBinary ? 2 : 16;
+            var failed = false;
+            int value = 0;
+
+            if (isBinary || isHexadecimal) {
+                try {
+                    value = Convert.ToInt32(text.Length > 2 ? text.Substring(2) : throw new FormatException(), @base);
+                } catch (Exception e) when (e is OverflowException || e is FormatException) {
+                    failed = true;
+                }
+            } else if (!int.TryParse(text, out value)) {
+                failed = true;
+            }
+
+            if (failed) {
                 var span = new TextSpan(start_, length);
                 var location = new TextLocation(text_, span);
                 diagnostics.Push(Error.InvalidType(location, text, TypeSymbol.Int));
