@@ -9,6 +9,9 @@ using Diagnostics;
 
 namespace Repl;
 
+/// <summary>
+/// Uses framework from ReplBase and adds syntax highlighting and evaluation.
+/// </summary>
 public sealed class BelteRepl : ReplBase {
     private static readonly Compilation emptyCompilation = Compilation.CreateScript(null);
     private Dictionary<string, ColorTheme> InUse = new Dictionary<string, ColorTheme>() {
@@ -261,7 +264,6 @@ public sealed class BelteRepl : ReplBase {
     }
 
     private void LoadSubmissions() {
-        // TODO Make console handle null so evaluator does not print output?
         var files = Directory.GetFiles(GetSubmissionsDirectory()).OrderBy(f => f).ToArray();
         var keyword = files.Length == 1 ? "submission" : "submissions";
         Console.Out.WritePunctuation($"loaded {files.Length} {keyword}");

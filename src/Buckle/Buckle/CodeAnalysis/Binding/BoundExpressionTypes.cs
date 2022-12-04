@@ -348,7 +348,7 @@ internal sealed class BoundLiteralExpression : BoundExpression {
             typeClause = new BoundTypeClause(TypeSymbol.Int, isLiteral: true);
         else if (value is string)
             typeClause = new BoundTypeClause(TypeSymbol.String, isLiteral: true);
-        else if (value is float)
+        else if (value is double)
             typeClause = new BoundTypeClause(TypeSymbol.Decimal, isLiteral: true);
         else if (value == null)
             typeClause = new BoundTypeClause(null, isLiteral: true);
@@ -510,7 +510,6 @@ internal sealed class BoundInitializerListExpression : BoundExpression {
 
     internal override BoundNodeType type => BoundNodeType.LiteralExpression;
 
-    // TODO Consider factoring out this mass copy into a static method
     // Immutable design makes this required
     internal override BoundTypeClause typeClause => new BoundTypeClause(
         itemType.lType, itemType.isImplicit, itemType.isConstantReference,

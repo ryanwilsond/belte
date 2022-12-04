@@ -245,7 +245,6 @@ internal sealed class Parser {
             var expression = ParseParameter();
             nodesAndSeparators.Add(expression);
 
-            // TODO Optional parameters
             if (current.type == SyntaxType.COMMA_TOKEN) {
                 var comma = Next();
                 nodesAndSeparators.Add(comma);

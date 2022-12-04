@@ -281,7 +281,6 @@ internal sealed class ControlFlowGraph {
                 }
             }
 
-            // TODO Test to make sure this works like the original goto implementation
             void Scan() {
                 foreach (var block in blocks) {
                     if (!block.incoming.Any()) {

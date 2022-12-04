@@ -6,7 +6,6 @@ using Buckle;
 using Buckle.Diagnostics;
 
 namespace Repl;
-// TODO crashes when fill a line completely
 
 /// <summary>
 /// Overrides default console handling and controls all keystrokes. Adds framework for meta commands and submissions.
@@ -94,7 +93,7 @@ public abstract class ReplBase {
     /// Reloads REPL to start accepting submissions again.
     /// </summary>
     internal void ReviveDocument() {
-        // TODO redisplay previous submissions
+        // TODO Redisplay previous submissions
         Console.Clear();
     }
 

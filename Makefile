@@ -6,7 +6,7 @@ DIAGDIR:=src/Buckle/Diagnostics
 REPLDIR:=src/Buckle/Repl
 SANDDIR:=src/Sander
 
-NETVER:=net6.0
+NETVER:=net7.0
 SYSTEM:=win-x64
 SLN:=src/Buckle/Buckle.sln
 SSLN:=src/Sander/Sander.sln

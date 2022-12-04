@@ -85,7 +85,7 @@ internal sealed class Lexer {
                     break;
                 case '/':
                     if (lookahead == '/')
-                        // TODO Docstring comments (xml or doxygen)
+                        // TODO Docstring comments (xml/doxygen, probably xml)
                         ReadSingeLineComment();
                     else if (lookahead == '*')
                         ReadMultiLineComment();
@@ -512,7 +512,7 @@ internal sealed class Lexer {
                 value_ = value;
             }
         } else {
-            if (!float.TryParse(text, out var value)) {
+            if (!double.TryParse(text, out var value)) {
                 var span = new TextSpan(start_, length);
                 var location = new TextLocation(text_, span);
                 diagnostics.Push(Error.InvalidType(location, text, TypeSymbol.Int));

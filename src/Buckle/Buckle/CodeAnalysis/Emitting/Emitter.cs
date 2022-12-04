@@ -57,7 +57,7 @@ internal class Emitter {
             (TypeSymbol.Any, "System.Object"),
             (TypeSymbol.Bool, "System.Boolean"),
             (TypeSymbol.Int, "System.Int32"),
-            (TypeSymbol.Decimal, "System.Single"),
+            (TypeSymbol.Decimal, "System.Double"),
             (TypeSymbol.String, "System.String"),
             (TypeSymbol.Void, "System.Void"),
         };
@@ -104,8 +104,8 @@ internal class Emitter {
                 NetMethodReference.ConvertToString,
                 ResolveMethod("System.Convert", "ToString", new [] { "System.Object" })
             }, {
-                NetMethodReference.ConvertToSingle,
-                ResolveMethod("System.Convert", "ToSingle", new [] { "System.Object" })
+                NetMethodReference.ConvertToDouble,
+                ResolveMethod("System.Convert", "ToDouble", new [] { "System.Object" })
             }, {
                 NetMethodReference.ObjectEquals,
                 ResolveMethod("System.Object", "Equals", new [] { "System.Object", "System.Object" })
@@ -148,7 +148,7 @@ internal class Emitter {
         ConvertToBoolean,
         ConvertToInt32,
         ConvertToString,
-        ConvertToSingle,
+        ConvertToDouble,
         ObjectEquals,
         RandomNext,
         RandomCtor,
@@ -505,7 +505,7 @@ internal class Emitter {
     }
 
     private void EmitEmptyExpression(ILProcessor iLProcessor, BoundEmptyExpression expression) {
-        // TODO Breaks control flow
+        // TODO Breaks control flow, debug why this does not work
         // iLProcessor.Emit(OpCodes.Nop);
     }
 
@@ -556,7 +556,7 @@ internal class Emitter {
             else if (to.lType == TypeSymbol.String)
                 return methodReferences_[NetMethodReference.ConvertToString];
             else if (to.lType == TypeSymbol.Decimal)
-                return methodReferences_[NetMethodReference.ConvertToSingle];
+                return methodReferences_[NetMethodReference.ConvertToDouble];
             else
                 throw new Exception($"GetConvertTo: unexpected cast from '{from}' to '{to}'");
         }

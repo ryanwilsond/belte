@@ -179,8 +179,8 @@ internal sealed class BoundTypeClause : BoundNode {
     /// </summary>
     internal bool isConstant { get; }
 
-    // TODO Figure out if all code can avoid using set
     // ! Use NonNullable and Nullable methods whenever possible
+    // Only nullable because making it immutable is more convoluted then allowing a couple exceptions
     /// <summary>
     /// If the value this type is referring to can be null.
     /// </summary>

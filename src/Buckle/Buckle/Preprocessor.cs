@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Text;
 
-// TODO finish preprocessor
 // * Needs to use the lexer, parser, and constant evaluator to evaluate statements like #run, #if, #elif, and #define
 
 namespace Buckle;

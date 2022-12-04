@@ -118,16 +118,15 @@ public class EvaluatorTests {
     [InlineData("var a = -8; a >>>= 1; return a;", 2147483644)]
     [InlineData("var a = 12; a >>>= 5; return a;", 0)]
 
-    // TODO @Logan remove need for casts
-    [InlineData("3.2 + 3.4;", (float)6.6000004)]
-    [InlineData("3.2 - 3.4;", -(float)0.20000005)]
-    [InlineData("10 * 1.5;", (float)15)]
+    [InlineData("3.2 + 3.4;", 6.6)]
+    [InlineData("3.2 - 3.4;", -0.19999999999999973)]
+    [InlineData("10 * 1.5;", 15)]
     [InlineData("10 * (int)1.5;", 10)]
     [InlineData("9 / 2;", 4)]
-    [InlineData("9.0 / 2;", (float)4.5)]
-    [InlineData("9 / 2.0;", (float)4.5)]
-    [InlineData("4.1 ** 2;", (float)16.81)]
-    [InlineData("4.1 ** 2.1;", (float)19.357355)]
+    [InlineData("9.0 / 2;", 4.5)]
+    [InlineData("9 / 2.0;", 4.5)]
+    [InlineData("4.1 ** 2;", 16.81)]
+    [InlineData("4.1 ** 2.1;", 19.35735875876448)]
 
     [InlineData("int a = 10; return a;", 10)]
     [InlineData("int a = 10; return a * a;", 100)]
@@ -150,14 +149,14 @@ public class EvaluatorTests {
     [InlineData("[NotNull]int a = 0; if (a == 0) { a = 10; } else { a = 5; } return a;", 10)]
     [InlineData("[NotNull]int a = 0; if (a == 4) { a = 10; } else { a = 5; } return a;", 5)]
 
-    [InlineData("decimal[] a = {3.1, 2.56, 5.23123}; return a[2];", (float)5.23123)]
-    [InlineData("var a = {3.1, 2.56, 5.23123}; return a[0];", (float)3.1)]
+    [InlineData("decimal[] a = {3.1, 2.56, 5.23123}; return a[2];", 5.23123)]
+    [InlineData("var a = {3.1, 2.56, 5.23123}; return a[0];", 3.1)]
 
     [InlineData("(null + 3) is null;", true)]
     [InlineData("(null > 3) is null;", true)]
     [InlineData("null || true;", true)]
 
-    // TODO add these tests and implement required features (refs and is/isnt type)
+    // TODO Add these tests and implement required features (refs and is/isnt type)
     // It is commented out right now because theses features are bigger than was expected,
     // So these features are not going to be added in this PR
     // [InlineData("int x = 4; ref int y = ref x; x++; return y;", 5)]
@@ -180,7 +179,7 @@ public class EvaluatorTests {
 
     [InlineData("type a = typeof(int[]);", null)]
 
-    [InlineData("(decimal)3;", (float)3)]
+    [InlineData("(decimal)3;", 3)]
     [InlineData("(int)3.4;", 3)]
     [InlineData("(int)3.6;", 3)]
     [InlineData("([NotNull]int)3;", 3)]
@@ -330,8 +329,6 @@ public class EvaluatorTests {
 
     [Fact]
     public void Evaluator_FunctionParameters_NoInfiniteLoop() {
-        // TODO doesn't throw when debugging, but does normally??
-        // need to debug the test
         var text = @"
             void hi(string name[=]) {
                 PrintLine(""Hi "" + name + ""!"");
@@ -553,7 +550,6 @@ public class EvaluatorTests {
             int PrintLine = 4;
             [PrintLine](""test"");
         ";
-        // TODO Maybe binder is skipping variables when going up the scopes to search for the function?
 
         var diagnostics = @"
             called object 'PrintLine' is not a function
@@ -709,7 +705,7 @@ public class EvaluatorTests {
 
     [Fact]
     public void Evaluator_DivideByZero_ThrowsException() {
-        // TODO need a way to assert exceptions
+        // TODO Need a way to assert exceptions
         var text = @"
             56/0;
         ";
@@ -766,6 +762,9 @@ public class EvaluatorTests {
         var variables = new Dictionary<VariableSymbol, object>();
         var result = compilation.Evaluate(variables);
 
+        if (result.value is double && (Convert.ToDouble(expectedValue)).CompareTo(result.value) == 0)
+            expectedValue = Convert.ToDouble(expectedValue);
+
         Assert.Empty(result.diagnostics.FilterOut(DiagnosticType.Warning).ToArray());
         Assert.Equal(expectedValue, result.value);
     }
@@ -776,7 +775,6 @@ public class EvaluatorTests {
 
         var tempDiagnostics = new BelteDiagnosticQueue();
 
-        // TODO currently all tests pass, but remind, does execution stop if parser has errors?
         if (syntaxTree.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
             tempDiagnostics.Move(syntaxTree.diagnostics);
         } else {

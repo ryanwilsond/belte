@@ -178,7 +178,6 @@ public sealed class Compilation {
         var eval = new Evaluator(program, variables);
         var evalResult = eval.Evaluate();
 
-        // TODO Hack to prevent repl overwriting text when user does not add line break, could probably be cleaner
         if (eval.hasPrint)
             Console.WriteLine();
 

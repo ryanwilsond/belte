@@ -5,7 +5,7 @@ using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.IO;
 
-// TODO use REPL color themes instead of hard coding colors
+// TODO Use REPL color themes instead of hard coding colors
 /// <summary>
 /// Extensions for the TextWriter object, writes text with predefined colors.
 /// </summary>
