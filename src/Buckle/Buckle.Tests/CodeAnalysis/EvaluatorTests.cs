@@ -766,6 +766,9 @@ public class EvaluatorTests {
         var variables = new Dictionary<VariableSymbol, object>();
         var result = compilation.Evaluate(variables);
 
+        if (result.value is float && expectedValue is double d && (float)expectedValue == d )
+            expectedValue = (float)expectedValue;
+
         Assert.Empty(result.diagnostics.FilterOut(DiagnosticType.Warning).ToArray());
         Assert.Equal(expectedValue, result.value);
     }

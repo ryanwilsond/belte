@@ -13,7 +13,7 @@ OnBoarding:
 
 ## Tools
 
-This project uses the .NET SDK (6.0) for building, wrapped with GNU Make.
+This project uses the .NET SDK (7.0) for building, wrapped with GNU Make.
 
 ## Building Buckle
 
