@@ -55,6 +55,12 @@ clean:
 	$(RM) *.exe
 	$(RM) *.json
 
+hardclean:
+	$(RM) -f -r **/**/bin
+	$(RM) -f -r **/**/obj
+	$(RM) -f -r **/**/**/bin
+	$(RM) -f -r **/**/**/obj
+
 sandersetup:
 	$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.deps.json Sander.deps.json
 	$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.runtimeconfig.json Sander.runtimeconfig.json
