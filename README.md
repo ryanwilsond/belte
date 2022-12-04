@@ -26,6 +26,6 @@ ___
 
 ## Links
 
-Github: [github.com/flamechain](https://github.com/flamechain)
+Github: [github.com/ryanwilsond](https://github.com/ryanwilsond)
 
-Belte Docs/Pages: [flamechain.github.io/belte](https://flamechain.github.io/belte/)
+Belte Docs/Pages: [ryanwilsond.github.io/belte](https://ryanwilsond.github.io/belte/)
