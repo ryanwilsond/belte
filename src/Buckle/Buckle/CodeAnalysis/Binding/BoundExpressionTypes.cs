@@ -348,7 +348,7 @@ internal sealed class BoundLiteralExpression : BoundExpression {
             typeClause = new BoundTypeClause(TypeSymbol.Int, isLiteral: true);
         else if (value is string)
             typeClause = new BoundTypeClause(TypeSymbol.String, isLiteral: true);
-        else if (value is float)
+        else if (value is decimal)
             typeClause = new BoundTypeClause(TypeSymbol.Decimal, isLiteral: true);
         else if (value == null)
             typeClause = new BoundTypeClause(null, isLiteral: true);

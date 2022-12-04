@@ -57,7 +57,7 @@ internal class Emitter {
             (TypeSymbol.Any, "System.Object"),
             (TypeSymbol.Bool, "System.Boolean"),
             (TypeSymbol.Int, "System.Int32"),
-            (TypeSymbol.Decimal, "System.Single"),
+            (TypeSymbol.Decimal, "System.Decimal"),
             (TypeSymbol.String, "System.String"),
             (TypeSymbol.Void, "System.Void"),
         };
@@ -104,8 +104,8 @@ internal class Emitter {
                 NetMethodReference.ConvertToString,
                 ResolveMethod("System.Convert", "ToString", new [] { "System.Object" })
             }, {
-                NetMethodReference.ConvertToSingle,
-                ResolveMethod("System.Convert", "ToSingle", new [] { "System.Object" })
+                NetMethodReference.ConvertToDecimal,
+                ResolveMethod("System.Convert", "ToDecimal", new [] { "System.Object" })
             }, {
                 NetMethodReference.ObjectEquals,
                 ResolveMethod("System.Object", "Equals", new [] { "System.Object", "System.Object" })
@@ -148,7 +148,7 @@ internal class Emitter {
         ConvertToBoolean,
         ConvertToInt32,
         ConvertToString,
-        ConvertToSingle,
+        ConvertToDecimal,
         ObjectEquals,
         RandomNext,
         RandomCtor,
@@ -556,7 +556,7 @@ internal class Emitter {
             else if (to.lType == TypeSymbol.String)
                 return methodReferences_[NetMethodReference.ConvertToString];
             else if (to.lType == TypeSymbol.Decimal)
-                return methodReferences_[NetMethodReference.ConvertToSingle];
+                return methodReferences_[NetMethodReference.ConvertToDecimal];
             else
                 throw new Exception($"GetConvertTo: unexpected cast from '{from}' to '{to}'");
         }

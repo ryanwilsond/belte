@@ -233,14 +233,14 @@ internal sealed class Evaluator {
         } else if (type == TypeSymbol.Bool) {
             return Convert.ToBoolean(value);
         } else if (type == TypeSymbol.Int) {
-            if (value is Single)
-                value = Math.Truncate((Single)value);
+            if (value is decimal)
+                value = Math.Truncate((decimal)value);
 
             return Convert.ToInt32(value);
         } else if (type == TypeSymbol.String) {
             return Convert.ToString(value);
         } else if (type == TypeSymbol.Decimal) {
-            return Convert.ToSingle(value);
+            return Convert.ToDecimal(value);
         }
 
         throw new Exception($"EvaluateCast: unexpected type '{typeClause}'");
@@ -354,12 +354,12 @@ internal sealed class Evaluator {
                 if (syntax.operand.typeClause.lType == TypeSymbol.Int)
                     return (int)operand;
                 else
-                    return (float)operand;
+                    return (decimal)operand;
             case BoundUnaryOperatorType.NumericalNegation:
                 if (syntax.operand.typeClause.lType == TypeSymbol.Int)
                     return -(int)operand;
                 else
-                    return -(float)operand;
+                    return -(decimal)operand;
             case BoundUnaryOperatorType.BooleanNegation:
                 return !(bool)operand;
             case BoundUnaryOperatorType.BitwiseCompliment:
@@ -417,27 +417,27 @@ internal sealed class Evaluator {
                 else if (syntaxType == TypeSymbol.String)
                     return (string)left + (string)right;
                 else
-                    return (float)left + (float)right;
+                    return (decimal)left + (decimal)right;
             case BoundBinaryOperatorType.Subtraction:
                 if (syntaxType == TypeSymbol.Int)
                     return (int)left - (int)right;
                 else
-                    return (float)left - (float)right;
+                    return (decimal)left - (decimal)right;
             case BoundBinaryOperatorType.Multiplication:
                 if (syntaxType == TypeSymbol.Int)
                     return (int)left * (int)right;
                 else
-                    return (float)left * (float)right;
+                    return (decimal)left * (decimal)right;
             case BoundBinaryOperatorType.Division:
                 if (syntaxType == TypeSymbol.Int)
                     return (int)left / (int)right;
                 else
-                    return (float)left / (float)right;
+                    return (decimal)left / (decimal)right;
             case BoundBinaryOperatorType.Power:
                 if (syntaxType == TypeSymbol.Int)
                     return (int)Math.Pow((int)left, (int)right);
                 else
-                    return (float)Math.Pow((float)left, (float)right);
+                    return (decimal)Math.Pow((double)left, (double)right);
             case BoundBinaryOperatorType.ConditionalAnd:
                 return (bool)left && (bool)right;
             case BoundBinaryOperatorType.ConditionalOr:
@@ -446,22 +446,22 @@ internal sealed class Evaluator {
                 if (leftType == TypeSymbol.Int)
                     return (int)left < (int)right;
                 else
-                    return (float)left < (float)right;
+                    return (decimal)left < (decimal)right;
             case BoundBinaryOperatorType.GreaterThan:
                 if (leftType == TypeSymbol.Int)
                     return (int)left > (int)right;
                 else
-                    return (float)left > (float)right;
+                    return (decimal)left > (decimal)right;
             case BoundBinaryOperatorType.LessOrEqual:
                 if (leftType == TypeSymbol.Int)
                     return (int)left <= (int)right;
                 else
-                    return (float)left <= (float)right;
+                    return (decimal)left <= (decimal)right;
             case BoundBinaryOperatorType.GreatOrEqual:
                 if (leftType == TypeSymbol.Int)
                     return (int)left >= (int)right;
                 else
-                    return (float)left >= (float)right;
+                    return (decimal)left >= (decimal)right;
             case BoundBinaryOperatorType.LogicalAnd:
                 if (syntaxType == TypeSymbol.Int)
                     return (int)left & (int)right;
@@ -487,7 +487,7 @@ internal sealed class Evaluator {
                 if (syntaxType == TypeSymbol.Int)
                     return (int)left % (int)right;
                 else
-                    return (float)left % (float)right;
+                    return (decimal)left % (decimal)right;
             default:
                 throw new Exception($"EvaluateBinaryExpression: unknown binary operator '{syntax.op}'");
         }

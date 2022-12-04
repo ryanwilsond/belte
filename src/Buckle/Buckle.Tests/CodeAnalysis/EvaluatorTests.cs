@@ -118,16 +118,15 @@ public class EvaluatorTests {
     [InlineData("var a = -8; a >>>= 1; return a;", 2147483644)]
     [InlineData("var a = 12; a >>>= 5; return a;", 0)]
 
-    // TODO @Logan remove need for casts
-    [InlineData("3.2 + 3.4;", (float)6.6000004)]
-    [InlineData("3.2 - 3.4;", -(float)0.20000005)]
-    [InlineData("10 * 1.5;", (float)15)]
+    [InlineData("3.2 + 3.4;", 6.6)]
+    [InlineData("3.2 - 3.4;", -0.2)]
+    [InlineData("10 * 1.5;", 15)]
     [InlineData("10 * (int)1.5;", 10)]
     [InlineData("9 / 2;", 4)]
-    [InlineData("9.0 / 2;", (float)4.5)]
-    [InlineData("9 / 2.0;", (float)4.5)]
-    [InlineData("4.1 ** 2;", (float)16.81)]
-    [InlineData("4.1 ** 2.1;", (float)19.357355)]
+    [InlineData("9.0 / 2;", 4.5)]
+    [InlineData("9 / 2.0;", 4.5)]
+    [InlineData("4.1 ** 2;", 16.81)]
+    [InlineData("4.1 ** 2.1;", 19.357355)]
 
     [InlineData("int a = 10; return a;", 10)]
     [InlineData("int a = 10; return a * a;", 100)]
@@ -150,8 +149,8 @@ public class EvaluatorTests {
     [InlineData("[NotNull]int a = 0; if (a == 0) { a = 10; } else { a = 5; } return a;", 10)]
     [InlineData("[NotNull]int a = 0; if (a == 4) { a = 10; } else { a = 5; } return a;", 5)]
 
-    [InlineData("decimal[] a = {3.1, 2.56, 5.23123}; return a[2];", (float)5.23123)]
-    [InlineData("var a = {3.1, 2.56, 5.23123}; return a[0];", (float)3.1)]
+    [InlineData("decimal[] a = {3.1, 2.56, 5.23123}; return a[2];", 5.23123)]
+    [InlineData("var a = {3.1, 2.56, 5.23123}; return a[0];", 3.1)]
 
     [InlineData("(null + 3) is null;", true)]
     [InlineData("(null > 3) is null;", true)]
@@ -766,8 +765,9 @@ public class EvaluatorTests {
         var variables = new Dictionary<VariableSymbol, object>();
         var result = compilation.Evaluate(variables);
 
-        if (result.value is float && expectedValue is double d && (float)expectedValue == d )
-            expectedValue = (float)expectedValue;
+        // TODO Will not work if explicitly want a double
+        if (result.value is decimal && (Convert.ToDecimal(expectedValue)).CompareTo(result.value) == 0)
+            expectedValue = Convert.ToDecimal(expectedValue);
 
         Assert.Empty(result.diagnostics.FilterOut(DiagnosticType.Warning).ToArray());
         Assert.Equal(expectedValue, result.value);

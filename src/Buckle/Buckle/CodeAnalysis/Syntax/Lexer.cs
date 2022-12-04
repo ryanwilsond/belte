@@ -512,7 +512,7 @@ internal sealed class Lexer {
                 value_ = value;
             }
         } else {
-            if (!float.TryParse(text, out var value)) {
+            if (!decimal.TryParse(text, out var value)) {
                 var span = new TextSpan(start_, length);
                 var location = new TextLocation(text_, span);
                 diagnostics.Push(Error.InvalidType(location, text, TypeSymbol.Int));
