@@ -119,14 +119,14 @@ public class EvaluatorTests {
     [InlineData("var a = 12; a >>>= 5; return a;", 0)]
 
     [InlineData("3.2 + 3.4;", 6.6)]
-    [InlineData("3.2 - 3.4;", -0.2)]
+    [InlineData("3.2 - 3.4;", -0.19999999999999973)]
     [InlineData("10 * 1.5;", 15)]
     [InlineData("10 * (int)1.5;", 10)]
     [InlineData("9 / 2;", 4)]
     [InlineData("9.0 / 2;", 4.5)]
     [InlineData("9 / 2.0;", 4.5)]
     [InlineData("4.1 ** 2;", 16.81)]
-    [InlineData("4.1 ** 2.1;", 19.357355)]
+    [InlineData("4.1 ** 2.1;", 19.35735875876448)]
 
     [InlineData("int a = 10; return a;", 10)]
     [InlineData("int a = 10; return a * a;", 100)]
@@ -179,7 +179,7 @@ public class EvaluatorTests {
 
     [InlineData("type a = typeof(int[]);", null)]
 
-    [InlineData("(decimal)3;", (float)3)]
+    [InlineData("(decimal)3;", 3)]
     [InlineData("(int)3.4;", 3)]
     [InlineData("(int)3.6;", 3)]
     [InlineData("([NotNull]int)3;", 3)]
@@ -765,9 +765,8 @@ public class EvaluatorTests {
         var variables = new Dictionary<VariableSymbol, object>();
         var result = compilation.Evaluate(variables);
 
-        // TODO Will not work if explicitly want a double
-        if (result.value is decimal && (Convert.ToDecimal(expectedValue)).CompareTo(result.value) == 0)
-            expectedValue = Convert.ToDecimal(expectedValue);
+        if (result.value is double && (Convert.ToDouble(expectedValue)).CompareTo(result.value) == 0)
+            expectedValue = Convert.ToDouble(expectedValue);
 
         Assert.Empty(result.diagnostics.FilterOut(DiagnosticType.Warning).ToArray());
         Assert.Equal(expectedValue, result.value);

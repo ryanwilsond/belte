@@ -44,7 +44,7 @@ internal class _Emitter {
         ConvertToBoolean,
         ConvertToInt32,
         ConvertToString,
-        ConvertToDecimal,
+        ConvertToSingle,
         ObjectEquals,
         RandomNext,
         RandomCtor,
@@ -81,7 +81,7 @@ internal class _Emitter {
             (TypeSymbol.Any, "System.Object"),
             (TypeSymbol.Bool, "System.Boolean"),
             (TypeSymbol.Int, "System.Int32"),
-            (TypeSymbol.Decimal, "System.Decimal"),
+            (TypeSymbol.Decimal, "System.Single"),
             (TypeSymbol.String, "System.String"),
             (TypeSymbol.Void, "System.Void"),
         };
@@ -128,8 +128,8 @@ internal class _Emitter {
                 NetMethodReference.ConvertToString,
                 ResolveMethod("System.Convert", "ToString", new [] { "System.Object" })
             }, {
-                NetMethodReference.ConvertToDecimal,
-                ResolveMethod("System.Convert", "ToDecimal", new [] { "System.Object" })
+                NetMethodReference.ConvertToSingle,
+                ResolveMethod("System.Convert", "ToSingle", new [] { "System.Object" })
             }, {
                 NetMethodReference.ObjectEquals,
                 ResolveMethod("System.Object", "Equals", new [] { "System.Object", "System.Object" })
@@ -725,7 +725,7 @@ internal class _Emitter {
             else if (to.lType == TypeSymbol.String)
                 return methodReferences_[NetMethodReference.ConvertToString];
             else if (to.lType == TypeSymbol.Decimal)
-                return methodReferences_[NetMethodReference.ConvertToDecimal];
+                return methodReferences_[NetMethodReference.ConvertToSingle];
             else
                 throw new Exception($"GetConvertTo: unexpected cast from '{from}' to '{to}'");
         }
@@ -1043,7 +1043,6 @@ internal class _Emitter {
             var instruction = value ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0;
             iLProcessor.Emit(instruction);
         } else if (expressionType == TypeSymbol.Decimal) {
-            // TODO Change this to decimal type
             var value = Convert.ToSingle(expression.constantValue.value);
             iLProcessor.Emit(OpCodes.Ldc_R4, value);
         } else {
