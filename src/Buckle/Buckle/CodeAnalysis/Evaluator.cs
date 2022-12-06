@@ -374,8 +374,7 @@ internal sealed class Evaluator {
         var left = EvaluateExpression(syntax.left);
         var right = EvaluateExpression(syntax.right);
 
-        // TODO remove temp ?? check
-        if ((left == null || right == null) && syntax.op.opType != BoundBinaryOperatorType.NullCoalescing)
+        if (left == null || right == null)
             return null;
 
         var syntaxType = syntax.typeClause.lType;
@@ -463,16 +462,6 @@ internal sealed class Evaluator {
                     return (int)left % (int)right;
                 else
                     return (double)left % (double)right;
-            case BoundBinaryOperatorType.NullCoalescing:
-            // TODO remove this temp case
-                if (syntaxType == TypeSymbol.Int)
-                    return (int?)left ?? (int?)right;
-                else if (syntaxType == TypeSymbol.Bool)
-                    return (bool?)left ?? (bool?)right;
-                else if (syntaxType == TypeSymbol.String)
-                    return (string?)left ?? (string?)right;
-                else
-                    return (double?)left ?? (double?)right;
             default:
                 throw new Exception($"EvaluateBinaryExpression: unknown binary operator '{syntax.op}'");
         }

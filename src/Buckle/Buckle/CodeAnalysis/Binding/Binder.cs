@@ -1287,31 +1287,6 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindBinaryExpression(BinaryExpression expression) {
-        /*
-        <left> <op> <right>
-
-        TODO Implement these operators
-        ---> <op> is **
-
-        {
-            int n = <left>;
-            for (int i = 1; i < <right>; i+=1)
-                n *= <left>;
-
-            return n;
-        }
-
-        ---> <op> is ??
-
-        {
-            <type> result = <left>;
-            if (result is null)
-                result = <right>;
-
-            return result;
-        }
-
-        */
         var binderSaveState = StartEmulation();
 
         var leftTemp = BindExpression(expression.left);
@@ -1375,14 +1350,41 @@ internal sealed class Binder {
                 new BinaryExpression(null, leftHasValue, CreateToken(SyntaxType.EQUALS_EQUALS_TOKEN), boolean);
 
             return BindBinaryExpression(condition);
-        } else if (tempOp.opType == BoundBinaryOperatorType.NullCoalescing) {
-            // TODO
         }
 
         var rightIsNotNull = rightTemp.constantValue != null || rightType.isNullable == false;
         var leftIsNotNull = leftTemp.constantValue != null || leftType.isNullable == false;
 
-        if (rightIsNotNull && leftIsNotNull) {
+        if (tempOp.opType == BoundBinaryOperatorType.NullCoalescing) {
+        // TODO
+            /*
+
+            {
+                <type> result = <left>;
+                if (result is null)
+                    result = <right>;
+
+                return result;
+            }
+
+            */
+            var boundLeft = BindExpression(expression.left);
+            var boundRight = BindExpression(expression.right);
+
+        // TODO
+        // } else if (tempOp.opType == BoundBinaryOperatorType.Power) {
+            /*
+
+            {
+                int n = <left>;
+                for (int i = 1; i < <right>; i+=1)
+                    n *= <left>;
+
+                return n;
+            }
+
+            */
+        } else if (rightIsNotNull && leftIsNotNull) {
             var boundLeft = BindExpression(expression.left);
             var boundRight = BindExpression(expression.right);
 
