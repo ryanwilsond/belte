@@ -1290,15 +1290,25 @@ internal sealed class Binder {
         /*
         <left> <op> <right>
 
-        TODO Implement this operator
+        TODO Implement these operators
         ---> <op> is **
 
         {
-            int <n> = <left>;
+            int n = <left>;
             for (int i = 1; i < <right>; i+=1)
-                <n> *= <left>;
+                n *= <left>;
 
-            return <n>;
+            return n;
+        }
+
+        ---> <op> is ??
+
+        {
+            <type> result = <left>;
+            if (result is null)
+                result = <right>;
+
+            return result;
         }
 
         */
@@ -1365,6 +1375,8 @@ internal sealed class Binder {
                 new BinaryExpression(null, leftHasValue, CreateToken(SyntaxType.EQUALS_EQUALS_TOKEN), boolean);
 
             return BindBinaryExpression(condition);
+        } else if (tempOp.opType == BoundBinaryOperatorType.NullCoalescing) {
+            // TODO
         }
 
         var rightIsNotNull = rightTemp.constantValue != null || rightType.isNullable == false;

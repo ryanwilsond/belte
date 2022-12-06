@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Text;
-using System;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
@@ -596,6 +595,7 @@ internal sealed class Parser {
                 case SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
                 case SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
                 case SyntaxType.PERCENT_EQUALS_TOKEN:
+                case SyntaxType.QUESTION_QUESTION_EQUALS_TOKEN:
                 case SyntaxType.EQUALS_TOKEN:
                     var identifierToken = Next();
                     var operatorToken = Next();
