@@ -47,6 +47,8 @@ internal static class SyntaxFacts {
                 return 5;
             case SyntaxType.PIPE_PIPE_TOKEN:
                 return 4;
+            case SyntaxType.QUESTION_QUESTION_TOKEN:
+                return 3;
             default:
                 return 0;
         }
@@ -208,6 +210,8 @@ internal static class SyntaxFacts {
                 return ">";
             case SyntaxType.PERCENT_TOKEN:
                 return "%";
+            case SyntaxType.QUESTION_QUESTION_TOKEN:
+                return "??";
             case SyntaxType.LESS_THAN_EQUALS_TOKEN:
                 return "<=";
             case SyntaxType.GREATER_THAN_EQUALS_TOKEN:
@@ -236,6 +240,8 @@ internal static class SyntaxFacts {
                 return "<<=";
             case SyntaxType.PERCENT_EQUALS_TOKEN:
                 return "%=";
+            case SyntaxType.QUESTION_QUESTION_EQUALS_TOKEN:
+                return "??=";
             case SyntaxType.TRUE_KEYWORD:
                 return "true";
             case SyntaxType.FALSE_KEYWORD:
@@ -312,6 +318,8 @@ internal static class SyntaxFacts {
                 return SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN;
             case SyntaxType.PERCENT_EQUALS_TOKEN:
                 return SyntaxType.PERCENT_TOKEN;
+            case SyntaxType.QUESTION_QUESTION_EQUALS_TOKEN:
+                return SyntaxType.QUESTION_QUESTION_TOKEN;
             default:
                 throw new Exception($"GetBinaryOperatorOfAssignmentOperator: unexpected syntax '{type}'");
         }

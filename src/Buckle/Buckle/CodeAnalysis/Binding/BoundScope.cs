@@ -129,16 +129,26 @@ internal sealed class BoundScope {
     /// Technically searches for all symbols, but this function is intended to be used for functions.
     /// </summary>
     /// <param name="name">Name of function</param>
-    /// <param name="current_">Reserved, do not set</param>
+    /// <param name="strictName">Scope specific name (for inlines), searches for this first</param>
     /// <returns>All found overloads (including from parent scopes)</returns>
-    internal ImmutableArray<Symbol> LookupOverloads(
-        string name, ImmutableArray<Symbol>? current_ = null) {
+    internal ImmutableArray<Symbol> LookupOverloads(string name, string strictName) {
+        var symbols = LookupOverloadsInternal(strictName, strict: true);
+
+        if (symbols.Length > 0)
+            return symbols;
+
+        return LookupOverloadsInternal(name);
+    }
+
+    private ImmutableArray<Symbol> LookupOverloadsInternal(
+        string name, bool strict = false, ImmutableArray<Symbol>? current_ = null) {
         var overloads = ImmutableArray.CreateBuilder<Symbol>();
 
         if (symbols_ != null) {
             foreach (var symbol in symbols_) {
                 // If it is a nested function, the name will be something like <funcName::name>$
-                if (symbol is Symbol s && (symbol.name == name || symbol.name.EndsWith($"::{name}>$"))) {
+                if (symbol is Symbol s &&
+                    (symbol.name == name || (strict == false && symbol.name.EndsWith($"::{name}>$")))) {
                     if (current_ != null) {
                         var skip = false;
 
@@ -158,8 +168,14 @@ internal sealed class BoundScope {
             }
         }
 
-        if (parent != null)
-            overloads.AddRange(parent?.LookupOverloads(name, overloads.ToImmutable()));
+        if (parent != null) {
+            overloads.AddRange(parent?.LookupOverloadsInternal(
+                name,
+                strict: strict,
+                current_: current_ == null
+                    ? overloads.ToImmutable()
+                    : overloads.ToImmutable().AddRange(current_.Value)));
+        }
 
         return overloads.ToImmutable();
     }

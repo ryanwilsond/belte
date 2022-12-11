@@ -352,7 +352,7 @@ internal sealed class Binder {
     private BoundStatement BindLocalFunctionDeclaration(LocalFunctionDeclaration statement) {
         var functionSymbol = (FunctionSymbol)scope_.LookupSymbol(statement.identifier.text);
         var binder = new Binder(false, scope_, functionSymbol);
-        binder.innerPrefix_ = new Stack<String>(innerPrefix_);
+        binder.innerPrefix_ = new Stack<string>(innerPrefix_.Reverse());
         var oldTrackSymbols = trackSymbols_;
         binder.trackSymbols_ = true;
         binder.trackedSymbols_ = trackedSymbols_;
@@ -362,14 +362,9 @@ internal sealed class Binder {
         innerPrefix_.Push(functionSymbol.name);
         var body = (BoundBlockStatement)binder.BindBlockStatement(functionSymbol.declaration.body);
         trackSymbols_ = oldTrackSymbols;
+
+        var innerName = ConstructInnerName();
         innerPrefix_.Pop();
-
-        var innerName = "<";
-
-        foreach (var frame in innerPrefix_.Reverse())
-            innerName += $"{frame}::";
-
-        innerName += $"{functionSymbol.name}>$";
 
         var usedVariables = binder.trackedSymbols_.Pop();
         var declaredVariables = binder.trackedDeclarations_.Pop();
@@ -587,7 +582,11 @@ internal sealed class Binder {
         var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
         FunctionSymbol finalFunction = null;
 
-        var symbols = scope_.LookupOverloads(name);
+        innerPrefix_.Push(name);
+        var innerName = ConstructInnerName();
+        innerPrefix_.Pop();
+
+        var symbols = scope_.LookupOverloads(name, innerName);
 
         if (symbols == null || symbols.Length == 0) {
             diagnostics.Push(Error.UndefinedFunction(expression.identifier.location, name));
@@ -613,9 +612,6 @@ internal sealed class Binder {
             var score = 0;
             var actualSymbol = symbol;
             var isInner = symbol.name.EndsWith("$");
-            innerPrefix_.Push(name);
-            var innerName = ConstructInnerName();
-            innerPrefix_.Pop();
 
             if (unresolvedLocals_.ContainsKey(innerName) && !resolvedLocals_.Contains(innerName)) {
                 BindLocalFunctionDeclaration(unresolvedLocals_[innerName]);
@@ -680,7 +676,7 @@ internal sealed class Binder {
 
             if (isInner) {
                 // No need to worry about currentBoundArguments because generated inlines never have overloads
-                if (symbols.Length != 1)
+                if (symbols.Length != 1 && isEmulating_ == false)
                     throw new Exception("BindCallExpression: overloaded inline");
 
                 for (int i=expression.arguments.count; i<function.parameters.Length; i++) {
@@ -1069,6 +1065,8 @@ internal sealed class Binder {
         var returnType = new BoundTypeClause(TypeSymbol.Any);
         var tempFunction = new FunctionSymbol("$temp", ImmutableArray<ParameterSymbol>.Empty, returnType);
         var binder = new Binder(false, scope_, tempFunction);
+        binder.innerPrefix_ = new Stack<string>(innerPrefix_.Reverse());
+        binder.innerPrefix_.Push(tempFunction.name);
 
         foreach (var statementSyntax in statement.statements) {
             var boundStatement = binder.BindStatement(statementSyntax, insideInline: true);
@@ -1287,21 +1285,6 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindBinaryExpression(BinaryExpression expression) {
-        /*
-        <left> <op> <right>
-
-        TODO Implement this operator
-        ---> <op> is **
-
-        {
-            int <n> = <left>;
-            for (int i = 1; i < <right>; i+=1)
-                <n> *= <left>;
-
-            return <n>;
-        }
-
-        */
         var binderSaveState = StartEmulation();
 
         var leftTemp = BindExpression(expression.left);
@@ -1370,7 +1353,56 @@ internal sealed class Binder {
         var rightIsNotNull = rightTemp.constantValue != null || rightType.isNullable == false;
         var leftIsNotNull = leftTemp.constantValue != null || leftType.isNullable == false;
 
-        if (rightIsNotNull && leftIsNotNull) {
+        var result = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<result>$");
+        var resultType = BoundTypeClause.Nullable(opResultType);
+        var nullLiteral = new LiteralExpression(null, CreateToken(SyntaxType.NULL_KEYWORD), null);
+        Expression resultInitializer = nullLiteral;
+        Expression ifCondition = new LiteralExpression(null, CreateToken(SyntaxType.FALSE_KEYWORD), false);
+        var ifBody = new BlockStatement(null, null, ImmutableArray<Statement>.Empty, null);
+
+        if (tempOp.opType == BoundBinaryOperatorType.NullCoalescing) {
+            /*
+
+            {
+                <type> result = <left>;
+                if (result is null)
+                    result = <right>;
+
+                return result;
+            }
+
+            */
+            if (leftType.isNullable == false) {
+                diagnostics.Push(Warning.UnreachableCode(expression.right));
+                return BindExpression(expression.left);
+            }
+
+            resultInitializer = expression.left;
+
+            ifCondition = new BinaryExpression(
+                null, new NameExpression(null, result), CreateToken(SyntaxType.IS_KEYWORD), nullLiteral);
+
+            var assignment = new AssignmentExpression(
+                null, result, CreateToken(SyntaxType.EQUALS_TOKEN), expression.right);
+
+            var resultAssignment = new ExpressionStatement(null, assignment, null);
+
+            ifBody = new BlockStatement(
+                null, null, ImmutableArray.Create<Statement>(new Statement[]{ resultAssignment }), null);
+        // TODO
+        // } else if (tempOp.opType == BoundBinaryOperatorType.Power) {
+            /*
+
+            {
+                int n = <left>;
+                for (int i = 1; i < <right>; i+=1)
+                    n *= <left>;
+
+                return n;
+            }
+
+            */
+        } else if (rightIsNotNull && leftIsNotNull) {
             var boundLeft = BindExpression(expression.left);
             var boundRight = BindExpression(expression.right);
 
@@ -1401,12 +1433,6 @@ internal sealed class Binder {
 
             return new BoundBinaryExpression(boundLeft, boundOp, boundRight);
         }
-
-        var result = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<result>$");
-        var resultType = BoundTypeClause.Nullable(opResultType);
-        var nullLiteral = new LiteralExpression(null, CreateToken(SyntaxType.NULL_KEYWORD), null);
-        Expression ifCondition = new LiteralExpression(null, CreateToken(SyntaxType.FALSE_KEYWORD), false);
-        var ifBody = new BlockStatement(null, null, ImmutableArray<Statement>.Empty, null);
 
         if (leftType.isNullable && rightType.isNullable) {
             /*
@@ -1528,7 +1554,7 @@ internal sealed class Binder {
 
         var body = ImmutableArray.Create<Statement>(new Statement[] {
             new VariableDeclarationStatement(
-                null, ReconstructTypeClause(resultType), result, null, nullLiteral, null),
+                null, ReconstructTypeClause(resultType), result, null, resultInitializer, null),
             new IfStatement(null, null, null, ifCondition, null, ifBody, null),
             new ReturnStatement(null, null, new NameExpression(null, result), null)
         });
@@ -1543,6 +1569,7 @@ internal sealed class Binder {
         state.unresolvedLocals = new Dictionary<string, LocalFunctionDeclaration>(unresolvedLocals_);
         state.diagnostics = new BelteDiagnosticQueue();
         state.diagnostics.Move(diagnostics);
+        state.innerPrefix = new Stack<string>(innerPrefix_.Reverse());
 
         scope_ = new BoundScope(scope_);
         inlineCounts_.Push(inlineCount_);
@@ -1559,6 +1586,11 @@ internal sealed class Binder {
         unresolvedLocals_ = new Dictionary<string, LocalFunctionDeclaration>(oldState.unresolvedLocals);
         functionBodies_.Clear();
         functionBodies_.AddRange(oldState.functionBodies);
+        innerPrefix_.Clear();
+
+        foreach (var item in oldState.innerPrefix.Reverse())
+            innerPrefix_.Push(item);
+
         diagnostics.Clear();
         diagnostics.Move(oldState.diagnostics);
         emulationDepth_--;
@@ -1829,5 +1861,6 @@ internal sealed class Binder {
         internal List<(FunctionSymbol function, BoundBlockStatement body)> functionBodies;
         internal List<string> resolvedLocals;
         internal Dictionary<string, LocalFunctionDeclaration> unresolvedLocals;
+        internal Stack<string> innerPrefix;
     }
 }

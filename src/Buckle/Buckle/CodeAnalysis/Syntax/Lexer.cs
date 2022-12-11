@@ -186,6 +186,19 @@ internal sealed class Lexer {
                     type_ = SyntaxType.CARET_TOKEN;
                 }
                 break;
+            case '?':
+                if (lookahead == '?') {
+                    position_ += 2;
+                    if (current == '=') {
+                        type_ = SyntaxType.QUESTION_QUESTION_EQUALS_TOKEN;
+                        position_++;
+                    } else {
+                        type_ = SyntaxType.QUESTION_QUESTION_TOKEN;
+                    }
+                } else {
+                    goto default;
+                }
+                break;
             case '+':
                 position_++;
                 if (current == '=') {
