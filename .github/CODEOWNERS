@@ -1,0 +1,5 @@
+# Automatically request reviews when a pull request changes any owned files
+# More information: https://github.com/blog/2392-introducing-code-owners
+
+# This will not always be the case, but for now @ryanwilsond has to review everything.
+*   @ryanwilsond
