@@ -489,6 +489,19 @@ internal sealed class Lexer {
         var hasDecimal = false;
         var isBinary = false;
         var isHexadecimal = false;
+        var initialPosition = position_;
+
+        bool isValidCharacter(char c) {
+            if (isBinary && c == '0' || c == '1') {
+                return true;
+            } else if (isHexadecimal && char.IsAsciiHexDigit(c)) {
+                return true;
+            } else if (!isBinary && !isHexadecimal && char.IsDigit(c)) {
+                return true;
+            } else {
+                return false;
+            }
+        }
 
         if (current == '0') {
             if (lookahead == 'b' || lookahead == 'B') {
@@ -501,17 +514,12 @@ internal sealed class Lexer {
         }
 
         while (!done) {
-            if (!isBinary && !isHexadecimal && !hasDecimal && current == '.') {
+            if (current == '.' && !isBinary && !isHexadecimal && !hasDecimal) {
                 hasDecimal = true;
                 position_++;
-                continue;
-            }
-
-            if (isBinary && current == '0' || current == '1') {
+            } else if (current == '_' && position_ > initialPosition && isValidCharacter(lookahead)) {
                 position_++;
-            } else if (isHexadecimal && char.IsAsciiHexDigit(current)) {
-                position_++;
-            } else if (!isBinary && !isHexadecimal && char.IsDigit(current)) {
+            } else if (isValidCharacter(current)) {
                 position_++;
             } else {
                 done = true;
@@ -520,6 +528,7 @@ internal sealed class Lexer {
 
         int length = position_ - start_;
         string text = text_.ToString(start_, length);
+        string parsedText = text.Replace("_", "");
 
         if (!hasDecimal) {
             var @base = isBinary ? 2 : 16;
@@ -528,11 +537,12 @@ internal sealed class Lexer {
 
             if (isBinary || isHexadecimal) {
                 try {
-                    value = Convert.ToInt32(text.Length > 2 ? text.Substring(2) : throw new FormatException(), @base);
+                    value = Convert.ToInt32(
+                        text.Length > 2 ? parsedText.Substring(2) : throw new FormatException(), @base);
                 } catch (Exception e) when (e is OverflowException || e is FormatException) {
                     failed = true;
                 }
-            } else if (!int.TryParse(text, out value)) {
+            } else if (!int.TryParse(parsedText, out value)) {
                 failed = true;
             }
 
@@ -544,7 +554,7 @@ internal sealed class Lexer {
                 value_ = value;
             }
         } else {
-            if (!double.TryParse(text, out var value)) {
+            if (!double.TryParse(parsedText, out var value)) {
                 var span = new TextSpan(start_, length);
                 var location = new TextLocation(text_, span);
                 diagnostics.Push(Error.InvalidType(location, text, TypeSymbol.Int));
