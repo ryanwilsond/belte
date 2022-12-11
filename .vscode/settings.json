@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "*.csproj": "msbuild"
+    },
+    "editor.rulers": [
+        120
+    ],
+    "omnisharp.defaultLaunchSolution": "src/Buckle/Buckle.sln",
+    "omnisharp.disableMSBuildDiagnosticWarning": true,
+    "omnisharp.enableEditorConfigSupport": true,
+}

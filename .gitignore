@@ -1,19 +1,17 @@
 
-.*/*
+.*/
 !.github
-!.vscode/launch.json
-!.vscode/tasks.json
-Resources/*
-old/*
-database/*
+!.vscode
 
-**/obj/*
-**/bin/*
-*.o
-*.exe
-*.dll
-*.deps.json
-*.runtimeconfig.json
-*.pdb
+[Rr]esources/
+[Oo]ld/
+[Oo]bj/
+[Bb]in/
+
+/*.exe
+/*.dll
+/*.deps.json
+/*.runtimeconfig.json
+/*.pdb
 *.dot
 *.g.cs
