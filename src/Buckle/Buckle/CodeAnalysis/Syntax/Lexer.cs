@@ -485,11 +485,11 @@ internal sealed class Lexer {
     }
 
     private void ReadNumericLiteral() {
-        var done = false;
         var hasDecimal = false;
+        var hasExponent = false;
         var isBinary = false;
         var isHexadecimal = false;
-        var initialPosition = position_;
+        char? previous = null;
 
         bool isValidCharacter(char c) {
             if (isBinary && c == '0' || c == '1') {
@@ -504,33 +504,42 @@ internal sealed class Lexer {
         }
 
         if (current == '0') {
-            if (lookahead == 'b' || lookahead == 'B') {
+            if (char.ToLower(lookahead) == 'b') {
                 isBinary = true;
                 position_ += 2;
-            } else if (lookahead == 'x' || lookahead == 'X') {
+            } else if (char.ToLower(lookahead) == 'x') {
                 isHexadecimal = true;
                 position_ += 2;
             }
         }
 
-        while (!done) {
-            if (current == '.' && !isBinary && !isHexadecimal && !hasDecimal) {
+        while (true) {
+            if (current == '.' && !isBinary && !isHexadecimal && !hasDecimal && !hasExponent) {
                 hasDecimal = true;
                 position_++;
-            } else if (current == '_' && position_ > initialPosition && isValidCharacter(lookahead)) {
+            } else if (char.ToLower(current) == 'e' && !isBinary && !isHexadecimal && !hasExponent &&
+                (((lookahead == '-' || lookahead == '+') &&
+                isValidCharacter(Peek(2))) || isValidCharacter(lookahead))) {
+                hasExponent = true;
+                position_++;
+            } else if ((current == '-' || current == '+') && char.ToLower(previous.Value) == 'e') {
+                position_++;
+            } else if (current == '_' && previous.HasValue && isValidCharacter(lookahead)) {
                 position_++;
             } else if (isValidCharacter(current)) {
                 position_++;
             } else {
-                done = true;
+                break;
             }
+
+            previous = Peek(-1);
         }
 
         int length = position_ - start_;
         string text = text_.ToString(start_, length);
         string parsedText = text.Replace("_", "");
 
-        if (!hasDecimal) {
+        if (!hasDecimal && !hasExponent) {
             var @base = isBinary ? 2 : 16;
             var failed = false;
             int value = 0;
