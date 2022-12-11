@@ -3,56 +3,78 @@ using System.Collections.Generic;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
+/// <summary>
+/// Basic syntax facts references by parser and lexer.
+/// </summary>
 internal static class SyntaxFacts {
-
+    /// <summary>
+    /// Gets binary operator precedence of a syntax type.
+    /// </summary>
+    /// <param name="type">Syntax type</param>
+    /// <returns>Precedence</returns>
     internal static int GetBinaryPrecedence(this SyntaxType type) {
         switch (type) {
             case SyntaxType.ASTERISK_ASTERISK_TOKEN:
-                return 11;
+                return 14;
             case SyntaxType.ASTERISK_TOKEN:
             case SyntaxType.SLASH_TOKEN:
-                return 10;
+            case SyntaxType.PERCENT_TOKEN:
+                return 13;
             case SyntaxType.PLUS_TOKEN:
             case SyntaxType.MINUS_TOKEN:
-                return 9;
+                return 12;
             case SyntaxType.LESS_THAN_LESS_THAN_TOKEN:
             case SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN:
-                return 8;
+            case SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN:
+                return 11;
             case SyntaxType.IS_KEYWORD:
             case SyntaxType.ISNT_KEYWORD:
             case SyntaxType.LESS_THAN_TOKEN:
             case SyntaxType.GREATER_THAN_TOKEN:
             case SyntaxType.LESS_THAN_EQUALS_TOKEN:
             case SyntaxType.GREATER_THAN_EQUALS_TOKEN:
-                return 7;
+                return 10;
             case SyntaxType.EQUALS_EQUALS_TOKEN:
             case SyntaxType.EXCLAMATION_EQUALS_TOKEN:
-                return 6;
+                return 9;
             case SyntaxType.AMPERSAND_TOKEN:
-                return 5;
+                return 8;
             case SyntaxType.CARET_TOKEN:
-                return 4;
+                return 7;
             case SyntaxType.PIPE_TOKEN:
-                return 3;
+                return 6;
             case SyntaxType.AMPERSAND_AMPERSAND_TOKEN:
-                return 2;
+                return 5;
             case SyntaxType.PIPE_PIPE_TOKEN:
-                return 1;
+                return 4;
+            case SyntaxType.QUESTION_QUESTION_TOKEN:
+                return 3;
             default:
                 return 0;
         }
     }
 
+    /// <summary>
+    /// Gets primary operator precedence of a syntax type.
+    /// </summary>
+    /// <param name="type">Syntax type</param>
+    /// <returns>Precedence</returns>
     internal static int GetPrimaryPrecedence(this SyntaxType type) {
         switch (type) {
+            case SyntaxType.TYPEOF_KEYWORD:
             case SyntaxType.OPEN_BRACKET_TOKEN:
             case SyntaxType.OPEN_PAREN_TOKEN:
-                return 13;
+                return 18;
             default:
                 return 0;
         }
     }
 
+    /// <summary>
+    /// Gets unary operator precedence of a syntax type.
+    /// </summary>
+    /// <param name="type">Syntax type</param>
+    /// <returns>Precedence</returns>
     internal static int GetUnaryPrecedence(this SyntaxType type) {
         switch (type) {
             case SyntaxType.PLUS_PLUS_TOKEN:
@@ -61,12 +83,17 @@ internal static class SyntaxFacts {
             case SyntaxType.MINUS_TOKEN:
             case SyntaxType.EXCLAMATION_TOKEN:
             case SyntaxType.TILDE_TOKEN:
-                return 12;
+                return 17;
             default:
                 return 0;
         }
     }
 
+    /// <summary>
+    /// Attempts to get a syntax type from a text representation of a keyword.
+    /// </summary>
+    /// <param name="text">Text representation</param>
+    /// <returns>Keyword type, defaults to identifer if failed</returns>
     internal static SyntaxType GetKeywordType(string text) {
         switch (text) {
             case "true":
@@ -107,11 +134,18 @@ internal static class SyntaxFacts {
                 return SyntaxType.IS_KEYWORD;
             case "isnt":
                 return SyntaxType.ISNT_KEYWORD;
+            case "typeof":
+                return SyntaxType.TYPEOF_KEYWORD;
             default:
                 return SyntaxType.IDENTIFIER_TOKEN;
         }
     }
 
+    /// <summary>
+    /// Gets text representation of a token or keyword.
+    /// </summary>
+    /// <param name="type">Syntax type</param>
+    /// <returns>Text representation, default to null if not text representation exists</returns>
     internal static string GetText(SyntaxType type) {
         switch (type) {
             case SyntaxType.COMMA_TOKEN:
@@ -142,6 +176,8 @@ internal static class SyntaxFacts {
                 return "<<";
             case SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN:
                 return ">>";
+            case SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN:
+                return ">>>";
             case SyntaxType.EXCLAMATION_TOKEN:
                 return "!";
             case SyntaxType.AMPERSAND_AMPERSAND_TOKEN:
@@ -172,6 +208,10 @@ internal static class SyntaxFacts {
                 return "<";
             case SyntaxType.GREATER_THAN_TOKEN:
                 return ">";
+            case SyntaxType.PERCENT_TOKEN:
+                return "%";
+            case SyntaxType.QUESTION_QUESTION_TOKEN:
+                return "??";
             case SyntaxType.LESS_THAN_EQUALS_TOKEN:
                 return "<=";
             case SyntaxType.GREATER_THAN_EQUALS_TOKEN:
@@ -194,8 +234,14 @@ internal static class SyntaxFacts {
                 return "**=";
             case SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
                 return ">>=";
+            case SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
+                return ">>>=";
             case SyntaxType.LESS_THAN_LESS_THAN_EQUALS_TOKEN:
                 return "<<=";
+            case SyntaxType.PERCENT_EQUALS_TOKEN:
+                return "%=";
+            case SyntaxType.QUESTION_QUESTION_EQUALS_TOKEN:
+                return "??=";
             case SyntaxType.TRUE_KEYWORD:
                 return "true";
             case SyntaxType.FALSE_KEYWORD:
@@ -234,11 +280,18 @@ internal static class SyntaxFacts {
                 return "is";
             case SyntaxType.ISNT_KEYWORD:
                 return "isnt";
+            case SyntaxType.TYPEOF_KEYWORD:
+                return "typeof";
             default:
                 return null;
         }
     }
 
+    /// <summary>
+    /// Gets base operator type of assignment operator type (e.g. += -> +).
+    /// </summary>
+    /// <param name="type">Syntax type</param>
+    /// <returns>Binary operator type</returns>
     internal static SyntaxType GetBinaryOperatorOfAssignmentOperator(SyntaxType type) {
         switch (type) {
             case SyntaxType.PLUS_EQUALS_TOKEN:
@@ -261,11 +314,21 @@ internal static class SyntaxFacts {
                 return SyntaxType.LESS_THAN_LESS_THAN_TOKEN;
             case SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
                 return SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN;
+            case SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
+                return SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN;
+            case SyntaxType.PERCENT_EQUALS_TOKEN:
+                return SyntaxType.PERCENT_TOKEN;
+            case SyntaxType.QUESTION_QUESTION_EQUALS_TOKEN:
+                return SyntaxType.QUESTION_QUESTION_TOKEN;
             default:
                 throw new Exception($"GetBinaryOperatorOfAssignmentOperator: unexpected syntax '{type}'");
         }
     }
 
+    /// <summary>
+    /// Gets all unary operator types.
+    /// </summary>
+    /// <returns>Unary operator types (calling code should not depend on order)</returns>
     internal static IEnumerable<SyntaxType> GetUnaryOperatorTypes() {
         var types = (SyntaxType[])Enum.GetValues(typeof(SyntaxType));
         foreach (var type in types) {
@@ -274,6 +337,10 @@ internal static class SyntaxFacts {
         }
     }
 
+    /// <summary>
+    /// Gets all binary operator types.
+    /// </summary>
+    /// <returns>Binary operator types (calling code should not depend on order)</returns>
     internal static IEnumerable<SyntaxType> GetBinaryOperatorTypes() {
         var types = (SyntaxType[])Enum.GetValues(typeof(SyntaxType));
         foreach (var type in types) {
@@ -282,18 +349,38 @@ internal static class SyntaxFacts {
         }
     }
 
+    /// <summary>
+    /// Checks if a syntax type is a keyword.
+    /// </summary>
+    /// <param name="type">Syntax type</param>
+    /// <returns>If the syntax type is a keyword</returns>
     internal static bool IsKeyword(this SyntaxType type) {
         return type.ToString().EndsWith("KEYWORD");
     }
 
+    /// <summary>
+    /// Checks if a syntax type is a token.
+    /// </summary>
+    /// <param name="type">Syntax type</param>
+    /// <returns>If the syntax type is a token</returns>
     internal static bool IsToken(this SyntaxType type) {
         return !type.IsTrivia() && (type.IsKeyword() || type.ToString().EndsWith("TOKEN"));
     }
 
+    /// <summary>
+    /// Checks if a syntax type is trivia.
+    /// </summary>
+    /// <param name="type">Syntax type</param>
+    /// <returns>If the syntax type is trivia</returns>
     internal static bool IsTrivia(this SyntaxType type) {
         return type.ToString().EndsWith("TRIVIA");
     }
 
+    /// <summary>
+    /// Checks if a syntax type is a comment.
+    /// </summary>
+    /// <param name="type">Syntax type</param>
+    /// <returns>If the syntax type is a comment</returns>
     internal static bool IsComment(this SyntaxType type) {
         return type == SyntaxType.SINGLELINE_COMMENT_TRIVIA || type == SyntaxType.MULTILINE_COMMENT_TRIVIA;
     }

@@ -5,6 +5,9 @@ using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Authoring;
 
+/// <summary>
+/// Simplified classification of token.
+/// </summary>
 internal enum Classification {
     Identifier,
     Keyword,
@@ -15,17 +18,41 @@ internal enum Classification {
     Text,
 }
 
+/// <summary>
+/// Span of where a classification refers to.
+/// </summary>
 internal sealed class ClassifiedSpan {
-    internal TextSpan span { get; }
-    internal Classification classification { get; }
-
-    internal ClassifiedSpan(TextSpan span_, Classification classification_) {
-        span = span_;
-        classification = classification_;
+    /// <summary>
+    /// Creates a classified span.
+    /// </summary>
+    /// <param name="span">Span of where referring to</param>
+    /// <param name="classification">Classification</param>
+    internal ClassifiedSpan(TextSpan span, Classification classification) {
+        this.span = span;
+        this.classification = classification;
     }
+
+    /// <summary>
+    /// Span of where referring to.
+    /// </summary>
+    internal TextSpan span { get; }
+
+    /// <summary>
+    /// Classification.
+    /// </summary>
+    internal Classification classification { get; }
 }
 
+/// <summary>
+/// Classifies parsed nodes.
+/// </summary>
 internal static class Classifier {
+    /// <summary>
+    /// Classifies nodes in a syntax tree within a span.
+    /// </summary>
+    /// <param name="syntaxTree">Tree to classify</param>
+    /// <param name="span">What segment of the tree to classify</param>
+    /// <returns>All classifications made within the span of the tree</returns>
     internal static ImmutableArray<ClassifiedSpan> Classify(SyntaxTree syntaxTree, TextSpan span) {
         var result = ImmutableArray.CreateBuilder<ClassifiedSpan>();
         ClassifyNode(syntaxTree.root, span, result);

@@ -1,8 +1,17 @@
+using System;
 using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Binding;
 
+/// <summary>
+/// Rewrites statements and all child statements.
+/// </summary>
 internal abstract class BoundTreeRewriter {
+    /// <summary>
+    /// Rewrites a single statement (including all children, recursive).
+    /// </summary>
+    /// <param name="statement">Statement to rewrite</param>
+    /// <returns>New statement or input statement if nothing changed</returns>
     internal virtual BoundStatement RewriteStatement(BoundStatement statement) {
         switch (statement.type) {
             case BoundNodeType.NopStatement:
@@ -187,9 +196,15 @@ internal abstract class BoundTreeRewriter {
                 return RewriteReferenceExpression((BoundReferenceExpression)expression);
             case BoundNodeType.InlineFunctionExpression:
                 return RewriteInlineFunctionExpression((BoundInlineFunctionExpression)expression);
+            case BoundNodeType.TypeofExpression:
+                return RewriteTypeofExpression((BoundTypeofExpression)expression);
             default:
                 return null;
         }
+    }
+
+    protected virtual BoundExpression RewriteTypeofExpression(BoundTypeofExpression expression) {
+        return expression;
     }
 
     protected virtual BoundExpression RewriteInlineFunctionExpression(BoundInlineFunctionExpression expression) {

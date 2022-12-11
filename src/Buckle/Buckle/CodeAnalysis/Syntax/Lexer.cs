@@ -3,9 +3,14 @@ using System.Collections.Immutable;
 using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Text;
 using Buckle.CodeAnalysis.Symbols;
+using System;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
+/// <summary>
+/// Converts source text into parsable tokens.
+/// E.g. int myInt; -> IdentiferToken IdentifierToken SemicolonToken
+/// </summary>
 internal sealed class Lexer {
     private readonly SourceText text_;
     private int position_;
@@ -13,26 +18,29 @@ internal sealed class Lexer {
     private SyntaxType type_;
     private object value_;
     private SyntaxTree syntaxTree_;
+    private char current => Peek(0);
+    private char lookahead => Peek(1);
     private ImmutableArray<SyntaxTrivia>.Builder triviaBuilder_ = ImmutableArray.CreateBuilder<SyntaxTrivia>();
-    internal BelteDiagnosticQueue diagnostics = new BelteDiagnosticQueue();
 
+    /// <summary>
+    /// Creates a new lexer, requires a fully initialized syntax tree.
+    /// </summary>
+    /// <param name="syntaxTree">Syntax tree to lex from</param>
     internal Lexer(SyntaxTree syntaxTree) {
         text_ = syntaxTree.text;
         syntaxTree_ = syntaxTree;
+        diagnostics = new BelteDiagnosticQueue();
     }
 
-    private char Peek(int offset) {
-        int index = position_ + offset;
+    /// <summary>
+    /// Diagnostics produced during lexing process
+    /// </summary>
+    internal BelteDiagnosticQueue diagnostics { get; set; }
 
-        if (index >= text_.length)
-            return '\0';
-
-        return text_[index];
-    }
-
-    private char current => Peek(0);
-    private char lookahead => Peek(1);
-
+    /// <summary>
+    /// Lexes the next un-lexed text to create a single token.
+    /// </summary>
+    /// <returns>A new token</returns>
     internal Token LexNext() {
         ReadTrivia(true);
         var leadingTrivia = triviaBuilder_.ToImmutable();
@@ -54,6 +62,15 @@ internal sealed class Lexer {
         return new Token(syntaxTree_, tokenType, tokenStart, tokenText, tokenValue, leadingTrivia, trailingTrivia);
     }
 
+    private char Peek(int offset) {
+        int index = position_ + offset;
+
+        if (index >= text_.length)
+            return '\0';
+
+        return text_[index];
+    }
+
     private void ReadTrivia(bool leading) {
         triviaBuilder_.Clear();
         var done = false;
@@ -69,7 +86,7 @@ internal sealed class Lexer {
                     break;
                 case '/':
                     if (lookahead == '/')
-                        // TODO Docstring comments (xml or doxygen)
+                        // TODO Docstring comments (xml/doxygen, probably xml)
                         ReadSingeLineComment();
                     else if (lookahead == '*')
                         ReadMultiLineComment();
@@ -151,6 +168,15 @@ internal sealed class Lexer {
                 position_++;
                 type_ = SyntaxType.TILDE_TOKEN;
                 break;
+            case '%':
+                position_++;
+                if (current == '=') {
+                    type_ = SyntaxType.PERCENT_EQUALS_TOKEN;
+                    position_++;
+                } else {
+                    type_ = SyntaxType.PERCENT_TOKEN;
+                }
+                break;
             case '^':
                 position_++;
                 if (current == '=') {
@@ -158,6 +184,19 @@ internal sealed class Lexer {
                     position_++;
                 } else {
                     type_ = SyntaxType.CARET_TOKEN;
+                }
+                break;
+            case '?':
+                if (lookahead == '?') {
+                    position_ += 2;
+                    if (current == '=') {
+                        type_ = SyntaxType.QUESTION_QUESTION_EQUALS_TOKEN;
+                        position_++;
+                    } else {
+                        type_ = SyntaxType.QUESTION_QUESTION_TOKEN;
+                    }
+                } else {
+                    goto default;
                 }
                 break;
             case '+':
@@ -278,6 +317,14 @@ internal sealed class Lexer {
                     if (lookahead == '=') {
                         position_++;
                         type_ = SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN;
+                    } else if (lookahead == '>') {
+                        if (Peek(2) == '=') {
+                            position_++;
+                            type_ = SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_EQUALS_TOKEN;
+                        } else {
+                            type_ = SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN;
+                        }
+                        position_++;
                     } else {
                         type_ = SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN;
                     }
@@ -451,27 +498,77 @@ internal sealed class Lexer {
     }
 
     private void ReadNumericLiteral() {
-        var done = false;
         var hasDecimal = false;
+        var hasExponent = false;
+        var isBinary = false;
+        var isHexadecimal = false;
+        char? previous = null;
 
-        while (!done) {
-            if (!hasDecimal && current == '.') {
+        bool isValidCharacter(char c) {
+            if (isBinary && c == '0' || c == '1') {
+                return true;
+            } else if (isHexadecimal && char.IsAsciiHexDigit(c)) {
+                return true;
+            } else if (!isBinary && !isHexadecimal && char.IsDigit(c)) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        if (current == '0') {
+            if (char.ToLower(lookahead) == 'b') {
+                isBinary = true;
+                position_ += 2;
+            } else if (char.ToLower(lookahead) == 'x') {
+                isHexadecimal = true;
+                position_ += 2;
+            }
+        }
+
+        while (true) {
+            if (current == '.' && !isBinary && !isHexadecimal && !hasDecimal && !hasExponent) {
                 hasDecimal = true;
                 position_++;
-                continue;
+            } else if (char.ToLower(current) == 'e' && !isBinary && !isHexadecimal && !hasExponent &&
+                (((lookahead == '-' || lookahead == '+') &&
+                isValidCharacter(Peek(2))) || isValidCharacter(lookahead))) {
+                hasExponent = true;
+                position_++;
+            } else if ((current == '-' || current == '+') && char.ToLower(previous.Value) == 'e') {
+                position_++;
+            } else if (current == '_' && previous.HasValue && isValidCharacter(lookahead)) {
+                position_++;
+            } else if (isValidCharacter(current)) {
+                position_++;
+            } else {
+                break;
             }
 
-            if (char.IsDigit(current))
-                position_++;
-            else
-                done = true;
+            previous = Peek(-1);
         }
 
         int length = position_ - start_;
         string text = text_.ToString(start_, length);
+        string parsedText = text.Replace("_", "");
 
-        if (!hasDecimal) {
-            if (!int.TryParse(text, out var value)) {
+        if (!hasDecimal && !hasExponent) {
+            var @base = isBinary ? 2 : 16;
+            var failed = false;
+            int value = 0;
+
+            if (isBinary || isHexadecimal) {
+                try {
+                    value = Convert.ToInt32(
+                        text.Length > 2 ? parsedText.Substring(2) : throw new FormatException(), @base);
+                } catch (Exception e) when (e is OverflowException || e is FormatException) {
+                    failed = true;
+                }
+            } else if (!int.TryParse(parsedText, out value)) {
+                failed = true;
+            }
+
+            if (failed) {
                 var span = new TextSpan(start_, length);
                 var location = new TextLocation(text_, span);
                 diagnostics.Push(Error.InvalidType(location, text, TypeSymbol.Int));
@@ -479,7 +576,7 @@ internal sealed class Lexer {
                 value_ = value;
             }
         } else {
-            if (!float.TryParse(text, out var value)) {
+            if (!double.TryParse(parsedText, out var value)) {
                 var span = new TextSpan(start_, length);
                 var location = new TextLocation(text_, span);
                 diagnostics.Push(Error.InvalidType(location, text, TypeSymbol.Int));

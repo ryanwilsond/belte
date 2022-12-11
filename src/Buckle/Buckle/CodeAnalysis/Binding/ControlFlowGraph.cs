@@ -8,20 +8,110 @@ using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
+/// <summary>
+/// Creates a graphical control flow graph from a bound block.
+/// </summary>
 internal sealed class ControlFlowGraph {
-    internal BasicBlock start { get; }
-    internal BasicBlock end { get; }
-    internal List<BasicBlock> blocks { get; }
-    internal List<BasicBlockBranch> branches { get; }
-
     private ControlFlowGraph(
-        BasicBlock start_, BasicBlock end_, List<BasicBlock> blocks_, List<BasicBlockBranch> branch_) {
-        start = start_;
-        end = end_;
-        blocks = blocks_;
-        branches = branch_;
+        BasicBlock start, BasicBlock end, List<BasicBlock> blocks, List<BasicBlockBranch> branch) {
+        this.start = start;
+        this.end = end;
+        this.blocks = blocks;
+        branches = branch;
     }
 
+    /// <summary>
+    /// Start graph block.
+    /// </summary>
+    internal BasicBlock start { get; }
+
+    /// <summary>
+    /// End graph block.
+    /// </summary>
+    internal BasicBlock end { get; }
+
+    /// <summary>
+    /// All blocks in the graph.
+    /// </summary>
+    internal List<BasicBlock> blocks { get; }
+
+    /// <summary>
+    /// All branches in the graph.
+    /// </summary>
+    /// <value></value>
+    internal List<BasicBlockBranch> branches { get; }
+
+    /// <summary>
+    /// Creates a control flow graph from a block.
+    /// </summary>
+    /// <param name="body">Block to create from</param>
+    /// <returns>Control flow graph</returns>
+    internal static ControlFlowGraph Create(BoundBlockStatement body) {
+        var basicBlockBuilder = new BasicBlockBuilder();
+        var blocks = basicBlockBuilder.Build(body);
+
+        var graphBuilder = new GraphBuilder();
+        return graphBuilder.Build(blocks);
+    }
+
+    /// <summary>
+    /// Checks (using a control flow graph) if all code paths in a body return.
+    /// </summary>
+    /// <param name="body">Body to check</param>
+    /// <returns>If all code paths return</returns>
+    internal static bool AllPathsReturn(BoundBlockStatement body) {
+        var graph = Create(body);
+
+        foreach (var branch in graph.end.incoming) {
+            var lastStatement = branch.from.statements.LastOrDefault();
+
+            if (lastStatement == null || lastStatement.type != BoundNodeType.ReturnStatement)
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Writes control flow graph to out.
+    /// </summary>
+    /// <param name="writer">Out</param>
+    internal void WriteTo(TextWriter writer) {
+        string Quote(string text) {
+            return "\"" + text.TrimEnd()
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace(Environment.NewLine, "\\l") + "\"";
+        }
+
+        writer.WriteLine("digraph G {");
+
+        var blockIds = new Dictionary<BasicBlock, string>();
+
+        for (int i=0; i<blocks.Count; i++) {
+            var id = $"N{i}";
+            blockIds.Add(blocks[i], id);
+        }
+
+        foreach (var block in blocks) {
+            var id = blockIds[block];
+            var label = Quote(block.ToString());
+            writer.WriteLine($"    {id} [label = {label}, shape = box]");
+        }
+
+        foreach (var branch in branches) {
+            var fromId = blockIds[branch.from];
+            var toId = blockIds[branch.to];
+            var label = Quote(branch.ToString());
+            writer.WriteLine($"    {fromId} -> {toId} [label = {label}]");
+        }
+
+        writer.WriteLine("}");
+    }
+
+    /// <summary>
+    /// Block in the graph, represents a statement.
+    /// </summary>
     internal sealed class BasicBlock {
         internal List<BoundStatement> statements { get; } = new List<BoundStatement>();
         internal List<BasicBlockBranch> incoming { get; } = new List<BasicBlockBranch>();
@@ -31,9 +121,9 @@ internal sealed class ControlFlowGraph {
 
         internal BasicBlock() {}
 
-        internal BasicBlock(bool isStart_) {
-            isStart = isStart_;
-            isEnd = !isStart_;
+        internal BasicBlock(bool isStart) {
+            this.isStart = isStart;
+            isEnd = !isStart;
         }
 
         public override string ToString() {
@@ -51,15 +141,18 @@ internal sealed class ControlFlowGraph {
         }
     }
 
+    /// <summary>
+    /// Branch in the graph, represents code continuing from one statement to another.
+    /// </summary>
     internal sealed class BasicBlockBranch {
         internal BasicBlock from { get; }
         internal BasicBlock to { get; }
         internal BoundExpression condition { get; }
 
-        internal BasicBlockBranch(BasicBlock from_, BasicBlock to_, BoundExpression condition_) {
-            from = from_;
-            to = to_;
-            condition = condition_;
+        internal BasicBlockBranch(BasicBlock from, BasicBlock to, BoundExpression condition) {
+            this.from = from;
+            this.to = to;
+            this.condition = condition;
         }
 
         public override string ToString() {
@@ -70,6 +163,9 @@ internal sealed class ControlFlowGraph {
         }
     }
 
+    /// <summary>
+    /// Builds blocks from statements.
+    /// </summary>
     internal sealed class BasicBlockBuilder {
         private List<BasicBlock> blocks_ = new List<BasicBlock>();
         private List<BoundStatement> statements_ = new List<BoundStatement>();
@@ -116,6 +212,9 @@ internal sealed class ControlFlowGraph {
         }
     }
 
+    /// <summary>
+    /// Builds a graph from graph blocks and branches.
+    /// </summary>
     internal sealed class GraphBuilder {
         private Dictionary<BoundStatement, BasicBlock> blockFromStatement_ =
             new Dictionary<BoundStatement, BasicBlock>();
@@ -182,7 +281,6 @@ internal sealed class ControlFlowGraph {
                 }
             }
 
-            // TODO Test to make sure this works like the original goto implementation
             void Scan() {
                 foreach (var block in blocks) {
                     if (!block.incoming.Any()) {
@@ -240,59 +338,5 @@ internal sealed class ControlFlowGraph {
             to.incoming.Add(branch);
             branches_.Add(branch);
         }
-    }
-
-    internal void WriteTo(TextWriter writer) {
-        string Quote(string text) {
-            return "\"" + text.TrimEnd()
-                .Replace("\\", "\\\\")
-                .Replace("\"", "\\\"")
-                .Replace(Environment.NewLine, "\\l") + "\"";
-        }
-
-        writer.WriteLine("digraph G {");
-
-        var blockIds = new Dictionary<BasicBlock, string>();
-
-        for (int i=0; i<blocks.Count; i++) {
-            var id = $"N{i}";
-            blockIds.Add(blocks[i], id);
-        }
-
-        foreach (var block in blocks) {
-            var id = blockIds[block];
-            var label = Quote(block.ToString());
-            writer.WriteLine($"    {id} [label = {label}, shape = box]");
-        }
-
-        foreach (var branch in branches) {
-            var fromId = blockIds[branch.from];
-            var toId = blockIds[branch.to];
-            var label = Quote(branch.ToString());
-            writer.WriteLine($"    {fromId} -> {toId} [label = {label}]");
-        }
-
-        writer.WriteLine("}");
-    }
-
-    internal static ControlFlowGraph Create(BoundBlockStatement body) {
-        var basicBlockBuilder = new BasicBlockBuilder();
-        var blocks = basicBlockBuilder.Build(body);
-
-        var graphBuilder = new GraphBuilder();
-        return graphBuilder.Build(blocks);
-    }
-
-    internal static bool AllPathsReturn(BoundBlockStatement body) {
-        var graph = Create(body);
-
-        foreach (var branch in graph.end.incoming) {
-            var lastStatement = branch.from.statements.LastOrDefault();
-
-            if (lastStatement == null || lastStatement.type != BoundNodeType.ReturnStatement)
-                return false;
-        }
-
-        return true;
     }
 }

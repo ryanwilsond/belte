@@ -1,25 +1,37 @@
 using System;
+using System.Numerics;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Utils;
 
 namespace Buckle.CodeAnalysis.Binding;
 
+/// <summary>
+/// Folds/evaluates simple expressions during compile time.
+/// </summary>
 internal static class ConstantFolding {
+    /// <summary>
+    /// Folds a binary expression (if possible).
+    /// </summary>
+    /// <param name="left">Left side operand</param>
+    /// <param name="op">Operator</param>
+    /// <param name="right">Right side operand</param>
+    /// <returns>Bound constant, returns null if folding is not possible</returns>
     internal static BoundConstant Fold(
         BoundExpression left, BoundBinaryOperator op, BoundExpression right) {
         var leftConstant = left.constantValue;
         var rightConstant = right.constantValue;
 
-        // and/or allow one side to be null
+        // With and/or operators allow one side to be null
         // TODO Track statements with side effects (e.g. function calls) and still execute them left to right
         if (op?.opType == BoundBinaryOperatorType.ConditionalAnd) {
-            if (leftConstant != null && !(bool)leftConstant.value ||
-                rightConstant != null && !(bool)rightConstant.value)
+            if ((leftConstant != null && leftConstant.value != null && !(bool)leftConstant.value) ||
+                (rightConstant != null && rightConstant.value != null && !(bool)rightConstant.value))
                 return new BoundConstant(false);
         }
 
         if (op?.opType == BoundBinaryOperatorType.ConditionalOr) {
-            if (leftConstant != null && (bool)leftConstant.value ||
-                rightConstant != null && (bool)rightConstant.value)
+            if ((leftConstant != null && leftConstant.value != null && (bool)leftConstant.value) ||
+                (rightConstant != null && rightConstant.value != null && (bool)rightConstant.value))
                 return new BoundConstant(true);
         }
 
@@ -28,8 +40,8 @@ internal static class ConstantFolding {
 
         var leftValue = leftConstant.value;
         var rightValue = rightConstant.value;
-        var leftType = left.typeClause.lType;
-        var rightType = right.typeClause.lType;
+        var leftType = op.leftType.lType;
+        var rightType = op.rightType.lType;
 
         if (leftValue == null || rightValue == null)
             return new BoundConstant(null);
@@ -38,11 +50,17 @@ internal static class ConstantFolding {
             leftValue = Convert.ToBoolean(leftValue);
             rightValue = Convert.ToBoolean(rightValue);
         } else if (leftType == TypeSymbol.Int) {
+            // Prevents bankers rounding from Convert.ToInt32, instead always truncate (no rounding)
+            if (leftValue.IsFloatingPoint())
+                leftValue = Math.Truncate(Convert.ToDouble(leftValue));
+            if (rightValue.IsFloatingPoint())
+                rightValue = Math.Truncate(Convert.ToDouble(rightValue));
+
             leftValue = Convert.ToInt32(leftValue);
             rightValue = Convert.ToInt32(rightValue);
         } else if (leftType == TypeSymbol.Decimal) {
-            leftValue = Convert.ToSingle(leftValue);
-            rightValue = Convert.ToSingle(rightValue);
+            leftValue = Convert.ToDouble(leftValue);
+            rightValue = Convert.ToDouble(rightValue);
         } else if (leftType == TypeSymbol.String) {
             leftValue = Convert.ToString(leftValue);
             rightValue = Convert.ToString(rightValue);
@@ -55,27 +73,32 @@ internal static class ConstantFolding {
                 else if (leftType == TypeSymbol.String)
                     return new BoundConstant((string)leftValue + (string)rightValue);
                 else
-                    return new BoundConstant((float)leftValue + (float)rightValue);
+                    return new BoundConstant((double)leftValue + (double)rightValue);
             case BoundBinaryOperatorType.Subtraction:
                 if (leftType == TypeSymbol.Int)
                     return new BoundConstant((int)leftValue - (int)rightValue);
                 else
-                    return new BoundConstant((float)leftValue - (float)rightValue);
+                    return new BoundConstant((double)leftValue - (double)rightValue);
             case BoundBinaryOperatorType.Multiplication:
                 if (leftType == TypeSymbol.Int)
                     return new BoundConstant((int)leftValue * (int)rightValue);
                 else
-                    return new BoundConstant((float)leftValue * (float)rightValue);
+                    return new BoundConstant((double)leftValue * (double)rightValue);
             case BoundBinaryOperatorType.Division:
-                if (leftType == TypeSymbol.Int)
-                    return new BoundConstant((int)leftValue / (int)rightValue);
-                else
-                    return new BoundConstant((float)leftValue / (float)rightValue);
+                if (leftType == TypeSymbol.Int) {
+                    if ((int)rightValue != 0)
+                        return new BoundConstant((int)leftValue / (int)rightValue);
+                } else {
+                    if ((double)rightValue != 0)
+                        return new BoundConstant((double)leftValue / (double)rightValue);
+                }
+
+                return null;
             case BoundBinaryOperatorType.Power:
                 if (leftType == TypeSymbol.Int)
                     return new BoundConstant((int)Math.Pow((int)leftValue, (int)rightValue));
                 else
-                    return new BoundConstant((float)Math.Pow((float)leftValue, (float)rightValue));
+                    return new BoundConstant((double)Math.Pow((double)leftValue, (double)rightValue));
             case BoundBinaryOperatorType.ConditionalAnd:
                 return new BoundConstant((bool)leftValue && (bool)rightValue);
             case BoundBinaryOperatorType.ConditionalOr:
@@ -88,22 +111,22 @@ internal static class ConstantFolding {
                 if (leftType == TypeSymbol.Int)
                     return new BoundConstant((int)leftValue < (int)rightValue);
                 else
-                    return new BoundConstant((float)leftValue < (float)rightValue);
+                    return new BoundConstant((double)leftValue < (double)rightValue);
             case BoundBinaryOperatorType.GreaterThan:
                 if (leftType == TypeSymbol.Int)
                     return new BoundConstant((int)leftValue > (int)rightValue);
                 else
-                    return new BoundConstant((float)leftValue > (float)rightValue);
+                    return new BoundConstant((double)leftValue > (double)rightValue);
             case BoundBinaryOperatorType.LessOrEqual:
                 if (leftType == TypeSymbol.Int)
                     return new BoundConstant((int)leftValue <= (int)rightValue);
                 else
-                    return new BoundConstant((float)leftValue <= (float)rightValue);
+                    return new BoundConstant((double)leftValue <= (double)rightValue);
             case BoundBinaryOperatorType.GreatOrEqual:
                 if (leftType == TypeSymbol.Int)
                     return new BoundConstant((int)leftValue >= (int)rightValue);
                 else
-                    return new BoundConstant((float)leftValue >= (float)rightValue);
+                    return new BoundConstant((double)leftValue >= (double)rightValue);
             case BoundBinaryOperatorType.LogicalAnd:
                 if (leftType == TypeSymbol.Int)
                     return new BoundConstant((int)leftValue & (int)rightValue);
@@ -123,11 +146,24 @@ internal static class ConstantFolding {
                 return new BoundConstant((int)leftValue << (int)rightValue);
             case BoundBinaryOperatorType.RightShift:
                 return new BoundConstant((int)leftValue >> (int)rightValue);
+            case BoundBinaryOperatorType.UnsignedRightShift:
+                return new BoundConstant((int)leftValue >>> (int)rightValue);
+            case BoundBinaryOperatorType.Modulo:
+                if (leftType == TypeSymbol.Int)
+                    return new BoundConstant((int)leftValue % (int)rightValue);
+                else
+                    return new BoundConstant((double)leftValue % (double)rightValue);
             default:
                 throw new Exception($"Fold: unexpected binary operator '{op.opType}'");
         }
     }
 
+    /// <summary>
+    /// Folds a unary expression (if possible).
+    /// </summary>
+    /// <param name="op">Operator</param>
+    /// <param name="operand">Operand</param>
+    /// <returns>Bound constant, returns null if folding is not possible</returns>
     internal static BoundConstant Fold(BoundUnaryOperator op, BoundExpression operand) {
         var operandType = operand.typeClause.lType;
 
@@ -137,12 +173,12 @@ internal static class ConstantFolding {
                     if (operandType == TypeSymbol.Int)
                         return new BoundConstant((int)operand.constantValue.value);
                     else
-                        return new BoundConstant((float)operand.constantValue.value);
+                        return new BoundConstant((double)operand.constantValue.value);
                 case BoundUnaryOperatorType.NumericalNegation:
                     if (operandType == TypeSymbol.Int)
                         return new BoundConstant(-(int)operand.constantValue.value);
                     else
-                        return new BoundConstant(-(float)operand.constantValue.value);
+                        return new BoundConstant(-(double)operand.constantValue.value);
                 case BoundUnaryOperatorType.BooleanNegation:
                     return new BoundConstant(!(bool)operand.constantValue.value);
                 case BoundUnaryOperatorType.BitwiseCompliment:

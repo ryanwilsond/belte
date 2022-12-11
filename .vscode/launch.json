@@ -6,7 +6,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/Buckle/Belte/bin/Debug/net6.0/Belte.dll",
+            "program": "${workspaceFolder}/src/Buckle/Belte/bin/Debug/net7.0/Belte.dll",
             // "args": [
             //     "-d",
             //     "samples/Hello",

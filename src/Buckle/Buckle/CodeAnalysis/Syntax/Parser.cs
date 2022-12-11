@@ -2,63 +2,22 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Text;
-using System;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
+/// <summary>
+/// Lexes then parses text into a tree of nodes, in doing so doing syntax checking.
+/// </summary>
 internal sealed class Parser {
     private readonly ImmutableArray<Token> tokens_;
-    private int position_;
     private readonly SourceText text_;
     private readonly SyntaxTree syntaxTree_;
+    private int position_;
 
-    internal BelteDiagnosticQueue diagnostics;
-
-    private Token Match(SyntaxType type, SyntaxType? nextWanted = null, bool suppressErrors = false) {
-        if (current.type == type)
-            return Next();
-
-        if (nextWanted != null && current.type == nextWanted) {
-            if (!suppressErrors)
-                diagnostics.Push(Error.ExpectedToken(current.location, type));
-
-            return new Token(syntaxTree_, type, current.position,
-                null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
-        } else if (Peek(1).type != type) {
-            if (!suppressErrors)
-                diagnostics.Push(Error.UnexpectedToken(current.location, current.type, type));
-
-            return new Token(syntaxTree_, type, current.position,
-                null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
-        } else {
-            if (!suppressErrors)
-                diagnostics.Push(Error.UnexpectedToken(current.location, current.type));
-
-            position_++;
-            Token cur = current;
-            position_++;
-
-            return cur;
-        }
-    }
-
-    private Token Next() {
-        Token cur = current;
-        position_++;
-        return cur;
-    }
-
-    private Token Peek(int offset) {
-        int index = position_ + offset;
-
-        if (index >= tokens_.Length)
-            return tokens_[tokens_.Length - 1];
-
-        return tokens_[index];
-    }
-
-    private Token current => Peek(0);
-
+    /// <summary>
+    /// Creates a new parser, requiring a fully initialized syntax tree.
+    /// </summary>
+    /// <param name="syntaxTree">Syntax tree to parse from</param>
     internal Parser(SyntaxTree syntaxTree) {
         diagnostics = new BelteDiagnosticQueue();
         var tokens = new List<Token>();
@@ -103,10 +62,67 @@ internal sealed class Parser {
         diagnostics.Move(lexer.diagnostics);
     }
 
+    /// <summary>
+    /// Diagnostics produced during the parsing process.
+    /// </summary>
+    internal BelteDiagnosticQueue diagnostics { get; set; }
+
+    private Token current => Peek(0);
+
+    /// <summary>
+    /// Parses the entirety of a single file.
+    /// </summary>
+    /// <returns>The parsed file</returns>
     internal CompilationUnit ParseCompilationUnit() {
         var members = ParseMembers();
         var endOfFile = Match(SyntaxType.END_OF_FILE_TOKEN);
         return new CompilationUnit(syntaxTree_, members, endOfFile);
+    }
+
+    private Token Match(SyntaxType type, SyntaxType? nextWanted = null, bool suppressErrors = false) {
+        if (current.type == type)
+            return Next();
+
+        if (nextWanted != null && current.type == nextWanted) {
+            if (!suppressErrors)
+                diagnostics.Push(Error.ExpectedToken(current.location, type));
+
+            return new Token(syntaxTree_, type, current.position,
+                null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
+        } else if (Peek(1).type != type) {
+            if (!suppressErrors)
+                diagnostics.Push(Error.UnexpectedToken(current.location, current.type, type));
+
+            Token cur = current;
+            position_++;
+
+            return new Token(syntaxTree_, type, cur.position,
+                null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
+        } else {
+            if (!suppressErrors)
+                diagnostics.Push(Error.UnexpectedToken(current.location, current.type));
+
+            position_++;
+            Token cur = current;
+            position_++;
+
+            return cur;
+        }
+    }
+
+    private Token Next() {
+        Token cur = current;
+        position_++;
+        return cur;
+    }
+
+    private Token Peek(int offset) {
+        int index = position_ + offset;
+
+        if (index >= tokens_.Length)
+            return tokens_[tokens_.Length - 1];
+
+        return tokens_[index];
     }
 
     private ImmutableArray<Member> ParseMembers() {
@@ -228,7 +244,6 @@ internal sealed class Parser {
             var expression = ParseParameter();
             nodesAndSeparators.Add(expression);
 
-            // TODO Optional parameters
             if (current.type == SyntaxType.COMMA_TOKEN) {
                 var comma = Next();
                 nodesAndSeparators.Add(comma);
@@ -578,6 +593,9 @@ internal sealed class Parser {
                 case SyntaxType.ASTERISK_ASTERISK_EQUALS_TOKEN:
                 case SyntaxType.LESS_THAN_LESS_THAN_EQUALS_TOKEN:
                 case SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
+                case SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
+                case SyntaxType.PERCENT_EQUALS_TOKEN:
+                case SyntaxType.QUESTION_QUESTION_EQUALS_TOKEN:
                 case SyntaxType.EQUALS_TOKEN:
                     var identifierToken = Next();
                     var operatorToken = Next();
@@ -663,6 +681,7 @@ internal sealed class Parser {
                 else
                     goto default;
             case SyntaxType.NAME_EXPRESSION:
+            case SyntaxType.TYPEOF_KEYWORD:
             default:
                 return ParseNameOrPrimaryOperatorExpression();
         }
@@ -747,12 +766,14 @@ internal sealed class Parser {
     }
 
     private Expression ParsePrimaryOperatorExpression(
-        Expression operand, int parentPrecedence = 0, Token maybeUnexpected=null) {
-        Expression ParseCorrectPrimaryOperator(Expression operand) {
-            if (current.type == SyntaxType.OPEN_PAREN_TOKEN)
-                return ParseCallExpression(operand);
-            if (current.type == SyntaxType.OPEN_BRACKET_TOKEN)
-                return ParseIndexExpression(operand);
+        Node operand, int parentPrecedence = 0, Token maybeUnexpected=null) {
+        Node ParseCorrectPrimaryOperator(Node operand) {
+            if (operand.type == SyntaxType.TYPEOF_KEYWORD)
+                return ParseTypeofExpression();
+            else if (current.type == SyntaxType.OPEN_PAREN_TOKEN)
+                return ParseCallExpression((Expression)operand);
+            else if (current.type == SyntaxType.OPEN_BRACKET_TOKEN)
+                return ParseIndexExpression((Expression)operand);
 
             return operand;
         }
@@ -760,6 +781,7 @@ internal sealed class Parser {
         var completeIterations = 0;
 
         while (true) {
+            var startToken = current;
             var precedence = current.type.GetPrimaryPrecedence();
 
             if (precedence == 0 || precedence <= parentPrecedence)
@@ -767,18 +789,38 @@ internal sealed class Parser {
 
             var expression = ParseCorrectPrimaryOperator(operand);
             operand = ParsePrimaryOperatorExpression(expression, precedence);
+
             completeIterations++;
+
+            if (startToken == current)
+                Next();
         }
 
         if (completeIterations == 0 && operand is NameExpression ne && ne.identifier.isMissing)
             diagnostics.Push(Error.UnexpectedToken(maybeUnexpected.location, maybeUnexpected.type));
 
-        return operand;
+        // Assuming that all typeof operators are handled and do not fall through
+        return (Expression)operand;
+    }
+
+    private Expression ParseTypeofExpression() {
+        var typeofKeyword = Next();
+        var openParenthesis = Match(SyntaxType.OPEN_PAREN_TOKEN);
+        var typeClause = ParseTypeClause(false);
+        var closeParenthesis = Match(SyntaxType.CLOSE_PAREN_TOKEN);
+
+        return new TypeofExpression(syntaxTree_, typeofKeyword, openParenthesis, typeClause, closeParenthesis);
     }
 
     private Expression ParseNameOrPrimaryOperatorExpression() {
         var maybeUnexpected = current;
-        var left = ParseNameExpression(true);
+
+        Node left;
+        if (current.type == SyntaxType.TYPEOF_KEYWORD)
+            left = current;
+        else
+            left = ParseNameExpression(true);
+
         return ParsePrimaryOperatorExpression(left, maybeUnexpected: maybeUnexpected);
     }
 

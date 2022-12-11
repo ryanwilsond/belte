@@ -13,30 +13,10 @@ using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Emitting;
 
+/// <summary>
+/// Emits a bound program into a .NET assembly.
+/// </summary>
 internal class Emitter {
-
-    private enum NetMethodReference {
-        ConsoleWrite,
-        ConsoleWriteLine,
-        ConsoleReadLine,
-        StringConcat2,
-        StringConcat3,
-        StringConcat4,
-        StringConcatArray,
-        ConvertToBoolean,
-        ConvertToInt32,
-        ConvertToString,
-        ConvertToSingle,
-        ObjectEquals,
-        RandomNext,
-        RandomCtor,
-        NullableCtor,
-        NullableValue,
-        NullableHasValue,
-    }
-
-    internal BelteDiagnosticQueue diagnostics = new BelteDiagnosticQueue();
-
     private readonly List<AssemblyDefinition> assemblies = new List<AssemblyDefinition>();
     private readonly List<(TypeSymbol type, string metadataName)> builtinTypes;
     private readonly Dictionary<FunctionSymbol, MethodDefinition> methods_ =
@@ -51,15 +31,15 @@ internal class Emitter {
     private readonly Dictionary<NetMethodReference, MethodReference> methodReferences_;
     private readonly TypeReference randomReference_;
     private readonly TypeReference nullableReference_;
-
     private TypeDefinition typeDefinition_;
     private FieldDefinition randomFieldDefinition_;
-
     private Stack<MethodDefinition> methodStack_ = new Stack<MethodDefinition>();
 
     private Emitter(string moduleName, string[] references) {
-        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
-            return;
+        diagnostics = new BelteDiagnosticQueue();
+        // ? Do not know why this code was here, should always be empty at this point
+        // if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+        //     return;
 
         foreach (var reference in references) {
             try {
@@ -77,7 +57,7 @@ internal class Emitter {
             (TypeSymbol.Any, "System.Object"),
             (TypeSymbol.Bool, "System.Boolean"),
             (TypeSymbol.Int, "System.Int32"),
-            (TypeSymbol.Decimal, "System.Single"),
+            (TypeSymbol.Decimal, "System.Double"),
             (TypeSymbol.String, "System.String"),
             (TypeSymbol.Void, "System.Void"),
         };
@@ -124,8 +104,8 @@ internal class Emitter {
                 NetMethodReference.ConvertToString,
                 ResolveMethod("System.Convert", "ToString", new [] { "System.Object" })
             }, {
-                NetMethodReference.ConvertToSingle,
-                ResolveMethod("System.Convert", "ToSingle", new [] { "System.Object" })
+                NetMethodReference.ConvertToDouble,
+                ResolveMethod("System.Convert", "ToDouble", new [] { "System.Object" })
             }, {
                 NetMethodReference.ObjectEquals,
                 ResolveMethod("System.Object", "Equals", new [] { "System.Object", "System.Object" })
@@ -151,7 +131,83 @@ internal class Emitter {
         nullableReference_ = ResolveType(null, "System.Nullable`1");
     }
 
-    TypeReference ResolveType(string buckleName, string metadataName) {
+    /// <summary>
+    /// Diagnostics produced by Emitter.
+    /// These diagnostics are fatal, as all error checking has been done already.
+    /// </summary>
+    internal BelteDiagnosticQueue diagnostics { get; set; }
+
+    private enum NetMethodReference {
+        ConsoleWrite,
+        ConsoleWriteLine,
+        ConsoleReadLine,
+        StringConcat2,
+        StringConcat3,
+        StringConcat4,
+        StringConcatArray,
+        ConvertToBoolean,
+        ConvertToInt32,
+        ConvertToString,
+        ConvertToDouble,
+        ObjectEquals,
+        RandomNext,
+        RandomCtor,
+        NullableCtor,
+        NullableValue,
+        NullableHasValue,
+    }
+
+    /// <summary>
+    /// Emits a program to a .NET assembly.
+    /// </summary>
+    /// <param name="program">Program to emit</param>
+    /// <param name="moduleName">Name of emitted assembly/application</param>
+    /// <param name="references">All external .NET references</param>
+    /// <param name="outputPath">Where to put the emitted assembly</param>
+    /// <returns>Diagnostics</returns>
+    internal static BelteDiagnosticQueue Emit(
+        BoundProgram program, string moduleName, string[] references, string outputPath) {
+        if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
+            return program.diagnostics;
+
+        var emitter = new Emitter(moduleName, references);
+        return emitter.Emit(program, outputPath);
+    }
+
+    /// <summary>
+    /// Emits a program to a .NET assembly.
+    /// </summary>
+    /// <param name="program">Program to emit</param>
+    /// <param name="outputPath">Where to put the emitted assembly</param>
+    /// <returns>Diagnostics</returns>
+    internal BelteDiagnosticQueue Emit(BoundProgram program, string outputPath) {
+        diagnostics.Move(program.diagnostics);
+
+        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+            return diagnostics;
+
+        var objectType = knownTypes_[TypeSymbol.Any];
+        typeDefinition_ = new TypeDefinition(
+            "", "<Program>$", TypeAttributes.Abstract | TypeAttributes.Sealed, objectType);
+        assemblyDefinition_.MainModule.Types.Add(typeDefinition_);
+
+        foreach (var functionWithBody in program.functionBodies)
+            EmitFunctionDeclaration(functionWithBody.Key);
+
+        foreach (var functionWithBody in program.functionBodies) {
+            // currentFunction_ = functionWithBody.Key;
+            EmitFunctionBody(functionWithBody.Key, functionWithBody.Value);
+        }
+
+        if (program.mainFunction != null)
+            assemblyDefinition_.EntryPoint = LookupMethod(program.mainFunction);
+
+        assemblyDefinition_.Write(outputPath);
+
+        return diagnostics;
+    }
+
+    private TypeReference ResolveType(string buckleName, string metadataName) {
         var foundTypes = assemblies.SelectMany(a => a.Modules)
             .SelectMany(m => m.Types)
             .Where(t => t.FullName == metadataName)
@@ -168,7 +224,7 @@ internal class Emitter {
         return null;
     }
 
-    MethodReference ResolveMethod(
+    private MethodReference ResolveMethod(
         string typeName, string methodName, string[] parameterTypeNames) {
 
         var foundTypes = assemblies.SelectMany(a => a.Modules)
@@ -210,42 +266,6 @@ internal class Emitter {
             diagnostics.Push(Error.RequiredTypeAmbiguous(null, typeName, foundTypes));
 
         return null;
-    }
-
-    internal static BelteDiagnosticQueue Emit(
-        BoundProgram program, string moduleName, string[] references, string outputPath) {
-        if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
-            return program.diagnostics;
-
-        var emitter = new Emitter(moduleName, references);
-        return emitter.Emit(program, outputPath);
-    }
-
-    internal BelteDiagnosticQueue Emit(BoundProgram program, string outputPath) {
-        diagnostics.Move(program.diagnostics);
-
-        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
-            return diagnostics;
-
-        var objectType = knownTypes_[TypeSymbol.Any];
-        typeDefinition_ = new TypeDefinition(
-            "", "<Program>$", TypeAttributes.Abstract | TypeAttributes.Sealed, objectType);
-        assemblyDefinition_.MainModule.Types.Add(typeDefinition_);
-
-        foreach (var functionWithBody in program.functionBodies)
-            EmitFunctionDeclaration(functionWithBody.Key);
-
-        foreach (var functionWithBody in program.functionBodies) {
-            // currentFunction_ = functionWithBody.Key;
-            EmitFunctionBody(functionWithBody.Key, functionWithBody.Value);
-        }
-
-        if (program.mainFunction != null)
-            assemblyDefinition_.EntryPoint = LookupMethod(program.mainFunction);
-
-        assemblyDefinition_.Write(outputPath);
-
-        return diagnostics;
     }
 
     private void EmitFunctionBody(FunctionSymbol function, BoundBlockStatement body) {
@@ -485,7 +505,7 @@ internal class Emitter {
     }
 
     private void EmitEmptyExpression(ILProcessor iLProcessor, BoundEmptyExpression expression) {
-        // TODO Breaks control flow
+        // TODO Breaks control flow, debug why this does not work
         // iLProcessor.Emit(OpCodes.Nop);
     }
 
@@ -536,7 +556,7 @@ internal class Emitter {
             else if (to.lType == TypeSymbol.String)
                 return methodReferences_[NetMethodReference.ConvertToString];
             else if (to.lType == TypeSymbol.Decimal)
-                return methodReferences_[NetMethodReference.ConvertToSingle];
+                return methodReferences_[NetMethodReference.ConvertToDouble];
             else
                 throw new Exception($"GetConvertTo: unexpected cast from '{from}' to '{to}'");
         }

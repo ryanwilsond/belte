@@ -13,10 +13,11 @@ namespace Buckle.Tests.CodeAnalysis;
 public class EvaluatorTests {
     private readonly ITestOutputHelper writer;
 
-    public EvaluatorTests(ITestOutputHelper writer_) {
-        writer = writer_;
+    public EvaluatorTests(ITestOutputHelper writer) {
+        this.writer = writer;
     }
 
+    // Put all simple tests that want a specific result from the evaluator here
     [Theory]
     [InlineData(";", null)]
 
@@ -29,6 +30,24 @@ public class EvaluatorTests {
     [InlineData("4 ** 2;", 16)]
     [InlineData("9 / 3;", 3)]
     [InlineData("(10);", 10)]
+    [InlineData("0b1;", 1)]
+    [InlineData("-0B1;", -1)]
+    [InlineData("0b01101;", 13)]
+    [InlineData("0b11111111;", 255)]
+    [InlineData("0x01;", 1)]
+    [InlineData("-0x01;", -1)]
+    [InlineData("0XDEADBEEF;", -559038737)]
+    [InlineData("0xfF;", 255)]
+    [InlineData("123_123;", 123123)]
+    [InlineData("1_1;", 11)]
+    [InlineData("1_1.42;", 11.42)]
+    [InlineData("1_1._42;", 11.42)]
+    [InlineData("1_1._4_2;", 11.42)]
+    [InlineData("6.26e34;", 6.26E+34)]
+    [InlineData("6.26e+34;", 6.26E+34)]
+    [InlineData("6.26E34;", 6.26E+34)]
+    [InlineData("6.26E+34;", 6.26E+34)]
+    [InlineData("6E-10;", 6E-10)]
 
     [InlineData("var a = 1; a += (2 + 3); return a;", 6)]
     [InlineData("var a = 1; a -= (2 + 3); return a;", -4)]
@@ -62,6 +81,11 @@ public class EvaluatorTests {
     [InlineData("2 >> 1;", 1)]
     [InlineData("3 >> 1;", 1)]
     [InlineData("12 >> 2;", 3)]
+    [InlineData("-8 >> 2;", -2)]
+    [InlineData("2 >>> 1;", 1)]
+    [InlineData("3 >>> 1;", 1)]
+    [InlineData("12 >>> 2;", 3)]
+    [InlineData("-8 >>> 2;", 1073741822)]
     [InlineData("false | false;", false)]
     [InlineData("false | true;", true)]
     [InlineData("true | false;", true)]
@@ -108,6 +132,20 @@ public class EvaluatorTests {
     [InlineData("4 >= 5;", false)]
     [InlineData("5 >= 4;", true)]
 
+    [InlineData("var a = 8; a >>>= 1; return a;", 4)]
+    [InlineData("var a = -8; a >>>= 1; return a;", 2147483644)]
+    [InlineData("var a = 12; a >>>= 5; return a;", 0)]
+
+    [InlineData("3.2 + 3.4;", 6.6)]
+    [InlineData("3.2 - 3.4;", -0.19999999999999973)]
+    [InlineData("10 * 1.5;", 15)]
+    [InlineData("10 * (int)1.5;", 10)]
+    [InlineData("9 / 2;", 4)]
+    [InlineData("9.0 / 2;", 4.5)]
+    [InlineData("9 / 2.0;", 4.5)]
+    [InlineData("4.1 ** 2;", 16.81)]
+    [InlineData("4.1 ** 2.1;", 19.35735875876448)]
+
     [InlineData("int a = 10; return a;", 10)]
     [InlineData("int a = 10; return a * a;", 100)]
     [InlineData("int a = 1; return 10 * a;", 10)]
@@ -120,10 +158,58 @@ public class EvaluatorTests {
     [InlineData("int i = 10; int result = 0; while (i > 0) { result++; i--; } return result;", 10)]
     [InlineData("int result = 1; for (int i=0; i<=10; i++) { result+=result; } return result;", 2048)]
     [InlineData("int result = 0; do { result++; } while (result < 10); return result;", 10)]
+
+    [InlineData("[NotNull]int a = 10; return a;", 10)]
+    [InlineData("[NotNull]int a = 10; return a * a;", 100)]
+    [InlineData("[NotNull]int a = 1; return 10 * a;", 10)]
+    [InlineData("[NotNull]int a = 0; if (a == 0) { a = 10; } return a;", 10)]
+    [InlineData("[NotNull]int a = 0; if (a == 4) { a = 10; } return a;", 0)]
+    [InlineData("[NotNull]int a = 0; if (a == 0) { a = 10; } else { a = 5; } return a;", 10)]
+    [InlineData("[NotNull]int a = 0; if (a == 4) { a = 10; } else { a = 5; } return a;", 5)]
+
+    [InlineData("decimal[] a = {3.1, 2.56, 5.23123}; return a[2];", 5.23123)]
+    [InlineData("var a = {3.1, 2.56, 5.23123}; return a[0];", 3.1)]
+
+    [InlineData("(null + 3) is null;", true)]
+    [InlineData("(null > 3) is null;", true)]
+    [InlineData("null || true;", true)]
+
+    // TODO Add these tests and implement required features (refs and is/isnt type)
+    // It is commented out right now because theses features are bigger than was expected,
+    // So these features are not going to be added in this PR
+    // [InlineData("int x = 4; ref int y = ref x; x++; return y;", 5)]
+
+    // [InlineData("3 is int;", true)]
+    // [InlineData("null is int;", false)]
+    // [InlineData("4 is decimal;", false)]
+    // [InlineData("(decimal)4 is decimal;", true)]
+    // [InlineData("4.0 is decimal;", true)]
+    // [InlineData("4.0 isnt bool;", true)]
+    // [InlineData("4 is any;", false)]
+    // [InlineData("null isnt int;", true)]
+    [InlineData("null is null;", true)]
+    [InlineData("3 isnt null;", true)]
+    [InlineData("null isnt null;", false)]
+    [InlineData("var a = 3; return a is null;", false)]
+    [InlineData("var a = 3; return a isnt null;", true)]
+    [InlineData("int a = 3; a += null; return a is null;", true)]
+    [InlineData("int a = 3; a += null; return a isnt null;", false)]
+
+    [InlineData("type a = typeof(int[]);", null)]
+
+    [InlineData("(decimal)3;", 3)]
+    [InlineData("(int)3.4;", 3)]
+    [InlineData("(int)3.6;", 3)]
+    [InlineData("([NotNull]int)3;", 3)]
+
+    [InlineData("int x = 2; int y = { return 2 * x; }; return y;", 4)]
+    [InlineData("int funcA() { int funcB() { return 2; } return funcB() + 1; } return funcA(); ", 3)]
+    [InlineData("int funcA() { int funcB() { int funcA() { return 2; } return funcA() + 1; } return funcB() + 1; } return funcA();", 3)]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
         AssertValue(text, expectedValue);
     }
 
+    // All other complex tests go here
     [Fact]
     public void Evaluator_IfStatement_Reports_NotReachableCode_Warning() {
         var text = @"
@@ -140,6 +226,7 @@ public class EvaluatorTests {
         var diagnostics = @"
             unreachable code
         ";
+
         AssertDiagnostics(text, diagnostics, true);
     }
 
@@ -260,8 +347,6 @@ public class EvaluatorTests {
 
     [Fact]
     public void Evaluator_FunctionParameters_NoInfiniteLoop() {
-        // TODO doesn't throw when debugging, but does normally??
-        // need to debug the test
         var text = @"
             void hi(string name[=]) {
                 PrintLine(""Hi "" + name + ""!"");
@@ -483,7 +568,6 @@ public class EvaluatorTests {
             int PrintLine = 4;
             [PrintLine](""test"");
         ";
-        // TODO Maybe binder is skipping variables when going up the scopes to search for the function?
 
         var diagnostics = @"
             called object 'PrintLine' is not a function
@@ -637,13 +721,69 @@ public class EvaluatorTests {
         AssertDiagnostics(text, diagnostics);
     }
 
+    [Fact]
+    public void Evaluator_DivideByZero_ThrowsException() {
+        // TODO Need a way to assert exceptions
+        var text = @"
+            56/0;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Function_CanDeclare() {
+        var text = @"
+            void myFunction(int num1, int num2) {
+                Print(num1 + num2 / 3.14159);
+            }
+            myFunction(1, 2);
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Function_CanCall() {
+        var text = @"
+            void myFunction(int num) {
+                Print(num ** 2);
+            }
+            myFunction(2);
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_CallExpression_ExpectedCloseParenthesis() {
+        var text = @"
+            Print(num ** 2 [(]
+        ";
+
+        var diagnostics = @"
+            unexpected token '(', expected ')'
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
     private void AssertValue(string text, object expectedValue) {
         var syntaxTree = SyntaxTree.Parse(text);
         var compilation = Compilation.CreateScript(null, syntaxTree);
         var variables = new Dictionary<VariableSymbol, object>();
         var result = compilation.Evaluate(variables);
 
-        Assert.Empty(result.diagnostics.ToArray());
+        if (result.value is double && (Convert.ToDouble(expectedValue)).CompareTo(result.value) == 0)
+            expectedValue = Convert.ToDouble(expectedValue);
+
+        Assert.Empty(result.diagnostics.FilterOut(DiagnosticType.Warning).ToArray());
         Assert.Equal(expectedValue, result.value);
     }
 
@@ -653,7 +793,6 @@ public class EvaluatorTests {
 
         var tempDiagnostics = new BelteDiagnosticQueue();
 
-        // TODO currently all tests pass, but remind, does execution stop if parser has errors?
         if (syntaxTree.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
             tempDiagnostics.Move(syntaxTree.diagnostics);
         } else {

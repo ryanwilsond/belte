@@ -11,9 +11,9 @@ internal sealed class AnnotatedText {
     internal string text { get; }
     internal ImmutableArray<TextSpan> spans { get; }
 
-    private AnnotatedText(string text_, ImmutableArray<TextSpan> spans_) {
-        text = text_;
-        spans = spans_;
+    private AnnotatedText(string text, ImmutableArray<TextSpan> spans) {
+        this.text = text;
+        this.spans = spans;
     }
 
     internal static AnnotatedText Parse(string text) {

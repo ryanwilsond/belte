@@ -3,158 +3,237 @@ using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
+/// Note: All bound versions of statements and expression share function with parser equivalents.
+/// Thus use their xml comments for reference.
+
+/// <summary>
+/// A bound statement, bound from a parser Statement
+/// </summary>
 internal abstract class BoundStatement : BoundNode { }
 
+/// <summary>
+/// A bound block statement, bound from a parser BlockStatement.
+/// </summary>
 internal sealed class BoundBlockStatement : BoundStatement {
+    internal BoundBlockStatement(ImmutableArray<BoundStatement> statements) {
+        this.statements = statements;
+    }
+
     internal ImmutableArray<BoundStatement> statements { get; }
+
     internal override BoundNodeType type => BoundNodeType.BlockStatement;
-
-    internal BoundBlockStatement(ImmutableArray<BoundStatement> statements_) {
-        statements = statements_;
-    }
 }
 
+/// <summary>
+/// A bound expression statement, bound from a parser ExpressionStatement.
+/// </summary>
 internal sealed class BoundExpressionStatement : BoundStatement {
+    internal BoundExpressionStatement(BoundExpression expression) {
+        this.expression = expression;
+    }
+
     internal BoundExpression expression { get; }
+
     internal override BoundNodeType type => BoundNodeType.ExpressionStatement;
-
-    internal BoundExpressionStatement(BoundExpression expression_) {
-        expression = expression_;
-    }
 }
 
+/// <summary>
+/// A bound variable declaration statement, bound from a parser VariableDeclarationStatement.
+/// </summary>
 internal sealed class BoundVariableDeclarationStatement : BoundStatement {
+    internal BoundVariableDeclarationStatement(VariableSymbol variable, BoundExpression initializer) {
+        this.variable = variable;
+        this.initializer = initializer;
+    }
+
     internal VariableSymbol variable { get; }
+
     internal BoundExpression initializer { get; }
+
     internal override BoundNodeType type => BoundNodeType.VariableDeclarationStatement;
-
-    internal BoundVariableDeclarationStatement(VariableSymbol variable_, BoundExpression initializer_) {
-        variable = variable_;
-        initializer = initializer_;
-    }
 }
 
+/// <summary>
+/// A bound if statement, bound from a parser IfStatement.
+/// </summary>
 internal sealed class BoundIfStatement : BoundStatement {
+    internal BoundIfStatement(BoundExpression condition, BoundStatement then, BoundStatement elseStatement) {
+        this.condition = condition;
+        this.then = then;
+        this.elseStatement = elseStatement;
+    }
+
     internal BoundExpression condition { get; }
+
     internal BoundStatement then { get; }
+
     internal BoundStatement elseStatement { get; }
+
     internal override BoundNodeType type => BoundNodeType.IfStatement;
-
-    internal BoundIfStatement(BoundExpression condition_, BoundStatement then_, BoundStatement elseStatement_) {
-        condition = condition_;
-        then = then_;
-        elseStatement = elseStatement_;
-    }
 }
 
+/// <summary>
+/// A bound try statement, bound from a parser TryStatement.
+/// Instead of having a catch clause and finally clause, it just has their bodies.
+/// </summary>
 internal sealed class BoundTryStatement : BoundStatement {
-    internal BoundBlockStatement body { get; }
-    internal BoundBlockStatement catchBody { get; }
-    internal BoundBlockStatement finallyBody { get; }
-    internal override BoundNodeType type => BoundNodeType.TryStatement;
-
     internal BoundTryStatement(
-        BoundBlockStatement body_, BoundBlockStatement catchBody_, BoundBlockStatement finallyBody_) {
-        body = body_;
-        catchBody = catchBody_;
-        finallyBody = finallyBody_;
+        BoundBlockStatement body, BoundBlockStatement catchBody, BoundBlockStatement finallyBody) {
+        this.body = body;
+        this.catchBody = catchBody;
+        this.finallyBody = finallyBody;
     }
+
+    internal BoundBlockStatement body { get; }
+
+    internal BoundBlockStatement catchBody { get; }
+
+    internal BoundBlockStatement finallyBody { get; }
+
+    internal override BoundNodeType type => BoundNodeType.TryStatement;
 }
 
+/// <summary>
+/// A base type for bound loop types (for, do, do while).
+/// Uses labels for gotos as the Lowerer rewrites all control of flow to gotos.
+/// </summary>
 internal abstract class BoundLoopStatement : BoundStatement {
+    protected BoundLoopStatement(BoundLabel breakLabel, BoundLabel continueLabel) {
+        this.breakLabel = breakLabel;
+        this.continueLabel = continueLabel;
+    }
+
     internal BoundLabel breakLabel { get; }
+
     internal BoundLabel continueLabel { get; }
-
-    protected BoundLoopStatement(BoundLabel breakLabel_, BoundLabel continueLabel_) {
-        breakLabel = breakLabel_;
-        continueLabel = continueLabel_;
-    }
 }
 
+/// <summary>
+/// A bound while statement, bound from a parser WhileStatement.
+/// </summary>
 internal sealed class BoundWhileStatement : BoundLoopStatement {
-    internal BoundExpression condition { get; }
-    internal BoundStatement body { get; }
-    internal override BoundNodeType type => BoundNodeType.WhileStatement;
-
     internal BoundWhileStatement(
-        BoundExpression condition_, BoundStatement body_, BoundLabel breakLabel, BoundLabel continueLabel)
+        BoundExpression condition, BoundStatement body, BoundLabel breakLabel, BoundLabel continueLabel)
         : base(breakLabel, continueLabel) {
-        condition = condition_;
-        body = body_;
+        this.condition = condition;
+        this.body = body;
     }
+
+    internal BoundExpression condition { get; }
+
+    internal BoundStatement body { get; }
+
+    internal override BoundNodeType type => BoundNodeType.WhileStatement;
 }
 
+/// <summary>
+/// A bound for statement, bound from a parser ForStatement.
+/// </summary>
 internal sealed class BoundForStatement : BoundLoopStatement {
-    internal BoundStatement initializer { get; }
-    internal BoundExpression condition { get; }
-    internal BoundExpression step { get; }
-    internal BoundStatement body { get; }
-    internal override BoundNodeType type => BoundNodeType.ForStatement;
-
     internal BoundForStatement(
-        BoundStatement initializer_, BoundExpression condition_, BoundExpression step_,
-        BoundStatement body_, BoundLabel breakLabel, BoundLabel continueLabel)
+        BoundStatement initializer, BoundExpression condition, BoundExpression step,
+        BoundStatement body, BoundLabel breakLabel, BoundLabel continueLabel)
         : base(breakLabel, continueLabel) {
-        initializer = initializer_;
-        condition = condition_;
-        step = step_;
-        body = body_;
+        this.initializer = initializer;
+        this.condition = condition;
+        this.step = step;
+        this.body = body;
     }
-}
 
-internal sealed class BoundDoWhileStatement : BoundLoopStatement {
+    internal BoundStatement initializer { get; }
+
+    internal BoundExpression condition { get; }
+
+    internal BoundExpression step { get; }
+
     internal BoundStatement body { get; }
-    internal BoundExpression condition { get; }
-    internal override BoundNodeType type => BoundNodeType.DoWhileStatement;
 
+    internal override BoundNodeType type => BoundNodeType.ForStatement;
+}
+
+/// <summary>
+/// A bound do while statement, bound from a parser DoWhileStatement.
+/// </summary>
+internal sealed class BoundDoWhileStatement : BoundLoopStatement {
     internal BoundDoWhileStatement(
-        BoundStatement body_, BoundExpression condition_, BoundLabel breakLabel, BoundLabel continueLabel)
+        BoundStatement body, BoundExpression condition, BoundLabel breakLabel, BoundLabel continueLabel)
         : base(breakLabel, continueLabel) {
-        body = body_;
-        condition = condition_;
+        this.body = body;
+        this.condition = condition;
     }
-}
 
-internal sealed class BoundGotoStatement : BoundStatement {
-    internal BoundLabel label { get; }
-    internal override BoundNodeType type => BoundNodeType.GotoStatement;
+    internal BoundStatement body { get; }
 
-    internal BoundGotoStatement(BoundLabel label_) {
-        label = label_;
-    }
-}
-
-internal sealed class BoundConditionalGotoStatement : BoundStatement {
-    internal BoundLabel label { get; }
     internal BoundExpression condition { get; }
-    internal bool jumpIfTrue { get; }
-    internal override BoundNodeType type => BoundNodeType.ConditionalGotoStatement;
 
-    internal BoundConditionalGotoStatement(BoundLabel label_, BoundExpression condition_, bool jumpIfTrue_ = true) {
-        label = label_;
-        condition = condition_;
-        jumpIfTrue = jumpIfTrue_;
-    }
+    internal override BoundNodeType type => BoundNodeType.DoWhileStatement;
 }
 
-internal sealed class BoundLabelStatement : BoundStatement {
+/// <summary>
+/// A bound goto statement, produced by Lowerer. No parser equivalent.
+/// E.g. goto label
+/// </summary>
+internal sealed class BoundGotoStatement : BoundStatement {
+    internal BoundGotoStatement(BoundLabel label) {
+        this.label = label;
+    }
+
     internal BoundLabel label { get; }
+
+    internal override BoundNodeType type => BoundNodeType.GotoStatement;
+}
+
+/// <summary>
+/// A bound conditional goto statement, produced by Lowerer. No parser equivalent.
+/// E.g. goto label if condition
+/// </summary>
+internal sealed class BoundConditionalGotoStatement : BoundStatement {
+    internal BoundConditionalGotoStatement(BoundLabel label, BoundExpression condition, bool jumpIfTrue = true) {
+        this.label = label;
+        this.condition = condition;
+        this.jumpIfTrue = jumpIfTrue;
+    }
+
+    internal BoundLabel label { get; }
+
+    internal BoundExpression condition { get; }
+
+    internal bool jumpIfTrue { get; }
+
+    internal override BoundNodeType type => BoundNodeType.ConditionalGotoStatement;
+}
+
+/// <summary>
+/// A bound label statement, produced by Lowerer. No parser equivalent.
+/// E.g. label1:
+/// </summary>
+internal sealed class BoundLabelStatement : BoundStatement {
+    internal BoundLabelStatement(BoundLabel label) {
+        this.label = label;
+    }
+
+    internal BoundLabel label { get; }
+
     internal override BoundNodeType type => BoundNodeType.LabelStatement;
-
-    internal BoundLabelStatement(BoundLabel label_) {
-        label = label_;
-    }
 }
 
+/// <summary>
+/// A bound return statement, bound from a parser ReturnStatement.
+/// </summary>
 internal sealed class BoundReturnStatement : BoundStatement {
-    internal BoundExpression expression { get; }
-    internal override BoundNodeType type => BoundNodeType.ReturnStatement;
-
-    internal BoundReturnStatement(BoundExpression expression_) {
-        expression = expression_;
+    internal BoundReturnStatement(BoundExpression expression) {
+        this.expression = expression;
     }
+
+    internal BoundExpression expression { get; }
+
+    internal override BoundNodeType type => BoundNodeType.ReturnStatement;
 }
 
+/// <summary>
+/// A bound NOP statement. Used to replace parser EmptyExpressions and used as debugging symbols and placeholders.
+/// Used to mark the start and end of exception handlers in the Emitter.
+/// </summary>
 internal sealed class BoundNopStatement : BoundStatement {
     internal override BoundNodeType type => BoundNodeType.NopStatement;
 }
