@@ -32,6 +32,7 @@ internal enum BoundBinaryOperatorType {
     Is,
     Isnt,
     Modulo,
+    NullCoalescing,
 }
 
 /// <summary>
@@ -95,6 +96,8 @@ internal sealed class BoundBinaryOperator {
         new BoundBinaryOperator(SyntaxType.GREATER_THAN_EQUALS_TOKEN, BoundBinaryOperatorType.GreatOrEqual,
             BoundTypeClause.Int, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.PERCENT_TOKEN, BoundBinaryOperatorType.Modulo, BoundTypeClause.Int),
+        new BoundBinaryOperator(SyntaxType.QUESTION_QUESTION_TOKEN, BoundBinaryOperatorType.NullCoalescing,
+            BoundTypeClause.NullableInt),
 
         // boolean
         new BoundBinaryOperator(SyntaxType.AMPERSAND_AMPERSAND_TOKEN, BoundBinaryOperatorType.ConditionalAnd,
@@ -111,6 +114,8 @@ internal sealed class BoundBinaryOperator {
             BoundTypeClause.Bool, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.EXCLAMATION_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
             BoundTypeClause.Bool, BoundTypeClause.Bool),
+        new BoundBinaryOperator(SyntaxType.QUESTION_QUESTION_TOKEN, BoundBinaryOperatorType.NullCoalescing,
+            BoundTypeClause.NullableBool),
 
         // string
         new BoundBinaryOperator(SyntaxType.PLUS_TOKEN, BoundBinaryOperatorType.Addition,
@@ -119,6 +124,8 @@ internal sealed class BoundBinaryOperator {
             BoundTypeClause.String, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.EXCLAMATION_EQUALS_TOKEN, BoundBinaryOperatorType.EqualityNotEquals,
             BoundTypeClause.String, BoundTypeClause.Bool),
+        new BoundBinaryOperator(SyntaxType.QUESTION_QUESTION_TOKEN, BoundBinaryOperatorType.NullCoalescing,
+            BoundTypeClause.NullableString),
 
         // decimal
         new BoundBinaryOperator(SyntaxType.PLUS_TOKEN, BoundBinaryOperatorType.Addition,
@@ -144,6 +151,8 @@ internal sealed class BoundBinaryOperator {
         new BoundBinaryOperator(SyntaxType.GREATER_THAN_EQUALS_TOKEN, BoundBinaryOperatorType.GreatOrEqual,
             BoundTypeClause.Decimal, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.PERCENT_TOKEN, BoundBinaryOperatorType.Modulo, BoundTypeClause.Decimal),
+    new BoundBinaryOperator(SyntaxType.QUESTION_QUESTION_TOKEN, BoundBinaryOperatorType.NullCoalescing,
+            BoundTypeClause.NullableDecimal),
 
         // any
         new BoundBinaryOperator(SyntaxType.IS_KEYWORD, BoundBinaryOperatorType.Is,

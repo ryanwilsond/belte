@@ -1287,21 +1287,6 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindBinaryExpression(BinaryExpression expression) {
-        /*
-        <left> <op> <right>
-
-        TODO Implement this operator
-        ---> <op> is **
-
-        {
-            int <n> = <left>;
-            for (int i = 1; i < <right>; i+=1)
-                <n> *= <left>;
-
-            return <n>;
-        }
-
-        */
         var binderSaveState = StartEmulation();
 
         var leftTemp = BindExpression(expression.left);
@@ -1370,7 +1355,56 @@ internal sealed class Binder {
         var rightIsNotNull = rightTemp.constantValue != null || rightType.isNullable == false;
         var leftIsNotNull = leftTemp.constantValue != null || leftType.isNullable == false;
 
-        if (rightIsNotNull && leftIsNotNull) {
+        var result = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<result>$");
+        var resultType = BoundTypeClause.Nullable(opResultType);
+        var nullLiteral = new LiteralExpression(null, CreateToken(SyntaxType.NULL_KEYWORD), null);
+        Expression resultInitializer = nullLiteral;
+        Expression ifCondition = new LiteralExpression(null, CreateToken(SyntaxType.FALSE_KEYWORD), false);
+        var ifBody = new BlockStatement(null, null, ImmutableArray<Statement>.Empty, null);
+
+        if (tempOp.opType == BoundBinaryOperatorType.NullCoalescing) {
+            /*
+
+            {
+                <type> result = <left>;
+                if (result is null)
+                    result = <right>;
+
+                return result;
+            }
+
+            */
+            if (leftType.isNullable == false) {
+                diagnostics.Push(Warning.UnreachableCode(expression.right));
+                return BindExpression(expression.left);
+            }
+
+            resultInitializer = expression.left;
+
+            ifCondition = new BinaryExpression(
+                null, new NameExpression(null, result), CreateToken(SyntaxType.IS_KEYWORD), nullLiteral);
+
+            var assignment = new AssignmentExpression(
+                null, result, CreateToken(SyntaxType.EQUALS_TOKEN), expression.right);
+
+            var resultAssignment = new ExpressionStatement(null, assignment, null);
+
+            ifBody = new BlockStatement(
+                null, null, ImmutableArray.Create<Statement>(new Statement[]{ resultAssignment }), null);
+        // TODO
+        // } else if (tempOp.opType == BoundBinaryOperatorType.Power) {
+            /*
+
+            {
+                int n = <left>;
+                for (int i = 1; i < <right>; i+=1)
+                    n *= <left>;
+
+                return n;
+            }
+
+            */
+        } else if (rightIsNotNull && leftIsNotNull) {
             var boundLeft = BindExpression(expression.left);
             var boundRight = BindExpression(expression.right);
 
@@ -1401,12 +1435,6 @@ internal sealed class Binder {
 
             return new BoundBinaryExpression(boundLeft, boundOp, boundRight);
         }
-
-        var result = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<result>$");
-        var resultType = BoundTypeClause.Nullable(opResultType);
-        var nullLiteral = new LiteralExpression(null, CreateToken(SyntaxType.NULL_KEYWORD), null);
-        Expression ifCondition = new LiteralExpression(null, CreateToken(SyntaxType.FALSE_KEYWORD), false);
-        var ifBody = new BlockStatement(null, null, ImmutableArray<Statement>.Empty, null);
 
         if (leftType.isNullable && rightType.isNullable) {
             /*
@@ -1528,7 +1556,7 @@ internal sealed class Binder {
 
         var body = ImmutableArray.Create<Statement>(new Statement[] {
             new VariableDeclarationStatement(
-                null, ReconstructTypeClause(resultType), result, null, nullLiteral, null),
+                null, ReconstructTypeClause(resultType), result, null, resultInitializer, null),
             new IfStatement(null, null, null, ifCondition, null, ifBody, null),
             new ReturnStatement(null, null, new NameExpression(null, result), null)
         });
