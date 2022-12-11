@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Text;
 using Buckle.CodeAnalysis.Symbols;
+using System;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
@@ -484,27 +485,77 @@ internal sealed class Lexer {
     }
 
     private void ReadNumericLiteral() {
-        var done = false;
         var hasDecimal = false;
+        var hasExponent = false;
+        var isBinary = false;
+        var isHexadecimal = false;
+        char? previous = null;
 
-        while (!done) {
-            if (!hasDecimal && current == '.') {
+        bool isValidCharacter(char c) {
+            if (isBinary && c == '0' || c == '1') {
+                return true;
+            } else if (isHexadecimal && char.IsAsciiHexDigit(c)) {
+                return true;
+            } else if (!isBinary && !isHexadecimal && char.IsDigit(c)) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        if (current == '0') {
+            if (char.ToLower(lookahead) == 'b') {
+                isBinary = true;
+                position_ += 2;
+            } else if (char.ToLower(lookahead) == 'x') {
+                isHexadecimal = true;
+                position_ += 2;
+            }
+        }
+
+        while (true) {
+            if (current == '.' && !isBinary && !isHexadecimal && !hasDecimal && !hasExponent) {
                 hasDecimal = true;
                 position_++;
-                continue;
+            } else if (char.ToLower(current) == 'e' && !isBinary && !isHexadecimal && !hasExponent &&
+                (((lookahead == '-' || lookahead == '+') &&
+                isValidCharacter(Peek(2))) || isValidCharacter(lookahead))) {
+                hasExponent = true;
+                position_++;
+            } else if ((current == '-' || current == '+') && char.ToLower(previous.Value) == 'e') {
+                position_++;
+            } else if (current == '_' && previous.HasValue && isValidCharacter(lookahead)) {
+                position_++;
+            } else if (isValidCharacter(current)) {
+                position_++;
+            } else {
+                break;
             }
 
-            if (char.IsDigit(current))
-                position_++;
-            else
-                done = true;
+            previous = Peek(-1);
         }
 
         int length = position_ - start_;
         string text = text_.ToString(start_, length);
+        string parsedText = text.Replace("_", "");
 
-        if (!hasDecimal) {
-            if (!int.TryParse(text, out var value)) {
+        if (!hasDecimal && !hasExponent) {
+            var @base = isBinary ? 2 : 16;
+            var failed = false;
+            int value = 0;
+
+            if (isBinary || isHexadecimal) {
+                try {
+                    value = Convert.ToInt32(
+                        text.Length > 2 ? parsedText.Substring(2) : throw new FormatException(), @base);
+                } catch (Exception e) when (e is OverflowException || e is FormatException) {
+                    failed = true;
+                }
+            } else if (!int.TryParse(parsedText, out value)) {
+                failed = true;
+            }
+
+            if (failed) {
                 var span = new TextSpan(start_, length);
                 var location = new TextLocation(text_, span);
                 diagnostics.Push(Error.InvalidType(location, text, TypeSymbol.Int));
@@ -512,7 +563,7 @@ internal sealed class Lexer {
                 value_ = value;
             }
         } else {
-            if (!double.TryParse(text, out var value)) {
+            if (!double.TryParse(parsedText, out var value)) {
                 var span = new TextSpan(start_, length);
                 var location = new TextLocation(text_, span);
                 diagnostics.Push(Error.InvalidType(location, text, TypeSymbol.Int));
