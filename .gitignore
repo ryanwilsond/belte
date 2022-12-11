@@ -3,10 +3,13 @@
 !.github
 !.vscode
 
-[Rr]esources/
+/[Rr]esources/
 [Oo]ld/
 [Oo]bj/
 [Bb]in/
+
+# Temporary, add this back in once 0.1 is released and update it to match the current features
+[Ee]xtension/
 
 /*.exe
 /*.dll
