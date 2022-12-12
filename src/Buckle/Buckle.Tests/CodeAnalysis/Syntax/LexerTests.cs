@@ -324,26 +324,26 @@ public class LexerTests {
         if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN && t2Type ==
             SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN && t2Type ==
-            SyntaxType.GREATER_THAN_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_EQUALS_TOKEN)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN && t2Type ==
-            SyntaxType.GREATER_THAN_TOKEN)
+        if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_TOKEN)
             return true;
         if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN && t2Type ==
             SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN)
             return true;
-        if (t1Type == SyntaxType.PERCENT_TOKEN && t2Type ==
-            SyntaxType.EQUALS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.PERCENT_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
             return true;
-        if (t1Type == SyntaxType.PERCENT_TOKEN && t2Type ==
-            SyntaxType.EQUALS_TOKEN)
+        if (t1Type == SyntaxType.PERCENT_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
             return true;
         if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN && t2Type ==
             SyntaxType.EQUALS_EQUALS_TOKEN)
             return true;
         if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN && t2Type ==
             SyntaxType.EQUALS_TOKEN)
+            return true;
+        if (t1Type == SyntaxType.QUESTION_QUESTION_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
+            return true;
+        if (t1Type == SyntaxType.QUESTION_QUESTION_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
             return true;
 
         return false;

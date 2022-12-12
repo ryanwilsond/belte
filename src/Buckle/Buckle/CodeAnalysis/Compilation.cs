@@ -162,7 +162,7 @@ public sealed class Compilation {
     /// </summary>
     /// <param name="variables">Existing variables to add to the scope</param>
     /// <returns>Result of evaluation (see EvaluationResult)</returns>
-    internal EvaluationResult Evaluate(Dictionary<VariableSymbol, object> variables) {
+    internal EvaluationResult Evaluate(Dictionary<VariableSymbol, EvaluatorObject> variables) {
         if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return new EvaluationResult(null, globalScope.diagnostics);
 

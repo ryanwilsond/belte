@@ -60,7 +60,7 @@ public sealed class BelteRepl : ReplBase {
         state.showTree = false;
         state.showProgram = false;
         state.loadingSubmissions = false;
-        state.variables = new Dictionary<VariableSymbol, object>();
+        state.variables = new Dictionary<VariableSymbol, EvaluatorObject>();
         state.previous = null;
         state.currentPage = Page.Repl;
         base.ResetState();
@@ -648,6 +648,6 @@ public sealed class BelteRepl : ReplBase {
         /// Current defined variables.
         /// Not tracked after REPL instance is over, instead previous submissions are reevaluated.
         /// </summary>
-        public Dictionary<VariableSymbol, object> variables;
+        public Dictionary<VariableSymbol, EvaluatorObject> variables;
     }
 }
