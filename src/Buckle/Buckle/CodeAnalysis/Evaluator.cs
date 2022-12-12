@@ -8,16 +8,43 @@ using Buckle.Utils;
 namespace Buckle.CodeAnalysis;
 
 /// <summary>
+/// Encased object that can also be a reference to a symbol.
+/// </summary>
+internal sealed class EvaluatorObject {
+    internal object value { get; set; }
+    internal bool isReference { get; set; }
+    internal VariableSymbol reference { get; set; }
+
+    internal EvaluatorObject(object value) {
+        this.value = value;
+        this.isReference = false;
+        this.reference = null;
+    }
+
+    internal EvaluatorObject(VariableSymbol reference) {
+        this.value = null;
+
+        if (reference == null) {
+            this.isReference = false;
+            this.reference = null;
+        } else {
+            this.isReference = true;
+            this.reference = reference;
+        }
+    }
+}
+
+/// <summary>
 /// Evaluates statements as an interpreter, inline.
 /// </summary>
 internal sealed class Evaluator {
     private readonly BoundProgram program_;
-    private readonly Dictionary<VariableSymbol, object> globals_;
+    private readonly Dictionary<VariableSymbol, EvaluatorObject> globals_;
     private readonly Dictionary<FunctionSymbol, BoundBlockStatement> functions_ =
         new Dictionary<FunctionSymbol, BoundBlockStatement>();
-    private readonly Stack<Dictionary<VariableSymbol, object>> locals_ =
-        new Stack<Dictionary<VariableSymbol, object>>();
-    private object lastValue_;
+    private readonly Stack<Dictionary<VariableSymbol, EvaluatorObject>> locals_ =
+        new Stack<Dictionary<VariableSymbol, EvaluatorObject>>();
+    private EvaluatorObject lastValue_;
     private Random random_;
     private bool hasPrint_ = false;
 
@@ -26,11 +53,11 @@ internal sealed class Evaluator {
     /// </summary>
     /// <param name="program">Program</param>
     /// <param name="globals">Globals</param>
-    internal Evaluator(BoundProgram program, Dictionary<VariableSymbol, object> globals) {
+    internal Evaluator(BoundProgram program, Dictionary<VariableSymbol, EvaluatorObject> globals) {
         diagnostics = new BelteDiagnosticQueue();
         program_ = program;
         globals_ = globals;
-        locals_.Push(new Dictionary<VariableSymbol, object>());
+        locals_.Push(new Dictionary<VariableSymbol, EvaluatorObject>());
 
         var current = program;
         while (current != null) {
@@ -67,10 +94,42 @@ internal sealed class Evaluator {
             return null;
 
         var body = LookupMethod(function);
-        return EvaluateStatement(body);
+        var result = EvaluateStatement(body);
+
+        if (result.isReference)
+            return GetVariableValue(result.reference);
+        else
+            return result.value;
     }
 
-    private object EvaluateStatement(BoundBlockStatement statement) {
+    private object GetVariableValue(VariableSymbol variable) {
+        EvaluatorObject value = null;
+
+        if (variable.type == SymbolType.GlobalVariable) {
+            value = globals_[variable];
+        } else {
+            var locals = locals_.Peek();
+            value = locals[variable];
+        }
+
+        if (value.isReference)
+            return GetVariableValue(value.reference);
+        else if (value.value is EvaluatorObject)
+            return Value(value.value as EvaluatorObject);
+        else
+            return value.value;
+    }
+
+    private object Value(EvaluatorObject value) {
+        if (value.isReference)
+            return GetVariableValue(value.reference);
+        else if (value.value is EvaluatorObject)
+            return Value(value.value as EvaluatorObject);
+        else
+            return value.value;
+    }
+
+    private EvaluatorObject EvaluateStatement(BoundBlockStatement statement) {
         try {
             var labelToIndex = new Dictionary<BoundLabel, int>();
 
@@ -101,7 +160,7 @@ internal sealed class Evaluator {
                         break;
                     case BoundNodeType.ConditionalGotoStatement:
                         var cgs = (BoundConditionalGotoStatement)s;
-                        var condition = (bool)EvaluateExpression(cgs.condition);
+                        var condition = (bool)EvaluateExpression(cgs.condition).value;
 
                         if (condition == cgs.jumpIfTrue)
                             index = labelToIndex[cgs.label];
@@ -131,7 +190,7 @@ internal sealed class Evaluator {
             Console.Write("Unhandled exception: ");
             Console.ForegroundColor = previous;
             Console.WriteLine(e.Message);
-            return null;
+            return new EvaluatorObject(null);
         }
     }
 
@@ -145,23 +204,33 @@ internal sealed class Evaluator {
         Assign(statement.variable, value);
     }
 
-    private void Assign(VariableSymbol variable, object value) {
+    private void Assign(VariableSymbol variable, EvaluatorObject value) {
         if (variable.type == SymbolType.GlobalVariable) {
-            globals_[variable] = value;
+            var currentValue = globals_.ContainsKey(variable) ? globals_[variable] : null;
+
+            if (currentValue != null && currentValue.isReference && !value.isReference)
+                Assign(currentValue.reference, value);
+            else
+                globals_[variable] = value;
         } else {
             var locals = locals_.Peek();
-            locals[variable] = value;
+            var currentValue = locals.ContainsKey(variable) ? locals[variable] : null;
+
+            if (currentValue != null && currentValue.isReference && !value.isReference)
+                Assign(currentValue.reference, value);
+            else
+                locals[variable] = value;
         }
     }
 
-    private object EvaluateExpression(BoundExpression node) {
+    private EvaluatorObject EvaluateExpression(BoundExpression node) {
         if (node.constantValue != null)
             return EvaluateConstantExpression(node);
 
         switch (node.type) {
             case BoundNodeType.LiteralExpression:
                 if (node is BoundInitializerListExpression il)
-                    return EvaluateInitializerListExpression(il);
+                    return new EvaluatorObject(EvaluateInitializerListExpression(il));
                 else
                     goto default;
             case BoundNodeType.VariableExpression:
@@ -183,103 +252,102 @@ internal sealed class Evaluator {
             case BoundNodeType.TypeofExpression:
                 return EvaluateTypeofExpression((BoundTypeofExpression)node);
             case BoundNodeType.EmptyExpression:
-                return null;
+                return new EvaluatorObject(null);
             default:
                 throw new Exception($"EvaluateExpression: unexpected node '{node.type}'");
         }
     }
 
-    private object EvaluateTypeofExpression(BoundTypeofExpression node) {
+    private EvaluatorObject EvaluateTypeofExpression(BoundTypeofExpression node) {
         // TODO Implement typeof and type types
-        return null;
+        return new EvaluatorObject(null);
     }
 
-    private object EvaluateReferenceExpression(BoundReferenceExpression node) {
-        // TODO Implement references in the Evaluator
-        return null;
+    private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node) {
+        return new EvaluatorObject(node.variable);
     }
 
-    private object EvaluateIndexExpression(BoundIndexExpression node) {
+    private EvaluatorObject EvaluateIndexExpression(BoundIndexExpression node) {
         var variable = EvaluateExpression(node.expression);
         var index = EvaluateExpression(node.index);
 
-        return ((object[])variable)[(int)index];
+        return ((EvaluatorObject[])Value(variable))[(int)Value(index)];
     }
 
-    private object EvaluateInitializerListExpression(BoundInitializerListExpression node) {
-        var builder = new List<object>();
+    private EvaluatorObject[] EvaluateInitializerListExpression(BoundInitializerListExpression node) {
+        var builder = new List<EvaluatorObject>();
 
         foreach (var item in node.items) {
-            object value = EvaluateExpression(item);
+            EvaluatorObject value = EvaluateExpression(item);
             builder.Add(value);
         }
 
         return builder.ToArray();
     }
 
-    private object EvaluateCastExpression(BoundCastExpression node) {
+    private EvaluatorObject EvaluateCastExpression(BoundCastExpression node) {
         var value = EvaluateExpression(node.expression);
 
         return EvaluateCast(value, node.typeClause);
     }
 
-    private object EvaluateCast(object value, BoundTypeClause typeClause) {
-        if (value == null)
-            return null;
+    private EvaluatorObject EvaluateCast(EvaluatorObject value, BoundTypeClause typeClause) {
+        if (Value(value) == null)
+            return new EvaluatorObject(null);
 
         var type = typeClause.lType;
 
         if (type == TypeSymbol.Any) {
             return value;
         } else if (type == TypeSymbol.Bool) {
-            return Convert.ToBoolean(value);
+            return new EvaluatorObject(Convert.ToBoolean(Value(value)));
         } else if (type == TypeSymbol.Int) {
-            if (value.IsFloatingPoint())
-                value = Math.Truncate(Convert.ToDouble(value));
+            if (Value(value).IsFloatingPoint())
+                value = new EvaluatorObject(Math.Truncate(Convert.ToDouble(Value(value))));
 
-            return Convert.ToInt32(value);
+            return new EvaluatorObject(Convert.ToInt32(Value(value)));
         } else if (type == TypeSymbol.String) {
-            return Convert.ToString(value);
+            return new EvaluatorObject(Convert.ToString(Value(value)));
         } else if (type == TypeSymbol.Decimal) {
-            return Convert.ToDouble(value);
+            return new EvaluatorObject(Convert.ToDouble(Value(value)));
         }
 
         throw new Exception($"EvaluateCast: unexpected type '{typeClause}'");
     }
 
-    private object EvaluateCallExpression(BoundCallExpression node) {
+    private EvaluatorObject EvaluateCallExpression(BoundCallExpression node) {
         if (MethodsMatch(node.function, BuiltinFunctions.Input)) {
-            return Console.ReadLine();
+            return new EvaluatorObject(Console.ReadLine());
         } else if (MethodsMatch(node.function, BuiltinFunctions.Print)) {
-            var message = (object)EvaluateExpression(node.arguments[0]);
-            Console.Write(message);
+            var message = EvaluateExpression(node.arguments[0]);
+            Console.Write(Value(message));
             hasPrint = true;
         } else if (MethodsMatch(node.function, BuiltinFunctions.PrintLine)) {
-            var message = (object)EvaluateExpression(node.arguments[0]);
-            Console.WriteLine(message);
+            var message = EvaluateExpression(node.arguments[0]);
+            Console.WriteLine(Value(message));
         } else if (MethodsMatch(node.function, BuiltinFunctions.RandInt)) {
-            var max = (int)EvaluateExpression(node.arguments[0]);
+            var max = (int)Value(EvaluateExpression(node.arguments[0]));
 
             if (random_ == null)
                 random_ = new Random();
 
-            return random_.Next(max);
+            return new EvaluatorObject(random_.Next(max));
         } else if (node.function.name == "Value") {
-            object? value = EvaluateExpression(node.arguments[0]);
+            EvaluatorObject? value = EvaluateExpression(node.arguments[0]);
 
-            if (value == null)
+            if (Value(value) == null)
                 throw new NullReferenceException();
 
-            return value;
+            return new EvaluatorObject(Value(value));
         } else if (MethodsMatch(node.function, BuiltinFunctions.HasValue)) {
-            object? value = EvaluateExpression(node.arguments[0]);
+            EvaluatorObject? value = EvaluateExpression(node.arguments[0]);
 
-            if (value == null)
-                return false;
+            if (Value(value) == null)
+                return new EvaluatorObject(false);
 
-            return true;
+            return new EvaluatorObject(true);
         } else {
-            var locals = new Dictionary<VariableSymbol, object>();
+            var locals = new Dictionary<VariableSymbol, EvaluatorObject>();
 
             for (int i=0; i<node.arguments.Length; i++) {
                 var parameter = node.function.parameters[i];
@@ -295,7 +363,7 @@ internal sealed class Evaluator {
             return result;
         }
 
-        return null;
+        return new EvaluatorObject(null);
     }
 
     private BoundBlockStatement LookupMethod(FunctionSymbol function) {
@@ -325,11 +393,11 @@ internal sealed class Evaluator {
         return false;
     }
 
-    private object EvaluateConstantExpression(BoundExpression syntax) {
-        return EvaluateCast(syntax.constantValue.value, syntax.typeClause);
+    private EvaluatorObject EvaluateConstantExpression(BoundExpression syntax) {
+        return EvaluateCast(new EvaluatorObject(syntax.constantValue.value), syntax.typeClause);
     }
 
-    private object EvaluateVariableExpression(BoundVariableExpression syntax) {
+    private EvaluatorObject EvaluateVariableExpression(BoundVariableExpression syntax) {
         if (syntax.variable.type == SymbolType.GlobalVariable)
             return globals_[syntax.variable];
 
@@ -337,45 +405,48 @@ internal sealed class Evaluator {
         return locals[syntax.variable];
     }
 
-    private object EvaluateAssignmentExpresion(BoundAssignmentExpression syntax) {
+    private EvaluatorObject EvaluateAssignmentExpresion(BoundAssignmentExpression syntax) {
         var value = EvaluateExpression(syntax.expression);
         Assign(syntax.variable, value);
 
         return value;
     }
 
-    private object EvaluateUnaryExpression(BoundUnaryExpression syntax) {
+    private EvaluatorObject EvaluateUnaryExpression(BoundUnaryExpression syntax) {
         var operand = EvaluateExpression(syntax.operand);
 
-        if (operand == null)
-            return null;
+        if (Value(operand) == null)
+            return new EvaluatorObject(null);
 
         switch (syntax.op.opType) {
             case BoundUnaryOperatorType.NumericalIdentity:
                 if (syntax.operand.typeClause.lType == TypeSymbol.Int)
-                    return (int)operand;
+                    return new EvaluatorObject((int)Value(operand));
                 else
-                    return (double)operand;
+                    return new EvaluatorObject((double)Value(operand));
             case BoundUnaryOperatorType.NumericalNegation:
                 if (syntax.operand.typeClause.lType == TypeSymbol.Int)
-                    return -(int)operand;
+                    return new EvaluatorObject(-(int)Value(operand));
                 else
-                    return -(double)operand;
+                    return new EvaluatorObject(-(double)Value(operand));
             case BoundUnaryOperatorType.BooleanNegation:
-                return !(bool)operand;
+                return new EvaluatorObject(!(bool)Value(operand));
             case BoundUnaryOperatorType.BitwiseCompliment:
-                return ~(int)operand;
+                return new EvaluatorObject(~(int)Value(operand));
             default:
                 throw new Exception($"EvaluateUnaryExpression: unknown unary operator '{syntax.op}'");
         }
     }
 
-    private object EvaluateBinaryExpression(BoundBinaryExpression syntax) {
+    private EvaluatorObject EvaluateBinaryExpression(BoundBinaryExpression syntax) {
         var left = EvaluateExpression(syntax.left);
         var right = EvaluateExpression(syntax.right);
 
-        if (left == null || right == null)
-            return null;
+        var leftValue = Value(left);
+        var rightValue = Value(right);
+
+        if (leftValue == null || rightValue == null)
+            return new EvaluatorObject(null);
 
         var syntaxType = syntax.typeClause.lType;
         var leftType = syntax.left.typeClause.lType;
@@ -383,85 +454,85 @@ internal sealed class Evaluator {
         switch (syntax.op.opType) {
             case BoundBinaryOperatorType.Addition:
                 if (syntaxType == TypeSymbol.Int)
-                    return (int)left + (int)right;
+                    return new EvaluatorObject((int)leftValue + (int)rightValue);
                 else if (syntaxType == TypeSymbol.String)
-                    return (string)left + (string)right;
+                    return new EvaluatorObject((string)leftValue + (string)rightValue);
                 else
-                    return (double)left + (double)right;
+                    return new EvaluatorObject((double)leftValue + (double)rightValue);
             case BoundBinaryOperatorType.Subtraction:
                 if (syntaxType == TypeSymbol.Int)
-                    return (int)left - (int)right;
+                    return new EvaluatorObject((int)leftValue - (int)rightValue);
                 else
-                    return (double)left - (double)right;
+                    return new EvaluatorObject((double)leftValue - (double)rightValue);
             case BoundBinaryOperatorType.Multiplication:
                 if (syntaxType == TypeSymbol.Int)
-                    return (int)left * (int)right;
+                    return new EvaluatorObject((int)leftValue * (int)rightValue);
                 else
-                    return (double)left * (double)right;
+                    return new EvaluatorObject((double)leftValue * (double)rightValue);
             case BoundBinaryOperatorType.Division:
                 if (syntaxType == TypeSymbol.Int)
-                    return (int)left / (int)right;
+                    return new EvaluatorObject((int)leftValue / (int)rightValue);
                 else
-                    return (double)left / (double)right;
+                    return new EvaluatorObject((double)leftValue / (double)rightValue);
             case BoundBinaryOperatorType.Power:
                 if (syntaxType == TypeSymbol.Int)
-                    return (int)Math.Pow((int)left, (int)right);
+                    return new EvaluatorObject((int)Math.Pow((int)leftValue, (int)rightValue));
                 else
-                    return (double)Math.Pow((double)left, (double)right);
+                    return new EvaluatorObject((double)Math.Pow((double)leftValue, (double)rightValue));
             case BoundBinaryOperatorType.ConditionalAnd:
-                return (bool)left && (bool)right;
+                return new EvaluatorObject((bool)leftValue && (bool)rightValue);
             case BoundBinaryOperatorType.ConditionalOr:
-                return (bool)left || (bool)right;
+                return new EvaluatorObject((bool)leftValue || (bool)rightValue);
             case BoundBinaryOperatorType.EqualityEquals:
-                return Equals(left, right);
+                return new EvaluatorObject(Equals(leftValue, rightValue));
             case BoundBinaryOperatorType.EqualityNotEquals:
-                return !Equals(left, right);
+                return new EvaluatorObject(!Equals(leftValue, rightValue));
             case BoundBinaryOperatorType.LessThan:
                 if (leftType == TypeSymbol.Int)
-                    return (int)left < (int)right;
+                    return new EvaluatorObject((int)leftValue < (int)rightValue);
                 else
-                    return (double)left < (double)right;
+                    return new EvaluatorObject((double)leftValue < (double)rightValue);
             case BoundBinaryOperatorType.GreaterThan:
                 if (leftType == TypeSymbol.Int)
-                    return (int)left > (int)right;
+                    return new EvaluatorObject((int)leftValue > (int)rightValue);
                 else
-                    return (double)left > (double)right;
+                    return new EvaluatorObject((double)leftValue > (double)rightValue);
             case BoundBinaryOperatorType.LessOrEqual:
                 if (leftType == TypeSymbol.Int)
-                    return (int)left <= (int)right;
+                    return new EvaluatorObject((int)leftValue <= (int)rightValue);
                 else
-                    return (double)left <= (double)right;
+                    return new EvaluatorObject((double)leftValue <= (double)rightValue);
             case BoundBinaryOperatorType.GreatOrEqual:
                 if (leftType == TypeSymbol.Int)
-                    return (int)left >= (int)right;
+                    return new EvaluatorObject((int)leftValue >= (int)rightValue);
                 else
-                    return (double)left >= (double)right;
+                    return new EvaluatorObject((double)leftValue >= (double)rightValue);
             case BoundBinaryOperatorType.LogicalAnd:
                 if (syntaxType == TypeSymbol.Int)
-                    return (int)left & (int)right;
+                    return new EvaluatorObject((int)leftValue & (int)rightValue);
                 else
-                    return (bool)left & (bool)right;
+                    return new EvaluatorObject((bool)leftValue & (bool)rightValue);
             case BoundBinaryOperatorType.LogicalOr:
                 if (syntaxType == TypeSymbol.Int)
-                    return (int)left | (int)right;
+                    return new EvaluatorObject((int)leftValue | (int)rightValue);
                 else
-                    return (bool)left | (bool)right;
+                    return new EvaluatorObject((bool)leftValue | (bool)rightValue);
             case BoundBinaryOperatorType.LogicalXor:
                 if (syntaxType == TypeSymbol.Int)
-                    return (int)left ^ (int)right;
+                    return new EvaluatorObject((int)leftValue ^ (int)rightValue);
                 else
-                    return (bool)left ^ (bool)right;
+                    return new EvaluatorObject((bool)leftValue ^ (bool)rightValue);
             case BoundBinaryOperatorType.LeftShift:
-                return (int)left << (int)right;
+                return new EvaluatorObject((int)leftValue << (int)rightValue);
             case BoundBinaryOperatorType.RightShift:
-                return (int)left >> (int)right;
+                return new EvaluatorObject((int)leftValue >> (int)rightValue);
             case BoundBinaryOperatorType.UnsignedRightShift:
-                return (int)left >>> (int)right;
+                return new EvaluatorObject((int)leftValue >>> (int)rightValue);
             case BoundBinaryOperatorType.Modulo:
                 if (syntaxType == TypeSymbol.Int)
-                    return (int)left % (int)right;
+                    return new EvaluatorObject((int)leftValue % (int)rightValue);
                 else
-                    return (double)left % (double)right;
+                    return new EvaluatorObject((double)leftValue % (double)rightValue);
             default:
                 throw new Exception($"EvaluateBinaryExpression: unknown binary operator '{syntax.op}'");
         }

@@ -152,6 +152,18 @@ internal enum SyntaxType {
 
 /// <summary>
 /// Base building block of all things.
+/// Because of generators, the order of fields in a node child class need to correctly reflect the source file.
+/// <code>
+/// sealed partial class PrefixExpression { // Wrong (would display `--a` as `a--`)
+///     Token identifier { get; }
+///     Token op { get; }
+/// }
+///
+/// sealed partial class PrefixExpression { // Right
+///     Token op { get; }
+///     Token identifier { get; }
+/// }
+/// <code>
 /// </summary>
 internal abstract class Node {
     protected Node(SyntaxTree syntaxTree) {

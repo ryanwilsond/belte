@@ -101,14 +101,14 @@ internal sealed partial class PrefixExpression : Expression {
     }
 
     /// <summary>
-    /// Existing variable name.
-    /// </summary>
-    internal Token identifier { get; }
-
-    /// <summary>
     /// Operator.
     /// </summary>
     internal Token op { get; }
+
+    /// <summary>
+    /// Existing variable name.
+    /// </summary>
+    internal Token identifier { get; }
 
     internal override SyntaxType type => SyntaxType.PREFIX_EXPRESSION;
 }

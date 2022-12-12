@@ -258,7 +258,7 @@ public sealed class Compiler {
         if (diagnostics.Any())
             return;
 
-        var result = compilation.Evaluate(new Dictionary<VariableSymbol, object>());
+        var result = compilation.Evaluate(new Dictionary<VariableSymbol, EvaluatorObject>());
         diagnostics.Move(result.diagnostics);
     }
 
