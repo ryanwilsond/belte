@@ -5,6 +5,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Preprocessing;
 using Buckle.Diagnostics;
 using Diagnostics;
+using Buckle.CodeAnalysis.Evaluating;
 
 namespace Buckle;
 

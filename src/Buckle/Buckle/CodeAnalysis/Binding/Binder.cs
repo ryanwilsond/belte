@@ -485,16 +485,16 @@ internal sealed class Binder {
             case SyntaxType.CastExpression:
                 return BindCastExpression((CastExpression)expression);
             case SyntaxType.TypeOfExpression:
-                return BindTypeofExpression((TypeofExpression)expression);
+                return BindTypeOfExpression((TypeOfExpression)expression);
             default:
                 throw new Exception($"BindExpressionInternal: unexpected syntax '{expression.type}'");
         }
     }
 
-    private BoundExpression BindTypeofExpression(TypeofExpression expression) {
+    private BoundExpression BindTypeOfExpression(TypeOfExpression expression) {
         var typeClause = BindTypeClause(expression.typeClause);
 
-        return new BoundTypeofExpression(typeClause);
+        return new BoundTypeOfExpression(typeClause);
     }
 
     private BoundExpression BindReferenceExpression(ReferenceExpression expression) {

@@ -1,7 +1,7 @@
 using System;
 using System.Numerics;
 
-namespace Buckle.Utils;
+namespace Buckle.Utilities;
 
 /// <summary>
 /// Extensions on the System.Object class.

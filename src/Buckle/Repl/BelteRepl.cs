@@ -6,6 +6,7 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Authoring;
 using Diagnostics;
+using Buckle.CodeAnalysis.Evaluating;
 
 namespace Repl;
 

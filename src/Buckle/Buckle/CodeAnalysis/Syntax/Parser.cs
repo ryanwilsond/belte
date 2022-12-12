@@ -769,7 +769,7 @@ internal sealed class Parser {
         Node operand, int parentPrecedence = 0, Token maybeUnexpected=null) {
         Node ParseCorrectPrimaryOperator(Node operand) {
             if (operand.type == SyntaxType.TypeOfKeyword)
-                return ParseTypeofExpression();
+                return ParseTypeOfExpression();
             else if (current.type == SyntaxType.OpenParenToken)
                 return ParseCallExpression((Expression)operand);
             else if (current.type == SyntaxType.OpenBracketToken)
@@ -803,13 +803,13 @@ internal sealed class Parser {
         return (Expression)operand;
     }
 
-    private Expression ParseTypeofExpression() {
+    private Expression ParseTypeOfExpression() {
         var typeofKeyword = Next();
         var openParenthesis = Match(SyntaxType.OpenParenToken);
         var typeClause = ParseTypeClause(false);
         var closeParenthesis = Match(SyntaxType.CloseParenToken);
 
-        return new TypeofExpression(_syntaxTree, typeofKeyword, openParenthesis, typeClause, closeParenthesis);
+        return new TypeOfExpression(_syntaxTree, typeofKeyword, openParenthesis, typeClause, closeParenthesis);
     }
 
     private Expression ParseNameOrPrimaryOperatorExpression() {
