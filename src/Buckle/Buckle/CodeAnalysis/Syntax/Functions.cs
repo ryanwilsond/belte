@@ -23,7 +23,7 @@ internal sealed partial class Parameter : Node {
     /// </summary>
     internal Token identifier { get; }
 
-    internal override SyntaxType type => SyntaxType.PARAMETER;
+    internal override SyntaxType type => SyntaxType.Parameter;
 }
 
 /// <summary>
@@ -62,5 +62,5 @@ internal sealed partial class FunctionDeclaration : Member {
 
     internal BlockStatement body { get; }
 
-    internal override SyntaxType type => SyntaxType.FUNCTION_DECLARATION;
+    internal override SyntaxType type => SyntaxType.MethodDeclaration;
 }

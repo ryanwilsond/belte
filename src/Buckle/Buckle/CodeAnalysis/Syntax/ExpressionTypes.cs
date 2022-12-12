@@ -25,7 +25,7 @@ internal sealed partial class LiteralExpression : Expression {
 
     internal object value { get; }
 
-    internal override SyntaxType type => SyntaxType.LITERAL_EXPRESSION;
+    internal override SyntaxType type => SyntaxType.LiteralExpression;
 }
 
 /// <summary>
@@ -58,7 +58,7 @@ internal sealed partial class BinaryExpression : Expression {
     /// </summary>
     internal Expression right { get; }
 
-    internal override SyntaxType type => SyntaxType.BINARY_EXPRESSION;
+    internal override SyntaxType type => SyntaxType.BinaryExpression;
 }
 
 /// <summary>
@@ -84,7 +84,7 @@ internal sealed partial class PostfixExpression : Expression {
     /// </summary>
     internal Token op { get; }
 
-    internal override SyntaxType type => SyntaxType.POSTFIX_EXPRESSION;
+    internal override SyntaxType type => SyntaxType.PostfixExpression;
 }
 
 /// <summary>
@@ -110,7 +110,7 @@ internal sealed partial class PrefixExpression : Expression {
     /// </summary>
     internal Token identifier { get; }
 
-    internal override SyntaxType type => SyntaxType.PREFIX_EXPRESSION;
+    internal override SyntaxType type => SyntaxType.PrefixExpression;
 }
 
 /// <summary>
@@ -133,7 +133,7 @@ internal sealed partial class ParenthesisExpression : Expression {
 
     internal Token? closeParenthesis { get; }
 
-    internal override SyntaxType type => SyntaxType.PARENTHESIZED_EXPRESSION;
+    internal override SyntaxType type => SyntaxType.ParenthesizedExpression;
 }
 
 /// <summary>
@@ -154,7 +154,7 @@ internal sealed partial class UnaryExpression : Expression {
 
     internal Expression operand { get; }
 
-    internal override SyntaxType type => SyntaxType.UNARY_EXPRESSION;
+    internal override SyntaxType type => SyntaxType.UnaryExpression;
 }
 
 /// <summary>
@@ -172,7 +172,7 @@ internal sealed partial class NameExpression : Expression {
     /// </summary>
     internal Token identifier { get; }
 
-    internal override SyntaxType type => SyntaxType.NAME_EXPRESSION;
+    internal override SyntaxType type => SyntaxType.NameExpression;
 }
 
 /// <summary>
@@ -202,7 +202,7 @@ internal sealed partial class AssignmentExpression : Expression {
     /// </summary>
     internal Expression expression { get; }
 
-    internal override SyntaxType type => SyntaxType.ASSIGN_EXPRESSION;
+    internal override SyntaxType type => SyntaxType.AssignExpression;
 }
 
 /// <summary>
@@ -213,7 +213,7 @@ internal sealed partial class AssignmentExpression : Expression {
 internal sealed partial class EmptyExpression : Expression {
     internal EmptyExpression(SyntaxTree syntaxTree) : base(syntaxTree) { }
 
-    internal override SyntaxType type => SyntaxType.EMPTY_EXPRESSION;
+    internal override SyntaxType type => SyntaxType.EmptyExpression;
 }
 
 /// <summary>
@@ -247,7 +247,7 @@ internal sealed partial class CallExpression : Expression {
 
     internal Token? closeParenthesis { get; }
 
-    internal override SyntaxType type => SyntaxType.CALL_EXPRESSION;
+    internal override SyntaxType type => SyntaxType.CallExpression;
 }
 
 /// <summary>
@@ -280,7 +280,7 @@ internal sealed partial class IndexExpression : Expression {
 
     internal Token? closeBracket { get; }
 
-    internal override SyntaxType type => SyntaxType.INDEX_EXPRESSION;
+    internal override SyntaxType type => SyntaxType.IndexExpression;
 }
 
 /// <summary>
@@ -302,7 +302,7 @@ internal sealed partial class InitializerListExpression : Expression {
 
     internal Token? closeBrace { get; }
 
-    internal override SyntaxType type => SyntaxType.LITERAL_EXPRESSION;
+    internal override SyntaxType type => SyntaxType.LiteralExpression;
 }
 
 /// <summary>
@@ -323,7 +323,7 @@ internal sealed partial class ReferenceExpression : Expression {
     /// </summary>
     internal Token identifier { get; }
 
-    internal override SyntaxType type => SyntaxType.REFERENCE_EXPRESSION;
+    internal override SyntaxType type => SyntaxType.RefExpression;
 }
 
 // TODO Make sure that block statements can still have return statements (they might)
@@ -351,7 +351,7 @@ internal sealed partial class InlineFunctionExpression : Expression {
 
     internal Token? closeBrace { get; }
 
-    internal override SyntaxType type => SyntaxType.INLINE_FUNCTION;
+    internal override SyntaxType type => SyntaxType.InlineFunction;
 }
 
 /// <summary>
@@ -381,7 +381,7 @@ internal sealed partial class CastExpression : Expression {
 
     internal Expression expression { get; }
 
-    internal override SyntaxType type => SyntaxType.CAST_EXPRESSION;
+    internal override SyntaxType type => SyntaxType.CastExpression;
 }
 
 /// <summary>
@@ -408,5 +408,5 @@ internal sealed partial class TypeofExpression : Expression {
 
     internal Token closeParenthesis { get; }
 
-    internal override SyntaxType type => SyntaxType.TYPEOF_EXPRESSION;
+    internal override SyntaxType type => SyntaxType.TypeOfExpression;
 }

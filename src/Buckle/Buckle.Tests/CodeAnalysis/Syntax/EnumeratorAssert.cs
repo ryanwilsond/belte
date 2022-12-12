@@ -7,23 +7,23 @@ using Buckle.CodeAnalysis.Syntax;
 namespace Buckle.Tests.CodeAnalysis.Syntax;
 
 internal sealed class AssertingEnumerator : IDisposable {
-    private readonly IEnumerator<Node> enumerator_;
-    private bool hasErrors_;
+    private readonly IEnumerator<Node> _enumerator;
+    private bool _hasErrors;
 
     public AssertingEnumerator(Node node) {
-        enumerator_ = Flatten(node).GetEnumerator();
+        _enumerator = Flatten(node).GetEnumerator();
     }
 
     private bool MarkFailed() {
-        hasErrors_ = true;
+        _hasErrors = true;
         return false;
     }
 
     public void Dispose() {
-        if (!hasErrors_)
-            Assert.False(enumerator_.MoveNext());
+        if (!_hasErrors)
+            Assert.False(_enumerator.MoveNext());
 
-        enumerator_.Dispose();
+        _enumerator.Dispose();
     }
 
     private static IEnumerable<Node> Flatten(Node node) {
@@ -42,9 +42,9 @@ internal sealed class AssertingEnumerator : IDisposable {
 
     public void AssertNode(SyntaxType type) {
         try {
-            Assert.True(enumerator_.MoveNext());
-            Assert.Equal(type, enumerator_.Current.type);
-            Assert.IsNotType<Token>(enumerator_.Current);
+            Assert.True(_enumerator.MoveNext());
+            Assert.Equal(type, _enumerator.Current.type);
+            Assert.IsNotType<Token>(_enumerator.Current);
         } catch when (MarkFailed()) {
             throw;
         }
@@ -52,9 +52,9 @@ internal sealed class AssertingEnumerator : IDisposable {
 
     public void AssertToken(SyntaxType type, string text) {
         try {
-            Assert.True(enumerator_.MoveNext());
-            Assert.Equal(type, enumerator_.Current.type);
-            var token = Assert.IsType<Token>(enumerator_.Current);
+            Assert.True(_enumerator.MoveNext());
+            Assert.Equal(type, _enumerator.Current.type);
+            var token = Assert.IsType<Token>(_enumerator.Current);
             Assert.Equal(text, token.text);
         } catch when (MarkFailed()) {
             throw;

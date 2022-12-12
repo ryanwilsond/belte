@@ -63,15 +63,15 @@ internal sealed class EvaluatorObject {
 /// Evaluates statements as an interpreter, inline.
 /// </summary>
 internal sealed class Evaluator {
-    private readonly BoundProgram program_;
-    private readonly Dictionary<VariableSymbol, EvaluatorObject> globals_;
-    private readonly Dictionary<FunctionSymbol, BoundBlockStatement> functions_ =
+    private readonly BoundProgram _program;
+    private readonly Dictionary<VariableSymbol, EvaluatorObject> _globals;
+    private readonly Dictionary<FunctionSymbol, BoundBlockStatement> _functions =
         new Dictionary<FunctionSymbol, BoundBlockStatement>();
-    private readonly Stack<Dictionary<VariableSymbol, EvaluatorObject>> locals_ =
+    private readonly Stack<Dictionary<VariableSymbol, EvaluatorObject>> _locals =
         new Stack<Dictionary<VariableSymbol, EvaluatorObject>>();
-    private EvaluatorObject lastValue_;
-    private Random random_;
-    private bool hasPrint_ = false;
+    private EvaluatorObject _lastValue;
+    private Random _random;
+    private bool _hasPrint = false;
 
     /// <summary>
     /// Creates an evaluator that can evaluate a program (provided globals).
@@ -80,14 +80,14 @@ internal sealed class Evaluator {
     /// <param name="globals">Globals</param>
     internal Evaluator(BoundProgram program, Dictionary<VariableSymbol, EvaluatorObject> globals) {
         diagnostics = new BelteDiagnosticQueue();
-        program_ = program;
-        globals_ = globals;
-        locals_.Push(new Dictionary<VariableSymbol, EvaluatorObject>());
+        _program = program;
+        _globals = globals;
+        _locals.Push(new Dictionary<VariableSymbol, EvaluatorObject>());
 
         var current = program;
         while (current != null) {
             foreach (var (function, body) in current.functionBodies)
-                functions_.Add(function, body);
+                _functions.Add(function, body);
 
             current = current.previous;
         }
@@ -98,9 +98,9 @@ internal sealed class Evaluator {
     /// </summary>
     internal bool hasPrint {
         get {
-            return hasPrint_;
+            return _hasPrint;
         } set {
-            hasPrint_ = value;
+            _hasPrint = value;
         }
     }
 
@@ -114,7 +114,7 @@ internal sealed class Evaluator {
     /// </summary>
     /// <returns>Result of program (if applicable)</returns>
     internal object Evaluate() {
-        var function = program_.mainFunction ?? program_.scriptFunction;
+        var function = _program.mainFunction ?? _program.scriptFunction;
         if (function == null)
             return null;
 
@@ -128,9 +128,9 @@ internal sealed class Evaluator {
         EvaluatorObject value = null;
 
         if (variable.type == SymbolType.GlobalVariable) {
-            value = globals_[variable];
+            value = _globals[variable];
         } else {
-            var locals = locals_.Peek();
+            var locals = _locals.Peek();
             value = locals[variable];
         }
 
@@ -208,17 +208,17 @@ internal sealed class Evaluator {
                         break;
                     case BoundNodeType.ReturnStatement:
                         var returnStatement = (BoundReturnStatement)s;
-                        var lastValue_ = returnStatement.expression == null
+                        var _lastValue = returnStatement.expression == null
                             ? null
                             : EvaluateExpression(returnStatement.expression);
 
-                        return lastValue_;
+                        return _lastValue;
                     default:
                         throw new Exception($"EvaluateStatement: unexpected statement '{s.type}'");
                 }
             }
 
-            return lastValue_;
+            return _lastValue;
         } catch (Exception e) {
             var previous = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Red;
@@ -230,25 +230,25 @@ internal sealed class Evaluator {
     }
 
     private void EvaluateExpressionStatement(BoundExpressionStatement statement) {
-        lastValue_ = EvaluateExpression(statement.expression);
+        _lastValue = EvaluateExpression(statement.expression);
     }
 
     private void EvaluateVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
         var value = EvaluateExpression(statement.initializer);
-        lastValue_ = null;
+        _lastValue = null;
         Assign(statement.variable, value);
     }
 
     private void Assign(VariableSymbol variable, EvaluatorObject value) {
         if (variable.type == SymbolType.GlobalVariable) {
-            var currentValue = globals_.ContainsKey(variable) ? globals_[variable] : null;
+            var currentValue = _globals.ContainsKey(variable) ? _globals[variable] : null;
 
             if (currentValue != null && currentValue.isReference && !value.isReference)
                 Assign(currentValue.reference, value);
             else
-                globals_[variable] = value;
+                _globals[variable] = value;
         } else {
-            var locals = locals_.Peek();
+            var locals = _locals.Peek();
             var currentValue = locals.ContainsKey(variable) ? locals[variable] : null;
 
             if (currentValue != null && currentValue.isReference && !value.isReference)
@@ -363,10 +363,10 @@ internal sealed class Evaluator {
         } else if (MethodsMatch(node.function, BuiltinFunctions.RandInt)) {
             var max = (int)Value(EvaluateExpression(node.arguments[0]));
 
-            if (random_ == null)
-                random_ = new Random();
+            if (_random == null)
+                _random = new Random();
 
-            return new EvaluatorObject(random_.Next(max));
+            return new EvaluatorObject(_random.Next(max));
         } else if (node.function.name == "Value") {
             EvaluatorObject? value = EvaluateExpression(node.arguments[0]);
 
@@ -390,10 +390,10 @@ internal sealed class Evaluator {
                 locals.Add(parameter, value);
             }
 
-            locals_.Push(locals);
+            _locals.Push(locals);
             var statement = LookupMethod(node.function);
             var result = EvaluateStatement(statement);
-            locals_.Pop();
+            _locals.Pop();
 
             return result;
         }
@@ -402,7 +402,7 @@ internal sealed class Evaluator {
     }
 
     private BoundBlockStatement LookupMethod(FunctionSymbol function) {
-        foreach (var pair in functions_)
+        foreach (var pair in _functions)
             if (MethodsMatch(pair.Key, function))
                 return pair.Value;
 
@@ -434,9 +434,9 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateVariableExpression(BoundVariableExpression syntax) {
         if (syntax.variable.type == SymbolType.GlobalVariable)
-            return globals_[syntax.variable];
+            return _globals[syntax.variable];
 
-        var locals = locals_.Peek();
+        var locals = _locals.Peek();
         return locals[syntax.variable];
     }
 

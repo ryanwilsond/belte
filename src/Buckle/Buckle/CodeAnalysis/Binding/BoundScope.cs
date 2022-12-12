@@ -10,22 +10,22 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A scope of code.
 /// </summary>
 internal sealed class BoundScope {
-    private List<Symbol> symbols_;
-    private BoundScope parent_;
+    private List<Symbol> _symbols;
+    private BoundScope _parent;
 
     /// <summary>
     /// Creates a new scope with an optional parent.
     /// </summary>
     /// <param name="parent">Enclosing scope</param>
     internal BoundScope(BoundScope parent) {
-        this.parent_ = parent;
+        this._parent = parent;
     }
 
     internal BoundScope parent {
         get {
-            return parent_;
+            return _parent;
         } set {
-            parent_ = value;
+            _parent = value;
         }
     }
 
@@ -63,8 +63,8 @@ internal sealed class BoundScope {
     /// <returns>Symbol if found, null otherwise</returns>
     internal Symbol LookupSymbol(string name) {
         // Use LookupOverloads for functions
-        if (symbols_ != null)
-            foreach (var symbol in symbols_)
+        if (_symbols != null)
+            foreach (var symbol in _symbols)
                 if (symbol.name == name)
                     return symbol;
 
@@ -88,8 +88,8 @@ internal sealed class BoundScope {
             return false;
 
         var succeeded = false;
-        ref BoundScope parentRef = ref parent_;
-        ref List<Symbol> symbols = ref symbols_;
+        ref BoundScope parentRef = ref _parent;
+        ref List<Symbol> symbols = ref _symbols;
 
         while (true) {
             if (symbols != null) {
@@ -105,8 +105,8 @@ internal sealed class BoundScope {
             if (parentRef == null || succeeded)
                 break;
             else {
-                symbols = ref parentRef.symbols_;
-                parentRef = ref parentRef.parent_;
+                symbols = ref parentRef._symbols;
+                parentRef = ref parentRef._parent;
             }
         }
 
@@ -141,18 +141,18 @@ internal sealed class BoundScope {
     }
 
     private ImmutableArray<Symbol> LookupOverloadsInternal(
-        string name, bool strict = false, ImmutableArray<Symbol>? current_ = null) {
+        string name, bool strict = false, ImmutableArray<Symbol>? _current = null) {
         var overloads = ImmutableArray.CreateBuilder<Symbol>();
 
-        if (symbols_ != null) {
-            foreach (var symbol in symbols_) {
+        if (_symbols != null) {
+            foreach (var symbol in _symbols) {
                 // If it is a nested function, the name will be something like <funcName::name>$
                 if (symbol is Symbol s &&
                     (symbol.name == name || (strict == false && symbol.name.EndsWith($"::{name}>$")))) {
-                    if (current_ != null) {
+                    if (_current != null) {
                         var skip = false;
 
-                        foreach (var cs in current_.Value) {
+                        foreach (var cs in _current.Value) {
                             if (s is FunctionSymbol fs && cs is FunctionSymbol fcs && FunctionsMatch(fs, fcs)) {
                                 skip = true;
                                 break;
@@ -172,20 +172,20 @@ internal sealed class BoundScope {
             overloads.AddRange(parent?.LookupOverloadsInternal(
                 name,
                 strict: strict,
-                current_: current_ == null
+                _current: _current == null
                     ? overloads.ToImmutable()
-                    : overloads.ToImmutable().AddRange(current_.Value)));
+                    : overloads.ToImmutable().AddRange(_current.Value)));
         }
 
         return overloads.ToImmutable();
     }
 
     private bool TryDeclareSymbol<TSymbol>(TSymbol symbol) where TSymbol : Symbol {
-        if (symbols_ == null) {
-            symbols_ = new List<Symbol>();
+        if (_symbols == null) {
+            _symbols = new List<Symbol>();
         } else if (Contains(symbol.name)) {
             if (symbol is FunctionSymbol fs) {
-                foreach (var s in symbols_)
+                foreach (var s in _symbols)
                     if (FunctionsMatch(s as FunctionSymbol, fs))
                         return false;
             } else {
@@ -193,7 +193,7 @@ internal sealed class BoundScope {
             }
         }
 
-        symbols_.Add(symbol);
+        _symbols.Add(symbol);
         return true;
     }
 
@@ -212,7 +212,7 @@ internal sealed class BoundScope {
     }
 
     private bool Contains(string name) {
-        foreach (var symbol in symbols_)
+        foreach (var symbol in _symbols)
             if (symbol.name == name)
                 return true;
 
@@ -220,10 +220,10 @@ internal sealed class BoundScope {
     }
 
     private ImmutableArray<TSymbol> GetDeclaredSymbols<TSymbol>() where TSymbol : Symbol {
-        if (symbols_ == null)
+        if (_symbols == null)
             return ImmutableArray<TSymbol>.Empty;
 
-        return symbols_.OfType<TSymbol>().ToImmutableArray();
+        return _symbols.OfType<TSymbol>().ToImmutableArray();
     }
 }
 

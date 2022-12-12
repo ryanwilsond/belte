@@ -133,13 +133,13 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     /// Diagnostics in queue currently.
     /// Queue is a wrapper to simulate a list, but internal representation of diagnostics is a list.
     /// </summary>
-    internal List<Type> diagnostics_;
+    internal List<Type> _diagnostics;
 
     /// <summary>
     /// Creates an empty DiagnosticQueue (no diagnostics)
     /// </summary>
     public DiagnosticQueue() {
-        diagnostics_ = new List<Type>();
+        _diagnostics = new List<Type>();
     }
 
     /// <summary>
@@ -147,31 +147,31 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     /// </summary>
     /// <param name="diagnostics">Initialize with enumerable (copy)</param>
     public DiagnosticQueue(IEnumerable<Type> diagnostics) {
-        diagnostics_ = diagnostics.ToList();
+        _diagnostics = diagnostics.ToList();
     }
 
     /// <summary>
     /// How many diagnostics are currently stored in the queue.
     /// </summary>
-    public int count => diagnostics_.Count;
+    public int count => _diagnostics.Count;
 
     /// <summary>
     /// Checks for any diagnostics in the queue.
     /// </summary>
     /// <returns>True if there are at least 1 diagnostic in the queue</returns>
-    public bool Any() => diagnostics_.Any();
+    public bool Any() => _diagnostics.Any();
 
     /// <summary>
     /// Gets an enumerator for the queue collection (sidestepping the queue structure).
     /// </summary>
     /// <returns>The enumerator for the queue as if it were a list</returns>
-    public IEnumerator GetEnumerator() => diagnostics_.GetEnumerator();
+    public IEnumerator GetEnumerator() => _diagnostics.GetEnumerator();
 
     /// <summary>
     /// Converts the queue into an array (ordered from oldest -> newest item added to queue).
     /// </summary>
     /// <returns>Array copy of the queue (not a reference)</returns>
-    public Diagnostic[] ToArray() => diagnostics_.ToArray();
+    public Diagnostic[] ToArray() => _diagnostics.ToArray();
 
     /// <summary>
     /// Checks if any diagnostics of given type.
@@ -179,7 +179,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     /// <param name="type">Type to check for, ignores all other diagnostics</param>
     /// <returns>If any diagnostics of type</returns>
     public bool Any(DiagnosticType type) {
-        return diagnostics_.Where(d => d.info.severity == type).Any();
+        return _diagnostics.Where(d => d.info.severity == type).Any();
     }
 
     /// <summary>
@@ -188,7 +188,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     /// <param name="diagnostic">Diagnostic to copy onto the queue</param>
     public void Push(Type diagnostic) {
         if (diagnostic != null)
-            diagnostics_.Add(diagnostic);
+            _diagnostics.Add(diagnostic);
     }
 
     /// <summary>
@@ -197,7 +197,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     /// <param name="diagnostic">Diagnostic to copy onto the queue</param>
     public void PushToFront(Type diagnostic) {
         if (diagnostic != null)
-            diagnostics_.Insert(0, diagnostic);
+            _diagnostics.Insert(0, diagnostic);
     }
 
     /// <summary>
@@ -210,7 +210,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
 
         Type diagnostic = diagnosticQueue.Pop();
         while (diagnostic != null) {
-            diagnostics_.Add(diagnostic);
+            _diagnostics.Add(diagnostic);
             diagnostic = diagnosticQueue.Pop();
         }
     }
@@ -232,11 +232,11 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     /// </summary>
     /// <returns>First diagnostic on the queue</returns>
     public Type? Pop() {
-        if (diagnostics_.Count == 0)
+        if (_diagnostics.Count == 0)
             return null;
 
-        Type diagnostic = diagnostics_[0];
-        diagnostics_.RemoveAt(0);
+        Type diagnostic = _diagnostics[0];
+        _diagnostics.RemoveAt(0);
         return diagnostic;
     }
 
@@ -245,11 +245,11 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     /// </summary>
     /// <returns>Last diagnostic on the queue</returns>
     public Type? PopBack() {
-        if (diagnostics_.Count == 0)
+        if (_diagnostics.Count == 0)
             return null;
 
-        Type diagnostic = diagnostics_[diagnostics_.Count - 1];
-        diagnostics_.RemoveAt(diagnostics_.Count - 1);
+        Type diagnostic = _diagnostics[_diagnostics.Count - 1];
+        _diagnostics.RemoveAt(_diagnostics.Count - 1);
         return diagnostic;
     }
 
@@ -257,7 +257,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     /// Removes all diagnostics.
     /// </summary>
     public void Clear() {
-        diagnostics_.Clear();
+        _diagnostics.Clear();
     }
 
     /// <summary>
@@ -265,9 +265,9 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     /// </summary>
     /// <param name="type">Severity of diagnostics to remove</param>
     public void Clear(DiagnosticType type) {
-        for (int i=0; i<diagnostics_.Count; i++) {
-            if (diagnostics_[i].info.severity == type)
-                diagnostics_.RemoveAt(i--);
+        for (int i=0; i<_diagnostics.Count; i++) {
+            if (_diagnostics[i].info.severity == type)
+                _diagnostics.RemoveAt(i--);
         }
     }
 
@@ -276,7 +276,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     /// </summary>
     /// <returns>List of diagnostics (ordered oldest -> newest)</returns>
     public List<Type> AsList() {
-        return diagnostics_;
+        return _diagnostics;
     }
 
     /// <summary>
@@ -285,7 +285,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     /// <typeparam name="NewType">Type of diagnostic to cast existing diagnostics to</typeparam>
     /// <returns>List of diagnostics (ordered oldest -> newest)</returns>
     public List<NewType> AsList<NewType>() where NewType : Diagnostic {
-        return diagnostics_ as List<NewType>;
+        return _diagnostics as List<NewType>;
     }
 
     /// <summary>
@@ -294,7 +294,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     /// <param name="type">Which diagnostic type to exclude</param>
     /// <returns>New diagnostic queue without any diagnostics of type `type`</returns>
     public DiagnosticQueue<Type> FilterOut(DiagnosticType type) {
-        return new DiagnosticQueue<Type>(diagnostics_.Where(d => d.info.severity != type));
+        return new DiagnosticQueue<Type>(_diagnostics.Where(d => d.info.severity != type));
     }
 
     /// <summary>
@@ -302,6 +302,6 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     /// </summary>
     /// <param name="queue">Diagnostic queue to copy, does not modify this queue</param>
     public void CopyToFront(DiagnosticQueue<Type> queue) {
-        diagnostics_.InsertRange(0, queue.diagnostics_);
+        _diagnostics.InsertRange(0, queue._diagnostics);
     }
 }

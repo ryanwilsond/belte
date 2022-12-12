@@ -14,9 +14,9 @@ internal sealed class SyntaxTree {
         this.text = text;
         diagnostics = new BelteDiagnosticQueue();
 
-        handler(this, out var root_, out diagnostics);
+        handler(this, out var _root, out diagnostics);
 
-        root = root_;
+        root = _root;
     }
 
     private delegate void ParseHandler(
@@ -135,13 +135,13 @@ internal sealed class SyntaxTree {
             while (true) {
                 var token = lexer.LexNext();
 
-                if (token.type == SyntaxType.END_OF_FILE_TOKEN)
+                if (token.type == SyntaxType.EndOfFileToken)
                     root = new CompilationUnit(syntaxTree, ImmutableArray<Member>.Empty, token);
 
-                if (token.type != SyntaxType.END_OF_FILE_TOKEN || includeEOF)
+                if (token.type != SyntaxType.EndOfFileToken || includeEOF)
                     tokens.Add(token);
 
-                if (token.type == SyntaxType.END_OF_FILE_TOKEN)
+                if (token.type == SyntaxType.EndOfFileToken)
                     break;
             }
 

@@ -52,7 +52,7 @@ internal sealed partial class VariableDeclarationStatement : Statement {
 
     internal Token semicolon { get; }
 
-    internal override SyntaxType type => SyntaxType.VARIABLE_DECLARATION_STATEMENT;
+    internal override SyntaxType type => SyntaxType.VariableDeclarationStatement;
 }
 
 /// <summary>
@@ -79,7 +79,7 @@ internal sealed partial class BlockStatement : Statement {
 
     internal Token closeBrace { get; }
 
-    internal override SyntaxType type => SyntaxType.BLOCK;
+    internal override SyntaxType type => SyntaxType.Block;
 }
 
 /// <summary>
@@ -96,7 +96,7 @@ internal sealed partial class ExpressionStatement : Statement {
 
     internal Token semicolon { get; }
 
-    internal override SyntaxType type => SyntaxType.EXPRESSION_STATEMENT;
+    internal override SyntaxType type => SyntaxType.ExpressionStatement;
 }
 
 /// <summary>
@@ -131,7 +131,7 @@ internal sealed partial class TryStatement : Statement {
 
     internal FinallyClause? finallyClause { get; }
 
-    internal override SyntaxType type => SyntaxType.TRY_STATEMENT;
+    internal override SyntaxType type => SyntaxType.TryStatement;
 }
 
 /// <summary>
@@ -149,7 +149,7 @@ internal sealed partial class CatchClause : Node {
 
     internal BlockStatement body { get; }
 
-    internal override SyntaxType type => SyntaxType.CATCH_CLAUSE;
+    internal override SyntaxType type => SyntaxType.CatchClause;
 }
 
 /// <summary>
@@ -167,7 +167,7 @@ internal sealed partial class FinallyClause : Node {
 
     internal BlockStatement body { get; }
 
-    internal override SyntaxType type => SyntaxType.FINALLY_CLAUSE;
+    internal override SyntaxType type => SyntaxType.FinallyClause;
 }
 
 /// <summary>
@@ -212,7 +212,7 @@ internal sealed partial class IfStatement : Statement {
     /// </summary>
     internal ElseClause? elseClause { get; }
 
-    internal override SyntaxType type => SyntaxType.IF_STATEMENT;
+    internal override SyntaxType type => SyntaxType.IfStatement;
 }
 
 /// <summary>
@@ -228,7 +228,7 @@ internal sealed partial class ElseClause : Node {
 
     internal Statement body { get; }
 
-    internal override SyntaxType type => SyntaxType.ELSE_CLAUSE;
+    internal override SyntaxType type => SyntaxType.ElseClause;
 }
 
 /// <summary>
@@ -260,7 +260,7 @@ internal sealed partial class WhileStatement : Statement {
 
     internal Statement body { get; }
 
-    internal override SyntaxType type => SyntaxType.WHILE_STATEMENT;
+    internal override SyntaxType type => SyntaxType.WhileStatement;
 }
 
 /// <summary>
@@ -305,7 +305,7 @@ internal sealed partial class ForStatement : Statement {
 
     internal Statement body { get; }
 
-    internal override SyntaxType type => SyntaxType.FOR_STATEMENT;
+    internal override SyntaxType type => SyntaxType.ForStatement;
 }
 
 /// <summary>
@@ -343,7 +343,7 @@ internal sealed partial class DoWhileStatement : Statement {
 
     internal Token semicolon { get; }
 
-    internal override SyntaxType type => SyntaxType.DO_WHILE_STATEMENT;
+    internal override SyntaxType type => SyntaxType.DoWhileStatement;
 }
 
 /// <summary>
@@ -360,7 +360,7 @@ internal sealed partial class ContinueStatement : Statement {
 
     internal Token semicolon { get; }
 
-    internal override SyntaxType type => SyntaxType.CONTINUE_STATEMENT;
+    internal override SyntaxType type => SyntaxType.ContinueStatement;
 }
 
 /// <summary>
@@ -377,7 +377,7 @@ internal sealed partial class BreakStatement : Statement {
 
     internal Token semicolon { get; }
 
-    internal override SyntaxType type => SyntaxType.BREAK_STATEMENT;
+    internal override SyntaxType type => SyntaxType.BreakStatement;
 }
 
 /// <summary>
@@ -403,16 +403,16 @@ internal sealed partial class ReturnStatement : Statement {
 
     internal Token semicolon { get; }
 
-    internal override SyntaxType type => SyntaxType.RETURN_STATEMENT;
+    internal override SyntaxType type => SyntaxType.ReturnStatement;
 }
 
 /// <summary>
-/// Local function declaration, aka nested function declaration.
+/// Local function statement, aka nested function declaration.
 /// Syntactically identical to function declarations, but inside the scope of another function.
 /// </summary>
-internal sealed partial class LocalFunctionDeclaration : Statement {
+internal sealed partial class LocalFunctionStatement : Statement {
     /// <param name="identifier">Name of the function</param>
-    internal LocalFunctionDeclaration(
+    internal LocalFunctionStatement(
         SyntaxTree syntaxTree, TypeClause returnType, Token identifier, Token openParenthesis,
         SeparatedSyntaxList<Parameter> parameters, Token closeParenthesis, BlockStatement body)
         : base(syntaxTree) {
@@ -439,5 +439,5 @@ internal sealed partial class LocalFunctionDeclaration : Statement {
 
     internal BlockStatement body { get; }
 
-    internal override SyntaxType type => SyntaxType.LOCAL_FUNCTION_DECLARATION;
+    internal override SyntaxType type => SyntaxType.LocalFunctionStatement;
 }

@@ -27,5 +27,5 @@ internal sealed partial class GlobalStatement : Member {
     /// </summary>
     internal Statement statement { get; }
 
-    internal override SyntaxType type => SyntaxType.GLOBAL_STATEMENT;
+    internal override SyntaxType type => SyntaxType.GlobalStatement;
 }

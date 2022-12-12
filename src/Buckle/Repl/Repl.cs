@@ -14,7 +14,7 @@ public abstract class ReplBase {
     /// <summary>
     /// Handles outputting REPL text to an out.
     /// </summary>
-    internal OutputCapture writer_ = new OutputCapture();
+    internal OutputCapture _writer = new OutputCapture();
 
     /// <summary>
     /// Compiler object representing entirety of compilation.
@@ -26,12 +26,14 @@ public abstract class ReplBase {
     /// </summary>
     internal DiagnosticHandle diagnosticHandle;
 
-    private readonly List<string> submissionHistory_ = new List<string>();
-    private readonly List<MetaCommand> metaCommands_ = new List<MetaCommand>();
-    private int submissionHistoryIndex_;
-    private bool done_;
-    private const int tabWidth = 4;
-    private bool evaluate_;
+    private const int TabWidth = 4;
+
+    private readonly List<string> _submissionHistory = new List<string>();
+    private readonly List<MetaCommand> _metaCommands = new List<MetaCommand>();
+
+    private int _submissionHistoryIndex;
+    private bool _done;
+    private bool _evaluate;
 
     protected ReplBase(Compiler handle, DiagnosticHandle diagnosticHandle) {
         this.handle = handle;
@@ -54,14 +56,14 @@ public abstract class ReplBase {
     /// <summary>
     /// REPL specific state used by child classes.
     /// </summary>
-    internal abstract object state_ { get; set; }
+    internal abstract object _state { get; set; }
 
     /// <summary>
     /// Resets all state.
     /// </summary>
     internal virtual void ResetState() {
-        done_ = false;
-        evaluate_ = true;
+        _done = false;
+        _evaluate = true;
     }
 
     /// <summary>
@@ -75,17 +77,17 @@ public abstract class ReplBase {
             if (string.IsNullOrEmpty(text))
                 return;
 
-            if (evaluate_) {
+            if (_evaluate) {
                 if (!text.Contains(Environment.NewLine) && text.StartsWith('#'))
                     EvaluateReplCommand(text);
                 else
                     EvaluateSubmission(text);
             }
 
-            evaluate_ = true;
+            _evaluate = true;
 
-            submissionHistory_.Add(text);
-            submissionHistoryIndex_ = 0;
+            _submissionHistory.Add(text);
+            _submissionHistoryIndex = 0;
         }
     }
 
@@ -101,8 +103,8 @@ public abstract class ReplBase {
     /// Safely terminates an in-progress submission without evaluating it for a result.
     /// </summary>
     internal virtual void SpecialEscapeSequence() {
-        done_ = true;
-        evaluate_ = false;
+        _done = true;
+        _evaluate = false;
     }
 
     /// <summary>
@@ -110,16 +112,16 @@ public abstract class ReplBase {
     /// </summary>
     /// <returns>Internal representation of submissions</returns>
     internal List<string> GetSubmissionHistory() {
-        return submissionHistory_;
+        return _submissionHistory;
     }
 
     protected virtual object RenderLine(IReadOnlyList<string> lines, int lineIndex, object state) {
-        writer_.Write(lines[lineIndex]);
+        _writer.Write(lines[lineIndex]);
         return state;
     }
 
     protected void ClearHistory() {
-        submissionHistory_.Clear();
+        _submissionHistory.Clear();
     }
 
     protected abstract bool IsCompleteSubmission(string text);
@@ -128,13 +130,13 @@ public abstract class ReplBase {
     [MetaCommand("help", "Shows this document")]
     protected void EvaluateHelp() {
         // TODO Does not calculate length of default values
-        var maxLength = metaCommands_
+        var maxLength = _metaCommands
             .Max(mc => mc.name.Length + string.Join(" ", mc.method.GetParameters()
             .SelectMany(p => p.Name).ToList()).Length);
 
         var previous = Console.ForegroundColor;
 
-        foreach (var metaCommand in metaCommands_.OrderBy(mc => mc.name)) {
+        foreach (var metaCommand in _metaCommands.OrderBy(mc => mc.name)) {
             var name = metaCommand.name;
 
             foreach (var parameter in metaCommand.method.GetParameters()) {
@@ -146,24 +148,24 @@ public abstract class ReplBase {
 
             var paddedName = name.PadRight(maxLength);
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            writer_.Write("#");
+            _writer.Write("#");
             Console.ForegroundColor = previous;
-            writer_.Write(paddedName);
-            writer_.Write("  ");
+            _writer.Write(paddedName);
+            _writer.Write("  ");
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            writer_.Write(metaCommand.description);
+            _writer.Write(metaCommand.description);
             Console.ForegroundColor = previous;
-            writer_.WriteLine();
+            _writer.WriteLine();
         }
     }
 
     private string EditSubmission() {
-        done_ = false;
+        _done = false;
 
         var document = new ObservableCollection<string>() { "" };
-        var view = new SubmissionView(RenderLine, document, writer_);
+        var view = new SubmissionView(RenderLine, document, _writer);
 
-        while (!done_) {
+        while (!_done) {
             // Allow ctrl + c to exit at all times except getting user input
             // This allows custom behavior, but still keeps ctrl + c protection if app freezes
             Console.TreatControlCAsInput = true;
@@ -175,7 +177,7 @@ public abstract class ReplBase {
         view.currentLine = document.Count - 1;
         view.currentCharacter = document[view.currentLine].Length;
 
-        writer_.WriteLine();
+        _writer.WriteLine();
 
         return string.Join(Environment.NewLine, document);
     }
@@ -191,7 +193,7 @@ public abstract class ReplBase {
                 continue;
 
             var metaCommand = new MetaCommand(attribute.name, attribute.description, method);
-            metaCommands_.Add(metaCommand);
+            _metaCommands.Add(metaCommand);
         }
     }
 
@@ -329,7 +331,7 @@ public abstract class ReplBase {
     }
 
     private void HandleControlC(ObservableCollection<string> document, SubmissionView view) {
-        if (done_ == false)
+        if (_done == false)
             SpecialEscapeSequence();
         else
             // Normal ctrl + c behavior
@@ -339,7 +341,7 @@ public abstract class ReplBase {
     private void HandleShiftTab(ObservableCollection<string> document, SubmissionView view) {
         var line = document[view.currentLine];
         var whitespace = line.Length - line.TrimStart().Length;
-        var remainingSpaces = whitespace % tabWidth;
+        var remainingSpaces = whitespace % TabWidth;
 
         if (remainingSpaces == 0 && whitespace > 0)
             remainingSpaces = 4;
@@ -618,30 +620,30 @@ public abstract class ReplBase {
     }
 
     private void HandlePageDown(ObservableCollection<string> document, SubmissionView view) {
-        submissionHistoryIndex_++;
+        _submissionHistoryIndex++;
 
-        if (submissionHistoryIndex_ > submissionHistory_.Count - 1)
-            submissionHistoryIndex_ = 0;
+        if (_submissionHistoryIndex > _submissionHistory.Count - 1)
+            _submissionHistoryIndex = 0;
 
         UpdateDocumentFromHistory(document, view);
     }
 
     private void HandlePageUp(ObservableCollection<string> document, SubmissionView view) {
-        submissionHistoryIndex_--;
+        _submissionHistoryIndex--;
 
-        if (submissionHistoryIndex_ < 0)
-            submissionHistoryIndex_ = submissionHistory_.Count - 1;
+        if (_submissionHistoryIndex < 0)
+            _submissionHistoryIndex = _submissionHistory.Count - 1;
 
         UpdateDocumentFromHistory(document, view);
     }
 
     private void UpdateDocumentFromHistory(ObservableCollection<string> document, SubmissionView view) {
-        if (submissionHistory_.Count == 0)
+        if (_submissionHistory.Count == 0)
             return;
 
         document.Clear();
 
-        var historyItem = submissionHistory_[submissionHistoryIndex_];
+        var historyItem = _submissionHistory[_submissionHistoryIndex];
         var lines = historyItem.Split(Environment.NewLine);
 
         foreach (var line in lines)
@@ -660,7 +662,7 @@ public abstract class ReplBase {
 
     private void HandleTab(ObservableCollection<string> document, SubmissionView view) {
         var start = view.currentCharacter;
-        var remainingSpaces = tabWidth - start % tabWidth;
+        var remainingSpaces = TabWidth - start % TabWidth;
         var line = document[view.currentLine];
         document[view.currentLine] = line.Insert(start, new string(' ', remainingSpaces));
         view.currentCharacter += remainingSpaces;
@@ -732,10 +734,10 @@ public abstract class ReplBase {
 
     private int GetTabBoundaryBack(ObservableCollection<string> document, SubmissionView view) {
         var line = document[view.currentLine];
-        var maxOffset = line.Length % tabWidth;
+        var maxOffset = line.Length % TabWidth;
 
         if (maxOffset == 0)
-            maxOffset = tabWidth;
+            maxOffset = TabWidth;
 
         var start = view.currentCharacter;
         var offset = 1;
@@ -759,7 +761,7 @@ public abstract class ReplBase {
     }
 
     private void HandleControlEnter(ObservableCollection<string> document, SubmissionView view) {
-        done_ = true;
+        _done = true;
     }
 
     private void HandleTyping(ObservableCollection<string> document, SubmissionView view, string text) {
@@ -832,7 +834,7 @@ public abstract class ReplBase {
         var submissionText = string.Join(Environment.NewLine, document);
 
         if (submissionText.StartsWith('#') || IsCompleteSubmission(submissionText)) {
-            done_ = true;
+            _done = true;
             return;
         }
 
@@ -849,14 +851,14 @@ public abstract class ReplBase {
         view.currentLine = lineIndex;
 
         var previousLine = document[view.currentLine - 1];
-        var whitespace = (previousLine.Length - previousLine.TrimStart().Length) / tabWidth;
+        var whitespace = (previousLine.Length - previousLine.TrimStart().Length) / TabWidth;
 
         if (previousLine.Length > 0 && ContainsOpening(previousLine[^1].ToString())) {
             view.currentTypingTabbing++;
             whitespace++;
         }
 
-        HandleTyping(document, view, new String(' ', whitespace * tabWidth));
+        HandleTyping(document, view, new String(' ', whitespace * TabWidth));
     }
 
     private void EvaluateReplCommand(string line) {
@@ -902,7 +904,7 @@ public abstract class ReplBase {
         if (args.Count > 0)
             args.RemoveAt(0);
 
-        var command = metaCommands_.SingleOrDefault(mc => mc.name == commandName);
+        var command = _metaCommands.SingleOrDefault(mc => mc.name == commandName);
 
         if (command == null) {
             handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.UnknownReplCommand(line)));
@@ -1005,40 +1007,40 @@ public abstract class ReplBase {
     }
 
     private sealed class SubmissionView {
-        private readonly LineRenderHandler lineRenderer_;
-        private readonly ObservableCollection<string> document_;
-        private int cursorTop_;
-        private int renderedLineCount_;
-        private int currentLine_;
-        private int currentCharacter_;
-        private OutputCapture writer_;
+        private readonly LineRenderHandler _lineRenderer;
+        private readonly ObservableCollection<string> _document;
+        private int _cursorTop;
+        private int _renderedLineCount;
+        private int _currentLine;
+        private int _currentCharacter;
+        private OutputCapture _writer;
 
         internal SubmissionView(
             LineRenderHandler lineRenderer, ObservableCollection<string> document, OutputCapture writer) {
-            lineRenderer_ = lineRenderer;
-            document_ = document;
-            document_.CollectionChanged += SubmissionDocumentChanged;
-            cursorTop_ = Console.CursorTop;
-            writer_ = writer;
+            _lineRenderer = lineRenderer;
+            _document = document;
+            _document.CollectionChanged += SubmissionDocumentChanged;
+            _cursorTop = Console.CursorTop;
+            _writer = writer;
             Render();
         }
 
         internal int currentLine {
-            get => currentLine_;
+            get => _currentLine;
             set {
-                if (currentLine_ != value) {
-                    currentLine_ = value;
-                    currentCharacter_ = Math.Min(document_[currentLine_].Length, currentCharacter_);
+                if (_currentLine != value) {
+                    _currentLine = value;
+                    _currentCharacter = Math.Min(_document[_currentLine].Length, _currentCharacter);
                     UpdateCursorPosition();
                 }
             }
         }
 
         internal int currentCharacter {
-            get => currentCharacter_;
+            get => _currentCharacter;
             set {
-                if (currentCharacter_ != value) {
-                    currentCharacter_ = value;
+                if (_currentCharacter != value) {
+                    _currentCharacter = value;
                     UpdateCursorPosition();
                 }
             }
@@ -1055,48 +1057,48 @@ public abstract class ReplBase {
             Console.CursorVisible = false;
             var lineCount = 0;
 
-            foreach (var line in document_) {
-                if (cursorTop_ + lineCount >= Console.WindowHeight - 1) {
-                    writer_.SetCursorPosition(0, Console.WindowHeight - 1);
-                    writer_.WriteLine();
+            foreach (var line in _document) {
+                if (_cursorTop + lineCount >= Console.WindowHeight - 1) {
+                    _writer.SetCursorPosition(0, Console.WindowHeight - 1);
+                    _writer.WriteLine();
 
-                    if (cursorTop_ > 0)
-                        cursorTop_--;
+                    if (_cursorTop > 0)
+                        _cursorTop--;
                 }
 
-                writer_.SetCursorPosition(0, cursorTop_ + lineCount);
+                _writer.SetCursorPosition(0, _cursorTop + lineCount);
                 var previous = Console.ForegroundColor;
                 Console.ForegroundColor = ConsoleColor.Green;
 
                 if (lineCount == 0)
-                    writer_.Write("» ");
+                    _writer.Write("» ");
                 else
-                    writer_.Write("· ");
+                    _writer.Write("· ");
 
                 Console.ForegroundColor = previous;
-                lineRenderer_(document_, lineCount, null);
-                writer_.Write(new string(' ', Console.WindowWidth - line.Length - 2));
+                _lineRenderer(_document, lineCount, null);
+                _writer.Write(new string(' ', Console.WindowWidth - line.Length - 2));
                 lineCount++;
             }
 
-            var blankLineCount = renderedLineCount_ - lineCount;
+            var blankLineCount = _renderedLineCount - lineCount;
 
             if (blankLineCount > 0) {
                 var blankLine = new string(' ', Console.WindowWidth);
 
                 for (int i=0; i<blankLineCount; i++) {
-                    writer_.SetCursorPosition(0, cursorTop_ + lineCount + i);
-                    writer_.WriteLine(blankLine);
+                    _writer.SetCursorPosition(0, _cursorTop + lineCount + i);
+                    _writer.WriteLine(blankLine);
                 }
             }
 
-            renderedLineCount_ = lineCount;
+            _renderedLineCount = lineCount;
             Console.CursorVisible = true;
             UpdateCursorPosition();
         }
 
         private void UpdateCursorPosition() {
-            writer_.SetCursorPosition(2 + currentCharacter_, cursorTop_ + currentLine_);
+            _writer.SetCursorPosition(2 + _currentCharacter, _cursorTop + _currentLine);
         }
     }
 }

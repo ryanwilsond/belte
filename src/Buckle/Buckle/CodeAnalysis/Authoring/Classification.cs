@@ -76,12 +76,12 @@ internal static class Classifier {
 
             foreach (var child in node.GetChildren()) {
                 // Does not matter that it catches on array brackets because they do not contain identifiers
-                if (child.type == SyntaxType.OPEN_BRACKET_TOKEN)
+                if (child.type == SyntaxType.OpenBracketToken)
                     inAttribute = true;
-                if (child.type == SyntaxType.CLOSE_BRACKET_TOKEN)
+                if (child.type == SyntaxType.CloseBracketToken)
                     inAttribute = false;
 
-                if (child.type == SyntaxType.IDENTIFIER_TOKEN && !inAttribute)
+                if (child.type == SyntaxType.IdentifierToken && !inAttribute)
                     isTypeName = true;
 
                 ClassifyNode(child, span, result, isTypeName);
@@ -124,9 +124,9 @@ internal static class Classifier {
 
     private static Classification GetClassification(SyntaxType type, bool isTypeName) {
         var isKeyword = type.IsKeyword();
-        var isNumber = type == SyntaxType.NUMERIC_LITERAL_TOKEN;
-        var isIdentifier = type == SyntaxType.IDENTIFIER_TOKEN;
-        var isString = type == SyntaxType.STRING_LITERAL_TOKEN;
+        var isNumber = type == SyntaxType.NumericLiteralToken;
+        var isIdentifier = type == SyntaxType.IdentifierToken;
+        var isString = type == SyntaxType.StringLiteralToken;
         var isComment = type.IsComment();
 
         if (isTypeName)

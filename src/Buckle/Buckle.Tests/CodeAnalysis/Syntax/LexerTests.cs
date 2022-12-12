@@ -12,7 +12,7 @@ public class LexerTests {
         const string text = "\"test";
         var tokens = SyntaxTree.ParseTokens(text, out var diagnostics);
         var token = Assert.Single(tokens);
-        Assert.Equal(SyntaxType.STRING_LITERAL_TOKEN, token.type);
+        Assert.Equal(SyntaxType.StringLiteralToken, token.type);
         Assert.Equal(text, token.text);
         Assert.Equal(1, diagnostics.count);
         var diagnostic = diagnostics.Pop();
@@ -30,10 +30,10 @@ public class LexerTests {
         var testedTokenTypes = GetTokens().Concat(GetSeparators()).Select(t => t.type);
 
         var untestedTokenTypes = new SortedSet<SyntaxType>(tokenTypes);
-        untestedTokenTypes.Remove(SyntaxType.BAD_TOKEN);
-        untestedTokenTypes.Remove(SyntaxType.END_OF_FILE_TOKEN);
-        untestedTokenTypes.Remove(SyntaxType.SINGLELINE_COMMENT_TRIVIA);
-        untestedTokenTypes.Remove(SyntaxType.MULTILINE_COMMENT_TRIVIA);
+        untestedTokenTypes.Remove(SyntaxType.BadToken);
+        untestedTokenTypes.Remove(SyntaxType.EndOfFileToken);
+        untestedTokenTypes.Remove(SyntaxType.SingleLineCommentTrivia);
+        untestedTokenTypes.Remove(SyntaxType.MultiLineCommentTrivia);
         untestedTokenTypes.ExceptWith(testedTokenTypes);
 
         Assert.Empty(untestedTokenTypes);
@@ -105,7 +105,7 @@ public class LexerTests {
         Assert.Single(tokens);
 
         var token = tokens[0];
-        Assert.Equal(SyntaxType.IDENTIFIER_TOKEN, token.type);
+        Assert.Equal(SyntaxType.IdentifierToken, token.type);
         Assert.Equal(name, token.text);
     }
 
@@ -136,12 +136,12 @@ public class LexerTests {
                                 .Where(t => t.text != null);
 
         var dynamicTokens = new[] {
-            (SyntaxType.NUMERIC_LITERAL_TOKEN, "1"),
-            (SyntaxType.NUMERIC_LITERAL_TOKEN, "123"),
-            (SyntaxType.IDENTIFIER_TOKEN, "a"),
-            (SyntaxType.IDENTIFIER_TOKEN, "abc"),
-            (SyntaxType.STRING_LITERAL_TOKEN, "\"Test\""),
-            (SyntaxType.STRING_LITERAL_TOKEN, "\"Te\"\"st\""),
+            (SyntaxType.NumericLiteralToken, "1"),
+            (SyntaxType.NumericLiteralToken, "123"),
+            (SyntaxType.IdentifierToken, "a"),
+            (SyntaxType.IdentifierToken, "abc"),
+            (SyntaxType.StringLiteralToken, "\"Test\""),
+            (SyntaxType.StringLiteralToken, "\"Te\"\"st\""),
         };
 
         return fixedTokens.Concat(dynamicTokens);
@@ -149,11 +149,11 @@ public class LexerTests {
 
     private static IEnumerable<(SyntaxType type, string text)> GetSeparators() {
         return new[] {
-            (SyntaxType.WHITESPACE_TRIVIA, " "),
-            (SyntaxType.WHITESPACE_TRIVIA, "  "),
-            (SyntaxType.END_OF_LINE_TRIVIA, "\r"),
-            (SyntaxType.END_OF_LINE_TRIVIA, "\n"),
-            (SyntaxType.END_OF_LINE_TRIVIA, "\r\n")
+            (SyntaxType.WhitespaceTrivia, " "),
+            (SyntaxType.WhitespaceTrivia, "  "),
+            (SyntaxType.EndOfLineTrivia, "\r"),
+            (SyntaxType.EndOfLineTrivia, "\n"),
+            (SyntaxType.EndOfLineTrivia, "\r\n")
         };
     }
 
@@ -161,189 +161,183 @@ public class LexerTests {
         var t1IsKeyword = t1Type.IsKeyword();
         var t2IsKeyword = t2Type.IsKeyword();
 
-        if (t1Type == SyntaxType.IDENTIFIER_TOKEN && t2Type == SyntaxType.IDENTIFIER_TOKEN)
+        if (t1Type == SyntaxType.IdentifierToken && t2Type == SyntaxType.IdentifierToken)
             return true;
         if (t1IsKeyword && t2IsKeyword)
             return true;
-        if (t1IsKeyword && t2Type == SyntaxType.IDENTIFIER_TOKEN)
+        if (t1IsKeyword && t2Type == SyntaxType.IdentifierToken)
             return true;
-        if (t1Type == SyntaxType.IDENTIFIER_TOKEN && t2IsKeyword)
+        if (t1Type == SyntaxType.IdentifierToken && t2IsKeyword)
             return true;
-        if (t1Type == SyntaxType.NUMERIC_LITERAL_TOKEN && t2Type == SyntaxType.NUMERIC_LITERAL_TOKEN)
+        if (t1Type == SyntaxType.NumericLiteralToken && t2Type == SyntaxType.NumericLiteralToken)
             return true;
-        if (t1Type == SyntaxType.EXCLAMATION_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
+        if (t1Type == SyntaxType.ExclamationToken && t2Type == SyntaxType.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.EXCLAMATION_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.ExclamationToken && t2Type == SyntaxType.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.EQUALS_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
+        if (t1Type == SyntaxType.EqualsToken && t2Type == SyntaxType.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.EQUALS_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.EqualsToken && t2Type == SyntaxType.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.ASTERISK_TOKEN)
+        if (t1Type == SyntaxType.AsteriskToken && t2Type == SyntaxType.AsteriskToken)
             return true;
-        if (t1Type == SyntaxType.ASTERISK_ASTERISK_TOKEN && t2Type == SyntaxType.ASTERISK_TOKEN)
+        if (t1Type == SyntaxType.AsteriskAsteriskToken && t2Type == SyntaxType.AsteriskToken)
             return true;
-        if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.ASTERISK_ASTERISK_TOKEN)
+        if (t1Type == SyntaxType.AsteriskToken && t2Type == SyntaxType.AsteriskAsteriskToken)
             return true;
-        if (t1Type == SyntaxType.ASTERISK_ASTERISK_TOKEN && t2Type == SyntaxType.ASTERISK_ASTERISK_TOKEN)
+        if (t1Type == SyntaxType.AsteriskAsteriskToken && t2Type == SyntaxType.AsteriskAsteriskToken)
             return true;
-        if (t1Type == SyntaxType.LESS_THAN_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
+        if (t1Type == SyntaxType.LessThanToken && t2Type == SyntaxType.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.LESS_THAN_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.LessThanToken && t2Type == SyntaxType.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanToken && t2Type == SyntaxType.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanToken && t2Type == SyntaxType.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.PIPE_TOKEN && t2Type == SyntaxType.PIPE_TOKEN)
+        if (t1Type == SyntaxType.PipeToken && t2Type == SyntaxType.PipeToken)
             return true;
-        if (t1Type == SyntaxType.PIPE_TOKEN && t2Type == SyntaxType.PIPE_PIPE_TOKEN)
+        if (t1Type == SyntaxType.PipeToken && t2Type == SyntaxType.PipePipeToken)
             return true;
-        if (t1Type == SyntaxType.PIPE_PIPE_TOKEN && t2Type == SyntaxType.PIPE_TOKEN)
+        if (t1Type == SyntaxType.PipePipeToken && t2Type == SyntaxType.PipeToken)
             return true;
-        if (t1Type == SyntaxType.AMPERSAND_TOKEN && t2Type == SyntaxType.AMPERSAND_TOKEN)
+        if (t1Type == SyntaxType.AmpersandToken && t2Type == SyntaxType.AmpersandToken)
             return true;
-        if (t1Type == SyntaxType.AMPERSAND_TOKEN && t2Type == SyntaxType.AMPERSAND_AMPERSAND_TOKEN)
+        if (t1Type == SyntaxType.AmpersandToken && t2Type == SyntaxType.AmpersandAmpersandToken)
             return true;
-        if (t1Type == SyntaxType.AMPERSAND_AMPERSAND_TOKEN && t2Type == SyntaxType.AMPERSAND_TOKEN)
+        if (t1Type == SyntaxType.AmpersandAmpersandToken && t2Type == SyntaxType.AmpersandToken)
             return true;
-        if (t1Type == SyntaxType.LESS_THAN_TOKEN && t2Type == SyntaxType.LESS_THAN_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.LessThanToken && t2Type == SyntaxType.LessThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.LESS_THAN_TOKEN && t2Type == SyntaxType.LESS_THAN_LESS_THAN_TOKEN)
+        if (t1Type == SyntaxType.LessThanToken && t2Type == SyntaxType.LessThanLessThanToken)
             return true;
-        if (t1Type == SyntaxType.LESS_THAN_LESS_THAN_TOKEN && t2Type == SyntaxType.LESS_THAN_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.LessThanLessThanToken && t2Type == SyntaxType.LessThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.LESS_THAN_TOKEN && t2Type == SyntaxType.LESS_THAN_TOKEN)
+        if (t1Type == SyntaxType.LessThanToken && t2Type == SyntaxType.LessThanToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanToken && t2Type == SyntaxType.GreaterThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanToken && t2Type == SyntaxType.GreaterThanGreaterThanToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanGreaterThanToken && t2Type == SyntaxType.GreaterThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanToken && t2Type == SyntaxType.GreaterThanToken)
             return true;
-        if (t1Type == SyntaxType.STRING_LITERAL_TOKEN && t2Type == SyntaxType.STRING_LITERAL_TOKEN)
+        if (t1Type == SyntaxType.StringLiteralToken && t2Type == SyntaxType.StringLiteralToken)
             return true;
-        if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.SLASH_TOKEN)
+        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.SlashToken)
             return true;
-        if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.ASTERISK_TOKEN)
+        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.AsteriskToken)
             return true;
-        if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.ASTERISK_ASTERISK_TOKEN)
+        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.AsteriskAsteriskToken)
             return true;
-        if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.MULTILINE_COMMENT_TRIVIA)
+        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.MultiLineCommentTrivia)
             return true;
-        if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.SINGLELINE_COMMENT_TRIVIA)
+        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.SingleLineCommentTrivia)
             return true;
-        if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.ASTERISK_ASTERISK_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.AsteriskAsteriskEqualsToken)
             return true;
-        if (t1Type == SyntaxType.IDENTIFIER_TOKEN && t2Type == SyntaxType.NUMERIC_LITERAL_TOKEN)
+        if (t1Type == SyntaxType.IdentifierToken && t2Type == SyntaxType.NumericLiteralToken)
             return true;
-        if (t1IsKeyword && t2Type == SyntaxType.NUMERIC_LITERAL_TOKEN)
+        if (t1IsKeyword && t2Type == SyntaxType.NumericLiteralToken)
             return true;
-        if (t1Type == SyntaxType.PLUS_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
+        if (t1Type == SyntaxType.PlusToken && t2Type == SyntaxType.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.PLUS_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.PlusToken && t2Type == SyntaxType.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.PLUS_TOKEN && t2Type == SyntaxType.PLUS_TOKEN)
+        if (t1Type == SyntaxType.PlusToken && t2Type == SyntaxType.PlusToken)
             return true;
-        if (t1Type == SyntaxType.PLUS_TOKEN && t2Type == SyntaxType.PLUS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.PlusToken && t2Type == SyntaxType.PlusEqualsToken)
             return true;
-        if (t1Type == SyntaxType.PLUS_TOKEN && t2Type == SyntaxType.PLUS_PLUS_TOKEN)
+        if (t1Type == SyntaxType.PlusToken && t2Type == SyntaxType.PlusPlusToken)
             return true;
-        if (t1Type == SyntaxType.MINUS_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
+        if (t1Type == SyntaxType.MinusToken && t2Type == SyntaxType.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.MINUS_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.MinusToken && t2Type == SyntaxType.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.MINUS_TOKEN && t2Type == SyntaxType.MINUS_TOKEN)
+        if (t1Type == SyntaxType.MinusToken && t2Type == SyntaxType.MinusToken)
             return true;
-        if (t1Type == SyntaxType.MINUS_TOKEN && t2Type == SyntaxType.MINUS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.MinusToken && t2Type == SyntaxType.MinusEqualsToken)
             return true;
-        if (t1Type == SyntaxType.MINUS_TOKEN && t2Type == SyntaxType.MINUS_MINUS_TOKEN)
+        if (t1Type == SyntaxType.MinusToken && t2Type == SyntaxType.MinusMinusToken)
             return true;
-        if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
+        if (t1Type == SyntaxType.AsteriskToken && t2Type == SyntaxType.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.ASTERISK_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.AsteriskToken && t2Type == SyntaxType.AsteriskEqualsToken)
             return true;
-        if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.AsteriskToken && t2Type == SyntaxType.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
+        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.AMPERSAND_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
+        if (t1Type == SyntaxType.AmpersandToken && t2Type == SyntaxType.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.AMPERSAND_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.AmpersandToken && t2Type == SyntaxType.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.AMPERSAND_TOKEN && t2Type == SyntaxType.AMPERSAND_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.AmpersandToken && t2Type == SyntaxType.AmpersandEqualsToken)
             return true;
-        if (t1Type == SyntaxType.PIPE_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
+        if (t1Type == SyntaxType.PipeToken && t2Type == SyntaxType.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.PIPE_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.PipeToken && t2Type == SyntaxType.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.PIPE_TOKEN && t2Type == SyntaxType.PIPE_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.PipeToken && t2Type == SyntaxType.PipeEqualsToken)
             return true;
-        if (t1Type == SyntaxType.CARET_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
+        if (t1Type == SyntaxType.CaretToken && t2Type == SyntaxType.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.CARET_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.CaretToken && t2Type == SyntaxType.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.SLASH_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.SlashEqualsToken)
             return true;
-        if (t1Type == SyntaxType.SLASH_TOKEN && t2Type == SyntaxType.ASTERISK_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.AsteriskEqualsToken)
             return true;
-        if (t1Type == SyntaxType.ASTERISK_ASTERISK_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
+        if (t1Type == SyntaxType.AsteriskAsteriskToken && t2Type == SyntaxType.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.ASTERISK_ASTERISK_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.AsteriskAsteriskToken && t2Type == SyntaxType.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.ASTERISK_TOKEN && t2Type == SyntaxType.ASTERISK_ASTERISK_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.AsteriskToken && t2Type == SyntaxType.AsteriskAsteriskEqualsToken)
             return true;
-        if (t1Type == SyntaxType.LESS_THAN_LESS_THAN_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
+        if (t1Type == SyntaxType.LessThanLessThanToken && t2Type == SyntaxType.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanGreaterThanToken && t2Type == SyntaxType.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.LESS_THAN_LESS_THAN_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.LessThanLessThanToken && t2Type == SyntaxType.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanGreaterThanToken && t2Type == SyntaxType.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.LESS_THAN_TOKEN && t2Type == SyntaxType.LESS_THAN_LESS_THAN_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.LessThanToken && t2Type == SyntaxType.LessThanLessThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanToken && t2Type == SyntaxType.GreaterThanGreaterThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_TOKEN && t2Type ==
-            SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanToken && t2Type == SyntaxType.GreaterThanGreaterThanGreaterThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_TOKEN && t2Type ==
-            SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanToken && t2Type == SyntaxType.GreaterThanGreaterThanGreaterThanToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN && t2Type ==
-            SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanGreaterThanToken && t2Type ==
+            SyntaxType.GreaterThanGreaterThanGreaterThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN && t2Type ==
-            SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanGreaterThanToken && t2Type ==
+            SyntaxType.GreaterThanGreaterThanGreaterThanToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN && t2Type ==
-            SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanGreaterThanToken && t2Type == SyntaxType.GreaterThanGreaterThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanGreaterThanToken && t2Type == SyntaxType.GreaterThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN && t2Type == SyntaxType.GREATER_THAN_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanGreaterThanToken && t2Type == SyntaxType.GreaterThanToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN && t2Type ==
-            SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanGreaterThanToken && t2Type == SyntaxType.GreaterThanGreaterThanToken)
             return true;
-        if (t1Type == SyntaxType.PERCENT_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.PercentToken && t2Type == SyntaxType.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.PERCENT_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
+        if (t1Type == SyntaxType.PercentToken && t2Type == SyntaxType.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN && t2Type ==
-            SyntaxType.EQUALS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanGreaterThanGreaterThanToken && t2Type == SyntaxType.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN && t2Type ==
-            SyntaxType.EQUALS_TOKEN)
+        if (t1Type == SyntaxType.GreaterThanGreaterThanGreaterThanToken && t2Type == SyntaxType.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.QUESTION_QUESTION_TOKEN && t2Type == SyntaxType.EQUALS_TOKEN)
+        if (t1Type == SyntaxType.QuestionQuestionToken && t2Type == SyntaxType.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.QUESTION_QUESTION_TOKEN && t2Type == SyntaxType.EQUALS_EQUALS_TOKEN)
+        if (t1Type == SyntaxType.QuestionQuestionToken && t2Type == SyntaxType.EqualsEqualsToken)
             return true;
 
         return false;

@@ -48,7 +48,7 @@ internal sealed class EvaluationResult {
 /// Handles evaluation of program, and keeps track of symbols (mainly for REPL use).
 /// </summary>
 public sealed class Compilation {
-    private BoundGlobalScope globalScope_;
+    private BoundGlobalScope _globalScope;
 
     private Compilation(bool isScript, Compilation previous, params SyntaxTree[] syntaxTrees) {
         this.isScript = isScript;
@@ -101,13 +101,13 @@ public sealed class Compilation {
     /// </summary>
     internal BoundGlobalScope globalScope {
         get {
-            if (globalScope_ == null) {
+            if (_globalScope == null) {
                 var tempScope = Binder.BindGlobalScope(isScript, previous?.globalScope, syntaxTrees);
                 // Makes assignment thread-safe, if multiple threads try to initialize they use whoever did it first
-                Interlocked.CompareExchange(ref globalScope_, tempScope, null);
+                Interlocked.CompareExchange(ref _globalScope, tempScope, null);
             }
 
-            return globalScope_;
+            return _globalScope;
         }
     }
 
@@ -238,8 +238,8 @@ public sealed class Compilation {
     }
 
     private BoundProgram GetProgram() {
-        var previous_ = previous == null ? null : previous.GetProgram();
-        return Binder.BindProgram(isScript, previous_, globalScope);
+        var _previous = previous == null ? null : previous.GetProgram();
+        return Binder.BindProgram(isScript, _previous, globalScope);
     }
 
     private static void CreateCfg(BoundProgram program) {

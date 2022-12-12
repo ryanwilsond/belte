@@ -41,14 +41,14 @@ internal static class Error {
         if (factValue != null)
             return "'" + factValue + "'";
 
-        if (type.ToString().EndsWith("_STATEMENT"))
+        if (type.ToString().EndsWith("Statement"))
             return "statement";
-        else if (type.ToString().EndsWith("_EXPRESSION"))
+        else if (type.ToString().EndsWith("Expression"))
             return "expression";
         else if (type.IsKeyword())
             return "keyword";
         else if (type.IsToken())
-            return type.ToString().ToLower().Substring(0, type.ToString().Length-6);
+            return type.ToString().ToLower().Substring(0, type.ToString().Length-5);
         else
             return type.ToString().ToLower();
     }
@@ -79,7 +79,7 @@ internal static class Error {
 
         if (expected == null)
             message = $"unexpected token {DiagnosticText(unexpected)}";
-        else if (unexpected != SyntaxType.END_OF_FILE_TOKEN)
+        else if (unexpected != SyntaxType.EndOfFileToken)
             message = $"unexpected token {DiagnosticText(unexpected)}, expected {DiagnosticText(expected.Value)}";
         else
             message = $"expected {DiagnosticText(expected.Value)} at end of input";
