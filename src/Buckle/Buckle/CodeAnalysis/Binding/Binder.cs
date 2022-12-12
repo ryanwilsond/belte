@@ -1360,6 +1360,8 @@ internal sealed class Binder {
         Expression ifCondition = new LiteralExpression(null, CreateToken(SyntaxType.FALSE_KEYWORD), false);
         var ifBody = new BlockStatement(null, null, ImmutableArray<Statement>.Empty, null);
 
+        var handled = false;
+
         if (tempOp.opType == BoundBinaryOperatorType.NullCoalescing) {
             /*
 
@@ -1372,7 +1374,8 @@ internal sealed class Binder {
             }
 
             */
-            if (leftType.isNullable == false) {
+            if (leftType.isNullable == false &&
+                !(leftTemp.constantValue != null && leftTemp.constantValue.value == null)) {
                 diagnostics.Push(Warning.UnreachableCode(expression.right));
                 return BindExpression(expression.left);
             }
@@ -1389,6 +1392,8 @@ internal sealed class Binder {
 
             ifBody = new BlockStatement(
                 null, null, ImmutableArray.Create<Statement>(new Statement[]{ resultAssignment }), null);
+
+            handled = true;
         // TODO
         // } else if (tempOp.opType == BoundBinaryOperatorType.Power) {
             /*
@@ -1434,7 +1439,8 @@ internal sealed class Binder {
             return new BoundBinaryExpression(boundLeft, boundOp, boundRight);
         }
 
-        if (leftType.isNullable && rightType.isNullable) {
+        if (handled) {
+        } else if (leftType.isNullable && rightType.isNullable) {
             /*
 
             {

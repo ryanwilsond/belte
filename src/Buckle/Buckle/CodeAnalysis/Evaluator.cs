@@ -121,13 +121,10 @@ internal sealed class Evaluator {
         var body = LookupMethod(function);
         var result = EvaluateStatement(body);
 
-        if (result.isReference)
-            return GetVariableValue(result.reference);
-        else
-            return result.value;
+        return Value(result, true);
     }
 
-    private object GetVariableValue(VariableSymbol variable) {
+    private object GetVariableValue(VariableSymbol variable, bool traceCollections=false) {
         EvaluatorObject value = null;
 
         if (variable.type == SymbolType.GlobalVariable) {
@@ -138,18 +135,31 @@ internal sealed class Evaluator {
         }
 
         if (value.isReference)
-            return GetVariableValue(value.reference);
+            return GetVariableValue(value.reference, traceCollections);
         else if (value.value is EvaluatorObject)
-            return Value(value.value as EvaluatorObject);
+            return Value(value.value as EvaluatorObject, traceCollections);
+        else if (value.value is EvaluatorObject[] && traceCollections)
+            return CollectionValue(value.value as EvaluatorObject[]);
         else
             return value.value;
     }
 
-    private object Value(EvaluatorObject value) {
+    private object CollectionValue(EvaluatorObject[] value) {
+        var builder = new List<Object>();
+
+        foreach (var item in value)
+            builder.Add(Value(item, true));
+
+        return builder.ToArray();
+    }
+
+    private object Value(EvaluatorObject value, bool traceCollections=false) {
         if (value.isReference)
-            return GetVariableValue(value.reference);
+            return GetVariableValue(value.reference, traceCollections);
         else if (value.value is EvaluatorObject)
-            return Value(value.value as EvaluatorObject);
+            return Value(value.value as EvaluatorObject, traceCollections);
+        else if (value.value is EvaluatorObject[] && traceCollections)
+            return CollectionValue(value.value as EvaluatorObject[]);
         else
             return value.value;
     }

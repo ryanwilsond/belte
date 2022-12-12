@@ -29,6 +29,9 @@ public class EvaluatorTests {
     [InlineData("4 * 2;", 8)]
     [InlineData("4 ** 2;", 16)]
     [InlineData("9 / 3;", 3)]
+    [InlineData("5 % 2;", 1)]
+    [InlineData("5 ?? 2;", 5)]
+    [InlineData("null ?? 2;", 2)]
     [InlineData("(10);", 10)]
     [InlineData("0b1;", 1)]
     [InlineData("-0B1;", -1)]
@@ -56,6 +59,9 @@ public class EvaluatorTests {
     [InlineData("var a = 2; a **= 2; return a;", 4)]
     [InlineData("var a = 1; a <<= 1; return a;", 2)]
     [InlineData("var a = 2; a >>= 1; return a;", 1)]
+    [InlineData("var a = 8; a >>>= 1; return a;", 4)]
+    [InlineData("var a = -8; a >>>= 1; return a;", 2147483644)]
+    [InlineData("var a = 12; a >>>= 5; return a;", 0)]
     [InlineData("var a = true; a &= (false); return a;", false)]
     [InlineData("var a = true; a |= (false); return a;", true)]
     [InlineData("var a = true; a ^= (true); return a;", false)]
@@ -63,6 +69,10 @@ public class EvaluatorTests {
     [InlineData("var a = 1; a &= 3; return a;", 1)]
     [InlineData("var a = 1; a &= 0; return a;", 0)]
     [InlineData("var a = 1; a ^= 0; return a;", 1)]
+    [InlineData("var a = 5; a %= 2; return a;", 1)]
+    // ? If wondering these tests will also be fixed when the StackFrameParser stuff is added
+    // [InlineData("var a = 5; a ??= 2; return a;", 5)]
+    // [InlineData("var a = null; a ??= 2; return a;", 2)]
     [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return a;", 6)]
     [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return b;", 5)]
 
@@ -131,10 +141,6 @@ public class EvaluatorTests {
     [InlineData("4 >= 4;", true)]
     [InlineData("4 >= 5;", false)]
     [InlineData("5 >= 4;", true)]
-
-    [InlineData("var a = 8; a >>>= 1; return a;", 4)]
-    [InlineData("var a = -8; a >>>= 1; return a;", 2147483644)]
-    [InlineData("var a = 12; a >>>= 5; return a;", 0)]
 
     [InlineData("3.2 + 3.4;", 6.6)]
     [InlineData("3.2 - 3.4;", -0.19999999999999973)]
