@@ -32,7 +32,7 @@ This code style is most similar to C++ standards, and is what the Belte Standard
 
 - Object names are UpperCamelCase
 - Public member names are lowerCamelCase
-- Non-public member names are lowerCamelCase with a trailing underscore
+- Non-public member names are lowerCamelCase with a leading underscore (_lowerCamelCase)
 - Variable names are lowerCamelCase
 - Function names are UpperCamelCase
 - Label names are UpperCamelCase
