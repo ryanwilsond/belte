@@ -10,45 +10,15 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Emitting;
 using Diagnostics;
+using Buckle.CodeAnalysis.Evaluating;
 
 namespace Buckle.CodeAnalysis;
-
-/// <summary>
-/// Result of an evaluation, including diagnostics.
-/// </summary>
-internal sealed class EvaluationResult {
-    /// <summary>
-    /// Creates an evaluation result, given the result and diagnostics (does no computation).
-    /// </summary>
-    /// <param name="value">Result of evaluation</param>
-    /// <param name="diagnostics">Diagnostics associated with value</param>
-    internal EvaluationResult(object value, BelteDiagnosticQueue diagnostics) {
-        this.value = value;
-        this.diagnostics = new BelteDiagnosticQueue();
-        this.diagnostics.Move(diagnostics);
-    }
-
-    /// <summary>
-    /// Creates an empty evaluation result.
-    /// </summary>
-    internal EvaluationResult() : this(null, null) { }
-
-    /// <summary>
-    /// Diagnostics related to a single evaluation.
-    /// </summary>
-    internal BelteDiagnosticQueue diagnostics { get; set; }
-
-    /// <summary>
-    /// Value resulting from evaluation.
-    /// </summary>
-    internal object value { get; set; }
-}
 
 /// <summary>
 /// Handles evaluation of program, and keeps track of symbols (mainly for REPL use).
 /// </summary>
 public sealed class Compilation {
-    private BoundGlobalScope globalScope_;
+    private BoundGlobalScope _globalScope;
 
     private Compilation(bool isScript, Compilation previous, params SyntaxTree[] syntaxTrees) {
         this.isScript = isScript;
@@ -101,13 +71,13 @@ public sealed class Compilation {
     /// </summary>
     internal BoundGlobalScope globalScope {
         get {
-            if (globalScope_ == null) {
+            if (_globalScope == null) {
                 var tempScope = Binder.BindGlobalScope(isScript, previous?.globalScope, syntaxTrees);
                 // Makes assignment thread-safe, if multiple threads try to initialize they use whoever did it first
-                Interlocked.CompareExchange(ref globalScope_, tempScope, null);
+                Interlocked.CompareExchange(ref _globalScope, tempScope, null);
             }
 
-            return globalScope_;
+            return _globalScope;
         }
     }
 
@@ -238,8 +208,8 @@ public sealed class Compilation {
     }
 
     private BoundProgram GetProgram() {
-        var previous_ = previous == null ? null : previous.GetProgram();
-        return Binder.BindProgram(isScript, previous_, globalScope);
+        var _previous = previous == null ? null : previous.GetProgram();
+        return Binder.BindProgram(isScript, _previous, globalScope);
     }
 
     private static void CreateCfg(BoundProgram program) {

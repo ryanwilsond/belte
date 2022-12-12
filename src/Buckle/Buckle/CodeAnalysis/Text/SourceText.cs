@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 namespace Buckle.CodeAnalysis.Text;
 
 public sealed class SourceText {
-    private readonly string text_;
+    private readonly string _text;
 
     /// <summary>
     /// Creates a source text provided the file name and contents.
@@ -12,7 +12,7 @@ public sealed class SourceText {
     /// <param name="text">The contents of the file the source text comes from</param>
     private SourceText(string fileName, string text) {
         lines = ParseLines(this, text);
-        text_ = text;
+        _text = text;
         this.fileName = fileName;
     }
 
@@ -29,12 +29,12 @@ public sealed class SourceText {
     /// <summary>
     /// Indexing the source file contents.
     /// </summary>
-    public char this[int index] => text_[index];
+    public char this[int index] => _text[index];
 
     /// <summary>
     /// The length of the entire source text.
     /// </summary>
-    public int length => text_.Length;
+    public int length => _text.Length;
 
     /// <summary>
     /// Creates a source text from a text, not necessarily relating to a source file.
@@ -70,7 +70,7 @@ public sealed class SourceText {
         return lower - 1;
     }
 
-    public override string ToString() => text_;
+    public override string ToString() => _text;
 
     /// <summary>
     /// String representation of part of the text.
@@ -78,7 +78,7 @@ public sealed class SourceText {
     /// <param name="start">Start index (absolute)</param>
     /// <param name="length">Length of text to grab</param>
     /// <returns>Substring of the text</returns>
-    public string ToString(int start, int length) => text_.Substring(start, length);
+    public string ToString(int start, int length) => _text.Substring(start, length);
 
     /// <summary>
     /// String representation of part of the text.
@@ -95,7 +95,7 @@ public sealed class SourceText {
     /// <param name="span">Span to check</param>
     /// <returns>If the span is at the end of the text</returns>
     public bool IsAtEndOfInput(TextSpan span) {
-        if (span.start == text_.Length)
+        if (span.start == _text.Length)
             return true;
 
         return false;

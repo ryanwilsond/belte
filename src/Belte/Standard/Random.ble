@@ -3,7 +3,7 @@ namespace Standard {
     public static class Random {
     private:
 
-        bool first_ = true;
+        bool _first = true;
 
         void Seed(int<0,null> seed);
 

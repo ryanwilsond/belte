@@ -20,23 +20,23 @@ internal abstract class SeparatedSyntaxList {
 /// </summary>
 /// <typeparam name="T">Child type of Node</typeparam>
 internal sealed class SeparatedSyntaxList<T> : SeparatedSyntaxList, IEnumerable<T> where T: Node {
-    private readonly ImmutableArray<Node> nodesAndSeparators_;
+    private readonly ImmutableArray<Node> _nodesAndSeparators;
 
     internal SeparatedSyntaxList(ImmutableArray<Node> nodesAndSeparators) {
-        nodesAndSeparators_ = nodesAndSeparators;
+        _nodesAndSeparators = nodesAndSeparators;
     }
 
     /// <summary>
     /// Number of non separator nodes in collection.
     /// </summary>
     /// <returns>Count</returns>
-    internal int count => (nodesAndSeparators_.Length + 1) / 2;
+    internal int count => (_nodesAndSeparators.Length + 1) / 2;
 
     /// <summary>
     /// Indexes nodes in collection skipping separators.
     /// </summary>
     /// <returns>Node at index</returns>
-    internal T this[int index] => (T)nodesAndSeparators_[index * 2];
+    internal T this[int index] => (T)_nodesAndSeparators[index * 2];
 
     /// <summary>
     /// Get a separator at an index. The index itself skips separators.
@@ -47,10 +47,10 @@ internal sealed class SeparatedSyntaxList<T> : SeparatedSyntaxList, IEnumerable<
         if (index == count - 1)
             return null;
 
-        return (Token)nodesAndSeparators_[index * 2 + 1];
+        return (Token)_nodesAndSeparators[index * 2 + 1];
     }
 
-    internal override ImmutableArray<Node> GetWithSeparators() => nodesAndSeparators_;
+    internal override ImmutableArray<Node> GetWithSeparators() => _nodesAndSeparators;
 
     /// <summary>
     /// Gets enumerator of all nodes.

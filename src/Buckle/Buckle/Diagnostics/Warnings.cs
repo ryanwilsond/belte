@@ -19,14 +19,14 @@ internal static class Warning {
     }
 
     internal static BelteDiagnostic UnreachableCode(Node node) {
-        if (node.type == SyntaxType.BLOCK) {
+        if (node.type == SyntaxType.Block) {
             var firstStatement = ((BlockStatement)node).statements.FirstOrDefault();
             // Report just for non empty blocks.
             if (firstStatement != null)
                 return UnreachableCode(firstStatement);
 
             return null;
-        } else if (node.type == SyntaxType.EMPTY_EXPRESSION) {
+        } else if (node.type == SyntaxType.EmptyExpression) {
             return null;
         }
 

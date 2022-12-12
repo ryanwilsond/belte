@@ -1,7 +1,7 @@
 using System;
 using System.Numerics;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Utils;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Binding;
 

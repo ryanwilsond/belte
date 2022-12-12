@@ -1,4 +1,3 @@
-using System;
 using Diagnostics;
 
 namespace Belte.Diagnostics;

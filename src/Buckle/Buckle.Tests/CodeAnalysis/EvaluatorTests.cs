@@ -7,6 +7,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Diagnostics;
 using Buckle.Diagnostics;
+using Buckle.CodeAnalysis.Evaluating;
 
 namespace Buckle.Tests.CodeAnalysis;
 

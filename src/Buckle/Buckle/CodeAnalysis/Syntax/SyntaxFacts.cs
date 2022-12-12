@@ -14,40 +14,40 @@ internal static class SyntaxFacts {
     /// <returns>Precedence</returns>
     internal static int GetBinaryPrecedence(this SyntaxType type) {
         switch (type) {
-            case SyntaxType.ASTERISK_ASTERISK_TOKEN:
+            case SyntaxType.AsteriskAsteriskToken:
                 return 14;
-            case SyntaxType.ASTERISK_TOKEN:
-            case SyntaxType.SLASH_TOKEN:
-            case SyntaxType.PERCENT_TOKEN:
+            case SyntaxType.AsteriskToken:
+            case SyntaxType.SlashToken:
+            case SyntaxType.PercentToken:
                 return 13;
-            case SyntaxType.PLUS_TOKEN:
-            case SyntaxType.MINUS_TOKEN:
+            case SyntaxType.PlusToken:
+            case SyntaxType.MinusToken:
                 return 12;
-            case SyntaxType.LESS_THAN_LESS_THAN_TOKEN:
-            case SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN:
-            case SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN:
+            case SyntaxType.LessThanLessThanToken:
+            case SyntaxType.GreaterThanGreaterThanToken:
+            case SyntaxType.GreaterThanGreaterThanGreaterThanToken:
                 return 11;
-            case SyntaxType.IS_KEYWORD:
-            case SyntaxType.ISNT_KEYWORD:
-            case SyntaxType.LESS_THAN_TOKEN:
-            case SyntaxType.GREATER_THAN_TOKEN:
-            case SyntaxType.LESS_THAN_EQUALS_TOKEN:
-            case SyntaxType.GREATER_THAN_EQUALS_TOKEN:
+            case SyntaxType.IsKeyword:
+            case SyntaxType.IsntKeyword:
+            case SyntaxType.LessThanToken:
+            case SyntaxType.GreaterThanToken:
+            case SyntaxType.LessThanEqualsToken:
+            case SyntaxType.GreaterThanEqualsToken:
                 return 10;
-            case SyntaxType.EQUALS_EQUALS_TOKEN:
-            case SyntaxType.EXCLAMATION_EQUALS_TOKEN:
+            case SyntaxType.EqualsEqualsToken:
+            case SyntaxType.ExclamationEqualsToken:
                 return 9;
-            case SyntaxType.AMPERSAND_TOKEN:
+            case SyntaxType.AmpersandToken:
                 return 8;
-            case SyntaxType.CARET_TOKEN:
+            case SyntaxType.CaretToken:
                 return 7;
-            case SyntaxType.PIPE_TOKEN:
+            case SyntaxType.PipeToken:
                 return 6;
-            case SyntaxType.AMPERSAND_AMPERSAND_TOKEN:
+            case SyntaxType.AmpersandAmpersandToken:
                 return 5;
-            case SyntaxType.PIPE_PIPE_TOKEN:
+            case SyntaxType.PipePipeToken:
                 return 4;
-            case SyntaxType.QUESTION_QUESTION_TOKEN:
+            case SyntaxType.QuestionQuestionToken:
                 return 3;
             default:
                 return 0;
@@ -61,9 +61,9 @@ internal static class SyntaxFacts {
     /// <returns>Precedence</returns>
     internal static int GetPrimaryPrecedence(this SyntaxType type) {
         switch (type) {
-            case SyntaxType.TYPEOF_KEYWORD:
-            case SyntaxType.OPEN_BRACKET_TOKEN:
-            case SyntaxType.OPEN_PAREN_TOKEN:
+            case SyntaxType.TypeOfKeyword:
+            case SyntaxType.OpenBracketToken:
+            case SyntaxType.OpenParenToken:
                 return 18;
             default:
                 return 0;
@@ -77,12 +77,12 @@ internal static class SyntaxFacts {
     /// <returns>Precedence</returns>
     internal static int GetUnaryPrecedence(this SyntaxType type) {
         switch (type) {
-            case SyntaxType.PLUS_PLUS_TOKEN:
-            case SyntaxType.MINUS_MINUS_TOKEN:
-            case SyntaxType.PLUS_TOKEN:
-            case SyntaxType.MINUS_TOKEN:
-            case SyntaxType.EXCLAMATION_TOKEN:
-            case SyntaxType.TILDE_TOKEN:
+            case SyntaxType.PlusPlusToken:
+            case SyntaxType.MinusMinusToken:
+            case SyntaxType.PlusToken:
+            case SyntaxType.MinusToken:
+            case SyntaxType.ExclamationToken:
+            case SyntaxType.TildeToken:
                 return 17;
             default:
                 return 0;
@@ -97,47 +97,49 @@ internal static class SyntaxFacts {
     internal static SyntaxType GetKeywordType(string text) {
         switch (text) {
             case "true":
-                return SyntaxType.TRUE_KEYWORD;
+                return SyntaxType.TrueKeyword;
             case "false":
-                return SyntaxType.FALSE_KEYWORD;
+                return SyntaxType.FalseKeyword;
             case "null":
-                return SyntaxType.NULL_KEYWORD;
+                return SyntaxType.NullKeyword;
             case "var":
-                return SyntaxType.VAR_KEYWORD;
+                return SyntaxType.VarKeyword;
             case "const":
-                return SyntaxType.CONST_KEYWORD;
+                return SyntaxType.ConstKeyword;
             case "ref":
-                return SyntaxType.REF_KEYWORD;
+                return SyntaxType.RefKeyword;
             case "if":
-                return SyntaxType.IF_KEYWORD;
+                return SyntaxType.IfKeyword;
             case "else":
-                return SyntaxType.ELSE_KEYWORD;
+                return SyntaxType.ElseKeyword;
             case "while":
-                return SyntaxType.WHILE_KEYWORD;
+                return SyntaxType.WhileKeyword;
             case "for":
-                return SyntaxType.FOR_KEYWORD;
+                return SyntaxType.ForKeyword;
             case "do":
-                return SyntaxType.DO_KEYWORD;
+                return SyntaxType.DoKeyword;
             case "break":
-                return SyntaxType.BREAK_KEYWORD;
+                return SyntaxType.BreakKeyword;
             case "continue":
-                return SyntaxType.CONTINUE_KEYWORD;
+                return SyntaxType.ContinueKeyword;
             case "try":
-                return SyntaxType.TRY_KEYWORD;
+                return SyntaxType.TryKeyword;
             case "catch":
-                return SyntaxType.CATCH_KEYWORD;
+                return SyntaxType.CatchKeyword;
             case "finally":
-                return SyntaxType.FINALLY_KEYWORD;
+                return SyntaxType.FinallyKeyword;
             case "return":
-                return SyntaxType.RETURN_KEYWORD;
+                return SyntaxType.ReturnKeyword;
             case "is":
-                return SyntaxType.IS_KEYWORD;
+                return SyntaxType.IsKeyword;
             case "isnt":
-                return SyntaxType.ISNT_KEYWORD;
+                return SyntaxType.IsntKeyword;
             case "typeof":
-                return SyntaxType.TYPEOF_KEYWORD;
+                return SyntaxType.TypeOfKeyword;
+            case "struct":
+                return SyntaxType.StructKeyword;
             default:
-                return SyntaxType.IDENTIFIER_TOKEN;
+                return SyntaxType.IdentifierToken;
         }
     }
 
@@ -148,140 +150,142 @@ internal static class SyntaxFacts {
     /// <returns>Text representation, default to null if not text representation exists</returns>
     internal static string GetText(SyntaxType type) {
         switch (type) {
-            case SyntaxType.COMMA_TOKEN:
+            case SyntaxType.CommaToken:
                 return ",";
-            case SyntaxType.PLUS_TOKEN:
+            case SyntaxType.PlusToken:
                 return "+";
-            case SyntaxType.MINUS_TOKEN:
+            case SyntaxType.MinusToken:
                 return "-";
-            case SyntaxType.ASTERISK_TOKEN:
+            case SyntaxType.AsteriskToken:
                 return "*";
-            case SyntaxType.SLASH_TOKEN:
+            case SyntaxType.SlashToken:
                 return "/";
-            case SyntaxType.OPEN_PAREN_TOKEN:
+            case SyntaxType.OpenParenToken:
                 return "(";
-            case SyntaxType.CLOSE_PAREN_TOKEN:
+            case SyntaxType.CloseParenToken:
                 return ")";
-            case SyntaxType.EQUALS_TOKEN:
+            case SyntaxType.EqualsToken:
                 return "=";
-            case SyntaxType.TILDE_TOKEN:
+            case SyntaxType.TildeToken:
                 return "~";
-            case SyntaxType.CARET_TOKEN:
+            case SyntaxType.CaretToken:
                 return "^";
-            case SyntaxType.AMPERSAND_TOKEN:
+            case SyntaxType.AmpersandToken:
                 return "&";
-            case SyntaxType.PIPE_TOKEN:
+            case SyntaxType.PipeToken:
                 return "|";
-            case SyntaxType.LESS_THAN_LESS_THAN_TOKEN:
+            case SyntaxType.LessThanLessThanToken:
                 return "<<";
-            case SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN:
+            case SyntaxType.GreaterThanGreaterThanToken:
                 return ">>";
-            case SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN:
+            case SyntaxType.GreaterThanGreaterThanGreaterThanToken:
                 return ">>>";
-            case SyntaxType.EXCLAMATION_TOKEN:
+            case SyntaxType.ExclamationToken:
                 return "!";
-            case SyntaxType.AMPERSAND_AMPERSAND_TOKEN:
+            case SyntaxType.AmpersandAmpersandToken:
                 return "&&";
-            case SyntaxType.PIPE_PIPE_TOKEN:
+            case SyntaxType.PipePipeToken:
                 return "||";
-            case SyntaxType.ASTERISK_ASTERISK_TOKEN:
+            case SyntaxType.AsteriskAsteriskToken:
                 return "**";
-            case SyntaxType.PLUS_PLUS_TOKEN:
+            case SyntaxType.PlusPlusToken:
                 return "++";
-            case SyntaxType.MINUS_MINUS_TOKEN:
+            case SyntaxType.MinusMinusToken:
                 return "--";
-            case SyntaxType.OPEN_BRACE_TOKEN:
+            case SyntaxType.OpenBraceToken:
                 return "{";
-            case SyntaxType.CLOSE_BRACE_TOKEN:
+            case SyntaxType.CloseBraceToken:
                 return "}";
-            case SyntaxType.OPEN_BRACKET_TOKEN:
+            case SyntaxType.OpenBracketToken:
                 return "[";
-            case SyntaxType.CLOSE_BRACKET_TOKEN:
+            case SyntaxType.CloseBracketToken:
                 return "]";
-            case SyntaxType.SEMICOLON_TOKEN:
+            case SyntaxType.SemicolonToken:
                 return ";";
-            case SyntaxType.EQUALS_EQUALS_TOKEN:
+            case SyntaxType.EqualsEqualsToken:
                 return "==";
-            case SyntaxType.EXCLAMATION_EQUALS_TOKEN:
+            case SyntaxType.ExclamationEqualsToken:
                 return "!=";
-            case SyntaxType.LESS_THAN_TOKEN:
+            case SyntaxType.LessThanToken:
                 return "<";
-            case SyntaxType.GREATER_THAN_TOKEN:
+            case SyntaxType.GreaterThanToken:
                 return ">";
-            case SyntaxType.PERCENT_TOKEN:
+            case SyntaxType.PercentToken:
                 return "%";
-            case SyntaxType.QUESTION_QUESTION_TOKEN:
+            case SyntaxType.QuestionQuestionToken:
                 return "??";
-            case SyntaxType.LESS_THAN_EQUALS_TOKEN:
+            case SyntaxType.LessThanEqualsToken:
                 return "<=";
-            case SyntaxType.GREATER_THAN_EQUALS_TOKEN:
+            case SyntaxType.GreaterThanEqualsToken:
                 return ">=";
-            case SyntaxType.AMPERSAND_EQUALS_TOKEN:
+            case SyntaxType.AmpersandEqualsToken:
                 return "&=";
-            case SyntaxType.PIPE_EQUALS_TOKEN:
+            case SyntaxType.PipeEqualsToken:
                 return "|=";
-            case SyntaxType.CARET_EQUALS_TOKEN:
+            case SyntaxType.CaretEqualsToken:
                 return "^=";
-            case SyntaxType.PLUS_EQUALS_TOKEN:
+            case SyntaxType.PlusEqualsToken:
                 return "+=";
-            case SyntaxType.MINUS_EQUALS_TOKEN:
+            case SyntaxType.MinusEqualsToken:
                 return "-=";
-            case SyntaxType.SLASH_EQUALS_TOKEN:
+            case SyntaxType.SlashEqualsToken:
                 return "/=";
-            case SyntaxType.ASTERISK_EQUALS_TOKEN:
+            case SyntaxType.AsteriskEqualsToken:
                 return "*=";
-            case SyntaxType.ASTERISK_ASTERISK_EQUALS_TOKEN:
+            case SyntaxType.AsteriskAsteriskEqualsToken:
                 return "**=";
-            case SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
+            case SyntaxType.GreaterThanGreaterThanEqualsToken:
                 return ">>=";
-            case SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
+            case SyntaxType.GreaterThanGreaterThanGreaterThanEqualsToken:
                 return ">>>=";
-            case SyntaxType.LESS_THAN_LESS_THAN_EQUALS_TOKEN:
+            case SyntaxType.LessThanLessThanEqualsToken:
                 return "<<=";
-            case SyntaxType.PERCENT_EQUALS_TOKEN:
+            case SyntaxType.PercentEqualsToken:
                 return "%=";
-            case SyntaxType.QUESTION_QUESTION_EQUALS_TOKEN:
+            case SyntaxType.QuestionQuestionEqualsToken:
                 return "??=";
-            case SyntaxType.TRUE_KEYWORD:
+            case SyntaxType.TrueKeyword:
                 return "true";
-            case SyntaxType.FALSE_KEYWORD:
+            case SyntaxType.FalseKeyword:
                 return "false";
-            case SyntaxType.NULL_KEYWORD:
+            case SyntaxType.NullKeyword:
                 return "null";
-            case SyntaxType.VAR_KEYWORD:
+            case SyntaxType.VarKeyword:
                 return "var";
-            case SyntaxType.CONST_KEYWORD:
+            case SyntaxType.ConstKeyword:
                 return "const";
-            case SyntaxType.REF_KEYWORD:
+            case SyntaxType.RefKeyword:
                 return "ref";
-            case SyntaxType.IF_KEYWORD:
+            case SyntaxType.IfKeyword:
                 return "if";
-            case SyntaxType.ELSE_KEYWORD:
+            case SyntaxType.ElseKeyword:
                 return "else";
-            case SyntaxType.WHILE_KEYWORD:
+            case SyntaxType.WhileKeyword:
                 return "while";
-            case SyntaxType.FOR_KEYWORD:
+            case SyntaxType.ForKeyword:
                 return "for";
-            case SyntaxType.DO_KEYWORD:
+            case SyntaxType.DoKeyword:
                 return "do";
-            case SyntaxType.BREAK_KEYWORD:
+            case SyntaxType.BreakKeyword:
                 return "break";
-            case SyntaxType.CONTINUE_KEYWORD:
+            case SyntaxType.ContinueKeyword:
                 return "continue";
-            case SyntaxType.TRY_KEYWORD:
+            case SyntaxType.TryKeyword:
                 return "try";
-            case SyntaxType.CATCH_KEYWORD:
+            case SyntaxType.CatchKeyword:
                 return "catch";
-            case SyntaxType.FINALLY_KEYWORD:
+            case SyntaxType.FinallyKeyword:
                 return "finally";
-            case SyntaxType.RETURN_KEYWORD:
+            case SyntaxType.ReturnKeyword:
                 return "return";
-            case SyntaxType.IS_KEYWORD:
+            case SyntaxType.IsKeyword:
                 return "is";
-            case SyntaxType.ISNT_KEYWORD:
+            case SyntaxType.IsntKeyword:
                 return "isnt";
-            case SyntaxType.TYPEOF_KEYWORD:
+            case SyntaxType.TypeOfKeyword:
                 return "typeof";
+            case SyntaxType.StructKeyword:
+                return "struct";
             default:
                 return null;
         }
@@ -294,32 +298,32 @@ internal static class SyntaxFacts {
     /// <returns>Binary operator type</returns>
     internal static SyntaxType GetBinaryOperatorOfAssignmentOperator(SyntaxType type) {
         switch (type) {
-            case SyntaxType.PLUS_EQUALS_TOKEN:
-                return SyntaxType.PLUS_TOKEN;
-            case SyntaxType.MINUS_EQUALS_TOKEN:
-                return SyntaxType.MINUS_TOKEN;
-            case SyntaxType.ASTERISK_EQUALS_TOKEN:
-                return SyntaxType.ASTERISK_TOKEN;
-            case SyntaxType.SLASH_EQUALS_TOKEN:
-                return SyntaxType.SLASH_TOKEN;
-            case SyntaxType.AMPERSAND_EQUALS_TOKEN:
-                return SyntaxType.AMPERSAND_TOKEN;
-            case SyntaxType.PIPE_EQUALS_TOKEN:
-                return SyntaxType.PIPE_TOKEN;
-            case SyntaxType.CARET_EQUALS_TOKEN:
-                return SyntaxType.CARET_TOKEN;
-            case SyntaxType.ASTERISK_ASTERISK_EQUALS_TOKEN:
-                return SyntaxType.ASTERISK_ASTERISK_TOKEN;
-            case SyntaxType.LESS_THAN_LESS_THAN_EQUALS_TOKEN:
-                return SyntaxType.LESS_THAN_LESS_THAN_TOKEN;
-            case SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
-                return SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN;
-            case SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_EQUALS_TOKEN:
-                return SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN;
-            case SyntaxType.PERCENT_EQUALS_TOKEN:
-                return SyntaxType.PERCENT_TOKEN;
-            case SyntaxType.QUESTION_QUESTION_EQUALS_TOKEN:
-                return SyntaxType.QUESTION_QUESTION_TOKEN;
+            case SyntaxType.PlusEqualsToken:
+                return SyntaxType.PlusToken;
+            case SyntaxType.MinusEqualsToken:
+                return SyntaxType.MinusToken;
+            case SyntaxType.AsteriskEqualsToken:
+                return SyntaxType.AsteriskToken;
+            case SyntaxType.SlashEqualsToken:
+                return SyntaxType.SlashToken;
+            case SyntaxType.AmpersandEqualsToken:
+                return SyntaxType.AmpersandToken;
+            case SyntaxType.PipeEqualsToken:
+                return SyntaxType.PipeToken;
+            case SyntaxType.CaretEqualsToken:
+                return SyntaxType.CaretToken;
+            case SyntaxType.AsteriskAsteriskEqualsToken:
+                return SyntaxType.AsteriskAsteriskToken;
+            case SyntaxType.LessThanLessThanEqualsToken:
+                return SyntaxType.LessThanLessThanToken;
+            case SyntaxType.GreaterThanGreaterThanEqualsToken:
+                return SyntaxType.GreaterThanGreaterThanToken;
+            case SyntaxType.GreaterThanGreaterThanGreaterThanEqualsToken:
+                return SyntaxType.GreaterThanGreaterThanGreaterThanToken;
+            case SyntaxType.PercentEqualsToken:
+                return SyntaxType.PercentToken;
+            case SyntaxType.QuestionQuestionEqualsToken:
+                return SyntaxType.QuestionQuestionToken;
             default:
                 throw new Exception($"GetBinaryOperatorOfAssignmentOperator: unexpected syntax '{type}'");
         }
@@ -355,7 +359,7 @@ internal static class SyntaxFacts {
     /// <param name="type">Syntax type</param>
     /// <returns>If the syntax type is a keyword</returns>
     internal static bool IsKeyword(this SyntaxType type) {
-        return type.ToString().EndsWith("KEYWORD");
+        return type.ToString().EndsWith("Keyword");
     }
 
     /// <summary>
@@ -364,7 +368,7 @@ internal static class SyntaxFacts {
     /// <param name="type">Syntax type</param>
     /// <returns>If the syntax type is a token</returns>
     internal static bool IsToken(this SyntaxType type) {
-        return !type.IsTrivia() && (type.IsKeyword() || type.ToString().EndsWith("TOKEN"));
+        return !type.IsTrivia() && (type.IsKeyword() || type.ToString().EndsWith("Token"));
     }
 
     /// <summary>
@@ -373,7 +377,7 @@ internal static class SyntaxFacts {
     /// <param name="type">Syntax type</param>
     /// <returns>If the syntax type is trivia</returns>
     internal static bool IsTrivia(this SyntaxType type) {
-        return type.ToString().EndsWith("TRIVIA");
+        return type.ToString().EndsWith("Trivia");
     }
 
     /// <summary>
@@ -382,6 +386,6 @@ internal static class SyntaxFacts {
     /// <param name="type">Syntax type</param>
     /// <returns>If the syntax type is a comment</returns>
     internal static bool IsComment(this SyntaxType type) {
-        return type == SyntaxType.SINGLELINE_COMMENT_TRIVIA || type == SyntaxType.MULTILINE_COMMENT_TRIVIA;
+        return type == SyntaxType.SingleLineCommentTrivia || type == SyntaxType.MultiLineCommentTrivia;
     }
 }

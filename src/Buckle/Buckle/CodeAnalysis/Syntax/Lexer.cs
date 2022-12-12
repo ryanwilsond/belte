@@ -12,23 +12,24 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// E.g. int myInt; -> IdentiferToken IdentifierToken SemicolonToken
 /// </summary>
 internal sealed class Lexer {
-    private readonly SourceText text_;
-    private int position_;
-    private int start_;
-    private SyntaxType type_;
-    private object value_;
-    private SyntaxTree syntaxTree_;
-    private char current => Peek(0);
-    private char lookahead => Peek(1);
-    private ImmutableArray<SyntaxTrivia>.Builder triviaBuilder_ = ImmutableArray.CreateBuilder<SyntaxTrivia>();
+    internal char current => Peek(0);
+    internal char lookahead => Peek(1);
+
+    private readonly SourceText _text;
+    private int _position;
+    private int _start;
+    private SyntaxType _type;
+    private object _value;
+    private SyntaxTree _syntaxTree;
+    private ImmutableArray<SyntaxTrivia>.Builder _triviaBuilder = ImmutableArray.CreateBuilder<SyntaxTrivia>();
 
     /// <summary>
     /// Creates a new lexer, requires a fully initialized syntax tree.
     /// </summary>
     /// <param name="syntaxTree">Syntax tree to lex from</param>
     internal Lexer(SyntaxTree syntaxTree) {
-        text_ = syntaxTree.text;
-        syntaxTree_ = syntaxTree;
+        _text = syntaxTree.text;
+        _syntaxTree = syntaxTree;
         diagnostics = new BelteDiagnosticQueue();
     }
 
@@ -43,42 +44,42 @@ internal sealed class Lexer {
     /// <returns>A new token</returns>
     internal Token LexNext() {
         ReadTrivia(true);
-        var leadingTrivia = triviaBuilder_.ToImmutable();
-        var tokenStart = position_;
+        var leadingTrivia = _triviaBuilder.ToImmutable();
+        var tokenStart = _position;
 
         ReadToken();
 
-        var tokenType = type_;
-        var tokenValue = value_;
-        var tokenLength = position_ - start_;
+        var tokenType = _type;
+        var tokenValue = _value;
+        var tokenLength = _position - _start;
 
         ReadTrivia(false);
-        var trailingTrivia = triviaBuilder_.ToImmutable();
+        var trailingTrivia = _triviaBuilder.ToImmutable();
 
         var tokenText = SyntaxFacts.GetText(tokenType);
         if (tokenText == null)
-            tokenText = text_.ToString(tokenStart, tokenLength);
+            tokenText = _text.ToString(tokenStart, tokenLength);
 
-        return new Token(syntaxTree_, tokenType, tokenStart, tokenText, tokenValue, leadingTrivia, trailingTrivia);
+        return new Token(_syntaxTree, tokenType, tokenStart, tokenText, tokenValue, leadingTrivia, trailingTrivia);
     }
 
     private char Peek(int offset) {
-        int index = position_ + offset;
+        int index = _position + offset;
 
-        if (index >= text_.length)
+        if (index >= _text.length)
             return '\0';
 
-        return text_[index];
+        return _text[index];
     }
 
     private void ReadTrivia(bool leading) {
-        triviaBuilder_.Clear();
+        _triviaBuilder.Clear();
         var done = false;
 
         while (!done) {
-            start_ = position_;
-            type_ = SyntaxType.BAD_TOKEN;
-            value_ = null;
+            _start = _position;
+            _type = SyntaxType.BadToken;
+            _value = null;
 
             switch (current) {
                 case '\0':
@@ -113,224 +114,224 @@ internal sealed class Lexer {
                     break;
             }
 
-            var length = position_ - start_;
+            var length = _position - _start;
 
             if (length > 0) {
-                var text = text_.ToString(start_, length);
-                var trivia = new SyntaxTrivia(syntaxTree_, type_, start_, text);
-                triviaBuilder_.Add(trivia);
+                var text = _text.ToString(_start, length);
+                var trivia = new SyntaxTrivia(_syntaxTree, _type, _start, text);
+                _triviaBuilder.Add(trivia);
             }
         }
     }
 
     private void ReadToken() {
-        start_ = position_;
-        type_ = SyntaxType.BAD_TOKEN;
-        value_ = null;
+        _start = _position;
+        _type = SyntaxType.BadToken;
+        _value = null;
 
         switch (current) {
             case '\0':
-                type_ = SyntaxType.END_OF_FILE_TOKEN;
+                _type = SyntaxType.EndOfFileToken;
                 break;
             case ',':
-                position_++;
-                type_ = SyntaxType.COMMA_TOKEN;
+                _position++;
+                _type = SyntaxType.CommaToken;
                 break;
             case '(':
-                position_++;
-                type_ = SyntaxType.OPEN_PAREN_TOKEN;
+                _position++;
+                _type = SyntaxType.OpenParenToken;
                 break;
             case ')':
-                position_++;
-                type_ = SyntaxType.CLOSE_PAREN_TOKEN;
+                _position++;
+                _type = SyntaxType.CloseParenToken;
                 break;
             case '{':
-                position_++;
-                type_ = SyntaxType.OPEN_BRACE_TOKEN;
+                _position++;
+                _type = SyntaxType.OpenBraceToken;
                 break;
             case '}':
-                position_++;
-                type_ = SyntaxType.CLOSE_BRACE_TOKEN;
+                _position++;
+                _type = SyntaxType.CloseBraceToken;
                 break;
             case '[':
-                position_++;
-                type_ = SyntaxType.OPEN_BRACKET_TOKEN;
+                _position++;
+                _type = SyntaxType.OpenBracketToken;
                 break;
             case ']':
-                position_++;
-                type_ = SyntaxType.CLOSE_BRACKET_TOKEN;
+                _position++;
+                _type = SyntaxType.CloseBracketToken;
                 break;
             case ';':
-                position_++;
-                type_ = SyntaxType.SEMICOLON_TOKEN;
+                _position++;
+                _type = SyntaxType.SemicolonToken;
                 break;
             case '~':
-                position_++;
-                type_ = SyntaxType.TILDE_TOKEN;
+                _position++;
+                _type = SyntaxType.TildeToken;
                 break;
             case '%':
-                position_++;
+                _position++;
                 if (current == '=') {
-                    type_ = SyntaxType.PERCENT_EQUALS_TOKEN;
-                    position_++;
+                    _type = SyntaxType.PercentEqualsToken;
+                    _position++;
                 } else {
-                    type_ = SyntaxType.PERCENT_TOKEN;
+                    _type = SyntaxType.PercentToken;
                 }
                 break;
             case '^':
-                position_++;
+                _position++;
                 if (current == '=') {
-                    type_ = SyntaxType.CARET_EQUALS_TOKEN;
-                    position_++;
+                    _type = SyntaxType.CaretEqualsToken;
+                    _position++;
                 } else {
-                    type_ = SyntaxType.CARET_TOKEN;
+                    _type = SyntaxType.CaretToken;
                 }
                 break;
             case '?':
                 if (lookahead == '?') {
-                    position_ += 2;
+                    _position += 2;
                     if (current == '=') {
-                        type_ = SyntaxType.QUESTION_QUESTION_EQUALS_TOKEN;
-                        position_++;
+                        _type = SyntaxType.QuestionQuestionEqualsToken;
+                        _position++;
                     } else {
-                        type_ = SyntaxType.QUESTION_QUESTION_TOKEN;
+                        _type = SyntaxType.QuestionQuestionToken;
                     }
                 } else {
                     goto default;
                 }
                 break;
             case '+':
-                position_++;
+                _position++;
                 if (current == '=') {
-                    type_ = SyntaxType.PLUS_EQUALS_TOKEN;
-                    position_++;
+                    _type = SyntaxType.PlusEqualsToken;
+                    _position++;
                 } else if (current == '+') {
-                    type_ = SyntaxType.PLUS_PLUS_TOKEN;
-                    position_++;
+                    _type = SyntaxType.PlusPlusToken;
+                    _position++;
                 } else {
-                    type_ = SyntaxType.PLUS_TOKEN;
+                    _type = SyntaxType.PlusToken;
                 }
                 break;
             case '-':
-                position_++;
+                _position++;
                 if (current == '=') {
-                    type_ = SyntaxType.MINUS_EQUALS_TOKEN;
-                    position_++;
+                    _type = SyntaxType.MinusEqualsToken;
+                    _position++;
                 } else if (current == '-') {
-                    type_ = SyntaxType.MINUS_MINUS_TOKEN;
-                    position_++;
+                    _type = SyntaxType.MinusMinusToken;
+                    _position++;
                 } else {
-                    type_ = SyntaxType.MINUS_TOKEN;
+                    _type = SyntaxType.MinusToken;
                 }
                 break;
             case '/':
-                position_++;
+                _position++;
                 if (current == '=') {
-                    type_ = SyntaxType.SLASH_EQUALS_TOKEN;
-                    position_++;
+                    _type = SyntaxType.SlashEqualsToken;
+                    _position++;
                 } else {
-                    type_ = SyntaxType.SLASH_TOKEN;
+                    _type = SyntaxType.SlashToken;
                 }
                 break;
             case '*':
-                position_++;
+                _position++;
                 if (current == '*') {
                     if (lookahead == '=') {
-                        position_++;
-                        type_ = SyntaxType.ASTERISK_ASTERISK_EQUALS_TOKEN;
+                        _position++;
+                        _type = SyntaxType.AsteriskAsteriskEqualsToken;
                     } else {
-                        type_ = SyntaxType.ASTERISK_ASTERISK_TOKEN;
+                        _type = SyntaxType.AsteriskAsteriskToken;
                     }
-                    position_++;
+                    _position++;
                 } else if (current == '=') {
-                    type_ = SyntaxType.ASTERISK_EQUALS_TOKEN;
-                    position_++;
+                    _type = SyntaxType.AsteriskEqualsToken;
+                    _position++;
                 } else {
-                    type_ = SyntaxType.ASTERISK_TOKEN;
+                    _type = SyntaxType.AsteriskToken;
                 }
                 break;
             case '&':
-                position_++;
+                _position++;
                 if (current == '&') {
-                    type_ = SyntaxType.AMPERSAND_AMPERSAND_TOKEN;
-                    position_++;
+                    _type = SyntaxType.AmpersandAmpersandToken;
+                    _position++;
                 } else if (current == '=') {
-                    type_ = SyntaxType.AMPERSAND_EQUALS_TOKEN;
-                    position_++;
+                    _type = SyntaxType.AmpersandEqualsToken;
+                    _position++;
                 } else {
-                    type_ = SyntaxType.AMPERSAND_TOKEN;
+                    _type = SyntaxType.AmpersandToken;
                 }
                 break;
             case '|':
-                position_++;
+                _position++;
                 if (current == '|') {
-                    type_ = SyntaxType.PIPE_PIPE_TOKEN;
-                    position_++;
+                    _type = SyntaxType.PipePipeToken;
+                    _position++;
                 } else if (current == '=') {
-                    type_ = SyntaxType.PIPE_EQUALS_TOKEN;
-                    position_++;
+                    _type = SyntaxType.PipeEqualsToken;
+                    _position++;
                 } else {
-                    type_ = SyntaxType.PIPE_TOKEN;
+                    _type = SyntaxType.PipeToken;
                 }
                 break;
             case '=':
-                position_++;
+                _position++;
                 if (current == '=') {
-                    type_ = SyntaxType.EQUALS_EQUALS_TOKEN;
-                    position_++;
+                    _type = SyntaxType.EqualsEqualsToken;
+                    _position++;
                 } else {
-                    type_ = SyntaxType.EQUALS_TOKEN;
+                    _type = SyntaxType.EqualsToken;
                 }
                 break;
             case '!':
-                position_++;
+                _position++;
                 if (current == '=') {
-                    position_++;
-                    type_ = SyntaxType.EXCLAMATION_EQUALS_TOKEN;
+                    _position++;
+                    _type = SyntaxType.ExclamationEqualsToken;
                 } else {
-                    type_ = SyntaxType.EXCLAMATION_TOKEN;
+                    _type = SyntaxType.ExclamationToken;
                 }
                 break;
             case '<':
-                position_++;
+                _position++;
                 if (current == '=') {
-                    position_++;
-                    type_ = SyntaxType.LESS_THAN_EQUALS_TOKEN;
+                    _position++;
+                    _type = SyntaxType.LessThanEqualsToken;
                 } else if (current == '<') {
                     if (lookahead == '=') {
-                        position_++;
-                        type_ = SyntaxType.LESS_THAN_LESS_THAN_EQUALS_TOKEN;
+                        _position++;
+                        _type = SyntaxType.LessThanLessThanEqualsToken;
                     } else {
-                        type_ = SyntaxType.LESS_THAN_LESS_THAN_TOKEN;
+                        _type = SyntaxType.LessThanLessThanToken;
                     }
-                    position_++;
+                    _position++;
                 } else {
-                    type_ = SyntaxType.LESS_THAN_TOKEN;
+                    _type = SyntaxType.LessThanToken;
                 }
                 break;
             case '>':
-                position_++;
+                _position++;
                 if (current == '=') {
-                    position_++;
-                    type_ = SyntaxType.GREATER_THAN_EQUALS_TOKEN;
+                    _position++;
+                    _type = SyntaxType.GreaterThanEqualsToken;
                 } else if (current == '>') {
                     if (lookahead == '=') {
-                        position_++;
-                        type_ = SyntaxType.GREATER_THAN_GREATER_THAN_EQUALS_TOKEN;
+                        _position++;
+                        _type = SyntaxType.GreaterThanGreaterThanEqualsToken;
                     } else if (lookahead == '>') {
                         if (Peek(2) == '=') {
-                            position_++;
-                            type_ = SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_EQUALS_TOKEN;
+                            _position++;
+                            _type = SyntaxType.GreaterThanGreaterThanGreaterThanEqualsToken;
                         } else {
-                            type_ = SyntaxType.GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN;
+                            _type = SyntaxType.GreaterThanGreaterThanGreaterThanToken;
                         }
-                        position_++;
+                        _position++;
                     } else {
-                        type_ = SyntaxType.GREATER_THAN_GREATER_THAN_TOKEN;
+                        _type = SyntaxType.GreaterThanGreaterThanToken;
                     }
-                    position_++;
+                    _position++;
                 } else {
-                    type_ = SyntaxType.GREATER_THAN_TOKEN;
+                    _type = SyntaxType.GreaterThanToken;
                 }
                 break;
             case '"':
@@ -355,17 +356,17 @@ internal sealed class Lexer {
                 if (char.IsLetter(current))
                     ReadIdentifierOrKeyword();
                 else {
-                    var span = new TextSpan(position_, 1);
-                    var location = new TextLocation(text_, span);
-                    diagnostics.Push(Error.BadCharacter(location, position_, current));
-                    position_++;
+                    var span = new TextSpan(_position, 1);
+                    var location = new TextLocation(_text, span);
+                    diagnostics.Push(Error.BadCharacter(location, _position, current));
+                    _position++;
                 }
                 break;
         }
     }
 
     private void ReadSingeLineComment() {
-        position_ += 2;
+        _position += 2;
         var done = false;
 
         while (!done) {
@@ -376,45 +377,45 @@ internal sealed class Lexer {
                     done = true;
                     break;
                 default:
-                    position_++;
+                    _position++;
                     break;
             }
         }
 
-        type_ = SyntaxType.SINGLELINE_COMMENT_TRIVIA;
+        _type = SyntaxType.SingleLineCommentTrivia;
     }
 
     private void ReadMultiLineComment() {
-        position_ += 2;
+        _position += 2;
         var done = false;
 
         while (!done) {
             switch (current) {
                 case '\0':
-                    var span = new TextSpan(start_, 2);
-                    var location = new TextLocation(text_, span);
+                    var span = new TextSpan(_start, 2);
+                    var location = new TextLocation(_text, span);
                     diagnostics.Push(Error.UnterminatedComment(location));
                     done = true;
                     break;
                 case '*':
                     if (lookahead == '/') {
-                        position_ += 2;
+                        _position += 2;
                         done = true;
                     } else {
                         goto default;
                     }
                     break;
                 default:
-                    position_++;
+                    _position++;
                     break;
             }
         }
 
-        type_ = SyntaxType.MULTILINE_COMMENT_TRIVIA;
+        _type = SyntaxType.MultiLineCommentTrivia;
     }
 
     private void ReadStringLiteral() {
-        position_++;
+        _position++;
         var sb = new StringBuilder();
         bool done = false;
 
@@ -423,63 +424,63 @@ internal sealed class Lexer {
                 case '\0':
                 case '\r':
                 case '\n':
-                    var span = new TextSpan(start_, 1);
-                    var location = new TextLocation(text_, span);
+                    var span = new TextSpan(_start, 1);
+                    var location = new TextLocation(_text, span);
                     diagnostics.Push(Error.UnterminatedString(location));
                     done = true;
                     break;
                 case '"':
                     if (lookahead == '"') {
                         sb.Append(current);
-                        position_ += 2;
+                        _position += 2;
                     } else {
-                        position_++;
+                        _position++;
                         done = true;
                     }
                     break;
                 case '\\':
-                    position_++;
+                    _position++;
 
                     switch (current) {
                         case 'a':
                             sb.Append('\a');
-                            position_++;
+                            _position++;
                             break;
                         case 'b':
                             sb.Append('\b');
-                            position_++;
+                            _position++;
                             break;
                         case 'f':
                             sb.Append('\f');
-                            position_++;
+                            _position++;
                             break;
                         case 'n':
                             sb.Append('\n');
-                            position_++;
+                            _position++;
                             break;
                         case 'r':
                             sb.Append('\r');
-                            position_++;
+                            _position++;
                             break;
                         case 't':
                             sb.Append('\t');
-                            position_++;
+                            _position++;
                             break;
                         case 'v':
                             sb.Append('\v');
-                            position_++;
+                            _position++;
                             break;
                         case '\'':
                             sb.Append('\'');
-                            position_++;
+                            _position++;
                             break;
                         case '"':
                             sb.Append('"');
-                            position_++;
+                            _position++;
                             break;
                         case '\\':
                             sb.Append('\\');
-                            position_++;
+                            _position++;
                             break;
                         default:
                             sb.Append('\\');
@@ -488,13 +489,13 @@ internal sealed class Lexer {
                     break;
                 default:
                     sb.Append(current);
-                    position_++;
+                    _position++;
                     break;
             }
         }
 
-        type_ = SyntaxType.STRING_LITERAL_TOKEN;
-        value_ = sb.ToString();
+        _type = SyntaxType.StringLiteralToken;
+        _value = sb.ToString();
     }
 
     private void ReadNumericLiteral() {
@@ -519,28 +520,28 @@ internal sealed class Lexer {
         if (current == '0') {
             if (char.ToLower(lookahead) == 'b') {
                 isBinary = true;
-                position_ += 2;
+                _position += 2;
             } else if (char.ToLower(lookahead) == 'x') {
                 isHexadecimal = true;
-                position_ += 2;
+                _position += 2;
             }
         }
 
         while (true) {
             if (current == '.' && !isBinary && !isHexadecimal && !hasDecimal && !hasExponent) {
                 hasDecimal = true;
-                position_++;
+                _position++;
             } else if (char.ToLower(current) == 'e' && !isBinary && !isHexadecimal && !hasExponent &&
                 (((lookahead == '-' || lookahead == '+') &&
                 isValidCharacter(Peek(2))) || isValidCharacter(lookahead))) {
                 hasExponent = true;
-                position_++;
+                _position++;
             } else if ((current == '-' || current == '+') && char.ToLower(previous.Value) == 'e') {
-                position_++;
+                _position++;
             } else if (current == '_' && previous.HasValue && isValidCharacter(lookahead)) {
-                position_++;
+                _position++;
             } else if (isValidCharacter(current)) {
-                position_++;
+                _position++;
             } else {
                 break;
             }
@@ -548,8 +549,8 @@ internal sealed class Lexer {
             previous = Peek(-1);
         }
 
-        int length = position_ - start_;
-        string text = text_.ToString(start_, length);
+        int length = _position - _start;
+        string text = _text.ToString(_start, length);
         string parsedText = text.Replace("_", "");
 
         if (!hasDecimal && !hasExponent) {
@@ -569,23 +570,23 @@ internal sealed class Lexer {
             }
 
             if (failed) {
-                var span = new TextSpan(start_, length);
-                var location = new TextLocation(text_, span);
+                var span = new TextSpan(_start, length);
+                var location = new TextLocation(_text, span);
                 diagnostics.Push(Error.InvalidType(location, text, TypeSymbol.Int));
             } else {
-                value_ = value;
+                _value = value;
             }
         } else {
             if (!double.TryParse(parsedText, out var value)) {
-                var span = new TextSpan(start_, length);
-                var location = new TextLocation(text_, span);
+                var span = new TextSpan(_start, length);
+                var location = new TextLocation(_text, span);
                 diagnostics.Push(Error.InvalidType(location, text, TypeSymbol.Int));
             } else {
-                value_ = value;
+                _value = value;
             }
         }
 
-        type_ = SyntaxType.NUMERIC_LITERAL_TOKEN;
+        _type = SyntaxType.NumericLiteralToken;
     }
 
     private void ReadWhitespace() {
@@ -602,29 +603,29 @@ internal sealed class Lexer {
                     if (!char.IsWhiteSpace(current))
                         done = true;
                     else
-                        position_++;
+                        _position++;
                     break;
             }
         }
 
-        type_ = SyntaxType.WHITESPACE_TRIVIA;
+        _type = SyntaxType.WhitespaceTrivia;
     }
 
     private void ReadLineBreak() {
         if (current == '\r' && lookahead == '\n')
-            position_ += 2;
+            _position += 2;
         else
-            position_++;
+            _position++;
 
-        type_ = SyntaxType.END_OF_LINE_TRIVIA;
+        _type = SyntaxType.EndOfLineTrivia;
     }
 
     private void ReadIdentifierOrKeyword() {
         while (char.IsLetterOrDigit(current) || current == '_')
-            position_++;
+            _position++;
 
-        int length = position_ - start_;
-        string text = text_.ToString(start_, length);
-        type_ = SyntaxFacts.GetKeywordType(text);
+        int length = _position - _start;
+        string text = _text.ToString(_start, length);
+        _type = SyntaxFacts.GetKeywordType(text);
     }
 }

@@ -2,8 +2,10 @@ using System.Collections.Generic;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Preprocessing;
 using Buckle.Diagnostics;
 using Diagnostics;
+using Buckle.CodeAnalysis.Evaluating;
 
 namespace Buckle;
 
@@ -124,9 +126,9 @@ public struct CompilerState {
 /// Multiple can be created and run asynchronously.
 /// </summary>
 public sealed class Compiler {
-    private const int SUCCESS_EXIT_CODE = 0;
-    private const int ERROR_EXIT_CODE = 1;
-    private const int FATAL_EXIT_CODE = 2;
+    private const int SuccessExitCode = 0;
+    private const int ErrorExitCode = 1;
+    private const int FatalExitCode = 2;
 
     /// <summary>
     /// Creates a new compiler, state needs to be set separately.
@@ -161,11 +163,11 @@ public sealed class Compiler {
         InternalPreprocessor();
 
         err = CheckErrors();
-        if (err != SUCCESS_EXIT_CODE)
+        if (err != SuccessExitCode)
             return err;
 
         if (state.finishStage == CompilerStage.Preprocessed)
-            return SUCCESS_EXIT_CODE;
+            return SuccessExitCode;
 
         if (state.buildMode == BuildMode.Interpreter) {
             InternalInterpreter();
@@ -182,37 +184,37 @@ public sealed class Compiler {
         // * This code is only relevant when independent compilation becomes supported
         // InternalCompiler();
         // err = CheckErrors();
-        // if (err != SUCCESS_EXIT_CODE)
+        // if (err != SuccessExitCode)
         //     return err;
 
         // if (state.finishStage == CompilerStage.Compiled)
-        //     return SUCCESS_EXIT_CODE;
+        //     return SuccessExitCode;
 
         // ExternalAssembler();
         // err = CheckErrors();
-        // if (err != SUCCESS_EXIT_CODE)
+        // if (err != SuccessExitCode)
         //     return err;
 
         // if (state.finishStage == CompilerStage.Assembled)
-        //     return SUCCESS_EXIT_CODE;
+        //     return SuccessExitCode;
 
         // ExternalLinker();
         // err = CheckErrors();
-        // if (err != SUCCESS_EXIT_CODE)
+        // if (err != SuccessExitCode)
         //     return err;
 
         // if (state.finishStage == CompilerStage.Linked)
-        //     return SUCCESS_EXIT_CODE;
+        //     return SuccessExitCode;
 
-        // return FATAL_EXIT_CODE;
+        // return FatalExitCode;
     }
 
     private int CheckErrors() {
         foreach (Diagnostic diagnostic in diagnostics)
             if (diagnostic.info.severity == DiagnosticType.Error)
-                return ERROR_EXIT_CODE;
+                return ErrorExitCode;
 
-        return SUCCESS_EXIT_CODE;
+        return SuccessExitCode;
     }
 
     private void ExternalAssembler() {

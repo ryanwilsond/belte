@@ -120,20 +120,20 @@ internal static class BoundNodePrinter {
     }
 
     private static void WriteTryStatement(BoundTryStatement node, IndentedTextWriter writer) {
-        writer.WriteKeyword(SyntaxType.TRY_KEYWORD);
+        writer.WriteKeyword(SyntaxType.TryKeyword);
         writer.WriteSpace();
         WriteBlockStatement(node.body, writer, false);
 
         if (node.catchBody != null) {
             writer.WriteSpace();
-            writer.WriteKeyword(SyntaxType.CATCH_KEYWORD);
+            writer.WriteKeyword(SyntaxType.CatchKeyword);
             writer.WriteSpace();
             WriteBlockStatement(node.catchBody, writer, false);
         }
 
         if (node.finallyBody != null) {
             writer.WriteSpace();
-            writer.WriteKeyword(SyntaxType.FINALLY_KEYWORD);
+            writer.WriteKeyword(SyntaxType.FinallyKeyword);
             writer.WriteSpace();
             WriteBlockStatement(node.finallyBody, writer, false);
         }
@@ -147,7 +147,7 @@ internal static class BoundNodePrinter {
     }
 
     private static void WriteReturnStatement(BoundReturnStatement node, IndentedTextWriter writer) {
-        writer.WriteKeyword(SyntaxType.RETURN_KEYWORD);
+        writer.WriteKeyword(SyntaxType.ReturnKeyword);
 
         if (node.expression != null) {
             writer.WriteSpace();
@@ -184,27 +184,27 @@ internal static class BoundNodePrinter {
         var needsParenthesis = parentPrecedence >= currentPrecedence;
 
         if (needsParenthesis)
-            writer.WritePunctuation(SyntaxType.OPEN_PAREN_TOKEN);
+            writer.WritePunctuation(SyntaxType.OpenParenToken);
 
         expression.WriteTo(writer);
 
         if (needsParenthesis)
-            writer.WritePunctuation(SyntaxType.CLOSE_PAREN_TOKEN);
+            writer.WritePunctuation(SyntaxType.CloseParenToken);
     }
 
     private static void WriteDoWhileStatement(BoundDoWhileStatement node, IndentedTextWriter writer) {
-        writer.WriteKeyword(SyntaxType.DO_KEYWORD);
+        writer.WriteKeyword(SyntaxType.DoKeyword);
         writer.WriteSpace();
-        writer.WritePunctuation(SyntaxType.OPEN_BRACE_TOKEN);
+        writer.WritePunctuation(SyntaxType.OpenBraceToken);
         writer.WriteLine();
         writer.WriteNestedStatement(node.body);
-        writer.WritePunctuation(SyntaxType.CLOSE_BRACE_TOKEN);
+        writer.WritePunctuation(SyntaxType.CloseBraceToken);
         writer.WriteSpace();
-        writer.WriteKeyword(SyntaxType.WHILE_KEYWORD);
+        writer.WriteKeyword(SyntaxType.WhileKeyword);
         writer.WriteSpace();
-        writer.WritePunctuation(SyntaxType.OPEN_PAREN_TOKEN);
+        writer.WritePunctuation(SyntaxType.OpenParenToken);
         node.condition.WriteTo(writer);
-        writer.WritePunctuation(SyntaxType.CLOSE_PAREN_TOKEN);
+        writer.WritePunctuation(SyntaxType.CloseParenToken);
         writer.WriteLine();
     }
 
@@ -241,57 +241,57 @@ internal static class BoundNodePrinter {
     }
 
     private static void WriteForStatement(BoundForStatement node, IndentedTextWriter writer) {
-        writer.WriteKeyword(SyntaxType.FOR_KEYWORD);
+        writer.WriteKeyword(SyntaxType.ForKeyword);
         writer.WriteSpace();
-        writer.WritePunctuation(SyntaxType.OPEN_PAREN_TOKEN);
+        writer.WritePunctuation(SyntaxType.OpenParenToken);
         node.initializer.WriteTo(writer);
         writer.WriteSpace();
         node.condition.WriteTo(writer);
         writer.WriteSpace();
         node.step.WriteTo(writer);
-        writer.WritePunctuation(SyntaxType.CLOSE_PAREN_TOKEN);
+        writer.WritePunctuation(SyntaxType.CloseParenToken);
         writer.WriteSpace();
-        writer.WritePunctuation(SyntaxType.OPEN_BRACE_TOKEN);
+        writer.WritePunctuation(SyntaxType.OpenBraceToken);
         writer.WriteLine();
         writer.WriteNestedStatement(node.body);
-        writer.WritePunctuation(SyntaxType.CLOSE_BRACE_TOKEN);
+        writer.WritePunctuation(SyntaxType.CloseBraceToken);
         writer.WriteLine();
     }
 
     private static void WriteWhileStatement(BoundWhileStatement node, IndentedTextWriter writer) {
-        writer.WriteKeyword(SyntaxType.WHILE_KEYWORD);
+        writer.WriteKeyword(SyntaxType.WhileKeyword);
         writer.WriteSpace();
-        writer.WritePunctuation(SyntaxType.OPEN_PAREN_TOKEN);
+        writer.WritePunctuation(SyntaxType.OpenParenToken);
         node.condition.WriteTo(writer);
-        writer.WritePunctuation(SyntaxType.CLOSE_PAREN_TOKEN);
+        writer.WritePunctuation(SyntaxType.CloseParenToken);
         writer.WriteSpace();
-        writer.WritePunctuation(SyntaxType.OPEN_BRACE_TOKEN);
+        writer.WritePunctuation(SyntaxType.OpenBraceToken);
         writer.WriteLine();
         writer.WriteNestedStatement(node.body);
-        writer.WritePunctuation(SyntaxType.CLOSE_BRACE_TOKEN);
+        writer.WritePunctuation(SyntaxType.CloseBraceToken);
         writer.WriteLine();
     }
 
     private static void WriteIfStatement(BoundIfStatement node, IndentedTextWriter writer) {
-        writer.WriteKeyword(SyntaxType.IF_KEYWORD);
+        writer.WriteKeyword(SyntaxType.IfKeyword);
         writer.WriteSpace();
-        writer.WritePunctuation(SyntaxType.OPEN_PAREN_TOKEN);
+        writer.WritePunctuation(SyntaxType.OpenParenToken);
         node.condition.WriteTo(writer);
-        writer.WritePunctuation(SyntaxType.CLOSE_PAREN_TOKEN);
+        writer.WritePunctuation(SyntaxType.CloseParenToken);
         writer.WriteSpace();
-        writer.WritePunctuation(SyntaxType.OPEN_BRACE_TOKEN);
+        writer.WritePunctuation(SyntaxType.OpenBraceToken);
         writer.WriteLine();
         writer.WriteNestedStatement(node.then);
-        writer.WritePunctuation(SyntaxType.CLOSE_BRACE_TOKEN);
+        writer.WritePunctuation(SyntaxType.CloseBraceToken);
 
         if (node.elseStatement != null) {
             writer.WriteSpace();
-            writer.WriteKeyword(SyntaxType.ELSE_KEYWORD);
+            writer.WriteKeyword(SyntaxType.ElseKeyword);
             writer.WriteSpace();
-            writer.WritePunctuation(SyntaxType.OPEN_BRACE_TOKEN);
+            writer.WritePunctuation(SyntaxType.OpenBraceToken);
             writer.WriteLine();
             writer.WriteNestedStatement(node.elseStatement);
-            writer.WritePunctuation(SyntaxType.CLOSE_BRACE_TOKEN);
+            writer.WritePunctuation(SyntaxType.CloseBraceToken);
         }
 
         writer.WriteLine();
@@ -303,7 +303,7 @@ internal static class BoundNodePrinter {
         writer.WriteSpace();
         writer.WriteIdentifier(node.variable.name);
         writer.WriteSpace();
-        writer.WritePunctuation(SyntaxType.EQUALS_TOKEN);
+        writer.WritePunctuation(SyntaxType.EqualsToken);
         writer.WriteSpace();
         node.initializer.WriteTo(writer);
         writer.WriteLine();
@@ -318,7 +318,7 @@ internal static class BoundNodePrinter {
     }
 
     private static void WriteBlockStatement(BoundBlockStatement node, IndentedTextWriter writer, bool newLine = true) {
-        writer.WritePunctuation(SyntaxType.OPEN_BRACE_TOKEN);
+        writer.WritePunctuation(SyntaxType.OpenBraceToken);
         writer.WriteLine();
         writer.Indent++;
 
@@ -326,7 +326,7 @@ internal static class BoundNodePrinter {
             s.WriteTo(writer);
 
         writer.Indent--;
-        writer.WritePunctuation(SyntaxType.CLOSE_BRACE_TOKEN);
+        writer.WritePunctuation(SyntaxType.CloseBraceToken);
 
         if (newLine)
             writer.WriteLine();
@@ -334,46 +334,46 @@ internal static class BoundNodePrinter {
 
     private static void WriteCastExpression(BoundCastExpression node, IndentedTextWriter writer) {
         writer.WriteType(node.typeClause.lType.name);
-        writer.WritePunctuation(SyntaxType.OPEN_PAREN_TOKEN);
+        writer.WritePunctuation(SyntaxType.OpenParenToken);
         node.expression.WriteTo(writer);
-        writer.WritePunctuation(SyntaxType.CLOSE_PAREN_TOKEN);
+        writer.WritePunctuation(SyntaxType.CloseParenToken);
     }
 
     private static void WriteCallExpression(BoundCallExpression node, IndentedTextWriter writer) {
         writer.WriteIdentifier(node.function.name);
-        writer.WritePunctuation(SyntaxType.OPEN_PAREN_TOKEN);
+        writer.WritePunctuation(SyntaxType.OpenParenToken);
 
         var isFirst = true;
         foreach (var argument in node.arguments) {
             if (isFirst) {
                 isFirst = false;
             } else {
-                writer.WritePunctuation(SyntaxType.COMMA_TOKEN);
+                writer.WritePunctuation(SyntaxType.CommaToken);
                 writer.WriteSpace();
             }
 
             argument.WriteTo(writer);
         }
 
-        writer.WritePunctuation(SyntaxType.CLOSE_PAREN_TOKEN);
+        writer.WritePunctuation(SyntaxType.CloseParenToken);
     }
 
     private static void WriteInitializerListExpression(BoundInitializerListExpression node, IndentedTextWriter writer) {
-        writer.WritePunctuation(SyntaxType.OPEN_BRACE_TOKEN);
+        writer.WritePunctuation(SyntaxType.OpenBraceToken);
 
         var isFirst = true;
         foreach (var item in node.items) {
             if (isFirst) {
                 isFirst = false;
             } else {
-                writer.WritePunctuation(SyntaxType.COMMA_TOKEN);
+                writer.WritePunctuation(SyntaxType.CommaToken);
                 writer.WriteSpace();
             }
 
             item.WriteTo(writer);
         }
 
-        writer.WritePunctuation(SyntaxType.CLOSE_BRACE_TOKEN);
+        writer.WritePunctuation(SyntaxType.CloseBraceToken);
     }
 
     private static void WriteErrorExpression(BoundErrorExpression node, IndentedTextWriter writer) {
@@ -385,7 +385,7 @@ internal static class BoundNodePrinter {
     private static void WriteAssignmentExpression(BoundAssignmentExpression node, IndentedTextWriter writer) {
         writer.WriteIdentifier(node.variable.name);
         writer.WriteSpace();
-        writer.WritePunctuation(SyntaxType.EQUALS_TOKEN);
+        writer.WritePunctuation(SyntaxType.EqualsToken);
         writer.WriteSpace();
         node.expression.WriteTo(writer);
     }
@@ -407,7 +407,7 @@ internal static class BoundNodePrinter {
 
     private static void WriteLiteralExpression(BoundLiteralExpression node, IndentedTextWriter writer) {
         if (node.value == null) {
-            writer.WriteKeyword(SyntaxType.NULL_KEYWORD);
+            writer.WriteKeyword(SyntaxType.NullKeyword);
             return;
         }
 

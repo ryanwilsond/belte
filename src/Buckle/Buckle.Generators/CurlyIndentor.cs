@@ -7,7 +7,7 @@ namespace Buckle.Generators;
 /// Keeps track of a new curly brace enclosed scope.
 /// </summary>
 internal class CurlyIndenter : IDisposable {
-    private IndentedTextWriter indentedTextWriter_;
+    private IndentedTextWriter _indentedTextWriter;
 
     /// <summary>
     /// Creates a new scope using curly braces.
@@ -15,7 +15,7 @@ internal class CurlyIndenter : IDisposable {
     /// <param name="indentedTextWriter">Out to use</param>
     /// <param name="openingLine">What to put on the opening curly brace line</param>
     internal CurlyIndenter(IndentedTextWriter indentedTextWriter, string openingLine = "") {
-        indentedTextWriter_ = indentedTextWriter;
+        _indentedTextWriter = indentedTextWriter;
 
         if (!string.IsNullOrWhiteSpace(openingLine))
             indentedTextWriter.Write($"{openingLine} ");
@@ -28,7 +28,7 @@ internal class CurlyIndenter : IDisposable {
     /// Exits scope.
     /// </summary>
     public void Dispose() {
-        indentedTextWriter_.Indent--;
-        indentedTextWriter_.WriteLine("}");
+        _indentedTextWriter.Indent--;
+        _indentedTextWriter.WriteLine("}");
     }
 }
