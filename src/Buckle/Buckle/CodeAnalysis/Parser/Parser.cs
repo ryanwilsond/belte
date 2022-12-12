@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Text;
 
-namespace Buckle.CodeAnalysis.Syntax;
+namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
 /// <summary>
 /// Lexes then parses text into a tree of nodes, in doing so doing syntax checking.

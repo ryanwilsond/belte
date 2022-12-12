@@ -5,7 +5,7 @@ using Buckle.CodeAnalysis.Text;
 using Buckle.CodeAnalysis.Symbols;
 using System;
 
-namespace Buckle.CodeAnalysis.Syntax;
+namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
 /// <summary>
 /// Converts source text into parsable tokens.
