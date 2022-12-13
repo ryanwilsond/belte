@@ -298,6 +298,27 @@ internal sealed class Binder {
             diagnostics.Push(Error.FunctionAlreadyDeclared(function.identifier.location, newFunction.name));
     }
 
+    private void BindStructDeclaration(StructDeclaration @struct) {
+        var symbols = ImmutableArray.CreateBuilder<Symbol>();
+        _scope = new BoundScope(_scope);
+
+        foreach (var fieldDeclaration in @struct.members.OfType<FieldDeclaration>()) {
+            // TODO store BoundFieldDeclaration for later so evaluator/emitter can evaluate them as variable declarations
+            // TODO then need to store the symbol and associate it with this struct
+            // TODO add fieldDeclaration to _structBodies like BindProgram does with functions
+            var fieldDeclaration = BindFieldDeclaration(fieldDeclaration);
+        }
+
+        _scope = _scope.parent;
+        var newStruct = new StructSymbol(@struct.identifier.text, ..., @struct);
+    }
+
+    private BoundFieldDeclarationStatement BindFieldDeclaration(FieldDeclaration fieldDeclaration) {
+        // TODO
+        // TODO need to store symbols in the scope, and need to store the actual declarations in a _structBodies binder field
+        return null;
+    }
+
     private BoundStatement BindStatement(Statement syntax, bool isGlobal = false, bool insideInline = false) {
         var result = BindStatementInternal(syntax, insideInline);
 

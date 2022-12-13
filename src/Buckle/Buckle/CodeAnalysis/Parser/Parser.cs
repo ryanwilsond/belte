@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Text;
+using System;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
@@ -207,7 +208,22 @@ internal sealed class Parser {
         if (PeekIsFunctionDeclaration())
             return ParseFunctionDeclaration();
 
-        return ParseGlobalStatement();
+        switch (current.type) {
+            case SyntaxType.StructKeyword:
+                return ParseStructDeclaration();
+            default:
+                return ParseGlobalStatement();
+        }
+    }
+
+    private Member ParseStructDeclaration() {
+        var keyword = Next();
+        var identifier = Match(SyntaxType.IdentifierToken, SyntaxType.OpenBraceToken);
+        var openBrace = Match(SyntaxType.OpenBraceToken);
+        var members = new SyntaxList<Member>(ParseFieldList().ToImmutableArray());
+        var closeBrace = Match(SyntaxType.CloseBraceToken);
+
+        return new StructDeclaration(_syntaxTree, keyword, identifier, openBrace, members, closeBrace);
     }
 
     private Member ParseFunctionDeclaration() {
@@ -261,6 +277,22 @@ internal sealed class Parser {
         return new Parameter(_syntaxTree, typeClause, identifier);
     }
 
+    private SyntaxList<Member> ParseFieldList() {
+        var fieldDeclarations = ImmutableArray.CreateBuilder<Member>();
+
+        while (current.type != SyntaxType.CloseBraceToken && current.type != SyntaxType.EndOfFileToken) {
+            var field = ParseFieldDeclaration();
+            fieldDeclarations.Add(field);
+        }
+
+        return new SyntaxList<Member>(fieldDeclarations.ToImmutable());
+    }
+
+    private FieldDeclaration ParseFieldDeclaration() {
+        var declaration = (VariableDeclarationStatement)ParseVariableDeclarationStatement(false);
+        return new FieldDeclaration(_syntaxTree, declaration);
+    }
+
     private Member ParseGlobalStatement() {
         var statement = ParseStatement();
         return new GlobalStatement(_syntaxTree, statement);
@@ -301,15 +333,15 @@ internal sealed class Parser {
     }
 
     private Statement ParseTryStatement() {
-        var tryKeyword = Match(SyntaxType.TryKeyword);
+        var keyword = Next();
         var body = ParseBlockStatement();
         var catchClause = ParseCatchClause();
         var finallyClause = ParseFinallyClause();
 
         if (catchClause == null && finallyClause == null)
-            diagnostics.Push(Error.NoCatchOrFinally(tryKeyword.location));
+            diagnostics.Push(Error.NoCatchOrFinally(keyword.location));
 
-        return new TryStatement(_syntaxTree, tryKeyword, (BlockStatement)body, catchClause, finallyClause);
+        return new TryStatement(_syntaxTree, keyword, (BlockStatement)body, catchClause, finallyClause);
     }
 
     private CatchClause ParseCatchClause() {
@@ -331,7 +363,7 @@ internal sealed class Parser {
     }
 
     private Statement ParseReturnStatement() {
-        var keyword = Match(SyntaxType.ReturnKeyword);
+        var keyword = Next();
         Expression expression = null;
         if (current.type != SyntaxType.SemicolonToken)
             expression = ParseExpression();
@@ -342,19 +374,19 @@ internal sealed class Parser {
     }
 
     private Statement ParseContinueStatement() {
-        var keyword = Match(SyntaxType.ContinueKeyword);
+        var keyword = Next();
         var semicolon = Match(SyntaxType.SemicolonToken);
         return new ContinueStatement(_syntaxTree, keyword, semicolon);
     }
 
     private Statement ParseBreakStatement() {
-        var keyword = Match(SyntaxType.BreakKeyword);
+        var keyword = Next();
         var semicolon = Match(SyntaxType.SemicolonToken);
         return new BreakStatement(_syntaxTree, keyword, semicolon);
     }
 
     private Statement ParseDoWhileStatement() {
-        var doKeyword = Match(SyntaxType.DoKeyword);
+        var doKeyword = Next();
         var body = ParseStatement(true);
         var whileKeyword = Match(SyntaxType.WhileKeyword);
         var openParenthesis = Match(SyntaxType.OpenParenToken);
@@ -366,7 +398,7 @@ internal sealed class Parser {
             _syntaxTree, doKeyword, body, whileKeyword, openParenthesis, condition, closeParenthesis, semicolon);
     }
 
-    private Statement ParseVariableDeclarationStatement() {
+    private Statement ParseVariableDeclarationStatement(bool allowDefinition=true) {
         var typeClause = ParseTypeClause();
         var identifier = Match(SyntaxType.IdentifierToken);
 
@@ -374,11 +406,12 @@ internal sealed class Parser {
         Expression initializer = null;
 
         if (current.type == SyntaxType.EqualsToken) {
-            equals = Next();
-            initializer = ParseExpression();
+            if (!allowDefinition) {
+                diagnostics.Push(Error.CannotInitialize(Next().location));
+            }
         }
 
-        var semicolon = Match(SyntaxType.SemicolonToken);
+        var semicolon = Match(SyntaxType.SemicolonToken, suppressErrors: true);
 
         return new VariableDeclarationStatement(
             _syntaxTree, typeClause, identifier, equals, initializer, semicolon);
@@ -429,7 +462,7 @@ internal sealed class Parser {
     }
 
     private Statement ParseWhileStatement() {
-        var keyword = Match(SyntaxType.WhileKeyword);
+        var keyword = Next();
         var openParenthesis = Match(SyntaxType.OpenParenToken);
         var condition = ParseExpression();
         var closeParenthesis = Match(SyntaxType.CloseParenToken);
@@ -439,7 +472,7 @@ internal sealed class Parser {
     }
 
     private Statement ParseForStatement() {
-        var keyword = Match(SyntaxType.ForKeyword);
+        var keyword = Next();
         var openParenthesis = Match(SyntaxType.OpenParenToken);
 
         var initializer = ParseStatement(true);
@@ -460,7 +493,7 @@ internal sealed class Parser {
     }
 
     private Statement ParseIfStatement() {
-        var keyword = Match(SyntaxType.IfKeyword);
+        var keyword = Next();
         var openParenthesis = Match(SyntaxType.OpenParenToken);
         var condition = ParseExpression();
         var closeParenthesis = Match(SyntaxType.CloseParenToken);
@@ -697,10 +730,10 @@ internal sealed class Parser {
     }
 
     private Expression ParseReferenceExpression() {
-        var refKeyword = Match(SyntaxType.RefKeyword);
+        var keyword = Match(SyntaxType.RefKeyword);
         var identifier = Match(SyntaxType.IdentifierToken);
 
-        return new ReferenceExpression(_syntaxTree, refKeyword, identifier);
+        return new ReferenceExpression(_syntaxTree, keyword, identifier);
     }
 
     private Expression ParsePostfixExpression() {
@@ -804,12 +837,12 @@ internal sealed class Parser {
     }
 
     private Expression ParseTypeOfExpression() {
-        var typeofKeyword = Next();
+        var keyword = Next();
         var openParenthesis = Match(SyntaxType.OpenParenToken);
         var typeClause = ParseTypeClause(false);
         var closeParenthesis = Match(SyntaxType.CloseParenToken);
 
-        return new TypeOfExpression(_syntaxTree, typeofKeyword, openParenthesis, typeClause, closeParenthesis);
+        return new TypeOfExpression(_syntaxTree, keyword, openParenthesis, typeClause, closeParenthesis);
     }
 
     private Expression ParseNameOrPrimaryOperatorExpression() {

@@ -2,37 +2,15 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// A struct declaration.
+/// A struct type declaration.
 /// NOTE: This will be removed from the front end once classes are added.
 /// (It will remain in the backend for code rewriting)
 /// </summary>
-internal sealed partial class StructDeclaration : Member {
+internal sealed partial class StructDeclaration : TypeDeclaration {
     internal StructDeclaration(
         SyntaxTree syntaxTree, Token keyword, Token identifier, Token openBrace,
         SyntaxList<Member> members, Token closeBrace)
-        : base(syntaxTree) {
-        this.keyword = keyword;
-        this.identifier = identifier;
-        this.openBrace = openBrace;
-        this.members = members;
-        this.closeBrace = closeBrace;
-    }
-
-    /// <summary>
-    /// Struct keyword.
-    /// </summary>
-    internal Token keyword { get; }
-
-    /// <summary>
-    /// The name of the struct.
-    /// </summary>
-    internal Token identifier { get; }
-
-    internal Token openBrace { get; }
-
-    internal SyntaxList<Member> members { get; }
-
-    internal Token closeBrace { get; }
+        : base(syntaxTree, keyword, identifier, openBrace, members, closeBrace) { }
 
     internal override SyntaxType type => SyntaxType.StructDeclaration;
 }

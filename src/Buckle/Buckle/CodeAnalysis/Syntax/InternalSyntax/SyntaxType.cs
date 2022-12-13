@@ -142,6 +142,7 @@ internal enum SyntaxType {
 
     // Type declarations
     StructDeclaration,
+    FieldDeclaration,
     TypeClause,
     Parameter,
     MethodDeclaration,

@@ -1,6 +1,3 @@
-using Buckle.IO;
-using System.Collections.Generic;
-using System;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -38,6 +35,7 @@ internal enum BoundNodeType {
     TryStatement,
     ReturnStatement,
     NopStatement,
+    FieldDeclarationStatement,
 
     TypeClause,
 }

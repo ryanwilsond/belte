@@ -62,6 +62,7 @@ internal enum DiagnosticCode : int {
     ERR_ExpectedToken = 56,
     ERR_NoOverload = 57,
     ERR_AmbiguousOverload = 58,
+    ERR_CannotInitialize = 59,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

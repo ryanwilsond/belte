@@ -5,6 +5,7 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Binding;
 using Diagnostics;
+using System;
 
 namespace Buckle.Diagnostics;
 
@@ -365,5 +366,10 @@ internal static class Error {
     internal static BelteDiagnostic AmbiguousOverload(TextLocation location, string name) {
         var message = $"multiple overloads for function '{name}' match parameter list";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AmbiguousOverload), location, message);
+    }
+
+    internal static BelteDiagnostic CannotInitialize(TextLocation location) {
+        var message = "cannot initialize declared symbol in this context";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotInitialize), location, message);
     }
 }

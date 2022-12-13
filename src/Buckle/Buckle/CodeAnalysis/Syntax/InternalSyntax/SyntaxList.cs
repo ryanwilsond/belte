@@ -9,9 +9,9 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// </summary>
 /// <typeparam name="T">Child type of <see cref="Node" />.</typeparam>
 internal sealed class SyntaxList<T> : IEnumerable<T> where T: Node {
-    private readonly ImmutableArray<Node> _nodes;
+    private readonly ImmutableArray<T> _nodes;
 
-    internal SyntaxList(ImmutableArray<Node> nodes) {
+    internal SyntaxList(ImmutableArray<T> nodes) {
         _nodes = nodes;
     }
 

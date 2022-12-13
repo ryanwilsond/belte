@@ -12,6 +12,7 @@ internal enum SymbolType {
     Type,
     Function,
     Parameter,
+    Field,
 }
 
 /// <summary>
