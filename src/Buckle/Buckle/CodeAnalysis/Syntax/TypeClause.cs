@@ -33,7 +33,8 @@ internal sealed class TypeClause : Node {
     internal ImmutableArray<(Token openBracket, Token identifier, Token closeBracket)> attributes { get; }
 
     /// <summary>
-    /// Const keyword referring to a constant reference type, only valid if the refKeyword field is also set.
+    /// Const keyword referring to a constant reference type, only valid if the <see cref="TypeClause.refKeyword" />
+    /// field is also set.
     /// </summary>
     internal Token? constRefKeyword { get; }
 

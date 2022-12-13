@@ -12,7 +12,7 @@ namespace Repl;
 /// </summary>
 public abstract class ReplBase {
     /// <summary>
-    /// Handles outputting REPL text to an out.
+    /// Handles outputting <see cref="ReplBase" /> text to an out.
     /// </summary>
     internal OutputCapture _writer = new OutputCapture();
 
@@ -22,7 +22,7 @@ public abstract class ReplBase {
     internal Compiler handle;
 
     /// <summary>
-    /// Particular <see cref="ReplBase.DiagnosticHandle" /> used to handle diagnostics in the REPL.
+    /// Particular <see cref="ReplBase.DiagnosticHandle" /> used to handle diagnostics in the <see cref="ReplBase" />.
     /// </summary>
     internal DiagnosticHandle diagnosticHandle;
 
@@ -54,7 +54,7 @@ public abstract class ReplBase {
     private delegate object LineRenderHandler(IReadOnlyList<string> lines, int lineIndex, object state);
 
     /// <summary>
-    /// REPL specific state used by child classes.
+    /// <see cref="ReplBase" /> specific state used by child classes.
     /// </summary>
     internal abstract object _state { get; set; }
 
@@ -67,8 +67,8 @@ public abstract class ReplBase {
     }
 
     /// <summary>
-    /// Run loop of the REPL (exited with ctrl + c or entering blank lines).
-    /// Does not initialize REPL, only runs it.
+    /// Run loop of the <see cref="ReplBase" /> (exited with ctrl + c or entering blank lines).
+    /// Does not initialize <see cref="ReplBase" />, only runs it.
     /// </summary>
     public void Run() {
         while (true) {
@@ -92,7 +92,7 @@ public abstract class ReplBase {
     }
 
     /// <summary>
-    /// Reloads REPL to start accepting submissions again.
+    /// Reloads <see cref="ReplBase" /> to start accepting submissions again.
     /// </summary>
     internal void ReviveDocument() {
         // TODO Redisplay previous submissions
@@ -958,7 +958,7 @@ public abstract class ReplBase {
         /// <summary>
         /// Encoding to use, constant.
         /// </summary>
-        /// <value>Ascii</value>
+        /// <value>Ascii.</value>
         public override Encoding Encoding { get { return Encoding.ASCII; } }
 
         public override void Write(string output) {

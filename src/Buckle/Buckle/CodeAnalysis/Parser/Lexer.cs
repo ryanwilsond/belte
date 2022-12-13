@@ -8,8 +8,13 @@ using System;
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
 /// <summary>
-/// Converts source text into parsable tokens.
-/// E.g. int myInt; -> IdentiferToken IdentifierToken SemicolonToken
+/// Converts source text into parsable Tokens.<br/>
+/// E.g.
+/// <code>
+/// int myInt;
+/// --->
+/// IdentiferToken IdentifierToken SemicolonToken
+/// </code>
 /// </summary>
 internal sealed class Lexer {
     internal char current => Peek(0);
@@ -41,7 +46,7 @@ internal sealed class Lexer {
     /// <summary>
     /// Lexes the next un-lexed text to create a single <see cref="Token" />.
     /// </summary>
-    /// <returns>A new token.</returns>
+    /// <returns>A new <see cref="Token" />.</returns>
     internal Token LexNext() {
         ReadTrivia(true);
         var leadingTrivia = _triviaBuilder.ToImmutable();
@@ -106,7 +111,8 @@ internal sealed class Lexer {
                     break;
                 default:
                     // Other whitespace; use case labels on most common whitespace because its faster
-                    // ! However the speed gain is almost definitely negligible and probably not worth the readability loss
+                    // ! However the speed gain is almost definitely negligible and probably not worth the
+                    // ! readability loss
                     if (char.IsWhiteSpace(current))
                         ReadWhitespace();
                     else

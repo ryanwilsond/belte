@@ -50,7 +50,7 @@ internal sealed class BoundScope {
     internal ImmutableArray<VariableSymbol> GetDeclaredVariables() => GetDeclaredSymbols<VariableSymbol>();
 
     /// <summary>
-    /// Gets all declared function in this scope (not any parent scopes).
+    /// Gets all declared functions in this scope (not any parent scopes).
     /// </summary>
     /// <returns>All declared functions.</returns>
     internal ImmutableArray<FunctionSymbol> GetDeclaredFunctions() => GetDeclaredSymbols<FunctionSymbol>();
@@ -72,9 +72,9 @@ internal sealed class BoundScope {
     }
 
     /// <summary>
-    /// Attempts to modify an already declared symbol.
+    /// Attempts to modify an already declared <see cref="Symbol" />.
     /// Does not work with overloads, only modifies the first one. However the order is not constant.
-    /// Thus only use with functions with guaranteed no overloads, or variable symbols.
+    /// Thus only use with FunctionSymbols with guaranteed no overloads, or VariableSymbols.
     /// </summary>
     /// <param name="name">Name of <see cref="Symbol" />.</param>
     /// <param name="newSymbol">New symbol data to replace old the <see cref="Symbol" />.</param>

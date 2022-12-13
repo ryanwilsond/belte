@@ -23,6 +23,9 @@ internal sealed partial class StructDeclaration : Member {
     /// </summary>
     internal Token keyword { get; }
 
+    /// <summary>
+    /// The name of the struct.
+    /// </summary>
     internal Token identifier { get; }
 
     internal Token openBrace { get; }

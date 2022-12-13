@@ -2,8 +2,11 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Cast expresion (C-Style).
-/// E.g. (int)3.4
+/// Cast expresion (C-Style).<br/>
+/// E.g.
+/// <code>
+/// (int)3.4
+/// </code>
 /// </summary>
 internal sealed partial class CastExpression : Expression {
     /// <param name="typeClause">The target type clause.</param>

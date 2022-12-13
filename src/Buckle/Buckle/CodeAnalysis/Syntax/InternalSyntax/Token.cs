@@ -13,8 +13,8 @@ internal sealed class Token : Node {
     /// <param name="position">Position of <see cref="Token" /> (indexed by the <see cref="Node" />, not character in <see cref="SourceText" />).</param>
     /// <param name="text">Text related to <see cref="Token" /> (if applicable).</param>
     /// <param name="value">Value related to <see cref="Token" /> (if applicable).</param>
-    /// <param name="leadingTrivia">Trivia before <see cref="Token" /> (anything).</param>
-    /// <param name="trailingTrivia">Trivia after <see cref="Token" /> (same line).</param>
+    /// <param name="leadingTrivia"><see cref="SyntaxTrivia" /> before <see cref="Token" /> (anything).</param>
+    /// <param name="trailingTrivia"><see cref="SyntaxTrivia" /> after <see cref="Token" /> (same line).</param>
     internal Token(SyntaxTree syntaxTree, SyntaxType type, int position, string text, object value,
         ImmutableArray<SyntaxTrivia> leadingTrivia, ImmutableArray<SyntaxTrivia> trailingTrivia)
         : base(syntaxTree) {
@@ -29,7 +29,8 @@ internal sealed class Token : Node {
     internal override SyntaxType type { get; }
 
     /// <summary>
-    /// Position of <see cref="Token" /> (indexed by the <see cref="Node" />, not character in <see cref="SourceText" />).
+    /// Position of <see cref="Token" /> (indexed by the <see cref="Node" />, not character in
+    /// <see cref="SourceText" />).
     /// </summary>
     internal int position { get; }
 
@@ -59,17 +60,17 @@ internal sealed class Token : Node {
     }
 
     /// <summary>
-    /// Trivia before <see cref="Token" /> (anything).
+    /// <see cref="SyntaxTrivia" /> before <see cref="Token" /> (anything).
     /// </summary>
     internal ImmutableArray<SyntaxTrivia> leadingTrivia { get; }
 
     /// <summary>
-    /// Trivia after <see cref="Token" /> (same line).
+    /// <see cref="SyntaxTrivia" /> after <see cref="Token" /> (same line).
     /// </summary>
     internal ImmutableArray<SyntaxTrivia> trailingTrivia { get; }
 
     /// <summary>
-    /// Gets all child nodes, which is none.
+    /// Gets all child Nodes, which is none.
     /// </summary>
     internal override IEnumerable<Node> GetChildren() {
         return Array.Empty<Node>();

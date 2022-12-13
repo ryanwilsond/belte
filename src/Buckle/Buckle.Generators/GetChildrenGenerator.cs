@@ -11,7 +11,8 @@ using Microsoft.CodeAnalysis.Text;
 namespace Buckle.Generators;
 
 /// <summary>
-/// Generates a more optimized but brute force <see cref="Node.GetChildren" /> implementation for Expressions and Statements.
+/// Generates a more optimized but brute force <see cref="Node.GetChildren" /> implementation for Expressions
+/// and Statements.
 /// </summary>
 [Generator]
 public class GetChildrenGenerator : ISourceGenerator {

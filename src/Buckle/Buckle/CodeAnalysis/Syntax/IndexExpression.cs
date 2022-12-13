@@ -2,8 +2,11 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Index expression, only used on array types.
-/// E.g. myArr[3]
+/// Index expression, only used on array types.<br/>
+/// E.g.
+/// <code>
+/// myArr[3]
+/// </code>
 /// </summary>
 internal sealed partial class IndexExpression : Expression {
     /// <param name="operand">Anything with a type with dimension greater than 0.</param>

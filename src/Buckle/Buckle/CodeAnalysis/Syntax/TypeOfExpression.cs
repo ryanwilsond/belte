@@ -3,22 +3,29 @@ using System.Collections.Immutable;
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Typeof expression (C#-Style).
-/// E.g. typeof(int)
+/// TypeOf expression (C#-Style).<br/>
+/// E.g.
+/// <code>
+/// typeof(int)
+/// </code>
 /// </summary>
 internal sealed partial class TypeOfExpression : Expression {
+    /// <param name="keyword">TypeOf keyword.</param>
     /// <param name="typeCLause">The type to get the type type from.</param>
     internal TypeOfExpression(
-        SyntaxTree syntaxTree, Token typeofKeyword, Token openParenthesis,
+        SyntaxTree syntaxTree, Token keyword, Token openParenthesis,
         TypeClause typeClause, Token closeParenthesis)
         : base(syntaxTree) {
-        this.typeofKeyword = typeofKeyword;
+        this.keyword = keyword;
         this.openParenthesis = openParenthesis;
         this.typeClause = typeClause;
         this.closeParenthesis = closeParenthesis;
     }
 
-    internal Token typeofKeyword { get;  }
+    /// <summary>
+    /// TypeOf keyword.
+    /// </summary>
+    internal Token keyword { get;  }
 
     internal Token openParenthesis { get;  }
 

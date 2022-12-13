@@ -22,7 +22,8 @@ public sealed class BelteRepl : ReplBase {
     };
 
     /// <summary>
-    /// Creates a new instance of a <see cref="BelteRepl" />, can run in parallel with other REPLs with unique outs.
+    /// Creates a new instance of a <see cref="BelteRepl" />, can run in parallel with other BelteRepls with
+    /// unique outs.
     /// Uses System.Console by default, which cannot be used more than once.
     /// </summary>
     /// <param name="handle"><see cref="Compiler" /> object that represents entirety of compilation.</param>
@@ -46,7 +47,7 @@ public sealed class BelteRepl : ReplBase {
     internal override object _state { get; set; }
 
     /// <summary>
-    /// Cast of REPL specific state that has this REPL's related state.
+    /// Cast of <see cref="ReplBase" /> specific state that has <see cref="BelteRepl" /> related state.
     /// </summary>
     internal BelteReplState state {
         get {

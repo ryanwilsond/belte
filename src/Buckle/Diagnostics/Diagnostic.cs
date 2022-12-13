@@ -28,7 +28,8 @@ public class Diagnostic {
         : this(info, message, null) { }
 
     /// <summary>
-    /// Creates a <see cref="Diagnostic" /> with a <see cref="DiagnosticType" /> instead of <see cref="DiagnosticInfo" /> (no suggestion).
+    /// Creates a <see cref="Diagnostic" /> with a <see cref="DiagnosticType" /> instead of
+    /// <see cref="DiagnosticInfo" /> (no suggestion).
     /// </summary>
     /// <param name="type">Severity of <see cref="Diagnostic" /> (see <see cref="DiagnosticType" />).</param>
     /// <param name="message">Message/info on the <see cref="Diagnostic" />.</param>

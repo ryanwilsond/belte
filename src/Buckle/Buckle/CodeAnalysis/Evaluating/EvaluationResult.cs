@@ -3,11 +3,11 @@ using Buckle.Diagnostics;
 namespace Buckle.CodeAnalysis.Evaluating;
 
 /// <summary>
-/// Result of an evaluation, including diagnostics.
+/// Result of an evaluation, including Diagnostics.
 /// </summary>
 internal sealed class EvaluationResult {
     /// <summary>
-    /// Creates an <see cref="EvaluationResult" />, given the result and diagnostics (does no computation).
+    /// Creates an <see cref="EvaluationResult" />, given the result and Diagnostics (does no computation).
     /// </summary>
     /// <param name="value">Result of evaluation.</param>
     /// <param name="diagnostics">Diagnostics associated with value.</param>

@@ -3,7 +3,7 @@ using Buckle.CodeAnalysis.Text;
 namespace Buckle.CodeAnalysis.Authoring;
 
 /// <summary>
-/// Span of where a classification refers to.
+/// <see cref="TextSpan" /> of where a <see cref="Classification" /> refers to.
 /// </summary>
 internal sealed class ClassifiedSpan {
     /// <summary>

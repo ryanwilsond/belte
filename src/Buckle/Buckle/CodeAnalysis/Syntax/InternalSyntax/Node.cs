@@ -8,7 +8,8 @@ namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
 /// Base building block of all things.
-/// Because of generators, the order of fields in a node child class need to correctly reflect the source file.
+/// Because of generators, the order of fields in a <see cref="Node" /> child class need to correctly reflect the
+/// source file.
 /// <code>
 /// sealed partial class PrefixExpression { // Wrong (would display `--a` as `a--`)
 ///     Token identifier { get; }
@@ -27,7 +28,7 @@ internal abstract class Node {
     }
 
     /// <summary>
-    /// Type of node (see <see cref="SyntaxType" />).
+    /// Type of <see cref="Node" /> (see <see cref="SyntaxType" />).
     /// </summary>
     internal abstract SyntaxType type { get; }
 
@@ -37,7 +38,8 @@ internal abstract class Node {
     internal SyntaxTree syntaxTree { get; }
 
     /// <summary>
-    /// <see cref="TextSpan" /> of where the <see cref="Node" /> is in the <see cref="SourceText" /> (not including line break).
+    /// <see cref="TextSpan" /> of where the <see cref="Node" /> is in the <see cref="SourceText" />
+    /// (not including line break).
     /// </summary>
     internal virtual TextSpan span {
         get {
@@ -51,7 +53,8 @@ internal abstract class Node {
     }
 
     /// <summary>
-    /// Span of where the node is in the source text (including line break).
+    /// <see cref="TextSpan" /> of where the <see cref="Node" /> is in the <see cref="SourceText" />
+    /// (including line break).
     /// </summary>
     internal virtual TextSpan fullSpan {
         get {
@@ -70,7 +73,7 @@ internal abstract class Node {
     internal TextLocation location => syntaxTree == null ? null : new TextLocation(syntaxTree.text, span);
 
     /// <summary>
-    /// Gets all child nodes.
+    /// Gets all child Nodes.
     /// Order should be consistent of how they look in a file, but calling code should not depend on that.
     /// </summary>
     internal abstract IEnumerable<Node> GetChildren();

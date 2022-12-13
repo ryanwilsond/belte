@@ -9,7 +9,8 @@ internal sealed class BoundTypeClause : BoundNode {
     /// <summary>
     /// Decimal type that can be null.
     /// </summary>
-    internal static readonly BoundTypeClause NullableDecimal = new BoundTypeClause(TypeSymbol.Decimal, isNullable: true);
+    internal static readonly BoundTypeClause NullableDecimal =
+        new BoundTypeClause(TypeSymbol.Decimal, isNullable: true);
 
     /// <summary>
     /// Integer type that can be null.
@@ -62,7 +63,7 @@ internal sealed class BoundTypeClause : BoundNode {
     internal static readonly BoundTypeClause Any = new BoundTypeClause(TypeSymbol.Any);
 
     /// <summary>
-    /// The type type, value can be a type clause, cannot be null.
+    /// The type type, value can be a <see cref="BoundTypeClause" />, cannot be null.
     /// </summary>
     internal static readonly BoundTypeClause Type = new BoundTypeClause(TypeSymbol.Type);
 
@@ -153,7 +154,8 @@ internal sealed class BoundTypeClause : BoundNode {
     }
 
     /// <summary>
-    /// If the lType, isReference, and dimensions are the same between the two types.
+    /// If the <see cref="BoundTypeClause.lType" />, <see cref="BoundTypeClause.isReference" />,
+    /// and <see cref="BoundTypeClause.dimensions" /> are the same between the two types.
     /// </summary>
     /// <param name="a"><see cref="BoundTypeClause" /> to compare.</param>
     /// <param name="b"><see cref="BoundTypeClause" /> to compare.</param>
@@ -209,7 +211,8 @@ internal sealed class BoundTypeClause : BoundNode {
     }
 
     /// <summary>
-    /// Copy all data to a new <see cref="BoundTypeClause" />, but make the new <see cref="BoundTypeClause" /> non nullable.
+    /// Copy all data to a new <see cref="BoundTypeClause" />, but make the new
+    /// <see cref="BoundTypeClause" /> non nullable.
     /// </summary>
     /// <param name="typeClause"><see cref="BoundTypeClause" /> to copy.</param>
     /// <returns>Non nullable copy <see cref="BoundTypeClause" />.</returns>

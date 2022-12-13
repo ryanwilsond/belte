@@ -6,7 +6,7 @@ using Buckle.Utilities;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Folds/evaluates simple expressions during compile time.
+/// Folds/evaluates simple BoundExpressions during compile time.
 /// </summary>
 internal static class ConstantFolding {
     /// <summary>

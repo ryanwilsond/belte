@@ -8,7 +8,7 @@ using Buckle.Utilities;
 namespace Buckle.CodeAnalysis.Evaluating;
 
 /// <summary>
-/// Evaluates statements as an interpreter, inline.
+/// Evaluates BoundStatements as an interpreter, inline.
 /// </summary>
 internal sealed class Evaluator {
     private readonly BoundProgram _program;
@@ -42,7 +42,8 @@ internal sealed class Evaluator {
     }
 
     /// <summary>
-    /// If it has a Print statement, adds a line break to avoid formatting issues (mostly for the <see cref="BelteRepl" />).
+    /// If it has a Print statement, adds a line break to avoid formatting issues
+    /// (mostly for the <see cref="BelteRepl" />).
     /// </summary>
     internal bool hasPrint {
         get {

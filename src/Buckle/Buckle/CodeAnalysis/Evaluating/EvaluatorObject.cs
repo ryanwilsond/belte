@@ -18,10 +18,13 @@ internal sealed class EvaluatorObject {
     }
 
     /// <summary>
-    /// Creates an <see cref="EvaluatorObjet" /> without a value, and instead a reference to a <see cref="VariableSymbol" />.
-    /// Note that it is not an actual C# reference, just a copy of a <see cref="VariableSymbol" /> stored in the locals or globals dictionary.
+    /// Creates an <see cref="EvaluatorObjet" /> without a value, and instead a reference to
+    /// a <see cref="VariableSymbol" />.
+    /// Note that it is not an actual C# reference, just a copy of a <see cref="VariableSymbol" /> stored in the locals
+    /// or globals dictionary.
     /// </summary>
-    /// <param name="reference"><see cref="VariableSymbol" /> to reference (not an explicit reference, passed by reference by default).</param>
+    /// <param name="reference"><see cref="VariableSymbol" /> to reference (not an explicit reference, passed by
+    /// reference by default).</param>
     internal EvaluatorObject(VariableSymbol reference) {
         this.value = null;
 
@@ -50,6 +53,5 @@ internal sealed class EvaluatorObject {
     /// Reference to a <see cref="VariableSymbol" /> stored in the locals or globals dictionary.
     /// Not explicitly a reference, but is passed by reference by default.
     /// </summary>
-    /// <value></value>
     internal VariableSymbol reference { get; set; }
 }

@@ -2,8 +2,11 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Parenthesis expression, only does something during parsing and adjusts tree order.
-/// E.g. (expression)
+/// Parenthesis expression, only does something during parsing and adjusts tree order.<br/>
+/// E.g.
+/// <code>
+/// (expression)
+/// </code>
 /// Not to be confused with the <see cref="CallExpression" />, parenthesis do no invocation.
 /// </summary>
 internal sealed partial class ParenthesisExpression : Expression {

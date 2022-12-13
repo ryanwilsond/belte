@@ -2,22 +2,25 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// If statement. Includes an optional <see cref="ElseClause" />.
+/// If statement. Includes an optional <see cref="ElseClause" />.<br/>
 /// E.g.
+/// <code>
 /// if (condition) {
 ///     ... statements ...
 /// } else {
 ///     ... statement ...
 /// }
+/// </code>
 /// </summary>
 internal sealed partial class IfStatement : Statement {
-    /// <param name="condition">Condition expression, must be of type bool.</param>
-    /// <param name="elseClause">Else clause (optional).</param>
+    /// <param name="keyword">If keyword.</param>
+    /// <param name="condition">Condition <see cref="Expression" />, must be of type bool.</param>
+    /// <param name="elseClause"><see cref="ElseClause" /> (optional).</param>
     internal IfStatement(
-        SyntaxTree syntaxTree, Token ifKeyword, Token openParenthesis, Expression condition,
+        SyntaxTree syntaxTree, Token keyword, Token openParenthesis, Expression condition,
         Token closeParenthesis, Statement then, ElseClause elseClause)
         : base(syntaxTree) {
-        this.ifKeyword = ifKeyword;
+        this.keyword = keyword;
         this.openParenthesis = openParenthesis;
         this.condition = condition;
         this.closeParenthesis = closeParenthesis;
@@ -25,12 +28,15 @@ internal sealed partial class IfStatement : Statement {
         this.elseClause = elseClause;
     }
 
-    internal Token ifKeyword { get; }
+    /// <summary>
+    /// If keyword.
+    /// </summary>
+    internal Token keyword { get; }
 
     internal Token openParenthesis { get; }
 
     /// <summary>
-    /// Condition expression, of type bool.
+    /// Condition <see cref="Expression" />, of type bool.
     /// </summary>
     internal Expression condition { get; }
 
@@ -39,7 +45,7 @@ internal sealed partial class IfStatement : Statement {
     internal Statement then { get; }
 
     /// <summary>
-    /// Else clause (includes keyword and body).
+    /// <see cref="ElseClause" /> (includes keyword and body).
     /// </summary>
     internal ElseClause? elseClause { get; }
 

@@ -15,7 +15,7 @@ using Buckle.CodeAnalysis.Evaluating;
 namespace Buckle.CodeAnalysis;
 
 /// <summary>
-/// Handles evaluation of program, and keeps track of symbols (mainly for <see cref="BelteRepl" /> use).
+/// Handles evaluation of program, and keeps track of Symbols (mainly for <see cref="BelteRepl" /> use).
 /// </summary>
 public sealed class Compilation {
     private BoundGlobalScope _globalScope;
@@ -32,7 +32,7 @@ public sealed class Compilation {
     }
 
     /// <summary>
-    /// Diagnostics relating to compilation.
+    /// Diagnostics relating to the <see cref="Compilation" />.
     /// </summary>
     public BelteDiagnosticQueue diagnostics { get; set; }
 
@@ -42,17 +42,17 @@ public sealed class Compilation {
     internal FunctionSymbol mainFunction => globalScope.mainFunction;
 
     /// <summary>
-    /// All function symbols in the global scope.
+    /// All FunctionSymbols in the global scope.
     /// </summary>
     internal ImmutableArray<FunctionSymbol> functions => globalScope.functions;
 
     /// <summary>
-    /// All variable symbols in the global scope.
+    /// All VariableSymbols in the global scope.
     /// </summary>
     internal ImmutableArray<VariableSymbol> variables => globalScope.variables;
 
     /// <summary>
-    /// The syntax trees of the parsed source files.
+    /// The SyntaxTrees of the parsed source files.
     /// </summary>
     internal ImmutableArray<SyntaxTree> syntaxTrees { get; }
 
@@ -62,12 +62,12 @@ public sealed class Compilation {
     internal Compilation previous { get; }
 
     /// <summary>
-    /// The compilation is a script to run top down versus being an application with an entry point.
+    /// If the compilation is a script to run top down versus being an application with an entry point.
     /// </summary>
     internal bool isScript { get; }
 
     /// <summary>
-    /// The global scope (top level) of the program, contains symbols.
+    /// The global scope (top level) of the program, contains Symbols.
     /// </summary>
     internal BoundGlobalScope globalScope {
         get {
@@ -82,28 +82,28 @@ public sealed class Compilation {
     }
 
     /// <summary>
-    /// Creates a new <see cref="Compilation" /> with syntax trees.
+    /// Creates a new <see cref="Compilation" /> with SyntaxTrees.
     /// </summary>
-    /// <param name="syntaxTrees">Trees to use in compilation.</param>
+    /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
     /// <returns>New <see cref="Compilation" />.</returns>
     internal static Compilation Create(params SyntaxTree[] syntaxTrees) {
         return new Compilation(false, null, syntaxTrees);
     }
 
     /// <summary>
-    /// Creates a new script compilation with syntax trees, and the previous <see cref="Compilation" />.
+    /// Creates a new script <see cref="Compilation" /> with SyntaxTrees, and the previous <see cref="Compilation" />.
     /// </summary>
     /// <param name="previous">Previous <see cref="Compilation" />.</param>
-    /// <param name="syntaxTrees">Trees to use during compilation.</param>
+    /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
     /// <returns>.</returns>
     internal static Compilation CreateScript(Compilation previous, params SyntaxTree[] syntaxTrees) {
         return new Compilation(true, previous, syntaxTrees);
     }
 
     /// <summary>
-    /// Gets all symbols across submissions (only global scope).
+    /// Gets all Symbols across submissions (only global scope).
     /// </summary>
-    /// <returns>All symbols (checks all previous compilations).</returns>
+    /// <returns>All Symbols (checks all previous Compilations).</returns>
     internal IEnumerable<Symbol> GetSymbols() {
         var submission = this;
         var seenSymbolNames = new HashSet<string>();
@@ -128,7 +128,7 @@ public sealed class Compilation {
     }
 
     /// <summary>
-    /// Evaluates trees.
+    /// Evaluates SyntaxTrees.
     /// </summary>
     /// <param name="variables">Existing variables to add to the scope.</param>
     /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
@@ -170,7 +170,7 @@ public sealed class Compilation {
     /// <summary>
     /// Emits the parse tree of a single <see cref="Symbol" />.
     /// </summary>
-    /// <param name="symbol">Symbol to be the root of the tree displayed.</param>
+    /// <param name="symbol"><see cref="Symbol" /> to be the root of the <see cref="SyntaxTree" /> displayed.</param>
     /// <param name="writer">Out.</param>
     internal void EmitTree(Symbol symbol, TextWriter writer) {
         var program = GetProgram();

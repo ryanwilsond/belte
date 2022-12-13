@@ -15,7 +15,7 @@ internal sealed partial class CompilationUnit : Node {
     }
 
     /// <summary>
-    /// The top level nodes (global) in the source file.
+    /// The top level Nodes (global) in the source file.
     /// </summary>
     internal ImmutableArray<Member> members { get; }
 

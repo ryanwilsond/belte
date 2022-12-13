@@ -20,17 +20,17 @@ internal sealed class SyntaxTrivia {
     internal SyntaxType type { get; }
 
     /// <summary>
-    /// The position of the trivia.
+    /// The position of the <see cref="SyntaxTrivia" />.
     /// </summary>
     internal int position { get; }
 
     /// <summary>
-    /// <see cref="TextSpan" /> of where the trivia is in the <see cref="SourceText" />.
+    /// <see cref="TextSpan" /> of where the <see cref="SyntaxTrivia" /> is in the <see cref="SourceText" />.
     /// </summary>
     internal TextSpan span => new TextSpan(position, text?.Length ?? 0);
 
     /// <summary>
-    /// Text associated with the trivia.
+    /// Text associated with the <see cref="SyntaxTrivia" />.
     /// </summary>
     internal string text { get; }
 }

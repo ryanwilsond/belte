@@ -30,7 +30,7 @@ internal sealed class FunctionSymbol : Symbol {
     internal ImmutableArray<ParameterSymbol> parameters { get; }
 
     /// <summary>
-    /// Type clause of function return type.
+    /// <see cref="BoundTypeClause" /> of function return type.
     /// </summary>
     internal BoundTypeClause typeClause { get; }
 

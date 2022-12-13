@@ -11,7 +11,7 @@ internal abstract class VariableSymbol : Symbol {
     /// </summary>
     /// <param name="name">Name of the variable.</param>
     /// <param name="typeClause"><see cref="BoundTypeClause" /> of the variable.</param>
-    /// <param name="constant">Constant value of the variable.</param>
+    /// <param name="constant"><see cref="ConstantValue" /> of the variable.</param>
     internal VariableSymbol(string name, BoundTypeClause typeClause, BoundConstant constant)
         : base(name) {
         this.typeClause = typeClause;
@@ -24,7 +24,7 @@ internal abstract class VariableSymbol : Symbol {
     internal BoundTypeClause typeClause { get; }
 
     /// <summary>
-    /// Constant value of the variable (can be null).
+    /// <see cref="ConstantValue" /> of the variable (can be null).
     /// </summary>
     internal BoundConstant constantValue { get; }
 }

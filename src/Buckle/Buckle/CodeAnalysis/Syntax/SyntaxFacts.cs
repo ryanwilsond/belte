@@ -144,7 +144,7 @@ internal static class SyntaxFacts {
     }
 
     /// <summary>
-    /// Gets text representation of a token or keyword.
+    /// Gets text representation of a <see cref="Token" /> or keyword.
     /// </summary>
     /// <param name="type"><see cref="SyntaxType" />.</param>
     /// <returns>Text representation, default to null if not text representation exists.</returns>
@@ -363,7 +363,7 @@ internal static class SyntaxFacts {
     }
 
     /// <summary>
-    /// Checks if a <see cref="SyntaxType" /> is a token.
+    /// Checks if a <see cref="SyntaxType" /> is a <see cref="Token" />.
     /// </summary>
     /// <param name="type"><see cref="SyntaxType" />.</param>
     /// <returns>If the <see cref="SyntaxType" /> is a token.</returns>

@@ -55,15 +55,15 @@ public sealed class TextSpan {
 }
 
 /// <summary>
-/// Compares two text spans.
+/// Compares two <see cref="TextSpans" />.
 /// </summary>
 public class SpanComparer : IComparer<TextSpan> {
     /// <summary>
-    /// Checks how much two test spans overlap.
+    /// Checks how much two <see cref="TextSpans" /> overlap.
     /// </summary>
     /// <param name="a"><see cref="TextSpan" /> to compare.</param>
     /// <param name="b"><see cref="TextSpan" /> to compare.</param>
-    /// <returns>How much x and y overlap (by number of characters).</returns>
+    /// <returns>How much <paramref name="a" /> and <paramref name="b" /> overlap (by number of characters).</returns>
     public int Compare(TextSpan a, TextSpan b) {
         int cmp = a.start - b.start;
 

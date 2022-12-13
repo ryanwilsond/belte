@@ -31,14 +31,16 @@ public sealed class TextLocation {
     public string fileName => text.fileName;
 
     /// <summary>
-    /// Checks what line (divided by line breaks) the <see cref="TextLocation" /> refers to by start of <see cref="TextSpan" />.
+    /// Checks what line (divided by line breaks) the <see cref="TextLocation" /> refers to by start of
+    /// <see cref="TextSpan" />.
     /// If the <see cref="TextLocation" /> refers to multiple lines, it returns the first line's index.
     /// </summary>
     /// <returns>Index of line in <see cref="SourceText" />.</returns>
     public int startLine => text.GetLineIndex(span.start);
 
     /// <summary>
-    /// Checks what line (divided by line breaks) the <see cref="TextLocation" /> refers to by end of <see cref="TextSpan" />.
+    /// Checks what line (divided by line breaks) the <see cref="TextLocation" /> refers to by end of
+    /// <see cref="TextSpan" />.
     /// If the <see cref="TextLocation" /> refers to multiple lines, it returns the last line's index.
     /// </summary>
     /// <returns>Index of line in <see cref="SourceText" />.</returns>

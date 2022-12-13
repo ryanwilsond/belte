@@ -2,8 +2,12 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Break statement. Only used in <see cref="WhileStatement" />, <see cref="DoWhileStatement" />, and <see cref="ForStatements" /> statements (loops).
-/// E.g. break;
+/// Break statement. Only used in <see cref="WhileStatement" />, <see cref="DoWhileStatement" />,
+/// and <see cref="ForStatements" /> statements (loops).<br/>
+/// E.g.
+/// <code>
+/// break;
+/// </code>
 /// </summary>
 internal sealed partial class BreakStatement : Statement {
     internal BreakStatement(SyntaxTree syntaxTree, Token keyword, Token semicolon) : base(syntaxTree) {

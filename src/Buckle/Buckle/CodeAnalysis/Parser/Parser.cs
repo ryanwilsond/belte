@@ -6,7 +6,7 @@ using Buckle.CodeAnalysis.Text;
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
 /// <summary>
-/// Lexes then parses text into a tree of nodes, in doing so doing syntax checking.
+/// Lexes then parses text into a tree of Nodes, in doing so doing syntax checking.
 /// </summary>
 internal sealed class Parser {
     private readonly ImmutableArray<Token> _tokens;
@@ -477,7 +477,7 @@ internal sealed class Parser {
             var interIf = (IfStatement)inter;
 
             if (interIf.elseClause != null && interIf.then.type != SyntaxType.Block)
-                invalidElseLocations.Add(interIf.elseClause.elseKeyword.location);
+                invalidElseLocations.Add(interIf.elseClause.keyword.location);
 
             if (interIf.then.type == SyntaxType.IfStatement)
                 inter = interIf.then;
@@ -487,7 +487,7 @@ internal sealed class Parser {
 
         var elseClause = ParseElseClause();
         if (elseClause != null && statement.type != SyntaxType.Block && nestedIf)
-            invalidElseLocations.Add(elseClause.elseKeyword.location);
+            invalidElseLocations.Add(elseClause.keyword.location);
 
         while (invalidElseLocations.Count > 0) {
             diagnostics.Push(Error.AmbiguousElse(invalidElseLocations[0]));

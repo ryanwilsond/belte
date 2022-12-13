@@ -5,7 +5,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// Function declaration (including body).
 /// </summary>
 internal sealed partial class FunctionDeclaration : Member {
-    /// <param name="returnType">Type clause of return type.</param>
+    /// <param name="returnType"><see cref="TypeClause" /> of return type.</param>
     /// <param name="identifier">Name of the function.</param>
     internal FunctionDeclaration(
         SyntaxTree syntaxTree, TypeClause returnType, Token identifier, Token openParenthesis,

@@ -14,7 +14,7 @@ using Buckle.Diagnostics;
 namespace Belte.CommandLine;
 
 /// <summary>
-/// Handles all command line interaction, argument parsing, and compiler invocation.
+/// Handles all command-line interaction, argument parsing, and <see cref="Compiler" /> invocation.
 /// </summary>
 public static partial class BuckleCommandLine {
     private const int SuccessExitCode = 0;

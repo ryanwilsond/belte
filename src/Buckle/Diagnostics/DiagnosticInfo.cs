@@ -12,7 +12,8 @@ public enum DiagnosticType {
 }
 
 /// <summary>
-/// Information about a <see cref="Diagnostic" /> including severity (see <see cref="DiagnosticType" />), code, and module.
+/// Information about a <see cref="Diagnostic" /> including severity (see <see cref="DiagnosticType" />),
+/// code, and module.
 /// </summary>
 public sealed class DiagnosticInfo {
     /// <summary>

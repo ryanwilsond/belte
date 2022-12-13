@@ -11,7 +11,7 @@ internal class LocalVariableSymbol : VariableSymbol {
     /// </summary>
     /// <param name="name">Name of the variable.</param>
     /// <param name="typeClause"><see cref="BoundTypeClause" /> of the variable.</param>
-    /// <param name="constant">Constant value of the variable.</param>
+    /// <param name="constant"><see cref="ConstantValue" /> of the variable.</param>
     internal LocalVariableSymbol(string name, BoundTypeClause typeClause, BoundConstant constant)
         : base(name, typeClause, constant) { }
 

@@ -3,8 +3,11 @@ namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
 /// Assignment expression, similar to an operator but assigns to an existing variable.
-/// Thus cannot be used on literals.
-/// E.g. x = 4
+/// Thus cannot be used on literals.<br/>
+/// E.g.
+/// <code>
+/// x = 4
+/// </code>
 /// </summary>
 internal sealed partial class AssignmentExpression : Expression {
     /// <param name="identifier">Name of a variable.</param>

@@ -2,8 +2,11 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Postfix expression, only two possible ones (++ or --). Cannot not be applied to literals.
-/// E.g. x++
+/// Postfix expression, only two possible ones (++ or --). Cannot not be applied to literals.<br/>
+/// E.g.
+/// <code>
+/// x++
+/// </code>
 /// </summary>
 internal sealed partial class PostfixExpression : Expression {
     /// <param name="identifier">Existing variable name.</param>

@@ -31,21 +31,20 @@ internal sealed class ControlFlowGraph {
     internal BasicBlock end { get; }
 
     /// <summary>
-    /// All blocks in the graph.
+    /// All BasicBlocks in the graph.
     /// </summary>
     internal List<BasicBlock> blocks { get; }
 
     /// <summary>
-    /// All branches in the graph.
+    /// All BasicBlockBranches in the graph.
     /// </summary>
-    /// <value></value>
     internal List<BasicBlockBranch> branches { get; }
 
     /// <summary>
     /// Creates a <see cref="ControlFlowGraph" /> from a <see cref="BoundBlockStatement" />.
     /// </summary>
-    /// <param name="body">Block to create from.</param>
-    /// <returns>Control flow graph.</returns>
+    /// <param name="body"><see cref="BoundBlockStatement" /> to create from.</param>
+    /// <returns><see cref="ControlFlowGraph" />.</returns>
     internal static ControlFlowGraph Create(BoundBlockStatement body) {
         var basicBlockBuilder = new BasicBlockBuilder();
         var blocks = basicBlockBuilder.Build(body);
@@ -164,7 +163,7 @@ internal sealed class ControlFlowGraph {
     }
 
     /// <summary>
-    /// Builds blocks from statements.
+    /// Builds BasicBlocks from BoundStatements.
     /// </summary>
     internal sealed class BasicBlockBuilder {
         private List<BasicBlock> _blocks = new List<BasicBlock>();
@@ -213,7 +212,7 @@ internal sealed class ControlFlowGraph {
     }
 
     /// <summary>
-    /// Builds a <see cref="ControlFlowGraph" /> from graph blocks and branches.
+    /// Builds a <see cref="ControlFlowGraph" /> from BasicBlocks and BasicBlockBranches.
     /// </summary>
     internal sealed class GraphBuilder {
         private Dictionary<BoundStatement, BasicBlock> _blockFromStatement =
