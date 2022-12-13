@@ -30,7 +30,7 @@ internal sealed partial class StructDeclaration : Member {
 
     internal Token openBrace { get; }
 
-    internal SyntaxList<Parameter> members { get; }
+    internal SyntaxList<Member> members { get; }
 
     internal Token closeBrace { get; }
 
