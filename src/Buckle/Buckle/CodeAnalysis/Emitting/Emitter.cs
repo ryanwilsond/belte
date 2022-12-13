@@ -132,7 +132,7 @@ internal class Emitter {
     }
 
     /// <summary>
-    /// Diagnostics produced by Emitter.
+    /// Diagnostics produced by <see cref="Emitter" />.
     /// These diagnostics are fatal, as all error checking has been done already.
     /// </summary>
     internal BelteDiagnosticQueue diagnostics { get; set; }
@@ -160,11 +160,11 @@ internal class Emitter {
     /// <summary>
     /// Emits a program to a .NET assembly.
     /// </summary>
-    /// <param name="program">Program to emit</param>
-    /// <param name="moduleName">Name of emitted assembly/application</param>
-    /// <param name="references">All external .NET references</param>
-    /// <param name="outputPath">Where to put the emitted assembly</param>
-    /// <returns>Diagnostics</returns>
+    /// <param name="program"><see cref="BoundProgram" /> to emit.</param>
+    /// <param name="moduleName">Name of emitted assembly/application.</param>
+    /// <param name="references">All external .NET references.</param>
+    /// <param name="outputPath">Where to put the emitted assembly.</param>
+    /// <returns>Diagnostics.</returns>
     internal static BelteDiagnosticQueue Emit(
         BoundProgram program, string moduleName, string[] references, string outputPath) {
         if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
@@ -177,9 +177,9 @@ internal class Emitter {
     /// <summary>
     /// Emits a program to a .NET assembly.
     /// </summary>
-    /// <param name="program">Program to emit</param>
-    /// <param name="outputPath">Where to put the emitted assembly</param>
-    /// <returns>Diagnostics</returns>
+    /// <param name="program"><see cref="BoundProgram" /> to emit.</param>
+    /// <param name="outputPath">Where to put the emitted assembly.</param>
+    /// <returns>Diagnostics.</returns>
     internal BelteDiagnosticQueue Emit(BoundProgram program, string outputPath) {
         diagnostics.Move(program.diagnostics);
 

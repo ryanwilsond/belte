@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound inline function expression, bound from a parser InlineFunctionExpression.
+/// A bound inline function expression, bound from a <see cref="InlineFunctionExpression" />.
 /// </summary>
 internal sealed class BoundInlineFunctionExpression : BoundExpression {
     internal BoundInlineFunctionExpression(BoundBlockStatement body, BoundTypeClause returnType) {

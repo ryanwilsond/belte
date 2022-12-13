@@ -11,7 +11,7 @@ internal abstract class SeparatedSyntaxList {
     /// <summary>
     /// Gets all nodes, including separators.
     /// </summary>
-    /// <returns>Array of all nodes</returns>
+    /// <returns>Array of all nodes.</returns>
     internal abstract ImmutableArray<Node> GetWithSeparators();
 }
 
@@ -29,20 +29,20 @@ internal sealed class SeparatedSyntaxList<T> : SeparatedSyntaxList, IEnumerable<
     /// <summary>
     /// Number of non separator nodes in collection.
     /// </summary>
-    /// <returns>Count</returns>
+    /// <returns>Count.</returns>
     internal int count => (_nodesAndSeparators.Length + 1) / 2;
 
     /// <summary>
     /// Indexes nodes in collection skipping separators.
     /// </summary>
-    /// <returns>Node at index</returns>
+    /// <returns>Node at index.</returns>
     internal T this[int index] => (T)_nodesAndSeparators[index * 2];
 
     /// <summary>
     /// Get a separator at an index. The index itself skips separators.
     /// </summary>
-    /// <param name="index">Index of separator</param>
-    /// <returns>Separator token</returns>
+    /// <param name="index">Index of separator.</param>
+    /// <returns>Separator token.</returns>
     internal Token GetSeparator(int index) {
         if (index == count - 1)
             return null;
@@ -55,7 +55,7 @@ internal sealed class SeparatedSyntaxList<T> : SeparatedSyntaxList, IEnumerable<
     /// <summary>
     /// Gets enumerator of all nodes.
     /// </summary>
-    /// <returns>All nodes</returns>
+    /// <returns>All nodes.</returns>
     public IEnumerator<T> GetEnumerator() {
         for (int i=0; i<count; i++)
             yield return this[i];

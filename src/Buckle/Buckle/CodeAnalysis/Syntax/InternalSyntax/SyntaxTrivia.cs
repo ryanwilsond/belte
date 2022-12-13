@@ -6,8 +6,8 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// All trivia: comments and whitespace. Text that does not affect compilation.
 /// </summary>
 internal sealed class SyntaxTrivia {
-    /// <param name="position">Position of the trivia (indexed by nodes, not by character)</param>
-    /// <param name="text">Text associated with the trivia</param>
+    /// <param name="position">Position of the trivia (indexed by nodes, not by character).</param>
+    /// <param name="text">Text associated with the trivia.</param>
     internal SyntaxTrivia(SyntaxTree syntaxTree, SyntaxType type, int position, string text) {
         this.syntaxTree = syntaxTree;
         this.position = position;
@@ -25,7 +25,7 @@ internal sealed class SyntaxTrivia {
     internal int position { get; }
 
     /// <summary>
-    /// The span of where the trivia is in the source text.
+    /// <see cref="TextSpan" /> of where the trivia is in the <see cref="SourceText" />.
     /// </summary>
     internal TextSpan span => new TextSpan(position, text?.Length ?? 0);
 

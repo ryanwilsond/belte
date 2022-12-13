@@ -6,7 +6,7 @@ using Buckle.CodeAnalysis.Syntax;
 namespace Buckle.CodeAnalysis.Authoring;
 
 /// <summary>
-/// Simplified classification of token.
+/// Simplified classification of a <see cref="Token" />.
 /// </summary>
 internal enum Classification {
     Identifier,
@@ -23,11 +23,11 @@ internal enum Classification {
 /// </summary>
 internal static class Classifier {
     /// <summary>
-    /// Classifies nodes in a syntax tree within a span.
+    /// Classifies nodes in a <see cref="SyntaxTree" /> within a span.
     /// </summary>
-    /// <param name="syntaxTree">Tree to classify</param>
-    /// <param name="span">What segment of the tree to classify</param>
-    /// <returns>All classifications made within the span of the tree</returns>
+    /// <param name="syntaxTree"><see cref="SyntaxTree" /> to classify.</param>
+    /// <param name="span">What segment of the <see cref="SyntaxTree" /> to classify.</param>
+    /// <returns>All classifications made within the <see cref="TextSpan" /> of the <see cref="SyntaxTree" />.</returns>
     internal static ImmutableArray<ClassifiedSpan> Classify(SyntaxTree syntaxTree, TextSpan span) {
         var result = ImmutableArray.CreateBuilder<ClassifiedSpan>();
         ClassifyNode(syntaxTree.root, span, result);

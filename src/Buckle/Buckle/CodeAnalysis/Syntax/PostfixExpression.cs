@@ -6,8 +6,8 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// E.g. x++
 /// </summary>
 internal sealed partial class PostfixExpression : Expression {
-    /// <param name="identifier">Existing variable name</param>
-    /// <param name="op">Operator</param>
+    /// <param name="identifier">Existing variable name.</param>
+    /// <param name="op">Operator.</param>
     internal PostfixExpression(SyntaxTree syntaxTree, Token identifier, Token op)
         : base(syntaxTree) {
         this.identifier = identifier;

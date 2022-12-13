@@ -14,9 +14,9 @@ internal class Preprocessor {
     /// <summary>
     /// Preprocesses a file.
     /// </summary>
-    /// <param name="filename">Name of input file</param>
-    /// <param name="text">Contents of file</param>
-    /// <returns>Preprocessed text</returns>
+    /// <param name="filename">Name of input file.</param>
+    /// <param name="text">Contents of file.</param>
+    /// <returns>Preprocessed text.</returns>
     internal string PreprocessText(string filename, string text) {
         var sourceText = SourceText.From(text, filename);
         var lines = sourceText.lines;

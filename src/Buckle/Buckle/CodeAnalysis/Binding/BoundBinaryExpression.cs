@@ -184,10 +184,10 @@ internal sealed class BoundBinaryOperator {
     /// <summary>
     /// Attempts to bind an operator with given sides.
     /// </summary>
-    /// <param name="type">Operator type</param>
-    /// <param name="leftType">Left operand type</param>
-    /// <param name="rightType">Right operand type</param>
-    /// <returns>Bound operator if an operator exists, otherwise null</returns>
+    /// <param name="type">Operator type.</param>
+    /// <param name="leftType">Left operand type.</param>
+    /// <param name="rightType">Right operand type.</param>
+    /// <returns><see cref="BoundBinaryOperator" /> if an operator exists, otherwise null.</returns>
     internal static BoundBinaryOperator Bind(SyntaxType type, BoundTypeClause leftType, BoundTypeClause rightType) {
         var nonNullableLeft = BoundTypeClause.NonNullable(leftType);
         var nonNullableRight = BoundTypeClause.NonNullable(rightType);
@@ -205,7 +205,7 @@ internal sealed class BoundBinaryOperator {
 }
 
 /// <summary>
-/// A bound binary expression, bound from a parser BinaryExpression.
+/// A bound binary expression, bound from a <see cref="BinaryExpression" />.
 /// </summary>
 internal sealed class BoundBinaryExpression : BoundExpression {
     internal BoundBinaryExpression(

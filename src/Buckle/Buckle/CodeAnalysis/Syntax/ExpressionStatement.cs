@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Expression statement, a statement that contains a single expression and a semicolon.
+/// Expression statement, a statement that contains a single <see cref="Expression" /> and a semicolon.
 /// E.g. 4 + 3;
 /// </summary>
 internal sealed partial class ExpressionStatement : Statement {

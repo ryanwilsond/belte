@@ -27,17 +27,17 @@ internal abstract class Node {
     }
 
     /// <summary>
-    /// Type of node (see SyntaxType).
+    /// Type of node (see <see cref="SyntaxType" />).
     /// </summary>
     internal abstract SyntaxType type { get; }
 
     /// <summary>
-    /// Syntax tree this node resides in.
+    /// <see cref="SyntaxTree" /> this <see cref="Node" /> resides in.
     /// </summary>
     internal SyntaxTree syntaxTree { get; }
 
     /// <summary>
-    /// Span of where the node is in the source text (not including line break).
+    /// <see cref="TextSpan" /> of where the <see cref="Node" /> is in the <see cref="SourceText" /> (not including line break).
     /// </summary>
     internal virtual TextSpan span {
         get {
@@ -65,7 +65,7 @@ internal abstract class Node {
     }
 
     /// <summary>
-    /// Location of where the node is in the source text.
+    /// Location of where the <see cref="Node" /> is in the <see cref="SourceText" />.
     /// </summary>
     internal TextLocation location => syntaxTree == null ? null : new TextLocation(syntaxTree.text, span);
 
@@ -83,17 +83,17 @@ internal abstract class Node {
     }
 
     /// <summary>
-    /// Write text representation of this node to an out.
+    /// Write text representation of this <see cref="Node" /> to an out.
     /// </summary>
-    /// <param name="writer">Out</param>
+    /// <param name="writer">Out.</param>
     internal void WriteTo(TextWriter writer) {
         PrettyPrint(writer, this);
     }
 
     /// <summary>
-    /// Gets last token (of all children, recursive) under this node.
+    /// Gets last <see cref="Token" /> (of all children, recursive) under this <see cref="Node" />.
     /// </summary>
-    /// <returns>Last token</returns>
+    /// <returns>Last <see cref="Token" />.</returns>
     internal Token GetLastToken() {
         if (this is Token t)
             return t;

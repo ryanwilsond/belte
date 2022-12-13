@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Symbols;
 
 /// <summary>
-/// A type symbol. This is just the type name, not a full type clause.
+/// A type symbol. This is just the type name, not a full <see cref="BoundTypeClause" />.
 /// </summary>
 internal class TypeSymbol : Symbol {
     /// <summary>
@@ -48,9 +48,9 @@ internal class TypeSymbol : Symbol {
     internal override SymbolType type => SymbolType.Type;
 
     /// <summary>
-    /// Creates a new type symbol.
+    /// Creates a new <see cref="TypeSymbol" />.
     /// Use predefined type symbols if possible.
     /// </summary>
-    /// <param name="name">Name of type</param>
+    /// <param name="name">Name of type.</param>
     internal TypeSymbol(string name) : base(name) { }
 }

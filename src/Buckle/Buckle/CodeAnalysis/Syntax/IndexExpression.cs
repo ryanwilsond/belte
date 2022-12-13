@@ -6,8 +6,8 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// E.g. myArr[3]
 /// </summary>
 internal sealed partial class IndexExpression : Expression {
-    /// <param name="operand">Anything with a type with dimension greater than 0</param>
-    /// <param name="index">Zero indexed</param>
+    /// <param name="operand">Anything with a type with dimension greater than 0.</param>
+    /// <param name="index">Zero indexed.</param>
     internal IndexExpression(
         SyntaxTree syntaxTree, Expression operand, Token openBracket, Expression index, Token closeBracket)
         : base(syntaxTree) {

@@ -6,7 +6,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// E.g. -3
 /// </summary>
 internal sealed partial class UnaryExpression : Expression {
-    /// <param name="op">Operator</param>
+    /// <param name="op">Operator.</param>
     internal UnaryExpression(SyntaxTree syntaxTree, Token op, Expression operand) : base(syntaxTree) {
         this.op = op;
         this.operand = operand;

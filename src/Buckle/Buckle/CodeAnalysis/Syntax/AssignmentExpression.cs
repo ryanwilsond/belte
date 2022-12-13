@@ -7,8 +7,8 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// E.g. x = 4
 /// </summary>
 internal sealed partial class AssignmentExpression : Expression {
-    /// <param name="identifier">Name of a variable</param>
-    /// <param name="expression">Value to set variable to</param>
+    /// <param name="identifier">Name of a variable.</param>
+    /// <param name="expression">Value to set variable to.</param>
     internal AssignmentExpression(SyntaxTree syntaxTree, Token identifier, Token assignmentToken, Expression expression)
         : base(syntaxTree) {
         this.identifier = identifier;

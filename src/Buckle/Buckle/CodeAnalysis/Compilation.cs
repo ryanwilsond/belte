@@ -15,7 +15,7 @@ using Buckle.CodeAnalysis.Evaluating;
 namespace Buckle.CodeAnalysis;
 
 /// <summary>
-/// Handles evaluation of program, and keeps track of symbols (mainly for REPL use).
+/// Handles evaluation of program, and keeps track of symbols (mainly for <see cref="BelteRepl" /> use).
 /// </summary>
 public sealed class Compilation {
     private BoundGlobalScope _globalScope;
@@ -57,7 +57,7 @@ public sealed class Compilation {
     internal ImmutableArray<SyntaxTree> syntaxTrees { get; }
 
     /// <summary>
-    /// Previous compilation (used for REPL submission chaining).
+    /// Previous <see cref="Compilation" /> (used for <see cref="BelteRepl" /> submission chaining).
     /// </summary>
     internal Compilation previous { get; }
 
@@ -82,20 +82,20 @@ public sealed class Compilation {
     }
 
     /// <summary>
-    /// Creates a new compilation with syntax trees.
+    /// Creates a new <see cref="Compilation" /> with syntax trees.
     /// </summary>
-    /// <param name="syntaxTrees">Trees to use in compilation</param>
-    /// <returns>New compilation</returns>
+    /// <param name="syntaxTrees">Trees to use in compilation.</param>
+    /// <returns>New <see cref="Compilation" />.</returns>
     internal static Compilation Create(params SyntaxTree[] syntaxTrees) {
         return new Compilation(false, null, syntaxTrees);
     }
 
     /// <summary>
-    /// Creates a new script compilation with syntax trees, and the previous compilation.
+    /// Creates a new script compilation with syntax trees, and the previous <see cref="Compilation" />.
     /// </summary>
-    /// <param name="previous">Previous compilation</param>
-    /// <param name="syntaxTrees">Trees to use in compilation</param>
-    /// <returns></returns>
+    /// <param name="previous">Previous <see cref="Compilation" />.</param>
+    /// <param name="syntaxTrees">Trees to use during compilation.</param>
+    /// <returns>.</returns>
     internal static Compilation CreateScript(Compilation previous, params SyntaxTree[] syntaxTrees) {
         return new Compilation(true, previous, syntaxTrees);
     }
@@ -103,7 +103,7 @@ public sealed class Compilation {
     /// <summary>
     /// Gets all symbols across submissions (only global scope).
     /// </summary>
-    /// <returns>All symbols (checks all previous compilations)</returns>
+    /// <returns>All symbols (checks all previous compilations).</returns>
     internal IEnumerable<Symbol> GetSymbols() {
         var submission = this;
         var seenSymbolNames = new HashSet<string>();
@@ -130,8 +130,8 @@ public sealed class Compilation {
     /// <summary>
     /// Evaluates trees.
     /// </summary>
-    /// <param name="variables">Existing variables to add to the scope</param>
-    /// <returns>Result of evaluation (see EvaluationResult)</returns>
+    /// <param name="variables">Existing variables to add to the scope.</param>
+    /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
     internal EvaluationResult Evaluate(Dictionary<VariableSymbol, EvaluatorObject> variables) {
         if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return new EvaluationResult(null, globalScope.diagnostics);
@@ -159,7 +159,7 @@ public sealed class Compilation {
     /// <summary>
     /// Emits the parse tree of the compilation.
     /// </summary>
-    /// <param name="writer">Out</param>
+    /// <param name="writer">Out.</param>
     internal void EmitTree(TextWriter writer) {
         if (globalScope.mainFunction != null)
             EmitTree(globalScope.mainFunction, writer);
@@ -168,10 +168,10 @@ public sealed class Compilation {
     }
 
     /// <summary>
-    /// Emits the parse tree of a single symbol.
+    /// Emits the parse tree of a single <see cref="Symbol" />.
     /// </summary>
-    /// <param name="symbol">Symbol to be the root of the tree displayed</param>
-    /// <param name="writer">Out</param>
+    /// <param name="symbol">Symbol to be the root of the tree displayed.</param>
+    /// <param name="writer">Out.</param>
     internal void EmitTree(Symbol symbol, TextWriter writer) {
         var program = GetProgram();
 
@@ -191,10 +191,10 @@ public sealed class Compilation {
     /// <summary>
     /// Emits the program to an assembly.
     /// </summary>
-    /// <param name="moduleName">Application name</param>
-    /// <param name="references">All external references (.NET)</param>
-    /// <param name="outputPath">Where to put the application once assembled</param>
-    /// <returns>Diagnostics</returns>
+    /// <param name="moduleName">Application name.</param>
+    /// <param name="references">All external references (.NET).</param>
+    /// <param name="outputPath">Where to put the application once assembled.</param>
+    /// <returns>Diagnostics.</returns>
     internal BelteDiagnosticQueue Emit(string moduleName, string[] references, string outputPath) {
         foreach (var syntaxTree in syntaxTrees)
             diagnostics.Move(syntaxTree.diagnostics);

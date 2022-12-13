@@ -2,12 +2,12 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Call expression, invokes a callable symbol (function).
+/// Call expression, invokes a callable <see cref="Symbol" /> (function).
 /// E.g. myFunc(...)
 /// </summary>
 internal sealed partial class CallExpression : Expression {
-    /// <param name="identifier">Name of the called function</param>
-    /// <param name="arguments">Parameter list</param>
+    /// <param name="identifier">Name of the called function.</param>
+    /// <param name="arguments">Parameter list.</param>
     internal CallExpression(
         SyntaxTree syntaxTree, NameExpression identifier, Token openParenthesis,
         SeparatedSyntaxList<Expression> arguments, Token closeParenthesis)

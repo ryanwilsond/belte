@@ -3,8 +3,8 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound compound assignment expression, bound from a parser CompoundAssignmentExpression.
-/// All parser PrefixExpression and PostfixExpressions are converted to bound compound assignment expressions.
+/// A bound compound assignment expression, bound from a <see cref="CompoundAssignmentExpression" />.
+/// All <see cref="PrefixExpression" /> and <see cref="PostfixExpression" /> expressions are converted to <see cref="BoundCompoundAssignmentExpressions" />
 /// E.g. x++ -> x+=1
 /// </summary>
 internal sealed class BoundCompoundAssignmentExpression : BoundExpression {

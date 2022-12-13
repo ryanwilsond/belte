@@ -7,22 +7,18 @@ namespace Buckle.CodeAnalysis.Authoring;
 /// </summary>
 internal sealed class ClassifiedSpan {
     /// <summary>
-    /// Creates a classified span.
+    /// Creates a <see cref="ClassifiedSpan" />.
     /// </summary>
-    /// <param name="span">Span of where referring to</param>
-    /// <param name="classification">Classification</param>
+    /// <param name="span"><see cref="TextSpan" /> of where referring to.</param>
     internal ClassifiedSpan(TextSpan span, Classification classification) {
         this.span = span;
         this.classification = classification;
     }
 
     /// <summary>
-    /// Span of where referring to.
+    /// <see cref="TextSpan" /> of where referring to.
     /// </summary>
     internal TextSpan span { get; }
 
-    /// <summary>
-    /// Classification.
-    /// </summary>
     internal Classification classification { get; }
 }

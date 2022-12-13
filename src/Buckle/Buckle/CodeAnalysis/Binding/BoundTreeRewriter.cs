@@ -7,10 +7,10 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal abstract class BoundTreeRewriter {
     /// <summary>
-    /// Rewrites a single statement (including all children, recursive).
+    /// Rewrites a single <see cref="Statement" /> (including all children, recursive).
     /// </summary>
-    /// <param name="statement">Statement to rewrite</param>
-    /// <returns>New statement or input statement if nothing changed</returns>
+    /// <param name="statement"><see cref="Statement" /> to rewrite.</param>
+    /// <returns>New <see cref="Statement" /> or input <see cref="Statement" /> if nothing changed.</returns>
     internal virtual BoundStatement RewriteStatement(BoundStatement statement) {
         switch (statement.type) {
             case BoundNodeType.NopStatement:

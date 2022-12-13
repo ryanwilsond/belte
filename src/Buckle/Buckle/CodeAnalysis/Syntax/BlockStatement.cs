@@ -11,7 +11,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// }
 /// </summary>
 internal sealed partial class BlockStatement : Statement {
-    /// <param name="statements">Child statements</param>
+    /// <param name="statements">Child statements.</param>
     internal BlockStatement(
         SyntaxTree syntaxTree, Token openBrace, ImmutableArray<Statement> statements, Token closeBrace)
         : base(syntaxTree) {

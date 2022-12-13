@@ -22,10 +22,10 @@ internal sealed class Evaluator {
     private bool _hasPrint = false;
 
     /// <summary>
-    /// Creates an evaluator that can evaluate a program (provided globals).
+    /// Creates an <see cref="Evaluator" /> that can evaluate a <see cref="BoundProgram" /> (provided globals).
     /// </summary>
-    /// <param name="program">Program</param>
-    /// <param name="globals">Globals</param>
+    /// <param name="program"><see cref="BoundProgram" />.</param>
+    /// <param name="globals">Globals.</param>
     internal Evaluator(BoundProgram program, Dictionary<VariableSymbol, EvaluatorObject> globals) {
         diagnostics = new BelteDiagnosticQueue();
         _program = program;
@@ -42,7 +42,7 @@ internal sealed class Evaluator {
     }
 
     /// <summary>
-    /// If it has a Print statement, adds a line break to avoid formatting issues (mostly with the REPL).
+    /// If it has a Print statement, adds a line break to avoid formatting issues (mostly for the <see cref="BelteRepl" />).
     /// </summary>
     internal bool hasPrint {
         get {
@@ -53,14 +53,14 @@ internal sealed class Evaluator {
     }
 
     /// <summary>
-    /// Diagnostics specific to the evaluator.
+    /// Diagnostics specific to the <see cref="Evaluator" />.
     /// </summary>
     internal BelteDiagnosticQueue diagnostics { get; set; }
 
     /// <summary>
-    /// Evaluate the provided program.
+    /// Evaluate the provided <see cref="BoundProgram" />.
     /// </summary>
-    /// <returns>Result of program (if applicable)</returns>
+    /// <returns>Result of <see cref="BoundProgram" /> (if applicable).</returns>
     internal object Evaluate() {
         var function = _program.mainFunction ?? _program.scriptFunction;
         if (function == null)

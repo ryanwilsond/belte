@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Continue statement. Only used in while, do while, and for statements (loops).
+/// Continue statement. Only used in <see cref="WhileStatement" />, <see cref="DoWhileStatement" />, and <see cref="ForStatements" /> statements (loops).
 /// E.g. continue;
 /// </summary>
 internal sealed partial class ContinueStatement : Statement {

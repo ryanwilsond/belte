@@ -7,16 +7,16 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// </summary>
 internal sealed class GlobalVariableSymbol : VariableSymbol {
     /// <summary>
-    /// Creates a global variable.
+    /// Creates a <see cref="GlobalVariable" />.
     /// </summary>
-    /// <param name="name">Name of the variable</param>
-    /// <param name="typeClause">Type clause of the variable</param>
-    /// <param name="constant">Constant value of the variable</param>
+    /// <param name="name">Name of the variable.</param>
+    /// <param name="typeClause"><see cref="BoundTypeClause" /> of the variable.</param>
+    /// <param name="constant">Constant value of the variable.</param>
     internal GlobalVariableSymbol(string name, BoundTypeClause typeClause, BoundConstant constant)
         : base(name, typeClause, constant) { }
 
     /// <summary>
-    /// Type of symbol (see SymbolType).
+    /// Type of symbol (see <see cref="SymbolType" />).
     /// </summary>
     internal override SymbolType type => SymbolType.GlobalVariable;
 }

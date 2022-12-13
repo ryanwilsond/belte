@@ -8,34 +8,28 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// </summary>
 internal sealed partial class StructDeclaration : Member {
     internal StructDeclaration(
-        SyntaxTree syntaxTree, Token structKeyword, Token identifier, Token openBrace,
-        SyntaxList<Member> parameters, Token closeBrace)
+        SyntaxTree syntaxTree, Token keyword, Token identifier, Token openBrace,
+        SyntaxList<Member> members, Token closeBrace)
         : base(syntaxTree) {
-        this.returnType = returnType;
+        this.keyword = keyword;
         this.identifier = identifier;
-        this.openParenthesis = openParenthesis;
-        this.parameters = parameters;
-        this.closeParenthesis = closeParenthesis;
-        this.body = body;
+        this.openBrace = openBrace;
+        this.members = members;
+        this.closeBrace = closeBrace;
     }
 
     /// <summary>
-    /// Type clause of return type.
+    /// Struct keyword.
     /// </summary>
-    internal TypeClause returnType { get; }
+    internal Token keyword { get; }
 
-    /// <summary>
-    /// Name of the function.
-    /// </summary>
     internal Token identifier { get; }
 
-    internal Token openParenthesis { get; }
+    internal Token openBrace { get; }
 
-    internal SeparatedSyntaxList<Parameter> parameters { get; }
+    internal SyntaxList<Parameter> members { get; }
 
-    internal Token closeParenthesis { get; }
+    internal Token closeBrace { get; }
 
-    internal BlockStatement body { get; }
-
-    internal override SyntaxType type => SyntaxType.MethodDeclaration;
+    internal override SyntaxType type => SyntaxType.StructDeclaration;
 }

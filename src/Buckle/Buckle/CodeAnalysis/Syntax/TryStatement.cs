@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Try block statement, including an catch and finally clause.
+/// Try block statement, including an <see cref="CatchClause" /> and <see cref="FinallyClause" />.
 /// Either the catch or finally can be omitted (not both).
 /// The finally block triggers whether or not the catch block threw.
 /// E.g.

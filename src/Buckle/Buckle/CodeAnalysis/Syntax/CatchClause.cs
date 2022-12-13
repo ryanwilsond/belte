@@ -2,8 +2,8 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Catch clause. Only used with the try statement.
-/// E.g. (see TryStatement)
+/// Catch clause. Only used with the <see cref="TryStatement" />.
+/// E.g. (see <see cref="TryStatement" />)
 /// ... catch { ... }
 /// </summary>
 internal sealed partial class CatchClause : Node {

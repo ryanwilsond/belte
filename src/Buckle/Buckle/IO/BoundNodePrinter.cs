@@ -8,14 +8,14 @@ using Buckle.CodeAnalysis.Syntax;
 namespace Buckle.IO;
 
 /// <summary>
-/// Writes user friendly representation of bound nodes.
+/// Writes user friendly representation of BoundNodes.
 /// </summary>
 internal static class BoundNodePrinter {
     /// <summary>
-    /// Writes a single bound node.
+    /// Writes a single <see cref="BoundNode" />.
     /// </summary>
-    /// <param name="node">Bound node to print (not modified)</param>
-    /// <param name="writer">Where to write to (out)</param>
+    /// <param name="node"><see cref="BoundNode" /> to print (not modified).</param>
+    /// <param name="writer">Where to write to (out).</param>
     internal static void WriteTo(this BoundNode node, TextWriter writer) {
         if (writer is IndentedTextWriter iw)
             WriteTo(node, iw);
@@ -24,10 +24,10 @@ internal static class BoundNodePrinter {
     }
 
     /// <summary>
-    /// Writes a single bound type clause.
+    /// Writes a single <see cref="BoundTypeClause" />.
     /// </summary>
-    /// <param name="type">Bound type clause to print (not modified)</param>
-    /// <param name="writer">Where to write to (out)</param>
+    /// <param name="type"><see cref="BoundTypeClause" /> to print (not modified).</param>
+    /// <param name="writer">Where to write to (out).</param>
     internal static void WriteTypeClause(BoundTypeClause type, TextWriter writer) {
         writer.WriteType(type.BaseType().ToString());
         var brackets = "";
@@ -39,10 +39,10 @@ internal static class BoundNodePrinter {
     }
 
     /// <summary>
-    /// Writes a single bound node using an indented writer.
+    /// Writes a single <see cref="BoundNode" /> using an IndentedTextWriter.
     /// </summary>
-    /// <param name="node">Bound node to print (not modified)</param>
-    /// <param name="writer">Where to write to with indentation (out)</param>
+    /// <param name="node"><see cref="BoundNode" /> to print (not modified).</param>
+    /// <param name="writer">Where to write to with indentation (out).</param>
     internal static void WriteTo(this BoundNode node, IndentedTextWriter writer) {
         switch (node.type) {
             case BoundNodeType.UnaryExpression:

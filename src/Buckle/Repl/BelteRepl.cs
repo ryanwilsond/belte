@@ -11,7 +11,7 @@ using Buckle.CodeAnalysis.Evaluating;
 namespace Repl;
 
 /// <summary>
-/// Uses framework from ReplBase and adds syntax highlighting and evaluation.
+/// Uses framework from <see cref="ReplBase" /> and adds syntax highlighting and evaluation.
 /// </summary>
 public sealed class BelteRepl : ReplBase {
     private static readonly Compilation emptyCompilation = Compilation.CreateScript(null);
@@ -22,11 +22,11 @@ public sealed class BelteRepl : ReplBase {
     };
 
     /// <summary>
-    /// Creates a new instance of a Belte REPL, can run in parallel with other REPLs with unique outs.
+    /// Creates a new instance of a <see cref="BelteRepl" />, can run in parallel with other REPLs with unique outs.
     /// Uses System.Console by default, which cannot be used more than once.
     /// </summary>
-    /// <param name="handle">Compiler object that represents entirety of compilation</param>
-    /// <param name="errorHandle">Callback to handle diagnostics</param>
+    /// <param name="handle"><see cref="Compiler" /> object that represents entirety of compilation.</param>
+    /// <param name="errorHandle">Callback to handle Diagnostics.</param>
     public BelteRepl(Compiler handle, DiagnosticHandle errorHandle) : base(handle, errorHandle) {
         state = new BelteReplState();
         ResetState();
@@ -636,12 +636,12 @@ public sealed class BelteRepl : ReplBase {
         public ColorTheme colorTheme = new DarkTheme();
 
         /// <summary>
-        /// Current page the user is viewing (see Page)
+        /// Current <see cref="Page" /> the user is viewing.
         /// </summary>
         public Page currentPage = Page.Repl;
 
         /// <summary>
-        /// Previous compilation (used to build of previous).
+        /// Previous <see cref="Compilation" /> (used to build of previous).
         /// </summary>
         public Compilation previous;
 

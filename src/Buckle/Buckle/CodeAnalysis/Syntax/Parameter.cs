@@ -2,19 +2,19 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// A parameter node.
+/// A parameter <see cref="Node" />.
 /// </summary>
 internal sealed partial class Parameter : Node {
-    /// <param name="typeClause">Type clause of the parameter</param>
-    /// <param name="identifier">Name of the parameter</param>
-    /// <returns></returns>
+    /// <param name="typeClause"><see cref="TypeClause" /> of the parameter.</param>
+    /// <param name="identifier">Name of the parameter.</param>
+    /// <returns>.</returns>
     internal Parameter(SyntaxTree syntaxTree, TypeClause typeClause, Token identifier) : base(syntaxTree) {
         this.typeClause = typeClause;
         this.identifier = identifier;
     }
 
     /// <summary>
-    /// Type clause of the parameter.
+    /// <see cref="TypeClause" /> of the parameter.
     /// </summary>
     internal TypeClause typeClause { get; }
 

@@ -10,12 +10,12 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal static class ConstantFolding {
     /// <summary>
-    /// Folds a binary expression (if possible).
+    /// Folds a <see cref="BinaryExpression" /> (if possible).
     /// </summary>
-    /// <param name="left">Left side operand</param>
-    /// <param name="op">Operator</param>
-    /// <param name="right">Right side operand</param>
-    /// <returns>Bound constant, returns null if folding is not possible</returns>
+    /// <param name="left">Left side operand.</param>
+    /// <param name="op">Operator.</param>
+    /// <param name="right">Right side operand.</param>
+    /// <returns><see cref="BoundConstant" />, returns null if folding is not possible.</returns>
     internal static BoundConstant Fold(
         BoundExpression left, BoundBinaryOperator op, BoundExpression right) {
         var leftConstant = left.constantValue;
@@ -159,11 +159,11 @@ internal static class ConstantFolding {
     }
 
     /// <summary>
-    /// Folds a unary expression (if possible).
+    /// Folds a <see cref="UnaryExpression" /> (if possible).
     /// </summary>
-    /// <param name="op">Operator</param>
-    /// <param name="operand">Operand</param>
-    /// <returns>Bound constant, returns null if folding is not possible</returns>
+    /// <param name="op">Operator.</param>
+    /// <param name="operand">Operand.</param>
+    /// <returns><see cref="BoundConstant" />, returns null if folding is not possible.</returns>
     internal static BoundConstant Fold(BoundUnaryOperator op, BoundExpression operand) {
         var operandType = operand.typeClause.lType;
 

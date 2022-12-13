@@ -61,16 +61,16 @@ internal sealed class BoundUnaryOperator {
     internal BoundTypeClause operandType { get; }
 
     /// <summary>
-    /// Result value type.
+    /// Result value <see cref="BoundTypeClause" />.
     /// </summary>
     internal BoundTypeClause typeClause { get; }
 
     /// <summary>
     /// Attempts to bind an operator with given operand.
     /// </summary>
-    /// <param name="type">Operator type</param>
-    /// <param name="operandType">Operand type</param>
-    /// <returns>Bound operator if an operator exists, otherwise null</returns>
+    /// <param name="type">Operator <see cref="BoundTypeClause" />.</param>
+    /// <param name="operandType">Operand <see cref="BoundTypeClause" />.</param>
+    /// <returns><see cref="BoundUnaryOperator" /> if an operator exists, otherwise null.</returns>
     internal static BoundUnaryOperator Bind(SyntaxType type, BoundTypeClause operandType) {
         var nonNullableOperand = BoundTypeClause.NonNullable(operandType);
 
@@ -86,7 +86,7 @@ internal sealed class BoundUnaryOperator {
 }
 
 /// <summary>
-/// A bound unary expression, bound from a parser UnaryExpression.
+/// A bound unary expression, bound from a <see cref="UnaryExpression" />.
 /// </summary>
 internal sealed class BoundUnaryExpression : BoundExpression {
     internal BoundUnaryExpression(BoundUnaryOperator op, BoundExpression operand) {

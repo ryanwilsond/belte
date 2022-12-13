@@ -17,12 +17,12 @@ public abstract class ReplBase {
     internal OutputCapture _writer = new OutputCapture();
 
     /// <summary>
-    /// Compiler object representing entirety of compilation.
+    /// <see cref="Compiler" /> object representing entirety of compilation.
     /// </summary>
     internal Compiler handle;
 
     /// <summary>
-    /// Particular DiagnosticHandle used to handle diagnostics in the REPL.
+    /// Particular <see cref="ReplBase.DiagnosticHandle" /> used to handle diagnostics in the REPL.
     /// </summary>
     internal DiagnosticHandle diagnosticHandle;
 
@@ -42,12 +42,12 @@ public abstract class ReplBase {
     }
 
     /// <summary>
-    /// Callback to handle diagnostics, be it logging or displaying to the console.
+    /// Callback to handle Diagnostics, be it logging or displaying to the console.
     /// </summary>
-    /// <param name="compiler">Compiler object representing entirety of compilation</param>
-    /// <param name="me">Display name of the program</param>
-    /// <param name="textColor">Color to display diagnostics (if displaying)</param>
-    /// <returns>C-Style error code of most severe diagnostic</returns>
+    /// <param name="compiler"><see cref="Compiler" /> object representing entirety of compilation.</param>
+    /// <param name="me">Display name of the program.</param>
+    /// <param name="textColor">Color to display Diagnostics (if displaying).</param>
+    /// <returns>C-Style error code of most severe <see cref="Diagnostic" />.</returns>
     public delegate int DiagnosticHandle(
         Compiler compiler, string me = null, ConsoleColor textColor = ConsoleColor.White);
 
@@ -110,7 +110,7 @@ public abstract class ReplBase {
     /// <summary>
     /// Gets all previous submissions submitted in current instance (does not access previous instances' submissions).
     /// </summary>
-    /// <returns>Internal representation of submissions</returns>
+    /// <returns>Internal representation of submissions.</returns>
     internal List<string> GetSubmissionHistory() {
         return _submissionHistory;
     }
@@ -976,8 +976,8 @@ public abstract class ReplBase {
         /// <summary>
         /// Changes Console cursor position.
         /// </summary>
-        /// <param name="left">Column position (left (0) -> right)</param>
-        /// <param name="top">Row position (top (0) -> down)</param>
+        /// <param name="left">Column position (left (0) -> right).</param>
+        /// <param name="top">Row position (top (0) -> down).</param>
         public void SetCursorPosition(int left, int top) {
             Console.SetCursorPosition(left, top);
         }

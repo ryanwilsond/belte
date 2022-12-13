@@ -16,7 +16,7 @@ internal sealed class BoundScope {
     /// <summary>
     /// Creates a new scope with an optional parent.
     /// </summary>
-    /// <param name="parent">Enclosing scope</param>
+    /// <param name="parent">Enclosing scope.</param>
     internal BoundScope(BoundScope parent) {
         this._parent = parent;
     }
@@ -32,35 +32,35 @@ internal sealed class BoundScope {
     /// <summary>
     /// Attempts to declare a function.
     /// </summary>
-    /// <param name="symbol">Function to declare</param>
-    /// <returns>If the function was successfully added to the scope</returns>
+    /// <param name="symbol"><see cref="FunctionSymbol" /> to declare.</param>
+    /// <returns>If the function was successfully added to the scope.</returns>
     internal bool TryDeclareFunction(FunctionSymbol symbol) => TryDeclareSymbol(symbol);
 
     /// <summary>
     /// Attempts to declare a variable.
     /// </summary>
-    /// <param name="symbol">Variable to declare</param>
-    /// <returns>If the variable was successfully added to the scope</returns>
+    /// <param name="symbol"><see cref="VariableSymbol" /> to declare.</param>
+    /// <returns>If the variable was successfully added to the scope.</returns>
     internal bool TryDeclareVariable(VariableSymbol symbol) => TryDeclareSymbol(symbol);
 
     /// <summary>
     /// Gets all declared variables in this scope (not any parent scopes).
     /// </summary>
-    /// <returns>All declared variables</returns>
+    /// <returns>All declared variables.</returns>
     internal ImmutableArray<VariableSymbol> GetDeclaredVariables() => GetDeclaredSymbols<VariableSymbol>();
 
     /// <summary>
     /// Gets all declared function in this scope (not any parent scopes).
     /// </summary>
-    /// <returns>All declared functions</returns>
+    /// <returns>All declared functions.</returns>
     internal ImmutableArray<FunctionSymbol> GetDeclaredFunctions() => GetDeclaredSymbols<FunctionSymbol>();
 
     /// <summary>
-    /// Attempts to find a symbol based on name (including parent scopes).
-    /// Because it only searches for one, use LookupOverloads for function symbols.
+    /// Attempts to find a <see cref="Symbol" /> based on name (including parent scopes).
+    /// Because it only searches for one, use <see cref="BoundScope.LookupOverloads" /> for function symbols.
     /// </summary>
-    /// <param name="name">Name of symbol</param>
-    /// <returns>Symbol if found, null otherwise</returns>
+    /// <param name="name">Name of <see cref="Symbol" />.</param>
+    /// <returns><see cref="Symbol" /> if found, null otherwise.</returns>
     internal Symbol LookupSymbol(string name) {
         // Use LookupOverloads for functions
         if (_symbols != null)
@@ -76,9 +76,9 @@ internal sealed class BoundScope {
     /// Does not work with overloads, only modifies the first one. However the order is not constant.
     /// Thus only use with functions with guaranteed no overloads, or variable symbols.
     /// </summary>
-    /// <param name="name">Name of symbol</param>
-    /// <param name="newSymbol">New symbol data to replace old the symbol</param>
-    /// <returns>If the symbol was found and successfully updated</returns>
+    /// <param name="name">Name of <see cref="Symbol" />.</param>
+    /// <param name="newSymbol">New symbol data to replace old the <see cref="Symbol" />.</param>
+    /// <returns>If the <see cref="Symbol" /> was found and successfully updated.</returns>
     internal bool TryModifySymbol(string name, Symbol newSymbol) {
         // Does not work with overloads
         // TODO Need to allow overloads, as someone may try to define overloads for a nested function
@@ -114,10 +114,10 @@ internal sealed class BoundScope {
     }
 
     /// <summary>
-    /// Copies all inlines from a scope into this scope.
+    /// Copies all inlines from another <see cref="BoundScope" /> into this.
     /// Does not shadow, instead skips already declared functions in higher scopes.
     /// </summary>
-    /// <param name="scope">Scope to copy inlines from (not all functions)</param>
+    /// <param name="scope"><see cref="BoundScope" /> to copy inlines from (not all functions).</param>
     internal void CopyInlines(BoundScope scope) {
         foreach (var inline in scope.GetDeclaredFunctions().Where(i => i.name.StartsWith("<$Inline")))
             // Ignore failures, do not override higher level symbols
@@ -125,12 +125,12 @@ internal sealed class BoundScope {
     }
 
     /// <summary>
-    /// Finds all overloads of a function by name.
+    /// Finds all overloads of a <see cref="FunctionSymbol" /> by name.
     /// Technically searches for all symbols, but this function is intended to be used for functions.
     /// </summary>
-    /// <param name="name">Name of function</param>
-    /// <param name="strictName">Scope specific name (for inlines), searches for this first</param>
-    /// <returns>All found overloads (including from parent scopes)</returns>
+    /// <param name="name">Name of <see cref="FunctionSymbol" />.</param>
+    /// <param name="strictName">Scope specific name (for inlines), searches for this first.</param>
+    /// <returns>All found overloads (including from parent scopes).</returns>
     internal ImmutableArray<Symbol> LookupOverloads(string name, string strictName) {
         var symbols = LookupOverloadsInternal(strictName, strict: true);
 

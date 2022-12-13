@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// Bound program.
 /// </summary>
 internal sealed class BoundProgram {
-    /// <param name="previous">Previous bound program (if applicable)</param>
+    /// <param name="previous">Previous <see cref="BoundProgram" /> (if applicable).</param>
     internal BoundProgram(
         BoundProgram previous, BelteDiagnosticQueue diagnostics,
         FunctionSymbol mainFunction,
@@ -22,7 +22,7 @@ internal sealed class BoundProgram {
     }
 
     /// <summary>
-    /// Previous bound program (if applicable).
+    /// Previous <see cref="BoundProgram" /> (if applicable).
     /// </summary>
     internal BoundProgram previous { get; }
 

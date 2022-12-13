@@ -12,8 +12,8 @@ internal class CurlyIndenter : IDisposable {
     /// <summary>
     /// Creates a new scope using curly braces.
     /// </summary>
-    /// <param name="indentedTextWriter">Out to use</param>
-    /// <param name="openingLine">What to put on the opening curly brace line</param>
+    /// <param name="indentedTextWriter">Out to use.</param>
+    /// <param name="openingLine">What to put on the opening curly brace line.</param>
     internal CurlyIndenter(IndentedTextWriter indentedTextWriter, string openingLine = "") {
         _indentedTextWriter = indentedTextWriter;
 

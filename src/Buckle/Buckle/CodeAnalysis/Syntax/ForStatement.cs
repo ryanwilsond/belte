@@ -9,7 +9,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// }
 /// </summary>
 internal sealed partial class ForStatement : Statement {
-    /// <param name="initializer">Declaration or name of variable used for stepping</param>
+    /// <param name="initializer">Declaration or name of variable used for stepping.</param>
     internal ForStatement(
         SyntaxTree syntaxTree, Token keyword, Token openParenthesis, Statement initializer,
         Expression condition, Token semicolon, Expression step, Token closeParenthesis, Statement body)

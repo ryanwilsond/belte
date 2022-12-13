@@ -9,12 +9,12 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// </summary>
 internal sealed class FunctionSymbol : Symbol {
     /// <summary>
-    /// Creates a function symbol.
+    /// Creates a <see cref="FunctionSymbol" />.
     /// </summary>
-    /// <param name="name">Name of function</param>
-    /// <param name="parameters">Parameters of function</param>
-    /// <param name="typeClause">Type clause of return type</param>
-    /// <param name="declaration">Declaration of function</param>
+    /// <param name="name">Name of function.</param>
+    /// <param name="parameters">Parameters of function.</param>
+    /// <param name="typeClause"><see cref="BoundTypeClause" /> of return type.</param>
+    /// <param name="declaration">Declaration of function.</param>
     internal FunctionSymbol(
         string name, ImmutableArray<ParameterSymbol> parameters,
         BoundTypeClause typeClause, FunctionDeclaration declaration = null)
@@ -25,7 +25,7 @@ internal sealed class FunctionSymbol : Symbol {
     }
 
     /// <summary>
-    /// All parameters (see ParameterSymbol).
+    /// All parameters (see <see cref="ParameterSymbol" />).
     /// </summary>
     internal ImmutableArray<ParameterSymbol> parameters { get; }
 
@@ -35,7 +35,7 @@ internal sealed class FunctionSymbol : Symbol {
     internal BoundTypeClause typeClause { get; }
 
     /// <summary>
-    /// Declaration of function (see FunctionDeclaration).
+    /// Declaration of function (see <see cref="FunctionDeclaration">).
     /// </summary>
     internal FunctionDeclaration declaration { get; }
 

@@ -6,10 +6,10 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// Inline function expression, similar to local function but is evaluated immediately and has no signature.
 /// E.g. { ... statements (including a return statement) ... }
-/// The only thing distinguishing an inline function expression from a block statement is a return statement.
+/// The only thing distinguishing an <see cref="InlineFunctionExpression" /> from a <see cref="BlockStatement" /> is a <see cref="ReturnStatement" />.
 /// </summary>
 internal sealed partial class InlineFunctionExpression : Expression {
-    /// <param name="statements">Contains at least one return statement</param>
+    /// <param name="statements">Contains at least one return statement.</param>
     internal InlineFunctionExpression(
         SyntaxTree syntaxTree, Token openBrace, ImmutableArray<Statement> statements, Token closeBrace)
         : base(syntaxTree) {

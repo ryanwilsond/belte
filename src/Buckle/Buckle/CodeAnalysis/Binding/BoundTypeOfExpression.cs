@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound typeof expression, bound from a parser TypeOfExpression.
+/// A bound typeof expression, bound from a <see cref="TypeOfExpression" />.
 /// </summary>
 internal sealed class BoundTypeOfExpression : BoundExpression {
     internal BoundTypeOfExpression(BoundTypeClause typeClause) {

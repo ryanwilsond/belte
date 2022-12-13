@@ -6,10 +6,10 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// E.g. int myVar = 3;
 /// </summary>
 internal sealed partial class VariableDeclarationStatement : Statement {
-    /// <param name="typeClause">Type clause of the variable being declared</param>
-    /// <param name="identifier">Name of the variable</param>
-    /// <param name="equals">Equals token (optional)</param>
-    /// <param name="initializer">Definition value (optional)</param>
+    /// <param name="typeClause">Type clause of the variable being declared.</param>
+    /// <param name="identifier">Name of the variable.</param>
+    /// <param name="equals">Equals token (optional).</param>
+    /// <param name="initializer">Definition value (optional).</param>
     internal VariableDeclarationStatement(
         SyntaxTree syntaxTree, TypeClause typeClause,
         Token identifier, Token equals, Expression initializer, Token semicolon)
@@ -22,7 +22,7 @@ internal sealed partial class VariableDeclarationStatement : Statement {
     }
 
     /// <summary>
-    /// Type clause of the variable being declared.
+    /// <see cref="TypeClause" /> of the variable being declared.
     /// </summary>
     internal TypeClause typeClause { get; }
 

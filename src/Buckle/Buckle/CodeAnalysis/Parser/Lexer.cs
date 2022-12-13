@@ -24,9 +24,9 @@ internal sealed class Lexer {
     private ImmutableArray<SyntaxTrivia>.Builder _triviaBuilder = ImmutableArray.CreateBuilder<SyntaxTrivia>();
 
     /// <summary>
-    /// Creates a new lexer, requires a fully initialized syntax tree.
+    /// Creates a new <see cref="Lexer" />, requires a fully initialized <see cref="SyntaxTree" />.
     /// </summary>
-    /// <param name="syntaxTree">Syntax tree to lex from</param>
+    /// <param name="syntaxTree"><see cref="SyntaxTree" /> to lex from.</param>
     internal Lexer(SyntaxTree syntaxTree) {
         _text = syntaxTree.text;
         _syntaxTree = syntaxTree;
@@ -39,9 +39,9 @@ internal sealed class Lexer {
     internal BelteDiagnosticQueue diagnostics { get; set; }
 
     /// <summary>
-    /// Lexes the next un-lexed text to create a single token.
+    /// Lexes the next un-lexed text to create a single <see cref="Token" />.
     /// </summary>
-    /// <returns>A new token</returns>
+    /// <returns>A new token.</returns>
     internal Token LexNext() {
         ReadTrivia(true);
         var leadingTrivia = _triviaBuilder.ToImmutable();

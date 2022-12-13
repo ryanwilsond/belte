@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A bound global scope, stores top level symbols.
 /// </summary>
 internal sealed class BoundGlobalScope {
-    /// <param name="previous">Previous global scope (if applicable)</param>
+    /// <param name="previous">Previous <see cref="BoundGlobalScope" /> (if applicable).</param>
     internal BoundGlobalScope(
         ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)> functionBodies,
         BoundGlobalScope previous, BelteDiagnosticQueue diagnostics, FunctionSymbol mainFunction,
@@ -28,7 +28,7 @@ internal sealed class BoundGlobalScope {
     internal ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)> functionBodies { get; }
 
     /// <summary>
-    /// Previous global scope (if applicable).
+    /// Previous <see cref="BoundGlobalScope" /> (if applicable).
     /// </summary>
     internal BoundGlobalScope previous { get; }
 

@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound label statement, produced by Lowerer. No parser equivalent.
+/// A bound label statement, produced by <see cref="Lowerer" />. No <see cref="Parser" /> equivalent.
 /// E.g. label1:
 /// </summary>
 internal sealed class BoundLabelStatement : BoundStatement {

@@ -17,11 +17,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
     private Lowerer() { }
 
     /// <summary>
-    /// Lowers a function.
+    /// Lowers a <see cref="FunctionSymbol" />.
     /// </summary>
-    /// <param name="function">Function symbol</param>
-    /// <param name="statement">Function body</param>
-    /// <returns>Lowered function body (same type)</returns>
+    /// <param name="statement">Function body.</param>
+    /// <returns>Lowered function body (same type).</returns>
     internal static BoundBlockStatement Lower(FunctionSymbol function, BoundStatement statement) {
         var lowerer = new Lowerer();
         var block = Flatten(function, lowerer.RewriteStatement(statement));

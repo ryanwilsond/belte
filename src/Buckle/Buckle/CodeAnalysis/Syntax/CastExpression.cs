@@ -6,7 +6,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// E.g. (int)3.4
 /// </summary>
 internal sealed partial class CastExpression : Expression {
-    /// <param name="typeClause">The target type clause</param>
+    /// <param name="typeClause">The target type clause.</param>
     internal CastExpression(
         SyntaxTree syntaxTree, Token openParenthesis, TypeClause typeClause,
         Token closeParenthesis, Expression expression)
@@ -20,7 +20,7 @@ internal sealed partial class CastExpression : Expression {
     internal Token? openParenthesis { get; }
 
     /// <summary>
-    /// The target type clause.
+    /// The target <see cref="TypeClause" />.
     /// </summary>
     internal TypeClause typeClause { get; }
 

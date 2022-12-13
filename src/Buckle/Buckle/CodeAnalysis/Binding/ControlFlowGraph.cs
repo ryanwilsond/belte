@@ -9,7 +9,7 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Creates a graphical control flow graph from a bound block.
+/// Creates a graphical control flow graph from a <see cref="BasicBlock" />.
 /// </summary>
 internal sealed class ControlFlowGraph {
     private ControlFlowGraph(
@@ -42,10 +42,10 @@ internal sealed class ControlFlowGraph {
     internal List<BasicBlockBranch> branches { get; }
 
     /// <summary>
-    /// Creates a control flow graph from a block.
+    /// Creates a <see cref="ControlFlowGraph" /> from a <see cref="BoundBlockStatement" />.
     /// </summary>
-    /// <param name="body">Block to create from</param>
-    /// <returns>Control flow graph</returns>
+    /// <param name="body">Block to create from.</param>
+    /// <returns>Control flow graph.</returns>
     internal static ControlFlowGraph Create(BoundBlockStatement body) {
         var basicBlockBuilder = new BasicBlockBuilder();
         var blocks = basicBlockBuilder.Build(body);
@@ -55,10 +55,10 @@ internal sealed class ControlFlowGraph {
     }
 
     /// <summary>
-    /// Checks (using a control flow graph) if all code paths in a body return.
+    /// Checks (using a <see cref="ControlFlowGraph" />) if all code paths in a body return.
     /// </summary>
-    /// <param name="body">Body to check</param>
-    /// <returns>If all code paths return</returns>
+    /// <param name="body">Body to check.</param>
+    /// <returns>If all code paths return.</returns>
     internal static bool AllPathsReturn(BoundBlockStatement body) {
         var graph = Create(body);
 
@@ -73,9 +73,9 @@ internal sealed class ControlFlowGraph {
     }
 
     /// <summary>
-    /// Writes control flow graph to out.
+    /// Writes <see cref="ControlFlowGraph" /> to out.
     /// </summary>
-    /// <param name="writer">Out</param>
+    /// <param name="writer">Out.</param>
     internal void WriteTo(TextWriter writer) {
         string Quote(string text) {
             return "\"" + text.TrimEnd()
@@ -110,7 +110,7 @@ internal sealed class ControlFlowGraph {
     }
 
     /// <summary>
-    /// Block in the graph, represents a statement.
+    /// Block in the graph, represents a <see cref="BoundStatement" />.
     /// </summary>
     internal sealed class BasicBlock {
         internal List<BoundStatement> statements { get; } = new List<BoundStatement>();
@@ -142,7 +142,7 @@ internal sealed class ControlFlowGraph {
     }
 
     /// <summary>
-    /// Branch in the graph, represents code continuing from one statement to another.
+    /// Branch in the graph, represents code continuing from one <see cref="BoundStatement" /> to another.
     /// </summary>
     internal sealed class BasicBlockBranch {
         internal BasicBlock from { get; }
@@ -213,7 +213,7 @@ internal sealed class ControlFlowGraph {
     }
 
     /// <summary>
-    /// Builds a graph from graph blocks and branches.
+    /// Builds a <see cref="ControlFlowGraph" /> from graph blocks and branches.
     /// </summary>
     internal sealed class GraphBuilder {
         private Dictionary<BoundStatement, BasicBlock> _blockFromStatement =

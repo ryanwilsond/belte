@@ -6,17 +6,17 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// </summary>
 internal sealed partial class GlobalStatement : Member {
     /// <summary>
-    /// Creates a global statement.
+    /// Creates a <see cref="GlobalStatement" />.
     /// </summary>
-    /// <param name="syntaxTree">Syntax tree this node resides in</param>
-    /// <param name="statement">Statement</param>
-    /// <returns></returns>
+    /// <param name="syntaxTree"><see cref="SyntaxTree" /> this <see cref="Node" /> resides in.</param>
+    /// <param name="statement"><see cref="Statement" />.</param>
+    /// <returns>.</returns>
     internal GlobalStatement(SyntaxTree syntaxTree, Statement statement) : base(syntaxTree) {
         this.statement = statement;
     }
 
     /// <summary>
-    /// Statement (should ignore that fact that it is global).
+    /// <see cref="Statement" /> (should ignore that fact that it is global).
     /// </summary>
     internal Statement statement { get; }
 

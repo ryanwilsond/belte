@@ -15,9 +15,9 @@ internal sealed class Parser {
     private int _position;
 
     /// <summary>
-    /// Creates a new parser, requiring a fully initialized syntax tree.
+    /// Creates a new <see cref="Parser" />, requiring a fully initialized <see cref="SyntaxTree" />.
     /// </summary>
-    /// <param name="syntaxTree">Syntax tree to parse from</param>
+    /// <param name="syntaxTree"><see cref="SyntaxTree" /> to parse from.</param>
     internal Parser(SyntaxTree syntaxTree) {
         diagnostics = new BelteDiagnosticQueue();
         var tokens = new List<Token>();
@@ -72,7 +72,7 @@ internal sealed class Parser {
     /// <summary>
     /// Parses the entirety of a single file.
     /// </summary>
-    /// <returns>The parsed file</returns>
+    /// <returns>The parsed file.</returns>
     internal CompilationUnit ParseCompilationUnit() {
         var members = ParseMembers();
         var endOfFile = Match(SyntaxType.EndOfFileToken);

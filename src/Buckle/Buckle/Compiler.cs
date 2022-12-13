@@ -25,12 +25,12 @@ public enum CompilerStage {
 /// </summary>
 public struct FileContent {
     /// <summary>
-    /// Text representation of file
+    /// Text representation of file.
     /// </summary>
     public string text;
 
     /// <summary>
-    /// Byte representation of file (usually only used with .o or .exe files)
+    /// Byte representation of file (usually only used with .o or .exe files).
     /// </summary>
     public List<byte> bytes;
 }
@@ -45,7 +45,7 @@ public struct FileState {
     public string inputFilename;
 
     /// <summary>
-    /// Current stage of the file (see CompilerStage).
+    /// Current stage of the file (see <see cref="CompilerStage" />).
     /// Not related to the stage of the compiler as a whole.
     /// </summary>
     public CompilerStage stage;
@@ -72,11 +72,11 @@ public enum BuildMode {
 }
 
 /// <summary>
-/// State of a single compiler.
+/// State of a single <see cref="Compiler" />.
 /// </summary>
 public struct CompilerState {
     /// <summary>
-    /// What the compiler will target.
+    /// What the <see cref="Compiler" /> will target.
     /// </summary>
     public BuildMode buildMode;
 
@@ -91,7 +91,7 @@ public struct CompilerState {
     public string[] references;
 
     /// <summary>
-    /// Compile time options (see BuckleCommandLine)
+    /// Compile time options (see <see cref="BuckleCommandLine" />).
     /// </summary>
     public string[] options;
 
@@ -122,7 +122,7 @@ public struct CompilerState {
 }
 
 /// <summary>
-/// Handles compiling and handling a single CompilerState.
+/// Handles compiling and handling a single <see cref="CompilerState" />.
 /// Multiple can be created and run asynchronously.
 /// </summary>
 public sealed class Compiler {
@@ -131,7 +131,7 @@ public sealed class Compiler {
     private const int FatalExitCode = 2;
 
     /// <summary>
-    /// Creates a new compiler, state needs to be set separately.
+    /// Creates a new <see cref="Compiler" />, state needs to be set separately.
     /// </summary>
     public Compiler() {
         diagnostics = new BelteDiagnosticQueue();
@@ -156,7 +156,7 @@ public sealed class Compiler {
     /// <summary>
     /// Handles preprocessing, compiling, assembling, and linking of a set of files.
     /// </summary>
-    /// <returns>Error code, 0 = success</returns>
+    /// <returns>Error code, 0 = success.</returns>
     public int Compile() {
         int err;
 

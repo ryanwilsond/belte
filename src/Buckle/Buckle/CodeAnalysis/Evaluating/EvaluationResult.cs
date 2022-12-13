@@ -7,10 +7,10 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// </summary>
 internal sealed class EvaluationResult {
     /// <summary>
-    /// Creates an evaluation result, given the result and diagnostics (does no computation).
+    /// Creates an <see cref="EvaluationResult" />, given the result and diagnostics (does no computation).
     /// </summary>
-    /// <param name="value">Result of evaluation</param>
-    /// <param name="diagnostics">Diagnostics associated with value</param>
+    /// <param name="value">Result of evaluation.</param>
+    /// <param name="diagnostics">Diagnostics associated with value.</param>
     internal EvaluationResult(object value, BelteDiagnosticQueue diagnostics) {
         this.value = value;
         this.diagnostics = new BelteDiagnosticQueue();
@@ -18,7 +18,7 @@ internal sealed class EvaluationResult {
     }
 
     /// <summary>
-    /// Creates an empty evaluation result.
+    /// Creates an empty <see cref="EvaluationResult" />.
     /// </summary>
     internal EvaluationResult() : this(null, null) { }
 

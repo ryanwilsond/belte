@@ -6,8 +6,8 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// E.g. ++x
 /// </summary>
 internal sealed partial class PrefixExpression : Expression {
-    /// <param name="identifier">Existing variable name</param>
-    /// <param name="op">Operator</param>
+    /// <param name="identifier">Existing variable name.</param>
+    /// <param name="op">Operator.</param>
     internal PrefixExpression(SyntaxTree syntaxTree, Token op, Token identifier)
         : base(syntaxTree) {
         this.op = op;

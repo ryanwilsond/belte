@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// Syntactically identical to function declarations, but inside the scope of another function.
 /// </summary>
 internal sealed partial class LocalFunctionStatement : Statement {
-    /// <param name="identifier">Name of the function</param>
+    /// <param name="identifier">Name of the function.</param>
     internal LocalFunctionStatement(
         SyntaxTree syntaxTree, TypeClause returnType, Token identifier, Token openParenthesis,
         SeparatedSyntaxList<Parameter> parameters, Token closeParenthesis, BlockStatement body)

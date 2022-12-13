@@ -76,7 +76,7 @@ internal static class BuiltinFunctions {
     /// <summary>
     /// Gets all builtin functions.
     /// </summary>
-    /// <returns>All builtins, calling code should not depend on order</returns>
+    /// <returns>All builtins, calling code should not depend on order.</returns>
     internal static IEnumerable<FunctionSymbol> GetAll()
         => typeof(BuiltinFunctions).GetFields(BindingFlags.NonPublic | BindingFlags.Static)
         .Where(f => f.FieldType == typeof(FunctionSymbol))

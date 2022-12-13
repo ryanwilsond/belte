@@ -3,7 +3,7 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound reference expression, bound from a parser ReferenceExpression.
+/// A bound reference expression, bound from a <see cref="ReferenceExpression" />.
 /// </summary>
 internal sealed class BoundReferenceExpression : BoundExpression {
     internal BoundReferenceExpression(VariableSymbol variable, BoundTypeClause typeClause) {

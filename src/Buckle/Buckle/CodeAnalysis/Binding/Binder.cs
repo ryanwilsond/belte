@@ -14,7 +14,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// <summary>
 /// Binds a parser output into a immutable "bound" tree.
 /// This is where most error checking happens.
-/// The Lowerer is also called here to simplify the code, and convert control of flow into gotos and labels.
+/// The <see cref="Lowerer" /> is also called here to simplify the code, and convert control of flow into gotos and labels.
 /// Dead code is also removed here, as well as other optimizations.
 /// </summary>
 internal sealed class Binder {
@@ -58,17 +58,17 @@ internal sealed class Binder {
     }
 
     /// <summary>
-    /// Diagnostics produced by the Binder (and Lowerer).
+    /// Diagnostics produced by the <see cref="Binder" /> (and <see cref="Lowerer" />).
     /// </summary>
     internal BelteDiagnosticQueue diagnostics { get; set; }
 
     /// <summary>
     /// Binds everything in the global scope.
     /// </summary>
-    /// <param name="isScript">If being bound as a script (used by the REPL), otherwise an application</param>
-    /// <param name="previous">Previous scope (if applicable)</param>
-    /// <param name="syntaxTrees">All syntax trees, as files are bound together</param>
-    /// <returns>A bound global scope</returns>
+    /// <param name="isScript">If being bound as a script (used by the <see cref="BelteRepl" />), otherwise an application.</param>
+    /// <param name="previous">Previous <see cref="BoundGlobalScope" /> (if applicable).</param>
+    /// <param name="syntaxTrees">All syntax trees, as files are bound together.</param>
+    /// <returns>A new <see cref="BoundGlobalScope" />.</returns>
     internal static BoundGlobalScope BindGlobalScope(
         bool isScript, BoundGlobalScope previous, ImmutableArray<SyntaxTree> syntaxTrees) {
         var parentScope = CreateParentScope(previous);
@@ -153,10 +153,10 @@ internal sealed class Binder {
     /// <summary>
     /// Binds a program.
     /// </summary>
-    /// <param name="isScript">If being bound as a script (used by the REPL), otherwise an application</param>
-    /// <param name="previous">Previous program (if applicable)</param>
-    /// <param name="globalScope">The already bound global scope</param>
-    /// <returns>A bound/finished program (then either emitted or evaluated)</returns>
+    /// <param name="isScript">If being bound as a script (used by the REPL), otherwise an application.</param>
+    /// <param name="previous">Previous <see cref="BoundProgram" /> (if applicable).</param>
+    /// <param name="globalScope">The already bound <see cref="BoundGlobalScope" />.</param>
+    /// <returns>A new <see cref="BoundProgram" /> (then either emitted or evaluated).</returns>
     internal static BoundProgram BindProgram(bool isScript, BoundProgram previous, BoundGlobalScope globalScope) {
         var parentScope = CreateParentScope(globalScope);
 

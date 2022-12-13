@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Break statement. Only used in while, do while, and for statements (loops).
+/// Break statement. Only used in <see cref="WhileStatement" />, <see cref="DoWhileStatement" />, and <see cref="ForStatements" /> statements (loops).
 /// E.g. break;
 /// </summary>
 internal sealed partial class BreakStatement : Statement {

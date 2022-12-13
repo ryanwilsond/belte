@@ -28,7 +28,7 @@ internal abstract class Symbol {
     internal string name { get; }
 
     /// <summary>
-    /// The type of symbol this is (see SymbolType)
+    /// The type of symbol this is (see <see cref="SymbolType" />).
     /// </summary>
     internal abstract SymbolType type { get; }
 

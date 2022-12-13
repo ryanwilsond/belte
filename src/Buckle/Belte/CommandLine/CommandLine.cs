@@ -27,10 +27,10 @@ public static partial class BuckleCommandLine {
     };
 
     /// <summary>
-    /// Processes/decodes command-line arguments, and invokes compiler.
+    /// Processes/decodes command-line arguments, and invokes <see cref="Compiler" />.
     /// </summary>
-    /// <param name="args">Command-line arguments from Main</param>
-    /// <returns>Error code, 0 = success</returns>
+    /// <param name="args">Command-line arguments from Main.</param>
+    /// <returns>Error code, 0 = success.</returns>
     public static int ProcessArgs(string[] args) {
         int err;
         Compiler compiler = new Compiler();

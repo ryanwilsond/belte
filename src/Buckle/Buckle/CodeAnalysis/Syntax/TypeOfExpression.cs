@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// E.g. typeof(int)
 /// </summary>
 internal sealed partial class TypeOfExpression : Expression {
-    /// <param name="typeCLause">The type to get the type type from</param>
+    /// <param name="typeCLause">The type to get the type type from.</param>
     internal TypeOfExpression(
         SyntaxTree syntaxTree, Token typeofKeyword, Token openParenthesis,
         TypeClause typeClause, Token closeParenthesis)

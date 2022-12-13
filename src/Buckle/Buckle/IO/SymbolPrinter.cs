@@ -6,14 +6,14 @@ using Buckle.CodeAnalysis.Binding;
 namespace Buckle.IO;
 
 /// <summary>
-/// Prints a symbol.
+/// Prints a <see cref="Symbol" />.
 /// </summary>
 internal static class SymbolPrinter {
     /// <summary>
-    /// Writes a single symbol.
+    /// Writes a single <see cref="Symbol" />.
     /// </summary>
-    /// <param name="symbol">Symbol to print (not modified)</param>
-    /// <param name="writer">Where to write to (out)</param>
+    /// <param name="symbol"><see cref="Symbol" /> to print (not modified).</param>
+    /// <param name="writer">Where to write to (out).</param>
     internal static void WriteTo(this Symbol symbol, TextWriter writer) {
         switch (symbol.type) {
             case SymbolType.Function:

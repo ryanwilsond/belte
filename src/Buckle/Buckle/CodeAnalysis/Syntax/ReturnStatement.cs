@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// E.g. return 3;
 /// </summary>
 internal sealed partial class ReturnStatement : Statement {
-    /// <param name="expression">Return value (optional)</param>
+    /// <param name="expression">Return value (optional).</param>
     internal ReturnStatement(SyntaxTree syntaxTree, Token keyword, Expression expression, Token semicolon)
         : base(syntaxTree) {
         this.keyword = keyword;

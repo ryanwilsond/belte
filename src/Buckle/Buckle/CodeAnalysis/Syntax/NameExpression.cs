@@ -2,11 +2,11 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Name expression, references a symbol (variable or function).
+/// Name expression, references a <see cref="Symbol" /> (variable or function).
 /// E.g. myVar
 /// </summary>
 internal sealed partial class NameExpression : Expression {
-    /// <param name="identifier">Name of the symbol</param>
+    /// <param name="identifier">Name of the symbol.</param>
     internal NameExpression(SyntaxTree syntaxTree, Token identifier) : base(syntaxTree) {
         this.identifier = identifier;
     }

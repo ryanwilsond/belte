@@ -2,8 +2,8 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Finally clause. Only used with the try statement.
-/// E.g. (see TryStatement)
+/// Finally clause. Only used with the <see cref="TryStatement" />.
+/// E.g. (see <see cref="TryStatement" />)
 /// ... finally { ... }
 /// </summary>
 internal sealed partial class FinallyClause : Node {

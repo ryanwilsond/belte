@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Else clause. Only used with if statement.
+/// Else clause. Only used with the <see cref="IfStatement" />.
 /// </summary>
 internal sealed partial class ElseClause : Node {
     internal ElseClause(SyntaxTree syntaxTree, Token elseKeyword, Statement body) : base(syntaxTree) {

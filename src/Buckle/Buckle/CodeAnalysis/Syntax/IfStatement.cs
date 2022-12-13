@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// If statement. Includes an optional else clause.
+/// If statement. Includes an optional <see cref="ElseClause" />.
 /// E.g.
 /// if (condition) {
 ///     ... statements ...
@@ -11,8 +11,8 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// }
 /// </summary>
 internal sealed partial class IfStatement : Statement {
-    /// <param name="condition">Condition expression, must be of type bool</param>
-    /// <param name="elseClause">Else clause (optional)</param>
+    /// <param name="condition">Condition expression, must be of type bool.</param>
+    /// <param name="elseClause">Else clause (optional).</param>
     internal IfStatement(
         SyntaxTree syntaxTree, Token ifKeyword, Token openParenthesis, Expression condition,
         Token closeParenthesis, Statement then, ElseClause elseClause)
