@@ -28,35 +28,54 @@ internal static class SymbolPrinter {
             case SymbolType.Parameter:
                 WriteParameter((ParameterSymbol)symbol, writer);
                 break;
+            case SymbolType.Field:
+                WriteField((FieldSymbol)symbol, writer);
+                break;
             case SymbolType.Type:
-                BoundNodePrinter.WriteTypeClause(new BoundTypeClause((TypeSymbol)symbol), writer);
+                WriteType((TypeSymbol)symbol,writer);
                 break;
             default:
                 throw new Exception($"WriteTo: unexpected symbol '{symbol.type}'");
         }
     }
 
+    private static void WriteField(FieldSymbol symbol, TextWriter writer) {
+        BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
+        writer.WriteSpace();
+        writer.WriteIdentifier(symbol.name);
+    }
+
+    private static void WriteType(TypeSymbol symbol, TextWriter writer) {
+        if (symbol is StructSymbol) {
+            writer.WriteKeyword("struct");
+            writer.WriteSpace();
+            writer.WriteIdentifier(symbol.name);
+        } else {
+            BoundNodePrinter.WriteTypeClause(new BoundTypeClause(symbol), writer);
+        }
+    }
+
     private static void WriteParameter(ParameterSymbol symbol, TextWriter writer) {
         BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
-        writer.Write(" ");
+        writer.WriteSpace();
         writer.WriteIdentifier(symbol.name);
     }
 
     private static void WriteGlobalVariable(GlobalVariableSymbol symbol, TextWriter writer) {
         BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
-        writer.Write(" ");
+        writer.WriteSpace();
         writer.WriteIdentifier(symbol.name);
     }
 
     private static void WriteLocalVariable(LocalVariableSymbol symbol, TextWriter writer) {
         BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
-        writer.Write(" ");
+        writer.WriteSpace();
         writer.WriteIdentifier(symbol.name);
     }
 
     private static void WriteFunction(FunctionSymbol symbol, TextWriter writer) {
         BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
-        writer.Write(" ");
+        writer.WriteSpace();
         writer.WriteIdentifier(symbol.name);
         writer.WritePunctuation("(");
 

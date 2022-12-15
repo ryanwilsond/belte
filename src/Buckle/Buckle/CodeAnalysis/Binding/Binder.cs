@@ -21,6 +21,8 @@ internal sealed class Binder {
     private readonly FunctionSymbol _function;
     private readonly List<(FunctionSymbol function, BoundBlockStatement body)> _functionBodies =
         new List<(FunctionSymbol function, BoundBlockStatement body)>();
+    private readonly List<(StructSymbol @struct, BoundBlockStatement body)> _structBodies =
+        new List<(StructSymbol @struct, BoundBlockStatement body)>();
     private BoundScope _scope;
     private Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> _loopStack =
         new Stack<(BoundLabel breakLabel, BoundLabel continueLabel)>();
@@ -78,13 +80,20 @@ internal sealed class Binder {
 
         if (binder.diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return new BoundGlobalScope(ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)>.Empty,
-                previous, binder.diagnostics, null, null, ImmutableArray<FunctionSymbol>.Empty,
-                ImmutableArray<VariableSymbol>.Empty, ImmutableArray<BoundStatement>.Empty);
+                ImmutableArray<(StructSymbol function, BoundBlockStatement body)>.Empty, previous,
+                binder.diagnostics, null, null, ImmutableArray<FunctionSymbol>.Empty,
+                ImmutableArray<VariableSymbol>.Empty, ImmutableArray<TypeSymbol>.Empty,
+                ImmutableArray<BoundStatement>.Empty);
 
         var functionDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<FunctionDeclaration>();
 
         foreach (var function in functionDeclarations)
             binder.BindFunctionDeclaration(function);
+
+        var typeDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<TypeDeclaration>();
+
+        foreach (var @type in typeDeclarations)
+            binder.BindTypeDeclaration(@type);
 
         var globalStatements = syntaxTrees.SelectMany(st => st.root.members).OfType<GlobalStatement>();
 
@@ -137,6 +146,7 @@ internal sealed class Binder {
         }
 
         var variables = binder._scope.GetDeclaredVariables();
+        var types = binder._scope.GetDeclaredTypes();
 
         if (previous != null)
             binder.diagnostics.CopyToFront(previous.diagnostics);
@@ -145,8 +155,12 @@ internal sealed class Binder {
             ? binder._functionBodies.ToImmutableArray()
             : previous.functionBodies.AddRange(binder._functionBodies);
 
-        return new BoundGlobalScope(functionBodies, previous, binder.diagnostics, mainFunction,
-            scriptFunction, functions, variables, statements.ToImmutable());
+        var structBodies = previous == null
+            ? binder._structBodies.ToImmutableArray()
+            : previous.structBodies.AddRange(binder._structBodies);
+
+        return new BoundGlobalScope(functionBodies, structBodies, previous, binder.diagnostics, mainFunction,
+            scriptFunction, functions, variables, types, statements.ToImmutable());
     }
 
     /// <summary>
@@ -161,9 +175,15 @@ internal sealed class Binder {
 
         if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return new BoundProgram(previous, globalScope.diagnostics,
-                null, null, ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty);
+                null, null, ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty,
+                ImmutableDictionary<StructSymbol, BoundBlockStatement>.Empty);
 
         var functionBodies = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
+        var structBodies = ImmutableDictionary.CreateBuilder<StructSymbol, BoundBlockStatement>();
+
+        foreach (var structBody in globalScope.structBodies)
+            structBodies.Add(structBody.@struct, structBody.body);
+
         var diagnostics = new BelteDiagnosticQueue();
         diagnostics.Move(globalScope.diagnostics);
 
@@ -180,8 +200,9 @@ internal sealed class Binder {
                 diagnostics.Move(binder.diagnostics);
 
                 if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
-                    return new BoundProgram(previous, diagnostics,
-                        null, null, ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty);
+                    return new BoundProgram(previous, diagnostics, null, null,
+                    ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty,
+                    ImmutableDictionary<StructSymbol, BoundBlockStatement>.Empty);
 
                 loweredBody = Lowerer.Lower(function, body);
             } else {
@@ -238,7 +259,7 @@ internal sealed class Binder {
         }
 
         return new BoundProgram(previous, diagnostics, globalScope.mainFunction,
-            globalScope.scriptFunction, functionBodies.ToImmutable());
+            globalScope.scriptFunction, functionBodies.ToImmutable(), structBodies.ToImmutable());
     }
 
     private static BoundScope CreateParentScope(BoundGlobalScope previous) {
@@ -298,25 +319,34 @@ internal sealed class Binder {
             diagnostics.Push(Error.FunctionAlreadyDeclared(function.identifier.location, newFunction.name));
     }
 
+    private void BindTypeDeclaration(TypeDeclaration @type) {
+        if (@type is StructDeclaration)
+            BindStructDeclaration(@type as StructDeclaration);
+    }
+
     private void BindStructDeclaration(StructDeclaration @struct) {
+        var builder = ImmutableArray.CreateBuilder<BoundStatement>();
         var symbols = ImmutableArray.CreateBuilder<Symbol>();
         _scope = new BoundScope(_scope);
 
         foreach (var fieldDeclaration in @struct.members.OfType<FieldDeclaration>()) {
-            // TODO store BoundFieldDeclaration for later so evaluator/emitter can evaluate them as variable declarations
-            // TODO then need to store the symbol and associate it with this struct
-            // TODO add fieldDeclaration to _structBodies like BindProgram does with functions
-            var fieldDeclaration = BindFieldDeclaration(fieldDeclaration);
+            var boundDeclaration = BindFieldDeclaration(fieldDeclaration);
+            builder.Add(boundDeclaration);
+            symbols.Add(boundDeclaration.field);
         }
 
         _scope = _scope.parent;
-        var newStruct = new StructSymbol(@struct.identifier.text, ..., @struct);
+        var newStruct = new StructSymbol(@struct.identifier.text, symbols.ToImmutable(), @struct);
+        _structBodies.Add((newStruct, new BoundBlockStatement(builder.ToImmutable())));
+
+        if (!_scope.TryDeclareType(newStruct))
+            throw new Exception($"BindStructDeclaration: failed to declare {newStruct.name}");
     }
 
     private BoundFieldDeclarationStatement BindFieldDeclaration(FieldDeclaration fieldDeclaration) {
-        // TODO
-        // TODO need to store symbols in the scope, and need to store the actual declarations in a _structBodies binder field
-        return null;
+        var boundExpression =
+            BindVariableDeclarationStatement(fieldDeclaration.declaration, true) as BoundVariableDeclarationStatement;
+        return new BoundFieldDeclarationStatement((FieldSymbol)(boundExpression.variable));
     }
 
     private BoundStatement BindStatement(Statement syntax, bool isGlobal = false, bool insideInline = false) {
@@ -1704,7 +1734,8 @@ internal sealed class Binder {
         return reference;
     }
 
-    private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatement expression) {
+    private BoundStatement BindVariableDeclarationStatement(
+        VariableDeclarationStatement expression, bool bindAsField=false) {
         var typeClause = BindTypeClause(expression.typeClause);
 
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
@@ -1747,7 +1778,7 @@ internal sealed class Binder {
         if (expression.initializer?.type == SyntaxType.RefExpression) {
             var initializer = BindReferenceExpression((ReferenceExpression)expression.initializer);
             // References cant have implicit casts
-            var variable = BindVariable(expression.identifier, typeClause, initializer.constantValue);
+            var variable = BindVariable(expression.identifier, typeClause, initializer.constantValue, bindAsField);
 
             return new BoundVariableDeclarationStatement(variable, initializer);
         } else if (typeClause.dimensions > 0 ||
@@ -1790,7 +1821,7 @@ internal sealed class Binder {
                 new BoundTypeClause(
                     itemType.lType, typeClause.isImplicit, typeClause.isConstantReference, typeClause.isReference,
                     typeClause.isConstant, typeClause.isNullable, false, variableType.dimensions),
-                    castedInitializer.constantValue);
+                    castedInitializer.constantValue, bindAsField);
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
         } else {
@@ -1813,7 +1844,8 @@ internal sealed class Binder {
             }
 
             var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
-            var variable = BindVariable(expression.identifier, variableType, castedInitializer.constantValue);
+            var variable = BindVariable(
+                expression.identifier, variableType, castedInitializer.constantValue, bindAsField);
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
         }
@@ -1844,12 +1876,14 @@ internal sealed class Binder {
     }
 
     private VariableSymbol BindVariable(
-        Token identifier, BoundTypeClause type, BoundConstant constant = null) {
+        Token identifier, BoundTypeClause type, BoundConstant constant = null, bool bindAsField=false) {
         var name = identifier.text ?? "?";
         var declare = !identifier.isMissing;
-        var variable = _function == null
-            ? (VariableSymbol) new GlobalVariableSymbol(name, type, constant)
-            : new LocalVariableSymbol(name, type, constant);
+        var variable = bindAsField == true
+            ? new FieldSymbol(name, type, constant)
+            : _function == null
+                ? (VariableSymbol) new GlobalVariableSymbol(name, type, constant)
+                : new LocalVariableSymbol(name, type, constant);
 
         if (declare && !_scope.TryDeclareVariable(variable))
             diagnostics.Push(Error.AlreadyDeclared(identifier.location, name));
@@ -1878,7 +1912,10 @@ internal sealed class Binder {
             case "type":
                 return TypeSymbol.Type;
             default:
-                return null;
+                // If no type was found, we want to return null and type will be null if no type was found
+                // So we just return type
+                var type = _scope.LookupSymbol<TypeSymbol>(name);
+                return type;
         }
     }
 

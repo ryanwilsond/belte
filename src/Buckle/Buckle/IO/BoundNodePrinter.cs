@@ -78,6 +78,9 @@ internal static class BoundNodePrinter {
             case BoundNodeType.NopStatement:
                 WriteNopStatement((BoundNopStatement)node, writer);
                 break;
+            case BoundNodeType.ReferenceExpression:
+                WriteReferenceExpression((BoundReferenceExpression)node, writer);
+                break;
             case BoundNodeType.BlockStatement:
                 WriteBlockStatement((BoundBlockStatement)node, writer);
                 break;
@@ -117,6 +120,12 @@ internal static class BoundNodePrinter {
             default:
                 throw new Exception($"WriteTo: unexpected node '{node.type}'");
         }
+    }
+
+    private static void WriteReferenceExpression(BoundReferenceExpression node, IndentedTextWriter writer) {
+        writer.WriteKeyword(SyntaxType.RefKeyword);
+        writer.WriteSpace();
+        node.variable.WriteTo(writer);
     }
 
     private static void WriteTryStatement(BoundTryStatement node, IndentedTextWriter writer) {

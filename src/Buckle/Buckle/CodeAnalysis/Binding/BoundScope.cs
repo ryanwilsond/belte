@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
+using System;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -44,6 +45,13 @@ internal sealed class BoundScope {
     internal bool TryDeclareVariable(VariableSymbol symbol) => TryDeclareSymbol(symbol);
 
     /// <summary>
+    /// Attempts to declare a type.
+    /// </summary>
+    /// <param name="symbol"><see cref="StructSymbol" /> to declare.</param>
+    /// <returns>If the type was successfully added to the scope.</returns>
+    internal bool TryDeclareType(TypeSymbol symbol) => TryDeclareSymbol(symbol);
+
+    /// <summary>
     /// Gets all declared variables in this scope (not any parent scopes).
     /// </summary>
     /// <returns>All declared variables.</returns>
@@ -56,20 +64,35 @@ internal sealed class BoundScope {
     internal ImmutableArray<FunctionSymbol> GetDeclaredFunctions() => GetDeclaredSymbols<FunctionSymbol>();
 
     /// <summary>
+    /// Gets all declared types in this scope (not any parent scopes).
+    /// </summary>
+    /// <returns>All declared types.</returns>
+    internal ImmutableArray<TypeSymbol> GetDeclaredTypes() => GetDeclaredSymbols<TypeSymbol>();
+
+    /// <summary>
+    /// Attempts to find a <see cref="Symbol" /> based on the name (including parent scopes).
+    /// Because it only searches for one, use <see cref="BoundScope.LookupOverloads" /> for function symbols.
+    /// Can restrict to a specific child class of <see cref="Symbol" />.
+    /// </summary>
+    /// <param name="name">Name of <see cref="Symbol" /> to search for.</param>
+    /// <typeparam name="T">Type of <see cref="Symbol" /> to search for.</typeparam>
+    /// <returns><see cref="Symbol" /> if found, null otherwise.</returns>
+    internal T LookupSymbol<T>(string name) where T : Symbol {
+        if (_symbols != null)
+            foreach (var symbol in _symbols)
+                if (symbol.name == name && symbol is T)
+                    return symbol as T;
+
+        return parent?.LookupSymbol<T>(name);
+    }
+
+    /// <summary>
     /// Attempts to find a <see cref="Symbol" /> based on name (including parent scopes).
     /// Because it only searches for one, use <see cref="BoundScope.LookupOverloads" /> for function symbols.
     /// </summary>
     /// <param name="name">Name of <see cref="Symbol" />.</param>
     /// <returns><see cref="Symbol" /> if found, null otherwise.</returns>
-    internal Symbol LookupSymbol(string name) {
-        // Use LookupOverloads for functions
-        if (_symbols != null)
-            foreach (var symbol in _symbols)
-                if (symbol.name == name)
-                    return symbol;
-
-        return parent?.LookupSymbol(name);
-    }
+    internal Symbol LookupSymbol(string name) => LookupSymbol<Symbol>(name);
 
     /// <summary>
     /// Attempts to modify an already declared <see cref="Symbol" />.
