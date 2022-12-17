@@ -639,7 +639,7 @@ internal sealed class Parser {
             }
         }
 
-        return ParseBinaryExpression();
+        return ParseOperatorExpression();
     }
 
     private Expression ParseExpression() {
@@ -653,7 +653,7 @@ internal sealed class Parser {
         return new EmptyExpression(_syntaxTree);
     }
 
-    private Expression ParseBinaryExpression(int parentPrecedence = 0) {
+    private Expression ParseOperatorExpression(int parentPrecedence = 0) {
         Expression left;
         var unaryPrecedence = current.type.GetUnaryPrecedence();
 
@@ -664,7 +664,7 @@ internal sealed class Parser {
                 var operand = Match(SyntaxType.IdentifierToken);
                 left = new PrefixExpression(_syntaxTree, op, operand);
             } else {
-                var operand = ParseBinaryExpression(unaryPrecedence);
+                var operand = ParseOperatorExpression(unaryPrecedence);
                 left = new UnaryExpression(_syntaxTree, op, operand);
             }
         } else {
@@ -678,8 +678,21 @@ internal sealed class Parser {
                 break;
 
             var op = Next();
-            var right = ParseBinaryExpression(precedence);
+            var right = ParseOperatorExpression(precedence);
             left = new BinaryExpression(_syntaxTree, left, op, right);
+        }
+
+        while (true) {
+            int precedence = current.type.GetTernaryPrecedence();
+
+            if (precedence == 0 || precedence <= parentPrecedence)
+                break;
+
+            var leftOp = Next();
+            var center = ParseOperatorExpression(precedence);
+            var rightOp = Match(leftOp.type.GetTernaryOperatorPair());
+            var right = ParseOperatorExpression(precedence);
+            left = new TernaryExpression(_syntaxTree, left, leftOp, center, rightOp, right);
         }
 
         return left;

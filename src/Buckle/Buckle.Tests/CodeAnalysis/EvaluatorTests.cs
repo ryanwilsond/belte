@@ -153,6 +153,11 @@ public class EvaluatorTests {
     [InlineData("4.1 ** 2;", 16.81)]
     [InlineData("4.1 ** 2.1;", 19.35735875876448)]
 
+    [InlineData("true ? 3 : 5;", 3)]
+    [InlineData("false ? \"asdf\" : \"asdf2\";", "asdf2")]
+    [InlineData("int a = 3; int b = a > 2 ? 5 : 3; return b;", 5)]
+    [InlineData("int a = 3; int b = a > 2 && false ? a + 5 : a + 3; return b;", 6)]
+
     [InlineData("int a = 10; return a;", 10)]
     [InlineData("int a = 10; return a * a;", 100)]
     [InlineData("int a = 1; return 10 * a;", 10)]

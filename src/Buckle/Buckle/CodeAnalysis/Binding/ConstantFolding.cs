@@ -190,4 +190,10 @@ internal static class ConstantFolding {
 
         return null;
     }
+
+    internal static BoundConstant Fold(
+        BoundExpression left, BoundTernaryOperator op, BoundExpression center, BoundExpression right) {
+        // TODO
+        return null;
+    }
 }

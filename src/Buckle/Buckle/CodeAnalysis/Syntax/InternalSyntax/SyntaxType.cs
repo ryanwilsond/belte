@@ -1,6 +1,7 @@
 
 namespace Buckle.CodeAnalysis.Syntax;
 
+// TODO : uint?
 /// <summary>
 /// All types of things to be found in a source file.
 /// </summary>
@@ -27,6 +28,8 @@ internal enum SyntaxType {
     CommaToken,
     GreaterThanToken,
     SlashToken,
+    QuestionToken,
+    ColonToken,
 
     // Compound punctuation
     PipePipeToken,
@@ -98,6 +101,7 @@ internal enum SyntaxType {
     EmptyExpression,
 
     // Operator expressions
+    TernaryExpression,
     BinaryExpression,
     UnaryExpression,
     IndexExpression,

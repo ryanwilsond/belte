@@ -512,6 +512,8 @@ internal sealed class Binder {
                 return BindUnaryExpression((UnaryExpression)expression);
             case SyntaxType.BinaryExpression:
                 return BindBinaryExpression((BinaryExpression)expression);
+            case SyntaxType.TernaryExpression:
+                return BindTernaryExpression((TernaryExpression)expression);
             case SyntaxType.ParenthesizedExpression:
                 return BindParenExpression((ParenthesisExpression)expression);
             case SyntaxType.NameExpression:
@@ -1176,7 +1178,7 @@ internal sealed class Binder {
     }
 
     private Token CreateToken(SyntaxType type, string name = null, object value = null) {
-        // TODO Binder uses a hack to create code in the parse tree, probably better solution
+        // TODO make a syntax node factory
         return new Token(
             null, type, -1, name, value,
             ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
@@ -1332,6 +1334,30 @@ internal sealed class Binder {
         });
 
         return BindInlineFunctionExpression(new InlineFunctionExpression(null, null, body, null));
+    }
+
+    private BoundExpression BindTernaryExpression(TernaryExpression expression) {
+        var boundLeft = BindExpression(expression.left);
+        var boundCenter = BindExpression(expression.center);
+        var boundRight = BindExpression(expression.right);
+
+        if (boundLeft.typeClause.lType == TypeSymbol.Error ||
+            boundCenter.typeClause.lType == TypeSymbol.Error ||
+            boundRight.typeClause.lType == TypeSymbol.Error)
+            return new BoundErrorExpression();
+
+        var boundOp = BoundTernaryOperator.Bind(
+            expression.leftOp.type, expression.rightOp.type, boundLeft.typeClause,
+            boundCenter.typeClause, boundRight.typeClause);
+
+        if (boundOp == null) {
+            diagnostics.Push(Error.InvalidTernaryOperatorUse(
+                    expression.leftOp.location, expression.leftOp.text, boundLeft.typeClause,
+                    boundCenter.typeClause, boundRight.typeClause));
+            return new BoundErrorExpression();
+        }
+
+        return new BoundTernaryExpression(boundLeft, boundOp, boundCenter, boundRight);
     }
 
     private BoundExpression BindBinaryExpression(BinaryExpression expression) {
@@ -1502,6 +1528,9 @@ internal sealed class Binder {
                 }
                 return result;
             }
+
+            TODO
+            (left isnt null && right isnt null) ? ([NotNull]<type>)<left> <op> ([NotNull]<type>)<right> : null;
 
             */
             var leftCheck = new BinaryExpression(

@@ -372,4 +372,10 @@ internal static class Error {
         var message = "cannot initialize declared symbol in this context";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotInitialize), location, message);
     }
+
+    internal static BelteDiagnostic InvalidTernaryOperatorUse(
+        TextLocation location, string op, BoundTypeClause left, BoundTypeClause center, BoundTypeClause right) {
+        var message = $"operator '{op}' is not defined for types '{left}', '{center}', and '{right}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidTernaryOperatorUse), location, message);
+    }
 }

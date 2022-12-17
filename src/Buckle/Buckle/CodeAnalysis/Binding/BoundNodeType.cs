@@ -7,9 +7,10 @@ namespace Buckle.CodeAnalysis.Binding;
 internal enum BoundNodeType {
     Invalid,
 
+    TernaryExpression,
+    BinaryExpression,
     UnaryExpression,
     LiteralExpression,
-    BinaryExpression,
     VariableExpression,
     AssignmentExpression,
     EmptyExpression,

@@ -6,7 +6,6 @@ namespace Buckle.CodeAnalysis.Binding;
 /// All unary operator types.
 /// </summary>
 internal enum BoundUnaryOperatorType {
-    Invalid,
     NumericalIdentity,
     NumericalNegation,
     BooleanNegation,
@@ -51,10 +50,13 @@ internal sealed class BoundUnaryOperator {
             BoundTypeClause.Decimal),
     };
 
+    /// <summary>
+    /// Operator token type.
+    /// </summary>
     internal SyntaxType type { get; }
 
     /// <summary>
-    /// Operator type.
+    /// Bound operator type.
     /// </summary>
     internal BoundUnaryOperatorType opType { get; }
 

@@ -171,6 +171,10 @@ internal sealed class Lexer {
                 _position++;
                 _type = SyntaxType.SemicolonToken;
                 break;
+            case ':':
+                _position++;
+                _type = SyntaxType.ColonToken;
+                break;
             case '~':
                 _position++;
                 _type = SyntaxType.TildeToken;
@@ -203,7 +207,8 @@ internal sealed class Lexer {
                         _type = SyntaxType.QuestionQuestionToken;
                     }
                 } else {
-                    goto default;
+                    _type = SyntaxType.QuestionToken;
+                    _position++;
                 }
                 break;
             case '+':

@@ -7,7 +7,6 @@ namespace Buckle.CodeAnalysis.Binding;
 /// All binary operator types.
 /// </summary>
 internal enum BoundBinaryOperatorType {
-    Invalid,
     Addition,
     Subtraction,
     Multiplication,
@@ -149,8 +148,8 @@ internal sealed class BoundBinaryOperator {
         new BoundBinaryOperator(SyntaxType.GreaterThanEqualsToken, BoundBinaryOperatorType.GreatOrEqual,
             BoundTypeClause.Decimal, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.PercentToken, BoundBinaryOperatorType.Modulo, BoundTypeClause.Decimal),
-    new BoundBinaryOperator(SyntaxType.QuestionQuestionToken, BoundBinaryOperatorType.NullCoalescing,
-            BoundTypeClause.NullableDecimal),
+        new BoundBinaryOperator(SyntaxType.QuestionQuestionToken, BoundBinaryOperatorType.NullCoalescing,
+                BoundTypeClause.NullableDecimal),
 
         // any
         new BoundBinaryOperator(SyntaxType.IsKeyword, BoundBinaryOperatorType.Is,
@@ -159,10 +158,13 @@ internal sealed class BoundBinaryOperator {
             BoundTypeClause.NullableAny, BoundTypeClause.Bool),
     };
 
+    /// <summary>
+    /// Operator token type.
+    /// </summary>
     internal SyntaxType type { get; }
 
     /// <summary>
-    /// Operator type.
+    /// Bound operator type.
     /// </summary>
     internal BoundBinaryOperatorType opType { get; }
 

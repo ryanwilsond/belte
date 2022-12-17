@@ -11,7 +11,7 @@ internal static class SyntaxFacts {
     /// Gets binary operator precedence of a <see cref="SyntaxType" />.
     /// </summary>
     /// <param name="type"><see cref="SyntaxType" />.</param>
-    /// <returns>Precedence.</returns>
+    /// <returns>Precedence, or 0 if <paramref name="type" /> is not a binary operator.</returns>
     internal static int GetBinaryPrecedence(this SyntaxType type) {
         switch (type) {
             case SyntaxType.AsteriskAsteriskToken:
@@ -58,7 +58,7 @@ internal static class SyntaxFacts {
     /// Gets primary operator precedence of a <see cref="SyntaxType" />.
     /// </summary>
     /// <param name="type"><see cref="SyntaxType" />.</param>
-    /// <returns>Precedence.</returns>
+    /// <returns>Precedence, or 0 if <paramref name="type" /> is not a primary operator.</returns>
     internal static int GetPrimaryPrecedence(this SyntaxType type) {
         switch (type) {
             case SyntaxType.TypeOfKeyword:
@@ -74,7 +74,7 @@ internal static class SyntaxFacts {
     /// Gets unary operator precedence of a <see cref="SyntaxType" />.
     /// </summary>
     /// <param name="type"><see cref="SyntaxType" />.</param>
-    /// <returns>Precedence.</returns>
+    /// <returns>Precedence, or 0 if <paramref name="type" /> is not a unary operator.</returns>
     internal static int GetUnaryPrecedence(this SyntaxType type) {
         switch (type) {
             case SyntaxType.PlusPlusToken:
@@ -86,6 +86,38 @@ internal static class SyntaxFacts {
                 return 17;
             default:
                 return 0;
+        }
+    }
+
+    /// <summary>
+    /// Gets ternary operator precedence of a <see cref="SyntaxType" />.
+    /// </summary>
+    /// <param name="type"><see cref="SyntaxType" />.</param>
+    /// <returns>Precedence, or 0 if <paramref name="type" /> is not a ternary operator.</returns>
+    internal static int GetTernaryPrecedence(this SyntaxType type) {
+        switch (type) {
+            case SyntaxType.QuestionToken:
+                return 2;
+            default:
+                return 0;
+        }
+    }
+
+    /// <summary>
+    /// Gets the right operator associated with the given left operator in a ternary operator.
+    /// E.g.
+    /// c ? t : f
+    ///   ^----------- If given the ? token (left operator),
+    ///       ^------- will return the : token (right operator).
+    /// </summary>
+    /// <param name="type">Left operator of the ternary operator.</param>
+    /// <returns>Associated right operator, throws if given an unknown right operator.</returns>
+    internal static SyntaxType GetTernaryOperatorPair(this SyntaxType type) {
+        switch (type) {
+            case SyntaxType.QuestionToken:
+                return SyntaxType.ColonToken;
+            default:
+                throw new Exception($"GetTernaryOperatorPair: unknown right operator '{type}'");
         }
     }
 
@@ -202,6 +234,10 @@ internal static class SyntaxFacts {
                 return "]";
             case SyntaxType.SemicolonToken:
                 return ";";
+            case SyntaxType.ColonToken:
+                return ":";
+            case SyntaxType.QuestionToken:
+                return "?";
             case SyntaxType.EqualsEqualsToken:
                 return "==";
             case SyntaxType.ExclamationEqualsToken:

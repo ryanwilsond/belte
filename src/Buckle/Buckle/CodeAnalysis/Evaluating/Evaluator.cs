@@ -225,6 +225,8 @@ internal sealed class Evaluator {
                 return EvaluateUnaryExpression((BoundUnaryExpression)node);
             case BoundNodeType.BinaryExpression:
                 return EvaluateBinaryExpression((BoundBinaryExpression)node);
+            case BoundNodeType.TernaryExpression:
+                return EvaluateTernaryExpression((BoundTernaryExpression)node);
             case BoundNodeType.CallExpression:
                 return EvaluateCallExpression((BoundCallExpression)node);
             case BoundNodeType.CastExpression:
@@ -419,6 +421,23 @@ internal sealed class Evaluator {
                 return new EvaluatorObject(~(int)Value(operand));
             default:
                 throw new Exception($"EvaluateUnaryExpression: unknown unary operator '{syntax.op}'");
+        }
+    }
+
+    private EvaluatorObject EvaluateTernaryExpression(BoundTernaryExpression syntax) {
+        var left = EvaluateExpression(syntax.left);
+        var center = EvaluateExpression(syntax.center);
+        var right = EvaluateExpression(syntax.right);
+
+        var leftValue = Value(left);
+        var centerValue = Value(center);
+        var rightValue = Value(right);
+
+        switch (syntax.op.opType) {
+            case BoundTernaryOperatorType.Conditional:
+                return (bool)leftValue ? new EvaluatorObject(centerValue) : new EvaluatorObject(rightValue);
+            default:
+                throw new Exception($"EvaluateTernaryExpression: unknown ternary operator '{syntax.op}'");
         }
     }
 
