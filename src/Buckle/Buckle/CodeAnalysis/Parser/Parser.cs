@@ -544,6 +544,9 @@ internal sealed class Parser {
     }
 
     private bool PeekIsInlineFunctionExpression() {
+        // * Temporary, inlines will be disabled until the StackFrameParser is added
+        return false;
+
         var offset = 1;
         var stack = 1;
 
@@ -688,7 +691,7 @@ internal sealed class Parser {
         while (true) {
             int precedence = current.type.GetTernaryPrecedence();
 
-            if (precedence == 0 || precedence <= parentPrecedence)
+            if (precedence == 0 || precedence < parentPrecedence)
                 break;
 
             var leftOp = Next();
@@ -704,7 +707,7 @@ internal sealed class Parser {
     private Expression ParsePrimaryExpression() {
         switch (current.type) {
             case SyntaxType.OpenParenToken:
-                if (PeekIsTypeClause(1, out _, out _))
+                if (PeekIsTypeClause(1, out var offset, out _) && Peek(offset).type == SyntaxType.CloseParenToken)
                     return ParseCastExpression();
                 else
                     return ParseParenthesizedExpression();

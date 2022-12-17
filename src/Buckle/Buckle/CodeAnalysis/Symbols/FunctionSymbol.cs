@@ -42,7 +42,7 @@ internal sealed class FunctionSymbol : Symbol {
     internal override SymbolType type => SymbolType.Function;
 
     /// <summary>
-    /// Compares this to <paramref name="right" /> to see if the method signatures match, even if they aren't the
+    /// Compares this to <paramref name="right" /> to see if the method signatures match, even if they are not the
     /// same reference. This is effectively a value compare.
     /// NOTE: This does not look at bodies, and is only comparing the signature.
     /// </summary>

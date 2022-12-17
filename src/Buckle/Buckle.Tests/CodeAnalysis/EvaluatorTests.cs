@@ -71,11 +71,11 @@ public class EvaluatorTests {
     [InlineData("var a = 1; a &= 0; return a;", 0)]
     [InlineData("var a = 1; a ^= 0; return a;", 1)]
     [InlineData("var a = 5; a %= 2; return a;", 1)]
-    // ? If wondering these tests will also be fixed when the StackFrameParser stuff is added
-    // [InlineData("var a = 5; a ??= 2; return a;", 5)]
-    // [InlineData("var a = null; a ??= 2; return a;", 2)]
-    [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return a;", 6)]
-    [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return b;", 5)]
+    [InlineData("var a = 5; a ??= 2; return a;", 5)]
+    [InlineData("int a = null; a ??= 2; return a;", 2)]
+    // * Will get fixed with StackFrameParser
+    // [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return a;", 6)]
+    // [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return b;", 5)]
 
     [InlineData("1 | 2;", 3)]
     [InlineData("1 | 0;", 1)]
@@ -156,7 +156,7 @@ public class EvaluatorTests {
     [InlineData("true ? 3 : 5;", 3)]
     [InlineData("false ? \"asdf\" : \"asdf2\";", "asdf2")]
     [InlineData("int a = 3; int b = a > 2 ? 5 : 3; return b;", 5)]
-    // [InlineData("int a = 3; int b = a > 2 && false ? a + 5 : a + 3; return b;", 6)]
+    [InlineData("int a = 3; int b = a > 2 && false ? a + 5 : a + 3; return b;", 6)]
 
     [InlineData("int a = 10; return a;", 10)]
     [InlineData("int a = 10; return a * a;", 100)]
@@ -216,7 +216,7 @@ public class EvaluatorTests {
     [InlineData("(int)3.6;", 3)]
     [InlineData("([NotNull]int)3;", 3)]
 
-    // [InlineData("int x = 2; int y = { return 2 * x; }; return y;", 4)]
+    // * Will get fixed with StackFrameParser
     // [InlineData("int funcA() { int funcB() { return 2; } return funcB() + 1; } return funcA(); ", 3)]
     // [InlineData("int funcA() { int funcB() { int funcA() { return 2; } return funcA() + 1; } return funcB() + 1; } return funcA();", 3)]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
@@ -747,19 +747,19 @@ public class EvaluatorTests {
         AssertDiagnostics(text, diagnostics);
     }
 
-    // [Fact]
-    // public void Evaluator_Function_CanDeclare() {
-    //     var text = @"
-    //         void myFunction(int num1, int num2) {
-    //             Print(num1 + num2 / 3.14159);
-    //         }
-    //         myFunction(1, 2);
-    //     ";
+    [Fact]
+    public void Evaluator_Function_CanDeclare() {
+        var text = @"
+            void myFunction(int num1, int num2) {
+                Print(num1 + num2 / 3.14159);
+            }
+            myFunction(1, 2);
+        ";
 
-    //     var diagnostics = @"";
+        var diagnostics = @"";
 
-    //     AssertDiagnostics(text, diagnostics);
-    // }
+        AssertDiagnostics(text, diagnostics);
+    }
 
     [Fact]
     public void Evaluator_Function_CanCall() {

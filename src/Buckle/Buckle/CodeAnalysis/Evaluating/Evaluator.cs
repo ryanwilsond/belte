@@ -353,39 +353,39 @@ internal sealed class Evaluator {
         return new EvaluatorObject(null);
     }
 
-    private EvaluatorObject EvaluateConstantExpression(BoundExpression syntax) {
-        return EvaluateCast(new EvaluatorObject(syntax.constantValue.value), syntax.typeClause);
+    private EvaluatorObject EvaluateConstantExpression(BoundExpression expression) {
+        return EvaluateCast(new EvaluatorObject(expression.constantValue.value), expression.typeClause);
     }
 
-    private EvaluatorObject EvaluateVariableExpression(BoundVariableExpression syntax) {
-        if (syntax.variable.type == SymbolType.GlobalVariable)
-            return _globals[syntax.variable];
+    private EvaluatorObject EvaluateVariableExpression(BoundVariableExpression expression) {
+        if (expression.variable.type == SymbolType.GlobalVariable)
+            return _globals[expression.variable];
 
         var locals = _locals.Peek();
-        return locals[syntax.variable];
+        return locals[expression.variable];
     }
 
-    private EvaluatorObject EvaluateAssignmentExpresion(BoundAssignmentExpression syntax) {
-        var value = EvaluateExpression(syntax.expression);
-        Assign(syntax.variable, value);
+    private EvaluatorObject EvaluateAssignmentExpresion(BoundAssignmentExpression expression) {
+        var value = EvaluateExpression(expression.expression);
+        Assign(expression.variable, value);
 
         return value;
     }
 
-    private EvaluatorObject EvaluateUnaryExpression(BoundUnaryExpression syntax) {
-        var operand = EvaluateExpression(syntax.operand);
+    private EvaluatorObject EvaluateUnaryExpression(BoundUnaryExpression expression) {
+        var operand = EvaluateExpression(expression.operand);
 
         if (Value(operand) == null)
             return new EvaluatorObject(null);
 
-        switch (syntax.op.opType) {
+        switch (expression.op.opType) {
             case BoundUnaryOperatorType.NumericalIdentity:
-                if (syntax.operand.typeClause.lType == TypeSymbol.Int)
+                if (expression.operand.typeClause.lType == TypeSymbol.Int)
                     return new EvaluatorObject((int)Value(operand));
                 else
                     return new EvaluatorObject((double)Value(operand));
             case BoundUnaryOperatorType.NumericalNegation:
-                if (syntax.operand.typeClause.lType == TypeSymbol.Int)
+                if (expression.operand.typeClause.lType == TypeSymbol.Int)
                     return new EvaluatorObject(-(int)Value(operand));
                 else
                     return new EvaluatorObject(-(double)Value(operand));
@@ -394,65 +394,91 @@ internal sealed class Evaluator {
             case BoundUnaryOperatorType.BitwiseCompliment:
                 return new EvaluatorObject(~(int)Value(operand));
             default:
-                throw new BelteInternalException($"EvaluateUnaryExpression: unknown unary operator '{syntax.op}'");
+                throw new BelteInternalException($"EvaluateUnaryExpression: unknown unary operator '{expression.op}'");
         }
     }
 
-    private EvaluatorObject EvaluateTernaryExpression(BoundTernaryExpression syntax) {
-        var left = EvaluateExpression(syntax.left);
-        var center = EvaluateExpression(syntax.center);
-        var right = EvaluateExpression(syntax.right);
-
+    private EvaluatorObject EvaluateTernaryExpression(BoundTernaryExpression expression) {
+        var left = EvaluateExpression(expression.left);
         var leftValue = Value(left);
-        var centerValue = Value(center);
-        var rightValue = Value(right);
 
-        switch (syntax.op.opType) {
+        switch (expression.op.opType) {
             case BoundTernaryOperatorType.Conditional:
-                return (bool)leftValue ? new EvaluatorObject(centerValue) : new EvaluatorObject(rightValue);
+                // This is so unused sides do not get evaluated (incase they would throw)
+                if ((bool)leftValue == true)
+                    return EvaluateExpression(expression.center);
+                else
+                    return EvaluateExpression(expression.right);
             default:
-                throw new BelteInternalException($"EvaluateTernaryExpression: unknown ternary operator '{syntax.op}'");
+                throw new BelteInternalException($"EvaluateTernaryExpression: unknown ternary operator '{expression.op}'");
         }
     }
 
-    private EvaluatorObject EvaluateBinaryExpression(BoundBinaryExpression syntax) {
-        var left = EvaluateExpression(syntax.left);
-        var right = EvaluateExpression(syntax.right);
-
+    private EvaluatorObject EvaluateBinaryExpression(BoundBinaryExpression expression) {
+        var left = EvaluateExpression(expression.left);
         var leftValue = Value(left);
+
+        // Only evaluates right side if necessary
+        if (expression.op.opType == BoundBinaryOperatorType.ConditionalAnd) {
+            if (leftValue == null || (bool)leftValue == false)
+                return new EvaluatorObject(false);
+
+            var _right = EvaluateExpression(expression.right);
+            var _rightValue = Value(_right);
+
+            if (_rightValue == null || (bool)_rightValue == false)
+                return new EvaluatorObject(false);
+
+            return new EvaluatorObject(true);
+        }
+
+        if (expression.op.opType == BoundBinaryOperatorType.ConditionalOr) {
+            if (leftValue != null && (bool)leftValue == true)
+                return new EvaluatorObject(true);
+
+            var _right = EvaluateExpression(expression.right);
+            var _rightValue = Value(_right);
+
+            if (_rightValue != null && (bool)_rightValue == true)
+                return new EvaluatorObject(true);
+
+            return new EvaluatorObject(false);
+        }
+
+        var right = EvaluateExpression(expression.right);
         var rightValue = Value(right);
 
         if (leftValue == null || rightValue == null)
             return new EvaluatorObject(null);
 
-        var syntaxType = syntax.typeClause.lType;
-        var leftType = syntax.left.typeClause.lType;
+        var expressionType = expression.typeClause.lType;
+        var leftType = expression.left.typeClause.lType;
 
-        switch (syntax.op.opType) {
+        switch (expression.op.opType) {
             case BoundBinaryOperatorType.Addition:
-                if (syntaxType == TypeSymbol.Int)
+                if (expressionType == TypeSymbol.Int)
                     return new EvaluatorObject((int)leftValue + (int)rightValue);
-                else if (syntaxType == TypeSymbol.String)
+                else if (expressionType == TypeSymbol.String)
                     return new EvaluatorObject((string)leftValue + (string)rightValue);
                 else
                     return new EvaluatorObject((double)leftValue + (double)rightValue);
             case BoundBinaryOperatorType.Subtraction:
-                if (syntaxType == TypeSymbol.Int)
+                if (expressionType == TypeSymbol.Int)
                     return new EvaluatorObject((int)leftValue - (int)rightValue);
                 else
                     return new EvaluatorObject((double)leftValue - (double)rightValue);
             case BoundBinaryOperatorType.Multiplication:
-                if (syntaxType == TypeSymbol.Int)
+                if (expressionType == TypeSymbol.Int)
                     return new EvaluatorObject((int)leftValue * (int)rightValue);
                 else
                     return new EvaluatorObject((double)leftValue * (double)rightValue);
             case BoundBinaryOperatorType.Division:
-                if (syntaxType == TypeSymbol.Int)
+                if (expressionType == TypeSymbol.Int)
                     return new EvaluatorObject((int)leftValue / (int)rightValue);
                 else
                     return new EvaluatorObject((double)leftValue / (double)rightValue);
             case BoundBinaryOperatorType.Power:
-                if (syntaxType == TypeSymbol.Int)
+                if (expressionType == TypeSymbol.Int)
                     return new EvaluatorObject((int)Math.Pow((int)leftValue, (int)rightValue));
                 else
                     return new EvaluatorObject((double)Math.Pow((double)leftValue, (double)rightValue));
@@ -485,17 +511,17 @@ internal sealed class Evaluator {
                 else
                     return new EvaluatorObject((double)leftValue >= (double)rightValue);
             case BoundBinaryOperatorType.LogicalAnd:
-                if (syntaxType == TypeSymbol.Int)
+                if (expressionType == TypeSymbol.Int)
                     return new EvaluatorObject((int)leftValue & (int)rightValue);
                 else
                     return new EvaluatorObject((bool)leftValue & (bool)rightValue);
             case BoundBinaryOperatorType.LogicalOr:
-                if (syntaxType == TypeSymbol.Int)
+                if (expressionType == TypeSymbol.Int)
                     return new EvaluatorObject((int)leftValue | (int)rightValue);
                 else
                     return new EvaluatorObject((bool)leftValue | (bool)rightValue);
             case BoundBinaryOperatorType.LogicalXor:
-                if (syntaxType == TypeSymbol.Int)
+                if (expressionType == TypeSymbol.Int)
                     return new EvaluatorObject((int)leftValue ^ (int)rightValue);
                 else
                     return new EvaluatorObject((bool)leftValue ^ (bool)rightValue);
@@ -506,12 +532,12 @@ internal sealed class Evaluator {
             case BoundBinaryOperatorType.UnsignedRightShift:
                 return new EvaluatorObject((int)leftValue >>> (int)rightValue);
             case BoundBinaryOperatorType.Modulo:
-                if (syntaxType == TypeSymbol.Int)
+                if (expressionType == TypeSymbol.Int)
                     return new EvaluatorObject((int)leftValue % (int)rightValue);
                 else
                     return new EvaluatorObject((double)leftValue % (double)rightValue);
             default:
-                throw new BelteInternalException($"EvaluateBinaryExpression: unknown binary operator '{syntax.op}'");
+                throw new BelteInternalException($"EvaluateBinaryExpression: unknown binary operator '{expression.op}'");
         }
     }
 }

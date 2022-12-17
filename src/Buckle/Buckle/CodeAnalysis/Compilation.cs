@@ -185,6 +185,7 @@ public sealed class Compilation {
             } catch (BelteInternalException) {
                 // If the body could not be found, it probably means it is a builtin
                 // In that case only showing the signature is what we want
+                writer.WritePunctuation(SyntaxType.SemicolonToken);
                 writer.WriteLine();
             }
         } else {

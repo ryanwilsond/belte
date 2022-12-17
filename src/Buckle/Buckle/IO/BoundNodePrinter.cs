@@ -365,10 +365,18 @@ internal static class BoundNodePrinter {
 
     private static void WriteNestedExpression(
         this IndentedTextWriter writer, int parentPrecedence, BoundExpression expression) {
-        if (expression is BoundUnaryExpression u)
-            writer.WriteNestedExpression(parentPrecedence, SyntaxFacts.GetUnaryPrecedence(u.op.type), u);
-        else if (expression is BoundBinaryExpression b)
-            writer.WriteNestedExpression(parentPrecedence, SyntaxFacts.GetBinaryPrecedence(b.op.type), b);
+        var expr = expression;
+
+        if (expression is BoundAssignmentExpression a)
+            expr = a.expression;
+
+        if (expr is BoundUnaryExpression u)
+            writer.WriteNestedExpression(parentPrecedence, SyntaxFacts.GetUnaryPrecedence(u.op.type), expression);
+        else if (expr is BoundBinaryExpression b)
+            writer.WriteNestedExpression(parentPrecedence, SyntaxFacts.GetBinaryPrecedence(b.op.type), expression);
+        else if (expr is BoundTernaryExpression t)
+            writer.WriteNestedExpression(
+                parentPrecedence, SyntaxFacts.GetTernaryPrecedence(t.op.leftOpType), expression);
         else
             expression.WriteTo(writer);
     }

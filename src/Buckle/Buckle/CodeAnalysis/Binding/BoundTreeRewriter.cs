@@ -206,7 +206,14 @@ internal abstract class BoundTreeRewriter {
     }
 
     protected virtual BoundExpression RewriteTernaryExpression(BoundTernaryExpression expression) {
-        return expression;
+        var left = RewriteExpression(expression.left);
+        var center = RewriteExpression(expression.center);
+        var right = RewriteExpression(expression.right);
+
+        if (left == expression.left && center == expression.center && right == expression.right)
+            return expression;
+
+        return new BoundTernaryExpression(left, expression.op, center, right);
     }
 
     protected virtual BoundExpression RewriteTypeOfExpression(BoundTypeOfExpression expression) {
