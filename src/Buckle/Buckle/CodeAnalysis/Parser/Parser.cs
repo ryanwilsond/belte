@@ -408,6 +408,9 @@ internal sealed class Parser {
         if (current.type == SyntaxType.EqualsToken) {
             if (!allowDefinition) {
                 diagnostics.Push(Error.CannotInitialize(Next().location));
+            } else {
+                equals = Next();
+                initializer = ParseExpression();
             }
         }
 

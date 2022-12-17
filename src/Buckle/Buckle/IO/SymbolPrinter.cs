@@ -1,7 +1,7 @@
-using System;
 using System.IO;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.Diagnostics;
 
 namespace Buckle.IO;
 
@@ -35,7 +35,7 @@ internal static class SymbolPrinter {
                 WriteType((TypeSymbol)symbol,writer);
                 break;
             default:
-                throw new Exception($"WriteTo: unexpected symbol '{symbol.type}'");
+                throw new BelteInternalException($"WriteTo: unexpected symbol '{symbol.type}'");
         }
     }
 

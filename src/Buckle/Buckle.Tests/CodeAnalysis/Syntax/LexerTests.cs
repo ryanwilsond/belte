@@ -339,6 +339,12 @@ public class LexerTests {
             return true;
         if (t1Type == SyntaxType.QuestionQuestionToken && t2Type == SyntaxType.EqualsEqualsToken)
             return true;
+        if (t1Type == SyntaxType.QuestionToken && t2Type == SyntaxType.QuestionToken)
+            return true;
+        if (t1Type == SyntaxType.QuestionToken && t2Type == SyntaxType.QuestionQuestionToken)
+            return true;
+        if (t1Type == SyntaxType.QuestionToken && t2Type == SyntaxType.QuestionQuestionEqualsToken)
+            return true;
 
         return false;
     }

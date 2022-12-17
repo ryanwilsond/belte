@@ -4,6 +4,7 @@ using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
+using static Buckle.Utilities.FunctionUtilities;
 
 namespace Buckle.CodeAnalysis.Evaluating;
 
@@ -67,7 +68,7 @@ internal sealed class Evaluator {
         if (function == null)
             return null;
 
-        var body = LookupMethod(function);
+        var body = LookupMethod(_functions, function);
         var result = EvaluateStatement(body);
 
         return Value(result, true);
@@ -163,12 +164,12 @@ internal sealed class Evaluator {
 
                         return _lastValue;
                     default:
-                        throw new Exception($"EvaluateStatement: unexpected statement '{s.type}'");
+                        throw new BelteInternalException($"EvaluateStatement: unexpected statement '{s.type}'");
                 }
             }
 
             return _lastValue;
-        } catch (Exception e) {
+        } catch (Exception e) when (!(e is BelteInternalException)) {
             var previous = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Red;
             Console.Write("Unhandled exception: ");
@@ -240,7 +241,7 @@ internal sealed class Evaluator {
             case BoundNodeType.EmptyExpression:
                 return new EvaluatorObject(null);
             default:
-                throw new Exception($"EvaluateExpression: unexpected node '{node.type}'");
+                throw new BelteInternalException($"EvaluateExpression: unexpected node '{node.type}'");
         }
     }
 
@@ -298,20 +299,20 @@ internal sealed class Evaluator {
             return new EvaluatorObject(Convert.ToDouble(Value(value)));
         }
 
-        throw new Exception($"EvaluateCast: unexpected type '{typeClause}'");
+        throw new BelteInternalException($"EvaluateCast: unexpected type '{typeClause}'");
     }
 
     private EvaluatorObject EvaluateCallExpression(BoundCallExpression node) {
-        if (MethodsMatch(node.function, BuiltinFunctions.Input)) {
+        if (node.function.MethodMatches(BuiltinFunctions.Input)) {
             return new EvaluatorObject(Console.ReadLine());
-        } else if (MethodsMatch(node.function, BuiltinFunctions.Print)) {
+        } else if (node.function.MethodMatches(BuiltinFunctions.Print)) {
             var message = EvaluateExpression(node.arguments[0]);
             Console.Write(Value(message));
             hasPrint = true;
-        } else if (MethodsMatch(node.function, BuiltinFunctions.PrintLine)) {
+        } else if (node.function.MethodMatches(BuiltinFunctions.PrintLine)) {
             var message = EvaluateExpression(node.arguments[0]);
             Console.WriteLine(Value(message));
-        } else if (MethodsMatch(node.function, BuiltinFunctions.RandInt)) {
+        } else if (node.function.MethodMatches(BuiltinFunctions.RandInt)) {
             var max = (int)Value(EvaluateExpression(node.arguments[0]));
 
             if (_random == null)
@@ -325,7 +326,7 @@ internal sealed class Evaluator {
                 throw new NullReferenceException();
 
             return new EvaluatorObject(Value(value));
-        } else if (MethodsMatch(node.function, BuiltinFunctions.HasValue)) {
+        } else if (node.function.MethodMatches(BuiltinFunctions.HasValue)) {
             EvaluatorObject? value = EvaluateExpression(node.arguments[0]);
 
             if (Value(value) == null)
@@ -342,7 +343,7 @@ internal sealed class Evaluator {
             }
 
             _locals.Push(locals);
-            var statement = LookupMethod(node.function);
+            var statement = LookupMethod(_functions, node.function);
             var result = EvaluateStatement(statement);
             _locals.Pop();
 
@@ -350,33 +351,6 @@ internal sealed class Evaluator {
         }
 
         return new EvaluatorObject(null);
-    }
-
-    private BoundBlockStatement LookupMethod(FunctionSymbol function) {
-        foreach (var pair in _functions)
-            if (MethodsMatch(pair.Key, function))
-                return pair.Value;
-
-        throw new Exception($"LookupMethod: could not find method '{function.name}'");
-    }
-
-    private bool MethodsMatch(FunctionSymbol left, FunctionSymbol right) {
-        if (left.name == right.name && left.parameters.Length == right.parameters.Length) {
-            var parametersMatch = true;
-
-            for (int i=0; i<left.parameters.Length; i++) {
-                var checkParameter = left.parameters[i];
-                var parameter = right.parameters[i];
-
-                if (checkParameter.name != parameter.name || checkParameter.typeClause != parameter.typeClause)
-                    parametersMatch = false;
-            }
-
-            if (parametersMatch)
-                return true;
-        }
-
-        return false;
     }
 
     private EvaluatorObject EvaluateConstantExpression(BoundExpression syntax) {
@@ -420,7 +394,7 @@ internal sealed class Evaluator {
             case BoundUnaryOperatorType.BitwiseCompliment:
                 return new EvaluatorObject(~(int)Value(operand));
             default:
-                throw new Exception($"EvaluateUnaryExpression: unknown unary operator '{syntax.op}'");
+                throw new BelteInternalException($"EvaluateUnaryExpression: unknown unary operator '{syntax.op}'");
         }
     }
 
@@ -437,7 +411,7 @@ internal sealed class Evaluator {
             case BoundTernaryOperatorType.Conditional:
                 return (bool)leftValue ? new EvaluatorObject(centerValue) : new EvaluatorObject(rightValue);
             default:
-                throw new Exception($"EvaluateTernaryExpression: unknown ternary operator '{syntax.op}'");
+                throw new BelteInternalException($"EvaluateTernaryExpression: unknown ternary operator '{syntax.op}'");
         }
     }
 
@@ -537,7 +511,7 @@ internal sealed class Evaluator {
                 else
                     return new EvaluatorObject((double)leftValue % (double)rightValue);
             default:
-                throw new Exception($"EvaluateBinaryExpression: unknown binary operator '{syntax.op}'");
+                throw new BelteInternalException($"EvaluateBinaryExpression: unknown binary operator '{syntax.op}'");
         }
     }
 }

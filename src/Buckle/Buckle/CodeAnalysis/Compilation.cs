@@ -9,8 +9,9 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Emitting;
-using Diagnostics;
 using Buckle.CodeAnalysis.Evaluating;
+using static Buckle.Utilities.FunctionUtilities;
+using Diagnostics;
 
 namespace Buckle.CodeAnalysis;
 
@@ -177,14 +178,18 @@ public sealed class Compilation {
 
         if (symbol is FunctionSymbol f) {
             f.WriteTo(writer);
-            if (!program.functionBodies.TryGetValue(f, out var body)) {
-                writer.WriteLine();
-                return;
-            }
 
-            body.WriteTo(writer);
+            try {
+                var body = LookupMethod(program.functionBodies, f);
+                body.WriteTo(writer);
+            } catch (BelteInternalException) {
+                // If the body could not be found, it probably means it is a builtin
+                // In that case only showing the signature is what we want
+                writer.WriteLine();
+            }
         } else {
             symbol.WriteTo(writer);
+            writer.WriteLine();
         }
     }
 

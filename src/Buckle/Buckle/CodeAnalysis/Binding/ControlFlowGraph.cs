@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using Buckle.IO;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -189,7 +190,7 @@ internal sealed class ControlFlowGraph {
                         _statements.Add(statement);
                         break;
                     default:
-                        throw new Exception($"Build: unexpected statement '{statement.type}'");
+                        throw new BelteInternalException($"Build: unexpected statement '{statement.type}'");
                 }
             }
 
@@ -275,7 +276,7 @@ internal sealed class ControlFlowGraph {
                                 Connect(current, next);
                             break;
                         default:
-                            throw new Exception($"Build: unexpected statement '{statement.type}'");
+                            throw new BelteInternalException($"Build: unexpected statement '{statement.type}'");
                     }
                 }
             }

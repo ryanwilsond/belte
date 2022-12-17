@@ -40,4 +40,32 @@ internal sealed class FunctionSymbol : Symbol {
     internal FunctionDeclaration declaration { get; }
 
     internal override SymbolType type => SymbolType.Function;
+
+    /// <summary>
+    /// Compares this to <paramref name="right" /> to see if the method signatures match, even if they aren't the
+    /// same reference. This is effectively a value compare.
+    /// NOTE: This does not look at bodies, and is only comparing the signature.
+    /// </summary>
+    /// <param name="right">Method to compare this to.</param>
+    /// <returns>If the method signatures match completely.</returns>
+    internal bool MethodMatches(FunctionSymbol right) {
+        if (name == right.name && parameters.Length == right.parameters.Length) {
+            var parametersMatch = true;
+
+            for (int i=0; i<parameters.Length; i++) {
+                var checkParameter = parameters[i];
+                var parameter = right.parameters[i];
+
+                // The Replace call allows rewritten nested functions that prefix parameter names with '$'
+                if (checkParameter.name != parameter.name.Replace("$", "") ||
+                    checkParameter.typeClause != parameter.typeClause)
+                    parametersMatch = false;
+            }
+
+            if (parametersMatch)
+                return true;
+        }
+
+        return false;
+    }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
@@ -117,7 +118,7 @@ internal static class SyntaxFacts {
             case SyntaxType.QuestionToken:
                 return SyntaxType.ColonToken;
             default:
-                throw new Exception($"GetTernaryOperatorPair: unknown right operator '{type}'");
+                throw new BelteInternalException($"GetTernaryOperatorPair: unknown right operator '{type}'");
         }
     }
 
@@ -361,7 +362,7 @@ internal static class SyntaxFacts {
             case SyntaxType.QuestionQuestionEqualsToken:
                 return SyntaxType.QuestionQuestionToken;
             default:
-                throw new Exception($"GetBinaryOperatorOfAssignmentOperator: unexpected syntax '{type}'");
+                throw new BelteInternalException($"GetBinaryOperatorOfAssignmentOperator: unexpected syntax '{type}'");
         }
     }
 

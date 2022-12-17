@@ -112,7 +112,7 @@ public static partial class BuckleCommandLine {
 
         try {
             errorCode = Convert.ToInt32(error.Substring(2));
-        } catch {
+        } catch (Exception e) when (e is FormatException || e is OverflowException) {
             diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
             return;
         }

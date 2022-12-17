@@ -92,8 +92,8 @@ internal sealed class Binder {
 
         var typeDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<TypeDeclaration>();
 
-        foreach (var @type in typeDeclarations)
-            binder.BindTypeDeclaration(@type);
+        // foreach (var @type in typeDeclarations)
+        //     binder.BindTypeDeclaration(@type);
 
         var globalStatements = syntaxTrees.SelectMany(st => st.root.members).OfType<GlobalStatement>();
 
@@ -181,8 +181,8 @@ internal sealed class Binder {
         var functionBodies = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
         var structBodies = ImmutableDictionary.CreateBuilder<StructSymbol, BoundBlockStatement>();
 
-        foreach (var structBody in globalScope.structBodies)
-            structBodies.Add(structBody.@struct, structBody.body);
+        // foreach (var structBody in globalScope.structBodies)
+        //     structBodies.Add(structBody.@struct, structBody.body);
 
         var diagnostics = new BelteDiagnosticQueue();
         diagnostics.Move(globalScope.diagnostics);
@@ -340,7 +340,7 @@ internal sealed class Binder {
         _structBodies.Add((newStruct, new BoundBlockStatement(builder.ToImmutable())));
 
         if (!_scope.TryDeclareType(newStruct))
-            throw new Exception($"BindStructDeclaration: failed to declare {newStruct.name}");
+            throw new BelteInternalException($"BindStructDeclaration: failed to declare {newStruct.name}");
     }
 
     private BoundFieldDeclarationStatement BindFieldDeclaration(FieldDeclaration fieldDeclaration) {
@@ -395,13 +395,13 @@ internal sealed class Binder {
             case SyntaxType.LocalFunctionStatement:
                 return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
             default:
-                throw new Exception($"BindStatementInternal: unexpected syntax '{syntax.type}'");
+                throw new BelteInternalException($"BindStatementInternal: unexpected syntax '{syntax.type}'");
         }
     }
 
     private BoundStatement BindLocalFunctionDeclaration(LocalFunctionStatement statement) {
         var functionSymbol = (FunctionSymbol)_scope.LookupSymbol(statement.identifier.text);
-        var binder = new Binder(false, _scope, functionSymbol);
+        var binder = new Binder(_isScript, _scope, functionSymbol);
         binder._innerPrefix = new Stack<string>(_innerPrefix.Reverse());
         var oldTrackSymbols = _trackSymbols;
         binder._trackSymbols = true;
@@ -445,7 +445,7 @@ internal sealed class Binder {
         _functionBodies.AddRange(binder._functionBodies);
 
         if (!_scope.TryModifySymbol(functionSymbol.name, newFunctionSymbol))
-            throw new Exception($"BindLocalFunction: failed to set function '{functionSymbol.name}'");
+            throw new BelteInternalException($"BindLocalFunction: failed to set function '{functionSymbol.name}'");
 
         return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
     }
@@ -539,7 +539,7 @@ internal sealed class Binder {
             case SyntaxType.TypeOfExpression:
                 return BindTypeOfExpression((TypeOfExpression)expression);
             default:
-                throw new Exception($"BindExpressionInternal: unexpected syntax '{expression.type}'");
+                throw new BelteInternalException($"BindExpressionInternal: unexpected syntax '{expression.type}'");
         }
     }
 
@@ -729,7 +729,7 @@ internal sealed class Binder {
             if (isInner) {
                 // No need to worry about currentBoundArguments because generated inlines never have overloads
                 if (symbols.Length != 1 && _isEmulating == false)
-                    throw new Exception("BindCallExpression: overloaded inline");
+                    throw new BelteInternalException("BindCallExpression: overloaded inline");
 
                 for (int i=expression.arguments.count; i<function.parameters.Length; i++) {
                     var parameter = function.parameters[i];
@@ -1116,7 +1116,7 @@ internal sealed class Binder {
 
         var returnType = new BoundTypeClause(TypeSymbol.Any);
         var tempFunction = new FunctionSymbol("$temp", ImmutableArray<ParameterSymbol>.Empty, returnType);
-        var binder = new Binder(false, _scope, tempFunction);
+        var binder = new Binder(_isScript, _scope, tempFunction);
         binder._innerPrefix = new Stack<string>(_innerPrefix.Reverse());
         binder._innerPrefix.Push(tempFunction.name);
 
@@ -1161,7 +1161,7 @@ internal sealed class Binder {
 
         if (!_scope.TryDeclareFunction(
             new FunctionSymbol(name, ImmutableArray<ParameterSymbol>.Empty, returnType, declaration)))
-            throw new Exception($"BindInlineFunctionExpression: failed to declare {innerName}");
+            throw new BelteInternalException($"BindInlineFunctionExpression: failed to declare {innerName}");
 
         var localFunctionDeclaration = new LocalFunctionStatement(
             null, oldTypeClause, identifier, null,
@@ -1634,7 +1634,7 @@ internal sealed class Binder {
             ifBody = new BlockStatement(
                 null, null, ImmutableArray.Create<Statement>(new Statement[]{ right0, resultAssignment }), null);
         } else {
-            throw new Exception("BindBinaryExpression: unexpected combinations of types");
+            throw new BelteInternalException("BindBinaryExpression: unexpected combinations of types");
         }
 
         var body = ImmutableArray.Create<Statement>(new Statement[] {

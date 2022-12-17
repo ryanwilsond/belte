@@ -1,7 +1,7 @@
 using System;
-using System.Numerics;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -154,7 +154,7 @@ internal static class ConstantFolding {
                 else
                     return new BoundConstant((double)leftValue % (double)rightValue);
             default:
-                throw new Exception($"Fold: unexpected binary operator '{op.opType}'");
+                throw new BelteInternalException($"Fold: unexpected binary operator '{op.opType}'");
         }
     }
 
@@ -184,7 +184,7 @@ internal static class ConstantFolding {
                 case BoundUnaryOperatorType.BitwiseCompliment:
                     return new BoundConstant(~(int)operand.constantValue.value);
                 default:
-                    throw new Exception($"Fold: unexpected unary operator '{op.opType}'");
+                    throw new BelteInternalException($"Fold: unexpected unary operator '{op.opType}'");
             }
         }
 
