@@ -385,7 +385,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic CannotAssign(TextLocation location) {
-        var message = "Left side of assignment operator must be a variable or field";
+        var message = "left side of assignment operation must be a variable or field";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotAssign), location, message);
     }
 }

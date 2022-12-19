@@ -1306,6 +1306,9 @@ internal sealed class Binder {
     private BoundExpression BindAssignmentExpression(AssignmentExpression expression) {
         var left = BindExpression(expression.left);
 
+        if (left is BoundErrorExpression)
+            return left;
+
         if (!(left is BoundVariableExpression || left is BoundMemberAccessExpression)) {
             diagnostics.Push(Error.CannotAssign(expression.left.location));
             return new BoundErrorExpression();

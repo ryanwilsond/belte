@@ -345,6 +345,8 @@ public class LexerTests {
             return true;
         if (t1Type == SyntaxType.QuestionToken && t2Type == SyntaxType.QuestionQuestionEqualsToken)
             return true;
+        if (t1Type == SyntaxType.NumericLiteralToken && t2Type == SyntaxType.PeriodToken)
+            return true;
 
         return false;
     }
