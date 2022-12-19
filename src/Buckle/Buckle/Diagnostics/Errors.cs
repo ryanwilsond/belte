@@ -378,4 +378,9 @@ internal static class Error {
         var message = $"operator '{op}' is not defined for types '{left}', '{center}', and '{right}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidTernaryOperatorUse), location, message);
     }
+
+    internal static BelteDiagnostic NoSuchMember(TextLocation location, BoundTypeClause operand, string text) {
+        var message = $"'{operand}' contains no such member '{text}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuchMember), location, message);
+    }
 }

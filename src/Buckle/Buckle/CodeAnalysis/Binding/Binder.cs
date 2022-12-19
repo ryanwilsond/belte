@@ -537,9 +537,36 @@ internal sealed class Binder {
                 return BindCastExpression((CastExpression)expression);
             case SyntaxType.TypeOfExpression:
                 return BindTypeOfExpression((TypeOfExpression)expression);
+            case SyntaxType.MemberAccessExpression:
+                return BindMemberAccessExpression((MemberAccessExpression)expression);
             default:
                 throw new BelteInternalException($"BindExpressionInternal: unexpected syntax '{expression.type}'");
         }
+    }
+
+    private BoundExpression BindMemberAccessExpression(MemberAccessExpression expression) {
+        var operand = BindExpression(expression.operand);
+
+        if (!(operand.typeClause.lType is StructSymbol)) {
+            diagnostics.Push(
+                Error.NoSuchMember(expression.identifier.location, operand.typeClause, expression.identifier.text));
+            return new BoundErrorExpression();
+        }
+
+        var @struct = operand.typeClause.lType as StructSymbol;
+
+        FieldSymbol symbol = null;
+        foreach (var field in @struct.symbols.Where(f => f is FieldSymbol))
+            if (field.name == expression.identifier.text)
+                symbol = field as FieldSymbol;
+
+        if (symbol == null) {
+            diagnostics.Push(
+                Error.NoSuchMember(expression.identifier.location, operand.typeClause, expression.identifier.text));
+            return new BoundErrorExpression();
+        }
+
+        return new BoundMemberAccessExpression(operand, symbol);
     }
 
     private BoundExpression BindTypeOfExpression(TypeOfExpression expression) {
@@ -550,9 +577,7 @@ internal sealed class Binder {
 
     private BoundExpression BindReferenceExpression(ReferenceExpression expression) {
         var variable = BindVariableReference(expression.identifier);
-        var typeClause = new BoundTypeClause(
-            variable.typeClause.lType, variable.typeClause.isImplicit, false, true,
-            variable.typeClause.isConstant, variable.typeClause.isNullable, false, variable.typeClause.dimensions);
+        var typeClause = BoundTypeClause.Reference(variable.typeClause);
 
         return new BoundReferenceExpression(variable, typeClause);
     }

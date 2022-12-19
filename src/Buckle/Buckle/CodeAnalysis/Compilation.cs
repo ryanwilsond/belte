@@ -145,7 +145,7 @@ public sealed class Compilation {
     /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
     internal EvaluationResult Evaluate(Dictionary<VariableSymbol, EvaluatorObject> variables) {
         if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
-            return new EvaluationResult(null, globalScope.diagnostics);
+            return new EvaluationResult(null, false, globalScope.diagnostics);
 
         var program = GetProgram();
         // * Only for debugging purposes
@@ -153,17 +153,17 @@ public sealed class Compilation {
         // CreateCfg(program);
 
         if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
-            return new EvaluationResult(null, program.diagnostics);
+            return new EvaluationResult(null, false, program.diagnostics);
 
         diagnostics.Move(program.diagnostics);
         var eval = new Evaluator(program, variables);
-        var evalResult = eval.Evaluate();
+        var evalResult = eval.Evaluate(out var hasValue);
 
         if (eval.hasPrint)
             Console.WriteLine();
 
         diagnostics.Move(eval.diagnostics);
-        var result = new EvaluationResult(evalResult, diagnostics);
+        var result = new EvaluationResult(evalResult, hasValue, diagnostics);
         return result;
     }
 

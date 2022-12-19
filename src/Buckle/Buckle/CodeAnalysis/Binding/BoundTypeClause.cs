@@ -234,6 +234,18 @@ internal sealed class BoundTypeClause : BoundNode {
     }
 
     /// <summary>
+    /// Copy all data to a new <see cref="BoundTypeClause" />, but make the new <see cref="BoundTypeClause" /> a
+    /// reference.
+    /// </summary>
+    /// <param name="typeClause"><see cref="BoundTypeClause" /> to copy.</param>
+    /// <returns>Reference type copy of <see cref="BoundTypeClause" />.</returns>
+    internal static BoundTypeClause Reference(BoundTypeClause typeClause) {
+        return new BoundTypeClause(
+            typeClause.lType, typeClause.isImplicit, false, true, typeClause.isConstant,
+            typeClause.isNullable, false, typeClause.dimensions);
+    }
+
+    /// <summary>
     /// The item <see cref="BoundTypeClause" /> if this <see cref="BoundTypeClause" /> is an array, otherwise null.
     /// </summary>
     /// <returns><see cref="BoundTypeClause" /> of item type.</returns>

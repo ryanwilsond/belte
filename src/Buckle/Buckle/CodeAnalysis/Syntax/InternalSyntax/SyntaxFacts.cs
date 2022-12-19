@@ -65,6 +65,7 @@ internal static class SyntaxFacts {
             case SyntaxType.TypeOfKeyword:
             case SyntaxType.OpenBracketToken:
             case SyntaxType.OpenParenToken:
+            case SyntaxType.PeriodToken:
                 return 18;
             default:
                 return 0;
@@ -183,6 +184,8 @@ internal static class SyntaxFacts {
     /// <returns>Text representation, default to null if not text representation exists.</returns>
     internal static string GetText(SyntaxType type) {
         switch (type) {
+            case SyntaxType.PeriodToken:
+                return ".";
             case SyntaxType.CommaToken:
                 return ",";
             case SyntaxType.PlusToken:

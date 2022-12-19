@@ -17,7 +17,7 @@ internal sealed class BoundConstructorExpression : BoundExpression {
 
     internal TypeSymbol symbol { get; }
 
-    internal override BoundTypeClause typeClause => new BoundTypeClause(symbol);
-
     internal override BoundNodeType type => BoundNodeType.ConstructorExpression;
+
+    internal override BoundTypeClause typeClause => new BoundTypeClause(symbol);
 }

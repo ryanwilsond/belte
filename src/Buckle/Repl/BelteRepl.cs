@@ -184,7 +184,7 @@ public sealed class BelteRepl : ReplBase {
                 handle.diagnostics.Clear();
             }
         } else {
-            if (!state.loadingSubmissions) {
+            if (result.hasValue && !state.loadingSubmissions) {
                 RenderResult(result.value);
                 _writer.WriteLine();
             }

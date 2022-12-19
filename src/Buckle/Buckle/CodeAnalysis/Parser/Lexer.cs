@@ -139,6 +139,10 @@ internal sealed class Lexer {
             case '\0':
                 _type = SyntaxType.EndOfFileToken;
                 break;
+            case '.':
+                _position++;
+                _type = SyntaxType.PeriodToken;
+                break;
             case ',':
                 _position++;
                 _type = SyntaxType.CommaToken;

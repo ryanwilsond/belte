@@ -24,6 +24,7 @@ internal sealed class Evaluator {
     private EvaluatorObject _lastValue;
     private Random _random;
     private bool _hasPrint = false;
+    private bool _hasValue = true;
 
     /// <summary>
     /// Creates an <see cref="Evaluator" /> that can evaluate a <see cref="BoundProgram" /> (provided globals).
@@ -71,18 +72,22 @@ internal sealed class Evaluator {
     /// Evaluate the provided <see cref="BoundProgram" />.
     /// </summary>
     /// <returns>Result of <see cref="BoundProgram" /> (if applicable).</returns>
-    internal object Evaluate() {
+    internal object Evaluate(out bool hasValue) {
         var function = _program.mainFunction ?? _program.scriptFunction;
-        if (function == null)
+        if (function == null) {
+            hasValue = false;
             return null;
+        }
 
         var body = LookupMethod(_functions, function);
         var result = EvaluateStatement(body);
+        hasValue = _hasValue;
 
         return Value(result, true);
     }
 
-    private object GetVariableValue(VariableSymbol variable, bool traceCollections=false) {
+    private object GetVariableValue(
+        VariableSymbol variable, FieldSymbol member=null, bool traceCollections=false) {
         EvaluatorObject value = null;
 
         if (variable.type == SymbolType.GlobalVariable) {
@@ -90,6 +95,11 @@ internal sealed class Evaluator {
         } else {
             var locals = _locals.Peek();
             value = locals[variable];
+        }
+
+        if (member != null) {
+            var dictionary = Value(value) as Dictionary<FieldSymbol, EvaluatorObject>;
+            value = dictionary[member];
         }
 
         return Value(value, traceCollections);
@@ -115,7 +125,7 @@ internal sealed class Evaluator {
 
     private object Value(EvaluatorObject value, bool traceCollections=false) {
         if (value.isReference)
-            return GetVariableValue(value.reference, traceCollections);
+            return GetVariableValue(value.reference, value.fieldReference, traceCollections);
         else if (value.value is EvaluatorObject)
             return Value(value.value as EvaluatorObject, traceCollections);
         else if (value.value is EvaluatorObject[] && traceCollections)
@@ -193,11 +203,13 @@ internal sealed class Evaluator {
 
     private void EvaluateExpressionStatement(BoundExpressionStatement statement) {
         _lastValue = EvaluateExpression(statement.expression);
+        _hasValue = true;
     }
 
     private void EvaluateVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
         var value = EvaluateExpression(statement.initializer);
         _lastValue = null;
+        _hasValue = false;
         Assign(statement.variable, value);
     }
 
@@ -254,8 +266,28 @@ internal sealed class Evaluator {
                 return new EvaluatorObject(null);
             case BoundNodeType.ConstructorExpression:
                 return EvaluateConstructorExpression((BoundConstructorExpression)node);
+            case BoundNodeType.MemberAccessExpression:
+                return EvaluateMemberAccessExpression((BoundMemberAccessExpression)node);
             default:
                 throw new BelteInternalException($"EvaluateExpression: unexpected node '{node.type}'");
+        }
+    }
+
+    private EvaluatorObject EvaluateMemberAccessExpression(BoundMemberAccessExpression node) {
+        if (node.operand is BoundVariableExpression v) {
+            // By reference
+            return new EvaluatorObject(v.variable, node.member);
+        }
+
+        var operand = EvaluateExpression(node.operand);
+
+        if (operand.isReference) {
+            // By reference
+            return new EvaluatorObject(operand.reference, node.member);
+        } else {
+            // By value
+            var value = Value(operand) as Dictionary<FieldSymbol, EvaluatorObject>;
+            return new EvaluatorObject(value[node.member]);
         }
     }
 

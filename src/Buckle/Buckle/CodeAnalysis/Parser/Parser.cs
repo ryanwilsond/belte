@@ -826,6 +826,8 @@ internal sealed class Parser {
                 return ParseCallExpression((Expression)operand);
             else if (current.type == SyntaxType.OpenBracketToken)
                 return ParseIndexExpression((Expression)operand);
+            else if (current.type == SyntaxType.PeriodToken)
+                return ParseMemberAccessExpression((Expression)operand);
 
             return operand;
         }
@@ -876,8 +878,15 @@ internal sealed class Parser {
         return ParsePrimaryOperatorExpression(left, maybeUnexpected: maybeUnexpected);
     }
 
+    private Expression ParseMemberAccessExpression(Expression operand) {
+        var period = Next();
+        var member = Match(SyntaxType.IdentifierToken);
+
+        return new MemberAccessExpression(_syntaxTree, operand, period, member);
+    }
+
     private Expression ParseIndexExpression(Expression operand) {
-        var openBracket = Match(SyntaxType.OpenBracketToken);
+        var openBracket = Next();
         var index = ParseExpression();
         var closeBracket = Match(SyntaxType.CloseBracketToken);
 
@@ -890,7 +899,7 @@ internal sealed class Parser {
             return operand;
         }
 
-        var openParenthesis = Match(SyntaxType.OpenParenToken);
+        var openParenthesis = Next();
         var arguments = ParseArguments();
         var closeParenthesis = Match(SyntaxType.CloseParenToken);
 

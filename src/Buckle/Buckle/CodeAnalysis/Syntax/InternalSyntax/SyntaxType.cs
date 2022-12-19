@@ -30,6 +30,7 @@ internal enum SyntaxType {
     SlashToken,
     QuestionToken,
     ColonToken,
+    PeriodToken,
 
     // Compound punctuation
     PipePipeToken,
@@ -117,6 +118,7 @@ internal enum SyntaxType {
     NameExpression,
     CallExpression,
     RefExpression,
+    MemberAccessExpression,
 
     // Statements
     Block,

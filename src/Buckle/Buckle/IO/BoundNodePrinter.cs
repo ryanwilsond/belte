@@ -130,6 +130,9 @@ internal static class BoundNodePrinter {
             case BoundNodeType.ConstructorExpression:
                 WriteConstructorExpression((BoundConstructorExpression)node, writer);
                 break;
+            case BoundNodeType.MemberAccessExpression:
+                WriteMemberAccessExpression((BoundMemberAccessExpression)node, writer);
+                break;
             default:
                 throw new BelteInternalException($"WriteTo: unexpected node '{node.type}'");
         }
@@ -323,6 +326,12 @@ internal static class BoundNodePrinter {
 
         if (newLine)
             writer.WriteLine();
+    }
+
+    private static void WriteMemberAccessExpression(BoundMemberAccessExpression node, IndentedTextWriter writer) {
+        node.operand.WriteTo(writer);
+        writer.WritePunctuation(SyntaxType.PeriodToken);
+        node.member.WriteTo(writer);
     }
 
     private static void WriteConstructorExpression(BoundConstructorExpression node, IndentedTextWriter writer) {
