@@ -636,10 +636,10 @@ internal sealed class Parser {
                 case SyntaxType.PercentEqualsToken:
                 case SyntaxType.QuestionQuestionEqualsToken:
                 case SyntaxType.EqualsToken:
-                    var identifierToken = Next();
+                    var left = ParseNameOrPrimaryOperatorExpression();
                     var operatorToken = Next();
                     var right = ParseAssignmentExpression();
-                    return new AssignmentExpression(_syntaxTree, identifierToken, operatorToken, right);
+                    return new AssignmentExpression(_syntaxTree, left, operatorToken, right);
                 default:
                     break;
             }
@@ -667,7 +667,7 @@ internal sealed class Parser {
             var op = Next();
 
             if (op.type == SyntaxType.PlusPlusToken || op.type == SyntaxType.MinusMinusToken) {
-                var operand = Match(SyntaxType.IdentifierToken);
+                var operand = ParseNameOrPrimaryOperatorExpression();
                 left = new PrefixExpression(_syntaxTree, op, operand);
             } else {
                 var operand = ParseOperatorExpression(unaryPrecedence);
@@ -756,7 +756,7 @@ internal sealed class Parser {
     }
 
     private Expression ParsePostfixExpression() {
-        var operand = Match(SyntaxType.IdentifierToken);
+        var operand = ParseNameOrPrimaryOperatorExpression();
         Token op = null;
 
         if (current.type == SyntaxType.MinusMinusToken || current.type == SyntaxType.PlusPlusToken)

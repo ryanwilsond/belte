@@ -214,6 +214,15 @@ internal sealed class Evaluator {
     }
 
     private void Assign(VariableSymbol variable, EvaluatorObject value) {
+        if (value.isReference && !value.isExplicitReference) {
+            if (value.reference.type == SymbolType.GlobalVariable) {
+                value = _globals[value.reference];
+            } else {
+                var locals = _locals.Peek();
+                value = locals[value.reference];
+            }
+        }
+
         if (variable.type == SymbolType.GlobalVariable) {
             var currentValue = _globals.ContainsKey(variable) ? _globals[variable] : null;
 
@@ -307,7 +316,7 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node) {
-        return new EvaluatorObject(node.variable);
+        return new EvaluatorObject(node.variable, true);
     }
 
     private EvaluatorObject EvaluateIndexExpression(BoundIndexExpression node) {
@@ -416,18 +425,15 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateVariableExpression(BoundVariableExpression expression) {
-        if (expression.variable.type == SymbolType.GlobalVariable)
-            return _globals[expression.variable];
-
-        var locals = _locals.Peek();
-        return locals[expression.variable];
+        return new EvaluatorObject(expression.variable);
     }
 
     private EvaluatorObject EvaluateAssignmentExpresion(BoundAssignmentExpression expression) {
-        var value = EvaluateExpression(expression.expression);
-        Assign(expression.variable, value);
+        var left = EvaluateExpression(expression.left);
+        var right = EvaluateExpression(expression.right);
+        Assign(left.reference, right);
 
-        return value;
+        return right;
     }
 
     private EvaluatorObject EvaluateUnaryExpression(BoundUnaryExpression expression) {

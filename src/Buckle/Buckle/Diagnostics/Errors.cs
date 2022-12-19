@@ -383,4 +383,9 @@ internal static class Error {
         var message = $"'{operand}' contains no such member '{text}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuchMember), location, message);
     }
+
+    internal static BelteDiagnostic CannotAssign(TextLocation location) {
+        var message = "Left side of assignment operator must be a variable or field";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotAssign), location, message);
+    }
 }

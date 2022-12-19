@@ -25,7 +25,7 @@ internal sealed class EvaluatorObject {
     /// </summary>
     /// <param name="reference"><see cref="VariableSymbol" /> to reference (not an explicit reference, passed by
     /// reference by default).</param>
-    internal EvaluatorObject(VariableSymbol reference) {
+    internal EvaluatorObject(VariableSymbol reference, bool explicitReference=false) {
         this.value = null;
 
         if (reference == null) {
@@ -37,6 +37,7 @@ internal sealed class EvaluatorObject {
         }
 
         this.fieldReference = null;
+        this.isExplicitReference = explicitReference;
     }
 
     /// <summary>
@@ -68,6 +69,11 @@ internal sealed class EvaluatorObject {
     /// Then it treats value as being the value null, not lacking a value.
     /// </summary>
     internal bool isReference { get; set; }
+
+    /// <summary>
+    /// If the reference is an explicit reference expression, or if it is just a normal variable.
+    /// </summary>
+    internal bool isExplicitReference { get; set; }
 
     /// <summary>
     /// Reference to a <see cref="VariableSymbol" /> stored in the locals or globals dictionary.

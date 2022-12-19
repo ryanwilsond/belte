@@ -9,12 +9,11 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// </code>
 /// </summary>
 internal sealed partial class PrefixExpression : Expression {
-    /// <param name="identifier">Existing variable name.</param>
     /// <param name="op">Operator.</param>
-    internal PrefixExpression(SyntaxTree syntaxTree, Token op, Token identifier)
+    internal PrefixExpression(SyntaxTree syntaxTree, Token op, Expression operand)
         : base(syntaxTree) {
         this.op = op;
-        this.identifier = identifier;
+        this.operand = operand;
     }
 
     /// <summary>
@@ -25,7 +24,7 @@ internal sealed partial class PrefixExpression : Expression {
     /// <summary>
     /// Existing variable name.
     /// </summary>
-    internal Token identifier { get; }
+    internal Expression operand { get; }
 
     internal override SyntaxType type => SyntaxType.PrefixExpression;
 }

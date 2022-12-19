@@ -9,18 +9,14 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// </code>
 /// </summary>
 internal sealed partial class PostfixExpression : Expression {
-    /// <param name="identifier">Existing variable name.</param>
     /// <param name="op">Operator.</param>
-    internal PostfixExpression(SyntaxTree syntaxTree, Token identifier, Token op)
+    internal PostfixExpression(SyntaxTree syntaxTree, Expression operand, Token op)
         : base(syntaxTree) {
-        this.identifier = identifier;
+        this.operand = operand;
         this.op = op;
     }
 
-    /// <summary>
-    /// Existing variable name.
-    /// </summary>
-    internal Token identifier { get; }
+    internal Expression operand { get; }
 
     /// <summary>
     /// Operator.

@@ -289,12 +289,13 @@ internal abstract class BoundTreeRewriter {
 
     protected virtual BoundExpression RewriteCompoundAssignmentExpression(
         BoundCompoundAssignmentExpression expression) {
-        var boundVariableExpression = new BoundVariableExpression(expression.variable);
-        var boundBinaryExpression = new BoundBinaryExpression(
-            boundVariableExpression, expression.op, expression.expression);
-        var boundAssignmentExpression = new BoundAssignmentExpression(expression.variable, boundBinaryExpression);
+        var left = RewriteExpression(expression.left);
+        var right = RewriteExpression(expression.right);
 
-        return RewriteAssignmentExpression(boundAssignmentExpression);
+        if (left == expression.left && right == expression.right)
+            return expression;
+
+        return new BoundCompoundAssignmentExpression(left, expression.op, right);
     }
 
     protected virtual BoundExpression RewriteCastExpression(BoundCastExpression expression) {
@@ -358,11 +359,13 @@ internal abstract class BoundTreeRewriter {
     }
 
     protected virtual BoundExpression RewriteAssignmentExpression(BoundAssignmentExpression expression) {
-        var rewritten = RewriteExpression(expression.expression);
-        if (rewritten == expression.expression)
+        var left = RewriteExpression(expression.left);
+        var right = RewriteExpression(expression.right);
+
+        if (left == expression.left && right == expression.right)
             return expression;
 
-        return new BoundAssignmentExpression(expression.variable, rewritten);
+        return new BoundAssignmentExpression(left, right);
     }
 
     protected virtual BoundExpression RewriteUnaryExpression(BoundUnaryExpression expression) {

@@ -583,14 +583,25 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindPostfixExpression(PostfixExpression expression, bool ownStatement = false) {
-        var name = expression.identifier.text;
+        var operand = BindExpression(expression.operand);
 
-        var variable = BindVariableReference(expression.identifier);
+        if (!(operand is BoundVariableExpression || operand is BoundMemberAccessExpression)) {
+            diagnostics.Push(Error.CannotAssign(expression.operand.location));
+            return new BoundErrorExpression();
+        }
+
+        VariableSymbol variable = null;
+
+        if (operand is BoundVariableExpression v)
+            variable = v.variable;
+        else if (operand is BoundMemberAccessExpression m)
+            variable = m.member;
+
         if (variable == null)
             return new BoundErrorExpression();
 
         if (variable.typeClause.isConstant)
-            diagnostics.Push(Error.ConstantAssignment(expression.op.location, name));
+            diagnostics.Push(Error.ConstantAssignment(expression.op.location, variable.name));
 
         var value = new BoundLiteralExpression(1);
         BoundBinaryOperator boundOperator = null;
@@ -608,7 +619,7 @@ internal sealed class Binder {
                 SyntaxType.PlusToken, variable.typeClause, value.typeClause);
         }
 
-        var assignmentExpression = new BoundCompoundAssignmentExpression(variable, boundOperator, value);
+        var assignmentExpression = new BoundCompoundAssignmentExpression(operand, boundOperator, value);
 
         if (ownStatement)
             return assignmentExpression;
@@ -617,14 +628,25 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindPrefixExpression(PrefixExpression expression) {
-        var name = expression.identifier.text;
+        var operand = BindExpression(expression.operand);
 
-        var variable = BindVariableReference(expression.identifier);
+        if (!(operand is BoundVariableExpression || operand is BoundMemberAccessExpression)) {
+            diagnostics.Push(Error.CannotAssign(expression.operand.location));
+            return new BoundErrorExpression();
+        }
+
+        VariableSymbol variable = null;
+
+        if (operand is BoundVariableExpression v)
+            variable = v.variable;
+        else if (operand is BoundMemberAccessExpression m)
+            variable = m.member;
+
         if (variable == null)
             return new BoundErrorExpression();
 
         if (variable.typeClause.isConstant)
-            diagnostics.Push(Error.ConstantAssignment(expression.op.location, name));
+            diagnostics.Push(Error.ConstantAssignment(expression.op.location, variable.name));
 
         var value = new BoundLiteralExpression(1);
         BoundBinaryOperator boundOperator = null;
@@ -636,7 +658,7 @@ internal sealed class Binder {
             boundOperator = BoundBinaryOperator.Bind(
                 SyntaxType.MinusToken, variable.typeClause, value.typeClause);
 
-        return new BoundCompoundAssignmentExpression(variable, boundOperator, value);
+        return new BoundCompoundAssignmentExpression(operand, boundOperator, value);
     }
 
     private BoundExpression BindIndexExpression(IndexExpression expression) {
@@ -1282,22 +1304,33 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindAssignmentExpression(AssignmentExpression expression) {
-        var name = expression.identifier.text;
-        var boundExpression = BindExpression(expression.expression);
+        var left = BindExpression(expression.left);
 
-        var variable = BindVariableReference(expression.identifier);
+        if (!(left is BoundVariableExpression || left is BoundMemberAccessExpression)) {
+            diagnostics.Push(Error.CannotAssign(expression.left.location));
+            return new BoundErrorExpression();
+        }
+
+        var boundExpression = BindExpression(expression.right);
+
+        VariableSymbol variable = null;
+        if (left is BoundVariableExpression v)
+            variable = v.variable;
+        else if (left is BoundMemberAccessExpression m)
+            variable = m.member;
+
         if (variable == null)
             return boundExpression;
 
         if (!variable.typeClause.isNullable && boundExpression is BoundLiteralExpression le && le.value == null) {
-            diagnostics.Push(Error.NullAssignOnNotNull(expression.expression.location));
+            diagnostics.Push(Error.NullAssignOnNotNull(expression.right.location));
             return boundExpression;
         }
 
         if ((variable.typeClause.isReference && variable.typeClause.isConstantReference &&
             boundExpression.type == BoundNodeType.ReferenceExpression) ||
             (variable.typeClause.isConstant && boundExpression.type != BoundNodeType.ReferenceExpression))
-            diagnostics.Push(Error.ConstantAssignment(expression.assignmentToken.location, name));
+            diagnostics.Push(Error.ConstantAssignment(expression.assignmentToken.location, variable.name));
 
         if (expression.assignmentToken.type != SyntaxType.EqualsToken) {
             var equivalentOperatorTokenType = SyntaxFacts.GetBinaryOperatorOfAssignmentOperator(
@@ -1312,11 +1345,11 @@ internal sealed class Binder {
                 return new BoundErrorExpression();
             }
 
-            var convertedExpression = BindCast(expression.expression.location, boundExpression, variable.typeClause);
-            return new BoundCompoundAssignmentExpression(variable, boundOperator, convertedExpression);
+            var convertedExpression = BindCast(expression.right.location, boundExpression, variable.typeClause);
+            return new BoundCompoundAssignmentExpression(left, boundOperator, convertedExpression);
         } else {
-            var convertedExpression = BindCast(expression.expression.location, boundExpression, variable.typeClause);
-            return new BoundAssignmentExpression(variable, convertedExpression);
+            var convertedExpression = BindCast(expression.right.location, boundExpression, variable.typeClause);
+            return new BoundAssignmentExpression(left, convertedExpression);
         }
     }
 

@@ -6,16 +6,16 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A bound assignment expression, bound from a <see cref="AssignmentExpression" />.
 /// </summary>
 internal sealed class BoundAssignmentExpression : BoundExpression {
-    internal BoundAssignmentExpression(VariableSymbol variable, BoundExpression expression) {
-        this.variable = variable;
-        this.expression = expression;
+    internal BoundAssignmentExpression(BoundExpression left, BoundExpression right) {
+        this.left = left;
+        this.right = right;
     }
 
-    internal VariableSymbol variable { get; }
+    internal BoundExpression left { get; }
 
-    internal BoundExpression expression { get; }
+    internal BoundExpression right { get; }
 
     internal override BoundNodeType type => BoundNodeType.AssignmentExpression;
 
-    internal override BoundTypeClause typeClause => expression.typeClause;
+    internal override BoundTypeClause typeClause => right.typeClause;
 }

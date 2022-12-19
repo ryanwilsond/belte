@@ -379,7 +379,7 @@ internal static class BoundNodePrinter {
         var expr = expression;
 
         if (expression is BoundAssignmentExpression a)
-            expr = a.expression;
+            expr = a.right;
 
         if (expr is BoundUnaryExpression u)
             writer.WriteNestedExpression(parentPrecedence, SyntaxFacts.GetUnaryPrecedence(u.op.type), expression);
@@ -456,11 +456,11 @@ internal static class BoundNodePrinter {
     private static void WriteEmptyExpression(BoundEmptyExpression node, IndentedTextWriter writer) { }
 
     private static void WriteAssignmentExpression(BoundAssignmentExpression node, IndentedTextWriter writer) {
-        writer.WriteIdentifier(node.variable.name);
+        node.left.WriteTo(writer);
         writer.WriteSpace();
         writer.WritePunctuation(SyntaxType.EqualsToken);
         writer.WriteSpace();
-        node.expression.WriteTo(writer);
+        node.right.WriteTo(writer);
     }
 
     private static void WriteVariableExpression(BoundVariableExpression node, IndentedTextWriter writer) {

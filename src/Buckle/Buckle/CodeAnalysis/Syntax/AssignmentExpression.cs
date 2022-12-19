@@ -10,26 +10,26 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// </code>
 /// </summary>
 internal sealed partial class AssignmentExpression : Expression {
-    /// <param name="identifier">Name of a variable.</param>
-    /// <param name="expression">Value to set variable to.</param>
-    internal AssignmentExpression(SyntaxTree syntaxTree, Token identifier, Token assignmentToken, Expression expression)
+    /// <param name="left">What is being assigned.</param>
+    /// <param name="right">Value to assign.</param>
+    internal AssignmentExpression(SyntaxTree syntaxTree, Expression left, Token assignmentToken, Expression right)
         : base(syntaxTree) {
-        this.identifier = identifier;
+        this.left = left;
         this.assignmentToken = assignmentToken;
-        this.expression = expression;
+        this.right = right;
     }
 
     /// <summary>
-    /// Name of a variable.
+    /// What is being assigned,
     /// </summary>
-    internal Token identifier { get; }
+    internal Expression left { get; }
 
     internal Token assignmentToken { get; }
 
     /// <summary>
-    /// Value to set variable to.
+    /// Value to assign..
     /// </summary>
-    internal Expression expression { get; }
+    internal Expression right { get; }
 
     internal override SyntaxType type => SyntaxType.AssignExpression;
 }

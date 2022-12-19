@@ -506,6 +506,22 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.RewriteTernaryExpression(expression);
     }
 
+    protected override BoundExpression RewriteCompoundAssignmentExpression(
+        BoundCompoundAssignmentExpression expression) {
+        /*
+
+        <left> <op> <right>
+
+        ---->
+
+        <left> = <left> <simplified op> <right>
+
+        */
+        var boundBinaryExpression = new BoundBinaryExpression(expression.left, expression.op, expression.right);
+
+        return RewriteAssignmentExpression(new BoundAssignmentExpression(expression.left, boundBinaryExpression));
+    }
+
     private FunctionSymbol CorrectValue(BoundExpression expression) {
         if (expression.typeClause.lType == TypeSymbol.Bool)
             return BuiltinFunctions.ValueBool;

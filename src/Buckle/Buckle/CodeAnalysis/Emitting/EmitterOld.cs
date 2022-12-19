@@ -707,9 +707,9 @@ internal class _Emitter {
     }
 
     private void EmitAssignmentExpression(ILProcessor iLProcessor, BoundAssignmentExpression expression) {
-        var variableDefinition = _locals[expression.variable];
+        var variableDefinition = _locals[(expression.left as BoundVariableExpression).variable];
 
-        if (expression.variable.typeClause.isReference)
+        if ((expression.left as BoundVariableExpression).variable.typeClause.isReference)
             iLProcessor.Emit(OpCodes.Ldloc_S, variableDefinition);
         else if (expression.typeClause.isNullable)
             iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
@@ -719,7 +719,7 @@ internal class _Emitter {
         var nullable = expression.typeClause.isNullable;
 
         EmitExpression(
-            iLProcessor, expression.expression, expression.variable.typeClause.isReference,
+            iLProcessor, expression.right, (expression.left as BoundVariableExpression).variable.typeClause.isReference,
             nullable: nullable, stack: false);
 
         _useNullRef = true && nullable;

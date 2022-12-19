@@ -66,6 +66,7 @@ internal enum DiagnosticCode : int {
     ERR_CannotInitialize = 59,
     ERR_InvalidTernaryOperatorUse = 60,
     ERR_NoSuchMember = 61,
+    ERR_CannotAssign = 62,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,
