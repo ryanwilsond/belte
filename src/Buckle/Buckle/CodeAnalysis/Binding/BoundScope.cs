@@ -78,6 +78,7 @@ internal sealed class BoundScope {
     /// <typeparam name="T">Type of <see cref="Symbol" /> to search for.</typeparam>
     /// <returns><see cref="Symbol" /> if found, null otherwise.</returns>
     internal T LookupSymbol<T>(string name) where T : Symbol {
+        // TODO Add ambiguous error
         if (_symbols != null)
             foreach (var symbol in _symbols)
                 if (symbol.name == name && symbol is T)

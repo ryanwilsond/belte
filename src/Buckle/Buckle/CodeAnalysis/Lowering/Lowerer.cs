@@ -479,9 +479,34 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return new BoundCallExpression(newFunction, builder.ToImmutable());
     }
 
+    protected override BoundExpression RewriteTernaryExpression(BoundTernaryExpression expression) {
+        /*
+
+        <left> <op> <center> <op> <right>
+
+        ----> <op> is ?: operator and <left> is constant true
+
+        <center>
+
+        ----> <op> is ?: operator and <left> is constant false
+
+        <right>
+
+        */
+        if (expression.op.opType == BoundTernaryOperatorType.Conditional) {
+            if (expression.left.constantValue != null && (bool)expression.left.constantValue.value == true) {
+                return RewriteExpression(expression.center);
+            }
+
+            if (expression.left.constantValue != null && (bool)expression.left.constantValue.value == false) {
+                return RewriteExpression(expression.right);
+            }
+        }
+
+        return base.RewriteTernaryExpression(expression);
+    }
+
     private FunctionSymbol CorrectValue(BoundExpression expression) {
-        if (expression.typeClause.lType == TypeSymbol.Any)
-            return BuiltinFunctions.ValueAny;
         if (expression.typeClause.lType == TypeSymbol.Bool)
             return BuiltinFunctions.ValueBool;
         if (expression.typeClause.lType == TypeSymbol.Decimal)
@@ -491,7 +516,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.typeClause.lType == TypeSymbol.String)
             return BuiltinFunctions.ValueString;
 
-        return null;
+        return BuiltinFunctions.ValueAny;
     }
 
     private static BoundBlockStatement RemoveDeadCode(BoundBlockStatement statement) {

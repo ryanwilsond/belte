@@ -86,6 +86,6 @@ internal static class SymbolPrinter {
             symbol.parameters[i].WriteTo(writer);
         }
 
-        writer.WritePunctuation(") ");
+        writer.WritePunctuation(")");
     }
 }

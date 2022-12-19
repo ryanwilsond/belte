@@ -22,6 +22,7 @@ internal enum BoundNodeType {
     ReferenceExpression,
     InlineFunctionExpression,
     TypeOfExpression,
+    ConstructorExpression,
 
     BlockStatement,
     ExpressionStatement,

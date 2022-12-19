@@ -85,9 +85,6 @@ internal static class BoundNodePrinter {
             case BoundNodeType.TryStatement:
                 WriteTryStatement((BoundTryStatement)node, writer);
                 break;
-            case BoundNodeType.FieldDeclarationStatement:
-                WriteFieldDeclarationStatement((BoundFieldDeclarationStatement)node, writer);
-                break;
             case BoundNodeType.TernaryExpression:
                 WriteTernaryExpression((BoundTernaryExpression)node, writer);
                 break;
@@ -130,13 +127,12 @@ internal static class BoundNodePrinter {
             case BoundNodeType.TypeOfExpression:
                 WriteTypeOfExpression((BoundTypeOfExpression)node, writer);
                 break;
+            case BoundNodeType.ConstructorExpression:
+                WriteConstructorExpression((BoundConstructorExpression)node, writer);
+                break;
             default:
                 throw new BelteInternalException($"WriteTo: unexpected node '{node.type}'");
         }
-    }
-
-    private static void WriteFieldDeclarationStatement(BoundFieldDeclarationStatement node, IndentedTextWriter writer) {
-        node.field.WriteTo(writer);
     }
 
     private static void WriteTryStatement(BoundTryStatement node, IndentedTextWriter writer) {
@@ -327,6 +323,12 @@ internal static class BoundNodePrinter {
 
         if (newLine)
             writer.WriteLine();
+    }
+
+    private static void WriteConstructorExpression(BoundConstructorExpression node, IndentedTextWriter writer) {
+        node.symbol.WriteTo(writer);
+        writer.WritePunctuation(SyntaxType.OpenParenToken);
+        writer.WritePunctuation(SyntaxType.CloseParenToken);
     }
 
     private static void WriteTernaryExpression(BoundTernaryExpression node, IndentedTextWriter writer) {

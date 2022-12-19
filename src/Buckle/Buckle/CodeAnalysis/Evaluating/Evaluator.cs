@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -18,6 +19,8 @@ internal sealed class Evaluator {
         new Dictionary<FunctionSymbol, BoundBlockStatement>();
     private readonly Stack<Dictionary<VariableSymbol, EvaluatorObject>> _locals =
         new Stack<Dictionary<VariableSymbol, EvaluatorObject>>();
+    private readonly Dictionary<TypeSymbol, ImmutableList<FieldSymbol>> _types =
+        new Dictionary<TypeSymbol, ImmutableList<FieldSymbol>>();
     private EvaluatorObject _lastValue;
     private Random _random;
     private bool _hasPrint = false;
@@ -37,6 +40,11 @@ internal sealed class Evaluator {
         while (current != null) {
             foreach (var (function, body) in current.functionBodies)
                 _functions.Add(function, body);
+
+            foreach (var (@struct, body) in current.structBodies)
+                // Because structs do not store their declarations, shadowing ones have the same key
+                // As what they are shadowing, so this will just update instead of adding and throwing
+                _types[@struct] = body;
 
             current = current.previous;
         }
@@ -84,14 +92,16 @@ internal sealed class Evaluator {
             value = locals[variable];
         }
 
-        if (value.isReference)
-            return GetVariableValue(value.reference, traceCollections);
-        else if (value.value is EvaluatorObject)
-            return Value(value.value as EvaluatorObject, traceCollections);
-        else if (value.value is EvaluatorObject[] && traceCollections)
-            return CollectionValue(value.value as EvaluatorObject[]);
-        else
-            return value.value;
+        return Value(value, traceCollections);
+    }
+
+    private object DictionaryValue(Dictionary<FieldSymbol, EvaluatorObject> value) {
+        var dictionary = new Dictionary<object, object>();
+
+        foreach (var pair in value)
+            dictionary.Add(pair.Key.name, Value(pair.Value));
+
+        return dictionary;
     }
 
     private object CollectionValue(EvaluatorObject[] value) {
@@ -110,6 +120,8 @@ internal sealed class Evaluator {
             return Value(value.value as EvaluatorObject, traceCollections);
         else if (value.value is EvaluatorObject[] && traceCollections)
             return CollectionValue(value.value as EvaluatorObject[]);
+        else if (traceCollections && value.value is Dictionary<FieldSymbol, EvaluatorObject>)
+            return DictionaryValue(value.value as Dictionary<FieldSymbol, EvaluatorObject>);
         else
             return value.value;
     }
@@ -240,9 +252,21 @@ internal sealed class Evaluator {
                 return EvaluateTypeOfExpression((BoundTypeOfExpression)node);
             case BoundNodeType.EmptyExpression:
                 return new EvaluatorObject(null);
+            case BoundNodeType.ConstructorExpression:
+                return EvaluateConstructorExpression((BoundConstructorExpression)node);
             default:
                 throw new BelteInternalException($"EvaluateExpression: unexpected node '{node.type}'");
         }
+    }
+
+    private EvaluatorObject EvaluateConstructorExpression(BoundConstructorExpression node) {
+        var body = _types[node.symbol];
+        var value = new Dictionary<FieldSymbol, EvaluatorObject>();
+
+        foreach (var field in body)
+            value.Add(field, new EvaluatorObject(null));
+
+        return new EvaluatorObject(value);
     }
 
     private EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression node) {
@@ -297,6 +321,8 @@ internal sealed class Evaluator {
             return new EvaluatorObject(Convert.ToString(Value(value)));
         } else if (type == TypeSymbol.Decimal) {
             return new EvaluatorObject(Convert.ToDouble(Value(value)));
+        } else if (type is StructSymbol) {
+            return value;
         }
 
         throw new BelteInternalException($"EvaluateCast: unexpected type '{typeClause}'");

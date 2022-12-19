@@ -200,9 +200,15 @@ internal abstract class BoundTreeRewriter {
                 return RewriteTypeOfExpression((BoundTypeOfExpression)expression);
             case BoundNodeType.TernaryExpression:
                 return RewriteTernaryExpression((BoundTernaryExpression)expression);
+            case BoundNodeType.ConstructorExpression:
+                return RewriteConstructorExpression((BoundConstructorExpression)expression);
             default:
                 return null;
         }
+    }
+
+    protected virtual BoundExpression RewriteConstructorExpression(BoundConstructorExpression expression) {
+        return expression;
     }
 
     protected virtual BoundExpression RewriteTernaryExpression(BoundTernaryExpression expression) {

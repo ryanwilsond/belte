@@ -184,7 +184,7 @@ public sealed class BelteRepl : ReplBase {
                 handle.diagnostics.Clear();
             }
         } else {
-            if (result.value != null && !state.loadingSubmissions) {
+            if (!state.loadingSubmissions) {
                 RenderResult(result.value);
                 _writer.WriteLine();
             }
@@ -235,7 +235,9 @@ public sealed class BelteRepl : ReplBase {
     }
 
     private void RenderResult(object value) {
-        if (value.GetType().IsArray) {
+        if (value == null) {
+            Console.Out.WritePunctuation("null");
+        } else if (value.GetType().IsArray) {
             _writer.Write("{ ");
             var isFirst = true;
 
@@ -246,6 +248,22 @@ public sealed class BelteRepl : ReplBase {
                     _writer.Write(", ");
 
                 RenderResult(item);
+            }
+
+            _writer.Write(" }");
+        } else if (value is Dictionary<object, object>) {
+            _writer.Write("{ ");
+            var isFirst = true;
+
+            foreach (var pair in (Dictionary<object, object>)value) {
+                if (isFirst)
+                    isFirst = false;
+                else
+                    _writer.Write(", ");
+
+                RenderResult(pair.Key);
+                _writer.Write(": ");
+                RenderResult(pair.Value);
             }
 
             _writer.Write(" }");

@@ -12,7 +12,7 @@ internal sealed class BoundProgram {
     internal BoundProgram(
         BoundProgram previous, BelteDiagnosticQueue diagnostics, FunctionSymbol mainFunction,
         FunctionSymbol scriptFunction, ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies,
-        ImmutableDictionary<StructSymbol, BoundBlockStatement> structBodies) {
+        ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>> structBodies) {
         this.previous = previous;
         this.diagnostics = diagnostics;
         this.mainFunction = mainFunction;
@@ -34,5 +34,5 @@ internal sealed class BoundProgram {
 
     internal ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies { get; }
 
-    internal ImmutableDictionary<StructSymbol, BoundBlockStatement> structBodies { get; }
+    internal ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>> structBodies { get; }
 }

@@ -45,12 +45,12 @@ internal class TypeSymbol : Symbol {
     /// </summary>
     internal static readonly TypeSymbol Type = new TypeSymbol("type");
 
-    internal override SymbolType type => SymbolType.Type;
-
     /// <summary>
     /// Creates a new <see cref="TypeSymbol" />.
     /// Use predefined type symbols if possible.
     /// </summary>
     /// <param name="name">Name of type.</param>
     internal TypeSymbol(string name) : base(name) { }
+
+    internal override SymbolType type => SymbolType.Type;
 }

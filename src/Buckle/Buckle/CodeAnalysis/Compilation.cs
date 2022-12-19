@@ -12,6 +12,7 @@ using Buckle.CodeAnalysis.Emitting;
 using Buckle.CodeAnalysis.Evaluating;
 using static Buckle.Utilities.FunctionUtilities;
 using Diagnostics;
+using System.CodeDom.Compiler;
 
 namespace Buckle.CodeAnalysis;
 
@@ -51,6 +52,11 @@ public sealed class Compilation {
     /// All VariableSymbols in the global scope.
     /// </summary>
     internal ImmutableArray<VariableSymbol> variables => globalScope.variables;
+
+    /// <summary>
+    /// All TypeSymbols in the global scope
+    /// </summary>
+    internal ImmutableArray<TypeSymbol> types => globalScope.types;
 
     /// <summary>
     /// The SyntaxTrees of the parsed source files.
@@ -124,6 +130,10 @@ public sealed class Compilation {
                 if (seenSymbolNames.Add(builtin.name))
                     yield return builtin;
 
+            foreach (var @type in submission.types)
+                if (seenSymbolNames.Add(@type.name))
+                    yield return @type;
+
             submission = submission.previous;
         }
     }
@@ -176,11 +186,38 @@ public sealed class Compilation {
     internal void EmitTree(Symbol symbol, TextWriter writer) {
         var program = GetProgram();
 
+        void WriteStructBody(StructSymbol @struct, bool writeEnding = true) {
+            var indentedWriter = new IndentedTextWriter(writer);
+
+            try {
+                var body = program.structBodies[@struct];
+                indentedWriter.WriteSpace();
+                indentedWriter.WritePunctuation(SyntaxType.OpenBraceToken);
+                indentedWriter.WriteLine();
+                indentedWriter.Indent++;
+
+                foreach (var field in body) {
+                    field.WriteTo(indentedWriter);
+                    indentedWriter.WriteLine();
+                }
+
+                indentedWriter.Indent--;
+                indentedWriter.WritePunctuation(SyntaxType.CloseBraceToken);
+                indentedWriter.WriteLine();
+            } catch (BelteInternalException) {
+                if (writeEnding) {
+                    indentedWriter.WritePunctuation(SyntaxType.SemicolonToken);
+                    indentedWriter.WriteLine();
+                }
+            }
+        }
+
         if (symbol is FunctionSymbol f) {
             f.WriteTo(writer);
 
             try {
                 var body = LookupMethod(program.functionBodies, f);
+                writer.WriteSpace();
                 body.WriteTo(writer);
             } catch (BelteInternalException) {
                 // If the body could not be found, it probably means it is a builtin
@@ -188,9 +225,16 @@ public sealed class Compilation {
                 writer.WritePunctuation(SyntaxType.SemicolonToken);
                 writer.WriteLine();
             }
-        } else {
-            symbol.WriteTo(writer);
-            writer.WriteLine();
+        } else if (symbol is StructSymbol t) {
+            t.WriteTo(writer);
+            WriteStructBody(t);
+        } else if (symbol is VariableSymbol v) {
+            v.WriteTo(writer);
+
+            if (v.typeClause.lType is StructSymbol s)
+                WriteStructBody(s);
+            else
+                writer.WriteLine();
         }
     }
 
