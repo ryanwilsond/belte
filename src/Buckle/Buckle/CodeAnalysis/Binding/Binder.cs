@@ -21,8 +21,8 @@ internal sealed class Binder {
     private readonly FunctionSymbol _function;
     private readonly List<(FunctionSymbol function, BoundBlockStatement body)> _functionBodies =
         new List<(FunctionSymbol function, BoundBlockStatement body)>();
-    private readonly List<(StructSymbol @struct, ImmutableList<FieldSymbol> body)> _structBodies =
-        new List<(StructSymbol @struct, ImmutableList<FieldSymbol> body)>();
+    private readonly List<(StructSymbol @struct, ImmutableList<FieldSymbol> members)> _structMembers =
+        new List<(StructSymbol @struct, ImmutableList<FieldSymbol> members)>();
     private BoundScope _scope;
     private Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> _loopStack =
         new Stack<(BoundLabel breakLabel, BoundLabel continueLabel)>();
@@ -75,7 +75,7 @@ internal sealed class Binder {
 
         if (binder.diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return new BoundGlobalScope(ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)>.Empty,
-                ImmutableArray<(StructSymbol function, ImmutableList<FieldSymbol> body)>.Empty, previous,
+                ImmutableArray<(StructSymbol function, ImmutableList<FieldSymbol> members)>.Empty, previous,
                 binder.diagnostics, null, null, ImmutableArray<FunctionSymbol>.Empty,
                 ImmutableArray<VariableSymbol>.Empty, ImmutableArray<TypeSymbol>.Empty,
                 ImmutableArray<BoundStatement>.Empty);
@@ -150,11 +150,11 @@ internal sealed class Binder {
             ? binder._functionBodies.ToImmutableArray()
             : previous.functionBodies.AddRange(binder._functionBodies);
 
-        var structBodies = previous == null
-            ? binder._structBodies.ToImmutableArray()
-            : previous.structBodies.AddRange(binder._structBodies);
+        var structMembers = previous == null
+            ? binder._structMembers.ToImmutableArray()
+            : previous.structMembers.AddRange(binder._structMembers);
 
-        return new BoundGlobalScope(functionBodies, structBodies, previous, binder.diagnostics, mainFunction,
+        return new BoundGlobalScope(functionBodies, structMembers, previous, binder.diagnostics, mainFunction,
             scriptFunction, functions, variables, types, statements.ToImmutable());
     }
 
@@ -174,10 +174,10 @@ internal sealed class Binder {
                 ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>>.Empty);
 
         var functionBodies = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
-        var structBodies = ImmutableDictionary.CreateBuilder<StructSymbol, ImmutableList<FieldSymbol>>();
+        var structMembers = ImmutableDictionary.CreateBuilder<StructSymbol, ImmutableList<FieldSymbol>>();
 
-        foreach (var structBody in globalScope.structBodies)
-            structBodies.Add(structBody.@struct, structBody.body);
+        foreach (var @struct in globalScope.structMembers)
+            structMembers.Add(@struct.@struct, @struct.members);
 
         var diagnostics = new BelteDiagnosticQueue();
         diagnostics.Move(globalScope.diagnostics);
@@ -254,7 +254,7 @@ internal sealed class Binder {
         }
 
         return new BoundProgram(previous, diagnostics, globalScope.mainFunction,
-            globalScope.scriptFunction, functionBodies.ToImmutable(), structBodies.ToImmutable());
+            globalScope.scriptFunction, functionBodies.ToImmutable(), structMembers.ToImmutable());
     }
 
     private static BoundScope CreateParentScope(BoundGlobalScope previous) {
@@ -335,7 +335,7 @@ internal sealed class Binder {
 
         _scope = _scope.parent;
         var newStruct = new StructSymbol(@struct.identifier.text, symbols.ToImmutable(), @struct);
-        _structBodies.Add((newStruct, builder.ToImmutable()));
+        _structMembers.Add((newStruct, builder.ToImmutable()));
 
         if (!_scope.TryDeclareType(newStruct))
             throw new BelteInternalException($"BindStructDeclaration: failed to declare {newStruct.name}");

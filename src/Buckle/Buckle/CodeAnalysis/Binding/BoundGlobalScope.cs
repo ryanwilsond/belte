@@ -11,12 +11,13 @@ internal sealed class BoundGlobalScope {
     /// <param name="previous">Previous <see cref="BoundGlobalScope" /> (if applicable).</param>
     internal BoundGlobalScope(
         ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)> functionBodies,
-        ImmutableArray<(StructSymbol @struct, ImmutableList<FieldSymbol> body)> structBodies, BoundGlobalScope previous,
-        BelteDiagnosticQueue diagnostics, FunctionSymbol mainFunction, FunctionSymbol scriptFunction,
-        ImmutableArray<FunctionSymbol> functions, ImmutableArray<VariableSymbol> variables,
-        ImmutableArray<TypeSymbol> types, ImmutableArray<BoundStatement> statements) {
+        ImmutableArray<(StructSymbol @struct, ImmutableList<FieldSymbol> members)> structMembers,
+        BoundGlobalScope previous, BelteDiagnosticQueue diagnostics, FunctionSymbol mainFunction,
+        FunctionSymbol scriptFunction, ImmutableArray<FunctionSymbol> functions,
+        ImmutableArray<VariableSymbol> variables, ImmutableArray<TypeSymbol> types,
+        ImmutableArray<BoundStatement> statements) {
         this.functionBodies = functionBodies;
-        this.structBodies = structBodies;
+        this.structMembers = structMembers;
         this.previous = previous;
         this.diagnostics = new BelteDiagnosticQueue();
         this.diagnostics.Move(diagnostics);
@@ -30,7 +31,7 @@ internal sealed class BoundGlobalScope {
 
     internal ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)> functionBodies { get; }
 
-    internal ImmutableArray<(StructSymbol @struct, ImmutableList<FieldSymbol> body)> structBodies { get; }
+    internal ImmutableArray<(StructSymbol @struct, ImmutableList<FieldSymbol> members)> structMembers { get; }
 
     /// <summary>
     /// Previous <see cref="BoundGlobalScope" /> (if applicable).

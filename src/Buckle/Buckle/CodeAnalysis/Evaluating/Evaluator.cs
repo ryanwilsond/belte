@@ -42,7 +42,7 @@ internal sealed class Evaluator {
             foreach (var (function, body) in current.functionBodies)
                 _functions.Add(function, body);
 
-            foreach (var (@struct, body) in current.structBodies)
+            foreach (var (@struct, body) in current.structMembers)
                 // Because structs do not store their declarations, shadowing ones have the same key
                 // As what they are shadowing, so this will just update instead of adding and throwing
                 _types[@struct] = body;

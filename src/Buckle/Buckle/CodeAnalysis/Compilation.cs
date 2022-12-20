@@ -186,17 +186,17 @@ public sealed class Compilation {
     internal void EmitTree(Symbol symbol, TextWriter writer) {
         var program = GetProgram();
 
-        void WriteStructBody(StructSymbol @struct, bool writeEnding = true) {
+        void WriteStructMembers(StructSymbol @struct, bool writeEnding = true) {
             var indentedWriter = new IndentedTextWriter(writer);
 
             try {
-                var body = program.structBodies[@struct];
+                var members = program.structMembers[@struct];
                 indentedWriter.WriteSpace();
                 indentedWriter.WritePunctuation(SyntaxType.OpenBraceToken);
                 indentedWriter.WriteLine();
                 indentedWriter.Indent++;
 
-                foreach (var field in body) {
+                foreach (var field in members) {
                     field.WriteTo(indentedWriter);
                     indentedWriter.WriteLine();
                 }
@@ -227,12 +227,12 @@ public sealed class Compilation {
             }
         } else if (symbol is StructSymbol t) {
             t.WriteTo(writer);
-            WriteStructBody(t);
+            WriteStructMembers(t);
         } else if (symbol is VariableSymbol v) {
             v.WriteTo(writer);
 
             if (v.typeClause.lType is StructSymbol s)
-                WriteStructBody(s);
+                WriteStructMembers(s);
             else
                 writer.WriteLine();
         }
