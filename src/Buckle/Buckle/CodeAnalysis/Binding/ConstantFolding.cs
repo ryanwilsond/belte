@@ -199,7 +199,13 @@ internal static class ConstantFolding {
 
     internal static BoundConstant Fold(
         BoundExpression left, BoundTernaryOperator op, BoundExpression center, BoundExpression right) {
-        // TODO
+        if (op.opType == BoundTernaryOperatorType.Conditional) {
+            if (left.constantValue != null && (bool)left.constantValue.value && center.constantValue != null)
+                return new BoundConstant(center.constantValue.value);
+            if (left.constantValue != null && !(bool)left.constantValue.value && right.constantValue != null)
+                return new BoundConstant(right.constantValue.value);
+        }
+
         return null;
     }
 }

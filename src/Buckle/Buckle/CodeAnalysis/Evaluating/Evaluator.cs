@@ -478,7 +478,7 @@ internal sealed class Evaluator {
         switch (expression.op.opType) {
             case BoundTernaryOperatorType.Conditional:
                 // This is so unused sides do not get evaluated (incase they would throw)
-                if ((bool)leftValue == true)
+                if ((bool)leftValue)
                     return EvaluateExpression(expression.center);
                 else
                     return EvaluateExpression(expression.right);
@@ -493,26 +493,26 @@ internal sealed class Evaluator {
 
         // Only evaluates right side if necessary
         if (expression.op.opType == BoundBinaryOperatorType.ConditionalAnd) {
-            if (leftValue == null || (bool)leftValue == false)
+            if (leftValue == null || !(bool)leftValue)
                 return new EvaluatorObject(false);
 
             var _right = EvaluateExpression(expression.right);
             var _rightValue = Value(_right);
 
-            if (_rightValue == null || (bool)_rightValue == false)
+            if (_rightValue == null || !(bool)_rightValue)
                 return new EvaluatorObject(false);
 
             return new EvaluatorObject(true);
         }
 
         if (expression.op.opType == BoundBinaryOperatorType.ConditionalOr) {
-            if (leftValue != null && (bool)leftValue == true)
+            if (leftValue != null && (bool)leftValue)
                 return new EvaluatorObject(true);
 
             var _right = EvaluateExpression(expression.right);
             var _rightValue = Value(_right);
 
-            if (_rightValue != null && (bool)_rightValue == true)
+            if (_rightValue != null && (bool)_rightValue)
                 return new EvaluatorObject(true);
 
             return new EvaluatorObject(false);

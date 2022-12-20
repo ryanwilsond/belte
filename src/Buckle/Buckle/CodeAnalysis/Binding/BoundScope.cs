@@ -1,9 +1,7 @@
 using System.Linq;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
-using System;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -172,7 +170,7 @@ internal sealed class BoundScope {
             foreach (var symbol in _symbols) {
                 // If it is a nested function, the name will be something like <funcName::name>$
                 if (symbol is Symbol s &&
-                    (symbol.name == name || (strict == false && symbol.name.EndsWith($"::{name}>$")))) {
+                    (symbol.name == name || (!strict && symbol.name.EndsWith($"::{name}>$")))) {
                     if (_current != null) {
                         var skip = false;
 

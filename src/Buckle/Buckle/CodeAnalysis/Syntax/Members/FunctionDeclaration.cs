@@ -3,6 +3,12 @@ namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
 /// Function declaration (including body).
+/// E.g.
+/// <code>
+/// void FunctionName(int a) {
+///     Print(a);
+/// }
+/// </code>
 /// </summary>
 internal sealed partial class FunctionDeclaration : Member {
     /// <param name="returnType"><see cref="TypeClause" /> of return type.</param>

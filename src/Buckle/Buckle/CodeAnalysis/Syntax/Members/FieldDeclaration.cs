@@ -2,7 +2,12 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// A field declaration.
+/// A field declaration, syntactically identical to <see cref="VariableDeclarationStatement" /> except it is apart
+/// of a type declaration, and cannot have an initializer (for now).</br>
+/// E.g.
+/// <code>
+/// int a;
+/// </code>
 /// </summary>
 internal sealed partial class FieldDeclaration : Member {
     internal FieldDeclaration(

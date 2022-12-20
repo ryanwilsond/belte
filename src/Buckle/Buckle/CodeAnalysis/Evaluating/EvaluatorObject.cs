@@ -23,8 +23,10 @@ internal sealed class EvaluatorObject {
     /// Note that it is not an actual C# reference, just a copy of a <see cref="VariableSymbol" /> stored in the locals
     /// or globals dictionary.
     /// </summary>
-    /// <param name="reference"><see cref="VariableSymbol" /> to reference (not an explicit reference, passed by
-    /// reference by default).</param>
+    /// <param name="reference">
+    /// <see cref="VariableSymbol" /> to reference (not an explicit reference, passed by
+    /// reference by default).
+    /// </param>
     internal EvaluatorObject(VariableSymbol reference, bool explicitReference=false) {
         this.value = null;
 

@@ -494,11 +494,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         */
         if (expression.op.opType == BoundTernaryOperatorType.Conditional) {
-            if (expression.left.constantValue != null && (bool)expression.left.constantValue.value == true) {
+            if (expression.left.constantValue != null && (bool)expression.left.constantValue.value) {
                 return RewriteExpression(expression.center);
             }
 
-            if (expression.left.constantValue != null && (bool)expression.left.constantValue.value == false) {
+            if (expression.left.constantValue != null && !(bool)expression.left.constantValue.value) {
                 return RewriteExpression(expression.right);
             }
         }

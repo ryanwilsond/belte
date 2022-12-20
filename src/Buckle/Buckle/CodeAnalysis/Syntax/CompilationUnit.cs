@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// </summary>
 internal sealed partial class CompilationUnit : Node {
     /// <param name="members">The top level nodes (global).</param>
-    /// <param name="endOfFile">EOF token.</param>
+    /// <param name="endOfFile">End of file/EOF token.</param>
     internal CompilationUnit(SyntaxTree syntaxTree, ImmutableArray<Member> members, Token endOfFile)
         : base(syntaxTree) {
         this.members = members;

@@ -960,7 +960,7 @@ internal sealed class Binder {
         BoundLiteralExpression constant = null;
 
         if (condition.constantValue != null) {
-            if ((bool)condition.constantValue.value == false)
+            if (!(bool)condition.constantValue.value)
                 diagnostics.Push(Warning.UnreachableCode(statement.then));
             else if (statement.elseClause != null)
                 diagnostics.Push(Warning.UnreachableCode(statement.elseClause.body));
@@ -1105,7 +1105,7 @@ internal sealed class Binder {
     */
 
     private Token CreateToken(SyntaxType type, string name = null, object value = null) {
-        // TODO make a syntax node factory
+        // TODO Make a syntax node factory
         return new Token(
             null, type, -1, name, value,
             ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
@@ -1523,7 +1523,7 @@ internal sealed class Binder {
         Token identifier, BoundTypeClause type, BoundConstant constant = null, bool bindAsField=false) {
         var name = identifier.text ?? "?";
         var declare = !identifier.isMissing;
-        var variable = bindAsField == true
+        var variable = bindAsField
             ? new FieldSymbol(name, type, constant)
             : _function == null
                 ? (VariableSymbol) new GlobalVariableSymbol(name, type, constant)

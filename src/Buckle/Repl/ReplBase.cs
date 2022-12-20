@@ -331,7 +331,7 @@ public abstract class ReplBase {
     }
 
     private void HandleControlC(ObservableCollection<string> document, SubmissionView view) {
-        if (_done == false)
+        if (!_done)
             SpecialEscapeSequence();
         else
             // Normal ctrl + c behavior
@@ -921,8 +921,8 @@ public abstract class ReplBase {
 
         if (args.Count != parameters.Length) {
             if (args.Count == command.method.GetParameters()
-                .Where(t => t.HasDefaultValue == false).ToArray().Length) {
-                foreach (var parameter in command.method.GetParameters().Where(p => p.HasDefaultValue == true))
+                .Where(t => !t.HasDefaultValue).ToArray().Length) {
+                foreach (var parameter in command.method.GetParameters().Where(p => p.HasDefaultValue))
                     args.Add(parameter.DefaultValue.ToString());
             } else {
                 var parameterNames = string.Join(" ", parameters.Select(p => $"<{p.Name}>"));

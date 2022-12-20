@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// A global statement.
+/// A global statement, just a subset of statements that are allowed in the global scope.
 /// </summary>
 internal sealed partial class GlobalStatement : Member {
     /// <summary>
