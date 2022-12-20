@@ -19,7 +19,8 @@ internal sealed class BoundLiteralExpression : BoundExpression {
         else if (value == null)
             typeClause = new BoundTypeClause(null, isLiteral: true);
         else
-            throw new BelteInternalException($"BoundLiteralExpression: unexpected literal '{value}' of type '{value.GetType()}'");
+            throw new BelteInternalException(
+                $"BoundLiteralExpression: unexpected literal '{value}' of type '{value.GetType()}'");
 
         constantValue = new BoundConstant(value);
     }

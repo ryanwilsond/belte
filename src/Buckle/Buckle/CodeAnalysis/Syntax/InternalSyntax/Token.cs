@@ -10,7 +10,10 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// Token type.
 /// </summary>
 internal sealed class Token : Node {
-    /// <param name="position">Position of <see cref="Token" /> (indexed by the <see cref="Node" />, not character in <see cref="SourceText" />).</param>
+    /// <param name="position">
+    /// Position of <see cref="Token" /> (indexed by the <see cref="Node" />, not character
+    /// in <see cref="SourceText" />).
+    /// </param>
     /// <param name="text">Text related to <see cref="Token" /> (if applicable).</param>
     /// <param name="value">Value related to <see cref="Token" /> (if applicable).</param>
     /// <param name="leadingTrivia"><see cref="SyntaxTrivia" /> before <see cref="Token" /> (anything).</param>

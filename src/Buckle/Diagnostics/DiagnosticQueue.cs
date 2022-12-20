@@ -181,7 +181,9 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
     /// <summary>
     /// Copies another <see cref="Diagnostic" /> queue to the front of this <see cref="DiagnosticQueue" />.
     /// </summary>
-    /// <param name="queue"><see cref="DiagnosticQueue" /> to copy, does not modify this <see cref="DiagnosticQueue" />.</param>
+    /// <param name="queue">
+    /// <see cref="DiagnosticQueue" /> to copy, does not modify this <see cref="DiagnosticQueue" />.
+    /// </param>
     public void CopyToFront(DiagnosticQueue<Type> queue) {
         _diagnostics.InsertRange(0, queue._diagnostics);
     }

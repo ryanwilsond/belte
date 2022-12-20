@@ -1019,7 +1019,8 @@ internal class _Emitter {
             var value = Convert.ToSingle(expression.constantValue.value);
             iLProcessor.Emit(OpCodes.Ldc_R4, value);
         } else {
-            throw new BelteInternalException($"EmitConstantExpression: unexpected constant expression type '{expressionType}'");
+            throw new BelteInternalException(
+                $"EmitConstantExpression: unexpected constant expression type '{expressionType}'");
         }
 
         if (referenceAssign && handleAssignment) {

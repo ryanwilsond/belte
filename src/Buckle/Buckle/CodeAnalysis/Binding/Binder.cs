@@ -61,7 +61,9 @@ internal sealed class Binder {
     /// <summary>
     /// Binds everything in the global scope.
     /// </summary>
-    /// <param name="isScript">If being bound as a script (used by the <see cref="BelteRepl" />), otherwise an application.</param>
+    /// <param name="isScript">
+    /// If being bound as a script (used by the <see cref="BelteRepl" />), otherwise an application.
+    /// </param>
     /// <param name="previous">Previous <see cref="BoundGlobalScope" /> (if applicable).</param>
     /// <param name="syntaxTrees">All SyntaxTrees, as files are bound together.</param>
     /// <returns>A new <see cref="BoundGlobalScope" />.</returns>

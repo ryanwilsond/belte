@@ -483,7 +483,8 @@ internal sealed class Evaluator {
                 else
                     return EvaluateExpression(expression.right);
             default:
-                throw new BelteInternalException($"EvaluateTernaryExpression: unknown ternary operator '{expression.op}'");
+                throw new BelteInternalException(
+                    $"EvaluateTernaryExpression: unknown ternary operator '{expression.op}'");
         }
     }
 
@@ -610,7 +611,8 @@ internal sealed class Evaluator {
                 else
                     return new EvaluatorObject((double)leftValue % (double)rightValue);
             default:
-                throw new BelteInternalException($"EvaluateBinaryExpression: unknown binary operator '{expression.op}'");
+                throw new BelteInternalException(
+                    $"EvaluateBinaryExpression: unknown binary operator '{expression.op}'");
         }
     }
 }

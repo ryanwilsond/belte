@@ -18,8 +18,12 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// </summary>
 internal sealed partial class TryStatement : Statement {
     /// <param name="keyword">Try keyword.</param>
-    /// <param name="catchClause">Either the <see cref="CatchClause" /> or <see cref="FinallyClause" /> is optional.</param>
-    /// <param name="finallyClause">Either the <see cref="CatchClause" /> or <see cref="FinallyClause" /> is optional.</param>
+    /// <param name="catchClause">
+    /// Either the <see cref="CatchClause" /> or <see cref="FinallyClause" /> is optional.
+    /// </param>
+    /// <param name="finallyClause">
+    /// Either the <see cref="CatchClause" /> or <see cref="FinallyClause" /> is optional.
+    /// </param>
     internal TryStatement(
         SyntaxTree syntaxTree, Token keyword, BlockStatement body,
         CatchClause catchClause, FinallyClause finallyClause)
