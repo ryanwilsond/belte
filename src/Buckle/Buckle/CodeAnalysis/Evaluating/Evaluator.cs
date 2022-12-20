@@ -202,8 +202,8 @@ internal sealed class Evaluator {
     }
 
     private void EvaluateExpressionStatement(BoundExpressionStatement statement) {
-        _lastValue = EvaluateExpression(statement.expression);
         _hasValue = true;
+        _lastValue = EvaluateExpression(statement.expression);
     }
 
     private void EvaluateVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
@@ -213,7 +213,7 @@ internal sealed class Evaluator {
         Assign(statement.variable, value);
     }
 
-    private void Assign(VariableSymbol variable, EvaluatorObject value) {
+    private void Assign(VariableSymbol variable, EvaluatorObject value, FieldSymbol field=null) {
         if (value.isReference && !value.isExplicitReference) {
             if (value.reference.type == SymbolType.GlobalVariable) {
                 value = _globals[value.reference];
@@ -226,18 +226,26 @@ internal sealed class Evaluator {
         if (variable.type == SymbolType.GlobalVariable) {
             var currentValue = _globals.ContainsKey(variable) ? _globals[variable] : null;
 
-            if (currentValue != null && currentValue.isReference && !value.isReference)
-                Assign(currentValue.reference, value);
-            else
-                _globals[variable] = value;
+            if (currentValue != null && currentValue.isReference && !value.isReference) {
+                Assign(currentValue.reference, value, field);
+            } else {
+                if (field == null)
+                    _globals[variable] = value;
+                else
+                    ((Dictionary<FieldSymbol, EvaluatorObject>)(_globals[variable].value))[field] = value;
+            }
         } else {
             var locals = _locals.Peek();
             var currentValue = locals.ContainsKey(variable) ? locals[variable] : null;
 
-            if (currentValue != null && currentValue.isReference && !value.isReference)
-                Assign(currentValue.reference, value);
-            else
-                locals[variable] = value;
+            if (currentValue != null && currentValue.isReference && !value.isReference) {
+                Assign(currentValue.reference, value, field);
+            } else {
+                if (field == null)
+                    locals[variable] = value;
+                else
+                    ((Dictionary<FieldSymbol, EvaluatorObject>)(locals[variable].value))[field] = value;
+            }
         }
     }
 
@@ -417,6 +425,7 @@ internal sealed class Evaluator {
             return result;
         }
 
+        _hasValue = false;
         return new EvaluatorObject(null);
     }
 
@@ -431,7 +440,7 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateAssignmentExpresion(BoundAssignmentExpression expression) {
         var left = EvaluateExpression(expression.left);
         var right = EvaluateExpression(expression.right);
-        Assign(left.reference, right);
+        Assign(left.reference, right, left.fieldReference);
 
         return right;
     }

@@ -390,7 +390,7 @@ internal sealed class Parser {
         var body = ParseStatement(true);
         var whileKeyword = Match(SyntaxType.WhileKeyword);
         var openParenthesis = Match(SyntaxType.OpenParenToken);
-        var condition = ParseExpression();
+        var condition = ParseNonAssignmentExpression();
         var closeParenthesis = Match(SyntaxType.CloseParenToken);
         var semicolon = Match(SyntaxType.SemicolonToken);
 
@@ -467,7 +467,7 @@ internal sealed class Parser {
     private Statement ParseWhileStatement() {
         var keyword = Next();
         var openParenthesis = Match(SyntaxType.OpenParenToken);
-        var condition = ParseExpression();
+        var condition = ParseNonAssignmentExpression();
         var closeParenthesis = Match(SyntaxType.CloseParenToken);
         var body = ParseStatement(true);
 
@@ -479,7 +479,7 @@ internal sealed class Parser {
         var openParenthesis = Match(SyntaxType.OpenParenToken);
 
         var initializer = ParseStatement(true);
-        var condition = ParseExpression();
+        var condition = ParseNonAssignmentExpression();
         var semicolon = Match(SyntaxType.SemicolonToken);
 
         Expression step = null;
@@ -498,7 +498,7 @@ internal sealed class Parser {
     private Statement ParseIfStatement() {
         var keyword = Next();
         var openParenthesis = Match(SyntaxType.OpenParenToken);
-        var condition = ParseExpression();
+        var condition = ParseNonAssignmentExpression();
         var closeParenthesis = Match(SyntaxType.CloseParenToken);
         var statement = ParseStatement(true);
 
@@ -620,30 +620,37 @@ internal sealed class Parser {
     }
 
     private Expression ParseAssignmentExpression() {
-        if (current.type == SyntaxType.IdentifierToken) {
-            switch (Peek(1).type) {
-                case SyntaxType.PlusEqualsToken:
-                case SyntaxType.MinusEqualsToken:
-                case SyntaxType.AsteriskEqualsToken:
-                case SyntaxType.SlashEqualsToken:
-                case SyntaxType.AmpersandEqualsToken:
-                case SyntaxType.PipeEqualsToken:
-                case SyntaxType.AsteriskAsteriskEqualsToken:
-                case SyntaxType.CaretEqualsToken:
-                case SyntaxType.LessThanLessThanEqualsToken:
-                case SyntaxType.GreaterThanGreaterThanEqualsToken:
-                case SyntaxType.GreaterThanGreaterThanGreaterThanEqualsToken:
-                case SyntaxType.PercentEqualsToken:
-                case SyntaxType.QuestionQuestionEqualsToken:
-                case SyntaxType.EqualsToken:
-                    var left = ParseNameOrPrimaryOperatorExpression();
-                    var operatorToken = Next();
-                    var right = ParseAssignmentExpression();
-                    return new AssignmentExpression(_syntaxTree, left, operatorToken, right);
-                default:
-                    break;
-            }
+        var left = ParseOperatorExpression();
+
+        switch (current.type) {
+            case SyntaxType.PlusEqualsToken:
+            case SyntaxType.MinusEqualsToken:
+            case SyntaxType.AsteriskEqualsToken:
+            case SyntaxType.SlashEqualsToken:
+            case SyntaxType.AmpersandEqualsToken:
+            case SyntaxType.PipeEqualsToken:
+            case SyntaxType.AsteriskAsteriskEqualsToken:
+            case SyntaxType.CaretEqualsToken:
+            case SyntaxType.LessThanLessThanEqualsToken:
+            case SyntaxType.GreaterThanGreaterThanEqualsToken:
+            case SyntaxType.GreaterThanGreaterThanGreaterThanEqualsToken:
+            case SyntaxType.PercentEqualsToken:
+            case SyntaxType.QuestionQuestionEqualsToken:
+            case SyntaxType.EqualsToken:
+                var operatorToken = Next();
+                var right = ParseAssignmentExpression();
+                left = new AssignmentExpression(_syntaxTree, left, operatorToken, right);
+                break;
+            default:
+                break;
         }
+
+        return left;
+    }
+
+    private Expression ParseNonAssignmentExpression() {
+        if (current.type == SyntaxType.SemicolonToken)
+            return ParseEmptyExpression();
 
         return ParseOperatorExpression();
     }
@@ -728,14 +735,14 @@ internal sealed class Parser {
             case SyntaxType.RefKeyword:
                 return ParseReferenceExpression();
             case SyntaxType.IdentifierToken:
-                if (Peek(1).type == SyntaxType.PlusPlusToken || Peek(1).type == SyntaxType.MinusMinusToken)
-                    return ParsePostfixExpression();
-                else
-                    goto default;
             case SyntaxType.NameExpression:
             case SyntaxType.TypeOfKeyword:
             default:
-                return ParseNameOrPrimaryOperatorExpression();
+                var left = ParseNameOrPrimaryOperatorExpression();
+                if (current.type == SyntaxType.PlusPlusToken || current.type == SyntaxType.MinusMinusToken)
+                    return ParsePostfixExpression(left);
+
+                return left;
         }
     }
 
@@ -755,12 +762,8 @@ internal sealed class Parser {
         return new ReferenceExpression(_syntaxTree, keyword, identifier);
     }
 
-    private Expression ParsePostfixExpression() {
-        var operand = ParseNameOrPrimaryOperatorExpression();
-        Token op = null;
-
-        if (current.type == SyntaxType.MinusMinusToken || current.type == SyntaxType.PlusPlusToken)
-            op = Next();
+    private Expression ParsePostfixExpression(Expression operand) {
+        var op = Next();
 
         return new PostfixExpression(_syntaxTree, operand, op);
     }
@@ -914,7 +917,7 @@ internal sealed class Parser {
             current.type != SyntaxType.CloseParenToken &&
             current.type != SyntaxType.EndOfFileToken) {
             if (current.type != SyntaxType.CommaToken) {
-                var expression = ParseExpression();
+                var expression = ParseNonAssignmentExpression();
                 nodesAndSeparators.Add(expression);
             }
 
