@@ -3,11 +3,14 @@ namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
 /// Return statement. Only used in function bodies, or scopes that are inside a function body.
-/// Have an optional return value.
-/// E.g. return 3;
+/// Have an optional return value.<br/>
+/// E.g.
+/// <code>
+/// return 3;
+/// </code>
 /// </summary>
 internal sealed partial class ReturnStatement : Statement {
-    /// <param name="expression">Return value (optional)</param>
+    /// <param name="expression">Return value (optional).</param>
     internal ReturnStatement(SyntaxTree syntaxTree, Token keyword, Expression expression, Token semicolon)
         : base(syntaxTree) {
         this.keyword = keyword;

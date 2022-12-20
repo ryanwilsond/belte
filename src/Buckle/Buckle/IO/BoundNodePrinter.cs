@@ -4,18 +4,19 @@ using System.IO;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
 
 namespace Buckle.IO;
 
 /// <summary>
-/// Writes user friendly representation of bound nodes.
+/// Writes user friendly representation of BoundNodes.
 /// </summary>
 internal static class BoundNodePrinter {
     /// <summary>
-    /// Writes a single bound node.
+    /// Writes a single <see cref="BoundNode" />.
     /// </summary>
-    /// <param name="node">Bound node to print (not modified)</param>
-    /// <param name="writer">Where to write to (out)</param>
+    /// <param name="node"><see cref="BoundNode" /> to print (not modified).</param>
+    /// <param name="writer">Where to write to (out).</param>
     internal static void WriteTo(this BoundNode node, TextWriter writer) {
         if (writer is IndentedTextWriter iw)
             WriteTo(node, iw);
@@ -24,10 +25,10 @@ internal static class BoundNodePrinter {
     }
 
     /// <summary>
-    /// Writes a single bound type clause.
+    /// Writes a single <see cref="BoundTypeClause" />.
     /// </summary>
-    /// <param name="type">Bound type clause to print (not modified)</param>
-    /// <param name="writer">Where to write to (out)</param>
+    /// <param name="type"><see cref="BoundTypeClause" /> to print (not modified).</param>
+    /// <param name="writer">Where to write to (out).</param>
     internal static void WriteTypeClause(BoundTypeClause type, TextWriter writer) {
         writer.WriteType(type.BaseType().ToString());
         var brackets = "";
@@ -39,42 +40,12 @@ internal static class BoundNodePrinter {
     }
 
     /// <summary>
-    /// Writes a single bound node using an indented writer.
+    /// Writes a single <see cref="BoundNode" /> using an IndentedTextWriter.
     /// </summary>
-    /// <param name="node">Bound node to print (not modified)</param>
-    /// <param name="writer">Where to write to with indentation (out)</param>
+    /// <param name="node"><see cref="BoundNode" /> to print (not modified).</param>
+    /// <param name="writer">Where to write to with indentation (out).</param>
     internal static void WriteTo(this BoundNode node, IndentedTextWriter writer) {
         switch (node.type) {
-            case BoundNodeType.UnaryExpression:
-                WriteUnaryExpression((BoundUnaryExpression)node, writer);
-                break;
-            case BoundNodeType.LiteralExpression:
-                if (node is BoundInitializerListExpression il)
-                    WriteInitializerListExpression(il, writer);
-                else
-                    WriteLiteralExpression((BoundLiteralExpression)node, writer);
-                break;
-            case BoundNodeType.BinaryExpression:
-                WriteBinaryExpression((BoundBinaryExpression)node, writer);
-                break;
-            case BoundNodeType.VariableExpression:
-                WriteVariableExpression((BoundVariableExpression)node, writer);
-                break;
-            case BoundNodeType.AssignmentExpression:
-                WriteAssignmentExpression((BoundAssignmentExpression)node, writer);
-                break;
-            case BoundNodeType.EmptyExpression:
-                WriteEmptyExpression((BoundEmptyExpression)node, writer);
-                break;
-            case BoundNodeType.ErrorExpression:
-                WriteErrorExpression((BoundErrorExpression)node, writer);
-                break;
-            case BoundNodeType.CallExpression:
-                WriteCallExpression((BoundCallExpression)node, writer);
-                break;
-            case BoundNodeType.CastExpression:
-                WriteCastExpression((BoundCastExpression)node, writer);
-                break;
             case BoundNodeType.NopStatement:
                 WriteNopStatement((BoundNopStatement)node, writer);
                 break;
@@ -114,8 +85,56 @@ internal static class BoundNodePrinter {
             case BoundNodeType.TryStatement:
                 WriteTryStatement((BoundTryStatement)node, writer);
                 break;
+            case BoundNodeType.TernaryExpression:
+                WriteTernaryExpression((BoundTernaryExpression)node, writer);
+                break;
+            case BoundNodeType.IndexExpression:
+                WriteIndexExpression((BoundIndexExpression)node, writer);
+                break;
+            case BoundNodeType.ReferenceExpression:
+                WriteReferenceExpression((BoundReferenceExpression)node, writer);
+                break;
+            case BoundNodeType.UnaryExpression:
+                WriteUnaryExpression((BoundUnaryExpression)node, writer);
+                break;
+            case BoundNodeType.LiteralExpression:
+                if (node is BoundInitializerListExpression il)
+                    WriteInitializerListExpression(il, writer);
+                else
+                    WriteLiteralExpression((BoundLiteralExpression)node, writer);
+                break;
+            case BoundNodeType.BinaryExpression:
+                WriteBinaryExpression((BoundBinaryExpression)node, writer);
+                break;
+            case BoundNodeType.VariableExpression:
+                WriteVariableExpression((BoundVariableExpression)node, writer);
+                break;
+            case BoundNodeType.AssignmentExpression:
+                WriteAssignmentExpression((BoundAssignmentExpression)node, writer);
+                break;
+            case BoundNodeType.EmptyExpression:
+                WriteEmptyExpression((BoundEmptyExpression)node, writer);
+                break;
+            case BoundNodeType.ErrorExpression:
+                WriteErrorExpression((BoundErrorExpression)node, writer);
+                break;
+            case BoundNodeType.CallExpression:
+                WriteCallExpression((BoundCallExpression)node, writer);
+                break;
+            case BoundNodeType.CastExpression:
+                WriteCastExpression((BoundCastExpression)node, writer);
+                break;
+            case BoundNodeType.TypeOfExpression:
+                WriteTypeOfExpression((BoundTypeOfExpression)node, writer);
+                break;
+            case BoundNodeType.ConstructorExpression:
+                WriteConstructorExpression((BoundConstructorExpression)node, writer);
+                break;
+            case BoundNodeType.MemberAccessExpression:
+                WriteMemberAccessExpression((BoundMemberAccessExpression)node, writer);
+                break;
             default:
-                throw new Exception($"WriteTo: unexpected node '{node.type}'");
+                throw new BelteInternalException($"WriteTo: unexpected node '{node.type}'");
         }
     }
 
@@ -167,29 +186,6 @@ internal static class BoundNodePrinter {
 
         if (needsIndentation)
             writer.Indent--;
-    }
-
-    private static void WriteNestedExpression(
-        this IndentedTextWriter writer, int parentPrecedence, BoundExpression expression) {
-        if (expression is BoundUnaryExpression u)
-            writer.WriteNestedExpression(parentPrecedence, SyntaxFacts.GetUnaryPrecedence(u.op.type), u);
-        else if (expression is BoundBinaryExpression b)
-            writer.WriteNestedExpression(parentPrecedence, SyntaxFacts.GetBinaryPrecedence(b.op.type), b);
-        else
-            expression.WriteTo(writer);
-    }
-
-    private static void WriteNestedExpression(
-        this IndentedTextWriter writer, int parentPrecedence, int currentPrecedence, BoundExpression expression) {
-        var needsParenthesis = parentPrecedence >= currentPrecedence;
-
-        if (needsParenthesis)
-            writer.WritePunctuation(SyntaxType.OpenParenToken);
-
-        expression.WriteTo(writer);
-
-        if (needsParenthesis)
-            writer.WritePunctuation(SyntaxType.CloseParenToken);
     }
 
     private static void WriteDoWhileStatement(BoundDoWhileStatement node, IndentedTextWriter writer) {
@@ -332,6 +328,83 @@ internal static class BoundNodePrinter {
             writer.WriteLine();
     }
 
+    private static void WriteMemberAccessExpression(BoundMemberAccessExpression node, IndentedTextWriter writer) {
+        node.operand.WriteTo(writer);
+        writer.WritePunctuation(SyntaxType.PeriodToken);
+        node.member.WriteTo(writer);
+    }
+
+    private static void WriteConstructorExpression(BoundConstructorExpression node, IndentedTextWriter writer) {
+        node.symbol.WriteTo(writer);
+        writer.WritePunctuation(SyntaxType.OpenParenToken);
+        writer.WritePunctuation(SyntaxType.CloseParenToken);
+    }
+
+    private static void WriteTernaryExpression(BoundTernaryExpression node, IndentedTextWriter writer) {
+        var precedence = SyntaxFacts.GetTernaryPrecedence(node.op.leftOpType);
+
+        writer.WriteNestedExpression(precedence, node.left);
+        writer.WriteSpace();
+        writer.WritePunctuation(node.op.leftOpType);
+        writer.WriteSpace();
+        writer.WriteNestedExpression(precedence, node.center);
+        writer.WriteSpace();
+        writer.WritePunctuation(node.op.rightOpType);
+        writer.WriteSpace();
+        writer.WriteNestedExpression(precedence, node.right);
+    }
+
+    private static void WriteTypeOfExpression(BoundTypeOfExpression node, IndentedTextWriter writer) {
+        writer.WriteKeyword(SyntaxType.TypeOfKeyword);
+        writer.WritePunctuation(SyntaxType.OpenParenToken);
+        node.typeOfTypeClause.WriteTo(writer);
+        writer.WritePunctuation(SyntaxType.CloseParenToken);
+    }
+
+    private static void WriteIndexExpression(BoundIndexExpression node, IndentedTextWriter writer) {
+        node.expression.WriteTo(writer);
+        writer.WritePunctuation(SyntaxType.OpenBracketToken);
+        node.index.WriteTo(writer);
+        writer.WritePunctuation(SyntaxType.CloseBracketToken);
+    }
+
+    private static void WriteReferenceExpression(BoundReferenceExpression node, IndentedTextWriter writer) {
+        writer.WriteKeyword(SyntaxType.RefKeyword);
+        writer.WriteSpace();
+        node.variable.WriteTo(writer);
+    }
+
+    private static void WriteNestedExpression(
+        this IndentedTextWriter writer, int parentPrecedence, BoundExpression expression) {
+        var expr = expression;
+
+        if (expression is BoundAssignmentExpression a)
+            expr = a.right;
+
+        if (expr is BoundUnaryExpression u)
+            writer.WriteNestedExpression(parentPrecedence, SyntaxFacts.GetUnaryPrecedence(u.op.type), expression);
+        else if (expr is BoundBinaryExpression b)
+            writer.WriteNestedExpression(parentPrecedence, SyntaxFacts.GetBinaryPrecedence(b.op.type), expression);
+        else if (expr is BoundTernaryExpression t)
+            writer.WriteNestedExpression(
+                parentPrecedence, SyntaxFacts.GetTernaryPrecedence(t.op.leftOpType), expression);
+        else
+            expression.WriteTo(writer);
+    }
+
+    private static void WriteNestedExpression(
+        this IndentedTextWriter writer, int parentPrecedence, int currentPrecedence, BoundExpression expression) {
+        var needsParenthesis = parentPrecedence >= currentPrecedence;
+
+        if (needsParenthesis)
+            writer.WritePunctuation(SyntaxType.OpenParenToken);
+
+        expression.WriteTo(writer);
+
+        if (needsParenthesis)
+            writer.WritePunctuation(SyntaxType.CloseParenToken);
+    }
+
     private static void WriteCastExpression(BoundCastExpression node, IndentedTextWriter writer) {
         writer.WriteType(node.typeClause.lType.name);
         writer.WritePunctuation(SyntaxType.OpenParenToken);
@@ -383,11 +456,11 @@ internal static class BoundNodePrinter {
     private static void WriteEmptyExpression(BoundEmptyExpression node, IndentedTextWriter writer) { }
 
     private static void WriteAssignmentExpression(BoundAssignmentExpression node, IndentedTextWriter writer) {
-        writer.WriteIdentifier(node.variable.name);
+        node.left.WriteTo(writer);
         writer.WriteSpace();
         writer.WritePunctuation(SyntaxType.EqualsToken);
         writer.WriteSpace();
-        node.expression.WriteTo(writer);
+        node.right.WriteTo(writer);
     }
 
     private static void WriteVariableExpression(BoundVariableExpression node, IndentedTextWriter writer) {
@@ -395,12 +468,11 @@ internal static class BoundNodePrinter {
     }
 
     private static void WriteBinaryExpression(BoundBinaryExpression node, IndentedTextWriter writer) {
-        var op = SyntaxFacts.GetText(node.op.type);
         var precedence = SyntaxFacts.GetBinaryPrecedence(node.op.type);
 
         writer.WriteNestedExpression(precedence, node.left);
         writer.WriteSpace();
-        writer.WritePunctuation(op);
+        writer.WritePunctuation(node.op.type);
         writer.WriteSpace();
         writer.WriteNestedExpression(precedence, node.right);
     }
@@ -423,7 +495,7 @@ internal static class BoundNodePrinter {
         } else if (node.typeClause.lType == TypeSymbol.Decimal) {
             writer.WriteNumber(value);
         } else {
-            throw new Exception($"WriteLiteralExpression: unexpected type '{node.typeClause.lType}'");
+            throw new BelteInternalException($"WriteLiteralExpression: unexpected type '{node.typeClause.lType}'");
         }
     }
 

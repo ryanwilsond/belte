@@ -4,14 +4,16 @@ namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
 /// Block statement, group of statements enclosed by curly braces.
-/// The child statements have their own local scope.
+/// The child statements have their own local scope.<br/>
 /// E.g.
+/// <code>
 /// {
 ///     ... statements ...
 /// }
+/// </code>
 /// </summary>
 internal sealed partial class BlockStatement : Statement {
-    /// <param name="statements">Child statements</param>
+    /// <param name="statements">Child statements.</param>
     internal BlockStatement(
         SyntaxTree syntaxTree, Token openBrace, ImmutableArray<Statement> statements, Token closeBrace)
         : base(syntaxTree) {

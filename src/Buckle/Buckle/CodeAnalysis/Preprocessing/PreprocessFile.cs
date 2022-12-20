@@ -17,8 +17,8 @@ internal sealed class PreprocessFile {
     /// <summary>
     /// Parses a source file and returns its preprocessor statements.
     /// </summary>
-    /// <param name="lines">Original source lines</param>
-    /// <returns>All preprocessor lines in the source file</returns>
+    /// <param name="lines">Original source lines.</param>
+    /// <returns>All preprocessor lines in the source file.</returns>
     internal static PreprocessFile Parse(ImmutableArray<TextLine> lines) {
         var preprocessFile = new PreprocessFile();
 

@@ -9,13 +9,15 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Emitting;
-using Diagnostics;
 using Buckle.CodeAnalysis.Evaluating;
+using static Buckle.Utilities.FunctionUtilities;
+using Diagnostics;
+using System.CodeDom.Compiler;
 
 namespace Buckle.CodeAnalysis;
 
 /// <summary>
-/// Handles evaluation of program, and keeps track of symbols (mainly for REPL use).
+/// Handles evaluation of program, and keeps track of Symbols (mainly for <see cref="BelteRepl" /> use).
 /// </summary>
 public sealed class Compilation {
     private BoundGlobalScope _globalScope;
@@ -32,7 +34,7 @@ public sealed class Compilation {
     }
 
     /// <summary>
-    /// Diagnostics relating to compilation.
+    /// Diagnostics relating to the <see cref="Compilation" />.
     /// </summary>
     public BelteDiagnosticQueue diagnostics { get; set; }
 
@@ -42,32 +44,37 @@ public sealed class Compilation {
     internal FunctionSymbol mainFunction => globalScope.mainFunction;
 
     /// <summary>
-    /// All function symbols in the global scope.
+    /// All FunctionSymbols in the global scope.
     /// </summary>
     internal ImmutableArray<FunctionSymbol> functions => globalScope.functions;
 
     /// <summary>
-    /// All variable symbols in the global scope.
+    /// All VariableSymbols in the global scope.
     /// </summary>
     internal ImmutableArray<VariableSymbol> variables => globalScope.variables;
 
     /// <summary>
-    /// The syntax trees of the parsed source files.
+    /// All TypeSymbols in the global scope
+    /// </summary>
+    internal ImmutableArray<TypeSymbol> types => globalScope.types;
+
+    /// <summary>
+    /// The SyntaxTrees of the parsed source files.
     /// </summary>
     internal ImmutableArray<SyntaxTree> syntaxTrees { get; }
 
     /// <summary>
-    /// Previous compilation (used for REPL submission chaining).
+    /// Previous <see cref="Compilation" /> (used for <see cref="BelteRepl" /> submission chaining).
     /// </summary>
     internal Compilation previous { get; }
 
     /// <summary>
-    /// The compilation is a script to run top down versus being an application with an entry point.
+    /// If the compilation is a script to run top down versus being an application with an entry point.
     /// </summary>
     internal bool isScript { get; }
 
     /// <summary>
-    /// The global scope (top level) of the program, contains symbols.
+    /// The global scope (top level) of the program, contains Symbols.
     /// </summary>
     internal BoundGlobalScope globalScope {
         get {
@@ -82,28 +89,28 @@ public sealed class Compilation {
     }
 
     /// <summary>
-    /// Creates a new compilation with syntax trees.
+    /// Creates a new <see cref="Compilation" /> with SyntaxTrees.
     /// </summary>
-    /// <param name="syntaxTrees">Trees to use in compilation</param>
-    /// <returns>New compilation</returns>
+    /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
+    /// <returns>New <see cref="Compilation" />.</returns>
     internal static Compilation Create(params SyntaxTree[] syntaxTrees) {
         return new Compilation(false, null, syntaxTrees);
     }
 
     /// <summary>
-    /// Creates a new script compilation with syntax trees, and the previous compilation.
+    /// Creates a new script <see cref="Compilation" /> with SyntaxTrees, and the previous <see cref="Compilation" />.
     /// </summary>
-    /// <param name="previous">Previous compilation</param>
-    /// <param name="syntaxTrees">Trees to use in compilation</param>
-    /// <returns></returns>
+    /// <param name="previous">Previous <see cref="Compilation" />.</param>
+    /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
+    /// <returns>.</returns>
     internal static Compilation CreateScript(Compilation previous, params SyntaxTree[] syntaxTrees) {
         return new Compilation(true, previous, syntaxTrees);
     }
 
     /// <summary>
-    /// Gets all symbols across submissions (only global scope).
+    /// Gets all Symbols across submissions (only global scope).
     /// </summary>
-    /// <returns>All symbols (checks all previous compilations)</returns>
+    /// <returns>All Symbols (checks all previous Compilations).</returns>
     internal IEnumerable<Symbol> GetSymbols() {
         var submission = this;
         var seenSymbolNames = new HashSet<string>();
@@ -123,18 +130,22 @@ public sealed class Compilation {
                 if (seenSymbolNames.Add(builtin.name))
                     yield return builtin;
 
+            foreach (var @type in submission.types)
+                if (seenSymbolNames.Add(@type.name))
+                    yield return @type;
+
             submission = submission.previous;
         }
     }
 
     /// <summary>
-    /// Evaluates trees.
+    /// Evaluates SyntaxTrees.
     /// </summary>
-    /// <param name="variables">Existing variables to add to the scope</param>
-    /// <returns>Result of evaluation (see EvaluationResult)</returns>
+    /// <param name="variables">Existing variables to add to the scope.</param>
+    /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
     internal EvaluationResult Evaluate(Dictionary<VariableSymbol, EvaluatorObject> variables) {
         if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
-            return new EvaluationResult(null, globalScope.diagnostics);
+            return new EvaluationResult(null, false, globalScope.diagnostics);
 
         var program = GetProgram();
         // * Only for debugging purposes
@@ -142,24 +153,24 @@ public sealed class Compilation {
         // CreateCfg(program);
 
         if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
-            return new EvaluationResult(null, program.diagnostics);
+            return new EvaluationResult(null, false, program.diagnostics);
 
         diagnostics.Move(program.diagnostics);
         var eval = new Evaluator(program, variables);
-        var evalResult = eval.Evaluate();
+        var evalResult = eval.Evaluate(out var hasValue);
 
         if (eval.hasPrint)
             Console.WriteLine();
 
         diagnostics.Move(eval.diagnostics);
-        var result = new EvaluationResult(evalResult, diagnostics);
+        var result = new EvaluationResult(evalResult, hasValue, diagnostics);
         return result;
     }
 
     /// <summary>
     /// Emits the parse tree of the compilation.
     /// </summary>
-    /// <param name="writer">Out</param>
+    /// <param name="writer">Out.</param>
     internal void EmitTree(TextWriter writer) {
         if (globalScope.mainFunction != null)
             EmitTree(globalScope.mainFunction, writer);
@@ -168,33 +179,72 @@ public sealed class Compilation {
     }
 
     /// <summary>
-    /// Emits the parse tree of a single symbol.
+    /// Emits the parse tree of a single <see cref="Symbol" />.
     /// </summary>
-    /// <param name="symbol">Symbol to be the root of the tree displayed</param>
-    /// <param name="writer">Out</param>
+    /// <param name="symbol"><see cref="Symbol" /> to be the root of the <see cref="SyntaxTree" /> displayed.</param>
+    /// <param name="writer">Out.</param>
     internal void EmitTree(Symbol symbol, TextWriter writer) {
         var program = GetProgram();
 
+        void WriteStructMembers(StructSymbol @struct, bool writeEnding = true) {
+            var indentedWriter = new IndentedTextWriter(writer);
+
+            try {
+                var members = program.structMembers[@struct];
+                indentedWriter.WriteSpace();
+                indentedWriter.WritePunctuation(SyntaxType.OpenBraceToken);
+                indentedWriter.WriteLine();
+                indentedWriter.Indent++;
+
+                foreach (var field in members) {
+                    field.WriteTo(indentedWriter);
+                    indentedWriter.WriteLine();
+                }
+
+                indentedWriter.Indent--;
+                indentedWriter.WritePunctuation(SyntaxType.CloseBraceToken);
+                indentedWriter.WriteLine();
+            } catch (BelteInternalException) {
+                if (writeEnding) {
+                    indentedWriter.WritePunctuation(SyntaxType.SemicolonToken);
+                    indentedWriter.WriteLine();
+                }
+            }
+        }
+
         if (symbol is FunctionSymbol f) {
             f.WriteTo(writer);
-            if (!program.functionBodies.TryGetValue(f, out var body)) {
-                writer.WriteLine();
-                return;
-            }
 
-            body.WriteTo(writer);
-        } else {
-            symbol.WriteTo(writer);
+            try {
+                var body = LookupMethod(program.functionBodies, f);
+                writer.WriteSpace();
+                body.WriteTo(writer);
+            } catch (BelteInternalException) {
+                // If the body could not be found, it probably means it is a builtin
+                // In that case only showing the signature is what we want
+                writer.WritePunctuation(SyntaxType.SemicolonToken);
+                writer.WriteLine();
+            }
+        } else if (symbol is StructSymbol t) {
+            t.WriteTo(writer);
+            WriteStructMembers(t);
+        } else if (symbol is VariableSymbol v) {
+            v.WriteTo(writer);
+
+            if (v.typeClause.lType is StructSymbol s)
+                WriteStructMembers(s);
+            else
+                writer.WriteLine();
         }
     }
 
     /// <summary>
     /// Emits the program to an assembly.
     /// </summary>
-    /// <param name="moduleName">Application name</param>
-    /// <param name="references">All external references (.NET)</param>
-    /// <param name="outputPath">Where to put the application once assembled</param>
-    /// <returns>Diagnostics</returns>
+    /// <param name="moduleName">Application name.</param>
+    /// <param name="references">All external references (.NET).</param>
+    /// <param name="outputPath">Where to put the application once assembled.</param>
+    /// <returns>Diagnostics.</returns>
     internal BelteDiagnosticQueue Emit(string moduleName, string[] references, string outputPath) {
         foreach (var syntaxTree in syntaxTrees)
             diagnostics.Move(syntaxTree.diagnostics);

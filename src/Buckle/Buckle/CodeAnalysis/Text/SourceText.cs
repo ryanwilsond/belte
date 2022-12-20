@@ -6,10 +6,10 @@ public sealed class SourceText {
     private readonly string _text;
 
     /// <summary>
-    /// Creates a source text provided the file name and contents.
+    /// Creates a <see cref="SourceText" /> provided the file name and contents.
     /// </summary>
-    /// <param name="fileName">File name of the source text (where the text came from)</param>
-    /// <param name="text">The contents of the file the source text comes from</param>
+    /// <param name="fileName">File name of the <see cref="SourceText" /> (where the text came from).</param>
+    /// <param name="text">The contents of the file the <see cref="SourceText" /> comes from.</param>
     private SourceText(string fileName, string text) {
         lines = ParseLines(this, text);
         _text = text;
@@ -17,7 +17,7 @@ public sealed class SourceText {
     }
 
     /// <summary>
-    /// All lines in the source text.
+    /// All lines in the <see cref="SourceText" />.
     /// </summary>
     public ImmutableArray<TextLine> lines { get; }
 
@@ -32,16 +32,16 @@ public sealed class SourceText {
     public char this[int index] => _text[index];
 
     /// <summary>
-    /// The length of the entire source text.
+    /// The length of the entire <see cref="SourceText" />.
     /// </summary>
     public int length => _text.Length;
 
     /// <summary>
-    /// Creates a source text from a text, not necessarily relating to a source file.
+    /// Creates a <see cref="SourceText" /> from a text, not necessarily relating to a source file.
     /// </summary>
-    /// <param name="text">Text</param>
-    /// <param name="filename">Optional filename if sourced from a file</param>
-    /// <returns>New SourceText</returns>
+    /// <param name="text">Text.</param>
+    /// <param name="filename">Optional filename if sourced from a file.</param>
+    /// <returns>New <see cref="SourceText" />.</returns>
     public static SourceText From(string text, string filename = "") {
         return new SourceText(filename, text);
     }
@@ -49,8 +49,8 @@ public sealed class SourceText {
     /// <summary>
     /// Gets a line index based on an absolute index.
     /// </summary>
-    /// <param name="position">Absolute index</param>
-    /// <returns>Line index</returns>
+    /// <param name="position">Absolute index.</param>
+    /// <returns>Line index.</returns>
     public int GetLineIndex(int position) {
         int lower = 0;
         int upper = lines.Length - 1;
@@ -75,25 +75,25 @@ public sealed class SourceText {
     /// <summary>
     /// String representation of part of the text.
     /// </summary>
-    /// <param name="start">Start index (absolute)</param>
-    /// <param name="length">Length of text to grab</param>
-    /// <returns>Substring of the text</returns>
+    /// <param name="start">Start index (absolute).</param>
+    /// <param name="length">Length of text to grab.</param>
+    /// <returns>Substring of the text.</returns>
     public string ToString(int start, int length) => _text.Substring(start, length);
 
     /// <summary>
     /// String representation of part of the text.
     /// </summary>
-    /// <param name="span">Span of what text to grab (inclusive)</param>
-    /// <returns>Substring of the text</returns>
+    /// <param name="span"><see cref="TextSpan" /> of what text to grab (inclusive).</param>
+    /// <returns>Substring of the text.</returns>
     public string ToString(TextSpan span) => ToString(span.start, span.length);
 
     /// <summary>
-    /// Checks if the span starts at the end of the text.
+    /// Checks if the <see cref="TextSpan" /> starts at the end of the text.
     /// Does not return true if the span reaches the end, only if it starts at the end.
-    /// If the span extends beyond the text, the result will not be different.
+    /// If the <see cref="TextSpan" /> extends beyond the text, the result will not be different.
     /// </summary>
-    /// <param name="span">Span to check</param>
-    /// <returns>If the span is at the end of the text</returns>
+    /// <param name="span"><see cref="TextSpan" /> to check.</param>
+    /// <returns>If the <see cref="TextSpan" /> is at the end of the text.</returns>
     public bool IsAtEndOfInput(TextSpan span) {
         if (span.start == _text.Length)
             return true;

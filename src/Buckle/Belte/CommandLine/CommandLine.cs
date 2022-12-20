@@ -14,7 +14,7 @@ using Buckle.Diagnostics;
 namespace Belte.CommandLine;
 
 /// <summary>
-/// Handles all command line interaction, argument parsing, and compiler invocation.
+/// Handles all command-line interaction, argument parsing, and <see cref="Compiler" /> invocation.
 /// </summary>
 public static partial class BuckleCommandLine {
     private const int SuccessExitCode = 0;
@@ -27,10 +27,10 @@ public static partial class BuckleCommandLine {
     };
 
     /// <summary>
-    /// Processes/decodes command-line arguments, and invokes compiler.
+    /// Processes/decodes command-line arguments, and invokes <see cref="Compiler" />.
     /// </summary>
-    /// <param name="args">Command-line arguments from Main</param>
-    /// <returns>Error code, 0 = success</returns>
+    /// <param name="args">Command-line arguments from Main.</param>
+    /// <returns>Error code, 0 = success.</returns>
     public static int ProcessArgs(string[] args) {
         int err;
         Compiler compiler = new Compiler();
@@ -112,7 +112,7 @@ public static partial class BuckleCommandLine {
 
         try {
             errorCode = Convert.ToInt32(error.Substring(2));
-        } catch {
+        } catch (Exception e) when (e is FormatException || e is OverflowException) {
             diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
             return;
         }

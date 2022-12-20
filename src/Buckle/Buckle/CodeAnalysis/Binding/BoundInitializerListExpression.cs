@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound initializer list expression, bound from a parser InitializerListExpression.
+/// A bound initializer list expression, bound from a <see cref="InitializerListExpression" />.
 /// </summary>
 internal sealed class BoundInitializerListExpression : BoundExpression {
     internal BoundInitializerListExpression(

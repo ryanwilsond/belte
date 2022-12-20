@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
@@ -17,11 +18,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
     private Lowerer() { }
 
     /// <summary>
-    /// Lowers a function.
+    /// Lowers a <see cref="FunctionSymbol" />.
     /// </summary>
-    /// <param name="function">Function symbol</param>
-    /// <param name="statement">Function body</param>
-    /// <returns>Lowered function body (same type)</returns>
+    /// <param name="statement">Function body.</param>
+    /// <returns>Lowered function body (same type).</returns>
     internal static BoundBlockStatement Lower(FunctionSymbol function, BoundStatement statement) {
         var lowerer = new Lowerer();
         var block = Flatten(function, lowerer.RewriteStatement(statement));
@@ -30,10 +30,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
     protected override BoundStatement RewriteIfStatement(BoundIfStatement node) {
         /*
+
         if <condition>
             <then>
 
-        --->
+        ---->
 
         gotoFalse <condition> end
         <then>
@@ -54,6 +55,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         else:
         <elseStatement>
         end:
+
         */
         if (node.elseStatement == null) {
             var endLabel = GenerateLabel();
@@ -81,6 +83,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
     protected override BoundStatement RewriteWhileStatement(BoundWhileStatement node) {
         /*
+
         while <condition>
             <body>
 
@@ -91,6 +94,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         <body>
         goto continue
         break:
+
         */
         var continueLabel = node.continueLabel;
         var breakLabel = node.breakLabel;
@@ -107,6 +111,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
     protected override BoundStatement RewriteDoWhileStatement(BoundDoWhileStatement node) {
         /*
+
         do
             <body>
         while <condition>
@@ -117,6 +122,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         <body>
         gotoTrue <condition> continue
         break:
+
         */
         var continueLabel = node.continueLabel;
         var breakLabel = node.breakLabel;
@@ -133,10 +139,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
     protected override BoundStatement RewriteForStatement(BoundForStatement node) {
         /*
+
         for (<initializer> <condition>; <step>)
             <body>
 
-        --->
+        ---->
 
         {
             <initializer>
@@ -146,6 +153,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 <step>;
             }
         }
+
         */
         var step = new BoundExpressionStatement(node.step);
         var continueLabelStatement = new BoundLabelStatement(node.continueLabel);
@@ -167,6 +175,19 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     protected override BoundStatement RewriteConditionalGotoStatement(BoundConditionalGotoStatement statement) {
+        /*
+
+        goto <label> if <condition>
+
+        ----> <condition> is constant true
+
+        goto <label>
+
+        ----> <condition> is constant false
+
+        ;
+
+        */
         if (statement.condition.constantValue != null) {
             var condition = (bool)statement.condition.constantValue.value;
             condition = statement.jumpIfTrue ? condition : !condition;
@@ -180,7 +201,244 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.RewriteConditionalGotoStatement(statement);
     }
 
+    protected override BoundExpression RewriteBinaryExpression(BoundBinaryExpression expression) {
+        /*
+
+        <left> <op> <right>
+
+        ----> <op> is 'is' and <right> is 'null'
+
+        \!HasValue(<left>)
+
+        ----> <op> is 'isnt' and <right> is 'null'
+
+        HasValue(<left>)
+
+        ----> <op> is '??'
+
+        (HasValue(<left>) ? Value(<left>) : <right>)
+
+        ----> <op> is '**'
+
+        {
+            int n = <left>;
+            for (int i = 1; i < <right>; i+=1)
+                n *= <left>;
+
+            return n;
+        }
+
+        ----> <left> is nullable and <right> is nullable
+
+        ((HasValue(<left>) && HasValue(<right>)) ? Value(<left>) <op> Value(<right>) : null)
+
+        ----> <left> is nullable
+
+        (HasValue(<left>) ? Value(<left>) <op> <right> : null)
+
+        ----> <right> is nullable
+
+        (<right> isnt null ? <left> <op> Value(<right>) : null)
+
+        */
+        if (expression.op.opType == BoundBinaryOperatorType.Is) {
+            var operand = new BoundCallExpression(
+                BuiltinFunctions.HasValue, ImmutableArray.Create<BoundExpression>(expression.left)
+            );
+
+            var op = BoundUnaryOperator.Bind(SyntaxType.ExclamationToken, operand.typeClause);
+
+            return RewriteExpression(new BoundUnaryExpression(op, operand));
+        }
+
+        if (expression.op.opType == BoundBinaryOperatorType.Isnt) {
+            return RewriteExpression(new BoundCallExpression(
+                BuiltinFunctions.HasValue, ImmutableArray.Create<BoundExpression>(expression.left)
+            ));
+        }
+
+        if (expression.op.opType == BoundBinaryOperatorType.NullCoalescing) {
+            var left = new BoundCallExpression(
+                BuiltinFunctions.HasValue, ImmutableArray.Create<BoundExpression>(expression.left)
+            );
+
+            var center = new BoundCallExpression(
+                CorrectValue(expression.right), ImmutableArray.Create<BoundExpression>(expression.left)
+            );
+
+            var op = BoundTernaryOperator.Bind(
+                SyntaxType.QuestionToken, SyntaxType.ColonToken, left.typeClause,
+                center.typeClause, expression.right.typeClause
+            );
+
+            return RewriteExpression(new BoundTernaryExpression(left, op, center, expression.right));
+        }
+
+        if (expression.op.opType == BoundBinaryOperatorType.Power) {
+            // TODO
+            return base.RewriteBinaryExpression(expression);
+        }
+
+        if (expression.left.typeClause.isNullable && expression.right.typeClause.isNullable) {
+            var binaryLeft = new BoundCallExpression(
+                BuiltinFunctions.HasValue, ImmutableArray.Create<BoundExpression>(expression.left)
+            );
+
+            var binaryRight = new BoundCallExpression(
+                BuiltinFunctions.HasValue, ImmutableArray.Create<BoundExpression>(expression.right)
+            );
+
+            var binaryOp = BoundBinaryOperator.Bind(
+                SyntaxType.AmpersandAmpersandToken, binaryLeft.typeClause, binaryRight.typeClause
+            );
+
+            var left = new BoundBinaryExpression(binaryLeft, binaryOp, binaryRight);
+            var secondBinaryLeft = new BoundCallExpression(
+                CorrectValue(expression.left), ImmutableArray.Create<BoundExpression>(expression.left)
+            );
+
+            var secondBinaryRight = new BoundCallExpression(
+                CorrectValue(expression.right), ImmutableArray.Create<BoundExpression>(expression.right)
+            );
+
+            var center = new BoundBinaryExpression(secondBinaryLeft, expression.op, secondBinaryRight);
+            var right = new BoundLiteralExpression(null);
+            var op = BoundTernaryOperator.Bind(
+                SyntaxType.QuestionToken, SyntaxType.ColonToken, left.typeClause, center.typeClause, right.typeClause
+            );
+
+            return RewriteExpression(new BoundTernaryExpression(left, op, center, right));
+        }
+
+        if (expression.left.typeClause.isNullable) {
+            var left = new BoundCallExpression(
+                BuiltinFunctions.HasValue, ImmutableArray.Create<BoundExpression>(expression.left)
+            );
+
+            var binaryLeft = new BoundCallExpression(
+                CorrectValue(expression.left), ImmutableArray.Create<BoundExpression>(expression.left)
+            );
+
+            var center = new BoundBinaryExpression(binaryLeft, expression.op, expression.right);
+            var right = new BoundLiteralExpression(null);
+            var op = BoundTernaryOperator.Bind(
+                SyntaxType.QuestionToken, SyntaxType.ColonToken, left.typeClause, center.typeClause, right.typeClause
+            );
+
+            return RewriteExpression(new BoundTernaryExpression(left, op, center, right));
+        }
+
+        if (expression.right.typeClause.isNullable) {
+            var left = new BoundCallExpression(
+                BuiltinFunctions.HasValue, ImmutableArray.Create<BoundExpression>(expression.right)
+            );
+
+            var binaryRight = new BoundCallExpression(
+                CorrectValue(expression.left), ImmutableArray.Create<BoundExpression>(expression.right)
+            );
+
+            var center = new BoundBinaryExpression(expression.left, expression.op, binaryRight);
+            var right = new BoundLiteralExpression(null);
+            var op = BoundTernaryOperator.Bind(
+                SyntaxType.QuestionToken, SyntaxType.ColonToken, left.typeClause, center.typeClause, right.typeClause
+            );
+
+            return RewriteExpression(new BoundTernaryExpression(left, op, center, right));
+        }
+
+        return base.RewriteBinaryExpression(expression);
+    }
+
+    protected override BoundExpression RewriteUnaryExpression(BoundUnaryExpression expression) {
+        /*
+
+        <op> <operand>
+
+        ----> <operand> is nullable
+
+        (HasValue(<operand>) ? <op> Value(<operand>) : null)
+
+        */
+        if (expression.operand.typeClause.isNullable) {
+            var left = new BoundCallExpression(
+                BuiltinFunctions.HasValue, ImmutableArray.Create<BoundExpression>(expression.operand)
+            );
+
+            var center = new BoundUnaryExpression(
+                expression.op, new BoundCallExpression(
+                    CorrectValue(expression.operand), ImmutableArray.Create<BoundExpression>(expression.operand)
+                )
+            );
+
+            var right = new BoundLiteralExpression(null);
+            var op = BoundTernaryOperator.Bind(
+                SyntaxType.QuestionToken, SyntaxType.ColonToken, left.typeClause, center.typeClause, right.typeClause
+            );
+
+            return RewriteExpression(new BoundTernaryExpression(left, op, center, right));
+        }
+
+        return base.RewriteUnaryExpression(expression);
+    }
+
+    protected override BoundExpression RewriteCastExpression(BoundCastExpression expression) {
+        /*
+
+        (<type>)<expression>
+
+        ----> <type> is nullable and <expression> is nullable
+
+        (HasValue(<expression>) ? (<type>)Value(<expression>) : null)
+
+        ----> <expression> is nullable
+
+        (<type>)Value(<expression>)
+
+        */
+        if (expression.typeClause.isNullable && expression.expression.typeClause.isNullable) {
+            var left = new BoundCallExpression(
+                BuiltinFunctions.HasValue, ImmutableArray.Create<BoundExpression>(expression.expression)
+            );
+
+            var center = new BoundCastExpression(
+                expression.typeClause,
+                new BoundCallExpression(
+                    CorrectValue(expression.expression),
+                    ImmutableArray.Create<BoundExpression>(expression.expression)
+                )
+            );
+
+            var right = new BoundLiteralExpression(null);
+            var op = BoundTernaryOperator.Bind(
+                SyntaxType.QuestionToken, SyntaxType.ColonToken, left.typeClause, center.typeClause, right.typeClause
+            );
+
+            return RewriteExpression(new BoundTernaryExpression(left, op, center, right));
+        }
+
+        if (expression.expression.typeClause.isNullable) {
+            var newExpression = new BoundCallExpression(
+                CorrectValue(expression.expression), ImmutableArray.Create<BoundExpression>(expression.expression)
+            );
+
+            return base.RewriteCastExpression(new BoundCastExpression(expression.typeClause, newExpression));
+        }
+
+        return base.RewriteCastExpression(expression);
+    }
+
     protected override BoundExpression RewriteCallExpression(BoundCallExpression expression) {
+        /*
+
+        <function>(<parameters>)
+
+        ---->
+
+        <function>(<parameters>)
+
+        Now parameters do not have compiler generated '$' symbols in their name
+
+        */
         var function = expression.function;
         var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
 
@@ -221,6 +479,61 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return new BoundCallExpression(newFunction, builder.ToImmutable());
     }
 
+    protected override BoundExpression RewriteTernaryExpression(BoundTernaryExpression expression) {
+        /*
+
+        <left> <op> <center> <op> <right>
+
+        ----> <op> is ?: operator and <left> is constant true
+
+        <center>
+
+        ----> <op> is ?: operator and <left> is constant false
+
+        <right>
+
+        */
+        if (expression.op.opType == BoundTernaryOperatorType.Conditional) {
+            if (expression.left.constantValue != null && (bool)expression.left.constantValue.value) {
+                return RewriteExpression(expression.center);
+            }
+
+            if (expression.left.constantValue != null && !(bool)expression.left.constantValue.value) {
+                return RewriteExpression(expression.right);
+            }
+        }
+
+        return base.RewriteTernaryExpression(expression);
+    }
+
+    protected override BoundExpression RewriteCompoundAssignmentExpression(
+        BoundCompoundAssignmentExpression expression) {
+        /*
+
+        <left> <op> <right>
+
+        ---->
+
+        <left> = <left> <simplified op> <right>
+
+        */
+        var boundBinaryExpression = new BoundBinaryExpression(expression.left, expression.op, expression.right);
+
+        return RewriteAssignmentExpression(new BoundAssignmentExpression(expression.left, boundBinaryExpression));
+    }
+
+    private FunctionSymbol CorrectValue(BoundExpression expression) {
+        if (expression.typeClause.lType == TypeSymbol.Bool)
+            return BuiltinFunctions.ValueBool;
+        if (expression.typeClause.lType == TypeSymbol.Decimal)
+            return BuiltinFunctions.ValueDecimal;
+        if (expression.typeClause.lType == TypeSymbol.Int)
+            return BuiltinFunctions.ValueInt;
+        if (expression.typeClause.lType == TypeSymbol.String)
+            return BuiltinFunctions.ValueString;
+
+        return BuiltinFunctions.ValueAny;
+    }
 
     private static BoundBlockStatement RemoveDeadCode(BoundBlockStatement statement) {
         var controlFlow = ControlFlowGraph.Create(statement);

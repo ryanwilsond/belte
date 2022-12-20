@@ -4,12 +4,18 @@ namespace Buckle.CodeAnalysis.Syntax;
 
 // TODO Make sure that block statements can still have return statements (they might)
 /// <summary>
-/// Inline function expression, similar to local function but is evaluated immediately and has no signature.
-/// E.g. { ... statements (including a return statement) ... }
-/// The only thing distinguishing an inline function expression from a block statement is a return statement.
+/// Inline function expression, similar to local function but is evaluated immediately and has no signature.<br/>
+/// E.g.
+/// <code>
+/// {
+///     ... statements (including a return statement) ...
+/// }
+/// </code>
+/// The only thing distinguishing an <see cref="InlineFunctionExpression" /> from a <see cref="BlockStatement" /> is a
+/// <see cref="ReturnStatement" />.
 /// </summary>
 internal sealed partial class InlineFunctionExpression : Expression {
-    /// <param name="statements">Contains at least one return statement</param>
+    /// <param name="statements">Contains at least one <see cref="ReturnStatement" />.</param>
     internal InlineFunctionExpression(
         SyntaxTree syntaxTree, Token openBrace, ImmutableArray<Statement> statements, Token closeBrace)
         : base(syntaxTree) {
@@ -21,7 +27,7 @@ internal sealed partial class InlineFunctionExpression : Expression {
     internal Token? openBrace { get; }
 
     /// <summary>
-    /// Contains at least one return statement.
+    /// Contains at least one <see cref="ReturnStatement" />.
     /// </summary>
     internal ImmutableArray<Statement> statements { get; }
 

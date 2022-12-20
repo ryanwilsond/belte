@@ -2,8 +2,11 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Initializer list expression, to initialize array types.
-/// E.g. { 1, 2, 3 }
+/// Initializer list expression, to initialize array types.<br/>
+/// E.g.
+/// <code>
+/// { 1, 2, 3 }
+/// </code>
 /// </summary>
 internal sealed partial class InitializerListExpression : Expression {
     internal InitializerListExpression(SyntaxTree syntaxTree,

@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound expression statement, bound from a parser ExpressionStatement.
+/// A bound expression statement, bound from a <see cref="ExpressionStatement" />.
 /// </summary>
 internal sealed class BoundExpressionStatement : BoundStatement {
     internal BoundExpressionStatement(BoundExpression expression) {

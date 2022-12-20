@@ -4,7 +4,7 @@
 
   <Target Name="CoreCompile" DependsOnTargets="$(CoreCompileDependsOn)">
     <ItemGroup>
-      <ReferencePath Remove="@(ReferencePath)"/>
+      <ReferencePath Remove="@(ReferencePath)" />
     </ItemGroup>
 
     <PropertyGroup>

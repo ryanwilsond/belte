@@ -10,11 +10,11 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// Token type.
 /// </summary>
 internal sealed class Token : Node {
-    /// <param name="position">Position of token (indexed by the node, not character in source text)</param>
-    /// <param name="text">Text related to token (if applicable)</param>
-    /// <param name="value">Value related to token (if applicable)</param>
-    /// <param name="leadingTrivia">Trivia before token (anything)</param>
-    /// <param name="trailingTrivia">Trivia after token (same line)</param>
+    /// <param name="position">Position of <see cref="Token" /> (indexed by the <see cref="Node" />, not character in <see cref="SourceText" />).</param>
+    /// <param name="text">Text related to <see cref="Token" /> (if applicable).</param>
+    /// <param name="value">Value related to <see cref="Token" /> (if applicable).</param>
+    /// <param name="leadingTrivia"><see cref="SyntaxTrivia" /> before <see cref="Token" /> (anything).</param>
+    /// <param name="trailingTrivia"><see cref="SyntaxTrivia" /> after <see cref="Token" /> (same line).</param>
     internal Token(SyntaxTree syntaxTree, SyntaxType type, int position, string text, object value,
         ImmutableArray<SyntaxTrivia> leadingTrivia, ImmutableArray<SyntaxTrivia> trailingTrivia)
         : base(syntaxTree) {
@@ -29,22 +29,23 @@ internal sealed class Token : Node {
     internal override SyntaxType type { get; }
 
     /// <summary>
-    /// Position of token (indexed by the node, not character in source text).
+    /// Position of <see cref="Token" /> (indexed by the <see cref="Node" />, not character in
+    /// <see cref="SourceText" />).
     /// </summary>
     internal int position { get; }
 
     /// <summary>
-    /// Text related to token (if applicable).
+    /// Text related to <see cref="Token" /> (if applicable).
     /// </summary>
     internal string text { get; }
 
     /// <summary>
-    /// Value related to token (if applicable).
+    /// Value related to <see cref="Token" /> (if applicable).
     /// </summary>
     internal object value { get; }
 
     /// <summary>
-    /// If token was created artificially, or if it came from the source text.
+    /// If <see cref="Token" /> was created artificially, or if it came from the <see cref="SourceText" />.
     /// </summary>
     internal bool isMissing => text == null;
 
@@ -59,17 +60,17 @@ internal sealed class Token : Node {
     }
 
     /// <summary>
-    /// Trivia before token (anything).
+    /// <see cref="SyntaxTrivia" /> before <see cref="Token" /> (anything).
     /// </summary>
     internal ImmutableArray<SyntaxTrivia> leadingTrivia { get; }
 
     /// <summary>
-    /// Trivia after token (same line).
+    /// <see cref="SyntaxTrivia" /> after <see cref="Token" /> (same line).
     /// </summary>
     internal ImmutableArray<SyntaxTrivia> trailingTrivia { get; }
 
     /// <summary>
-    /// Gets all child nodes, which is none.
+    /// Gets all child Nodes, which is none.
     /// </summary>
     internal override IEnumerable<Node> GetChildren() {
         return Array.Empty<Node>();

@@ -2,8 +2,12 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Literal expression, such as a number or a string.
-/// E.g. "Hello, world!"
+/// Literal expression, such as a number or a string.<br/>
+/// E.g.
+/// <code>
+/// "Hello, world!"
+/// 34.6
+/// </code>
 /// </summary>
 internal sealed partial class LiteralExpression : Expression {
     internal LiteralExpression(SyntaxTree syntaxTree, Token token, object value) : base(syntaxTree) {

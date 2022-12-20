@@ -9,7 +9,8 @@ internal sealed class BoundTypeClause : BoundNode {
     /// <summary>
     /// Decimal type that can be null.
     /// </summary>
-    internal static readonly BoundTypeClause NullableDecimal = new BoundTypeClause(TypeSymbol.Decimal, isNullable: true);
+    internal static readonly BoundTypeClause NullableDecimal =
+        new BoundTypeClause(TypeSymbol.Decimal, isNullable: true);
 
     /// <summary>
     /// Integer type that can be null.
@@ -62,18 +63,18 @@ internal sealed class BoundTypeClause : BoundNode {
     internal static readonly BoundTypeClause Any = new BoundTypeClause(TypeSymbol.Any);
 
     /// <summary>
-    /// The type type, value can be a type clause, cannot be null.
+    /// The type type, value can be a <see cref="BoundTypeClause" />, cannot be null.
     /// </summary>
     internal static readonly BoundTypeClause Type = new BoundTypeClause(TypeSymbol.Type);
 
-    /// <param name="lType">The language type, not the node type</param>
-    /// <param name="isImplicit">If the type was assumed by the var or let keywords</param>
-    /// <param name="isConstantReference">If the type is an unchanging reference type</param>
-    /// <param name="isReference">If the type is a reference type</param>
-    /// <param name="isConstant">If the value this type is referring to is only defined once</param>
-    /// <param name="isNullable">If the value this type is referring to can be null</param>
-    /// <param name="isLiteral">If the type was assumed from a literal</param>
-    /// <param name="dimensions">Dimensions of the type, 0 if not an array</param>
+    /// <param name="lType">The language type, not the <see cref="Node" /> type.</param>
+    /// <param name="isImplicit">If the type was assumed by the var or let keywords.</param>
+    /// <param name="isConstantReference">If the type is an unchanging reference type.</param>
+    /// <param name="isReference">If the type is a reference type.</param>
+    /// <param name="isConstant">If the value this type is referring to is only defined once.</param>
+    /// <param name="isNullable">If the value this type is referring to can be null.</param>
+    /// <param name="isLiteral">If the type was assumed from a literal.</param>
+    /// <param name="dimensions">Dimensions of the type, 0 if not an array.</param>
     internal BoundTypeClause(
         TypeSymbol lType, bool isImplicit = false, bool isConstantReference = false, bool isReference = false,
         bool isConstant = false, bool isNullable = false, bool isLiteral = false, int dimensions = 0) {
@@ -88,7 +89,7 @@ internal sealed class BoundTypeClause : BoundNode {
     }
 
     /// <summary>
-    /// The language type, not the node type.
+    /// The language type, not the <see cref="Node" /> type.
     /// </summary>
     internal TypeSymbol lType { get; }
 
@@ -153,11 +154,12 @@ internal sealed class BoundTypeClause : BoundNode {
     }
 
     /// <summary>
-    /// If the lType, isReference, and dimensions are the same between the two types.
+    /// If the <see cref="BoundTypeClause.lType" />, <see cref="BoundTypeClause.isReference" />,
+    /// and <see cref="BoundTypeClause.dimensions" /> are the same between the two types.
     /// </summary>
-    /// <param name="a">Type to compare</param>
-    /// <param name="b">Type to compare</param>
-    /// <returns>If described fields match</returns>
+    /// <param name="a"><see cref="BoundTypeClause" /> to compare.</param>
+    /// <param name="b"><see cref="BoundTypeClause" /> to compare.</param>
+    /// <returns>If described fields match.</returns>
     internal static bool AboutEqual(BoundTypeClause a, BoundTypeClause b) {
         if (a.lType != b.lType)
             return false;
@@ -172,9 +174,9 @@ internal sealed class BoundTypeClause : BoundNode {
     /// <summary>
     /// If all fields are the same between the two types, they do not need to reference the same object in memory.
     /// </summary>
-    /// <param name="a">Type to compare</param>
-    /// <param name="b">Type to compare</param>
-    /// <returns>If all fields match</returns>
+    /// <param name="a"><see cref="BoundTypeClause" /> to compare.</param>
+    /// <param name="b"><see cref="BoundTypeClause" /> to compare.</param>
+    /// <returns>If all fields match.</returns>
     internal static bool Equals(BoundTypeClause a, BoundTypeClause b) {
         // A little brute force
         if (a.lType != b.lType)
@@ -198,10 +200,10 @@ internal sealed class BoundTypeClause : BoundNode {
     }
 
     /// <summary>
-    /// Copy all data to a new type clause, not a reference.
+    /// Copy all data to a new <see cref="BoundTypeClause" />, not a reference.
     /// </summary>
-    /// <param name="typeClause">Type to copy</param>
-    /// <returns>New copy type</returns>
+    /// <param name="typeClause"><see cref="BoundTypeClause" /> to copy.</param>
+    /// <returns>New copy <see cref="BoundTypeClause" />.</returns>
     internal static BoundTypeClause Copy(BoundTypeClause typeClause) {
         return new BoundTypeClause(
             typeClause.lType, typeClause.isImplicit, typeClause.isConstantReference, typeClause.isReference,
@@ -209,10 +211,11 @@ internal sealed class BoundTypeClause : BoundNode {
     }
 
     /// <summary>
-    /// Copy all data to a new type clause, but make the new type clause non nullable.
+    /// Copy all data to a new <see cref="BoundTypeClause" />, but make the new
+    /// <see cref="BoundTypeClause" /> non nullable.
     /// </summary>
-    /// <param name="typeClause">Type to copy</param>
-    /// <returns>Non nullable copy type</returns>
+    /// <param name="typeClause"><see cref="BoundTypeClause" /> to copy.</param>
+    /// <returns>Non nullable copy <see cref="BoundTypeClause" />.</returns>
     internal static BoundTypeClause NonNullable(BoundTypeClause typeClause) {
         return new BoundTypeClause(
             typeClause.lType, typeClause.isImplicit, typeClause.isConstantReference, typeClause.isReference,
@@ -220,10 +223,10 @@ internal sealed class BoundTypeClause : BoundNode {
     }
 
     /// <summary>
-    /// Copy all data to a new type clause, but make the new type clause nullable.
+    /// Copy all data to a new <see cref="BoundTypeClause" />, but make the new <see cref="BoundTypeClause" /> nullable.
     /// </summary>
-    /// <param name="typeClause">Type to copy</param>
-    /// <returns>Nullable copy type</returns>
+    /// <param name="typeClause"><see cref="BoundTypeClause" /> to copy.</param>
+    /// <returns>Nullable copy <see cref="BoundTypeClause" />.</returns>
     internal static BoundTypeClause Nullable(BoundTypeClause typeClause) {
         return new BoundTypeClause(
             typeClause.lType, typeClause.isImplicit, typeClause.isConstantReference, typeClause.isReference,
@@ -231,9 +234,21 @@ internal sealed class BoundTypeClause : BoundNode {
     }
 
     /// <summary>
-    /// The item type if this type is an array, otherwise null.
+    /// Copy all data to a new <see cref="BoundTypeClause" />, but make the new <see cref="BoundTypeClause" /> a
+    /// reference.
     /// </summary>
-    /// <returns>Bound type clause of item type</returns>
+    /// <param name="typeClause"><see cref="BoundTypeClause" /> to copy.</param>
+    /// <returns>Reference type copy of <see cref="BoundTypeClause" />.</returns>
+    internal static BoundTypeClause Reference(BoundTypeClause typeClause) {
+        return new BoundTypeClause(
+            typeClause.lType, typeClause.isImplicit, false, true, typeClause.isConstant,
+            typeClause.isNullable, false, typeClause.dimensions);
+    }
+
+    /// <summary>
+    /// The item <see cref="BoundTypeClause" /> if this <see cref="BoundTypeClause" /> is an array, otherwise null.
+    /// </summary>
+    /// <returns><see cref="BoundTypeClause" /> of item type.</returns>
     internal BoundTypeClause ChildType() {
         if (dimensions > 0)
             return new BoundTypeClause(
@@ -243,9 +258,9 @@ internal sealed class BoundTypeClause : BoundNode {
     }
 
     /// <summary>
-    /// The base item type, no dimensions. If this is not an array, returns this.
+    /// The base item <see cref="BoundTypeClause" />, no dimensions. If this is not an array, returns this.
     /// </summary>
-    /// <returns>The base item type</returns>
+    /// <returns>The base item <see cref="BoundTypeClause" />.</returns>
     internal BoundTypeClause BaseType() {
         if (dimensions > 0)
             return new BoundTypeClause(

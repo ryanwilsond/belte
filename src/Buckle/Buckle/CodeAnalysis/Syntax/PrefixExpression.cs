@@ -2,16 +2,18 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Prefix expression, only two possible ones (++ or --). Cannot be applied to literals.
-/// E.g. ++x
+/// Prefix expression, only two possible ones (++ or --). Cannot be applied to literals.<br/>
+/// E.g.
+/// <code>
+/// ++x
+/// </code>
 /// </summary>
 internal sealed partial class PrefixExpression : Expression {
-    /// <param name="identifier">Existing variable name</param>
-    /// <param name="op">Operator</param>
-    internal PrefixExpression(SyntaxTree syntaxTree, Token op, Token identifier)
+    /// <param name="op">Operator.</param>
+    internal PrefixExpression(SyntaxTree syntaxTree, Token op, Expression operand)
         : base(syntaxTree) {
         this.op = op;
-        this.identifier = identifier;
+        this.operand = operand;
     }
 
     /// <summary>
@@ -22,7 +24,7 @@ internal sealed partial class PrefixExpression : Expression {
     /// <summary>
     /// Existing variable name.
     /// </summary>
-    internal Token identifier { get; }
+    internal Expression operand { get; }
 
     internal override SyntaxType type => SyntaxType.PrefixExpression;
 }

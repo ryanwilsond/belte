@@ -8,7 +8,8 @@ namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
 /// Base building block of all things.
-/// Because of generators, the order of fields in a node child class need to correctly reflect the source file.
+/// Because of generators, the order of fields in a <see cref="Node" /> child class need to correctly reflect the
+/// source file.
 /// <code>
 /// sealed partial class PrefixExpression { // Wrong (would display `--a` as `a--`)
 ///     Token identifier { get; }
@@ -27,17 +28,18 @@ internal abstract class Node {
     }
 
     /// <summary>
-    /// Type of node (see SyntaxType).
+    /// Type of <see cref="Node" /> (see <see cref="SyntaxType" />).
     /// </summary>
     internal abstract SyntaxType type { get; }
 
     /// <summary>
-    /// Syntax tree this node resides in.
+    /// <see cref="SyntaxTree" /> this <see cref="Node" /> resides in.
     /// </summary>
     internal SyntaxTree syntaxTree { get; }
 
     /// <summary>
-    /// Span of where the node is in the source text (not including line break).
+    /// <see cref="TextSpan" /> of where the <see cref="Node" /> is in the <see cref="SourceText" />
+    /// (not including line break).
     /// </summary>
     internal virtual TextSpan span {
         get {
@@ -51,7 +53,8 @@ internal abstract class Node {
     }
 
     /// <summary>
-    /// Span of where the node is in the source text (including line break).
+    /// <see cref="TextSpan" /> of where the <see cref="Node" /> is in the <see cref="SourceText" />
+    /// (including line break).
     /// </summary>
     internal virtual TextSpan fullSpan {
         get {
@@ -65,12 +68,12 @@ internal abstract class Node {
     }
 
     /// <summary>
-    /// Location of where the node is in the source text.
+    /// Location of where the <see cref="Node" /> is in the <see cref="SourceText" />.
     /// </summary>
     internal TextLocation location => syntaxTree == null ? null : new TextLocation(syntaxTree.text, span);
 
     /// <summary>
-    /// Gets all child nodes.
+    /// Gets all child Nodes.
     /// Order should be consistent of how they look in a file, but calling code should not depend on that.
     /// </summary>
     internal abstract IEnumerable<Node> GetChildren();
@@ -83,17 +86,17 @@ internal abstract class Node {
     }
 
     /// <summary>
-    /// Write text representation of this node to an out.
+    /// Write text representation of this <see cref="Node" /> to an out.
     /// </summary>
-    /// <param name="writer">Out</param>
+    /// <param name="writer">Out.</param>
     internal void WriteTo(TextWriter writer) {
         PrettyPrint(writer, this);
     }
 
     /// <summary>
-    /// Gets last token (of all children, recursive) under this node.
+    /// Gets last <see cref="Token" /> (of all children, recursive) under this <see cref="Node" />.
     /// </summary>
-    /// <returns>Last token</returns>
+    /// <returns>Last <see cref="Token" />.</returns>
     internal Token GetLastToken() {
         if (this is Token t)
             return t;

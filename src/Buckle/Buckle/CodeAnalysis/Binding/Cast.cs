@@ -3,7 +3,7 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A cast from any type to any type (can be the same).
+/// A cast from any <see cref="BoundTypeClause" /> to any <see cref="BoundTypeClause" /> (can be the same).
 /// </summary>
 internal sealed class Cast {
     /// <summary>
@@ -12,7 +12,7 @@ internal sealed class Cast {
     internal static readonly Cast None = new Cast(false, false, false);
 
     /// <summary>
-    /// Cast where both types are the same.
+    /// <see cref="Cast" /> where both types are the same.
     /// </summary>
     internal static readonly Cast Identity = new Cast(true, true, true);
 
@@ -38,27 +38,27 @@ internal sealed class Cast {
     internal bool exists { get; }
 
     /// <summary>
-    /// If the cast is an identity cast.
+    /// If the <see cref="Cast" /> is an identity cast.
     /// </summary>
     internal bool isIdentity { get; }
 
     /// <summary>
-    /// If the cast is an implicit cast.
+    /// If the <see cref="Cast" /> is an implicit cast.
     /// </summary>
     internal bool isImplicit { get; }
 
     /// <summary>
-    /// If the cast is an explicit cast.
-    /// A cast cannot be implicit and explicit.
+    /// If the <see cref="Cast" /> is an explicit cast.
+    /// A <see cref="Cast" /> cannot be implicit and explicit.
     /// </summary>
     internal bool isExplicit => exists && !isImplicit;
 
     /// <summary>
-    /// Classify what type of cast is required to go from one type to the other.
+    /// Classify what type of <see cref="Cast" /> is required to go from one type to the other.
     /// </summary>
-    /// <param name="fromType">Target type</param>
-    /// <param name="toType">Existing/current type</param>
-    /// <returns>Created cast</returns>
+    /// <param name="fromType">Target <see cref="BoundTypeClause" />.</param>
+    /// <param name="toType">Existing/current <see cref="BoundTypeClause" />.</param>
+    /// <returns>Created <see cref="Cast" />.</returns>
     internal static Cast Classify(BoundTypeClause fromType, BoundTypeClause toType) {
         var from = fromType.lType;
         var to = toType.lType;
@@ -92,7 +92,7 @@ internal sealed class Cast {
         if (cast != Cast.None) {
             // [NotNull]var -> var : implicit
             // var -> [NotNull]var : explicit
-            if (!fromType.isLiteral && !fromType.isNullable && toType.isNullable && cast != Cast.Implicit)
+            if (!fromType.isLiteral && !fromType.isNullable && toType.isNullable && cast != Cast.Explicit)
                 cast = Cast.Implicit;
 
             if (fromType.isNullable && !toType.isNullable && !toType.isLiteral)

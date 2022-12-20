@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound block statement, bound from a parser BlockStatement.
+/// A bound block statement, bound from a <see cref="BlockStatement" />.
 /// </summary>
 internal sealed class BoundBlockStatement : BoundStatement {
     internal BoundBlockStatement(ImmutableArray<BoundStatement> statements) {

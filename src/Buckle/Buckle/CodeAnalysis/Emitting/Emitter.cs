@@ -9,6 +9,7 @@ using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using static Buckle.Utilities.FunctionUtilities;
 using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Emitting;
@@ -132,7 +133,7 @@ internal class Emitter {
     }
 
     /// <summary>
-    /// Diagnostics produced by Emitter.
+    /// Diagnostics produced by <see cref="Emitter" />.
     /// These diagnostics are fatal, as all error checking has been done already.
     /// </summary>
     internal BelteDiagnosticQueue diagnostics { get; set; }
@@ -160,11 +161,11 @@ internal class Emitter {
     /// <summary>
     /// Emits a program to a .NET assembly.
     /// </summary>
-    /// <param name="program">Program to emit</param>
-    /// <param name="moduleName">Name of emitted assembly/application</param>
-    /// <param name="references">All external .NET references</param>
-    /// <param name="outputPath">Where to put the emitted assembly</param>
-    /// <returns>Diagnostics</returns>
+    /// <param name="program"><see cref="BoundProgram" /> to emit.</param>
+    /// <param name="moduleName">Name of emitted assembly/application.</param>
+    /// <param name="references">All external .NET references.</param>
+    /// <param name="outputPath">Where to put the emitted assembly.</param>
+    /// <returns>Diagnostics.</returns>
     internal static BelteDiagnosticQueue Emit(
         BoundProgram program, string moduleName, string[] references, string outputPath) {
         if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
@@ -177,9 +178,9 @@ internal class Emitter {
     /// <summary>
     /// Emits a program to a .NET assembly.
     /// </summary>
-    /// <param name="program">Program to emit</param>
-    /// <param name="outputPath">Where to put the emitted assembly</param>
-    /// <returns>Diagnostics</returns>
+    /// <param name="program"><see cref="BoundProgram" /> to emit.</param>
+    /// <param name="outputPath">Where to put the emitted assembly.</param>
+    /// <returns>Diagnostics.</returns>
     internal BelteDiagnosticQueue Emit(BoundProgram program, string outputPath) {
         diagnostics.Move(program.diagnostics);
 
@@ -200,7 +201,7 @@ internal class Emitter {
         }
 
         if (program.mainFunction != null)
-            _assemblyDefinition.EntryPoint = LookupMethod(program.mainFunction);
+            _assemblyDefinition.EntryPoint = LookupMethod(_methods, program.mainFunction);
 
         _assemblyDefinition.Write(outputPath);
 
@@ -320,7 +321,7 @@ internal class Emitter {
                 EmitTryStatement(iLProcessor, (BoundTryStatement)statement);
                 break;
             default:
-                throw new Exception($"EmitStatement: unexpected node '{statement.type}'");
+                throw new BelteInternalException($"EmitStatement: unexpected node '{statement.type}'");
         }
     }
 
@@ -459,33 +460,6 @@ internal class Emitter {
         iLProcessor.Emit(OpCodes.Br, Instruction.Create(OpCodes.Nop));
     }
 
-    private bool MethodsMatch(FunctionSymbol left, FunctionSymbol right) {
-        if (left.name == right.name && left.parameters.Length == right.parameters.Length) {
-            var parametersMatch = true;
-
-            for (int i=0; i<left.parameters.Length; i++) {
-                var checkParameter = left.parameters[i];
-                var parameter = right.parameters[i];
-
-                if (checkParameter.name != parameter.name || checkParameter.typeClause != parameter.typeClause)
-                    parametersMatch = false;
-            }
-
-            if (parametersMatch)
-                return true;
-        }
-
-        return false;
-    }
-
-    private MethodDefinition LookupMethod(FunctionSymbol function) {
-        foreach (var pair in _methods)
-            if (MethodsMatch(pair.Key, function))
-                return pair.Value;
-
-        throw new Exception($"LookupMethod: could not find method '{function.name}'");
-    }
-
     private void EmitRandomField() {
         _randomFieldDefinition = new FieldDefinition(
                                 "$randInt", FieldAttributes.Static | FieldAttributes.Private, _randomReference);
@@ -558,10 +532,10 @@ internal class Emitter {
             else if (to.lType == TypeSymbol.Decimal)
                 return _methodReferences[NetMethodReference.ConvertToDouble];
             else
-                throw new Exception($"GetConvertTo: unexpected cast from '{from}' to '{to}'");
+                throw new BelteInternalException($"GetConvertTo: unexpected cast from '{from}' to '{to}'");
         }
 
-        throw new Exception("GetConvertTo: cannot convert nullable types");
+        throw new BelteInternalException("GetConvertTo: cannot convert nullable types");
     }
 
     private void EmitFunctionDeclaration(FunctionSymbol function) {

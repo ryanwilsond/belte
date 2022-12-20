@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Immutable;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -7,10 +9,10 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal abstract class BoundTreeRewriter {
     /// <summary>
-    /// Rewrites a single statement (including all children, recursive).
+    /// Rewrites a single <see cref="Statement" /> (including all children, recursive).
     /// </summary>
-    /// <param name="statement">Statement to rewrite</param>
-    /// <returns>New statement or input statement if nothing changed</returns>
+    /// <param name="statement"><see cref="Statement" /> to rewrite.</param>
+    /// <returns>New <see cref="Statement" /> or input <see cref="Statement" /> if nothing changed.</returns>
     internal virtual BoundStatement RewriteStatement(BoundStatement statement) {
         switch (statement.type) {
             case BoundNodeType.NopStatement:
@@ -40,7 +42,7 @@ internal abstract class BoundTreeRewriter {
             case BoundNodeType.TryStatement:
                 return RewriteTryStatement((BoundTryStatement)statement);
             default:
-                return null;
+                throw new BelteInternalException($"RewriteStatement: unexpected expression type '{statement.type}'");
         }
     }
 
@@ -197,9 +199,39 @@ internal abstract class BoundTreeRewriter {
                 return RewriteInlineFunctionExpression((BoundInlineFunctionExpression)expression);
             case BoundNodeType.TypeOfExpression:
                 return RewriteTypeOfExpression((BoundTypeOfExpression)expression);
+            case BoundNodeType.TernaryExpression:
+                return RewriteTernaryExpression((BoundTernaryExpression)expression);
+            case BoundNodeType.ConstructorExpression:
+                return RewriteConstructorExpression((BoundConstructorExpression)expression);
+            case BoundNodeType.MemberAccessExpression:
+                return RewriteMemberAccessExpression((BoundMemberAccessExpression)expression);
             default:
-                return null;
+                throw new BelteInternalException($"RewriteExpression: unexpected expression type '{expression.type}'");
         }
+    }
+
+    private BoundExpression RewriteMemberAccessExpression(BoundMemberAccessExpression expression) {
+        var operand = RewriteExpression(expression.operand);
+
+        if (operand == expression.operand)
+            return expression;
+
+        return new BoundMemberAccessExpression(operand, expression.member);
+    }
+
+    protected virtual BoundExpression RewriteConstructorExpression(BoundConstructorExpression expression) {
+        return expression;
+    }
+
+    protected virtual BoundExpression RewriteTernaryExpression(BoundTernaryExpression expression) {
+        var left = RewriteExpression(expression.left);
+        var center = RewriteExpression(expression.center);
+        var right = RewriteExpression(expression.right);
+
+        if (left == expression.left && center == expression.center && right == expression.right)
+            return expression;
+
+        return new BoundTernaryExpression(left, expression.op, center, right);
     }
 
     protected virtual BoundExpression RewriteTypeOfExpression(BoundTypeOfExpression expression) {
@@ -257,12 +289,13 @@ internal abstract class BoundTreeRewriter {
 
     protected virtual BoundExpression RewriteCompoundAssignmentExpression(
         BoundCompoundAssignmentExpression expression) {
-        var boundVariableExpression = new BoundVariableExpression(expression.variable);
-        var boundBinaryExpression = new BoundBinaryExpression(
-            boundVariableExpression, expression.op, expression.expression);
-        var boundAssignmentExpression = new BoundAssignmentExpression(expression.variable, boundBinaryExpression);
+        var left = RewriteExpression(expression.left);
+        var right = RewriteExpression(expression.right);
 
-        return RewriteAssignmentExpression(boundAssignmentExpression);
+        if (left == expression.left && right == expression.right)
+            return expression;
+
+        return new BoundCompoundAssignmentExpression(left, expression.op, right);
     }
 
     protected virtual BoundExpression RewriteCastExpression(BoundCastExpression expression) {
@@ -326,11 +359,13 @@ internal abstract class BoundTreeRewriter {
     }
 
     protected virtual BoundExpression RewriteAssignmentExpression(BoundAssignmentExpression expression) {
-        var rewritten = RewriteExpression(expression.expression);
-        if (rewritten == expression.expression)
+        var left = RewriteExpression(expression.left);
+        var right = RewriteExpression(expression.right);
+
+        if (left == expression.left && right == expression.right)
             return expression;
 
-        return new BoundAssignmentExpression(expression.variable, rewritten);
+        return new BoundAssignmentExpression(left, right);
     }
 
     protected virtual BoundExpression RewriteUnaryExpression(BoundUnaryExpression expression) {

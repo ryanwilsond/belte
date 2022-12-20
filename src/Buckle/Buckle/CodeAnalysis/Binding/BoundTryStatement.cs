@@ -2,8 +2,8 @@
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound try statement, bound from a parser TryStatement.
-/// Instead of having a catch clause and finally clause, it just has their bodies.
+/// A bound try statement, bound from a <see cref="TryStatement" />.
+/// Instead of having a <see cref="CatchClause" /> and <see cref="FinallyClause" />, it just has their bodies.
 /// </summary>
 internal sealed class BoundTryStatement : BoundStatement {
     internal BoundTryStatement(

@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound return statement, bound from a parser ReturnStatement.
+/// A bound return statement, bound from a <see cref="ReturnStatement" />.
 /// </summary>
 internal sealed class BoundReturnStatement : BoundStatement {
     internal BoundReturnStatement(BoundExpression expression) {

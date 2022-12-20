@@ -2,8 +2,12 @@
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound conditional goto statement, produced by Lowerer. No parser equivalent.
-/// E.g. goto label if condition
+/// A bound conditional goto statement, produced by the <see cref="Lowerer" />. No <see cref="Parser" />
+/// equivalent.<br/>
+/// E.g.
+/// <code>
+/// goto label if condition
+/// </code>
 /// </summary>
 internal sealed class BoundConditionalGotoStatement : BoundStatement {
     internal BoundConditionalGotoStatement(BoundLabel label, BoundExpression condition, bool jumpIfTrue = true) {

@@ -9,6 +9,7 @@ using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using static Buckle.Utilities.FunctionUtilities;
 using Diagnostics;
 
 // TODO This entire file is spaghetti code, need to rewrite with a better understanding of when to use:
@@ -244,7 +245,7 @@ internal class _Emitter {
         }
 
         if (program.mainFunction != null)
-            _assemblyDefinition.EntryPoint = LookupMethod(program.mainFunction);
+            _assemblyDefinition.EntryPoint = LookupMethod(_methods, program.mainFunction);
 
         _assemblyDefinition.Write(outputPath);
 
@@ -299,7 +300,7 @@ internal class _Emitter {
                 EmitTryStatement(iLProcessor, (BoundTryStatement)statement, method);
                 break;
             default:
-                throw new Exception($"EmitStatement: unexpected node '{statement.type}'");
+                throw new BelteInternalException($"EmitStatement: unexpected node '{statement.type}'");
         }
     }
 
@@ -534,7 +535,7 @@ internal class _Emitter {
                 EmitCastExpression(iLProcessor, (BoundCastExpression)expression);
                 break;
             default:
-                throw new Exception($"EmitExpression: unexpected node '{expression.type}'");
+                throw new BelteInternalException($"EmitExpression: unexpected node '{expression.type}'");
         }
     }
 
@@ -595,7 +596,7 @@ internal class _Emitter {
     }
 
     private void EmitCallExpression(ILProcessor iLProcessor, BoundCallExpression expression) {
-        if (MethodsMatch(expression.function, BuiltinFunctions.RandInt)) {
+        if (expression.function.MethodMatches(BuiltinFunctions.RandInt)) {
             if (_randomFieldDefinition == null)
                 EmitRandomField();
 
@@ -605,54 +606,27 @@ internal class _Emitter {
         foreach (var argument in expression.arguments)
             EmitExpression(iLProcessor, argument);
 
-        if (MethodsMatch(expression.function, BuiltinFunctions.RandInt)) {
+        if (expression.function.MethodMatches(BuiltinFunctions.RandInt)) {
             iLProcessor.Emit(OpCodes.Callvirt, _methodReferences[_NetMethodReference.RandomNext]);
             return;
         }
 
-        if (MethodsMatch(expression.function, BuiltinFunctions.Print)) {
+        if (expression.function.MethodMatches(BuiltinFunctions.Print)) {
             iLProcessor.Emit(OpCodes.Call, _methodReferences[_NetMethodReference.ConsoleWrite]);
-        } else if (MethodsMatch(expression.function, BuiltinFunctions.PrintLine)) {
+        } else if (expression.function.MethodMatches(BuiltinFunctions.PrintLine)) {
             iLProcessor.Emit(OpCodes.Call, _methodReferences[_NetMethodReference.ConsoleWriteLine]);
-        } else if (MethodsMatch(expression.function, BuiltinFunctions.Input)) {
+        } else if (expression.function.MethodMatches(BuiltinFunctions.Input)) {
             iLProcessor.Emit(OpCodes.Call, _methodReferences[_NetMethodReference.ConsoleReadLine]);
         } else if (expression.function.name == "Value") {
             EmitExpression(iLProcessor, expression.arguments[0]);
             iLProcessor.Emit(OpCodes.Call, GetNullableValue(expression.arguments[0].typeClause));
-        } else if (MethodsMatch(expression.function, BuiltinFunctions.HasValue)) {
+        } else if (expression.function.MethodMatches(BuiltinFunctions.HasValue)) {
             EmitExpression(iLProcessor, expression.arguments[0]);
             iLProcessor.Emit(OpCodes.Call, GetNullableHasValue(expression.arguments[0].typeClause));
         } else {
-            var methodDefinition = LookupMethod(expression.function);
+            var methodDefinition = LookupMethod(_methods, expression.function);
             iLProcessor.Emit(OpCodes.Call, methodDefinition);
         }
-    }
-
-    private bool MethodsMatch(FunctionSymbol left, FunctionSymbol right) {
-        if (left.name == right.name && left.parameters.Length == right.parameters.Length) {
-            var parametersMatch = true;
-
-            for (int i=0; i<left.parameters.Length; i++) {
-                var checkParameter = left.parameters[i];
-                var parameter = right.parameters[i];
-
-                if (checkParameter.name != parameter.name || checkParameter.typeClause != parameter.typeClause)
-                    parametersMatch = false;
-            }
-
-            if (parametersMatch)
-                return true;
-        }
-
-        return false;
-    }
-
-    private MethodDefinition LookupMethod(FunctionSymbol function) {
-        foreach (var pair in _methods)
-            if (MethodsMatch(pair.Key, function))
-                return pair.Value;
-
-        throw new Exception($"LookupMethod: could not find method '{function.name}'");
     }
 
     private void EmitRandomField() {
@@ -726,16 +700,16 @@ internal class _Emitter {
             else if (to.lType == TypeSymbol.Decimal)
                 return _methodReferences[_NetMethodReference.ConvertToSingle];
             else
-                throw new Exception($"GetConvertTo: unexpected cast from '{from}' to '{to}'");
+                throw new BelteInternalException($"GetConvertTo: unexpected cast from '{from}' to '{to}'");
         }
 
-        throw new Exception("GetConvertTo: cannot convert nullable types");
+        throw new BelteInternalException("GetConvertTo: cannot convert nullable types");
     }
 
     private void EmitAssignmentExpression(ILProcessor iLProcessor, BoundAssignmentExpression expression) {
-        var variableDefinition = _locals[expression.variable];
+        var variableDefinition = _locals[(expression.left as BoundVariableExpression).variable];
 
-        if (expression.variable.typeClause.isReference)
+        if ((expression.left as BoundVariableExpression).variable.typeClause.isReference)
             iLProcessor.Emit(OpCodes.Ldloc_S, variableDefinition);
         else if (expression.typeClause.isNullable)
             iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
@@ -745,7 +719,7 @@ internal class _Emitter {
         var nullable = expression.typeClause.isNullable;
 
         EmitExpression(
-            iLProcessor, expression.expression, expression.variable.typeClause.isReference,
+            iLProcessor, expression.right, (expression.left as BoundVariableExpression).variable.typeClause.isReference,
             nullable: nullable, stack: false);
 
         _useNullRef = true && nullable;
@@ -763,7 +737,7 @@ internal class _Emitter {
                 var variableDefinition = _locals[expression.variable];
                 // ? When is Ldarga_S used
                 iLProcessor.Emit(OpCodes.Ldloc, variableDefinition);
-            } catch {
+            } catch (KeyNotFoundException) {
                 // ! This may have side affects
                 ParameterSymbol foundParameter = null;
 
@@ -775,7 +749,7 @@ internal class _Emitter {
                     // ? When is Ldarga_S used
                     iLProcessor.Emit(OpCodes.Ldarg, foundParameter.ordinal);
                 } else {
-                    throw new Exception(
+                    throw new BelteInternalException(
                         $"EmitVariableExpression: could not find variable '{expression.variable.name}'");
                 }
             }
@@ -917,7 +891,7 @@ internal class _Emitter {
                 iLProcessor.Emit(OpCodes.Ceq);
                 break;
             default:
-                throw new Exception($"EmitBinaryOperator: unexpected binary operator" +
+                throw new BelteInternalException($"EmitBinaryOperator: unexpected binary operator" +
                     $"({leftType}){SyntaxFacts.GetText(expression.op.type)}({rightType})");
         }
     }
@@ -986,7 +960,7 @@ internal class _Emitter {
                     yield return result;
             } else {
                 if (node.typeClause.lType != TypeSymbol.String)
-                    throw new Exception(
+                    throw new BelteInternalException(
                         $"Flatten: unexpected node type in string concatenation '{node.typeClause.lType}'");
 
                 yield return node;
@@ -1045,7 +1019,7 @@ internal class _Emitter {
             var value = Convert.ToSingle(expression.constantValue.value);
             iLProcessor.Emit(OpCodes.Ldc_R4, value);
         } else {
-            throw new Exception($"EmitConstantExpression: unexpected constant expression type '{expressionType}'");
+            throw new BelteInternalException($"EmitConstantExpression: unexpected constant expression type '{expressionType}'");
         }
 
         if (referenceAssign && handleAssignment) {
@@ -1070,7 +1044,7 @@ internal class _Emitter {
         } else if (expression.op.opType == BoundUnaryOperatorType.BitwiseCompliment) {
             iLProcessor.Emit(OpCodes.Not);
         } else {
-            throw new Exception($"EmitUnaryExpression: unexpected unary operator" +
+            throw new BelteInternalException($"EmitUnaryExpression: unexpected unary operator" +
                 $"{SyntaxFacts.GetText(expression.op.type)}({expression.operand.typeClause.lType})");
         }
     }

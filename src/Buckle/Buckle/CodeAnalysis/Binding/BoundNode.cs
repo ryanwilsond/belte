@@ -4,7 +4,7 @@ using Buckle.IO;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound node, gets created from a parser Node.
+/// Bound node, gets created from a <see cref="Node" />.
 /// </summary>
 internal abstract class BoundNode {
     internal abstract BoundNodeType type { get; }

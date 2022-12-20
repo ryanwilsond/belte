@@ -5,11 +5,16 @@ using Buckle.CodeAnalysis.Text;
 using Buckle.CodeAnalysis.Symbols;
 using System;
 
-namespace Buckle.CodeAnalysis.Syntax;
+namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
 /// <summary>
-/// Converts source text into parsable tokens.
-/// E.g. int myInt; -> IdentiferToken IdentifierToken SemicolonToken
+/// Converts source text into parsable Tokens.<br/>
+/// E.g.
+/// <code>
+/// int myInt;
+/// --->
+/// IdentiferToken IdentifierToken SemicolonToken
+/// </code>
 /// </summary>
 internal sealed class Lexer {
     internal char current => Peek(0);
@@ -24,9 +29,9 @@ internal sealed class Lexer {
     private ImmutableArray<SyntaxTrivia>.Builder _triviaBuilder = ImmutableArray.CreateBuilder<SyntaxTrivia>();
 
     /// <summary>
-    /// Creates a new lexer, requires a fully initialized syntax tree.
+    /// Creates a new <see cref="Lexer" />, requires a fully initialized <see cref="SyntaxTree" />.
     /// </summary>
-    /// <param name="syntaxTree">Syntax tree to lex from</param>
+    /// <param name="syntaxTree"><see cref="SyntaxTree" /> to lex from.</param>
     internal Lexer(SyntaxTree syntaxTree) {
         _text = syntaxTree.text;
         _syntaxTree = syntaxTree;
@@ -39,9 +44,9 @@ internal sealed class Lexer {
     internal BelteDiagnosticQueue diagnostics { get; set; }
 
     /// <summary>
-    /// Lexes the next un-lexed text to create a single token.
+    /// Lexes the next un-lexed text to create a single <see cref="Token" />.
     /// </summary>
-    /// <returns>A new token</returns>
+    /// <returns>A new <see cref="Token" />.</returns>
     internal Token LexNext() {
         ReadTrivia(true);
         var leadingTrivia = _triviaBuilder.ToImmutable();
@@ -106,7 +111,8 @@ internal sealed class Lexer {
                     break;
                 default:
                     // Other whitespace; use case labels on most common whitespace because its faster
-                    // ! However the speed gain is almost definitely negligible and probably not worth the readability loss
+                    // ! However the speed gain is almost definitely negligible and probably not worth the
+                    // ! readability loss
                     if (char.IsWhiteSpace(current))
                         ReadWhitespace();
                     else
@@ -132,6 +138,10 @@ internal sealed class Lexer {
         switch (current) {
             case '\0':
                 _type = SyntaxType.EndOfFileToken;
+                break;
+            case '.':
+                _position++;
+                _type = SyntaxType.PeriodToken;
                 break;
             case ',':
                 _position++;
@@ -165,6 +175,10 @@ internal sealed class Lexer {
                 _position++;
                 _type = SyntaxType.SemicolonToken;
                 break;
+            case ':':
+                _position++;
+                _type = SyntaxType.ColonToken;
+                break;
             case '~':
                 _position++;
                 _type = SyntaxType.TildeToken;
@@ -197,7 +211,8 @@ internal sealed class Lexer {
                         _type = SyntaxType.QuestionQuestionToken;
                     }
                 } else {
-                    goto default;
+                    _type = SyntaxType.QuestionToken;
+                    _position++;
                 }
                 break;
             case '+':

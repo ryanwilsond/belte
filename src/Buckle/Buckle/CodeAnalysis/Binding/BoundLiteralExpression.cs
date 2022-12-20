@@ -1,10 +1,10 @@
-using System;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound literal expression, bound from a parser LiteralExpression.
+/// A bound literal expression, bound from a <see cref="LiteralExpression" />.
 /// </summary>
 internal sealed class BoundLiteralExpression : BoundExpression {
     internal BoundLiteralExpression(object value) {
@@ -19,12 +19,12 @@ internal sealed class BoundLiteralExpression : BoundExpression {
         else if (value == null)
             typeClause = new BoundTypeClause(null, isLiteral: true);
         else
-            throw new Exception($"BoundLiteralExpression: unexpected literal '{value}' of type '{value.GetType()}'");
+            throw new BelteInternalException($"BoundLiteralExpression: unexpected literal '{value}' of type '{value.GetType()}'");
 
         constantValue = new BoundConstant(value);
     }
 
-    /// <param name="override">Forces a type clause on a value instead of implying</param>
+    /// <param name="override">Forces a <see cref="BoundTypeClause" /> on a value instead of implying.</param>
     internal BoundLiteralExpression(object value, BoundTypeClause @override) {
         typeClause = new BoundTypeClause(
             @override.lType, @override.isImplicit, @override.isConstantReference, @override.isReference,

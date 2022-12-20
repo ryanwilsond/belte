@@ -7,7 +7,6 @@ namespace Buckle.CodeAnalysis.Binding;
 /// All binary operator types.
 /// </summary>
 internal enum BoundBinaryOperatorType {
-    Invalid,
     Addition,
     Subtraction,
     Multiplication,
@@ -149,8 +148,8 @@ internal sealed class BoundBinaryOperator {
         new BoundBinaryOperator(SyntaxType.GreaterThanEqualsToken, BoundBinaryOperatorType.GreatOrEqual,
             BoundTypeClause.Decimal, BoundTypeClause.Bool),
         new BoundBinaryOperator(SyntaxType.PercentToken, BoundBinaryOperatorType.Modulo, BoundTypeClause.Decimal),
-    new BoundBinaryOperator(SyntaxType.QuestionQuestionToken, BoundBinaryOperatorType.NullCoalescing,
-            BoundTypeClause.NullableDecimal),
+        new BoundBinaryOperator(SyntaxType.QuestionQuestionToken, BoundBinaryOperatorType.NullCoalescing,
+                BoundTypeClause.NullableDecimal),
 
         // any
         new BoundBinaryOperator(SyntaxType.IsKeyword, BoundBinaryOperatorType.Is,
@@ -159,10 +158,13 @@ internal sealed class BoundBinaryOperator {
             BoundTypeClause.NullableAny, BoundTypeClause.Bool),
     };
 
+    /// <summary>
+    /// Operator token type.
+    /// </summary>
     internal SyntaxType type { get; }
 
     /// <summary>
-    /// Operator type.
+    /// Bound operator type.
     /// </summary>
     internal BoundBinaryOperatorType opType { get; }
 
@@ -184,10 +186,10 @@ internal sealed class BoundBinaryOperator {
     /// <summary>
     /// Attempts to bind an operator with given sides.
     /// </summary>
-    /// <param name="type">Operator type</param>
-    /// <param name="leftType">Left operand type</param>
-    /// <param name="rightType">Right operand type</param>
-    /// <returns>Bound operator if an operator exists, otherwise null</returns>
+    /// <param name="type">Operator type.</param>
+    /// <param name="leftType">Left operand type.</param>
+    /// <param name="rightType">Right operand type.</param>
+    /// <returns><see cref="BoundBinaryOperator" /> if an operator exists, otherwise null.</returns>
     internal static BoundBinaryOperator Bind(SyntaxType type, BoundTypeClause leftType, BoundTypeClause rightType) {
         var nonNullableLeft = BoundTypeClause.NonNullable(leftType);
         var nonNullableRight = BoundTypeClause.NonNullable(rightType);
@@ -205,7 +207,7 @@ internal sealed class BoundBinaryOperator {
 }
 
 /// <summary>
-/// A bound binary expression, bound from a parser BinaryExpression.
+/// A bound binary expression, bound from a <see cref="BinaryExpression" />.
 /// </summary>
 internal sealed class BoundBinaryExpression : BoundExpression {
     internal BoundBinaryExpression(

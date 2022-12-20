@@ -3,25 +3,31 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound compound assignment expression, bound from a parser CompoundAssignmentExpression.
-/// All parser PrefixExpression and PostfixExpressions are converted to bound compound assignment expressions.
-/// E.g. x++ -> x+=1
+/// A bound compound assignment expression, bound from a <see cref="CompoundAssignmentExpression" />.
+/// All <see cref="PrefixExpression" /> and <see cref="PostfixExpression" /> expressions are converted to
+/// BoundCompoundAssignmentExpressions.<br/>
+/// E.g.
+/// <code>
+/// x++
+/// --->
+/// x+=1
+/// </code>
 /// </summary>
 internal sealed class BoundCompoundAssignmentExpression : BoundExpression {
     internal BoundCompoundAssignmentExpression(
-        VariableSymbol variable, BoundBinaryOperator op, BoundExpression expression) {
-        this.variable = variable;
+        BoundExpression left, BoundBinaryOperator op, BoundExpression right) {
+        this.left = left;
         this.op = op;
-        this.expression = expression;
+        this.right = right;
     }
 
-    internal VariableSymbol variable { get; }
+    internal BoundExpression left { get; }
 
     internal BoundBinaryOperator op { get; }
 
-    internal BoundExpression expression { get; }
+    internal BoundExpression right { get; }
 
     internal override BoundNodeType type => BoundNodeType.CompoundAssignmentExpression;
 
-    internal override BoundTypeClause typeClause => expression.typeClause;
+    internal override BoundTypeClause typeClause => right.typeClause;
 }

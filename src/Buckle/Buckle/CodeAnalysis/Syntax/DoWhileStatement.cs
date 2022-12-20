@@ -2,11 +2,13 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Do while statement.
+/// Do while statement.<br/>
 /// E.g.
+/// <code>
 /// do {
 ///     ... statements ...
 /// } while (condition);
+/// </code>
 /// </summary>
 internal sealed partial class DoWhileStatement : Statement {
     internal DoWhileStatement(

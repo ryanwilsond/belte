@@ -12,17 +12,17 @@ namespace Repl;
 /// </summary>
 public abstract class ReplBase {
     /// <summary>
-    /// Handles outputting REPL text to an out.
+    /// Handles outputting <see cref="ReplBase" /> text to an out.
     /// </summary>
     internal OutputCapture _writer = new OutputCapture();
 
     /// <summary>
-    /// Compiler object representing entirety of compilation.
+    /// <see cref="Compiler" /> object representing entirety of compilation.
     /// </summary>
     internal Compiler handle;
 
     /// <summary>
-    /// Particular DiagnosticHandle used to handle diagnostics in the REPL.
+    /// Particular <see cref="ReplBase.DiagnosticHandle" /> used to handle diagnostics in the <see cref="ReplBase" />.
     /// </summary>
     internal DiagnosticHandle diagnosticHandle;
 
@@ -42,19 +42,19 @@ public abstract class ReplBase {
     }
 
     /// <summary>
-    /// Callback to handle diagnostics, be it logging or displaying to the console.
+    /// Callback to handle Diagnostics, be it logging or displaying to the console.
     /// </summary>
-    /// <param name="compiler">Compiler object representing entirety of compilation</param>
-    /// <param name="me">Display name of the program</param>
-    /// <param name="textColor">Color to display diagnostics (if displaying)</param>
-    /// <returns>C-Style error code of most severe diagnostic</returns>
+    /// <param name="compiler"><see cref="Compiler" /> object representing entirety of compilation.</param>
+    /// <param name="me">Display name of the program.</param>
+    /// <param name="textColor">Color to display Diagnostics (if displaying).</param>
+    /// <returns>C-Style error code of most severe <see cref="Diagnostic" />.</returns>
     public delegate int DiagnosticHandle(
         Compiler compiler, string me = null, ConsoleColor textColor = ConsoleColor.White);
 
     private delegate object LineRenderHandler(IReadOnlyList<string> lines, int lineIndex, object state);
 
     /// <summary>
-    /// REPL specific state used by child classes.
+    /// <see cref="ReplBase" /> specific state used by child classes.
     /// </summary>
     internal abstract object _state { get; set; }
 
@@ -67,8 +67,8 @@ public abstract class ReplBase {
     }
 
     /// <summary>
-    /// Run loop of the REPL (exited with ctrl + c or entering blank lines).
-    /// Does not initialize REPL, only runs it.
+    /// Run loop of the <see cref="ReplBase" /> (exited with ctrl + c or entering blank lines).
+    /// Does not initialize <see cref="ReplBase" />, only runs it.
     /// </summary>
     public void Run() {
         while (true) {
@@ -92,7 +92,7 @@ public abstract class ReplBase {
     }
 
     /// <summary>
-    /// Reloads REPL to start accepting submissions again.
+    /// Reloads <see cref="ReplBase" /> to start accepting submissions again.
     /// </summary>
     internal void ReviveDocument() {
         // TODO Redisplay previous submissions
@@ -110,7 +110,7 @@ public abstract class ReplBase {
     /// <summary>
     /// Gets all previous submissions submitted in current instance (does not access previous instances' submissions).
     /// </summary>
-    /// <returns>Internal representation of submissions</returns>
+    /// <returns>Internal representation of submissions.</returns>
     internal List<string> GetSubmissionHistory() {
         return _submissionHistory;
     }
@@ -331,7 +331,7 @@ public abstract class ReplBase {
     }
 
     private void HandleControlC(ObservableCollection<string> document, SubmissionView view) {
-        if (_done == false)
+        if (!_done)
             SpecialEscapeSequence();
         else
             // Normal ctrl + c behavior
@@ -921,8 +921,8 @@ public abstract class ReplBase {
 
         if (args.Count != parameters.Length) {
             if (args.Count == command.method.GetParameters()
-                .Where(t => t.HasDefaultValue == false).ToArray().Length) {
-                foreach (var parameter in command.method.GetParameters().Where(p => p.HasDefaultValue == true))
+                .Where(t => !t.HasDefaultValue).ToArray().Length) {
+                foreach (var parameter in command.method.GetParameters().Where(p => p.HasDefaultValue))
                     args.Add(parameter.DefaultValue.ToString());
             } else {
                 var parameterNames = string.Join(" ", parameters.Select(p => $"<{p.Name}>"));
@@ -958,7 +958,7 @@ public abstract class ReplBase {
         /// <summary>
         /// Encoding to use, constant.
         /// </summary>
-        /// <value>Ascii</value>
+        /// <value>Ascii.</value>
         public override Encoding Encoding { get { return Encoding.ASCII; } }
 
         public override void Write(string output) {
@@ -976,8 +976,8 @@ public abstract class ReplBase {
         /// <summary>
         /// Changes Console cursor position.
         /// </summary>
-        /// <param name="left">Column position (left (0) -> right)</param>
-        /// <param name="top">Row position (top (0) -> down)</param>
+        /// <param name="left">Column position (left (0) -> right).</param>
+        /// <param name="top">Row position (top (0) -> down).</param>
         public void SetCursorPosition(int left, int top) {
             Console.SetCursorPosition(left, top);
         }

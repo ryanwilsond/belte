@@ -7,11 +7,11 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// </summary>
 internal class LocalVariableSymbol : VariableSymbol {
     /// <summary>
-    /// Creates a local variable symbol.
+    /// Creates a <see cref="LocalVariableSymbol" />.
     /// </summary>
-    /// <param name="name">Name of the variable</param>
-    /// <param name="typeClause">Type clause of the variable</param>
-    /// <param name="constant">Constant value of the variable</param>
+    /// <param name="name">Name of the variable.</param>
+    /// <param name="typeClause"><see cref="BoundTypeClause" /> of the variable.</param>
+    /// <param name="constant"><see cref="ConstantValue" /> of the variable.</param>
     internal LocalVariableSymbol(string name, BoundTypeClause typeClause, BoundConstant constant)
         : base(name, typeClause, constant) { }
 

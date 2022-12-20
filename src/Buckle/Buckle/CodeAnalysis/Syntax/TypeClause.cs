@@ -8,11 +8,11 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// A type clause, includes array dimensions, type name, and attributes.
 /// </summary>
 internal sealed class TypeClause : Node {
-    /// <param name="attributes">Simple flag modifiers on a type (e.g. [NotNull])</param>
-    /// <param name="constRefKeyword">Const keyword referring to a constant reference type</param>
-    /// <param name="refKeyword">Ref keyword referring to a reference type</param>
-    /// <param name="constKeyword">Const keyword referring to a constant type</param>
-    /// <param name="brackets">Brackets, determine array dimensions</param>
+    /// <param name="attributes">Simple flag modifiers on a type (e.g. [NotNull]).</param>
+    /// <param name="constRefKeyword">Const keyword referring to a constant reference type.</param>
+    /// <param name="refKeyword">Ref keyword referring to a reference type.</param>
+    /// <param name="constKeyword">Const keyword referring to a constant type.</param>
+    /// <param name="brackets">Brackets, determine array dimensions.</param>
     internal TypeClause(SyntaxTree syntaxTree, ImmutableArray<(Token, Token, Token)> attributes,
         Token constRefKeyword, Token refKeyword, Token constKeyword, Token typeName,
         ImmutableArray<(Token, Token)> brackets) : base(syntaxTree) {
@@ -27,13 +27,14 @@ internal sealed class TypeClause : Node {
     /// <summary>
     /// Simple flag modifiers on a type.
     /// </summary>
-    /// <param name="openBracket">Open square bracket token</param>
-    /// <param name="identifier">Name of the attribute</param>
-    /// <param name="closeBracket">Close square bracket token</param>
+    /// <param name="openBracket">Open square bracket token.</param>
+    /// <param name="identifier">Name of the attribute.</param>
+    /// <param name="closeBracket">Close square bracket token.</param>
     internal ImmutableArray<(Token openBracket, Token identifier, Token closeBracket)> attributes { get; }
 
     /// <summary>
-    /// Const keyword referring to a constant reference type, only valid if the refKeyword field is also set.
+    /// Const keyword referring to a constant reference type, only valid if the <see cref="TypeClause.refKeyword" />
+    /// field is also set.
     /// </summary>
     internal Token? constRefKeyword { get; }
 
@@ -52,8 +53,8 @@ internal sealed class TypeClause : Node {
     /// <summary>
     /// Brackets defining array dimensions ([] -> 1 dimension, [][] -> 2 dimensions).
     /// </summary>
-    /// <param name="openBracket">Open square bracket token</param>
-    /// <param name="closeBracket">Close square bracket token</param>
+    /// <param name="openBracket">Open square bracket token.</param>
+    /// <param name="closeBracket">Close square bracket token.</param>
     internal ImmutableArray<(Token openBracket, Token closeBracket)> brackets { get; }
 
     internal override SyntaxType type => SyntaxType.TypeClause;

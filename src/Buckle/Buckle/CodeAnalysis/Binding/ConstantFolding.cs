@@ -1,28 +1,27 @@
 using System;
-using System.Numerics;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Folds/evaluates simple expressions during compile time.
+/// Folds/evaluates simple BoundExpressions during compile time.
 /// </summary>
 internal static class ConstantFolding {
     /// <summary>
-    /// Folds a binary expression (if possible).
+    /// Folds a <see cref="BinaryExpression" /> (if possible).
     /// </summary>
-    /// <param name="left">Left side operand</param>
-    /// <param name="op">Operator</param>
-    /// <param name="right">Right side operand</param>
-    /// <returns>Bound constant, returns null if folding is not possible</returns>
+    /// <param name="left">Left side operand.</param>
+    /// <param name="op">Operator.</param>
+    /// <param name="right">Right side operand.</param>
+    /// <returns><see cref="BoundConstant" />, returns null if folding is not possible.</returns>
     internal static BoundConstant Fold(
         BoundExpression left, BoundBinaryOperator op, BoundExpression right) {
         var leftConstant = left.constantValue;
         var rightConstant = right.constantValue;
 
         // With and/or operators allow one side to be null
-        // TODO Track statements with side effects (e.g. function calls) and still execute them left to right
         if (op?.opType == BoundBinaryOperatorType.ConditionalAnd) {
             if ((leftConstant != null && leftConstant.value != null && !(bool)leftConstant.value) ||
                 (rightConstant != null && rightConstant.value != null && !(bool)rightConstant.value))
@@ -33,6 +32,13 @@ internal static class ConstantFolding {
             if ((leftConstant != null && leftConstant.value != null && (bool)leftConstant.value) ||
                 (rightConstant != null && rightConstant.value != null && (bool)rightConstant.value))
                 return new BoundConstant(true);
+        }
+
+        if (op?.opType == BoundBinaryOperatorType.NullCoalescing) {
+            if (leftConstant != null && leftConstant.value != null)
+                return new BoundConstant(leftConstant.value);
+            if (leftConstant != null && leftConstant.value == null && rightConstant != null)
+                return new BoundConstant(rightConstant.value);
         }
 
         if (leftConstant == null || rightConstant == null || op == null)
@@ -154,16 +160,16 @@ internal static class ConstantFolding {
                 else
                     return new BoundConstant((double)leftValue % (double)rightValue);
             default:
-                throw new Exception($"Fold: unexpected binary operator '{op.opType}'");
+                throw new BelteInternalException($"Fold: unexpected binary operator '{op.opType}'");
         }
     }
 
     /// <summary>
-    /// Folds a unary expression (if possible).
+    /// Folds a <see cref="UnaryExpression" /> (if possible).
     /// </summary>
-    /// <param name="op">Operator</param>
-    /// <param name="operand">Operand</param>
-    /// <returns>Bound constant, returns null if folding is not possible</returns>
+    /// <param name="op">Operator.</param>
+    /// <param name="operand">Operand.</param>
+    /// <returns><see cref="BoundConstant" />, returns null if folding is not possible.</returns>
     internal static BoundConstant Fold(BoundUnaryOperator op, BoundExpression operand) {
         var operandType = operand.typeClause.lType;
 
@@ -184,8 +190,20 @@ internal static class ConstantFolding {
                 case BoundUnaryOperatorType.BitwiseCompliment:
                     return new BoundConstant(~(int)operand.constantValue.value);
                 default:
-                    throw new Exception($"Fold: unexpected unary operator '{op.opType}'");
+                    throw new BelteInternalException($"Fold: unexpected unary operator '{op.opType}'");
             }
+        }
+
+        return null;
+    }
+
+    internal static BoundConstant Fold(
+        BoundExpression left, BoundTernaryOperator op, BoundExpression center, BoundExpression right) {
+        if (op.opType == BoundTernaryOperatorType.Conditional) {
+            if (left.constantValue != null && (bool)left.constantValue.value && center.constantValue != null)
+                return new BoundConstant(center.constantValue.value);
+            if (left.constantValue != null && !(bool)left.constantValue.value && right.constantValue != null)
+                return new BoundConstant(right.constantValue.value);
         }
 
         return null;

@@ -2,14 +2,16 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// For statement, uses 3 part system, not for each.
+/// For statement, uses 3 part system, not for each.<br/>
 /// E.g.
+/// <code>
 /// for (iterator declaration; condition; step) {
 ///     ... statements ...
 /// }
+/// </code>
 /// </summary>
 internal sealed partial class ForStatement : Statement {
-    /// <param name="initializer">Declaration or name of variable used for stepping</param>
+    /// <param name="initializer">Declaration or name of variable used for stepping.</param>
     internal ForStatement(
         SyntaxTree syntaxTree, Token keyword, Token openParenthesis, Statement initializer,
         Expression condition, Token semicolon, Expression step, Token closeParenthesis, Statement body)

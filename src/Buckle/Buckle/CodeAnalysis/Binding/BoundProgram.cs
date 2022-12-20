@@ -8,21 +8,21 @@ namespace Buckle.CodeAnalysis.Binding;
 /// Bound program.
 /// </summary>
 internal sealed class BoundProgram {
-    /// <param name="previous">Previous bound program (if applicable)</param>
+    /// <param name="previous">Previous <see cref="BoundProgram" /> (if applicable).</param>
     internal BoundProgram(
-        BoundProgram previous, BelteDiagnosticQueue diagnostics,
-        FunctionSymbol mainFunction,
-        FunctionSymbol scriptFunction,
-        ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies) {
+        BoundProgram previous, BelteDiagnosticQueue diagnostics, FunctionSymbol mainFunction,
+        FunctionSymbol scriptFunction, ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies,
+        ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>> structMembers) {
         this.previous = previous;
         this.diagnostics = diagnostics;
         this.mainFunction = mainFunction;
         this.scriptFunction = scriptFunction;
         this.functionBodies = functionBodies;
+        this.structMembers = structMembers;
     }
 
     /// <summary>
-    /// Previous bound program (if applicable).
+    /// Previous <see cref="BoundProgram" /> (if applicable).
     /// </summary>
     internal BoundProgram previous { get; }
 
@@ -33,4 +33,6 @@ internal sealed class BoundProgram {
     internal FunctionSymbol scriptFunction { get; }
 
     internal ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies { get; }
+
+    internal ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>> structMembers { get; }
 }

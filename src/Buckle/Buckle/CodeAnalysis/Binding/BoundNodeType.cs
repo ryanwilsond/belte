@@ -1,6 +1,3 @@
-using Buckle.IO;
-using System.Collections.Generic;
-using System;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -10,9 +7,10 @@ namespace Buckle.CodeAnalysis.Binding;
 internal enum BoundNodeType {
     Invalid,
 
+    TernaryExpression,
+    BinaryExpression,
     UnaryExpression,
     LiteralExpression,
-    BinaryExpression,
     VariableExpression,
     AssignmentExpression,
     EmptyExpression,
@@ -24,6 +22,8 @@ internal enum BoundNodeType {
     ReferenceExpression,
     InlineFunctionExpression,
     TypeOfExpression,
+    ConstructorExpression,
+    MemberAccessExpression,
 
     BlockStatement,
     ExpressionStatement,
@@ -38,6 +38,7 @@ internal enum BoundNodeType {
     TryStatement,
     ReturnStatement,
     NopStatement,
+    FieldDeclarationStatement,
 
     TypeClause,
 }

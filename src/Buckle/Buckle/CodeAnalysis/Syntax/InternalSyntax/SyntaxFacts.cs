@@ -1,17 +1,18 @@
 using System;
 using System.Collections.Generic;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Basic syntax facts references by parser and lexer.
+/// Basic syntax facts references by the <see cref="Parser" /> and the <see cref="Lexer" />.
 /// </summary>
 internal static class SyntaxFacts {
     /// <summary>
-    /// Gets binary operator precedence of a syntax type.
+    /// Gets binary operator precedence of a <see cref="SyntaxType" />.
     /// </summary>
-    /// <param name="type">Syntax type</param>
-    /// <returns>Precedence</returns>
+    /// <param name="type"><see cref="SyntaxType" />.</param>
+    /// <returns>Precedence, or 0 if <paramref name="type" /> is not a binary operator.</returns>
     internal static int GetBinaryPrecedence(this SyntaxType type) {
         switch (type) {
             case SyntaxType.AsteriskAsteriskToken:
@@ -55,15 +56,16 @@ internal static class SyntaxFacts {
     }
 
     /// <summary>
-    /// Gets primary operator precedence of a syntax type.
+    /// Gets primary operator precedence of a <see cref="SyntaxType" />.
     /// </summary>
-    /// <param name="type">Syntax type</param>
-    /// <returns>Precedence</returns>
+    /// <param name="type"><see cref="SyntaxType" />.</param>
+    /// <returns>Precedence, or 0 if <paramref name="type" /> is not a primary operator.</returns>
     internal static int GetPrimaryPrecedence(this SyntaxType type) {
         switch (type) {
             case SyntaxType.TypeOfKeyword:
             case SyntaxType.OpenBracketToken:
             case SyntaxType.OpenParenToken:
+            case SyntaxType.PeriodToken:
                 return 18;
             default:
                 return 0;
@@ -71,10 +73,10 @@ internal static class SyntaxFacts {
     }
 
     /// <summary>
-    /// Gets unary operator precedence of a syntax type.
+    /// Gets unary operator precedence of a <see cref="SyntaxType" />.
     /// </summary>
-    /// <param name="type">Syntax type</param>
-    /// <returns>Precedence</returns>
+    /// <param name="type"><see cref="SyntaxType" />.</param>
+    /// <returns>Precedence, or 0 if <paramref name="type" /> is not a unary operator.</returns>
     internal static int GetUnaryPrecedence(this SyntaxType type) {
         switch (type) {
             case SyntaxType.PlusPlusToken:
@@ -90,10 +92,42 @@ internal static class SyntaxFacts {
     }
 
     /// <summary>
-    /// Attempts to get a syntax type from a text representation of a keyword.
+    /// Gets ternary operator precedence of a <see cref="SyntaxType" />.
     /// </summary>
-    /// <param name="text">Text representation</param>
-    /// <returns>Keyword type, defaults to identifer if failed</returns>
+    /// <param name="type"><see cref="SyntaxType" />.</param>
+    /// <returns>Precedence, or 0 if <paramref name="type" /> is not a ternary operator.</returns>
+    internal static int GetTernaryPrecedence(this SyntaxType type) {
+        switch (type) {
+            case SyntaxType.QuestionToken:
+                return 2;
+            default:
+                return 0;
+        }
+    }
+
+    /// <summary>
+    /// Gets the right operator associated with the given left operator in a ternary operator.
+    /// E.g.
+    /// c ? t : f
+    ///   ^----------- If given the ? token (left operator),
+    ///       ^------- will return the : token (right operator).
+    /// </summary>
+    /// <param name="type">Left operator of the ternary operator.</param>
+    /// <returns>Associated right operator, throws if given an unknown right operator.</returns>
+    internal static SyntaxType GetTernaryOperatorPair(this SyntaxType type) {
+        switch (type) {
+            case SyntaxType.QuestionToken:
+                return SyntaxType.ColonToken;
+            default:
+                throw new BelteInternalException($"GetTernaryOperatorPair: unknown right operator '{type}'");
+        }
+    }
+
+    /// <summary>
+    /// Attempts to get a <see cref="SyntaxType" /> from a text representation of a keyword.
+    /// </summary>
+    /// <param name="text">Text representation.</param>
+    /// <returns>Keyword type, defaults to identifer if failed.</returns>
     internal static SyntaxType GetKeywordType(string text) {
         switch (text) {
             case "true":
@@ -144,12 +178,14 @@ internal static class SyntaxFacts {
     }
 
     /// <summary>
-    /// Gets text representation of a token or keyword.
+    /// Gets text representation of a <see cref="Token" /> or keyword.
     /// </summary>
-    /// <param name="type">Syntax type</param>
-    /// <returns>Text representation, default to null if not text representation exists</returns>
+    /// <param name="type"><see cref="SyntaxType" />.</param>
+    /// <returns>Text representation, default to null if not text representation exists.</returns>
     internal static string GetText(SyntaxType type) {
         switch (type) {
+            case SyntaxType.PeriodToken:
+                return ".";
             case SyntaxType.CommaToken:
                 return ",";
             case SyntaxType.PlusToken:
@@ -202,6 +238,10 @@ internal static class SyntaxFacts {
                 return "]";
             case SyntaxType.SemicolonToken:
                 return ";";
+            case SyntaxType.ColonToken:
+                return ":";
+            case SyntaxType.QuestionToken:
+                return "?";
             case SyntaxType.EqualsEqualsToken:
                 return "==";
             case SyntaxType.ExclamationEqualsToken:
@@ -294,8 +334,8 @@ internal static class SyntaxFacts {
     /// <summary>
     /// Gets base operator type of assignment operator type (e.g. += -> +).
     /// </summary>
-    /// <param name="type">Syntax type</param>
-    /// <returns>Binary operator type</returns>
+    /// <param name="type"><see cref="SyntaxType" />.</param>
+    /// <returns>Binary operator type.</returns>
     internal static SyntaxType GetBinaryOperatorOfAssignmentOperator(SyntaxType type) {
         switch (type) {
             case SyntaxType.PlusEqualsToken:
@@ -325,14 +365,14 @@ internal static class SyntaxFacts {
             case SyntaxType.QuestionQuestionEqualsToken:
                 return SyntaxType.QuestionQuestionToken;
             default:
-                throw new Exception($"GetBinaryOperatorOfAssignmentOperator: unexpected syntax '{type}'");
+                throw new BelteInternalException($"GetBinaryOperatorOfAssignmentOperator: unexpected syntax '{type}'");
         }
     }
 
     /// <summary>
     /// Gets all unary operator types.
     /// </summary>
-    /// <returns>Unary operator types (calling code should not depend on order)</returns>
+    /// <returns>Unary operator types (calling code should not depend on order).</returns>
     internal static IEnumerable<SyntaxType> GetUnaryOperatorTypes() {
         var types = (SyntaxType[])Enum.GetValues(typeof(SyntaxType));
         foreach (var type in types) {
@@ -344,7 +384,7 @@ internal static class SyntaxFacts {
     /// <summary>
     /// Gets all binary operator types.
     /// </summary>
-    /// <returns>Binary operator types (calling code should not depend on order)</returns>
+    /// <returns>Binary operator types (calling code should not depend on order).</returns>
     internal static IEnumerable<SyntaxType> GetBinaryOperatorTypes() {
         var types = (SyntaxType[])Enum.GetValues(typeof(SyntaxType));
         foreach (var type in types) {
@@ -354,37 +394,37 @@ internal static class SyntaxFacts {
     }
 
     /// <summary>
-    /// Checks if a syntax type is a keyword.
+    /// Checks if a <see cref="SyntaxType" /> is a keyword.
     /// </summary>
-    /// <param name="type">Syntax type</param>
-    /// <returns>If the syntax type is a keyword</returns>
+    /// <param name="type"><see cref="SyntaxType" />.</param>
+    /// <returns>If the <see cref="SyntaxType" /> is a keyword.</returns>
     internal static bool IsKeyword(this SyntaxType type) {
         return type.ToString().EndsWith("Keyword");
     }
 
     /// <summary>
-    /// Checks if a syntax type is a token.
+    /// Checks if a <see cref="SyntaxType" /> is a <see cref="Token" />.
     /// </summary>
-    /// <param name="type">Syntax type</param>
-    /// <returns>If the syntax type is a token</returns>
+    /// <param name="type"><see cref="SyntaxType" />.</param>
+    /// <returns>If the <see cref="SyntaxType" /> is a token.</returns>
     internal static bool IsToken(this SyntaxType type) {
         return !type.IsTrivia() && (type.IsKeyword() || type.ToString().EndsWith("Token"));
     }
 
     /// <summary>
-    /// Checks if a syntax type is trivia.
+    /// Checks if a <see cref="SyntaxType" /> is trivia.
     /// </summary>
-    /// <param name="type">Syntax type</param>
-    /// <returns>If the syntax type is trivia</returns>
+    /// <param name="type"><see cref="SyntaxType" />.</param>
+    /// <returns>If the <see cref="SyntaxType" /> is trivia.</returns>
     internal static bool IsTrivia(this SyntaxType type) {
         return type.ToString().EndsWith("Trivia");
     }
 
     /// <summary>
-    /// Checks if a syntax type is a comment.
+    /// Checks if a <see cref="SyntaxType" /> is a comment.
     /// </summary>
-    /// <param name="type">Syntax type</param>
-    /// <returns>If the syntax type is a comment</returns>
+    /// <param name="type"><see cref="SyntaxType" />.</param>
+    /// <returns>If the <see cref="SyntaxType" /> is a comment.</returns>
     internal static bool IsComment(this SyntaxType type) {
         return type == SyntaxType.SingleLineCommentTrivia || type == SyntaxType.MultiLineCommentTrivia;
     }
