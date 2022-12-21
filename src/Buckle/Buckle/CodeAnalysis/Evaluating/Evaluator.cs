@@ -106,6 +106,14 @@ internal sealed class Evaluator {
         return Value(value, traceCollections);
     }
 
+    private EvaluatorObject GetFromMembers(Dictionary<FieldSymbol, EvaluatorObject> members, FieldSymbol member) {
+        foreach (var pair in members)
+            if (member.name == pair.Key.name && BoundTypeClause.Equals(member.typeClause, pair.Key.typeClause))
+                return pair.Value;
+
+        throw new BelteInternalException($"GetFromMembers: '{member.name}' was not found in member list");
+    }
+
     private EvaluatorObject GetFrom(Dictionary<VariableSymbol, EvaluatorObject> variables, VariableSymbol variable) {
         foreach (var pair in variables)
             if (variable.name == pair.Key.name && BoundTypeClause.Equals(variable.typeClause, pair.Key.typeClause))
@@ -114,11 +122,31 @@ internal sealed class Evaluator {
         throw new BelteInternalException($"GetFrom: '{variable.name}' was not found in the scope");
     }
 
+    private EvaluatorObject Get(VariableSymbol variable) {
+        if (variable.type == SymbolType.GlobalVariable) {
+            return GetFrom(_globals, variable);
+        } else {
+            var locals = _locals.Peek();
+            return GetFrom(locals, variable);
+        }
+    }
+
+    private EvaluatorObject GetNestedReference(EvaluatorObject value, out bool ignoreNested) {
+        if (value.nestedReference.nestedReference == null) {
+            var variable = Get(value.nestedReference.reference);
+            ignoreNested = true;
+            return GetFromMembers(variable.members, value.reference as FieldSymbol);
+        }
+
+        ignoreNested = false;
+        return value.nestedReference.members[value.reference as FieldSymbol];
+    }
+
     private object DictionaryValue(Dictionary<FieldSymbol, EvaluatorObject> value) {
         var dictionary = new Dictionary<object, object>();
 
         foreach (var pair in value)
-            dictionary.Add(pair.Key.name, Value(pair.Value, true));
+            dictionary.Add(pair.Key.name, Value(pair.Value, true, true));
 
         return dictionary;
     }
@@ -132,15 +160,17 @@ internal sealed class Evaluator {
         return builder.ToArray();
     }
 
-    private object Value(EvaluatorObject value, bool traceCollections = false) {
-        if (value.isReference)
+    private object Value(EvaluatorObject value, bool traceCollections = false, bool ignoreNested = false) {
+        if (value.nestedReference != null && !ignoreNested)
+            return Value(GetNestedReference(value, out var ignore), ignoreNested: ignore);
+        else if (value.isReference)
             return GetVariableValue(value.reference, traceCollections);
         else if (value.value is EvaluatorObject)
             return Value(value.value as EvaluatorObject, traceCollections);
         else if (value.value is EvaluatorObject[] && traceCollections)
             return CollectionValue(value.value as EvaluatorObject[]);
-        else if (traceCollections && value.value is Dictionary<FieldSymbol, EvaluatorObject>)
-            return DictionaryValue(value.value as Dictionary<FieldSymbol, EvaluatorObject>);
+        else if (traceCollections && value.value == null && value.members != null)
+            return DictionaryValue(value.members);
         else
             return value.value;
     }
@@ -176,42 +206,35 @@ internal sealed class Evaluator {
             if (!set)
                 locals[left] = right;
         }
+
+        if (right.members != null)
+            foreach (var pair in right.members)
+                right.members[pair.Key].nestedReference = new EvaluatorObject(left);
     }
 
     private void Assign(EvaluatorObject left, EvaluatorObject right) {
         while (right.isReference && !right.isExplicitReference) {
             if (right.nestedReference != null) {
-                right = right.nestedReference.members[right.reference as FieldSymbol];
-            } else if (right.reference.type == SymbolType.GlobalVariable) {
-                right = GetFrom(_globals, right.reference);
+                left = GetNestedReference(left, out _);
             } else {
-                var locals = _locals.Peek();
-                right = GetFrom(locals, right.reference);
+                right = Get(right.reference);
             }
         }
 
         while (left.isReference && !left.isExplicitReference) {
             if (left.nestedReference != null) {
-                left = left.nestedReference.members[left.reference as FieldSymbol];
-            } else if (left.reference.type == SymbolType.GlobalVariable) {
-                left = GetFrom(_globals, left.reference);
+                left = GetNestedReference(left, out _);
             } else {
-                var locals = _locals.Peek();
-                left = GetFrom(locals, left.reference);
+                left = Get(left.reference);
             }
         }
 
         if (right.isExplicitReference) {
             left.reference = right.reference;
         } else if (left.isExplicitReference) {
-            while (left.isReference) {
-                if (left.reference.type == SymbolType.GlobalVariable) {
-                    left = GetFrom(_globals, left.reference);
-                } else {
-                    var locals = _locals.Peek();
-                    left = GetFrom(locals, left.reference);
-                }
-            }
+            while (left.isReference)
+                left = Get(left.reference);
+
             left.value = Value(right);
         } else {
             left.value = Value(right);
@@ -396,7 +419,7 @@ internal sealed class Evaluator {
         var valueValue = Value(value);
 
         if (valueValue == null)
-            return new EvaluatorObject();
+            return value;
 
         var type = typeClause.lType;
         valueValue = CastUtilities.Cast(valueValue, type);
