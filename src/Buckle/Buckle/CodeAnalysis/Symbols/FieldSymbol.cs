@@ -3,7 +3,7 @@ using Buckle.CodeAnalysis.Binding;
 namespace Buckle.CodeAnalysis.Symbols;
 
 /// <summary>
-/// A local variable symbol. This is a variable declared anywhere except the global scope (thus being more local).
+/// A field symbol. This is a variable declared as a member of a type.
 /// </summary>
 internal class FieldSymbol : VariableSymbol {
     /// <summary>

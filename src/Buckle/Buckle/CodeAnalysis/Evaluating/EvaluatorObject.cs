@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -7,6 +8,17 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// </summary>
 internal sealed class EvaluatorObject {
     /// <summary>
+    /// Creates an <see cref="EvaluatorObject" /> with a null value.
+    /// </summary>
+    internal EvaluatorObject() {
+        this.value = null;
+        this.isReference = false;
+        this.reference = null;
+        this.isExplicitReference = false;
+        this.members = null;
+    }
+
+    /// <summary>
     /// Creates an <see cref="EvaluatorObject" /> with a value (not a reference).
     /// In this case <see cref="EvaluatorObject" /> acts purely as an Object wrapper.
     /// </summary>
@@ -15,31 +27,20 @@ internal sealed class EvaluatorObject {
         this.value = value;
         this.isReference = false;
         this.reference = null;
+        this.isExplicitReference = false;
+        this.members = null;
     }
 
     /// <summary>
-    /// Creates an <see cref="EvaluatorObjet" /> without a value, and instead a reference to
-    /// a <see cref="VariableSymbol" />.
-    /// Note that it is not an actual C# reference, just a copy of a <see cref="VariableSymbol" /> stored in the locals
-    /// or globals dictionary.
+    /// Creates an <see cref="EvaluatorObject" /> without a value, and instead a list of members.
     /// </summary>
-    /// <param name="reference">
-    /// <see cref="VariableSymbol" /> to reference (not an explicit reference, passed by
-    /// reference by default).
-    /// </param>
-    internal EvaluatorObject(VariableSymbol reference, bool explicitReference=false) {
+    /// <param name="members">Members to contain by this.</param>
+    internal EvaluatorObject(Dictionary<FieldSymbol, EvaluatorObject> members) {
         this.value = null;
-
-        if (reference == null) {
-            this.isReference = false;
-            this.reference = null;
-        } else {
-            this.isReference = true;
-            this.reference = reference;
-        }
-
-        this.fieldReference = null;
-        this.isExplicitReference = explicitReference;
+        this.isReference = false;
+        this.reference = null;
+        this.isExplicitReference = false;
+        this.members = members;
     }
 
     /// <summary>
@@ -52,12 +53,15 @@ internal sealed class EvaluatorObject {
     /// <see cref="VariableSymbol" /> to reference (not an explicit reference, passed by
     /// reference by default).
     /// </param>
-    /// <param name="fieldReference"><see cref="FieldSymbol" /> to reference.</param>
-    internal EvaluatorObject(VariableSymbol reference, FieldSymbol fieldReference) {
+    /// <param name="isExplicitReference">If this is just a variable, or if it explicitly a reference expression.</param>
+    internal EvaluatorObject(
+        VariableSymbol reference, EvaluatorObject nestedReference = null, bool isExplicitReference = false) {
         this.value = null;
         this.isReference = true;
         this.reference = reference;
-        this.fieldReference = fieldReference;
+        this.isExplicitReference = isExplicitReference;
+        this.nestedReference = nestedReference;
+        this.members = null;
     }
 
     /// <summary>
@@ -84,7 +88,12 @@ internal sealed class EvaluatorObject {
     internal VariableSymbol reference { get; set; }
 
     /// <summary>
-    /// Reference to a <see cref="FieldSymbol" /> member of <see cref="EvaluatorObject.reference" />.
+    /// The owner of this.
     /// </summary>
-    internal FieldSymbol fieldReference { get; set; }
+    internal EvaluatorObject nestedReference { get; set; }
+
+    /// <summary>
+    /// Members stored by this.
+    /// </summary>
+    internal Dictionary<FieldSymbol, EvaluatorObject> members { get; set; }
 }

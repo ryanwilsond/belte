@@ -76,7 +76,6 @@ internal sealed class BoundScope {
     /// <typeparam name="T">Type of <see cref="Symbol" /> to search for.</typeparam>
     /// <returns><see cref="Symbol" /> if found, null otherwise.</returns>
     internal T LookupSymbol<T>(string name) where T : Symbol {
-        // TODO Add ambiguous error
         if (_symbols != null)
             foreach (var symbol in _symbols)
                 if (symbol.name == name && symbol is T)
@@ -103,7 +102,6 @@ internal sealed class BoundScope {
     /// <returns>If the <see cref="Symbol" /> was found and successfully updated.</returns>
     internal bool TryModifySymbol(string name, Symbol newSymbol) {
         // Does not work with overloads
-        // TODO Need to allow overloads, as someone may try to define overloads for a nested function
         var symbol = LookupSymbol(name);
 
         if (symbol == null)

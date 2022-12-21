@@ -17,7 +17,7 @@ namespace Buckle.CodeAnalysis.Emitting;
 /// <summary>
 /// Emits a bound program into a .NET assembly.
 /// </summary>
-internal class Emitter {
+internal sealed class Emitter {
     private readonly List<AssemblyDefinition> _assemblies = new List<AssemblyDefinition>();
     private readonly List<(TypeSymbol type, string metadataName)> _builtinTypes;
     private readonly Dictionary<FunctionSymbol, MethodDefinition> _methods =
@@ -353,10 +353,10 @@ internal class Emitter {
             iLProcessor.Append(end);
 
             var handler = new ExceptionHandler(ExceptionHandlerType.Finally) {
-                TryStart=tryStart,
-                TryEnd=handlerStart,
-                HandlerStart=handlerStart,
-                HandlerEnd=end,
+                TryStart = tryStart,
+                TryEnd = handlerStart,
+                HandlerStart = handlerStart,
+                HandlerEnd = end,
             };
 
             method.Body.ExceptionHandlers.Add(handler);
@@ -385,11 +385,11 @@ internal class Emitter {
             iLProcessor.Append(end);
 
             var handler = new ExceptionHandler(ExceptionHandlerType.Catch) {
-                TryStart=tryStart,
-                TryEnd=handlerStart,
-                HandlerStart=handlerStart,
-                HandlerEnd=end,
-                CatchType=_knownTypes[TypeSymbol.Any],
+                TryStart = tryStart,
+                TryEnd = handlerStart,
+                HandlerStart = handlerStart,
+                HandlerEnd = end,
+                CatchType = _knownTypes[TypeSymbol.Any],
             };
 
             method.Body.ExceptionHandlers.Add(handler);
@@ -422,11 +422,11 @@ internal class Emitter {
             iLProcessor.Append(finallyStart);
 
             var innerHandler = new ExceptionHandler(ExceptionHandlerType.Catch) {
-                TryStart=innerTryStart,
-                TryEnd=innerHandlerStart,
-                HandlerStart=innerHandlerStart,
-                HandlerEnd=finallyStart,
-                CatchType=_knownTypes[TypeSymbol.Any],
+                TryStart = innerTryStart,
+                TryEnd = innerHandlerStart,
+                HandlerStart = innerHandlerStart,
+                HandlerEnd = finallyStart,
+                CatchType = _knownTypes[TypeSymbol.Any],
             };
 
             foreach (var node in finallyBody)
@@ -436,10 +436,10 @@ internal class Emitter {
             iLProcessor.Append(end);
 
             var handler = new ExceptionHandler(ExceptionHandlerType.Finally) {
-                TryStart=innerTryStart,
-                TryEnd=finallyStart,
-                HandlerStart=finallyStart,
-                HandlerEnd=end,
+                TryStart = innerTryStart,
+                TryEnd = finallyStart,
+                HandlerStart = finallyStart,
+                HandlerEnd = end,
             };
 
             method.Body.ExceptionHandlers.Add(innerHandler);

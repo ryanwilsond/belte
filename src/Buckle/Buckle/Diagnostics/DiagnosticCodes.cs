@@ -5,8 +5,7 @@ internal enum DiagnosticCode : int {
     Unknown = 0,
 
     WRN_AlwaysValue = 1,
-
-    // ? Missing 2
+    WRN_NullDeference = 2,
     ERR_InvalidReference = 3,
     ERR_InvalidType = 4,
     ERR_BadCharacter = 5,
@@ -67,6 +66,7 @@ internal enum DiagnosticCode : int {
     ERR_InvalidTernaryOperatorUse = 60,
     ERR_NoSuchMember = 61,
     ERR_CannotAssign = 62,
+    ERR_CannotOverloadNested = 63,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

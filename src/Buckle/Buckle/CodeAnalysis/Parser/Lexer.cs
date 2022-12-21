@@ -92,7 +92,6 @@ internal sealed class Lexer {
                     break;
                 case '/':
                     if (lookahead == '/')
-                        // TODO Docstring comments (xml/doxygen, probably xml)
                         ReadSingeLineComment();
                     else if (lookahead == '*')
                         ReadMultiLineComment();

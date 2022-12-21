@@ -109,41 +109,49 @@ internal abstract class Node {
         var token = node as Token;
 
         if (isConsoleOut)
-            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.ForegroundColor = ConsoleColor.Red;
 
         if (token != null) {
             foreach (var trivia in token.leadingTrivia) {
                 writer.Write(indent);
                 writer.Write("├─");
-                writer.WriteLine($"L: {trivia.type}");
+                writer.WriteLine($"Lead: {trivia.type} [{trivia.span.start}..{trivia.span.end})");
             }
         }
 
         var hasTrailingTrivia = token != null && token.trailingTrivia.Any();
         var tokenMarker = !hasTrailingTrivia && isLast ? "└─" : "├─";
+
+        if (isConsoleOut)
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+
         writer.Write($"{indent}{tokenMarker}");
 
         if (isConsoleOut)
-            Console.ForegroundColor = node is Token ? ConsoleColor.DarkBlue : ConsoleColor.Cyan;
+            Console.ForegroundColor = node is Token ? ConsoleColor.Green : ConsoleColor.Blue;
 
         writer.Write(node.type);
 
         if (node is Token t && t.value != null)
             writer.Write($" {t.value}");
 
-        writer.WriteLine();
-
-        if (isConsoleOut)
-            Console.ForegroundColor = ConsoleColor.DarkGray;
+        writer.WriteLine($" [{node.span.start}..{node.span.end})");
 
         if (token != null) {
             foreach (var trivia in token.trailingTrivia) {
                 var isLastTrailingTrivia = trivia == token.trailingTrivia.Last();
                 var triviaMarker = isLast && isLastTrailingTrivia ? "└─" : "├─";
 
+                if (isConsoleOut)
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+
                 writer.Write(indent);
                 writer.Write(triviaMarker);
-                writer.WriteLine($"T: {trivia.type}");
+
+                if (isConsoleOut)
+                    Console.ForegroundColor = ConsoleColor.Red;
+
+                writer.WriteLine($"Trail: {trivia.type} [{trivia.span.start}..{trivia.span.end})");
             }
         }
 

@@ -113,22 +113,22 @@ public sealed class Compilation {
     /// <returns>All Symbols (checks all previous Compilations).</returns>
     internal IEnumerable<Symbol> GetSymbols() {
         var submission = this;
+        var seenFunctions = new HashSet<FunctionSymbol>();
         var seenSymbolNames = new HashSet<string>();
         var builtins = BuiltinFunctions.GetAll();
-        // TODO Does not show overloads
 
         while (submission != null) {
             foreach (var function in submission.functions)
-                if (seenSymbolNames.Add(function.name))
+                if (seenFunctions.Add(function))
                     yield return function;
+
+            foreach (var builtin in builtins)
+                if (seenFunctions.Add(builtin))
+                    yield return builtin;
 
             foreach (var variable in submission.variables)
                 if (seenSymbolNames.Add(variable.name))
                     yield return variable;
-
-            foreach (var builtin in builtins)
-                if (seenSymbolNames.Add(builtin.name))
-                    yield return builtin;
 
             foreach (var @type in submission.types)
                 if (seenSymbolNames.Add(@type.name))
@@ -143,17 +143,17 @@ public sealed class Compilation {
     /// </summary>
     /// <param name="variables">Existing variables to add to the scope.</param>
     /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
-    internal EvaluationResult Evaluate(Dictionary<VariableSymbol, EvaluatorObject> variables) {
+    internal EvaluationResult Evaluate(
+        Dictionary<VariableSymbol, EvaluatorObject> variables, bool wError = false) {
         if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
-            return new EvaluationResult(null, false, globalScope.diagnostics);
+            return new EvaluationResult(null, false, globalScope.diagnostics, null);
 
         var program = GetProgram();
         // * Only for debugging purposes
-        // TODO Update this function to work
         // CreateCfg(program);
 
-        if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
-            return new EvaluationResult(null, false, program.diagnostics);
+        if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any() || (program.diagnostics.Any() && wError))
+            return new EvaluationResult(null, false, program.diagnostics, null);
 
         diagnostics.Move(program.diagnostics);
         var eval = new Evaluator(program, variables);
@@ -163,7 +163,7 @@ public sealed class Compilation {
             Console.WriteLine();
 
         diagnostics.Move(eval.diagnostics);
-        var result = new EvaluationResult(evalResult, hasValue, diagnostics);
+        var result = new EvaluationResult(evalResult, hasValue, diagnostics, eval.exceptions);
         return result;
     }
 
@@ -245,7 +245,7 @@ public sealed class Compilation {
     /// <param name="references">All external references (.NET).</param>
     /// <param name="outputPath">Where to put the application once assembled.</param>
     /// <returns>Diagnostics.</returns>
-    internal BelteDiagnosticQueue Emit(string moduleName, string[] references, string outputPath) {
+    internal BelteDiagnosticQueue Emit(string moduleName, string[] references, string outputPath, bool wError) {
         foreach (var syntaxTree in syntaxTrees)
             diagnostics.Move(syntaxTree.diagnostics);
 
@@ -254,6 +254,10 @@ public sealed class Compilation {
 
         var program = GetProgram();
         program.diagnostics.Move(diagnostics);
+
+        if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any() || (program.diagnostics.Any() && wError))
+            return program.diagnostics;
+
         return Emitter.Emit(program, moduleName, references, outputPath);
     }
 
@@ -266,12 +270,17 @@ public sealed class Compilation {
         var appPath = Environment.GetCommandLineArgs()[0];
         var appDirectory = Path.GetDirectoryName(appPath);
         var cfgPath = Path.Combine(appDirectory, "cfg.dot");
-        BoundBlockStatement cfgStatement = program.scriptFunction == null
-            ? program.functionBodies[program.mainFunction]
-            : program.functionBodies[program.scriptFunction];
-        var cfg = ControlFlowGraph.Create(cfgStatement);
+        var cfgStatement = program.scriptFunction == null && program.mainFunction == null
+            ? null
+            : program.scriptFunction == null
+                ? program.functionBodies[program.mainFunction]
+                : program.functionBodies[program.scriptFunction];
 
-        using (var streamWriter = new StreamWriter(cfgPath))
-            cfg.WriteTo(streamWriter);
+        if (cfgStatement != null) {
+            var cfg = ControlFlowGraph.Create(cfgStatement);
+
+            using (var streamWriter = new StreamWriter(cfgPath))
+                cfg.WriteTo(streamWriter);
+        }
     }
 }

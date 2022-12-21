@@ -6,7 +6,7 @@ namespace Buckle.Diagnostics;
 /// Exception base class for all Belte related exceptions. Not meant to be used directly unless necessary, similar to
 /// the usage of Exception.
 /// </summary>
-internal class BelteException : Exception {
+internal abstract class BelteException : Exception {
     public BelteException() { }
 
     public BelteException(string message) : base(message) { }
@@ -17,7 +17,7 @@ internal class BelteException : Exception {
 /// <summary>
 /// Belte exception meant to be used for critical errors in the compiler when using Diagnostics is not an option.
 /// </summary>
-internal class BelteInternalException : BelteException {
+internal sealed class BelteInternalException : BelteException {
     public BelteInternalException() { }
 
     public BelteInternalException(string message) : base(message) { }
@@ -28,7 +28,7 @@ internal class BelteInternalException : BelteException {
 /// <summary>
 /// Belte exception meant to be used for exceptions in Belte source code to be shown and fixed by the user.
 /// </summary>
-internal class BelteLanguageException : BelteException {
+internal sealed class BelteLanguageException : BelteException {
     public BelteLanguageException() { }
 
     public BelteLanguageException(string message) : base(message) { }

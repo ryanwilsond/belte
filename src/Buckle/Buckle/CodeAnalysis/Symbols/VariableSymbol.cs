@@ -12,8 +12,7 @@ internal abstract class VariableSymbol : Symbol {
     /// <param name="name">Name of the variable.</param>
     /// <param name="typeClause"><see cref="BoundTypeClause" /> of the variable.</param>
     /// <param name="constant"><see cref="ConstantValue" /> of the variable.</param>
-    internal VariableSymbol(string name, BoundTypeClause typeClause, BoundConstant constant)
-        : base(name) {
+    internal VariableSymbol(string name, BoundTypeClause typeClause, BoundConstant constant) : base(name) {
         this.typeClause = typeClause;
         constantValue = typeClause.isConstant && !typeClause.isReference ? constant : null;
     }

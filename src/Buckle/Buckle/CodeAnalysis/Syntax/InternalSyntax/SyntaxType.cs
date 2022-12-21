@@ -1,7 +1,6 @@
 
 namespace Buckle.CodeAnalysis.Syntax;
 
-// TODO : uint?
 /// <summary>
 /// All types of things to be found in a source file.
 /// </summary>
