@@ -21,7 +21,7 @@ internal enum DiagnosticCode : int {
     ERR_RequiredMethodNotFound = 15,
     ERR_MainAndGlobals = 16,
     ERR_UndefinedName = 17,
-    ERR_FunctionAlreadyDeclared = 18,
+    ERR_MethodAlreadyDeclared = 18,
     ERR_NotAllPathsReturn = 19,
     ERR_CannotConvert = 20,
     ERR_AlreadyDeclared = 21,

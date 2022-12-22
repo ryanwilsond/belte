@@ -82,10 +82,10 @@ internal sealed class Binder {
                 ImmutableArray<VariableSymbol>.Empty, ImmutableArray<TypeSymbol>.Empty,
                 ImmutableArray<BoundStatement>.Empty);
 
-        var functionDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<MethodDeclaration>();
+        var methodDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<MethodDeclaration>();
 
-        foreach (var function in functionDeclarations)
-            binder.BindFunctionDeclaration(function);
+        foreach (var method in methodDeclarations)
+            binder.BindMethodDeclaration(method);
 
         var typeDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<TypeDeclaration>();
 
@@ -305,12 +305,12 @@ internal sealed class Binder {
         return result;
     }
 
-    private void BindFunctionDeclaration(MethodDeclaration function) {
-        var type = BindTypeClause(function.returnType);
+    private void BindMethodDeclaration(MethodDeclaration method) {
+        var type = BindTypeClause(method.returnType);
         var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
         var seenParametersNames = new HashSet<string>();
 
-        foreach (var parameter in function.parameters) {
+        foreach (var parameter in method.parameters) {
             var parameterName = parameter.identifier.text;
             var parameterType = BindTypeClause(parameter.typeClause);
 
@@ -322,9 +322,9 @@ internal sealed class Binder {
             }
         }
 
-        var newFunction = new FunctionSymbol(function.identifier.text, parameters.ToImmutable(), type, function);
-        if (newFunction.declaration.identifier.text != null && !_scope.TryDeclareFunction(newFunction))
-            diagnostics.Push(Error.FunctionAlreadyDeclared(function.identifier.location, newFunction.name));
+        var newMethod = new FunctionSymbol(method.identifier.text, parameters.ToImmutable(), type, method);
+        if (newMethod.declaration.identifier.text != null && !_scope.TryDeclareFunction(newMethod))
+            diagnostics.Push(Error.MethodAlreadyDeclared(method.identifier.location, newMethod.name));
     }
 
     private void BindTypeDeclaration(TypeDeclaration @type) {
@@ -353,6 +353,7 @@ internal sealed class Binder {
 
     private FieldSymbol BindFieldDeclaration(FieldDeclaration fieldDeclaration) {
         var typeClause = BindTypeClause(fieldDeclaration.declaration.typeClause);
+
         return BindVariable(
             fieldDeclaration.declaration.identifier, typeClause, bindAsField: true) as FieldSymbol;
     }
@@ -1014,7 +1015,7 @@ internal sealed class Binder {
                     fd.syntaxTree, fd.returnType, fd.identifier, fd.openParenthesis,
                     fd.parameters, fd.closeParenthesis, fd.body);
 
-                BindFunctionDeclaration(declaration);
+                BindMethodDeclaration(declaration);
                 frame.Add(fd.identifier.text);
                 _innerPrefix.Push(fd.identifier.text);
 
@@ -1540,8 +1541,7 @@ internal sealed class Binder {
     }
 
     private VariableSymbol BindVariable(
-        Token identifier, BoundTypeClause type, BoundConstant constant = null,
-        bool bindAsField = false) {
+        Token identifier, BoundTypeClause type, BoundConstant constant = null, bool bindAsField = false) {
         var name = identifier.text ?? "?";
         var declare = !identifier.isMissing;
         var variable = bindAsField

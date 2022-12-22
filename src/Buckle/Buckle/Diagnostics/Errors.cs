@@ -157,9 +157,9 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UndefinedName), location, message);
     }
 
-    internal static BelteDiagnostic FunctionAlreadyDeclared(TextLocation location, string name) {
-        var message = $"redefinition of function '{name}'";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_FunctionAlreadyDeclared), location, message);
+    internal static BelteDiagnostic MethodAlreadyDeclared(TextLocation location, string name) {
+        var message = $"redefinition of method '{name}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MethodAlreadyDeclared), location, message);
     }
 
     internal static BelteDiagnostic NotAllPathsReturn(TextLocation location) {
