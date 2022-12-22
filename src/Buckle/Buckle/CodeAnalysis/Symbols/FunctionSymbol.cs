@@ -17,7 +17,7 @@ internal sealed class FunctionSymbol : Symbol {
     /// <param name="declaration">Declaration of function.</param>
     internal FunctionSymbol(
         string name, ImmutableArray<ParameterSymbol> parameters,
-        BoundTypeClause typeClause, FunctionDeclaration declaration = null)
+        BoundTypeClause typeClause, MethodDeclaration declaration = null)
         : base(name) {
         this.typeClause = typeClause;
         this.parameters = parameters;
@@ -35,9 +35,9 @@ internal sealed class FunctionSymbol : Symbol {
     internal BoundTypeClause typeClause { get; }
 
     /// <summary>
-    /// Declaration of function (see <see cref="FunctionDeclaration">).
+    /// Declaration of function (see <see cref="MethodDeclaration">).
     /// </summary>
-    internal FunctionDeclaration declaration { get; }
+    internal MethodDeclaration declaration { get; }
 
     internal override SymbolType type => SymbolType.Function;
 

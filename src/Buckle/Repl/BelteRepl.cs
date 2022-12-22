@@ -54,13 +54,14 @@ public sealed class BelteRepl : ReplBase {
             return (BelteReplState)_state;
         }
         set {
-            _state=value;
+            _state = value;
         }
     }
 
     internal override void ResetState() {
         state.showTree = false;
         state.showProgram = false;
+        state.showWarnings = false;
         state.loadingSubmissions = false;
         state.variables = new Dictionary<VariableSymbol, EvaluatorObject>();
         state.previous = null;
@@ -166,15 +167,24 @@ public sealed class BelteRepl : ReplBase {
         if (state.showProgram)
             compilation.EmitTree(Console.Out);
 
-        handle.diagnostics.Move(compilation.diagnostics.FilterOut(DiagnosticType.Warning));
-        EvaluationResult result = null;
+        if (state.showWarnings)
+            handle.diagnostics.Move(compilation.diagnostics);
+        else
+            handle.diagnostics.Move(compilation.diagnostics.FilterOut(DiagnosticType.Warning));
 
+        EvaluationResult result = null;
         Console.ForegroundColor = state.colorTheme.result;
 
-        if (!handle.diagnostics.Any()) {
+        if (!handle.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
             result = compilation.Evaluate(state.variables);
-            handle.diagnostics.Move(result.diagnostics.FilterOut(DiagnosticType.Warning));
+
+            if (state.showWarnings)
+                handle.diagnostics.Move(result.diagnostics);
+            else
+                handle.diagnostics.Move(result.diagnostics.FilterOut(DiagnosticType.Warning));
         }
+
+        var hasErrors = handle.diagnostics.FilterOut(DiagnosticType.Warning).Any();
 
         if (handle.diagnostics.Any()) {
             if (diagnosticHandle != null) {
@@ -183,7 +193,9 @@ public sealed class BelteRepl : ReplBase {
             } else {
                 handle.diagnostics.Clear();
             }
-        } else {
+        }
+
+        if (!hasErrors) {
             if (result.hasValue && !state.loadingSubmissions) {
                 RenderResult(result.value);
                 _writer.WriteLine();
@@ -507,6 +519,12 @@ public sealed class BelteRepl : ReplBase {
         state.currentPage = Page.Repl;
     }
 
+    [MetaCommand("showWarnings", "Toggle to display compiler produced warnings")]
+    private void EvaluateShowWarnings() {
+        state.showWarnings = !state.showWarnings;
+        _writer.WriteLine(state.showWarnings ? "Warnings shown" : "Warnings ignored");
+    }
+
     /// <summary>
     /// All required fields to implement for a REPL color theme (only supported if using System.Console as out).
     /// </summary>
@@ -580,7 +598,7 @@ public sealed class BelteRepl : ReplBase {
     /// <summary>
     /// Dark theme (default). Mostly dark colors and pairs well with dark themed terminals.
     /// </summary>
-    internal class DarkTheme : ColorTheme {
+    internal sealed class DarkTheme : ColorTheme {
         internal override ConsoleColor @default => ConsoleColor.DarkGray;
         internal override ConsoleColor selection => ConsoleColor.DarkGray;
         internal override ConsoleColor textDefault => ConsoleColor.White;
@@ -599,7 +617,7 @@ public sealed class BelteRepl : ReplBase {
     /// <summary>
     /// Light theme. Mostly bright colors and pairs well with light themed terminals.
     /// </summary>
-    internal class LightTheme : ColorTheme {
+    internal sealed class LightTheme : ColorTheme {
         internal override ConsoleColor @default => ConsoleColor.DarkGray;
         internal override ConsoleColor selection => ConsoleColor.DarkGray;
         internal override ConsoleColor textDefault => ConsoleColor.Black;
@@ -618,7 +636,7 @@ public sealed class BelteRepl : ReplBase {
     /// <summary>
     /// Green theme. Mostly dark colors with green background.
     /// </summary>
-    internal class GreenTheme : ColorTheme {
+    internal sealed class GreenTheme : ColorTheme {
         internal override ConsoleColor @default => ConsoleColor.DarkGray;
         internal override ConsoleColor selection => ConsoleColor.DarkGray;
         internal override ConsoleColor textDefault => ConsoleColor.Black;
@@ -647,6 +665,11 @@ public sealed class BelteRepl : ReplBase {
         /// Show the lowered code after a submission.
         /// </summary>
         public bool showProgram = false;
+
+        /// <summary>
+        /// Show compiler produced warnings.
+        /// </summary>
+        public bool showWarnings = false;
 
         /// <summary>
         /// If to ignore statements with side effects (Print, PrintLine, etc.).

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Diagnostics;
 
 // * Needs to use the lexer, parser, and constant evaluator to evaluate statements like #run, #if, #elif, and #define
 
@@ -8,8 +9,12 @@ namespace Buckle.CodeAnalysis.Preprocessing;
 /// <summary>
 /// Evaluates preprocessor statements
 /// </summary>
-internal class Preprocessor {
+internal sealed class Preprocessor {
     private Dictionary<string, string> symbols = new Dictionary<string, string>();
+
+    internal Preprocessor() {
+        diagnostics = new BelteDiagnosticQueue();
+    }
 
     /// <summary>
     /// Preprocesses a file.
@@ -30,4 +35,6 @@ internal class Preprocessor {
         // ! Temp code - just so it compiles
         return text;
     }
+
+    internal BelteDiagnosticQueue diagnostics;
 }

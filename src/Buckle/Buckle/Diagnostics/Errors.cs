@@ -75,7 +75,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic UnexpectedToken(
-        TextLocation location, SyntaxType unexpected, SyntaxType? expected=null) {
+        TextLocation location, SyntaxType unexpected, SyntaxType? expected = null) {
         string message;
 
         if (expected == null)
@@ -157,9 +157,9 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UndefinedName), location, message);
     }
 
-    internal static BelteDiagnostic FunctionAlreadyDeclared(TextLocation location, string name) {
-        var message = $"redefinition of function '{name}'";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_FunctionAlreadyDeclared), location, message);
+    internal static BelteDiagnostic MethodAlreadyDeclared(TextLocation location, string name) {
+        var message = $"redefinition of method '{name}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MethodAlreadyDeclared), location, message);
     }
 
     internal static BelteDiagnostic NotAllPathsReturn(TextLocation location) {
@@ -179,6 +179,10 @@ internal static class Error {
 
     internal static BelteDiagnostic ConstantAssignment(TextLocation location, string name) {
         var message = $"assignment of constant variable '{name}'";
+
+        if (name == null)
+            message = "assignment of constant";
+
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstantAssignment), location, message);
     }
 
@@ -387,5 +391,10 @@ internal static class Error {
     internal static BelteDiagnostic CannotAssign(TextLocation location) {
         var message = "left side of assignment operation must be a variable or field";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotAssign), location, message);
+    }
+
+    internal static BelteDiagnostic CannotOverloadNested(TextLocation location, string name) {
+        var message = $"cannot overload nested functions; nested function '{name}' has already been declared";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotOverloadNested), location, message);
     }
 }

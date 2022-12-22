@@ -52,25 +52,8 @@ internal static class ConstantFolding {
         if (leftValue == null || rightValue == null)
             return new BoundConstant(null);
 
-        if (leftType == TypeSymbol.Bool) {
-            leftValue = Convert.ToBoolean(leftValue);
-            rightValue = Convert.ToBoolean(rightValue);
-        } else if (leftType == TypeSymbol.Int) {
-            // Prevents bankers rounding from Convert.ToInt32, instead always truncate (no rounding)
-            if (leftValue.IsFloatingPoint())
-                leftValue = Math.Truncate(Convert.ToDouble(leftValue));
-            if (rightValue.IsFloatingPoint())
-                rightValue = Math.Truncate(Convert.ToDouble(rightValue));
-
-            leftValue = Convert.ToInt32(leftValue);
-            rightValue = Convert.ToInt32(rightValue);
-        } else if (leftType == TypeSymbol.Decimal) {
-            leftValue = Convert.ToDouble(leftValue);
-            rightValue = Convert.ToDouble(rightValue);
-        } else if (leftType == TypeSymbol.String) {
-            leftValue = Convert.ToString(leftValue);
-            rightValue = Convert.ToString(rightValue);
-        }
+        leftValue = CastUtilities.Cast(leftValue, leftType);
+        rightValue = CastUtilities.Cast(rightValue, leftType);
 
         switch (op.opType) {
             case BoundBinaryOperatorType.Addition:

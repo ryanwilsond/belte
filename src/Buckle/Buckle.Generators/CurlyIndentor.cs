@@ -6,7 +6,7 @@ namespace Buckle.Generators;
 /// <summary>
 /// Keeps track of a new curly brace enclosed scope.
 /// </summary>
-internal class CurlyIndenter : IDisposable {
+internal sealed class CurlyIndenter : IDisposable {
     private IndentedTextWriter _indentedTextWriter;
 
     /// <summary>

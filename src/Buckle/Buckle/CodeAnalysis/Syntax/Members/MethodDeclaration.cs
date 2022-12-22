@@ -2,18 +2,18 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Function declaration (including body).
+/// Method declaration (including body).
 /// E.g.
 /// <code>
-/// void FunctionName(int a) {
+/// void MethodName(int a) {
 ///     Print(a);
 /// }
 /// </code>
 /// </summary>
-internal sealed partial class FunctionDeclaration : Member {
+internal sealed partial class MethodDeclaration : Member {
     /// <param name="returnType"><see cref="TypeClause" /> of return type.</param>
-    /// <param name="identifier">Name of the function.</param>
-    internal FunctionDeclaration(
+    /// <param name="identifier">Name of the method.</param>
+    internal MethodDeclaration(
         SyntaxTree syntaxTree, TypeClause returnType, Token identifier, Token openParenthesis,
         SeparatedSyntaxList<Parameter> parameters, Token closeParenthesis, BlockStatement body)
         : base(syntaxTree) {
@@ -31,7 +31,7 @@ internal sealed partial class FunctionDeclaration : Member {
     internal TypeClause returnType { get; }
 
     /// <summary>
-    /// Name of the function.
+    /// Name of the method.
     /// </summary>
     internal Token identifier { get; }
 

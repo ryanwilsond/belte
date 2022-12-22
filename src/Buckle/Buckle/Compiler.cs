@@ -6,6 +6,7 @@ using Buckle.CodeAnalysis.Preprocessing;
 using Buckle.Diagnostics;
 using Diagnostics;
 using Buckle.CodeAnalysis.Evaluating;
+using System.Linq;
 
 namespace Buckle;
 
@@ -133,15 +134,31 @@ public sealed class Compiler {
     /// <summary>
     /// Creates a new <see cref="Compiler" />, state needs to be set separately.
     /// </summary>
-    public Compiler() {
+    public Compiler(DiagnosticHandle handle) {
         diagnostics = new BelteDiagnosticQueue();
+        this.diagnosticHandle = handle;
     }
+
+    /// <summary>
+    /// Callback to handle Diagnostics, be it logging or displaying to the console.
+    /// </summary>
+    /// <param name="compiler"><see cref="Compiler" /> object representing entirety of compilation.</param>
+    /// <param name="me">Display name of the program.</param>
+    /// <returns>C-Style error code of most severe <see cref="Diagnostic" />.</returns>
+    public delegate int DiagnosticHandle(Compiler compiler);
 
     /// <summary>
     /// Compiler specific state that determines what to compile and how.
     /// Required to compile.
     /// </summary>
     public CompilerState state { get; set; }
+
+    /// <summary>
+    /// Callback to handle Diagnostics, be it logging or displaying to the console.
+    /// </summary>
+    /// <param name="compiler"><see cref="Compiler" /> object representing entirety of compilation.</param>
+    /// <returns>C-Style error code of most severe <see cref="Diagnostic" />.</returns>
+    public DiagnosticHandle diagnosticHandle { get; set; }
 
     /// <summary>
     /// The name of the compiler (usually displayed with diagnostics).
@@ -210,11 +227,15 @@ public sealed class Compiler {
     }
 
     private int CheckErrors() {
+        var worst = SuccessExitCode;
+
         foreach (Diagnostic diagnostic in diagnostics)
             if (diagnostic.info.severity == DiagnosticType.Error)
-                return ErrorExitCode;
+                worst = ErrorExitCode;
 
-        return SuccessExitCode;
+        diagnosticHandle(this);
+
+        return worst;
     }
 
     private void ExternalAssembler() {
@@ -237,6 +258,8 @@ public sealed class Compiler {
             var text = preprocessor.PreprocessText(task.inputFilename, task.fileContent.text);
             task.fileContent.text = text;
         }
+
+        diagnostics.Move(preprocessor.diagnostics);
     }
 
     private void InternalInterpreter() {
@@ -256,12 +279,20 @@ public sealed class Compiler {
         var compilation = Compilation.Create(syntaxTrees.ToArray());
         diagnostics.Move(compilation.diagnostics);
 
-        diagnostics = diagnostics.FilterOut(DiagnosticType.Warning);
-        if (diagnostics.Any())
+        if (!state.options.Contains("all") && !state.options.Contains("error"))
+            diagnostics = diagnostics.FilterOut(DiagnosticType.Warning);
+
+        if ((diagnostics.FilterOut(DiagnosticType.Warning).Any()) ||
+            (diagnostics.Any() && state.options.Contains("error")))
             return;
 
-        var result = compilation.Evaluate(new Dictionary<VariableSymbol, EvaluatorObject>());
-        diagnostics.Move(result.diagnostics);
+        var result = compilation.Evaluate(
+            new Dictionary<VariableSymbol, EvaluatorObject>(), state.options.Contains("error"));
+
+        if (!state.options.Contains("all") && !state.options.Contains("error"))
+            diagnostics.Move(result.diagnostics.FilterOut(DiagnosticType.Warning));
+        else
+            diagnostics.Move(result.diagnostics);
     }
 
     private void InternalCompiler() { }
@@ -280,7 +311,9 @@ public sealed class Compiler {
         }
 
         var compilation = Compilation.Create(syntaxTrees.ToArray());
-        var result = compilation.Emit(state.moduleName, state.references, state.outputFilename);
+        var result = compilation.Emit(
+            state.moduleName, state.references, state.outputFilename, state.options.Contains("error"));
+
         diagnostics.Move(result);
     }
 }

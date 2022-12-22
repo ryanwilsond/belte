@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
-// TODO Make sure that block statements can still have return statements (they might)
 /// <summary>
 /// Inline function expression, similar to local function but is evaluated immediately and has no signature.<br/>
 /// E.g.

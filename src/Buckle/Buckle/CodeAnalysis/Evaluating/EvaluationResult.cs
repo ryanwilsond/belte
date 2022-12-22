@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -11,17 +13,19 @@ internal sealed class EvaluationResult {
     /// </summary>
     /// <param name="value">Result of evaluation.</param>
     /// <param name="diagnostics">Diagnostics associated with value.</param>
-    internal EvaluationResult(object value, bool hasValue, BelteDiagnosticQueue diagnostics) {
+    internal EvaluationResult(
+        object value, bool hasValue, BelteDiagnosticQueue diagnostics, List<Exception> exceptions) {
         this.value = value;
         this.hasValue = hasValue;
         this.diagnostics = new BelteDiagnosticQueue();
         this.diagnostics.Move(diagnostics);
+        this.exceptions = exceptions == null ? new List<Exception>() : new List<Exception>(exceptions);
     }
 
     /// <summary>
     /// Creates an empty <see cref="EvaluationResult" />.
     /// </summary>
-    internal EvaluationResult() : this(null, false, null) { }
+    internal EvaluationResult() : this(null, false, null, null) { }
 
     /// <summary>
     /// Diagnostics related to a single evaluation.
@@ -37,4 +41,9 @@ internal sealed class EvaluationResult {
     /// Flag to distinguish the lack of value from the value of null.
     /// </summary>
     internal bool hasValue { get; set; }
+
+    /// <summary>
+    /// All exceptions thrown while evaluating.
+    /// </summary>
+    internal List<Exception> exceptions { get; set; }
 }

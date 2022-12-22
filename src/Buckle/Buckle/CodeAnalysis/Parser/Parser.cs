@@ -234,7 +234,7 @@ internal sealed class Parser {
         var closeParenthesis = Match(SyntaxType.CloseParenToken);
         var body = (BlockStatement)ParseBlockStatement();
 
-        return new FunctionDeclaration(
+        return new MethodDeclaration(
             _syntaxTree, typeClause, identifier, openParenthesis, parameters, closeParenthesis, body);
     }
 
@@ -398,7 +398,7 @@ internal sealed class Parser {
             _syntaxTree, doKeyword, body, whileKeyword, openParenthesis, condition, closeParenthesis, semicolon);
     }
 
-    private Statement ParseVariableDeclarationStatement(bool allowDefinition=true) {
+    private Statement ParseVariableDeclarationStatement(bool allowDefinition = true) {
         var typeClause = ParseTypeClause();
         var identifier = Match(SyntaxType.IdentifierToken);
 
@@ -414,7 +414,7 @@ internal sealed class Parser {
             }
         }
 
-        var semicolon = Match(SyntaxType.SemicolonToken, suppressErrors: true);
+        var semicolon = Match(SyntaxType.SemicolonToken);
 
         return new VariableDeclarationStatement(
             _syntaxTree, typeClause, identifier, equals, initializer, semicolon);
@@ -821,7 +821,7 @@ internal sealed class Parser {
     }
 
     private Expression ParsePrimaryOperatorExpression(
-        Node operand, int parentPrecedence = 0, Token maybeUnexpected=null) {
+        Node operand, int parentPrecedence = 0, Token maybeUnexpected = null) {
         Node ParseCorrectPrimaryOperator(Node operand) {
             if (operand.type == SyntaxType.TypeOfKeyword)
                 return ParseTypeOfExpression();
@@ -876,7 +876,7 @@ internal sealed class Parser {
         if (current.type == SyntaxType.TypeOfKeyword)
             left = current;
         else
-            left = ParseNameExpression(true);
+            left = ParseNameExpression();
 
         return ParsePrimaryOperatorExpression(left, maybeUnexpected: maybeUnexpected);
     }
@@ -932,8 +932,8 @@ internal sealed class Parser {
         return new SeparatedSyntaxList<Expression>(nodesAndSeparators.ToImmutable());
     }
 
-    private Expression ParseNameExpression(bool suppressErrors = false) {
-        var identifier = Match(SyntaxType.IdentifierToken, suppressErrors: suppressErrors);
+    private Expression ParseNameExpression() {
+        var identifier = Match(SyntaxType.IdentifierToken, suppressErrors: true);
         return new NameExpression(_syntaxTree, identifier);
     }
 }

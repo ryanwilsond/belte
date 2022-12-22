@@ -129,10 +129,11 @@ public abstract class ReplBase {
 
     [MetaCommand("help", "Shows this document")]
     protected void EvaluateHelp() {
-        // TODO Does not calculate length of default values
         var maxLength = _metaCommands
-            .Max(mc => mc.name.Length + string.Join(" ", mc.method.GetParameters()
-            .SelectMany(p => p.Name).ToList()).Length);
+            .Max(
+                mc => mc.name.Length +
+                string.Join(" ", mc.method.GetParameters().SelectMany(p => p.Name).ToList()).Length +
+                string.Join(" ", mc.method.GetParameters().SelectMany(p => p.DefaultValue.ToString()).ToList()).Length);
 
         var previous = Console.ForegroundColor;
 
@@ -765,6 +766,9 @@ public abstract class ReplBase {
     }
 
     private void HandleTyping(ObservableCollection<string> document, SubmissionView view, string text) {
+        if (document[view.currentLine].Length >= Console.WindowWidth - 3)
+            return;
+
         var lineIndex = view.currentLine;
 
         Dictionary<char, char> pairs = new Dictionary<char, char>(){
@@ -776,7 +780,7 @@ public abstract class ReplBase {
         if (text == "{" || text == "(" || text == "[")
             view.currentBlockTabbing.Push((pairs[text.Single()], view.currentTypingTabbing));
 
-        if ((text == "}" || text == ")" || text == "]") && String.IsNullOrWhiteSpace(document[lineIndex])) {
+        if ((text == "}" || text == ")" || text == "]")) {
             var foundPair = false;
 
             if (view.currentBlockTabbing.Count > 0) {
@@ -792,12 +796,14 @@ public abstract class ReplBase {
                 if (targetTabbing.Item1 == text.Single()) {
                     foundPair = true;
 
-                    for (int i=view.currentTypingTabbing; i>targetTabbing.Item2; i--)
-                        HandleShiftTab(document, view);
+                    if (String.IsNullOrWhiteSpace(document[lineIndex])) {
+                        for (int i=view.currentTypingTabbing; i>targetTabbing.Item2; i--)
+                            HandleShiftTab(document, view);
+                    }
                 }
             }
 
-            if (!foundPair) {
+            if (!foundPair && String.IsNullOrWhiteSpace(document[lineIndex])) {
                 document[lineIndex] = "";
                 view.currentCharacter = 0;
             }
@@ -945,7 +951,7 @@ public abstract class ReplBase {
     /// <summary>
     /// Wrapper around the System.Console class.
     /// </summary>
-    internal class OutputCapture : TextWriter, IDisposable {
+    internal sealed class OutputCapture : TextWriter, IDisposable {
         /// <summary>
         /// Creates an out.
         /// </summary>

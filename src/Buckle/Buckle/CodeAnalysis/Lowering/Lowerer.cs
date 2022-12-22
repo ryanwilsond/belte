@@ -276,6 +276,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         if (expression.op.opType == BoundBinaryOperatorType.Power) {
             // TODO
+            // * Will do in the StackFrameParser
             return base.RewriteBinaryExpression(expression);
         }
 

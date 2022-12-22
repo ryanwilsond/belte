@@ -190,9 +190,7 @@ public class EvaluatorTests {
     [InlineData("int x = 4; ref int y = ref x; y++; return x;", 5)]
     [InlineData("int x = 4; int y = 3; ref int z = ref x; z = ref y; z++; return x;", 4)]
 
-    // TODO Add these tests and implement required feature (is/isnt type)
-    // It is commented out right now because this features was bigger than expected,
-    // So this feature is not going to be added in this PR
+    // TODO
     // [InlineData("3 is int;", true)]
     // [InlineData("null is int;", false)]
     // [InlineData("4 is decimal;", false)]
@@ -216,9 +214,11 @@ public class EvaluatorTests {
     [InlineData("(int)3.6;", 3)]
     [InlineData("([NotNull]int)3;", 3)]
 
-    // * Will get fixed with StackFrameParser
-    // [InlineData("int funcA() { int funcB() { return 2; } return funcB() + 1; } return funcA(); ", 3)]
-    // [InlineData("int funcA() { int funcB() { int funcA() { return 2; } return funcA() + 1; } return funcB() + 1; } return funcA();", 3)]
+    [InlineData("int funcA() { int funcB() { return 2; } return funcB() + 1; } return funcA(); ", 3)]
+    [InlineData("int funcA() { int funcB() { int funcA() { return 2; } return funcA() + 1; } return funcB() + 1; } return funcA();", 4)]
+
+    [InlineData("struct A { int num; } A myVar = A(); myVar.num = 3; return myVar.num + 1;", 4)]
+    [InlineData("struct A { int num; } struct B { A a; } B myVar = B(); myVar.a = A(); myVar.a.num = 3; return myVar.a.num + 1;", 4)]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
         AssertValue(text, expectedValue);
     }
@@ -737,14 +737,11 @@ public class EvaluatorTests {
 
     [Fact]
     public void Evaluator_DivideByZero_ThrowsException() {
-        // TODO Need a way to assert exceptions
         var text = @"
             56/0;
         ";
 
-        var diagnostics = @"";
-
-        AssertDiagnostics(text, diagnostics);
+        AssertExceptions(text, new DivideByZeroException());
     }
 
     [Fact]
@@ -801,6 +798,24 @@ public class EvaluatorTests {
         Assert.Equal(expectedValue, result.value);
     }
 
+    private void AssertExceptions(string text, params Exception[] exceptions) {
+        var syntaxTree = SyntaxTree.Parse(text);
+        var compilation = Compilation.CreateScript(null, syntaxTree);
+        var result = compilation.Evaluate(new Dictionary<VariableSymbol, EvaluatorObject>());
+
+        if (exceptions.Length != result.exceptions.Count) {
+            writer.WriteLine($"Input: {text}");
+
+            foreach (var exception in result.exceptions)
+                writer.WriteLine($"Exception ({exception}): {exception.Message}");
+        }
+
+        Assert.Equal(exceptions.Length, result.exceptions.Count);
+
+        for (int i=0; i<exceptions.Length; i++)
+            Assert.Equal(exceptions[i].GetType(), result.exceptions[i].GetType());
+    }
+
     private void AssertDiagnostics(string text, string diagnosticText, bool assertWarnings = false) {
         var annotatedText = AnnotatedText.Parse(text);
         var syntaxTree = SyntaxTree.Parse(annotatedText.text);
@@ -826,6 +841,7 @@ public class EvaluatorTests {
 
         if (expectedDiagnostics.Length != diagnostics.count) {
             writer.WriteLine($"Input: {annotatedText.text}");
+
             foreach (var diagnostic in diagnostics.AsList())
                 writer.WriteLine($"Diagnostic ({diagnostic.info.severity}): {diagnostic.message}");
         }

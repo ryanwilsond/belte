@@ -10,21 +10,17 @@ using static Buckle.Utilities.FunctionUtilities;
 namespace Buckle.CodeAnalysis.Evaluating;
 
 /// <summary>
-/// Evaluates BoundStatements as an interpreter, inline.
+/// Evaluates BoundStatements inline similar to an interpreter.
 /// </summary>
 internal sealed class Evaluator {
     private readonly BoundProgram _program;
-    private readonly Dictionary<VariableSymbol, EvaluatorObject> _globals;
     private readonly Dictionary<FunctionSymbol, BoundBlockStatement> _functions =
         new Dictionary<FunctionSymbol, BoundBlockStatement>();
-    private readonly Stack<Dictionary<VariableSymbol, EvaluatorObject>> _locals =
-        new Stack<Dictionary<VariableSymbol, EvaluatorObject>>();
     private readonly Dictionary<TypeSymbol, ImmutableList<FieldSymbol>> _types =
         new Dictionary<TypeSymbol, ImmutableList<FieldSymbol>>();
-    private EvaluatorObject _lastValue;
-    private Random _random;
-    private bool _hasPrint = false;
-    private bool _hasValue = true;
+    private readonly Dictionary<VariableSymbol, EvaluatorObject> _globals;
+    private readonly Stack<Dictionary<VariableSymbol, EvaluatorObject>> _locals =
+        new Stack<Dictionary<VariableSymbol, EvaluatorObject>>();
 
     /// <summary>
     /// Creates an <see cref="Evaluator" /> that can evaluate a <see cref="BoundProgram" /> (provided globals).
@@ -33,6 +29,7 @@ internal sealed class Evaluator {
     /// <param name="globals">Globals.</param>
     internal Evaluator(BoundProgram program, Dictionary<VariableSymbol, EvaluatorObject> globals) {
         diagnostics = new BelteDiagnosticQueue();
+        exceptions = new List<Exception>();
         _program = program;
         _globals = globals;
         _locals.Push(new Dictionary<VariableSymbol, EvaluatorObject>());
@@ -64,9 +61,19 @@ internal sealed class Evaluator {
     }
 
     /// <summary>
+    /// All thrown exceptions during evaluation.
+    /// </summary>
+    internal List<Exception> exceptions { get; set; }
+
+    /// <summary>
     /// Diagnostics specific to the <see cref="Evaluator" />.
     /// </summary>
     internal BelteDiagnosticQueue diagnostics { get; set; }
+
+    private EvaluatorObject _lastValue;
+    private Random _random;
+    private bool _hasPrint = false;
+    private bool _hasValue = false;
 
     /// <summary>
     /// Evaluate the provided <see cref="BoundProgram" />.
@@ -86,30 +93,34 @@ internal sealed class Evaluator {
         return Value(result, true);
     }
 
-    private object GetVariableValue(
-        VariableSymbol variable, FieldSymbol member=null, bool traceCollections=false) {
-        EvaluatorObject value = null;
-
-        if (variable.type == SymbolType.GlobalVariable) {
-            value = _globals[variable];
-        } else {
-            var locals = _locals.Peek();
-            value = locals[variable];
-        }
-
-        if (member != null) {
-            var dictionary = Value(value) as Dictionary<FieldSymbol, EvaluatorObject>;
-            value = dictionary[member];
-        }
+    private object GetVariableValue(VariableSymbol variable, bool traceCollections = false) {
+        var value = Get(variable);
 
         return Value(value, traceCollections);
+    }
+
+    private EvaluatorObject GetFrom(Dictionary<VariableSymbol, EvaluatorObject> variables, VariableSymbol variable) {
+        foreach (var pair in variables)
+            if (variable.name == pair.Key.name && BoundTypeClause.Equals(variable.typeClause, pair.Key.typeClause))
+                return pair.Value;
+
+        throw new BelteInternalException($"GetFrom: '{variable.name}' was not found in the scope");
+    }
+
+    private EvaluatorObject Get(VariableSymbol variable) {
+        if (variable.type == SymbolType.GlobalVariable) {
+            return GetFrom(_globals, variable);
+        } else {
+            var locals = _locals.Peek();
+            return GetFrom(locals, variable);
+        }
     }
 
     private object DictionaryValue(Dictionary<FieldSymbol, EvaluatorObject> value) {
         var dictionary = new Dictionary<object, object>();
 
         foreach (var pair in value)
-            dictionary.Add(pair.Key.name, Value(pair.Value));
+            dictionary.Add(pair.Key.name, Value(pair.Value, true));
 
         return dictionary;
     }
@@ -123,20 +134,77 @@ internal sealed class Evaluator {
         return builder.ToArray();
     }
 
-    private object Value(EvaluatorObject value, bool traceCollections=false) {
+    private object Value(EvaluatorObject value, bool traceCollections = false) {
         if (value.isReference)
-            return GetVariableValue(value.reference, value.fieldReference, traceCollections);
+            return GetVariableValue(value.reference, traceCollections);
         else if (value.value is EvaluatorObject)
             return Value(value.value as EvaluatorObject, traceCollections);
         else if (value.value is EvaluatorObject[] && traceCollections)
             return CollectionValue(value.value as EvaluatorObject[]);
-        else if (traceCollections && value.value is Dictionary<FieldSymbol, EvaluatorObject>)
-            return DictionaryValue(value.value as Dictionary<FieldSymbol, EvaluatorObject>);
+        else if (traceCollections && value.value == null && value.members != null)
+            return DictionaryValue(value.members);
         else
             return value.value;
     }
 
+    private void Create(VariableSymbol left, EvaluatorObject right) {
+        if (left.type == SymbolType.GlobalVariable) {
+            var set = false;
+
+            foreach (var global in _globals) {
+                if (global.Key.name == left.name) {
+                    _globals.Remove(global.Key);
+                    _globals[left] = right;
+                    set = true;
+                    break;
+                }
+            }
+
+            if (!set)
+                _globals[left] = right;
+        } else {
+            var locals = _locals.Peek();
+            var set = false;
+
+            foreach (var local in locals) {
+                if (local.Key.name == left.name) {
+                    locals.Remove(local.Key);
+                    locals[left] = right;
+                    set = true;
+                    break;
+                }
+            }
+
+            if (!set)
+                locals[left] = right;
+        }
+    }
+
+    private void Assign(EvaluatorObject left, EvaluatorObject right) {
+        while (right.isReference && !right.isExplicitReference)
+            right = Get(right.reference);
+
+        while (left.isReference && !left.isExplicitReference)
+            left = Get(left.reference);
+
+        if (right.isExplicitReference) {
+            left.reference = right.reference;
+            return;
+        } else if (left.isExplicitReference) {
+            while (left.isReference)
+                left = Get(left.reference);
+        }
+
+        if (right.value == null && right.members != null) {
+            left.members = right.members;
+        } else {
+            left.value = Value(right);
+        }
+    }
+
     private EvaluatorObject EvaluateStatement(BoundBlockStatement statement) {
+        _hasValue = false;
+
         try {
             var labelToIndex = new Dictionary<BoundLabel, int>();
 
@@ -154,6 +222,7 @@ internal sealed class Evaluator {
                         index++;
                         break;
                     case BoundNodeType.ExpressionStatement:
+                        _hasValue = true;
                         EvaluateExpressionStatement((BoundExpressionStatement)s);
                         index++;
                         break;
@@ -181,9 +250,10 @@ internal sealed class Evaluator {
                     case BoundNodeType.ReturnStatement:
                         var returnStatement = (BoundReturnStatement)s;
                         var _lastValue = returnStatement.expression == null
-                            ? null
+                            ? new EvaluatorObject()
                             : EvaluateExpression(returnStatement.expression);
 
+                        _hasValue = returnStatement.expression == null ? false : true;
                         return _lastValue;
                     default:
                         throw new BelteInternalException($"EvaluateStatement: unexpected statement '{s.type}'");
@@ -192,61 +262,25 @@ internal sealed class Evaluator {
 
             return _lastValue;
         } catch (Exception e) when (!(e is BelteInternalException)) {
+            exceptions.Add(e);
             var previous = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Red;
             Console.Write("Unhandled exception: ");
             Console.ForegroundColor = previous;
             Console.WriteLine(e.Message);
-            return new EvaluatorObject(null);
+            _hasValue = false;
+            return new EvaluatorObject();
         }
     }
 
     private void EvaluateExpressionStatement(BoundExpressionStatement statement) {
-        _hasValue = true;
         _lastValue = EvaluateExpression(statement.expression);
     }
 
     private void EvaluateVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
         var value = EvaluateExpression(statement.initializer);
         _lastValue = null;
-        _hasValue = false;
-        Assign(statement.variable, value);
-    }
-
-    private void Assign(VariableSymbol variable, EvaluatorObject value, FieldSymbol field=null) {
-        if (value.isReference && !value.isExplicitReference) {
-            if (value.reference.type == SymbolType.GlobalVariable) {
-                value = _globals[value.reference];
-            } else {
-                var locals = _locals.Peek();
-                value = locals[value.reference];
-            }
-        }
-
-        if (variable.type == SymbolType.GlobalVariable) {
-            var currentValue = _globals.ContainsKey(variable) ? _globals[variable] : null;
-
-            if (currentValue != null && currentValue.isReference && !value.isReference) {
-                Assign(currentValue.reference, value, field);
-            } else {
-                if (field == null)
-                    _globals[variable] = value;
-                else
-                    ((Dictionary<FieldSymbol, EvaluatorObject>)(_globals[variable].value))[field] = value;
-            }
-        } else {
-            var locals = _locals.Peek();
-            var currentValue = locals.ContainsKey(variable) ? locals[variable] : null;
-
-            if (currentValue != null && currentValue.isReference && !value.isReference) {
-                Assign(currentValue.reference, value, field);
-            } else {
-                if (field == null)
-                    locals[variable] = value;
-                else
-                    ((Dictionary<FieldSymbol, EvaluatorObject>)(locals[variable].value))[field] = value;
-            }
-        }
+        Create(statement.variable, value);
     }
 
     private EvaluatorObject EvaluateExpression(BoundExpression node) {
@@ -280,7 +314,7 @@ internal sealed class Evaluator {
             case BoundNodeType.TypeOfExpression:
                 return EvaluateTypeOfExpression((BoundTypeOfExpression)node);
             case BoundNodeType.EmptyExpression:
-                return new EvaluatorObject(null);
+                return new EvaluatorObject();
             case BoundNodeType.ConstructorExpression:
                 return EvaluateConstructorExpression((BoundConstructorExpression)node);
             case BoundNodeType.MemberAccessExpression:
@@ -291,40 +325,31 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateMemberAccessExpression(BoundMemberAccessExpression node) {
-        if (node.operand is BoundVariableExpression v) {
-            // By reference
-            return new EvaluatorObject(v.variable, node.member);
-        }
-
         var operand = EvaluateExpression(node.operand);
 
-        if (operand.isReference) {
-            // By reference
-            return new EvaluatorObject(operand.reference, node.member);
-        } else {
-            // By value
-            var value = Value(operand) as Dictionary<FieldSymbol, EvaluatorObject>;
-            return new EvaluatorObject(value[node.member]);
-        }
+        if (operand.isReference)
+            return Get(operand.reference).members[node.member];
+        else
+            return operand.members[node.member];
     }
 
     private EvaluatorObject EvaluateConstructorExpression(BoundConstructorExpression node) {
         var body = _types[node.symbol];
-        var value = new Dictionary<FieldSymbol, EvaluatorObject>();
+        var members = new Dictionary<FieldSymbol, EvaluatorObject>();
 
         foreach (var field in body)
-            value.Add(field, new EvaluatorObject(null));
+            members.Add(field, new EvaluatorObject());
 
-        return new EvaluatorObject(value);
+        return new EvaluatorObject(members);
     }
 
     private EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression node) {
         // TODO Implement typeof and type types
-        return new EvaluatorObject(null);
+        return new EvaluatorObject();
     }
 
     private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node) {
-        return new EvaluatorObject(node.variable, true);
+        return new EvaluatorObject(node.variable, isExplicitReference: true);
     }
 
     private EvaluatorObject EvaluateIndexExpression(BoundIndexExpression node) {
@@ -352,29 +377,14 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateCast(EvaluatorObject value, BoundTypeClause typeClause) {
-        if (Value(value) == null)
-            return new EvaluatorObject(null);
+        var valueValue = Value(value);
+
+        if (valueValue == null)
+            return value;
 
         var type = typeClause.lType;
-
-        if (type == TypeSymbol.Any) {
-            return value;
-        } else if (type == TypeSymbol.Bool) {
-            return new EvaluatorObject(Convert.ToBoolean(Value(value)));
-        } else if (type == TypeSymbol.Int) {
-            if (Value(value).IsFloatingPoint())
-                value = new EvaluatorObject(Math.Truncate(Convert.ToDouble(Value(value))));
-
-            return new EvaluatorObject(Convert.ToInt32(Value(value)));
-        } else if (type == TypeSymbol.String) {
-            return new EvaluatorObject(Convert.ToString(Value(value)));
-        } else if (type == TypeSymbol.Decimal) {
-            return new EvaluatorObject(Convert.ToDouble(Value(value)));
-        } else if (type is StructSymbol) {
-            return value;
-        }
-
-        throw new BelteInternalException($"EvaluateCast: unexpected type '{typeClause}'");
+        valueValue = CastUtilities.Cast(valueValue, type);
+        return new EvaluatorObject(valueValue);
     }
 
     private EvaluatorObject EvaluateCallExpression(BoundCallExpression node) {
@@ -425,8 +435,7 @@ internal sealed class Evaluator {
             return result;
         }
 
-        _hasValue = false;
-        return new EvaluatorObject(null);
+        return new EvaluatorObject();
     }
 
     private EvaluatorObject EvaluateConstantExpression(BoundExpression expression) {
@@ -440,32 +449,35 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateAssignmentExpresion(BoundAssignmentExpression expression) {
         var left = EvaluateExpression(expression.left);
         var right = EvaluateExpression(expression.right);
-        Assign(left.reference, right, left.fieldReference);
+        Assign(left, right);
 
         return right;
     }
 
     private EvaluatorObject EvaluateUnaryExpression(BoundUnaryExpression expression) {
         var operand = EvaluateExpression(expression.operand);
+        var operandValue = Value(operand);
 
-        if (Value(operand) == null)
-            return new EvaluatorObject(null);
+        if (operandValue == null)
+            return new EvaluatorObject();
+
+        operandValue = CastUtilities.Cast(operandValue, expression.op.operandType.lType);
 
         switch (expression.op.opType) {
             case BoundUnaryOperatorType.NumericalIdentity:
                 if (expression.operand.typeClause.lType == TypeSymbol.Int)
-                    return new EvaluatorObject((int)Value(operand));
+                    return new EvaluatorObject((int)operandValue);
                 else
-                    return new EvaluatorObject((double)Value(operand));
+                    return new EvaluatorObject((double)operandValue);
             case BoundUnaryOperatorType.NumericalNegation:
                 if (expression.operand.typeClause.lType == TypeSymbol.Int)
-                    return new EvaluatorObject(-(int)Value(operand));
+                    return new EvaluatorObject(-(int)operandValue);
                 else
-                    return new EvaluatorObject(-(double)Value(operand));
+                    return new EvaluatorObject(-(double)operandValue);
             case BoundUnaryOperatorType.BooleanNegation:
-                return new EvaluatorObject(!(bool)Value(operand));
+                return new EvaluatorObject(!(bool)operandValue);
             case BoundUnaryOperatorType.BitwiseCompliment:
-                return new EvaluatorObject(~(int)Value(operand));
+                return new EvaluatorObject(~(int)operandValue);
             default:
                 throw new BelteInternalException($"EvaluateUnaryExpression: unknown unary operator '{expression.op}'");
         }
@@ -474,6 +486,7 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateTernaryExpression(BoundTernaryExpression expression) {
         var left = EvaluateExpression(expression.left);
         var leftValue = Value(left);
+        leftValue = CastUtilities.Cast(leftValue, expression.op.leftType.lType);
 
         switch (expression.op.opType) {
             case BoundTernaryOperatorType.Conditional:
@@ -523,10 +536,14 @@ internal sealed class Evaluator {
         var rightValue = Value(right);
 
         if (leftValue == null || rightValue == null)
-            return new EvaluatorObject(null);
+            return new EvaluatorObject();
 
         var expressionType = expression.typeClause.lType;
         var leftType = expression.left.typeClause.lType;
+        var rightType = expression.right.typeClause.lType;
+
+        leftValue = CastUtilities.Cast(leftValue, expression.op.leftType.lType);
+        rightValue = CastUtilities.Cast(rightValue, expression.op.rightType.lType);
 
         switch (expression.op.opType) {
             case BoundBinaryOperatorType.Addition:

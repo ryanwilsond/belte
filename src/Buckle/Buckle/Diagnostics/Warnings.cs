@@ -2,6 +2,7 @@ using System.Linq;
 using Buckle.CodeAnalysis.Text;
 using Buckle.CodeAnalysis.Syntax;
 using Diagnostics;
+using System;
 
 namespace Buckle.Diagnostics;
 
@@ -51,5 +52,10 @@ internal static class Warning {
 
         var message = $"expression will always result to '{value}'";
         return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_AlwaysValue), location, message);
+    }
+
+    internal static BelteDiagnostic NullDeference(TextLocation location) {
+        var message = "deference of a possibly null value";
+        return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_NullDeference), location, message);
     }
 }
