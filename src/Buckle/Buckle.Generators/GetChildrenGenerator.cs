@@ -33,10 +33,12 @@ public class GetChildrenGenerator : ISourceGenerator {
         var immutableArrayType = compilation.GetTypeByMetadataName("System.Collections.Immutable.ImmutableArray`1");
         var separatedSyntaxListType =
             compilation.GetTypeByMetadataName("Buckle.CodeAnalysis.Syntax.SeparatedSyntaxList`1");
+        var syntaxListType =
+            compilation.GetTypeByMetadataName("Buckle.CodeAnalysis.Syntax.SyntaxList`1");
         var nodeType = compilation.GetTypeByMetadataName("Buckle.CodeAnalysis.Syntax.Node");
         var nodeTypes = types.Where(t => !t.IsAbstract && IsDerivedFrom(t, nodeType) && IsPartial(t));
 
-        if (immutableArrayType == null || separatedSyntaxListType == null || nodeType == null)
+        if (immutableArrayType == null || separatedSyntaxListType == null || nodeType == null || syntaxListType == null)
             return;
 
         string indentString = "    ";
@@ -78,6 +80,11 @@ public class GetChildrenGenerator : ISourceGenerator {
                                 IsDerivedFrom(propertyType.TypeArguments[0], nodeType)) {
                                 indentedTextWriter.WriteLine(
                                     $"foreach (var child in {property.Name}.GetWithSeparators())");
+                                indentedTextWriter.WriteLine($"{indentString}yield return child;");
+                            } else if (SymbolEqualityComparer.Default.Equals(
+                                propertyType.OriginalDefinition, syntaxListType) &&
+                                IsDerivedFrom(propertyType.TypeArguments[0], nodeType)) {
+                                indentedTextWriter.WriteLine($"foreach (var child in {property.Name})");
                                 indentedTextWriter.WriteLine($"{indentString}yield return child;");
                             }
                         }

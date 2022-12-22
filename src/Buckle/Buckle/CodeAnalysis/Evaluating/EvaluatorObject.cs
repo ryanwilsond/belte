@@ -55,12 +55,11 @@ internal sealed class EvaluatorObject {
     /// </param>
     /// <param name="isExplicitReference">If this is just a variable, or if it explicitly a reference expression.</param>
     internal EvaluatorObject(
-        VariableSymbol reference, EvaluatorObject nestedReference = null, bool isExplicitReference = false) {
+        VariableSymbol reference, bool isExplicitReference = false) {
         this.value = null;
         this.isReference = true;
         this.reference = reference;
         this.isExplicitReference = isExplicitReference;
-        this.nestedReference = nestedReference;
         this.members = null;
     }
 
@@ -86,11 +85,6 @@ internal sealed class EvaluatorObject {
     /// Not explicitly a reference, but is passed by reference by default.
     /// </summary>
     internal VariableSymbol reference { get; set; }
-
-    /// <summary>
-    /// The owner of this.
-    /// </summary>
-    internal EvaluatorObject nestedReference { get; set; }
 
     /// <summary>
     /// Members stored by this.

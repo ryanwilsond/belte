@@ -94,24 +94,9 @@ internal sealed class Evaluator {
     }
 
     private object GetVariableValue(VariableSymbol variable, bool traceCollections = false) {
-        EvaluatorObject value = null;
-
-        if (variable.type == SymbolType.GlobalVariable) {
-            value = GetFrom(_globals, variable);
-        } else {
-            var locals = _locals.Peek();
-            value = GetFrom(locals, variable);
-        }
+        var value = Get(variable);
 
         return Value(value, traceCollections);
-    }
-
-    private EvaluatorObject GetFromMembers(Dictionary<FieldSymbol, EvaluatorObject> members, FieldSymbol member) {
-        foreach (var pair in members)
-            if (member.name == pair.Key.name && BoundTypeClause.Equals(member.typeClause, pair.Key.typeClause))
-                return pair.Value;
-
-        throw new BelteInternalException($"GetFromMembers: '{member.name}' was not found in member list");
     }
 
     private EvaluatorObject GetFrom(Dictionary<VariableSymbol, EvaluatorObject> variables, VariableSymbol variable) {
@@ -131,22 +116,11 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject GetNestedReference(EvaluatorObject value, out bool ignoreNested) {
-        if (value.nestedReference.nestedReference == null) {
-            var variable = Get(value.nestedReference.reference);
-            ignoreNested = true;
-            return GetFromMembers(variable.members, value.reference as FieldSymbol);
-        }
-
-        ignoreNested = false;
-        return value.nestedReference.members[value.reference as FieldSymbol];
-    }
-
     private object DictionaryValue(Dictionary<FieldSymbol, EvaluatorObject> value) {
         var dictionary = new Dictionary<object, object>();
 
         foreach (var pair in value)
-            dictionary.Add(pair.Key.name, Value(pair.Value, true, true));
+            dictionary.Add(pair.Key.name, Value(pair.Value, true));
 
         return dictionary;
     }
@@ -160,10 +134,8 @@ internal sealed class Evaluator {
         return builder.ToArray();
     }
 
-    private object Value(EvaluatorObject value, bool traceCollections = false, bool ignoreNested = false) {
-        if (value.nestedReference != null && !ignoreNested)
-            return Value(GetNestedReference(value, out var ignore), ignoreNested: ignore);
-        else if (value.isReference)
+    private object Value(EvaluatorObject value, bool traceCollections = false) {
+        if (value.isReference)
             return GetVariableValue(value.reference, traceCollections);
         else if (value.value is EvaluatorObject)
             return Value(value.value as EvaluatorObject, traceCollections);
@@ -206,36 +178,25 @@ internal sealed class Evaluator {
             if (!set)
                 locals[left] = right;
         }
-
-        if (right.members != null)
-            foreach (var pair in right.members)
-                right.members[pair.Key].nestedReference = new EvaluatorObject(left);
     }
 
     private void Assign(EvaluatorObject left, EvaluatorObject right) {
-        while (right.isReference && !right.isExplicitReference) {
-            if (right.nestedReference != null) {
-                left = GetNestedReference(left, out _);
-            } else {
-                right = Get(right.reference);
-            }
-        }
+        while (right.isReference && !right.isExplicitReference)
+            right = Get(right.reference);
 
-        while (left.isReference && !left.isExplicitReference) {
-            if (left.nestedReference != null) {
-                left = GetNestedReference(left, out _);
-            } else {
-                left = Get(left.reference);
-            }
-        }
+        while (left.isReference && !left.isExplicitReference)
+            left = Get(left.reference);
 
         if (right.isExplicitReference) {
             left.reference = right.reference;
+            return;
         } else if (left.isExplicitReference) {
             while (left.isReference)
                 left = Get(left.reference);
+        }
 
-            left.value = Value(right);
+        if (right.value == null && right.members != null) {
+            left.members = right.members;
         } else {
             left.value = Value(right);
         }
@@ -367,9 +328,9 @@ internal sealed class Evaluator {
         var operand = EvaluateExpression(node.operand);
 
         if (operand.isReference)
-            return new EvaluatorObject(node.member, operand);
+            return Get(operand.reference).members[node.member];
         else
-            return new EvaluatorObject(operand.members[node.member]);
+            return operand.members[node.member];
     }
 
     private EvaluatorObject EvaluateConstructorExpression(BoundConstructorExpression node) {
