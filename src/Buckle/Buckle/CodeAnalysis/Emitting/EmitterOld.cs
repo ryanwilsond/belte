@@ -9,6 +9,7 @@ using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using static Buckle.Utilities.FunctionUtilities;
 using Diagnostics;
 
 // TODO This entire file is spaghetti code, need to rewrite with a better understanding of when to use:
@@ -16,24 +17,24 @@ using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Emitting;
 
-internal class _Emitter {
+internal sealed class _Emitter {
     internal BelteDiagnosticQueue diagnostics = new BelteDiagnosticQueue();
 
-    private readonly List<AssemblyDefinition> assemblies = new List<AssemblyDefinition>();
-    private readonly List<(TypeSymbol type, string metadataName)> builtinTypes;
-    private readonly Dictionary<FunctionSymbol, MethodDefinition> methods_ =
+    private readonly List<AssemblyDefinition> _assemblies = new List<AssemblyDefinition>();
+    private readonly List<(TypeSymbol type, string metadataName)> _builtinTypes;
+    private readonly Dictionary<FunctionSymbol, MethodDefinition> _methods =
         new Dictionary<FunctionSymbol, MethodDefinition>();
-    private readonly AssemblyDefinition assemblyDefinition_;
-    private readonly Dictionary<TypeSymbol, TypeReference> knownTypes_;
-    private readonly Dictionary<VariableSymbol, VariableDefinition> locals_ =
+    private readonly AssemblyDefinition _assemblyDefinition;
+    private readonly Dictionary<TypeSymbol, TypeReference> _knownTypes;
+    private readonly Dictionary<VariableSymbol, VariableDefinition> _locals =
         new Dictionary<VariableSymbol, VariableDefinition>();
-    private readonly List<(int instructionIndex, BoundLabel target)> fixups_ =
+    private readonly List<(int instructionIndex, BoundLabel target)> _fixups =
         new List<(int instructionIndex, BoundLabel target)>();
-    private readonly Dictionary<BoundLabel, int> labels_ = new Dictionary<BoundLabel, int>();
-    private bool useNullRef = false;
-    private FunctionSymbol currentFunction_;
+    private readonly Dictionary<BoundLabel, int> _labels = new Dictionary<BoundLabel, int>();
+    private bool _useNullRef = false;
+    private FunctionSymbol _currentFunction;
 
-    private enum NetMethodReference {
+    private enum _NetMethodReference {
         ConsoleWrite,
         ConsoleWriteLine,
         ConsoleReadLine,
@@ -53,13 +54,13 @@ internal class _Emitter {
         NullableHasValue,
     }
 
-    private readonly Dictionary<NetMethodReference, MethodReference> methodReferences_;
+    private readonly Dictionary<_NetMethodReference, MethodReference> _methodReferences;
 
-    private readonly TypeReference randomReference_;
-    private readonly TypeReference nullableReference_;
+    private readonly TypeReference _randomReference;
+    private readonly TypeReference _nullableReference;
 
-    private TypeDefinition typeDefinition_;
-    private FieldDefinition randomFieldDefinition_;
+    private TypeDefinition _typeDefinition;
+    private FieldDefinition _randomFieldDefinition;
 
     private _Emitter(string moduleName, string[] references) {
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
@@ -68,7 +69,7 @@ internal class _Emitter {
         foreach (var reference in references) {
             try {
                 var assembly = AssemblyDefinition.ReadAssembly(reference);
-                assemblies.Add(assembly);
+                _assemblies.Add(assembly);
             } catch (BadImageFormatException) {
                 diagnostics.Push(Error.InvalidReference(reference));
             }
@@ -77,7 +78,7 @@ internal class _Emitter {
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return;
 
-        builtinTypes = new List<(TypeSymbol type, string metadataName)>() {
+        _builtinTypes = new List<(TypeSymbol type, string metadataName)>() {
             (TypeSymbol.Any, "System.Object"),
             (TypeSymbol.Bool, "System.Boolean"),
             (TypeSymbol.Int, "System.Int32"),
@@ -87,82 +88,82 @@ internal class _Emitter {
         };
 
         var assemblyName = new AssemblyNameDefinition(moduleName, new Version(1, 0));
-        assemblyDefinition_ = AssemblyDefinition.CreateAssembly(assemblyName, moduleName, ModuleKind.Console);
-        knownTypes_ = new Dictionary<TypeSymbol, TypeReference>();
+        _assemblyDefinition = AssemblyDefinition.CreateAssembly(assemblyName, moduleName, ModuleKind.Console);
+        _knownTypes = new Dictionary<TypeSymbol, TypeReference>();
 
-        foreach (var (typeSymbol, metadataName) in builtinTypes) {
+        foreach (var (typeSymbol, metadataName) in _builtinTypes) {
             var typeReference = ResolveType(typeSymbol.name, metadataName);
-            knownTypes_.Add(typeSymbol, typeReference);
+            _knownTypes.Add(typeSymbol, typeReference);
         }
 
-        methodReferences_ = new Dictionary<NetMethodReference, MethodReference>() {
+        _methodReferences = new Dictionary<_NetMethodReference, MethodReference>() {
             {
-                NetMethodReference.ConsoleWrite,
+                _NetMethodReference.ConsoleWrite,
                 ResolveMethod("System.Console", "Write", new [] { "System.Object" })
             }, {
-                NetMethodReference.ConsoleWriteLine,
+                _NetMethodReference.ConsoleWriteLine,
                 ResolveMethod("System.Console", "WriteLine", new [] { "System.Object" })
             }, {
-                NetMethodReference.ConsoleReadLine,
+                _NetMethodReference.ConsoleReadLine,
                 ResolveMethod("System.Console", "ReadLine", Array.Empty<string>())
             }, {
-                NetMethodReference.StringConcat2,
+                _NetMethodReference.StringConcat2,
                 ResolveMethod("System.String", "Concat", new [] { "System.String", "System.String" })
             }, {
-                NetMethodReference.StringConcat3,
+                _NetMethodReference.StringConcat3,
                 ResolveMethod("System.String", "Concat", new [] { "System.String", "System.String", "System.String" })
             }, {
-                NetMethodReference.StringConcat4,
+                _NetMethodReference.StringConcat4,
                 ResolveMethod("System.String", "Concat",
                     new [] { "System.String", "System.String", "System.String", "System.String" })
             }, {
-                NetMethodReference.StringConcatArray,
+                _NetMethodReference.StringConcatArray,
                 ResolveMethod("System.String", "Concat", new [] { "System.String[]" })
             }, {
-                NetMethodReference.ConvertToBoolean,
+                _NetMethodReference.ConvertToBoolean,
                 ResolveMethod("System.Convert", "ToBoolean", new [] { "System.Object" })
             }, {
-                NetMethodReference.ConvertToInt32,
+                _NetMethodReference.ConvertToInt32,
                 ResolveMethod("System.Convert", "ToInt32", new [] { "System.Object" })
             }, {
-                NetMethodReference.ConvertToString,
+                _NetMethodReference.ConvertToString,
                 ResolveMethod("System.Convert", "ToString", new [] { "System.Object" })
             }, {
-                NetMethodReference.ConvertToSingle,
+                _NetMethodReference.ConvertToSingle,
                 ResolveMethod("System.Convert", "ToSingle", new [] { "System.Object" })
             }, {
-                NetMethodReference.ObjectEquals,
+                _NetMethodReference.ObjectEquals,
                 ResolveMethod("System.Object", "Equals", new [] { "System.Object", "System.Object" })
             }, {
-                NetMethodReference.RandomCtor,
+                _NetMethodReference.RandomCtor,
                 ResolveMethod("System.Random", ".ctor", Array.Empty<string>())
             }, {
-                NetMethodReference.RandomNext,
+                _NetMethodReference.RandomNext,
                 ResolveMethod("System.Random", "Next", new [] { "System.Int32" })
             }, {
-                NetMethodReference.NullableCtor,
+                _NetMethodReference.NullableCtor,
                 ResolveMethod("System.Nullable`1", ".ctor", null)
             }, {
-                NetMethodReference.NullableValue,
+                _NetMethodReference.NullableValue,
                 ResolveMethod("System.Nullable`1", "get_Value", null)
             }, {
-                NetMethodReference.NullableHasValue,
+                _NetMethodReference.NullableHasValue,
                 ResolveMethod("System.Nullable`1", "get_HasValue", null)
             },
         };
 
-        randomReference_ = ResolveType(null, "System.Random");
-        nullableReference_ = ResolveType(null, "System.Nullable`1");
+        _randomReference = ResolveType(null, "System.Random");
+        _nullableReference = ResolveType(null, "System.Nullable`1");
     }
 
     TypeReference ResolveType(string buckleName, string metadataName) {
-        var foundTypes = assemblies.SelectMany(a => a.Modules)
+        var foundTypes = _assemblies.SelectMany(a => a.Modules)
             .SelectMany(m => m.Types)
             .Where(t => t.FullName == metadataName)
             .ToArray();
 
         if (foundTypes.Length == 1) {
-            var typeReference = assemblyDefinition_.MainModule.ImportReference(foundTypes[0]);
+            var typeReference = _assemblyDefinition.MainModule.ImportReference(foundTypes[0]);
             return typeReference;
         } else if (foundTypes.Length == 0)
             diagnostics.Push(Error.RequiredTypeNotFound(buckleName, metadataName));
@@ -175,7 +176,7 @@ internal class _Emitter {
     MethodReference ResolveMethod(
         string typeName, string methodName, string[] parameterTypeNames) {
 
-        var foundTypes = assemblies.SelectMany(a => a.Modules)
+        var foundTypes = _assemblies.SelectMany(a => a.Modules)
             .SelectMany(m => m.Types)
             .Where(t => t.FullName == typeName)
             .ToArray();
@@ -185,7 +186,7 @@ internal class _Emitter {
             var methods = foundType.Methods.Where(m => m.Name == methodName);
 
             if (methods.ToArray().Length == 1 && parameterTypeNames == null)
-                return assemblyDefinition_.MainModule.ImportReference(methods.Single());
+                return _assemblyDefinition.MainModule.ImportReference(methods.Single());
 
             foreach (var method in methods) {
                 if (method.Parameters.Count != parameterTypeNames.Length)
@@ -203,7 +204,7 @@ internal class _Emitter {
                 if (!allParametersMatch)
                     continue;
 
-                return assemblyDefinition_.MainModule.ImportReference(method);
+                return _assemblyDefinition.MainModule.ImportReference(method);
             }
 
             diagnostics.Push(Error.RequiredMethodNotFound(typeName, methodName, parameterTypeNames));
@@ -230,40 +231,40 @@ internal class _Emitter {
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return diagnostics;
 
-        var objectType = knownTypes_[TypeSymbol.Any];
-        typeDefinition_ = new TypeDefinition(
+        var objectType = _knownTypes[TypeSymbol.Any];
+        _typeDefinition = new TypeDefinition(
             "", "<Program>$", TypeAttributes.Abstract | TypeAttributes.Sealed, objectType);
-        assemblyDefinition_.MainModule.Types.Add(typeDefinition_);
+        _assemblyDefinition.MainModule.Types.Add(_typeDefinition);
 
         foreach (var functionWithBody in program.functionBodies)
             EmitFunctionDeclaration(functionWithBody.Key);
 
         foreach (var functionWithBody in program.functionBodies) {
-            currentFunction_ = functionWithBody.Key;
+            _currentFunction = functionWithBody.Key;
             EmitFunctionBody(functionWithBody.Key, functionWithBody.Value);
         }
 
         if (program.mainFunction != null)
-            assemblyDefinition_.EntryPoint = LookupMethod(program.mainFunction);
+            _assemblyDefinition.EntryPoint = LookupMethod(_methods, program.mainFunction);
 
-        assemblyDefinition_.Write(outputPath);
+        _assemblyDefinition.Write(outputPath);
 
         return diagnostics;
     }
 
     private void EmitFunctionBody(FunctionSymbol function, BoundBlockStatement body) {
-        var method = methods_[function];
-        locals_.Clear();
-        labels_.Clear();
-        fixups_.Clear();
+        var method = _methods[function];
+        _locals.Clear();
+        _labels.Clear();
+        _fixups.Clear();
         var iLProcessor = method.Body.GetILProcessor();
 
         foreach (var statement in body.statements)
             EmitStatement(iLProcessor, statement, method);
 
-        foreach (var fixup in fixups_) {
+        foreach (var fixup in _fixups) {
             var targetLabel = fixup.target;
-            var targetInstructionIndex = labels_[targetLabel];
+            var targetInstructionIndex = _labels[targetLabel];
             var targetInstruction = iLProcessor.Body.Instructions[targetInstructionIndex];
             var instructionFix = iLProcessor.Body.Instructions[fixup.instructionIndex];
             instructionFix.Operand = targetInstruction;
@@ -299,7 +300,7 @@ internal class _Emitter {
                 EmitTryStatement(iLProcessor, (BoundTryStatement)statement, method);
                 break;
             default:
-                throw new Exception($"EmitStatement: unexpected node '{statement.type}'");
+                throw new BelteInternalException($"EmitStatement: unexpected node '{statement.type}'");
         }
     }
 
@@ -329,10 +330,10 @@ internal class _Emitter {
             iLProcessor.Append(end);
 
             var handler = new ExceptionHandler(ExceptionHandlerType.Finally) {
-                TryStart=tryStart,
-                TryEnd=handlerStart,
-                HandlerStart=handlerStart,
-                HandlerEnd=end,
+                TryStart = tryStart,
+                TryEnd = handlerStart,
+                HandlerStart = handlerStart,
+                HandlerEnd = end,
             };
 
             method.Body.ExceptionHandlers.Add(handler);
@@ -361,11 +362,11 @@ internal class _Emitter {
             iLProcessor.Append(end);
 
             var handler = new ExceptionHandler(ExceptionHandlerType.Catch) {
-                TryStart=tryStart,
-                TryEnd=handlerStart,
-                HandlerStart=handlerStart,
-                HandlerEnd=end,
-                CatchType=knownTypes_[TypeSymbol.Any],
+                TryStart = tryStart,
+                TryEnd = handlerStart,
+                HandlerStart = handlerStart,
+                HandlerEnd = end,
+                CatchType = _knownTypes[TypeSymbol.Any],
             };
 
             method.Body.ExceptionHandlers.Add(handler);
@@ -398,11 +399,11 @@ internal class _Emitter {
             iLProcessor.Append(finallyStart);
 
             var innerHandler = new ExceptionHandler(ExceptionHandlerType.Catch) {
-                TryStart=innerTryStart,
-                TryEnd=innerHandlerStart,
-                HandlerStart=innerHandlerStart,
-                HandlerEnd=finallyStart,
-                CatchType=knownTypes_[TypeSymbol.Any],
+                TryStart = innerTryStart,
+                TryEnd = innerHandlerStart,
+                HandlerStart = innerHandlerStart,
+                HandlerEnd = finallyStart,
+                CatchType = _knownTypes[TypeSymbol.Any],
             };
 
             foreach (var node in finallyBody)
@@ -412,10 +413,10 @@ internal class _Emitter {
             iLProcessor.Append(end);
 
             var handler = new ExceptionHandler(ExceptionHandlerType.Finally) {
-                TryStart=innerTryStart,
-                TryEnd=finallyStart,
-                HandlerStart=finallyStart,
-                HandlerEnd=end,
+                TryStart = innerTryStart,
+                TryEnd = finallyStart,
+                HandlerStart = finallyStart,
+                HandlerEnd = end,
             };
 
             method.Body.ExceptionHandlers.Add(innerHandler);
@@ -440,16 +441,16 @@ internal class _Emitter {
         var opcode = statement.jumpIfTrue
             ? OpCodes.Brtrue
             : OpCodes.Brfalse;
-        fixups_.Add((iLProcessor.Body.Instructions.Count, statement.label));
+        _fixups.Add((iLProcessor.Body.Instructions.Count, statement.label));
         iLProcessor.Emit(opcode, Instruction.Create(OpCodes.Nop));
     }
 
     private void EmitLabelStatement(ILProcessor iLProcessor, BoundLabelStatement statement) {
-        labels_.Add(statement.label, iLProcessor.Body.Instructions.Count);
+        _labels.Add(statement.label, iLProcessor.Body.Instructions.Count);
     }
 
     private void EmitGotoStatement(ILProcessor iLProcessor, BoundGotoStatement statement) {
-        fixups_.Add((iLProcessor.Body.Instructions.Count, statement.label));
+        _fixups.Add((iLProcessor.Body.Instructions.Count, statement.label));
         iLProcessor.Emit(OpCodes.Br, Instruction.Create(OpCodes.Nop));
     }
 
@@ -457,14 +458,14 @@ internal class _Emitter {
         ILProcessor iLProcessor, BoundVariableDeclarationStatement statement) {
         var typeReference = GetType(statement.variable.typeClause);
         var variableDefinition = new VariableDefinition(typeReference);
-        locals_.Add(statement.variable, variableDefinition);
+        _locals.Add(statement.variable, variableDefinition);
         iLProcessor.Body.Variables.Add(variableDefinition);
 
         if (statement.variable.typeClause.isReference) {
             if (statement.variable is ParameterSymbol parameter) {
                 iLProcessor.Emit(OpCodes.Ldarga_S, parameter.ordinal);
             } else {
-                var referenceVariable = locals_[((BoundReferenceExpression)statement.initializer).variable];
+                var referenceVariable = _locals[((BoundReferenceExpression)statement.initializer).variable];
                 iLProcessor.Emit(OpCodes.Ldloca_S, referenceVariable);
             }
 
@@ -487,10 +488,10 @@ internal class _Emitter {
     private void EmitExpressionStatement(ILProcessor iLProcessor, BoundExpressionStatement statement) {
         EmitExpression(iLProcessor, statement.expression);
 
-        if (statement.expression.typeClause?.lType != TypeSymbol.Void && !useNullRef)
+        if (statement.expression.typeClause?.lType != TypeSymbol.Void && !_useNullRef)
             iLProcessor.Emit(OpCodes.Pop);
 
-        useNullRef = false;
+        _useNullRef = false;
     }
 
     private void EmitExpression(
@@ -534,7 +535,7 @@ internal class _Emitter {
                 EmitCastExpression(iLProcessor, (BoundCastExpression)expression);
                 break;
             default:
-                throw new Exception($"EmitExpression: unexpected node '{expression.type}'");
+                throw new BelteInternalException($"EmitExpression: unexpected node '{expression.type}'");
         }
     }
 
@@ -595,81 +596,54 @@ internal class _Emitter {
     }
 
     private void EmitCallExpression(ILProcessor iLProcessor, BoundCallExpression expression) {
-        if (MethodsMatch(expression.function, BuiltinFunctions.RandInt)) {
-            if (randomFieldDefinition_ == null)
+        if (expression.function.MethodMatches(BuiltinFunctions.RandInt)) {
+            if (_randomFieldDefinition == null)
                 EmitRandomField();
 
-            iLProcessor.Emit(OpCodes.Ldsfld, randomFieldDefinition_);
+            iLProcessor.Emit(OpCodes.Ldsfld, _randomFieldDefinition);
         }
 
         foreach (var argument in expression.arguments)
             EmitExpression(iLProcessor, argument);
 
-        if (MethodsMatch(expression.function, BuiltinFunctions.RandInt)) {
-            iLProcessor.Emit(OpCodes.Callvirt, methodReferences_[NetMethodReference.RandomNext]);
+        if (expression.function.MethodMatches(BuiltinFunctions.RandInt)) {
+            iLProcessor.Emit(OpCodes.Callvirt, _methodReferences[_NetMethodReference.RandomNext]);
             return;
         }
 
-        if (MethodsMatch(expression.function, BuiltinFunctions.Print)) {
-            iLProcessor.Emit(OpCodes.Call, methodReferences_[NetMethodReference.ConsoleWrite]);
-        } else if (MethodsMatch(expression.function, BuiltinFunctions.PrintLine)) {
-            iLProcessor.Emit(OpCodes.Call, methodReferences_[NetMethodReference.ConsoleWriteLine]);
-        } else if (MethodsMatch(expression.function, BuiltinFunctions.Input)) {
-            iLProcessor.Emit(OpCodes.Call, methodReferences_[NetMethodReference.ConsoleReadLine]);
+        if (expression.function.MethodMatches(BuiltinFunctions.Print)) {
+            iLProcessor.Emit(OpCodes.Call, _methodReferences[_NetMethodReference.ConsoleWrite]);
+        } else if (expression.function.MethodMatches(BuiltinFunctions.PrintLine)) {
+            iLProcessor.Emit(OpCodes.Call, _methodReferences[_NetMethodReference.ConsoleWriteLine]);
+        } else if (expression.function.MethodMatches(BuiltinFunctions.Input)) {
+            iLProcessor.Emit(OpCodes.Call, _methodReferences[_NetMethodReference.ConsoleReadLine]);
         } else if (expression.function.name == "Value") {
             EmitExpression(iLProcessor, expression.arguments[0]);
             iLProcessor.Emit(OpCodes.Call, GetNullableValue(expression.arguments[0].typeClause));
-        } else if (MethodsMatch(expression.function, BuiltinFunctions.HasValue)) {
+        } else if (expression.function.MethodMatches(BuiltinFunctions.HasValue)) {
             EmitExpression(iLProcessor, expression.arguments[0]);
             iLProcessor.Emit(OpCodes.Call, GetNullableHasValue(expression.arguments[0].typeClause));
         } else {
-            var methodDefinition = LookupMethod(expression.function);
+            var methodDefinition = LookupMethod(_methods, expression.function);
             iLProcessor.Emit(OpCodes.Call, methodDefinition);
         }
     }
 
-    private bool MethodsMatch(FunctionSymbol left, FunctionSymbol right) {
-        if (left.name == right.name && left.parameters.Length == right.parameters.Length) {
-            var parametersMatch = true;
-
-            for (int i=0; i<left.parameters.Length; i++) {
-                var checkParameter = left.parameters[i];
-                var parameter = right.parameters[i];
-
-                if (checkParameter.name != parameter.name || checkParameter.typeClause != parameter.typeClause)
-                    parametersMatch = false;
-            }
-
-            if (parametersMatch)
-                return true;
-        }
-
-        return false;
-    }
-
-    private MethodDefinition LookupMethod(FunctionSymbol function) {
-        foreach (var pair in methods_)
-            if (MethodsMatch(pair.Key, function))
-                return pair.Value;
-
-        throw new Exception($"LookupMethod: could not find method '{function.name}'");
-    }
-
     private void EmitRandomField() {
-        randomFieldDefinition_ = new FieldDefinition(
-                                "$randInt", FieldAttributes.Static | FieldAttributes.Private, randomReference_);
-        typeDefinition_.Fields.Add(randomFieldDefinition_);
+        _randomFieldDefinition = new FieldDefinition(
+                                "$randInt", FieldAttributes.Static | FieldAttributes.Private, _randomReference);
+        _typeDefinition.Fields.Add(_randomFieldDefinition);
         var staticConstructor = new MethodDefinition(
             ".cctor",
             MethodAttributes.Static | MethodAttributes.Private |
             MethodAttributes.RTSpecialName | MethodAttributes.SpecialName,
-            knownTypes_[TypeSymbol.Void]
+            _knownTypes[TypeSymbol.Void]
         );
-        typeDefinition_.Methods.Insert(0, staticConstructor);
+        _typeDefinition.Methods.Insert(0, staticConstructor);
 
         var iLProcessor = staticConstructor.Body.GetILProcessor();
-        iLProcessor.Emit(OpCodes.Newobj, methodReferences_[NetMethodReference.RandomCtor]);
-        iLProcessor.Emit(OpCodes.Stsfld, randomFieldDefinition_);
+        iLProcessor.Emit(OpCodes.Newobj, _methodReferences[_NetMethodReference.RandomCtor]);
+        iLProcessor.Emit(OpCodes.Stsfld, _randomFieldDefinition);
         iLProcessor.Emit(OpCodes.Ret);
     }
 
@@ -678,11 +652,11 @@ internal class _Emitter {
     }
 
     private MethodReference GetNullableCtor(BoundTypeClause type) {
-        var genericArgumentType = assemblyDefinition_.MainModule.ImportReference(knownTypes_[type.lType]);
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.lType]);
         var methodReference =
-            assemblyDefinition_.MainModule.ImportReference(methodReferences_[NetMethodReference.NullableCtor]);
+            _assemblyDefinition.MainModule.ImportReference(_methodReferences[_NetMethodReference.NullableCtor]);
 
-        methodReference.DeclaringType = new GenericInstanceType(nullableReference_);
+        methodReference.DeclaringType = new GenericInstanceType(_nullableReference);
         (methodReference.DeclaringType as GenericInstanceType).GenericArguments.Add(genericArgumentType);
         methodReference.Resolve();
 
@@ -690,11 +664,11 @@ internal class _Emitter {
     }
 
     private MethodReference GetNullableValue(BoundTypeClause type) {
-        var genericArgumentType = assemblyDefinition_.MainModule.ImportReference(knownTypes_[type.lType]);
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.lType]);
         var methodReference =
-            assemblyDefinition_.MainModule.ImportReference(methodReferences_[NetMethodReference.NullableValue]);
+            _assemblyDefinition.MainModule.ImportReference(_methodReferences[_NetMethodReference.NullableValue]);
 
-        methodReference.DeclaringType = new GenericInstanceType(nullableReference_);
+        methodReference.DeclaringType = new GenericInstanceType(_nullableReference);
         (methodReference.DeclaringType as GenericInstanceType).GenericArguments.Add(genericArgumentType);
         methodReference.Resolve();
 
@@ -702,11 +676,11 @@ internal class _Emitter {
     }
 
     private MethodReference GetNullableHasValue(BoundTypeClause type) {
-        var genericArgumentType = assemblyDefinition_.MainModule.ImportReference(knownTypes_[type.lType]);
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.lType]);
         var methodReference =
-            assemblyDefinition_.MainModule.ImportReference(methodReferences_[NetMethodReference.NullableHasValue]);
+            _assemblyDefinition.MainModule.ImportReference(_methodReferences[_NetMethodReference.NullableHasValue]);
 
-        methodReference.DeclaringType = new GenericInstanceType(nullableReference_);
+        methodReference.DeclaringType = new GenericInstanceType(_nullableReference);
         (methodReference.DeclaringType as GenericInstanceType).GenericArguments.Add(genericArgumentType);
         methodReference.Resolve();
 
@@ -718,24 +692,24 @@ internal class _Emitter {
             if (to.lType == TypeSymbol.Any)
                 return null;
             else if (to.lType == TypeSymbol.Bool)
-                return methodReferences_[NetMethodReference.ConvertToBoolean];
+                return _methodReferences[_NetMethodReference.ConvertToBoolean];
             else if (to.lType == TypeSymbol.Int)
-                return methodReferences_[NetMethodReference.ConvertToInt32];
+                return _methodReferences[_NetMethodReference.ConvertToInt32];
             else if (to.lType == TypeSymbol.String)
-                return methodReferences_[NetMethodReference.ConvertToString];
+                return _methodReferences[_NetMethodReference.ConvertToString];
             else if (to.lType == TypeSymbol.Decimal)
-                return methodReferences_[NetMethodReference.ConvertToSingle];
+                return _methodReferences[_NetMethodReference.ConvertToSingle];
             else
-                throw new Exception($"GetConvertTo: unexpected cast from '{from}' to '{to}'");
+                throw new BelteInternalException($"GetConvertTo: unexpected cast from '{from}' to '{to}'");
         }
 
-        throw new Exception("GetConvertTo: cannot convert nullable types");
+        throw new BelteInternalException("GetConvertTo: cannot convert nullable types");
     }
 
     private void EmitAssignmentExpression(ILProcessor iLProcessor, BoundAssignmentExpression expression) {
-        var variableDefinition = locals_[expression.variable];
+        var variableDefinition = _locals[(expression.left as BoundVariableExpression).variable];
 
-        if (expression.variable.typeClause.isReference)
+        if ((expression.left as BoundVariableExpression).variable.typeClause.isReference)
             iLProcessor.Emit(OpCodes.Ldloc_S, variableDefinition);
         else if (expression.typeClause.isNullable)
             iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
@@ -745,10 +719,10 @@ internal class _Emitter {
         var nullable = expression.typeClause.isNullable;
 
         EmitExpression(
-            iLProcessor, expression.expression, expression.variable.typeClause.isReference,
+            iLProcessor, expression.right, (expression.left as BoundVariableExpression).variable.typeClause.isReference,
             nullable: nullable, stack: false);
 
-        useNullRef = true && nullable;
+        _useNullRef = true && nullable;
     }
 
     private void EmitVariableExpression(
@@ -760,14 +734,14 @@ internal class _Emitter {
                 iLProcessor.Emit(OpCodes.Ldarg, parameter.ordinal);
         } else {
             try {
-                var variableDefinition = locals_[expression.variable];
+                var variableDefinition = _locals[expression.variable];
                 // ? When is Ldarga_S used
                 iLProcessor.Emit(OpCodes.Ldloc, variableDefinition);
-            } catch {
+            } catch (KeyNotFoundException) {
                 // ! This may have side affects
                 ParameterSymbol foundParameter = null;
 
-                foreach (var parameterSymbol in currentFunction_.parameters)
+                foreach (var parameterSymbol in _currentFunction.parameters)
                     if (parameterSymbol.name == expression.variable.name)
                         foundParameter = parameterSymbol;
 
@@ -775,7 +749,7 @@ internal class _Emitter {
                     // ? When is Ldarga_S used
                     iLProcessor.Emit(OpCodes.Ldarg, foundParameter.ordinal);
                 } else {
-                    throw new Exception(
+                    throw new BelteInternalException(
                         $"EmitVariableExpression: could not find variable '{expression.variable.name}'");
                 }
             }
@@ -835,7 +809,7 @@ internal class _Emitter {
         if (expression.op.opType == BoundBinaryOperatorType.EqualityEquals) {
             if (leftType == TypeSymbol.String && rightType == TypeSymbol.String ||
                 leftType == TypeSymbol.Any && rightType == TypeSymbol.Any) {
-                iLProcessor.Emit(OpCodes.Call, methodReferences_[NetMethodReference.ObjectEquals]);
+                iLProcessor.Emit(OpCodes.Call, _methodReferences[_NetMethodReference.ObjectEquals]);
                 return;
             }
         }
@@ -843,7 +817,7 @@ internal class _Emitter {
         if (expression.op.opType == BoundBinaryOperatorType.EqualityNotEquals) {
             if (leftType == TypeSymbol.String && rightType == TypeSymbol.String ||
                 leftType == TypeSymbol.Any && rightType == TypeSymbol.Any) {
-                iLProcessor.Emit(OpCodes.Call, methodReferences_[NetMethodReference.ObjectEquals]);
+                iLProcessor.Emit(OpCodes.Call, _methodReferences[_NetMethodReference.ObjectEquals]);
                 iLProcessor.Emit(OpCodes.Ldc_I4_0);
                 iLProcessor.Emit(OpCodes.Ceq);
                 return;
@@ -917,7 +891,7 @@ internal class _Emitter {
                 iLProcessor.Emit(OpCodes.Ceq);
                 break;
             default:
-                throw new Exception($"EmitBinaryOperator: unexpected binary operator" +
+                throw new BelteInternalException($"EmitBinaryOperator: unexpected binary operator" +
                     $"({leftType}){SyntaxFacts.GetText(expression.op.type)}({rightType})");
         }
     }
@@ -941,24 +915,24 @@ internal class _Emitter {
             case 2:
                 EmitExpression(iLProcessor, nodes[0]);
                 EmitExpression(iLProcessor, nodes[1]);
-                iLProcessor.Emit(OpCodes.Call, methodReferences_[NetMethodReference.StringConcat2]);
+                iLProcessor.Emit(OpCodes.Call, _methodReferences[_NetMethodReference.StringConcat2]);
                 break;
             case 3:
                 EmitExpression(iLProcessor, nodes[0]);
                 EmitExpression(iLProcessor, nodes[1]);
                 EmitExpression(iLProcessor, nodes[2]);
-                iLProcessor.Emit(OpCodes.Call, methodReferences_[NetMethodReference.StringConcat3]);
+                iLProcessor.Emit(OpCodes.Call, _methodReferences[_NetMethodReference.StringConcat3]);
                 break;
             case 4:
                 EmitExpression(iLProcessor, nodes[0]);
                 EmitExpression(iLProcessor, nodes[1]);
                 EmitExpression(iLProcessor, nodes[2]);
                 EmitExpression(iLProcessor, nodes[3]);
-                iLProcessor.Emit(OpCodes.Call, methodReferences_[NetMethodReference.StringConcat4]);
+                iLProcessor.Emit(OpCodes.Call, _methodReferences[_NetMethodReference.StringConcat4]);
                 break;
             default:
                 iLProcessor.Emit(OpCodes.Ldc_I4, nodes.Count);
-                iLProcessor.Emit(OpCodes.Newarr, knownTypes_[TypeSymbol.String]);
+                iLProcessor.Emit(OpCodes.Newarr, _knownTypes[TypeSymbol.String]);
 
                 for (var i=0; i<nodes.Count; i++) {
                     iLProcessor.Emit(OpCodes.Dup);
@@ -967,7 +941,7 @@ internal class _Emitter {
                     iLProcessor.Emit(OpCodes.Stelem_Ref);
                 }
 
-                iLProcessor.Emit(OpCodes.Call, methodReferences_[NetMethodReference.StringConcatArray]);
+                iLProcessor.Emit(OpCodes.Call, _methodReferences[_NetMethodReference.StringConcatArray]);
                 break;
         }
 
@@ -986,7 +960,7 @@ internal class _Emitter {
                     yield return result;
             } else {
                 if (node.typeClause.lType != TypeSymbol.String)
-                    throw new Exception(
+                    throw new BelteInternalException(
                         $"Flatten: unexpected node type in string concatenation '{node.typeClause.lType}'");
 
                 yield return node;
@@ -1045,7 +1019,8 @@ internal class _Emitter {
             var value = Convert.ToSingle(expression.constantValue.value);
             iLProcessor.Emit(OpCodes.Ldc_R4, value);
         } else {
-            throw new Exception($"EmitConstantExpression: unexpected constant expression type '{expressionType}'");
+            throw new BelteInternalException(
+                $"EmitConstantExpression: unexpected constant expression type '{expressionType}'");
         }
 
         if (referenceAssign && handleAssignment) {
@@ -1070,7 +1045,7 @@ internal class _Emitter {
         } else if (expression.op.opType == BoundUnaryOperatorType.BitwiseCompliment) {
             iLProcessor.Emit(OpCodes.Not);
         } else {
-            throw new Exception($"EmitUnaryExpression: unexpected unary operator" +
+            throw new BelteInternalException($"EmitUnaryExpression: unexpected unary operator" +
                 $"{SyntaxFacts.GetText(expression.op.type)}({expression.operand.typeClause.lType})");
         }
     }
@@ -1087,18 +1062,18 @@ internal class _Emitter {
             method.Parameters.Add(parameterDefinition);
         }
 
-        typeDefinition_.Methods.Add(method);
-        methods_.Add(function, method);
+        _typeDefinition.Methods.Add(method);
+        _methods.Add(function, method);
     }
 
     private TypeReference GetType(
         BoundTypeClause type, bool overrideNullability = false, bool ignoreReference = false) {
         if ((type.dimensions == 0 && !type.isNullable && !overrideNullability) ||
             type.lType == TypeSymbol.Void)
-            return knownTypes_[type.lType];
+            return _knownTypes[type.lType];
 
-        var genericArgumentType = assemblyDefinition_.MainModule.ImportReference(knownTypes_[type.lType]);
-        var typeReference = new GenericInstanceType(nullableReference_);
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.lType]);
+        var typeReference = new GenericInstanceType(_nullableReference);
         typeReference.GenericArguments.Add(genericArgumentType);
         var referenceType = new ByReferenceType(typeReference);
 

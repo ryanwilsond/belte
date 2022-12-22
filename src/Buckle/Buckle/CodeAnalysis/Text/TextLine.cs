@@ -3,12 +3,12 @@ namespace Buckle.CodeAnalysis.Text;
 
 public sealed class TextLine {
     /// <summary>
-    /// Creates a text line from a source text and bounds.
+    /// Creates a text line from a <see cref="SourceText" /> and bounds.
     /// </summary>
-    /// <param name="text">Source text to reference</param>
-    /// <param name="start">Start index of the line</param>
-    /// <param name="length">Length of the line</param>
-    /// <param name="lengthWithBreak">Length of the line including line break</param>
+    /// <param name="text"><see cref="SourceText" /> to reference.</param>
+    /// <param name="start">Start index of the line.</param>
+    /// <param name="length">Length of the line.</param>
+    /// <param name="lengthWithBreak">Length of the line including line break.</param>
     public TextLine(SourceText text, int start, int length, int lengthWithBreak) {
         this.text = text;
         this.start = start;
@@ -17,12 +17,12 @@ public sealed class TextLine {
     }
 
     /// <summary>
-    /// Source text the line resides in.
+    /// <see cref="SourceText" /> the line resides in.
     /// </summary>
     public SourceText text { get; }
 
     /// <summary>
-    /// Start index of the line relative to the entire source text.
+    /// Start index of the line relative to the entire <see cref="SourceText" />.
     /// </summary>
     public int start { get; }
 
@@ -32,7 +32,7 @@ public sealed class TextLine {
     public int length { get; }
 
     /// <summary>
-    /// End index of the line relative to the entire source text.
+    /// End index of the line relative to the entire <see cref="SourceText" />.
     /// </summary>
     public int end => start + length;
 
@@ -42,12 +42,12 @@ public sealed class TextLine {
     public int lengthWithBreak { get; }
 
     /// <summary>
-    /// A span of the entire line.
+    /// A <see cref="TextSpan" /> of the entire line.
     /// </summary>
     public TextSpan span => new TextSpan(start, length);
 
     /// <summary>
-    /// A span of the entire line including the line break.
+    /// A <see cref="TextSpan" /> of the entire line including the line break.
     /// </summary>
     public TextSpan spanWithBreak => new TextSpan(start, lengthWithBreak);
 

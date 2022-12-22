@@ -12,63 +12,61 @@ using Diagnostics;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Binds a parser output into a immutable "bound" tree.
-/// This is where most error checking happens.
-/// The Lowerer is also called here to simplify the code, and convert control of flow into gotos and labels.
-/// Dead code is also removed here, as well as other optimizations.
+/// Binds a <see cref="Parser" /> output into a immutable "bound" tree. This is where most error checking happens.
+/// The <see cref="Lowerer" /> is also called here to simplify the code,
+/// And convert control of flow into gotos and labels. Dead code is also removed here, as well as other optimizations.
 /// </summary>
 internal sealed class Binder {
-    private readonly bool isScript_;
-    private readonly FunctionSymbol function_;
-    private readonly List<(FunctionSymbol function, BoundBlockStatement body)> functionBodies_ =
+    private readonly bool _isScript;
+    private readonly FunctionSymbol _function;
+    private readonly List<(FunctionSymbol function, BoundBlockStatement body)> _functionBodies =
         new List<(FunctionSymbol function, BoundBlockStatement body)>();
-    private BoundScope scope_;
-    private Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> loopStack_ =
+    private readonly List<(StructSymbol @struct, ImmutableList<FieldSymbol> members)> _structMembers =
+        new List<(StructSymbol @struct, ImmutableList<FieldSymbol> members)>();
+    private BoundScope _scope;
+    private Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> _loopStack =
         new Stack<(BoundLabel breakLabel, BoundLabel continueLabel)>();
-    private int labelCount_;
-    private Stack<int> inlineCounts_ = new Stack<int>();
-    private int inlineCount_;
+    private int _labelCount;
+    // * Temporary, inlines will be disabled until the StackFrameParser is added
+    // private Stack<int> _inlineCounts = new Stack<int>();
+    // private int _inlineCount;
+
     // Functions should be available correctly, so only track variables
-    private Stack<HashSet<VariableSymbol>> trackedSymbols_ = new Stack<HashSet<VariableSymbol>>();
-    private Stack<HashSet<VariableSymbol>> trackedDeclarations_ = new Stack<HashSet<VariableSymbol>>();
-    private bool trackSymbols_ = false;
-    private Stack<string> innerPrefix_ = new Stack<string>();
-    private Stack<List<string>> localLocals_ = new Stack<List<string>>();
-    private List<string> resolvedLocals_ = new List<string>();
-    private Dictionary<string, LocalFunctionDeclaration> unresolvedLocals_ =
-        new Dictionary<string, LocalFunctionDeclaration>();
-    // The following fields are purely used for debugging
-    private int emulationDepth_ = 0;
-    private bool isEmulating_ {
-        get {
-            return emulationDepth_ > 0;
-        }
-    }
+    private Stack<HashSet<VariableSymbol>> _trackedSymbols = new Stack<HashSet<VariableSymbol>>();
+    private Stack<HashSet<VariableSymbol>> _trackedDeclarations = new Stack<HashSet<VariableSymbol>>();
+    private bool _trackSymbols = false;
+    private Stack<string> _innerPrefix = new Stack<string>();
+    private Stack<List<string>> _localLocals = new Stack<List<string>>();
+    private List<string> _resolvedLocals = new List<string>();
+    private Dictionary<string, LocalFunctionStatement> _unresolvedLocals =
+        new Dictionary<string, LocalFunctionStatement>();
 
     private Binder(bool isScript, BoundScope parent, FunctionSymbol function) {
-        isScript_ = isScript;
+        _isScript = isScript;
         diagnostics = new BelteDiagnosticQueue();
-        scope_ = new BoundScope(parent);
-        function_ = function;
+        _scope = new BoundScope(parent);
+        _function = function;
 
         if (function != null) {
             foreach (var parameter in function.parameters)
-                scope_.TryDeclareVariable(parameter);
+                _scope.TryDeclareVariable(parameter);
         }
     }
 
     /// <summary>
-    /// Diagnostics produced by the Binder (and Lowerer).
+    /// Diagnostics produced by the <see cref="Binder" /> (and <see cref="Lowerer" />).
     /// </summary>
     internal BelteDiagnosticQueue diagnostics { get; set; }
 
     /// <summary>
     /// Binds everything in the global scope.
     /// </summary>
-    /// <param name="isScript">If being bound as a script (used by the REPL), otherwise an application</param>
-    /// <param name="previous">Previous scope (if applicable)</param>
-    /// <param name="syntaxTrees">All syntax trees, as files are bound together</param>
-    /// <returns>A bound global scope</returns>
+    /// <param name="isScript">
+    /// If being bound as a script (used by the <see cref="BelteRepl" />), otherwise an application.
+    /// </param>
+    /// <param name="previous">Previous <see cref="BoundGlobalScope" /> (if applicable).</param>
+    /// <param name="syntaxTrees">All SyntaxTrees, as files are bound together.</param>
+    /// <returns>A new <see cref="BoundGlobalScope" />.</returns>
     internal static BoundGlobalScope BindGlobalScope(
         bool isScript, BoundGlobalScope previous, ImmutableArray<SyntaxTree> syntaxTrees) {
         var parentScope = CreateParentScope(previous);
@@ -79,13 +77,20 @@ internal sealed class Binder {
 
         if (binder.diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return new BoundGlobalScope(ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)>.Empty,
-                previous, binder.diagnostics, null, null, ImmutableArray<FunctionSymbol>.Empty,
-                ImmutableArray<VariableSymbol>.Empty, ImmutableArray<BoundStatement>.Empty);
+                ImmutableArray<(StructSymbol function, ImmutableList<FieldSymbol> members)>.Empty, previous,
+                binder.diagnostics, null, null, ImmutableArray<FunctionSymbol>.Empty,
+                ImmutableArray<VariableSymbol>.Empty, ImmutableArray<TypeSymbol>.Empty,
+                ImmutableArray<BoundStatement>.Empty);
 
-        var functionDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<FunctionDeclaration>();
+        var methodDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<MethodDeclaration>();
 
-        foreach (var function in functionDeclarations)
-            binder.BindFunctionDeclaration(function);
+        foreach (var method in methodDeclarations)
+            binder.BindMethodDeclaration(method);
+
+        var typeDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<TypeDeclaration>();
+
+        foreach (var @type in typeDeclarations)
+            binder.BindTypeDeclaration(@type);
 
         var globalStatements = syntaxTrees.SelectMany(st => st.root.members).OfType<GlobalStatement>();
 
@@ -101,7 +106,7 @@ internal sealed class Binder {
             foreach (var globalStatement in firstGlobalPerTree)
                 binder.diagnostics.Push(Error.GlobalStatementsInMultipleFiles(globalStatement.location));
 
-        var functions = binder.scope_.GetDeclaredFunctions();
+        var functions = binder._scope.GetDeclaredFunctions();
 
         FunctionSymbol mainFunction;
         FunctionSymbol scriptFunction;
@@ -116,13 +121,22 @@ internal sealed class Binder {
             mainFunction = null;
         } else {
             scriptFunction = null;
-            mainFunction = functions.FirstOrDefault(f => f.name == "Main" || f.name == "main");
+            mainFunction = functions.FirstOrDefault(f => f.name.ToLower() == "main");
 
-            if (mainFunction != null)
-                if ((mainFunction.typeClause.lType != TypeSymbol.Void &&
-                    mainFunction.typeClause.lType != TypeSymbol.Int) ||
-                    mainFunction.parameters.Any())
-                    binder.diagnostics.Push(Error.InvalidMain(mainFunction.declaration.location));
+            if (mainFunction != null) {
+                if (mainFunction.typeClause.lType != TypeSymbol.Void &&
+                    mainFunction.typeClause.lType != TypeSymbol.Int)
+                    binder.diagnostics.Push(Error.InvalidMain(mainFunction.declaration.returnType.location));
+
+                if (mainFunction.parameters.Any()) {
+                    var span = TextSpan.FromBounds(
+                        mainFunction.declaration.openParenthesis.span.start + 1,
+                        mainFunction.declaration.closeParenthesis.span.end - 1);
+
+                    var location = new TextLocation(mainFunction.declaration.syntaxTree.text, span);
+                    binder.diagnostics.Push(Error.InvalidMain(location));
+                }
+            }
 
             if (globalStatements.Any()) {
                 if (mainFunction != null) {
@@ -137,42 +151,53 @@ internal sealed class Binder {
             }
         }
 
-        var variables = binder.scope_.GetDeclaredVariables();
+        var variables = binder._scope.GetDeclaredVariables();
+        var types = binder._scope.GetDeclaredTypes();
 
         if (previous != null)
             binder.diagnostics.CopyToFront(previous.diagnostics);
 
         var functionBodies = previous == null
-            ? binder.functionBodies_.ToImmutableArray()
-            : previous.functionBodies.AddRange(binder.functionBodies_);
+            ? binder._functionBodies.ToImmutableArray()
+            : previous.functionBodies.AddRange(binder._functionBodies);
 
-        return new BoundGlobalScope(functionBodies, previous, binder.diagnostics, mainFunction,
-            scriptFunction, functions, variables, statements.ToImmutable());
+        var structMembers = previous == null
+            ? binder._structMembers.ToImmutableArray()
+            : previous.structMembers.AddRange(binder._structMembers);
+
+        return new BoundGlobalScope(functionBodies, structMembers, previous, binder.diagnostics, mainFunction,
+            scriptFunction, functions, variables, types, statements.ToImmutable());
     }
 
     /// <summary>
     /// Binds a program.
     /// </summary>
-    /// <param name="isScript">If being bound as a script (used by the REPL), otherwise an application</param>
-    /// <param name="previous">Previous program (if applicable)</param>
-    /// <param name="globalScope">The already bound global scope</param>
-    /// <returns>A bound/finished program (then either emitted or evaluated)</returns>
+    /// <param name="isScript">If being bound as a script (used by the REPL), otherwise an application.</param>
+    /// <param name="previous">Previous <see cref="BoundProgram" /> (if applicable).</param>
+    /// <param name="globalScope">The already bound <see cref="BoundGlobalScope" />.</param>
+    /// <returns>A new <see cref="BoundProgram" /> (then either emitted or evaluated).</returns>
     internal static BoundProgram BindProgram(bool isScript, BoundProgram previous, BoundGlobalScope globalScope) {
         var parentScope = CreateParentScope(globalScope);
 
         if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return new BoundProgram(previous, globalScope.diagnostics,
-                null, null, ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty);
+                null, null, ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty,
+                ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>>.Empty);
 
         var functionBodies = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
+        var structMembers = ImmutableDictionary.CreateBuilder<StructSymbol, ImmutableList<FieldSymbol>>();
+
+        foreach (var @struct in globalScope.structMembers)
+            structMembers.Add(@struct.@struct, @struct.members);
+
         var diagnostics = new BelteDiagnosticQueue();
         diagnostics.Move(globalScope.diagnostics);
 
         foreach (var function in globalScope.functions) {
             var binder = new Binder(isScript, parentScope, function);
 
-            binder.innerPrefix_ = new Stack<string>();
-            binder.innerPrefix_.Push(function.name);
+            binder._innerPrefix = new Stack<string>();
+            binder._innerPrefix.Push(function.name);
 
             BoundBlockStatement loweredBody = null;
 
@@ -181,8 +206,9 @@ internal sealed class Binder {
                 diagnostics.Move(binder.diagnostics);
 
                 if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
-                    return new BoundProgram(previous, diagnostics,
-                        null, null, ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty);
+                    return new BoundProgram(previous, diagnostics, null, null,
+                    ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty,
+                    ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>>.Empty);
 
                 loweredBody = Lowerer.Lower(function, body);
             } else {
@@ -195,9 +221,9 @@ internal sealed class Binder {
             if (function.typeClause.lType != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
                 binder.diagnostics.Push(Error.NotAllPathsReturn(function.declaration.identifier.location));
 
-            binder.functionBodies_.Add((function, loweredBody));
+            binder._functionBodies.Add((function, loweredBody));
 
-            foreach (var functionBody in binder.functionBodies_) {
+            foreach (var functionBody in binder._functionBodies) {
                 var newParameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
 
                 foreach (var parameter in functionBody.function.parameters) {
@@ -230,8 +256,7 @@ internal sealed class Binder {
                 es.expression.typeClause?.lType != TypeSymbol.Void) {
                 statements = statements.SetItem(0, new BoundReturnStatement(es.expression));
             } else if (statements.Any() && statements.Last().type != BoundNodeType.ReturnStatement) {
-                var nullValue = new BoundLiteralExpression(null);
-                statements = statements.Add(new BoundReturnStatement(nullValue));
+                statements = statements.Add(new BoundReturnStatement(null));
             }
 
             var body = Lowerer.Lower(globalScope.scriptFunction, new BoundBlockStatement(statements));
@@ -239,7 +264,7 @@ internal sealed class Binder {
         }
 
         return new BoundProgram(previous, diagnostics, globalScope.mainFunction,
-            globalScope.scriptFunction, functionBodies.ToImmutable());
+            globalScope.scriptFunction, functionBodies.ToImmutable(), structMembers.ToImmutable());
     }
 
     private static BoundScope CreateParentScope(BoundGlobalScope previous) {
@@ -262,6 +287,9 @@ internal sealed class Binder {
             foreach (var variable in previous.variables)
                 scope.TryDeclareVariable(variable);
 
+            foreach (var @type in previous.types)
+                scope.TryDeclareType(@type);
+
             parent = scope;
         }
 
@@ -277,12 +305,12 @@ internal sealed class Binder {
         return result;
     }
 
-    private void BindFunctionDeclaration(FunctionDeclaration function) {
-        var type = BindTypeClause(function.returnType);
+    private void BindMethodDeclaration(MethodDeclaration method) {
+        var type = BindTypeClause(method.returnType);
         var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
         var seenParametersNames = new HashSet<string>();
 
-        foreach (var parameter in function.parameters) {
+        foreach (var parameter in method.parameters) {
             var parameterName = parameter.identifier.text;
             var parameterType = BindTypeClause(parameter.typeClause);
 
@@ -294,15 +322,46 @@ internal sealed class Binder {
             }
         }
 
-        var newFunction = new FunctionSymbol(function.identifier.text, parameters.ToImmutable(), type, function);
-        if (newFunction.declaration.identifier.text != null && !scope_.TryDeclareFunction(newFunction))
-            diagnostics.Push(Error.FunctionAlreadyDeclared(function.identifier.location, newFunction.name));
+        var newMethod = new FunctionSymbol(method.identifier.text, parameters.ToImmutable(), type, method);
+        if (newMethod.declaration.identifier.text != null && !_scope.TryDeclareFunction(newMethod))
+            diagnostics.Push(Error.MethodAlreadyDeclared(method.identifier.location, newMethod.name));
+    }
+
+    private void BindTypeDeclaration(TypeDeclaration @type) {
+        if (@type is StructDeclaration)
+            BindStructDeclaration(@type as StructDeclaration);
+    }
+
+    private void BindStructDeclaration(StructDeclaration @struct) {
+        var builder = ImmutableList.CreateBuilder<FieldSymbol>();
+        var symbols = ImmutableArray.CreateBuilder<Symbol>();
+        _scope = new BoundScope(_scope);
+
+        foreach (var fieldDeclaration in @struct.members.OfType<FieldDeclaration>()) {
+            var field = BindFieldDeclaration(fieldDeclaration);
+            builder.Add(field);
+            symbols.Add(field);
+        }
+
+        _scope = _scope.parent;
+        var newStruct = new StructSymbol(@struct.identifier.text, symbols.ToImmutable(), @struct);
+        _structMembers.Add((newStruct, builder.ToImmutable()));
+
+        if (!_scope.TryDeclareType(newStruct))
+            throw new BelteInternalException($"BindStructDeclaration: failed to declare {newStruct.name}");
+    }
+
+    private FieldSymbol BindFieldDeclaration(FieldDeclaration fieldDeclaration) {
+        var typeClause = BindTypeClause(fieldDeclaration.declaration.typeClause);
+
+        return BindVariable(
+            fieldDeclaration.declaration.identifier, typeClause, bindAsField: true) as FieldSymbol;
     }
 
     private BoundStatement BindStatement(Statement syntax, bool isGlobal = false, bool insideInline = false) {
         var result = BindStatementInternal(syntax, insideInline);
 
-        if (!isScript_ || !isGlobal) {
+        if (!_isScript || !isGlobal) {
             if (result is BoundExpressionStatement es) {
                 var isAllowedExpression = es.expression.type == BoundNodeType.CallExpression ||
                     es.expression.type == BoundNodeType.AssignmentExpression ||
@@ -320,54 +379,54 @@ internal sealed class Binder {
 
     private BoundStatement BindStatementInternal(Statement syntax, bool insideInline = false) {
         switch (syntax.type) {
-            case SyntaxType.BLOCK:
+            case SyntaxType.Block:
                 return BindBlockStatement((BlockStatement)syntax, insideInline);
-            case SyntaxType.EXPRESSION_STATEMENT:
+            case SyntaxType.ExpressionStatement:
                 return BindExpressionStatement((ExpressionStatement)syntax);
-            case SyntaxType.VARIABLE_DECLARATION_STATEMENT:
+            case SyntaxType.VariableDeclarationStatement:
                 return BindVariableDeclarationStatement((VariableDeclarationStatement)syntax);
-            case SyntaxType.IF_STATEMENT:
+            case SyntaxType.IfStatement:
                 return BindIfStatement((IfStatement)syntax, insideInline);
-            case SyntaxType.WHILE_STATEMENT:
+            case SyntaxType.WhileStatement:
                 return BindWhileStatement((WhileStatement)syntax, insideInline);
-            case SyntaxType.FOR_STATEMENT:
+            case SyntaxType.ForStatement:
                 return BindForStatement((ForStatement)syntax, insideInline);
-            case SyntaxType.DO_WHILE_STATEMENT:
+            case SyntaxType.DoWhileStatement:
                 return BindDoWhileStatement((DoWhileStatement)syntax, insideInline);
-            case SyntaxType.TRY_STATEMENT:
+            case SyntaxType.TryStatement:
                 return BindTryStatement((TryStatement)syntax, insideInline);
-            case SyntaxType.BREAK_STATEMENT:
+            case SyntaxType.BreakStatement:
                 return BindBreakStatement((BreakStatement)syntax);
-            case SyntaxType.CONTINUE_STATEMENT:
+            case SyntaxType.ContinueStatement:
                 return BindContinueStatement((ContinueStatement)syntax);
-            case SyntaxType.RETURN_STATEMENT:
+            case SyntaxType.ReturnStatement:
                 return BindReturnStatement((ReturnStatement)syntax, insideInline);
-            case SyntaxType.LOCAL_FUNCTION_DECLARATION:
+            case SyntaxType.LocalFunctionStatement:
                 return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
             default:
-                throw new Exception($"BindStatementInternal: unexpected syntax '{syntax.type}'");
+                throw new BelteInternalException($"BindStatementInternal: unexpected syntax '{syntax.type}'");
         }
     }
 
-    private BoundStatement BindLocalFunctionDeclaration(LocalFunctionDeclaration statement) {
-        var functionSymbol = (FunctionSymbol)scope_.LookupSymbol(statement.identifier.text);
-        var binder = new Binder(false, scope_, functionSymbol);
-        binder.innerPrefix_ = new Stack<string>(innerPrefix_.Reverse());
-        var oldTrackSymbols = trackSymbols_;
-        binder.trackSymbols_ = true;
-        binder.trackedSymbols_ = trackedSymbols_;
-        binder.trackedDeclarations_ = trackedDeclarations_;
-        binder.trackedSymbols_.Push(new HashSet<VariableSymbol>());
-        binder.trackedDeclarations_.Push(new HashSet<VariableSymbol>());
-        innerPrefix_.Push(functionSymbol.name);
+    private BoundStatement BindLocalFunctionDeclaration(LocalFunctionStatement statement) {
+        var functionSymbol = (FunctionSymbol)_scope.LookupSymbol(statement.identifier.text);
+        var binder = new Binder(_isScript, _scope, functionSymbol);
+        binder._innerPrefix = new Stack<string>(_innerPrefix.Reverse());
+        var oldTrackSymbols = _trackSymbols;
+        binder._trackSymbols = true;
+        binder._trackedSymbols = _trackedSymbols;
+        binder._trackedDeclarations = _trackedDeclarations;
+        binder._trackedSymbols.Push(new HashSet<VariableSymbol>());
+        binder._trackedDeclarations.Push(new HashSet<VariableSymbol>());
+        _innerPrefix.Push(functionSymbol.name);
         var body = (BoundBlockStatement)binder.BindBlockStatement(functionSymbol.declaration.body);
-        trackSymbols_ = oldTrackSymbols;
+        _trackSymbols = oldTrackSymbols;
 
         var innerName = ConstructInnerName();
-        innerPrefix_.Pop();
+        _innerPrefix.Pop();
 
-        var usedVariables = binder.trackedSymbols_.Pop();
-        var declaredVariables = binder.trackedDeclarations_.Pop();
+        var usedVariables = binder._trackedSymbols.Pop();
+        var declaredVariables = binder._trackedDeclarations.Pop();
         var ordinal = functionSymbol.parameters.Count();
         var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
 
@@ -390,12 +449,12 @@ internal sealed class Binder {
         if (newFunctionSymbol.typeClause.lType != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
             diagnostics.Push(Error.NotAllPathsReturn(newFunctionSymbol.declaration.identifier.location));
 
-        functionBodies_.Add((newFunctionSymbol, loweredBody));
+        _functionBodies.Add((newFunctionSymbol, loweredBody));
         diagnostics.Move(binder.diagnostics);
-        functionBodies_.AddRange(binder.functionBodies_);
+        _functionBodies.AddRange(binder._functionBodies);
 
-        if (!scope_.TryModifySymbol(functionSymbol.name, newFunctionSymbol))
-            throw new Exception($"BindLocalFunction: failed to set function '{functionSymbol.name}'");
+        if (!_scope.TryModifySymbol(functionSymbol.name, newFunctionSymbol))
+            throw new BelteInternalException($"BindLocalFunction: failed to set function '{functionSymbol.name}'");
 
         return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
     }
@@ -416,15 +475,15 @@ internal sealed class Binder {
         var boundExpression = expression.expression == null ? null : BindExpression(expression.expression);
 
         if (!insideInline) {
-            if (function_ == null) {
-                if (isScript_) {
+            if (_function == null) {
+                if (_isScript) {
                     if (boundExpression == null)
                         boundExpression = new BoundLiteralExpression(null);
                 } else if (boundExpression != null) {
                     diagnostics.Push(Error.Unsupported.GlobalReturnValue(expression.keyword.location));
                 }
             } else {
-                if (function_.typeClause.lType == TypeSymbol.Void) {
+                if (_function.typeClause.lType == TypeSymbol.Void) {
                     if (boundExpression != null)
                         diagnostics.Push(Error.UnexpectedReturnValue(expression.keyword.location));
                 } else {
@@ -432,7 +491,7 @@ internal sealed class Binder {
                         diagnostics.Push(Error.MissingReturnValue(expression.keyword.location));
                     else
                         boundExpression = BindCast(
-                            expression.expression.location, boundExpression, function_.typeClause);
+                            expression.expression.location, boundExpression, _function.typeClause);
                 }
             }
         }
@@ -440,7 +499,7 @@ internal sealed class Binder {
         return new BoundReturnStatement(boundExpression);
     }
 
-    private BoundExpression BindExpression(Expression expression, bool canBeVoid=false, bool ownStatement = false) {
+    private BoundExpression BindExpression(Expression expression, bool canBeVoid = false, bool ownStatement = false) {
         var result = BindExpressionInternal(expression, ownStatement);
 
         if (!canBeVoid && result.typeClause.lType == TypeSymbol.Void) {
@@ -453,86 +512,132 @@ internal sealed class Binder {
 
     private BoundExpression BindExpressionInternal(Expression expression, bool ownStatement = false) {
         switch (expression.type) {
-            case SyntaxType.LITERAL_EXPRESSION:
+            case SyntaxType.LiteralExpression:
                 if (expression is InitializerListExpression il)
                     return BindInitializerListExpression(il, null);
                 else
                     return BindLiteralExpression((LiteralExpression)expression);
-            case SyntaxType.UNARY_EXPRESSION:
+            case SyntaxType.UnaryExpression:
                 return BindUnaryExpression((UnaryExpression)expression);
-            case SyntaxType.BINARY_EXPRESSION:
+            case SyntaxType.BinaryExpression:
                 return BindBinaryExpression((BinaryExpression)expression);
-            case SyntaxType.PARENTHESIZED_EXPRESSION:
+            case SyntaxType.TernaryExpression:
+                return BindTernaryExpression((TernaryExpression)expression);
+            case SyntaxType.ParenthesizedExpression:
                 return BindParenExpression((ParenthesisExpression)expression);
-            case SyntaxType.NAME_EXPRESSION:
+            case SyntaxType.NameExpression:
                 return BindNameExpression((NameExpression)expression);
-            case SyntaxType.ASSIGN_EXPRESSION:
+            case SyntaxType.AssignExpression:
                 return BindAssignmentExpression((AssignmentExpression)expression);
-            case SyntaxType.CALL_EXPRESSION:
+            case SyntaxType.CallExpression:
                 return BindCallExpression((CallExpression)expression);
-            case SyntaxType.INDEX_EXPRESSION:
+            case SyntaxType.IndexExpression:
                 return BindIndexExpression((IndexExpression)expression);
-            case SyntaxType.EMPTY_EXPRESSION:
+            case SyntaxType.EmptyExpression:
                 return BindEmptyExpression((EmptyExpression)expression);
-            case SyntaxType.POSTFIX_EXPRESSION:
+            case SyntaxType.PostfixExpression:
                 return BindPostfixExpression((PostfixExpression)expression, ownStatement);
-            case SyntaxType.PREFIX_EXPRESSION:
+            case SyntaxType.PrefixExpression:
                 return BindPrefixExpression((PrefixExpression)expression);
-            case SyntaxType.REFERENCE_EXPRESSION:
+            case SyntaxType.RefExpression:
                 return BindReferenceExpression((ReferenceExpression)expression);
-            case SyntaxType.INLINE_FUNCTION:
-                return BindInlineFunctionExpression((InlineFunctionExpression)expression);
-            case SyntaxType.CAST_EXPRESSION:
+            case SyntaxType.InlineFunction:
+                // * Temporary, inlines will be disabled until the StackFrameParser is added
+                // return BindInlineFunctionExpression((InlineFunctionExpression)expression);
+                goto default;
+            case SyntaxType.CastExpression:
                 return BindCastExpression((CastExpression)expression);
-            case SyntaxType.TYPEOF_EXPRESSION:
-                return BindTypeofExpression((TypeofExpression)expression);
+            case SyntaxType.TypeOfExpression:
+                return BindTypeOfExpression((TypeOfExpression)expression);
+            case SyntaxType.MemberAccessExpression:
+                return BindMemberAccessExpression((MemberAccessExpression)expression);
             default:
-                throw new Exception($"BindExpressionInternal: unexpected syntax '{expression.type}'");
+                throw new BelteInternalException($"BindExpressionInternal: unexpected syntax '{expression.type}'");
         }
     }
 
-    private BoundExpression BindTypeofExpression(TypeofExpression expression) {
+    private BoundExpression BindMemberAccessExpression(MemberAccessExpression expression) {
+        var operand = BindExpression(expression.operand);
+
+        if (operand is BoundErrorExpression)
+            return operand;
+
+        if (!(operand.typeClause.lType is StructSymbol)) {
+            diagnostics.Push(
+                Error.NoSuchMember(expression.identifier.location, operand.typeClause, expression.identifier.text));
+            return new BoundErrorExpression();
+        }
+
+        var @struct = operand?.typeClause?.lType as StructSymbol;
+
+        FieldSymbol symbol = null;
+        foreach (var field in @struct.symbols.Where(f => f is FieldSymbol))
+            if (field.name == expression.identifier.text)
+                symbol = field as FieldSymbol;
+
+        if (symbol == null) {
+            diagnostics.Push(
+                Error.NoSuchMember(expression.identifier.location, operand.typeClause, expression.identifier.text));
+            return new BoundErrorExpression();
+        }
+
+        if (operand.typeClause.isNullable)
+            diagnostics.Push(Warning.NullDeference(expression.period.location));
+
+        return new BoundMemberAccessExpression(operand, symbol);
+    }
+
+    private BoundExpression BindTypeOfExpression(TypeOfExpression expression) {
         var typeClause = BindTypeClause(expression.typeClause);
 
-        return new BoundTypeofExpression(typeClause);
+        return new BoundTypeOfExpression(typeClause);
     }
 
     private BoundExpression BindReferenceExpression(ReferenceExpression expression) {
         var variable = BindVariableReference(expression.identifier);
-        var typeClause = new BoundTypeClause(
-            variable.typeClause.lType, variable.typeClause.isImplicit, false, true,
-            variable.typeClause.isConstant, variable.typeClause.isNullable, false, variable.typeClause.dimensions);
+        var typeClause = BoundTypeClause.Reference(variable.typeClause);
 
         return new BoundReferenceExpression(variable, typeClause);
     }
 
     private BoundExpression BindPostfixExpression(PostfixExpression expression, bool ownStatement = false) {
-        var name = expression.identifier.text;
+        var operand = BindExpression(expression.operand);
 
-        var variable = BindVariableReference(expression.identifier);
+        if (!(operand is BoundVariableExpression || operand is BoundMemberAccessExpression)) {
+            diagnostics.Push(Error.CannotAssign(expression.operand.location));
+            return new BoundErrorExpression();
+        }
+
+        VariableSymbol variable = null;
+
+        if (operand is BoundVariableExpression v)
+            variable = v.variable;
+        else if (operand is BoundMemberAccessExpression m)
+            variable = m.member;
+
         if (variable == null)
             return new BoundErrorExpression();
 
         if (variable.typeClause.isConstant)
-            diagnostics.Push(Error.ConstantAssignment(expression.op.location, name));
+            diagnostics.Push(Error.ConstantAssignment(expression.op.location, variable.name));
 
         var value = new BoundLiteralExpression(1);
         BoundBinaryOperator boundOperator = null;
         BoundBinaryOperator reversalOperator = null;
 
-        if (expression.op.type == SyntaxType.PLUS_PLUS_TOKEN) {
+        if (expression.op.type == SyntaxType.PlusPlusToken) {
             boundOperator = BoundBinaryOperator.Bind(
-                SyntaxType.PLUS_TOKEN, variable.typeClause, value.typeClause);
+                SyntaxType.PlusToken, variable.typeClause, value.typeClause);
             reversalOperator = BoundBinaryOperator.Bind(
-                SyntaxType.MINUS_TOKEN, variable.typeClause, value.typeClause);
-        } else if (expression.op.type == SyntaxType.MINUS_MINUS_TOKEN) {
+                SyntaxType.MinusToken, variable.typeClause, value.typeClause);
+        } else if (expression.op.type == SyntaxType.MinusMinusToken) {
             boundOperator = BoundBinaryOperator.Bind(
-                SyntaxType.MINUS_TOKEN, variable.typeClause, value.typeClause);
+                SyntaxType.MinusToken, variable.typeClause, value.typeClause);
             reversalOperator = BoundBinaryOperator.Bind(
-                SyntaxType.PLUS_TOKEN, variable.typeClause, value.typeClause);
+                SyntaxType.PlusToken, variable.typeClause, value.typeClause);
         }
 
-        var assignmentExpression = new BoundCompoundAssignmentExpression(variable, boundOperator, value);
+        var assignmentExpression = new BoundCompoundAssignmentExpression(operand, boundOperator, value);
 
         if (ownStatement)
             return assignmentExpression;
@@ -541,26 +646,37 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindPrefixExpression(PrefixExpression expression) {
-        var name = expression.identifier.text;
+        var operand = BindExpression(expression.operand);
 
-        var variable = BindVariableReference(expression.identifier);
+        if (!(operand is BoundVariableExpression || operand is BoundMemberAccessExpression)) {
+            diagnostics.Push(Error.CannotAssign(expression.operand.location));
+            return new BoundErrorExpression();
+        }
+
+        VariableSymbol variable = null;
+
+        if (operand is BoundVariableExpression v)
+            variable = v.variable;
+        else if (operand is BoundMemberAccessExpression m)
+            variable = m.member;
+
         if (variable == null)
             return new BoundErrorExpression();
 
         if (variable.typeClause.isConstant)
-            diagnostics.Push(Error.ConstantAssignment(expression.op.location, name));
+            diagnostics.Push(Error.ConstantAssignment(expression.op.location, variable.name));
 
         var value = new BoundLiteralExpression(1);
         BoundBinaryOperator boundOperator = null;
 
-        if (expression.op.type == SyntaxType.PLUS_PLUS_TOKEN)
+        if (expression.op.type == SyntaxType.PlusPlusToken)
             boundOperator = BoundBinaryOperator.Bind(
-                SyntaxType.PLUS_TOKEN, variable.typeClause, value.typeClause);
-        else if (expression.op.type == SyntaxType.MINUS_MINUS_TOKEN)
+                SyntaxType.PlusToken, variable.typeClause, value.typeClause);
+        else if (expression.op.type == SyntaxType.MinusMinusToken)
             boundOperator = BoundBinaryOperator.Bind(
-                SyntaxType.MINUS_TOKEN, variable.typeClause, value.typeClause);
+                SyntaxType.MinusToken, variable.typeClause, value.typeClause);
 
-        return new BoundCompoundAssignmentExpression(variable, boundOperator, value);
+        return new BoundCompoundAssignmentExpression(operand, boundOperator, value);
     }
 
     private BoundExpression BindIndexExpression(IndexExpression expression) {
@@ -579,14 +695,20 @@ internal sealed class Binder {
 
     private BoundExpression BindCallExpression(CallExpression expression) {
         var name = expression.identifier.identifier.text;
+
+        var typeSymbol = _scope.LookupSymbol<TypeSymbol>(name);
+
+        if (typeSymbol != null)
+            return new BoundConstructorExpression(typeSymbol);
+
         var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
         FunctionSymbol finalFunction = null;
 
-        innerPrefix_.Push(name);
+        _innerPrefix.Push(name);
         var innerName = ConstructInnerName();
-        innerPrefix_.Pop();
+        _innerPrefix.Pop();
 
-        var symbols = scope_.LookupOverloads(name, innerName);
+        var symbols = _scope.LookupOverloads(name, innerName);
 
         if (symbols == null || symbols.Length == 0) {
             diagnostics.Push(Error.UndefinedFunction(expression.identifier.location, name));
@@ -613,10 +735,10 @@ internal sealed class Binder {
             var actualSymbol = symbol;
             var isInner = symbol.name.EndsWith("$");
 
-            if (unresolvedLocals_.ContainsKey(innerName) && !resolvedLocals_.Contains(innerName)) {
-                BindLocalFunctionDeclaration(unresolvedLocals_[innerName]);
-                resolvedLocals_.Add(innerName);
-                actualSymbol = scope_.LookupSymbol(innerName) as FunctionSymbol;
+            if (_unresolvedLocals.ContainsKey(innerName) && !_resolvedLocals.Contains(innerName)) {
+                BindLocalFunctionDeclaration(_unresolvedLocals[innerName]);
+                _resolvedLocals.Add(innerName);
+                actualSymbol = _scope.LookupSymbol(innerName) as FunctionSymbol;
                 isInner = true;
             }
 
@@ -676,21 +798,21 @@ internal sealed class Binder {
 
             if (isInner) {
                 // No need to worry about currentBoundArguments because generated inlines never have overloads
-                if (symbols.Length != 1 && isEmulating_ == false)
-                    throw new Exception("BindCallExpression: overloaded inline");
+                if (symbols.Length != 1)
+                    throw new BelteInternalException("BindCallExpression: overloaded inline");
 
                 for (int i=expression.arguments.count; i<function.parameters.Length; i++) {
                     var parameter = function.parameters[i];
 
-                    var oldTrackSymbols = trackSymbols_;
-                    trackSymbols_ = false;
+                    var oldTrackSymbols = _trackSymbols;
+                    _trackSymbols = false;
 
                     var argument = new NameExpression(null, new Token(
-                        null, SyntaxType.IDENTIFIER_TOKEN, -1, parameter.name.Substring(1), null,
+                        null, SyntaxType.IdentifierToken, -1, parameter.name.Substring(1), null,
                         ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty)
                     );
 
-                    trackSymbols_ = oldTrackSymbols;
+                    _trackSymbols = oldTrackSymbols;
                     var boundArgument = BindCast(null, BindExpression(argument), parameter.typeClause);
                     boundArguments.Add(boundArgument);
                 }
@@ -748,75 +870,10 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindCastExpression(CastExpression expression) {
-        var binderSaveState = StartEmulation();
-
         var toType = BindTypeClause(expression.typeClause);
         var boundExpression = BindExpression(expression.expression);
-        var expressionType = boundExpression.typeClause;
 
-        EndEmulation(binderSaveState);
-
-        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
-            return new BoundErrorExpression();
-
-        if (toType.isNullable && expressionType.isNullable && boundExpression.constantValue == null) {
-            /*
-
-            {
-                <type> result = null;
-                if (<expression> isnt null) {
-                    result = (<type>)Value(<expression>);
-                }
-                return result;
-            }
-
-            */
-            var result = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<result>$");
-            var nullLiteral = new LiteralExpression(null, CreateToken(SyntaxType.NULL_KEYWORD), null);
-
-            var ifCondition = new BinaryExpression(
-                null, expression.expression, CreateToken(SyntaxType.ISNT_KEYWORD), nullLiteral);
-
-            var callExpression = new CallExpression(
-                null, new NameExpression(null, CreateToken(SyntaxType.IDENTIFIER_TOKEN, "Value")),
-                null, new SeparatedSyntaxList<Expression>(ImmutableArray.Create<Node>(expression.expression)), null);
-
-            var castExpression = new CastExpression(null, null, ReconstructTypeClause(toType), null, callExpression);
-
-            var assignment = new AssignmentExpression(
-                null, result, CreateToken(SyntaxType.EQUALS_TOKEN), castExpression);
-
-            var resultAssignment = new ExpressionStatement(null, assignment, null);
-
-            var ifBody = new BlockStatement(null, null, ImmutableArray.Create<Statement>(resultAssignment), null);
-
-            var body = ImmutableArray.Create<Statement>(new Statement[] {
-                new VariableDeclarationStatement(
-                    null, ReconstructTypeClause(toType), result, null, nullLiteral, null),
-                new IfStatement(null, null, null, ifCondition, null, ifBody, null),
-                new ReturnStatement(null, null, new NameExpression(null, result), null)
-            });
-
-            return BindInlineFunctionExpression(new InlineFunctionExpression(null, null, body, null));
-        } else if (expressionType.isNullable && boundExpression.constantValue == null) {
-            /*
-
-            (<type>)Value(<expression>);
-
-            */
-            var realToType = BindTypeClause(expression.typeClause);
-
-            var callExpression = BindCallExpression(
-                new CallExpression(null, new NameExpression(null, CreateToken(SyntaxType.IDENTIFIER_TOKEN, "Value")),
-                null, new SeparatedSyntaxList<Expression>(ImmutableArray.Create<Node>(expression.expression)), null));
-
-            return BindCast(expression.location, callExpression, realToType, true);
-        } else {
-            var realToType = BindTypeClause(expression.typeClause);
-            var realBoundExpression = BindExpression(expression.expression);
-
-            return BindCast(expression.location, realBoundExpression, realToType, true);
-        }
+        return BindCast(expression.location, boundExpression, toType, true);
     }
 
     private BoundExpression BindCast(
@@ -853,28 +910,27 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindContinueStatement(ContinueStatement syntax) {
-        if (loopStack_.Count == 0) {
+        if (_loopStack.Count == 0) {
             diagnostics.Push(Error.InvalidBreakOrContinue(syntax.keyword.location, syntax.keyword.text));
             return BindErrorStatement();
         }
 
-        var continueLabel = loopStack_.Peek().continueLabel;
+        var continueLabel = _loopStack.Peek().continueLabel;
         return new BoundGotoStatement(continueLabel);
     }
 
     private BoundStatement BindBreakStatement(BreakStatement syntax) {
-        if (loopStack_.Count == 0) {
+        if (_loopStack.Count == 0) {
             diagnostics.Push(Error.InvalidBreakOrContinue(syntax.keyword.location, syntax.keyword.text));
             return BindErrorStatement();
         }
 
-        var breakLabel = loopStack_.Peek().breakLabel;
+        var breakLabel = _loopStack.Peek().breakLabel;
         return new BoundGotoStatement(breakLabel);
     }
 
     private BoundStatement BindWhileStatement(WhileStatement statement, bool insideInline = false) {
-        var condition = BindDoubleCastRemovingNullability(
-            statement.condition, BoundTypeClause.NullableBool, BoundTypeClause.Bool);
+        var condition = BindCast(statement.condition, BoundTypeClause.NullableBool);
 
         if (condition.constantValue != null && !(bool)condition.constantValue.value)
             diagnostics.Push(Warning.UnreachableCode(statement.body));
@@ -885,106 +941,44 @@ internal sealed class Binder {
 
     private BoundStatement BindDoWhileStatement(DoWhileStatement statement, bool insideInline = false) {
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel, insideInline);
-        var condition = BindDoubleCastRemovingNullability(
-            statement.condition, BoundTypeClause.NullableBool, BoundTypeClause.Bool);
+        var condition = BindCast(statement.condition, BoundTypeClause.NullableBool);
 
         return new BoundDoWhileStatement(body, condition, breakLabel, continueLabel);
     }
 
-    private BoundExpression BindDoubleCastRemovingNullability(
-        Expression expression, BoundTypeClause intermediateType, BoundTypeClause type) {
-        // * Fairly specific function
-        // Used to allow null values for conditions during compile time then throw during runtime
-        var nonNullableExpression = RemoveNullability(expression);
-
-        var state = StartEmulation();
-        var diagnosticCount = diagnostics.count;
-        var _ = BindCast(expression, intermediateType);
-        var newDiagnostics = new BelteDiagnosticQueue();
-
-        while (diagnostics.count > diagnosticCount)
-            newDiagnostics.Push(diagnostics.Pop());
-
-        EndEmulation(state);
-
-        BoundExpression boundExpression;
-
-        if (newDiagnostics.count > 0) {
-            diagnostics.Move(newDiagnostics);
-            boundExpression = new BoundErrorExpression();
-        } else {
-            boundExpression = BindCast(nonNullableExpression, intermediateType);
-            boundExpression = new BoundCastExpression(type, boundExpression);
-        }
-
-        return boundExpression;
-    }
-
     private BoundStatement BindForStatement(ForStatement statement, bool insideInline = false) {
-        scope_ = new BoundScope(scope_);
+        _scope = new BoundScope(_scope);
 
         var initializer = BindStatement(statement.initializer, insideInline: insideInline);
-        var condition = BindDoubleCastRemovingNullability(
-            statement.condition, BoundTypeClause.NullableBool, BoundTypeClause.Bool);
+        var condition = BindCast(statement.condition, BoundTypeClause.NullableBool);
         var step = BindExpression(statement.step);
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel, insideInline);
 
-        scope_.parent.CopyInlines(scope_);
-        scope_ = scope_.parent;
+        _scope.parent.CopyInlines(_scope);
+        _scope = _scope.parent;
         return new BoundForStatement(initializer, condition, step, body, breakLabel, continueLabel);
     }
 
     private BoundStatement BindLoopBody(
         Statement body, out BoundLabel breakLabel, out BoundLabel continueLabel, bool insideInline = false) {
-        labelCount_++;
-        breakLabel = new BoundLabel($"Break{labelCount_}");
-        continueLabel = new BoundLabel($"Continue{labelCount_}");
+        _labelCount++;
+        breakLabel = new BoundLabel($"Break{_labelCount}");
+        continueLabel = new BoundLabel($"Continue{_labelCount}");
 
-        loopStack_.Push((breakLabel, continueLabel));
+        _loopStack.Push((breakLabel, continueLabel));
         var boundBody = BindStatement(body, insideInline: insideInline);
-        loopStack_.Pop();
+        _loopStack.Pop();
 
         return boundBody;
     }
 
-    private Expression RemoveNullability(Expression expression) {
-        /*
-
-        <expression>
-
-        ---> <expression> is nullable
-
-        Value(<expression>)
-
-        */
-
-        var binderSaveState = StartEmulation();
-
-        var expressionTemp = BindExpression(expression);
-
-        EndEmulation(binderSaveState);
-
-        if (expressionTemp.typeClause.isNullable) {
-            var callExpression = new CallExpression(
-                null, new NameExpression(null, CreateToken(SyntaxType.IDENTIFIER_TOKEN, "Value")),
-                null, new SeparatedSyntaxList<Expression>(ImmutableArray.Create<Node>(expression)), null);
-
-            return callExpression;
-        } else {
-            return expression;
-        }
-    }
-
     private BoundStatement BindIfStatement(IfStatement statement, bool insideInline = false) {
-        // Recast under the hood, because if statements can take null as abstraction but should throw
-        // If actually null
-        var condition = BindDoubleCastRemovingNullability(
-            statement.condition, BoundTypeClause.NullableBool, BoundTypeClause.Bool);
+        var condition = BindCast(statement.condition, BoundTypeClause.NullableBool);
 
         BoundLiteralExpression constant = null;
 
         if (condition.constantValue != null) {
-            if ((bool)condition.constantValue.value == false)
+            if (!(bool)condition.constantValue.value)
                 diagnostics.Push(Warning.UnreachableCode(statement.then));
             else if (statement.elseClause != null)
                 diagnostics.Push(Warning.UnreachableCode(statement.elseClause.body));
@@ -1005,40 +999,43 @@ internal sealed class Binder {
 
     private BoundStatement BindBlockStatement(BlockStatement statement, bool insideInline = false) {
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
-        scope_ = new BoundScope(scope_);
+        _scope = new BoundScope(_scope);
 
         var frame = new List<string>();
 
-        if (localLocals_.Count() > 0) {
-            var lastFrame = localLocals_.Pop();
+        if (_localLocals.Count() > 0) {
+            var lastFrame = _localLocals.Pop();
             frame.AddRange(lastFrame);
-            localLocals_.Push(lastFrame);
+            _localLocals.Push(lastFrame);
         }
 
         foreach (var statementSyntax in statement.statements) {
-            if (statementSyntax is LocalFunctionDeclaration fd) {
-                var declaration = new FunctionDeclaration(
+            if (statementSyntax is LocalFunctionStatement fd) {
+                var declaration = new MethodDeclaration(
                     fd.syntaxTree, fd.returnType, fd.identifier, fd.openParenthesis,
                     fd.parameters, fd.closeParenthesis, fd.body);
 
-                BindFunctionDeclaration(declaration);
+                BindMethodDeclaration(declaration);
                 frame.Add(fd.identifier.text);
-                innerPrefix_.Push(fd.identifier.text);
+                _innerPrefix.Push(fd.identifier.text);
 
-                unresolvedLocals_.Add(ConstructInnerName(), fd);
-                innerPrefix_.Pop();
+                if (!_unresolvedLocals.TryAdd(ConstructInnerName(), fd))
+                    diagnostics.Push(Error.CannotOverloadNested(
+                        declaration.identifier.location, declaration.identifier.text));
+
+                _innerPrefix.Pop();
             }
         }
 
-        localLocals_.Push(frame);
+        _localLocals.Push(frame);
 
         foreach (var statementSyntax in statement.statements) {
             var state = BindStatement(statementSyntax, insideInline: insideInline);
             statements.Add(state);
         }
 
-        localLocals_.Pop();
-        scope_ = scope_.parent;
+        _localLocals.Pop();
+        _scope = _scope.parent;
 
         return new BoundBlockStatement(statements.ToImmutable());
     }
@@ -1046,7 +1043,7 @@ internal sealed class Binder {
     private string ConstructInnerName() {
         var name = "<";
 
-        foreach (var frame in innerPrefix_.Reverse())
+        foreach (var frame in _innerPrefix.Reverse())
             name += $"{frame}::";
 
         name = name.Substring(0, name.Length-2);
@@ -1055,6 +1052,8 @@ internal sealed class Binder {
         return name;
     }
 
+    /*
+    * Temporary, inlines will be disabled until the StackFrameParser is added
     private BoundExpression BindInlineFunctionExpression(InlineFunctionExpression statement) {
         // Want to bind to resolve return type, then through away the binding result and bind later
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
@@ -1064,9 +1063,9 @@ internal sealed class Binder {
 
         var returnType = new BoundTypeClause(TypeSymbol.Any);
         var tempFunction = new FunctionSymbol("$temp", ImmutableArray<ParameterSymbol>.Empty, returnType);
-        var binder = new Binder(false, scope_, tempFunction);
-        binder.innerPrefix_ = new Stack<string>(innerPrefix_.Reverse());
-        binder.innerPrefix_.Push(tempFunction.name);
+        var binder = new Binder(_isScript, _scope, tempFunction);
+        binder._innerPrefix = new Stack<string>(_innerPrefix.Reverse());
+        binder._innerPrefix.Push(tempFunction.name);
 
         foreach (var statementSyntax in statement.statements) {
             var boundStatement = binder.BindStatement(statementSyntax, insideInline: true);
@@ -1095,28 +1094,28 @@ internal sealed class Binder {
             }
         }
 
-        var name = $"$Inline{inlineCount_++}";
-        innerPrefix_.Push(name);
+        var name = $"$Inline{_inlineCount++}";
+        _innerPrefix.Push(name);
         var innerName = ConstructInnerName();
-        innerPrefix_.Pop();
+        _innerPrefix.Pop();
 
         var oldTypeClause = ReconstructTypeClause(returnType);
-        var identifier = CreateToken(SyntaxType.IDENTIFIER_TOKEN, name);
+        var identifier = CreateToken(SyntaxType.IdentifierToken, name);
 
         var declaration = new FunctionDeclaration(
             null, oldTypeClause, identifier, null,
             new SeparatedSyntaxList<Parameter>(ImmutableArray<Node>.Empty), null, block);
 
-        if (!scope_.TryDeclareFunction(
+        if (!_scope.TryDeclareFunction(
             new FunctionSymbol(name, ImmutableArray<ParameterSymbol>.Empty, returnType, declaration)))
-            throw new Exception($"BindInlineFunctionExpression: failed to declare {innerName}");
+            throw new BelteInternalException($"BindInlineFunctionExpression: failed to declare {innerName}");
 
-        var localFunctionDeclaration = new LocalFunctionDeclaration(
+        var localFunctionDeclaration = new LocalFunctionStatement(
             null, oldTypeClause, identifier, null,
             new SeparatedSyntaxList<Parameter>(ImmutableArray<Node>.Empty), null, block
         );
 
-        unresolvedLocals_[innerName] = localFunctionDeclaration;
+        _unresolvedLocals[innerName] = localFunctionDeclaration;
 
         var callExpression = new CallExpression(
             null, new NameExpression(null, identifier), null,
@@ -1124,9 +1123,10 @@ internal sealed class Binder {
 
         return BindCallExpression(callExpression);
     }
+    */
 
     private Token CreateToken(SyntaxType type, string name = null, object value = null) {
-        // TODO Binder uses a hack to create code in the parse tree, probably better solution
+        // TODO Make a syntax node factory
         return new Token(
             null, type, -1, name, value,
             ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
@@ -1137,24 +1137,24 @@ internal sealed class Binder {
         var brackets = ImmutableArray.CreateBuilder<(Token, Token)>();
 
         if (!type.isNullable)
-            attributes.Add((null, CreateToken(SyntaxType.IDENTIFIER_TOKEN, "NotNull"), null));
+            attributes.Add((null, CreateToken(SyntaxType.IdentifierToken, "NotNull"), null));
 
         var constRefKeyword = type.isConstantReference
-            ? CreateToken(SyntaxType.CONST_KEYWORD)
+            ? CreateToken(SyntaxType.ConstKeyword)
             : null;
 
         var refKeyword = type.isReference
-            ? CreateToken(SyntaxType.REF_KEYWORD)
+            ? CreateToken(SyntaxType.RefKeyword)
             : null;
 
         var constKeyword = type.isConstant
-            ? CreateToken(SyntaxType.CONST_KEYWORD)
+            ? CreateToken(SyntaxType.ConstKeyword)
             : null;
 
-        var typeName = CreateToken(SyntaxType.IDENTIFIER_TOKEN, type.lType.name);
+        var typeName = CreateToken(SyntaxType.IdentifierToken, type.lType.name);
 
         for (int i=0; i<type.dimensions; i++)
-            brackets.Add((CreateToken(SyntaxType.OPEN_BRACKET_TOKEN), CreateToken(SyntaxType.CLOSE_BRACKET_TOKEN)));
+            brackets.Add((CreateToken(SyntaxType.OpenBracketToken), CreateToken(SyntaxType.CloseBracketToken)));
 
         return new TypeClause(
             null, attributes.ToImmutable(), constRefKeyword, refKeyword,
@@ -1195,406 +1195,114 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindUnaryExpression(UnaryExpression expression) {
-        var binderSaveState = StartEmulation();
+        var boundOperand = BindExpression(expression.operand);
 
-        var operandTemp = BindExpression(expression.operand);
-        var operandType = operandTemp.typeClause;
-
-        var tempOp = BoundUnaryOperator.Bind(expression.op.type, operandType);
-        var tempDiagnostics = new BelteDiagnosticQueue();
-
-        if (tempOp == null)
-            tempDiagnostics.Push(
-                Error.InvalidUnaryOperatorUse(expression.op.location, expression.op.text, operandType));
-
-        EndEmulation(binderSaveState);
-
-        // Catch casting errors before they happen
-        diagnostics.Move(tempDiagnostics);
-
-        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+        if (boundOperand.typeClause.lType == TypeSymbol.Error)
             return new BoundErrorExpression();
 
-        var opType = tempOp?.typeClause;
+        var boundOp = BoundUnaryOperator.Bind(expression.op.type, boundOperand.typeClause);
 
-        if (!operandType.isNullable || operandTemp.constantValue != null) {
-            var boundOperand = BindExpression(expression.operand);
-
-            if (boundOperand.typeClause.lType == TypeSymbol.Error)
-                return new BoundErrorExpression();
-
-            var boundOp = BoundUnaryOperator.Bind(expression.op.type, boundOperand.typeClause);
-
-            if (boundOp == null) {
-                diagnostics.Push(
-                    Error.InvalidUnaryOperatorUse(expression.op.location, expression.op.text, boundOperand.typeClause));
-                return new BoundErrorExpression();
-            }
-
-            return new BoundUnaryExpression(boundOp, boundOperand);
+        if (boundOp == null) {
+            diagnostics.Push(
+                Error.InvalidUnaryOperatorUse(expression.op.location, expression.op.text, boundOperand.typeClause));
+            return new BoundErrorExpression();
         }
 
-        /*
-        <op> <operand>
+        return new BoundUnaryExpression(boundOp, boundOperand);
+    }
 
-        ---> <operand> is nullable
+    private BoundExpression BindTernaryExpression(TernaryExpression expression) {
+        var boundLeft = BindExpression(expression.left);
+        var boundCenter = BindExpression(expression.center);
+        var boundRight = BindExpression(expression.right);
 
-        {
-            <type> operand0 = null;
-            if (<operand> isnt null) {
-                [NotNull]<type> operand1 = ([NotNull]<type>)<operand>;
-                operand0 = <op> operand1;
-            }
-            return operand0;
+        if (boundLeft.typeClause.lType == TypeSymbol.Error ||
+            boundCenter.typeClause.lType == TypeSymbol.Error ||
+            boundRight.typeClause.lType == TypeSymbol.Error)
+            return new BoundErrorExpression();
+
+        var boundOp = BoundTernaryOperator.Bind(
+            expression.leftOp.type, expression.rightOp.type, boundLeft.typeClause,
+            boundCenter.typeClause, boundRight.typeClause);
+
+        if (boundOp == null) {
+            diagnostics.Push(Error.InvalidTernaryOperatorUse(
+                    expression.leftOp.location, expression.leftOp.text, boundLeft.typeClause,
+                    boundCenter.typeClause, boundRight.typeClause));
+            return new BoundErrorExpression();
         }
 
-        */
-        var result = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<result>$");
-        var resultType = BoundTypeClause.NonNullable(opType);
-        var nullLiteral = new LiteralExpression(null, CreateToken(SyntaxType.NULL_KEYWORD), null);
-
-        var ifCondition = new BinaryExpression(
-            null, expression.operand, CreateToken(SyntaxType.ISNT_KEYWORD), nullLiteral);
-
-        var operand0Type = BoundTypeClause.NonNullable(operandType);
-        var operand0Identifier = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<operand0>$");
-        var operand0Cast = new CastExpression(
-            null, null, ReconstructTypeClause(operand0Type), null, expression.operand);
-
-        var operand0 = new VariableDeclarationStatement(
-            null, ReconstructTypeClause(operand0Type), operand0Identifier, null, operand0Cast, null);
-
-        var unaryExpression = new UnaryExpression(null, expression.op, new NameExpression(null, operand0Identifier));
-
-        var assignment = new AssignmentExpression(
-            null, result, CreateToken(SyntaxType.EQUALS_TOKEN), unaryExpression);
-
-        var resultAssignment = new ExpressionStatement(null, assignment, null);
-
-        var ifBody = new BlockStatement(
-            null, null, ImmutableArray.Create<Statement>(new Statement[]{ operand0, resultAssignment }), null);
-
-        var body = ImmutableArray.Create<Statement>(new Statement[] {
-            new VariableDeclarationStatement(
-                null, ReconstructTypeClause(resultType), result, null, nullLiteral, null),
-            new IfStatement(null, null, null, ifCondition, null, ifBody, null),
-            new ReturnStatement(null, null, new NameExpression(null, result), null)
-        });
-
-        return BindInlineFunctionExpression(new InlineFunctionExpression(null, null, body, null));
+        return new BoundTernaryExpression(boundLeft, boundOp, boundCenter, boundRight);
     }
 
     private BoundExpression BindBinaryExpression(BinaryExpression expression) {
-        var binderSaveState = StartEmulation();
+        var boundLeft = BindExpression(expression.left);
+        var boundRight = BindExpression(expression.right);
 
-        var leftTemp = BindExpression(expression.left);
-        var leftType = leftTemp.typeClause;
-
-        var rightTemp = BindExpression(expression.right);
-        var rightType = rightTemp.typeClause;
-
-        var tempOp = BoundBinaryOperator.Bind(expression.op.type, leftType, rightType);
-        var tempDiagnostics = new BelteDiagnosticQueue();
-
-        if (tempOp == null)
-            tempDiagnostics.Push(
-                Error.InvalidBinaryOperatorUse(expression.op.location, expression.op.text, leftType, rightType));
-
-        EndEmulation(binderSaveState);
-
-        diagnostics.Move(tempDiagnostics);
-
-        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+        if (boundLeft.typeClause.lType == TypeSymbol.Error || boundRight.typeClause.lType == TypeSymbol.Error)
             return new BoundErrorExpression();
 
-        var opResultType = tempOp.typeClause;
+        var boundOp = BoundBinaryOperator.Bind(expression.op.type, boundLeft.typeClause, boundRight.typeClause);
 
-        // TODO Support is/isnt type statements
-        // E.g. 3 is int
-        if (tempOp.opType == BoundBinaryOperatorType.Is || tempOp.opType == BoundBinaryOperatorType.Isnt) {
-            /*
-
-            ---> <op> is 'is'
-
-            HasValue(<left>) == false
-
-            ---> <op> is 'isnt'
-
-            HasValue(<left>) == true
-
-            */
-            var leftIsNull = leftTemp.constantValue?.value == null && leftTemp.constantValue != null;
-
-            if (rightTemp.constantValue == null || rightTemp.constantValue?.value != null) {
-                diagnostics.Push(Error.Unsupported.IsWithoutNull());
-                return new BoundErrorExpression();
-            }
-
-            if (!leftType.isNullable && !leftIsNull) {
-                diagnostics.Push(
-                    Warning.AlwaysValue(expression.location, tempOp.opType == BoundBinaryOperatorType.Isnt));
-
-                return new BoundLiteralExpression(tempOp.opType == BoundBinaryOperatorType.Isnt);
-            }
-
-            var boolean = tempOp.opType == BoundBinaryOperatorType.Is
-                ? new LiteralExpression(null, CreateToken(SyntaxType.FALSE_KEYWORD), false)
-                : new LiteralExpression(null, CreateToken(SyntaxType.TRUE_KEYWORD), true);
-            var leftHasValue = new CallExpression(
-                null, new NameExpression(null, CreateToken(SyntaxType.IDENTIFIER_TOKEN, "HasValue")),
-                null, new SeparatedSyntaxList<Expression>(ImmutableArray.Create<Node>(expression.left)), null);
-
-            var condition =
-                new BinaryExpression(null, leftHasValue, CreateToken(SyntaxType.EQUALS_EQUALS_TOKEN), boolean);
-
-            return BindBinaryExpression(condition);
+        if (boundOp == null) {
+            diagnostics.Push(Error.InvalidBinaryOperatorUse(
+                    expression.op.location, expression.op.text, boundLeft.typeClause, boundRight.typeClause));
+            return new BoundErrorExpression();
         }
 
-        var rightIsNotNull = rightTemp.constantValue != null || rightType.isNullable == false;
-        var leftIsNotNull = leftTemp.constantValue != null || leftType.isNullable == false;
-
-        var result = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<result>$");
-        var resultType = BoundTypeClause.Nullable(opResultType);
-        var nullLiteral = new LiteralExpression(null, CreateToken(SyntaxType.NULL_KEYWORD), null);
-        Expression resultInitializer = nullLiteral;
-        Expression ifCondition = new LiteralExpression(null, CreateToken(SyntaxType.FALSE_KEYWORD), false);
-        var ifBody = new BlockStatement(null, null, ImmutableArray<Statement>.Empty, null);
-
-        if (tempOp.opType == BoundBinaryOperatorType.NullCoalescing) {
-            /*
-
-            {
-                <type> result = <left>;
-                if (result is null)
-                    result = <right>;
-
-                return result;
+        // Could possible move this to ComputeConstant
+        if (boundOp.opType == BoundBinaryOperatorType.EqualityEquals ||
+            boundOp.opType == BoundBinaryOperatorType.EqualityNotEquals ||
+            boundOp.opType == BoundBinaryOperatorType.LessThan ||
+            boundOp.opType == BoundBinaryOperatorType.LessOrEqual ||
+            boundOp.opType == BoundBinaryOperatorType.GreaterThan ||
+            boundOp.opType == BoundBinaryOperatorType.GreatOrEqual) {
+            if (boundLeft.constantValue != null && boundRight.constantValue != null &&
+                (boundLeft.constantValue.value == null) || (boundRight.constantValue.value == null)) {
+                diagnostics.Push(Warning.AlwaysValue(expression.location, null));
+                return new BoundLiteralExpression(null);
             }
-
-            */
-            if (leftType.isNullable == false) {
-                diagnostics.Push(Warning.UnreachableCode(expression.right));
-                return BindExpression(expression.left);
-            }
-
-            resultInitializer = expression.left;
-
-            ifCondition = new BinaryExpression(
-                null, new NameExpression(null, result), CreateToken(SyntaxType.IS_KEYWORD), nullLiteral);
-
-            var assignment = new AssignmentExpression(
-                null, result, CreateToken(SyntaxType.EQUALS_TOKEN), expression.right);
-
-            var resultAssignment = new ExpressionStatement(null, assignment, null);
-
-            ifBody = new BlockStatement(
-                null, null, ImmutableArray.Create<Statement>(new Statement[]{ resultAssignment }), null);
-        // TODO
-        // } else if (tempOp.opType == BoundBinaryOperatorType.Power) {
-            /*
-
-            {
-                int n = <left>;
-                for (int i = 1; i < <right>; i+=1)
-                    n *= <left>;
-
-                return n;
-            }
-
-            */
-        } else if (rightIsNotNull && leftIsNotNull) {
-            var boundLeft = BindExpression(expression.left);
-            var boundRight = BindExpression(expression.right);
-
-            if (boundLeft.typeClause.lType == TypeSymbol.Error || boundRight.typeClause.lType == TypeSymbol.Error)
-                return new BoundErrorExpression();
-
-            var boundOp = BoundBinaryOperator.Bind(expression.op.type, leftType, rightType);
-
-            if (boundOp == null) {
-                diagnostics.Push(Error.InvalidBinaryOperatorUse(
-                        expression.op.location, expression.op.text, boundLeft.typeClause, boundRight.typeClause));
-                return new BoundErrorExpression();
-            }
-
-            // Could possible move this to ComputeConstant
-            if (boundOp.opType == BoundBinaryOperatorType.EqualityEquals ||
-                boundOp.opType == BoundBinaryOperatorType.EqualityNotEquals ||
-                boundOp.opType == BoundBinaryOperatorType.LessThan ||
-                boundOp.opType == BoundBinaryOperatorType.LessOrEqual ||
-                boundOp.opType == BoundBinaryOperatorType.GreaterThan ||
-                boundOp.opType == BoundBinaryOperatorType.GreatOrEqual) {
-                if (boundLeft.constantValue != null && boundRight.constantValue != null &&
-                    (boundLeft.constantValue.value == null) || (boundRight.constantValue.value == null)) {
-                    diagnostics.Push(Warning.AlwaysValue(expression.location, null));
-                    return new BoundLiteralExpression(null);
-                }
-            }
-
-            return new BoundBinaryExpression(boundLeft, boundOp, boundRight);
         }
 
-        if (leftType.isNullable && rightType.isNullable) {
-            /*
-
-            {
-                <type> result = null;
-                if (<left> isnt null && <right> isnt null) {
-                    [NotNull]<type> left0 = ([NotNull]<type>)<left>;
-                    [NotNull]<type> right0 = ([NotNull]<type>)<right>;
-                    result = left0 <op> right0;
-                }
-                return result;
-            }
-
-            */
-            var leftCheck = new BinaryExpression(
-                null, expression.left, CreateToken(SyntaxType.ISNT_KEYWORD), nullLiteral);
-            var rightCheck = new BinaryExpression(
-                null, expression.right, CreateToken(SyntaxType.ISNT_KEYWORD), nullLiteral);
-
-            ifCondition = new BinaryExpression(
-                null, leftCheck, CreateToken(SyntaxType.AMPERSAND_AMPERSAND_TOKEN), rightCheck);
-
-            var left0Type = BoundTypeClause.NonNullable(leftType);
-            var left0Identifier = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<left0>$");
-            var left0Cast = new CastExpression(null, null, ReconstructTypeClause(left0Type), null, expression.left);
-
-            var right0Type = BoundTypeClause.NonNullable(rightType);
-            var right0Identifier = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<right0>$");
-            var right0Cast = new CastExpression(null, null, ReconstructTypeClause(right0Type), null, expression.right);
-
-            var left0 = new VariableDeclarationStatement(
-                null, ReconstructTypeClause(left0Type), left0Identifier, null, left0Cast, null);
-            var right0 = new VariableDeclarationStatement(
-                null, ReconstructTypeClause(right0Type), right0Identifier, null, right0Cast, null);
-
-            var binaryExpression = new BinaryExpression(
-                null, new NameExpression(null, left0Identifier),
-                expression.op, new NameExpression(null, right0Identifier));
-
-            var assignment = new AssignmentExpression(
-                null, result, CreateToken(SyntaxType.EQUALS_TOKEN), binaryExpression);
-
-            var resultAssignment = new ExpressionStatement(null, assignment, null);
-
-            ifBody = new BlockStatement(
-                null, null, ImmutableArray.Create<Statement>(new Statement[]{ left0, right0, resultAssignment }), null);
-        } else if (leftType.isNullable) {
-            /*
-
-            {
-                <type> result = null;
-                if (<left> isnt null) {
-                    [NotNull]<type> left0 = ([NotNull]<type>)<left>;
-                    result = left0 <op> <right>;
-                }
-                return result;
-            }
-
-            */
-            ifCondition = new BinaryExpression(
-                null, expression.left, CreateToken(SyntaxType.ISNT_KEYWORD), nullLiteral);
-
-            var left0Type = BoundTypeClause.NonNullable(leftType);
-            var left0Identifier = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<left0>$");
-            var left0Cast = new CastExpression(null, null, ReconstructTypeClause(left0Type), null, expression.left);
-
-            var left0 = new VariableDeclarationStatement(
-                null, ReconstructTypeClause(left0Type), left0Identifier, null, left0Cast, null);
-
-            var binaryExpression = new BinaryExpression(
-                null, new NameExpression(null, left0Identifier),
-                expression.op, expression.right);
-
-            var assignment = new AssignmentExpression(
-                null, result, CreateToken(SyntaxType.EQUALS_TOKEN), binaryExpression);
-
-            var resultAssignment = new ExpressionStatement(null, assignment, null);
-
-            ifBody = new BlockStatement(
-                null, null, ImmutableArray.Create<Statement>(new Statement[]{ left0, resultAssignment }), null);
-        } else if (rightType.isNullable) {
-            /*
-
-            {
-                <type> result = null;
-                if (<right> isnt null) {
-                    [NotNull]<type> right0 = ([NotNull]<type>)<right>;
-                    result = <left> <op> right0;
-                }
-                return result;
-            }
-
-            */
-            ifCondition = new BinaryExpression(
-                null, expression.right, CreateToken(SyntaxType.ISNT_KEYWORD), nullLiteral);
-
-            var right0Type = BoundTypeClause.NonNullable(rightType);
-            var right0Identifier = CreateToken(SyntaxType.IDENTIFIER_TOKEN, "<right0>$");
-            var right0Cast = new CastExpression(null, null, ReconstructTypeClause(right0Type), null, expression.right);
-
-            var right0 = new VariableDeclarationStatement(
-                null, ReconstructTypeClause(right0Type), right0Identifier, null, right0Cast, null);
-
-            var binaryExpression = new BinaryExpression(
-                null, expression.left,
-                expression.op, new NameExpression(null, right0Identifier));
-
-            var assignment = new AssignmentExpression(
-                null, result, CreateToken(SyntaxType.EQUALS_TOKEN), binaryExpression);
-
-            var resultAssignment = new ExpressionStatement(null, assignment, null);
-
-            ifBody = new BlockStatement(
-                null, null, ImmutableArray.Create<Statement>(new Statement[]{ right0, resultAssignment }), null);
-        } else {
-            throw new Exception("BindBinaryExpression: unexpected combinations of types");
-        }
-
-        var body = ImmutableArray.Create<Statement>(new Statement[] {
-            new VariableDeclarationStatement(
-                null, ReconstructTypeClause(resultType), result, null, resultInitializer, null),
-            new IfStatement(null, null, null, ifCondition, null, ifBody, null),
-            new ReturnStatement(null, null, new NameExpression(null, result), null)
-        });
-
-        return BindInlineFunctionExpression(new InlineFunctionExpression(null, null, body, null));
+        return new BoundBinaryExpression(boundLeft, boundOp, boundRight);
     }
 
+    /*
+    * Temporary, inlines will be disabled until the StackFrameParser is added
     private BinderState StartEmulation() {
         var state = new BinderState();
-        state.functionBodies = new List<(FunctionSymbol function, BoundBlockStatement body)>(functionBodies_);
-        state.resolvedLocals = new List<string>(resolvedLocals_);
-        state.unresolvedLocals = new Dictionary<string, LocalFunctionDeclaration>(unresolvedLocals_);
+        state.functionBodies = new List<(FunctionSymbol function, BoundBlockStatement body)>(_functionBodies);
+        state.resolvedLocals = new List<string>(_resolvedLocals);
+        state.unresolvedLocals = new Dictionary<string, LocalFunctionStatement>(_unresolvedLocals);
         state.diagnostics = new BelteDiagnosticQueue();
         state.diagnostics.Move(diagnostics);
-        state.innerPrefix = new Stack<string>(innerPrefix_.Reverse());
+        state.innerPrefix = new Stack<string>(_innerPrefix.Reverse());
 
-        scope_ = new BoundScope(scope_);
-        inlineCounts_.Push(inlineCount_);
-        emulationDepth_++;
+        _scope = new BoundScope(_scope);
+        _inlineCounts.Push(_inlineCount);
+        _emulationDepth++;
 
         return state;
     }
 
     private void EndEmulation(BinderState oldState) {
-        scope_ = scope_.parent;
-        inlineCount_ = inlineCounts_.Pop();
+        _scope = _scope.parent;
+        _inlineCount = _inlineCounts.Pop();
 
-        resolvedLocals_ = new List<string>(oldState.resolvedLocals);
-        unresolvedLocals_ = new Dictionary<string, LocalFunctionDeclaration>(oldState.unresolvedLocals);
-        functionBodies_.Clear();
-        functionBodies_.AddRange(oldState.functionBodies);
-        innerPrefix_.Clear();
+        _resolvedLocals = new List<string>(oldState.resolvedLocals);
+        _unresolvedLocals = new Dictionary<string, LocalFunctionStatement>(oldState.unresolvedLocals);
+        _functionBodies.Clear();
+        _functionBodies.AddRange(oldState.functionBodies);
+        _innerPrefix.Clear();
 
         foreach (var item in oldState.innerPrefix.Reverse())
-            innerPrefix_.Push(item);
+            _innerPrefix.Push(item);
 
         diagnostics.Clear();
         diagnostics.Move(oldState.diagnostics);
-        emulationDepth_--;
+        _emulationDepth--;
     }
+    */
 
     private BoundExpression BindParenExpression(ParenthesisExpression expression) {
         return BindExpression(expression.expression);
@@ -1617,41 +1325,55 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindAssignmentExpression(AssignmentExpression expression) {
-        var name = expression.identifier.text;
-        var boundExpression = BindExpression(expression.expression);
+        var left = BindExpression(expression.left);
 
-        var variable = BindVariableReference(expression.identifier);
-        if (variable == null)
-            return boundExpression;
+        if (left is BoundErrorExpression)
+            return left;
 
-        if (!variable.typeClause.isNullable && boundExpression is BoundLiteralExpression le && le.value == null) {
-            diagnostics.Push(Error.NullAssignOnNotNull(expression.expression.location));
+        if (!(left is BoundVariableExpression || left is BoundMemberAccessExpression || left is BoundIndexExpression)) {
+            diagnostics.Push(Error.CannotAssign(expression.left.location));
+            return new BoundErrorExpression();
+        }
+
+        var boundExpression = BindExpression(expression.right);
+        var typeClause = left.typeClause;
+
+        if (!typeClause.isNullable && boundExpression is BoundLiteralExpression le && le.value == null) {
+            diagnostics.Push(Error.NullAssignOnNotNull(expression.right.location));
             return boundExpression;
         }
 
-        if ((variable.typeClause.isReference && variable.typeClause.isConstantReference &&
+        if ((typeClause.isReference && typeClause.isConstantReference &&
             boundExpression.type == BoundNodeType.ReferenceExpression) ||
-            (variable.typeClause.isConstant && boundExpression.type != BoundNodeType.ReferenceExpression))
-            diagnostics.Push(Error.ConstantAssignment(expression.assignmentToken.location, name));
+            (typeClause.isConstant && boundExpression.type != BoundNodeType.ReferenceExpression)) {
+            string name = null;
 
-        if (expression.assignmentToken.type != SyntaxType.EQUALS_TOKEN) {
+            if (left is BoundVariableExpression v)
+                name = v.variable.name;
+            else if (left is BoundMemberAccessExpression m)
+                name = m.member.name;
+
+            diagnostics.Push(Error.ConstantAssignment(expression.assignmentToken.location, name));
+        }
+
+        if (expression.assignmentToken.type != SyntaxType.EqualsToken) {
             var equivalentOperatorTokenType = SyntaxFacts.GetBinaryOperatorOfAssignmentOperator(
                 expression.assignmentToken.type);
             var boundOperator = BoundBinaryOperator.Bind(
-                equivalentOperatorTokenType, variable.typeClause, boundExpression.typeClause);
+                equivalentOperatorTokenType, typeClause, boundExpression.typeClause);
 
             if (boundOperator == null) {
                 diagnostics.Push(Error.InvalidBinaryOperatorUse(
                     expression.assignmentToken.location, expression.assignmentToken.text,
-                    variable.typeClause, boundExpression.typeClause));
+                    typeClause, boundExpression.typeClause));
                 return new BoundErrorExpression();
             }
 
-            var convertedExpression = BindCast(expression.expression.location, boundExpression, variable.typeClause);
-            return new BoundCompoundAssignmentExpression(variable, boundOperator, convertedExpression);
+            var convertedExpression = BindCast(expression.right.location, boundExpression, typeClause);
+            return new BoundCompoundAssignmentExpression(left, boundOperator, convertedExpression);
         } else {
-            var convertedExpression = BindCast(expression.expression.location, boundExpression, variable.typeClause);
-            return new BoundAssignmentExpression(variable, convertedExpression);
+            var convertedExpression = BindCast(expression.right.location, boundExpression, typeClause);
+            return new BoundAssignmentExpression(left, convertedExpression);
         }
     }
 
@@ -1659,7 +1381,7 @@ internal sealed class Binder {
         var name = identifier.text;
         VariableSymbol reference = null;
 
-        switch (scope_.LookupSymbol(name)) {
+        switch (_scope.LookupSymbol(name)) {
             case VariableSymbol variable:
                 reference = variable;
                 break;
@@ -1671,8 +1393,8 @@ internal sealed class Binder {
                 break;
         }
 
-        if (reference != null && trackSymbols_)
-            foreach (var frame in trackedSymbols_)
+        if (reference != null && _trackSymbols)
+            foreach (var frame in _trackedSymbols)
                 frame.Add(reference);
 
         return reference;
@@ -1694,13 +1416,13 @@ internal sealed class Binder {
             return null;
         }
 
-        if (typeClause.isReference && expression.initializer?.type != SyntaxType.REFERENCE_EXPRESSION) {
+        if (typeClause.isReference && expression.initializer?.type != SyntaxType.RefExpression) {
             diagnostics.Push(Error.ReferenceWrongInitialization(expression.equals.location));
             return null;
         }
 
         if (expression.initializer is LiteralExpression le) {
-            if (le.token.type == SyntaxType.NULL_KEYWORD && typeClause.isImplicit) {
+            if (le.token.type == SyntaxType.NullKeyword && typeClause.isImplicit) {
                 diagnostics.Push(Error.NullAssignOnImplicit(expression.initializer.location));
                 return null;
             }
@@ -1711,14 +1433,14 @@ internal sealed class Binder {
             return null;
         }
 
-        if (!typeClause.isReference && expression.initializer?.type == SyntaxType.REFERENCE_EXPRESSION) {
+        if (!typeClause.isReference && expression.initializer?.type == SyntaxType.RefExpression) {
             diagnostics.Push(Error.WrongInitializationReference(expression.equals.location));
             return null;
         }
 
         var nullable = typeClause.isNullable;
 
-        if (expression.initializer?.type == SyntaxType.REFERENCE_EXPRESSION) {
+        if (expression.initializer?.type == SyntaxType.RefExpression) {
             var initializer = BindReferenceExpression((ReferenceExpression)expression.initializer);
             // References cant have implicit casts
             var variable = BindVariable(expression.identifier, typeClause, initializer.constantValue);
@@ -1726,7 +1448,7 @@ internal sealed class Binder {
             return new BoundVariableDeclarationStatement(variable, initializer);
         } else if (typeClause.dimensions > 0 ||
             (typeClause.isImplicit && expression.initializer is InitializerListExpression)) {
-            var initializer = expression.initializer.type != SyntaxType.NULL_KEYWORD
+            var initializer = expression.initializer.type != SyntaxType.NullKeyword
                 ? BindInitializerListExpression(
                     (InitializerListExpression)expression.initializer, typeClause)
                 : new BoundLiteralExpression(null);
@@ -1787,7 +1509,8 @@ internal sealed class Binder {
             }
 
             var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
-            var variable = BindVariable(expression.identifier, variableType, castedInitializer.constantValue);
+            var variable = BindVariable(
+                expression.identifier, variableType, castedInitializer.constantValue);
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
         }
@@ -1806,7 +1529,7 @@ internal sealed class Binder {
         var isRef = type.refKeyword != null;
         var isConstRef = type.constRefKeyword != null && isRef;
         var isConst = type.constKeyword != null;
-        var isImplicit = type.typeName.type == SyntaxType.VAR_KEYWORD;
+        var isImplicit = type.typeName.type == SyntaxType.VarKeyword;
         var dimensions = type.brackets.Length;
 
         var foundType = LookupType(type.typeName.text);
@@ -1818,18 +1541,20 @@ internal sealed class Binder {
     }
 
     private VariableSymbol BindVariable(
-        Token identifier, BoundTypeClause type, BoundConstant constant = null) {
+        Token identifier, BoundTypeClause type, BoundConstant constant = null, bool bindAsField = false) {
         var name = identifier.text ?? "?";
         var declare = !identifier.isMissing;
-        var variable = function_ == null
-            ? (VariableSymbol) new GlobalVariableSymbol(name, type, constant)
-            : new LocalVariableSymbol(name, type, constant);
+        var variable = bindAsField
+            ? new FieldSymbol(name, type, constant)
+            : _function == null
+                ? (VariableSymbol) new GlobalVariableSymbol(name, type, constant)
+                : new LocalVariableSymbol(name, type, constant);
 
-        if (declare && !scope_.TryDeclareVariable(variable))
+        if (declare && !_scope.TryDeclareVariable(variable))
             diagnostics.Push(Error.AlreadyDeclared(identifier.location, name));
 
-        if (trackSymbols_)
-            foreach (var frame in trackedDeclarations_)
+        if (_trackSymbols)
+            foreach (var frame in _trackedDeclarations)
                 frame.Add(variable);
 
         return variable;
@@ -1852,15 +1577,10 @@ internal sealed class Binder {
             case "type":
                 return TypeSymbol.Type;
             default:
-                return null;
+                // If no type was found, we want to return null and type will be null if no type was found
+                // So we just return type
+                var type = _scope.LookupSymbol<TypeSymbol>(name);
+                return type;
         }
-    }
-
-    private struct BinderState {
-        internal BelteDiagnosticQueue diagnostics;
-        internal List<(FunctionSymbol function, BoundBlockStatement body)> functionBodies;
-        internal List<string> resolvedLocals;
-        internal Dictionary<string, LocalFunctionDeclaration> unresolvedLocals;
-        internal Stack<string> innerPrefix;
     }
 }

@@ -5,6 +5,7 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Binding;
 using Diagnostics;
+using System;
 
 namespace Buckle.Diagnostics;
 
@@ -41,14 +42,14 @@ internal static class Error {
         if (factValue != null)
             return "'" + factValue + "'";
 
-        if (type.ToString().EndsWith("_STATEMENT"))
+        if (type.ToString().EndsWith("Statement"))
             return "statement";
-        else if (type.ToString().EndsWith("_EXPRESSION"))
+        else if (type.ToString().EndsWith("Expression"))
             return "expression";
         else if (type.IsKeyword())
             return "keyword";
         else if (type.IsToken())
-            return type.ToString().ToLower().Substring(0, type.ToString().Length-6);
+            return type.ToString().ToLower().Substring(0, type.ToString().Length-5);
         else
             return type.ToString().ToLower();
     }
@@ -74,12 +75,12 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic UnexpectedToken(
-        TextLocation location, SyntaxType unexpected, SyntaxType? expected=null) {
+        TextLocation location, SyntaxType unexpected, SyntaxType? expected = null) {
         string message;
 
         if (expected == null)
             message = $"unexpected token {DiagnosticText(unexpected)}";
-        else if (unexpected != SyntaxType.END_OF_FILE_TOKEN)
+        else if (unexpected != SyntaxType.EndOfFileToken)
             message = $"unexpected token {DiagnosticText(unexpected)}, expected {DiagnosticText(expected.Value)}";
         else
             message = $"expected {DiagnosticText(expected.Value)} at end of input";
@@ -131,7 +132,8 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidMain), location, message);
     }
 
-    internal static BelteDiagnostic RequiredMethodNotFound(string typeName, object methodName, string[] parameterTypeNames) {
+    internal static BelteDiagnostic RequiredMethodNotFound(
+        string typeName, object methodName, string[] parameterTypeNames) {
         string message;
 
         if (parameterTypeNames == null) {
@@ -155,9 +157,9 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UndefinedName), location, message);
     }
 
-    internal static BelteDiagnostic FunctionAlreadyDeclared(TextLocation location, string name) {
-        var message = $"redefinition of function '{name}'";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_FunctionAlreadyDeclared), location, message);
+    internal static BelteDiagnostic MethodAlreadyDeclared(TextLocation location, string name) {
+        var message = $"redefinition of method '{name}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MethodAlreadyDeclared), location, message);
     }
 
     internal static BelteDiagnostic NotAllPathsReturn(TextLocation location) {
@@ -177,6 +179,10 @@ internal static class Error {
 
     internal static BelteDiagnostic ConstantAssignment(TextLocation location, string name) {
         var message = $"assignment of constant variable '{name}'";
+
+        if (name == null)
+            message = "assignment of constant";
+
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstantAssignment), location, message);
     }
 
@@ -200,7 +206,8 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UndefinedFunction), location, message);
     }
 
-    internal static BelteDiagnostic IncorrectArgumentCount(TextLocation location, string name, int expected, int actual) {
+    internal static BelteDiagnostic IncorrectArgumentCount(
+        TextLocation location, string name, int expected, int actual) {
         var argWord = expected == 1 ? "argument" : "arguments";
         var message = $"function '{name}' expects {expected} {argWord}, got {actual}";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_IncorrectArgumentCount), location, message);
@@ -235,12 +242,14 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnknownType), location, message);
     }
 
-    internal static BelteDiagnostic CannotConvertImplicitly(TextLocation location, BoundTypeClause from, BoundTypeClause to) {
+    internal static BelteDiagnostic CannotConvertImplicitly(
+        TextLocation location, BoundTypeClause from, BoundTypeClause to) {
         var message =
             $"cannot convert from type '{from}' to '{to}'. " +
             "An explicit conversion exists (are you missing a cast?)";
         var suggestion = $"({to})%"; // % is replaced with all the text at `location`
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotConvertImplicitly), location, message, suggestion);
+        return new BelteDiagnostic(
+            ErrorInfo(DiagnosticCode.ERR_CannotConvertImplicitly), location, message, suggestion);
     }
 
     internal static BelteDiagnostic InvalidBreakOrContinue(TextLocation location, string text) {
@@ -361,5 +370,31 @@ internal static class Error {
     internal static BelteDiagnostic AmbiguousOverload(TextLocation location, string name) {
         var message = $"multiple overloads for function '{name}' match parameter list";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AmbiguousOverload), location, message);
+    }
+
+    internal static BelteDiagnostic CannotInitialize(TextLocation location) {
+        var message = "cannot initialize declared symbol in this context";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotInitialize), location, message);
+    }
+
+    internal static BelteDiagnostic InvalidTernaryOperatorUse(
+        TextLocation location, string op, BoundTypeClause left, BoundTypeClause center, BoundTypeClause right) {
+        var message = $"operator '{op}' is not defined for types '{left}', '{center}', and '{right}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidTernaryOperatorUse), location, message);
+    }
+
+    internal static BelteDiagnostic NoSuchMember(TextLocation location, BoundTypeClause operand, string text) {
+        var message = $"'{operand}' contains no such member '{text}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuchMember), location, message);
+    }
+
+    internal static BelteDiagnostic CannotAssign(TextLocation location) {
+        var message = "left side of assignment operation must be a variable or field";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotAssign), location, message);
+    }
+
+    internal static BelteDiagnostic CannotOverloadNested(TextLocation location, string name) {
+        var message = $"cannot overload nested functions; nested function '{name}' has already been declared";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotOverloadNested), location, message);
     }
 }

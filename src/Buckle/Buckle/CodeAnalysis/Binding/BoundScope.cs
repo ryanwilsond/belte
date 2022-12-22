@@ -1,7 +1,6 @@
 using System.Linq;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -10,86 +9,107 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A scope of code.
 /// </summary>
 internal sealed class BoundScope {
-    private List<Symbol> symbols_;
-    private BoundScope parent_;
+    private List<Symbol> _symbols;
+    private BoundScope _parent;
 
     /// <summary>
     /// Creates a new scope with an optional parent.
     /// </summary>
-    /// <param name="parent">Enclosing scope</param>
+    /// <param name="parent">Enclosing scope.</param>
     internal BoundScope(BoundScope parent) {
-        this.parent_ = parent;
+        this._parent = parent;
     }
 
     internal BoundScope parent {
         get {
-            return parent_;
+            return _parent;
         } set {
-            parent_ = value;
+            _parent = value;
         }
     }
 
     /// <summary>
     /// Attempts to declare a function.
     /// </summary>
-    /// <param name="symbol">Function to declare</param>
-    /// <returns>If the function was successfully added to the scope</returns>
+    /// <param name="symbol"><see cref="FunctionSymbol" /> to declare.</param>
+    /// <returns>If the function was successfully added to the scope.</returns>
     internal bool TryDeclareFunction(FunctionSymbol symbol) => TryDeclareSymbol(symbol);
 
     /// <summary>
     /// Attempts to declare a variable.
     /// </summary>
-    /// <param name="symbol">Variable to declare</param>
-    /// <returns>If the variable was successfully added to the scope</returns>
+    /// <param name="symbol"><see cref="VariableSymbol" /> to declare.</param>
+    /// <returns>If the variable was successfully added to the scope.</returns>
     internal bool TryDeclareVariable(VariableSymbol symbol) => TryDeclareSymbol(symbol);
+
+    /// <summary>
+    /// Attempts to declare a type.
+    /// </summary>
+    /// <param name="symbol"><see cref="StructSymbol" /> to declare.</param>
+    /// <returns>If the type was successfully added to the scope.</returns>
+    internal bool TryDeclareType(TypeSymbol symbol) => TryDeclareSymbol(symbol);
 
     /// <summary>
     /// Gets all declared variables in this scope (not any parent scopes).
     /// </summary>
-    /// <returns>All declared variables</returns>
+    /// <returns>All declared variables.</returns>
     internal ImmutableArray<VariableSymbol> GetDeclaredVariables() => GetDeclaredSymbols<VariableSymbol>();
 
     /// <summary>
-    /// Gets all declared function in this scope (not any parent scopes).
+    /// Gets all declared functions in this scope (not any parent scopes).
     /// </summary>
-    /// <returns>All declared functions</returns>
+    /// <returns>All declared functions.</returns>
     internal ImmutableArray<FunctionSymbol> GetDeclaredFunctions() => GetDeclaredSymbols<FunctionSymbol>();
 
     /// <summary>
-    /// Attempts to find a symbol based on name (including parent scopes).
-    /// Because it only searches for one, use LookupOverloads for function symbols.
+    /// Gets all declared types in this scope (not any parent scopes).
     /// </summary>
-    /// <param name="name">Name of symbol</param>
-    /// <returns>Symbol if found, null otherwise</returns>
-    internal Symbol LookupSymbol(string name) {
-        // Use LookupOverloads for functions
-        if (symbols_ != null)
-            foreach (var symbol in symbols_)
-                if (symbol.name == name)
-                    return symbol;
+    /// <returns>All declared types.</returns>
+    internal ImmutableArray<TypeSymbol> GetDeclaredTypes() => GetDeclaredSymbols<TypeSymbol>();
 
-        return parent?.LookupSymbol(name);
+    /// <summary>
+    /// Attempts to find a <see cref="Symbol" /> based on the name (including parent scopes).
+    /// Because it only searches for one, use <see cref="BoundScope.LookupOverloads" /> for function symbols.
+    /// Can restrict to a specific child class of <see cref="Symbol" />.
+    /// </summary>
+    /// <param name="name">Name of <see cref="Symbol" /> to search for.</param>
+    /// <typeparam name="T">Type of <see cref="Symbol" /> to search for.</typeparam>
+    /// <returns><see cref="Symbol" /> if found, null otherwise.</returns>
+    internal T LookupSymbol<T>(string name) where T : Symbol {
+        if (_symbols != null)
+            foreach (var symbol in _symbols)
+                if (symbol.name == name && symbol is T)
+                    return symbol as T;
+
+        return parent?.LookupSymbol<T>(name);
     }
 
     /// <summary>
-    /// Attempts to modify an already declared symbol.
-    /// Does not work with overloads, only modifies the first one. However the order is not constant.
-    /// Thus only use with functions with guaranteed no overloads, or variable symbols.
+    /// Attempts to find a <see cref="Symbol" /> based on name (including parent scopes).
+    /// Because it only searches for one, use <see cref="BoundScope.LookupOverloads" /> for function symbols.
     /// </summary>
-    /// <param name="name">Name of symbol</param>
-    /// <param name="newSymbol">New symbol data to replace old the symbol</param>
-    /// <returns>If the symbol was found and successfully updated</returns>
+    /// <param name="name">Name of <see cref="Symbol" />.</param>
+    /// <returns><see cref="Symbol" /> if found, null otherwise.</returns>
+    internal Symbol LookupSymbol(string name) => LookupSymbol<Symbol>(name);
+
+    /// <summary>
+    /// Attempts to modify an already declared <see cref="Symbol" />.
+    /// Does not work with overloads, only modifies the first one. However the order is not constant.
+    /// Thus only use with FunctionSymbols with guaranteed no overloads, or VariableSymbols.
+    /// </summary>
+    /// <param name="name">Name of <see cref="Symbol" />.</param>
+    /// <param name="newSymbol">New symbol data to replace old the <see cref="Symbol" />.</param>
+    /// <returns>If the <see cref="Symbol" /> was found and successfully updated.</returns>
     internal bool TryModifySymbol(string name, Symbol newSymbol) {
         // Does not work with overloads
-        // TODO Need to allow overloads, as someone may try to define overloads for a nested function
         var symbol = LookupSymbol(name);
 
         if (symbol == null)
             return false;
 
         var succeeded = false;
-        ref BoundScope parentRef = ref parent_;
-        ref List<Symbol> symbols = ref symbols_;
+        ref BoundScope parentRef = ref _parent;
+        ref List<Symbol> symbols = ref _symbols;
 
         while (true) {
             if (symbols != null) {
@@ -105,8 +125,8 @@ internal sealed class BoundScope {
             if (parentRef == null || succeeded)
                 break;
             else {
-                symbols = ref parentRef.symbols_;
-                parentRef = ref parentRef.parent_;
+                symbols = ref parentRef._symbols;
+                parentRef = ref parentRef._parent;
             }
         }
 
@@ -114,10 +134,10 @@ internal sealed class BoundScope {
     }
 
     /// <summary>
-    /// Copies all inlines from a scope into this scope.
+    /// Copies all inlines from another <see cref="BoundScope" /> into this.
     /// Does not shadow, instead skips already declared functions in higher scopes.
     /// </summary>
-    /// <param name="scope">Scope to copy inlines from (not all functions)</param>
+    /// <param name="scope"><see cref="BoundScope" /> to copy inlines from (not all functions).</param>
     internal void CopyInlines(BoundScope scope) {
         foreach (var inline in scope.GetDeclaredFunctions().Where(i => i.name.StartsWith("<$Inline")))
             // Ignore failures, do not override higher level symbols
@@ -125,12 +145,12 @@ internal sealed class BoundScope {
     }
 
     /// <summary>
-    /// Finds all overloads of a function by name.
+    /// Finds all overloads of a <see cref="FunctionSymbol" /> by name.
     /// Technically searches for all symbols, but this function is intended to be used for functions.
     /// </summary>
-    /// <param name="name">Name of function</param>
-    /// <param name="strictName">Scope specific name (for inlines), searches for this first</param>
-    /// <returns>All found overloads (including from parent scopes)</returns>
+    /// <param name="name">Name of <see cref="FunctionSymbol" />.</param>
+    /// <param name="strictName">Scope specific name (for inlines), searches for this first.</param>
+    /// <returns>All found overloads (including from parent scopes).</returns>
     internal ImmutableArray<Symbol> LookupOverloads(string name, string strictName) {
         var symbols = LookupOverloadsInternal(strictName, strict: true);
 
@@ -141,18 +161,18 @@ internal sealed class BoundScope {
     }
 
     private ImmutableArray<Symbol> LookupOverloadsInternal(
-        string name, bool strict = false, ImmutableArray<Symbol>? current_ = null) {
+        string name, bool strict = false, ImmutableArray<Symbol>? _current = null) {
         var overloads = ImmutableArray.CreateBuilder<Symbol>();
 
-        if (symbols_ != null) {
-            foreach (var symbol in symbols_) {
+        if (_symbols != null) {
+            foreach (var symbol in _symbols) {
                 // If it is a nested function, the name will be something like <funcName::name>$
                 if (symbol is Symbol s &&
-                    (symbol.name == name || (strict == false && symbol.name.EndsWith($"::{name}>$")))) {
-                    if (current_ != null) {
+                    (symbol.name == name || (!strict && symbol.name.EndsWith($"::{name}>$")))) {
+                    if (_current != null) {
                         var skip = false;
 
-                        foreach (var cs in current_.Value) {
+                        foreach (var cs in _current.Value) {
                             if (s is FunctionSymbol fs && cs is FunctionSymbol fcs && FunctionsMatch(fs, fcs)) {
                                 skip = true;
                                 break;
@@ -172,20 +192,20 @@ internal sealed class BoundScope {
             overloads.AddRange(parent?.LookupOverloadsInternal(
                 name,
                 strict: strict,
-                current_: current_ == null
+                _current: _current == null
                     ? overloads.ToImmutable()
-                    : overloads.ToImmutable().AddRange(current_.Value)));
+                    : overloads.ToImmutable().AddRange(_current.Value)));
         }
 
         return overloads.ToImmutable();
     }
 
     private bool TryDeclareSymbol<TSymbol>(TSymbol symbol) where TSymbol : Symbol {
-        if (symbols_ == null) {
-            symbols_ = new List<Symbol>();
+        if (_symbols == null) {
+            _symbols = new List<Symbol>();
         } else if (Contains(symbol.name)) {
             if (symbol is FunctionSymbol fs) {
-                foreach (var s in symbols_)
+                foreach (var s in _symbols)
                     if (FunctionsMatch(s as FunctionSymbol, fs))
                         return false;
             } else {
@@ -193,7 +213,7 @@ internal sealed class BoundScope {
             }
         }
 
-        symbols_.Add(symbol);
+        _symbols.Add(symbol);
         return true;
     }
 
@@ -212,7 +232,7 @@ internal sealed class BoundScope {
     }
 
     private bool Contains(string name) {
-        foreach (var symbol in symbols_)
+        foreach (var symbol in _symbols)
             if (symbol.name == name)
                 return true;
 
@@ -220,81 +240,9 @@ internal sealed class BoundScope {
     }
 
     private ImmutableArray<TSymbol> GetDeclaredSymbols<TSymbol>() where TSymbol : Symbol {
-        if (symbols_ == null)
+        if (_symbols == null)
             return ImmutableArray<TSymbol>.Empty;
 
-        return symbols_.OfType<TSymbol>().ToImmutableArray();
+        return _symbols.OfType<TSymbol>().ToImmutableArray();
     }
-}
-
-/// <summary>
-/// A bound global scope, stores top level symbols.
-/// </summary>
-internal sealed class BoundGlobalScope {
-    /// <param name="previous">Previous global scope (if applicable)</param>
-    internal BoundGlobalScope(
-        ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)> functionBodies,
-        BoundGlobalScope previous, BelteDiagnosticQueue diagnostics, FunctionSymbol mainFunction,
-        FunctionSymbol scriptFunction, ImmutableArray<FunctionSymbol> functions,
-        ImmutableArray<VariableSymbol> variables, ImmutableArray<BoundStatement> statements) {
-        this.functionBodies = functionBodies;
-        this.previous = previous;
-        this.diagnostics = new BelteDiagnosticQueue();
-        this.diagnostics.Move(diagnostics);
-        this.mainFunction = mainFunction;
-        this.scriptFunction = scriptFunction;
-        this.functions = functions;
-        this.variables = variables;
-        this.statements = statements;
-    }
-
-    internal ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)> functionBodies { get; }
-
-    /// <summary>
-    /// Previous global scope (if applicable).
-    /// </summary>
-    internal BoundGlobalScope previous { get; }
-
-    internal BelteDiagnosticQueue diagnostics { get; }
-
-    internal FunctionSymbol mainFunction { get; }
-
-    internal FunctionSymbol scriptFunction { get; }
-
-    internal ImmutableArray<FunctionSymbol> functions { get; }
-
-    internal ImmutableArray<VariableSymbol> variables { get; }
-
-    internal ImmutableArray<BoundStatement> statements { get; }
-}
-
-/// <summary>
-/// Bound program.
-/// </summary>
-internal sealed class BoundProgram {
-    /// <param name="previous">Previous bound program (if applicable)</param>
-    internal BoundProgram(
-        BoundProgram previous, BelteDiagnosticQueue diagnostics,
-        FunctionSymbol mainFunction,
-        FunctionSymbol scriptFunction,
-        ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies) {
-        this.previous = previous;
-        this.diagnostics = diagnostics;
-        this.mainFunction = mainFunction;
-        this.scriptFunction = scriptFunction;
-        this.functionBodies = functionBodies;
-    }
-
-    /// <summary>
-    /// Previous bound program (if applicable).
-    /// </summary>
-    internal BoundProgram previous { get; }
-
-    internal BelteDiagnosticQueue diagnostics { get; }
-
-    internal FunctionSymbol mainFunction { get; }
-
-    internal FunctionSymbol scriptFunction { get; }
-
-    internal ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies { get; }
 }

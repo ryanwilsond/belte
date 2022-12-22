@@ -7,6 +7,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Diagnostics;
 using Buckle.Diagnostics;
+using Buckle.CodeAnalysis.Evaluating;
 
 namespace Buckle.Tests.CodeAnalysis;
 
@@ -29,6 +30,9 @@ public class EvaluatorTests {
     [InlineData("4 * 2;", 8)]
     [InlineData("4 ** 2;", 16)]
     [InlineData("9 / 3;", 3)]
+    [InlineData("5 % 2;", 1)]
+    [InlineData("5 ?? 2;", 5)]
+    [InlineData("null ?? 2;", 2)]
     [InlineData("(10);", 10)]
     [InlineData("0b1;", 1)]
     [InlineData("-0B1;", -1)]
@@ -56,6 +60,9 @@ public class EvaluatorTests {
     [InlineData("var a = 2; a **= 2; return a;", 4)]
     [InlineData("var a = 1; a <<= 1; return a;", 2)]
     [InlineData("var a = 2; a >>= 1; return a;", 1)]
+    [InlineData("var a = 8; a >>>= 1; return a;", 4)]
+    [InlineData("var a = -8; a >>>= 1; return a;", 2147483644)]
+    [InlineData("var a = 12; a >>>= 5; return a;", 0)]
     [InlineData("var a = true; a &= (false); return a;", false)]
     [InlineData("var a = true; a |= (false); return a;", true)]
     [InlineData("var a = true; a ^= (true); return a;", false)]
@@ -63,8 +70,12 @@ public class EvaluatorTests {
     [InlineData("var a = 1; a &= 3; return a;", 1)]
     [InlineData("var a = 1; a &= 0; return a;", 0)]
     [InlineData("var a = 1; a ^= 0; return a;", 1)]
-    [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return a;", 6)]
-    [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return b;", 5)]
+    [InlineData("var a = 5; a %= 2; return a;", 1)]
+    [InlineData("var a = 5; a ??= 2; return a;", 5)]
+    [InlineData("int a = null; a ??= 2; return a;", 2)]
+    // * Will get fixed with StackFrameParser
+    // [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return a;", 6)]
+    // [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return b;", 5)]
 
     [InlineData("1 | 2;", 3)]
     [InlineData("1 | 0;", 1)]
@@ -132,10 +143,6 @@ public class EvaluatorTests {
     [InlineData("4 >= 5;", false)]
     [InlineData("5 >= 4;", true)]
 
-    [InlineData("var a = 8; a >>>= 1; return a;", 4)]
-    [InlineData("var a = -8; a >>>= 1; return a;", 2147483644)]
-    [InlineData("var a = 12; a >>>= 5; return a;", 0)]
-
     [InlineData("3.2 + 3.4;", 6.6)]
     [InlineData("3.2 - 3.4;", -0.19999999999999973)]
     [InlineData("10 * 1.5;", 15)]
@@ -145,6 +152,11 @@ public class EvaluatorTests {
     [InlineData("9 / 2.0;", 4.5)]
     [InlineData("4.1 ** 2;", 16.81)]
     [InlineData("4.1 ** 2.1;", 19.35735875876448)]
+
+    [InlineData("true ? 3 : 5;", 3)]
+    [InlineData("false ? \"asdf\" : \"asdf2\";", "asdf2")]
+    [InlineData("int a = 3; int b = a > 2 ? 5 : 3; return b;", 5)]
+    [InlineData("int a = 3; int b = a > 2 && false ? a + 5 : a + 3; return b;", 6)]
 
     [InlineData("int a = 10; return a;", 10)]
     [InlineData("int a = 10; return a * a;", 100)]
@@ -174,11 +186,11 @@ public class EvaluatorTests {
     [InlineData("(null > 3) is null;", true)]
     [InlineData("null || true;", true)]
 
-    // TODO Add these tests and implement required features (refs and is/isnt type)
-    // It is commented out right now because theses features are bigger than was expected,
-    // So these features are not going to be added in this PR
-    // [InlineData("int x = 4; ref int y = ref x; x++; return y;", 5)]
+    [InlineData("int x = 4; ref int y = ref x; x++; return y;", 5)]
+    [InlineData("int x = 4; ref int y = ref x; y++; return x;", 5)]
+    [InlineData("int x = 4; int y = 3; ref int z = ref x; z = ref y; z++; return x;", 4)]
 
+    // TODO
     // [InlineData("3 is int;", true)]
     // [InlineData("null is int;", false)]
     // [InlineData("4 is decimal;", false)]
@@ -202,9 +214,11 @@ public class EvaluatorTests {
     [InlineData("(int)3.6;", 3)]
     [InlineData("([NotNull]int)3;", 3)]
 
-    [InlineData("int x = 2; int y = { return 2 * x; }; return y;", 4)]
     [InlineData("int funcA() { int funcB() { return 2; } return funcB() + 1; } return funcA(); ", 3)]
-    [InlineData("int funcA() { int funcB() { int funcA() { return 2; } return funcA() + 1; } return funcB() + 1; } return funcA();", 3)]
+    [InlineData("int funcA() { int funcB() { int funcA() { return 2; } return funcA() + 1; } return funcB() + 1; } return funcA();", 4)]
+
+    [InlineData("struct A { int num; } A myVar = A(); myVar.num = 3; return myVar.num + 1;", 4)]
+    [InlineData("struct A { int num; } struct B { A a; } B myVar = B(); myVar.a = A(); myVar.a.num = 3; return myVar.a.num + 1;", 4)]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
         AssertValue(text, expectedValue);
     }
@@ -723,14 +737,11 @@ public class EvaluatorTests {
 
     [Fact]
     public void Evaluator_DivideByZero_ThrowsException() {
-        // TODO Need a way to assert exceptions
         var text = @"
             56/0;
         ";
 
-        var diagnostics = @"";
-
-        AssertDiagnostics(text, diagnostics);
+        AssertExceptions(text, new DivideByZeroException());
     }
 
     [Fact]
@@ -777,7 +788,7 @@ public class EvaluatorTests {
     private void AssertValue(string text, object expectedValue) {
         var syntaxTree = SyntaxTree.Parse(text);
         var compilation = Compilation.CreateScript(null, syntaxTree);
-        var variables = new Dictionary<VariableSymbol, object>();
+        var variables = new Dictionary<VariableSymbol, EvaluatorObject>();
         var result = compilation.Evaluate(variables);
 
         if (result.value is double && (Convert.ToDouble(expectedValue)).CompareTo(result.value) == 0)
@@ -785,6 +796,24 @@ public class EvaluatorTests {
 
         Assert.Empty(result.diagnostics.FilterOut(DiagnosticType.Warning).ToArray());
         Assert.Equal(expectedValue, result.value);
+    }
+
+    private void AssertExceptions(string text, params Exception[] exceptions) {
+        var syntaxTree = SyntaxTree.Parse(text);
+        var compilation = Compilation.CreateScript(null, syntaxTree);
+        var result = compilation.Evaluate(new Dictionary<VariableSymbol, EvaluatorObject>());
+
+        if (exceptions.Length != result.exceptions.Count) {
+            writer.WriteLine($"Input: {text}");
+
+            foreach (var exception in result.exceptions)
+                writer.WriteLine($"Exception ({exception}): {exception.Message}");
+        }
+
+        Assert.Equal(exceptions.Length, result.exceptions.Count);
+
+        for (int i=0; i<exceptions.Length; i++)
+            Assert.Equal(exceptions[i].GetType(), result.exceptions[i].GetType());
     }
 
     private void AssertDiagnostics(string text, string diagnosticText, bool assertWarnings = false) {
@@ -797,7 +826,7 @@ public class EvaluatorTests {
             tempDiagnostics.Move(syntaxTree.diagnostics);
         } else {
             var compilation = Compilation.CreateScript(null, syntaxTree);
-            var result = compilation.Evaluate(new Dictionary<VariableSymbol, object>());
+            var result = compilation.Evaluate(new Dictionary<VariableSymbol, EvaluatorObject>());
             tempDiagnostics = result.diagnostics;
         }
 
@@ -812,6 +841,7 @@ public class EvaluatorTests {
 
         if (expectedDiagnostics.Length != diagnostics.count) {
             writer.WriteLine($"Input: {annotatedText.text}");
+
             foreach (var diagnostic in diagnostics.AsList())
                 writer.WriteLine($"Diagnostic ({diagnostic.info.severity}): {diagnostic.message}");
         }

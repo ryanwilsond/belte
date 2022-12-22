@@ -14,7 +14,7 @@ using Buckle.Diagnostics;
 namespace Belte.CommandLine;
 
 /// <summary>
-/// Handles all command line interaction, argument parsing, and compiler invocation.
+/// Handles all command-line interaction, argument parsing, and <see cref="Compiler" /> invocation.
 /// </summary>
 public static partial class BuckleCommandLine {
     private const int SuccessExitCode = 0;
@@ -22,18 +22,19 @@ public static partial class BuckleCommandLine {
     private const int FatalExitCode = 2;
 
     private static readonly string[] AllowedOptions = {
-        // TODO Add W options
-        // "error", "ignore", "all"
+        "error",    // Treats all warnings as errors
+        "ignore",   // Ignores all warnings
+        "all"       // Shows additional warnings, and shows warnings while interpreting
     };
 
     /// <summary>
-    /// Processes/decodes command-line arguments, and invokes compiler.
+    /// Processes/decodes command-line arguments, and invokes <see cref="Compiler" />.
     /// </summary>
-    /// <param name="args">Command-line arguments from Main</param>
-    /// <returns>Error code, 0 = success</returns>
+    /// <param name="args">Command-line arguments from Main.</param>
+    /// <returns>Error code, 0 = success.</returns>
     public static int ProcessArgs(string[] args) {
         int err;
-        Compiler compiler = new Compiler();
+        Compiler compiler = new Compiler(ResolveDiagnostics);
         compiler.me = Process.GetCurrentProcess().ProcessName;
 
         compiler.state = DecodeOptions(
@@ -46,7 +47,7 @@ public static partial class BuckleCommandLine {
 
         if (!Directory.Exists(resources)) {
             corrupt = true;
-            ResolveDiagnostic(Belte.Diagnostics.Warning.CorruptInstallation(), compiler.me);
+            ResolveDiagnostic(Belte.Diagnostics.Warning.CorruptInstallation(), compiler.me, compiler.state.options);
         }
 
         if (hasDialog)
@@ -67,11 +68,11 @@ public static partial class BuckleCommandLine {
         }
 
         if (hasDialog) {
-            ResolveDiagnostics(diagnostics, compiler.me);
+            ResolveDiagnostics(diagnostics, compiler.me, compiler.state.options);
             return SuccessExitCode;
         }
 
-        err = ResolveDiagnostics(diagnostics, compiler.me);
+        err = ResolveDiagnostics(diagnostics, compiler.me, compiler.state.options);
 
         if (err > 0)
             return err;
@@ -79,7 +80,7 @@ public static partial class BuckleCommandLine {
         ResolveOutputFiles(compiler);
         ReadInputFiles(compiler, out diagnostics);
 
-        err = ResolveDiagnostics(diagnostics, compiler.me);
+        err = ResolveDiagnostics(diagnostics, compiler.me, compiler.state.options);
 
         if (err > 0)
             return err;
@@ -112,7 +113,7 @@ public static partial class BuckleCommandLine {
 
         try {
             errorCode = Convert.ToInt32(error.Substring(2));
-        } catch {
+        } catch (Exception e) when (e is FormatException || e is OverflowException) {
             diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
             return;
         }
@@ -194,7 +195,7 @@ public static partial class BuckleCommandLine {
         Console.WriteLine(versionMessage);
     }
 
-    private static void PrettyPrintDiagnostic(BelteDiagnostic diagnostic, ConsoleColor? textColor) {
+    private static void PrettyPrintDiagnostic(BelteDiagnostic diagnostic, ConsoleColor? textColor, string[] options) {
         void ResetColor() {
             if (textColor != null)
                 Console.ForegroundColor = textColor.Value;
@@ -218,15 +219,20 @@ public static partial class BuckleCommandLine {
 
         ConsoleColor highlightColor = ConsoleColor.White;
 
-        if (diagnostic.info.severity == DiagnosticType.Error) {
+        var severity = diagnostic.info.severity;
+
+        if (severity == DiagnosticType.Warning && options.Contains("error"))
+            severity = DiagnosticType.Error;
+
+        if (severity == DiagnosticType.Error) {
             highlightColor = ConsoleColor.Red;
             Console.ForegroundColor = highlightColor;
             Console.Write(" error");
-        } else if (diagnostic.info.severity == DiagnosticType.Fatal) {
+        } else if (severity == DiagnosticType.Fatal) {
             highlightColor = ConsoleColor.Red;
             Console.ForegroundColor = highlightColor;
             Console.Write(" fatal error");
-        } else if (diagnostic.info.severity == DiagnosticType.Warning) {
+        } else if (severity == DiagnosticType.Warning) {
             highlightColor = ConsoleColor.Magenta;
             Console.ForegroundColor = highlightColor;
             Console.Write(" warning");
@@ -276,7 +282,7 @@ public static partial class BuckleCommandLine {
     }
 
     private static DiagnosticType ResolveDiagnostic<Type>(
-        Type diagnostic, string me, ConsoleColor? textColor = null)
+        Type diagnostic, string me, string[] options, ConsoleColor? textColor = null)
         where Type : Diagnostic {
         ConsoleColor previous = Console.ForegroundColor;
 
@@ -287,19 +293,26 @@ public static partial class BuckleCommandLine {
                 Console.ResetColor();
         }
 
+        var severity = diagnostic.info.severity;
+
+        if (severity == DiagnosticType.Warning && options.Contains("error"))
+            severity = DiagnosticType.Error;
+        if (severity == DiagnosticType.Warning && options.Contains("ignore"))
+            severity = DiagnosticType.Unknown;
+
         ResetColor();
 
-        if (diagnostic.info.severity == DiagnosticType.Unknown) {
+        if (severity == DiagnosticType.Unknown) {
         } else if (diagnostic.info.module != "BU" || (diagnostic is BelteDiagnostic bd && bd.location == null)) {
             Console.Write($"{me}: ");
 
-            if (diagnostic.info.severity == DiagnosticType.Warning) {
+            if (severity == DiagnosticType.Warning) {
                 Console.ForegroundColor = ConsoleColor.Magenta;
                 Console.Write("warning ");
-            } else if (diagnostic.info.severity == DiagnosticType.Error) {
+            } else if (severity == DiagnosticType.Error) {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.Write("error ");
-            } else if (diagnostic.info.severity == DiagnosticType.Fatal) {
+            } else if (severity == DiagnosticType.Fatal) {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.Write("fatal error ");
             }
@@ -311,15 +324,15 @@ public static partial class BuckleCommandLine {
             ResetColor();
             Console.WriteLine(diagnostic.message);
         } else {
-            PrettyPrintDiagnostic(diagnostic as BelteDiagnostic, textColor);
+            PrettyPrintDiagnostic(diagnostic as BelteDiagnostic, textColor, options);
         }
 
         Console.ForegroundColor = previous;
-        return diagnostic.info.severity;
+        return severity;
     }
 
     private static int ResolveDiagnostics<Type>(
-        DiagnosticQueue<Type> diagnostics, string me, ConsoleColor? textColor = null)
+        DiagnosticQueue<Type> diagnostics, string me, string[] options, ConsoleColor? textColor = null)
         where Type : Diagnostic {
         if (diagnostics.count == 0)
             return SuccessExitCode;
@@ -328,7 +341,7 @@ public static partial class BuckleCommandLine {
         Diagnostic diagnostic = diagnostics.Pop();
 
         while (diagnostic != null) {
-            DiagnosticType temp = ResolveDiagnostic(diagnostic, me, textColor);
+            DiagnosticType temp = ResolveDiagnostic(diagnostic, me, options, textColor);
 
             switch (temp) {
                 case DiagnosticType.Warning:
@@ -361,9 +374,13 @@ public static partial class BuckleCommandLine {
         }
     }
 
+    private static int ResolveDiagnostics(Compiler compiler) {
+        return ResolveDiagnostics(compiler, null);
+    }
+
     private static int ResolveDiagnostics(
         Compiler compiler, string me = null, ConsoleColor textColor = ConsoleColor.White) {
-        return ResolveDiagnostics(compiler.diagnostics, me ?? compiler.me, textColor);
+        return ResolveDiagnostics(compiler.diagnostics, me ?? compiler.me, compiler.state.options, textColor);
     }
 
     private static void ProduceOutputFiles(Compiler compiler) {

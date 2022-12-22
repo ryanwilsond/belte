@@ -2,6 +2,7 @@ using System.Linq;
 using Buckle.CodeAnalysis.Text;
 using Buckle.CodeAnalysis.Syntax;
 using Diagnostics;
+using System;
 
 namespace Buckle.Diagnostics;
 
@@ -19,14 +20,14 @@ internal static class Warning {
     }
 
     internal static BelteDiagnostic UnreachableCode(Node node) {
-        if (node.type == SyntaxType.BLOCK) {
+        if (node.type == SyntaxType.Block) {
             var firstStatement = ((BlockStatement)node).statements.FirstOrDefault();
             // Report just for non empty blocks.
             if (firstStatement != null)
                 return UnreachableCode(firstStatement);
 
             return null;
-        } else if (node.type == SyntaxType.EMPTY_EXPRESSION) {
+        } else if (node.type == SyntaxType.EmptyExpression) {
             return null;
         }
 
@@ -51,5 +52,10 @@ internal static class Warning {
 
         var message = $"expression will always result to '{value}'";
         return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_AlwaysValue), location, message);
+    }
+
+    internal static BelteDiagnostic NullDeference(TextLocation location) {
+        var message = "deference of a possibly null value";
+        return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_NullDeference), location, message);
     }
 }

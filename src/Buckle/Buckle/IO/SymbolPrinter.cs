@@ -1,19 +1,19 @@
-using System;
 using System.IO;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.Diagnostics;
 
 namespace Buckle.IO;
 
 /// <summary>
-/// Prints a symbol.
+/// Prints a <see cref="Symbol" />.
 /// </summary>
 internal static class SymbolPrinter {
     /// <summary>
-    /// Writes a single symbol.
+    /// Writes a single <see cref="Symbol" />.
     /// </summary>
-    /// <param name="symbol">Symbol to print (not modified)</param>
-    /// <param name="writer">Where to write to (out)</param>
+    /// <param name="symbol"><see cref="Symbol" /> to print (not modified).</param>
+    /// <param name="writer">Where to write to (out).</param>
     internal static void WriteTo(this Symbol symbol, TextWriter writer) {
         switch (symbol.type) {
             case SymbolType.Function:
@@ -28,35 +28,54 @@ internal static class SymbolPrinter {
             case SymbolType.Parameter:
                 WriteParameter((ParameterSymbol)symbol, writer);
                 break;
+            case SymbolType.Field:
+                WriteField((FieldSymbol)symbol, writer);
+                break;
             case SymbolType.Type:
-                BoundNodePrinter.WriteTypeClause(new BoundTypeClause((TypeSymbol)symbol), writer);
+                WriteType((TypeSymbol)symbol,writer);
                 break;
             default:
-                throw new Exception($"WriteTo: unexpected symbol '{symbol.type}'");
+                throw new BelteInternalException($"WriteTo: unexpected symbol '{symbol.type}'");
+        }
+    }
+
+    private static void WriteField(FieldSymbol symbol, TextWriter writer) {
+        BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
+        writer.WriteSpace();
+        writer.WriteIdentifier(symbol.name);
+    }
+
+    private static void WriteType(TypeSymbol symbol, TextWriter writer) {
+        if (symbol is StructSymbol) {
+            writer.WriteKeyword("struct");
+            writer.WriteSpace();
+            writer.WriteIdentifier(symbol.name);
+        } else {
+            BoundNodePrinter.WriteTypeClause(new BoundTypeClause(symbol), writer);
         }
     }
 
     private static void WriteParameter(ParameterSymbol symbol, TextWriter writer) {
         BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
-        writer.Write(" ");
+        writer.WriteSpace();
         writer.WriteIdentifier(symbol.name);
     }
 
     private static void WriteGlobalVariable(GlobalVariableSymbol symbol, TextWriter writer) {
         BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
-        writer.Write(" ");
+        writer.WriteSpace();
         writer.WriteIdentifier(symbol.name);
     }
 
     private static void WriteLocalVariable(LocalVariableSymbol symbol, TextWriter writer) {
         BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
-        writer.Write(" ");
+        writer.WriteSpace();
         writer.WriteIdentifier(symbol.name);
     }
 
     private static void WriteFunction(FunctionSymbol symbol, TextWriter writer) {
         BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
-        writer.Write(" ");
+        writer.WriteSpace();
         writer.WriteIdentifier(symbol.name);
         writer.WritePunctuation("(");
 
@@ -67,6 +86,6 @@ internal static class SymbolPrinter {
             symbol.parameters[i].WriteTo(writer);
         }
 
-        writer.WritePunctuation(") ");
+        writer.WritePunctuation(")");
     }
 }

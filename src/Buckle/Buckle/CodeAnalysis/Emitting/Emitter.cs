@@ -9,6 +9,7 @@ using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using static Buckle.Utilities.FunctionUtilities;
 using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Emitting;
@@ -16,24 +17,24 @@ namespace Buckle.CodeAnalysis.Emitting;
 /// <summary>
 /// Emits a bound program into a .NET assembly.
 /// </summary>
-internal class Emitter {
-    private readonly List<AssemblyDefinition> assemblies = new List<AssemblyDefinition>();
-    private readonly List<(TypeSymbol type, string metadataName)> builtinTypes;
-    private readonly Dictionary<FunctionSymbol, MethodDefinition> methods_ =
+internal sealed class Emitter {
+    private readonly List<AssemblyDefinition> _assemblies = new List<AssemblyDefinition>();
+    private readonly List<(TypeSymbol type, string metadataName)> _builtinTypes;
+    private readonly Dictionary<FunctionSymbol, MethodDefinition> _methods =
         new Dictionary<FunctionSymbol, MethodDefinition>();
-    private readonly AssemblyDefinition assemblyDefinition_;
-    private readonly Dictionary<TypeSymbol, TypeReference> knownTypes_;
-    private readonly Dictionary<VariableSymbol, VariableDefinition> locals_ =
+    private readonly AssemblyDefinition _assemblyDefinition;
+    private readonly Dictionary<TypeSymbol, TypeReference> _knownTypes;
+    private readonly Dictionary<VariableSymbol, VariableDefinition> _locals =
         new Dictionary<VariableSymbol, VariableDefinition>();
-    private readonly List<(int instructionIndex, BoundLabel target)> fixups_ =
+    private readonly List<(int instructionIndex, BoundLabel target)> _fixups =
         new List<(int instructionIndex, BoundLabel target)>();
-    private readonly Dictionary<BoundLabel, int> labels_ = new Dictionary<BoundLabel, int>();
-    private readonly Dictionary<NetMethodReference, MethodReference> methodReferences_;
-    private readonly TypeReference randomReference_;
-    private readonly TypeReference nullableReference_;
-    private TypeDefinition typeDefinition_;
-    private FieldDefinition randomFieldDefinition_;
-    private Stack<MethodDefinition> methodStack_ = new Stack<MethodDefinition>();
+    private readonly Dictionary<BoundLabel, int> _labels = new Dictionary<BoundLabel, int>();
+    private readonly Dictionary<NetMethodReference, MethodReference> _methodReferences;
+    private readonly TypeReference _randomReference;
+    private readonly TypeReference _nullableReference;
+    private TypeDefinition _typeDefinition;
+    private FieldDefinition _randomFieldDefinition;
+    private Stack<MethodDefinition> _methodStack = new Stack<MethodDefinition>();
 
     private Emitter(string moduleName, string[] references) {
         diagnostics = new BelteDiagnosticQueue();
@@ -44,7 +45,7 @@ internal class Emitter {
         foreach (var reference in references) {
             try {
                 var assembly = AssemblyDefinition.ReadAssembly(reference);
-                assemblies.Add(assembly);
+                _assemblies.Add(assembly);
             } catch (BadImageFormatException) {
                 diagnostics.Push(Error.InvalidReference(reference));
             }
@@ -53,7 +54,7 @@ internal class Emitter {
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return;
 
-        builtinTypes = new List<(TypeSymbol type, string metadataName)>() {
+        _builtinTypes = new List<(TypeSymbol type, string metadataName)>() {
             (TypeSymbol.Any, "System.Object"),
             (TypeSymbol.Bool, "System.Boolean"),
             (TypeSymbol.Int, "System.Int32"),
@@ -63,15 +64,15 @@ internal class Emitter {
         };
 
         var assemblyName = new AssemblyNameDefinition(moduleName, new Version(1, 0));
-        assemblyDefinition_ = AssemblyDefinition.CreateAssembly(assemblyName, moduleName, ModuleKind.Console);
-        knownTypes_ = new Dictionary<TypeSymbol, TypeReference>();
+        _assemblyDefinition = AssemblyDefinition.CreateAssembly(assemblyName, moduleName, ModuleKind.Console);
+        _knownTypes = new Dictionary<TypeSymbol, TypeReference>();
 
-        foreach (var (typeSymbol, metadataName) in builtinTypes) {
+        foreach (var (typeSymbol, metadataName) in _builtinTypes) {
             var typeReference = ResolveType(typeSymbol.name, metadataName);
-            knownTypes_.Add(typeSymbol, typeReference);
+            _knownTypes.Add(typeSymbol, typeReference);
         }
 
-        methodReferences_ = new Dictionary<NetMethodReference, MethodReference>() {
+        _methodReferences = new Dictionary<NetMethodReference, MethodReference>() {
             {
                 NetMethodReference.ConsoleWrite,
                 ResolveMethod("System.Console", "Write", new [] { "System.Object" })
@@ -127,12 +128,12 @@ internal class Emitter {
             },
         };
 
-        randomReference_ = ResolveType(null, "System.Random");
-        nullableReference_ = ResolveType(null, "System.Nullable`1");
+        _randomReference = ResolveType(null, "System.Random");
+        _nullableReference = ResolveType(null, "System.Nullable`1");
     }
 
     /// <summary>
-    /// Diagnostics produced by Emitter.
+    /// Diagnostics produced by <see cref="Emitter" />.
     /// These diagnostics are fatal, as all error checking has been done already.
     /// </summary>
     internal BelteDiagnosticQueue diagnostics { get; set; }
@@ -160,11 +161,11 @@ internal class Emitter {
     /// <summary>
     /// Emits a program to a .NET assembly.
     /// </summary>
-    /// <param name="program">Program to emit</param>
-    /// <param name="moduleName">Name of emitted assembly/application</param>
-    /// <param name="references">All external .NET references</param>
-    /// <param name="outputPath">Where to put the emitted assembly</param>
-    /// <returns>Diagnostics</returns>
+    /// <param name="program"><see cref="BoundProgram" /> to emit.</param>
+    /// <param name="moduleName">Name of emitted assembly/application.</param>
+    /// <param name="references">All external .NET references.</param>
+    /// <param name="outputPath">Where to put the emitted assembly.</param>
+    /// <returns>Diagnostics.</returns>
     internal static BelteDiagnosticQueue Emit(
         BoundProgram program, string moduleName, string[] references, string outputPath) {
         if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
@@ -177,44 +178,44 @@ internal class Emitter {
     /// <summary>
     /// Emits a program to a .NET assembly.
     /// </summary>
-    /// <param name="program">Program to emit</param>
-    /// <param name="outputPath">Where to put the emitted assembly</param>
-    /// <returns>Diagnostics</returns>
+    /// <param name="program"><see cref="BoundProgram" /> to emit.</param>
+    /// <param name="outputPath">Where to put the emitted assembly.</param>
+    /// <returns>Diagnostics.</returns>
     internal BelteDiagnosticQueue Emit(BoundProgram program, string outputPath) {
         diagnostics.Move(program.diagnostics);
 
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return diagnostics;
 
-        var objectType = knownTypes_[TypeSymbol.Any];
-        typeDefinition_ = new TypeDefinition(
+        var objectType = _knownTypes[TypeSymbol.Any];
+        _typeDefinition = new TypeDefinition(
             "", "<Program>$", TypeAttributes.Abstract | TypeAttributes.Sealed, objectType);
-        assemblyDefinition_.MainModule.Types.Add(typeDefinition_);
+        _assemblyDefinition.MainModule.Types.Add(_typeDefinition);
 
         foreach (var functionWithBody in program.functionBodies)
             EmitFunctionDeclaration(functionWithBody.Key);
 
         foreach (var functionWithBody in program.functionBodies) {
-            // currentFunction_ = functionWithBody.Key;
+            // _currentFunction = functionWithBody.Key;
             EmitFunctionBody(functionWithBody.Key, functionWithBody.Value);
         }
 
         if (program.mainFunction != null)
-            assemblyDefinition_.EntryPoint = LookupMethod(program.mainFunction);
+            _assemblyDefinition.EntryPoint = LookupMethod(_methods, program.mainFunction);
 
-        assemblyDefinition_.Write(outputPath);
+        _assemblyDefinition.Write(outputPath);
 
         return diagnostics;
     }
 
     private TypeReference ResolveType(string buckleName, string metadataName) {
-        var foundTypes = assemblies.SelectMany(a => a.Modules)
+        var foundTypes = _assemblies.SelectMany(a => a.Modules)
             .SelectMany(m => m.Types)
             .Where(t => t.FullName == metadataName)
             .ToArray();
 
         if (foundTypes.Length == 1) {
-            var typeReference = assemblyDefinition_.MainModule.ImportReference(foundTypes[0]);
+            var typeReference = _assemblyDefinition.MainModule.ImportReference(foundTypes[0]);
             return typeReference;
         } else if (foundTypes.Length == 0)
             diagnostics.Push(Error.RequiredTypeNotFound(buckleName, metadataName));
@@ -227,7 +228,7 @@ internal class Emitter {
     private MethodReference ResolveMethod(
         string typeName, string methodName, string[] parameterTypeNames) {
 
-        var foundTypes = assemblies.SelectMany(a => a.Modules)
+        var foundTypes = _assemblies.SelectMany(a => a.Modules)
             .SelectMany(m => m.Types)
             .Where(t => t.FullName == typeName)
             .ToArray();
@@ -237,7 +238,7 @@ internal class Emitter {
             var methods = foundType.Methods.Where(m => m.Name == methodName);
 
             if (methods.ToArray().Length == 1 && parameterTypeNames == null)
-                return assemblyDefinition_.MainModule.ImportReference(methods.Single());
+                return _assemblyDefinition.MainModule.ImportReference(methods.Single());
 
             foreach (var method in methods) {
                 if (method.Parameters.Count != parameterTypeNames.Length)
@@ -255,7 +256,7 @@ internal class Emitter {
                 if (!allParametersMatch)
                     continue;
 
-                return assemblyDefinition_.MainModule.ImportReference(method);
+                return _assemblyDefinition.MainModule.ImportReference(method);
             }
 
             diagnostics.Push(Error.RequiredMethodNotFound(typeName, methodName, parameterTypeNames));
@@ -269,22 +270,22 @@ internal class Emitter {
     }
 
     private void EmitFunctionBody(FunctionSymbol function, BoundBlockStatement body) {
-        var method = methods_[function];
-        locals_.Clear();
-        labels_.Clear();
-        fixups_.Clear();
+        var method = _methods[function];
+        _locals.Clear();
+        _labels.Clear();
+        _fixups.Clear();
         var iLProcessor = method.Body.GetILProcessor();
 
-        methodStack_.Push(method);
+        _methodStack.Push(method);
 
         foreach (var statement in body.statements)
             EmitStatement(iLProcessor, statement);
 
-        methodStack_.Pop();
+        _methodStack.Pop();
 
-        foreach (var fixup in fixups_) {
+        foreach (var fixup in _fixups) {
             var targetLabel = fixup.target;
-            var targetInstructionIndex = labels_[targetLabel];
+            var targetInstructionIndex = _labels[targetLabel];
             var targetInstruction = iLProcessor.Body.Instructions[targetInstructionIndex];
             var instructionFix = iLProcessor.Body.Instructions[fixup.instructionIndex];
             instructionFix.Operand = targetInstruction;
@@ -320,12 +321,12 @@ internal class Emitter {
                 EmitTryStatement(iLProcessor, (BoundTryStatement)statement);
                 break;
             default:
-                throw new Exception($"EmitStatement: unexpected node '{statement.type}'");
+                throw new BelteInternalException($"EmitStatement: unexpected node '{statement.type}'");
         }
     }
 
     private void EmitTryStatement(ILProcessor iLProcessor, BoundTryStatement statement) {
-        var method = methodStack_.Last();
+        var method = _methodStack.Last();
 
         if (statement.catchBody == null) {
             var tryBody = statement.body.statements;
@@ -352,10 +353,10 @@ internal class Emitter {
             iLProcessor.Append(end);
 
             var handler = new ExceptionHandler(ExceptionHandlerType.Finally) {
-                TryStart=tryStart,
-                TryEnd=handlerStart,
-                HandlerStart=handlerStart,
-                HandlerEnd=end,
+                TryStart = tryStart,
+                TryEnd = handlerStart,
+                HandlerStart = handlerStart,
+                HandlerEnd = end,
             };
 
             method.Body.ExceptionHandlers.Add(handler);
@@ -384,11 +385,11 @@ internal class Emitter {
             iLProcessor.Append(end);
 
             var handler = new ExceptionHandler(ExceptionHandlerType.Catch) {
-                TryStart=tryStart,
-                TryEnd=handlerStart,
-                HandlerStart=handlerStart,
-                HandlerEnd=end,
-                CatchType=knownTypes_[TypeSymbol.Any],
+                TryStart = tryStart,
+                TryEnd = handlerStart,
+                HandlerStart = handlerStart,
+                HandlerEnd = end,
+                CatchType = _knownTypes[TypeSymbol.Any],
             };
 
             method.Body.ExceptionHandlers.Add(handler);
@@ -421,11 +422,11 @@ internal class Emitter {
             iLProcessor.Append(finallyStart);
 
             var innerHandler = new ExceptionHandler(ExceptionHandlerType.Catch) {
-                TryStart=innerTryStart,
-                TryEnd=innerHandlerStart,
-                HandlerStart=innerHandlerStart,
-                HandlerEnd=finallyStart,
-                CatchType=knownTypes_[TypeSymbol.Any],
+                TryStart = innerTryStart,
+                TryEnd = innerHandlerStart,
+                HandlerStart = innerHandlerStart,
+                HandlerEnd = finallyStart,
+                CatchType = _knownTypes[TypeSymbol.Any],
             };
 
             foreach (var node in finallyBody)
@@ -435,10 +436,10 @@ internal class Emitter {
             iLProcessor.Append(end);
 
             var handler = new ExceptionHandler(ExceptionHandlerType.Finally) {
-                TryStart=innerTryStart,
-                TryEnd=finallyStart,
-                HandlerStart=finallyStart,
-                HandlerEnd=end,
+                TryStart = innerTryStart,
+                TryEnd = finallyStart,
+                HandlerStart = finallyStart,
+                HandlerEnd = end,
             };
 
             method.Body.ExceptionHandlers.Add(innerHandler);
@@ -451,56 +452,29 @@ internal class Emitter {
     }
 
     private void EmitLabelStatement(ILProcessor iLProcessor, BoundLabelStatement statement) {
-        labels_.Add(statement.label, iLProcessor.Body.Instructions.Count);
+        _labels.Add(statement.label, iLProcessor.Body.Instructions.Count);
     }
 
     private void EmitGotoStatement(ILProcessor iLProcessor, BoundGotoStatement statement) {
-        fixups_.Add((iLProcessor.Body.Instructions.Count, statement.label));
+        _fixups.Add((iLProcessor.Body.Instructions.Count, statement.label));
         iLProcessor.Emit(OpCodes.Br, Instruction.Create(OpCodes.Nop));
     }
 
-    private bool MethodsMatch(FunctionSymbol left, FunctionSymbol right) {
-        if (left.name == right.name && left.parameters.Length == right.parameters.Length) {
-            var parametersMatch = true;
-
-            for (int i=0; i<left.parameters.Length; i++) {
-                var checkParameter = left.parameters[i];
-                var parameter = right.parameters[i];
-
-                if (checkParameter.name != parameter.name || checkParameter.typeClause != parameter.typeClause)
-                    parametersMatch = false;
-            }
-
-            if (parametersMatch)
-                return true;
-        }
-
-        return false;
-    }
-
-    private MethodDefinition LookupMethod(FunctionSymbol function) {
-        foreach (var pair in methods_)
-            if (MethodsMatch(pair.Key, function))
-                return pair.Value;
-
-        throw new Exception($"LookupMethod: could not find method '{function.name}'");
-    }
-
     private void EmitRandomField() {
-        randomFieldDefinition_ = new FieldDefinition(
-                                "$randInt", FieldAttributes.Static | FieldAttributes.Private, randomReference_);
-        typeDefinition_.Fields.Add(randomFieldDefinition_);
+        _randomFieldDefinition = new FieldDefinition(
+                                "$randInt", FieldAttributes.Static | FieldAttributes.Private, _randomReference);
+        _typeDefinition.Fields.Add(_randomFieldDefinition);
         var staticConstructor = new MethodDefinition(
             ".cctor",
             MethodAttributes.Static | MethodAttributes.Private |
             MethodAttributes.RTSpecialName | MethodAttributes.SpecialName,
-            knownTypes_[TypeSymbol.Void]
+            _knownTypes[TypeSymbol.Void]
         );
-        typeDefinition_.Methods.Insert(0, staticConstructor);
+        _typeDefinition.Methods.Insert(0, staticConstructor);
 
         var iLProcessor = staticConstructor.Body.GetILProcessor();
-        iLProcessor.Emit(OpCodes.Newobj, methodReferences_[NetMethodReference.RandomCtor]);
-        iLProcessor.Emit(OpCodes.Stsfld, randomFieldDefinition_);
+        iLProcessor.Emit(OpCodes.Newobj, _methodReferences[NetMethodReference.RandomCtor]);
+        iLProcessor.Emit(OpCodes.Stsfld, _randomFieldDefinition);
         iLProcessor.Emit(OpCodes.Ret);
     }
 
@@ -510,11 +484,11 @@ internal class Emitter {
     }
 
     private MethodReference GetNullableCtor(BoundTypeClause type) {
-        var genericArgumentType = assemblyDefinition_.MainModule.ImportReference(knownTypes_[type.lType]);
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.lType]);
         var methodReference =
-            assemblyDefinition_.MainModule.ImportReference(methodReferences_[NetMethodReference.NullableCtor]);
+            _assemblyDefinition.MainModule.ImportReference(_methodReferences[NetMethodReference.NullableCtor]);
 
-        methodReference.DeclaringType = new GenericInstanceType(nullableReference_);
+        methodReference.DeclaringType = new GenericInstanceType(_nullableReference);
         (methodReference.DeclaringType as GenericInstanceType).GenericArguments.Add(genericArgumentType);
         methodReference.Resolve();
 
@@ -522,11 +496,11 @@ internal class Emitter {
     }
 
     private MethodReference GetNullableValue(BoundTypeClause type) {
-        var genericArgumentType = assemblyDefinition_.MainModule.ImportReference(knownTypes_[type.lType]);
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.lType]);
         var methodReference =
-            assemblyDefinition_.MainModule.ImportReference(methodReferences_[NetMethodReference.NullableValue]);
+            _assemblyDefinition.MainModule.ImportReference(_methodReferences[NetMethodReference.NullableValue]);
 
-        methodReference.DeclaringType = new GenericInstanceType(nullableReference_);
+        methodReference.DeclaringType = new GenericInstanceType(_nullableReference);
         (methodReference.DeclaringType as GenericInstanceType).GenericArguments.Add(genericArgumentType);
         methodReference.Resolve();
 
@@ -534,11 +508,11 @@ internal class Emitter {
     }
 
     private MethodReference GetNullableHasValue(BoundTypeClause type) {
-        var genericArgumentType = assemblyDefinition_.MainModule.ImportReference(knownTypes_[type.lType]);
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.lType]);
         var methodReference =
-            assemblyDefinition_.MainModule.ImportReference(methodReferences_[NetMethodReference.NullableHasValue]);
+            _assemblyDefinition.MainModule.ImportReference(_methodReferences[NetMethodReference.NullableHasValue]);
 
-        methodReference.DeclaringType = new GenericInstanceType(nullableReference_);
+        methodReference.DeclaringType = new GenericInstanceType(_nullableReference);
         (methodReference.DeclaringType as GenericInstanceType).GenericArguments.Add(genericArgumentType);
         methodReference.Resolve();
 
@@ -550,18 +524,18 @@ internal class Emitter {
             if (to.lType == TypeSymbol.Any)
                 return null;
             else if (to.lType == TypeSymbol.Bool)
-                return methodReferences_[NetMethodReference.ConvertToBoolean];
+                return _methodReferences[NetMethodReference.ConvertToBoolean];
             else if (to.lType == TypeSymbol.Int)
-                return methodReferences_[NetMethodReference.ConvertToInt32];
+                return _methodReferences[NetMethodReference.ConvertToInt32];
             else if (to.lType == TypeSymbol.String)
-                return methodReferences_[NetMethodReference.ConvertToString];
+                return _methodReferences[NetMethodReference.ConvertToString];
             else if (to.lType == TypeSymbol.Decimal)
-                return methodReferences_[NetMethodReference.ConvertToDouble];
+                return _methodReferences[NetMethodReference.ConvertToDouble];
             else
-                throw new Exception($"GetConvertTo: unexpected cast from '{from}' to '{to}'");
+                throw new BelteInternalException($"GetConvertTo: unexpected cast from '{from}' to '{to}'");
         }
 
-        throw new Exception("GetConvertTo: cannot convert nullable types");
+        throw new BelteInternalException("GetConvertTo: cannot convert nullable types");
     }
 
     private void EmitFunctionDeclaration(FunctionSymbol function) {
@@ -576,18 +550,18 @@ internal class Emitter {
             method.Parameters.Add(parameterDefinition);
         }
 
-        typeDefinition_.Methods.Add(method);
-        methods_.Add(function, method);
+        _typeDefinition.Methods.Add(method);
+        _methods.Add(function, method);
     }
 
     private TypeReference GetType(
         BoundTypeClause type, bool overrideNullability = false, bool ignoreReference = false) {
         if ((type.dimensions == 0 && !type.isNullable && !overrideNullability) ||
             type.lType == TypeSymbol.Void)
-            return knownTypes_[type.lType];
+            return _knownTypes[type.lType];
 
-        var genericArgumentType = assemblyDefinition_.MainModule.ImportReference(knownTypes_[type.lType]);
-        var typeReference = new GenericInstanceType(nullableReference_);
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.lType]);
+        var typeReference = new GenericInstanceType(_nullableReference);
         typeReference.GenericArguments.Add(genericArgumentType);
         var referenceType = new ByReferenceType(typeReference);
 

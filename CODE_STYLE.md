@@ -27,17 +27,19 @@ This code style is most similar to C++ standards, and is what the Belte Standard
 - Control of flow must use braces (unless single body statement) and start body statements on new line
 - Newline before and after control of flow unless the statement is specifically related to the control of flow
 - No newline before using statements at the beginning of the file
+- If no using statements, first line should be a newline
 
 ## Naming
 
 - Object names are UpperCamelCase
 - Public member names are lowerCamelCase
-- Non-public member names are lowerCamelCase with a trailing underscore
+- Non-public member names are lowerCamelCase with a leading underscore (_lowerCamelCase)
 - Variable names are lowerCamelCase
 - Function names are UpperCamelCase
 - Label names are UpperCamelCase
 - Namespace names are UpperCamelCase
-- Enum names are UPPER_CASE
+- Enum names are UpperCamelCase
+- Enum members are UpperCamelCase
 - Preprocessor constants are UPPER_CASE
 - Constants are UpperCamelCase
 - Folder names (apart from abbreviations or root folders e.g. src) are UpperCamelCase

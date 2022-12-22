@@ -6,11 +6,12 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Authoring;
 using Diagnostics;
+using Buckle.CodeAnalysis.Evaluating;
 
 namespace Repl;
 
 /// <summary>
-/// Uses framework from ReplBase and adds syntax highlighting and evaluation.
+/// Uses framework from <see cref="ReplBase" /> and adds syntax highlighting and evaluation.
 /// </summary>
 public sealed class BelteRepl : ReplBase {
     private static readonly Compilation emptyCompilation = Compilation.CreateScript(null);
@@ -21,11 +22,12 @@ public sealed class BelteRepl : ReplBase {
     };
 
     /// <summary>
-    /// Creates a new instance of a Belte REPL, can run in parallel with other REPLs with unique outs.
+    /// Creates a new instance of a <see cref="BelteRepl" />, can run in parallel with other BelteRepls with
+    /// unique outs.
     /// Uses System.Console by default, which cannot be used more than once.
     /// </summary>
-    /// <param name="handle">Compiler object that represents entirety of compilation</param>
-    /// <param name="errorHandle">Callback to handle diagnostics</param>
+    /// <param name="handle"><see cref="Compiler" /> object that represents entirety of compilation.</param>
+    /// <param name="errorHandle">Callback to handle Diagnostics.</param>
     public BelteRepl(Compiler handle, DiagnosticHandle errorHandle) : base(handle, errorHandle) {
         state = new BelteReplState();
         ResetState();
@@ -42,25 +44,26 @@ public sealed class BelteRepl : ReplBase {
         Settings
     }
 
-    internal override object state_ { get; set; }
+    internal override object _state { get; set; }
 
     /// <summary>
-    /// Cast of REPL specific state that has this REPL's related state.
+    /// Cast of <see cref="ReplBase" /> specific state that has <see cref="BelteRepl" /> related state.
     /// </summary>
     internal BelteReplState state {
         get {
-            return (BelteReplState)state_;
+            return (BelteReplState)_state;
         }
         set {
-            state_=value;
+            _state = value;
         }
     }
 
     internal override void ResetState() {
         state.showTree = false;
         state.showProgram = false;
+        state.showWarnings = false;
         state.loadingSubmissions = false;
-        state.variables = new Dictionary<VariableSymbol, object>();
+        state.variables = new Dictionary<VariableSymbol, EvaluatorObject>();
         state.previous = null;
         state.currentPage = Page.Repl;
         base.ResetState();
@@ -147,7 +150,7 @@ public sealed class BelteRepl : ReplBase {
 
         foreach (var text in texts) {
             Console.ForegroundColor = text.color;
-            writer_.Write(text.text);
+            _writer.Write(text.text);
         }
 
         Console.ForegroundColor = state.colorTheme.@default;
@@ -164,15 +167,24 @@ public sealed class BelteRepl : ReplBase {
         if (state.showProgram)
             compilation.EmitTree(Console.Out);
 
-        handle.diagnostics.Move(compilation.diagnostics.FilterOut(DiagnosticType.Warning));
-        EvaluationResult result = null;
+        if (state.showWarnings)
+            handle.diagnostics.Move(compilation.diagnostics);
+        else
+            handle.diagnostics.Move(compilation.diagnostics.FilterOut(DiagnosticType.Warning));
 
+        EvaluationResult result = null;
         Console.ForegroundColor = state.colorTheme.result;
 
-        if (!handle.diagnostics.Any()) {
+        if (!handle.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
             result = compilation.Evaluate(state.variables);
-            handle.diagnostics.Move(result.diagnostics.FilterOut(DiagnosticType.Warning));
+
+            if (state.showWarnings)
+                handle.diagnostics.Move(result.diagnostics);
+            else
+                handle.diagnostics.Move(result.diagnostics.FilterOut(DiagnosticType.Warning));
         }
+
+        var hasErrors = handle.diagnostics.FilterOut(DiagnosticType.Warning).Any();
 
         if (handle.diagnostics.Any()) {
             if (diagnosticHandle != null) {
@@ -181,10 +193,12 @@ public sealed class BelteRepl : ReplBase {
             } else {
                 handle.diagnostics.Clear();
             }
-        } else {
-            if (result.value != null && !state.loadingSubmissions) {
+        }
+
+        if (!hasErrors) {
+            if (result.hasValue && !state.loadingSubmissions) {
                 RenderResult(result.value);
-                writer_.WriteLine();
+                _writer.WriteLine();
             }
 
             state.previous = compilation;
@@ -233,22 +247,40 @@ public sealed class BelteRepl : ReplBase {
     }
 
     private void RenderResult(object value) {
-        if (value.GetType().IsArray) {
-            writer_.Write("{ ");
+        if (value == null) {
+            Console.Out.WritePunctuation("null");
+        } else if (value.GetType().IsArray) {
+            _writer.Write("{ ");
             var isFirst = true;
 
             foreach (object item in (Array)value) {
                 if (isFirst)
                     isFirst = false;
                 else
-                    writer_.Write(", ");
+                    _writer.Write(", ");
 
                 RenderResult(item);
             }
 
-            writer_.Write(" }");
+            _writer.Write(" }");
+        } else if (value is Dictionary<object, object>) {
+            _writer.Write("{ ");
+            var isFirst = true;
+
+            foreach (var pair in (Dictionary<object, object>)value) {
+                if (isFirst)
+                    isFirst = false;
+                else
+                    _writer.Write(", ");
+
+                RenderResult(pair.Key);
+                _writer.Write(": ");
+                RenderResult(pair.Value);
+            }
+
+            _writer.Write(" }");
         } else {
-            writer_.Write(value);
+            _writer.Write(value);
         }
     }
 
@@ -267,7 +299,7 @@ public sealed class BelteRepl : ReplBase {
         var files = Directory.GetFiles(GetSubmissionsDirectory()).OrderBy(f => f).ToArray();
         var keyword = files.Length == 1 ? "submission" : "submissions";
         Console.Out.WritePunctuation($"loaded {files.Length} {keyword}");
-        writer_.WriteLine();
+        _writer.WriteLine();
 
         var @out = Console.Out;
         Console.SetOut(new StreamWriter(Stream.Null));
@@ -285,13 +317,13 @@ public sealed class BelteRepl : ReplBase {
     [MetaCommand("showTree", "Toggle to display parse tree of each input")]
     private void EvaluateShowTree() {
         state.showTree = !state.showTree;
-        writer_.WriteLine(state.showTree ? "Parse-trees visible" : "Parse-trees hidden");
+        _writer.WriteLine(state.showTree ? "Parse-trees visible" : "Parse-trees hidden");
     }
 
     [MetaCommand("showProgram", "Toggle to display intermediate representation of each input")]
     private void EvaluateShowProgram() {
         state.showProgram = !state.showProgram;
-        writer_.WriteLine(state.showProgram ? "Bound-trees visible" : "Bound-trees hidden");
+        _writer.WriteLine(state.showProgram ? "Bound-trees visible" : "Bound-trees hidden");
     }
 
     [MetaCommand("clear", "Clear the screen")]
@@ -334,7 +366,7 @@ public sealed class BelteRepl : ReplBase {
 
         foreach (var symbol in symbols) {
             symbol.WriteTo(Console.Out);
-            writer_.WriteLine();
+            _writer.WriteLine();
         }
     }
 
@@ -378,12 +410,12 @@ public sealed class BelteRepl : ReplBase {
 
         if (File.Exists(path)) {
             Console.ForegroundColor = state.colorTheme.textDefault;
-            writer_.Write("File already exists, continue? [y/n] ");
+            _writer.Write("File already exists, continue? [y/n] ");
             var response = Console.ReadKey().KeyChar;
-            writer_.WriteLine();
+            _writer.WriteLine();
 
             if (response != 'y') {
-                writer_.WriteLine("Aborting");
+                _writer.WriteLine("Aborting");
                 return;
             }
         }
@@ -405,18 +437,22 @@ public sealed class BelteRepl : ReplBase {
                 File.WriteAllLines(path, subset);
                 wrote = true;
                 break;
-            } catch {
+            } catch (Exception) {
                 // In case file is being used by another process, retry
                 Thread.Sleep(100);
+
+                // If there is an exception unrelated to the file being used, it should be shown
+                if (i == 2)
+                    throw;
             }
         }
 
         Console.ForegroundColor = state.colorTheme.textDefault;
 
         if (wrote)
-            writer_.WriteLine($"Wrote {split.Length} lines");
+            _writer.WriteLine($"Wrote {split.Length} lines");
         else
-            writer_.WriteLine($"Failed to write to file");
+            _writer.WriteLine($"Failed to write to file");
     }
 
     [MetaCommand("settings", "Open settings page")]
@@ -430,14 +466,14 @@ public sealed class BelteRepl : ReplBase {
             Console.BackgroundColor = state.colorTheme.background;
             Console.ForegroundColor = state.colorTheme.textDefault;
             Console.Clear();
-            writer_.WriteLine("Settings");
-            writer_.WriteLine();
-            writer_.Write("Theme: ");
+            _writer.WriteLine("Settings");
+            _writer.WriteLine();
+            _writer.Write("Theme: ");
 
             var index = 2;
 
             foreach (var (Key, Value) in InUse) {
-                writer_.SetCursorPosition(7, index++);
+                _writer.SetCursorPosition(7, index++);
 
                 if (state.colorTheme.GetType() == Value.GetType()) {
                     Console.BackgroundColor = state.colorTheme.selection;
@@ -445,10 +481,10 @@ public sealed class BelteRepl : ReplBase {
                     Console.BackgroundColor = state.colorTheme.background;
                 }
 
-                writer_.Write(Key.PadRight(8));
+                _writer.Write(Key.PadRight(8));
             }
 
-            writer_.SetCursorPosition(7, targetIndex + 2);
+            _writer.SetCursorPosition(7, targetIndex + 2);
         }
 
         var targetIndex = 2;
@@ -481,6 +517,12 @@ public sealed class BelteRepl : ReplBase {
         Console.BackgroundColor = state.colorTheme.background;
         ReviveDocument();
         state.currentPage = Page.Repl;
+    }
+
+    [MetaCommand("showWarnings", "Toggle to display compiler produced warnings")]
+    private void EvaluateShowWarnings() {
+        state.showWarnings = !state.showWarnings;
+        _writer.WriteLine(state.showWarnings ? "Warnings shown" : "Warnings ignored");
     }
 
     /// <summary>
@@ -556,7 +598,7 @@ public sealed class BelteRepl : ReplBase {
     /// <summary>
     /// Dark theme (default). Mostly dark colors and pairs well with dark themed terminals.
     /// </summary>
-    internal class DarkTheme : ColorTheme {
+    internal sealed class DarkTheme : ColorTheme {
         internal override ConsoleColor @default => ConsoleColor.DarkGray;
         internal override ConsoleColor selection => ConsoleColor.DarkGray;
         internal override ConsoleColor textDefault => ConsoleColor.White;
@@ -575,7 +617,7 @@ public sealed class BelteRepl : ReplBase {
     /// <summary>
     /// Light theme. Mostly bright colors and pairs well with light themed terminals.
     /// </summary>
-    internal class LightTheme : ColorTheme {
+    internal sealed class LightTheme : ColorTheme {
         internal override ConsoleColor @default => ConsoleColor.DarkGray;
         internal override ConsoleColor selection => ConsoleColor.DarkGray;
         internal override ConsoleColor textDefault => ConsoleColor.Black;
@@ -594,7 +636,7 @@ public sealed class BelteRepl : ReplBase {
     /// <summary>
     /// Green theme. Mostly dark colors with green background.
     /// </summary>
-    internal class GreenTheme : ColorTheme {
+    internal sealed class GreenTheme : ColorTheme {
         internal override ConsoleColor @default => ConsoleColor.DarkGray;
         internal override ConsoleColor selection => ConsoleColor.DarkGray;
         internal override ConsoleColor textDefault => ConsoleColor.Black;
@@ -625,6 +667,11 @@ public sealed class BelteRepl : ReplBase {
         public bool showProgram = false;
 
         /// <summary>
+        /// Show compiler produced warnings.
+        /// </summary>
+        public bool showWarnings = false;
+
+        /// <summary>
         /// If to ignore statements with side effects (Print, PrintLine, etc.).
         /// </summary>
         public bool loadingSubmissions = false;
@@ -635,12 +682,12 @@ public sealed class BelteRepl : ReplBase {
         public ColorTheme colorTheme = new DarkTheme();
 
         /// <summary>
-        /// Current page the user is viewing (see Page)
+        /// Current <see cref="Page" /> the user is viewing.
         /// </summary>
         public Page currentPage = Page.Repl;
 
         /// <summary>
-        /// Previous compilation (used to build of previous).
+        /// Previous <see cref="Compilation" /> (used to build of previous).
         /// </summary>
         public Compilation previous;
 
@@ -648,6 +695,6 @@ public sealed class BelteRepl : ReplBase {
         /// Current defined variables.
         /// Not tracked after REPL instance is over, instead previous submissions are reevaluated.
         /// </summary>
-        public Dictionary<VariableSymbol, object> variables;
+        public Dictionary<VariableSymbol, EvaluatorObject> variables;
     }
 }

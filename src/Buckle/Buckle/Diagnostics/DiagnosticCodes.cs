@@ -5,7 +5,7 @@ internal enum DiagnosticCode : int {
     Unknown = 0,
 
     WRN_AlwaysValue = 1,
-
+    WRN_NullDeference = 2,
     ERR_InvalidReference = 3,
     ERR_InvalidType = 4,
     ERR_BadCharacter = 5,
@@ -21,7 +21,7 @@ internal enum DiagnosticCode : int {
     ERR_RequiredMethodNotFound = 15,
     ERR_MainAndGlobals = 16,
     ERR_UndefinedName = 17,
-    ERR_FunctionAlreadyDeclared = 18,
+    ERR_MethodAlreadyDeclared = 18,
     ERR_NotAllPathsReturn = 19,
     ERR_CannotConvert = 20,
     ERR_AlreadyDeclared = 21,
@@ -62,6 +62,11 @@ internal enum DiagnosticCode : int {
     ERR_ExpectedToken = 56,
     ERR_NoOverload = 57,
     ERR_AmbiguousOverload = 58,
+    ERR_CannotInitialize = 59,
+    ERR_InvalidTernaryOperatorUse = 60,
+    ERR_NoSuchMember = 61,
+    ERR_CannotAssign = 62,
+    ERR_CannotOverloadNested = 63,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

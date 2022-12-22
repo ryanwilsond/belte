@@ -2,8 +2,11 @@ using System.Collections.Generic;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Preprocessing;
 using Buckle.Diagnostics;
 using Diagnostics;
+using Buckle.CodeAnalysis.Evaluating;
+using System.Linq;
 
 namespace Buckle;
 
@@ -23,12 +26,12 @@ public enum CompilerStage {
 /// </summary>
 public struct FileContent {
     /// <summary>
-    /// Text representation of file
+    /// Text representation of file.
     /// </summary>
     public string text;
 
     /// <summary>
-    /// Byte representation of file (usually only used with .o or .exe files)
+    /// Byte representation of file (usually only used with .o or .exe files).
     /// </summary>
     public List<byte> bytes;
 }
@@ -43,7 +46,7 @@ public struct FileState {
     public string inputFilename;
 
     /// <summary>
-    /// Current stage of the file (see CompilerStage).
+    /// Current stage of the file (see <see cref="CompilerStage" />).
     /// Not related to the stage of the compiler as a whole.
     /// </summary>
     public CompilerStage stage;
@@ -70,11 +73,11 @@ public enum BuildMode {
 }
 
 /// <summary>
-/// State of a single compiler.
+/// State of a single <see cref="Compiler" />.
 /// </summary>
 public struct CompilerState {
     /// <summary>
-    /// What the compiler will target.
+    /// What the <see cref="Compiler" /> will target.
     /// </summary>
     public BuildMode buildMode;
 
@@ -89,7 +92,7 @@ public struct CompilerState {
     public string[] references;
 
     /// <summary>
-    /// Compile time options (see BuckleCommandLine)
+    /// Compile time options (see <see cref="BuckleCommandLine" />).
     /// </summary>
     public string[] options;
 
@@ -120,26 +123,42 @@ public struct CompilerState {
 }
 
 /// <summary>
-/// Handles compiling and handling a single CompilerState.
+/// Handles compiling and handling a single <see cref="CompilerState" />.
 /// Multiple can be created and run asynchronously.
 /// </summary>
 public sealed class Compiler {
-    private const int SUCCESS_EXIT_CODE = 0;
-    private const int ERROR_EXIT_CODE = 1;
-    private const int FATAL_EXIT_CODE = 2;
+    private const int SuccessExitCode = 0;
+    private const int ErrorExitCode = 1;
+    private const int FatalExitCode = 2;
 
     /// <summary>
-    /// Creates a new compiler, state needs to be set separately.
+    /// Creates a new <see cref="Compiler" />, state needs to be set separately.
     /// </summary>
-    public Compiler() {
+    public Compiler(DiagnosticHandle handle) {
         diagnostics = new BelteDiagnosticQueue();
+        this.diagnosticHandle = handle;
     }
+
+    /// <summary>
+    /// Callback to handle Diagnostics, be it logging or displaying to the console.
+    /// </summary>
+    /// <param name="compiler"><see cref="Compiler" /> object representing entirety of compilation.</param>
+    /// <param name="me">Display name of the program.</param>
+    /// <returns>C-Style error code of most severe <see cref="Diagnostic" />.</returns>
+    public delegate int DiagnosticHandle(Compiler compiler);
 
     /// <summary>
     /// Compiler specific state that determines what to compile and how.
     /// Required to compile.
     /// </summary>
     public CompilerState state { get; set; }
+
+    /// <summary>
+    /// Callback to handle Diagnostics, be it logging or displaying to the console.
+    /// </summary>
+    /// <param name="compiler"><see cref="Compiler" /> object representing entirety of compilation.</param>
+    /// <returns>C-Style error code of most severe <see cref="Diagnostic" />.</returns>
+    public DiagnosticHandle diagnosticHandle { get; set; }
 
     /// <summary>
     /// The name of the compiler (usually displayed with diagnostics).
@@ -154,18 +173,18 @@ public sealed class Compiler {
     /// <summary>
     /// Handles preprocessing, compiling, assembling, and linking of a set of files.
     /// </summary>
-    /// <returns>Error code, 0 = success</returns>
+    /// <returns>Error code, 0 = success.</returns>
     public int Compile() {
         int err;
 
         InternalPreprocessor();
 
         err = CheckErrors();
-        if (err != SUCCESS_EXIT_CODE)
+        if (err != SuccessExitCode)
             return err;
 
         if (state.finishStage == CompilerStage.Preprocessed)
-            return SUCCESS_EXIT_CODE;
+            return SuccessExitCode;
 
         if (state.buildMode == BuildMode.Interpreter) {
             InternalInterpreter();
@@ -182,37 +201,41 @@ public sealed class Compiler {
         // * This code is only relevant when independent compilation becomes supported
         // InternalCompiler();
         // err = CheckErrors();
-        // if (err != SUCCESS_EXIT_CODE)
+        // if (err != SuccessExitCode)
         //     return err;
 
         // if (state.finishStage == CompilerStage.Compiled)
-        //     return SUCCESS_EXIT_CODE;
+        //     return SuccessExitCode;
 
         // ExternalAssembler();
         // err = CheckErrors();
-        // if (err != SUCCESS_EXIT_CODE)
+        // if (err != SuccessExitCode)
         //     return err;
 
         // if (state.finishStage == CompilerStage.Assembled)
-        //     return SUCCESS_EXIT_CODE;
+        //     return SuccessExitCode;
 
         // ExternalLinker();
         // err = CheckErrors();
-        // if (err != SUCCESS_EXIT_CODE)
+        // if (err != SuccessExitCode)
         //     return err;
 
         // if (state.finishStage == CompilerStage.Linked)
-        //     return SUCCESS_EXIT_CODE;
+        //     return SuccessExitCode;
 
-        // return FATAL_EXIT_CODE;
+        // return FatalExitCode;
     }
 
     private int CheckErrors() {
+        var worst = SuccessExitCode;
+
         foreach (Diagnostic diagnostic in diagnostics)
             if (diagnostic.info.severity == DiagnosticType.Error)
-                return ERROR_EXIT_CODE;
+                worst = ErrorExitCode;
 
-        return SUCCESS_EXIT_CODE;
+        diagnosticHandle(this);
+
+        return worst;
     }
 
     private void ExternalAssembler() {
@@ -235,6 +258,8 @@ public sealed class Compiler {
             var text = preprocessor.PreprocessText(task.inputFilename, task.fileContent.text);
             task.fileContent.text = text;
         }
+
+        diagnostics.Move(preprocessor.diagnostics);
     }
 
     private void InternalInterpreter() {
@@ -254,12 +279,20 @@ public sealed class Compiler {
         var compilation = Compilation.Create(syntaxTrees.ToArray());
         diagnostics.Move(compilation.diagnostics);
 
-        diagnostics = diagnostics.FilterOut(DiagnosticType.Warning);
-        if (diagnostics.Any())
+        if (!state.options.Contains("all") && !state.options.Contains("error"))
+            diagnostics = diagnostics.FilterOut(DiagnosticType.Warning);
+
+        if ((diagnostics.FilterOut(DiagnosticType.Warning).Any()) ||
+            (diagnostics.Any() && state.options.Contains("error")))
             return;
 
-        var result = compilation.Evaluate(new Dictionary<VariableSymbol, object>());
-        diagnostics.Move(result.diagnostics);
+        var result = compilation.Evaluate(
+            new Dictionary<VariableSymbol, EvaluatorObject>(), state.options.Contains("error"));
+
+        if (!state.options.Contains("all") && !state.options.Contains("error"))
+            diagnostics.Move(result.diagnostics.FilterOut(DiagnosticType.Warning));
+        else
+            diagnostics.Move(result.diagnostics);
     }
 
     private void InternalCompiler() { }
@@ -278,7 +311,9 @@ public sealed class Compiler {
         }
 
         var compilation = Compilation.Create(syntaxTrees.ToArray());
-        var result = compilation.Emit(state.moduleName, state.references, state.outputFilename);
+        var result = compilation.Emit(
+            state.moduleName, state.references, state.outputFilename, state.options.Contains("error"));
+
         diagnostics.Move(result);
     }
 }
