@@ -7,10 +7,10 @@ using Buckle.CodeAnalysis.Syntax;
 namespace Buckle.Tests.CodeAnalysis.Syntax;
 
 internal sealed class AssertingEnumerator : IDisposable {
-    private readonly IEnumerator<Node> _enumerator;
+    private readonly IEnumerator<SyntaxNode> _enumerator;
     private bool _hasErrors;
 
-    public AssertingEnumerator(Node node) {
+    public AssertingEnumerator(SyntaxNode node) {
         _enumerator = Flatten(node).GetEnumerator();
     }
 
@@ -26,35 +26,35 @@ internal sealed class AssertingEnumerator : IDisposable {
         _enumerator.Dispose();
     }
 
-    private static IEnumerable<Node> Flatten(Node node) {
-        var stack = new Stack<Node>();
+    private static IEnumerable<SyntaxNode> Flatten(SyntaxNode node) {
+        var stack = new Stack<SyntaxNode>();
         stack.Push(node);
 
         while (stack.Count > 0) {
             var n = stack.Pop();
             yield return n;
-            IEnumerable<Node> nodeList = n.GetChildren();
+            IEnumerable<SyntaxNode> nodeList = n.GetChildren();
 
             foreach (var child in nodeList.Reverse())
                 stack.Push(child);
         }
     }
 
-    public void AssertNode(SyntaxType type) {
+    public void AssertNode(SyntaxKind kind) {
         try {
             Assert.True(_enumerator.MoveNext());
-            Assert.Equal(type, _enumerator.Current.type);
-            Assert.IsNotType<Token>(_enumerator.Current);
+            Assert.Equal(kind, _enumerator.Current.kind);
+            Assert.IsNotType<SyntaxToken>(_enumerator.Current);
         } catch when (MarkFailed()) {
             throw;
         }
     }
 
-    public void AssertToken(SyntaxType type, string text) {
+    public void AssertToken(SyntaxKind kind, string text) {
         try {
             Assert.True(_enumerator.MoveNext());
-            Assert.Equal(type, _enumerator.Current.type);
-            var token = Assert.IsType<Token>(_enumerator.Current);
+            Assert.Equal(kind, _enumerator.Current.kind);
+            var token = Assert.IsType<SyntaxToken>(_enumerator.Current);
             Assert.Equal(text, token.text);
         } catch when (MarkFailed()) {
             throw;

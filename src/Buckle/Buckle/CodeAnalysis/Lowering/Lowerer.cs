@@ -164,7 +164,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         ));
 
         BoundExpression condition = new BoundLiteralExpression(true);
-        if (node.condition.type != BoundNodeType.EmptyExpression)
+        if (node.condition.kind != BoundNodeKind.EmptyExpression)
             condition = node.condition;
 
         var whileStatement = new BoundWhileStatement(
@@ -241,23 +241,23 @@ internal sealed class Lowerer : BoundTreeRewriter {
         (<right> isnt null ? <left> <op> Value(<right>) : null)
 
         */
-        if (expression.op.opType == BoundBinaryOperatorType.Is) {
+        if (expression.op.opType == BoundBinaryOperatorKind.Is) {
             var operand = new BoundCallExpression(
                 BuiltinFunctions.HasValue, ImmutableArray.Create<BoundExpression>(expression.left)
             );
 
-            var op = BoundUnaryOperator.Bind(SyntaxType.ExclamationToken, operand.typeClause);
+            var op = BoundUnaryOperator.Bind(SyntaxKind.ExclamationToken, operand.typeClause);
 
             return RewriteExpression(new BoundUnaryExpression(op, operand));
         }
 
-        if (expression.op.opType == BoundBinaryOperatorType.Isnt) {
+        if (expression.op.opType == BoundBinaryOperatorKind.Isnt) {
             return RewriteExpression(new BoundCallExpression(
                 BuiltinFunctions.HasValue, ImmutableArray.Create<BoundExpression>(expression.left)
             ));
         }
 
-        if (expression.op.opType == BoundBinaryOperatorType.NullCoalescing) {
+        if (expression.op.opType == BoundBinaryOperatorKind.NullCoalescing) {
             var left = new BoundCallExpression(
                 BuiltinFunctions.HasValue, ImmutableArray.Create<BoundExpression>(expression.left)
             );
@@ -267,14 +267,14 @@ internal sealed class Lowerer : BoundTreeRewriter {
             );
 
             var op = BoundTernaryOperator.Bind(
-                SyntaxType.QuestionToken, SyntaxType.ColonToken, left.typeClause,
+                SyntaxKind.QuestionToken, SyntaxKind.ColonToken, left.typeClause,
                 center.typeClause, expression.right.typeClause
             );
 
             return RewriteExpression(new BoundTernaryExpression(left, op, center, expression.right));
         }
 
-        if (expression.op.opType == BoundBinaryOperatorType.Power) {
+        if (expression.op.opType == BoundBinaryOperatorKind.Power) {
             // TODO
             // * Will do in the StackFrameParser
             return base.RewriteBinaryExpression(expression);
@@ -290,7 +290,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             );
 
             var binaryOp = BoundBinaryOperator.Bind(
-                SyntaxType.AmpersandAmpersandToken, binaryLeft.typeClause, binaryRight.typeClause
+                SyntaxKind.AmpersandAmpersandToken, binaryLeft.typeClause, binaryRight.typeClause
             );
 
             var left = new BoundBinaryExpression(binaryLeft, binaryOp, binaryRight);
@@ -305,7 +305,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             var center = new BoundBinaryExpression(secondBinaryLeft, expression.op, secondBinaryRight);
             var right = new BoundLiteralExpression(null);
             var op = BoundTernaryOperator.Bind(
-                SyntaxType.QuestionToken, SyntaxType.ColonToken, left.typeClause, center.typeClause, right.typeClause
+                SyntaxKind.QuestionToken, SyntaxKind.ColonToken, left.typeClause, center.typeClause, right.typeClause
             );
 
             return RewriteExpression(new BoundTernaryExpression(left, op, center, right));
@@ -323,7 +323,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             var center = new BoundBinaryExpression(binaryLeft, expression.op, expression.right);
             var right = new BoundLiteralExpression(null);
             var op = BoundTernaryOperator.Bind(
-                SyntaxType.QuestionToken, SyntaxType.ColonToken, left.typeClause, center.typeClause, right.typeClause
+                SyntaxKind.QuestionToken, SyntaxKind.ColonToken, left.typeClause, center.typeClause, right.typeClause
             );
 
             return RewriteExpression(new BoundTernaryExpression(left, op, center, right));
@@ -341,7 +341,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             var center = new BoundBinaryExpression(expression.left, expression.op, binaryRight);
             var right = new BoundLiteralExpression(null);
             var op = BoundTernaryOperator.Bind(
-                SyntaxType.QuestionToken, SyntaxType.ColonToken, left.typeClause, center.typeClause, right.typeClause
+                SyntaxKind.QuestionToken, SyntaxKind.ColonToken, left.typeClause, center.typeClause, right.typeClause
             );
 
             return RewriteExpression(new BoundTernaryExpression(left, op, center, right));
@@ -373,7 +373,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
             var right = new BoundLiteralExpression(null);
             var op = BoundTernaryOperator.Bind(
-                SyntaxType.QuestionToken, SyntaxType.ColonToken, left.typeClause, center.typeClause, right.typeClause
+                SyntaxKind.QuestionToken, SyntaxKind.ColonToken, left.typeClause, center.typeClause, right.typeClause
             );
 
             return RewriteExpression(new BoundTernaryExpression(left, op, center, right));
@@ -411,7 +411,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
             var right = new BoundLiteralExpression(null);
             var op = BoundTernaryOperator.Bind(
-                SyntaxType.QuestionToken, SyntaxType.ColonToken, left.typeClause, center.typeClause, right.typeClause
+                SyntaxKind.QuestionToken, SyntaxKind.ColonToken, left.typeClause, center.typeClause, right.typeClause
             );
 
             return RewriteExpression(new BoundTernaryExpression(left, op, center, right));
@@ -494,7 +494,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         <right>
 
         */
-        if (expression.op.opType == BoundTernaryOperatorType.Conditional) {
+        if (expression.op.opType == BoundTernaryOperatorKind.Conditional) {
             if (expression.left.constantValue != null && (bool)expression.left.constantValue.value) {
                 return RewriteExpression(expression.center);
             }
@@ -524,13 +524,13 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     private FunctionSymbol CorrectValue(BoundExpression expression) {
-        if (expression.typeClause.lType == TypeSymbol.Bool)
+        if (expression.typeClause.type == TypeSymbol.Bool)
             return BuiltinFunctions.ValueBool;
-        if (expression.typeClause.lType == TypeSymbol.Decimal)
+        if (expression.typeClause.type == TypeSymbol.Decimal)
             return BuiltinFunctions.ValueDecimal;
-        if (expression.typeClause.lType == TypeSymbol.Int)
+        if (expression.typeClause.type == TypeSymbol.Int)
             return BuiltinFunctions.ValueInt;
-        if (expression.typeClause.lType == TypeSymbol.String)
+        if (expression.typeClause.type == TypeSymbol.String)
             return BuiltinFunctions.ValueString;
 
         return BuiltinFunctions.ValueAny;
@@ -565,7 +565,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             }
         }
 
-        if (function.typeClause.lType == TypeSymbol.Void)
+        if (function.typeClause.type == TypeSymbol.Void)
             if (builder.Count == 0 || CanFallThrough(builder.Last()))
                 builder.Add(new BoundReturnStatement(null));
 
@@ -573,8 +573,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     private static bool CanFallThrough(BoundStatement boundStatement) {
-        return boundStatement.type != BoundNodeType.ReturnStatement &&
-            boundStatement.type != BoundNodeType.GotoStatement;
+        return boundStatement.kind != BoundNodeKind.ReturnStatement &&
+            boundStatement.kind != BoundNodeKind.GotoStatement;
     }
 
     private BoundLabel GenerateLabel() {

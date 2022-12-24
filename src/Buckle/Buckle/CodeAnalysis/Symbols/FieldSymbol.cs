@@ -15,5 +15,5 @@ internal class FieldSymbol : VariableSymbol {
     internal FieldSymbol(string name, BoundTypeClause typeClause, BoundConstant constant)
         : base(name, typeClause, constant) { }
 
-    internal override SymbolType type => SymbolType.Field;
+    internal override SymbolKind kind => SymbolKind.Field;
 }

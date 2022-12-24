@@ -57,7 +57,7 @@ internal static class TextWriterExtensions {
     /// Writes a keyword in blue.
     /// </summary>
     /// <param name="type">Keyword, gets converted to text.</param>
-    internal static void WriteKeyword(this TextWriter writer, SyntaxType type) {
+    internal static void WriteKeyword(this TextWriter writer, SyntaxKind type) {
         writer.SetForeground(ConsoleColor.Blue);
         writer.Write(SyntaxFacts.GetText(type));
         writer.ResetColor();
@@ -107,7 +107,7 @@ internal static class TextWriterExtensions {
     /// Writes punctuation in dark gray.
     /// </summary>
     /// <param name="type">Punctuation, gets converted to text.</param>
-    internal static void WritePunctuation(this TextWriter writer, SyntaxType type) {
+    internal static void WritePunctuation(this TextWriter writer, SyntaxKind type) {
         writer.SetForeground(ConsoleColor.DarkGray);
         writer.Write(SyntaxFacts.GetText(type));
         writer.ResetColor();

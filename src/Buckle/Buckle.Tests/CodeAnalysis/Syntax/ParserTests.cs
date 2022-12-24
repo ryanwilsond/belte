@@ -8,7 +8,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax;
 public class ParserTests {
     [Theory]
     [MemberData(nameof(GetBinaryOperatorPairsData))]
-    internal void Parser_BinaryExpression_HonorsPrecedences(SyntaxType op1, SyntaxType op2) {
+    internal void Parser_BinaryExpression_HonorsPrecedences(SyntaxKind op1, SyntaxKind op2) {
         var op1Precedence = SyntaxFacts.GetBinaryPrecedence(op1);
         var op2Precedence = SyntaxFacts.GetBinaryPrecedence(op2);
         var op1Text = SyntaxFacts.GetText(op1);
@@ -18,44 +18,44 @@ public class ParserTests {
         Debug.Assert(op2Text != null);
 
         var text = $"a {op1Text} b {op2Text} c";
-        Expression expression = ParseExpression(text);
+        ExpressionSyntax expression = ParseExpression(text);
 
         if (op1Precedence >= op2Precedence) {
             using (var e = new AssertingEnumerator(expression)) {
-                e.AssertNode(SyntaxType.BinaryExpression);
-                e.AssertNode(SyntaxType.BinaryExpression);
-                e.AssertNode(SyntaxType.NameExpression);
-                e.AssertToken(SyntaxType.IdentifierToken, "a");
+                e.AssertNode(SyntaxKind.BinaryExpression);
+                e.AssertNode(SyntaxKind.BinaryExpression);
+                e.AssertNode(SyntaxKind.NameExpression);
+                e.AssertToken(SyntaxKind.IdentifierToken, "a");
                 e.AssertToken(op1, op1Text);
-                e.AssertNode(SyntaxType.NameExpression);
-                e.AssertToken(SyntaxType.IdentifierToken, "b");
+                e.AssertNode(SyntaxKind.NameExpression);
+                e.AssertToken(SyntaxKind.IdentifierToken, "b");
                 e.AssertToken(op2, op2Text);
-                e.AssertNode(SyntaxType.NameExpression);
-                e.AssertToken(SyntaxType.IdentifierToken, "c");
+                e.AssertNode(SyntaxKind.NameExpression);
+                e.AssertToken(SyntaxKind.IdentifierToken, "c");
             }
         } else {
             using (var e = new AssertingEnumerator(expression)) {
-                e.AssertNode(SyntaxType.BinaryExpression);
-                e.AssertNode(SyntaxType.NameExpression);
-                e.AssertToken(SyntaxType.IdentifierToken, "a");
+                e.AssertNode(SyntaxKind.BinaryExpression);
+                e.AssertNode(SyntaxKind.NameExpression);
+                e.AssertToken(SyntaxKind.IdentifierToken, "a");
                 e.AssertToken(op1, op1Text);
-                e.AssertNode(SyntaxType.BinaryExpression);
-                e.AssertNode(SyntaxType.NameExpression);
-                e.AssertToken(SyntaxType.IdentifierToken, "b");
+                e.AssertNode(SyntaxKind.BinaryExpression);
+                e.AssertNode(SyntaxKind.NameExpression);
+                e.AssertToken(SyntaxKind.IdentifierToken, "b");
                 e.AssertToken(op2, op2Text);
-                e.AssertNode(SyntaxType.NameExpression);
-                e.AssertToken(SyntaxType.IdentifierToken, "c");
+                e.AssertNode(SyntaxKind.NameExpression);
+                e.AssertToken(SyntaxKind.IdentifierToken, "c");
             }
         }
     }
 
     [Theory]
     [MemberData(nameof(GetUnaryOperatorPairsData))]
-    internal void Parser_UnaryExpression_HonorsPrecedences(SyntaxType unaryType, SyntaxType binaryType) {
-        var unaryPrecedence = SyntaxFacts.GetUnaryPrecedence(unaryType);
-        var binaryPrecedence = SyntaxFacts.GetBinaryPrecedence(binaryType);
-        var unaryText = SyntaxFacts.GetText(unaryType);
-        var binaryText = SyntaxFacts.GetText(binaryType);
+    internal void Parser_UnaryExpression_HonorsPrecedences(SyntaxKind unaryKind, SyntaxKind binaryKind) {
+        var unaryPrecedence = SyntaxFacts.GetUnaryPrecedence(unaryKind);
+        var binaryPrecedence = SyntaxFacts.GetBinaryPrecedence(binaryKind);
+        var unaryText = SyntaxFacts.GetText(unaryKind);
+        var binaryText = SyntaxFacts.GetText(binaryKind);
 
         if (unaryText == "--" || unaryText == "++")
             return;
@@ -64,38 +64,38 @@ public class ParserTests {
         Debug.Assert(binaryText != null);
 
         var text = $"{unaryText} a {binaryText} b";
-        Expression expression = ParseExpression(text);
+        ExpressionSyntax expression = ParseExpression(text);
 
         if (unaryPrecedence >= binaryPrecedence) {
             using (var e = new AssertingEnumerator(expression)) {
-                e.AssertNode(SyntaxType.BinaryExpression);
-                e.AssertNode(SyntaxType.UnaryExpression);
-                e.AssertToken(unaryType, unaryText);
-                e.AssertNode(SyntaxType.NameExpression);
-                e.AssertToken(SyntaxType.IdentifierToken, "a");
-                e.AssertToken(binaryType, binaryText);
-                e.AssertNode(SyntaxType.NameExpression);
-                e.AssertToken(SyntaxType.IdentifierToken, "b");
+                e.AssertNode(SyntaxKind.BinaryExpression);
+                e.AssertNode(SyntaxKind.UnaryExpression);
+                e.AssertToken(unaryKind, unaryText);
+                e.AssertNode(SyntaxKind.NameExpression);
+                e.AssertToken(SyntaxKind.IdentifierToken, "a");
+                e.AssertToken(binaryKind, binaryText);
+                e.AssertNode(SyntaxKind.NameExpression);
+                e.AssertToken(SyntaxKind.IdentifierToken, "b");
             }
         } else {
             using (var e = new AssertingEnumerator(expression)) {
-                e.AssertNode(SyntaxType.UnaryExpression);
-                e.AssertToken(unaryType, unaryText);
-                e.AssertNode(SyntaxType.BinaryExpression);
-                e.AssertNode(SyntaxType.NameExpression);
-                e.AssertToken(SyntaxType.IdentifierToken, "a");
-                e.AssertToken(binaryType, binaryText);
-                e.AssertNode(SyntaxType.NameExpression);
-                e.AssertToken(SyntaxType.IdentifierToken, "b");
+                e.AssertNode(SyntaxKind.UnaryExpression);
+                e.AssertToken(unaryKind, unaryText);
+                e.AssertNode(SyntaxKind.BinaryExpression);
+                e.AssertNode(SyntaxKind.NameExpression);
+                e.AssertToken(SyntaxKind.IdentifierToken, "a");
+                e.AssertToken(binaryKind, binaryText);
+                e.AssertNode(SyntaxKind.NameExpression);
+                e.AssertToken(SyntaxKind.IdentifierToken, "b");
             }
         }
     }
 
-    private static Expression ParseExpression(string text) {
+    private static ExpressionSyntax ParseExpression(string text) {
         var syntaxTree = SyntaxTree.Parse(text);
         var member = Assert.Single(syntaxTree.root.members);
-        var globalStatement = Assert.IsType<GlobalStatement>(member);
-        return Assert.IsType<ExpressionStatement>(globalStatement.statement).expression;
+        var globalStatement = Assert.IsType<GlobalStatementSyntax>(member);
+        return Assert.IsType<ExpressionStatementSyntax>(globalStatement.statement).expression;
     }
 
     public static IEnumerable<object[]> GetBinaryOperatorPairsData() {

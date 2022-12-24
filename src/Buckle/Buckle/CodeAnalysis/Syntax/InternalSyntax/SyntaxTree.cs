@@ -8,7 +8,7 @@ using InternalSyntax = Buckle.CodeAnalysis.Syntax.InternalSyntax;
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Tree of Nodes produced from the <see cref="Parser" />.
+/// Tree of SyntaxNodes produced from the <see cref="Parser" />.
 /// </summary>
 internal sealed class SyntaxTree {
     private SyntaxTree(SourceText text, ParseHandler handler) {
@@ -21,17 +21,17 @@ internal sealed class SyntaxTree {
     }
 
     private delegate void ParseHandler(
-        SyntaxTree syntaxTree, out CompilationUnit root, out BelteDiagnosticQueue diagnostics);
+        SyntaxTree syntaxTree, out CompilationUnitSyntax root, out BelteDiagnosticQueue diagnostics);
 
     /// <summary>
-    /// Root <see cref="Node" />, does not represent something in a source file rather the entire source file.
+    /// Root <see cref="SyntaxNode" />, does not represent something in a source file rather the entire source file.
     /// </summary>
-    internal CompilationUnit root { get; }
+    internal CompilationUnitSyntax root { get; }
 
     /// <summary>
-    /// EOF <see cref="Token" />.
+    /// EOF <see cref="SyntaxToken" />.
     /// </summary>
-    internal Token endOfFile { get; }
+    internal SyntaxToken endOfFile { get; }
 
     /// <summary>
     /// <see cref="SourceText" /> the <see cref="SyntaxTree" /> was created from.
@@ -85,64 +85,64 @@ internal sealed class SyntaxTree {
     }
 
     /// <summary>
-    /// Parses text into an array of Tokens (not a <see cref="SyntaxTree" />).
+    /// Parses text into an array of SyntaxTokens (not a <see cref="SyntaxTree" />).
     /// </summary>
     /// <param name="text">Text to parse.</param>
-    /// <param name="includeEOF">If to include the EOF <see cref="Token" /> at the end.</param>
-    /// <returns>Tokens in order.</returns>
-    internal static ImmutableArray<Token> ParseTokens(string text, bool includeEOF = false) {
+    /// <param name="includeEOF">If to include the EOF <see cref="SyntaxToken" /> at the end.</param>
+    /// <returns>SyntaxTokens in order.</returns>
+    internal static ImmutableArray<SyntaxToken> ParseTokens(string text, bool includeEOF = false) {
         var sourceText = SourceText.From(text);
         return ParseTokens(sourceText, includeEOF);
     }
 
     /// <summary>
-    /// Parses text into an array of Tokens (not a <see cref="SyntaxTree" />).
+    /// Parses text into an array of SyntaxTokens (not a <see cref="SyntaxTree" />).
     /// </summary>
     /// <param name="text">Text to parse.</param>
     /// <param name="diagnostics">Diagnostics produced from parsing.</param>
-    /// <param name="includeEOF">If to include the EOF <see cref="Token" /> at the end.</param>
-    /// <returns>Tokens in order.</returns>
-    internal static ImmutableArray<Token> ParseTokens(
+    /// <param name="includeEOF">If to include the EOF <see cref="SyntaxToken" /> at the end.</param>
+    /// <returns>SyntaxTokens in order.</returns>
+    internal static ImmutableArray<SyntaxToken> ParseTokens(
         string text, out BelteDiagnosticQueue diagnostics, bool includeEOF = false) {
         var sourceText = SourceText.From(text);
         return ParseTokens(sourceText, out diagnostics, includeEOF);
     }
 
     /// <summary>
-    /// Parses text into an array of Tokens (not a <see cref="SyntaxTree" />).
+    /// Parses text into an array of SyntaxTokens (not a <see cref="SyntaxTree" />).
     /// </summary>
     /// <param name="text">Text to parse.</param>
-    /// <param name="includeEOF">If to include the EOF <see cref="Token" /> at the end.</param>
-    /// <returns>Tokens in order.</returns>
-    internal static ImmutableArray<Token> ParseTokens(SourceText text, bool includeEOF = false) {
+    /// <param name="includeEOF">If to include the EOF <see cref="SyntaxToken" /> at the end.</param>
+    /// <returns>SyntaxTokens in order.</returns>
+    internal static ImmutableArray<SyntaxToken> ParseTokens(SourceText text, bool includeEOF = false) {
         return ParseTokens(text, out _, includeEOF);
     }
 
     /// <summary>
-    /// Parses text into an array of Tokens (not a <see cref="SyntaxTree" />).
+    /// Parses text into an array of SyntaxTokens (not a <see cref="SyntaxTree" />).
     /// </summary>
     /// <param name="text">Text to parse.</param>
     /// <param name="diagnostics">Diagnostics produced from parsing.</param>
-    /// <param name="includeEOF">If to include the EOF <see cref="Token" /> at the end.</param>
-    /// <returns>Tokens in order.</returns>
-    internal static ImmutableArray<Token> ParseTokens(
+    /// <param name="includeEOF">If to include the EOF <see cref="SyntaxToken" /> at the end.</param>
+    /// <returns>SyntaxTokens in order.</returns>
+    internal static ImmutableArray<SyntaxToken> ParseTokens(
         SourceText text, out BelteDiagnosticQueue diagnostics, bool includeEOF = false) {
-        var tokens = new List<Token>();
+        var tokens = new List<SyntaxToken>();
 
-        void ParseTokens(SyntaxTree syntaxTree, out CompilationUnit root, out BelteDiagnosticQueue diagnostics) {
+        void ParseTokens(SyntaxTree syntaxTree, out CompilationUnitSyntax root, out BelteDiagnosticQueue diagnostics) {
             root = null;
             InternalSyntax.Lexer lexer = new InternalSyntax.Lexer(syntaxTree);
 
             while (true) {
                 var token = lexer.LexNext();
 
-                if (token.type == SyntaxType.EndOfFileToken)
-                    root = new CompilationUnit(syntaxTree, ImmutableArray<Member>.Empty, token);
+                if (token.kind == SyntaxKind.EndOfFileToken)
+                    root = new CompilationUnitSyntax(syntaxTree, ImmutableArray<MemberSyntax>.Empty, token);
 
-                if (token.type != SyntaxType.EndOfFileToken || includeEOF)
+                if (token.kind != SyntaxKind.EndOfFileToken || includeEOF)
                     tokens.Add(token);
 
-                if (token.type == SyntaxType.EndOfFileToken)
+                if (token.kind == SyntaxKind.EndOfFileToken)
                     break;
             }
 
@@ -156,7 +156,8 @@ internal sealed class SyntaxTree {
         return tokens.ToImmutableArray();
     }
 
-    private static void Parse(SyntaxTree syntaxTree, out CompilationUnit root, out BelteDiagnosticQueue diagnostics) {
+    private static void Parse(
+        SyntaxTree syntaxTree, out CompilationUnitSyntax root, out BelteDiagnosticQueue diagnostics) {
         var parser = new InternalSyntax.Parser(syntaxTree);
         root = parser.ParseCompilationUnit();
         diagnostics = new BelteDiagnosticQueue();

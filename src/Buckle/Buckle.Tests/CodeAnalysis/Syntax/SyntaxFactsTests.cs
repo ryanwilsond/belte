@@ -8,19 +8,19 @@ namespace Buckle.Tests.CodeAnalysis.Syntax;
 public class SyntaxFactTests {
     [Theory]
     [MemberData(nameof(GetSyntaxTypeData))]
-    internal void SyntaxFact_GetText_RoundTrips(SyntaxType type) {
-        var text = SyntaxFacts.GetText(type);
+    internal void SyntaxFact_GetText_RoundTrips(SyntaxKind kind) {
+        var text = SyntaxFacts.GetText(kind);
         if (text == null)
             return;
 
         var tokens = SyntaxTree.ParseTokens(text);
         var token = Assert.Single(tokens);
-        Assert.Equal(type, token.type);
+        Assert.Equal(kind, token.kind);
         Assert.Equal(text, token.text);
     }
 
     public static IEnumerable<object[]> GetSyntaxTypeData() {
-        var types = (SyntaxType[])Enum.GetValues(typeof(SyntaxType));
+        var types = (SyntaxKind[])Enum.GetValues(typeof(SyntaxKind));
         foreach (var type in types)
             yield return new object[] { type };
     }

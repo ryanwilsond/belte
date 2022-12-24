@@ -199,7 +199,7 @@ public sealed class Compilation {
             try {
                 var members = program.structMembers[@struct];
                 indentedWriter.WriteSpace();
-                indentedWriter.WritePunctuation(SyntaxType.OpenBraceToken);
+                indentedWriter.WritePunctuation(SyntaxKind.OpenBraceToken);
                 indentedWriter.WriteLine();
                 indentedWriter.Indent++;
 
@@ -209,11 +209,11 @@ public sealed class Compilation {
                 }
 
                 indentedWriter.Indent--;
-                indentedWriter.WritePunctuation(SyntaxType.CloseBraceToken);
+                indentedWriter.WritePunctuation(SyntaxKind.CloseBraceToken);
                 indentedWriter.WriteLine();
             } catch (BelteInternalException) {
                 if (writeEnding) {
-                    indentedWriter.WritePunctuation(SyntaxType.SemicolonToken);
+                    indentedWriter.WritePunctuation(SyntaxKind.SemicolonToken);
                     indentedWriter.WriteLine();
                 }
             }
@@ -229,7 +229,7 @@ public sealed class Compilation {
             } catch (BelteInternalException) {
                 // If the body could not be found, it probably means it is a builtin
                 // In that case only showing the signature is what we want
-                writer.WritePunctuation(SyntaxType.SemicolonToken);
+                writer.WritePunctuation(SyntaxKind.SemicolonToken);
                 writer.WriteLine();
             }
         } else if (symbol is StructSymbol t) {
@@ -238,7 +238,7 @@ public sealed class Compilation {
         } else if (symbol is VariableSymbol v) {
             v.WriteTo(writer);
 
-            if (v.typeClause.lType is StructSymbol s && v.typeClause.dimensions == 0)
+            if (v.typeClause.type is StructSymbol s && v.typeClause.dimensions == 0)
                 WriteStructMembers(s);
             else
                 writer.WriteLine();

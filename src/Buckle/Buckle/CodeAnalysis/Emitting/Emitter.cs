@@ -295,33 +295,33 @@ internal sealed class Emitter {
     }
 
     private void EmitStatement(ILProcessor iLProcessor, BoundStatement statement) {
-        switch (statement.type) {
-            case BoundNodeType.NopStatement:
+        switch (statement.kind) {
+            case BoundNodeKind.NopStatement:
                 EmitNopStatement(iLProcessor, (BoundNopStatement)statement);
                 break;
-            case BoundNodeType.ExpressionStatement:
+            case BoundNodeKind.ExpressionStatement:
                 // EmitExpressionStatement(iLProcessor, (BoundExpressionStatement)statement);
                 break;
-            case BoundNodeType.VariableDeclarationStatement:
+            case BoundNodeKind.VariableDeclarationStatement:
                 // EmitVariableDeclarationStatement(iLProcessor, (BoundVariableDeclarationStatement)statement);
                 break;
-            case BoundNodeType.GotoStatement:
+            case BoundNodeKind.GotoStatement:
                 EmitGotoStatement(iLProcessor, (BoundGotoStatement)statement);
                 break;
-            case BoundNodeType.LabelStatement:
+            case BoundNodeKind.LabelStatement:
                 EmitLabelStatement(iLProcessor, (BoundLabelStatement)statement);
                 break;
-            case BoundNodeType.ConditionalGotoStatement:
+            case BoundNodeKind.ConditionalGotoStatement:
                 // EmitConditionalGotoStatement(iLProcessor, (BoundConditionalGotoStatement)statement);
                 break;
-            case BoundNodeType.ReturnStatement:
+            case BoundNodeKind.ReturnStatement:
                 // EmitReturnStatement(iLProcessor, (BoundReturnStatement)statement);
                 break;
-            case BoundNodeType.TryStatement:
+            case BoundNodeKind.TryStatement:
                 EmitTryStatement(iLProcessor, (BoundTryStatement)statement);
                 break;
             default:
-                throw new BelteInternalException($"EmitStatement: unexpected node '{statement.type}'");
+                throw new BelteInternalException($"EmitStatement: unexpected node '{statement.kind}'");
         }
     }
 
@@ -484,7 +484,7 @@ internal sealed class Emitter {
     }
 
     private MethodReference GetNullableCtor(BoundTypeClause type) {
-        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.lType]);
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.type]);
         var methodReference =
             _assemblyDefinition.MainModule.ImportReference(_methodReferences[NetMethodReference.NullableCtor]);
 
@@ -496,7 +496,7 @@ internal sealed class Emitter {
     }
 
     private MethodReference GetNullableValue(BoundTypeClause type) {
-        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.lType]);
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.type]);
         var methodReference =
             _assemblyDefinition.MainModule.ImportReference(_methodReferences[NetMethodReference.NullableValue]);
 
@@ -508,7 +508,7 @@ internal sealed class Emitter {
     }
 
     private MethodReference GetNullableHasValue(BoundTypeClause type) {
-        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.lType]);
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.type]);
         var methodReference =
             _assemblyDefinition.MainModule.ImportReference(_methodReferences[NetMethodReference.NullableHasValue]);
 
@@ -521,15 +521,15 @@ internal sealed class Emitter {
 
     private MethodReference GetConvertTo(BoundTypeClause from, BoundTypeClause to, bool isImplicit) {
         if (!from.isNullable || isImplicit) {
-            if (to.lType == TypeSymbol.Any)
+            if (to.type == TypeSymbol.Any)
                 return null;
-            else if (to.lType == TypeSymbol.Bool)
+            else if (to.type == TypeSymbol.Bool)
                 return _methodReferences[NetMethodReference.ConvertToBoolean];
-            else if (to.lType == TypeSymbol.Int)
+            else if (to.type == TypeSymbol.Int)
                 return _methodReferences[NetMethodReference.ConvertToInt32];
-            else if (to.lType == TypeSymbol.String)
+            else if (to.type == TypeSymbol.String)
                 return _methodReferences[NetMethodReference.ConvertToString];
-            else if (to.lType == TypeSymbol.Decimal)
+            else if (to.type == TypeSymbol.Decimal)
                 return _methodReferences[NetMethodReference.ConvertToDouble];
             else
                 throw new BelteInternalException($"GetConvertTo: unexpected cast from '{from}' to '{to}'");
@@ -557,10 +557,10 @@ internal sealed class Emitter {
     private TypeReference GetType(
         BoundTypeClause type, bool overrideNullability = false, bool ignoreReference = false) {
         if ((type.dimensions == 0 && !type.isNullable && !overrideNullability) ||
-            type.lType == TypeSymbol.Void)
-            return _knownTypes[type.lType];
+            type.type == TypeSymbol.Void)
+            return _knownTypes[type.type];
 
-        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.lType]);
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.type]);
         var typeReference = new GenericInstanceType(_nullableReference);
         typeReference.GenericArguments.Add(genericArgumentType);
         var referenceType = new ByReferenceType(typeReference);

@@ -9,46 +9,46 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// </summary>
 internal static class SyntaxFacts {
     /// <summary>
-    /// Gets binary operator precedence of a <see cref="SyntaxType" />.
+    /// Gets binary operator precedence of a <see cref="SyntaxKind" />.
     /// </summary>
-    /// <param name="type"><see cref="SyntaxType" />.</param>
+    /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>Precedence, or 0 if <paramref name="type" /> is not a binary operator.</returns>
-    internal static int GetBinaryPrecedence(this SyntaxType type) {
+    internal static int GetBinaryPrecedence(this SyntaxKind type) {
         switch (type) {
-            case SyntaxType.AsteriskAsteriskToken:
+            case SyntaxKind.AsteriskAsteriskToken:
                 return 14;
-            case SyntaxType.AsteriskToken:
-            case SyntaxType.SlashToken:
-            case SyntaxType.PercentToken:
+            case SyntaxKind.AsteriskToken:
+            case SyntaxKind.SlashToken:
+            case SyntaxKind.PercentToken:
                 return 13;
-            case SyntaxType.PlusToken:
-            case SyntaxType.MinusToken:
+            case SyntaxKind.PlusToken:
+            case SyntaxKind.MinusToken:
                 return 12;
-            case SyntaxType.LessThanLessThanToken:
-            case SyntaxType.GreaterThanGreaterThanToken:
-            case SyntaxType.GreaterThanGreaterThanGreaterThanToken:
+            case SyntaxKind.LessThanLessThanToken:
+            case SyntaxKind.GreaterThanGreaterThanToken:
+            case SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
                 return 11;
-            case SyntaxType.IsKeyword:
-            case SyntaxType.IsntKeyword:
-            case SyntaxType.LessThanToken:
-            case SyntaxType.GreaterThanToken:
-            case SyntaxType.LessThanEqualsToken:
-            case SyntaxType.GreaterThanEqualsToken:
+            case SyntaxKind.IsKeyword:
+            case SyntaxKind.IsntKeyword:
+            case SyntaxKind.LessThanToken:
+            case SyntaxKind.GreaterThanToken:
+            case SyntaxKind.LessThanEqualsToken:
+            case SyntaxKind.GreaterThanEqualsToken:
                 return 10;
-            case SyntaxType.EqualsEqualsToken:
-            case SyntaxType.ExclamationEqualsToken:
+            case SyntaxKind.EqualsEqualsToken:
+            case SyntaxKind.ExclamationEqualsToken:
                 return 9;
-            case SyntaxType.AmpersandToken:
+            case SyntaxKind.AmpersandToken:
                 return 8;
-            case SyntaxType.CaretToken:
+            case SyntaxKind.CaretToken:
                 return 7;
-            case SyntaxType.PipeToken:
+            case SyntaxKind.PipeToken:
                 return 6;
-            case SyntaxType.AmpersandAmpersandToken:
+            case SyntaxKind.AmpersandAmpersandToken:
                 return 5;
-            case SyntaxType.PipePipeToken:
+            case SyntaxKind.PipePipeToken:
                 return 4;
-            case SyntaxType.QuestionQuestionToken:
+            case SyntaxKind.QuestionQuestionToken:
                 return 3;
             default:
                 return 0;
@@ -56,16 +56,16 @@ internal static class SyntaxFacts {
     }
 
     /// <summary>
-    /// Gets primary operator precedence of a <see cref="SyntaxType" />.
+    /// Gets primary operator precedence of a <see cref="SyntaxKind" />.
     /// </summary>
-    /// <param name="type"><see cref="SyntaxType" />.</param>
+    /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>Precedence, or 0 if <paramref name="type" /> is not a primary operator.</returns>
-    internal static int GetPrimaryPrecedence(this SyntaxType type) {
+    internal static int GetPrimaryPrecedence(this SyntaxKind type) {
         switch (type) {
-            case SyntaxType.TypeOfKeyword:
-            case SyntaxType.OpenBracketToken:
-            case SyntaxType.OpenParenToken:
-            case SyntaxType.PeriodToken:
+            case SyntaxKind.TypeOfKeyword:
+            case SyntaxKind.OpenBracketToken:
+            case SyntaxKind.OpenParenToken:
+            case SyntaxKind.PeriodToken:
                 return 18;
             default:
                 return 0;
@@ -73,18 +73,18 @@ internal static class SyntaxFacts {
     }
 
     /// <summary>
-    /// Gets unary operator precedence of a <see cref="SyntaxType" />.
+    /// Gets unary operator precedence of a <see cref="SyntaxKind" />.
     /// </summary>
-    /// <param name="type"><see cref="SyntaxType" />.</param>
+    /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>Precedence, or 0 if <paramref name="type" /> is not a unary operator.</returns>
-    internal static int GetUnaryPrecedence(this SyntaxType type) {
+    internal static int GetUnaryPrecedence(this SyntaxKind type) {
         switch (type) {
-            case SyntaxType.PlusPlusToken:
-            case SyntaxType.MinusMinusToken:
-            case SyntaxType.PlusToken:
-            case SyntaxType.MinusToken:
-            case SyntaxType.ExclamationToken:
-            case SyntaxType.TildeToken:
+            case SyntaxKind.PlusPlusToken:
+            case SyntaxKind.MinusMinusToken:
+            case SyntaxKind.PlusToken:
+            case SyntaxKind.MinusToken:
+            case SyntaxKind.ExclamationToken:
+            case SyntaxKind.TildeToken:
                 return 17;
             default:
                 return 0;
@@ -92,13 +92,13 @@ internal static class SyntaxFacts {
     }
 
     /// <summary>
-    /// Gets ternary operator precedence of a <see cref="SyntaxType" />.
+    /// Gets ternary operator precedence of a <see cref="SyntaxKind" />.
     /// </summary>
-    /// <param name="type"><see cref="SyntaxType" />.</param>
+    /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>Precedence, or 0 if <paramref name="type" /> is not a ternary operator.</returns>
-    internal static int GetTernaryPrecedence(this SyntaxType type) {
+    internal static int GetTernaryPrecedence(this SyntaxKind type) {
         switch (type) {
-            case SyntaxType.QuestionToken:
+            case SyntaxKind.QuestionToken:
                 return 2;
             default:
                 return 0;
@@ -114,217 +114,217 @@ internal static class SyntaxFacts {
     /// </summary>
     /// <param name="type">Left operator of the ternary operator.</param>
     /// <returns>Associated right operator, throws if given an unknown right operator.</returns>
-    internal static SyntaxType GetTernaryOperatorPair(this SyntaxType type) {
+    internal static SyntaxKind GetTernaryOperatorPair(this SyntaxKind type) {
         switch (type) {
-            case SyntaxType.QuestionToken:
-                return SyntaxType.ColonToken;
+            case SyntaxKind.QuestionToken:
+                return SyntaxKind.ColonToken;
             default:
                 throw new BelteInternalException($"GetTernaryOperatorPair: unknown right operator '{type}'");
         }
     }
 
     /// <summary>
-    /// Attempts to get a <see cref="SyntaxType" /> from a text representation of a keyword.
+    /// Attempts to get a <see cref="SyntaxKind" /> from a text representation of a keyword.
     /// </summary>
     /// <param name="text">Text representation.</param>
-    /// <returns>Keyword type, defaults to identifer if failed.</returns>
-    internal static SyntaxType GetKeywordType(string text) {
+    /// <returns>Keyword kind, defaults to identifer if failed.</returns>
+    internal static SyntaxKind GetKeywordType(string text) {
         switch (text) {
             case "true":
-                return SyntaxType.TrueKeyword;
+                return SyntaxKind.TrueKeyword;
             case "false":
-                return SyntaxType.FalseKeyword;
+                return SyntaxKind.FalseKeyword;
             case "null":
-                return SyntaxType.NullKeyword;
+                return SyntaxKind.NullKeyword;
             case "var":
-                return SyntaxType.VarKeyword;
+                return SyntaxKind.VarKeyword;
             case "const":
-                return SyntaxType.ConstKeyword;
+                return SyntaxKind.ConstKeyword;
             case "ref":
-                return SyntaxType.RefKeyword;
+                return SyntaxKind.RefKeyword;
             case "if":
-                return SyntaxType.IfKeyword;
+                return SyntaxKind.IfKeyword;
             case "else":
-                return SyntaxType.ElseKeyword;
+                return SyntaxKind.ElseKeyword;
             case "while":
-                return SyntaxType.WhileKeyword;
+                return SyntaxKind.WhileKeyword;
             case "for":
-                return SyntaxType.ForKeyword;
+                return SyntaxKind.ForKeyword;
             case "do":
-                return SyntaxType.DoKeyword;
+                return SyntaxKind.DoKeyword;
             case "break":
-                return SyntaxType.BreakKeyword;
+                return SyntaxKind.BreakKeyword;
             case "continue":
-                return SyntaxType.ContinueKeyword;
+                return SyntaxKind.ContinueKeyword;
             case "try":
-                return SyntaxType.TryKeyword;
+                return SyntaxKind.TryKeyword;
             case "catch":
-                return SyntaxType.CatchKeyword;
+                return SyntaxKind.CatchKeyword;
             case "finally":
-                return SyntaxType.FinallyKeyword;
+                return SyntaxKind.FinallyKeyword;
             case "return":
-                return SyntaxType.ReturnKeyword;
+                return SyntaxKind.ReturnKeyword;
             case "is":
-                return SyntaxType.IsKeyword;
+                return SyntaxKind.IsKeyword;
             case "isnt":
-                return SyntaxType.IsntKeyword;
+                return SyntaxKind.IsntKeyword;
             case "typeof":
-                return SyntaxType.TypeOfKeyword;
+                return SyntaxKind.TypeOfKeyword;
             case "struct":
-                return SyntaxType.StructKeyword;
+                return SyntaxKind.StructKeyword;
             default:
-                return SyntaxType.IdentifierToken;
+                return SyntaxKind.IdentifierToken;
         }
     }
 
     /// <summary>
-    /// Gets text representation of a <see cref="Token" /> or keyword.
+    /// Gets text representation of a <see cref="SyntaxToken" /> or keyword.
     /// </summary>
-    /// <param name="type"><see cref="SyntaxType" />.</param>
+    /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>Text representation, default to null if not text representation exists.</returns>
-    internal static string GetText(SyntaxType type) {
+    internal static string GetText(SyntaxKind type) {
         switch (type) {
-            case SyntaxType.PeriodToken:
+            case SyntaxKind.PeriodToken:
                 return ".";
-            case SyntaxType.CommaToken:
+            case SyntaxKind.CommaToken:
                 return ",";
-            case SyntaxType.PlusToken:
+            case SyntaxKind.PlusToken:
                 return "+";
-            case SyntaxType.MinusToken:
+            case SyntaxKind.MinusToken:
                 return "-";
-            case SyntaxType.AsteriskToken:
+            case SyntaxKind.AsteriskToken:
                 return "*";
-            case SyntaxType.SlashToken:
+            case SyntaxKind.SlashToken:
                 return "/";
-            case SyntaxType.OpenParenToken:
+            case SyntaxKind.OpenParenToken:
                 return "(";
-            case SyntaxType.CloseParenToken:
+            case SyntaxKind.CloseParenToken:
                 return ")";
-            case SyntaxType.EqualsToken:
+            case SyntaxKind.EqualsToken:
                 return "=";
-            case SyntaxType.TildeToken:
+            case SyntaxKind.TildeToken:
                 return "~";
-            case SyntaxType.CaretToken:
+            case SyntaxKind.CaretToken:
                 return "^";
-            case SyntaxType.AmpersandToken:
+            case SyntaxKind.AmpersandToken:
                 return "&";
-            case SyntaxType.PipeToken:
+            case SyntaxKind.PipeToken:
                 return "|";
-            case SyntaxType.LessThanLessThanToken:
+            case SyntaxKind.LessThanLessThanToken:
                 return "<<";
-            case SyntaxType.GreaterThanGreaterThanToken:
+            case SyntaxKind.GreaterThanGreaterThanToken:
                 return ">>";
-            case SyntaxType.GreaterThanGreaterThanGreaterThanToken:
+            case SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
                 return ">>>";
-            case SyntaxType.ExclamationToken:
+            case SyntaxKind.ExclamationToken:
                 return "!";
-            case SyntaxType.AmpersandAmpersandToken:
+            case SyntaxKind.AmpersandAmpersandToken:
                 return "&&";
-            case SyntaxType.PipePipeToken:
+            case SyntaxKind.PipePipeToken:
                 return "||";
-            case SyntaxType.AsteriskAsteriskToken:
+            case SyntaxKind.AsteriskAsteriskToken:
                 return "**";
-            case SyntaxType.PlusPlusToken:
+            case SyntaxKind.PlusPlusToken:
                 return "++";
-            case SyntaxType.MinusMinusToken:
+            case SyntaxKind.MinusMinusToken:
                 return "--";
-            case SyntaxType.OpenBraceToken:
+            case SyntaxKind.OpenBraceToken:
                 return "{";
-            case SyntaxType.CloseBraceToken:
+            case SyntaxKind.CloseBraceToken:
                 return "}";
-            case SyntaxType.OpenBracketToken:
+            case SyntaxKind.OpenBracketToken:
                 return "[";
-            case SyntaxType.CloseBracketToken:
+            case SyntaxKind.CloseBracketToken:
                 return "]";
-            case SyntaxType.SemicolonToken:
+            case SyntaxKind.SemicolonToken:
                 return ";";
-            case SyntaxType.ColonToken:
+            case SyntaxKind.ColonToken:
                 return ":";
-            case SyntaxType.QuestionToken:
+            case SyntaxKind.QuestionToken:
                 return "?";
-            case SyntaxType.EqualsEqualsToken:
+            case SyntaxKind.EqualsEqualsToken:
                 return "==";
-            case SyntaxType.ExclamationEqualsToken:
+            case SyntaxKind.ExclamationEqualsToken:
                 return "!=";
-            case SyntaxType.LessThanToken:
+            case SyntaxKind.LessThanToken:
                 return "<";
-            case SyntaxType.GreaterThanToken:
+            case SyntaxKind.GreaterThanToken:
                 return ">";
-            case SyntaxType.PercentToken:
+            case SyntaxKind.PercentToken:
                 return "%";
-            case SyntaxType.QuestionQuestionToken:
+            case SyntaxKind.QuestionQuestionToken:
                 return "??";
-            case SyntaxType.LessThanEqualsToken:
+            case SyntaxKind.LessThanEqualsToken:
                 return "<=";
-            case SyntaxType.GreaterThanEqualsToken:
+            case SyntaxKind.GreaterThanEqualsToken:
                 return ">=";
-            case SyntaxType.AmpersandEqualsToken:
+            case SyntaxKind.AmpersandEqualsToken:
                 return "&=";
-            case SyntaxType.PipeEqualsToken:
+            case SyntaxKind.PipeEqualsToken:
                 return "|=";
-            case SyntaxType.CaretEqualsToken:
+            case SyntaxKind.CaretEqualsToken:
                 return "^=";
-            case SyntaxType.PlusEqualsToken:
+            case SyntaxKind.PlusEqualsToken:
                 return "+=";
-            case SyntaxType.MinusEqualsToken:
+            case SyntaxKind.MinusEqualsToken:
                 return "-=";
-            case SyntaxType.SlashEqualsToken:
+            case SyntaxKind.SlashEqualsToken:
                 return "/=";
-            case SyntaxType.AsteriskEqualsToken:
+            case SyntaxKind.AsteriskEqualsToken:
                 return "*=";
-            case SyntaxType.AsteriskAsteriskEqualsToken:
+            case SyntaxKind.AsteriskAsteriskEqualsToken:
                 return "**=";
-            case SyntaxType.GreaterThanGreaterThanEqualsToken:
+            case SyntaxKind.GreaterThanGreaterThanEqualsToken:
                 return ">>=";
-            case SyntaxType.GreaterThanGreaterThanGreaterThanEqualsToken:
+            case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
                 return ">>>=";
-            case SyntaxType.LessThanLessThanEqualsToken:
+            case SyntaxKind.LessThanLessThanEqualsToken:
                 return "<<=";
-            case SyntaxType.PercentEqualsToken:
+            case SyntaxKind.PercentEqualsToken:
                 return "%=";
-            case SyntaxType.QuestionQuestionEqualsToken:
+            case SyntaxKind.QuestionQuestionEqualsToken:
                 return "??=";
-            case SyntaxType.TrueKeyword:
+            case SyntaxKind.TrueKeyword:
                 return "true";
-            case SyntaxType.FalseKeyword:
+            case SyntaxKind.FalseKeyword:
                 return "false";
-            case SyntaxType.NullKeyword:
+            case SyntaxKind.NullKeyword:
                 return "null";
-            case SyntaxType.VarKeyword:
+            case SyntaxKind.VarKeyword:
                 return "var";
-            case SyntaxType.ConstKeyword:
+            case SyntaxKind.ConstKeyword:
                 return "const";
-            case SyntaxType.RefKeyword:
+            case SyntaxKind.RefKeyword:
                 return "ref";
-            case SyntaxType.IfKeyword:
+            case SyntaxKind.IfKeyword:
                 return "if";
-            case SyntaxType.ElseKeyword:
+            case SyntaxKind.ElseKeyword:
                 return "else";
-            case SyntaxType.WhileKeyword:
+            case SyntaxKind.WhileKeyword:
                 return "while";
-            case SyntaxType.ForKeyword:
+            case SyntaxKind.ForKeyword:
                 return "for";
-            case SyntaxType.DoKeyword:
+            case SyntaxKind.DoKeyword:
                 return "do";
-            case SyntaxType.BreakKeyword:
+            case SyntaxKind.BreakKeyword:
                 return "break";
-            case SyntaxType.ContinueKeyword:
+            case SyntaxKind.ContinueKeyword:
                 return "continue";
-            case SyntaxType.TryKeyword:
+            case SyntaxKind.TryKeyword:
                 return "try";
-            case SyntaxType.CatchKeyword:
+            case SyntaxKind.CatchKeyword:
                 return "catch";
-            case SyntaxType.FinallyKeyword:
+            case SyntaxKind.FinallyKeyword:
                 return "finally";
-            case SyntaxType.ReturnKeyword:
+            case SyntaxKind.ReturnKeyword:
                 return "return";
-            case SyntaxType.IsKeyword:
+            case SyntaxKind.IsKeyword:
                 return "is";
-            case SyntaxType.IsntKeyword:
+            case SyntaxKind.IsntKeyword:
                 return "isnt";
-            case SyntaxType.TypeOfKeyword:
+            case SyntaxKind.TypeOfKeyword:
                 return "typeof";
-            case SyntaxType.StructKeyword:
+            case SyntaxKind.StructKeyword:
                 return "struct";
             default:
                 return null;
@@ -334,36 +334,36 @@ internal static class SyntaxFacts {
     /// <summary>
     /// Gets base operator type of assignment operator type (e.g. += -> +).
     /// </summary>
-    /// <param name="type"><see cref="SyntaxType" />.</param>
+    /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>Binary operator type.</returns>
-    internal static SyntaxType GetBinaryOperatorOfAssignmentOperator(SyntaxType type) {
+    internal static SyntaxKind GetBinaryOperatorOfAssignmentOperator(SyntaxKind type) {
         switch (type) {
-            case SyntaxType.PlusEqualsToken:
-                return SyntaxType.PlusToken;
-            case SyntaxType.MinusEqualsToken:
-                return SyntaxType.MinusToken;
-            case SyntaxType.AsteriskEqualsToken:
-                return SyntaxType.AsteriskToken;
-            case SyntaxType.SlashEqualsToken:
-                return SyntaxType.SlashToken;
-            case SyntaxType.AmpersandEqualsToken:
-                return SyntaxType.AmpersandToken;
-            case SyntaxType.PipeEqualsToken:
-                return SyntaxType.PipeToken;
-            case SyntaxType.CaretEqualsToken:
-                return SyntaxType.CaretToken;
-            case SyntaxType.AsteriskAsteriskEqualsToken:
-                return SyntaxType.AsteriskAsteriskToken;
-            case SyntaxType.LessThanLessThanEqualsToken:
-                return SyntaxType.LessThanLessThanToken;
-            case SyntaxType.GreaterThanGreaterThanEqualsToken:
-                return SyntaxType.GreaterThanGreaterThanToken;
-            case SyntaxType.GreaterThanGreaterThanGreaterThanEqualsToken:
-                return SyntaxType.GreaterThanGreaterThanGreaterThanToken;
-            case SyntaxType.PercentEqualsToken:
-                return SyntaxType.PercentToken;
-            case SyntaxType.QuestionQuestionEqualsToken:
-                return SyntaxType.QuestionQuestionToken;
+            case SyntaxKind.PlusEqualsToken:
+                return SyntaxKind.PlusToken;
+            case SyntaxKind.MinusEqualsToken:
+                return SyntaxKind.MinusToken;
+            case SyntaxKind.AsteriskEqualsToken:
+                return SyntaxKind.AsteriskToken;
+            case SyntaxKind.SlashEqualsToken:
+                return SyntaxKind.SlashToken;
+            case SyntaxKind.AmpersandEqualsToken:
+                return SyntaxKind.AmpersandToken;
+            case SyntaxKind.PipeEqualsToken:
+                return SyntaxKind.PipeToken;
+            case SyntaxKind.CaretEqualsToken:
+                return SyntaxKind.CaretToken;
+            case SyntaxKind.AsteriskAsteriskEqualsToken:
+                return SyntaxKind.AsteriskAsteriskToken;
+            case SyntaxKind.LessThanLessThanEqualsToken:
+                return SyntaxKind.LessThanLessThanToken;
+            case SyntaxKind.GreaterThanGreaterThanEqualsToken:
+                return SyntaxKind.GreaterThanGreaterThanToken;
+            case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
+                return SyntaxKind.GreaterThanGreaterThanGreaterThanToken;
+            case SyntaxKind.PercentEqualsToken:
+                return SyntaxKind.PercentToken;
+            case SyntaxKind.QuestionQuestionEqualsToken:
+                return SyntaxKind.QuestionQuestionToken;
             default:
                 throw new BelteInternalException($"GetBinaryOperatorOfAssignmentOperator: unexpected syntax '{type}'");
         }
@@ -373,8 +373,8 @@ internal static class SyntaxFacts {
     /// Gets all unary operator types.
     /// </summary>
     /// <returns>Unary operator types (calling code should not depend on order).</returns>
-    internal static IEnumerable<SyntaxType> GetUnaryOperatorTypes() {
-        var types = (SyntaxType[])Enum.GetValues(typeof(SyntaxType));
+    internal static IEnumerable<SyntaxKind> GetUnaryOperatorTypes() {
+        var types = (SyntaxKind[])Enum.GetValues(typeof(SyntaxKind));
         foreach (var type in types) {
             if (GetUnaryPrecedence(type) > 0)
                 yield return type;
@@ -385,8 +385,8 @@ internal static class SyntaxFacts {
     /// Gets all binary operator types.
     /// </summary>
     /// <returns>Binary operator types (calling code should not depend on order).</returns>
-    internal static IEnumerable<SyntaxType> GetBinaryOperatorTypes() {
-        var types = (SyntaxType[])Enum.GetValues(typeof(SyntaxType));
+    internal static IEnumerable<SyntaxKind> GetBinaryOperatorTypes() {
+        var types = (SyntaxKind[])Enum.GetValues(typeof(SyntaxKind));
         foreach (var type in types) {
             if (GetBinaryPrecedence(type) > 0)
                 yield return type;
@@ -394,38 +394,38 @@ internal static class SyntaxFacts {
     }
 
     /// <summary>
-    /// Checks if a <see cref="SyntaxType" /> is a keyword.
+    /// Checks if a <see cref="SyntaxKind" /> is a keyword.
     /// </summary>
-    /// <param name="type"><see cref="SyntaxType" />.</param>
-    /// <returns>If the <see cref="SyntaxType" /> is a keyword.</returns>
-    internal static bool IsKeyword(this SyntaxType type) {
+    /// <param name="type"><see cref="SyntaxKind" />.</param>
+    /// <returns>If the <see cref="SyntaxKind" /> is a keyword.</returns>
+    internal static bool IsKeyword(this SyntaxKind type) {
         return type.ToString().EndsWith("Keyword");
     }
 
     /// <summary>
-    /// Checks if a <see cref="SyntaxType" /> is a <see cref="Token" />.
+    /// Checks if a <see cref="SyntaxKind" /> is a <see cref="SyntaxToken" />.
     /// </summary>
-    /// <param name="type"><see cref="SyntaxType" />.</param>
-    /// <returns>If the <see cref="SyntaxType" /> is a token.</returns>
-    internal static bool IsToken(this SyntaxType type) {
+    /// <param name="type"><see cref="SyntaxKind" />.</param>
+    /// <returns>If the <see cref="SyntaxKind" /> is a token.</returns>
+    internal static bool IsToken(this SyntaxKind type) {
         return !type.IsTrivia() && (type.IsKeyword() || type.ToString().EndsWith("Token"));
     }
 
     /// <summary>
-    /// Checks if a <see cref="SyntaxType" /> is trivia.
+    /// Checks if a <see cref="SyntaxKind" /> is trivia.
     /// </summary>
-    /// <param name="type"><see cref="SyntaxType" />.</param>
-    /// <returns>If the <see cref="SyntaxType" /> is trivia.</returns>
-    internal static bool IsTrivia(this SyntaxType type) {
+    /// <param name="type"><see cref="SyntaxKind" />.</param>
+    /// <returns>If the <see cref="SyntaxKind" /> is trivia.</returns>
+    internal static bool IsTrivia(this SyntaxKind type) {
         return type.ToString().EndsWith("Trivia");
     }
 
     /// <summary>
-    /// Checks if a <see cref="SyntaxType" /> is a comment.
+    /// Checks if a <see cref="SyntaxKind" /> is a comment.
     /// </summary>
-    /// <param name="type"><see cref="SyntaxType" />.</param>
-    /// <returns>If the <see cref="SyntaxType" /> is a comment.</returns>
-    internal static bool IsComment(this SyntaxType type) {
-        return type == SyntaxType.SingleLineCommentTrivia || type == SyntaxType.MultiLineCommentTrivia;
+    /// <param name="type"><see cref="SyntaxKind" />.</param>
+    /// <returns>If the <see cref="SyntaxKind" /> is a comment.</returns>
+    internal static bool IsComment(this SyntaxKind type) {
+        return type == SyntaxKind.SingleLineCommentTrivia || type == SyntaxKind.MultiLineCommentTrivia;
     }
 }

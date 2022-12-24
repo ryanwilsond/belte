@@ -65,7 +65,7 @@ internal sealed class ControlFlowGraph {
         foreach (var branch in graph.end.incoming) {
             var lastStatement = branch.from.statements.LastOrDefault();
 
-            if (lastStatement == null || lastStatement.type != BoundNodeType.ReturnStatement)
+            if (lastStatement == null || lastStatement.kind != BoundNodeKind.ReturnStatement)
                 return false;
         }
 
@@ -172,25 +172,25 @@ internal sealed class ControlFlowGraph {
 
         internal List<BasicBlock> Build(BoundBlockStatement block) {
             foreach (var statement in block.statements) {
-                switch (statement.type) {
-                    case BoundNodeType.LabelStatement:
+                switch (statement.kind) {
+                    case BoundNodeKind.LabelStatement:
                         StartBlock();
                         _statements.Add(statement);
                         break;
-                    case BoundNodeType.GotoStatement:
-                    case BoundNodeType.ConditionalGotoStatement:
-                    case BoundNodeType.ReturnStatement:
+                    case BoundNodeKind.GotoStatement:
+                    case BoundNodeKind.ConditionalGotoStatement:
+                    case BoundNodeKind.ReturnStatement:
                         _statements.Add(statement);
                         StartBlock();
                         break;
-                    case BoundNodeType.NopStatement:
-                    case BoundNodeType.ExpressionStatement:
-                    case BoundNodeType.VariableDeclarationStatement:
-                    case BoundNodeType.TryStatement:
+                    case BoundNodeKind.NopStatement:
+                    case BoundNodeKind.ExpressionStatement:
+                    case BoundNodeKind.VariableDeclarationStatement:
+                    case BoundNodeKind.TryStatement:
                         _statements.Add(statement);
                         break;
                     default:
-                        throw new BelteInternalException($"Build: unexpected statement '{statement.type}'");
+                        throw new BelteInternalException($"Build: unexpected statement '{statement.kind}'");
                 }
             }
 
@@ -247,13 +247,13 @@ internal sealed class ControlFlowGraph {
                 foreach (var statement in current.statements) {
                     var isLastStatement = statement == current.statements.Last();
 
-                    switch (statement.type) {
-                        case BoundNodeType.GotoStatement:
+                    switch (statement.kind) {
+                        case BoundNodeKind.GotoStatement:
                             var gs = (BoundGotoStatement)statement;
                             var toBlock = _blockFromLabel[gs.label];
                             Connect(current, toBlock);
                             break;
-                        case BoundNodeType.ConditionalGotoStatement:
+                        case BoundNodeKind.ConditionalGotoStatement:
                             var cgs = (BoundConditionalGotoStatement)statement;
                             var thenBlock = _blockFromLabel[cgs.label];
                             var elseBlock = next;
@@ -264,19 +264,19 @@ internal sealed class ControlFlowGraph {
                             Connect(current, thenBlock, thenCondition);
                             Connect(current, elseBlock, elseCondition);
                             break;
-                        case BoundNodeType.ReturnStatement:
+                        case BoundNodeKind.ReturnStatement:
                             Connect(current, _end);
                             break;
-                        case BoundNodeType.NopStatement:
-                        case BoundNodeType.ExpressionStatement:
-                        case BoundNodeType.VariableDeclarationStatement:
-                        case BoundNodeType.TryStatement:
-                        case BoundNodeType.LabelStatement:
+                        case BoundNodeKind.NopStatement:
+                        case BoundNodeKind.ExpressionStatement:
+                        case BoundNodeKind.VariableDeclarationStatement:
+                        case BoundNodeKind.TryStatement:
+                        case BoundNodeKind.LabelStatement:
                             if (isLastStatement)
                                 Connect(current, next);
                             break;
                         default:
-                            throw new BelteInternalException($"Build: unexpected statement '{statement.type}'");
+                            throw new BelteInternalException($"Build: unexpected statement '{statement.kind}'");
                     }
                 }
             }
@@ -319,7 +319,7 @@ internal sealed class ControlFlowGraph {
                 return new BoundLiteralExpression(!value);
             }
 
-            var op = BoundUnaryOperator.Bind(SyntaxType.ExclamationToken, new BoundTypeClause(TypeSymbol.Bool));
+            var op = BoundUnaryOperator.Bind(SyntaxKind.ExclamationToken, new BoundTypeClause(TypeSymbol.Bool));
             return new BoundUnaryExpression(op, condition);
         }
 
