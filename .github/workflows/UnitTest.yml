@@ -12,6 +12,9 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
 
+      - name: Clean
+        run: dotnet clean --configuration Release ./src/Buckle/Buckle.sln
+
       - name: Build
         run: dotnet build --configuration Release ./src/Buckle/Buckle.Tests/Buckle.Tests.csproj
 
