@@ -35,7 +35,7 @@ public class GetChildrenGenerator : ISourceGenerator {
             compilation.GetTypeByMetadataName("Buckle.CodeAnalysis.Syntax.SeparatedSyntaxList`1");
         var syntaxListType =
             compilation.GetTypeByMetadataName("Buckle.CodeAnalysis.Syntax.SyntaxList`1");
-        var nodeType = compilation.GetTypeByMetadataName("Buckle.CodeAnalysis.Syntax.Node");
+        var nodeType = compilation.GetTypeByMetadataName("Buckle.CodeAnalysis.Syntax.SyntaxNode");
         var nodeTypes = types.Where(t => !t.IsAbstract && IsDerivedFrom(t, nodeType) && IsPartial(t));
 
         if (immutableArrayType == null || separatedSyntaxListType == null || nodeType == null || syntaxListType == null)
@@ -53,7 +53,7 @@ public class GetChildrenGenerator : ISourceGenerator {
             foreach (var type in nodeTypes) {
                 using (var classCurly = new CurlyIndenter(indentedTextWriter, $"partial class {type.Name}"))
                 using (var getChildCurly = new CurlyIndenter(
-                    indentedTextWriter, "internal override IEnumerable<Node> GetChildren()")) {
+                    indentedTextWriter, "internal override IEnumerable<SyntaxNode> GetChildren()")) {
                     var properties = type.GetMembers().OfType<IPropertySymbol>();
 
                     foreach (var property in properties) {
@@ -91,7 +91,7 @@ public class GetChildrenGenerator : ISourceGenerator {
                     }
 
                     if (properties.ToArray().Length <= 1)
-                        indentedTextWriter.WriteLine("return Array.Empty<Node>();");
+                        indentedTextWriter.WriteLine("return Array.Empty<SyntaxNode>();");
                 }
 
                 indentedTextWriter.WriteLine();
