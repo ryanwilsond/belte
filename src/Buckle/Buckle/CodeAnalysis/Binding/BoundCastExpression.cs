@@ -13,12 +13,7 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class BoundCastExpression : BoundExpression {
     internal BoundCastExpression(BoundTypeClause typeClause, BoundExpression expression) {
         this.typeClause = typeClause;
-
-        if (expression is BoundLiteralExpression le)
-            this.expression = new BoundLiteralExpression(expression.constantValue.value, this.typeClause);
-        else
-            this.expression = expression;
-
+        this.expression = expression;
         constantValue = this.expression.constantValue;
     }
 

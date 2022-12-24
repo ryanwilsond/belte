@@ -331,7 +331,7 @@ internal static class BoundNodePrinter {
     private static void WriteMemberAccessExpression(BoundMemberAccessExpression node, IndentedTextWriter writer) {
         node.operand.WriteTo(writer);
         writer.WritePunctuation(SyntaxType.PeriodToken);
-        node.member.WriteTo(writer);
+        writer.WriteIdentifier(node.member.name);
     }
 
     private static void WriteConstructorExpression(BoundConstructorExpression node, IndentedTextWriter writer) {

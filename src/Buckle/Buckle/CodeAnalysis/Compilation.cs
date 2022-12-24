@@ -111,7 +111,14 @@ public sealed class Compilation {
     /// Gets all Symbols across submissions (only global scope).
     /// </summary>
     /// <returns>All Symbols (checks all previous Compilations).</returns>
-    internal IEnumerable<Symbol> GetSymbols() {
+    internal IEnumerable<Symbol> GetSymbols() => GetSymbols<Symbol>();
+
+    /// <summary>
+    /// Gets all Symbols of certain child type across submissions (only global scope).
+    /// </summary>
+    /// <typeparam name="T">Type of <see cref="Symbol" /> to get.</typeparam>
+    /// <returns>Found symbols.</returns>
+    internal IEnumerable<T> GetSymbols<T>() where T : Symbol {
         var submission = this;
         var seenFunctions = new HashSet<FunctionSymbol>();
         var seenSymbolNames = new HashSet<string>();
@@ -119,20 +126,20 @@ public sealed class Compilation {
 
         while (submission != null) {
             foreach (var function in submission.functions)
-                if (seenFunctions.Add(function))
-                    yield return function;
+                if (seenFunctions.Add(function) && function is T)
+                    yield return function as T;
 
             foreach (var builtin in builtins)
-                if (seenFunctions.Add(builtin))
-                    yield return builtin;
+                if (seenFunctions.Add(builtin) && builtin is T)
+                    yield return builtin as T;
 
             foreach (var variable in submission.variables)
-                if (seenSymbolNames.Add(variable.name))
-                    yield return variable;
+                if (seenSymbolNames.Add(variable.name) && variable is T)
+                    yield return variable as T;
 
             foreach (var @type in submission.types)
-                if (seenSymbolNames.Add(@type.name))
-                    yield return @type;
+                if (seenSymbolNames.Add(@type.name) && @type is T)
+                    yield return @type as T;
 
             submission = submission.previous;
         }
@@ -231,7 +238,7 @@ public sealed class Compilation {
         } else if (symbol is VariableSymbol v) {
             v.WriteTo(writer);
 
-            if (v.typeClause.lType is StructSymbol s)
+            if (v.typeClause.lType is StructSymbol s && v.typeClause.dimensions == 0)
                 WriteStructMembers(s);
             else
                 writer.WriteLine();

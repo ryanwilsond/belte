@@ -1,3 +1,5 @@
+using System.Text;
+using Buckle.CodeAnalysis.Symbols;
 using Diagnostics;
 
 namespace Repl.Diagnostics;
@@ -34,5 +36,35 @@ internal static class Error {
     internal static Diagnostic InvalidArgument(object value, Type expected) {
         var message = $"Invalid argument '{value}'; expected argument of type {expected}";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidArgument), message);
+    }
+
+    internal static Diagnostic NoSuchFunction(string name) {
+        var message = $"no such function with the signature '{name}' exists";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuchFunction), message);
+    }
+
+    internal static Diagnostic NoSuchFunction(object name) {
+        var message = $"no such function with the signature '{name}' exists";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuchFunction), message);
+    }
+
+    internal static Diagnostic AmbiguousSignature(string signature, Symbol[] symbols) {
+        var message = new StringBuilder($"'{signature}' is ambiguous between ");
+
+        for (int i=0; i<symbols.Length; i++) {
+            if (i == symbols.Length - 1 && i > 1)
+                message.Append(", and ");
+            else if (i == symbols.Length - 1)
+                message.Append(" and ");
+            else if (i > 0)
+                message.Append(", ");
+
+            if (symbols[i] is FunctionSymbol f)
+                message.Append($"'{f.SignatureAsString()}'");
+            else
+                message.Append($"'{symbols[i]}'");
+        }
+
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_AmbiguousSignature), message.ToString());
     }
 }

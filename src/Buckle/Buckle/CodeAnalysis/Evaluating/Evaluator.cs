@@ -147,6 +147,26 @@ internal sealed class Evaluator {
             return value.value;
     }
 
+    private EvaluatorObject Copy(EvaluatorObject value) {
+        if (value.reference != null && value.isExplicitReference == false)
+            return Copy(Get(value.reference));
+        else if (value.reference != null)
+            return new EvaluatorObject(value.reference, isExplicitReference: true);
+        else if (value.members != null)
+            return new EvaluatorObject(Copy(value.members));
+        else
+            return new EvaluatorObject(value.value);
+    }
+
+    private Dictionary<FieldSymbol, EvaluatorObject> Copy(Dictionary<FieldSymbol, EvaluatorObject> members) {
+        var newMembers = new Dictionary<FieldSymbol, EvaluatorObject>();
+
+        foreach (var member in members)
+            newMembers.Add(member.Key, Copy(member.Value));
+
+        return newMembers;
+    }
+
     private void Create(VariableSymbol left, EvaluatorObject right) {
         if (left.type == SymbolType.GlobalVariable) {
             var set = false;
@@ -154,14 +174,14 @@ internal sealed class Evaluator {
             foreach (var global in _globals) {
                 if (global.Key.name == left.name) {
                     _globals.Remove(global.Key);
-                    _globals[left] = right;
+                    _globals[left] = Copy(right);
                     set = true;
                     break;
                 }
             }
 
             if (!set)
-                _globals[left] = right;
+                _globals[left] = Copy(right);
         } else {
             var locals = _locals.Peek();
             var set = false;
@@ -169,14 +189,14 @@ internal sealed class Evaluator {
             foreach (var local in locals) {
                 if (local.Key.name == left.name) {
                     locals.Remove(local.Key);
-                    locals[left] = right;
+                    locals[left] = Copy(right);
                     set = true;
                     break;
                 }
             }
 
             if (!set)
-                locals[left] = right;
+                locals[left] = Copy(right);
         }
     }
 
@@ -196,7 +216,7 @@ internal sealed class Evaluator {
         }
 
         if (right.value == null && right.members != null) {
-            left.members = right.members;
+            left.members = Copy(right.members);
         } else {
             left.value = Value(right);
         }
@@ -251,7 +271,7 @@ internal sealed class Evaluator {
                         var returnStatement = (BoundReturnStatement)s;
                         var _lastValue = returnStatement.expression == null
                             ? new EvaluatorObject()
-                            : EvaluateExpression(returnStatement.expression);
+                            : Copy(EvaluateExpression(returnStatement.expression));
 
                         _hasValue = returnStatement.expression == null ? false : true;
                         return _lastValue;

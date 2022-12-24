@@ -9,4 +9,6 @@ internal enum DiagnosticCode : int {
     ERR_UndefinedSymbol = 3,
     ERR_NoSuchFile = 4,
     ERR_InvalidArgument = 5,
+    ERR_NoSuchFunction = 6,
+    ERR_AmbiguousSignature = 7,
 }

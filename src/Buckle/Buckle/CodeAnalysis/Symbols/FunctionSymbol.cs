@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Binding;
+using System.Text;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -67,5 +68,26 @@ internal sealed class FunctionSymbol : Symbol {
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Gets the signature of this without the return type or parameter names.
+    /// </summary>
+    /// <returns>Signature if this <see cref="FunctionSymbol" />.</returns>
+    internal string SignatureAsString() {
+        var signature = new StringBuilder($"{name}(");
+        var isFirst = true;
+
+        foreach (var parameter in parameters) {
+            if (isFirst)
+                isFirst = false;
+            else
+                signature.Append(',');
+
+            signature.Append(parameter.typeClause.ToString());
+        }
+
+        signature.Append(')');
+        return signature.ToString();
     }
 }
