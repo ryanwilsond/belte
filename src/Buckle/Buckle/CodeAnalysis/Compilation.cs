@@ -231,7 +231,6 @@ public sealed class Compilation {
                 // In that case only showing the signature is what we want
                 writer.WritePunctuation(SyntaxType.SemicolonToken);
                 writer.WriteLine();
-                throw;
             }
         } else if (symbol is StructSymbol t) {
             t.WriteTo(writer);
@@ -239,7 +238,7 @@ public sealed class Compilation {
         } else if (symbol is VariableSymbol v) {
             v.WriteTo(writer);
 
-            if (v.typeClause.lType is StructSymbol s)
+            if (v.typeClause.lType is StructSymbol s && v.typeClause.dimensions == 0)
                 WriteStructMembers(s);
             else
                 writer.WriteLine();

@@ -494,7 +494,7 @@ internal static class BoundNodePrinter {
             writer.WriteString(value);
         } else if (node.typeClause.lType == TypeSymbol.Decimal) {
             writer.WriteNumber(value);
-        } else if (node.typeClause.lType == TypeSymbol.Any) {
+        } else {
             throw new BelteInternalException($"WriteLiteralExpression: unexpected type '{node.typeClause.lType}'");
         }
     }
