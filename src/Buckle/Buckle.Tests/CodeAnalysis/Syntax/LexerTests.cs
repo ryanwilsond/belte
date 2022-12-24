@@ -12,7 +12,7 @@ public class LexerTests {
         const string text = "\"test";
         var tokens = SyntaxTree.ParseTokens(text, out var diagnostics);
         var token = Assert.Single(tokens);
-        Assert.Equal(SyntaxType.StringLiteralToken, token.type);
+        Assert.Equal(SyntaxKind.StringLiteralToken, token.kind);
         Assert.Equal(text, token.text);
         Assert.Equal(1, diagnostics.count);
         var diagnostic = diagnostics.Pop();
@@ -23,17 +23,17 @@ public class LexerTests {
 
     [Fact]
     public void Lexer_Covers_AllTokens() {
-        var tokenTypes = Enum.GetValues(typeof(SyntaxType))
-            .Cast<SyntaxType>()
+        var tokenTypes = Enum.GetValues(typeof(SyntaxKind))
+            .Cast<SyntaxKind>()
             .Where(k => k.IsToken());
 
-        var testedTokenTypes = GetTokens().Concat(GetSeparators()).Select(t => t.type);
+        var testedTokenTypes = GetTokens().Concat(GetSeparators()).Select(t => t.kind);
 
-        var untestedTokenTypes = new SortedSet<SyntaxType>(tokenTypes);
-        untestedTokenTypes.Remove(SyntaxType.BadToken);
-        untestedTokenTypes.Remove(SyntaxType.EndOfFileToken);
-        untestedTokenTypes.Remove(SyntaxType.SingleLineCommentTrivia);
-        untestedTokenTypes.Remove(SyntaxType.MultiLineCommentTrivia);
+        var untestedTokenTypes = new SortedSet<SyntaxKind>(tokenTypes);
+        untestedTokenTypes.Remove(SyntaxKind.BadToken);
+        untestedTokenTypes.Remove(SyntaxKind.EndOfFileToken);
+        untestedTokenTypes.Remove(SyntaxKind.SingleLineCommentTrivia);
+        untestedTokenTypes.Remove(SyntaxKind.MultiLineCommentTrivia);
         untestedTokenTypes.ExceptWith(testedTokenTypes);
 
         Assert.Empty(untestedTokenTypes);
@@ -41,56 +41,56 @@ public class LexerTests {
 
     [Theory]
     [MemberData(nameof(GetTokensData))]
-    internal void Lexer_Lexes_Token(SyntaxType type, string text) {
+    internal void Lexer_Lexes_Token(SyntaxKind kind, string text) {
         var tokens = SyntaxTree.ParseTokens(text);
 
         var token = Assert.Single(tokens);
-        Assert.Equal(type, token.type);
+        Assert.Equal(kind, token.kind);
         Assert.Equal(text, token.text);
     }
 
     [Theory]
     [MemberData(nameof(GetSeparatorsData))]
-    internal void Lexer_Lexes_Separator(SyntaxType type, string text) {
+    internal void Lexer_Lexes_Separator(SyntaxKind kind, string text) {
         var tokens = SyntaxTree.ParseTokens(text, true);
 
         var token = Assert.Single(tokens);
         var trivia = Assert.Single(token.leadingTrivia);
-        Assert.Equal(type, trivia.type);
+        Assert.Equal(kind, trivia.kind);
         Assert.Equal(text, trivia.text);
     }
 
     [Theory]
     [MemberData(nameof(GetTokenPairsData))]
-    internal void Lexer_Lexes_TokenPairs(SyntaxType t1Type, string t1Text,
-                                        SyntaxType t2Type, string t2Text) {
+    internal void Lexer_Lexes_TokenPairs(SyntaxKind t1Kind, string t1Text,
+                                        SyntaxKind t2Kind, string t2Text) {
         var text = t1Text + t2Text;
         var tokens = SyntaxTree.ParseTokens(text).ToArray();
 
         Assert.Equal(2, tokens.Length);
-        Assert.Equal(tokens[0].type, t1Type);
+        Assert.Equal(tokens[0].kind, t1Kind);
         Assert.Equal(tokens[0].text, t1Text);
-        Assert.Equal(tokens[1].type, t2Type);
+        Assert.Equal(tokens[1].kind, t2Kind);
         Assert.Equal(tokens[1].text, t2Text);
     }
 
     [Theory]
     [MemberData(nameof(GetTokenPairsWithSeparatorData))]
-    internal void Lexer_Lexes_TokenPairs_WithSeparators(SyntaxType t1Type, string t1Text,
-                                                        SyntaxType separatorType, string separatorText,
-                                                        SyntaxType t2Type, string t2Text) {
+    internal void Lexer_Lexes_TokenPairs_WithSeparators(SyntaxKind t1Kind, string t1Text,
+                                                        SyntaxKind separatorKind, string separatorText,
+                                                        SyntaxKind t2Kind, string t2Text) {
         var text = t1Text + separatorText + t2Text;
         var tokens = SyntaxTree.ParseTokens(text).ToArray();
 
         Assert.Equal(2, tokens.Length);
-        Assert.Equal(tokens[0].type, t1Type);
+        Assert.Equal(tokens[0].kind, t1Kind);
         Assert.Equal(tokens[0].text, t1Text);
 
         var separator = Assert.Single(tokens[0].trailingTrivia);
         Assert.Equal(separator.text, separatorText);
-        Assert.Equal(separator.type, separatorType);
+        Assert.Equal(separator.kind, separatorKind);
 
-        Assert.Equal(tokens[1].type, t2Type);
+        Assert.Equal(tokens[1].kind, t2Kind);
         Assert.Equal(tokens[1].text, t2Text);
     }
 
@@ -105,271 +105,271 @@ public class LexerTests {
         Assert.Single(tokens);
 
         var token = tokens[0];
-        Assert.Equal(SyntaxType.IdentifierToken, token.type);
+        Assert.Equal(SyntaxKind.IdentifierToken, token.kind);
         Assert.Equal(name, token.text);
     }
 
     public static IEnumerable<object[]> GetTokensData() {
         foreach (var t in GetTokens())
-            yield return new object[] { t.type, t.text };
+            yield return new object[] { t.kind, t.text };
     }
 
     public static IEnumerable<object[]> GetSeparatorsData() {
         foreach (var t in GetSeparators())
-            yield return new object[] { t.type, t.text };
+            yield return new object[] { t.kind, t.text };
     }
 
     public static IEnumerable<object[]> GetTokenPairsData() {
         foreach (var t in GetTokenPairs())
-            yield return new object[] { t.t1Type, t.t1Text, t.t2Type, t.t2Text };
+            yield return new object[] { t.t1Kind, t.t1Text, t.t2Kind, t.t2Text };
     }
 
     public static IEnumerable<object[]> GetTokenPairsWithSeparatorData() {
         foreach (var t in GetTokenPairsWithSeparator())
-            yield return new object[] { t.t1Type, t.t1Text, t.separatorType, t.separatorText, t.t2Type, t.t2Text };
+            yield return new object[] { t.t1Kind, t.t1Text, t.separatorKind, t.separatorText, t.t2Kind, t.t2Text };
     }
 
-    private static IEnumerable<(SyntaxType type, string text)> GetTokens() {
-        var fixedTokens = Enum.GetValues(typeof(SyntaxType))
-                                .Cast<SyntaxType>()
-                                .Select(k => (type: k, text: SyntaxFacts.GetText(k)))
+    private static IEnumerable<(SyntaxKind kind, string text)> GetTokens() {
+        var fixedTokens = Enum.GetValues(typeof(SyntaxKind))
+                                .Cast<SyntaxKind>()
+                                .Select(k => (kind: k, text: SyntaxFacts.GetText(k)))
                                 .Where(t => t.text != null);
 
         var dynamicTokens = new[] {
-            (SyntaxType.NumericLiteralToken, "1"),
-            (SyntaxType.NumericLiteralToken, "123"),
-            (SyntaxType.IdentifierToken, "a"),
-            (SyntaxType.IdentifierToken, "abc"),
-            (SyntaxType.StringLiteralToken, "\"Test\""),
-            (SyntaxType.StringLiteralToken, "\"Te\"\"st\""),
+            (SyntaxKind.NumericLiteralToken, "1"),
+            (SyntaxKind.NumericLiteralToken, "123"),
+            (SyntaxKind.IdentifierToken, "a"),
+            (SyntaxKind.IdentifierToken, "abc"),
+            (SyntaxKind.StringLiteralToken, "\"Test\""),
+            (SyntaxKind.StringLiteralToken, "\"Te\"\"st\""),
         };
 
         return fixedTokens.Concat(dynamicTokens);
     }
 
-    private static IEnumerable<(SyntaxType type, string text)> GetSeparators() {
+    private static IEnumerable<(SyntaxKind kind, string text)> GetSeparators() {
         return new[] {
-            (SyntaxType.WhitespaceTrivia, " "),
-            (SyntaxType.WhitespaceTrivia, "  "),
-            (SyntaxType.EndOfLineTrivia, "\r"),
-            (SyntaxType.EndOfLineTrivia, "\n"),
-            (SyntaxType.EndOfLineTrivia, "\r\n")
+            (SyntaxKind.WhitespaceTrivia, " "),
+            (SyntaxKind.WhitespaceTrivia, "  "),
+            (SyntaxKind.EndOfLineTrivia, "\r"),
+            (SyntaxKind.EndOfLineTrivia, "\n"),
+            (SyntaxKind.EndOfLineTrivia, "\r\n")
         };
     }
 
-    private static bool RequiresSeparator(SyntaxType t1Type, SyntaxType t2Type) {
-        var t1IsKeyword = t1Type.IsKeyword();
-        var t2IsKeyword = t2Type.IsKeyword();
+    private static bool RequiresSeparator(SyntaxKind t1Kind, SyntaxKind t2Kind) {
+        var t1IsKeyword = t1Kind.IsKeyword();
+        var t2IsKeyword = t2Kind.IsKeyword();
 
-        if (t1Type == SyntaxType.IdentifierToken && t2Type == SyntaxType.IdentifierToken)
+        if (t1Kind == SyntaxKind.IdentifierToken && t2Kind == SyntaxKind.IdentifierToken)
             return true;
         if (t1IsKeyword && t2IsKeyword)
             return true;
-        if (t1IsKeyword && t2Type == SyntaxType.IdentifierToken)
+        if (t1IsKeyword && t2Kind == SyntaxKind.IdentifierToken)
             return true;
-        if (t1Type == SyntaxType.IdentifierToken && t2IsKeyword)
+        if (t1Kind == SyntaxKind.IdentifierToken && t2IsKeyword)
             return true;
-        if (t1Type == SyntaxType.NumericLiteralToken && t2Type == SyntaxType.NumericLiteralToken)
+        if (t1Kind == SyntaxKind.NumericLiteralToken && t2Kind == SyntaxKind.NumericLiteralToken)
             return true;
-        if (t1Type == SyntaxType.ExclamationToken && t2Type == SyntaxType.EqualsToken)
+        if (t1Kind == SyntaxKind.ExclamationToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.ExclamationToken && t2Type == SyntaxType.EqualsEqualsToken)
+        if (t1Kind == SyntaxKind.ExclamationToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.EqualsToken && t2Type == SyntaxType.EqualsToken)
+        if (t1Kind == SyntaxKind.EqualsToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.EqualsToken && t2Type == SyntaxType.EqualsEqualsToken)
+        if (t1Kind == SyntaxKind.EqualsToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.AsteriskToken && t2Type == SyntaxType.AsteriskToken)
+        if (t1Kind == SyntaxKind.AsteriskToken && t2Kind == SyntaxKind.AsteriskToken)
             return true;
-        if (t1Type == SyntaxType.AsteriskAsteriskToken && t2Type == SyntaxType.AsteriskToken)
+        if (t1Kind == SyntaxKind.AsteriskAsteriskToken && t2Kind == SyntaxKind.AsteriskToken)
             return true;
-        if (t1Type == SyntaxType.AsteriskToken && t2Type == SyntaxType.AsteriskAsteriskToken)
+        if (t1Kind == SyntaxKind.AsteriskToken && t2Kind == SyntaxKind.AsteriskAsteriskToken)
             return true;
-        if (t1Type == SyntaxType.AsteriskAsteriskToken && t2Type == SyntaxType.AsteriskAsteriskToken)
+        if (t1Kind == SyntaxKind.AsteriskAsteriskToken && t2Kind == SyntaxKind.AsteriskAsteriskToken)
             return true;
-        if (t1Type == SyntaxType.LessThanToken && t2Type == SyntaxType.EqualsToken)
+        if (t1Kind == SyntaxKind.LessThanToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.LessThanToken && t2Type == SyntaxType.EqualsEqualsToken)
+        if (t1Kind == SyntaxKind.LessThanToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanToken && t2Type == SyntaxType.EqualsToken)
+        if (t1Kind == SyntaxKind.GreaterThanToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanToken && t2Type == SyntaxType.EqualsEqualsToken)
+        if (t1Kind == SyntaxKind.GreaterThanToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.PipeToken && t2Type == SyntaxType.PipeToken)
+        if (t1Kind == SyntaxKind.PipeToken && t2Kind == SyntaxKind.PipeToken)
             return true;
-        if (t1Type == SyntaxType.PipeToken && t2Type == SyntaxType.PipePipeToken)
+        if (t1Kind == SyntaxKind.PipeToken && t2Kind == SyntaxKind.PipePipeToken)
             return true;
-        if (t1Type == SyntaxType.PipePipeToken && t2Type == SyntaxType.PipeToken)
+        if (t1Kind == SyntaxKind.PipePipeToken && t2Kind == SyntaxKind.PipeToken)
             return true;
-        if (t1Type == SyntaxType.AmpersandToken && t2Type == SyntaxType.AmpersandToken)
+        if (t1Kind == SyntaxKind.AmpersandToken && t2Kind == SyntaxKind.AmpersandToken)
             return true;
-        if (t1Type == SyntaxType.AmpersandToken && t2Type == SyntaxType.AmpersandAmpersandToken)
+        if (t1Kind == SyntaxKind.AmpersandToken && t2Kind == SyntaxKind.AmpersandAmpersandToken)
             return true;
-        if (t1Type == SyntaxType.AmpersandAmpersandToken && t2Type == SyntaxType.AmpersandToken)
+        if (t1Kind == SyntaxKind.AmpersandAmpersandToken && t2Kind == SyntaxKind.AmpersandToken)
             return true;
-        if (t1Type == SyntaxType.LessThanToken && t2Type == SyntaxType.LessThanEqualsToken)
+        if (t1Kind == SyntaxKind.LessThanToken && t2Kind == SyntaxKind.LessThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.LessThanToken && t2Type == SyntaxType.LessThanLessThanToken)
+        if (t1Kind == SyntaxKind.LessThanToken && t2Kind == SyntaxKind.LessThanLessThanToken)
             return true;
-        if (t1Type == SyntaxType.LessThanLessThanToken && t2Type == SyntaxType.LessThanEqualsToken)
+        if (t1Kind == SyntaxKind.LessThanLessThanToken && t2Kind == SyntaxKind.LessThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.LessThanToken && t2Type == SyntaxType.LessThanToken)
+        if (t1Kind == SyntaxKind.LessThanToken && t2Kind == SyntaxKind.LessThanToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanToken && t2Type == SyntaxType.GreaterThanEqualsToken)
+        if (t1Kind == SyntaxKind.GreaterThanToken && t2Kind == SyntaxKind.GreaterThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanToken && t2Type == SyntaxType.GreaterThanGreaterThanToken)
+        if (t1Kind == SyntaxKind.GreaterThanToken && t2Kind == SyntaxKind.GreaterThanGreaterThanToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanGreaterThanToken && t2Type == SyntaxType.GreaterThanEqualsToken)
+        if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind == SyntaxKind.GreaterThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanToken && t2Type == SyntaxType.GreaterThanToken)
+        if (t1Kind == SyntaxKind.GreaterThanToken && t2Kind == SyntaxKind.GreaterThanToken)
             return true;
-        if (t1Type == SyntaxType.StringLiteralToken && t2Type == SyntaxType.StringLiteralToken)
+        if (t1Kind == SyntaxKind.StringLiteralToken && t2Kind == SyntaxKind.StringLiteralToken)
             return true;
-        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.SlashToken)
+        if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.SlashToken)
             return true;
-        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.AsteriskToken)
+        if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.AsteriskToken)
             return true;
-        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.AsteriskAsteriskToken)
+        if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.AsteriskAsteriskToken)
             return true;
-        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.MultiLineCommentTrivia)
+        if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.MultiLineCommentTrivia)
             return true;
-        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.SingleLineCommentTrivia)
+        if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.SingleLineCommentTrivia)
             return true;
-        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.AsteriskAsteriskEqualsToken)
+        if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.AsteriskAsteriskEqualsToken)
             return true;
-        if (t1Type == SyntaxType.IdentifierToken && t2Type == SyntaxType.NumericLiteralToken)
+        if (t1Kind == SyntaxKind.IdentifierToken && t2Kind == SyntaxKind.NumericLiteralToken)
             return true;
-        if (t1IsKeyword && t2Type == SyntaxType.NumericLiteralToken)
+        if (t1IsKeyword && t2Kind == SyntaxKind.NumericLiteralToken)
             return true;
-        if (t1Type == SyntaxType.PlusToken && t2Type == SyntaxType.EqualsToken)
+        if (t1Kind == SyntaxKind.PlusToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.PlusToken && t2Type == SyntaxType.EqualsEqualsToken)
+        if (t1Kind == SyntaxKind.PlusToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.PlusToken && t2Type == SyntaxType.PlusToken)
+        if (t1Kind == SyntaxKind.PlusToken && t2Kind == SyntaxKind.PlusToken)
             return true;
-        if (t1Type == SyntaxType.PlusToken && t2Type == SyntaxType.PlusEqualsToken)
+        if (t1Kind == SyntaxKind.PlusToken && t2Kind == SyntaxKind.PlusEqualsToken)
             return true;
-        if (t1Type == SyntaxType.PlusToken && t2Type == SyntaxType.PlusPlusToken)
+        if (t1Kind == SyntaxKind.PlusToken && t2Kind == SyntaxKind.PlusPlusToken)
             return true;
-        if (t1Type == SyntaxType.MinusToken && t2Type == SyntaxType.EqualsToken)
+        if (t1Kind == SyntaxKind.MinusToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.MinusToken && t2Type == SyntaxType.EqualsEqualsToken)
+        if (t1Kind == SyntaxKind.MinusToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.MinusToken && t2Type == SyntaxType.MinusToken)
+        if (t1Kind == SyntaxKind.MinusToken && t2Kind == SyntaxKind.MinusToken)
             return true;
-        if (t1Type == SyntaxType.MinusToken && t2Type == SyntaxType.MinusEqualsToken)
+        if (t1Kind == SyntaxKind.MinusToken && t2Kind == SyntaxKind.MinusEqualsToken)
             return true;
-        if (t1Type == SyntaxType.MinusToken && t2Type == SyntaxType.MinusMinusToken)
+        if (t1Kind == SyntaxKind.MinusToken && t2Kind == SyntaxKind.MinusMinusToken)
             return true;
-        if (t1Type == SyntaxType.AsteriskToken && t2Type == SyntaxType.EqualsToken)
+        if (t1Kind == SyntaxKind.AsteriskToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.AsteriskToken && t2Type == SyntaxType.AsteriskEqualsToken)
+        if (t1Kind == SyntaxKind.AsteriskToken && t2Kind == SyntaxKind.AsteriskEqualsToken)
             return true;
-        if (t1Type == SyntaxType.AsteriskToken && t2Type == SyntaxType.EqualsEqualsToken)
+        if (t1Kind == SyntaxKind.AsteriskToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.EqualsToken)
+        if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.EqualsEqualsToken)
+        if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.AmpersandToken && t2Type == SyntaxType.EqualsToken)
+        if (t1Kind == SyntaxKind.AmpersandToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.AmpersandToken && t2Type == SyntaxType.EqualsEqualsToken)
+        if (t1Kind == SyntaxKind.AmpersandToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.AmpersandToken && t2Type == SyntaxType.AmpersandEqualsToken)
+        if (t1Kind == SyntaxKind.AmpersandToken && t2Kind == SyntaxKind.AmpersandEqualsToken)
             return true;
-        if (t1Type == SyntaxType.PipeToken && t2Type == SyntaxType.EqualsToken)
+        if (t1Kind == SyntaxKind.PipeToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.PipeToken && t2Type == SyntaxType.EqualsEqualsToken)
+        if (t1Kind == SyntaxKind.PipeToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.PipeToken && t2Type == SyntaxType.PipeEqualsToken)
+        if (t1Kind == SyntaxKind.PipeToken && t2Kind == SyntaxKind.PipeEqualsToken)
             return true;
-        if (t1Type == SyntaxType.CaretToken && t2Type == SyntaxType.EqualsToken)
+        if (t1Kind == SyntaxKind.CaretToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.CaretToken && t2Type == SyntaxType.EqualsEqualsToken)
+        if (t1Kind == SyntaxKind.CaretToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.SlashEqualsToken)
+        if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.SlashEqualsToken)
             return true;
-        if (t1Type == SyntaxType.SlashToken && t2Type == SyntaxType.AsteriskEqualsToken)
+        if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.AsteriskEqualsToken)
             return true;
-        if (t1Type == SyntaxType.AsteriskAsteriskToken && t2Type == SyntaxType.EqualsToken)
+        if (t1Kind == SyntaxKind.AsteriskAsteriskToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.AsteriskAsteriskToken && t2Type == SyntaxType.EqualsEqualsToken)
+        if (t1Kind == SyntaxKind.AsteriskAsteriskToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.AsteriskToken && t2Type == SyntaxType.AsteriskAsteriskEqualsToken)
+        if (t1Kind == SyntaxKind.AsteriskToken && t2Kind == SyntaxKind.AsteriskAsteriskEqualsToken)
             return true;
-        if (t1Type == SyntaxType.LessThanLessThanToken && t2Type == SyntaxType.EqualsToken)
+        if (t1Kind == SyntaxKind.LessThanLessThanToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanGreaterThanToken && t2Type == SyntaxType.EqualsToken)
+        if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.LessThanLessThanToken && t2Type == SyntaxType.EqualsEqualsToken)
+        if (t1Kind == SyntaxKind.LessThanLessThanToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanGreaterThanToken && t2Type == SyntaxType.EqualsEqualsToken)
+        if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.LessThanToken && t2Type == SyntaxType.LessThanLessThanEqualsToken)
+        if (t1Kind == SyntaxKind.LessThanToken && t2Kind == SyntaxKind.LessThanLessThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanToken && t2Type == SyntaxType.GreaterThanGreaterThanEqualsToken)
+        if (t1Kind == SyntaxKind.GreaterThanToken && t2Kind == SyntaxKind.GreaterThanGreaterThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanToken && t2Type == SyntaxType.GreaterThanGreaterThanGreaterThanEqualsToken)
+        if (t1Kind == SyntaxKind.GreaterThanToken && t2Kind == SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanToken && t2Type == SyntaxType.GreaterThanGreaterThanGreaterThanToken)
+        if (t1Kind == SyntaxKind.GreaterThanToken && t2Kind == SyntaxKind.GreaterThanGreaterThanGreaterThanToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanGreaterThanToken && t2Type ==
-            SyntaxType.GreaterThanGreaterThanGreaterThanEqualsToken)
+        if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind ==
+            SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanGreaterThanToken && t2Type ==
-            SyntaxType.GreaterThanGreaterThanGreaterThanToken)
+        if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind ==
+            SyntaxKind.GreaterThanGreaterThanGreaterThanToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanGreaterThanToken && t2Type == SyntaxType.GreaterThanGreaterThanEqualsToken)
+        if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind == SyntaxKind.GreaterThanGreaterThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanGreaterThanToken && t2Type == SyntaxType.GreaterThanEqualsToken)
+        if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind == SyntaxKind.GreaterThanEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanGreaterThanToken && t2Type == SyntaxType.GreaterThanToken)
+        if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind == SyntaxKind.GreaterThanToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanGreaterThanToken && t2Type == SyntaxType.GreaterThanGreaterThanToken)
+        if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind == SyntaxKind.GreaterThanGreaterThanToken)
             return true;
-        if (t1Type == SyntaxType.PercentToken && t2Type == SyntaxType.EqualsEqualsToken)
+        if (t1Kind == SyntaxKind.PercentToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.PercentToken && t2Type == SyntaxType.EqualsToken)
+        if (t1Kind == SyntaxKind.PercentToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanGreaterThanGreaterThanToken && t2Type == SyntaxType.EqualsEqualsToken)
+        if (t1Kind == SyntaxKind.GreaterThanGreaterThanGreaterThanToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.GreaterThanGreaterThanGreaterThanToken && t2Type == SyntaxType.EqualsToken)
+        if (t1Kind == SyntaxKind.GreaterThanGreaterThanGreaterThanToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.QuestionQuestionToken && t2Type == SyntaxType.EqualsToken)
+        if (t1Kind == SyntaxKind.QuestionQuestionToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
-        if (t1Type == SyntaxType.QuestionQuestionToken && t2Type == SyntaxType.EqualsEqualsToken)
+        if (t1Kind == SyntaxKind.QuestionQuestionToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
-        if (t1Type == SyntaxType.QuestionToken && t2Type == SyntaxType.QuestionToken)
+        if (t1Kind == SyntaxKind.QuestionToken && t2Kind == SyntaxKind.QuestionToken)
             return true;
-        if (t1Type == SyntaxType.QuestionToken && t2Type == SyntaxType.QuestionQuestionToken)
+        if (t1Kind == SyntaxKind.QuestionToken && t2Kind == SyntaxKind.QuestionQuestionToken)
             return true;
-        if (t1Type == SyntaxType.QuestionToken && t2Type == SyntaxType.QuestionQuestionEqualsToken)
+        if (t1Kind == SyntaxKind.QuestionToken && t2Kind == SyntaxKind.QuestionQuestionEqualsToken)
             return true;
-        if (t1Type == SyntaxType.NumericLiteralToken && t2Type == SyntaxType.PeriodToken)
+        if (t1Kind == SyntaxKind.NumericLiteralToken && t2Kind == SyntaxKind.PeriodToken)
             return true;
 
         return false;
     }
 
     private static
-    IEnumerable<(SyntaxType t1Type, string t1Text, SyntaxType t2Type, string t2Text)> GetTokenPairs() {
+    IEnumerable<(SyntaxKind t1Kind, string t1Text, SyntaxKind t2Kind, string t2Text)> GetTokenPairs() {
         foreach (var t1 in GetTokens()) {
             foreach (var t2 in GetTokens()) {
-                if (!RequiresSeparator(t1.type, t2.type))
-                    yield return (t1.type, t1.text, t2.type, t2.text);
+                if (!RequiresSeparator(t1.kind, t2.kind))
+                    yield return (t1.kind, t1.text, t2.kind, t2.text);
             }
         }
     }
 
     private static
-        IEnumerable<(SyntaxType t1Type, string t1Text, SyntaxType separatorType,
-        string separatorText, SyntaxType t2Type, string t2Text)>
+        IEnumerable<(SyntaxKind t1Kind, string t1Text, SyntaxKind separatorKind,
+        string separatorText, SyntaxKind t2Kind, string t2Text)>
         GetTokenPairsWithSeparator() {
         foreach (var t1 in GetTokens()) {
             foreach (var t2 in GetTokens()) {
-                if (RequiresSeparator(t1.type, t2.type)) {
+                if (RequiresSeparator(t1.kind, t2.kind)) {
                     foreach (var s in GetSeparators())
-                        yield return (t1.type, t1.text, s.type, s.text, t2.type, t2.text);
+                        yield return (t1.kind, t1.text, s.kind, s.text, t2.kind, t2.text);
                 }
             }
         }

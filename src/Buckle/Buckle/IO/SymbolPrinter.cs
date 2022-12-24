@@ -15,27 +15,27 @@ internal static class SymbolPrinter {
     /// <param name="symbol"><see cref="Symbol" /> to print (not modified).</param>
     /// <param name="writer">Where to write to (out).</param>
     internal static void WriteTo(this Symbol symbol, TextWriter writer) {
-        switch (symbol.type) {
-            case SymbolType.Function:
+        switch (symbol.kind) {
+            case SymbolKind.Function:
                 WriteFunction((FunctionSymbol)symbol, writer);
                 break;
-            case SymbolType.LocalVariable:
+            case SymbolKind.LocalVariable:
                 WriteLocalVariable((LocalVariableSymbol)symbol, writer);
                 break;
-            case SymbolType.GlobalVariable:
+            case SymbolKind.GlobalVariable:
                 WriteGlobalVariable((GlobalVariableSymbol)symbol, writer);
                 break;
-            case SymbolType.Parameter:
+            case SymbolKind.Parameter:
                 WriteParameter((ParameterSymbol)symbol, writer);
                 break;
-            case SymbolType.Field:
+            case SymbolKind.Field:
                 WriteField((FieldSymbol)symbol, writer);
                 break;
-            case SymbolType.Type:
+            case SymbolKind.Type:
                 WriteType((TypeSymbol)symbol,writer);
                 break;
             default:
-                throw new BelteInternalException($"WriteTo: unexpected symbol '{symbol.type}'");
+                throw new BelteInternalException($"WriteTo: unexpected symbol '{symbol.kind}'");
         }
     }
 

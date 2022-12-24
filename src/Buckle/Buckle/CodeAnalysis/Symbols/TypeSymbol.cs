@@ -52,5 +52,5 @@ internal class TypeSymbol : Symbol {
     /// <param name="name">Name of type.</param>
     internal TypeSymbol(string name) : base(name) { }
 
-    internal override SymbolType type => SymbolType.Type;
+    internal override SymbolKind kind => SymbolKind.Type;
 }

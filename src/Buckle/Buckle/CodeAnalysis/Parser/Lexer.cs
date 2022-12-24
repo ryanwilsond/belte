@@ -8,7 +8,7 @@ using System;
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
 /// <summary>
-/// Converts source text into parsable Tokens.<br/>
+/// Converts source text into parsable SyntaxTokens.<br/>
 /// E.g.
 /// <code>
 /// int myInt;
@@ -23,7 +23,7 @@ internal sealed class Lexer {
     private readonly SourceText _text;
     private int _position;
     private int _start;
-    private SyntaxType _type;
+    private SyntaxKind _kind;
     private object _value;
     private SyntaxTree _syntaxTree;
     private ImmutableArray<SyntaxTrivia>.Builder _triviaBuilder = ImmutableArray.CreateBuilder<SyntaxTrivia>();
@@ -44,28 +44,29 @@ internal sealed class Lexer {
     internal BelteDiagnosticQueue diagnostics { get; set; }
 
     /// <summary>
-    /// Lexes the next un-lexed text to create a single <see cref="Token" />.
+    /// Lexes the next un-lexed text to create a single <see cref="SyntaxToken" />.
     /// </summary>
-    /// <returns>A new <see cref="Token" />.</returns>
-    internal Token LexNext() {
+    /// <returns>A new <see cref="SyntaxToken" />.</returns>
+    internal SyntaxToken LexNext() {
         ReadTrivia(true);
         var leadingTrivia = _triviaBuilder.ToImmutable();
         var tokenStart = _position;
 
         ReadToken();
 
-        var tokenType = _type;
+        var tokenKind = _kind;
         var tokenValue = _value;
         var tokenLength = _position - _start;
 
         ReadTrivia(false);
         var trailingTrivia = _triviaBuilder.ToImmutable();
 
-        var tokenText = SyntaxFacts.GetText(tokenType);
+        var tokenText = SyntaxFacts.GetText(tokenKind);
         if (tokenText == null)
             tokenText = _text.ToString(tokenStart, tokenLength);
 
-        return new Token(_syntaxTree, tokenType, tokenStart, tokenText, tokenValue, leadingTrivia, trailingTrivia);
+        return new SyntaxToken(
+            _syntaxTree, tokenKind, tokenStart, tokenText, tokenValue, leadingTrivia, trailingTrivia);
     }
 
     private char Peek(int offset) {
@@ -83,7 +84,7 @@ internal sealed class Lexer {
 
         while (!done) {
             _start = _position;
-            _type = SyntaxType.BadToken;
+            _kind = SyntaxKind.BadToken;
             _value = null;
 
             switch (current) {
@@ -123,7 +124,7 @@ internal sealed class Lexer {
 
             if (length > 0) {
                 var text = _text.ToString(_start, length);
-                var trivia = new SyntaxTrivia(_syntaxTree, _type, _start, text);
+                var trivia = new SyntaxTrivia(_syntaxTree, _kind, _start, text);
                 _triviaBuilder.Add(trivia);
             }
         }
@@ -131,120 +132,120 @@ internal sealed class Lexer {
 
     private void ReadToken() {
         _start = _position;
-        _type = SyntaxType.BadToken;
+        _kind = SyntaxKind.BadToken;
         _value = null;
 
         switch (current) {
             case '\0':
-                _type = SyntaxType.EndOfFileToken;
+                _kind = SyntaxKind.EndOfFileToken;
                 break;
             case '.':
                 _position++;
-                _type = SyntaxType.PeriodToken;
+                _kind = SyntaxKind.PeriodToken;
                 break;
             case ',':
                 _position++;
-                _type = SyntaxType.CommaToken;
+                _kind = SyntaxKind.CommaToken;
                 break;
             case '(':
                 _position++;
-                _type = SyntaxType.OpenParenToken;
+                _kind = SyntaxKind.OpenParenToken;
                 break;
             case ')':
                 _position++;
-                _type = SyntaxType.CloseParenToken;
+                _kind = SyntaxKind.CloseParenToken;
                 break;
             case '{':
                 _position++;
-                _type = SyntaxType.OpenBraceToken;
+                _kind = SyntaxKind.OpenBraceToken;
                 break;
             case '}':
                 _position++;
-                _type = SyntaxType.CloseBraceToken;
+                _kind = SyntaxKind.CloseBraceToken;
                 break;
             case '[':
                 _position++;
-                _type = SyntaxType.OpenBracketToken;
+                _kind = SyntaxKind.OpenBracketToken;
                 break;
             case ']':
                 _position++;
-                _type = SyntaxType.CloseBracketToken;
+                _kind = SyntaxKind.CloseBracketToken;
                 break;
             case ';':
                 _position++;
-                _type = SyntaxType.SemicolonToken;
+                _kind = SyntaxKind.SemicolonToken;
                 break;
             case ':':
                 _position++;
-                _type = SyntaxType.ColonToken;
+                _kind = SyntaxKind.ColonToken;
                 break;
             case '~':
                 _position++;
-                _type = SyntaxType.TildeToken;
+                _kind = SyntaxKind.TildeToken;
                 break;
             case '%':
                 _position++;
                 if (current == '=') {
-                    _type = SyntaxType.PercentEqualsToken;
+                    _kind = SyntaxKind.PercentEqualsToken;
                     _position++;
                 } else {
-                    _type = SyntaxType.PercentToken;
+                    _kind = SyntaxKind.PercentToken;
                 }
                 break;
             case '^':
                 _position++;
                 if (current == '=') {
-                    _type = SyntaxType.CaretEqualsToken;
+                    _kind = SyntaxKind.CaretEqualsToken;
                     _position++;
                 } else {
-                    _type = SyntaxType.CaretToken;
+                    _kind = SyntaxKind.CaretToken;
                 }
                 break;
             case '?':
                 if (lookahead == '?') {
                     _position += 2;
                     if (current == '=') {
-                        _type = SyntaxType.QuestionQuestionEqualsToken;
+                        _kind = SyntaxKind.QuestionQuestionEqualsToken;
                         _position++;
                     } else {
-                        _type = SyntaxType.QuestionQuestionToken;
+                        _kind = SyntaxKind.QuestionQuestionToken;
                     }
                 } else {
-                    _type = SyntaxType.QuestionToken;
+                    _kind = SyntaxKind.QuestionToken;
                     _position++;
                 }
                 break;
             case '+':
                 _position++;
                 if (current == '=') {
-                    _type = SyntaxType.PlusEqualsToken;
+                    _kind = SyntaxKind.PlusEqualsToken;
                     _position++;
                 } else if (current == '+') {
-                    _type = SyntaxType.PlusPlusToken;
+                    _kind = SyntaxKind.PlusPlusToken;
                     _position++;
                 } else {
-                    _type = SyntaxType.PlusToken;
+                    _kind = SyntaxKind.PlusToken;
                 }
                 break;
             case '-':
                 _position++;
                 if (current == '=') {
-                    _type = SyntaxType.MinusEqualsToken;
+                    _kind = SyntaxKind.MinusEqualsToken;
                     _position++;
                 } else if (current == '-') {
-                    _type = SyntaxType.MinusMinusToken;
+                    _kind = SyntaxKind.MinusMinusToken;
                     _position++;
                 } else {
-                    _type = SyntaxType.MinusToken;
+                    _kind = SyntaxKind.MinusToken;
                 }
                 break;
             case '/':
                 _position++;
                 if (current == '=') {
-                    _type = SyntaxType.SlashEqualsToken;
+                    _kind = SyntaxKind.SlashEqualsToken;
                     _position++;
                 } else {
-                    _type = SyntaxType.SlashToken;
+                    _kind = SyntaxKind.SlashToken;
                 }
                 break;
             case '*':
@@ -252,100 +253,100 @@ internal sealed class Lexer {
                 if (current == '*') {
                     if (lookahead == '=') {
                         _position++;
-                        _type = SyntaxType.AsteriskAsteriskEqualsToken;
+                        _kind = SyntaxKind.AsteriskAsteriskEqualsToken;
                     } else {
-                        _type = SyntaxType.AsteriskAsteriskToken;
+                        _kind = SyntaxKind.AsteriskAsteriskToken;
                     }
                     _position++;
                 } else if (current == '=') {
-                    _type = SyntaxType.AsteriskEqualsToken;
+                    _kind = SyntaxKind.AsteriskEqualsToken;
                     _position++;
                 } else {
-                    _type = SyntaxType.AsteriskToken;
+                    _kind = SyntaxKind.AsteriskToken;
                 }
                 break;
             case '&':
                 _position++;
                 if (current == '&') {
-                    _type = SyntaxType.AmpersandAmpersandToken;
+                    _kind = SyntaxKind.AmpersandAmpersandToken;
                     _position++;
                 } else if (current == '=') {
-                    _type = SyntaxType.AmpersandEqualsToken;
+                    _kind = SyntaxKind.AmpersandEqualsToken;
                     _position++;
                 } else {
-                    _type = SyntaxType.AmpersandToken;
+                    _kind = SyntaxKind.AmpersandToken;
                 }
                 break;
             case '|':
                 _position++;
                 if (current == '|') {
-                    _type = SyntaxType.PipePipeToken;
+                    _kind = SyntaxKind.PipePipeToken;
                     _position++;
                 } else if (current == '=') {
-                    _type = SyntaxType.PipeEqualsToken;
+                    _kind = SyntaxKind.PipeEqualsToken;
                     _position++;
                 } else {
-                    _type = SyntaxType.PipeToken;
+                    _kind = SyntaxKind.PipeToken;
                 }
                 break;
             case '=':
                 _position++;
                 if (current == '=') {
-                    _type = SyntaxType.EqualsEqualsToken;
+                    _kind = SyntaxKind.EqualsEqualsToken;
                     _position++;
                 } else {
-                    _type = SyntaxType.EqualsToken;
+                    _kind = SyntaxKind.EqualsToken;
                 }
                 break;
             case '!':
                 _position++;
                 if (current == '=') {
                     _position++;
-                    _type = SyntaxType.ExclamationEqualsToken;
+                    _kind = SyntaxKind.ExclamationEqualsToken;
                 } else {
-                    _type = SyntaxType.ExclamationToken;
+                    _kind = SyntaxKind.ExclamationToken;
                 }
                 break;
             case '<':
                 _position++;
                 if (current == '=') {
                     _position++;
-                    _type = SyntaxType.LessThanEqualsToken;
+                    _kind = SyntaxKind.LessThanEqualsToken;
                 } else if (current == '<') {
                     if (lookahead == '=') {
                         _position++;
-                        _type = SyntaxType.LessThanLessThanEqualsToken;
+                        _kind = SyntaxKind.LessThanLessThanEqualsToken;
                     } else {
-                        _type = SyntaxType.LessThanLessThanToken;
+                        _kind = SyntaxKind.LessThanLessThanToken;
                     }
                     _position++;
                 } else {
-                    _type = SyntaxType.LessThanToken;
+                    _kind = SyntaxKind.LessThanToken;
                 }
                 break;
             case '>':
                 _position++;
                 if (current == '=') {
                     _position++;
-                    _type = SyntaxType.GreaterThanEqualsToken;
+                    _kind = SyntaxKind.GreaterThanEqualsToken;
                 } else if (current == '>') {
                     if (lookahead == '=') {
                         _position++;
-                        _type = SyntaxType.GreaterThanGreaterThanEqualsToken;
+                        _kind = SyntaxKind.GreaterThanGreaterThanEqualsToken;
                     } else if (lookahead == '>') {
                         if (Peek(2) == '=') {
                             _position++;
-                            _type = SyntaxType.GreaterThanGreaterThanGreaterThanEqualsToken;
+                            _kind = SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken;
                         } else {
-                            _type = SyntaxType.GreaterThanGreaterThanGreaterThanToken;
+                            _kind = SyntaxKind.GreaterThanGreaterThanGreaterThanToken;
                         }
                         _position++;
                     } else {
-                        _type = SyntaxType.GreaterThanGreaterThanToken;
+                        _kind = SyntaxKind.GreaterThanGreaterThanToken;
                     }
                     _position++;
                 } else {
-                    _type = SyntaxType.GreaterThanToken;
+                    _kind = SyntaxKind.GreaterThanToken;
                 }
                 break;
             case '"':
@@ -396,7 +397,7 @@ internal sealed class Lexer {
             }
         }
 
-        _type = SyntaxType.SingleLineCommentTrivia;
+        _kind = SyntaxKind.SingleLineCommentTrivia;
     }
 
     private void ReadMultiLineComment() {
@@ -425,7 +426,7 @@ internal sealed class Lexer {
             }
         }
 
-        _type = SyntaxType.MultiLineCommentTrivia;
+        _kind = SyntaxKind.MultiLineCommentTrivia;
     }
 
     private void ReadStringLiteral() {
@@ -508,7 +509,7 @@ internal sealed class Lexer {
             }
         }
 
-        _type = SyntaxType.StringLiteralToken;
+        _kind = SyntaxKind.StringLiteralToken;
         _value = sb.ToString();
     }
 
@@ -600,7 +601,7 @@ internal sealed class Lexer {
             }
         }
 
-        _type = SyntaxType.NumericLiteralToken;
+        _kind = SyntaxKind.NumericLiteralToken;
     }
 
     private void ReadWhitespace() {
@@ -622,7 +623,7 @@ internal sealed class Lexer {
             }
         }
 
-        _type = SyntaxType.WhitespaceTrivia;
+        _kind = SyntaxKind.WhitespaceTrivia;
     }
 
     private void ReadLineBreak() {
@@ -631,7 +632,7 @@ internal sealed class Lexer {
         else
             _position++;
 
-        _type = SyntaxType.EndOfLineTrivia;
+        _kind = SyntaxKind.EndOfLineTrivia;
     }
 
     private void ReadIdentifierOrKeyword() {
@@ -640,6 +641,6 @@ internal sealed class Lexer {
 
         int length = _position - _start;
         string text = _text.ToString(_start, length);
-        _type = SyntaxFacts.GetKeywordType(text);
+        _kind = SyntaxFacts.GetKeywordType(text);
     }
 }

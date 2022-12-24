@@ -6,7 +6,7 @@ using Buckle.CodeAnalysis.Syntax;
 namespace Buckle.CodeAnalysis.Authoring;
 
 /// <summary>
-/// Simplified classification of a <see cref="Token" />.
+/// Simplified classification of a <see cref="SyntaxToken" />.
 /// </summary>
 internal enum Classification {
     Identifier,
@@ -19,11 +19,11 @@ internal enum Classification {
 }
 
 /// <summary>
-/// Classifies parsed Nodes.
+/// Classifies parsed SyntaxNodes.
 /// </summary>
 internal static class Classifier {
     /// <summary>
-    /// Classifies Nodes in a <see cref="SyntaxTree" /> within a <see cref="TextSpan" />.
+    /// Classifies SyntaxNodes in a <see cref="SyntaxTree" /> within a <see cref="TextSpan" />.
     /// </summary>
     /// <param name="syntaxTree"><see cref="SyntaxTree" /> to classify.</param>
     /// <param name="span">What segment of the <see cref="SyntaxTree" /> to classify.</param>
@@ -35,28 +35,28 @@ internal static class Classifier {
     }
 
     private static void ClassifyNode(
-        Node node, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result, bool isTypeName = false) {
+        SyntaxNode node, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result, bool isTypeName = false) {
         if (node == null)
             return;
 
         if (node.fullSpan != null && !node.fullSpan.OverlapsWith(span))
             return;
 
-        if (node is Token token)
+        if (node is SyntaxToken token)
             ClassifyToken(token, span, result, isTypeName);
 
-        if (node is TypeClause) {
+        if (node is TypeClauseSyntax) {
             bool inAttribute = false;
             isTypeName = false;
 
             foreach (var child in node.GetChildren()) {
                 // Does not matter that it catches on array brackets because they do not contain identifiers
-                if (child.type == SyntaxType.OpenBracketToken)
+                if (child.kind == SyntaxKind.OpenBracketToken)
                     inAttribute = true;
-                if (child.type == SyntaxType.CloseBracketToken)
+                if (child.kind == SyntaxKind.CloseBracketToken)
                     inAttribute = false;
 
-                if (child.type == SyntaxType.IdentifierToken && !inAttribute)
+                if (child.kind == SyntaxKind.IdentifierToken && !inAttribute)
                     isTypeName = true;
 
                 ClassifyNode(child, span, result, isTypeName);
@@ -68,11 +68,11 @@ internal static class Classifier {
     }
 
     private static void ClassifyToken(
-        Token token, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result, bool isTypeName) {
+        SyntaxToken token, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result, bool isTypeName) {
         foreach (var trivia in token.leadingTrivia)
             ClassifyTrivia(trivia, span, result);
 
-        AddClassification(token.type, token.span, span, result, isTypeName);
+        AddClassification(token.kind, token.span, span, result, isTypeName);
 
         foreach (var trivia in token.trailingTrivia)
             ClassifyTrivia(trivia, span, result);
@@ -80,15 +80,15 @@ internal static class Classifier {
 
     private static void ClassifyTrivia(
         SyntaxTrivia trivia, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result) {
-        AddClassification(trivia.type, trivia.span, span, result, false);
+        AddClassification(trivia.kind, trivia.span, span, result, false);
     }
 
-    private static void AddClassification(SyntaxType elementType, TextSpan elementSpan,
+    private static void AddClassification(SyntaxKind elementKind, TextSpan elementSpan,
         TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result, bool isTypeName) {
         if (!elementSpan.OverlapsWith(span))
             return;
 
-        var classification = GetClassification(elementType, isTypeName);
+        var classification = GetClassification(elementKind, isTypeName);
         var adjustedStart = Math.Max(elementSpan.start, span.start);
         var adjustedEnd = Math.Min(elementSpan.end, span.end);
         var adjustedSpan = TextSpan.FromBounds(adjustedStart, adjustedEnd);
@@ -97,12 +97,12 @@ internal static class Classifier {
         result.Add(classifiedSpan);
     }
 
-    private static Classification GetClassification(SyntaxType type, bool isTypeName) {
-        var isKeyword = type.IsKeyword();
-        var isNumber = type == SyntaxType.NumericLiteralToken;
-        var isIdentifier = type == SyntaxType.IdentifierToken;
-        var isString = type == SyntaxType.StringLiteralToken;
-        var isComment = type.IsComment();
+    private static Classification GetClassification(SyntaxKind kind, bool isTypeName) {
+        var isKeyword = kind.IsKeyword();
+        var isNumber = kind == SyntaxKind.NumericLiteralToken;
+        var isIdentifier = kind == SyntaxKind.IdentifierToken;
+        var isString = kind == SyntaxKind.StringLiteralToken;
+        var isComment = kind.IsComment();
 
         if (isTypeName)
             return Classification.TypeName;

@@ -15,5 +15,5 @@ internal sealed class GlobalVariableSymbol : VariableSymbol {
     internal GlobalVariableSymbol(string name, BoundTypeClause typeClause, BoundConstant constant)
         : base(name, typeClause, constant) { }
 
-    internal override SymbolType type => SymbolType.GlobalVariable;
+    internal override SymbolKind kind => SymbolKind.GlobalVariable;
 }

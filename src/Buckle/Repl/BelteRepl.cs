@@ -362,7 +362,7 @@ public sealed class BelteRepl : ReplBase {
     [MetaCommand("ls", "List all defined symbols")]
     private void EvaluateLs() {
         var compilation = state.previous ?? emptyCompilation;
-        var symbols = compilation.GetSymbols().OrderBy(s => s.type).ThenBy(s => s.name);
+        var symbols = compilation.GetSymbols().OrderBy(s => s.kind).ThenBy(s => s.name);
 
         foreach (var symbol in symbols) {
             symbol.WriteTo(Console.Out);

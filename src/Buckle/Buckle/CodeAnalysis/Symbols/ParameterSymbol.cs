@@ -16,7 +16,7 @@ internal sealed class ParameterSymbol : LocalVariableSymbol {
         this.ordinal = ordinal;
     }
 
-    internal override SymbolType type => SymbolType.Parameter;
+    internal override SymbolKind kind => SymbolKind.Parameter;
 
     /// <summary>
     /// Ordinal of this parameter.

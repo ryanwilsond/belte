@@ -19,15 +19,15 @@ internal static class Warning {
         }
     }
 
-    internal static BelteDiagnostic UnreachableCode(Node node) {
-        if (node.type == SyntaxType.Block) {
-            var firstStatement = ((BlockStatement)node).statements.FirstOrDefault();
+    internal static BelteDiagnostic UnreachableCode(SyntaxNode node) {
+        if (node.kind == SyntaxKind.Block) {
+            var firstStatement = ((BlockStatementSyntax)node).statements.FirstOrDefault();
             // Report just for non empty blocks.
             if (firstStatement != null)
                 return UnreachableCode(firstStatement);
 
             return null;
-        } else if (node.type == SyntaxType.EmptyExpression) {
+        } else if (node.kind == SyntaxKind.EmptyExpression) {
             return null;
         }
 

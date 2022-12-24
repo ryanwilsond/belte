@@ -14,7 +14,7 @@ internal sealed class StructSymbol : TypeSymbol {
     /// <param name="symbols">Symbols contained in the struct.</param>
     /// <param name="declaration">Declaration of the struct.</param>
     internal StructSymbol(
-        string name, ImmutableArray<Symbol> symbols, StructDeclaration declaration = null)
+        string name, ImmutableArray<Symbol> symbols, StructDeclarationSyntax declaration = null)
         : base(name) {
         this.symbols = symbols;
         this.declaration = declaration;
@@ -26,9 +26,9 @@ internal sealed class StructSymbol : TypeSymbol {
     internal ImmutableArray<Symbol> symbols { get; }
 
     /// <summary>
-    /// Declaration of struct (see <see cref="StructDeclaration">).
+    /// Declaration of struct (see <see cref="StructDeclarationSyntax">).
     /// </summary>
-    internal StructDeclaration declaration { get; }
+    internal StructDeclarationSyntax declaration { get; }
 
-    internal override SymbolType type => SymbolType.Type;
+    internal override SymbolKind kind => SymbolKind.Type;
 }

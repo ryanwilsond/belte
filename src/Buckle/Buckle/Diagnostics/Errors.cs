@@ -37,7 +37,7 @@ internal static class Error {
         return new DiagnosticInfo((int)code, "BU", DiagnosticType.Fatal);
     }
 
-    private static string DiagnosticText(SyntaxType type) {
+    private static string DiagnosticText(SyntaxKind type) {
         var factValue = SyntaxFacts.GetText(type);
         if (factValue != null)
             return "'" + factValue + "'";
@@ -54,7 +54,7 @@ internal static class Error {
             return type.ToString().ToLower();
     }
 
-    internal static BelteDiagnostic ExpectedToken(TextLocation location, SyntaxType type) {
+    internal static BelteDiagnostic ExpectedToken(TextLocation location, SyntaxKind type) {
         var message = $"expected {DiagnosticText(type)}";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedToken), location, message);
     }
@@ -75,12 +75,12 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic UnexpectedToken(
-        TextLocation location, SyntaxType unexpected, SyntaxType? expected = null) {
+        TextLocation location, SyntaxKind unexpected, SyntaxKind? expected = null) {
         string message;
 
         if (expected == null)
             message = $"unexpected token {DiagnosticText(unexpected)}";
-        else if (unexpected != SyntaxType.EndOfFileToken)
+        else if (unexpected != SyntaxKind.EndOfFileToken)
             message = $"unexpected token {DiagnosticText(unexpected)}, expected {DiagnosticText(expected.Value)}";
         else
             message = $"expected {DiagnosticText(expected.Value)} at end of input";

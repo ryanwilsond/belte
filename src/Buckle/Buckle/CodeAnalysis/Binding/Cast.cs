@@ -60,8 +60,8 @@ internal sealed class Cast {
     /// <param name="toType">Existing/current <see cref="BoundTypeClause" />.</param>
     /// <returns>Created <see cref="Cast" />.</returns>
     internal static Cast Classify(BoundTypeClause fromType, BoundTypeClause toType) {
-        var from = fromType.lType;
-        var to = toType.lType;
+        var from = fromType.type;
+        var to = toType.type;
 
         if (from == null)
             return Cast.Identity;

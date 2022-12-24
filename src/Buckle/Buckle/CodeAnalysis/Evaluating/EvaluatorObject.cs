@@ -53,7 +53,9 @@ internal sealed class EvaluatorObject {
     /// <see cref="VariableSymbol" /> to reference (not an explicit reference, passed by
     /// reference by default).
     /// </param>
-    /// <param name="isExplicitReference">If this is just a variable, or if it explicitly a reference expression.</param>
+    /// <param name="isExplicitReference">
+    /// If this is just a variable, or if it explicitly a reference expression.
+    /// </param>
     internal EvaluatorObject(
         VariableSymbol reference, bool isExplicitReference = false) {
         this.value = null;

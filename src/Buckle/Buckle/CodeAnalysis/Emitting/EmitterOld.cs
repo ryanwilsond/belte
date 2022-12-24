@@ -274,33 +274,33 @@ internal sealed class _Emitter {
     }
 
     private void EmitStatement(ILProcessor iLProcessor, BoundStatement statement, MethodDefinition method) {
-        switch (statement.type) {
-            case BoundNodeType.NopStatement:
+        switch (statement.kind) {
+            case BoundNodeKind.NopStatement:
                 EmitNopStatement(iLProcessor, (BoundNopStatement)statement);
                 break;
-            case BoundNodeType.ExpressionStatement:
+            case BoundNodeKind.ExpressionStatement:
                 EmitExpressionStatement(iLProcessor, (BoundExpressionStatement)statement);
                 break;
-            case BoundNodeType.VariableDeclarationStatement:
+            case BoundNodeKind.VariableDeclarationStatement:
                 EmitVariableDeclarationStatement(iLProcessor, (BoundVariableDeclarationStatement)statement);
                 break;
-            case BoundNodeType.GotoStatement:
+            case BoundNodeKind.GotoStatement:
                 EmitGotoStatement(iLProcessor, (BoundGotoStatement)statement);
                 break;
-            case BoundNodeType.LabelStatement:
+            case BoundNodeKind.LabelStatement:
                 EmitLabelStatement(iLProcessor, (BoundLabelStatement)statement);
                 break;
-            case BoundNodeType.ConditionalGotoStatement:
+            case BoundNodeKind.ConditionalGotoStatement:
                 EmitConditionalGotoStatement(iLProcessor, (BoundConditionalGotoStatement)statement);
                 break;
-            case BoundNodeType.ReturnStatement:
+            case BoundNodeKind.ReturnStatement:
                 EmitReturnStatement(iLProcessor, (BoundReturnStatement)statement);
                 break;
-            case BoundNodeType.TryStatement:
+            case BoundNodeKind.TryStatement:
                 EmitTryStatement(iLProcessor, (BoundTryStatement)statement, method);
                 break;
             default:
-                throw new BelteInternalException($"EmitStatement: unexpected node '{statement.type}'");
+                throw new BelteInternalException($"EmitStatement: unexpected node '{statement.kind}'");
         }
     }
 
@@ -474,21 +474,21 @@ internal sealed class _Emitter {
         }
 
         if (statement.variable.typeClause.dimensions == 0 && statement.variable.typeClause.isNullable &&
-            statement.initializer.type != BoundNodeType.CallExpression)
+            statement.initializer.kind != BoundNodeKind.CallExpression)
             iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
 
         EmitExpression(
             iLProcessor, statement.initializer, nullable: statement.variable.typeClause.isNullable, stack: false);
 
         if (statement.variable.typeClause.dimensions > 0 || !statement.variable.typeClause.isNullable ||
-            statement.initializer.type == BoundNodeType.CallExpression)
+            statement.initializer.kind == BoundNodeKind.CallExpression)
             iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
     }
 
     private void EmitExpressionStatement(ILProcessor iLProcessor, BoundExpressionStatement statement) {
         EmitExpression(iLProcessor, statement.expression);
 
-        if (statement.expression.typeClause?.lType != TypeSymbol.Void && !_useNullRef)
+        if (statement.expression.typeClause?.type != TypeSymbol.Void && !_useNullRef)
             iLProcessor.Emit(OpCodes.Pop);
 
         _useNullRef = false;
@@ -502,40 +502,40 @@ internal sealed class _Emitter {
             return;
         }
 
-        switch (expression.type) {
-            case BoundNodeType.LiteralExpression:
+        switch (expression.kind) {
+            case BoundNodeKind.LiteralExpression:
                 if (expression is BoundInitializerListExpression il) {
                     EmitInitializerListExpression(iLProcessor, il);
                     break;
                 } else {
                     goto default;
                 }
-            case BoundNodeType.UnaryExpression:
+            case BoundNodeKind.UnaryExpression:
                 EmitUnaryExpression(iLProcessor, (BoundUnaryExpression)expression);
                 break;
-            case BoundNodeType.BinaryExpression:
+            case BoundNodeKind.BinaryExpression:
                 EmitBinaryExpression(iLProcessor, (BoundBinaryExpression)expression);
                 break;
-            case BoundNodeType.VariableExpression:
+            case BoundNodeKind.VariableExpression:
                 EmitVariableExpression(iLProcessor, (BoundVariableExpression)expression, nullable);
                 break;
-            case BoundNodeType.AssignmentExpression:
+            case BoundNodeKind.AssignmentExpression:
                 EmitAssignmentExpression(iLProcessor, (BoundAssignmentExpression)expression);
                 break;
-            case BoundNodeType.EmptyExpression:
+            case BoundNodeKind.EmptyExpression:
                 EmitEmptyExpression(iLProcessor, (BoundEmptyExpression)expression);
                 break;
-            case BoundNodeType.CallExpression:
+            case BoundNodeKind.CallExpression:
                 EmitCallExpression(iLProcessor, (BoundCallExpression)expression);
                 break;
-            case BoundNodeType.IndexExpression:
+            case BoundNodeKind.IndexExpression:
                 EmitIndexExpression(iLProcessor, (BoundIndexExpression)expression);
                 break;
-            case BoundNodeType.CastExpression:
+            case BoundNodeKind.CastExpression:
                 EmitCastExpression(iLProcessor, (BoundCastExpression)expression);
                 break;
             default:
-                throw new BelteInternalException($"EmitExpression: unexpected node '{expression.type}'");
+                throw new BelteInternalException($"EmitExpression: unexpected node '{expression.kind}'");
         }
     }
 
@@ -581,14 +581,14 @@ internal sealed class _Emitter {
         var subExpressionType = expression.expression.typeClause;
         var expressionType = expression.typeClause;
 
-        var needsBoxing = subExpressionType.lType == TypeSymbol.Int ||
-            subExpressionType.lType == TypeSymbol.Bool ||
-            subExpressionType.lType == TypeSymbol.Decimal;
+        var needsBoxing = subExpressionType.type == TypeSymbol.Int ||
+            subExpressionType.type == TypeSymbol.Bool ||
+            subExpressionType.type == TypeSymbol.Decimal;
 
         if (needsBoxing)
             iLProcessor.Emit(OpCodes.Box, GetType(subExpressionType, ignoreReference: true));
 
-        if (expressionType.lType != TypeSymbol.Any)
+        if (expressionType.type != TypeSymbol.Any)
             iLProcessor.Emit(OpCodes.Call, GetConvertTo(subExpressionType, expressionType, true));
 
         if (expression.typeClause.isNullable)
@@ -652,7 +652,7 @@ internal sealed class _Emitter {
     }
 
     private MethodReference GetNullableCtor(BoundTypeClause type) {
-        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.lType]);
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.type]);
         var methodReference =
             _assemblyDefinition.MainModule.ImportReference(_methodReferences[_NetMethodReference.NullableCtor]);
 
@@ -664,7 +664,7 @@ internal sealed class _Emitter {
     }
 
     private MethodReference GetNullableValue(BoundTypeClause type) {
-        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.lType]);
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.type]);
         var methodReference =
             _assemblyDefinition.MainModule.ImportReference(_methodReferences[_NetMethodReference.NullableValue]);
 
@@ -676,7 +676,7 @@ internal sealed class _Emitter {
     }
 
     private MethodReference GetNullableHasValue(BoundTypeClause type) {
-        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.lType]);
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.type]);
         var methodReference =
             _assemblyDefinition.MainModule.ImportReference(_methodReferences[_NetMethodReference.NullableHasValue]);
 
@@ -689,15 +689,15 @@ internal sealed class _Emitter {
 
     private MethodReference GetConvertTo(BoundTypeClause from, BoundTypeClause to, bool isImplicit) {
         if (!from.isNullable || isImplicit) {
-            if (to.lType == TypeSymbol.Any)
+            if (to.type == TypeSymbol.Any)
                 return null;
-            else if (to.lType == TypeSymbol.Bool)
+            else if (to.type == TypeSymbol.Bool)
                 return _methodReferences[_NetMethodReference.ConvertToBoolean];
-            else if (to.lType == TypeSymbol.Int)
+            else if (to.type == TypeSymbol.Int)
                 return _methodReferences[_NetMethodReference.ConvertToInt32];
-            else if (to.lType == TypeSymbol.String)
+            else if (to.type == TypeSymbol.String)
                 return _methodReferences[_NetMethodReference.ConvertToString];
-            else if (to.lType == TypeSymbol.Decimal)
+            else if (to.type == TypeSymbol.Decimal)
                 return _methodReferences[_NetMethodReference.ConvertToSingle];
             else
                 throw new BelteInternalException($"GetConvertTo: unexpected cast from '{from}' to '{to}'");
@@ -763,10 +763,10 @@ internal sealed class _Emitter {
     }
 
     private void EmitBinaryExpression(ILProcessor iLProcessor, BoundBinaryExpression expression) {
-        var leftType = expression.left.typeClause.lType;
-        var rightType = expression.right.typeClause.lType;
+        var leftType = expression.left.typeClause.type;
+        var rightType = expression.right.typeClause.type;
 
-        if (expression.op.opType == BoundBinaryOperatorType.Addition) {
+        if (expression.op.opType == BoundBinaryOperatorKind.Addition) {
             if (leftType == TypeSymbol.String && rightType == TypeSymbol.String ||
                 leftType == TypeSymbol.Any && rightType == TypeSymbol.Any) {
                 EmitStringConcatExpression(iLProcessor, expression);
@@ -776,11 +776,11 @@ internal sealed class _Emitter {
 
         if (((expression.left.constantValue != null && expression.left.constantValue?.value == null)
             || (expression.right.constantValue != null && expression.right.constantValue?.value == null)) &&
-            (expression.op.opType == BoundBinaryOperatorType.EqualityEquals ||
-            expression.op.opType == BoundBinaryOperatorType.EqualityNotEquals)) {
+            (expression.op.opType == BoundBinaryOperatorKind.EqualityEquals ||
+            expression.op.opType == BoundBinaryOperatorKind.EqualityNotEquals)) {
             if ((expression.left.constantValue != null && expression.left.constantValue?.value == null) &&
                 (expression.right.constantValue != null && expression.right.constantValue?.value == null)) {
-                if (expression.op.opType == BoundBinaryOperatorType.EqualityEquals)
+                if (expression.op.opType == BoundBinaryOperatorKind.EqualityEquals)
                     iLProcessor.Emit(OpCodes.Ldc_I4_1);
                 else
                     iLProcessor.Emit(OpCodes.Ldc_I4_0);
@@ -806,7 +806,7 @@ internal sealed class _Emitter {
         EmitExpression(iLProcessor, expression.left, nullable: false);
         EmitExpression(iLProcessor, expression.right, nullable: false);
 
-        if (expression.op.opType == BoundBinaryOperatorType.EqualityEquals) {
+        if (expression.op.opType == BoundBinaryOperatorKind.EqualityEquals) {
             if (leftType == TypeSymbol.String && rightType == TypeSymbol.String ||
                 leftType == TypeSymbol.Any && rightType == TypeSymbol.Any) {
                 iLProcessor.Emit(OpCodes.Call, _methodReferences[_NetMethodReference.ObjectEquals]);
@@ -814,7 +814,7 @@ internal sealed class _Emitter {
             }
         }
 
-        if (expression.op.opType == BoundBinaryOperatorType.EqualityNotEquals) {
+        if (expression.op.opType == BoundBinaryOperatorKind.EqualityNotEquals) {
             if (leftType == TypeSymbol.String && rightType == TypeSymbol.String ||
                 leftType == TypeSymbol.Any && rightType == TypeSymbol.Any) {
                 iLProcessor.Emit(OpCodes.Call, _methodReferences[_NetMethodReference.ObjectEquals]);
@@ -830,69 +830,69 @@ internal sealed class _Emitter {
     private void EmitBinaryOperator(
         ILProcessor iLProcessor, BoundBinaryExpression expression, TypeSymbol leftType, TypeSymbol rightType) {
         switch (expression.op.opType) {
-            case BoundBinaryOperatorType.Addition:
+            case BoundBinaryOperatorKind.Addition:
                 iLProcessor.Emit(OpCodes.Add);
                 break;
-            case BoundBinaryOperatorType.Subtraction:
+            case BoundBinaryOperatorKind.Subtraction:
                 iLProcessor.Emit(OpCodes.Sub);
                 break;
-            case BoundBinaryOperatorType.Multiplication:
+            case BoundBinaryOperatorKind.Multiplication:
                 iLProcessor.Emit(OpCodes.Mul);
                 break;
-            case BoundBinaryOperatorType.Division:
+            case BoundBinaryOperatorKind.Division:
                 iLProcessor.Emit(OpCodes.Div);
                 break;
-            case BoundBinaryOperatorType.Power:
+            case BoundBinaryOperatorKind.Power:
                 break;
-            case BoundBinaryOperatorType.LogicalAnd:
+            case BoundBinaryOperatorKind.LogicalAnd:
                 // TODO Should wait to emit right if left is false
                 iLProcessor.Emit(OpCodes.And);
                 break;
-            case BoundBinaryOperatorType.LogicalOr:
+            case BoundBinaryOperatorKind.LogicalOr:
                 iLProcessor.Emit(OpCodes.Or);
                 break;
-            case BoundBinaryOperatorType.LogicalXor:
+            case BoundBinaryOperatorKind.LogicalXor:
                 iLProcessor.Emit(OpCodes.Xor);
                 break;
-            case BoundBinaryOperatorType.LeftShift:
+            case BoundBinaryOperatorKind.LeftShift:
                 iLProcessor.Emit(OpCodes.Shl);
                 break;
-            case BoundBinaryOperatorType.RightShift:
+            case BoundBinaryOperatorKind.RightShift:
                 iLProcessor.Emit(OpCodes.Shr);
                 break;
-            case BoundBinaryOperatorType.ConditionalAnd:
+            case BoundBinaryOperatorKind.ConditionalAnd:
                 iLProcessor.Emit(OpCodes.And);
                 break;
-            case BoundBinaryOperatorType.ConditionalOr:
+            case BoundBinaryOperatorKind.ConditionalOr:
                 iLProcessor.Emit(OpCodes.Or);
                 break;
-            case BoundBinaryOperatorType.EqualityEquals:
+            case BoundBinaryOperatorKind.EqualityEquals:
                 iLProcessor.Emit(OpCodes.Ceq);
                 break;
-            case BoundBinaryOperatorType.EqualityNotEquals:
+            case BoundBinaryOperatorKind.EqualityNotEquals:
                 iLProcessor.Emit(OpCodes.Ceq);
                 iLProcessor.Emit(OpCodes.Ldc_I4_0);
                 iLProcessor.Emit(OpCodes.Ceq);
                 break;
-            case BoundBinaryOperatorType.LessThan:
+            case BoundBinaryOperatorKind.LessThan:
                 iLProcessor.Emit(OpCodes.Clt);
                 break;
-            case BoundBinaryOperatorType.GreaterThan:
+            case BoundBinaryOperatorKind.GreaterThan:
                 iLProcessor.Emit(OpCodes.Cgt);
                 break;
-            case BoundBinaryOperatorType.LessOrEqual:
+            case BoundBinaryOperatorKind.LessOrEqual:
                 iLProcessor.Emit(OpCodes.Cgt);
                 iLProcessor.Emit(OpCodes.Ldc_I4_0);
                 iLProcessor.Emit(OpCodes.Ceq);
                 break;
-            case BoundBinaryOperatorType.GreatOrEqual:
+            case BoundBinaryOperatorKind.GreatOrEqual:
                 iLProcessor.Emit(OpCodes.Clt);
                 iLProcessor.Emit(OpCodes.Ldc_I4_0);
                 iLProcessor.Emit(OpCodes.Ceq);
                 break;
             default:
                 throw new BelteInternalException($"EmitBinaryOperator: unexpected binary operator" +
-                    $"({leftType}){SyntaxFacts.GetText(expression.op.type)}({rightType})");
+                    $"({leftType}){SyntaxFacts.GetText(expression.op.kind)}({rightType})");
         }
     }
 
@@ -950,18 +950,18 @@ internal sealed class _Emitter {
         // (a + b) + (c + d) --> [a, b, c, d]
         static IEnumerable<BoundExpression> Flatten(BoundExpression node) {
             if (node is BoundBinaryExpression binaryExpression &&
-                binaryExpression.op.opType == BoundBinaryOperatorType.Addition &&
-                binaryExpression.left.typeClause.lType == TypeSymbol.String &&
-                binaryExpression.right.typeClause.lType == TypeSymbol.String) {
+                binaryExpression.op.opType == BoundBinaryOperatorKind.Addition &&
+                binaryExpression.left.typeClause.type == TypeSymbol.String &&
+                binaryExpression.right.typeClause.type == TypeSymbol.String) {
                 foreach (var result in Flatten(binaryExpression.left))
                     yield return result;
 
                 foreach (var result in Flatten(binaryExpression.right))
                     yield return result;
             } else {
-                if (node.typeClause.lType != TypeSymbol.String)
+                if (node.typeClause.type != TypeSymbol.String)
                     throw new BelteInternalException(
-                        $"Flatten: unexpected node type in string concatenation '{node.typeClause.lType}'");
+                        $"Flatten: unexpected node type in string concatenation '{node.typeClause.type}'");
 
                 yield return node;
             }
@@ -1003,7 +1003,7 @@ internal sealed class _Emitter {
             return;
         }
 
-        var expressionType = expression.typeClause.lType;
+        var expressionType = expression.typeClause.type;
 
         if (expressionType == TypeSymbol.Int) {
             var value = Convert.ToInt32(expression.constantValue.value);
@@ -1036,17 +1036,17 @@ internal sealed class _Emitter {
     private void EmitUnaryExpression(ILProcessor iLProcessor, BoundUnaryExpression expression) {
         EmitExpression(iLProcessor, expression.operand, nullable: false);
 
-        if (expression.op.opType == BoundUnaryOperatorType.NumericalIdentity) {
-        } else if (expression.op.opType == BoundUnaryOperatorType.NumericalNegation) {
+        if (expression.op.opType == BoundUnaryOperatorKind.NumericalIdentity) {
+        } else if (expression.op.opType == BoundUnaryOperatorKind.NumericalNegation) {
             iLProcessor.Emit(OpCodes.Neg);
-        } else if (expression.op.opType == BoundUnaryOperatorType.BooleanNegation) {
+        } else if (expression.op.opType == BoundUnaryOperatorKind.BooleanNegation) {
             iLProcessor.Emit(OpCodes.Ldc_I4_0);
             iLProcessor.Emit(OpCodes.Ceq);
-        } else if (expression.op.opType == BoundUnaryOperatorType.BitwiseCompliment) {
+        } else if (expression.op.opType == BoundUnaryOperatorKind.BitwiseCompliment) {
             iLProcessor.Emit(OpCodes.Not);
         } else {
             throw new BelteInternalException($"EmitUnaryExpression: unexpected unary operator" +
-                $"{SyntaxFacts.GetText(expression.op.type)}({expression.operand.typeClause.lType})");
+                $"{SyntaxFacts.GetText(expression.op.kind)}({expression.operand.typeClause.type})");
         }
     }
 
@@ -1069,10 +1069,10 @@ internal sealed class _Emitter {
     private TypeReference GetType(
         BoundTypeClause type, bool overrideNullability = false, bool ignoreReference = false) {
         if ((type.dimensions == 0 && !type.isNullable && !overrideNullability) ||
-            type.lType == TypeSymbol.Void)
-            return _knownTypes[type.lType];
+            type.type == TypeSymbol.Void)
+            return _knownTypes[type.type];
 
-        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.lType]);
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.type]);
         var typeReference = new GenericInstanceType(_nullableReference);
         typeReference.GenericArguments.Add(genericArgumentType);
         var referenceType = new ByReferenceType(typeReference);

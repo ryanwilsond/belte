@@ -5,10 +5,10 @@ using System.Collections.Immutable;
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// A syntax list of Nodes.
+/// A syntax list of SyntaxNodes.
 /// </summary>
-/// <typeparam name="T">Child type of <see cref="Node" />.</typeparam>
-internal sealed class SyntaxList<T> : IEnumerable<T> where T: Node {
+/// <typeparam name="T">Child type of <see cref="SyntaxNode" />.</typeparam>
+internal sealed class SyntaxList<T> : IEnumerable<T> where T: SyntaxNode {
     private readonly ImmutableArray<T> _nodes;
 
     internal SyntaxList(ImmutableArray<T> nodes) {
@@ -16,21 +16,21 @@ internal sealed class SyntaxList<T> : IEnumerable<T> where T: Node {
     }
 
     /// <summary>
-    /// Number of Nodes in collection.
+    /// Number of SyntaxNodes in collection.
     /// </summary>
     /// <returns>Count.</returns>
     internal int count => _nodes.Length;
 
     /// <summary>
-    /// Indexes Nodes in collection.
+    /// Indexes SyntaxNodes in collection.
     /// </summary>
-    /// <returns><see cref="Node" /> at index.</returns>
+    /// <returns><see cref="SyntaxNode" /> at index.</returns>
     internal T this[int index] => (T)_nodes[index];
 
     /// <summary>
-    /// Gets enumerator of all Nodes.
+    /// Gets enumerator of all SyntaxNodes.
     /// </summary>
-    /// <returns>Yields all Nodes.</returns>
+    /// <returns>Yields all SyntaxNodes.</returns>
     public IEnumerator<T> GetEnumerator() {
         for (int i=0; i<count; i++)
             yield return this[i];

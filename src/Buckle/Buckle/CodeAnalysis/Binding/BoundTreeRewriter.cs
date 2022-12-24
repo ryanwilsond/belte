@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Immutable;
 using Buckle.Diagnostics;
 
@@ -9,40 +8,42 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal abstract class BoundTreeRewriter {
     /// <summary>
-    /// Rewrites a single <see cref="Statement" /> (including all children, recursive).
+    /// Rewrites a single <see cref="StatementSyntax" /> (including all children, recursive).
     /// </summary>
-    /// <param name="statement"><see cref="Statement" /> to rewrite.</param>
-    /// <returns>New <see cref="Statement" /> or input <see cref="Statement" /> if nothing changed.</returns>
+    /// <param name="statement"><see cref="StatementSyntax" /> to rewrite.</param>
+    /// <returns>
+    /// New <see cref="StatementSyntax" /> or input <see cref="StatementSyntax" /> if nothing changed.
+    /// </returns>
     internal virtual BoundStatement RewriteStatement(BoundStatement statement) {
-        switch (statement.type) {
-            case BoundNodeType.NopStatement:
+        switch (statement.kind) {
+            case BoundNodeKind.NopStatement:
                 return RewriteNopStatement((BoundNopStatement)statement);
-            case BoundNodeType.BlockStatement:
+            case BoundNodeKind.BlockStatement:
                 return RewriteBlockStatement((BoundBlockStatement)statement);
-            case BoundNodeType.VariableDeclarationStatement:
+            case BoundNodeKind.VariableDeclarationStatement:
                 return RewriteVariableDeclarationStatement((BoundVariableDeclarationStatement)statement);
-            case BoundNodeType.IfStatement:
+            case BoundNodeKind.IfStatement:
                 return RewriteIfStatement((BoundIfStatement)statement);
-            case BoundNodeType.WhileStatement:
+            case BoundNodeKind.WhileStatement:
                 return RewriteWhileStatement((BoundWhileStatement)statement);
-            case BoundNodeType.ForStatement:
+            case BoundNodeKind.ForStatement:
                 return RewriteForStatement((BoundForStatement)statement);
-            case BoundNodeType.ExpressionStatement:
+            case BoundNodeKind.ExpressionStatement:
                 return RewriteExpressionStatement((BoundExpressionStatement)statement);
-            case BoundNodeType.LabelStatement:
+            case BoundNodeKind.LabelStatement:
                 return RewriteLabelStatement((BoundLabelStatement)statement);
-            case BoundNodeType.GotoStatement:
+            case BoundNodeKind.GotoStatement:
                 return RewriteGotoStatement((BoundGotoStatement)statement);
-            case BoundNodeType.ConditionalGotoStatement:
+            case BoundNodeKind.ConditionalGotoStatement:
                 return RewriteConditionalGotoStatement((BoundConditionalGotoStatement)statement);
-            case BoundNodeType.DoWhileStatement:
+            case BoundNodeKind.DoWhileStatement:
                 return RewriteDoWhileStatement((BoundDoWhileStatement)statement);
-            case BoundNodeType.ReturnStatement:
+            case BoundNodeKind.ReturnStatement:
                 return RewriteReturnStatement((BoundReturnStatement)statement);
-            case BoundNodeType.TryStatement:
+            case BoundNodeKind.TryStatement:
                 return RewriteTryStatement((BoundTryStatement)statement);
             default:
-                throw new BelteInternalException($"RewriteStatement: unexpected expression type '{statement.type}'");
+                throw new BelteInternalException($"RewriteStatement: unexpected expression type '{statement.kind}'");
         }
     }
 
@@ -168,45 +169,45 @@ internal abstract class BoundTreeRewriter {
     }
 
     internal virtual BoundExpression RewriteExpression(BoundExpression expression) {
-        switch (expression.type) {
-            case BoundNodeType.BinaryExpression:
+        switch (expression.kind) {
+            case BoundNodeKind.BinaryExpression:
                 return RewriteBinaryExpression((BoundBinaryExpression)expression);
-            case BoundNodeType.LiteralExpression:
+            case BoundNodeKind.LiteralExpression:
                 if (expression is BoundInitializerListExpression il)
                     return RewriteInitializerListExpression(il);
                 return RewriteLiteralExpression((BoundLiteralExpression)expression);
-            case BoundNodeType.VariableExpression:
+            case BoundNodeKind.VariableExpression:
                 return RewriteVariableExpression((BoundVariableExpression)expression);
-            case BoundNodeType.AssignmentExpression:
+            case BoundNodeKind.AssignmentExpression:
                 return RewriteAssignmentExpression((BoundAssignmentExpression)expression);
-            case BoundNodeType.UnaryExpression:
+            case BoundNodeKind.UnaryExpression:
                 return RewriteUnaryExpression((BoundUnaryExpression)expression);
-            case BoundNodeType.EmptyExpression:
+            case BoundNodeKind.EmptyExpression:
                 return RewriteEmptyExpression((BoundEmptyExpression)expression);
-            case BoundNodeType.ErrorExpression:
+            case BoundNodeKind.ErrorExpression:
                 return RewriteErrorExpression((BoundErrorExpression)expression);
-            case BoundNodeType.CallExpression:
+            case BoundNodeKind.CallExpression:
                 return RewriteCallExpression((BoundCallExpression)expression);
-            case BoundNodeType.CastExpression:
+            case BoundNodeKind.CastExpression:
                 return RewriteCastExpression((BoundCastExpression)expression);
-            case BoundNodeType.IndexExpression:
+            case BoundNodeKind.IndexExpression:
                 return RewriteIndexExpression((BoundIndexExpression)expression);
-            case BoundNodeType.CompoundAssignmentExpression:
+            case BoundNodeKind.CompoundAssignmentExpression:
                 return RewriteCompoundAssignmentExpression((BoundCompoundAssignmentExpression)expression);
-            case BoundNodeType.ReferenceExpression:
+            case BoundNodeKind.ReferenceExpression:
                 return RewriteReferenceExpression((BoundReferenceExpression)expression);
-            case BoundNodeType.InlineFunctionExpression:
+            case BoundNodeKind.InlineFunctionExpression:
                 return RewriteInlineFunctionExpression((BoundInlineFunctionExpression)expression);
-            case BoundNodeType.TypeOfExpression:
+            case BoundNodeKind.TypeOfExpression:
                 return RewriteTypeOfExpression((BoundTypeOfExpression)expression);
-            case BoundNodeType.TernaryExpression:
+            case BoundNodeKind.TernaryExpression:
                 return RewriteTernaryExpression((BoundTernaryExpression)expression);
-            case BoundNodeType.ConstructorExpression:
+            case BoundNodeKind.ConstructorExpression:
                 return RewriteConstructorExpression((BoundConstructorExpression)expression);
-            case BoundNodeType.MemberAccessExpression:
+            case BoundNodeKind.MemberAccessExpression:
                 return RewriteMemberAccessExpression((BoundMemberAccessExpression)expression);
             default:
-                throw new BelteInternalException($"RewriteExpression: unexpected expression type '{expression.type}'");
+                throw new BelteInternalException($"RewriteExpression: unexpected expression type '{expression.kind}'");
         }
     }
 
