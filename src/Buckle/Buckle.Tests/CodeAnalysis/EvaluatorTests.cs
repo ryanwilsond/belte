@@ -190,15 +190,6 @@ public class EvaluatorTests {
     [InlineData("int x = 4; ref int y = ref x; y++; return x;", 5)]
     [InlineData("int x = 4; int y = 3; ref int z = ref x; z = ref y; z++; return x;", 4)]
 
-    // TODO
-    // [InlineData("3 is int;", true)]
-    // [InlineData("null is int;", false)]
-    // [InlineData("4 is decimal;", false)]
-    // [InlineData("(decimal)4 is decimal;", true)]
-    // [InlineData("4.0 is decimal;", true)]
-    // [InlineData("4.0 isnt bool;", true)]
-    // [InlineData("4 is any;", false)]
-    // [InlineData("null isnt int;", true)]
     [InlineData("null is null;", true)]
     [InlineData("3 isnt null;", true)]
     [InlineData("null isnt null;", false)]

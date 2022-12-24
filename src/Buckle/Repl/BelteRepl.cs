@@ -371,22 +371,36 @@ public sealed class BelteRepl : ReplBase {
     }
 
     [MetaCommand("dump", "Show contents of symbol <name>")]
-    private void EvaluateDump(string name) {
+    private void EvaluateDump(string signature) {
         var compilation = state.previous ?? emptyCompilation;
-        var symbol = compilation.GetSymbols().SingleOrDefault(f => f.name == name);
+        var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
+        var symbols = signature == name
+            ? compilation.GetSymbols().Where(f => f.name == name)
+            : compilation.GetSymbols<FunctionSymbol>().Where(f => f.SignatureAsString() == signature);
 
-        if (symbol == null) {
-            handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.UndefinedSymbol(name)));
-
-            if (diagnosticHandle != null)
-                diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
+        if (symbols.ToArray().Length == 0) {
+            if (signature == name)
+                handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.UndefinedSymbol(name)));
             else
-                handle.diagnostics.Clear();
+                handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.NoSuchFunction(signature)));
 
+        } else if (symbols.ToArray().Length == 1) {
+            compilation.EmitTree(symbols.Single(), Console.Out);
+            return;
+        } else if (signature == name) {
+            handle.diagnostics.Push(
+                new BelteDiagnostic(Repl.Diagnostics.Error.AmbiguousSignature(signature, symbols.ToArray())));
+        } else {
+            compilation.EmitTree(symbols.First(), Console.Out);
             return;
         }
 
-        compilation.EmitTree(symbol, Console.Out);
+        if (diagnosticHandle != null)
+            diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
+        else
+            handle.diagnostics.Clear();
+
+        return;
     }
 
     [MetaCommand("exit", "Exit the repl")]

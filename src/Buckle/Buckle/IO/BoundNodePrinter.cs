@@ -331,7 +331,7 @@ internal static class BoundNodePrinter {
     private static void WriteMemberAccessExpression(BoundMemberAccessExpression node, IndentedTextWriter writer) {
         node.operand.WriteTo(writer);
         writer.WritePunctuation(SyntaxType.PeriodToken);
-        node.member.WriteTo(writer);
+        writer.WriteIdentifier(node.member.name);
     }
 
     private static void WriteConstructorExpression(BoundConstructorExpression node, IndentedTextWriter writer) {
@@ -494,7 +494,7 @@ internal static class BoundNodePrinter {
             writer.WriteString(value);
         } else if (node.typeClause.lType == TypeSymbol.Decimal) {
             writer.WriteNumber(value);
-        } else {
+        } else if (node.typeClause.lType == TypeSymbol.Any) {
             throw new BelteInternalException($"WriteLiteralExpression: unexpected type '{node.typeClause.lType}'");
         }
     }
