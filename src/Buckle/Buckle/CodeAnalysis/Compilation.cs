@@ -13,6 +13,7 @@ using Buckle.CodeAnalysis.Evaluating;
 using static Buckle.Utilities.FunctionUtilities;
 using Diagnostics;
 using System.CodeDom.Compiler;
+using System.Linq;
 
 namespace Buckle.CodeAnalysis;
 
@@ -185,7 +186,7 @@ public sealed class Compilation {
         } else {
             var program = GetProgram();
 
-            foreach (var pair in program.functionBodies)
+            foreach (var pair in program.functionBodies.OrderBy(p => p.Key.name))
                 EmitTree(pair.Key, writer);
         }
     }
