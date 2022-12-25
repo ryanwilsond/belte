@@ -201,7 +201,7 @@ internal sealed class Binder {
 
             BoundBlockStatement loweredBody = null;
 
-            if (!function.name.StartsWith("<$Inline")) {
+            if (!function.name.Contains(">g__$Inline")) {
                 var body = binder.BindStatement(function.declaration.body);
                 diagnostics.Move(binder.diagnostics);
 
@@ -419,6 +419,7 @@ internal sealed class Binder {
         binder._trackedSymbols.Push(new HashSet<VariableSymbol>());
         binder._trackedDeclarations.Push(new HashSet<VariableSymbol>());
         _innerPrefix.Push(functionSymbol.name);
+        binder._innerPrefix.Push(functionSymbol.name);
         var body = (BoundBlockStatement)binder.BindBlockStatement(functionSymbol.declaration.body);
         _trackSymbols = oldTrackSymbols;
 
@@ -434,7 +435,7 @@ internal sealed class Binder {
             parameters.Add(parameter);
 
         foreach (var variable in usedVariables) {
-            if (declaredVariables.Contains(variable))
+            if (declaredVariables.Contains(variable) || parameters.Contains(variable))
                 continue;
 
             var parameter = new ParameterSymbol($"${variable.name}", variable.typeClause, ordinal++);
@@ -734,7 +735,7 @@ internal sealed class Binder {
             var beforeCount = diagnostics.count;
             var score = 0;
             var actualSymbol = symbol;
-            var isInner = symbol.name.EndsWith("$");
+            var isInner = symbol.name.Contains(">g__");
 
             if (_unresolvedLocals.ContainsKey(innerName) && !_resolvedLocals.Contains(innerName)) {
                 BindLocalFunctionDeclaration(_unresolvedLocals[innerName]);
@@ -1044,12 +1045,14 @@ internal sealed class Binder {
     private string ConstructInnerName() {
         var name = "<";
 
-        foreach (var frame in _innerPrefix.Reverse())
-            name += $"{frame}::";
+        for (int i=_innerPrefix.Count-1; i>0; i--) {
+            name += _innerPrefix.ToArray()[i];
 
-        name = name.Substring(0, name.Length-2);
-        name += ">$";
+            if (i > 1)
+                name += "::";
+        }
 
+        name += $">g__{_innerPrefix.Peek()}";
         return name;
     }
 

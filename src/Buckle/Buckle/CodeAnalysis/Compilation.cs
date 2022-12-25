@@ -120,17 +120,16 @@ public sealed class Compilation {
     /// <returns>Found symbols.</returns>
     internal IEnumerable<T> GetSymbols<T>() where T : Symbol {
         var submission = this;
-        var seenFunctions = new HashSet<FunctionSymbol>();
         var seenSymbolNames = new HashSet<string>();
         var builtins = BuiltinFunctions.GetAll();
 
         while (submission != null) {
             foreach (var function in submission.functions)
-                if (seenFunctions.Add(function) && function is T)
+                if (seenSymbolNames.Add(function.SignatureAsString()) && function is T)
                     yield return function as T;
 
             foreach (var builtin in builtins)
-                if (seenFunctions.Add(builtin) && builtin is T)
+                if (seenSymbolNames.Add(builtin.SignatureAsString()) && builtin is T)
                     yield return builtin as T;
 
             foreach (var variable in submission.variables)
@@ -179,10 +178,33 @@ public sealed class Compilation {
     /// </summary>
     /// <param name="writer">Out.</param>
     internal void EmitTree(TextWriter writer) {
-        if (globalScope.mainFunction != null)
+        if (globalScope.mainFunction != null) {
             EmitTree(globalScope.mainFunction, writer);
-        else if (globalScope.scriptFunction != null)
+        } else if (globalScope.scriptFunction != null) {
             EmitTree(globalScope.scriptFunction, writer);
+        } else {
+            var program = GetProgram();
+
+            foreach (var pair in program.functionBodies)
+                EmitTree(pair.Key, writer);
+        }
+    }
+
+    /// <summary>
+    /// Emits the parse tree of a single <see cref="FunctionSymbol" /> after attempting to find it based on name.
+    /// Note: this only searches for functions, so if the name of another type of <see cref="Symbol" /> is passed it
+    /// will not be found.
+    /// </summary>
+    /// <param name="name">
+    /// The name of the <see cref="FunctionSymbol" /> to search for and then print. If not found, throws.
+    /// </param>
+    /// <param name="writer">Out.</param>
+    internal void EmitTree(string name, TextWriter writer) {
+        var program = GetProgram();
+        var pair = LookupMethodFromParentsFromName(program, name);
+        pair.Item1.WriteTo(writer);
+        writer.WriteSpace();
+        pair.Item2.WriteTo(writer);
     }
 
     /// <summary>
@@ -223,7 +245,7 @@ public sealed class Compilation {
             f.WriteTo(writer);
 
             try {
-                var body = LookupMethod(program.functionBodies, f);
+                var body = LookupMethodFromParents(program, f);
                 writer.WriteSpace();
                 body.WriteTo(writer);
             } catch (BelteInternalException) {

@@ -13,7 +13,6 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// </summary>
 internal sealed class Lowerer : BoundTreeRewriter {
     private int _labelCount;
-    private int _inlineFunctionCount;
 
     private Lowerer() { }
 
@@ -580,10 +579,5 @@ internal sealed class Lowerer : BoundTreeRewriter {
     private BoundLabel GenerateLabel() {
         var name = $"Label{++_labelCount}";
         return new BoundLabel(name);
-    }
-
-    private FunctionSymbol GenerateFunction(BoundTypeClause returnType) {
-        var name = $"$Inline{++_inlineFunctionCount}";
-        return new FunctionSymbol(name, ImmutableArray<ParameterSymbol>.Empty, returnType);
     }
 }

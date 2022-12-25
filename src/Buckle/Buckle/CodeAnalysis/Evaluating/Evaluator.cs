@@ -111,8 +111,13 @@ internal sealed class Evaluator {
         if (variable.kind == SymbolKind.GlobalVariable) {
             return GetFrom(_globals, variable);
         } else {
-            var locals = _locals.Peek();
-            return GetFrom(locals, variable);
+            foreach (var frame in _locals) {
+                try {
+                    return GetFrom(frame, variable);
+                } catch (BelteInternalException) { }
+            }
+            // If we get here it means the variable was not found in the local scope, or any direct parent local scopes
+            throw new BelteInternalException($"Get: '{variable.name}' was not found in any accessible local scopes");
         }
     }
 
@@ -222,7 +227,7 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject EvaluateStatement(BoundBlockStatement statement) {
+    private EvaluatorObject EvaluateStatement(BoundBlockStatement statement, bool insideTry = false) {
         _hasValue = false;
 
         try {
@@ -256,7 +261,7 @@ internal sealed class Evaluator {
                         break;
                     case BoundNodeKind.ConditionalGotoStatement:
                         var cgs = (BoundConditionalGotoStatement)s;
-                        var condition = (bool)EvaluateExpression(cgs.condition).value;
+                        var condition = (bool)Value(EvaluateExpression(cgs.condition));
 
                         if (condition == cgs.jumpIfTrue)
                             index = labelToIndex[cgs.label];
@@ -265,6 +270,10 @@ internal sealed class Evaluator {
 
                         break;
                     case BoundNodeKind.LabelStatement:
+                        index++;
+                        break;
+                    case BoundNodeKind.TryStatement:
+                        EvaluateTryStatement((BoundTryStatement)s);
                         index++;
                         break;
                     case BoundNodeKind.ReturnStatement:
@@ -282,6 +291,9 @@ internal sealed class Evaluator {
 
             return _lastValue;
         } catch (Exception e) when (!(e is BelteInternalException)) {
+            if (insideTry)
+                throw;
+
             exceptions.Add(e);
             var previous = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Red;
@@ -295,6 +307,20 @@ internal sealed class Evaluator {
 
     private void EvaluateExpressionStatement(BoundExpressionStatement statement) {
         _lastValue = EvaluateExpression(statement.expression);
+    }
+
+    private void EvaluateTryStatement(BoundTryStatement statement) {
+        try {
+            EvaluateStatement(statement.body, true);
+        } catch (Exception e) when (!(e is BelteInternalException)) {
+            if (statement.catchBody != null)
+                EvaluateStatement(statement.catchBody);
+            else
+                throw;
+        } finally {
+            if (statement.finallyBody != null)
+                EvaluateStatement(statement.finallyBody);
+        }
     }
 
     private void EvaluateVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {

@@ -139,7 +139,7 @@ internal sealed class BoundScope {
     /// </summary>
     /// <param name="scope"><see cref="BoundScope" /> to copy inlines from (not all functions).</param>
     internal void CopyInlines(BoundScope scope) {
-        foreach (var inline in scope.GetDeclaredFunctions().Where(i => i.name.StartsWith("<$Inline")))
+        foreach (var inline in scope.GetDeclaredFunctions().Where(i => i.name.Contains(">g__$Inline")))
             // Ignore failures, do not override higher level symbols
             TryDeclareFunction(inline);
     }
@@ -166,9 +166,9 @@ internal sealed class BoundScope {
 
         if (_symbols != null) {
             foreach (var symbol in _symbols) {
-                // If it is a nested function, the name will be something like <funcName::name>$
+                // If it is a nested function, the name will be something like <funcName>g__name
                 if (symbol is Symbol s &&
-                    (symbol.name == name || (!strict && symbol.name.EndsWith($"::{name}>$")))) {
+                    (symbol.name == name || (!strict && symbol.name.Contains($">g__{name}")))) {
                     if (_current != null) {
                         var skip = false;
 

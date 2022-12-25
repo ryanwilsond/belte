@@ -378,20 +378,40 @@ public sealed class BelteRepl : ReplBase {
             ? compilation.GetSymbols().Where(f => f.name == name)
             : compilation.GetSymbols<FunctionSymbol>().Where(f => f.SignatureAsString() == signature);
 
+        Symbol symbol = null;
+
+        if (symbols.ToArray().Length == 0 && signature.StartsWith('<')) {
+            // This will find hidden function symbols not normally exposed to the user
+            // Generated functions should never have overloads, so only the name is checked
+            // (as apposed to the entire signature)
+            try {
+                compilation.EmitTree(name, Console.Out);
+                return;
+            } catch (BelteInternalException) { }
+        }
+
         if (symbols.ToArray().Length == 0) {
             if (signature == name)
                 handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.UndefinedSymbol(name)));
             else
                 handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.NoSuchFunction(signature)));
-
         } else if (symbols.ToArray().Length == 1) {
-            compilation.EmitTree(symbols.Single(), Console.Out);
-            return;
+            symbol = symbols.Single();
         } else if (signature == name) {
-            handle.diagnostics.Push(
-                new BelteDiagnostic(Repl.Diagnostics.Error.AmbiguousSignature(signature, symbols.ToArray())));
+            var first = symbols.First();
+
+            if (symbols.All(s => s.name == first.name)) {
+                symbol = first;
+            } else {
+                handle.diagnostics.Push(
+                    new BelteDiagnostic(Repl.Diagnostics.Error.AmbiguousSignature(signature, symbols.ToArray())));
+            }
         } else {
-            compilation.EmitTree(symbols.First(), Console.Out);
+            symbol = symbols.First();
+        }
+
+        if (symbol != null) {
+            compilation.EmitTree(symbol, Console.Out);
             return;
         }
 
