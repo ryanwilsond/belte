@@ -87,7 +87,7 @@ internal sealed class Evaluator {
         }
 
         var body = LookupMethod(_functions, function);
-        var result = EvaluateStatement(body);
+        var result = EvaluateStatement(body, out _);
         hasValue = _hasValue;
 
         return Value(result, true);
@@ -227,8 +227,10 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject EvaluateStatement(BoundBlockStatement statement, bool insideTry = false) {
+    private EvaluatorObject EvaluateStatement(
+        BoundBlockStatement statement, out bool hasReturn, bool insideTry = false) {
         _hasValue = false;
+        hasReturn = false;
 
         try {
             var labelToIndex = new Dictionary<BoundLabel, int>();
@@ -273,16 +275,23 @@ internal sealed class Evaluator {
                         index++;
                         break;
                     case BoundNodeKind.TryStatement:
-                        EvaluateTryStatement((BoundTryStatement)s);
+                        EvaluateTryStatement((BoundTryStatement)s, out var returned);
+
+                        if (returned) {
+                            hasReturn = true;
+                            return _lastValue;
+                        }
+
                         index++;
                         break;
                     case BoundNodeKind.ReturnStatement:
                         var returnStatement = (BoundReturnStatement)s;
-                        var _lastValue = returnStatement.expression == null
+                        _lastValue = returnStatement.expression == null
                             ? new EvaluatorObject()
                             : Copy(EvaluateExpression(returnStatement.expression));
 
                         _hasValue = returnStatement.expression == null ? false : true;
+                        hasReturn = true;
                         return _lastValue;
                     default:
                         throw new BelteInternalException($"EvaluateStatement: unexpected statement '{s.kind}'");
@@ -295,12 +304,20 @@ internal sealed class Evaluator {
                 throw;
 
             exceptions.Add(e);
-            var previous = Console.ForegroundColor;
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.Write("Unhandled exception: ");
-            Console.ForegroundColor = previous;
-            Console.WriteLine(e.Message);
+            _hasPrint = false;
             _hasValue = false;
+
+            if (!Console.IsOutputRedirected) {
+                if (Console.CursorLeft != 0)
+                    Console.WriteLine();
+
+                var previous = Console.ForegroundColor;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Write("Unhandled exception: ");
+                Console.ForegroundColor = previous;
+                Console.WriteLine(e.Message);
+            }
+
             return new EvaluatorObject();
         }
     }
@@ -309,17 +326,19 @@ internal sealed class Evaluator {
         _lastValue = EvaluateExpression(statement.expression);
     }
 
-    private void EvaluateTryStatement(BoundTryStatement statement) {
+    private void EvaluateTryStatement(BoundTryStatement statement, out bool hasReturn) {
+        hasReturn = false;
+
         try {
-            EvaluateStatement(statement.body, true);
+            EvaluateStatement(statement.body, out hasReturn, true);
         } catch (Exception e) when (!(e is BelteInternalException)) {
-            if (statement.catchBody != null)
-                EvaluateStatement(statement.catchBody);
+            if (statement.catchBody != null && !hasReturn)
+                EvaluateStatement(statement.catchBody, out hasReturn);
             else
                 throw;
         } finally {
-            if (statement.finallyBody != null)
-                EvaluateStatement(statement.finallyBody);
+            if (statement.finallyBody != null && !hasReturn)
+                EvaluateStatement(statement.finallyBody, out hasReturn);
         }
     }
 
@@ -475,7 +494,7 @@ internal sealed class Evaluator {
 
             _locals.Push(locals);
             var statement = LookupMethod(_functions, node.function);
-            var result = EvaluateStatement(statement);
+            var result = EvaluateStatement(statement, out _);
             _locals.Pop();
 
             return result;

@@ -266,8 +266,8 @@ public class EvaluatorTests {
     [InlineData("string a = (string)(int)3.6; return a;", "3")]
     // Block statements and return expressions
     [InlineData("{ int a = 3; return a; }", 3)]
-    [InlineData("int a = 5; { int a = 3; return a; }", 3)]
-    [InlineData("int a = 5; { int a = 3; } return a;", 5)]
+    [InlineData("int a = 5; { a = 3; return a; }", 3)]
+    [InlineData("int a = 5; { a = 3; } return a;", 3)]
     [InlineData("int a = 5; { int b = 3 + a; return b; } return a;", 8)]
     // Local function statements
     [InlineData("int funcA() { int funcB() { return 2; } return funcB() + 1; } return funcA(); ", 3)]
@@ -296,8 +296,8 @@ public class EvaluatorTests {
     [InlineData("int result = 3; while (true) { result++; if (result > 5) break; } return result;", 6)]
     // Continue statements
     [InlineData("var condition = false; int result = 3; while (true) { if (condition) continue; else break; result = 4; } return result;", 3)]
-    [InlineData("var condition = false; int result = 3; while (true) { if (condition) break; else continue; result = 4; if (result == 4) break; } return result;", 4)]
-    [InlineData("var condition = true; int result = 3; while (true) { if (condition) continue; else break; result = 4; if (result == 4) break; } return result;", 4)]
+    [InlineData("var condition = false; int result = 3; while (true) { if (condition) continue; result = 4; if (result == 4) break; } return result;", 4)]
+    [InlineData("var condition = true; int result = 3; while (true) { if (condition) ; else continue; result = 4; if (result == 4) break; } return result;", 4)]
     [InlineData("var condition = true; int result = 3; while (true) { if (condition) break; else continue; result = 4; } return result;", 3)]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
         AssertValue(text, expectedValue);
@@ -544,12 +544,13 @@ public class EvaluatorTests {
             var x = 10;
             var y = 100;
             {
-                var x = 10;
+                var [x] = 10;
             }
             var [x] = 5;
         ";
 
         var diagnostics = @"
+            redefinition of 'x'
             redefinition of 'x'
         ";
 
