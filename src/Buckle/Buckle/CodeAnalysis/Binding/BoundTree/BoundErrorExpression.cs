@@ -12,5 +12,5 @@ internal sealed class BoundErrorExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.ErrorExpression;
 
-    internal override BoundTypeClause typeClause => new BoundTypeClause(null);
+    internal override BoundType type => new BoundType(null);
 }

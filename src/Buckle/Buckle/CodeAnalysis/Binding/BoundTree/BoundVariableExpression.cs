@@ -12,7 +12,7 @@ internal sealed class BoundVariableExpression : BoundExpression {
 
     internal VariableSymbol variable { get; }
 
-    internal override BoundTypeClause typeClause => variable.typeClause;
+    internal override BoundType type => variable.type;
 
     internal override BoundNodeKind kind => BoundNodeKind.VariableExpression;
 

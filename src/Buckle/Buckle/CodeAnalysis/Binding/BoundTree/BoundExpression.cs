@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// If folding is not possible, <see cref="ConstantValue" /> is null.
 /// </summary>
 internal abstract class BoundExpression : BoundNode {
-    internal abstract BoundTypeClause typeClause { get; }
+    internal abstract BoundType type { get; }
 
     internal virtual BoundConstant constantValue => null;
 }

@@ -46,8 +46,8 @@ internal static class ConstantFolding {
 
         var leftValue = leftConstant.value;
         var rightValue = rightConstant.value;
-        var leftType = op.leftType.type;
-        var rightType = op.rightType.type;
+        var leftType = op.leftType.typeSymbol;
+        var rightType = op.rightType.typeSymbol;
 
         if (leftValue == null || rightValue == null)
             return new BoundConstant(null);
@@ -154,7 +154,7 @@ internal static class ConstantFolding {
     /// <param name="operand">Operand.</param>
     /// <returns><see cref="BoundConstant" />, returns null if folding is not possible.</returns>
     internal static BoundConstant Fold(BoundUnaryOperator op, BoundExpression operand) {
-        var operandType = operand.typeClause.type;
+        var operandType = operand.type.typeSymbol;
 
         if (operand.constantValue != null && operand.constantValue.value is int value) {
             switch (op.opType) {

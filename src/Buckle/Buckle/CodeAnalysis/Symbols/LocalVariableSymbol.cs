@@ -10,10 +10,10 @@ internal class LocalVariableSymbol : VariableSymbol {
     /// Creates a <see cref="LocalVariableSymbol" />.
     /// </summary>
     /// <param name="name">Name of the variable.</param>
-    /// <param name="typeClause"><see cref="BoundTypeClause" /> of the variable.</param>
+    /// <param name="type"><see cref="BoundType" /> of the variable.</param>
     /// <param name="constant"><see cref="ConstantValue" /> of the variable.</param>
-    internal LocalVariableSymbol(string name, BoundTypeClause typeClause, BoundConstant constant)
-        : base(name, typeClause, constant) { }
+    internal LocalVariableSymbol(string name, BoundType type, BoundConstant constant)
+        : base(name, type, constant) { }
 
     internal override SymbolKind kind => SymbolKind.LocalVariable;
 }

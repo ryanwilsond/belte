@@ -10,5 +10,5 @@ internal sealed class BoundEmptyExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.EmptyExpression;
 
-    internal override BoundTypeClause typeClause => null;
+    internal override BoundType type => null;
 }

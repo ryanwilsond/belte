@@ -261,7 +261,7 @@ public sealed class Compilation {
         } else if (symbol is VariableSymbol v) {
             v.WriteTo(writer);
 
-            if (v.typeClause.type is StructSymbol s && v.typeClause.dimensions == 0)
+            if (v.type.typeSymbol is StructSymbol s && v.type.dimensions == 0)
                 WriteStructMembers(s);
             else
                 writer.WriteLine();

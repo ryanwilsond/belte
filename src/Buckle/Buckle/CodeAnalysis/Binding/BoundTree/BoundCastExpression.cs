@@ -11,8 +11,8 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </code>
 /// </summary>
 internal sealed class BoundCastExpression : BoundExpression {
-    internal BoundCastExpression(BoundTypeClause typeClause, BoundExpression expression) {
-        this.typeClause = typeClause;
+    internal BoundCastExpression(BoundType type, BoundExpression expression) {
+        this.type = type;
         this.expression = expression;
         constantValue = this.expression.constantValue;
     }
@@ -23,5 +23,5 @@ internal sealed class BoundCastExpression : BoundExpression {
 
     internal override BoundConstant constantValue { get; }
 
-    internal override BoundTypeClause typeClause { get; }
+    internal override BoundType type { get; }
 }

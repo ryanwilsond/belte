@@ -30,5 +30,5 @@ internal sealed class BoundCompoundAssignmentExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.CompoundAssignmentExpression;
 
-    internal override BoundTypeClause typeClause => right.typeClause;
+    internal override BoundType type => right.type;
 }

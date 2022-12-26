@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Symbols;
 
 /// <summary>
-/// A type symbol. This is just the type name, not a full <see cref="BoundTypeClause" />.
+/// A type symbol. This is just the base type name, not a full <see cref="BoundType" />.
 /// </summary>
 internal class TypeSymbol : Symbol {
     /// <summary>

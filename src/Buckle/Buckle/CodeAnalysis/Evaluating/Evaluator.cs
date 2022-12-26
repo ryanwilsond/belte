@@ -101,7 +101,7 @@ internal sealed class Evaluator {
 
     private EvaluatorObject GetFrom(Dictionary<VariableSymbol, EvaluatorObject> variables, VariableSymbol variable) {
         foreach (var pair in variables)
-            if (variable.name == pair.Key.name && BoundTypeClause.Equals(variable.typeClause, pair.Key.typeClause))
+            if (variable.name == pair.Key.name && BoundType.Equals(variable.type, pair.Key.type))
                 return pair.Value;
 
         throw new BelteInternalException($"GetFrom: '{variable.name}' was not found in the scope");
@@ -438,17 +438,17 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateCastExpression(BoundCastExpression node) {
         var value = EvaluateExpression(node.expression);
 
-        return EvaluateCast(value, node.typeClause);
+        return EvaluateCast(value, node.type);
     }
 
-    private EvaluatorObject EvaluateCast(EvaluatorObject value, BoundTypeClause typeClause) {
+    private EvaluatorObject EvaluateCast(EvaluatorObject value, BoundType type) {
         var valueValue = Value(value);
 
         if (valueValue == null)
             return value;
 
-        var type = typeClause.type;
-        valueValue = CastUtilities.Cast(valueValue, (TypeSymbol)type);
+        var typeSymbol = type.typeSymbol;
+        valueValue = CastUtilities.Cast(valueValue, (TypeSymbol)typeSymbol);
         return new EvaluatorObject(valueValue);
     }
 
@@ -504,7 +504,7 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateConstantExpression(BoundExpression expression) {
-        return EvaluateCast(new EvaluatorObject(expression.constantValue.value), expression.typeClause);
+        return EvaluateCast(new EvaluatorObject(expression.constantValue.value), expression.type);
     }
 
     private EvaluatorObject EvaluateVariableExpression(BoundVariableExpression expression) {
@@ -526,16 +526,16 @@ internal sealed class Evaluator {
         if (operandValue == null)
             return new EvaluatorObject();
 
-        operandValue = CastUtilities.Cast(operandValue, expression.op.operandType.type);
+        operandValue = CastUtilities.Cast(operandValue, expression.op.operandType.typeSymbol);
 
         switch (expression.op.opType) {
             case BoundUnaryOperatorKind.NumericalIdentity:
-                if (expression.operand.typeClause.type == TypeSymbol.Int)
+                if (expression.operand.type.typeSymbol == TypeSymbol.Int)
                     return new EvaluatorObject((int)operandValue);
                 else
                     return new EvaluatorObject((double)operandValue);
             case BoundUnaryOperatorKind.NumericalNegation:
-                if (expression.operand.typeClause.type == TypeSymbol.Int)
+                if (expression.operand.type.typeSymbol == TypeSymbol.Int)
                     return new EvaluatorObject(-(int)operandValue);
                 else
                     return new EvaluatorObject(-(double)operandValue);
@@ -551,7 +551,7 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateTernaryExpression(BoundTernaryExpression expression) {
         var left = EvaluateExpression(expression.left);
         var leftValue = Value(left);
-        leftValue = CastUtilities.Cast(leftValue, expression.op.leftType.type);
+        leftValue = CastUtilities.Cast(leftValue, expression.op.leftType.typeSymbol);
 
         switch (expression.op.opType) {
             case BoundTernaryOperatorKind.Conditional:
@@ -603,12 +603,12 @@ internal sealed class Evaluator {
         if (leftValue == null || rightValue == null)
             return new EvaluatorObject();
 
-        var expressionType = expression.typeClause.type;
-        var leftType = expression.left.typeClause.type;
-        var rightType = expression.right.typeClause.type;
+        var expressionType = expression.type.typeSymbol;
+        var leftType = expression.left.type.typeSymbol;
+        var rightType = expression.right.type.typeSymbol;
 
-        leftValue = CastUtilities.Cast(leftValue, expression.op.leftType.type);
-        rightValue = CastUtilities.Cast(rightValue, expression.op.rightType.type);
+        leftValue = CastUtilities.Cast(leftValue, expression.op.leftType.typeSymbol);
+        rightValue = CastUtilities.Cast(rightValue, expression.op.rightType.typeSymbol);
 
         switch (expression.op.opType) {
             case BoundBinaryOperatorKind.Addition:

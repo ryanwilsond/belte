@@ -25,11 +25,11 @@ internal static class BoundNodePrinter {
     }
 
     /// <summary>
-    /// Writes a single <see cref="BoundTypeClause" />.
+    /// Writes a single <see cref="BoundType" />.
     /// </summary>
-    /// <param name="type"><see cref="BoundTypeClause" /> to print (not modified).</param>
+    /// <param name="type"><see cref="BoundType" /> to print (not modified).</param>
     /// <param name="writer">Where to write to (out).</param>
-    internal static void WriteTypeClause(BoundTypeClause type, TextWriter writer) {
+    internal static void WriteTypeClause(BoundType type, TextWriter writer) {
         writer.WriteType(type.BaseType().ToString());
         var brackets = "";
 
@@ -295,7 +295,7 @@ internal static class BoundNodePrinter {
 
     private static void WriteVariableDeclarationStatement(
         BoundVariableDeclarationStatement node, IndentedTextWriter writer) {
-        WriteTypeClause(node.variable.typeClause, writer);
+        WriteTypeClause(node.variable.type, writer);
         writer.WriteSpace();
         writer.WriteIdentifier(node.variable.name);
         writer.WriteSpace();
@@ -406,7 +406,7 @@ internal static class BoundNodePrinter {
     }
 
     private static void WriteCastExpression(BoundCastExpression node, IndentedTextWriter writer) {
-        writer.WriteType(node.typeClause.type.name);
+        writer.WriteType(node.type.typeSymbol.name);
         writer.WritePunctuation(SyntaxKind.OpenParenToken);
         node.expression.WriteTo(writer);
         writer.WritePunctuation(SyntaxKind.CloseParenToken);
@@ -485,17 +485,17 @@ internal static class BoundNodePrinter {
 
         var value = node.value.ToString();
 
-        if (node.typeClause.type == TypeSymbol.Bool) {
+        if (node.type.typeSymbol == TypeSymbol.Bool) {
             writer.WriteKeyword(value);
-        } else if (node.typeClause.type == TypeSymbol.Int) {
+        } else if (node.type.typeSymbol == TypeSymbol.Int) {
             writer.WriteNumber(value);
-        } else if (node.typeClause.type == TypeSymbol.String) {
+        } else if (node.type.typeSymbol == TypeSymbol.String) {
             value = "\"" + value.Replace("\"", "\"\"") + "\"";
             writer.WriteString(value);
-        } else if (node.typeClause.type == TypeSymbol.Decimal) {
+        } else if (node.type.typeSymbol == TypeSymbol.Decimal) {
             writer.WriteNumber(value);
         } else {
-            throw new BelteInternalException($"WriteLiteralExpression: unexpected type '{node.typeClause.type}'");
+            throw new BelteInternalException($"WriteLiteralExpression: unexpected type '{node.type.typeSymbol}'");
         }
     }
 

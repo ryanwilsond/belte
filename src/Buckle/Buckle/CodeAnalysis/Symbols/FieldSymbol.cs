@@ -10,10 +10,10 @@ internal class FieldSymbol : VariableSymbol {
     /// Creates a <see cref="FieldSymbol" />.
     /// </summary>
     /// <param name="name">Name of the field.</param>
-    /// <param name="typeClause"><see cref="BoundTypeClause" /> of the field.</param>
+    /// <param name="type"><see cref="BoundType" /> of the field.</param>
     /// <param name="constant"><see cref="ConstantValue" /> of the field.</param>
-    internal FieldSymbol(string name, BoundTypeClause typeClause, BoundConstant constant)
-        : base(name, typeClause, constant) { }
+    internal FieldSymbol(string name, BoundType type, BoundConstant constant)
+        : base(name, type, constant) { }
 
     internal override SymbolKind kind => SymbolKind.Field;
 }

@@ -7,14 +7,14 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundUnaryOperator {
     private BoundUnaryOperator(
-        SyntaxKind kind, BoundUnaryOperatorKind opKind, BoundTypeClause operandType, BoundTypeClause resultType) {
+        SyntaxKind kind, BoundUnaryOperatorKind opKind, BoundType operandType, BoundType resultType) {
         this.kind = kind;
         this.opType = opKind;
         this.operandType = operandType;
-        typeClause = resultType;
+        type = resultType;
     }
 
-    private BoundUnaryOperator(SyntaxKind kind, BoundUnaryOperatorKind opKind, BoundTypeClause operandType)
+    private BoundUnaryOperator(SyntaxKind kind, BoundUnaryOperatorKind opKind, BoundType operandType)
         : this(kind, opKind, operandType, operandType) { }
 
     /// <summary>
@@ -23,21 +23,21 @@ internal sealed class BoundUnaryOperator {
     internal static BoundUnaryOperator[] _operators = {
         // integer
         new BoundUnaryOperator(SyntaxKind.PlusToken, BoundUnaryOperatorKind.NumericalIdentity,
-            BoundTypeClause.Int),
+            BoundType.Int),
         new BoundUnaryOperator(SyntaxKind.MinusToken, BoundUnaryOperatorKind.NumericalNegation,
-            BoundTypeClause.Int),
+            BoundType.Int),
         new BoundUnaryOperator(SyntaxKind.TildeToken, BoundUnaryOperatorKind.BitwiseCompliment,
-            BoundTypeClause.Int),
+            BoundType.Int),
 
         // boolean
         new BoundUnaryOperator(SyntaxKind.ExclamationToken, BoundUnaryOperatorKind.BooleanNegation,
-            BoundTypeClause.Bool),
+            BoundType.Bool),
 
         // decimal
         new BoundUnaryOperator(SyntaxKind.PlusToken, BoundUnaryOperatorKind.NumericalIdentity,
-            BoundTypeClause.Decimal),
+            BoundType.Decimal),
         new BoundUnaryOperator(SyntaxKind.MinusToken, BoundUnaryOperatorKind.NumericalNegation,
-            BoundTypeClause.Decimal),
+            BoundType.Decimal),
     };
 
     /// <summary>
@@ -50,21 +50,21 @@ internal sealed class BoundUnaryOperator {
     /// </summary>
     internal BoundUnaryOperatorKind opType { get; }
 
-    internal BoundTypeClause operandType { get; }
+    internal BoundType operandType { get; }
 
     /// <summary>
-    /// Result value <see cref="BoundTypeClause" />.
+    /// Result value <see cref="BoundType" />.
     /// </summary>
-    internal BoundTypeClause typeClause { get; }
+    internal BoundType type { get; }
 
     /// <summary>
     /// Attempts to bind an operator with given operand.
     /// </summary>
-    /// <param name="kind">Operator <see cref="BoundTypeClause" />.</param>
-    /// <param name="operandType">Operand <see cref="BoundTypeClause" />.</param>
+    /// <param name="kind">Operator <see cref="BoundType" />.</param>
+    /// <param name="operandType">Operand <see cref="BoundType" />.</param>
     /// <returns><see cref="BoundUnaryOperator" /> if an operator exists, otherwise null.</returns>
-    internal static BoundUnaryOperator Bind(SyntaxKind kind, BoundTypeClause operandType) {
-        var nonNullableOperand = BoundTypeClause.NonNullable(operandType);
+    internal static BoundUnaryOperator Bind(SyntaxKind kind, BoundType operandType) {
+        var nonNullableOperand = BoundType.NonNullable(operandType);
 
         foreach (var op in _operators) {
             var operandIsCorrect = Cast.Classify(nonNullableOperand, op.operandType).isImplicit;

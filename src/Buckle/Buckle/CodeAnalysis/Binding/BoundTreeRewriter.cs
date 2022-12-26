@@ -304,7 +304,7 @@ internal abstract class BoundTreeRewriter {
         if (rewrote == expression.expression)
             return expression;
 
-        return new BoundCastExpression(expression.typeClause, rewrote);
+        return new BoundCastExpression(expression.type, rewrote);
     }
 
     protected virtual BoundExpression RewriteCallExpression(BoundCallExpression expression) {

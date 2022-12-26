@@ -17,7 +17,7 @@ internal sealed class BoundTernaryExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.TernaryExpression;
 
-    internal override BoundTypeClause typeClause => op.typeClause;
+    internal override BoundType type => op.type;
 
     internal override BoundConstant constantValue { get; }
 

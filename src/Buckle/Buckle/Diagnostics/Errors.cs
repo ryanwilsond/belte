@@ -88,7 +88,7 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnexpectedToken), location, message);
     }
 
-    internal static BelteDiagnostic InvalidUnaryOperatorUse(TextLocation location, string op, BoundTypeClause operand) {
+    internal static BelteDiagnostic InvalidUnaryOperatorUse(TextLocation location, string op, BoundType operand) {
         var message = $"operator '{op}' is not defined for type '{operand}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidUnaryOperatorUse), location, message);
     }
@@ -112,7 +112,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic InvalidBinaryOperatorUse(
-        TextLocation location, string op, BoundTypeClause left, BoundTypeClause right) {
+        TextLocation location, string op, BoundType left, BoundType right) {
         var message = $"operator '{op}' is not defined for types '{left}' and '{right}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidBinaryOperatorUse), location, message);
     }
@@ -167,7 +167,7 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NotAllPathsReturn), location, message);
     }
 
-    internal static BelteDiagnostic CannotConvert(TextLocation location, BoundTypeClause from, BoundTypeClause to) {
+    internal static BelteDiagnostic CannotConvert(TextLocation location, BoundType from, BoundType to) {
         var message = $"cannot convert from type '{from}' to '{to}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotConvert), location, message);
     }
@@ -213,13 +213,13 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_IncorrectArgumentCount), location, message);
     }
 
-    internal static BelteDiagnostic UnexpectedType(TextLocation location, BoundTypeClause type) {
+    internal static BelteDiagnostic UnexpectedType(TextLocation location, BoundType type) {
         var message = $"unexpected type '{type}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnexpectedType), location, message);
     }
 
     internal static BelteDiagnostic InvalidArgumentType(
-            TextLocation location, int count, string parameterName, BoundTypeClause expected, BoundTypeClause actual) {
+            TextLocation location, int count, string parameterName, BoundType expected, BoundType actual) {
         var message =
             $"argument {count}: parameter '{parameterName}' expects argument of type " +
             $"'{expected}', got '{actual}'";
@@ -243,7 +243,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic CannotConvertImplicitly(
-        TextLocation location, BoundTypeClause from, BoundTypeClause to) {
+        TextLocation location, BoundType from, BoundType to) {
         var message =
             $"cannot convert from type '{from}' to '{to}'. " +
             "An explicit conversion exists (are you missing a cast?)";
@@ -297,7 +297,7 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_EmptyInitializerListOnImplicit), location, message);
     }
 
-    internal static BelteDiagnostic CannotApplyIndexing(TextLocation location, BoundTypeClause type) {
+    internal static BelteDiagnostic CannotApplyIndexing(TextLocation location, BoundType type) {
         var message = $"cannot apply indexing with [] to an expression of type '{type}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotApplyIndexing), location, message);
     }
@@ -378,12 +378,12 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic InvalidTernaryOperatorUse(
-        TextLocation location, string op, BoundTypeClause left, BoundTypeClause center, BoundTypeClause right) {
+        TextLocation location, string op, BoundType left, BoundType center, BoundType right) {
         var message = $"operator '{op}' is not defined for types '{left}', '{center}', and '{right}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidTernaryOperatorUse), location, message);
     }
 
-    internal static BelteDiagnostic NoSuchMember(TextLocation location, BoundTypeClause operand, string text) {
+    internal static BelteDiagnostic NoSuchMember(TextLocation location, BoundType operand, string text) {
         var message = $"'{operand}' contains no such member '{text}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuchMember), location, message);
     }

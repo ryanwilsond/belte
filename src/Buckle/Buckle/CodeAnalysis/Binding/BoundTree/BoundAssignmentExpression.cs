@@ -17,5 +17,5 @@ internal sealed class BoundAssignmentExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.AssignmentExpression;
 
-    internal override BoundTypeClause typeClause => right.typeClause;
+    internal override BoundType type => right.type;
 }

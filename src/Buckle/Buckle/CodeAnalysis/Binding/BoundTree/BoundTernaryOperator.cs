@@ -7,25 +7,25 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundTernaryOperator {
     private BoundTernaryOperator(
-        SyntaxKind leftOpKind, SyntaxKind rightOpKind, BoundTernaryOperatorKind opKind, BoundTypeClause leftType,
-        BoundTypeClause centerType, BoundTypeClause rightType, BoundTypeClause resultType) {
+        SyntaxKind leftOpKind, SyntaxKind rightOpKind, BoundTernaryOperatorKind opKind, BoundType leftType,
+        BoundType centerType, BoundType rightType, BoundType resultType) {
         this.leftOpKind = leftOpKind;
         this.rightOpKind = rightOpKind;
         this.opType = opKind;
         this.leftType = leftType;
         this.centerType = centerType;
         this.rightType = rightType;
-        typeClause = resultType;
+        type = resultType;
     }
 
     private BoundTernaryOperator(
         SyntaxKind leftOpKind, SyntaxKind rightOpKind, BoundTernaryOperatorKind opKind,
-        BoundTypeClause operandType, BoundTypeClause resultType)
+        BoundType operandType, BoundType resultType)
         : this(leftOpKind, rightOpKind, opKind, operandType, operandType, operandType, resultType) { }
 
     private BoundTernaryOperator(
-        SyntaxKind leftOpKind, SyntaxKind rightOpKind, BoundTernaryOperatorKind opKind, BoundTypeClause typeClause)
-        : this(leftOpKind, rightOpKind, opKind, typeClause, typeClause, typeClause, typeClause) { }
+        SyntaxKind leftOpKind, SyntaxKind rightOpKind, BoundTernaryOperatorKind opKind, BoundType type)
+        : this(leftOpKind, rightOpKind, opKind, type, type, type, type) { }
 
     /// <summary>
     /// All defined possible operators, and their operand types.
@@ -33,23 +33,23 @@ internal sealed class BoundTernaryOperator {
     internal static BoundTernaryOperator[] _operators = {
         // integer
         new BoundTernaryOperator(SyntaxKind.QuestionToken, SyntaxKind.ColonToken, BoundTernaryOperatorKind.Conditional,
-            BoundTypeClause.Bool, BoundTypeClause.NullableInt,
-            BoundTypeClause.NullableInt, BoundTypeClause.NullableInt),
+            BoundType.Bool, BoundType.NullableInt,
+            BoundType.NullableInt, BoundType.NullableInt),
 
         // boolean
         new BoundTernaryOperator(SyntaxKind.QuestionToken, SyntaxKind.ColonToken, BoundTernaryOperatorKind.Conditional,
-            BoundTypeClause.Bool, BoundTypeClause.NullableBool,
-            BoundTypeClause.NullableBool, BoundTypeClause.NullableBool),
+            BoundType.Bool, BoundType.NullableBool,
+            BoundType.NullableBool, BoundType.NullableBool),
 
         // string
         new BoundTernaryOperator(SyntaxKind.QuestionToken, SyntaxKind.ColonToken, BoundTernaryOperatorKind.Conditional,
-            BoundTypeClause.Bool, BoundTypeClause.NullableString,
-            BoundTypeClause.NullableString, BoundTypeClause.NullableString),
+            BoundType.Bool, BoundType.NullableString,
+            BoundType.NullableString, BoundType.NullableString),
 
         // decimal
         new BoundTernaryOperator(SyntaxKind.QuestionToken, SyntaxKind.ColonToken, BoundTernaryOperatorKind.Conditional,
-            BoundTypeClause.Bool, BoundTypeClause.NullableDecimal,
-            BoundTypeClause.NullableDecimal, BoundTypeClause.NullableDecimal),
+            BoundType.Bool, BoundType.NullableDecimal,
+            BoundType.NullableDecimal, BoundType.NullableDecimal),
     };
 
     /// <summary>
@@ -70,22 +70,22 @@ internal sealed class BoundTernaryOperator {
     /// <summary>
     /// Left side operand type.
     /// </summary>
-    internal BoundTypeClause leftType { get; }
+    internal BoundType leftType { get; }
 
     /// <summary>
     /// Center operand type.
     /// </summary>
-    internal BoundTypeClause centerType { get; }
+    internal BoundType centerType { get; }
 
     /// <summary>
     /// Right side operand type.
     /// </summary>
-    internal BoundTypeClause rightType { get; }
+    internal BoundType rightType { get; }
 
     /// <summary>
     /// Result value type.
     /// </summary>
-    internal BoundTypeClause typeClause { get; }
+    internal BoundType type { get; }
 
     /// <summary>
     /// Attempts to bind an operator with given sides.
@@ -97,10 +97,10 @@ internal sealed class BoundTernaryOperator {
     /// <param name="rightType">Right operand type.</param>
     /// <returns><see cref="BoundTernaryOperator" /> if an operator exists, otherwise null.</returns>
     internal static BoundTernaryOperator Bind(SyntaxKind leftOpKind, SyntaxKind rightOpKind,
-        BoundTypeClause leftType, BoundTypeClause centerType, BoundTypeClause rightType) {
-        var nonNullableLeft = BoundTypeClause.NonNullable(leftType);
-        var nonNullableCenter = BoundTypeClause.NonNullable(centerType);
-        var nonNullableRight = BoundTypeClause.NonNullable(rightType);
+        BoundType leftType, BoundType centerType, BoundType rightType) {
+        var nonNullableLeft = BoundType.NonNullable(leftType);
+        var nonNullableCenter = BoundType.NonNullable(centerType);
+        var nonNullableRight = BoundType.NonNullable(rightType);
 
         foreach (var op in _operators) {
             var leftIsCorrect = Cast.Classify(nonNullableLeft, op.leftType).isImplicit;

@@ -11,10 +11,10 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// </code>
 /// </summary>
 internal sealed partial class MethodDeclarationSyntax : MemberSyntax {
-    /// <param name="returnType"><see cref="TypeClauseSyntax" /> of return type.</param>
+    /// <param name="returnType"><see cref="TypeSyntax" /> of return type.</param>
     /// <param name="identifier">Name of the method.</param>
     internal MethodDeclarationSyntax(
-        SyntaxTree syntaxTree, TypeClauseSyntax returnType, SyntaxToken identifier, SyntaxToken openParenthesis,
+        SyntaxTree syntaxTree, TypeSyntax returnType, SyntaxToken identifier, SyntaxToken openParenthesis,
         SeparatedSyntaxList<ParameterSyntax> parameters, SyntaxToken closeParenthesis, BlockStatementSyntax body)
         : base(syntaxTree) {
         this.returnType = returnType;
@@ -26,9 +26,9 @@ internal sealed partial class MethodDeclarationSyntax : MemberSyntax {
     }
 
     /// <summary>
-    /// <see cref="TypeClauseSyntax" /> of return type.
+    /// <see cref="TypeSyntax" /> of return type.
     /// </summary>
-    internal TypeClauseSyntax returnType { get; }
+    internal TypeSyntax returnType { get; }
 
     /// <summary>
     /// Name of the method.

@@ -40,7 +40,7 @@ internal static class SymbolPrinter {
     }
 
     private static void WriteField(FieldSymbol symbol, TextWriter writer) {
-        BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
+        BoundNodePrinter.WriteTypeClause(symbol.type, writer);
         writer.WriteSpace();
         writer.WriteIdentifier(symbol.name);
     }
@@ -51,30 +51,30 @@ internal static class SymbolPrinter {
             writer.WriteSpace();
             writer.WriteIdentifier(symbol.name);
         } else {
-            BoundNodePrinter.WriteTypeClause(new BoundTypeClause(symbol), writer);
+            BoundNodePrinter.WriteTypeClause(new BoundType(symbol), writer);
         }
     }
 
     private static void WriteParameter(ParameterSymbol symbol, TextWriter writer) {
-        BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
+        BoundNodePrinter.WriteTypeClause(symbol.type, writer);
         writer.WriteSpace();
         writer.WriteIdentifier(symbol.name);
     }
 
     private static void WriteGlobalVariable(GlobalVariableSymbol symbol, TextWriter writer) {
-        BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
+        BoundNodePrinter.WriteTypeClause(symbol.type, writer);
         writer.WriteSpace();
         writer.WriteIdentifier(symbol.name);
     }
 
     private static void WriteLocalVariable(LocalVariableSymbol symbol, TextWriter writer) {
-        BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
+        BoundNodePrinter.WriteTypeClause(symbol.type, writer);
         writer.WriteSpace();
         writer.WriteIdentifier(symbol.name);
     }
 
     private static void WriteFunction(FunctionSymbol symbol, TextWriter writer) {
-        BoundNodePrinter.WriteTypeClause(symbol.typeClause, writer);
+        BoundNodePrinter.WriteTypeClause(symbol.type, writer);
         writer.WriteSpace();
         writer.WriteIdentifier(symbol.name);
         writer.WritePunctuation("(");

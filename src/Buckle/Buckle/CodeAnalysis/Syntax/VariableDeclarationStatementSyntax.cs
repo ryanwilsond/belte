@@ -9,15 +9,15 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// </code>
 /// </summary>
 internal sealed partial class VariableDeclarationStatementSyntax : StatementSyntax {
-    /// <param name="typeClause"><see cref="TypeClauseSyntax" /> of the variable being declared.</param>
+    /// <param name="type"><see cref="TypeSyntax" /> of the variable being declared.</param>
     /// <param name="identifier">Name of the variable.</param>
     /// <param name="equals">Equals <see cref="SyntaxToken" /> (optional).</param>
     /// <param name="initializer">Definition value (optional).</param>
     internal VariableDeclarationStatementSyntax(
-        SyntaxTree syntaxTree, TypeClauseSyntax typeClause,
+        SyntaxTree syntaxTree, TypeSyntax type,
         SyntaxToken identifier, SyntaxToken equals, ExpressionSyntax initializer, SyntaxToken semicolon)
         : base(syntaxTree) {
-        this.typeClause = typeClause;
+        this.type = type;
         this.identifier = identifier;
         this.equals = equals;
         this.initializer = initializer;
@@ -25,9 +25,9 @@ internal sealed partial class VariableDeclarationStatementSyntax : StatementSynt
     }
 
     /// <summary>
-    /// <see cref="TypeClauseSyntax" /> of the variable being declared.
+    /// <see cref="TypeSyntax" /> of the variable being declared.
     /// </summary>
-    internal TypeClauseSyntax typeClause { get; }
+    internal TypeSyntax type { get; }
 
     /// <summary>
     /// Name of the variable.
