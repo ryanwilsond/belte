@@ -1,9 +1,8 @@
-using System.IO;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using Buckle.Diagnostics;
+using System.IO;
 using Buckle.CodeAnalysis.Text;
-using InternalSyntax = Buckle.CodeAnalysis.Syntax.InternalSyntax;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax;
 

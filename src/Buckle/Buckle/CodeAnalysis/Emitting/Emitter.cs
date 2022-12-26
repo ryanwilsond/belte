@@ -1,16 +1,16 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Collections.Generic;
-using Mono.Cecil;
-using Mono.Cecil.Cil;
-using Mono.Cecil.Rocks;
-using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using static Buckle.Utilities.FunctionUtilities;
+using Buckle.Diagnostics;
 using Diagnostics;
+using Mono.Cecil;
+using Mono.Cecil.Cil;
+using Mono.Cecil.Rocks;
+using static Buckle.Utilities.FunctionUtilities;
 
 namespace Buckle.CodeAnalysis.Emitting;
 

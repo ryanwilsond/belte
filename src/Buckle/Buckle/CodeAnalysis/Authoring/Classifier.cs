@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Immutable;
-using Buckle.CodeAnalysis.Text;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Authoring;
 

@@ -1,6 +1,6 @@
 using System.IO;
-using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 
 namespace Buckle.IO;

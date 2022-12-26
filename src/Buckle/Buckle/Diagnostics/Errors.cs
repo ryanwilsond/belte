@@ -1,11 +1,10 @@
 using System.Linq;
-using Mono.Cecil;
-using Buckle.CodeAnalysis.Text;
-using Buckle.CodeAnalysis.Syntax;
-using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Diagnostics;
-using System;
+using Mono.Cecil;
 
 namespace Buckle.Diagnostics;
 

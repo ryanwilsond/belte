@@ -1,8 +1,8 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Collections.Generic;
 using Buckle.CodeAnalysis.Text;
-using System;
 
 namespace Buckle.CodeAnalysis.Syntax;
 

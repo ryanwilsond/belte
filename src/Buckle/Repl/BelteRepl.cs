@@ -1,12 +1,12 @@
 using Buckle;
-using Buckle.IO;
-using Buckle.Diagnostics;
 using Buckle.CodeAnalysis;
-using Buckle.CodeAnalysis.Syntax;
-using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Authoring;
-using Diagnostics;
 using Buckle.CodeAnalysis.Evaluating;
+using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
+using Buckle.IO;
+using Diagnostics;
 
 namespace Repl;
 

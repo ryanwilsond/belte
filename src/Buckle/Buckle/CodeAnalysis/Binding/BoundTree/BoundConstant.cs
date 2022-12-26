@@ -1,3 +1,4 @@
+
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>

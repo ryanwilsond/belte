@@ -1,5 +1,5 @@
-using Xunit;
 using Buckle.CodeAnalysis.Text;
+using Xunit;
 
 namespace Buckle.Tests.CodeAnalysis.Text;
 

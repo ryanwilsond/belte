@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
-using Xunit;
-using Xunit.Abstractions;
 using Buckle.CodeAnalysis;
+using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Diagnostics;
 using Buckle.Diagnostics;
-using Buckle.CodeAnalysis.Evaluating;
+using Diagnostics;
+using Xunit;
+using Xunit.Abstractions;
 
 namespace Buckle.Tests.CodeAnalysis;
 

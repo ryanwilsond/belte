@@ -1,7 +1,7 @@
-using System.Linq;
-using System.Reflection;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
+using System.Reflection;
 using Buckle.CodeAnalysis.Binding;
 
 namespace Buckle.CodeAnalysis.Symbols;

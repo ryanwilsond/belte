@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using Xunit;
 using Buckle.CodeAnalysis.Syntax;
+using Xunit;
 
 namespace Buckle.Tests.CodeAnalysis.Syntax;
 

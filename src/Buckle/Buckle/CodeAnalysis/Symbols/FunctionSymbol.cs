@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
-using Buckle.CodeAnalysis.Syntax;
-using Buckle.CodeAnalysis.Binding;
 using System.Text;
+using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Symbols;
 

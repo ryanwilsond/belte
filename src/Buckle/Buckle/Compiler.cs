@@ -1,12 +1,12 @@
 using System.Collections.Generic;
+using System.Linq;
 using Buckle.CodeAnalysis;
-using Buckle.CodeAnalysis.Syntax;
-using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.Preprocessing;
+using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Diagnostics;
-using Buckle.CodeAnalysis.Evaluating;
-using System.Linq;
 
 namespace Buckle;
 

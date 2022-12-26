@@ -1,8 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Text;
-using System.Collections.Immutable;
-using System.Collections.Generic;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.Tests.CodeAnalysis;

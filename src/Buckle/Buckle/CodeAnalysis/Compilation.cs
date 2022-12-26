@@ -1,19 +1,19 @@
 using System;
-using System.IO;
-using System.Threading;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using Buckle.IO;
-using Buckle.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.Syntax;
-using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Emitting;
 using Buckle.CodeAnalysis.Evaluating;
-using static Buckle.Utilities.FunctionUtilities;
+using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
+using Buckle.IO;
 using Diagnostics;
-using System.CodeDom.Compiler;
-using System.Linq;
+using static Buckle.Utilities.FunctionUtilities;
 
 namespace Buckle.CodeAnalysis;
 

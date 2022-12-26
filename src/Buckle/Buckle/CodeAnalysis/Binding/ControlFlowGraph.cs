@@ -1,11 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Collections.Generic;
-using Buckle.IO;
-using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.IO;
 
 namespace Buckle.CodeAnalysis.Binding;
 

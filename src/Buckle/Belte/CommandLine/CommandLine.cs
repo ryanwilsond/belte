@@ -1,15 +1,15 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Diagnostics;
+using System.Reflection;
 using System.Text.RegularExpressions;
-using Repl;
 using Buckle;
 using Buckle.CodeAnalysis.Text;
-using System.Reflection;
-using System.Collections.Generic;
-using Diagnostics;
 using Buckle.Diagnostics;
+using Diagnostics;
+using Repl;
 
 namespace Belte.CommandLine;
 

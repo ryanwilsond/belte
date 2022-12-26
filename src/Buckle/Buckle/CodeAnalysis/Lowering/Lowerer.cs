@@ -1,7 +1,7 @@
 using System;
-using System.Linq;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -207,7 +207,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         ----> <op> is 'is' and <right> is 'null'
 
-        \!HasValue(<left>)
+        !HasValue(<left>)
 
         ----> <op> is 'isnt' and <right> is 'null'
 

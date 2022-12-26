@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using Buckle.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Diagnostics;
 using Buckle.Utilities;
 using static Buckle.Utilities.FunctionUtilities;
 
@@ -227,6 +227,17 @@ internal sealed class Evaluator {
         }
     }
 
+    private EvaluatorObject EvaluateCast(EvaluatorObject value, BoundType type) {
+        var valueValue = Value(value);
+
+        if (valueValue == null)
+            return value;
+
+        var typeSymbol = type.typeSymbol;
+        valueValue = CastUtilities.Cast(valueValue, (TypeSymbol)typeSymbol);
+        return new EvaluatorObject(valueValue);
+    }
+
     private EvaluatorObject EvaluateStatement(
         BoundBlockStatement statement, out bool hasReturn, bool insideTry = false) {
         _hasValue = false;
@@ -439,17 +450,6 @@ internal sealed class Evaluator {
         var value = EvaluateExpression(node.expression);
 
         return EvaluateCast(value, node.type);
-    }
-
-    private EvaluatorObject EvaluateCast(EvaluatorObject value, BoundType type) {
-        var valueValue = Value(value);
-
-        if (valueValue == null)
-            return value;
-
-        var typeSymbol = type.typeSymbol;
-        valueValue = CastUtilities.Cast(valueValue, (TypeSymbol)typeSymbol);
-        return new EvaluatorObject(valueValue);
     }
 
     private EvaluatorObject EvaluateCallExpression(BoundCallExpression node) {

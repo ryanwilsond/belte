@@ -1,8 +1,7 @@
 using System.Linq;
-using Buckle.CodeAnalysis.Text;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Diagnostics;
-using System;
 
 namespace Buckle.Diagnostics;
 

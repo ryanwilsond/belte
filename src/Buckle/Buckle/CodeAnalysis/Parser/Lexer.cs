@@ -1,9 +1,9 @@
-using System.Text;
-using System.Collections.Immutable;
-using Buckle.Diagnostics;
-using Buckle.CodeAnalysis.Text;
-using Buckle.CodeAnalysis.Symbols;
 using System;
+using System.Collections.Immutable;
+using System.Text;
+using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Text;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
