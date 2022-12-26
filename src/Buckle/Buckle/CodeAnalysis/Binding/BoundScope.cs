@@ -228,7 +228,7 @@ internal sealed class BoundScope {
             return false;
 
         for (int i=0; i<a.parameters.Length; i++)
-            if (!BoundTypeClause.Equals(a.parameters[i].typeClause, b.parameters[i].typeClause))
+            if (!BoundType.Equals(a.parameters[i].type, b.parameters[i].type))
                 return false;
 
         return true;

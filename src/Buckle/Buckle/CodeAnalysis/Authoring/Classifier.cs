@@ -45,7 +45,7 @@ internal static class Classifier {
         if (node is SyntaxToken token)
             ClassifyToken(token, span, result, isTypeName);
 
-        if (node is TypeClauseSyntax) {
+        if (node is TypeSyntax) {
             bool inAttribute = false;
             isTypeName = false;
 

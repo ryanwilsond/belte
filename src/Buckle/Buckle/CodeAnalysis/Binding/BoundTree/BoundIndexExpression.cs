@@ -16,5 +16,5 @@ internal sealed class BoundIndexExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.IndexExpression;
 
-    internal override BoundTypeClause typeClause => expression.typeClause.ChildType();
+    internal override BoundType type => expression.type.ChildType();
 }

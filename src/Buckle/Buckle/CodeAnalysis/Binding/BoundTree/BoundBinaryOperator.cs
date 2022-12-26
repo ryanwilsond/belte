@@ -8,20 +8,20 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class BoundBinaryOperator {
     private BoundBinaryOperator(
         SyntaxKind kind, BoundBinaryOperatorKind opKind,
-        BoundTypeClause leftType, BoundTypeClause rightType, BoundTypeClause resultType) {
+        BoundType leftType, BoundType rightType, BoundType resultType) {
         this.kind = kind;
         this.opType = opKind;
         this.leftType = leftType;
         this.rightType = rightType;
-        typeClause = resultType;
+        type = resultType;
     }
 
     private BoundBinaryOperator(
-        SyntaxKind kind, BoundBinaryOperatorKind opKind, BoundTypeClause operandType, BoundTypeClause resultType)
+        SyntaxKind kind, BoundBinaryOperatorKind opKind, BoundType operandType, BoundType resultType)
         : this(kind, opKind, operandType, operandType, resultType) { }
 
-    private BoundBinaryOperator(SyntaxKind kind, BoundBinaryOperatorKind opKind, BoundTypeClause typeClause)
-        : this(kind, opKind, typeClause, typeClause, typeClause) { }
+    private BoundBinaryOperator(SyntaxKind kind, BoundBinaryOperatorKind opKind, BoundType type)
+        : this(kind, opKind, type, type, type) { }
 
     /// <summary>
     /// All defined possible operators, and their operand types.
@@ -29,103 +29,103 @@ internal sealed class BoundBinaryOperator {
     internal static BoundBinaryOperator[] _operators = {
         // integer
         new BoundBinaryOperator(
-            SyntaxKind.PlusToken, BoundBinaryOperatorKind.Addition, BoundTypeClause.Int),
+            SyntaxKind.PlusToken, BoundBinaryOperatorKind.Addition, BoundType.Int),
         new BoundBinaryOperator(
-            SyntaxKind.MinusToken, BoundBinaryOperatorKind.Subtraction, BoundTypeClause.Int),
+            SyntaxKind.MinusToken, BoundBinaryOperatorKind.Subtraction, BoundType.Int),
         new BoundBinaryOperator(
-            SyntaxKind.AsteriskToken, BoundBinaryOperatorKind.Multiplication, BoundTypeClause.Int),
+            SyntaxKind.AsteriskToken, BoundBinaryOperatorKind.Multiplication, BoundType.Int),
         new BoundBinaryOperator(
-            SyntaxKind.SlashToken, BoundBinaryOperatorKind.Division, BoundTypeClause.Int),
+            SyntaxKind.SlashToken, BoundBinaryOperatorKind.Division, BoundType.Int),
         new BoundBinaryOperator(
-            SyntaxKind.AsteriskAsteriskToken, BoundBinaryOperatorKind.Power, BoundTypeClause.Int),
+            SyntaxKind.AsteriskAsteriskToken, BoundBinaryOperatorKind.Power, BoundType.Int),
         new BoundBinaryOperator(
-            SyntaxKind.AmpersandToken, BoundBinaryOperatorKind.LogicalAnd, BoundTypeClause.Int),
+            SyntaxKind.AmpersandToken, BoundBinaryOperatorKind.LogicalAnd, BoundType.Int),
         new BoundBinaryOperator(
-            SyntaxKind.PipeToken, BoundBinaryOperatorKind.LogicalOr, BoundTypeClause.Int),
+            SyntaxKind.PipeToken, BoundBinaryOperatorKind.LogicalOr, BoundType.Int),
         new BoundBinaryOperator(
-            SyntaxKind.CaretToken, BoundBinaryOperatorKind.LogicalXor, BoundTypeClause.Int),
+            SyntaxKind.CaretToken, BoundBinaryOperatorKind.LogicalXor, BoundType.Int),
         new BoundBinaryOperator(SyntaxKind.LessThanLessThanToken, BoundBinaryOperatorKind.LeftShift,
-            BoundTypeClause.Int),
+            BoundType.Int),
         new BoundBinaryOperator(SyntaxKind.GreaterThanGreaterThanToken, BoundBinaryOperatorKind.RightShift,
-            BoundTypeClause.Int),
+            BoundType.Int),
         new BoundBinaryOperator(SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
-            BoundBinaryOperatorKind.UnsignedRightShift, BoundTypeClause.Int),
+            BoundBinaryOperatorKind.UnsignedRightShift, BoundType.Int),
         new BoundBinaryOperator(SyntaxKind.EqualsEqualsToken, BoundBinaryOperatorKind.EqualityEquals,
-            BoundTypeClause.Int, BoundTypeClause.Bool),
+            BoundType.Int, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.ExclamationEqualsToken, BoundBinaryOperatorKind.EqualityNotEquals,
-            BoundTypeClause.Int, BoundTypeClause.Bool),
+            BoundType.Int, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.LessThanToken, BoundBinaryOperatorKind.LessThan,
-            BoundTypeClause.Int, BoundTypeClause.Bool),
+            BoundType.Int, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.GreaterThanToken, BoundBinaryOperatorKind.GreaterThan,
-            BoundTypeClause.Int, BoundTypeClause.Bool),
+            BoundType.Int, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.LessThanEqualsToken, BoundBinaryOperatorKind.LessOrEqual,
-            BoundTypeClause.Int, BoundTypeClause.Bool),
+            BoundType.Int, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.GreaterThanEqualsToken, BoundBinaryOperatorKind.GreatOrEqual,
-            BoundTypeClause.Int, BoundTypeClause.Bool),
-        new BoundBinaryOperator(SyntaxKind.PercentToken, BoundBinaryOperatorKind.Modulo, BoundTypeClause.Int),
+            BoundType.Int, BoundType.Bool),
+        new BoundBinaryOperator(SyntaxKind.PercentToken, BoundBinaryOperatorKind.Modulo, BoundType.Int),
         new BoundBinaryOperator(SyntaxKind.QuestionQuestionToken, BoundBinaryOperatorKind.NullCoalescing,
-            BoundTypeClause.NullableInt),
+            BoundType.NullableInt),
 
         // boolean
         new BoundBinaryOperator(SyntaxKind.AmpersandAmpersandToken, BoundBinaryOperatorKind.ConditionalAnd,
-            BoundTypeClause.Bool),
+            BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.PipePipeToken, BoundBinaryOperatorKind.ConditionalOr,
-            BoundTypeClause.Bool),
+            BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.AmpersandToken, BoundBinaryOperatorKind.LogicalAnd,
-            BoundTypeClause.Bool),
+            BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.PipeToken, BoundBinaryOperatorKind.LogicalOr,
-            BoundTypeClause.Bool),
+            BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.CaretToken, BoundBinaryOperatorKind.LogicalXor,
-            BoundTypeClause.Bool),
+            BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.EqualsEqualsToken, BoundBinaryOperatorKind.EqualityEquals,
-            BoundTypeClause.Bool, BoundTypeClause.Bool),
+            BoundType.Bool, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.ExclamationEqualsToken, BoundBinaryOperatorKind.EqualityNotEquals,
-            BoundTypeClause.Bool, BoundTypeClause.Bool),
+            BoundType.Bool, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.QuestionQuestionToken, BoundBinaryOperatorKind.NullCoalescing,
-            BoundTypeClause.NullableBool),
+            BoundType.NullableBool),
 
         // string
         new BoundBinaryOperator(SyntaxKind.PlusToken, BoundBinaryOperatorKind.Addition,
-            BoundTypeClause.String),
+            BoundType.String),
         new BoundBinaryOperator(SyntaxKind.EqualsEqualsToken, BoundBinaryOperatorKind.EqualityEquals,
-            BoundTypeClause.String, BoundTypeClause.Bool),
+            BoundType.String, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.ExclamationEqualsToken, BoundBinaryOperatorKind.EqualityNotEquals,
-            BoundTypeClause.String, BoundTypeClause.Bool),
+            BoundType.String, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.QuestionQuestionToken, BoundBinaryOperatorKind.NullCoalescing,
-            BoundTypeClause.NullableString),
+            BoundType.NullableString),
 
         // decimal
         new BoundBinaryOperator(SyntaxKind.PlusToken, BoundBinaryOperatorKind.Addition,
-            BoundTypeClause.Decimal),
+            BoundType.Decimal),
         new BoundBinaryOperator(SyntaxKind.MinusToken, BoundBinaryOperatorKind.Subtraction,
-            BoundTypeClause.Decimal),
+            BoundType.Decimal),
         new BoundBinaryOperator(SyntaxKind.AsteriskToken, BoundBinaryOperatorKind.Multiplication,
-            BoundTypeClause.Decimal),
+            BoundType.Decimal),
         new BoundBinaryOperator(SyntaxKind.SlashToken, BoundBinaryOperatorKind.Division,
-            BoundTypeClause.Decimal),
+            BoundType.Decimal),
         new BoundBinaryOperator(SyntaxKind.AsteriskAsteriskToken, BoundBinaryOperatorKind.Power,
-            BoundTypeClause.Decimal),
+            BoundType.Decimal),
         new BoundBinaryOperator(SyntaxKind.EqualsEqualsToken, BoundBinaryOperatorKind.EqualityEquals,
-            BoundTypeClause.Decimal, BoundTypeClause.Bool),
+            BoundType.Decimal, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.ExclamationEqualsToken, BoundBinaryOperatorKind.EqualityNotEquals,
-            BoundTypeClause.Decimal, BoundTypeClause.Bool),
+            BoundType.Decimal, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.LessThanToken, BoundBinaryOperatorKind.LessThan,
-            BoundTypeClause.Decimal, BoundTypeClause.Bool),
+            BoundType.Decimal, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.GreaterThanToken, BoundBinaryOperatorKind.GreaterThan,
-            BoundTypeClause.Decimal, BoundTypeClause.Bool),
+            BoundType.Decimal, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.LessThanEqualsToken, BoundBinaryOperatorKind.LessOrEqual,
-            BoundTypeClause.Decimal, BoundTypeClause.Bool),
+            BoundType.Decimal, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.GreaterThanEqualsToken, BoundBinaryOperatorKind.GreatOrEqual,
-            BoundTypeClause.Decimal, BoundTypeClause.Bool),
-        new BoundBinaryOperator(SyntaxKind.PercentToken, BoundBinaryOperatorKind.Modulo, BoundTypeClause.Decimal),
+            BoundType.Decimal, BoundType.Bool),
+        new BoundBinaryOperator(SyntaxKind.PercentToken, BoundBinaryOperatorKind.Modulo, BoundType.Decimal),
         new BoundBinaryOperator(SyntaxKind.QuestionQuestionToken, BoundBinaryOperatorKind.NullCoalescing,
-                BoundTypeClause.NullableDecimal),
+                BoundType.NullableDecimal),
 
         // any
         new BoundBinaryOperator(SyntaxKind.IsKeyword, BoundBinaryOperatorKind.Is,
-            BoundTypeClause.NullableAny, BoundTypeClause.Bool),
+            BoundType.NullableAny, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.IsntKeyword, BoundBinaryOperatorKind.Isnt,
-            BoundTypeClause.NullableAny, BoundTypeClause.Bool),
+            BoundType.NullableAny, BoundType.Bool),
     };
 
     /// <summary>
@@ -141,17 +141,17 @@ internal sealed class BoundBinaryOperator {
     /// <summary>
     /// Left side operand type.
     /// </summary>
-    internal BoundTypeClause leftType { get; }
+    internal BoundType leftType { get; }
 
     /// <summary>
     /// Right side operand type.
     /// </summary>
-    internal BoundTypeClause rightType { get; }
+    internal BoundType rightType { get; }
 
     /// <summary>
     /// Result value type.
     /// </summary>
-    internal BoundTypeClause typeClause { get; }
+    internal BoundType type { get; }
 
     /// <summary>
     /// Attempts to bind an operator with given sides.
@@ -160,9 +160,9 @@ internal sealed class BoundBinaryOperator {
     /// <param name="leftType">Left operand type.</param>
     /// <param name="rightType">Right operand type.</param>
     /// <returns><see cref="BoundBinaryOperator" /> if an operator exists, otherwise null.</returns>
-    internal static BoundBinaryOperator Bind(SyntaxKind kind, BoundTypeClause leftType, BoundTypeClause rightType) {
-        var nonNullableLeft = BoundTypeClause.NonNullable(leftType);
-        var nonNullableRight = BoundTypeClause.NonNullable(rightType);
+    internal static BoundBinaryOperator Bind(SyntaxKind kind, BoundType leftType, BoundType rightType) {
+        var nonNullableLeft = BoundType.NonNullable(leftType);
+        var nonNullableRight = BoundType.NonNullable(rightType);
 
         foreach (var op in _operators) {
             var leftIsCorrect = Cast.Classify(nonNullableLeft, op.leftType).isImplicit;

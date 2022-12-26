@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 internal sealed partial class LocalFunctionStatementSyntax : StatementSyntax {
     /// <param name="identifier">Name of the function.</param>
     internal LocalFunctionStatementSyntax(
-        SyntaxTree syntaxTree, TypeClauseSyntax returnType, SyntaxToken identifier, SyntaxToken openParenthesis,
+        SyntaxTree syntaxTree, TypeSyntax returnType, SyntaxToken identifier, SyntaxToken openParenthesis,
         SeparatedSyntaxList<ParameterSyntax> parameters, SyntaxToken closeParenthesis, BlockStatementSyntax body)
         : base(syntaxTree) {
         this.returnType = returnType;
@@ -19,7 +19,7 @@ internal sealed partial class LocalFunctionStatementSyntax : StatementSyntax {
         this.body = body;
     }
 
-    internal TypeClauseSyntax returnType { get; }
+    internal TypeSyntax returnType { get; }
 
     /// <summary>
     /// Name of the function.

@@ -6,14 +6,14 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A bound reference expression, bound from a <see cref="ReferenceExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundReferenceExpression : BoundExpression {
-    internal BoundReferenceExpression(VariableSymbol variable, BoundTypeClause typeClause) {
+    internal BoundReferenceExpression(VariableSymbol variable, BoundType type) {
         this.variable = variable;
-        this.typeClause = typeClause;
+        this.type = type;
     }
 
     internal VariableSymbol variable { get; }
 
     internal override BoundNodeKind kind => BoundNodeKind.ReferenceExpression;
 
-    internal override BoundTypeClause typeClause { get; }
+    internal override BoundType type { get; }
 }

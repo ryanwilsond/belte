@@ -227,7 +227,7 @@ internal sealed class Parser {
     }
 
     private MemberSyntax ParseFunctionDeclaration() {
-        var typeClause = ParseTypeClause(false);
+        var type = ParseTypeClause(false);
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenParenToken);
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
         var parameters = ParseParameterList();
@@ -235,11 +235,11 @@ internal sealed class Parser {
         var body = (BlockStatementSyntax)ParseBlockStatement();
 
         return new MethodDeclarationSyntax(
-            _syntaxTree, typeClause, identifier, openParenthesis, parameters, closeParenthesis, body);
+            _syntaxTree, type, identifier, openParenthesis, parameters, closeParenthesis, body);
     }
 
     private StatementSyntax ParseLocalFunctionDeclaration() {
-        var typeClause = ParseTypeClause(false);
+        var type = ParseTypeClause(false);
         var identifier = Match(SyntaxKind.IdentifierToken);
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
         var parameters = ParseParameterList();
@@ -247,7 +247,7 @@ internal sealed class Parser {
         var body = (BlockStatementSyntax)ParseBlockStatement();
 
         return new LocalFunctionStatementSyntax(
-            _syntaxTree, typeClause, identifier, openParenthesis, parameters, closeParenthesis, body);
+            _syntaxTree, type, identifier, openParenthesis, parameters, closeParenthesis, body);
     }
 
     private SeparatedSyntaxList<ParameterSyntax> ParseParameterList() {
@@ -272,9 +272,9 @@ internal sealed class Parser {
     }
 
     private ParameterSyntax ParseParameter() {
-        var typeClause = ParseTypeClause(false);
+        var type = ParseTypeClause(false);
         var identifier = Match(SyntaxKind.IdentifierToken);
-        return new ParameterSyntax(_syntaxTree, typeClause, identifier);
+        return new ParameterSyntax(_syntaxTree, type, identifier);
     }
 
     private SyntaxList<MemberSyntax> ParseFieldList() {
@@ -399,7 +399,7 @@ internal sealed class Parser {
     }
 
     private StatementSyntax ParseVariableDeclarationStatement(bool allowDefinition = true) {
-        var typeClause = ParseTypeClause();
+        var type = ParseTypeClause();
         var identifier = Match(SyntaxKind.IdentifierToken);
 
         SyntaxToken equals = null;
@@ -417,10 +417,10 @@ internal sealed class Parser {
         var semicolon = Match(SyntaxKind.SemicolonToken);
 
         return new VariableDeclarationStatementSyntax(
-            _syntaxTree, typeClause, identifier, equals, initializer, semicolon);
+            _syntaxTree, type, identifier, equals, initializer, semicolon);
     }
 
-    private TypeClauseSyntax ParseTypeClause(bool allowImplicit = true) {
+    private TypeSyntax ParseTypeClause(bool allowImplicit = true) {
         var attributes =
             ImmutableArray.CreateBuilder<(SyntaxToken openBracket, SyntaxToken identifier, SyntaxToken closeBracket)>();
 
@@ -460,7 +460,7 @@ internal sealed class Parser {
             brackets.Add((openBracket, closeBracket));
         }
 
-        return new TypeClauseSyntax(
+        return new TypeSyntax(
             _syntaxTree, attributes.ToImmutable(), constRefKeyword,
             refKeyword, constKeyword, typeName, brackets.ToImmutable());
     }
@@ -749,11 +749,11 @@ internal sealed class Parser {
 
     private ExpressionSyntax ParseCastExpression() {
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
-        var typeClause = ParseTypeClause();
+        var type = ParseTypeClause();
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
         var expression = ParseExpression();
 
-        return new CastExpressionSyntax(_syntaxTree, openParenthesis, typeClause, closeParenthesis, expression);
+        return new CastExpressionSyntax(_syntaxTree, openParenthesis, type, closeParenthesis, expression);
     }
 
     private ExpressionSyntax ParseReferenceExpression() {
@@ -864,10 +864,10 @@ internal sealed class Parser {
     private ExpressionSyntax ParseTypeOfExpression() {
         var keyword = Next();
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
-        var typeClause = ParseTypeClause(false);
+        var type = ParseTypeClause(false);
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
 
-        return new TypeOfExpressionSyntax(_syntaxTree, keyword, openParenthesis, typeClause, closeParenthesis);
+        return new TypeOfExpressionSyntax(_syntaxTree, keyword, openParenthesis, type, closeParenthesis);
     }
 
     private ExpressionSyntax ParseNameOrPrimaryOperatorExpression() {

@@ -17,5 +17,5 @@ internal sealed class BoundMemberAccessExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.MemberAccessExpression;
 
-    internal override BoundTypeClause typeClause => BoundTypeClause.Reference(member.typeClause);
+    internal override BoundType type => BoundType.Reference(member.type);
 }

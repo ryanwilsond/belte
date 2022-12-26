@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundInitializerListExpression : BoundExpression {
     internal BoundInitializerListExpression(
-        ImmutableArray<BoundExpression> items, int dimensions, BoundTypeClause itemType) {
+        ImmutableArray<BoundExpression> items, int dimensions, BoundType itemType) {
         this.items = items;
         this.dimensions = dimensions;
         this.itemType = itemType;
@@ -17,12 +17,12 @@ internal sealed class BoundInitializerListExpression : BoundExpression {
 
     internal int dimensions { get; }
 
-    internal BoundTypeClause itemType { get; }
+    internal BoundType itemType { get; }
 
     internal override BoundNodeKind kind => BoundNodeKind.LiteralExpression;
 
     // Immutable design makes this required
-    internal override BoundTypeClause typeClause => new BoundTypeClause(
-        itemType.type, itemType.isImplicit, itemType.isConstantReference,
+    internal override BoundType type => new BoundType(
+        itemType.typeSymbol, itemType.isImplicit, itemType.isConstantReference,
         itemType.isReference, itemType.isConstant, true, itemType.isLiteral, dimensions);
 }

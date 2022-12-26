@@ -14,7 +14,7 @@ internal sealed class BoundUnaryExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.UnaryExpression;
 
-    internal override BoundTypeClause typeClause => op.typeClause;
+    internal override BoundType type => op.type;
 
     internal override BoundConstant constantValue { get; }
 

@@ -16,7 +16,7 @@ internal sealed class BoundBinaryExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.BinaryExpression;
 
-    internal override BoundTypeClause typeClause => op.typeClause;
+    internal override BoundType type => op.type;
 
     internal override BoundConstant constantValue { get; }
 

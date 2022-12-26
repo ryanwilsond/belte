@@ -4,15 +4,15 @@ using System.Collections.Immutable;
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// A type clause, includes array dimensions, type name, and attributes.
+/// A type 'expression', includes array dimensions, type name, and attributes.
 /// </summary>
-internal sealed class TypeClauseSyntax : SyntaxNode {
+internal sealed class TypeSyntax : SyntaxNode {
     /// <param name="attributes">Simple flag modifiers on a type (e.g. [NotNull]).</param>
     /// <param name="constRefKeyword">Const keyword referring to a constant reference type.</param>
     /// <param name="refKeyword">Ref keyword referring to a reference type.</param>
     /// <param name="constKeyword">Const keyword referring to a constant type.</param>
     /// <param name="brackets">Brackets, determine array dimensions.</param>
-    internal TypeClauseSyntax(SyntaxTree syntaxTree, ImmutableArray<(SyntaxToken, SyntaxToken, SyntaxToken)> attributes,
+    internal TypeSyntax(SyntaxTree syntaxTree, ImmutableArray<(SyntaxToken, SyntaxToken, SyntaxToken)> attributes,
         SyntaxToken constRefKeyword, SyntaxToken refKeyword, SyntaxToken constKeyword, SyntaxToken typeName,
         ImmutableArray<(SyntaxToken, SyntaxToken)> brackets) : base(syntaxTree) {
         this.attributes = attributes;
@@ -34,7 +34,7 @@ internal sealed class TypeClauseSyntax : SyntaxNode {
 
     /// <summary>
     /// Const keyword referring to a constant reference type, only valid if the
-    /// <see cref="TypeClauseSyntax.refKeyword" /> field is also set.
+    /// <see cref="TypeSyntax.refKeyword" /> field is also set.
     /// </summary>
     internal SyntaxToken? constRefKeyword { get; }
 

@@ -14,13 +14,13 @@ internal sealed class FunctionSymbol : Symbol {
     /// </summary>
     /// <param name="name">Name of function.</param>
     /// <param name="parameters">Parameters of function.</param>
-    /// <param name="typeClause"><see cref="BoundTypeClause" /> of return type.</param>
+    /// <param name="type"><see cref="BoundType" /> of return type.</param>
     /// <param name="declaration">Declaration of function.</param>
     internal FunctionSymbol(
         string name, ImmutableArray<ParameterSymbol> parameters,
-        BoundTypeClause typeClause, MethodDeclarationSyntax declaration = null)
+        BoundType type, MethodDeclarationSyntax declaration = null)
         : base(name) {
-        this.typeClause = typeClause;
+        this.type = type;
         this.parameters = parameters;
         this.declaration = declaration;
     }
@@ -31,9 +31,9 @@ internal sealed class FunctionSymbol : Symbol {
     internal ImmutableArray<ParameterSymbol> parameters { get; }
 
     /// <summary>
-    /// <see cref="BoundTypeClause" /> of function return type.
+    /// <see cref="BoundType" /> of function return type.
     /// </summary>
-    internal BoundTypeClause typeClause { get; }
+    internal BoundType type { get; }
 
     /// <summary>
     /// Declaration of function (see <see cref="MethodDeclarationSyntax">).
@@ -59,7 +59,7 @@ internal sealed class FunctionSymbol : Symbol {
 
                 // The Replace call allows rewritten nested functions that prefix parameter names with '$'
                 if (checkParameter.name != parameter.name.Replace("$", "") ||
-                    checkParameter.typeClause != parameter.typeClause)
+                    checkParameter.type != parameter.type)
                     parametersMatch = false;
             }
 
@@ -84,7 +84,7 @@ internal sealed class FunctionSymbol : Symbol {
             else
                 signature.Append(',');
 
-            signature.Append(parameter.typeClause.ToString());
+            signature.Append(parameter.type.ToString());
         }
 
         signature.Append(')');

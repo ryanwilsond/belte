@@ -9,15 +9,15 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class BoundLiteralExpression : BoundExpression {
     internal BoundLiteralExpression(object value) {
         if (value is bool)
-            typeClause = new BoundTypeClause(TypeSymbol.Bool, isLiteral: true);
+            type = new BoundType(TypeSymbol.Bool, isLiteral: true);
         else if (value is int)
-            typeClause = new BoundTypeClause(TypeSymbol.Int, isLiteral: true);
+            type = new BoundType(TypeSymbol.Int, isLiteral: true);
         else if (value is string)
-            typeClause = new BoundTypeClause(TypeSymbol.String, isLiteral: true);
+            type = new BoundType(TypeSymbol.String, isLiteral: true);
         else if (value is double)
-            typeClause = new BoundTypeClause(TypeSymbol.Decimal, isLiteral: true);
+            type = new BoundType(TypeSymbol.Decimal, isLiteral: true);
         else if (value == null)
-            typeClause = new BoundTypeClause(null, isLiteral: true);
+            type = new BoundType(null, isLiteral: true);
         else
             throw new BelteInternalException(
                 $"BoundLiteralExpression: unexpected literal '{value}' of type '{value.GetType()}'");
@@ -25,10 +25,10 @@ internal sealed class BoundLiteralExpression : BoundExpression {
         constantValue = new BoundConstant(value);
     }
 
-    /// <param name="override">Forces a <see cref="BoundTypeClause" /> on a value instead of implying.</param>
-    internal BoundLiteralExpression(object value, BoundTypeClause @override) {
-        typeClause = new BoundTypeClause(
-            @override.type, @override.isImplicit, @override.isConstantReference, @override.isReference,
+    /// <param name="override">Forces a <see cref="BoundType" /> on a value instead of implying.</param>
+    internal BoundLiteralExpression(object value, BoundType @override) {
+        type = new BoundType(
+            @override.typeSymbol, @override.isImplicit, @override.isConstantReference, @override.isReference,
             @override.isConstant, @override.isNullable, true, @override.dimensions);
 
         constantValue = new BoundConstant(value);
@@ -36,7 +36,7 @@ internal sealed class BoundLiteralExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.LiteralExpression;
 
-    internal override BoundTypeClause typeClause { get; }
+    internal override BoundType type { get; }
 
     internal override BoundConstant constantValue { get; }
 

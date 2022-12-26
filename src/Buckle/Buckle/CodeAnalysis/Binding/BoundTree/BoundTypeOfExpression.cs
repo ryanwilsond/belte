@@ -5,13 +5,13 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A bound typeof expression, bound from a <see cref="TypeOfExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundTypeOfExpression : BoundExpression {
-    internal BoundTypeOfExpression(BoundTypeClause typeClause) {
-        this.typeOfTypeClause = typeClause;
+    internal BoundTypeOfExpression(BoundType type) {
+        this.typeOfTypeClause = type;
     }
 
-    internal BoundTypeClause typeOfTypeClause { get; }
+    internal BoundType typeOfTypeClause { get; }
 
     internal override BoundNodeKind kind => BoundNodeKind.TypeOfExpression;
 
-    internal override BoundTypeClause typeClause => BoundTypeClause.Type;
+    internal override BoundType type => BoundType.Type;
 }

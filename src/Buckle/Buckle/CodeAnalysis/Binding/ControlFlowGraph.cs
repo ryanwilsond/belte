@@ -319,7 +319,7 @@ internal sealed class ControlFlowGraph {
                 return new BoundLiteralExpression(!value);
             }
 
-            var op = BoundUnaryOperator.Bind(SyntaxKind.ExclamationToken, new BoundTypeClause(TypeSymbol.Bool));
+            var op = BoundUnaryOperator.Bind(SyntaxKind.ExclamationToken, new BoundType(TypeSymbol.Bool));
             return new BoundUnaryExpression(op, condition);
         }
 

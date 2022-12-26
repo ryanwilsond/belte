@@ -483,8 +483,8 @@ internal sealed class Emitter {
         // iLProcessor.Emit(OpCodes.Nop);
     }
 
-    private MethodReference GetNullableCtor(BoundTypeClause type) {
-        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.type]);
+    private MethodReference GetNullableCtor(BoundType type) {
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.typeSymbol]);
         var methodReference =
             _assemblyDefinition.MainModule.ImportReference(_methodReferences[NetMethodReference.NullableCtor]);
 
@@ -495,8 +495,8 @@ internal sealed class Emitter {
         return methodReference;
     }
 
-    private MethodReference GetNullableValue(BoundTypeClause type) {
-        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.type]);
+    private MethodReference GetNullableValue(BoundType type) {
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.typeSymbol]);
         var methodReference =
             _assemblyDefinition.MainModule.ImportReference(_methodReferences[NetMethodReference.NullableValue]);
 
@@ -507,8 +507,8 @@ internal sealed class Emitter {
         return methodReference;
     }
 
-    private MethodReference GetNullableHasValue(BoundTypeClause type) {
-        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.type]);
+    private MethodReference GetNullableHasValue(BoundType type) {
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.typeSymbol]);
         var methodReference =
             _assemblyDefinition.MainModule.ImportReference(_methodReferences[NetMethodReference.NullableHasValue]);
 
@@ -519,17 +519,17 @@ internal sealed class Emitter {
         return methodReference;
     }
 
-    private MethodReference GetConvertTo(BoundTypeClause from, BoundTypeClause to, bool isImplicit) {
+    private MethodReference GetConvertTo(BoundType from, BoundType to, bool isImplicit) {
         if (!from.isNullable || isImplicit) {
-            if (to.type == TypeSymbol.Any)
+            if (to.typeSymbol == TypeSymbol.Any)
                 return null;
-            else if (to.type == TypeSymbol.Bool)
+            else if (to.typeSymbol == TypeSymbol.Bool)
                 return _methodReferences[NetMethodReference.ConvertToBoolean];
-            else if (to.type == TypeSymbol.Int)
+            else if (to.typeSymbol == TypeSymbol.Int)
                 return _methodReferences[NetMethodReference.ConvertToInt32];
-            else if (to.type == TypeSymbol.String)
+            else if (to.typeSymbol == TypeSymbol.String)
                 return _methodReferences[NetMethodReference.ConvertToString];
-            else if (to.type == TypeSymbol.Decimal)
+            else if (to.typeSymbol == TypeSymbol.Decimal)
                 return _methodReferences[NetMethodReference.ConvertToDouble];
             else
                 throw new BelteInternalException($"GetConvertTo: unexpected cast from '{from}' to '{to}'");
@@ -539,12 +539,12 @@ internal sealed class Emitter {
     }
 
     private void EmitFunctionDeclaration(FunctionSymbol function) {
-        var functionType = GetType(function.typeClause);
+        var functionType = GetType(function.type);
         var method = new MethodDefinition(
             function.name, MethodAttributes.Static | MethodAttributes.Private, functionType);
 
         foreach (var parameter in function.parameters) {
-            var parameterType = GetType(parameter.typeClause);
+            var parameterType = GetType(parameter.type);
             var parameterAttributes = ParameterAttributes.None;
             var parameterDefinition = new ParameterDefinition(parameter.name, parameterAttributes, parameterType);
             method.Parameters.Add(parameterDefinition);
@@ -555,12 +555,12 @@ internal sealed class Emitter {
     }
 
     private TypeReference GetType(
-        BoundTypeClause type, bool overrideNullability = false, bool ignoreReference = false) {
+        BoundType type, bool overrideNullability = false, bool ignoreReference = false) {
         if ((type.dimensions == 0 && !type.isNullable && !overrideNullability) ||
-            type.type == TypeSymbol.Void)
-            return _knownTypes[type.type];
+            type.typeSymbol == TypeSymbol.Void)
+            return _knownTypes[type.typeSymbol];
 
-        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.type]);
+        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.typeSymbol]);
         var typeReference = new GenericInstanceType(_nullableReference);
         typeReference.GenericArguments.Add(genericArgumentType);
         var referenceType = new ByReferenceType(typeReference);

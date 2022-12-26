@@ -9,13 +9,13 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// </code>
 /// </summary>
 internal sealed partial class CastExpressionSyntax : ExpressionSyntax {
-    /// <param name="typeClause">The target type clause.</param>
+    /// <param name="type">The target type clause.</param>
     internal CastExpressionSyntax(
-        SyntaxTree syntaxTree, SyntaxToken openParenthesis, TypeClauseSyntax typeClause,
+        SyntaxTree syntaxTree, SyntaxToken openParenthesis, TypeSyntax type,
         SyntaxToken closeParenthesis, ExpressionSyntax expression)
         : base(syntaxTree) {
         this.openParenthesis = openParenthesis;
-        this.typeClause = typeClause;
+        this.type = type;
         this.closeParenthesis = closeParenthesis;
         this.expression = expression;
     }
@@ -23,9 +23,9 @@ internal sealed partial class CastExpressionSyntax : ExpressionSyntax {
     internal SyntaxToken? openParenthesis { get; }
 
     /// <summary>
-    /// The target <see cref="TypeClauseSyntax" />.
+    /// The target <see cref="TypeSyntax" />.
     /// </summary>
-    internal TypeClauseSyntax typeClause { get; }
+    internal TypeSyntax type { get; }
 
     internal SyntaxToken? closeParenthesis { get; }
 

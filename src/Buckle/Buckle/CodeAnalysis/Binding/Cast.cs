@@ -3,7 +3,7 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A cast from any <see cref="BoundTypeClause" /> to any <see cref="BoundTypeClause" /> (can be the same).
+/// A cast from any <see cref="BoundType" /> to any <see cref="BoundType" /> (can be the same).
 /// </summary>
 internal sealed class Cast {
     /// <summary>
@@ -56,12 +56,12 @@ internal sealed class Cast {
     /// <summary>
     /// Classify what type of <see cref="Cast" /> is required to go from one type to the other.
     /// </summary>
-    /// <param name="fromType">Target <see cref="BoundTypeClause" />.</param>
-    /// <param name="toType">Existing/current <see cref="BoundTypeClause" />.</param>
+    /// <param name="fromType">Target <see cref="BoundType" />.</param>
+    /// <param name="toType">Existing/current <see cref="BoundType" />.</param>
     /// <returns>Created <see cref="Cast" />.</returns>
-    internal static Cast Classify(BoundTypeClause fromType, BoundTypeClause toType) {
-        var from = fromType.type;
-        var to = toType.type;
+    internal static Cast Classify(BoundType fromType, BoundType toType) {
+        var from = fromType.typeSymbol;
+        var to = toType.typeSymbol;
 
         if (from == null)
             return Cast.Identity;
