@@ -87,7 +87,7 @@ internal sealed class Evaluator {
         }
 
         var body = LookupMethod(_functions, function);
-        var result = EvaluateStatement(body);
+        var result = EvaluateStatement(body, out _);
         hasValue = _hasValue;
 
         return Value(result, true);
@@ -111,8 +111,13 @@ internal sealed class Evaluator {
         if (variable.kind == SymbolKind.GlobalVariable) {
             return GetFrom(_globals, variable);
         } else {
-            var locals = _locals.Peek();
-            return GetFrom(locals, variable);
+            foreach (var frame in _locals) {
+                try {
+                    return GetFrom(frame, variable);
+                } catch (BelteInternalException) { }
+            }
+            // If we get here it means the variable was not found in the local scope, or any direct parent local scopes
+            throw new BelteInternalException($"Get: '{variable.name}' was not found in any accessible local scopes");
         }
     }
 
@@ -222,8 +227,10 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject EvaluateStatement(BoundBlockStatement statement) {
+    private EvaluatorObject EvaluateStatement(
+        BoundBlockStatement statement, out bool hasReturn, bool insideTry = false) {
         _hasValue = false;
+        hasReturn = false;
 
         try {
             var labelToIndex = new Dictionary<BoundLabel, int>();
@@ -256,7 +263,7 @@ internal sealed class Evaluator {
                         break;
                     case BoundNodeKind.ConditionalGotoStatement:
                         var cgs = (BoundConditionalGotoStatement)s;
-                        var condition = (bool)EvaluateExpression(cgs.condition).value;
+                        var condition = (bool)Value(EvaluateExpression(cgs.condition));
 
                         if (condition == cgs.jumpIfTrue)
                             index = labelToIndex[cgs.label];
@@ -267,13 +274,24 @@ internal sealed class Evaluator {
                     case BoundNodeKind.LabelStatement:
                         index++;
                         break;
+                    case BoundNodeKind.TryStatement:
+                        EvaluateTryStatement((BoundTryStatement)s, out var returned);
+
+                        if (returned) {
+                            hasReturn = true;
+                            return _lastValue;
+                        }
+
+                        index++;
+                        break;
                     case BoundNodeKind.ReturnStatement:
                         var returnStatement = (BoundReturnStatement)s;
-                        var _lastValue = returnStatement.expression == null
+                        _lastValue = returnStatement.expression == null
                             ? new EvaluatorObject()
                             : Copy(EvaluateExpression(returnStatement.expression));
 
                         _hasValue = returnStatement.expression == null ? false : true;
+                        hasReturn = true;
                         return _lastValue;
                     default:
                         throw new BelteInternalException($"EvaluateStatement: unexpected statement '{s.kind}'");
@@ -282,19 +300,46 @@ internal sealed class Evaluator {
 
             return _lastValue;
         } catch (Exception e) when (!(e is BelteInternalException)) {
+            if (insideTry)
+                throw;
+
             exceptions.Add(e);
-            var previous = Console.ForegroundColor;
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.Write("Unhandled exception: ");
-            Console.ForegroundColor = previous;
-            Console.WriteLine(e.Message);
+            _hasPrint = false;
             _hasValue = false;
+
+            if (!Console.IsOutputRedirected) {
+                if (Console.CursorLeft != 0)
+                    Console.WriteLine();
+
+                var previous = Console.ForegroundColor;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Write("Unhandled exception: ");
+                Console.ForegroundColor = previous;
+                Console.WriteLine(e.Message);
+            }
+
             return new EvaluatorObject();
         }
     }
 
     private void EvaluateExpressionStatement(BoundExpressionStatement statement) {
         _lastValue = EvaluateExpression(statement.expression);
+    }
+
+    private void EvaluateTryStatement(BoundTryStatement statement, out bool hasReturn) {
+        hasReturn = false;
+
+        try {
+            EvaluateStatement(statement.body, out hasReturn, true);
+        } catch (Exception e) when (!(e is BelteInternalException)) {
+            if (statement.catchBody != null && !hasReturn)
+                EvaluateStatement(statement.catchBody, out hasReturn);
+            else
+                throw;
+        } finally {
+            if (statement.finallyBody != null && !hasReturn)
+                EvaluateStatement(statement.finallyBody, out hasReturn);
+        }
     }
 
     private void EvaluateVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
@@ -449,7 +494,7 @@ internal sealed class Evaluator {
 
             _locals.Push(locals);
             var statement = LookupMethod(_functions, node.function);
-            var result = EvaluateStatement(statement);
+            var result = EvaluateStatement(statement, out _);
             _locals.Pop();
 
             return result;

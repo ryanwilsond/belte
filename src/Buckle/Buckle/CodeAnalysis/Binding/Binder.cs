@@ -201,7 +201,7 @@ internal sealed class Binder {
 
             BoundBlockStatement loweredBody = null;
 
-            if (!function.name.StartsWith("<$Inline")) {
+            if (!function.name.Contains(">g__$Inline")) {
                 var body = binder.BindStatement(function.declaration.body);
                 diagnostics.Move(binder.diagnostics);
 
@@ -358,8 +358,8 @@ internal sealed class Binder {
             fieldDeclaration.declaration.identifier, typeClause, bindAsField: true) as FieldSymbol;
     }
 
-    private BoundStatement BindStatement(StatementSyntax syntax, bool isGlobal = false, bool insideInline = false) {
-        var result = BindStatementInternal(syntax, insideInline);
+    private BoundStatement BindStatement(StatementSyntax syntax, bool isGlobal = false) {
+        var result = BindStatementInternal(syntax);
 
         if (!_isScript || !isGlobal) {
             if (result is BoundExpressionStatement es) {
@@ -377,30 +377,30 @@ internal sealed class Binder {
         return result;
     }
 
-    private BoundStatement BindStatementInternal(StatementSyntax syntax, bool insideInline = false) {
+    private BoundStatement BindStatementInternal(StatementSyntax syntax) {
         switch (syntax.kind) {
             case SyntaxKind.Block:
-                return BindBlockStatement((BlockStatementSyntax)syntax, insideInline);
+                return BindBlockStatement((BlockStatementSyntax)syntax);
             case SyntaxKind.ExpressionStatement:
                 return BindExpressionStatement((ExpressionStatementSyntax)syntax);
             case SyntaxKind.VariableDeclarationStatement:
                 return BindVariableDeclarationStatement((VariableDeclarationStatementSyntax)syntax);
             case SyntaxKind.IfStatement:
-                return BindIfStatement((IfStatementSyntax)syntax, insideInline);
+                return BindIfStatement((IfStatementSyntax)syntax);
             case SyntaxKind.WhileStatement:
-                return BindWhileStatement((WhileStatementSyntax)syntax, insideInline);
+                return BindWhileStatement((WhileStatementSyntax)syntax);
             case SyntaxKind.ForStatement:
-                return BindForStatement((ForStatementSyntax)syntax, insideInline);
+                return BindForStatement((ForStatementSyntax)syntax);
             case SyntaxKind.DoWhileStatement:
-                return BindDoWhileStatement((DoWhileStatementSyntax)syntax, insideInline);
+                return BindDoWhileStatement((DoWhileStatementSyntax)syntax);
             case SyntaxKind.TryStatement:
-                return BindTryStatement((TryStatementSyntax)syntax, insideInline);
+                return BindTryStatement((TryStatementSyntax)syntax);
             case SyntaxKind.BreakStatement:
                 return BindBreakStatement((BreakStatementSyntax)syntax);
             case SyntaxKind.ContinueStatement:
                 return BindContinueStatement((ContinueStatementSyntax)syntax);
             case SyntaxKind.ReturnStatement:
-                return BindReturnStatement((ReturnStatementSyntax)syntax, insideInline);
+                return BindReturnStatement((ReturnStatementSyntax)syntax);
             case SyntaxKind.LocalFunctionStatement:
                 return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
             default:
@@ -419,6 +419,7 @@ internal sealed class Binder {
         binder._trackedSymbols.Push(new HashSet<VariableSymbol>());
         binder._trackedDeclarations.Push(new HashSet<VariableSymbol>());
         _innerPrefix.Push(functionSymbol.name);
+        binder._innerPrefix.Push(functionSymbol.name);
         var body = (BoundBlockStatement)binder.BindBlockStatement(functionSymbol.declaration.body);
         _trackSymbols = oldTrackSymbols;
 
@@ -434,7 +435,7 @@ internal sealed class Binder {
             parameters.Add(parameter);
 
         foreach (var variable in usedVariables) {
-            if (declaredVariables.Contains(variable))
+            if (declaredVariables.Contains(variable) || parameters.Contains(variable))
                 continue;
 
             var parameter = new ParameterSymbol($"${variable.name}", variable.typeClause, ordinal++);
@@ -459,40 +460,38 @@ internal sealed class Binder {
         return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
     }
 
-    private BoundStatement BindTryStatement(TryStatementSyntax expression, bool insideInline = false) {
-        var body = (BoundBlockStatement)BindBlockStatement(expression.body, insideInline);
+    private BoundStatement BindTryStatement(TryStatementSyntax expression) {
+        var body = (BoundBlockStatement)BindBlockStatement(expression.body);
         var catchBody = expression.catchClause == null
             ? null
-            : (BoundBlockStatement)BindBlockStatement(expression.catchClause.body, insideInline);
+            : (BoundBlockStatement)BindBlockStatement(expression.catchClause.body);
         var finallyBody = expression.finallyClause == null
             ? null
-            : (BoundBlockStatement)BindBlockStatement(expression.finallyClause.body, insideInline);
+            : (BoundBlockStatement)BindBlockStatement(expression.finallyClause.body);
 
         return new BoundTryStatement(body, catchBody, finallyBody);
     }
 
-    private BoundStatement BindReturnStatement(ReturnStatementSyntax expression, bool insideInline = false) {
+    private BoundStatement BindReturnStatement(ReturnStatementSyntax expression) {
         var boundExpression = expression.expression == null ? null : BindExpression(expression.expression);
 
-        if (!insideInline) {
-            if (_function == null) {
-                if (_isScript) {
-                    if (boundExpression == null)
-                        boundExpression = new BoundLiteralExpression(null);
-                } else if (boundExpression != null) {
-                    diagnostics.Push(Error.Unsupported.GlobalReturnValue(expression.keyword.location));
-                }
+        if (_function == null) {
+            if (_isScript) {
+                if (boundExpression == null)
+                    boundExpression = new BoundLiteralExpression(null);
+            } else if (boundExpression != null) {
+                diagnostics.Push(Error.Unsupported.GlobalReturnValue(expression.keyword.location));
+            }
+        } else {
+            if (_function.typeClause.type == TypeSymbol.Void) {
+                if (boundExpression != null)
+                    diagnostics.Push(Error.UnexpectedReturnValue(expression.keyword.location));
             } else {
-                if (_function.typeClause.type == TypeSymbol.Void) {
-                    if (boundExpression != null)
-                        diagnostics.Push(Error.UnexpectedReturnValue(expression.keyword.location));
-                } else {
-                    if (boundExpression == null)
-                        diagnostics.Push(Error.MissingReturnValue(expression.keyword.location));
-                    else
-                        boundExpression = BindCast(
-                            expression.expression.location, boundExpression, _function.typeClause);
-                }
+                if (boundExpression == null)
+                    diagnostics.Push(Error.MissingReturnValue(expression.keyword.location));
+                else
+                    boundExpression = BindCast(
+                        expression.expression.location, boundExpression, _function.typeClause);
             }
         }
 
@@ -734,7 +733,7 @@ internal sealed class Binder {
             var beforeCount = diagnostics.count;
             var score = 0;
             var actualSymbol = symbol;
-            var isInner = symbol.name.EndsWith("$");
+            var isInner = symbol.name.Contains(">g__");
 
             if (_unresolvedLocals.ContainsKey(innerName) && !_resolvedLocals.Contains(innerName)) {
                 BindLocalFunctionDeclaration(_unresolvedLocals[innerName]);
@@ -930,30 +929,30 @@ internal sealed class Binder {
         return new BoundGotoStatement(breakLabel);
     }
 
-    private BoundStatement BindWhileStatement(WhileStatementSyntax statement, bool insideInline = false) {
+    private BoundStatement BindWhileStatement(WhileStatementSyntax statement) {
         var condition = BindCast(statement.condition, BoundTypeClause.NullableBool);
 
         if (condition.constantValue != null && !(bool)condition.constantValue.value)
             diagnostics.Push(Warning.UnreachableCode(statement.body));
 
-        var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel, insideInline);
+        var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
         return new BoundWhileStatement(condition, body, breakLabel, continueLabel);
     }
 
-    private BoundStatement BindDoWhileStatement(DoWhileStatementSyntax statement, bool insideInline = false) {
-        var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel, insideInline);
+    private BoundStatement BindDoWhileStatement(DoWhileStatementSyntax statement) {
+        var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
         var condition = BindCast(statement.condition, BoundTypeClause.NullableBool);
 
         return new BoundDoWhileStatement(body, condition, breakLabel, continueLabel);
     }
 
-    private BoundStatement BindForStatement(ForStatementSyntax statement, bool insideInline = false) {
+    private BoundStatement BindForStatement(ForStatementSyntax statement) {
         _scope = new BoundScope(_scope);
 
-        var initializer = BindStatement(statement.initializer, insideInline: insideInline);
+        var initializer = BindStatement(statement.initializer);
         var condition = BindCast(statement.condition, BoundTypeClause.NullableBool);
         var step = BindExpression(statement.step);
-        var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel, insideInline);
+        var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
 
         _scope.parent.CopyInlines(_scope);
         _scope = _scope.parent;
@@ -961,19 +960,19 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindLoopBody(
-        StatementSyntax body, out BoundLabel breakLabel, out BoundLabel continueLabel, bool insideInline = false) {
+        StatementSyntax body, out BoundLabel breakLabel, out BoundLabel continueLabel) {
         _labelCount++;
         breakLabel = new BoundLabel($"Break{_labelCount}");
         continueLabel = new BoundLabel($"Continue{_labelCount}");
 
         _loopStack.Push((breakLabel, continueLabel));
-        var boundBody = BindStatement(body, insideInline: insideInline);
+        var boundBody = BindStatement(body);
         _loopStack.Pop();
 
         return boundBody;
     }
 
-    private BoundStatement BindIfStatement(IfStatementSyntax statement, bool insideInline = false) {
+    private BoundStatement BindIfStatement(IfStatementSyntax statement) {
         var condition = BindCast(statement.condition, BoundTypeClause.NullableBool);
 
         BoundLiteralExpression constant = null;
@@ -987,10 +986,10 @@ internal sealed class Binder {
             constant = new BoundLiteralExpression(condition.constantValue.value);
         }
 
-        var then = BindStatement(statement.then, insideInline: insideInline);
+        var then = BindStatement(statement.then);
         var elseStatement = statement.elseClause == null
             ? null
-            : BindStatement(statement.elseClause.body, insideInline: insideInline);
+            : BindStatement(statement.elseClause.body);
 
         if (constant != null)
             return new BoundIfStatement(constant, then, elseStatement);
@@ -998,9 +997,9 @@ internal sealed class Binder {
         return new BoundIfStatement(condition, then, elseStatement);
     }
 
-    private BoundStatement BindBlockStatement(BlockStatementSyntax statement, bool insideInline = false) {
+    private BoundStatement BindBlockStatement(BlockStatementSyntax statement) {
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
-        _scope = new BoundScope(_scope);
+        _scope = new BoundScope(_scope, true);
 
         var frame = new List<string>();
 
@@ -1031,7 +1030,7 @@ internal sealed class Binder {
         _localLocals.Push(frame);
 
         foreach (var statementSyntax in statement.statements) {
-            var state = BindStatement(statementSyntax, insideInline: insideInline);
+            var state = BindStatement(statementSyntax);
             statements.Add(state);
         }
 
@@ -1044,12 +1043,14 @@ internal sealed class Binder {
     private string ConstructInnerName() {
         var name = "<";
 
-        foreach (var frame in _innerPrefix.Reverse())
-            name += $"{frame}::";
+        for (int i=_innerPrefix.Count-1; i>0; i--) {
+            name += _innerPrefix.ToArray()[i];
 
-        name = name.Substring(0, name.Length-2);
-        name += ">$";
+            if (i > 1)
+                name += "::";
+        }
 
+        name += $">g__{_innerPrefix.Peek()}";
         return name;
     }
 
@@ -1404,9 +1405,6 @@ internal sealed class Binder {
 
     private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatementSyntax expression) {
         var typeClause = BindTypeClause(expression.typeClause);
-
-        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
-            return null;
 
         if (typeClause.isImplicit && expression.initializer == null) {
             diagnostics.Push(Error.NoInitOnImplicit(expression.identifier.location));

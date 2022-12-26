@@ -11,13 +11,15 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class BoundScope {
     private List<Symbol> _symbols;
     private BoundScope _parent;
+    private bool _isBlock;
 
     /// <summary>
     /// Creates a new scope with an optional parent.
     /// </summary>
     /// <param name="parent">Enclosing scope.</param>
-    internal BoundScope(BoundScope parent) {
+    internal BoundScope(BoundScope parent, bool isBlock = false) {
         this._parent = parent;
+        this._isBlock = isBlock;
     }
 
     internal BoundScope parent {
@@ -139,7 +141,7 @@ internal sealed class BoundScope {
     /// </summary>
     /// <param name="scope"><see cref="BoundScope" /> to copy inlines from (not all functions).</param>
     internal void CopyInlines(BoundScope scope) {
-        foreach (var inline in scope.GetDeclaredFunctions().Where(i => i.name.StartsWith("<$Inline")))
+        foreach (var inline in scope.GetDeclaredFunctions().Where(i => i.name.Contains(">g__$Inline")))
             // Ignore failures, do not override higher level symbols
             TryDeclareFunction(inline);
     }
@@ -166,9 +168,9 @@ internal sealed class BoundScope {
 
         if (_symbols != null) {
             foreach (var symbol in _symbols) {
-                // If it is a nested function, the name will be something like <funcName::name>$
+                // If it is a nested function, the name will be something like <funcName>g__name
                 if (symbol is Symbol s &&
-                    (symbol.name == name || (!strict && symbol.name.EndsWith($"::{name}>$")))) {
+                    (symbol.name == name || (!strict && symbol.name.Contains($">g__{name}")))) {
                     if (_current != null) {
                         var skip = false;
 
@@ -201,9 +203,10 @@ internal sealed class BoundScope {
     }
 
     private bool TryDeclareSymbol<TSymbol>(TSymbol symbol) where TSymbol : Symbol {
-        if (_symbols == null) {
+        if (_symbols == null)
             _symbols = new List<Symbol>();
-        } else if (Contains(symbol.name)) {
+
+        if (Contains(symbol.name)) {
             if (symbol is FunctionSymbol fs) {
                 foreach (var s in _symbols)
                     if (FunctionsMatch(s as FunctionSymbol, fs))
@@ -232,11 +235,13 @@ internal sealed class BoundScope {
     }
 
     private bool Contains(string name) {
-        foreach (var symbol in _symbols)
-            if (symbol.name == name)
-                return true;
+        if (_symbols != null) {
+            foreach (var symbol in _symbols)
+                if (symbol.name == name)
+                    return true;
+        }
 
-        return false;
+        return _isBlock ? (parent == null ? false : parent.Contains(name)) : false;
     }
 
     private ImmutableArray<TSymbol> GetDeclaredSymbols<TSymbol>() where TSymbol : Symbol {
