@@ -73,7 +73,7 @@ public sealed class BelteRepl : ReplBase {
         SyntaxTree syntaxTree;
 
         if (rState == null) {
-            var text = String.Join(Environment.NewLine, lines);
+            var text = string.Join(Environment.NewLine, lines);
             syntaxTree = SyntaxTree.Parse(text);
         } else {
             syntaxTree = (SyntaxTree)rState;
@@ -143,7 +143,7 @@ public sealed class BelteRepl : ReplBase {
             texts.Add((fullText, state.colorTheme.errorText));
 
         var pureTexts = texts.Select(t => t.text).ToList();
-        var textsLength = String.Join("", pureTexts).Length;
+        var textsLength = string.Join("", pureTexts).Length;
 
         if (textsLength < fullText.Length)
             texts.Add((fullText.Substring(textsLength), state.colorTheme.errorText));
@@ -209,11 +209,11 @@ public sealed class BelteRepl : ReplBase {
     }
 
     protected override bool IsCompleteSubmission(string text) {
-        if (String.IsNullOrEmpty(text))
+        if (string.IsNullOrEmpty(text))
             return true;
 
         var twoBlankTines = text.Split(Environment.NewLine).Reverse()
-            .TakeWhile(s => (String.IsNullOrEmpty(s) || String.IsNullOrWhiteSpace(s)))
+            .TakeWhile(s => (string.IsNullOrEmpty(s) || string.IsNullOrWhiteSpace(s)))
             .Take(2)
             .Count() == 2;
 
@@ -461,7 +461,7 @@ public sealed class BelteRepl : ReplBase {
 
         var subset = submissions.GetRange(submissions.Count - countInt, countInt);
 
-        var joined = String.Join(Environment.NewLine, subset);
+        var joined = string.Join(Environment.NewLine, subset);
         var split = joined.Split(Environment.NewLine);
 
         var wrote = false;

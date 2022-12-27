@@ -20,11 +20,11 @@ internal enum DiagnosticCode : int {
     ERR_InvalidMain = 14,
     ERR_RequiredMethodNotFound = 15,
     ERR_MainAndGlobals = 16,
-    ERR_UndefinedName = 17,
+    ERR_UndefinedSymbol = 17,
     ERR_MethodAlreadyDeclared = 18,
     ERR_NotAllPathsReturn = 19,
     ERR_CannotConvert = 20,
-    ERR_AlreadyDeclared = 21,
+    ERR_VariableAlreadyDeclared = 21,
     ERR_ConstantAssignment = 22,
     ERR_AmbiguousElse = 23,
     ERR_NoValue = 24,
@@ -33,8 +33,8 @@ internal enum DiagnosticCode : int {
     ERR_UnterminatedString = 27,
     ERR_UndefinedFunction = 28,
     ERR_IncorrectArgumentCount = 29,
-    ERR_UnexpectedType = 30,
-    ERR_InvalidArgumentType = 31,
+    ERR_StructAlreadyDeclared = 30,
+    // ! Unused slot 31
     ERR_CannotCallNonFunction = 32,
     ERR_InvalidExpressionStatement = 33,
     ERR_UnknownType = 34,
@@ -56,8 +56,9 @@ internal enum DiagnosticCode : int {
     ERR_WrongInitializationReference = 50,
     ERR_UnknownAttribute = 51,
     ERR_NullAssignNotNull = 52,
-    ERR_InconsistentReturnTypes = 53,
-    ERR_MissingReturnStatement = 54,
+    // ! Unused slot 53
+    // ! Unused slot 54
+    ERR_MissingReturnStatement = 54, // Temporary
     ERR_VoidVariable = 55,
     ERR_ExpectedToken = 56,
     ERR_NoOverload = 57,

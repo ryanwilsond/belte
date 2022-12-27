@@ -131,7 +131,7 @@ internal sealed class Evaluator {
     }
 
     private object CollectionValue(EvaluatorObject[] value) {
-        var builder = new List<Object>();
+        var builder = new List<object>();
 
         foreach (var item in value)
             builder.Add(Value(item, true));
@@ -462,6 +462,8 @@ internal sealed class Evaluator {
         } else if (node.function.MethodMatches(BuiltinFunctions.PrintLine)) {
             var message = EvaluateExpression(node.arguments[0]);
             Console.WriteLine(Value(message));
+        } else if (node.function.MethodMatches(BuiltinFunctions.PrintLineNoValue)) {
+            Console.WriteLine();
         } else if (node.function.MethodMatches(BuiltinFunctions.RandInt)) {
             var max = (int)Value(EvaluateExpression(node.arguments[0]));
 

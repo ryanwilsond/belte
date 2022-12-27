@@ -130,7 +130,7 @@ internal sealed class BoundType : BoundNode {
     /// </summary>
     internal int dimensions { get; }
 
-    internal override BoundNodeKind kind => BoundNodeKind.TypeClause;
+    internal override BoundNodeKind kind => BoundNodeKind.Type;
 
     public override string ToString() {
         var text = "";

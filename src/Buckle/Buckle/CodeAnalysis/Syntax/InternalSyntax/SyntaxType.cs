@@ -148,7 +148,7 @@ internal enum SyntaxKind {
     // Type declarations
     StructDeclaration,
     FieldDeclaration,
-    TypeClause,
+    Type,
     Parameter,
     MethodDeclaration,
 

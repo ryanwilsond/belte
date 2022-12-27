@@ -57,7 +57,7 @@ internal sealed class TypeSyntax : SyntaxNode {
     /// <param name="closeBracket">Close square bracket token.</param>
     internal ImmutableArray<(SyntaxToken openBracket, SyntaxToken closeBracket)> brackets { get; }
 
-    internal override SyntaxKind kind => SyntaxKind.TypeClause;
+    internal override SyntaxKind kind => SyntaxKind.Type;
 
     internal override IEnumerable<SyntaxNode> GetChildren() {
         foreach (var attribute in attributes) {

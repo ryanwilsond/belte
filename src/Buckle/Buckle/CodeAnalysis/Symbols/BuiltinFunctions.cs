@@ -25,6 +25,12 @@ internal static class BuiltinFunctions {
         new BoundType(TypeSymbol.Void));
 
     /// <summary>
+    /// PrintLine function, writes an empty line to stdout (with line break).
+    /// </summary>
+    internal static readonly FunctionSymbol PrintLineNoValue = new FunctionSymbol("PrintLine",
+        ImmutableArray<ParameterSymbol>.Empty, new BoundType(TypeSymbol.Void));
+
+    /// <summary>
     /// Input function, gets text input from stdin. Waits until enter is pressed.
     /// </summary>
     internal static readonly FunctionSymbol Input = new FunctionSymbol("Input",

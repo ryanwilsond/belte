@@ -40,5 +40,5 @@ internal enum BoundNodeKind {
     NopStatement,
     FieldDeclarationStatement,
 
-    TypeClause,
+    Type,
 }

@@ -25,10 +25,23 @@ internal sealed class AnnotatedText {
 
         var position = 0;
 
-        foreach (var c in text) {
-            if (c == '[') {
+        for (int i=0; i<text.Length; i++) {
+            if (text[i] == '\\' && i < text.Length - 1) {
+                position++;
+
+                if (text[i + 1] == '[' || text[i + 1] == ']') {
+                    i++;
+                    textBuilder.Append(text[i]);
+                } else {
+                    textBuilder.Append(text[i]);
+                }
+
+                continue;
+            }
+
+            if (text[i] == '[') {
                 startStack.Push(position);
-            } else if (c == ']') {
+            } else if (text[i] == ']') {
                 if (startStack.Count == 0)
                     throw new ArgumentException("']' without corresponding '[' in text", nameof(text));
 
@@ -38,7 +51,7 @@ internal sealed class AnnotatedText {
                 spanBuilder.Add(span);
             } else {
                 position++;
-                textBuilder.Append(c);
+                textBuilder.Append(text[i]);
             }
         }
 

@@ -6,10 +6,10 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundTypeOfExpression : BoundExpression {
     internal BoundTypeOfExpression(BoundType type) {
-        this.typeOfTypeClause = type;
+        this.typeOfType = type;
     }
 
-    internal BoundType typeOfTypeClause { get; }
+    internal BoundType typeOfType { get; }
 
     internal override BoundNodeKind kind => BoundNodeKind.TypeOfExpression;
 

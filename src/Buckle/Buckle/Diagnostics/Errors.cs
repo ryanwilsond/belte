@@ -1,4 +1,6 @@
+using System;
 using System.Linq;
+using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -36,21 +38,34 @@ internal static class Error {
         return new DiagnosticInfo((int)code, "BU", DiagnosticType.Fatal);
     }
 
-    private static string DiagnosticText(SyntaxKind type) {
+    private static string DiagnosticText(SyntaxKind type, bool sayToken = true) {
         var factValue = SyntaxFacts.GetText(type);
-        if (factValue != null)
-            return "'" + factValue + "'";
 
-        if (type.ToString().EndsWith("Statement"))
+        if (factValue != null && type.IsToken() && sayToken)
+            return $"token '{factValue}'";
+        else if (factValue != null)
+            return $"'{factValue}'";
+
+        if (type.ToString().EndsWith("Statement")) {
             return "statement";
-        else if (type.ToString().EndsWith("Expression"))
+        } else if (type.ToString().EndsWith("Expression")) {
             return "expression";
-        else if (type.IsKeyword())
+        } else if (type.IsKeyword()) {
             return "keyword";
-        else if (type.IsToken())
-            return type.ToString().ToLower().Substring(0, type.ToString().Length-5);
-        else
+        } else if (type.IsToken()) {
+            var text = new StringBuilder();
+
+            foreach (var c in type.ToString().Substring(0, type.ToString().Length-5)) {
+                if (char.IsUpper(c))
+                    text.Append(' ');
+
+                text.Append(char.ToLower(c));
+            }
+
+            return text.Remove(0, 1).ToString();
+        } else {
             return type.ToString().ToLower();
+        }
     }
 
     internal static BelteDiagnostic ExpectedToken(TextLocation location, SyntaxKind type) {
@@ -78,11 +93,11 @@ internal static class Error {
         string message;
 
         if (expected == null)
-            message = $"unexpected token {DiagnosticText(unexpected)}";
+            message = $"unexpected {DiagnosticText(unexpected)}";
         else if (unexpected != SyntaxKind.EndOfFileToken)
-            message = $"unexpected token {DiagnosticText(unexpected)}, expected {DiagnosticText(expected.Value)}";
+            message = $"unexpected {DiagnosticText(unexpected)}, expected {DiagnosticText(expected.Value, false)}";
         else
-            message = $"expected {DiagnosticText(expected.Value)} at end of input";
+            message = $"expected {DiagnosticText(expected.Value, false)} at end of input";
 
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnexpectedToken), location, message);
     }
@@ -151,9 +166,9 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MainAndGlobals), location, message);
     }
 
-    internal static BelteDiagnostic UndefinedName(TextLocation location, string name) {
+    internal static BelteDiagnostic UndefinedSymbol(TextLocation location, string name) {
         var message = $"undefined symbol '{name}'";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UndefinedName), location, message);
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UndefinedSymbol), location, message);
     }
 
     internal static BelteDiagnostic MethodAlreadyDeclared(TextLocation location, string name) {
@@ -166,14 +181,19 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NotAllPathsReturn), location, message);
     }
 
-    internal static BelteDiagnostic CannotConvert(TextLocation location, BoundType from, BoundType to) {
+    internal static BelteDiagnostic CannotConvert(
+        TextLocation location, BoundType from, BoundType to, int argument = 0) {
         var message = $"cannot convert from type '{from}' to '{to}'";
+
+        if (argument > 0)
+            message = $"argument {argument}: " + message;
+
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotConvert), location, message);
     }
 
-    internal static BelteDiagnostic AlreadyDeclared(TextLocation location, string name) {
-        var message = $"redefinition of '{name}'";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AlreadyDeclared), location, message);
+    internal static BelteDiagnostic VariableAlreadyDeclared(TextLocation location, string name) {
+        var message = $"redefinition of variable '{name}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_VariableAlreadyDeclared), location, message);
     }
 
     internal static BelteDiagnostic ConstantAssignment(TextLocation location, string name) {
@@ -186,7 +206,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic AmbiguousElse(TextLocation location) {
-        var message = "ambiguous what if-statement else-clause belongs to";
+        var message = "ambiguous what if-statement this else-clause belongs to; use curly braces";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AmbiguousElse), location, message);
     }
 
@@ -212,20 +232,6 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_IncorrectArgumentCount), location, message);
     }
 
-    internal static BelteDiagnostic UnexpectedType(TextLocation location, BoundType type) {
-        var message = $"unexpected type '{type}'";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnexpectedType), location, message);
-    }
-
-    internal static BelteDiagnostic InvalidArgumentType(
-            TextLocation location, int count, string parameterName, BoundType expected, BoundType actual) {
-        var message =
-            $"argument {count}: parameter '{parameterName}' expects argument of type " +
-            $"'{expected}', got '{actual}'";
-
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidArgumentType), location, message);
-    }
-
     internal static BelteDiagnostic CannotCallNonFunction(TextLocation location, string text) {
         var message = $"called object '{text}' is not a function";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotCallNonFunction), location, message);
@@ -242,11 +248,15 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic CannotConvertImplicitly(
-        TextLocation location, BoundType from, BoundType to) {
+        TextLocation location, BoundType from, BoundType to, int argument = 0) {
         var message =
             $"cannot convert from type '{from}' to '{to}'. " +
             "An explicit conversion exists (are you missing a cast?)";
         var suggestion = $"({to})%"; // % is replaced with all the text at `location`
+
+        if (argument > 0)
+            message = $"argument {argument}: " + message;
+
         return new BelteDiagnostic(
             ErrorInfo(DiagnosticCode.ERR_CannotConvertImplicitly), location, message, suggestion);
     }
@@ -282,7 +292,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic NullAssignOnImplicit(TextLocation location) {
-        var message = "cannot assign 'null' to an implicitly-typed variable";
+        var message = "cannot initialize an implicitly-typed variable with 'null'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NullAssignOnImplicit), location, message);
     }
 
@@ -292,7 +302,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic EmptyInitializerListOnImplicit(TextLocation location) {
-        var message = "cannot assign empty initializer list to an implicitly-typed variable";
+        var message = "cannot initialize an implicitly-typed variable with an empty initializer list";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_EmptyInitializerListOnImplicit), location, message);
     }
 
@@ -307,7 +317,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic ImpliedDimensions(TextLocation location) {
-        var message = "collection dimensions are inferred and not necessary";
+        var message = "collection dimensions on implicitly-typed variables are inferred and not necessary";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ImpliedDimensions), location, message);
     }
 
@@ -337,7 +347,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic WrongInitializationReference(TextLocation location) {
-        var message = "cannot initialize variable with reference";
+        var message = "cannot initialize a by-value variable with a reference";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_WrongInitializationReference), location, message);
     }
 
@@ -347,13 +357,8 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic NullAssignOnNotNull(TextLocation location) {
-        var message = "cannot assign null to non-nullable variable";
+        var message = "cannot assign 'null' to non-nullable variable";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NullAssignNotNull), location, message);
-    }
-
-    internal static BelteDiagnostic InconsistentReturnTypes(TextLocation location) {
-        var message = "all return statements must return the same type";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InconsistentReturnTypes), location, message);
     }
 
     internal static BelteDiagnostic MissingReturnStatement(TextLocation location) {
@@ -393,7 +398,12 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic CannotOverloadNested(TextLocation location, string name) {
-        var message = $"cannot overload nested functions; nested function '{name}' has already been declared";
+        var message = $"cannot overload nested functions; nested function '{name}' has already been defined";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotOverloadNested), location, message);
+    }
+
+    internal static BelteDiagnostic StructAlreadyDeclared(TextLocation location, string name) {
+        var message = $"redefinition of struct '{name}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StructAlreadyDeclared), location, message);
     }
 }

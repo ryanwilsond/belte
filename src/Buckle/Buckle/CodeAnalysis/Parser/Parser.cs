@@ -127,7 +127,7 @@ internal sealed class Parser {
     }
 
     private bool PeekIsFunctionDeclaration() {
-        if (PeekIsTypeClause(0, out var offset, out var hasName)) {
+        if (PeekIsType(0, out var offset, out var hasName)) {
             if (hasName)
                 offset++;
 
@@ -148,7 +148,7 @@ internal sealed class Parser {
         return false;
     }
 
-    private bool PeekIsTypeClause(int offset, out int finalOffset, out bool hasName) {
+    private bool PeekIsType(int offset, out int finalOffset, out bool hasName) {
         finalOffset = offset;
         hasName = false;
 
@@ -326,7 +326,7 @@ internal sealed class Parser {
         if (PeekIsFunctionDeclaration())
             return ParseLocalFunctionDeclaration();
 
-        if (PeekIsTypeClause(0, out _, out var hasName) && hasName)
+        if (PeekIsType(0, out _, out var hasName) && hasName)
             return ParseVariableDeclarationStatement();
 
         switch (current.kind) {
@@ -363,7 +363,7 @@ internal sealed class Parser {
         var finallyClause = ParseFinallyClause();
 
         if (catchClause == null && finallyClause == null)
-            diagnostics.Push(Error.NoCatchOrFinally(keyword.location));
+            diagnostics.Push(Error.NoCatchOrFinally(((BlockStatementSyntax)body).closeBrace.location));
 
         return new TryStatementSyntax(_syntaxTree, keyword, (BlockStatementSyntax)body, catchClause, finallyClause);
     }
@@ -430,12 +430,11 @@ internal sealed class Parser {
         ExpressionSyntax initializer = null;
 
         if (current.kind == SyntaxKind.EqualsToken) {
-            if (!allowDefinition) {
-                diagnostics.Push(Error.CannotInitialize(Next().location));
-            } else {
-                equals = Next();
-                initializer = ParseExpression();
-            }
+            equals = Next();
+            initializer = ParseExpression();
+
+            if (!allowDefinition)
+                diagnostics.Push(Error.CannotInitialize(equals.location));
         }
 
         var semicolon = Match(SyntaxKind.SemicolonToken);
@@ -670,7 +669,7 @@ internal sealed class Parser {
     private ExpressionSyntax ParsePrimaryExpression() {
         switch (current.kind) {
             case SyntaxKind.OpenParenToken:
-                if (PeekIsTypeClause(1, out var offset, out _) && Peek(offset).kind == SyntaxKind.CloseParenToken)
+                if (PeekIsType(1, out var offset, out _) && Peek(offset).kind == SyntaxKind.CloseParenToken)
                     return ParseCastExpression();
                 else
                     return ParseParenthesizedExpression();
