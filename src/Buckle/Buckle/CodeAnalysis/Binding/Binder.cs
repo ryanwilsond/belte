@@ -984,9 +984,9 @@ internal sealed class Binder {
         }
 
         if (operand.type.isNullable)
-            diagnostics.Push(Warning.NullDeference(expression.period.location));
+            diagnostics.Push(Warning.NullDeference(expression.op.location));
 
-        return new BoundMemberAccessExpression(operand, symbol);
+        return new BoundMemberAccessExpression(operand, symbol, expression.op.kind == SyntaxKind.QuestionPeriodToken);
     }
 
     private BoundExpression BindTypeOfExpression(TypeOfExpressionSyntax expression) {

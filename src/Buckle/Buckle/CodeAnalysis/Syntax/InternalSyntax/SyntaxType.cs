@@ -58,6 +58,7 @@ internal enum SyntaxKind {
     QuestionQuestionEqualsToken,
     GreaterThanGreaterThanGreaterThanToken,
     GreaterThanGreaterThanGreaterThanEqualsToken,
+    QuestionPeriodToken,
 
     // Keywords
     TypeOfKeyword,

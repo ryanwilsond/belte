@@ -11,16 +11,20 @@ namespace Buckle.CodeAnalysis.Syntax;
 internal sealed partial class MemberAccessExpressionSyntax : ExpressionSyntax {
     /// <param name="identifier">Name of the member to access.</param>
     internal MemberAccessExpressionSyntax(
-        SyntaxTree syntaxTree, ExpressionSyntax operand, SyntaxToken period, SyntaxToken identifer)
+        SyntaxTree syntaxTree, ExpressionSyntax operand, SyntaxToken op, SyntaxToken identifer)
         : base(syntaxTree) {
         this.operand = operand;
-        this.period = period;
+        this.op = op;
         this.identifier = identifer;
     }
 
     internal ExpressionSyntax operand { get; }
 
-    internal SyntaxToken period { get; }
+    /// <summary>
+    /// Member access operator, either <see cref="SyntaxKind.PeriodToken" /> or
+    /// <see cref="SyntaxKind.QuestionPeriodToken" /> (null-conditional member access).
+    /// </summary>
+    internal SyntaxToken op { get; }
 
     /// <summary>
     /// Name of the member to access.

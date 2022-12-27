@@ -763,7 +763,7 @@ internal sealed class Parser {
                 return ParseCallExpression((ExpressionSyntax)operand);
             else if (current.kind == SyntaxKind.OpenBracketToken)
                 return ParseIndexExpression((ExpressionSyntax)operand);
-            else if (current.kind == SyntaxKind.PeriodToken)
+            else if (current.kind == SyntaxKind.PeriodToken || current.kind == SyntaxKind.QuestionPeriodToken)
                 return ParseMemberAccessExpression((ExpressionSyntax)operand);
 
             return operand;
@@ -816,10 +816,10 @@ internal sealed class Parser {
     }
 
     private ExpressionSyntax ParseMemberAccessExpression(ExpressionSyntax operand) {
-        var period = Next();
+        var op = Next();
         var member = Match(SyntaxKind.IdentifierToken);
 
-        return new MemberAccessExpressionSyntax(_syntaxTree, operand, period, member);
+        return new MemberAccessExpressionSyntax(_syntaxTree, operand, op, member);
     }
 
     private ExpressionSyntax ParseIndexExpression(ExpressionSyntax operand) {

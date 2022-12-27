@@ -472,16 +472,17 @@ internal sealed class Evaluator {
 
             return new EvaluatorObject(_random.Next(max));
         } else if (node.function.name == "Value") {
-            EvaluatorObject? value = EvaluateExpression(node.arguments[0]);
+            var value = EvaluateExpression(node.arguments[0]);
 
             if (Value(value) == null)
                 throw new NullReferenceException();
 
             return new EvaluatorObject(Value(value));
         } else if (node.function.MethodMatches(BuiltinFunctions.HasValue)) {
-            EvaluatorObject? value = EvaluateExpression(node.arguments[0]);
+            var value = EvaluateExpression(node.arguments[0]);
+            var hasNoMembers = value.isReference ? Get(value.reference).members == null : value.members == null;
 
-            if (Value(value) == null)
+            if (Value(value) == null && hasNoMembers)
                 return new EvaluatorObject(false);
 
             return new EvaluatorObject(true);

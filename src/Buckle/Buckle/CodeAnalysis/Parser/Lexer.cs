@@ -210,6 +210,9 @@ internal sealed class Lexer {
                     } else {
                         _kind = SyntaxKind.QuestionQuestionToken;
                     }
+                } else if (lookahead == '.') {
+                    _kind = SyntaxKind.QuestionPeriodToken;
+                    _position += 2;
                 } else {
                     _kind = SyntaxKind.QuestionToken;
                     _position++;

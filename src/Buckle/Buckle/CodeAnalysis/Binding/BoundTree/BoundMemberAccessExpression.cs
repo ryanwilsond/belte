@@ -6,14 +6,17 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A bound member access expression, bound from a <see cref="MemberAccessExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundMemberAccessExpression : BoundExpression {
-    internal BoundMemberAccessExpression(BoundExpression operand, FieldSymbol member) {
+    internal BoundMemberAccessExpression(BoundExpression operand, FieldSymbol member, bool isNullConditional) {
         this.operand = operand;
         this.member = member;
+        this.isNullConditional = isNullConditional;
     }
 
     internal BoundExpression operand { get; }
 
     internal FieldSymbol member { get; }
+
+    internal bool isNullConditional { get; }
 
     internal override BoundNodeKind kind => BoundNodeKind.MemberAccessExpression;
 
