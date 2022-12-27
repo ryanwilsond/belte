@@ -309,7 +309,8 @@ public sealed partial class EvaluatorTests {
         var syntaxTree = SyntaxTree.Parse(text);
         var compilation = Compilation.CreateScript(null, syntaxTree);
         var variables = new Dictionary<VariableSymbol, EvaluatorObject>();
-        var result = compilation.Evaluate(variables);
+        var _ = false;
+        var result = compilation.Evaluate(variables, ref _);
 
         if (result.value is double && (Convert.ToDouble(expectedValue)).CompareTo(result.value) == 0)
             expectedValue = Convert.ToDouble(expectedValue);
@@ -321,7 +322,8 @@ public sealed partial class EvaluatorTests {
     private void AssertExceptions(string text, params Exception[] exceptions) {
         var syntaxTree = SyntaxTree.Parse(text);
         var compilation = Compilation.CreateScript(null, syntaxTree);
-        var result = compilation.Evaluate(new Dictionary<VariableSymbol, EvaluatorObject>());
+        var _ = false;
+        var result = compilation.Evaluate(new Dictionary<VariableSymbol, EvaluatorObject>(), ref _);
 
         if (exceptions.Length != result.exceptions.Count) {
             writer.WriteLine($"Input: {text}");
@@ -346,7 +348,8 @@ public sealed partial class EvaluatorTests {
             tempDiagnostics.Move(syntaxTree.diagnostics);
         } else {
             var compilation = Compilation.CreateScript(null, syntaxTree);
-            var result = compilation.Evaluate(new Dictionary<VariableSymbol, EvaluatorObject>());
+            var _ = false;
+            var result = compilation.Evaluate(new Dictionary<VariableSymbol, EvaluatorObject>(), ref _);
             tempDiagnostics = result.diagnostics;
         }
 

@@ -176,7 +176,12 @@ public sealed class BelteRepl : ReplBase {
         Console.ForegroundColor = state.colorTheme.result;
 
         if (!handle.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
-            result = compilation.Evaluate(state.variables);
+            result = compilation.Evaluate(state.variables, ref _abortEvaluation);
+
+            if (_abortEvaluation) {
+                Console.ForegroundColor = state.colorTheme.@default;
+                return;
+            }
 
             if (state.showWarnings)
                 handle.diagnostics.Move(result.diagnostics);

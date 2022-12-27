@@ -151,7 +151,7 @@ public sealed class Compilation {
     /// <param name="variables">Existing variables to add to the scope.</param>
     /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
     internal EvaluationResult Evaluate(
-        Dictionary<VariableSymbol, EvaluatorObject> variables, bool wError = false) {
+        Dictionary<VariableSymbol, EvaluatorObject> variables, ref bool abort, bool wError = false) {
         if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return new EvaluationResult(null, false, globalScope.diagnostics, null);
 
@@ -164,7 +164,7 @@ public sealed class Compilation {
 
         diagnostics.Move(program.diagnostics);
         var eval = new Evaluator(program, variables);
-        var evalResult = eval.Evaluate(out var hasValue);
+        var evalResult = eval.Evaluate(ref abort, out var hasValue);
 
         if (eval.hasPrint)
             Console.WriteLine();

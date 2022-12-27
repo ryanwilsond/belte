@@ -31,6 +31,8 @@ public abstract class ReplBase {
     private readonly List<string> _submissionHistory = new List<string>();
     private readonly List<MetaCommand> _metaCommands = new List<MetaCommand>();
 
+    protected bool _abortEvaluation;
+
     private int _submissionHistoryIndex;
     private bool _done;
     private bool _evaluate;
@@ -71,17 +73,58 @@ public abstract class ReplBase {
     /// Does not initialize <see cref="ReplBase" />, only runs it.
     /// </summary>
     public void Run() {
+        string text;
+
+        void EvaluateSubmissionWrapper() {
+            EvaluateSubmission(text);
+        }
+
         while (true) {
-            var text = EditSubmission();
+            text = EditSubmission();
 
             if (string.IsNullOrEmpty(text))
                 return;
 
             if (_evaluate) {
-                if (!text.Contains(Environment.NewLine) && text.StartsWith('#'))
+                if (!text.Contains(Environment.NewLine) && text.StartsWith('#')) {
                     EvaluateReplCommand(text);
-                else
-                    EvaluateSubmission(text);
+                } else {
+                    var evaluateSubmissionReference = new ThreadStart(EvaluateSubmissionWrapper);
+                    var evaluateSubmissionThread = new Thread(evaluateSubmissionReference);
+                    _abortEvaluation = false;
+                    var startTime = DateTime.Now;
+                    evaluateSubmissionThread.Start();
+
+                    Console.TreatControlCAsInput = true;
+
+                    while (evaluateSubmissionThread.IsAlive) {
+                        if (Console.KeyAvailable) {
+                            var key = Console.ReadKey(true);
+
+                            if (key.Key == ConsoleKey.C && key.Modifiers == ConsoleModifiers.Control)
+                                break;
+                        }
+                    }
+
+                    _abortEvaluation = true;
+                    Console.TreatControlCAsInput = false;
+
+                    while (evaluateSubmissionThread.IsAlive) { }
+
+                    var seconds = (DateTime.Now - startTime).TotalSeconds;
+                    seconds = seconds > 1 ? (int)seconds : Math.Round(seconds, 3);
+
+                    var secondWord = seconds < 1
+                        ? (seconds * 1000 == 1 ? "millisecond" : "milliseconds")
+                        : (seconds == 1 ? "second" : "seconds");
+
+                    seconds = seconds < 1 ? seconds * 1000 : seconds;
+
+                    var previous = Console.ForegroundColor;
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    _writer.WriteLine($"Aborted after {seconds} {secondWord}");
+                    Console.ForegroundColor = previous;
+                }
             }
 
             _evaluate = true;

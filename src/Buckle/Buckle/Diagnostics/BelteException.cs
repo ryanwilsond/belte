@@ -26,12 +26,12 @@ internal sealed class BelteInternalException : BelteException {
 }
 
 /// <summary>
-/// Belte exception meant to be used for exceptions in Belte source code to be shown and fixed by the user.
+/// Belte exception thrown when an evaluating thread should abort evaluation.
 /// </summary>
-internal sealed class BelteLanguageException : BelteException {
-    public BelteLanguageException() { }
+internal sealed class BelteThreadException : BelteException {
+    public BelteThreadException() { }
 
-    public BelteLanguageException(string message) : base(message) { }
+    public BelteThreadException(string message) : base(message) { }
 
-    public BelteLanguageException(string message, Exception inner) : base(message, inner) { }
+    public BelteThreadException(string message, Exception inner) : base(message, inner) { }
 }

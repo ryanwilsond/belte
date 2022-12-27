@@ -286,8 +286,9 @@ public sealed class Compiler {
             (diagnostics.Any() && state.options.Contains("error")))
             return;
 
+        var _ = false; // Unused, just to satisfy ref parameter
         var result = compilation.Evaluate(
-            new Dictionary<VariableSymbol, EvaluatorObject>(), state.options.Contains("error"));
+            new Dictionary<VariableSymbol, EvaluatorObject>(), ref _, state.options.Contains("error"));
 
         if (!state.options.Contains("all") && !state.options.Contains("error"))
             diagnostics.Move(result.diagnostics.FilterOut(DiagnosticType.Warning));
