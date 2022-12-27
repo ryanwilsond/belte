@@ -1,9 +1,13 @@
 {
     "files.associations": {
-        "*.csproj": "msbuild"
+        "*.csproj": "msbuild",
+    },
+    "files.exclude": {
+        "**/bin": true,
+        "**/obj": true,
     },
     "editor.rulers": [
-        120
+        120,
     ],
     "omnisharp.defaultLaunchSolution": "src/Buckle/Buckle.sln",
     "omnisharp.disableMSBuildDiagnosticWarning": true,
