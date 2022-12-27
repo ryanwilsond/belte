@@ -220,11 +220,13 @@ internal sealed class Evaluator {
                 left = Get(left.reference);
         }
 
-        if (right.value == null && right.members != null) {
+        if (right.members == null)
+            left.members = null;
+
+        if (right.value == null && right.members != null)
             left.members = Copy(right.members);
-        } else {
+        else
             left.value = Value(right);
-        }
     }
 
     private EvaluatorObject EvaluateCast(EvaluatorObject value, BoundType type) {

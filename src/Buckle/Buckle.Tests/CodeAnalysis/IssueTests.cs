@@ -5,7 +5,23 @@ namespace Buckle.Tests.CodeAnalysis;
 
 public sealed partial class EvaluatorTests {
     [Fact]
-    public void Evaluate_IfStatement_AllowsNull() {
+    public void Evaluator_Structs_ReassignNull() {
+        var text = @"
+            struct A {
+                int num;
+            }
+
+            var x = A();
+            x.num = 3;
+            x = null;
+            return x?.num;
+        ";
+
+        AssertValue(text, null);
+    }
+
+    [Fact]
+    public void Evaluator_IfStatement_AllowsNull() {
         var text = @"
             if (null) {
                 PrintLine(3);
