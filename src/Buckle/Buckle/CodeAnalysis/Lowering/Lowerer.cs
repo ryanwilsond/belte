@@ -484,11 +484,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         <left> <op> <center> <op> <right>
 
-        ----> <op> is ?: operator and <left> is constant true
+        ----> <op> is '?:' and <left> is constant true
 
         <center>
 
-        ----> <op> is ?: operator and <left> is constant false
+        ----> <op> is '?:' and <left> is constant false
 
         <right>
 
@@ -520,6 +520,33 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var boundBinaryExpression = new BoundBinaryExpression(expression.left, expression.op, expression.right);
 
         return RewriteAssignmentExpression(new BoundAssignmentExpression(expression.left, boundBinaryExpression));
+    }
+
+    protected override BoundExpression RewriteMemberAccessExpression(BoundMemberAccessExpression expression) {
+        /*
+
+        <operand><op><member>
+
+        ----> <op> is '?.'
+
+        (HasValue(<operand>) ? <operand>.<member> : null)
+
+        */
+        if (expression.isNullConditional) {
+            var left = new BoundCallExpression(
+                BuiltinFunctions.HasValue, ImmutableArray.Create<BoundExpression>(expression.operand)
+            );
+
+            var center = new BoundMemberAccessExpression(expression.operand, expression.member, false);
+            var right = new BoundLiteralExpression(null);
+            var op = BoundTernaryOperator.Bind(
+                SyntaxKind.QuestionToken, SyntaxKind.ColonToken, left.type, center.type, right.type
+            );
+
+            return RewriteExpression(new BoundTernaryExpression(left, op, center, right));
+        }
+
+        return base.RewriteMemberAccessExpression(expression);
     }
 
     private FunctionSymbol CorrectValue(BoundExpression expression) {

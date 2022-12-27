@@ -279,6 +279,8 @@ public sealed partial class EvaluatorTests {
     [InlineData("struct A { int num; } struct B { A a; } B myVar = B(); myVar.a = A(); myVar.a.num = 3; return myVar.a.num + 1;", 4)]
     [InlineData("struct A { int a; int b; } A myVar = A(); myVar.a = 3; myVar.b = myVar.a + 3; return myVar.b;", 6)]
     [InlineData("struct A { int a; int b; } A myVar = A(); myVar.a = 3; myVar.b = myVar.a + 3; return myVar.a;", 3)]
+    [InlineData("struct A { int num; } A myVar; int a = myVar?.num; return a;", null)]
+    [InlineData("struct A { int num; } A myVar = A(); myVar.num = 7; int a = myVar?.num; return a;", 7)]
     // TypeOf expressions
     [InlineData("type a = typeof(int[]);", null)]
     [InlineData("type a = typeof(string);", null)]

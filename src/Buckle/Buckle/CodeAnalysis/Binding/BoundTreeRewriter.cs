@@ -211,13 +211,13 @@ internal abstract class BoundTreeRewriter {
         }
     }
 
-    private BoundExpression RewriteMemberAccessExpression(BoundMemberAccessExpression expression) {
+    protected virtual BoundExpression RewriteMemberAccessExpression(BoundMemberAccessExpression expression) {
         var operand = RewriteExpression(expression.operand);
 
         if (operand == expression.operand)
             return expression;
 
-        return new BoundMemberAccessExpression(operand, expression.member);
+        return new BoundMemberAccessExpression(operand, expression.member, expression.isNullConditional);
     }
 
     protected virtual BoundExpression RewriteConstructorExpression(BoundConstructorExpression expression) {

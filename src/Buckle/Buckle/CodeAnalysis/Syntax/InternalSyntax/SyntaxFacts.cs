@@ -66,6 +66,7 @@ internal static class SyntaxFacts {
             case SyntaxKind.OpenBracketToken:
             case SyntaxKind.OpenParenToken:
             case SyntaxKind.PeriodToken:
+            case SyntaxKind.QuestionPeriodToken:
                 return 18;
             default:
                 return 0;
@@ -284,6 +285,8 @@ internal static class SyntaxFacts {
                 return "%=";
             case SyntaxKind.QuestionQuestionEqualsToken:
                 return "??=";
+            case SyntaxKind.QuestionPeriodToken:
+                return "?.";
             case SyntaxKind.TrueKeyword:
                 return "true";
             case SyntaxKind.FalseKeyword:
