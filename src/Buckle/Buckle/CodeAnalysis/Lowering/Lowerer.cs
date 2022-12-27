@@ -187,7 +187,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         ;
 
         */
-        if (statement.condition.constantValue != null) {
+        if (statement.condition.constantValue != null && statement.condition.constantValue.value != null) {
             var condition = (bool)statement.condition.constantValue.value;
             condition = statement.jumpIfTrue ? condition : !condition;
 

@@ -28,7 +28,7 @@ internal static class BoundNodePrinter {
     /// </summary>
     /// <param name="type"><see cref="BoundType" /> to print (not modified).</param>
     /// <param name="writer">Where to write to (out).</param>
-    internal static void WriteTypeClause(BoundType type, TextWriter writer) {
+    internal static void WriteType(BoundType type, TextWriter writer) {
         writer.WriteType(type.BaseType().ToString());
         var brackets = "";
 
@@ -294,7 +294,7 @@ internal static class BoundNodePrinter {
 
     private static void WriteVariableDeclarationStatement(
         BoundVariableDeclarationStatement node, IndentedTextWriter writer) {
-        WriteTypeClause(node.variable.type, writer);
+        WriteType(node.variable.type, writer);
         writer.WriteSpace();
         writer.WriteIdentifier(node.variable.name);
         writer.WriteSpace();
@@ -356,7 +356,7 @@ internal static class BoundNodePrinter {
     private static void WriteTypeOfExpression(BoundTypeOfExpression node, IndentedTextWriter writer) {
         writer.WriteKeyword(SyntaxKind.TypeOfKeyword);
         writer.WritePunctuation(SyntaxKind.OpenParenToken);
-        node.typeOfTypeClause.WriteTo(writer);
+        node.typeOfType.WriteTo(writer);
         writer.WritePunctuation(SyntaxKind.CloseParenToken);
     }
 

@@ -386,7 +386,7 @@ internal sealed class Binder {
         _structMembers.Add((newStruct, builder.ToImmutable()));
 
         if (!_scope.TryDeclareType(newStruct))
-            throw new BelteInternalException($"BindStructDeclaration: failed to declare {newStruct.name}");
+            diagnostics.Push(Error.StructAlreadyDeclared(@struct.identifier.location, @struct.identifier.text));
     }
 
     private BoundStatement BindLocalFunctionDeclaration(LocalFunctionStatementSyntax statement) {
@@ -448,37 +448,33 @@ internal sealed class Binder {
             fieldDeclaration.declaration.identifier, type, bindAsField: true) as FieldSymbol;
     }
 
-    private BoundExpression BindCast(ExpressionSyntax expression, BoundType type, bool allowExplicit = false) {
+    private BoundExpression BindCast(
+        ExpressionSyntax expression, BoundType type, bool allowExplicit = false, int argument = 0) {
         var boundExpression = BindExpression(expression);
-        return BindCast(expression.location, boundExpression, type, allowExplicit);
+        return BindCast(expression.location, boundExpression, type, allowExplicit, argument);
     }
 
     private BoundExpression BindCast(
-        ExpressionSyntax expression, BoundType type, out Cast castType, bool allowExplicit = false) {
-        var boundExpression = BindExpression(expression);
-        return BindCast(expression.location, boundExpression, type, out castType, allowExplicit);
-    }
-
-    private BoundExpression BindCast(
-        TextLocation diagnosticLocation, BoundExpression expression, BoundType type, bool allowExplicit = false) {
+        TextLocation diagnosticLocation, BoundExpression expression, BoundType type,
+        bool allowExplicit = false, int argument = 0) {
         return BindCast(diagnosticLocation, expression, type, out _, allowExplicit);
     }
 
     private BoundExpression BindCast(
         TextLocation diagnosticLocation, BoundExpression expression,
-        BoundType type, out Cast castType, bool allowExplicit = false) {
+        BoundType type, out Cast castType, bool allowExplicit = false, int argument = 0) {
         var conversion = Cast.Classify(expression.type, type);
         castType = conversion;
 
         if (!conversion.exists) {
             if (expression.type.typeSymbol != TypeSymbol.Error && type.typeSymbol != TypeSymbol.Error)
-                diagnostics.Push(Error.CannotConvert(diagnosticLocation, expression.type, type));
+                diagnostics.Push(Error.CannotConvert(diagnosticLocation, expression.type, type, argument));
 
             return new BoundErrorExpression();
         }
 
         if (!allowExplicit && conversion.isExplicit)
-            diagnostics.Push(Error.CannotConvertImplicitly(diagnosticLocation, expression.type, type));
+            diagnostics.Push(Error.CannotConvertImplicitly(diagnosticLocation, expression.type, type, argument));
 
         if (conversion.isIdentity) {
             if (expression is not BoundLiteralExpression le || le.type.typeSymbol != null)
@@ -534,7 +530,7 @@ internal sealed class Binder {
                 reference = variable;
                 break;
             case null:
-                diagnostics.Push(Error.UndefinedName(identifier.location, name));
+                diagnostics.Push(Error.UndefinedSymbol(identifier.location, name));
                 break;
             default:
                 diagnostics.Push(Error.NotAVariable(identifier.location, name));
@@ -559,7 +555,7 @@ internal sealed class Binder {
                 : new LocalVariableSymbol(name, type, constant);
 
         if (declare && !_scope.TryDeclareVariable(variable))
-            diagnostics.Push(Error.AlreadyDeclared(identifier.location, name));
+            diagnostics.Push(Error.VariableAlreadyDeclared(identifier.location, name));
 
         if (_trackSymbols)
             foreach (var frame in _trackedDeclarations)
@@ -683,7 +679,8 @@ internal sealed class Binder {
     private BoundStatement BindWhileStatement(WhileStatementSyntax statement) {
         var condition = BindCast(statement.condition, BoundType.NullableBool);
 
-        if (condition.constantValue != null && !(bool)condition.constantValue.value)
+        if (condition.constantValue != null && condition.constantValue.value != null &&
+            !(bool)condition.constantValue.value)
             diagnostics.Push(Warning.UnreachableCode(statement.body));
 
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
@@ -715,7 +712,7 @@ internal sealed class Binder {
 
         BoundLiteralExpression constant = null;
 
-        if (condition.constantValue != null) {
+        if (condition.constantValue != null && condition.constantValue.value != null) {
             if (!(bool)condition.constantValue.value)
                 diagnostics.Push(Warning.UnreachableCode(statement.then));
             else if (statement.elseClause != null)
@@ -836,7 +833,14 @@ internal sealed class Binder {
             }
 
             if (type.isImplicit && type.dimensions > 0) {
-                diagnostics.Push(Error.ImpliedDimensions(expression.initializer.location));
+                var span = TextSpan.FromBounds(
+                    expression.type.brackets.First().openBracket.location.span.start,
+                    expression.type.brackets.Last().closeBracket.location.span.end
+                );
+
+                var location = new TextLocation(expression.location.text, span);
+                diagnostics.Push(Error.ImpliedDimensions(location));
+
                 return null;
             }
 
@@ -1185,8 +1189,8 @@ internal sealed class Binder {
             for (int i=0; i<preBoundArguments.Length; i++) {
                 var argument = preBoundArguments[i];
                 var parameter = function.parameters[i];
-                var boundArgument =
-                    BindCast(expression.arguments[i].location, argument, parameter.type, out var castType);
+                var boundArgument = BindCast(
+                    expression.arguments[i].location, argument, parameter.type, out var castType, argument: i + 1);
 
                 if (castType.isImplicit && !castType.isIdentity)
                     score++;
@@ -1325,8 +1329,9 @@ internal sealed class Binder {
 
         if (boundOp == null) {
             diagnostics.Push(Error.InvalidTernaryOperatorUse(
-                    expression.leftOp.location, expression.leftOp.text, boundLeft.type,
-                    boundCenter.type, boundRight.type));
+                    expression.leftOp.location, $"{expression.leftOp.text}{expression.rightOp.text}",
+                    boundLeft.type, boundCenter.type, boundRight.type));
+
             return new BoundErrorExpression();
         }
 
@@ -1349,6 +1354,7 @@ internal sealed class Binder {
         }
 
         // Could possible move this to ComputeConstant
+        // TODO Expand the usage of this warning
         if (boundOp.opType == BoundBinaryOperatorKind.EqualityEquals ||
             boundOp.opType == BoundBinaryOperatorKind.EqualityNotEquals ||
             boundOp.opType == BoundBinaryOperatorKind.LessThan ||

@@ -444,14 +444,14 @@ public abstract class ReplBase {
         var current = GetChar();
 
         bool IsTokenName(char current) {
-            if (Char.IsLetterOrDigit(current) || current == '_')
+            if (char.IsLetterOrDigit(current) || current == '_')
                 return true;
 
             return false;
         }
 
         if (!strict) {
-            while (Char.IsWhiteSpace(current)) {
+            while (char.IsWhiteSpace(current)) {
                 if (GetPos() > maxLength)
                     return offset;
 
@@ -464,16 +464,16 @@ public abstract class ReplBase {
             }
 
             if (GetPos() < maxLength) {
-                if (Char.IsPunctuation(current) && IsTokenName(GetChar(1)))
+                if (char.IsPunctuation(current) && IsTokenName(GetChar(1)))
                     offset++;
             }
         } else {
             if (GetPos() < maxLength) {
-                if (Char.IsWhiteSpace(current)) {
-                    if (!Char.IsWhiteSpace(GetChar(1))) {
+                if (char.IsWhiteSpace(current)) {
+                    if (!char.IsWhiteSpace(GetChar(1))) {
                         offset++;
                     } else {
-                        while (Char.IsWhiteSpace(current)) {
+                        while (char.IsWhiteSpace(current)) {
                             if (GetPos() > maxLength)
                                 return offset;
 
@@ -493,7 +493,7 @@ public abstract class ReplBase {
 
         current = GetChar();
 
-        if (Char.IsLetterOrDigit(current)) {
+        if (char.IsLetterOrDigit(current)) {
             while (GetPos() <= maxLength) {
                 offset++;
 
@@ -507,7 +507,7 @@ public abstract class ReplBase {
             }
 
             return offset;
-        } else if (Char.IsPunctuation(current)) {
+        } else if (char.IsPunctuation(current)) {
             while (GetPos() <= maxLength) {
                 offset++;
 
@@ -516,7 +516,7 @@ public abstract class ReplBase {
 
                 current = GetChar();
 
-                if (!Char.IsPunctuation(current))
+                if (!char.IsPunctuation(current))
                     break;
             }
         }
@@ -540,14 +540,14 @@ public abstract class ReplBase {
         var current = GetChar();
 
         bool IsTokenName(char current) {
-            if (Char.IsLetterOrDigit(current) || current == '_')
+            if (char.IsLetterOrDigit(current) || current == '_')
                 return true;
 
             return false;
         }
 
         if (!strict) {
-            while (Char.IsWhiteSpace(current)) {
+            while (char.IsWhiteSpace(current)) {
                 offset++;
 
                 if (GetPos() == 0)
@@ -560,13 +560,13 @@ public abstract class ReplBase {
             }
 
             if (GetPos() > 1) {
-                if (Char.IsPunctuation(current) && IsTokenName(GetChar(1)))
+                if (char.IsPunctuation(current) && IsTokenName(GetChar(1)))
                     offset++;
             }
         } else {
             if (GetPos() > 1) {
-                if (Char.IsWhiteSpace(current)) {
-                    if (!Char.IsWhiteSpace(GetChar(1))) {
+                if (char.IsWhiteSpace(current)) {
+                    if (!char.IsWhiteSpace(GetChar(1))) {
                         offset++;
                     } else {
                         while (GetPos() > 0) {
@@ -577,7 +577,7 @@ public abstract class ReplBase {
 
                             var previous = GetChar(1);
 
-                            if (!Char.IsWhiteSpace(previous))
+                            if (!char.IsWhiteSpace(previous))
                                 break;
                         }
 
@@ -589,7 +589,7 @@ public abstract class ReplBase {
 
         current = GetChar();
 
-        if (Char.IsLetterOrDigit(current)) {
+        if (char.IsLetterOrDigit(current)) {
             while (GetPos() > 0) {
                 offset++;
 
@@ -603,7 +603,7 @@ public abstract class ReplBase {
             }
 
             return offset;
-        } else if (Char.IsPunctuation(current)) {
+        } else if (char.IsPunctuation(current)) {
             while (GetPos() > 0) {
                 offset++;
 
@@ -612,7 +612,7 @@ public abstract class ReplBase {
 
                 var previous = GetChar(1);
 
-                if (!Char.IsPunctuation(previous))
+                if (!char.IsPunctuation(previous))
                     break;
             }
         }
@@ -751,12 +751,13 @@ public abstract class ReplBase {
 
             var previous = line.Substring(start - offset - 1, 1).Single();
 
-            if (!Char.IsWhiteSpace(previous))
+            if (!char.IsWhiteSpace(previous))
                 break;
         }
 
-        if (String.IsNullOrWhiteSpace(line.Substring(start - offset, offset)))
-            return offset;
+        if (offset <= start)
+            if (string.IsNullOrWhiteSpace(line.Substring(start - offset, offset)))
+                return offset;
 
         return 1;
     }
@@ -796,14 +797,14 @@ public abstract class ReplBase {
                 if (targetTabbing.Item1 == text.Single()) {
                     foundPair = true;
 
-                    if (String.IsNullOrWhiteSpace(document[lineIndex])) {
+                    if (string.IsNullOrWhiteSpace(document[lineIndex])) {
                         for (int i=view.currentTypingTabbing; i>targetTabbing.Item2; i--)
                             HandleShiftTab(document, view);
                     }
                 }
             }
 
-            if (!foundPair && String.IsNullOrWhiteSpace(document[lineIndex])) {
+            if (!foundPair && string.IsNullOrWhiteSpace(document[lineIndex])) {
                 document[lineIndex] = "";
                 view.currentCharacter = 0;
             }
@@ -959,7 +960,7 @@ public abstract class ReplBase {
             // captured = new List<List<string>>();
         }
 
-        // internal List<List<String>> captured { get; private set; }
+        // internal List<List<string>> captured { get; private set; }
 
         /// <summary>
         /// Encoding to use, constant.

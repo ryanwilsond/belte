@@ -595,7 +595,7 @@ internal sealed class Lexer {
             if (!double.TryParse(parsedText, out var value)) {
                 var span = new TextSpan(_start, length);
                 var location = new TextLocation(_text, span);
-                diagnostics.Push(Error.InvalidType(location, text, TypeSymbol.Int));
+                diagnostics.Push(Error.InvalidType(location, text, TypeSymbol.Decimal));
             } else {
                 _value = value;
             }

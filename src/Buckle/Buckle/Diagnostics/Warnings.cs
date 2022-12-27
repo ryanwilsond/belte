@@ -30,7 +30,7 @@ internal static class Warning {
             return null;
         }
 
-        return UnreachableCode(node.GetChildren().FirstOrDefault().location);
+        return UnreachableCode(node.location);
     }
 
     private static DiagnosticInfo WarningInfo(DiagnosticCode code) {
@@ -49,7 +49,7 @@ internal static class Warning {
             // False -> false
             valueString = valueString.ToLower();
 
-        var message = $"expression will always result to '{value}'";
+        var message = $"expression will always result to '{valueString}'";
         return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_AlwaysValue), location, message);
     }
 
