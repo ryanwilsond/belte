@@ -564,6 +564,12 @@ public sealed class BelteRepl : ReplBase {
         _writer.WriteLine(state.showWarnings ? "Warnings shown" : "Warnings ignored");
     }
 
+    [MetaCommand("showTime", "Toggle to display execution time of entries")]
+    private void EvaluateShowTime() {
+        _showTime = !_showTime;
+        _writer.WriteLine(_showTime ? "Execution time visible" : "Execution time hidden");
+    }
+
     /// <summary>
     /// All required fields to implement for a REPL color theme (only supported if using System.Console as out).
     /// </summary>

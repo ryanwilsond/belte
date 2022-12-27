@@ -32,6 +32,7 @@ public abstract class ReplBase {
     private readonly List<MetaCommand> _metaCommands = new List<MetaCommand>();
 
     protected bool _abortEvaluation;
+    protected bool _showTime;
 
     private int _submissionHistoryIndex;
     private bool _done;
@@ -66,6 +67,7 @@ public abstract class ReplBase {
     internal virtual void ResetState() {
         _done = false;
         _evaluate = true;
+        _showTime = false;
     }
 
     /// <summary>
@@ -97,12 +99,16 @@ public abstract class ReplBase {
 
                     Console.TreatControlCAsInput = true;
 
+                    var broke = false;
+
                     while (evaluateSubmissionThread.IsAlive) {
                         if (Console.KeyAvailable) {
                             var key = Console.ReadKey(true);
 
-                            if (key.Key == ConsoleKey.C && key.Modifiers == ConsoleModifiers.Control)
+                            if (key.Key == ConsoleKey.C && key.Modifiers == ConsoleModifiers.Control) {
+                                broke = true;
                                 break;
+                            }
                         }
                     }
 
@@ -111,19 +117,22 @@ public abstract class ReplBase {
 
                     while (evaluateSubmissionThread.IsAlive) { }
 
-                    var seconds = (DateTime.Now - startTime).TotalSeconds;
-                    seconds = seconds > 1 ? (int)seconds : Math.Round(seconds, 3);
+                    if (broke || _showTime) {
+                        var finishWord = broke ? "Aborted" : "Finished";
+                        var seconds = (DateTime.Now - startTime).TotalSeconds;
+                        seconds = seconds > 1 ? (int)seconds : Math.Round(seconds, 3);
 
-                    var secondWord = seconds < 1
-                        ? (seconds * 1000 == 1 ? "millisecond" : "milliseconds")
-                        : (seconds == 1 ? "second" : "seconds");
+                        var secondWord = seconds < 1
+                            ? (seconds * 1000 == 1 ? "millisecond" : "milliseconds")
+                            : (seconds == 1 ? "second" : "seconds");
 
-                    seconds = seconds < 1 ? seconds * 1000 : seconds;
+                        seconds = seconds < 1 ? seconds * 1000 : seconds;
 
-                    var previous = Console.ForegroundColor;
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    _writer.WriteLine($"Aborted after {seconds} {secondWord}");
-                    Console.ForegroundColor = previous;
+                        var previous = Console.ForegroundColor;
+                        Console.ForegroundColor = ConsoleColor.DarkGray;
+                        _writer.WriteLine($"{finishWord} after {seconds} {secondWord}");
+                        Console.ForegroundColor = previous;
+                    }
                 }
             }
 

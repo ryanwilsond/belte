@@ -630,12 +630,8 @@ internal sealed class Binder {
         var boundExpression = expression.expression == null ? null : BindExpression(expression.expression);
 
         if (_function == null) {
-            if (_isScript) {
-                if (boundExpression == null)
-                    boundExpression = new BoundLiteralExpression(null);
-            } else if (boundExpression != null) {
+            if (!_isScript && boundExpression != null)
                 diagnostics.Push(Error.Unsupported.GlobalReturnValue(expression.keyword.location));
-            }
         } else {
             if (_function.type.typeSymbol == TypeSymbol.Void) {
                 if (boundExpression != null)

@@ -265,7 +265,6 @@ internal sealed class Evaluator {
                         index++;
                         break;
                     case BoundNodeKind.ExpressionStatement:
-                        _hasValue = true;
                         EvaluateExpressionStatement((BoundExpressionStatement)s, ref abort);
                         index++;
                         break;
@@ -306,7 +305,10 @@ internal sealed class Evaluator {
                             ? new EvaluatorObject()
                             : Copy(EvaluateExpression(returnStatement.expression, ref abort));
 
-                        _hasValue = returnStatement.expression == null ? false : true;
+                        _hasValue =
+                            (returnStatement.expression == null || returnStatement.expression is BoundEmptyExpression)
+                                ? false : true;
+
                         hasReturn = true;
                         return _lastValue;
                     default:
