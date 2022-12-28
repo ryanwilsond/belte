@@ -556,7 +556,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         ----> <openBracket> is '?['
 
-        (HasValue(<operand>) ? <operand>[<index] : null)
+        (HasValue(<operand>) ? <operand>[<index>] : null)
 
         */
         if (expression.isNullConditional) {
