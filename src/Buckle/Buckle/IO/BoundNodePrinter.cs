@@ -361,7 +361,7 @@ internal static class BoundNodePrinter {
     }
 
     private static void WriteIndexExpression(BoundIndexExpression node, IndentedTextWriter writer) {
-        node.expression.WriteTo(writer);
+        node.operand.WriteTo(writer);
         writer.WritePunctuation(SyntaxKind.OpenBracketToken);
         node.index.WriteTo(writer);
         writer.WritePunctuation(SyntaxKind.CloseBracketToken);

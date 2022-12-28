@@ -761,7 +761,7 @@ internal sealed class Parser {
                 return ParseTypeOfExpression();
             else if (current.kind == SyntaxKind.OpenParenToken)
                 return ParseCallExpression((ExpressionSyntax)operand);
-            else if (current.kind == SyntaxKind.OpenBracketToken)
+            else if (current.kind == SyntaxKind.OpenBracketToken || current.kind == SyntaxKind.QuestionOpenBracketToken)
                 return ParseIndexExpression((ExpressionSyntax)operand);
             else if (current.kind == SyntaxKind.PeriodToken || current.kind == SyntaxKind.QuestionPeriodToken)
                 return ParseMemberAccessExpression((ExpressionSyntax)operand);

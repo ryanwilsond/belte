@@ -258,7 +258,7 @@ internal abstract class BoundTreeRewriter {
         if (index == expression.index)
             return expression;
 
-        return new BoundIndexExpression(expression.expression, index);
+        return new BoundIndexExpression(expression.operand, index, expression.isNullConditional);
     }
 
     protected virtual BoundExpression RewriteInitializerListExpression(BoundInitializerListExpression expression) {

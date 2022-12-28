@@ -439,7 +439,7 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateIndexExpression(BoundIndexExpression node, ref bool abort) {
-        var variable = EvaluateExpression(node.expression, ref abort);
+        var variable = EvaluateExpression(node.operand, ref abort);
         var index = EvaluateExpression(node.index, ref abort);
 
         return ((EvaluatorObject[])Value(variable))[(int)Value(index)];
