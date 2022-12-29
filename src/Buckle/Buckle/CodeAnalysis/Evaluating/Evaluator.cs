@@ -329,7 +329,7 @@ internal sealed class Evaluator {
             }
 
             return _lastValue;
-        } catch (Exception e) when (!(e is BelteInternalException)) {
+        } catch (Exception e) when (e is not BelteInternalException) {
             if (e is BelteThreadException)
                 return new EvaluatorObject();
 
@@ -364,7 +364,7 @@ internal sealed class Evaluator {
 
         try {
             EvaluateStatement(statement.body, ref abort, out hasReturn, true);
-        } catch (Exception e) when (!(e is BelteInternalException)) {
+        } catch (Exception e) when (e is not BelteInternalException) {
             if (statement.catchBody != null && !hasReturn)
                 EvaluateStatement(statement.catchBody, ref abort, out hasReturn);
             else

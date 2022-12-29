@@ -1020,7 +1020,7 @@ internal sealed class Binder {
         if (operand is BoundErrorExpression)
             return operand;
 
-        if (!(operand.type.typeSymbol is StructSymbol)) {
+        if (operand.type.typeSymbol is not StructSymbol) {
             diagnostics.Push(
                 Error.NoSuchMember(expression.identifier.location, operand.type, expression.identifier.text)
             );
@@ -1067,7 +1067,7 @@ internal sealed class Binder {
     private BoundExpression BindPostfixExpression(PostfixExpressionSyntax expression, bool ownStatement = false) {
         var operand = BindExpression(expression.operand);
 
-        if (!(operand is BoundVariableExpression || operand is BoundMemberAccessExpression)) {
+        if (operand is not BoundVariableExpression && operand is not BoundMemberAccessExpression) {
             diagnostics.Push(Error.CannotAssign(expression.operand.location));
             return new BoundErrorExpression();
         }
@@ -1108,7 +1108,7 @@ internal sealed class Binder {
     private BoundExpression BindPrefixExpression(PrefixExpressionSyntax expression) {
         var operand = BindExpression(expression.operand);
 
-        if (!(operand is BoundVariableExpression || operand is BoundMemberAccessExpression)) {
+        if (operand is not BoundVariableExpression && operand is not BoundMemberAccessExpression) {
             diagnostics.Push(Error.CannotAssign(expression.operand.location));
             return new BoundErrorExpression();
         }
@@ -1472,7 +1472,9 @@ internal sealed class Binder {
         if (left is BoundErrorExpression)
             return left;
 
-        if (!(left is BoundVariableExpression || left is BoundMemberAccessExpression || left is BoundIndexExpression)) {
+        if (left is not BoundVariableExpression &&
+            left is not BoundMemberAccessExpression &&
+            left is not BoundIndexExpression) {
             diagnostics.Push(Error.CannotAssign(expression.left.location));
             return new BoundErrorExpression();
         }

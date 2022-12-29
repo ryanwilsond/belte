@@ -379,9 +379,10 @@ public sealed class BelteRepl : ReplBase {
     private void EvaluateDump(string signature) {
         var compilation = state.previous ?? emptyCompilation;
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
-        var symbols = signature == name
+        var symbols = (signature == name
             ? compilation.GetSymbols().Where(f => f.name == name)
-            : compilation.GetSymbols<FunctionSymbol>().Where(f => f.SignatureNoReturnNoParameterNames() == signature);
+            : compilation.GetSymbols<FunctionSymbol>().Where(f => f.SignatureNoReturnNoParameterNames() == signature))
+                .ToArray();
 
         Symbol symbol = null;
 
@@ -395,21 +396,22 @@ public sealed class BelteRepl : ReplBase {
             } catch (BelteInternalException) { }
         }
 
-        if (symbols.ToArray().Length == 0) {
+        if (symbols.Length == 0) {
             if (signature == name)
                 handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.UndefinedSymbol(name)));
             else
                 handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.NoSuchFunction(signature)));
-        } else if (symbols.ToArray().Length == 1) {
+        } else if (symbols.Length == 1) {
             symbol = symbols.Single();
         } else if (signature == name) {
-            var first = symbols.First();
+            var temp = symbols.Where(s => s is not FunctionSymbol);
 
-            if (symbols.All(s => s.name == first.name)) {
-                symbol = first;
+            if (temp.Any()) {
+                symbol = temp.First();
             } else {
                 handle.diagnostics.Push(
-                    new BelteDiagnostic(Repl.Diagnostics.Error.AmbiguousSignature(signature, symbols.ToArray())));
+                    new BelteDiagnostic(Repl.Diagnostics.Error.AmbiguousSignature(signature, symbols))
+                );
             }
         } else {
             symbol = symbols.First();

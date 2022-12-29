@@ -990,8 +990,9 @@ public abstract class ReplBase {
                     args.Add(parameter.DefaultValue.ToString());
             } else {
                 var parameterNames = string.Join(" ", parameters.Select(p => $"<{p.Name}>"));
-                handle.diagnostics.Push(new BelteDiagnostic(
-                        Repl.Diagnostics.Error.WrongArgumentCount(command.name, parameterNames)));
+                handle.diagnostics.Push(
+                    new BelteDiagnostic(Repl.Diagnostics.Error.WrongArgumentCount(command.name, parameterNames))
+                );
 
                 if (diagnosticHandle != null)
                     diagnosticHandle(handle, "repl");

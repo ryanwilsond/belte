@@ -43,11 +43,6 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuchFunction), message);
     }
 
-    internal static Diagnostic NoSuchFunction(object name) {
-        var message = $"no such function with the signature '{name}' exists";
-        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuchFunction), message);
-    }
-
     internal static Diagnostic AmbiguousSignature(string signature, Symbol[] symbols) {
         var message = new StringBuilder($"'{signature}' is ambiguous between ");
 

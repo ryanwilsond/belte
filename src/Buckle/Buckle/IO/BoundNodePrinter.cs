@@ -176,7 +176,7 @@ internal static class BoundNodePrinter {
     }
 
     private static void WriteNestedStatement(this IndentedTextWriter writer, BoundStatement node) {
-        var needsIndentation = !(node is BoundBlockStatement);
+        var needsIndentation = node is not BoundBlockStatement;
 
         if (needsIndentation)
             writer.Indent++;
