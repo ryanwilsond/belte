@@ -514,10 +514,17 @@ internal sealed class Binder {
         bool isNullable = true;
 
         foreach (var attribute in type.attributes) {
-            if (attribute.identifier.text == "NotNull")
-                isNullable = false;
-            else
+            if (attribute.identifier.text == "NotNull") {
+                if (isNullable) {
+                    isNullable = false;
+                } else {
+                    diagnostics.Push(
+                        Error.DuplicateAttribute(attribute.identifier.location, attribute.identifier.text)
+                    );
+                }
+            } else {
                 diagnostics.Push(Error.UnknownAttribute(attribute.identifier.location, attribute.identifier.text));
+            }
         }
 
         var isRef = type.refKeyword != null;

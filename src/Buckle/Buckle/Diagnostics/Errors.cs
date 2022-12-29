@@ -409,4 +409,9 @@ internal static class Error {
         var message = $"redefinition of struct '{name}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StructAlreadyDeclared), location, message);
     }
+
+    internal static BelteDiagnostic DuplicateAttribute(TextLocation location, string name) {
+        var message = $"attribute '{name}' has already been applied";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_DuplicateAttribute), location, message);
+    }
 }

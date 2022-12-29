@@ -742,4 +742,17 @@ public sealed partial class EvaluatorTests {
 
         AssertDiagnostics(text, diagnostics);
     }
+
+    [Fact]
+    public void Evaluator_Reports_Warning_BU0064_DuplicateAttribute() {
+        var text = @"
+            \[NotNull\]\[[NotNull]\]int a = 3;
+        ";
+
+        var diagnostics = @"
+            attribute 'NotNull' has already been applied
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
 }
