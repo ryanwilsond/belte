@@ -692,7 +692,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            multiple overloads for function 'myFunc' match parameter list
+            function call is ambiguous between 'void myFunc(int a)' and 'void myFunc(string a)'
         ";
 
         AssertDiagnostics(text, diagnostics);

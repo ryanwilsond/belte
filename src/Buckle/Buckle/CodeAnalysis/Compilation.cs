@@ -126,11 +126,11 @@ public sealed class Compilation {
 
         while (submission != null) {
             foreach (var function in submission.functions)
-                if (seenSymbolNames.Add(function.SignatureAsString()) && function is T)
+                if (seenSymbolNames.Add(function.SignatureNoReturnNoParameterNames()) && function is T)
                     yield return function as T;
 
             foreach (var builtin in builtins)
-                if (seenSymbolNames.Add(builtin.SignatureAsString()) && builtin is T)
+                if (seenSymbolNames.Add(builtin.SignatureNoReturnNoParameterNames()) && builtin is T)
                     yield return builtin as T;
 
             foreach (var variable in submission.variables)

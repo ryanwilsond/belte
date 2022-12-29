@@ -74,7 +74,7 @@ internal sealed class FunctionSymbol : Symbol {
     /// Gets the signature of this without the return type or parameter names.
     /// </summary>
     /// <returns>Signature if this <see cref="FunctionSymbol" />.</returns>
-    internal string SignatureAsString() {
+    internal string SignatureNoReturnNoParameterNames() {
         var signature = new StringBuilder($"{name}(");
         var isFirst = true;
 
@@ -85,6 +85,24 @@ internal sealed class FunctionSymbol : Symbol {
                 signature.Append(',');
 
             signature.Append(parameter.type.ToString());
+        }
+
+        signature.Append(')');
+
+        return signature.ToString();
+    }
+
+    internal string Signature() {
+        var signature = new StringBuilder($"{type} {name}(");
+        var isFirst = true;
+
+        foreach (var parameter in parameters) {
+            if (isFirst)
+                isFirst = false;
+            else
+                signature.Append(',');
+
+            signature.Append($"{parameter.type} {parameter.name}");
         }
 
         signature.Append(')');

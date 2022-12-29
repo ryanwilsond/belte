@@ -1136,7 +1136,6 @@ internal sealed class Binder {
             return new BoundConstructorExpression(typeSymbol);
 
         var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
-        FunctionSymbol finalFunction = null;
 
         _innerPrefix.Push(name);
         var innerName = ConstructInnerName();
@@ -1161,7 +1160,7 @@ internal sealed class Binder {
 
         var preBoundArguments = preBoundArgumentsBuilder.ToImmutable();
         var minScore = Int32.MaxValue;
-        var possibleOverloads = 0;
+        var possibleOverloads = new List<FunctionSymbol>();
 
         foreach (var symbol in symbols) {
             var beforeCount = diagnostics.count;
@@ -1268,12 +1267,11 @@ internal sealed class Binder {
                     boundArguments.Clear();
                     boundArguments.AddRange(currentBoundArguments);
                     minScore = score;
-                    possibleOverloads = 0;
+                    possibleOverloads.Clear();
                 }
 
                 if (score == minScore) {
-                    possibleOverloads++;
-                    finalFunction = function;
+                    possibleOverloads.Add(function);
                 }
             }
         }
@@ -1286,17 +1284,17 @@ internal sealed class Binder {
             diagnostics.Move(tempDiagnostics);
         }
 
-        if (symbols.Length > 1 && possibleOverloads == 0) {
+        if (symbols.Length > 1 && possibleOverloads.Count == 0) {
             diagnostics.Push(Error.NoOverload(expression.identifier.location, name));
 
             return new BoundErrorExpression();
-        } else if (symbols.Length > 1 && possibleOverloads > 1) {
-            diagnostics.Push(Error.AmbiguousOverload(expression.identifier.location, name));
+        } else if (symbols.Length > 1 && possibleOverloads.Count > 1) {
+            diagnostics.Push(Error.AmbiguousOverload(expression.identifier.location, possibleOverloads.ToArray()));
 
             return new BoundErrorExpression();
         }
 
-        return new BoundCallExpression(finalFunction, boundArguments.ToImmutable());
+        return new BoundCallExpression(possibleOverloads.SingleOrDefault(), boundArguments.ToImmutable());
     }
 
     private BoundExpression BindCastExpression(CastExpressionSyntax expression) {

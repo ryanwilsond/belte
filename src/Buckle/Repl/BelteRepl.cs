@@ -381,7 +381,7 @@ public sealed class BelteRepl : ReplBase {
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
         var symbols = signature == name
             ? compilation.GetSymbols().Where(f => f.name == name)
-            : compilation.GetSymbols<FunctionSymbol>().Where(f => f.SignatureAsString() == signature);
+            : compilation.GetSymbols<FunctionSymbol>().Where(f => f.SignatureNoReturnNoParameterNames() == signature);
 
         Symbol symbol = null;
 

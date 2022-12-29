@@ -60,7 +60,7 @@ internal static class Error {
                 message.Append(", ");
 
             if (symbols[i] is FunctionSymbol f)
-                message.Append($"'{f.SignatureAsString()}'");
+                message.Append($"'{f.SignatureNoReturnNoParameterNames()}'");
             else
                 message.Append($"'{symbols[i]}'");
         }

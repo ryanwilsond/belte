@@ -376,9 +376,21 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoOverload), location, message);
     }
 
-    internal static BelteDiagnostic AmbiguousOverload(TextLocation location, string name) {
-        var message = $"multiple overloads for function '{name}' match parameter list";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AmbiguousOverload), location, message);
+    internal static BelteDiagnostic AmbiguousOverload(TextLocation location, FunctionSymbol[] symbols) {
+        var message = new StringBuilder($"function call is ambiguous between ");
+
+        for (int i=0; i<symbols.Length; i++) {
+            if (i == symbols.Length - 1 && i > 1)
+                message.Append(", and ");
+            else if (i == symbols.Length - 1)
+                message.Append(" and ");
+            else if (i > 0)
+                message.Append(", ");
+
+            message.Append($"'{symbols[i].Signature()}'");
+        }
+
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AmbiguousOverload), location, message.ToString());
     }
 
     internal static BelteDiagnostic CannotInitialize(TextLocation location) {
