@@ -224,6 +224,10 @@ public sealed partial class EvaluatorTests {
     [InlineData("var a = {3.1, 2.56, 5.23123}; return a[0];", 3.1)]
     [InlineData("string[] a = {\"hello\", \"world\"}; return a[1];", "world")]
     [InlineData("bool[] a = {true, true, false, false}; return a[3];", false)]
+    [InlineData("bool[] a = {true, true, false, false}; return a?[3];", false)]
+    [InlineData("bool[] a; return a?[3];", null)]
+    [InlineData("bool[] a = {true, false}; a = null; return a?[3];", null)]
+    [InlineData("bool[] a = null; return a?[3];", null)]
     // Reference expressions
     [InlineData("int x = 4; ref int y = ref x; x++; return y;", 5)]
     [InlineData("int x = 4; ref int y = ref x; y++; return x;", 5)]

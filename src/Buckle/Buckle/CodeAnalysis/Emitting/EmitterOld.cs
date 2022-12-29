@@ -540,10 +540,10 @@ internal sealed class _Emitter {
     }
 
     private void EmitIndexExpression(ILProcessor iLProcessor, BoundIndexExpression expression) {
-        EmitExpression(iLProcessor, expression.expression);
+        EmitExpression(iLProcessor, expression.operand);
         iLProcessor.Emit(OpCodes.Ldc_I4, (int)expression.index.constantValue.value);
 
-        var type = expression.expression.type;
+        var type = expression.operand.type;
 
         if (type.ChildType().dimensions == 0) {
             iLProcessor.Emit(OpCodes.Ldelem_Any, GetType(type.BaseType()));

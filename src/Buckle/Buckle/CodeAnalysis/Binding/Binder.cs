@@ -816,10 +816,10 @@ internal sealed class Binder {
             return new BoundVariableDeclarationStatement(variable, initializer);
         } else if (type.dimensions > 0 ||
             (type.isImplicit && expression.initializer is InitializerListExpressionSyntax)) {
-            var initializer = expression.initializer.kind != SyntaxKind.NullKeyword
-                ? BindInitializerListExpression(
-                    (InitializerListExpressionSyntax)expression.initializer, type)
-                : new BoundLiteralExpression(null);
+            var initializer = (expression.initializer == null ||
+                (expression.initializer is LiteralExpressionSyntax l && l.token.kind == SyntaxKind.NullKeyword))
+                ? new BoundLiteralExpression(null)
+                : BindInitializerListExpression((InitializerListExpressionSyntax)expression.initializer, type);
 
             if (initializer is BoundInitializerListExpression il) {
                 if (il.items.Length == 0 && type.isImplicit) {
@@ -1084,7 +1084,9 @@ internal sealed class Binder {
         if (boundExpression.type.dimensions > 0) {
             var index = BindCast(
                 expression.index.location, BindExpression(expression.index), new BoundType(TypeSymbol.Int));
-            return new BoundIndexExpression(boundExpression, index);
+
+            return new BoundIndexExpression(
+                boundExpression, index, expression.openBracket.kind == SyntaxKind.QuestionOpenBracketToken);
         } else {
             diagnostics.Push(Error.CannotApplyIndexing(expression.location, boundExpression.type));
             return new BoundErrorExpression();

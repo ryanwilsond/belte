@@ -549,6 +549,33 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.RewriteMemberAccessExpression(expression);
     }
 
+    protected override BoundExpression RewriteIndexExpression(BoundIndexExpression expression) {
+        /*
+
+        <operand><openBracket><index>]
+
+        ----> <openBracket> is '?['
+
+        (HasValue(<operand>) ? <operand>[<index>] : null)
+
+        */
+        if (expression.isNullConditional) {
+            var left = new BoundCallExpression(
+                BuiltinFunctions.HasValue, ImmutableArray.Create<BoundExpression>(expression.operand)
+            );
+
+            var center = new BoundIndexExpression(expression.operand, expression.index, false);
+            var right = new BoundLiteralExpression(null);
+            var op = BoundTernaryOperator.Bind(
+                SyntaxKind.QuestionToken, SyntaxKind.ColonToken, left.type, center.type, right.type
+            );
+
+            return RewriteExpression(new BoundTernaryExpression(left, op, center, right));
+        }
+
+        return base.RewriteIndexExpression(expression);
+    }
+
     private FunctionSymbol CorrectValue(BoundExpression expression) {
         if (expression.type.typeSymbol == TypeSymbol.Bool)
             return BuiltinFunctions.ValueBool;
