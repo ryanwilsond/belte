@@ -5,6 +5,21 @@ namespace Buckle.Tests.CodeAnalysis;
 
 public sealed partial class EvaluatorTests {
     [Fact]
+    public void Evaluator_Structs_NoImplicitTyping() {
+        var text = @"
+            struct A {
+                [var] num;
+            }
+        ";
+
+        var diagnostics = @"
+            cannot use implicit-typing in this context
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
     public void Evaluator_Structs_ReassignNull() {
         var text = @"
             struct A {

@@ -252,7 +252,7 @@ internal sealed class Parser {
         var keyword = Next();
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
         var openBrace = Match(SyntaxKind.OpenBraceToken);
-        var members = new SyntaxList<MemberSyntax>(ParseFieldList().ToImmutableArray());
+        var members = ParseFieldList();
         var closeBrace = Match(SyntaxKind.CloseBraceToken);
 
         return new StructDeclarationSyntax(_syntaxTree, keyword, identifier, openBrace, members, closeBrace);
@@ -324,7 +324,7 @@ internal sealed class Parser {
     }
 
     private FieldDeclarationSyntax ParseFieldDeclaration() {
-        var declaration = (VariableDeclarationStatementSyntax)ParseVariableDeclarationStatement(false);
+        var declaration = (VariableDeclarationStatementSyntax)ParseVariableDeclarationStatement(false, false);
 
         return new FieldDeclarationSyntax(_syntaxTree, declaration);
     }
@@ -441,8 +441,8 @@ internal sealed class Parser {
         );
     }
 
-    private StatementSyntax ParseVariableDeclarationStatement(bool allowDefinition = true) {
-        var type = ParseType();
+    private StatementSyntax ParseVariableDeclarationStatement(bool allowDefinition = true, bool allowImplicit = true) {
+        var type = ParseType(allowImplicit);
         var identifier = Match(SyntaxKind.IdentifierToken);
 
         SyntaxToken equals = null;
