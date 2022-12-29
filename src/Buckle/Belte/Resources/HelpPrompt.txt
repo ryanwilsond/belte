@@ -5,11 +5,11 @@ Options:
 -s                    Compile only; do not assemble or link.
 -c                    Compile and assemble; do not link.
 -r                    Invoke the Repl.
--i                    Interpret only.
+-i                    Compile and then interpret; do not assemble or link.
 -d                    Compile with .NET integration (cannot stop at assembly or linking).
 -o <file>             Specify output file.
 -W<options>           Forward options to various sub-processes.
---explain<code>       Extended information for specific error.
+--explain<code>       Extended information for a specific error.
 --entry=<symbol>      Specify the entry point of the program.
 --modulename=<name>   Specify the module name (used with .NET integration only).
 --ref=<file>          Specify a reference (used with .NET integration only).

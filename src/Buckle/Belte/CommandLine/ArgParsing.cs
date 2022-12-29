@@ -142,6 +142,10 @@ public static partial class BuckleCommandLine {
                     else
                         references.Add(arg.Substring(6));
                 } else if (arg.StartsWith("--entry")) {
+                    throw new NotImplementedException(
+                        "The '--entry' command-line option is under development and not currently available."
+                    );
+
                     if (arg == "--entry" || arg == "--entry=") {
                         diagnostics.Push(Belte.Diagnostics.Error.MissingEntrySymbol(arg));
                     } else {
@@ -205,10 +209,10 @@ public static partial class BuckleCommandLine {
             diagnostics.Push(Belte.Diagnostics.Error.CannotSpecifyWithInterpreter());
 
         if (specifyModule && state.buildMode != BuildMode.Dotnet)
-            diagnostics.Push(Belte.Diagnostics.Error.CannotSpecifyModuleNameWithDotnet());
+            diagnostics.Push(Belte.Diagnostics.Error.CannotSpecifyModuleNameWithoutDotnet());
 
         if (references.Count != 0 && state.buildMode != BuildMode.Dotnet)
-            diagnostics.Push(Belte.Diagnostics.Error.CannotSpecifyReferencesWithDotnet());
+            diagnostics.Push(Belte.Diagnostics.Error.CannotSpecifyReferencesWithoutDotnet());
 
         if (state.tasks.Length == 0 && !(state.buildMode == BuildMode.Repl))
             diagnostics.Push(Belte.Diagnostics.Error.NoInputFiles());

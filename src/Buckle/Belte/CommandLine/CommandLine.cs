@@ -75,6 +75,14 @@ public static partial class BuckleCommandLine {
 
         err = ResolveDiagnostics(diagnostics, compiler.me, compiler.state.options);
 
+        // Only mode that does not go through one-time compilation
+        if (compiler.state.buildMode == BuildMode.Repl) {
+            BelteRepl repl = new BelteRepl(compiler, ResolveDiagnostics);
+            repl.Run();
+
+            return SuccessExitCode;
+        }
+
         if (err > 0)
             return err;
 
@@ -85,14 +93,6 @@ public static partial class BuckleCommandLine {
 
         if (err > 0)
             return err;
-
-        // Only mode that does not go through one-time compilation
-        if (compiler.state.buildMode == BuildMode.Repl) {
-            BelteRepl repl = new BelteRepl(compiler, ResolveDiagnostics);
-            repl.Run();
-
-            return SuccessExitCode;
-        }
 
         compiler.Compile();
 
@@ -107,13 +107,13 @@ public static partial class BuckleCommandLine {
 
     private static void ShowErrorHelp(string error, out DiagnosticQueue<Diagnostic> diagnostics) {
         // TODO This only works for debug builds currently, not release
-        string prefix = error.Substring(0, 2);
+        string prefix = error.Length >= 2 ? error.Substring(0, 2) : "";
         diagnostics = new DiagnosticQueue<Diagnostic>();
 
         int errorCode = 0;
 
         try {
-            errorCode = Convert.ToInt32(error.Substring(2));
+            errorCode = error.Length >= 3 ? Convert.ToInt32(error.Substring(2)) : 0;
         } catch (Exception e) when (e is FormatException || e is OverflowException) {
             diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
             return;

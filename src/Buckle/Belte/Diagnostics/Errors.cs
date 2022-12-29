@@ -47,8 +47,8 @@ internal static class Error {
     }
 
     internal static Diagnostic InvalidErrorCode(string error) {
-        var message = $"'{error}' is not a valid error code; must be in the format: [BU|CL][code]" +
-            "\n\texamples: BU0001, CL0001, BU12, CL054";
+        var message = $"'{error}' is not a valid error code; must be in the format: [BU|CL|RE]<code>" +
+            "\n\texamples: BU0001, CL0001, BU54, CL012, RE0001, RE6";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidErrorCode), message);
     }
 
@@ -82,14 +82,14 @@ internal static class Error {
         return new Diagnostic(FatalErrorInfo(DiagnosticCode.ERR_CannotSpecifyWithInterpreter), message);
     }
 
-    internal static Diagnostic CannotSpecifyModuleNameWithDotnet() {
+    internal static Diagnostic CannotSpecifyModuleNameWithoutDotnet() {
         var message = "cannot specify module name without .NET integration";
-        return new Diagnostic(FatalErrorInfo(DiagnosticCode.ERR_CannotSpecifyModuleNameWithDotnet), message);
+        return new Diagnostic(FatalErrorInfo(DiagnosticCode.ERR_CannotSpecifyModuleNameWithoutDotnet), message);
     }
 
-    internal static Diagnostic CannotSpecifyReferencesWithDotnet() {
+    internal static Diagnostic CannotSpecifyReferencesWithoutDotnet() {
         var message = "cannot specify references without .NET integration";
-        return new Diagnostic(FatalErrorInfo(DiagnosticCode.ERR_CannotSpecifyReferencesWithDotnet), message);
+        return new Diagnostic(FatalErrorInfo(DiagnosticCode.ERR_CannotSpecifyReferencesWithoutDotnet), message);
     }
 
     internal static Diagnostic NoInputFiles() {
