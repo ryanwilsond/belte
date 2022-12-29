@@ -5,7 +5,36 @@ namespace Buckle.Tests.CodeAnalysis;
 
 public sealed partial class EvaluatorTests {
     [Fact]
-    public void Evaluator_Structs_NoImplicitTyping() {
+    public void Evaluator_AssignmentExpression_Reports_CannotAssignConstReference() {
+        var text = @"
+            int x = 3;
+            const var y = ref x;
+            y [=] ref x;
+        ";
+
+        var diagnostics = @"
+            'y' cannot be assigned to with a reference as it is a constant reference
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_AssignmentExpression_Reports_CannotAssignConst() {
+        var text = @"
+            const var x = 3;
+            x [=] 56;
+        ";
+
+        var diagnostics = @"
+            'x' cannot be assigned to as it is a constant
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Structs_Reports_NoImplicitTyping() {
         var text = @"
             struct A {
                 [var] num;
@@ -103,7 +132,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            assignment of constant variable 'x'
+            'x' cannot be assigned to as it is a constant
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -295,8 +324,8 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            redefinition of variable 'x'
-            redefinition of variable 'x'
+            variable 'x' is already declared in this scope
+            variable 'x' is already declared in this scope
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -340,7 +369,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            function 'PrintLine' used as a variable
+            function 'PrintLine' cannot be used as a variable
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -354,7 +383,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            assignment of constant variable 'x'
+            'x' cannot be assigned to as it is a constant
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -424,7 +453,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            return statement with a value, in function returning void
+            cannot return a value in a function returning void
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -439,7 +468,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            return statement with no value, in function returning non-void
+            cannot return without a value in a function returning non-void
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -475,7 +504,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            break statement not within a loop
+            break statements can only be used within a loop
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -488,7 +517,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            redefinition of parameter 'a'
+            cannot reuse parameter name 'a'; parameter names must be unique
         ";
 
         AssertDiagnostics(text, diagnostics);

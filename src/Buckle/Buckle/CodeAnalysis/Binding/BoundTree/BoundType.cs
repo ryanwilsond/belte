@@ -1,3 +1,4 @@
+using System;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -200,7 +201,7 @@ internal sealed class BoundType : BoundNode {
     }
 
     /// <summary>
-    /// Copy all data to a new <see cref="BoundType" />, not a reference.
+    /// Copies all data to a new <see cref="BoundType" />, not a reference.
     /// </summary>
     /// <param name="type"><see cref="BoundType" /> to copy.</param>
     /// <returns>New copy <see cref="BoundType" />.</returns>
@@ -212,8 +213,7 @@ internal sealed class BoundType : BoundNode {
     }
 
     /// <summary>
-    /// Copy all data to a new <see cref="BoundType" />, but make the new
-    /// <see cref="BoundType" /> non nullable.
+    /// Copies all data to a new <see cref="BoundType" />, but makes the new <see cref="BoundType" /> non nullable.
     /// </summary>
     /// <param name="type"><see cref="BoundType" /> to copy.</param>
     /// <returns>Non nullable copy <see cref="BoundType" />.</returns>
@@ -225,7 +225,7 @@ internal sealed class BoundType : BoundNode {
     }
 
     /// <summary>
-    /// Copy all data to a new <see cref="BoundType" />, but make the new <see cref="BoundType" /> nullable.
+    /// Copies all data to a new <see cref="BoundType" />, but makes the new <see cref="BoundType" /> nullable.
     /// </summary>
     /// <param name="type"><see cref="BoundType" /> to copy.</param>
     /// <returns>Nullable copy <see cref="BoundType" />.</returns>
@@ -237,15 +237,39 @@ internal sealed class BoundType : BoundNode {
     }
 
     /// <summary>
-    /// Copy all data to a new <see cref="BoundType" />, but make the new <see cref="BoundType" /> a
-    /// reference.
+    /// Copies all data to a new <see cref="BoundType" />, but makes the new <see cref="BoundType" /> a reference.
     /// </summary>
     /// <param name="type"><see cref="BoundType" /> to copy.</param>
     /// <returns>Reference type copy of <see cref="BoundType" />.</returns>
     internal static BoundType Reference(BoundType type) {
         return new BoundType(
             type.typeSymbol, type.isImplicit, false, true, type.isConstant,
-            type.isNullable, false, type.dimensions
+            type.isNullable, type.isLiteral, type.dimensions
+        );
+    }
+
+    /// <summary>
+    /// Copies all data to a new <see cref="BoundType" />, but makes the new <see cref="BoundType" /> a constant.
+    /// </summary>
+    /// <param name="type"><see cref="BoundType" /> to copy.</param>
+    /// <returns>Constant copy of <see cref="BoundType" />.</returns>
+    internal static BoundType Constant(BoundType type) {
+        return new BoundType(
+            type.typeSymbol, type.isImplicit, type.isConstantReference, type.isReference, true,
+            type.isNullable, type.isLiteral, type.dimensions
+        );
+    }
+
+    /// <summary>
+    /// Copies all data to a new <see cref="BoundType" />, but makes the new <see cref="BoundType" /> a constant
+    /// reference.
+    /// </summary>
+    /// <param name="type"><see cref="BoundType" /> to copy.</param>
+    /// <returns>Constant copy of <see cref="BoundType" />.</returns>
+    internal static BoundType ConstantReference(BoundType type) {
+        return new BoundType(
+            type.typeSymbol, type.isImplicit, true, true, type.isConstant,
+            type.isNullable, type.isLiteral, type.dimensions
         );
     }
 

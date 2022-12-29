@@ -57,7 +57,7 @@ internal enum DiagnosticCode : int {
     ERR_UnknownAttribute = 51,
     ERR_NullAssignNotNull = 52,
     ERR_ImpliedReference = 53,
-    // ! Unused slot 54
+    ERR_ReferenceToConstant = 54,
     ERR_MissingReturnStatement = 54, // Temporary
     ERR_VoidVariable = 55,
     ERR_ExpectedToken = 56,
@@ -68,6 +68,7 @@ internal enum DiagnosticCode : int {
     ERR_NoSuchMember = 61,
     ERR_CannotAssign = 62,
     ERR_CannotOverloadNested = 63,
+    ERR_ConstantToNonConstantReference = 64,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

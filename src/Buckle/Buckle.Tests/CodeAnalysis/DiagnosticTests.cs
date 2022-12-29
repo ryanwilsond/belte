@@ -118,7 +118,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            redefinition of parameter 'x'
+            cannot reuse parameter name 'x'; parameter names must be unique
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -204,7 +204,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            redefinition of variable 'x'
+            variable 'x' is already declared in this scope
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -213,12 +213,12 @@ public sealed partial class EvaluatorTests {
     [Fact]
     public void Evaluator_Reports_Error_BU0022_ConstantAssignment() {
         var text = @"
-            const int X = 5;
-            X [=] 4;
+            const int x = 5;
+            x [=] 4;
         ";
 
         var diagnostics = @"
-            assignment of constant variable 'X'
+            'x' cannot be assigned to as it is a constant
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -334,7 +334,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            redefinition of struct 'A'
+            struct 'A' has already been declared in this scope
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -402,7 +402,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            break statement not within a loop
+            break statements can only be used within a loop
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -417,7 +417,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            return statement with a value, in function returning void
+            cannot return a value in a function returning void
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -432,7 +432,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            return statement with no value, in function returning non-void
+            cannot return without a value in a function returning non-void
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -447,7 +447,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            function 'myFunc' used as a variable
+            function 'myFunc' cannot be used as a variable
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -564,7 +564,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            reference variable must have an initializer
+            a declaration of a by-reference variable must have an initializer
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -578,7 +578,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            reference variable must be initialized with a reference
+            a by-reference variable must be initialized with a reference
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -618,7 +618,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            cannot assign 'null' to non-nullable variable
+            cannot assign 'null' to a non-nullable variable
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -633,6 +633,20 @@ public sealed partial class EvaluatorTests {
 
         var diagnostics = @"
             implicitly-typed variables infer reference types making the 'ref' keyword not necessary in this context
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Reports_Error_BU0054_ReferenceToConstant() {
+        var text = @"
+            const int x = 3;
+            ref int y [=] ref x;
+        ";
+
+        var diagnostics = @"
+            cannot assign a reference to a constant to a by-reference variable expecting a reference to a variable
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -747,7 +761,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            left side of assignment operation must be a variable or field
+            left side of assignment operation must be a variable, field, or indexer
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -765,6 +779,20 @@ public sealed partial class EvaluatorTests {
 
         var diagnostics = @"
             cannot overload nested functions; nested function 'myFunc2' has already been defined
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Reports_Error_BU0064_ConstantToNonConstantReference() {
+        var text = @"
+            int x = 3;
+            ref const int y [=] ref x;
+        ";
+
+        var diagnostics = @"
+            cannot assign a reference to a variable to a by-reference variable expecting a reference to a constant
         ";
 
         AssertDiagnostics(text, diagnostics);

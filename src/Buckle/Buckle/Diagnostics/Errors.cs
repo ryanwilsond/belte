@@ -139,7 +139,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic ParameterAlreadyDeclared(TextLocation location, string name) {
-        var message = $"redefinition of parameter '{name}'";
+        var message = $"cannot reuse parameter name '{name}'; parameter names must be unique";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ParameterAlreadyDeclared), location, message);
     }
 
@@ -194,15 +194,17 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic VariableAlreadyDeclared(TextLocation location, string name) {
-        var message = $"redefinition of variable '{name}'";
+        var message = $"variable '{name}' is already declared in this scope";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_VariableAlreadyDeclared), location, message);
     }
 
-    internal static BelteDiagnostic ConstantAssignment(TextLocation location, string name) {
-        var message = $"assignment of constant variable '{name}'";
+    internal static BelteDiagnostic ConstantAssignment(TextLocation location, string name, bool isConstantReference) {
+        var constantWord = isConstantReference ? "constant reference" : "constant";
+        var constantPhrase = isConstantReference ? "with a reference " : "";
+        var message = $"'{name}' cannot be assigned to {constantPhrase}as it is a {constantWord}";
 
         if (name == null)
-            message = "assignment of constant";
+            message = "cannot assign to a constant";
 
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstantAssignment), location, message);
     }
@@ -265,27 +267,27 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic InvalidBreakOrContinue(TextLocation location, string text) {
-        var message = $"{text} statement not within a loop";
+        var message = $"{text} statements can only be used within a loop";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidBreakOrContinue), location, message);
     }
 
     internal static BelteDiagnostic ReturnOutsideFunction(TextLocation location) {
-        var message = "return statement not within a function";
+        var message = "return statements can only be used within a function";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ReturnOutsideFunction), location, message);
     }
 
     internal static BelteDiagnostic UnexpectedReturnValue(TextLocation location) {
-        var message = "return statement with a value, in function returning void";
+        var message = "cannot return a value in a function returning void";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnexpectedReturnValue), location, message);
     }
 
     internal static BelteDiagnostic MissingReturnValue(TextLocation location) {
-        var message = "return statement with no value, in function returning non-void";
+        var message = "cannot return without a value in a function returning non-void";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MissingReturnValue), location, message);
     }
 
     internal static BelteDiagnostic NotAVariable(TextLocation location, string name) {
-        var message = $"function '{name}' used as a variable";
+        var message = $"function '{name}' cannot be used as a variable";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NotAVariable), location, message);
     }
 
@@ -294,8 +296,10 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnterminatedComment), location, message);
     }
 
-    internal static BelteDiagnostic NullAssignOnImplicit(TextLocation location) {
-        var message = "cannot initialize an implicitly-typed variable with 'null'";
+    internal static BelteDiagnostic NullAssignOnImplicit(TextLocation location, bool isConstant) {
+        var variableWord = isConstant ? "constant" : "variable";
+        var message = $"cannot initialize an implicitly-typed {variableWord} with 'null'";
+
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NullAssignOnImplicit), location, message);
     }
 
@@ -304,8 +308,10 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoInitOnImplicit), location, message);
     }
 
-    internal static BelteDiagnostic EmptyInitializerListOnImplicit(TextLocation location) {
-        var message = "cannot initialize an implicitly-typed variable with an empty initializer list";
+    internal static BelteDiagnostic EmptyInitializerListOnImplicit(TextLocation location, bool isConstant) {
+        var variableWord = isConstant ? "constant" : "variable";
+        var message = $"cannot initialize an implicitly-typed {variableWord} with an empty initializer list";
+
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_EmptyInitializerListOnImplicit), location, message);
     }
 
@@ -319,8 +325,9 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_VoidVariable), location, message);
     }
 
-    internal static BelteDiagnostic ImpliedDimensions(TextLocation location) {
-        var message = "collection dimensions on implicitly-typed variables are inferred making them not necessary " +
+    internal static BelteDiagnostic ImpliedDimensions(TextLocation location, bool isConstant) {
+        var variableWord = isConstant ? "constant" : "variable";
+        var message = $"collection dimensions on implicitly-typed {variableWord}s are inferred making them not necessary " +
             "in this context";
 
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ImpliedDimensions), location, message);
@@ -341,18 +348,24 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedMethodName), location, message);
     }
 
-    internal static BelteDiagnostic ReferenceNoInitialization(TextLocation location) {
-        var message = "reference variable must have an initializer";
+    internal static BelteDiagnostic ReferenceNoInitialization(TextLocation location, bool isConstant) {
+        var variableWord = isConstant ? "constant" : "variable";
+        var message = $"a declaration of a by-reference {variableWord} must have an initializer";
+
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ReferenceNoInitialization), location, message);
     }
 
-    internal static BelteDiagnostic ReferenceWrongInitialization(TextLocation location) {
-        var message = "reference variable must be initialized with a reference";
+    internal static BelteDiagnostic ReferenceWrongInitialization(TextLocation location, bool isConstant) {
+        var variableWord = isConstant ? "constant" : "variable";
+        var message = $"a by-reference {variableWord} must be initialized with a reference";
+
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ReferenceWrongInitialization), location, message);
     }
 
-    internal static BelteDiagnostic WrongInitializationReference(TextLocation location) {
-        var message = "cannot initialize a by-value variable with a reference";
+    internal static BelteDiagnostic WrongInitializationReference(TextLocation location, bool isConstant) {
+        var variableWord = isConstant ? "constant" : "variable";
+        var message = $"cannot initialize a by-value {variableWord} with a reference";
+
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_WrongInitializationReference), location, message);
     }
 
@@ -361,8 +374,10 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnknownAttribute), location, message);
     }
 
-    internal static BelteDiagnostic NullAssignOnNotNull(TextLocation location) {
-        var message = "cannot assign 'null' to non-nullable variable";
+    internal static BelteDiagnostic NullAssignOnNotNull(TextLocation location, bool isConstant) {
+        var variableWord = isConstant ? "constant" : "variable";
+        var message = $"cannot assign 'null' to a non-nullable {variableWord}";
+
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NullAssignNotNull), location, message);
     }
 
@@ -410,7 +425,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic CannotAssign(TextLocation location) {
-        var message = "left side of assignment operation must be a variable or field";
+        var message = "left side of assignment operation must be a variable, field, or indexer";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotAssign), location, message);
     }
 
@@ -420,7 +435,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic StructAlreadyDeclared(TextLocation location, string name) {
-        var message = $"redefinition of struct '{name}'";
+        var message = $"struct '{name}' has already been declared in this scope";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StructAlreadyDeclared), location, message);
     }
 
@@ -429,10 +444,27 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_DuplicateAttribute), location, message);
     }
 
-    internal static BelteDiagnostic ImpliedReference(TextLocation location) {
-        var message = $"implicitly-typed variables infer reference types making the 'ref' keyword not necessary " +
-            "in this context";
+    internal static BelteDiagnostic ImpliedReference(TextLocation location, bool isConstant) {
+        var variableWord = isConstant ? "constant" : "variable";
+        var message = $"implicitly-typed {variableWord}s infer reference types making the 'ref' keyword not " +
+            "necessary in this context";
 
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ImpliedReference), location, message);
+    }
+
+    internal static BelteDiagnostic ReferenceToConstant(TextLocation location, bool isConstant) {
+        var variableWord = isConstant ? "constant" : "variable";
+        var message = $"cannot assign a reference to a constant to a by-reference {variableWord} expecting a " +
+            "reference to a variable";
+
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ReferenceToConstant), location, message);
+    }
+
+    internal static BelteDiagnostic ConstantToNonConstantReference(TextLocation location, bool isConstant) {
+        var variableWord = isConstant ? "constant" : "variable";
+        var message = $"cannot assign a reference to a variable to a by-reference {variableWord} expecting a " +
+            "reference to a constant";
+
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstantToNonConstantReference), location, message);
     }
 }

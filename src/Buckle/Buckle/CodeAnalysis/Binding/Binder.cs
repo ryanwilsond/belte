@@ -807,18 +807,18 @@ internal sealed class Binder {
         }
 
         if (type.isReference && expression.initializer == null) {
-            diagnostics.Push(Error.ReferenceNoInitialization(expression.identifier.location));
+            diagnostics.Push(Error.ReferenceNoInitialization(expression.identifier.location, type.isConstant));
             return null;
         }
 
         if (type.isReference && expression.initializer?.kind != SyntaxKind.RefExpression) {
-            diagnostics.Push(Error.ReferenceWrongInitialization(expression.equals.location));
+            diagnostics.Push(Error.ReferenceWrongInitialization(expression.equals.location, type.isConstant));
             return null;
         }
 
         if (expression.initializer is LiteralExpressionSyntax le) {
             if (le.token.kind == SyntaxKind.NullKeyword && type.isImplicit) {
-                diagnostics.Push(Error.NullAssignOnImplicit(expression.initializer.location));
+                diagnostics.Push(Error.NullAssignOnImplicit(expression.initializer.location, type.isConstant));
                 return null;
             }
         }
@@ -833,9 +833,29 @@ internal sealed class Binder {
         if (type.isReference || (type.isImplicit && expression.initializer?.kind == SyntaxKind.RefExpression)) {
             var initializer = BindReferenceExpression((ReferenceExpressionSyntax)expression.initializer);
             var variableType = type.isImplicit ? initializer.type : type;
+            variableType = (type.isConstant && !type.isImplicit) ? BoundType.Constant(variableType) : variableType;
+            variableType = ((type.isConstant && type.isImplicit) || type.isConstantReference)
+                ? BoundType.ConstantReference(variableType)
+                : variableType;
+
+            if (initializer.type.isConstant && !variableType.isConstant) {
+                diagnostics.Push(Error.ReferenceToConstant(
+                    expression.equals.location, variableType.isConstantReference)
+                );
+
+                return null;
+            }
+
+            if (!initializer.type.isConstant && variableType.isConstant) {
+                diagnostics.Push(Error.ConstantToNonConstantReference(
+                    expression.equals.location, variableType.isConstantReference)
+                );
+
+                return null;
+            }
 
             if (type.isImplicit && type.isReference == true) {
-                diagnostics.Push(Error.ImpliedReference(expression.type.refKeyword.location));
+                diagnostics.Push(Error.ImpliedReference(expression.type.refKeyword.location, type.isConstant));
                 return null;
             }
 
@@ -852,7 +872,10 @@ internal sealed class Binder {
 
             if (initializer is BoundInitializerListExpression il) {
                 if (il.items.Length == 0 && type.isImplicit) {
-                    diagnostics.Push(Error.EmptyInitializerListOnImplicit(expression.initializer.location));
+                    diagnostics.Push(
+                        Error.EmptyInitializerListOnImplicit(expression.initializer.location, type.isConstant)
+                    );
+
                     return null;
                 }
             }
@@ -864,12 +887,13 @@ internal sealed class Binder {
                 );
 
                 var location = new TextLocation(expression.location.text, span);
-                diagnostics.Push(Error.ImpliedDimensions(location));
+                diagnostics.Push(Error.ImpliedDimensions(location, type.isConstant));
 
                 return null;
             }
 
             var variableType = type.isImplicit ? initializer.type : type;
+            variableType = type.isConstant ? BoundType.Constant(variableType) : variableType;
 
             if (nullable)
                 variableType = BoundType.Nullable(variableType);
@@ -877,7 +901,7 @@ internal sealed class Binder {
                 variableType = BoundType.NonNullable(variableType);
 
             if (!variableType.isNullable && initializer is BoundLiteralExpression ble && ble.value == null) {
-                diagnostics.Push(Error.NullAssignOnNotNull(expression.initializer.location));
+                diagnostics.Push(Error.NullAssignOnNotNull(expression.initializer.location, variableType.isConstant));
                 return null;
             }
 
@@ -899,6 +923,7 @@ internal sealed class Binder {
                 : new BoundLiteralExpression(null);
 
             var variableType = type.isImplicit ? initializer.type : type;
+            variableType = type.isConstant ? BoundType.Constant(variableType) : variableType;
 
             if (nullable)
                 variableType = BoundType.Nullable(variableType);
@@ -906,12 +931,15 @@ internal sealed class Binder {
                 variableType = BoundType.NonNullable(variableType);
 
             if (!variableType.isNullable && initializer is BoundLiteralExpression ble && ble.value == null) {
-                diagnostics.Push(Error.NullAssignOnNotNull(expression.initializer.location));
+                diagnostics.Push(Error.NullAssignOnNotNull(expression.initializer.location, variableType.isConstant));
                 return null;
             }
 
             if (!variableType.isReference && expression.initializer?.kind == SyntaxKind.RefExpression) {
-                diagnostics.Push(Error.WrongInitializationReference(expression.equals.location));
+                diagnostics.Push(
+                    Error.WrongInitializationReference(expression.equals.location, variableType.isConstant)
+                );
+
                 return null;
             }
 
@@ -1055,7 +1083,7 @@ internal sealed class Binder {
             return new BoundErrorExpression();
 
         if (variable.type.isConstant)
-            diagnostics.Push(Error.ConstantAssignment(expression.op.location, variable.name));
+            diagnostics.Push(Error.ConstantAssignment(expression.op.location, variable.name, false));
 
         var value = new BoundLiteralExpression(1);
         BoundBinaryOperator boundOperator = null;
@@ -1096,7 +1124,7 @@ internal sealed class Binder {
             return new BoundErrorExpression();
 
         if (variable.type.isConstant)
-            diagnostics.Push(Error.ConstantAssignment(expression.op.location, variable.name));
+            diagnostics.Push(Error.ConstantAssignment(expression.op.location, variable.name, false));
 
         var value = new BoundLiteralExpression(1);
         BoundBinaryOperator boundOperator = null;
@@ -1453,7 +1481,7 @@ internal sealed class Binder {
         var type = left.type;
 
         if (!type.isNullable && boundExpression is BoundLiteralExpression le && le.value == null) {
-            diagnostics.Push(Error.NullAssignOnNotNull(expression.right.location));
+            diagnostics.Push(Error.NullAssignOnNotNull(expression.right.location, false));
             return boundExpression;
         }
 
@@ -1467,7 +1495,9 @@ internal sealed class Binder {
             else if (left is BoundMemberAccessExpression m)
                 name = m.member.name;
 
-            diagnostics.Push(Error.ConstantAssignment(expression.assignmentToken.location, name));
+            diagnostics.Push(Error.ConstantAssignment(
+                expression.assignmentToken.location, name, type.isConstantReference && boundExpression.type.isReference
+            ));
         }
 
         if (expression.assignmentToken.kind != SyntaxKind.EqualsToken) {
