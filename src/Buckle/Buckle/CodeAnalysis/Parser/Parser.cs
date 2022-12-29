@@ -906,16 +906,25 @@ internal sealed class Parser {
         return new SeparatedSyntaxList<ExpressionSyntax>(nodesAndSeparators.ToImmutable());
     }
 
-    private TypeSyntax ParseType(bool allowImplicit = true) {
-        var attributes =
-            ImmutableArray.CreateBuilder<(SyntaxToken openBracket, SyntaxToken identifier, SyntaxToken closeBracket)>();
+    private SyntaxList<AttributeSyntax> ParseAttributes() {
+        var attributes = ImmutableArray.CreateBuilder<AttributeSyntax>();
 
-        while (current.kind == SyntaxKind.OpenBracketToken) {
-            var openBracket = Next();
-            var identifier = Match(SyntaxKind.IdentifierToken);
-            var closeBracket = Match(SyntaxKind.CloseBracketToken);
-            attributes.Add((openBracket, identifier, closeBracket));
-        }
+        while (current.kind == SyntaxKind.OpenBracketToken)
+            attributes.Add(ParseAttribute());
+
+        return new SyntaxList<AttributeSyntax>(attributes.ToImmutable());
+    }
+
+    private AttributeSyntax ParseAttribute() {
+        var openBracket = Next();
+        var identifier = Match(SyntaxKind.IdentifierToken);
+        var closeBracket = Match(SyntaxKind.CloseBracketToken);
+
+        return new AttributeSyntax(_syntaxTree, openBracket, identifier, closeBracket);
+    }
+
+    private TypeSyntax ParseType(bool allowImplicit = true) {
+        var attributes = ParseAttributes();
 
         SyntaxToken constRefKeyword = null;
         SyntaxToken refKeyword = null;
@@ -947,8 +956,7 @@ internal sealed class Parser {
         }
 
         return new TypeSyntax(
-            _syntaxTree, attributes.ToImmutable(), constRefKeyword,
-            refKeyword, constKeyword, typeName, brackets.ToImmutable()
+            _syntaxTree, attributes, constRefKeyword, refKeyword, constKeyword, typeName, brackets.ToImmutable()
         );
     }
 

@@ -34,7 +34,7 @@ internal enum DiagnosticCode : int {
     ERR_UndefinedFunction = 28,
     ERR_IncorrectArgumentCount = 29,
     ERR_StructAlreadyDeclared = 30,
-    // ! Unused slot 31
+    ERR_DuplicateAttribute = 31,
     ERR_CannotCallNonFunction = 32,
     ERR_InvalidExpressionStatement = 33,
     ERR_UnknownType = 34,

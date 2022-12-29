@@ -12,7 +12,7 @@ internal sealed class TypeSyntax : SyntaxNode {
     /// <param name="refKeyword">Ref keyword referring to a reference type.</param>
     /// <param name="constKeyword">Const keyword referring to a constant type.</param>
     /// <param name="brackets">Brackets, determine array dimensions.</param>
-    internal TypeSyntax(SyntaxTree syntaxTree, ImmutableArray<(SyntaxToken, SyntaxToken, SyntaxToken)> attributes,
+    internal TypeSyntax(SyntaxTree syntaxTree, SyntaxList<AttributeSyntax> attributes,
         SyntaxToken constRefKeyword, SyntaxToken refKeyword, SyntaxToken constKeyword, SyntaxToken typeName,
         ImmutableArray<(SyntaxToken, SyntaxToken)> brackets) : base(syntaxTree) {
         this.attributes = attributes;
@@ -26,11 +26,7 @@ internal sealed class TypeSyntax : SyntaxNode {
     /// <summary>
     /// Simple flag modifiers on a type.
     /// </summary>
-    /// <param name="openBracket">Open square bracket token.</param>
-    /// <param name="identifier">Name of the attribute.</param>
-    /// <param name="closeBracket">Close square bracket token.</param>
-    internal ImmutableArray<(SyntaxToken openBracket, SyntaxToken identifier, SyntaxToken closeBracket)> attributes
-        { get; }
+    internal SyntaxList<AttributeSyntax> attributes { get; }
 
     /// <summary>
     /// Const keyword referring to a constant reference type, only valid if the

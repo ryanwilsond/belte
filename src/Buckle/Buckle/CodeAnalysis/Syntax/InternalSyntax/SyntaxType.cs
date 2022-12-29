@@ -147,6 +147,9 @@ internal enum SyntaxKind {
     CompilationUnit,
     GlobalStatement,
 
+    // Attributes
+    Attribute,
+
     // Type declarations
     StructDeclaration,
     FieldDeclaration,
