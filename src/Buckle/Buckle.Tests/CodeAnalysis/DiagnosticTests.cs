@@ -183,7 +183,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0020_InvalidArgumentType() {
+    public void Evaluator_Reports_Error_BU0020_InvalidArgumentType() {
         var text = @"
             void myFunc(int a, bool b) { }
             myFunc(3, [5]);
@@ -285,7 +285,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0027_UnterminatedString() {
+    public void Evaluator_Reports_Error_BU0027_UnterminatedString() {
         var text = @"
             string x = [""];[]
         ";
@@ -299,7 +299,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0028_UndefinedFunction() {
+    public void Evaluator_Reports_Error_BU0028_UndefinedFunction() {
         var text = @"
             string x = [myFunc]();
         ";
@@ -312,7 +312,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0029_IncorrectArgumentCount() {
+    public void Evaluator_Reports_Error_BU0029_IncorrectArgumentCount() {
         var text = @"
             void myFunc() { }
             myFunc([3]);
@@ -326,7 +326,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0030_StructAlreadyDeclared() {
+    public void Evaluator_Reports_Error_BU0030_StructAlreadyDeclared() {
         var text = @"
             struct A { }
 
@@ -341,7 +341,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0031_DuplicateAttribute() {
+    public void Evaluator_Reports_Error_BU0031_DuplicateAttribute() {
         var text = @"
             \[NotNull\]\[[NotNull]\]int a = 3;
         ";
@@ -354,7 +354,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0032_CannotCallNonFunction() {
+    public void Evaluator_Reports_Error_BU0032_CannotCallNonFunction() {
         var text = @"
             int x = 3;
             int y = [x]();
@@ -368,7 +368,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0033_InvalidExpressionStatement() {
+    public void Evaluator_Reports_Error_BU0033_InvalidExpressionStatement() {
         var text = @"
             void myFunc() {
                 [5 + 3;]
@@ -383,7 +383,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0034_UnknownType() {
+    public void Evaluator_Reports_Error_BU0034_UnknownType() {
         var text = @"
             [MyType] x;
         ";
@@ -396,7 +396,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0035_InvalidBreakOrContinue() {
+    public void Evaluator_Reports_Error_BU0035_InvalidBreakOrContinue() {
         var text = @"
             [break];
         ";
@@ -409,7 +409,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0037_UnexpectedReturnValue() {
+    public void Evaluator_Reports_Error_BU0037_UnexpectedReturnValue() {
         var text = @"
             void myFunc() {
                 [return] 3;
@@ -424,7 +424,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0038_MissingReturnValue() {
+    public void Evaluator_Reports_Error_BU0038_MissingReturnValue() {
         var text = @"
             int myFunc() {
                 [return];
@@ -439,7 +439,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0039_NotAVariable() {
+    public void Evaluator_Reports_Error_BU0039_NotAVariable() {
         var text = @"
             void myFunc() { }
 
@@ -454,7 +454,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0040_NoInitOnImplicit() {
+    public void Evaluator_Reports_Error_BU0040_NoInitOnImplicit() {
         var text = @"
             var [x];
         ";
@@ -467,7 +467,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0041_UnterminatedComment() {
+    public void Evaluator_Reports_Error_BU0041_UnterminatedComment() {
         var text = @"
             [/*]
         ";
@@ -480,7 +480,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0042_NullAssignOnImplicit() {
+    public void Evaluator_Reports_Error_BU0042_NullAssignOnImplicit() {
         var text = @"
             var x = [null];
         ";
@@ -493,7 +493,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0043_EmptyInitializerListOnImplicit() {
+    public void Evaluator_Reports_Error_BU0043_EmptyInitializerListOnImplicit() {
         var text = @"
             var x = [{}];
         ";
@@ -506,20 +506,20 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0044_ImpliedDimensions() {
+    public void Evaluator_Reports_Error_BU0044_ImpliedDimensions() {
         var text = @"
             var[\[\]] x = {1, 2, 3};
         ";
 
         var diagnostics = @"
-            collection dimensions on implicitly-typed variables are inferred and not necessary
+            collection dimensions on implicitly-typed variables are inferred making them not necessary in this context
         ";
 
         AssertDiagnostics(text, diagnostics);
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0045_CannotUseImplicit() {
+    public void Evaluator_Reports_Error_BU0045_CannotUseImplicit() {
         var text = @"
             [var] myFunc() { }
         ";
@@ -532,7 +532,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0046_NoCatchOrFinally() {
+    public void Evaluator_Reports_Error_BU0046_NoCatchOrFinally() {
         var text = @"
             try { [}]
         ";
@@ -545,7 +545,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0047_ExpectedMethodName() {
+    public void Evaluator_Reports_Error_BU0047_ExpectedMethodName() {
         var text = @"
             [PrintLine()]();
         ";
@@ -558,7 +558,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0048_ReferenceNoInitialization() {
+    public void Evaluator_Reports_Error_BU0048_ReferenceNoInitialization() {
         var text = @"
             ref int [x];
         ";
@@ -571,7 +571,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0049_ReferenceWrongInitialization() {
+    public void Evaluator_Reports_Error_BU0049_ReferenceWrongInitialization() {
         var text = @"
             int x = 3;
             ref int y [=] x;
@@ -585,7 +585,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0050_WrongInitializationReference() {
+    public void Evaluator_Reports_Error_BU0050_WrongInitializationReference() {
         var text = @"
             int x = 3;
             int y [=] ref x;
@@ -599,7 +599,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0051_UnknownAttribute() {
+    public void Evaluator_Reports_Error_BU0051_UnknownAttribute() {
         var text = @"
             \[[MyAttrib]\]int x;
         ";
@@ -612,7 +612,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0052_NullAssignNotNull() {
+    public void Evaluator_Reports_Error_BU0052_NullAssignNotNull() {
         var text = @"
             \[NotNull\]int x = [null];
         ";
@@ -625,7 +625,21 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0055_VoidVariable() {
+    public void Evaluator_Reports_Error_BU0053_ImpliedReference() {
+        var text = @"
+            var x = 3;
+            [ref] var y = ref x;
+        ";
+
+        var diagnostics = @"
+            implicitly-typed variables infer reference types making the 'ref' keyword not necessary in this context
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Reports_Error_BU0055_VoidVariable() {
         var text = @"
             [void] a;
         ";
@@ -638,7 +652,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0056_ExpectedToken() {
+    public void Evaluator_Reports_Error_BU0056_ExpectedToken() {
         var text = @"
             struct [3] A { }
         ";
@@ -651,7 +665,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0057_NoOverload() {
+    public void Evaluator_Reports_Error_BU0057_NoOverload() {
         var text = @"
             void myFunc(int a) { }
 
@@ -668,7 +682,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0058_AmbiguousOverload() {
+    public void Evaluator_Reports_Error_BU0058_AmbiguousOverload() {
         var text = @"
             void myFunc(int a) { }
 
@@ -685,7 +699,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0059_CannotInitialize() {
+    public void Evaluator_Reports_Error_BU0059_CannotInitialize() {
         var text = @"
             struct A {
                 int num [=] 3;
@@ -700,7 +714,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0060_InvalidTernaryOperatorUse() {
+    public void Evaluator_Reports_Error_BU0060_InvalidTernaryOperatorUse() {
         var text = @"
             3 [?] 4 : 6;
         ";
@@ -713,7 +727,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0061_NoSuchMember() {
+    public void Evaluator_Reports_Error_BU0061_NoSuchMember() {
         var text = @"
             int a = 3;
             a.[Max];
@@ -727,7 +741,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0062_CannotAssign() {
+    public void Evaluator_Reports_Error_BU0062_CannotAssign() {
         var text = @"
             [3] = 45;
         ";
@@ -740,7 +754,7 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_Reports_Warning_BU0063_CannotOverloadNested() {
+    public void Evaluator_Reports_Error_BU0063_CannotOverloadNested() {
         var text = @"
             void myFunc() {
                 void myFunc2(int a) { }

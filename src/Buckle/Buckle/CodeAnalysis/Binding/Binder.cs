@@ -828,17 +828,19 @@ internal sealed class Binder {
             return null;
         }
 
-        if (!type.isReference && expression.initializer?.kind == SyntaxKind.RefExpression) {
-            diagnostics.Push(Error.WrongInitializationReference(expression.equals.location));
-            return null;
-        }
-
         var nullable = type.isNullable;
 
-        if (expression.initializer?.kind == SyntaxKind.RefExpression) {
+        if (type.isReference || (type.isImplicit && expression.initializer?.kind == SyntaxKind.RefExpression)) {
             var initializer = BindReferenceExpression((ReferenceExpressionSyntax)expression.initializer);
+            var variableType = type.isImplicit ? initializer.type : type;
+
+            if (type.isImplicit && type.isReference == true) {
+                diagnostics.Push(Error.ImpliedReference(expression.type.refKeyword.location));
+                return null;
+            }
+
             // References cant have implicit casts
-            var variable = BindVariable(expression.identifier, type, initializer.constantValue);
+            var variable = BindVariable(expression.identifier, variableType, initializer.constantValue);
 
             return new BoundVariableDeclarationStatement(variable, initializer);
         } else if (type.dimensions > 0 ||
@@ -867,9 +869,7 @@ internal sealed class Binder {
                 return null;
             }
 
-            var variableType = type.isImplicit
-                ? initializer.type
-                : type;
+            var variableType = type.isImplicit ? initializer.type : type;
 
             if (nullable)
                 variableType = BoundType.Nullable(variableType);
@@ -898,9 +898,7 @@ internal sealed class Binder {
                 ? BindExpression(expression.initializer)
                 : new BoundLiteralExpression(null);
 
-            var variableType = type.isImplicit
-                ? initializer.type
-                : type;
+            var variableType = type.isImplicit ? initializer.type : type;
 
             if (nullable)
                 variableType = BoundType.Nullable(variableType);
@@ -909,6 +907,11 @@ internal sealed class Binder {
 
             if (!variableType.isNullable && initializer is BoundLiteralExpression ble && ble.value == null) {
                 diagnostics.Push(Error.NullAssignOnNotNull(expression.initializer.location));
+                return null;
+            }
+
+            if (!variableType.isReference && expression.initializer?.kind == SyntaxKind.RefExpression) {
+                diagnostics.Push(Error.WrongInitializationReference(expression.equals.location));
                 return null;
             }
 

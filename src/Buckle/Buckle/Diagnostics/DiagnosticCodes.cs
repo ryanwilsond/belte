@@ -56,7 +56,7 @@ internal enum DiagnosticCode : int {
     ERR_WrongInitializationReference = 50,
     ERR_UnknownAttribute = 51,
     ERR_NullAssignNotNull = 52,
-    // ! Unused slot 53
+    ERR_ImpliedReference = 53,
     // ! Unused slot 54
     ERR_MissingReturnStatement = 54, // Temporary
     ERR_VoidVariable = 55,

@@ -320,7 +320,9 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic ImpliedDimensions(TextLocation location) {
-        var message = "collection dimensions on implicitly-typed variables are inferred and not necessary";
+        var message = "collection dimensions on implicitly-typed variables are inferred making them not necessary " +
+            "in this context";
+
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ImpliedDimensions), location, message);
     }
 
@@ -413,5 +415,12 @@ internal static class Error {
     internal static BelteDiagnostic DuplicateAttribute(TextLocation location, string name) {
         var message = $"attribute '{name}' has already been applied";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_DuplicateAttribute), location, message);
+    }
+
+    internal static BelteDiagnostic ImpliedReference(TextLocation location) {
+        var message = $"implicitly-typed variables infer reference types making the 'ref' keyword not necessary " +
+            "in this context";
+
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ImpliedReference), location, message);
     }
 }
