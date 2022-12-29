@@ -956,8 +956,7 @@ internal sealed class Parser {
         }
 
         return new TypeSyntax(
-            _syntaxTree, attributes, constRefKeyword,
-            refKeyword, constKeyword, typeName, brackets.ToImmutable()
+            _syntaxTree, attributes, constRefKeyword, refKeyword, constKeyword, typeName, brackets.ToImmutable()
         );
     }
 

@@ -341,6 +341,19 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
+    public void Evaluator_Reports_Warning_BU0031_DuplicateAttribute() {
+        var text = @"
+            \[NotNull\]\[[NotNull]\]int a = 3;
+        ";
+
+        var diagnostics = @"
+            attribute 'NotNull' has already been applied
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
     public void Evaluator_Reports_Warning_BU0032_CannotCallNonFunction() {
         var text = @"
             int x = 3;
@@ -738,19 +751,6 @@ public sealed partial class EvaluatorTests {
 
         var diagnostics = @"
             cannot overload nested functions; nested function 'myFunc2' has already been defined
-        ";
-
-        AssertDiagnostics(text, diagnostics);
-    }
-
-    [Fact]
-    public void Evaluator_Reports_Warning_BU0064_DuplicateAttribute() {
-        var text = @"
-            \[NotNull\]\[[NotNull]\]int a = 3;
-        ";
-
-        var diagnostics = @"
-            attribute 'NotNull' has already been applied
         ";
 
         AssertDiagnostics(text, diagnostics);
