@@ -47,6 +47,7 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
         }
 
         cleanedDiagnostics.Move(specialDiagnostics);
+
         return cleanedDiagnostics;
     }
 

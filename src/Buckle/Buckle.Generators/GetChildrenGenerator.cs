@@ -144,6 +144,7 @@ public class GetChildrenGenerator : ISourceGenerator {
     private IReadOnlyList<INamedTypeSymbol> GetAllTypes(IAssemblySymbol symbol) {
         var result = new List<INamedTypeSymbol>();
         GetAllTypes(result, symbol.GlobalNamespace);
+
         return result;
     }
 
@@ -151,8 +152,9 @@ public class GetChildrenGenerator : ISourceGenerator {
         if (symbol is INamedTypeSymbol type)
             result.Add(type);
 
-        foreach (var child in symbol.GetMembers())
+        foreach (var child in symbol.GetMembers()) {
             if (child is INamespaceOrTypeSymbol nsChild)
                 GetAllTypes(result, nsChild);
+        }
     }
 }

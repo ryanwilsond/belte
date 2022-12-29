@@ -238,10 +238,12 @@ public abstract class ReplBase {
     private void InitializeMetaCommands() {
         var methods = GetType()
             .GetMethods(BindingFlags.NonPublic | BindingFlags.Static |
-                BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+                BindingFlags.Instance | BindingFlags.FlattenHierarchy
+            );
 
         foreach (var method in methods) {
             var attribute = method.GetCustomAttribute<MetaCommandAttribute>();
+
             if (attribute == null)
                 continue;
 
@@ -426,6 +428,7 @@ public abstract class ReplBase {
             var nextLine = document[view.currentLine + 1];
             document[view.currentLine] += nextLine;
             document.RemoveAt(view.currentLine + 1);
+
             return;
         }
 
@@ -743,6 +746,7 @@ public abstract class ReplBase {
             var nextLine = document[view.currentLine + 1];
             document[view.currentLine] += nextLine;
             document.RemoveAt(view.currentLine + 1);
+
             return;
         }
 
@@ -933,6 +937,7 @@ public abstract class ReplBase {
             if (char.IsWhiteSpace(c)) {
                 if (!inQuotes) {
                     var arg = sb.ToString();
+
                     if (!string.IsNullOrWhiteSpace(arg))
                         args.Add(arg);
 

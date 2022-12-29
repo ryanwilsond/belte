@@ -18,9 +18,10 @@ public static class FunctionUtilities {
     /// <returns>The value of the found pair in the dictionary, throws if the function is not found.</returns>
     internal static T LookupMethod<T>(
         IDictionary<FunctionSymbol, T> functions, FunctionSymbol function) {
-        foreach (var pair in functions)
+        foreach (var pair in functions) {
             if (pair.Key.MethodMatches(function))
                 return pair.Value;
+        }
 
         throw new BelteInternalException($"LookupMethod: could not find method '{function.name}'");
     }
@@ -34,9 +35,10 @@ public static class FunctionUtilities {
     /// <returns>The found pair in the dictionary, throws if the function is not found.</returns>
     internal static (FunctionSymbol, T) LookupMethod<T>(
         IDictionary<FunctionSymbol, T> functions, string name) {
-        foreach (var pair in functions)
+        foreach (var pair in functions) {
             if (pair.Key.name == name)
                 return (pair.Key, pair.Value);
+        }
 
         throw new BelteInternalException($"LookupMethod: could not find method '{name}'");
     }

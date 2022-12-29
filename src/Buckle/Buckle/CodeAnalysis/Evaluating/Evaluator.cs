@@ -35,6 +35,7 @@ internal sealed class Evaluator {
         _locals.Push(new Dictionary<VariableSymbol, EvaluatorObject>());
 
         var current = program;
+
         while (current != null) {
             foreach (var (function, body) in current.functionBodies)
                 _functions.Add(function, body);
@@ -81,8 +82,10 @@ internal sealed class Evaluator {
     /// <returns>Result of <see cref="BoundProgram" /> (if applicable).</returns>
     internal object Evaluate(ref bool abort, out bool hasValue) {
         var function = _program.mainFunction ?? _program.scriptFunction;
+
         if (function == null) {
             hasValue = false;
+
             return null;
         }
 
@@ -100,9 +103,10 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject GetFrom(Dictionary<VariableSymbol, EvaluatorObject> variables, VariableSymbol variable) {
-        foreach (var pair in variables)
+        foreach (var pair in variables) {
             if (variable.name == pair.Key.name && BoundType.Equals(variable.type, pair.Key.type))
                 return pair.Value;
+        }
 
         throw new BelteInternalException($"GetFrom: '{variable.name}' was not found in the scope");
     }
@@ -116,6 +120,7 @@ internal sealed class Evaluator {
                     return GetFrom(frame, variable);
                 } catch (BelteInternalException) { }
             }
+
             // If we get here it means the variable was not found in the local scope, or any direct parent local scopes
             throw new BelteInternalException($"Get: '{variable.name}' was not found in any accessible local scopes");
         }
@@ -181,6 +186,7 @@ internal sealed class Evaluator {
                     _globals.Remove(global.Key);
                     _globals[left] = Copy(right);
                     set = true;
+
                     break;
                 }
             }
@@ -196,6 +202,7 @@ internal sealed class Evaluator {
                     locals.Remove(local.Key);
                     locals[left] = Copy(right);
                     set = true;
+
                     break;
                 }
             }
@@ -214,6 +221,7 @@ internal sealed class Evaluator {
 
         if (right.isExplicitReference) {
             left.reference = right.reference;
+
             return;
         } else if (left.isExplicitReference) {
             while (left.isReference)
@@ -237,6 +245,7 @@ internal sealed class Evaluator {
 
         var typeSymbol = type.typeSymbol;
         valueValue = CastUtilities.Cast(valueValue, (TypeSymbol)typeSymbol);
+
         return new EvaluatorObject(valueValue);
     }
 
@@ -254,6 +263,7 @@ internal sealed class Evaluator {
             }
 
             var index = 0;
+
             while (index < statement.statements.Length) {
                 if (abort)
                     throw new BelteThreadException();
@@ -298,6 +308,7 @@ internal sealed class Evaluator {
                         }
 
                         index++;
+
                         break;
                     case BoundNodeKind.ReturnStatement:
                         var returnStatement = (BoundReturnStatement)s;
@@ -310,6 +321,7 @@ internal sealed class Evaluator {
                                 ? false : true;
 
                         hasReturn = true;
+
                         return _lastValue;
                     default:
                         throw new BelteInternalException($"EvaluateStatement: unexpected statement '{s.kind}'");
@@ -575,7 +587,8 @@ internal sealed class Evaluator {
                     return EvaluateExpression(expression.right, ref abort);
             default:
                 throw new BelteInternalException(
-                    $"EvaluateTernaryExpression: unknown ternary operator '{expression.op}'");
+                    $"EvaluateTernaryExpression: unknown ternary operator '{expression.op}'"
+                );
         }
     }
 
@@ -707,7 +720,8 @@ internal sealed class Evaluator {
                     return new EvaluatorObject((double)leftValue % (double)rightValue);
             default:
                 throw new BelteInternalException(
-                    $"EvaluateBinaryExpression: unknown binary operator '{expression.op}'");
+                    $"EvaluateBinaryExpression: unknown binary operator '{expression.op}'"
+                );
         }
     }
 }

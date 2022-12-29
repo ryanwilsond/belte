@@ -88,6 +88,7 @@ internal sealed class FunctionSymbol : Symbol {
         }
 
         signature.Append(')');
+
         return signature.ToString();
     }
 }

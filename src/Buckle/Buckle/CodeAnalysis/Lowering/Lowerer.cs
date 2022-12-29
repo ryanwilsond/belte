@@ -128,7 +128,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var continueLabelStatement = new BoundLabelStatement(continueLabel);
         var breakLabelStatement = new BoundLabelStatement(breakLabel);
         var gotoTrue = new BoundConditionalGotoStatement(continueLabel, node.condition);
-
         var result = new BoundBlockStatement(ImmutableArray.Create<BoundStatement>(
             continueLabelStatement, node.body, gotoTrue, breakLabelStatement
         ));
@@ -163,6 +162,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         ));
 
         BoundExpression condition = new BoundLiteralExpression(true);
+
         if (node.condition.kind != BoundNodeKind.EmptyExpression)
             condition = node.condition;
 
@@ -170,6 +170,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             condition, whileBody, node.breakLabel, GenerateLabel());
 
         var result = new BoundBlockStatement(ImmutableArray.Create<BoundStatement>(node.initializer, whileStatement));
+
         return RewriteStatement(result);
     }
 
@@ -471,7 +472,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         var newFunction = new FunctionSymbol(
-            function.name, parameters.ToImmutable(), function.type, function.declaration);
+            function.name, parameters.ToImmutable(), function.type, function.declaration
+        );
 
         if (builder == null)
             return new BoundCallExpression(newFunction, expression.arguments);
@@ -494,13 +496,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         */
         if (expression.op.opType == BoundTernaryOperatorKind.Conditional) {
-            if (expression.left.constantValue != null && (bool)expression.left.constantValue.value) {
+            if (expression.left.constantValue != null && (bool)expression.left.constantValue.value)
                 return RewriteExpression(expression.center);
-            }
 
-            if (expression.left.constantValue != null && !(bool)expression.left.constantValue.value) {
+            if (expression.left.constantValue != null && !(bool)expression.left.constantValue.value)
                 return RewriteExpression(expression.right);
-            }
         }
 
         return base.RewriteTernaryExpression(expression);
@@ -618,9 +618,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
             }
         }
 
-        if (function.type.typeSymbol == TypeSymbol.Void)
+        if (function.type.typeSymbol == TypeSymbol.Void) {
             if (builder.Count == 0 || CanFallThrough(builder.Last()))
                 builder.Add(new BoundReturnStatement(null));
+        }
 
         return new BoundBlockStatement(builder.ToImmutable());
     }
@@ -632,6 +633,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
     private BoundLabel GenerateLabel() {
         var name = $"Label{++_labelCount}";
+
         return new BoundLabel(name);
     }
 }

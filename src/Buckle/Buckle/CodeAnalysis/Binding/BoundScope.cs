@@ -78,10 +78,12 @@ internal sealed class BoundScope {
     /// <typeparam name="T">Type of <see cref="Symbol" /> to search for.</typeparam>
     /// <returns><see cref="Symbol" /> if found, null otherwise.</returns>
     internal T LookupSymbol<T>(string name) where T : Symbol {
-        if (_symbols != null)
-            foreach (var symbol in _symbols)
+        if (_symbols != null) {
+            foreach (var symbol in _symbols) {
                 if (symbol.name == name && symbol is T)
                     return symbol as T;
+            }
+        }
 
         return parent?.LookupSymbol<T>(name);
     }
@@ -119,14 +121,15 @@ internal sealed class BoundScope {
                     if (symbols[i].name == name) {
                         symbols[i] = newSymbol;
                         succeeded = true;
+
                         break;
                     }
                 }
             }
 
-            if (parentRef == null || succeeded)
+            if (parentRef == null || succeeded) {
                 break;
-            else {
+            } else {
                 symbols = ref parentRef._symbols;
                 parentRef = ref parentRef._parent;
             }
@@ -177,6 +180,7 @@ internal sealed class BoundScope {
                         foreach (var cs in _current.Value) {
                             if (s is FunctionSymbol fs && cs is FunctionSymbol fcs && FunctionsMatch(fs, fcs)) {
                                 skip = true;
+
                                 break;
                             }
                         }
@@ -196,7 +200,8 @@ internal sealed class BoundScope {
                 strict: strict,
                 _current: _current == null
                     ? overloads.ToImmutable()
-                    : overloads.ToImmutable().AddRange(_current.Value)));
+                    : overloads.ToImmutable().AddRange(_current.Value))
+            );
         }
 
         return overloads.ToImmutable();
@@ -208,15 +213,17 @@ internal sealed class BoundScope {
 
         if (Contains(symbol.name)) {
             if (symbol is FunctionSymbol fs) {
-                foreach (var s in _symbols)
+                foreach (var s in _symbols) {
                     if (FunctionsMatch(s as FunctionSymbol, fs))
                         return false;
+                }
             } else {
                 return false;
             }
         }
 
         _symbols.Add(symbol);
+
         return true;
     }
 
@@ -227,18 +234,20 @@ internal sealed class BoundScope {
         if (a.parameters.Length != b.parameters.Length)
             return false;
 
-        for (int i=0; i<a.parameters.Length; i++)
+        for (int i=0; i<a.parameters.Length; i++) {
             if (!BoundType.Equals(a.parameters[i].type, b.parameters[i].type))
                 return false;
+        }
 
         return true;
     }
 
     private bool Contains(string name) {
         if (_symbols != null) {
-            foreach (var symbol in _symbols)
+            foreach (var symbol in _symbols) {
                 if (symbol.name == name)
                     return true;
+            }
         }
 
         return _isBlock ? (parent == null ? false : parent.Contains(name)) : false;

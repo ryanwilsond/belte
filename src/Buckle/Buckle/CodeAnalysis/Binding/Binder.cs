@@ -75,12 +75,14 @@ internal sealed class Binder {
         foreach (var syntaxTree in syntaxTrees)
             binder.diagnostics.Move(syntaxTree.diagnostics);
 
-        if (binder.diagnostics.FilterOut(DiagnosticType.Warning).Any())
+        if (binder.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
             return new BoundGlobalScope(ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)>.Empty,
                 ImmutableArray<(StructSymbol function, ImmutableList<FieldSymbol> members)>.Empty, previous,
                 binder.diagnostics, null, null, ImmutableArray<FunctionSymbol>.Empty,
                 ImmutableArray<VariableSymbol>.Empty, ImmutableArray<TypeSymbol>.Empty,
-                ImmutableArray<BoundStatement>.Empty);
+                ImmutableArray<BoundStatement>.Empty
+            );
+        }
 
         var methodDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<MethodDeclarationSyntax>();
 
@@ -93,8 +95,8 @@ internal sealed class Binder {
             binder.BindTypeDeclaration(@type);
 
         var globalStatements = syntaxTrees.SelectMany(st => st.root.members).OfType<GlobalStatementSyntax>();
-
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
+
         foreach (var globalStatement in globalStatements)
             statements.Add(binder.BindStatement(globalStatement.statement, true));
 
@@ -112,11 +114,13 @@ internal sealed class Binder {
         FunctionSymbol scriptFunction;
 
         if (isScript) {
-            if (globalStatements.Any())
+            if (globalStatements.Any()) {
                 scriptFunction = new FunctionSymbol(
-                "<Eval>$", ImmutableArray<ParameterSymbol>.Empty, BoundType.NullableAny);
-            else
+                    "<Eval>$", ImmutableArray<ParameterSymbol>.Empty, BoundType.NullableAny
+                );
+            } else {
                 scriptFunction = null;
+            }
 
             mainFunction = null;
         } else {
@@ -124,14 +128,14 @@ internal sealed class Binder {
             mainFunction = functions.FirstOrDefault(f => f.name.ToLower() == "main");
 
             if (mainFunction != null) {
-                if (mainFunction.type.typeSymbol != TypeSymbol.Void &&
-                    mainFunction.type.typeSymbol != TypeSymbol.Int)
+                if (mainFunction.type.typeSymbol != TypeSymbol.Void && mainFunction.type.typeSymbol != TypeSymbol.Int)
                     binder.diagnostics.Push(Error.InvalidMain(mainFunction.declaration.returnType.location));
 
                 if (mainFunction.parameters.Any()) {
                     var span = TextSpan.FromBounds(
                         mainFunction.declaration.openParenthesis.span.start + 1,
-                        mainFunction.declaration.closeParenthesis.span.end - 1);
+                        mainFunction.declaration.closeParenthesis.span.end - 1
+                    );
 
                     var location = new TextLocation(mainFunction.declaration.syntaxTree.text, span);
                     binder.diagnostics.Push(Error.InvalidMain(location));
@@ -146,7 +150,8 @@ internal sealed class Binder {
                         binder.diagnostics.Push(Error.MainAndGlobals(globalStatement.location));
                 } else {
                     mainFunction = new FunctionSymbol(
-                        "<Main>$", ImmutableArray<ParameterSymbol>.Empty, new BoundType(TypeSymbol.Void));
+                        "<Main>$", ImmutableArray<ParameterSymbol>.Empty, new BoundType(TypeSymbol.Void)
+                    );
                 }
             }
         }
@@ -166,7 +171,8 @@ internal sealed class Binder {
             : previous.structMembers.AddRange(binder._structMembers);
 
         return new BoundGlobalScope(functionBodies, structMembers, previous, binder.diagnostics, mainFunction,
-            scriptFunction, functions, variables, types, statements.ToImmutable());
+            scriptFunction, functions, variables, types, statements.ToImmutable()
+        );
     }
 
     /// <summary>
@@ -179,10 +185,12 @@ internal sealed class Binder {
     internal static BoundProgram BindProgram(bool isScript, BoundProgram previous, BoundGlobalScope globalScope) {
         var parentScope = CreateParentScope(globalScope);
 
-        if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
+        if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
             return new BoundProgram(previous, globalScope.diagnostics,
                 null, null, ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty,
-                ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>>.Empty);
+                ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>>.Empty
+            );
+        }
 
         var functionBodies = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
         var structMembers = ImmutableDictionary.CreateBuilder<StructSymbol, ImmutableList<FieldSymbol>>();
@@ -205,10 +213,12 @@ internal sealed class Binder {
                 var body = binder.BindStatement(function.declaration.body);
                 diagnostics.Move(binder.diagnostics);
 
-                if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+                if (diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
                     return new BoundProgram(previous, diagnostics, null, null,
-                    ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty,
-                    ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>>.Empty);
+                        ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty,
+                        ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>>.Empty
+                    );
+                }
 
                 loweredBody = Lowerer.Lower(function, body);
             } else {
@@ -237,7 +247,8 @@ internal sealed class Binder {
 
                 var newFunction = new FunctionSymbol(
                     functionBody.function.name, newParameters.ToImmutable(), functionBody.function.type,
-                    functionBody.function.declaration);
+                    functionBody.function.declaration
+                );
 
                 functionBodies.Add(newFunction, functionBody.body);
             }
@@ -251,20 +262,19 @@ internal sealed class Binder {
         } else if (globalScope.scriptFunction != null) {
             var statements = globalScope.statements;
 
-            if (statements.Length == 1 &&
-                statements[0] is BoundExpressionStatement es &&
-                es.expression.type?.typeSymbol != TypeSymbol.Void) {
+            if (statements.Length == 1 && statements[0] is BoundExpressionStatement es &&
+                es.expression.type?.typeSymbol != TypeSymbol.Void)
                 statements = statements.SetItem(0, new BoundReturnStatement(es.expression));
-            } else if (statements.Any() && statements.Last().kind != BoundNodeKind.ReturnStatement) {
+            else if (statements.Any() && statements.Last().kind != BoundNodeKind.ReturnStatement)
                 statements = statements.Add(new BoundReturnStatement(null));
-            }
 
             var body = Lowerer.Lower(globalScope.scriptFunction, new BoundBlockStatement(statements));
             functionBodies.Add(globalScope.scriptFunction, body);
         }
 
         return new BoundProgram(previous, diagnostics, globalScope.mainFunction,
-            globalScope.scriptFunction, functionBodies.ToImmutable(), structMembers.ToImmutable());
+            globalScope.scriptFunction, functionBodies.ToImmutable(), structMembers.ToImmutable()
+        );
     }
 
     private static BoundScope CreateParentScope(BoundGlobalScope previous) {
@@ -361,6 +371,7 @@ internal sealed class Binder {
         }
 
         var newMethod = new FunctionSymbol(method.identifier.text, parameters.ToImmutable(), type, method);
+
         if (newMethod.declaration.identifier.text != null && !_scope.TryDeclareFunction(newMethod))
             diagnostics.Push(Error.MethodAlreadyDeclared(method.identifier.location, newMethod.name));
     }
@@ -424,7 +435,8 @@ internal sealed class Binder {
         }
 
         var newFunctionSymbol = new FunctionSymbol(
-            innerName, parameters.ToImmutable(), functionSymbol.type, functionSymbol.declaration);
+            innerName, parameters.ToImmutable(), functionSymbol.type, functionSymbol.declaration
+        );
 
         var loweredBody = Lowerer.Lower(newFunctionSymbol, body);
 
@@ -451,6 +463,7 @@ internal sealed class Binder {
     private BoundExpression BindCast(
         ExpressionSyntax expression, BoundType type, bool allowExplicit = false, int argument = 0) {
         var boundExpression = BindExpression(expression);
+
         return BindCast(expression.location, boundExpression, type, allowExplicit, argument);
     }
 
@@ -514,11 +527,11 @@ internal sealed class Binder {
         var dimensions = type.brackets.Length;
 
         var foundType = LookupType(type.typeName.text);
+
         if (foundType == null && !isImplicit)
             diagnostics.Push(Error.UnknownType(type.location, type.typeName.text));
 
-        return new BoundType(
-            foundType, isImplicit, isConstRef, isRef, isConst, isNullable, false, dimensions);
+        return new BoundType(foundType, isImplicit, isConstRef, isRef, isConst, isNullable, false, dimensions);
     }
 
     private VariableSymbol BindVariableReference(SyntaxToken identifier) {
@@ -537,9 +550,10 @@ internal sealed class Binder {
                 break;
         }
 
-        if (reference != null && _trackSymbols)
+        if (reference != null && _trackSymbols) {
             foreach (var frame in _trackedSymbols)
                 frame.Add(reference);
+        }
 
         return reference;
     }
@@ -557,9 +571,10 @@ internal sealed class Binder {
         if (declare && !_scope.TryDeclareVariable(variable))
             diagnostics.Push(Error.VariableAlreadyDeclared(identifier.location, name));
 
-        if (_trackSymbols)
+        if (_trackSymbols) {
             foreach (var frame in _trackedDeclarations)
                 frame.Add(variable);
+        }
 
         return variable;
     }
@@ -619,6 +634,7 @@ internal sealed class Binder {
         var catchBody = expression.catchClause == null
             ? null
             : (BoundBlockStatement)BindBlockStatement(expression.catchClause.body);
+
         var finallyBody = expression.finallyClause == null
             ? null
             : (BoundBlockStatement)BindBlockStatement(expression.finallyClause.body);
@@ -640,8 +656,7 @@ internal sealed class Binder {
                 if (boundExpression == null)
                     diagnostics.Push(Error.MissingReturnValue(expression.keyword.location));
                 else
-                    boundExpression = BindCast(
-                        expression.expression.location, boundExpression, _function.type);
+                    boundExpression = BindCast(expression.expression.location, boundExpression, _function.type);
             }
         }
 
@@ -680,6 +695,7 @@ internal sealed class Binder {
             diagnostics.Push(Warning.UnreachableCode(statement.body));
 
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
+
         return new BoundWhileStatement(condition, body, breakLabel, continueLabel);
     }
 
@@ -700,6 +716,7 @@ internal sealed class Binder {
 
         _scope.parent.CopyInlines(_scope);
         _scope = _scope.parent;
+
         return new BoundForStatement(initializer, condition, step, body, breakLabel, continueLabel);
     }
 
@@ -744,15 +761,18 @@ internal sealed class Binder {
             if (statementSyntax is LocalFunctionStatementSyntax fd) {
                 var declaration = new MethodDeclarationSyntax(
                     fd.syntaxTree, fd.returnType, fd.identifier, fd.openParenthesis,
-                    fd.parameters, fd.closeParenthesis, fd.body);
+                    fd.parameters, fd.closeParenthesis, fd.body
+                );
 
                 BindMethodDeclaration(declaration);
                 frame.Add(fd.identifier.text);
                 _innerPrefix.Push(fd.identifier.text);
 
-                if (!_unresolvedLocals.TryAdd(ConstructInnerName(), fd))
+                if (!_unresolvedLocals.TryAdd(ConstructInnerName(), fd)) {
                     diagnostics.Push(Error.CannotOverloadNested(
-                        declaration.identifier.location, declaration.identifier.text));
+                        declaration.identifier.location, declaration.identifier.text)
+                    );
+                }
 
                 _innerPrefix.Pop();
             }
@@ -860,8 +880,10 @@ internal sealed class Binder {
             var variable = BindVariable(expression.identifier,
                 new BoundType(
                     itemType.typeSymbol, type.isImplicit, type.isConstantReference, type.isReference,
-                    type.isConstant, type.isNullable, false, variableType.dimensions),
-                    castedInitializer.constantValue);
+                    type.isConstant, type.isNullable, false, variableType.dimensions
+                ),
+                castedInitializer.constantValue
+            );
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
         } else {
@@ -884,8 +906,7 @@ internal sealed class Binder {
             }
 
             var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
-            var variable = BindVariable(
-                expression.identifier, variableType, castedInitializer.constantValue);
+            var variable = BindVariable(expression.identifier, variableType, castedInitializer.constantValue);
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
         }
@@ -893,6 +914,7 @@ internal sealed class Binder {
 
     private BoundStatement BindExpressionStatement(ExpressionStatementSyntax statement) {
         var expression = BindExpression(statement.expression, true, true);
+
         return new BoundExpressionStatement(expression);
     }
 
@@ -962,20 +984,26 @@ internal sealed class Binder {
 
         if (!(operand.type.typeSymbol is StructSymbol)) {
             diagnostics.Push(
-                Error.NoSuchMember(expression.identifier.location, operand.type, expression.identifier.text));
+                Error.NoSuchMember(expression.identifier.location, operand.type, expression.identifier.text)
+            );
+
             return new BoundErrorExpression();
         }
 
         var @struct = operand?.type?.typeSymbol as StructSymbol;
 
         FieldSymbol symbol = null;
-        foreach (var field in @struct.symbols.Where(f => f is FieldSymbol))
+
+        foreach (var field in @struct.symbols.Where(f => f is FieldSymbol)) {
             if (field.name == expression.identifier.text)
                 symbol = field as FieldSymbol;
+        }
 
         if (symbol == null) {
             diagnostics.Push(
-                Error.NoSuchMember(expression.identifier.location, operand.type, expression.identifier.text));
+                Error.NoSuchMember(expression.identifier.location, operand.type, expression.identifier.text)
+            );
+
             return new BoundErrorExpression();
         }
 
@@ -1024,15 +1052,11 @@ internal sealed class Binder {
         BoundBinaryOperator reversalOperator = null;
 
         if (expression.op.kind == SyntaxKind.PlusPlusToken) {
-            boundOperator = BoundBinaryOperator.Bind(
-                SyntaxKind.PlusToken, variable.type, value.type);
-            reversalOperator = BoundBinaryOperator.Bind(
-                SyntaxKind.MinusToken, variable.type, value.type);
+            boundOperator = BoundBinaryOperator.Bind(SyntaxKind.PlusToken, variable.type, value.type);
+            reversalOperator = BoundBinaryOperator.Bind(SyntaxKind.MinusToken, variable.type, value.type);
         } else if (expression.op.kind == SyntaxKind.MinusMinusToken) {
-            boundOperator = BoundBinaryOperator.Bind(
-                SyntaxKind.MinusToken, variable.type, value.type);
-            reversalOperator = BoundBinaryOperator.Bind(
-                SyntaxKind.PlusToken, variable.type, value.type);
+            boundOperator = BoundBinaryOperator.Bind(SyntaxKind.MinusToken, variable.type, value.type);
+            reversalOperator = BoundBinaryOperator.Bind(SyntaxKind.PlusToken, variable.type, value.type);
         }
 
         var assignmentExpression = new BoundCompoundAssignmentExpression(operand, boundOperator, value);
@@ -1068,11 +1092,9 @@ internal sealed class Binder {
         BoundBinaryOperator boundOperator = null;
 
         if (expression.op.kind == SyntaxKind.PlusPlusToken)
-            boundOperator = BoundBinaryOperator.Bind(
-                SyntaxKind.PlusToken, variable.type, value.type);
+            boundOperator = BoundBinaryOperator.Bind(SyntaxKind.PlusToken, variable.type, value.type);
         else if (expression.op.kind == SyntaxKind.MinusMinusToken)
-            boundOperator = BoundBinaryOperator.Bind(
-                SyntaxKind.MinusToken, variable.type, value.type);
+            boundOperator = BoundBinaryOperator.Bind(SyntaxKind.MinusToken, variable.type, value.type);
 
         return new BoundCompoundAssignmentExpression(operand, boundOperator, value);
     }
@@ -1083,10 +1105,12 @@ internal sealed class Binder {
 
         if (boundExpression.type.dimensions > 0) {
             var index = BindCast(
-                expression.index.location, BindExpression(expression.index), new BoundType(TypeSymbol.Int));
+                expression.index.location, BindExpression(expression.index), new BoundType(TypeSymbol.Int)
+            );
 
             return new BoundIndexExpression(
-                boundExpression, index, expression.openBracket.kind == SyntaxKind.QuestionOpenBracketToken);
+                boundExpression, index, expression.openBracket.kind == SyntaxKind.QuestionOpenBracketToken
+            );
         } else {
             diagnostics.Push(Error.CannotApplyIndexing(expression.location, boundExpression.type));
             return new BoundErrorExpression();
@@ -1153,9 +1177,10 @@ internal sealed class Binder {
                 var count = 0;
 
                 if (isInner) {
-                    foreach (var parameter in function.parameters)
+                    foreach (var parameter in function.parameters) {
                         if (parameter.name.StartsWith("$"))
                             count++;
+                    }
                 }
 
                 if (!isInner || expression.arguments.count + count != function.parameters.Length) {
@@ -1177,7 +1202,9 @@ internal sealed class Binder {
 
                     var location = new TextLocation(expression.syntaxTree.text, span);
                     diagnostics.Push(Error.IncorrectArgumentCount(
-                        location, function.name, function.parameters.Length, expression.arguments.count));
+                        location, function.name, function.parameters.Length, expression.arguments.count)
+                    );
+
                     continue;
                 }
             }
@@ -1188,7 +1215,8 @@ internal sealed class Binder {
                 var argument = preBoundArguments[i];
                 var parameter = function.parameters[i];
                 var boundArgument = BindCast(
-                    expression.arguments[i].location, argument, parameter.type, out var castType, argument: i + 1);
+                    expression.arguments[i].location, argument, parameter.type, out var castType, argument: i + 1
+                );
 
                 if (castType.isImplicit && !castType.isIdentity)
                     score++;
@@ -1221,6 +1249,7 @@ internal sealed class Binder {
             if (symbols.Length == 1 && diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
                 tempDiagnostics.Move(diagnostics);
                 diagnostics.Move(tempDiagnostics);
+
                 return new BoundErrorExpression();
             }
 
@@ -1249,9 +1278,11 @@ internal sealed class Binder {
 
         if (symbols.Length > 1 && possibleOverloads == 0) {
             diagnostics.Push(Error.NoOverload(expression.identifier.location, name));
+
             return new BoundErrorExpression();
         } else if (symbols.Length > 1 && possibleOverloads > 1) {
             diagnostics.Push(Error.AmbiguousOverload(expression.identifier.location, name));
+
             return new BoundErrorExpression();
         }
 
@@ -1278,7 +1309,8 @@ internal sealed class Binder {
 
                 type = new BoundType(
                     tempType.typeSymbol, false, tempType.isConstantReference, tempType.isReference,
-                    tempType.isConstant, true, true, tempType.dimensions + 1);
+                    tempType.isConstant, true, true, tempType.dimensions + 1
+                );
             }
 
             var childType = type.ChildType();
@@ -1291,6 +1323,7 @@ internal sealed class Binder {
 
     private BoundExpression BindLiteralExpression(LiteralExpressionSyntax expression) {
         var value = expression.value;
+
         return new BoundLiteralExpression(value);
     }
 
@@ -1304,7 +1337,9 @@ internal sealed class Binder {
 
         if (boundOp == null) {
             diagnostics.Push(
-                Error.InvalidUnaryOperatorUse(expression.op.location, expression.op.text, boundOperand.type));
+                Error.InvalidUnaryOperatorUse(expression.op.location, expression.op.text, boundOperand.type)
+            );
+
             return new BoundErrorExpression();
         }
 
@@ -1323,12 +1358,14 @@ internal sealed class Binder {
 
         var boundOp = BoundTernaryOperator.Bind(
             expression.leftOp.kind, expression.rightOp.kind, boundLeft.type,
-            boundCenter.type, boundRight.type);
+            boundCenter.type, boundRight.type
+        );
 
         if (boundOp == null) {
             diagnostics.Push(Error.InvalidTernaryOperatorUse(
-                    expression.leftOp.location, $"{expression.leftOp.text}{expression.rightOp.text}",
-                    boundLeft.type, boundCenter.type, boundRight.type));
+                expression.leftOp.location, $"{expression.leftOp.text}{expression.rightOp.text}",
+                boundLeft.type, boundCenter.type, boundRight.type)
+            );
 
             return new BoundErrorExpression();
         }
@@ -1347,7 +1384,9 @@ internal sealed class Binder {
 
         if (boundOp == null) {
             diagnostics.Push(Error.InvalidBinaryOperatorUse(
-                    expression.op.location, expression.op.text, boundLeft.type, boundRight.type));
+                expression.op.location, expression.op.text, boundLeft.type, boundRight.type)
+            );
+
             return new BoundErrorExpression();
         }
 
@@ -1375,10 +1414,12 @@ internal sealed class Binder {
 
     private BoundExpression BindNameExpression(NameExpressionSyntax expression) {
         var name = expression.identifier.text;
+
         if (expression.identifier.isMissing)
             return new BoundErrorExpression();
 
         var variable = BindVariableReference(expression.identifier);
+
         if (variable == null)
             return new BoundErrorExpression();
 
@@ -1423,21 +1464,28 @@ internal sealed class Binder {
 
         if (expression.assignmentToken.kind != SyntaxKind.EqualsToken) {
             var equivalentOperatorTokenKind = SyntaxFacts.GetBinaryOperatorOfAssignmentOperator(
-                expression.assignmentToken.kind);
+                expression.assignmentToken.kind
+            );
+
             var boundOperator = BoundBinaryOperator.Bind(
-                equivalentOperatorTokenKind, type, boundExpression.type);
+                equivalentOperatorTokenKind, type, boundExpression.type
+            );
 
             if (boundOperator == null) {
                 diagnostics.Push(Error.InvalidBinaryOperatorUse(
                     expression.assignmentToken.location, expression.assignmentToken.text,
-                    type, boundExpression.type));
+                    type, boundExpression.type)
+                );
+
                 return new BoundErrorExpression();
             }
 
             var convertedExpression = BindCast(expression.right.location, boundExpression, type);
+
             return new BoundCompoundAssignmentExpression(left, boundOperator, convertedExpression);
         } else {
             var convertedExpression = BindCast(expression.right.location, boundExpression, type);
+
             return new BoundAssignmentExpression(left, convertedExpression);
         }
     }

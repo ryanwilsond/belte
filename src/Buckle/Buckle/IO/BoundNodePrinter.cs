@@ -434,6 +434,7 @@ internal static class BoundNodePrinter {
         writer.WritePunctuation(SyntaxKind.OpenBraceToken);
 
         var isFirst = true;
+
         foreach (var item in node.items) {
             if (isFirst) {
                 isFirst = false;

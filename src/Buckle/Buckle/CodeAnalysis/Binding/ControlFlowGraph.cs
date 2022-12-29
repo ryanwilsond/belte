@@ -49,8 +49,8 @@ internal sealed class ControlFlowGraph {
     internal static ControlFlowGraph Create(BoundBlockStatement body) {
         var basicBlockBuilder = new BasicBlockBuilder();
         var blocks = basicBlockBuilder.Build(body);
-
         var graphBuilder = new GraphBuilder();
+
         return graphBuilder.Build(blocks);
     }
 
@@ -129,6 +129,7 @@ internal sealed class ControlFlowGraph {
         public override string ToString() {
             if (isStart)
                 return "<Start>";
+
             if (isEnd)
                 return "<End>";
 
@@ -195,6 +196,7 @@ internal sealed class ControlFlowGraph {
             }
 
             EndBlock();
+
             return _blocks.ToList();
         }
 
@@ -251,7 +253,9 @@ internal sealed class ControlFlowGraph {
                         case BoundNodeKind.GotoStatement:
                             var gs = (BoundGotoStatement)statement;
                             var toBlock = _blockFromLabel[gs.label];
+
                             Connect(current, toBlock);
+
                             break;
                         case BoundNodeKind.ConditionalGotoStatement:
                             var cgs = (BoundConditionalGotoStatement)statement;
@@ -263,6 +267,7 @@ internal sealed class ControlFlowGraph {
 
                             Connect(current, thenBlock, thenCondition);
                             Connect(current, elseBlock, elseCondition);
+
                             break;
                         case BoundNodeKind.ReturnStatement:
                             Connect(current, _end);
@@ -274,6 +279,7 @@ internal sealed class ControlFlowGraph {
                         case BoundNodeKind.LabelStatement:
                             if (isLastStatement)
                                 Connect(current, next);
+
                             break;
                         default:
                             throw new BelteInternalException($"Build: unexpected statement '{statement.kind}'");
@@ -286,6 +292,7 @@ internal sealed class ControlFlowGraph {
                     if (!block.incoming.Any()) {
                         RemoveBlock(blocks, block);
                         Scan();
+
                         return;
                     }
                 }
@@ -316,10 +323,12 @@ internal sealed class ControlFlowGraph {
         private BoundExpression Negate(BoundExpression condition) {
             if (condition is BoundLiteralExpression literal) {
                 var value = (bool)literal.value;
+
                 return new BoundLiteralExpression(!value);
             }
 
             var op = BoundUnaryOperator.Bind(SyntaxKind.ExclamationToken, new BoundType(TypeSymbol.Bool));
+
             return new BoundUnaryExpression(op, condition);
         }
 
@@ -334,6 +343,7 @@ internal sealed class ControlFlowGraph {
             }
 
             var branch = new BasicBlockBranch(from, to, condition);
+
             from.outgoing.Add(branch);
             to.incoming.Add(branch);
             _branches.Add(branch);

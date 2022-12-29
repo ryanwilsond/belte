@@ -20,7 +20,8 @@ internal sealed class SyntaxTree {
     }
 
     private delegate void ParseHandler(
-        SyntaxTree syntaxTree, out CompilationUnitSyntax root, out BelteDiagnosticQueue diagnostics);
+        SyntaxTree syntaxTree, out CompilationUnitSyntax root, out BelteDiagnosticQueue diagnostics
+    );
 
     /// <summary>
     /// Root <see cref="SyntaxNode" />, does not represent something in a source file rather the entire source file.
@@ -50,6 +51,7 @@ internal sealed class SyntaxTree {
     /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
     internal static SyntaxTree Load(string fileName, string text) {
         var sourceText = SourceText.From(text, fileName);
+
         return Parse(sourceText);
     }
 
@@ -61,6 +63,7 @@ internal sealed class SyntaxTree {
     internal static SyntaxTree Load(string fileName) {
         var text = File.ReadAllText(fileName);
         var sourceText = SourceText.From(text, fileName);
+
         return Parse(sourceText);
     }
 
@@ -71,6 +74,7 @@ internal sealed class SyntaxTree {
     /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
     internal static SyntaxTree Parse(string text) {
         var sourceText = SourceText.From(text);
+
         return Parse(sourceText);
     }
 
@@ -91,6 +95,7 @@ internal sealed class SyntaxTree {
     /// <returns>SyntaxTokens in order.</returns>
     internal static ImmutableArray<SyntaxToken> ParseTokens(string text, bool includeEOF = false) {
         var sourceText = SourceText.From(text);
+
         return ParseTokens(sourceText, includeEOF);
     }
 
@@ -104,6 +109,7 @@ internal sealed class SyntaxTree {
     internal static ImmutableArray<SyntaxToken> ParseTokens(
         string text, out BelteDiagnosticQueue diagnostics, bool includeEOF = false) {
         var sourceText = SourceText.From(text);
+
         return ParseTokens(sourceText, out diagnostics, includeEOF);
     }
 
@@ -152,6 +158,7 @@ internal sealed class SyntaxTree {
         var syntaxTree = new SyntaxTree(text, ParseTokens);
         diagnostics = new BelteDiagnosticQueue();
         diagnostics.Move(syntaxTree.diagnostics);
+
         return tokens.ToImmutableArray();
     }
 

@@ -66,7 +66,8 @@ internal sealed class Lexer {
             tokenText = _text.ToString(tokenStart, tokenLength);
 
         return new SyntaxToken(
-            _syntaxTree, tokenKind, tokenStart, tokenText, tokenValue, leadingTrivia, trailingTrivia);
+            _syntaxTree, tokenKind, tokenStart, tokenText, tokenValue, leadingTrivia, trailingTrivia
+        );
     }
 
     private char Peek(int offset) {
@@ -382,6 +383,7 @@ internal sealed class Lexer {
                     diagnostics.Push(Error.BadCharacter(location, _position, current));
                     _position++;
                 }
+
                 break;
         }
     }

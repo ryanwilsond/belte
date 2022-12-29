@@ -37,6 +37,7 @@ internal static class ConstantFolding {
         if (op?.opType == BoundBinaryOperatorKind.NullCoalescing) {
             if (leftConstant != null && leftConstant.value != null)
                 return new BoundConstant(leftConstant.value);
+
             if (leftConstant != null && leftConstant.value == null && rightConstant != null)
                 return new BoundConstant(rightConstant.value);
         }
@@ -185,6 +186,7 @@ internal static class ConstantFolding {
         if (op.opType == BoundTernaryOperatorKind.Conditional) {
             if (left.constantValue != null && (bool)left.constantValue.value && center.constantValue != null)
                 return new BoundConstant(center.constantValue.value);
+
             if (left.constantValue != null && !(bool)left.constantValue.value && right.constantValue != null)
                 return new BoundConstant(right.constantValue.value);
         }

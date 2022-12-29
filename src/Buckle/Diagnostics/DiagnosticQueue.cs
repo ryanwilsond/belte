@@ -89,6 +89,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
             return;
 
         Type diagnostic = diagnosticQueue.Pop();
+
         while (diagnostic != null) {
             _diagnostics.Add(diagnostic);
             diagnostic = diagnosticQueue.Pop();
@@ -117,6 +118,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
 
         Type diagnostic = _diagnostics[0];
         _diagnostics.RemoveAt(0);
+
         return diagnostic;
     }
 
@@ -130,6 +132,7 @@ public class DiagnosticQueue<Type> where Type : Diagnostic {
 
         Type diagnostic = _diagnostics[_diagnostics.Count - 1];
         _diagnostics.RemoveAt(_diagnostics.Count - 1);
+
         return diagnostic;
     }
 

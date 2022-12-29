@@ -77,6 +77,7 @@ internal sealed class AnnotatedText {
         }
 
         var minIndent = int.MaxValue;
+
         for (int i=0; i<lines.Count; i++) {
             var line = lines[i];
 
