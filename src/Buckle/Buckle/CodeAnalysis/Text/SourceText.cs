@@ -110,9 +110,9 @@ public sealed class SourceText {
         while (position < text.Length) {
             var linebreakWidth = GetLineBreakWidth(text, position);
 
-            if (linebreakWidth == 0)
+            if (linebreakWidth == 0) {
                 position++;
-            else {
+            } else {
                 AddLine(result, pointer, position, lineStart, linebreakWidth);
                 position += linebreakWidth;
                 lineStart = position;
@@ -140,6 +140,7 @@ public sealed class SourceText {
             return 2;
         if (c == '\r' || c == '\n')
             return 1;
+
         return 0;
     }
 }

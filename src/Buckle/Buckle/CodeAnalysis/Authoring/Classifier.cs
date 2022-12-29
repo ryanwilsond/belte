@@ -31,6 +31,7 @@ internal static class Classifier {
     internal static ImmutableArray<ClassifiedSpan> Classify(SyntaxTree syntaxTree, TextSpan span) {
         var result = ImmutableArray.CreateBuilder<ClassifiedSpan>();
         ClassifyNode(syntaxTree.root, span, result);
+
         return result.ToImmutable();
     }
 

@@ -38,7 +38,8 @@ public static partial class BuckleCommandLine {
         compiler.me = Process.GetCurrentProcess().ProcessName;
 
         compiler.state = DecodeOptions(
-            args, out DiagnosticQueue<Diagnostic> diagnostics, out ShowDialogs dialogs);
+            args, out DiagnosticQueue<Diagnostic> diagnostics, out ShowDialogs dialogs
+        );
 
         bool hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error != null;
 

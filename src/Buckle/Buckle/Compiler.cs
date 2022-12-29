@@ -288,7 +288,8 @@ public sealed class Compiler {
 
         var _ = false; // Unused, just to satisfy ref parameter
         var result = compilation.Evaluate(
-            new Dictionary<VariableSymbol, EvaluatorObject>(), ref _, state.options.Contains("error"));
+            new Dictionary<VariableSymbol, EvaluatorObject>(), ref _, state.options.Contains("error")
+        );
 
         if (!state.options.Contains("all") && !state.options.Contains("error"))
             diagnostics.Move(result.diagnostics.FilterOut(DiagnosticType.Warning));
@@ -313,7 +314,8 @@ public sealed class Compiler {
 
         var compilation = Compilation.Create(syntaxTrees.ToArray());
         var result = compilation.Emit(
-            state.moduleName, state.references, state.outputFilename, state.options.Contains("error"));
+            state.moduleName, state.references, state.outputFilename, state.options.Contains("error")
+        );
 
         diagnostics.Move(result);
     }

@@ -50,6 +50,7 @@ internal static class Warning {
             valueString = valueString.ToLower();
 
         var message = $"expression will always result to '{valueString}'";
+
         return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_AlwaysValue), location, message);
     }
 

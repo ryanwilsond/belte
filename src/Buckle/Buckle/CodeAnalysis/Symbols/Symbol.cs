@@ -24,6 +24,7 @@ internal abstract class Symbol {
     public override string ToString() {
         using (var writer = new StringWriter()) {
             this.WriteTo(writer);
+
             return writer.ToString();
         }
     }

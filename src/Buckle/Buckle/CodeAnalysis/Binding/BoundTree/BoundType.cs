@@ -207,7 +207,8 @@ internal sealed class BoundType : BoundNode {
     internal static BoundType Copy(BoundType type) {
         return new BoundType(
             type.typeSymbol, type.isImplicit, type.isConstantReference, type.isReference,
-            type.isConstant, type.isNullable, type.isLiteral, type.dimensions);
+            type.isConstant, type.isNullable, type.isLiteral, type.dimensions
+        );
     }
 
     /// <summary>
@@ -219,7 +220,8 @@ internal sealed class BoundType : BoundNode {
     internal static BoundType NonNullable(BoundType type) {
         return new BoundType(
             type.typeSymbol, type.isImplicit, type.isConstantReference, type.isReference,
-            type.isConstant, false, type.isLiteral, type.dimensions);
+            type.isConstant, false, type.isLiteral, type.dimensions
+        );
     }
 
     /// <summary>
@@ -230,7 +232,8 @@ internal sealed class BoundType : BoundNode {
     internal static BoundType Nullable(BoundType type) {
         return new BoundType(
             type.typeSymbol, type.isImplicit, type.isConstantReference, type.isReference,
-            type.isConstant, true, type.isLiteral, type.dimensions);
+            type.isConstant, true, type.isLiteral, type.dimensions
+        );
     }
 
     /// <summary>
@@ -242,7 +245,8 @@ internal sealed class BoundType : BoundNode {
     internal static BoundType Reference(BoundType type) {
         return new BoundType(
             type.typeSymbol, type.isImplicit, false, true, type.isConstant,
-            type.isNullable, false, type.dimensions);
+            type.isNullable, false, type.dimensions
+        );
     }
 
     /// <summary>
@@ -250,11 +254,14 @@ internal sealed class BoundType : BoundNode {
     /// </summary>
     /// <returns><see cref="BoundType" /> of item type.</returns>
     internal BoundType ChildType() {
-        if (dimensions > 0)
+        if (dimensions > 0) {
             return new BoundType(
-                typeSymbol, isImplicit, isConstantReference, isReference, isConstant, isNullable, isLiteral, dimensions - 1);
-        else
+                typeSymbol, isImplicit, isConstantReference, isReference,
+                isConstant, isNullable, isLiteral, dimensions - 1
+            );
+        } else {
             return null;
+        }
     }
 
     /// <summary>
@@ -262,10 +269,12 @@ internal sealed class BoundType : BoundNode {
     /// </summary>
     /// <returns>The base item <see cref="BoundType" />.</returns>
     internal BoundType BaseType() {
-        if (dimensions > 0)
+        if (dimensions > 0) {
             return new BoundType(
-                typeSymbol, isImplicit, isConstantReference, isReference, isConstant, isNullable, isLiteral, 0);
-        else
+                typeSymbol, isImplicit, isConstantReference, isReference, isConstant, isNullable, isLiteral, 0
+            );
+        } else {
             return this;
+        }
     }
 }

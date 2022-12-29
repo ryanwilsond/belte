@@ -58,6 +58,7 @@ internal sealed class SyntaxToken : SyntaxNode {
         get {
             var start = leadingTrivia.Length == 0 ? span.start : leadingTrivia.First().span.start;
             var end = trailingTrivia.Length == 0 ? span.end : trailingTrivia.Last().span.end;
+
             return TextSpan.FromBounds(start, end);
         }
     }

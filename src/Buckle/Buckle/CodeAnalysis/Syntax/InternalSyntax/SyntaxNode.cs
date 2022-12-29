@@ -48,6 +48,7 @@ internal abstract class SyntaxNode {
 
             var first = GetChildren().First().span;
             var last = GetChildren().Last().span;
+
             return TextSpan.FromBounds(first.start, last.end);
         }
     }
@@ -63,6 +64,7 @@ internal abstract class SyntaxNode {
 
             var first = GetChildren().First().fullSpan;
             var last = GetChildren().Last().fullSpan;
+
             return TextSpan.FromBounds(first.start, last.end);
         }
     }
@@ -81,6 +83,7 @@ internal abstract class SyntaxNode {
     public override string ToString() {
         using (var writer = new StringWriter()) {
             WriteTo(writer);
+
             return writer.ToString();
         }
     }

@@ -111,6 +111,7 @@ internal static class Error {
         var message = buckleName != null
             ? $"could not resolve type '{buckleName}' ('{metadataName}') with the given references"
             : $"could not resolve type '{metadataName}' with the given references";
+
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_RequiredTypeNotFound), null, message);
     }
 
@@ -122,6 +123,7 @@ internal static class Error {
         var message = buckleName != null
             ? $"could not resolve type '{buckleName}' ('{metadataName}') with the given references"
             : $"could not resolve type '{metadataName}' with the given references";
+
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_RequiredTypeAmbiguous), null, message);
     }
 
@@ -229,6 +231,7 @@ internal static class Error {
         TextLocation location, string name, int expected, int actual) {
         var argWord = expected == 1 ? "argument" : "arguments";
         var message = $"function '{name}' expects {expected} {argWord}, got {actual}";
+
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_IncorrectArgumentCount), location, message);
     }
 
