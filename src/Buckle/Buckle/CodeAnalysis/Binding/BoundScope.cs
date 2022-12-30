@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -10,6 +11,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundScope {
     private List<Symbol> _symbols;
+    private List<Symbol> _assignedSymbols;
     private BoundScope _parent;
     private bool _isBlock;
 
@@ -68,6 +70,12 @@ internal sealed class BoundScope {
     /// </summary>
     /// <returns>All declared types.</returns>
     internal ImmutableArray<TypeSymbol> GetDeclaredTypes() => GetDeclaredSymbols<TypeSymbol>();
+
+    /// <summary>
+    /// Gets all variables that were assigned to in this scope (not any parent scopes).
+    /// </summary>
+    /// <returns>All assigned variables.</returns>
+    internal ImmutableArray<VariableSymbol> GetAssignedVariables() => GetAssignedSymbols<VariableSymbol>();
 
     /// <summary>
     /// Attempts to find a <see cref="Symbol" /> based on the name (including parent scopes).
@@ -165,6 +173,18 @@ internal sealed class BoundScope {
         return LookupOverloadsInternal(name);
     }
 
+    /// <summary>
+    /// Note the assignment of a <see cref="Symbol" />. This does not actually change anything about the scope, rather
+    /// this acts as readonly tracking data for some <see cref="Binder" /> components.
+    /// </summary>
+    /// <param name="symbol"><see cref="Symbol" /> that was assigned to.</param>
+    internal void NoteAssignment(Symbol symbol) {
+        if (_assignedSymbols == null)
+            _assignedSymbols = new List<Symbol>();
+
+        _assignedSymbols.Add(symbol);
+    }
+
     private ImmutableArray<Symbol> LookupOverloadsInternal(
         string name, bool strict = false, ImmutableArray<Symbol>? _current = null) {
         var overloads = ImmutableArray.CreateBuilder<Symbol>();
@@ -207,7 +227,7 @@ internal sealed class BoundScope {
         return overloads.ToImmutable();
     }
 
-    private bool TryDeclareSymbol<TSymbol>(TSymbol symbol) where TSymbol : Symbol {
+    private bool TryDeclareSymbol<T>(T symbol) where T : Symbol {
         if (_symbols == null)
             _symbols = new List<Symbol>();
 
@@ -253,10 +273,17 @@ internal sealed class BoundScope {
         return _isBlock ? (parent == null ? false : parent.Contains(name)) : false;
     }
 
-    private ImmutableArray<TSymbol> GetDeclaredSymbols<TSymbol>() where TSymbol : Symbol {
+    private ImmutableArray<T> GetDeclaredSymbols<T>() where T : Symbol {
         if (_symbols == null)
-            return ImmutableArray<TSymbol>.Empty;
+            return ImmutableArray<T>.Empty;
 
-        return _symbols.OfType<TSymbol>().ToImmutableArray();
+        return _symbols.OfType<T>().ToImmutableArray();
+    }
+
+    private ImmutableArray<T> GetAssignedSymbols<T>() where T : Symbol {
+        if (_assignedSymbols == null)
+            return ImmutableArray<T>.Empty;
+
+        return _assignedSymbols.OfType<T>().ToImmutableArray();
     }
 }

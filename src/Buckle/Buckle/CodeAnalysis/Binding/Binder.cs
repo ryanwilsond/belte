@@ -946,6 +946,9 @@ internal sealed class Binder {
             var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
             var variable = BindVariable(expression.identifier, variableType, castedInitializer.constantValue);
 
+            if (initializer.constantValue == null || initializer.constantValue.value != null)
+                _scope.NoteAssignment(variable);
+
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
         }
     }
@@ -1045,8 +1048,10 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        if (operand.type.isNullable)
+        if (operand.type.isNullable && operand is BoundVariableExpression ve &&
+            !_scope.GetAssignedVariables().Contains(ve.variable)) {
             diagnostics.Push(Warning.NullDeference(expression.op.location));
+        }
 
         return new BoundMemberAccessExpression(operand, symbol, expression.op.kind == SyntaxKind.QuestionPeriodToken);
     }
@@ -1524,6 +1529,13 @@ internal sealed class Binder {
             return new BoundCompoundAssignmentExpression(left, boundOperator, convertedExpression);
         } else {
             var convertedExpression = BindCast(expression.right.location, boundExpression, type);
+
+            if (left is BoundVariableExpression ve) {
+                if ((ve.variable.constantValue != null && ve.variable.constantValue.value != null) ||
+                    ve.variable.constantValue == null) {
+                    _scope.NoteAssignment(ve.variable);
+                }
+            }
 
             return new BoundAssignmentExpression(left, convertedExpression);
         }
