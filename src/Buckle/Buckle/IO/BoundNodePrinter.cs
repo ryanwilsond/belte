@@ -405,10 +405,10 @@ internal static class BoundNodePrinter {
     }
 
     private static void WriteCastExpression(BoundCastExpression node, IndentedTextWriter writer) {
-        writer.WriteType(node.type.typeSymbol.name);
         writer.WritePunctuation(SyntaxKind.OpenParenToken);
-        node.expression.WriteTo(writer);
+        writer.WriteType(node.type.typeSymbol.name);
         writer.WritePunctuation(SyntaxKind.CloseParenToken);
+        node.expression.WriteTo(writer);
     }
 
     private static void WriteCallExpression(BoundCallExpression node, IndentedTextWriter writer) {

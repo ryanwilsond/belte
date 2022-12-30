@@ -14,7 +14,8 @@
             // ],
             // "args": [
             //     "-i",
-            //     "test.ble"
+            //     "test.ble",
+            //     "-Wall"
             // ],
             "args": ["-r"],
             "cwd": "${workspaceFolder}",

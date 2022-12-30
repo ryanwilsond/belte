@@ -99,6 +99,12 @@ internal sealed class Cast {
                 cast = Cast.Explicit;
         }
 
+        if (fromType.isReference && !fromType.isExplicitReference && toType.isReference)
+            cast = Cast.None;
+
+        if (fromType.isReference && fromType.isExplicitReference && !toType.isReference)
+            cast = Cast.None;
+
         return cast;
     }
 }

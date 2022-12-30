@@ -1,25 +1,28 @@
+$BU0000
+If you see this error code, that means that there was a fatal error in the
+compiler that prevented it from completing compilation. This is NOT a user
+error, but rather a bug that should be reported. Currently, the best way to
+report bugs is directly on the issues tab on GitHub.
+
+If the problem is preventing further development, try downgrading Buckle to the
+previous stable patch version. If the problem persists, make sure to create an
+issue on the GitHub (though we at Belte Industries would appreciate an issue
+report nonetheless).
+
+You can use the following link to create an issue:
+https://github.com/ryanwilsond/belte/issues/new?assignees=&labels=&template=bug_report.md&title=
 $BU0001
 The compiler produces this warning if it can tell that an expression will always
-result in the same value.
+result in the same value. Not all expressions that have a constant value will be
+found by the compiler, but most simple ones will.
 
 For example:
 
 ```
-if (2 > 0) { } // 2 > 0 is always true
+if (2 > 0) { } // 2 > 0 is always true, so this warning is produced
 ```
 $BU0002
-Inside a global scope without a `Main` function, the compiler will run the
-file top-down instead. Return statements are allowed in this case, however it is
-currently unsupported to return a value in this case.
 
-For example:
-
-```
-if (2 == 2)
-    return; // This is allowed
-else
-    return 3; // This is not allowed
-```
 $BU0003
 The compiler produces this error when it either ca not find a reference, or it is
 the wrong file type. This usually means that a reference specified on the command
@@ -299,3 +302,17 @@ For example:
 int myInt = MyFunction(); // `MyFunction` does not exist in this scope, not allowed
 ```
 $BU0029
+
+$BU9000
+Inside a global scope without a `Main` function, the compiler will run the
+file top-down instead. Return statements are allowed in this case, however it is
+currently unsupported to return a value in this case.
+
+For example:
+
+```
+if (2 == 2)
+    return; // This is allowed
+else
+    return 3; // This is not allowed
+```

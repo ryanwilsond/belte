@@ -1,0 +1,29 @@
+
+struct A {
+    int num;
+}
+
+int Main() {
+    var a = A();
+    a.num = 3;
+
+    [NotNull]var b = A();
+    b.num = 6;
+
+    MyFunc(([NotNull]A)a, ref b);
+
+    PrintLine(a.num);
+    PrintLine(b.num);
+
+    return 1;
+}
+
+void MyFunc([NotNull]A a, [NotNull]ref A b) {
+    a.num++;
+    b.num++;
+    MyFunc2(b);
+}
+
+void MyFunc2(A b) {
+    b.num++;
+}

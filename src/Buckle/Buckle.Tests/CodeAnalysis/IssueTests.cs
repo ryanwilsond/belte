@@ -5,6 +5,28 @@ namespace Buckle.Tests.CodeAnalysis;
 
 public sealed partial class EvaluatorTests {
     [Fact]
+    public void Evaluator_ReferenceExpression_Reports_CannotConvert() {
+        var text = @"
+            struct A {
+                int num;
+            }
+
+            void MyFunction(A a) {
+                a.num = 5;
+            }
+
+            var a = A();
+            MyFunction([ref a]);
+        ";
+
+        var diagnostics = @"
+            argument 1: cannot convert from type 'ref A' to 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
     public void Evaluator_AssignmentExpression_Reports_CannotAssignConstReference() {
         var text = @"
             int x = 3;

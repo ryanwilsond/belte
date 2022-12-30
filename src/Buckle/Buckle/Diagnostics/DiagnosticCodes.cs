@@ -2,7 +2,7 @@
 namespace Buckle.Diagnostics;
 
 internal enum DiagnosticCode : int {
-    // 0 is unused
+    // 0 is reserved for exceptions
     WRN_AlwaysValue = 1,
     WRN_NullDeference = 2,
     ERR_InvalidReference = 3,

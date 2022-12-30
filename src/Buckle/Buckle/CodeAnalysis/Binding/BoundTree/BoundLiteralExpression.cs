@@ -29,7 +29,7 @@ internal sealed class BoundLiteralExpression : BoundExpression {
     internal BoundLiteralExpression(object value, BoundType @override) {
         type = new BoundType(
             @override.typeSymbol, @override.isImplicit, @override.isConstantReference, @override.isReference,
-            @override.isConstant, @override.isNullable, true, @override.dimensions);
+            @override.isExplicitReference, @override.isConstant, @override.isNullable, true, @override.dimensions);
 
         constantValue = new BoundConstant(value);
     }

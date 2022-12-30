@@ -111,8 +111,10 @@ internal sealed class Evaluator {
         throw new BelteInternalException($"GetFrom: '{variable.name}' was not found in the scope");
     }
 
-    private EvaluatorObject Get(VariableSymbol variable) {
-        if (variable.kind == SymbolKind.GlobalVariable) {
+    private EvaluatorObject Get(VariableSymbol variable, Dictionary<VariableSymbol, EvaluatorObject> scope = null) {
+        if (scope != null) {
+            return GetFrom(scope, variable);
+        } else if (variable.kind == SymbolKind.GlobalVariable) {
             return GetFrom(_globals, variable);
         } else {
             foreach (var frame in _locals) {
@@ -351,6 +353,7 @@ internal sealed class Evaluator {
                 Console.WriteLine(e.Message);
             }
 
+            abort = true;
             return new EvaluatorObject();
         }
     }
@@ -425,10 +428,15 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateMemberAccessExpression(BoundMemberAccessExpression node, ref bool abort) {
         var operand = EvaluateExpression(node.operand, ref abort);
 
-        if (operand.isReference)
-            return Get(operand.reference).members[node.member];
-        else
+        if (operand.isReference) {
+            do {
+                operand = Get(operand.reference, operand.referenceScope);
+            } while (operand.isReference == true);
+
             return operand.members[node.member];
+        } else {
+            return operand.members[node.member];
+        }
     }
 
     private EvaluatorObject EvaluateConstructorExpression(BoundConstructorExpression node, ref bool abort) {
@@ -447,7 +455,14 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node, ref bool abort) {
-        return new EvaluatorObject(node.variable, isExplicitReference: true);
+        Dictionary<VariableSymbol, EvaluatorObject> referenceScope;
+
+        if (node.variable.kind == SymbolKind.GlobalVariable)
+            referenceScope = _globals;
+        else
+            referenceScope = _locals.Peek();
+
+        return new EvaluatorObject(node.variable, isExplicitReference: true, referenceScope: referenceScope);
     }
 
     private EvaluatorObject EvaluateIndexExpression(BoundIndexExpression node, ref bool abort) {
@@ -495,11 +510,15 @@ internal sealed class Evaluator {
             return new EvaluatorObject(_random.Next(max));
         } else if (node.function.name == "Value") {
             var value = EvaluateExpression(node.arguments[0], ref abort);
+            var hasNoMembers = value.isReference ? Get(value.reference).members == null : value.members == null;
 
-            if (Value(value) == null)
+            if (Value(value) == null && hasNoMembers)
                 throw new NullReferenceException();
 
-            return new EvaluatorObject(Value(value));
+            if (hasNoMembers)
+                return new EvaluatorObject(Value(value));
+            else
+                return Copy(value);
         } else if (node.function.MethodMatches(BuiltinFunctions.HasValue)) {
             var value = EvaluateExpression(node.arguments[0], ref abort);
             var hasNoMembers = value.isReference ? Get(value.reference).members == null : value.members == null;
@@ -514,7 +533,11 @@ internal sealed class Evaluator {
             for (int i=0; i<node.arguments.Length; i++) {
                 var parameter = node.function.parameters[i];
                 var value = EvaluateExpression(node.arguments[i], ref abort);
-                locals.Add(parameter, value);
+
+                while (!parameter.type.isReference && value.isReference)
+                    value = Get(value.reference);
+
+                locals.Add(parameter, Copy(value));
             }
 
             _locals.Push(locals);

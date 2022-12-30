@@ -78,11 +78,13 @@ internal sealed class BoundType : BoundNode {
     /// <param name="dimensions">Dimensions of the type, 0 if not an array.</param>
     internal BoundType(
         TypeSymbol typeSymbol, bool isImplicit = false, bool isConstantReference = false, bool isReference = false,
-        bool isConstant = false, bool isNullable = false, bool isLiteral = false, int dimensions = 0) {
+        bool isExplicitReference = false, bool isConstant = false, bool isNullable = false,
+        bool isLiteral = false, int dimensions = 0) {
         this.typeSymbol = typeSymbol;
         this.isImplicit = isImplicit;
         this.isConstantReference = isConstantReference;
         this.isReference = isReference;
+        this.isExplicitReference = isExplicitReference;
         this.isConstant = isConstant;
         this.isNullable = isNullable;
         this.isLiteral = isLiteral;
@@ -108,6 +110,11 @@ internal sealed class BoundType : BoundNode {
     /// If the type is a reference type.
     /// </summary>
     internal bool isReference { get; }
+
+    /// <summary>
+    /// If the type is explicitly a reference expression, versus a reference type.
+    /// </summary>
+    internal bool isExplicitReference { get; }
 
     /// <summary>
     /// If the value this type is referring to is only defined once.
@@ -208,7 +215,7 @@ internal sealed class BoundType : BoundNode {
     internal static BoundType Copy(BoundType type) {
         return new BoundType(
             type.typeSymbol, type.isImplicit, type.isConstantReference, type.isReference,
-            type.isConstant, type.isNullable, type.isLiteral, type.dimensions
+            type.isExplicitReference, type.isConstant, type.isNullable, type.isLiteral, type.dimensions
         );
     }
 
@@ -220,7 +227,7 @@ internal sealed class BoundType : BoundNode {
     internal static BoundType NonNullable(BoundType type) {
         return new BoundType(
             type.typeSymbol, type.isImplicit, type.isConstantReference, type.isReference,
-            type.isConstant, false, type.isLiteral, type.dimensions
+            type.isExplicitReference, type.isConstant, false, type.isLiteral, type.dimensions
         );
     }
 
@@ -232,7 +239,7 @@ internal sealed class BoundType : BoundNode {
     internal static BoundType Nullable(BoundType type) {
         return new BoundType(
             type.typeSymbol, type.isImplicit, type.isConstantReference, type.isReference,
-            type.isConstant, true, type.isLiteral, type.dimensions
+            type.isExplicitReference, type.isConstant, true, type.isLiteral, type.dimensions
         );
     }
 
@@ -243,7 +250,20 @@ internal sealed class BoundType : BoundNode {
     /// <returns>Reference type copy of <see cref="BoundType" />.</returns>
     internal static BoundType Reference(BoundType type) {
         return new BoundType(
-            type.typeSymbol, type.isImplicit, false, true, type.isConstant,
+            type.typeSymbol, type.isImplicit, false, true, type.isExplicitReference, type.isConstant,
+            type.isNullable, type.isLiteral, type.dimensions
+        );
+    }
+
+    /// <summary>
+    /// Copies all data to a new <see cref="BoundType" />, but makes the new <see cref="BoundType" /> an
+    /// explicit reference.
+    /// </summary>
+    /// <param name="type"><see cref="BoundType" /> to copy.</param>
+    /// <returns>Reference type copy of <see cref="BoundType" />.</returns>
+    internal static BoundType ExplicitReference(BoundType type) {
+        return new BoundType(
+            type.typeSymbol, type.isImplicit, false, true, true, type.isConstant,
             type.isNullable, type.isLiteral, type.dimensions
         );
     }
@@ -255,8 +275,8 @@ internal sealed class BoundType : BoundNode {
     /// <returns>Constant copy of <see cref="BoundType" />.</returns>
     internal static BoundType Constant(BoundType type) {
         return new BoundType(
-            type.typeSymbol, type.isImplicit, type.isConstantReference, type.isReference, true,
-            type.isNullable, type.isLiteral, type.dimensions
+            type.typeSymbol, type.isImplicit, type.isConstantReference, type.isReference,
+            type.isExplicitReference, true, type.isNullable, type.isLiteral, type.dimensions
         );
     }
 
@@ -268,8 +288,8 @@ internal sealed class BoundType : BoundNode {
     /// <returns>Constant copy of <see cref="BoundType" />.</returns>
     internal static BoundType ConstantReference(BoundType type) {
         return new BoundType(
-            type.typeSymbol, type.isImplicit, true, true, type.isConstant,
-            type.isNullable, type.isLiteral, type.dimensions
+            type.typeSymbol, type.isImplicit, true, true, type.isExplicitReference,
+            type.isConstant, type.isNullable, type.isLiteral, type.dimensions
         );
     }
 
@@ -281,7 +301,7 @@ internal sealed class BoundType : BoundNode {
         if (dimensions > 0) {
             return new BoundType(
                 typeSymbol, isImplicit, isConstantReference, isReference,
-                isConstant, isNullable, isLiteral, dimensions - 1
+                isExplicitReference, isConstant, isNullable, isLiteral, dimensions - 1
             );
         } else {
             return null;
@@ -295,7 +315,8 @@ internal sealed class BoundType : BoundNode {
     internal BoundType BaseType() {
         if (dimensions > 0) {
             return new BoundType(
-                typeSymbol, isImplicit, isConstantReference, isReference, isConstant, isNullable, isLiteral, 0
+                typeSymbol, isImplicit, isConstantReference, isReference,
+                isExplicitReference, isConstant, isNullable, isLiteral, 0
             );
         } else {
             return this;

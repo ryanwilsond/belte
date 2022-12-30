@@ -84,15 +84,15 @@ internal sealed class Binder {
             );
         }
 
-        var methodDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<MethodDeclarationSyntax>();
-
-        foreach (var method in methodDeclarations)
-            binder.BindMethodDeclaration(method);
-
         var typeDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<TypeDeclarationSyntax>();
 
         foreach (var @type in typeDeclarations)
             binder.BindTypeDeclaration(@type);
+
+        var methodDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<MethodDeclarationSyntax>();
+
+        foreach (var method in methodDeclarations)
+            binder.BindMethodDeclaration(method);
 
         var globalStatements = syntaxTrees.SelectMany(st => st.root.members).OfType<GlobalStatementSyntax>();
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
@@ -470,12 +470,12 @@ internal sealed class Binder {
     private BoundExpression BindCast(
         TextLocation diagnosticLocation, BoundExpression expression, BoundType type,
         bool allowExplicit = false, int argument = 0) {
-        return BindCast(diagnosticLocation, expression, type, out _, allowExplicit);
+        return BindCast(diagnosticLocation, expression, type, out _, allowExplicit, argument);
     }
 
     private BoundExpression BindCast(
-        TextLocation diagnosticLocation, BoundExpression expression,
-        BoundType type, out Cast castType, bool allowExplicit = false, int argument = 0) {
+        TextLocation diagnosticLocation, BoundExpression expression, BoundType type,
+        out Cast castType, bool allowExplicit = false, int argument = 0) {
         var conversion = Cast.Classify(expression.type, type);
         castType = conversion;
 
@@ -538,7 +538,7 @@ internal sealed class Binder {
         if (foundType == null && !isImplicit)
             diagnostics.Push(Error.UnknownType(type.location, type.typeName.text));
 
-        return new BoundType(foundType, isImplicit, isConstRef, isRef, isConst, isNullable, false, dimensions);
+        return new BoundType(foundType, isImplicit, isConstRef, isRef, false, isConst, isNullable, false, dimensions);
     }
 
     private VariableSymbol BindVariableReference(SyntaxToken identifier) {
@@ -911,7 +911,7 @@ internal sealed class Binder {
             var variable = BindVariable(expression.identifier,
                 new BoundType(
                     itemType.typeSymbol, type.isImplicit, type.isConstantReference, type.isReference,
-                    type.isConstant, type.isNullable, false, variableType.dimensions
+                    false, type.isConstant, type.isNullable, false, variableType.dimensions
                 ),
                 castedInitializer.constantValue
             );
@@ -1059,9 +1059,8 @@ internal sealed class Binder {
 
     private BoundExpression BindReferenceExpression(ReferenceExpressionSyntax expression) {
         var variable = BindVariableReference(expression.identifier);
-        var type = BoundType.Reference(variable.type);
 
-        return new BoundReferenceExpression(variable, type);
+        return new BoundReferenceExpression(variable);
     }
 
     private BoundExpression BindPostfixExpression(PostfixExpressionSyntax expression, bool ownStatement = false) {
@@ -1345,7 +1344,7 @@ internal sealed class Binder {
 
                 type = new BoundType(
                     tempType.typeSymbol, false, tempType.isConstantReference, tempType.isReference,
-                    tempType.isConstant, true, true, tempType.dimensions + 1
+                    tempType.isExplicitReference, tempType.isConstant, true, true, tempType.dimensions + 1
                 );
             }
 

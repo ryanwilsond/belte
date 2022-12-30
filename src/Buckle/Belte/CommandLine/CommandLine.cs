@@ -34,7 +34,7 @@ public static partial class BuckleCommandLine {
     /// <returns>Error code, 0 = success.</returns>
     public static int ProcessArgs(string[] args) {
         int err;
-        Compiler compiler = new Compiler(ResolveDiagnostics);
+        Compiler compiler = new Compiler();
         compiler.me = Process.GetCurrentProcess().ProcessName;
 
         compiler.state = DecodeOptions(

@@ -57,10 +57,12 @@ internal sealed class EvaluatorObject {
     /// If this is just a variable, or if it explicitly a reference expression.
     /// </param>
     internal EvaluatorObject(
-        VariableSymbol reference, bool isExplicitReference = false) {
+        VariableSymbol reference, bool isExplicitReference = false,
+        Dictionary<VariableSymbol, EvaluatorObject> referenceScope = null) {
         this.value = null;
         this.isReference = true;
         this.reference = reference;
+        this.referenceScope = referenceScope;
         this.isExplicitReference = isExplicitReference;
         this.members = null;
     }
@@ -76,6 +78,11 @@ internal sealed class EvaluatorObject {
     /// Then it treats value as being the value null, not lacking a value.
     /// </summary>
     internal bool isReference { get; set; }
+
+    /// <summary>
+    /// The local scope that the reference (if applicable) is referring to.
+    /// </summary>
+    internal Dictionary<VariableSymbol, EvaluatorObject> referenceScope { get; set; }
 
     /// <summary>
     /// If the reference is an explicit reference expression, or if it is just a normal variable.

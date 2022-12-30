@@ -134,31 +134,15 @@ public sealed class Compiler {
     /// <summary>
     /// Creates a new <see cref="Compiler" />, state needs to be set separately.
     /// </summary>
-    public Compiler(DiagnosticHandle handle) {
+    public Compiler() {
         diagnostics = new BelteDiagnosticQueue();
-        this.diagnosticHandle = handle;
     }
-
-    /// <summary>
-    /// Callback to handle Diagnostics, be it logging or displaying to the console.
-    /// </summary>
-    /// <param name="compiler"><see cref="Compiler" /> object representing entirety of compilation.</param>
-    /// <param name="me">Display name of the program.</param>
-    /// <returns>C-Style error code of most severe <see cref="Diagnostic" />.</returns>
-    public delegate int DiagnosticHandle(Compiler compiler);
 
     /// <summary>
     /// Compiler specific state that determines what to compile and how.
     /// Required to compile.
     /// </summary>
     public CompilerState state { get; set; }
-
-    /// <summary>
-    /// Callback to handle Diagnostics, be it logging or displaying to the console.
-    /// </summary>
-    /// <param name="compiler"><see cref="Compiler" /> object representing entirety of compilation.</param>
-    /// <returns>C-Style error code of most severe <see cref="Diagnostic" />.</returns>
-    public DiagnosticHandle diagnosticHandle { get; set; }
 
     /// <summary>
     /// The name of the compiler (usually displayed with diagnostics).
@@ -232,8 +216,6 @@ public sealed class Compiler {
         foreach (Diagnostic diagnostic in diagnostics)
             if (diagnostic.info.severity == DiagnosticType.Error)
                 worst = ErrorExitCode;
-
-        diagnosticHandle(this);
 
         return worst;
     }
