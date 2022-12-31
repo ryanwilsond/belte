@@ -103,7 +103,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic InvalidUnaryOperatorUse(TextLocation location, string op, BoundType operand) {
-        var message = $"operator '{op}' is not defined for type '{operand}'";
+        var message = $"unary operator '{op}' is not defined for type '{operand}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidUnaryOperatorUse), location, message);
     }
 
@@ -128,8 +128,10 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic InvalidBinaryOperatorUse(
-        TextLocation location, string op, BoundType left, BoundType right) {
-        var message = $"operator '{op}' is not defined for types '{left}' and '{right}'";
+        TextLocation location, string op, BoundType left, BoundType right, bool isCompound) {
+        var operatorWord = isCompound ? "compound" : "binary";
+        var message = $"{operatorWord} operator '{op}' is not defined for types '{left}' and '{right}'";
+
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidBinaryOperatorUse), location, message);
     }
 
@@ -410,7 +412,7 @@ internal static class Error {
 
     internal static BelteDiagnostic InvalidTernaryOperatorUse(
         TextLocation location, string op, BoundType left, BoundType center, BoundType right) {
-        var message = $"operator '{op}' is not defined for types '{left}', '{center}', and '{right}'";
+        var message = $"ternary operator '{op}' is not defined for types '{left}', '{center}', and '{right}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidTernaryOperatorUse), location, message);
     }
 
@@ -466,5 +468,15 @@ internal static class Error {
     internal static BelteDiagnostic CannotIncrement(TextLocation location) {
         var message = "the operand of an increment or decrement operator must be a variable, field, or indexer";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotIncrement), location, message);
+    }
+
+    internal static BelteDiagnostic InvalidPrefixUse(TextLocation location, string op, BoundType operand) {
+        var message = $"prefix operator '{op}' is not defined for type '{operand}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidPrefixUse), location, message);
+    }
+
+    internal static BelteDiagnostic InvalidPostfixUse(TextLocation location, string op, BoundType operand) {
+        var message = $"postfix operator '{op}' is not defined for type '{operand}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidPostfixUse), location, message);
     }
 }

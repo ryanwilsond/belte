@@ -754,7 +754,6 @@ internal sealed class Parser {
 
         left = left == null ? ParsePrimaryExpressionInternal() : left;
 
-
         while (true) {
             var startToken = current;
             var precedence = current.kind.GetPrimaryPrecedence();

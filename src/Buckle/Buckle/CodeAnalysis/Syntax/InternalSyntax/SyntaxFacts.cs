@@ -70,6 +70,7 @@ internal static class SyntaxFacts {
             case SyntaxKind.QuestionOpenBracketToken:
             case SyntaxKind.PlusPlusToken:
             case SyntaxKind.MinusMinusToken:
+            case SyntaxKind.ExclamationToken:
                 return 18;
             default:
                 return 0;

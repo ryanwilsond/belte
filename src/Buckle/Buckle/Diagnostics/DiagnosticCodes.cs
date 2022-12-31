@@ -62,19 +62,19 @@ internal enum DiagnosticCode : int {
     ERR_ExpectedToken = 56,
     ERR_NoOverload = 57,
     ERR_AmbiguousOverload = 58,
-    // ! Unused slot 59
+    ERR_CannotIncrement = 59,
     ERR_InvalidTernaryOperatorUse = 60,
     ERR_NoSuchMember = 61,
     ERR_CannotAssign = 62,
     ERR_CannotOverloadNested = 63,
     ERR_ConstantToNonConstantReference = 64,
-    ERR_CannotIncrement = 65,
+    ERR_InvalidPrefixUse = 65,
+    ERR_InvalidPostfixUse = 66,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,
     UNS_Assembling = 9001,
     UNS_Linking = 9002,
     UNS_IndependentCompilation = 9003,
-    UNS_IsWithoutNull = 9004,
-    UNS_CannotInitialize = 9005,
+    UNS_CannotInitialize = 9004,
 }

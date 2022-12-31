@@ -139,7 +139,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            operator '+=' is not defined for types 'int' and 'bool'
+            compound operator '+=' is not defined for types 'int' and 'bool'
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -606,7 +606,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            operator '+' is not defined for type 'bool'
+            unary operator '+' is not defined for type 'bool'
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -619,7 +619,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            operator '+' is not defined for types 'int' and 'bool'
+            binary operator '+' is not defined for types 'int' and 'bool'
         ";
 
         AssertDiagnostics(text, diagnostics);

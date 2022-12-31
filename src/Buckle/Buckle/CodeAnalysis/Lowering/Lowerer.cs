@@ -335,7 +335,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             );
 
             var binaryRight = new BoundCallExpression(
-                CorrectValue(expression.left), ImmutableArray.Create<BoundExpression>(expression.right)
+                CorrectValue(expression.right), ImmutableArray.Create<BoundExpression>(expression.right)
             );
 
             var center = new BoundBinaryExpression(expression.left, expression.op, binaryRight);
@@ -593,7 +593,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var value = new BoundLiteralExpression(1);
         BoundBinaryOperator op;
 
-        if (expression.isIncrement)
+        if (expression.op.opKind == BoundPrefixOperatorKind.Increment)
             op = BoundBinaryOperator.Bind(SyntaxKind.PlusToken, expression.operand.type, value.type);
         else
             op = BoundBinaryOperator.Bind(SyntaxKind.MinusToken, expression.operand.type, value.type);
@@ -608,20 +608,36 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         ----> <op> is '!'
 
+        Value(<operand>)
+
+        ----> <op> is '++' and <isOwnStatement>
+
+        <operand> += 1
+
         ----> <op> is '++'
+
+        (<operand> += 1) - 1
+
+        ----> <op> is '--' and <isOwnStatement>
+
+        <operand> -= 1
 
         ----> <op> is '--'
 
-        */
-        if (expression.isNullAssert) {
+        (<operand> -= 1) + 1
 
+        */
+        if (expression.op.opKind == BoundPostfixOperatorKind.NullAssert) {
+            var arguments = ImmutableArray.Create<BoundExpression>(expression.operand);
+
+            return RewriteExpression(new BoundCallExpression(CorrectValue(expression.operand), arguments));
         }
 
         var value = new BoundLiteralExpression(1);
         var op = BoundBinaryOperator.Bind(SyntaxKind.PlusToken, expression.operand.type, value.type);
         var reversalOp = BoundBinaryOperator.Bind(SyntaxKind.MinusToken, expression.operand.type, value.type);
 
-        if (!expression.isIncrement) {
+        if (expression.op.opKind == BoundPostfixOperatorKind.Decrement) {
             var temp = op;
             op = reversalOp;
             reversalOp = temp;
