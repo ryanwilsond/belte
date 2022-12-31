@@ -4,19 +4,19 @@ using Xunit;
 namespace Buckle.Tests.CodeAnalysis;
 
 public sealed partial class EvaluatorTests {
-    // [Fact]
-    // public void Evaluator_CastExpression_Versus_ParenthesizedExpression() {
-    //     var text = @"
-    //         int x = 3;
-    //         int y = (x) + 1;
-    //         return y;
-    //     ";
+    [Fact]
+    public void Evaluator_CastExpression_Versus_ParenthesizedExpression() {
+        var text = @"
+            int x = 3;
+            int y = (x) + 1;
+            return y;
+        ";
 
-    //     var diagnostics = @"";
+        var diagnostics = @"";
 
-    //     AssertDiagnostics(text, diagnostics);
-    //     AssertValue(text, 4);
-    // }
+        AssertDiagnostics(text, diagnostics);
+        AssertValue(text, 4);
+    }
 
     [Fact]
     public void Evaluator_ReferenceExpression_Reports_CannotConvert() {

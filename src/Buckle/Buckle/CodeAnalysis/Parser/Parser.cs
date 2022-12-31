@@ -196,6 +196,26 @@ internal sealed class Parser {
         return false;
     }
 
+    private bool PeekIsCastExpression() {
+        if (current.kind == SyntaxKind.OpenParenToken &&
+            PeekIsType(1, out var offset, out _) &&
+            Peek(offset).kind == SyntaxKind.CloseParenToken) {
+            if (Peek(offset + 1).kind == SyntaxKind.OpenParenToken)
+                return true;
+
+            var isBinary = Peek(offset + 1).kind.GetBinaryPrecedence() > 0;
+            var isUnary = Peek(offset + 1).kind.GetBinaryPrecedence() > 0;
+            var isTernary = Peek(offset + 1).kind.GetTernaryPrecedence() > 0;
+            var isPrimary = Peek(offset + 1).kind.GetPrimaryPrecedence() > 0;
+            var isEquals = Peek(offset + 1).kind == SyntaxKind.EqualsToken;
+
+            if (!isBinary && !isUnary && !isTernary && !isPrimary && !isEquals)
+                return true;
+        }
+
+        return false;
+    }
+
     private bool PeekIsInlineFunctionExpression() {
         // * Temporary, inlines will be disabled until the StackFrameParser is added
         return false;
@@ -694,7 +714,7 @@ internal sealed class Parser {
     private ExpressionSyntax ParsePrimaryExpression() {
         switch (current.kind) {
             case SyntaxKind.OpenParenToken:
-                if (PeekIsType(1, out var offset, out _) && Peek(offset).kind == SyntaxKind.CloseParenToken)
+                if (PeekIsCastExpression())
                     return ParseCastExpression();
                 else
                     return ParseParenthesizedExpression();
