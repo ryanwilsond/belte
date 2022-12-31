@@ -57,12 +57,12 @@ internal enum DiagnosticCode : int {
     ERR_NullAssignNotNull = 52,
     ERR_ImpliedReference = 53,
     ERR_ReferenceToConstant = 54,
-    ERR_MissingReturnStatement = 54, // Temporary
+    ERR_MissingReturnStatement = 54, // ! Temporary
     ERR_VoidVariable = 55,
     ERR_ExpectedToken = 56,
     ERR_NoOverload = 57,
     ERR_AmbiguousOverload = 58,
-    ERR_CannotInitialize = 59,
+    // ! Unused slot 59
     ERR_InvalidTernaryOperatorUse = 60,
     ERR_NoSuchMember = 61,
     ERR_CannotAssign = 62,
@@ -75,4 +75,5 @@ internal enum DiagnosticCode : int {
     UNS_Linking = 9002,
     UNS_IndependentCompilation = 9003,
     UNS_IsWithoutNull = 9004,
+    UNS_CannotInitialize = 9005,
 }

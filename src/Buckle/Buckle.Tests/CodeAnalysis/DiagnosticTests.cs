@@ -22,8 +22,10 @@ public sealed partial class EvaluatorTests {
             struct A {
                 int num;
             }
-            var x = A();
-            x[.]num = 3;
+
+            void MyFunc(A a) {
+                a[.]num = 3;
+            }
         ";
 
         var diagnostics = @"
@@ -668,11 +670,13 @@ public sealed partial class EvaluatorTests {
     [Fact]
     public void Evaluator_Reports_Error_BU0056_ExpectedToken() {
         var text = @"
-            struct [3] A { }
+            struct [{]
+                int num;
+            }
         ";
 
         var diagnostics = @"
-            unexpected numeric literal
+            expected identifier
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -707,21 +711,6 @@ public sealed partial class EvaluatorTests {
 
         var diagnostics = @"
             function call is ambiguous between 'void myFunc(int a)' and 'void myFunc(string a)'
-        ";
-
-        AssertDiagnostics(text, diagnostics);
-    }
-
-    [Fact]
-    public void Evaluator_Reports_Error_BU0059_CannotInitialize() {
-        var text = @"
-            struct A {
-                int num [=] 3;
-            }
-        ";
-
-        var diagnostics = @"
-            cannot initialize declared symbol in this context
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -793,6 +782,21 @@ public sealed partial class EvaluatorTests {
 
         var diagnostics = @"
             cannot assign a reference to a variable to a by-reference variable expecting a reference to a constant
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Reports_Error_Unsupported_BU9004_CannotInitialize() {
+        var text = @"
+            struct A {
+                int num [=] 3;
+            }
+        ";
+
+        var diagnostics = @"
+            cannot initialize declared symbol in this context
         ";
 
         AssertDiagnostics(text, diagnostics);

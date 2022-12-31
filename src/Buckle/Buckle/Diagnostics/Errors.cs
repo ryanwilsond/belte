@@ -23,9 +23,9 @@ internal static class Error {
             return new BelteDiagnostic(FatalErrorInfo(DiagnosticCode.UNS_IndependentCompilation), message);
         }
 
-        internal static BelteDiagnostic IsWithoutNull() {
-            var message = "unsupported: cannot use 'is' or 'isnt' operators against non-null values";
-            return new BelteDiagnostic(FatalErrorInfo(DiagnosticCode.UNS_IsWithoutNull), message);
+        internal static BelteDiagnostic CannotInitialize(TextLocation location) {
+            var message = "cannot initialize declared symbol in this context";
+            return new BelteDiagnostic(ErrorInfo(DiagnosticCode.UNS_CannotInitialize), location, message);
         }
     }
 
@@ -405,11 +405,6 @@ internal static class Error {
         }
 
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AmbiguousOverload), location, message.ToString());
-    }
-
-    internal static BelteDiagnostic CannotInitialize(TextLocation location) {
-        var message = "cannot initialize declared symbol in this context";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotInitialize), location, message);
     }
 
     internal static BelteDiagnostic InvalidTernaryOperatorUse(

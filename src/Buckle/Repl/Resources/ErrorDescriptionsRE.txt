@@ -13,7 +13,7 @@ codes such as RE0002 and RE0005 will be used to report issues with arguments.
 For example:
 
 ```
-» #hepl // Correct format to invoke a REPL command, with the command 'hepl' does not exist
+» #hepl // Correct format to invoke a REPL command, but the command 'hepl' does not exist
 » #help // Correct
 ```
 $RE0002
@@ -25,7 +25,7 @@ for all REPL commands can be viewed by invoking the '#help' command.
 For example:
 
 ```
-» #dump // This is a known REPL command, but requires one argument (symbol name)
+» #dump // This is a known REPL command but requires one argument (symbol name)
 ```
 $RE0003
 When using the '#dump' REPL command, the user must pass in the name of a symbol.
@@ -42,8 +42,8 @@ loaded 0 submissions
 » #dump x // Correct
 ```
 $RE0004
-When using the '#load' REPL command, the user must pass in the path to a file.
-If the file could no be located (either relatively or absolutely) then the REPL
+When using the '#load' REPL command, the user must pass the path to a file.
+If the file could not be located (either relatively or absolutely) then the REPL
 raises this error.
 
 For example:
@@ -63,11 +63,11 @@ For example:
 ```
 $RE0006
 When using the '#dump' REPL command, the user can either pass in just a symbol
-name, or a full function signature. If the name of the symbol or function is
+name or a full function signature. If the name of the symbol or function is
 unknown, the REPL raises an error. If just a symbol name is passed, then the
 error code RE0003 is used. If it was a function signature, then this error code
 is used instead. This error is raised even if the function name exists but any
-of the signature is off.
+part of the signature is off.
 
 For example:
 

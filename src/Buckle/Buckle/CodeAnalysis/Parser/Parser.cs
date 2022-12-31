@@ -453,7 +453,7 @@ internal sealed class Parser {
             initializer = ParseExpression();
 
             if (!allowDefinition)
-                diagnostics.Push(Error.CannotInitialize(equals.location));
+                diagnostics.Push(Error.Unsupported.CannotInitialize(equals.location));
         }
 
         var semicolon = Match(SyntaxKind.SemicolonToken);
@@ -886,22 +886,22 @@ internal sealed class Parser {
         var nodesAndSeparators = ImmutableArray.CreateBuilder<SyntaxNode>();
         var parseNextArgument = true;
 
-        while (parseNextArgument &&
-            // current.kind != SyntaxKind.CloseParenToken &&
-            current.kind != SyntaxKind.EndOfFileToken) {
-            if (current.kind != SyntaxKind.CommaToken && current.kind != SyntaxKind.CloseParenToken) {
-                var expression = ParseNonAssignmentExpression();
-                nodesAndSeparators.Add(expression);
-            } else {
-                var expression = new EmptyExpressionSyntax(_syntaxTree);
-                nodesAndSeparators.Add(expression);
-            }
+        if (current.kind != SyntaxKind.CloseParenToken) {
+            while (parseNextArgument && current.kind != SyntaxKind.EndOfFileToken) {
+                if (current.kind != SyntaxKind.CommaToken && current.kind != SyntaxKind.CloseParenToken) {
+                    var expression = ParseNonAssignmentExpression();
+                    nodesAndSeparators.Add(expression);
+                } else {
+                    var expression = new EmptyExpressionSyntax(_syntaxTree);
+                    nodesAndSeparators.Add(expression);
+                }
 
-            if (current.kind == SyntaxKind.CommaToken) {
-                var comma = Next();
-                nodesAndSeparators.Add(comma);
-            } else {
-                parseNextArgument = false;
+                if (current.kind == SyntaxKind.CommaToken) {
+                    var comma = Next();
+                    nodesAndSeparators.Add(comma);
+                } else {
+                    parseNextArgument = false;
+                }
             }
         }
 

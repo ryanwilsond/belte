@@ -13,11 +13,10 @@ buckle -i Program.ble -o Program.exe // Correct
 ```
 $CL0002
 The '--explain' command-line option is used to explain errors, and only one
-error can be explained at a time so currently this option can only be specified
-once.
+error can be explained at a time so this option can only be specified once.
 
 However, if you are reading this that means you fixed the error so you don't
-really need an example do you? Here is one anyway:
+really need an example, do you? Here is one anyway:
 
 ```
 buckle --explain CL0002 --explain CL0003 // Incorrect, the '--explain' option is specified twice
@@ -29,7 +28,7 @@ single error in depth. This means that without an error code it cannot perform,
 so this error is raised.
 
 However, if you are reading this that means you fixed the error so you don't
-really need an example do you? Here is one anyway:
+really need an example, do you? Here is one anyway:
 
 ```
 buckle --explain // Incorrect, no error code is provided
@@ -38,7 +37,7 @@ buckle --explain CL0003 // Correct
 $CL0004
 The '--modulename' command-line option requires a name to use as a module name
 while emitting to a .NET executable. This means the option is only relevant
-while compiling for .NET. Without a name it cannot perform its action, so this
+while compiling for .NET. Without a name, it cannot perform its action, so this
 error is raised.
 
 For example:
@@ -53,7 +52,7 @@ without the user specifying a custom module name, so this option should only be
 used when necessary.
 $CL0005
 The '--ref' command-line option requires a path to a .NET reference to include
-in compilation (so .NET libraries can be used). Without a path it cannot
+in the compilation (so .NET libraries can be used). Without a path, it cannot
 perform its action, so this error is raised.
 
 For example:
@@ -68,7 +67,7 @@ It is important to note that 'System.Console.dll', 'System.Runtime.dll', and
 need to be added manually. 'System.Console.dll' was purely used as an example.
 $CL0006
 The '--entry' command-line option requires a method or function symbol name to
-use as an entry point, so without a name it cannot perform its action.
+use as an entry point, so without a name, it cannot perform its action.
 
 By default, the entry point is a global method symbol named 'Main', but the user
 can use this option to specify where to start execution explicitly.
@@ -114,8 +113,8 @@ buckle -i Program.ble -Wextra // Incorrect, 'extra' is not a known warning optio
 
 Reference the Belte docs to learn more about what options '-W' supports.
 $CL0009
-If an unknown option is provided to the command-line, instead of ignoring it the
-compiler raises an error to let the user know. Usually this error is the result
+If an unknown option is provided to the command line, instead of ignoring it the
+compiler raises an error to let the user know. Usually, this error is the result
 of a typo.
 
 For example:
@@ -193,7 +192,7 @@ buckle -i Program.ble --modulename=CustomName // Incorrect, not compiling with .
 buckle -d Program.ble --modulename=CustomName // Correct
 ```
 $CL0015
-THe '--ref' command-line option specifies .NET references to include while
+The '--ref' command-line option specifies .NET references to include while
 emitting. Because these references are only used while emitting for .NET, they
 become irrelevant otherwise. If any references are provided and the compiler is
 not compiling with .NET integration, this error is raised.
@@ -210,11 +209,11 @@ It is important to note that 'System.Console.dll', 'System.Runtime.dll', and
 need to be added manually. 'System.Console.dll' was purely used as an example.
 $CL0016
 Unless invoking the REPL (by using the '-r' command-line option), input files
-are needed to compile, as that is what is being compiled. Without them the
+are needed to compile, as that is what is being compiled. Without them, the
 compiler has nothing to compile and cannot be invoked. If that is the case,
 this error is raised.
 
-The command-line can also take a directory name, and every file in that
+The command line can also take a directory name and every file in that
 directory will be included (non-recursive).
 
 For example:
@@ -226,7 +225,7 @@ buckle Program.ble MyLib.ble MyOtherFile.ble // Correct
 buckle MyFolder // Correct
 ```
 $CL0017
-If a file or directory provided on the command-line to compile cannot be found
+If a file or directory provided on the command line to compile cannot be found
 (either absolutely or relatively), then this error is raised.
 
 For example:
@@ -238,8 +237,8 @@ $CL0018
 If a file is provided to the compiler that has an unsupported file extension, it
 is ignored and is not compiled. This raises this warning. This is a warning as
 if a directory is provided and it contains unknown files, the compiler should
-still continue with the files it can handle (this allows files such as READMEs
-to be allowed inside these directories).
+continue with the files it can handle (this allows files such as READMEs to be
+allowed inside these directories).
 
 For a full list of supported file extensions, visit the Belte docs.
 
@@ -259,7 +258,7 @@ provided. The error code needs to be in the format [BU|CL|RE]<code> to work.
 - CL: Errors and warnings related/produced by the command-line
 - RE: Errors and warnings related/produced by the REPL
 
-The <code> can be any 4 digit integer. Whenever an error or warning is produced,
+The <code> can be any 4-digit integer. Whenever an error or warning is produced,
 it records its error code so the user can then later use the '--explain' option.
 
 For example:
@@ -278,8 +277,8 @@ buckle --explain BU0052
 
 And you would get information on that error.
 
-If the error message has an invalid prefix or formatted incorrectly in any way,
-this error is produced. If the prefix is missing, it defaults to the 'BU'
+If the error message has an invalid prefix or is formatted incorrectly in any
+way, this error is produced. If the prefix is missing, it defaults to the 'BU'
 prefix, meaning it will show compilation errors.
 
 If the error is formatted correctly but not currently in use, error CL0021 is
@@ -302,7 +301,7 @@ If all files provided result in this warning, then the compiler has no input
 files to compile and will raise CL0016.
 $CL0021
 The '--explain' command-line option gives information on an error. If the error
-code provided is in the correct format, but the code is not currently is use,
+code provided is in the correct format, but the code is not currently in use,
 this error is raised.
 
 For example:
