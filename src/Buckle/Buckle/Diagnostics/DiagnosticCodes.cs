@@ -68,6 +68,7 @@ internal enum DiagnosticCode : int {
     ERR_CannotAssign = 62,
     ERR_CannotOverloadNested = 63,
     ERR_ConstantToNonConstantReference = 64,
+    ERR_CannotIncrement = 65,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

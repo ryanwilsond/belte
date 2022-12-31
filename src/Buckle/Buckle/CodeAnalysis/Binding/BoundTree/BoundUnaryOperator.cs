@@ -9,7 +9,7 @@ internal sealed class BoundUnaryOperator {
     private BoundUnaryOperator(
         SyntaxKind kind, BoundUnaryOperatorKind opKind, BoundType operandType, BoundType resultType) {
         this.kind = kind;
-        this.opType = opKind;
+        this.opKind = opKind;
         this.operandType = operandType;
         type = resultType;
     }
@@ -48,7 +48,7 @@ internal sealed class BoundUnaryOperator {
     /// <summary>
     /// Bound operator type.
     /// </summary>
-    internal BoundUnaryOperatorKind opType { get; }
+    internal BoundUnaryOperatorKind opKind { get; }
 
     internal BoundType operandType { get; }
 

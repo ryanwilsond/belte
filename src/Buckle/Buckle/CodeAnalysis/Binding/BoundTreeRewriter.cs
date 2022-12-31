@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using Buckle.Diagnostics;
 
@@ -217,9 +218,33 @@ internal abstract class BoundTreeRewriter {
                 return RewriteConstructorExpression((BoundConstructorExpression)expression);
             case BoundNodeKind.MemberAccessExpression:
                 return RewriteMemberAccessExpression((BoundMemberAccessExpression)expression);
+            case BoundNodeKind.PrefixExpression:
+                return RewritePrefixExpression((BoundPrefixExpression)expression);
+            case BoundNodeKind.PostfixExpression:
+                return RewritePostfixExpression((BoundPostfixExpression)expression);
             default:
                 throw new BelteInternalException($"RewriteExpression: unexpected expression type '{expression.kind}'");
         }
+    }
+
+    protected virtual BoundExpression RewritePrefixExpression(BoundPrefixExpression expression) {
+        var operand = RewriteExpression(expression.operand);
+
+        if (operand == expression.operand)
+            return expression;
+
+        return new BoundPrefixExpression(operand, expression.isIncrement);
+    }
+
+    protected virtual BoundExpression RewritePostfixExpression(BoundPostfixExpression expression) {
+        var operand = RewriteExpression(expression.operand);
+
+        if (operand == expression.operand)
+            return expression;
+
+        return new BoundPostfixExpression(
+            operand, expression.isIncrement, expression.isNullAssert, expression.isOwnStatement
+        );
     }
 
     protected virtual BoundExpression RewriteMemberAccessExpression(BoundMemberAccessExpression expression) {

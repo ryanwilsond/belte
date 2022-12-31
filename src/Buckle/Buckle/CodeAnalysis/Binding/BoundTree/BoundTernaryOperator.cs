@@ -11,7 +11,7 @@ internal sealed class BoundTernaryOperator {
         BoundType centerType, BoundType rightType, BoundType resultType) {
         this.leftOpKind = leftOpKind;
         this.rightOpKind = rightOpKind;
-        this.opType = opKind;
+        this.opKind = opKind;
         this.leftType = leftType;
         this.centerType = centerType;
         this.rightType = rightType;
@@ -31,25 +31,8 @@ internal sealed class BoundTernaryOperator {
     /// All defined possible operators, and their operand types.
     /// </summary>
     internal static BoundTernaryOperator[] _operators = {
-        // integer
         new BoundTernaryOperator(SyntaxKind.QuestionToken, SyntaxKind.ColonToken, BoundTernaryOperatorKind.Conditional,
-            BoundType.Bool, BoundType.NullableInt,
-            BoundType.NullableInt, BoundType.NullableInt),
-
-        // boolean
-        new BoundTernaryOperator(SyntaxKind.QuestionToken, SyntaxKind.ColonToken, BoundTernaryOperatorKind.Conditional,
-            BoundType.Bool, BoundType.NullableBool,
-            BoundType.NullableBool, BoundType.NullableBool),
-
-        // string
-        new BoundTernaryOperator(SyntaxKind.QuestionToken, SyntaxKind.ColonToken, BoundTernaryOperatorKind.Conditional,
-            BoundType.Bool, BoundType.NullableString,
-            BoundType.NullableString, BoundType.NullableString),
-
-        // decimal
-        new BoundTernaryOperator(SyntaxKind.QuestionToken, SyntaxKind.ColonToken, BoundTernaryOperatorKind.Conditional,
-            BoundType.Bool, BoundType.NullableDecimal,
-            BoundType.NullableDecimal, BoundType.NullableDecimal),
+            BoundType.Bool, null, null, null),
     };
 
     /// <summary>
@@ -65,7 +48,7 @@ internal sealed class BoundTernaryOperator {
     /// <summary>
     /// Operator type.
     /// </summary>
-    internal BoundTernaryOperatorKind opType { get; }
+    internal BoundTernaryOperatorKind opKind { get; }
 
     /// <summary>
     /// Left side operand type.
@@ -103,12 +86,34 @@ internal sealed class BoundTernaryOperator {
         var nonNullableRight = BoundType.NonNullable(rightType);
 
         foreach (var op in _operators) {
-            var leftIsCorrect = Cast.Classify(nonNullableLeft, op.leftType).isImplicit;
-            var centerIsCorrect = Cast.Classify(nonNullableCenter, op.centerType).isImplicit;
-            var rightIsCorrect = Cast.Classify(nonNullableRight, op.rightType).isImplicit;
+            var leftIsCorrect = op.leftType == null
+                ? true
+                : Cast.Classify(nonNullableLeft, op.leftType).isImplicit;
 
-            if (op.leftOpKind == leftOpKind && op.rightOpKind == rightOpKind && leftIsCorrect && rightIsCorrect)
+            var centerIsCorrect = op.centerType == null
+                ? true
+                : Cast.Classify(nonNullableCenter, op.centerType).isImplicit;
+
+            var rightIsCorrect = op.rightType == null
+                ? true
+                : Cast.Classify(nonNullableRight, op.rightType).isImplicit;
+
+            if (op.leftOpKind == leftOpKind && op.rightOpKind == rightOpKind &&
+                leftIsCorrect && rightIsCorrect && centerIsCorrect) {
+                if (op.leftType == null || op.centerType == null || op.rightType == null) {
+                    return new BoundTernaryOperator(
+                        leftOpKind,
+                        rightOpKind,
+                        op.opKind,
+                        op.leftType == null ? leftType : op.leftType,
+                        op.centerType == null ? centerType : op.centerType,
+                        op.rightType == null ? rightType : op.rightType,
+                        op.type == null ? centerType : op.type
+                    );
+                }
+
                 return op;
+            }
         }
 
         return null;

@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
@@ -460,5 +461,10 @@ internal static class Error {
             "reference to a constant";
 
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstantToNonConstantReference), location, message);
+    }
+
+    internal static BelteDiagnostic CannotIncrement(TextLocation location) {
+        var message = "the operand of an increment or decrement operator must be a variable, field, or indexer";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotIncrement), location, message);
     }
 }

@@ -241,7 +241,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         (<right> isnt null ? <left> <op> Value(<right>) : null)
 
         */
-        if (expression.op.opType == BoundBinaryOperatorKind.Is) {
+        if (expression.op.opKind == BoundBinaryOperatorKind.Is) {
             var operand = new BoundCallExpression(
                 BuiltinFunctions.HasValue, ImmutableArray.Create<BoundExpression>(expression.left)
             );
@@ -251,13 +251,13 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return RewriteExpression(new BoundUnaryExpression(op, operand));
         }
 
-        if (expression.op.opType == BoundBinaryOperatorKind.Isnt) {
+        if (expression.op.opKind == BoundBinaryOperatorKind.Isnt) {
             return RewriteExpression(new BoundCallExpression(
                 BuiltinFunctions.HasValue, ImmutableArray.Create<BoundExpression>(expression.left)
             ));
         }
 
-        if (expression.op.opType == BoundBinaryOperatorKind.NullCoalescing) {
+        if (expression.op.opKind == BoundBinaryOperatorKind.NullCoalescing) {
             var left = new BoundCallExpression(
                 BuiltinFunctions.HasValue, ImmutableArray.Create<BoundExpression>(expression.left)
             );
@@ -274,7 +274,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return RewriteExpression(new BoundTernaryExpression(left, op, center, expression.right));
         }
 
-        if (expression.op.opType == BoundBinaryOperatorKind.Power) {
+        if (expression.op.opKind == BoundBinaryOperatorKind.Power) {
             // TODO
             // * Will do in the StackFrameParser
             return base.RewriteBinaryExpression(expression);
@@ -495,7 +495,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         <right>
 
         */
-        if (expression.op.opType == BoundTernaryOperatorKind.Conditional) {
+        if (expression.op.opKind == BoundTernaryOperatorKind.Conditional) {
             if (expression.left.constantValue != null && (bool)expression.left.constantValue.value)
                 return RewriteExpression(expression.center);
 
@@ -574,6 +574,65 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         return base.RewriteIndexExpression(expression);
+    }
+
+    protected override BoundExpression RewritePrefixExpression(BoundPrefixExpression expression) {
+        /*
+
+        <op><operand>
+
+        ----> <op> is '++'
+
+        <operand> += 1
+
+        ----> <op> is '--'
+
+        <operand> -= 1
+
+        */
+        var value = new BoundLiteralExpression(1);
+        BoundBinaryOperator op;
+
+        if (expression.isIncrement)
+            op = BoundBinaryOperator.Bind(SyntaxKind.PlusToken, expression.operand.type, value.type);
+        else
+            op = BoundBinaryOperator.Bind(SyntaxKind.MinusToken, expression.operand.type, value.type);
+
+        return RewriteExpression(new BoundCompoundAssignmentExpression(expression.operand, op, value));
+    }
+
+    protected override BoundExpression RewritePostfixExpression(BoundPostfixExpression expression) {
+        /*
+
+        <operand><op>
+
+        ----> <op> is '!'
+
+        ----> <op> is '++'
+
+        ----> <op> is '--'
+
+        */
+        if (expression.isNullAssert) {
+
+        }
+
+        var value = new BoundLiteralExpression(1);
+        var op = BoundBinaryOperator.Bind(SyntaxKind.PlusToken, expression.operand.type, value.type);
+        var reversalOp = BoundBinaryOperator.Bind(SyntaxKind.MinusToken, expression.operand.type, value.type);
+
+        if (!expression.isIncrement) {
+            var temp = op;
+            op = reversalOp;
+            reversalOp = temp;
+        }
+
+        var assignmentExpression = new BoundCompoundAssignmentExpression(expression.operand, op, value);
+
+        if (expression.isOwnStatement)
+            return RewriteExpression(assignmentExpression);
+        else
+            return RewriteExpression(new BoundBinaryExpression(assignmentExpression, reversalOp, value));
     }
 
     private FunctionSymbol CorrectValue(BoundExpression expression) {

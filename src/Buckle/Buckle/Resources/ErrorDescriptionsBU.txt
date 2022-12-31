@@ -1042,6 +1042,30 @@ The following could be used if a variable reference is wanted:
 int myInt = 3;
 ref int myRef = ref myInt;
 ```
+$BU0065
+Increment and decrement expressions modify the operand. Because this is the
+case, the operand must be modifiable/assignable. If it is attempted to
+increment or decrement a nonassignable operand this error is raised.
+
+For example:
+
+```
+1++; // Now allowed, `1` is not an assignable operand
+int a = 3;
+a++; // Allowed, `a` is assignable
+```
+
+This also applies to the prefix version of these operators:
+
+```
+++1; // Now allowed, `1` is not an assignable operand
+int a = 3;
+++a; // Allowed, `a` is assignable
+```
+
+And also applies to their decrement counterparts.
+
+Only variables, fields, and indexers can be assigned to.
 $BU9000
 Inside a global scope without a `Main` function, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it

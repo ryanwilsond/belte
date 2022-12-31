@@ -576,7 +576,7 @@ internal sealed class Evaluator {
 
         operandValue = CastUtilities.Cast(operandValue, expression.op.operandType.typeSymbol);
 
-        switch (expression.op.opType) {
+        switch (expression.op.opKind) {
             case BoundUnaryOperatorKind.NumericalIdentity:
                 if (expression.operand.type.typeSymbol == TypeSymbol.Int)
                     return new EvaluatorObject((int)operandValue);
@@ -601,7 +601,7 @@ internal sealed class Evaluator {
         var leftValue = Value(left);
         leftValue = CastUtilities.Cast(leftValue, expression.op.leftType.typeSymbol);
 
-        switch (expression.op.opType) {
+        switch (expression.op.opKind) {
             case BoundTernaryOperatorKind.Conditional:
                 // This is so unused sides do not get evaluated (incase they would throw)
                 if ((bool)leftValue)
@@ -620,7 +620,7 @@ internal sealed class Evaluator {
         var leftValue = Value(left);
 
         // Only evaluates right side if necessary
-        if (expression.op.opType == BoundBinaryOperatorKind.ConditionalAnd) {
+        if (expression.op.opKind == BoundBinaryOperatorKind.ConditionalAnd) {
             if (leftValue == null || !(bool)leftValue)
                 return new EvaluatorObject(false);
 
@@ -633,7 +633,7 @@ internal sealed class Evaluator {
             return new EvaluatorObject(true);
         }
 
-        if (expression.op.opType == BoundBinaryOperatorKind.ConditionalOr) {
+        if (expression.op.opKind == BoundBinaryOperatorKind.ConditionalOr) {
             if (leftValue != null && (bool)leftValue)
                 return new EvaluatorObject(true);
 
@@ -659,7 +659,7 @@ internal sealed class Evaluator {
         leftValue = CastUtilities.Cast(leftValue, expression.op.leftType.typeSymbol);
         rightValue = CastUtilities.Cast(rightValue, expression.op.rightType.typeSymbol);
 
-        switch (expression.op.opType) {
+        switch (expression.op.opKind) {
             case BoundBinaryOperatorKind.Addition:
                 if (expressionType == TypeSymbol.Int)
                     return new EvaluatorObject((int)leftValue + (int)rightValue);

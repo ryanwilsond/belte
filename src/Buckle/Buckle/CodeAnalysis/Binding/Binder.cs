@@ -595,7 +595,9 @@ internal sealed class Binder {
                     es.expression.kind == BoundNodeKind.AssignmentExpression ||
                     es.expression.kind == BoundNodeKind.ErrorExpression ||
                     es.expression.kind == BoundNodeKind.EmptyExpression ||
-                    es.expression.kind == BoundNodeKind.CompoundAssignmentExpression;
+                    es.expression.kind == BoundNodeKind.CompoundAssignmentExpression ||
+                    es.expression.kind == BoundNodeKind.PrefixExpression ||
+                    es.expression.kind == BoundNodeKind.PostfixExpression;
 
                 if (!isAllowedExpression)
                     diagnostics.Push(Error.InvalidExpressionStatement(syntax.location));
@@ -1071,74 +1073,62 @@ internal sealed class Binder {
     private BoundExpression BindPostfixExpression(PostfixExpressionSyntax expression, bool ownStatement = false) {
         var operand = BindExpression(expression.operand);
 
-        if (operand is not BoundVariableExpression && operand is not BoundMemberAccessExpression) {
-            diagnostics.Push(Error.CannotAssign(expression.operand.location));
+        if (operand is not BoundVariableExpression &&
+            operand is not BoundMemberAccessExpression &&
+            operand is not BoundIndexExpression) {
+            diagnostics.Push(Error.CannotIncrement(expression.operand.location));
             return new BoundErrorExpression();
         }
 
-        VariableSymbol variable = null;
+        var type = operand.type;
 
-        if (operand is BoundVariableExpression v)
-            variable = v.variable;
-        else if (operand is BoundMemberAccessExpression m)
-            variable = m.member;
+        if (type.isConstant) {
+            string name = null;
 
-        if (variable == null)
+            if (operand is BoundVariableExpression v)
+                name = v.variable.name;
+            else if (operand is BoundMemberAccessExpression m)
+                name = m.member.name;
+
+            diagnostics.Push(Error.ConstantAssignment(expression.op.location, name, false));
+
             return new BoundErrorExpression();
-
-        if (variable.type.isConstant)
-            diagnostics.Push(Error.ConstantAssignment(expression.op.location, variable.name, false));
-
-        var value = new BoundLiteralExpression(1);
-        BoundBinaryOperator boundOperator = null;
-        BoundBinaryOperator reversalOperator = null;
-
-        if (expression.op.kind == SyntaxKind.PlusPlusToken) {
-            boundOperator = BoundBinaryOperator.Bind(SyntaxKind.PlusToken, variable.type, value.type);
-            reversalOperator = BoundBinaryOperator.Bind(SyntaxKind.MinusToken, variable.type, value.type);
-        } else if (expression.op.kind == SyntaxKind.MinusMinusToken) {
-            boundOperator = BoundBinaryOperator.Bind(SyntaxKind.MinusToken, variable.type, value.type);
-            reversalOperator = BoundBinaryOperator.Bind(SyntaxKind.PlusToken, variable.type, value.type);
         }
 
-        var assignmentExpression = new BoundCompoundAssignmentExpression(operand, boundOperator, value);
-
-        if (ownStatement)
-            return assignmentExpression;
-        else
-            return new BoundBinaryExpression(assignmentExpression, reversalOperator, value);
+        return new BoundPostfixExpression(
+            operand,
+            expression.op.kind == SyntaxKind.PlusPlusToken,
+            expression.op.kind == SyntaxKind.ExclamationToken,
+            ownStatement
+        );
     }
 
     private BoundExpression BindPrefixExpression(PrefixExpressionSyntax expression) {
         var operand = BindExpression(expression.operand);
 
-        if (operand is not BoundVariableExpression && operand is not BoundMemberAccessExpression) {
-            diagnostics.Push(Error.CannotAssign(expression.operand.location));
+        if (operand is not BoundVariableExpression &&
+            operand is not BoundMemberAccessExpression &&
+            operand is not BoundIndexExpression) {
+            diagnostics.Push(Error.CannotIncrement(expression.operand.location));
             return new BoundErrorExpression();
         }
 
-        VariableSymbol variable = null;
+        var type = operand.type;
 
-        if (operand is BoundVariableExpression v)
-            variable = v.variable;
-        else if (operand is BoundMemberAccessExpression m)
-            variable = m.member;
+        if (type.isConstant) {
+            string name = null;
 
-        if (variable == null)
+            if (operand is BoundVariableExpression v)
+                name = v.variable.name;
+            else if (operand is BoundMemberAccessExpression m)
+                name = m.member.name;
+
+            diagnostics.Push(Error.ConstantAssignment(expression.op.location, name, false));
+
             return new BoundErrorExpression();
+        }
 
-        if (variable.type.isConstant)
-            diagnostics.Push(Error.ConstantAssignment(expression.op.location, variable.name, false));
-
-        var value = new BoundLiteralExpression(1);
-        BoundBinaryOperator boundOperator = null;
-
-        if (expression.op.kind == SyntaxKind.PlusPlusToken)
-            boundOperator = BoundBinaryOperator.Bind(SyntaxKind.PlusToken, variable.type, value.type);
-        else if (expression.op.kind == SyntaxKind.MinusMinusToken)
-            boundOperator = BoundBinaryOperator.Bind(SyntaxKind.MinusToken, variable.type, value.type);
-
-        return new BoundCompoundAssignmentExpression(operand, boundOperator, value);
+        return new BoundPrefixExpression(operand, expression.op.kind == SyntaxKind.PlusPlusToken);
     }
 
     private BoundExpression BindIndexExpression(IndexExpressionSyntax expression) {
@@ -1441,12 +1431,12 @@ internal sealed class Binder {
 
         // Could possible move this to ComputeConstant
         // TODO Expand the usage of this warning
-        if (boundOp.opType == BoundBinaryOperatorKind.EqualityEquals ||
-            boundOp.opType == BoundBinaryOperatorKind.EqualityNotEquals ||
-            boundOp.opType == BoundBinaryOperatorKind.LessThan ||
-            boundOp.opType == BoundBinaryOperatorKind.LessOrEqual ||
-            boundOp.opType == BoundBinaryOperatorKind.GreaterThan ||
-            boundOp.opType == BoundBinaryOperatorKind.GreatOrEqual) {
+        if (boundOp.opKind == BoundBinaryOperatorKind.EqualityEquals ||
+            boundOp.opKind == BoundBinaryOperatorKind.EqualityNotEquals ||
+            boundOp.opKind == BoundBinaryOperatorKind.LessThan ||
+            boundOp.opKind == BoundBinaryOperatorKind.LessOrEqual ||
+            boundOp.opKind == BoundBinaryOperatorKind.GreaterThan ||
+            boundOp.opKind == BoundBinaryOperatorKind.GreatOrEqual) {
             if (boundLeft.constantValue != null && boundRight.constantValue != null &&
                 (boundLeft.constantValue.value == null) || (boundRight.constantValue.value == null)) {
                 diagnostics.Push(Warning.AlwaysValue(expression.location, null));

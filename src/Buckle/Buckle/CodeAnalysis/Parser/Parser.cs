@@ -745,14 +745,15 @@ internal sealed class Parser {
                 return ParseIndexExpression(operand);
             else if (current.kind == SyntaxKind.PeriodToken || current.kind == SyntaxKind.QuestionPeriodToken)
                 return ParseMemberAccessExpression(operand);
+            else if (current.kind == SyntaxKind.MinusMinusToken ||
+                current.kind == SyntaxKind.PlusPlusToken || current.kind == SyntaxKind.ExclamationToken)
+                return ParsePostfixExpression(operand);
 
             return operand;
         }
 
         left = left == null ? ParsePrimaryExpressionInternal() : left;
 
-        if (current.kind == SyntaxKind.PlusPlusToken || current.kind == SyntaxKind.MinusMinusToken)
-            return ParsePostfixExpression(left);
 
         while (true) {
             var startToken = current;

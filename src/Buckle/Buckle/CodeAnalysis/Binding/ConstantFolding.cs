@@ -22,19 +22,19 @@ internal static class ConstantFolding {
         var rightConstant = right.constantValue;
 
         // With and/or operators allow one side to be null
-        if (op?.opType == BoundBinaryOperatorKind.ConditionalAnd) {
+        if (op?.opKind == BoundBinaryOperatorKind.ConditionalAnd) {
             if ((leftConstant != null && leftConstant.value != null && !(bool)leftConstant.value) ||
                 (rightConstant != null && rightConstant.value != null && !(bool)rightConstant.value))
                 return new BoundConstant(false);
         }
 
-        if (op?.opType == BoundBinaryOperatorKind.ConditionalOr) {
+        if (op?.opKind == BoundBinaryOperatorKind.ConditionalOr) {
             if ((leftConstant != null && leftConstant.value != null && (bool)leftConstant.value) ||
                 (rightConstant != null && rightConstant.value != null && (bool)rightConstant.value))
                 return new BoundConstant(true);
         }
 
-        if (op?.opType == BoundBinaryOperatorKind.NullCoalescing) {
+        if (op?.opKind == BoundBinaryOperatorKind.NullCoalescing) {
             if (leftConstant != null && leftConstant.value != null)
                 return new BoundConstant(leftConstant.value);
 
@@ -56,7 +56,7 @@ internal static class ConstantFolding {
         leftValue = CastUtilities.Cast(leftValue, leftType);
         rightValue = CastUtilities.Cast(rightValue, leftType);
 
-        switch (op.opType) {
+        switch (op.opKind) {
             case BoundBinaryOperatorKind.Addition:
                 if (leftType == TypeSymbol.Int)
                     return new BoundConstant((int)leftValue + (int)rightValue);
@@ -144,7 +144,7 @@ internal static class ConstantFolding {
                 else
                     return new BoundConstant((double)leftValue % (double)rightValue);
             default:
-                throw new BelteInternalException($"Fold: unexpected binary operator '{op.opType}'");
+                throw new BelteInternalException($"Fold: unexpected binary operator '{op.opKind}'");
         }
     }
 
@@ -158,7 +158,7 @@ internal static class ConstantFolding {
         var operandType = operand.type.typeSymbol;
 
         if (operand.constantValue != null && operand.constantValue.value is int value) {
-            switch (op.opType) {
+            switch (op.opKind) {
                 case BoundUnaryOperatorKind.NumericalIdentity:
                     if (operandType == TypeSymbol.Int)
                         return new BoundConstant((int)operand.constantValue.value);
@@ -174,7 +174,7 @@ internal static class ConstantFolding {
                 case BoundUnaryOperatorKind.BitwiseCompliment:
                     return new BoundConstant(~(int)operand.constantValue.value);
                 default:
-                    throw new BelteInternalException($"Fold: unexpected unary operator '{op.opType}'");
+                    throw new BelteInternalException($"Fold: unexpected unary operator '{op.opKind}'");
             }
         }
 
@@ -183,7 +183,7 @@ internal static class ConstantFolding {
 
     internal static BoundConstant Fold(
         BoundExpression left, BoundTernaryOperator op, BoundExpression center, BoundExpression right) {
-        if (op.opType == BoundTernaryOperatorKind.Conditional) {
+        if (op.opKind == BoundTernaryOperatorKind.Conditional) {
             if (left.constantValue != null && (bool)left.constantValue.value && center.constantValue != null)
                 return new BoundConstant(center.constantValue.value);
 

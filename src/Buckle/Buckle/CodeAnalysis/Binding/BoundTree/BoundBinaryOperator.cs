@@ -10,7 +10,7 @@ internal sealed class BoundBinaryOperator {
         SyntaxKind kind, BoundBinaryOperatorKind opKind,
         BoundType leftType, BoundType rightType, BoundType resultType) {
         this.kind = kind;
-        this.opType = opKind;
+        this.opKind = opKind;
         this.leftType = leftType;
         this.rightType = rightType;
         type = resultType;
@@ -136,7 +136,7 @@ internal sealed class BoundBinaryOperator {
     /// <summary>
     /// Bound operator type.
     /// </summary>
-    internal BoundBinaryOperatorKind opType { get; }
+    internal BoundBinaryOperatorKind opKind { get; }
 
     /// <summary>
     /// Left side operand type.

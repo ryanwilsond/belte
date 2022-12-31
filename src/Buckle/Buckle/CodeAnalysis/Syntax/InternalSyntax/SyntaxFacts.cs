@@ -68,6 +68,8 @@ internal static class SyntaxFacts {
             case SyntaxKind.PeriodToken:
             case SyntaxKind.QuestionPeriodToken:
             case SyntaxKind.QuestionOpenBracketToken:
+            case SyntaxKind.PlusPlusToken:
+            case SyntaxKind.MinusMinusToken:
                 return 18;
             default:
                 return 0;

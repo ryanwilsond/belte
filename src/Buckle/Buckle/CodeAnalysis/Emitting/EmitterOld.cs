@@ -766,7 +766,7 @@ internal sealed class _Emitter {
         var leftType = expression.left.type.typeSymbol;
         var rightType = expression.right.type.typeSymbol;
 
-        if (expression.op.opType == BoundBinaryOperatorKind.Addition) {
+        if (expression.op.opKind == BoundBinaryOperatorKind.Addition) {
             if (leftType == TypeSymbol.String && rightType == TypeSymbol.String ||
                 leftType == TypeSymbol.Any && rightType == TypeSymbol.Any) {
                 EmitStringConcatExpression(iLProcessor, expression);
@@ -776,11 +776,11 @@ internal sealed class _Emitter {
 
         if (((expression.left.constantValue != null && expression.left.constantValue?.value == null)
             || (expression.right.constantValue != null && expression.right.constantValue?.value == null)) &&
-            (expression.op.opType == BoundBinaryOperatorKind.EqualityEquals ||
-            expression.op.opType == BoundBinaryOperatorKind.EqualityNotEquals)) {
+            (expression.op.opKind == BoundBinaryOperatorKind.EqualityEquals ||
+            expression.op.opKind == BoundBinaryOperatorKind.EqualityNotEquals)) {
             if ((expression.left.constantValue != null && expression.left.constantValue?.value == null) &&
                 (expression.right.constantValue != null && expression.right.constantValue?.value == null)) {
-                if (expression.op.opType == BoundBinaryOperatorKind.EqualityEquals)
+                if (expression.op.opKind == BoundBinaryOperatorKind.EqualityEquals)
                     iLProcessor.Emit(OpCodes.Ldc_I4_1);
                 else
                     iLProcessor.Emit(OpCodes.Ldc_I4_0);
@@ -806,7 +806,7 @@ internal sealed class _Emitter {
         EmitExpression(iLProcessor, expression.left, nullable: false);
         EmitExpression(iLProcessor, expression.right, nullable: false);
 
-        if (expression.op.opType == BoundBinaryOperatorKind.EqualityEquals) {
+        if (expression.op.opKind == BoundBinaryOperatorKind.EqualityEquals) {
             if (leftType == TypeSymbol.String && rightType == TypeSymbol.String ||
                 leftType == TypeSymbol.Any && rightType == TypeSymbol.Any) {
                 iLProcessor.Emit(OpCodes.Call, _methodReferences[_NetMethodReference.ObjectEquals]);
@@ -814,7 +814,7 @@ internal sealed class _Emitter {
             }
         }
 
-        if (expression.op.opType == BoundBinaryOperatorKind.EqualityNotEquals) {
+        if (expression.op.opKind == BoundBinaryOperatorKind.EqualityNotEquals) {
             if (leftType == TypeSymbol.String && rightType == TypeSymbol.String ||
                 leftType == TypeSymbol.Any && rightType == TypeSymbol.Any) {
                 iLProcessor.Emit(OpCodes.Call, _methodReferences[_NetMethodReference.ObjectEquals]);
@@ -829,7 +829,7 @@ internal sealed class _Emitter {
 
     private void EmitBinaryOperator(
         ILProcessor iLProcessor, BoundBinaryExpression expression, TypeSymbol leftType, TypeSymbol rightType) {
-        switch (expression.op.opType) {
+        switch (expression.op.opKind) {
             case BoundBinaryOperatorKind.Addition:
                 iLProcessor.Emit(OpCodes.Add);
                 break;
@@ -950,7 +950,7 @@ internal sealed class _Emitter {
         // (a + b) + (c + d) --> [a, b, c, d]
         static IEnumerable<BoundExpression> Flatten(BoundExpression node) {
             if (node is BoundBinaryExpression binaryExpression &&
-                binaryExpression.op.opType == BoundBinaryOperatorKind.Addition &&
+                binaryExpression.op.opKind == BoundBinaryOperatorKind.Addition &&
                 binaryExpression.left.type.typeSymbol == TypeSymbol.String &&
                 binaryExpression.right.type.typeSymbol == TypeSymbol.String) {
                 foreach (var result in Flatten(binaryExpression.left))
@@ -1036,13 +1036,13 @@ internal sealed class _Emitter {
     private void EmitUnaryExpression(ILProcessor iLProcessor, BoundUnaryExpression expression) {
         EmitExpression(iLProcessor, expression.operand, nullable: false);
 
-        if (expression.op.opType == BoundUnaryOperatorKind.NumericalIdentity) {
-        } else if (expression.op.opType == BoundUnaryOperatorKind.NumericalNegation) {
+        if (expression.op.opKind == BoundUnaryOperatorKind.NumericalIdentity) {
+        } else if (expression.op.opKind == BoundUnaryOperatorKind.NumericalNegation) {
             iLProcessor.Emit(OpCodes.Neg);
-        } else if (expression.op.opType == BoundUnaryOperatorKind.BooleanNegation) {
+        } else if (expression.op.opKind == BoundUnaryOperatorKind.BooleanNegation) {
             iLProcessor.Emit(OpCodes.Ldc_I4_0);
             iLProcessor.Emit(OpCodes.Ceq);
-        } else if (expression.op.opType == BoundUnaryOperatorKind.BitwiseCompliment) {
+        } else if (expression.op.opKind == BoundUnaryOperatorKind.BitwiseCompliment) {
             iLProcessor.Emit(OpCodes.Not);
         } else {
             throw new BelteInternalException($"EmitUnaryExpression: unexpected unary operator" +
