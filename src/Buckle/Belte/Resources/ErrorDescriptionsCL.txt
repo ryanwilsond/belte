@@ -278,11 +278,15 @@ buckle --explain BU0052
 
 And you would get information on that error.
 
-If the error message is missing a prefix or formatted incorrectly in any way,
-this error is produced.
+If the error message has an invalid prefix or formatted incorrectly in any way,
+this error is produced. If the prefix is missing, it defaults to the 'BU'
+prefix, meaning it will show compilation errors.
 
 If the error is formatted correctly but not currently in use, error CL0021 is
-raised instead.
+raised instead. Errors that have error codes associated with them but are no
+longer in use will not be deleted, but rather marked as deprecated when using
+the '--explain' option. This is to make sure newer errors do not use the error
+codes of older errors in case you are using an older compiler version.
 $CL0020
 Because this is a compiler, any files that are already in their compiled form
 (usually executables, *.exe) are ignored completely, and this warning is raised

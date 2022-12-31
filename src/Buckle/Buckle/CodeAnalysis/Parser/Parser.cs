@@ -23,7 +23,7 @@ internal sealed class Parser {
         diagnostics = new BelteDiagnosticQueue();
         var tokens = new List<SyntaxToken>();
         var badTokens = new List<SyntaxToken>();
-        Lexer lexer = new Lexer(syntaxTree);
+        var lexer = new Lexer(syntaxTree);
         SyntaxToken token;
         _text = syntaxTree.text;
         _syntaxTree = syntaxTree;
@@ -125,7 +125,7 @@ internal sealed class Parser {
     }
 
     private SyntaxToken Peek(int offset) {
-        int index = _position + offset;
+        var index = _position + offset;
 
         if (index >= _tokens.Length)
             return _tokens[_tokens.Length - 1];
@@ -884,14 +884,16 @@ internal sealed class Parser {
 
     private SeparatedSyntaxList<ExpressionSyntax> ParseArguments() {
         var nodesAndSeparators = ImmutableArray.CreateBuilder<SyntaxNode>();
-
         var parseNextArgument = true;
 
         while (parseNextArgument &&
-            current.kind != SyntaxKind.CloseParenToken &&
+            // current.kind != SyntaxKind.CloseParenToken &&
             current.kind != SyntaxKind.EndOfFileToken) {
-            if (current.kind != SyntaxKind.CommaToken) {
+            if (current.kind != SyntaxKind.CommaToken && current.kind != SyntaxKind.CloseParenToken) {
                 var expression = ParseNonAssignmentExpression();
+                nodesAndSeparators.Add(expression);
+            } else {
+                var expression = new EmptyExpressionSyntax(_syntaxTree);
                 nodesAndSeparators.Add(expression);
             }
 

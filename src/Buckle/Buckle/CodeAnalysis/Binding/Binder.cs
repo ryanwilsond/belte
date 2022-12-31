@@ -963,7 +963,7 @@ internal sealed class Binder {
         ExpressionSyntax expression, bool canBeVoid = false, bool ownStatement = false) {
         var result = BindExpressionInternal(expression, ownStatement);
 
-        if (!canBeVoid && result.type.typeSymbol == TypeSymbol.Void) {
+        if (!canBeVoid && result.type?.typeSymbol == TypeSymbol.Void) {
             diagnostics.Push(Error.NoValue(expression.location));
             return new BoundErrorExpression();
         }
@@ -1161,7 +1161,6 @@ internal sealed class Binder {
 
     private BoundExpression BindCallExpression(CallExpressionSyntax expression) {
         var name = expression.identifier.identifier.text;
-
         var typeSymbol = _scope.LookupSymbol<TypeSymbol>(name);
 
         if (typeSymbol != null)
@@ -1187,6 +1186,10 @@ internal sealed class Binder {
 
         for (int i=0; i<expression.arguments.count; i++) {
             var boundArgument = BindExpression(expression.arguments[i]);
+
+            if (boundArgument is BoundEmptyExpression)
+                boundArgument = new BoundLiteralExpression(null);
+
             preBoundArgumentsBuilder.Add(boundArgument);
         }
 
@@ -1230,12 +1233,18 @@ internal sealed class Binder {
                     if (expression.arguments.count > function.parameters.Length) {
                         SyntaxNode firstExceedingNode;
 
-                        if (function.parameters.Length > 0)
+                        if (function.parameters.Length > 0) {
                             firstExceedingNode = expression.arguments.GetSeparator(function.parameters.Length - 1);
-                        else
-                            firstExceedingNode = expression.arguments[0];
+                        } else {
+                            firstExceedingNode = expression.arguments[0].kind == SyntaxKind.EmptyExpression
+                                ? expression.arguments.GetSeparator(0)
+                                : expression.arguments[0];
+                        }
 
-                        var lastExceedingNode = expression.arguments.Last();
+                        SyntaxNode lastExceedingNode = expression.arguments.Last().kind == SyntaxKind.EmptyExpression
+                            ? expression.arguments.GetSeparator(expression.arguments.count - 2)
+                            : expression.arguments.Last();
+
                         span = TextSpan.FromBounds(firstExceedingNode.span.start, lastExceedingNode.span.end);
                     } else {
                         span = expression.closeParenthesis.span;

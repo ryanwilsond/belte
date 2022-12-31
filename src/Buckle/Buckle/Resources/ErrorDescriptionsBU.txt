@@ -22,7 +22,20 @@ For example:
 if (2 > 0) { } // 2 > 0 is always true, so this warning is produced
 ```
 $BU0002
+The compiler produces this warning if it detected that a value may be null
+during a deference/member accession. Note that the compiler cannot catch every
+null deference case, especially relating to called code where code analysis is
+not possible. You can prevent this warning by using the null assert (`!`)
+operator.
 
+For example:
+
+```
+void MyFunction(MyStruct a) {
+    a.myMember = 3; // Warning is produced here
+    a!.myMember = 3; // But not here
+}
+```
 $BU0003
 The compiler produces this error when it either ca not find a reference, or it is
 the wrong file type. This usually means that a reference specified on the command
@@ -34,7 +47,9 @@ For example:
 $ buckle --ref=some/fake/reference.dll // Correct format, but does not exist
 ```
 $BU0004
-When the compiler fails to parse a literal it produces this error.
+When the compiler fails to parse a literal it produces this error. Currently,
+this error will only come up in place of runtime overflow or underflow
+exceptions.
 
 For example:
 
@@ -42,8 +57,8 @@ For example:
 int myInt = 9999999999; // Exceeds integer limit, cannot parse
 ```
 $BU0005
-When the compiler is given an unhandled character when scanning the input files,
-it produces this error.
+When the compiler is given an unknown character when scanning the input files,
+it produces this error. Thus this is a user syntax error.
 
 For example:
 
@@ -51,16 +66,22 @@ For example:
 @ // The compiler does not currently handle this character
 ```
 $BU0006
-When the compiler expects a certain piece of text, and does not find it, this error
-is produced.
+When the compiler expects a certain piece of text, and does not find it, this
+error is produced. This error comes in three forms:
+
+- Unexpected token
+- Unexpected token, expected another token instead
+- Expected a token at the end of the input
+
+In all of these cases the user made a syntax error.
 
 For example:
 ```
 if (true { } // The compiler expected a closing parenthesis before the open bracket
 ```
 $BU0007
-Some casts are implied, but others must be explicitly specified. When an explicit
-cast is not specified explicitly, this error is produced.
+Some casts are implied, but others must be explicitly specified. When an
+explicit cast is not specified explicitly, this error is produced.
 
 For example:
 
@@ -69,7 +90,8 @@ decimal myDecimal = 4; // Implicit cast from integer to decimal, allowed
 int myInt = 3.4; // Explicit cast from decimal to integer, produces error
 ```
 
-When possible the compiler will give a suggestion on how to make the cast explicit.
+When possible the compiler will give a suggestion on how to make the cast
+explicit. If no explicit cast is possible either, error BU0020 is used instead.
 $BU0008
 When a unary operator is used with unsupported types, this error is produced.
 
@@ -79,14 +101,22 @@ For example:
 int myInt = ~4; // ~ is allowed for integer types
 decimal myDecimal = ~3.4; // But not for decimal types
 ```
+
+A possible fix to this error may be inserting a cast.
 $BU0009
 When the compiler fails to resolve a builtin type when assembling, it produces
 this error. This happens when it cannot find the builtin type. If this happens
 the build is probably broken.
+
+If this problem persists, you can report an issue on the Belte GitHub:
+https://github.com/ryanwilsond/belte/issues/new?assignees=&labels=&template=bug_report.md&title=
 $BU0010
 When the compiler fails to resolve a builtin type when assembling, it produces
 this error. This happens when it finds multiple types for a singular builtin
 type. If this happens the build is probably broken.
+
+If this problem persists, you can report an issue on the Belte GitHub:
+https://github.com/ryanwilsond/belte/issues/new?assignees=&labels=&template=bug_report.md&title=
 $BU0011
 When a binary operator is used with unsupported types, this error is produced.
 
@@ -96,14 +126,21 @@ For example:
 int myInt = 3 + 4; // + is allowed for two integers
 bool myBool = true + 3; // But not for a boolean and an integer
 ```
+
+A possible fix to this error may be inserting a cast.
 $BU0012
 Without a `Main` function, the compiler will run files top-down. However when
 compiling multiple files, it becomes ambiguous which file to run first.
 Because of this, only one file can contain global statements.
+
+If this becomes a problem, consider reworking your project to use an explicit
+entry point such as `Main`, or specify one with the '--entry' command-line
+option.
 $BU0013
 When a function is declared with multiple parameters of the same name, it
 becomes ambiguous when referencing parameters. Because of this, each parameter
-must have a unique name, even if they are different types.
+must have a unique name, even if they are different types. This also makes the
+code easier to read inside the function body.
 
 For example:
 
@@ -119,13 +156,21 @@ For example:
 ```
 string Main() { } // `Main` cannot return strings
 ```
+
+This is a callback to how older languages like C handle their entry points with
+the command-line. If you are making a library with no entry point, this error
+will not come up.
 $BU0015
-When the compiler fails to resolve certain functions when assembling, it produces
-this error. This happens when the function cannot be found. If this happens the
-build is probably broken.
+When the compiler fails to resolve certain functions when assembling, it
+produces this error. This happens when the function cannot be found. If this
+happens the build is probably broken.
+
+If this problem persists, you can report an issue on the Belte GitHub:
+https://github.com/ryanwilsond/belte/issues/new?assignees=&labels=&template=bug_report.md&title=
 $BU0016
-When a `Main` function is not declared, files are run top-down. However if a `Main`
-function is declared, global statements are not allowed.
+When a `Main` function is not declared, files are run top-down. However if a
+`Main` function is declared, global statements are not allowed as it becomes
+ambiguous where to start execution.
 
 For example:
 
@@ -135,7 +180,8 @@ PrintLine("Hello, world!"); // Not allowed, because `Main` is where execution st
 void Main() { }
 ```
 $BU0017
-When a symbol is referenced and it cannot be found, the compiler produces this error.
+When a symbol is referenced and it cannot be found, the compiler produces this
+error. This is most likely the result of a typo or scoping issue.
 
 For example:
 
@@ -143,9 +189,12 @@ For example:
 int myInt = 3 + myOtherInt; // `myOtherInt` was never declared, so this is not allowed
 ```
 $BU0018
-Functions in the same scope have to have unique names. When an attempt is made to
-declare a function with a name already used, the compiler produces this error.
-This is to make sure there is no ambiguity when calling functions.
+Functions in the same scope have to have unique names (unless you are
+overloading). When an attempt is made to declare a function with a name already
+used (and the parameter list is the same), the compiler produces this error.
+This is to make sure there is no ambiguity when calling functions. Other
+overload related errors such as BU0057 and BU0058 will be used with overloaded
+functions instead.
 
 For example:
 
@@ -155,9 +204,9 @@ void MyFunction() { } // `MyFunction` has not been declared in this scope, allow
 void MyFunction() { } // `MyFunction` has already been declared, not allowed
 ```
 $BU0019
-To prevent undefined behavior, all functions must return in all scenarios if they
-have a non-void return type. The compiler checks this, and raises an error of any
-code path does not return.
+To prevent undefined behavior, all functions must return in all scenarios if
+they have a non-void return type. The compiler checks this, and raises an error
+of any code path does not return.
 
 For example:
 
@@ -168,6 +217,10 @@ int MyFunction(int myParam) {
     // If `myParam` is not greater than 3 this function does not return, not allowed
 }
 ```
+
+The compiler uses graph analysis on the code to figure out what paths do not
+return. If you believe there is an issue, report one:
+https://github.com/ryanwilsond/belte/issues/new?assignees=&labels=&template=bug_report.md&title=
 $BU0020
 If a cast is not specified between two types, the compiler produces this error.
 
@@ -176,10 +229,12 @@ For example:
 ```
 int[] myCollection = (int[])"test"; // Cannot cast from string to integer collection
 ```
+
+User defined types must create their own casting rules.
 $BU0021
-Variables in the same scope have to have unique names. When an attempt is made to
-declare a variable with a name already used, the compiler produces this error.
-This is to make sure there is no ambiguity when referencing variables.
+Variables in the same scope have to have unique names. When an attempt is made
+to declare a variable with a name already used, the compiler produces this
+error. This is to make sure there is no ambiguity when referencing variables.
 
 For example:
 
@@ -200,14 +255,15 @@ void MyFunction() {
 }
 ```
 
-In this case, the most nested declaration gets priority in the most nested scope.
-If `myVar` was referenced in `MyFunction` it would not use the outer declaration,
-but rather the one nested inside `MyFunction`. This applies even if the variables
-have different types.
+In this case, the most nested declaration gets priority in the most nested
+scope. If `myVar` was referenced in `MyFunction` it would not use the outer
+declaration, but rather the one nested inside `MyFunction`. This applies even if
+the variables have different types. This is referred to as shadowing, and is not
+always allowed in nested block statements.
 $BU0022
 Constants can only be defined once, when they are declared. This means that you
-cannot change their value after their initial definition. When an attempt is made
-to redefine a constant, the compiler produces this error.
+cannot change their value after their initial definition. When an attempt is
+made to redefine a constant, the compiler produces this error.
 
 For example:
 
@@ -216,8 +272,8 @@ const int myConst = 4; // Initial definition, allowed and required
 myConst = 5; // Redefinition, not allowed
 ```
 $BU0023
-Because of the way if-statements are parsed, they can become ambiguous. The compiler
-produces this error to try and prevent some ambiguity.
+Because of the way if-statements are parsed, they can become ambiguous. The
+compiler produces this error to try and prevent some ambiguity.
 
 For example:
 
@@ -245,19 +301,22 @@ block-statement for its body, and the inner if-statement has an else-clause
 without using blocks, the compiler produces this error.
 $BU0024
 Void is used to denote that a function is actually a procedure that returns no
-value. If void is used in most other scenarios, the compiler produces this error.
+value. If void is used in most other scenarios, the compiler produces this
+error. This is because `void` is NOT a type, but rather an indicator that
+nothing will be returned.
 
 For example:
 
 ```
 void MyFunction() { } // Allowed
 
-void myVar; // Not allowed
+void myVar; // Not allowed, `void` cannot be used as a type
 ```
 $BU0025
 Indexing allows retrieving elements from a collection. However, indexing is only
-allowed on collection types. The compiler produces this error when indexing is used
-on any other type.
+allowed on collection types or user defined types that support explicitly
+support it. The compiler produces this error when indexing is used on any other
+type.
 
 For example:
 
@@ -267,9 +326,9 @@ int myInt = myCollection[2]; // `myCollection` is a collection type, so this is 
 iny mySecondInt = myInt[1]; // `myInt` is not a collection type, so this is not allowed
 ```
 $BU0026
-When the compiler detects unreachable code, it will produce this warning. This is
-not an error because the compiler will continue the compilation process, removing
-the unreachable code from the assembly.
+When the compiler detects unreachable code, it will produce this warning. This
+is not an error because the compiler will continue the compilation process,
+removing the unreachable code from the assembly.
 
 For example:
 
@@ -280,17 +339,23 @@ if (true) {
     int myInt = 3; // True is always true, so this else-clause can never execute
 }
 ```
+
+It is usually bad practice to have unreachable code, but it is allowed as in
+some cases it is helpful temporarily.
 $BU0027
-Every string is started with a double-quote and ended the same way. If the ending
-quote is missing, the compiler does not know when the string ends. In that case
-this error is produced.
+Every string is started with a double-quote and ended the same way. If the
+ending quote is missing, the compiler does not know when the string ends. In
+that case this error is produced.
 
 For example:
 
 ```
 string myString = "Hello, world!
-int myInt = 2; // The string was never terminated, this statement is part of the string
+int myInt = 2; // The string was never terminated, so an error is produced
 ```
+
+This error assumes that multi-line strings are not allowed, and they are not
+currently.
 $BU0028
 A functions must have a declaration, so when a function without a declaration is
 called, the compiler does not know what function is being referenced. In this
@@ -301,7 +366,11 @@ For example:
 ```
 int myInt = MyFunction(); // `MyFunction` does not exist in this scope, not allowed
 ```
+
+This error is usually temporary when implementing new functions, or the result
+of a typo or scoping issue.
 $BU0029
+When calling a function,
 
 $BU9000
 Inside a global scope without a `Main` function, the compiler will run the

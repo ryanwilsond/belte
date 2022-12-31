@@ -35,18 +35,18 @@ public struct ShowDialogs {
 public static partial class BuckleCommandLine {
     private static CompilerState DecodeOptions(
         string[] args, out DiagnosticQueue<Diagnostic> diagnostics, out ShowDialogs dialogs) {
-        CompilerState state = new CompilerState();
-        List<FileState> tasks = new List<FileState>();
-        List<string> references = new List<string>();
-        List<string> options = new List<string>();
-        DiagnosticQueue<Diagnostic> diagnosticsCL = new DiagnosticQueue<Diagnostic>();
+        var state = new CompilerState();
+        var tasks = new List<FileState>();
+        var references = new List<string>();
+        var options = new List<string>();
+        var diagnosticsCL = new DiagnosticQueue<Diagnostic>();
         diagnostics = new DiagnosticQueue<Diagnostic>();
 
-        bool specifyStage = false;
-        bool specifyOut = false;
-        bool specifyModule = false;
+        var specifyStage = false;
+        var specifyOut = false;
+        var specifyModule = false;
 
-        ShowDialogs tempDialogs = new ShowDialogs();
+        var tempDialogs = new ShowDialogs();
 
         tempDialogs.help = false;
         tempDialogs.machine = false;
@@ -98,7 +98,7 @@ public static partial class BuckleCommandLine {
         }
 
         for (int i=0; i<args.Length; i++) {
-            string arg = args[i];
+            var arg = args[i];
 
             if (arg.StartsWith('-')) {
                 if (arg.StartsWith("-o")) {
@@ -191,7 +191,7 @@ public static partial class BuckleCommandLine {
         state.options = options.ToArray();
 
         if (specifyOut) {
-            string[] parts = state.outputFilename.Split('.');
+            var parts = state.outputFilename.Split('.');
             // ? Not sure if there are consequences of making moduleName default to 'a'
             // state.moduleName = string.Join('.', parts[0..(parts.Length-2)]);
         }
@@ -223,8 +223,8 @@ public static partial class BuckleCommandLine {
     }
 
     private static DiagnosticQueue<Diagnostic> ResolveInputFileOrDir(string name, ref List<FileState> tasks) {
-        List<string> filenames = new List<string>();
-        DiagnosticQueue<Diagnostic> diagnostics = new DiagnosticQueue<Diagnostic>();
+        var filenames = new List<string>();
+        var diagnostics = new DiagnosticQueue<Diagnostic>();
 
         if (Directory.Exists(name)) {
             filenames.AddRange(Directory.GetFiles(name));
@@ -236,11 +236,11 @@ public static partial class BuckleCommandLine {
         }
 
         foreach (string filename in filenames) {
-            FileState task = new FileState();
+            var task = new FileState();
             task.inputFilename = filename;
 
-            string[] parts = task.inputFilename.Split('.');
-            string type = parts[parts.Length - 1];
+            var parts = task.inputFilename.Split('.');
+            var type = parts[parts.Length - 1];
 
             switch (type) {
                 case "ble":

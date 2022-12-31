@@ -34,17 +34,17 @@ public static partial class BuckleCommandLine {
     /// <returns>Error code, 0 = success.</returns>
     public static int ProcessArgs(string[] args) {
         int err;
-        Compiler compiler = new Compiler();
+        var compiler = new Compiler();
         compiler.me = Process.GetCurrentProcess().ProcessName;
 
         compiler.state = DecodeOptions(
             args, out DiagnosticQueue<Diagnostic> diagnostics, out ShowDialogs dialogs
         );
 
-        bool hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error != null;
+        var hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error != null;
 
-        string resources = Path.Combine(GetExecutingPath(), "Resources");
-        bool corrupt = false;
+        var resources = Path.Combine(GetExecutingPath(), "Resources");
+        var corrupt = false;
 
         if (!Directory.Exists(resources)) {
             corrupt = true;
@@ -97,6 +97,7 @@ public static partial class BuckleCommandLine {
         compiler.Compile();
 
         err = ResolveDiagnostics(compiler);
+
         if (err > 0)
             return err;
 
@@ -107,28 +108,34 @@ public static partial class BuckleCommandLine {
 
     private static void ShowErrorHelp(string error, out DiagnosticQueue<Diagnostic> diagnostics) {
         // TODO This only works for debug builds currently, not release
-        string prefix = error.Length >= 2 ? error.Substring(0, 2) : "";
-        diagnostics = new DiagnosticQueue<Diagnostic>();
+        string prefix;
 
-        int errorCode = 0;
+        if (error.Length < 3 || (Char.IsDigit(error[0]) && Char.IsDigit(error[1]))) {
+            prefix = "BU";
+            error = "BU" + error;
+        } else {
+            prefix = error.Substring(0, 2);
+        }
+
+        diagnostics = new DiagnosticQueue<Diagnostic>();
+        var errorCode = 0;
 
         try {
-            errorCode = error.Length >= 3 ? Convert.ToInt32(error.Substring(2)) : 0;
+            errorCode = Convert.ToInt32(error.Substring(2));
         } catch (Exception e) when (e is FormatException || e is OverflowException) {
             diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
             return;
         }
 
-        string path = Path.Combine(GetExecutingPath(), $"Resources/ErrorDescriptions{prefix}.txt");
+        var path = Path.Combine(GetExecutingPath(), $"Resources/ErrorDescriptions{prefix}.txt");
 
         if (!File.Exists(path)) {
             diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
             return;
         }
 
-        string allMessages = File.ReadAllText(path);
-
-        Dictionary<int, string> messages = new Dictionary<int, string>();
+        var allMessages = File.ReadAllText(path);
+        var messages = new Dictionary<int, string>();
 
         foreach (string message in allMessages.Split($"${prefix}")) {
             try {
@@ -140,24 +147,24 @@ public static partial class BuckleCommandLine {
         }
 
         if (messages.ContainsKey(errorCode)) {
-            string message = messages[errorCode].Substring(2);
+            var message = messages[errorCode].Substring(2);
 
             if (message.EndsWith('\n'))
                 message = message.Substring(0, message.Length-1);
 
-            string[] lines = message.Split('\n');
-            int count = 0;
+            var lines = message.Split('\n');
+            var count = 0;
 
             while (count < lines.Length) {
                 // First -1 is required, second -1 is because we are printing -- More --
                 // -2 is to account for the next terminal input line
                 if (count > Console.WindowHeight - 1 - 1 - 2) {
-                    char key = ' ';
+                    var key = ' ';
 
                     do {
                         Console.Write("-- More --");
                         key = Console.ReadKey().KeyChar;
-                        int currentLineCursor = Console.CursorTop;
+                        var currentLineCursor = Console.CursorTop;
                         Console.SetCursorPosition(0, Console.CursorTop);
                         // * Does not need -1 in some terminals
                         // Unfortunately the program cant tell what terminal is being used
@@ -166,7 +173,7 @@ public static partial class BuckleCommandLine {
                     } while (key != '\n' && key != '\r');
                 }
 
-                string line = lines[count++];
+                var line = lines[count++];
                 Console.WriteLine(line);
             }
         } else {
@@ -175,24 +182,25 @@ public static partial class BuckleCommandLine {
     }
 
     private static void ShowHelpDialog() {
-        string path = Path.Combine(GetExecutingPath(), "Resources/HelpPrompt.txt");
-        string helpMessage = File.ReadAllText(path);
+        var path = Path.Combine(GetExecutingPath(), "Resources/HelpPrompt.txt");
+        var helpMessage = File.ReadAllText(path);
         Console.WriteLine(helpMessage);
     }
 
     private static string GetExecutingPath() {
-        string executingLocation = Assembly.GetExecutingAssembly().Location;
-        string executingPath = System.IO.Path.GetDirectoryName(executingLocation);
+        var executingLocation = Assembly.GetExecutingAssembly().Location;
+        var executingPath = System.IO.Path.GetDirectoryName(executingLocation);
+
         return executingPath;
     }
 
     private static void ShowMachineDialog() {
-        string machineMessage = "Machine: x86_64-w64";
+        var machineMessage = "Machine: x86_64-w64";
         Console.WriteLine(machineMessage);
     }
 
     private static void ShowVersionDialog() {
-        string versionMessage = "Version: Buckle 0.1";
+        var versionMessage = "Version: Buckle 0.1";
         Console.WriteLine(versionMessage);
     }
 
@@ -204,21 +212,22 @@ public static partial class BuckleCommandLine {
                 Console.ResetColor();
         }
 
-        TextSpan span = diagnostic.location.span;
-        SourceText text = diagnostic.location.text;
+        var span = diagnostic.location.span;
+        var text = diagnostic.location.text;
 
-        int lineNumber = text.GetLineIndex(span.start);
-        TextLine line = text.lines[lineNumber];
-        int column = span.start - line.start + 1;
-        string lineText = line.ToString();
+        var lineNumber = text.GetLineIndex(span.start);
+        var line = text.lines[lineNumber];
+        var column = span.start - line.start + 1;
+        var lineText = line.ToString();
 
-        string filename = diagnostic.location.fileName;
+        var filename = diagnostic.location.fileName;
+
         if (!string.IsNullOrEmpty(filename))
             Console.Write($"{filename}:");
 
         Console.Write($"{lineNumber + 1}:{column}:");
 
-        ConsoleColor highlightColor = ConsoleColor.White;
+        var highlightColor = ConsoleColor.White;
 
         var severity = diagnostic.info.severity;
 
@@ -252,12 +261,12 @@ public static partial class BuckleCommandLine {
         if (text.IsAtEndOfInput(span))
             return;
 
-        TextSpan prefixSpan = TextSpan.FromBounds(line.start, span.start);
-        TextSpan suffixSpan = TextSpan.FromBounds(span.end, line.end);
+        var prefixSpan = TextSpan.FromBounds(line.start, span.start);
+        var suffixSpan = TextSpan.FromBounds(span.end, line.end);
 
-        string prefix = text.ToString(prefixSpan);
-        string focus = text.ToString(span);
-        string suffix = text.ToString(suffixSpan);
+        var prefix = text.ToString(prefixSpan);
+        var focus = text.ToString(span);
+        var suffix = text.ToString(suffixSpan);
 
         Console.Write($" {prefix}");
         Console.ForegroundColor = highlightColor;
@@ -266,8 +275,9 @@ public static partial class BuckleCommandLine {
         Console.WriteLine(suffix);
 
         Console.ForegroundColor = highlightColor;
-        string markerPrefix = " " + Regex.Replace(prefix, @"\S", " ");
-        string marker = "^";
+        var markerPrefix = " " + Regex.Replace(prefix, @"\S", " ");
+        var marker = "^";
+
         if (span.length > 0 && column != lineText.Length)
             marker += new string('~', span.length - 1);
 
@@ -275,7 +285,7 @@ public static partial class BuckleCommandLine {
 
         if (diagnostic.suggestion != null) {
             Console.ForegroundColor = ConsoleColor.Green;
-            string suggestion = diagnostic.suggestion.Replace("%", focus);
+            var suggestion = diagnostic.suggestion.Replace("%", focus);
             Console.WriteLine(markerPrefix + suggestion);
         }
 
@@ -285,7 +295,7 @@ public static partial class BuckleCommandLine {
     private static DiagnosticType ResolveDiagnostic<Type>(
         Type diagnostic, string me, string[] options, ConsoleColor? textColor = null)
         where Type : Diagnostic {
-        ConsoleColor previous = Console.ForegroundColor;
+        var previous = Console.ForegroundColor;
 
         void ResetColor() {
             if (textColor != null)
@@ -304,6 +314,7 @@ public static partial class BuckleCommandLine {
         ResetColor();
 
         if (severity == DiagnosticType.Unknown) {
+            // Ignore
         } else if (diagnostic.info.module != "BU" || (diagnostic is BelteDiagnostic bd && bd.location == null)) {
             Console.Write($"{me}: ");
 
@@ -318,7 +329,7 @@ public static partial class BuckleCommandLine {
                 Console.Write("fatal error ");
             }
 
-            string errorCode = diagnostic.info.code.Value.ToString();
+            var errorCode = diagnostic.info.code.Value.ToString();
             errorCode = errorCode.PadLeft(4, '0');
             Console.Write($"{diagnostic.info.module}{errorCode}: ");
 
@@ -329,6 +340,7 @@ public static partial class BuckleCommandLine {
         }
 
         Console.ForegroundColor = previous;
+
         return severity;
     }
 
@@ -338,11 +350,11 @@ public static partial class BuckleCommandLine {
         if (diagnostics.count == 0)
             return SuccessExitCode;
 
-        DiagnosticType worst = DiagnosticType.Unknown;
-        Diagnostic diagnostic = diagnostics.Pop();
+        var worst = DiagnosticType.Unknown;
+        var diagnostic = diagnostics.Pop();
 
         while (diagnostic != null) {
-            DiagnosticType temp = ResolveDiagnostic(diagnostic, me, options, textColor);
+            var temp = ResolveDiagnostic(diagnostic, me, options, textColor);
 
             switch (temp) {
                 case DiagnosticType.Warning:
@@ -389,7 +401,7 @@ public static partial class BuckleCommandLine {
             return;
 
         foreach (FileState file in compiler.state.tasks) {
-            string inter = file.inputFilename.Split('.')[0];
+            var inter = file.inputFilename.Split('.')[0];
 
             switch (compiler.state.finishStage) {
                 case CompilerStage.Preprocessed:
@@ -451,7 +463,7 @@ public static partial class BuckleCommandLine {
         diagnostics = new DiagnosticQueue<Diagnostic>();
 
         for (int i=0; i<compiler.state.tasks.Length; i++) {
-            ref FileState task = ref compiler.state.tasks[i];
+            ref var task = ref compiler.state.tasks[i];
 
             switch (task.stage) {
                 case CompilerStage.Raw:
