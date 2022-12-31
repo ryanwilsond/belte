@@ -43,11 +43,13 @@ internal abstract class SyntaxNode {
     /// </summary>
     internal virtual TextSpan span {
         get {
-            if (GetChildren().ToArray().Length == 0)
+            var children = GetChildren();
+
+            if (children.ToArray().Length == 0)
                 return null;
 
-            var first = GetChildren().First().span;
-            var last = GetChildren().Last().span;
+            var first = children.First().span;
+            var last = children.Last().span;
 
             return TextSpan.FromBounds(first.start, last.end);
         }
@@ -59,11 +61,13 @@ internal abstract class SyntaxNode {
     /// </summary>
     internal virtual TextSpan fullSpan {
         get {
-            if (GetChildren().ToArray().Length == 0)
+            var children = GetChildren();
+
+            if (children.ToArray().Length == 0)
                 return null;
 
-            var first = GetChildren().First().fullSpan;
-            var last = GetChildren().Last().fullSpan;
+            var first = children.First().fullSpan;
+            var last = children.Last().fullSpan;
 
             return TextSpan.FromBounds(first.start, last.end);
         }

@@ -285,7 +285,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            unexpected token ')'
+            unexpected token ')', expected identifier
             expected '}' at end of input
         ";
 
@@ -663,13 +663,14 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_CallExpression_ExpectedCloseParenthesis() {
+    public void Evaluator_CallExpression_ExpectedMethodName() {
         var text = @"
-            Print(num ** 2 [(]
+            Print(num ** [2] ([]
         ";
 
         var diagnostics = @"
-            unexpected token '(', expected ')'
+            expected method name
+            expected ')' at end of input
         ";
 
         AssertDiagnostics(text, diagnostics);

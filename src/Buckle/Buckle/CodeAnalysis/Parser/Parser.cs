@@ -84,21 +84,18 @@ internal sealed class Parser {
         return new CompilationUnitSyntax(_syntaxTree, members, endOfFile);
     }
 
-    private SyntaxToken Match(SyntaxKind kind, SyntaxKind? nextWanted = null, bool suppressErrors = false) {
+    private SyntaxToken Match(SyntaxKind kind, SyntaxKind? nextWanted = null) {
         if (current.kind == kind)
             return Next();
 
         if (nextWanted != null && current.kind == nextWanted) {
-            if (!suppressErrors)
-                diagnostics.Push(Error.ExpectedToken(current.location, kind));
+            diagnostics.Push(Error.ExpectedToken(current.location, kind));
 
             return new SyntaxToken(_syntaxTree, kind, current.position,
                 null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty
             );
         } else if (Peek(1).kind != kind) {
-            if (!suppressErrors)
-                diagnostics.Push(Error.UnexpectedToken(current.location, current.kind, kind));
-
+            diagnostics.Push(Error.UnexpectedToken(current.location, current.kind, kind));
             SyntaxToken cur = current;
             _position++;
 
@@ -106,9 +103,7 @@ internal sealed class Parser {
                 null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty
             );
         } else {
-            if (!suppressErrors)
-                diagnostics.Push(Error.UnexpectedToken(current.location, current.kind));
-
+            diagnostics.Push(Error.UnexpectedToken(current.location, current.kind));
             _position++;
             SyntaxToken cur = current;
             _position++;
@@ -674,7 +669,7 @@ internal sealed class Parser {
             var op = Next();
 
             if (op.kind == SyntaxKind.PlusPlusToken || op.kind == SyntaxKind.MinusMinusToken) {
-                var operand = ParseNameOrPrimaryOperatorExpression();
+                var operand = ParsePrimaryExpression();
                 left = new PrefixExpressionSyntax(_syntaxTree, op, operand);
             } else {
                 var operand = ParseOperatorExpression(unaryPrecedence);
@@ -711,7 +706,7 @@ internal sealed class Parser {
         return left;
     }
 
-    private ExpressionSyntax ParsePrimaryExpression() {
+    private ExpressionSyntax ParsePrimaryExpressionInternal() {
         switch (current.kind) {
             case SyntaxKind.OpenParenToken:
                 if (PeekIsCastExpression())
@@ -734,17 +729,46 @@ internal sealed class Parser {
                     return ParseInitializerListExpression();
             case SyntaxKind.RefKeyword:
                 return ParseReferenceExpression();
-            case SyntaxKind.IdentifierToken:
-            case SyntaxKind.NameExpression:
             case SyntaxKind.TypeOfKeyword:
+                return ParseTypeOfExpression();
+            case SyntaxKind.IdentifierToken:
             default:
-                var left = ParseNameOrPrimaryOperatorExpression();
-
-                if (current.kind == SyntaxKind.PlusPlusToken || current.kind == SyntaxKind.MinusMinusToken)
-                    return ParsePostfixExpression(left);
-
-                return left;
+                return ParseNameExpression();
         }
+    }
+
+    private ExpressionSyntax ParsePrimaryExpression(int parentPrecedence = 0, ExpressionSyntax left = null) {
+        ExpressionSyntax ParseCorrectPrimaryOperator(ExpressionSyntax operand) {
+            if (current.kind == SyntaxKind.OpenParenToken)
+                return ParseCallExpression(operand);
+            else if (current.kind == SyntaxKind.OpenBracketToken || current.kind == SyntaxKind.QuestionOpenBracketToken)
+                return ParseIndexExpression(operand);
+            else if (current.kind == SyntaxKind.PeriodToken || current.kind == SyntaxKind.QuestionPeriodToken)
+                return ParseMemberAccessExpression(operand);
+
+            return operand;
+        }
+
+        left = left == null ? ParsePrimaryExpressionInternal() : left;
+
+        if (current.kind == SyntaxKind.PlusPlusToken || current.kind == SyntaxKind.MinusMinusToken)
+            return ParsePostfixExpression(left);
+
+        while (true) {
+            var startToken = current;
+            var precedence = current.kind.GetPrimaryPrecedence();
+
+            if (precedence == 0 || precedence <= parentPrecedence)
+                break;
+
+            left = ParseCorrectPrimaryOperator(left);
+            left = ParsePrimaryExpression(precedence, left);
+
+            if (startToken == current)
+                Next();
+        }
+
+        return left;
     }
 
     private ExpressionSyntax ParseCastExpression() {
@@ -803,46 +827,6 @@ internal sealed class Parser {
         return new ParenthesisExpressionSyntax(_syntaxTree, left, expression, right);
     }
 
-    private ExpressionSyntax ParsePrimaryOperatorExpression(
-        SyntaxNode operand, int parentPrecedence = 0, SyntaxToken maybeUnexpected = null) {
-        SyntaxNode ParseCorrectPrimaryOperator(SyntaxNode operand) {
-            if (operand.kind == SyntaxKind.TypeOfKeyword)
-                return ParseTypeOfExpression();
-            else if (current.kind == SyntaxKind.OpenParenToken)
-                return ParseCallExpression((ExpressionSyntax)operand);
-            else if (current.kind == SyntaxKind.OpenBracketToken || current.kind == SyntaxKind.QuestionOpenBracketToken)
-                return ParseIndexExpression((ExpressionSyntax)operand);
-            else if (current.kind == SyntaxKind.PeriodToken || current.kind == SyntaxKind.QuestionPeriodToken)
-                return ParseMemberAccessExpression((ExpressionSyntax)operand);
-
-            return operand;
-        }
-
-        var completeIterations = 0;
-
-        while (true) {
-            var startToken = current;
-            var precedence = current.kind.GetPrimaryPrecedence();
-
-            if (precedence == 0 || precedence <= parentPrecedence)
-                break;
-
-            var expression = ParseCorrectPrimaryOperator(operand);
-            operand = ParsePrimaryOperatorExpression(expression, precedence);
-
-            completeIterations++;
-
-            if (startToken == current)
-                Next();
-        }
-
-        if (completeIterations == 0 && operand is NameExpressionSyntax ne && ne.identifier.isMissing)
-            diagnostics.Push(Error.UnexpectedToken(maybeUnexpected.location, maybeUnexpected.kind));
-
-        // Assuming that all typeof operators are handled and do not fall through
-        return (ExpressionSyntax)operand;
-    }
-
     private ExpressionSyntax ParseTypeOfExpression() {
         var keyword = Next();
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
@@ -850,19 +834,6 @@ internal sealed class Parser {
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
 
         return new TypeOfExpressionSyntax(_syntaxTree, keyword, openParenthesis, type, closeParenthesis);
-    }
-
-    private ExpressionSyntax ParseNameOrPrimaryOperatorExpression() {
-        var maybeUnexpected = current;
-
-        SyntaxNode left;
-
-        if (current.kind == SyntaxKind.TypeOfKeyword)
-            left = current;
-        else
-            left = ParseNameExpression();
-
-        return ParsePrimaryOperatorExpression(left, maybeUnexpected: maybeUnexpected);
     }
 
     private ExpressionSyntax ParseMemberAccessExpression(ExpressionSyntax operand) {
@@ -881,7 +852,7 @@ internal sealed class Parser {
     }
 
     private ExpressionSyntax ParseNameExpression() {
-        var identifier = Match(SyntaxKind.IdentifierToken, suppressErrors: true);
+        var identifier = Match(SyntaxKind.IdentifierToken);
 
         return new NameExpressionSyntax(_syntaxTree, identifier);
     }
