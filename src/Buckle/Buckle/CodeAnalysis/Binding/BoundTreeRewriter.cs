@@ -233,7 +233,7 @@ internal abstract class BoundTreeRewriter {
         if (operand == expression.operand)
             return expression;
 
-        return new BoundPrefixExpression(operand, expression.isIncrement);
+        return new BoundPrefixExpression(expression.op, operand);
     }
 
     protected virtual BoundExpression RewritePostfixExpression(BoundPostfixExpression expression) {
@@ -242,9 +242,7 @@ internal abstract class BoundTreeRewriter {
         if (operand == expression.operand)
             return expression;
 
-        return new BoundPostfixExpression(
-            operand, expression.isIncrement, expression.isNullAssert, expression.isOwnStatement
-        );
+        return new BoundPostfixExpression(operand, expression.op, expression.isOwnStatement);
     }
 
     protected virtual BoundExpression RewriteMemberAccessExpression(BoundMemberAccessExpression expression) {

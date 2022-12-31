@@ -94,7 +94,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            operator '-' is not defined for type 'bool'
+            unary operator '-' is not defined for type 'bool'
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -107,7 +107,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            operator '+' is not defined for types 'bool' and 'int'
+            binary operator '+' is not defined for types 'bool' and 'int'
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -717,13 +717,26 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
+    public void Evaluator_Reports_Error_BU0059_CannotIncrement() {
+        var text = @"
+            [1]++;
+        ";
+
+        var diagnostics = @"
+            the operand of an increment or decrement operator must be a variable, field, or indexer
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
     public void Evaluator_Reports_Error_BU0060_InvalidTernaryOperatorUse() {
         var text = @"
             3 [?] 4 : 6;
         ";
 
         var diagnostics = @"
-            operator '?:' is not defined for types 'int', 'int', and 'int'
+            ternary operator '?:' is not defined for types 'int', 'int', and 'int'
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -782,6 +795,34 @@ public sealed partial class EvaluatorTests {
 
         var diagnostics = @"
             cannot assign a reference to a variable to a by-reference variable expecting a reference to a constant
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Reports_Error_BU0065_InvalidPrefixUse() {
+        var text = @"
+            bool a = false;
+            [++]a;
+        ";
+
+        var diagnostics = @"
+            prefix operator '++' is not defined for type 'bool'
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Reports_Error_BU0066_InvalidPostfixUse() {
+        var text = @"
+            bool a = false;
+            a[++];
+        ";
+
+        var diagnostics = @"
+            postfix operator '++' is not defined for type 'bool'
         ";
 
         AssertDiagnostics(text, diagnostics);

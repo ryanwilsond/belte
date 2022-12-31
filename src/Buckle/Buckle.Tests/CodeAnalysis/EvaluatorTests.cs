@@ -245,6 +245,8 @@ public sealed partial class EvaluatorTests {
     [InlineData("int a = 1; a--; a--; return a;", -1)]
     [InlineData("int a = 4; int b = a++; return b;", 4)]
     [InlineData("int a = 4; int b = a--; return b;", 4)]
+    [InlineData("int a = 4; return a!;", 4)]
+    [InlineData("[NotNull]int a = 4; return a! + 1;", 5)]
     // Prefix expressions
     [InlineData("int a = 3; ++a; return a;", 4)]
     [InlineData("int a = 3; --a; return a;", 2)]

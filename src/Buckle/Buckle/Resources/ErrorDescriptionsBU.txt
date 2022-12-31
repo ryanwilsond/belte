@@ -936,6 +936,30 @@ void MyFunction(string a) { }
 
 MyFunction(null); // Ambiguous which overload is being inferred, as `null` could be either an integer or string
 ```
+$BU0059
+Increment and decrement expressions modify the operand. Because this is the
+case, the operand must be modifiable/assignable. If it is attempted to
+increment or decrement a nonassignable operand this error is raised.
+
+For example:
+
+```
+1++; // Now allowed, `1` is not an assignable operand
+int a = 3;
+a++; // Allowed, `a` is assignable
+```
+
+This also applies to the prefix version of these operators:
+
+```
+++1; // Now allowed, `1` is not an assignable operand
+int a = 3;
+++a; // Allowed, `a` is assignable
+```
+
+And also applies to their decrement counterparts.
+
+Only variables, fields, and indexers can be assigned to.
 $BU0060
 When a ternary operator is used with unsupported types, this error is produced.
 
@@ -1043,29 +1067,33 @@ int myInt = 3;
 ref int myRef = ref myInt;
 ```
 $BU0065
-Increment and decrement expressions modify the operand. Because this is the
-case, the operand must be modifiable/assignable. If it is attempted to
-increment or decrement a nonassignable operand this error is raised.
+When a prefix operator is used with unsupported types, this error is produced.
 
 For example:
 
 ```
-1++; // Now allowed, `1` is not an assignable operand
-int a = 3;
-a++; // Allowed, `a` is assignable
+int myInt = 2;
+++myInt; // '++' is allowed with integer types
+
+bool myBool = false;
+++myBool; // But not for decimal types
 ```
 
-This also applies to the prefix version of these operators:
+A possible fix to this error may be inserting a cast.
+$BU0066
+When a postfix operator is used with unsupported types, this error is produced.
+
+For example:
 
 ```
-++1; // Now allowed, `1` is not an assignable operand
-int a = 3;
-++a; // Allowed, `a` is assignable
+int myInt = 2;
+myInt++; // '++' is allowed with integer types
+
+bool myBool = false;
+myBool++; // But not for decimal types
 ```
 
-And also applies to their decrement counterparts.
-
-Only variables, fields, and indexers can be assigned to.
+A possible fix to this error may be inserting a cast.
 $BU9000
 Inside a global scope without a `Main` function, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it

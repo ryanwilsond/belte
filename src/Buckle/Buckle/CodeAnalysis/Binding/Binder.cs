@@ -1071,23 +1071,23 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindPostfixExpression(PostfixExpressionSyntax expression, bool ownStatement = false) {
-        var operand = BindExpression(expression.operand);
+        var boundOperand = BindExpression(expression.operand);
 
-        if (operand is not BoundVariableExpression &&
-            operand is not BoundMemberAccessExpression &&
-            operand is not BoundIndexExpression) {
+        if (boundOperand is not BoundVariableExpression &&
+            boundOperand is not BoundMemberAccessExpression &&
+            boundOperand is not BoundIndexExpression) {
             diagnostics.Push(Error.CannotIncrement(expression.operand.location));
             return new BoundErrorExpression();
         }
 
-        var type = operand.type;
+        var type = boundOperand.type;
 
         if (type.isConstant) {
             string name = null;
 
-            if (operand is BoundVariableExpression v)
+            if (boundOperand is BoundVariableExpression v)
                 name = v.variable.name;
-            else if (operand is BoundMemberAccessExpression m)
+            else if (boundOperand is BoundMemberAccessExpression m)
                 name = m.member.name;
 
             diagnostics.Push(Error.ConstantAssignment(expression.op.location, name, false));
@@ -1095,32 +1095,34 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        return new BoundPostfixExpression(
-            operand,
-            expression.op.kind == SyntaxKind.PlusPlusToken,
-            expression.op.kind == SyntaxKind.ExclamationToken,
-            ownStatement
-        );
+        var boundOp = BoundPostfixOperator.Bind(expression.op.kind, boundOperand.type);
+
+        if (boundOp == null) {
+            diagnostics.Push(Error.InvalidPostfixUse(expression.op.location, expression.op.text, boundOperand.type));
+            return new BoundErrorExpression();
+        }
+
+        return new BoundPostfixExpression(boundOperand, boundOp, ownStatement);
     }
 
     private BoundExpression BindPrefixExpression(PrefixExpressionSyntax expression) {
-        var operand = BindExpression(expression.operand);
+        var boundOperand = BindExpression(expression.operand);
 
-        if (operand is not BoundVariableExpression &&
-            operand is not BoundMemberAccessExpression &&
-            operand is not BoundIndexExpression) {
+        if (boundOperand is not BoundVariableExpression &&
+            boundOperand is not BoundMemberAccessExpression &&
+            boundOperand is not BoundIndexExpression) {
             diagnostics.Push(Error.CannotIncrement(expression.operand.location));
             return new BoundErrorExpression();
         }
 
-        var type = operand.type;
+        var type = boundOperand.type;
 
         if (type.isConstant) {
             string name = null;
 
-            if (operand is BoundVariableExpression v)
+            if (boundOperand is BoundVariableExpression v)
                 name = v.variable.name;
-            else if (operand is BoundMemberAccessExpression m)
+            else if (boundOperand is BoundMemberAccessExpression m)
                 name = m.member.name;
 
             diagnostics.Push(Error.ConstantAssignment(expression.op.location, name, false));
@@ -1128,7 +1130,14 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        return new BoundPrefixExpression(operand, expression.op.kind == SyntaxKind.PlusPlusToken);
+        var boundOp = BoundPrefixOperator.Bind(expression.op.kind, boundOperand.type);
+
+        if (boundOp == null) {
+            diagnostics.Push(Error.InvalidPrefixUse(expression.op.location, expression.op.text, boundOperand.type));
+            return new BoundErrorExpression();
+        }
+
+        return new BoundPrefixExpression(boundOp, boundOperand);
     }
 
     private BoundExpression BindIndexExpression(IndexExpressionSyntax expression) {
@@ -1423,7 +1432,7 @@ internal sealed class Binder {
 
         if (boundOp == null) {
             diagnostics.Push(Error.InvalidBinaryOperatorUse(
-                expression.op.location, expression.op.text, boundLeft.type, boundRight.type)
+                expression.op.location, expression.op.text, boundLeft.type, boundRight.type, false)
             );
 
             return new BoundErrorExpression();
@@ -1517,7 +1526,7 @@ internal sealed class Binder {
             if (boundOperator == null) {
                 diagnostics.Push(Error.InvalidBinaryOperatorUse(
                     expression.assignmentToken.location, expression.assignmentToken.text,
-                    type, boundExpression.type)
+                    type, boundExpression.type, true)
                 );
 
                 return new BoundErrorExpression();
