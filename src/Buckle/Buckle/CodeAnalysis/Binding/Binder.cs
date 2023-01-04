@@ -8,6 +8,7 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Diagnostics;
+using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -76,12 +77,7 @@ internal sealed class Binder {
             binder.diagnostics.Move(syntaxTree.diagnostics);
 
         if (binder.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
-            return new BoundGlobalScope(ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)>.Empty,
-                ImmutableArray<(StructSymbol function, ImmutableList<FieldSymbol> members)>.Empty, previous,
-                binder.diagnostics, null, null, ImmutableArray<FunctionSymbol>.Empty,
-                ImmutableArray<VariableSymbol>.Empty, ImmutableArray<TypeSymbol>.Empty,
-                ImmutableArray<BoundStatement>.Empty
-            );
+            return GlobalScope(previous, binder.diagnostics);
         }
 
         var typeDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<TypeDeclarationSyntax>();

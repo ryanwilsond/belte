@@ -30,14 +30,14 @@ internal static class BuiltinFunctions {
     /// PrintLine function, writes an empty line to stdout (with line break).
     /// </summary>
     internal static readonly FunctionSymbol PrintLineNoValue = new FunctionSymbol("PrintLine",
-        ImmutableArray<ParameterSymbol>.Empty, new BoundType(TypeSymbol.Void)
+        _NoParameters, new BoundType(TypeSymbol.Void)
     );
 
     /// <summary>
     /// Input function, gets text input from stdin. Waits until enter is pressed.
     /// </summary>
     internal static readonly FunctionSymbol Input = new FunctionSymbol("Input",
-        ImmutableArray<ParameterSymbol>.Empty, BoundType.String
+        _NoParameters, BoundType.String
     );
 
     /// <summary>
@@ -94,6 +94,8 @@ internal static class BuiltinFunctions {
     internal static readonly FunctionSymbol HasValue = new FunctionSymbol("HasValue",
         ImmutableArray.Create(new ParameterSymbol("value", BoundType.NullableAny, 0)), BoundType.Bool
     );
+
+    private static ImmutableArray<ParameterSymbol> _NoParameters = ImmutableArray<ParameterSymbol>.Empty;
 
     /// <summary>
     /// Gets all builtin functions.

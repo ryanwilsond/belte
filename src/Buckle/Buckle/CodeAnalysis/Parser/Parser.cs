@@ -1,8 +1,8 @@
-using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using static Buckle.CodeAnalysis.Syntax.SyntaxFactory;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
@@ -91,17 +91,13 @@ internal sealed class Parser {
         if (nextWanted != null && current.kind == nextWanted) {
             diagnostics.Push(Error.ExpectedToken(current.location, kind));
 
-            return new SyntaxToken(_syntaxTree, kind, current.position,
-                null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty
-            );
+            return Token(_syntaxTree, kind, current.position);
         } else if (Peek(1).kind != kind) {
             diagnostics.Push(Error.UnexpectedToken(current.location, current.kind, kind));
             SyntaxToken cur = current;
             _position++;
 
-            return new SyntaxToken(_syntaxTree, kind, cur.position,
-                null, null, ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty
-            );
+            return Token(_syntaxTree, kind, cur.position);
         } else {
             diagnostics.Push(Error.UnexpectedToken(current.location, current.kind));
             _position++;
