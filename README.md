@@ -2,10 +2,9 @@
 
 ## Important Note
 
-Belte is under development and does not support all the features highlighted in [Principles.md](docs/Principles.md).
+**Belte is under development** and does not support all the features highlighted in [Principles.md](docs/Principles.md).
 
-Belte does not currently have a stable release, so expect bugs if you clone the master branch. For the latest changes,
-refer to the staging branch, however many more bugs will be present.
+Belte does not currently have a stable release, so expect bugs if you clone.
 
 ___
 
