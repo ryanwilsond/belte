@@ -12,10 +12,10 @@ This document covers many concepts and inspirations behind Belte, and also its m
 
 ## Introduction & Logical vs Physical
 
-Belte is a statically and strongly typed language most similar to C# (Belte is object oriented), compiled using the
+Belte is a statically and strongly typed language most similar to C# (Belte is object-oriented), compiled using the
 Buckle compiler.
 
-This language and compiler is being developed to solve the biggest issue with all modern general purpose programming
+This language and compiler are being developed to solve the biggest issue with all modern general-purpose programming
 languages. This is the distinction of **Logical vs Physical**. Low-level implementation details should not be a concern
 to the developer\*.
 
@@ -38,7 +38,7 @@ The only reason to use a structure over a class is more efficiency. In this exam
 each is identical. The developer should not need to engross themselves in these details while coding. The compiler
 should choose depending on which is better.
 
-To get an idea of how the compiler could achieve this, lets look at another example:
+To get an idea of how the compiler could achieve this, look at another example:
 
 ```cpp
 class MyClassA {
@@ -59,26 +59,23 @@ public:
 };
 ```
 
-The compiler would choose to treat `MyClassA` as a structure, because it can. It would not do this to `MyClassB`
-because it has a method, and it also has private members. You could not make a structure equivalent because of these
+The compiler would choose to treat `MyClassA` as a structure because it can. It would not do this to `MyClassB`
+because it has a method, and also has private members. You could not make a structure equivalent because of these
 things, so it will always be treated as a class. Since the compiler can be aware of the optimization to make `MyClassA`
 a structure behind the scenes, the developer **cannot** explicitly declare a structure.
 
-There is no benefit to being able to choose between using a class versus a structure, because **logically** (the way
-they are used) structures are useless. They are very basic classes that only exist because of the fact that they are
-closer to the machine. This is why some assembly languages and C have them, but not classes. **Physically** (on the
-hardware level, for speed and space efficiency) there is a benefit to structures, but the developer should not care,
-hence the compiler doing these optimizations without the input of the developer.
+There is no benefit to being able to choose between using a class versus a structure because **logically** (the way they
+are used) structures are useless. They are very basic classes that only exist because they are closer to the machine.
+This is why some assembly languages and C have them, but not classes. **Physically** (on the hardware level, for speed
+and space efficiency) there is a benefit to structures, but the developer should not care, hence the compiler doing
+these optimizations without the input of the developer.
 
-One design challenge is should bad statements be added because they are commonly used and people would not appreciate
-if they are gone. This is where the choice can be made to either keep on the path of doing it right, or aiming to make
-it accepted by the public. Some examples of this are the `goto` and `do while` statements, lambdas, and the `?:`
-operator. All of these examples are hard to read. Goto is a harder to read function, or a hack to exit a nested loop.
-Do while makes you go to the bottom of the statement to read the condition. Lambdas are harder to read inline functions,
-similar to macros. The ?: operator is a harder to read if-else statement, especially because it is not in every
-language.
+One design challenge is: should bad statements be added because they are commonly used and people would not appreciate
+if they are gone? This is where the choice can be made to either keep on the path of doing it right or aim to make it
+accepted by the public. One of the biggest examples of this is the `goto` statement. Goto acts as a harder to read
+function, or a hack to exit a nested loop.
 
-\* With the exception of low-level tasks that require maximum efficiency or low-level features, e.g. using assembly
+\* Except low-level tasks that require maximum efficiency or low-level features, e.g. using assembly
 language ever.
 
 ___
@@ -86,7 +83,7 @@ ___
 ## Design by Contract
 
 Belte supports and encourages contract programming by making it native and very easy with built-in types. This also
-allows built-in types to be more versatile, and reduces the amount of types. For example, instead of having an unsigned
+allows built-in types to be more versatile and reduces the number of types. For example, instead of having an unsigned
 int, you can add a bound to an int to make it greater than or equal to 0.
 
 Declaring an unsigned int in C vs Belte:
@@ -102,7 +99,7 @@ int<0> myUint;
 ```
 
 Some restrictions you can add to all types are nullability and simple evaluation checks. For example, you can explicitly
-declare that a type cannot be null (as they can be by default). You can also give a type an expression that must
+declare that a type cannot be null (as it can be by default). You can also give a type an expression that must
 evaluate to true for every value passing into it. This is achieved by using a `where` statement when inheriting from
 `int`.
 
@@ -123,7 +120,7 @@ that is all that is needed (-1 being the minimum with 1 the maximum).
 ### Strings
 
 Similar to integers, strings have a minimum and maximum bound for length, as well as an exact length and regex match. An
-example is the `char` type is defined as `class char : string<1>` (constant length 1), and not its own unique type.
+example is the `char` type is defined as `class char : string<1>` (constant length 1), and not a unique type.
 
 As mentioned you can enforce a regular expression where the string always needs to comply, else an error is thrown.
 
@@ -145,7 +142,7 @@ ___
 
 Unlike C# where it was added after the initial release thus making it feel like it was tacked on, Belte makes
 nullability very important in the language. All objects inherit from the object base class, like C#, and part of this
-class includes a attribute template that specifies nullability.
+class includes an attribute template that specifies nullability.
 
 ```belte
 class object<attribute NotNull> where { !(NotNull && value == null); } {
@@ -164,7 +161,7 @@ myVar = null; // Throws
 
 A change from C# is that comparison operators (like <, >, <=, >=) return null if either side is null instead of false.
 This means control of flow statements can have null as the condition, but it will throw a runtime error. This is because
-whenever null is involved anywhere, it means that there is the lack of a value or you do not know the value, so if
+whenever null is involved anywhere, it means that there is a lack of a value or you do not know the value, so if
 prompted with `null < 5`, null could be anything so it is not always false. This distinction that null is not just the
 lack of a value is important because it is a place where programming ignores the mathematical concept of null partially,
 because of physical concerns.
@@ -176,7 +173,7 @@ ___
 A big part of the language is being able to create routines in a class definition to tell the compiler how to optimize
 it if conditions are met. Most of the STI (Standard Type Implementations) use these to make the smart compiler
 optimizations possible and implemented. This is the unique part of the compiler where niche developers go low-level for
-efficiency. This also allows developers to make code and think about optimization later, because they can add these
+efficiency. This also allows developers to make code and think about optimization later because they can add these
 routines to object definitions without changing any of their original code\*. This will encourage the creation of more
 readable and intuitive code first, and keeping it like that in the future even if it is a little inefficient,
 
@@ -188,7 +185,7 @@ ___
 ## Consistency
 
 A big issue with many languages is consistency in how different objects are treated. For example, int C# depending on
-what the object is, it will either be passed by value or by reference as a default. This is an issue, because it forces
+what the object is, it will either be passed by value or by reference as a default. This is an issue because it forces
 the developer to know which objects are passed by value by default, versus by reference by default. This is a small
 thing, but no matter the object (including C primitive objects like `int`) they will be passed by value. You can then
 specify that it is a reference.
@@ -214,8 +211,8 @@ C-style pointers are not available. References are safer and more intuitive.
 
 ### String
 
-Mutable to allow string manipulation. Compiler switches to immutable under the hood for efficiency if developer never
-modifies string.
+Mutable to allow string manipulation. The compiler switches to immutable under the hood for efficiency if the developer
+never modifies string.
 
 ### Numbers
 
@@ -227,9 +224,9 @@ based on fundamental differences.
 | int | any whole number, no limit |
 | decimal | any decimal number, no limit |
 
-This list is short, because it is all that is needed.
-You can add on to each of these base types a range on what numbers they can contain, allowing developers to have a
-limit on a number in situations where it is needed, for example an unsigned integer.
+This list is short because it is all that is needed. You can add to each of these base types a range on what numbers
+they can contain, allowing developers to have a limit on a number in situations where it is needed, for example, an
+unsigned integer.
 
 ### Enumerables
 
@@ -248,7 +245,7 @@ algorithm to find them without iterating through every key (hashmap).
 ### Structures
 
 The one use of structures specifically over classes is anonymous structures for parameters in functions (usually).
-To solve this a C#-style `tuple` will be used instead because they are cleaner, more intuitive, and structures will
+To solve this a C#-style `tuple` will be used instead because they are cleaner and more intuitive, and structures will
 never be added to Belte.
 
 ___
@@ -259,10 +256,10 @@ List of priorities in order of most important to least important.
 
 ### Functionality
 
-Belte focusses on functionality as the first goal. This is one of the reasons that the syntax and design of the
-language were the first todo. Not biassed by industry standards, ease of implementation, or something similar. This
-language aims to fix issues with programming languages, added a unique spin on a c-style language. It aims to be
-intuitive like Python, robust like C#, high performance like C++, and able to be applicable to most situations.
+Belte focuses on functionality as the first goal. This is one of the reasons that the syntax and design of the language
+were the first todos. Not biased by industry standards, ease of implementation, or something similar. This language aims
+to fix issues with programming languages, and added a unique spin on a c-style language. It aims to be intuitive like
+Python, robust like C#, high-performance like C++, and able to apply to most situations.
 
 ### Consistency
 
@@ -271,7 +268,7 @@ Not only as a style guide, but as the language design itself. Everything in Belt
 reducing the background knowledge the developer is required to have. A good example to highlight how a language can go
 wrong with consistency is value versus reference types in C#. The developer must know whether the object they are using
 is a value or reference type, while in Belte every type/class is a value type by default. This includes built-ins, and
-user defined types. This helps code readability, and ease of developing.
+user-defined types. This helps code readability and ease of development.
 
 ### Usability
 
@@ -282,21 +279,21 @@ simplicity, and Belte aims to do the same.
 ### Performance
 
 While having the appeal of Python, it also aims to have high performance to make it more applicable to real software.
-C++ is the current leader is speed, but is hard to use. Performance is not the top priority however, to not limit the
+C++ is the current leader in speed but is hard to use. Performance is not the top priority, however, to not limit the
 functionality of the language.
 
 ### Portability
 
 Another goal is to allow compiling to an executable for small projects (another appeal for beginners), while also
 supporting integration with .NET. This will allow it to easily be used in projects that have been established for
-decades, without completely redesigning everything. This is increases accessibility, and its overall appeal. This
-integration allows people to focus more on the functionality and personal likeness, instead of analyzing if it will be
+decades, without completely redesigning everything. This increases accessibility and its overall appeal. This
+integration allows people to focus more on functionality and personal likeness, instead of analyzing if it will be
 better in the long run to redesign a system.
 
 ### Likability
 
 The last priority is likeability. While it is still on the minds of the developers, functionality comes first. Belte
-is not mainly focussed on having it appeal to the largest crowd, instead to give an example of how to make a better
-language. An simple example is the goto statement. It is in a lot of popular languages like C++, C#, and more. However
+is not mainly focused on having it appeal to the largest crowd, but instead to give an example of how to make a better
+language. A simple example is the goto statement. It is in a lot of popular languages like C++, C#, and more. However
 it is believed to not be the best practice, so it is not available. This may be frustrating to some people who use
 goto, making it less popular.
