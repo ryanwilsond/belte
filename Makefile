@@ -16,63 +16,84 @@ RM=rm
 all: build
 
 build: debugbuild debugcopy resources
+	@echo Finished building Buckle
 
 debugbuild:
-	dotnet build $(SLN) -t:rebuild
+	@echo "Started building the Buckle solution (debug) ..."
+	@dotnet build $(SLN) -t:rebuild
+	@echo "    Finished"
 
 debugcopy:
-	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Buckle.dll Buckle.dll
-	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.dll Belte.dll
-	$(CP) $(DIAGDIR)/bin/Debug/$(NETVER)/Diagnostics.dll Diagnostics.dll
-	$(CP) $(REPLDIR)/bin/Debug/$(NETVER)/Repl.dll Repl.dll
-	-$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.exe buckle.exe
-	-$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte buckle.exe
+	@echo Started to copy files for the Buckle solution ...
+	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Buckle.dll Buckle.dll
+	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.dll Belte.dll
+	@$(CP) $(DIAGDIR)/bin/Debug/$(NETVER)/Diagnostics.dll Diagnostics.dll
+	@$(CP) $(REPLDIR)/bin/Debug/$(NETVER)/Repl.dll Repl.dll
+	@-$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.exe buckle.exe
+	@-$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte buckle.exe
+	@echo "    Finished"
 
 setup:
-	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.deps.json Belte.deps.json
-	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.runtimeconfig.json Belte.runtimeconfig.json
+	@echo Started setting up the Buckle solution ...
+	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.deps.json Belte.deps.json
+	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.runtimeconfig.json Belte.runtimeconfig.json
+	@echo     Finished
 
 .PHONY: resources
 resources:
-	$(RM) -f -r Resources
-	mkdir Resources
-	$(CP) -a $(PROJDIR)/Resources/. Resources
-	$(CP) -a $(BUCKDIR)/Resources/. Resources
-	$(CP) -a $(REPLDIR)/Resources/. Resources
+	@echo Started coping resources for the Buckle solution ...
+	@$(RM) -f -r Resources
+	@mkdir Resources
+	@$(CP) -a $(PROJDIR)/Resources/. Resources
+	@$(CP) -a $(BUCKDIR)/Resources/. Resources
+	@$(CP) -a $(REPLDIR)/Resources/. Resources
+	@echo "    Finished"
 
 test:
-	dotnet test $(TESTDIR)/Buckle.Tests.csproj
+	@echo Started testing the Buckle project
+	@dotnet test $(TESTDIR)/Buckle.Tests.csproj
+	@echo "    Finished"
 
 release: releasebuild resources
+	@echo Finished building Buckle
 
 releasebuild:
-	dotnet publish $(PROJDIR)/Belte.csproj -r $(SYSTEM) -p:PublishSingleFile=true --self-contained true \
+	@echo Started building the Buckle solution (release) ...
+	@dotnet publish $(PROJDIR)/Belte.csproj -r $(SYSTEM) -p:PublishSingleFile=true --self-contained true \
 		-p:PublishReadyToRunShowWarnings=true -p:IncludeNativeLibrariesForSelfExtract=true --configuration Release
-	$(CP) $(PROJDIR)/bin/Release/$(NETVER)/$(SYSTEM)/publish/Belte.exe buckle.exe
+	@$(CP) $(PROJDIR)/bin/Release/$(NETVER)/$(SYSTEM)/publish/Belte.exe buckle.exe
+	@echo "    Finished"
 
 clean:
-	$(RM) *.dll
-	$(RM) *.exe
-	$(RM) *.json
+	@$(RM) -f *.dll ||:
+	@$(RM) -f *.exe ||:
+	@$(RM) -f *.json ||:
+	@$(RM) -f *.dot ||:
+	@echo Soft cleaned the project
 
-hardclean:
-	$(RM) -f -r **/**/bin
-	$(RM) -f -r **/**/obj
-	$(RM) -f -r **/**/**/bin
-	$(RM) -f -r **/**/**/obj
+hardclean: clean
+	@dotnet clean $(SLN)
+	@echo Hard cleaned the project
 
 sandersetup:
-	$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.deps.json Sander.deps.json
-	$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.runtimeconfig.json Sander.runtimeconfig.json
+	@echo Started setting up the Sander project ...
+	@$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.deps.json Sander.deps.json
+	@$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.runtimeconfig.json Sander.runtimeconfig.json
+	@echo "    Finished"
 
 debugsander:
-	dotnet build $(SSLN)
+	@echo "Started to build Sander project (debug) ..."
+	@dotnet build $(SSLN)
+	@echo "    Finished"
 
 copysander:
-	$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Buckle.dll Buckle.dll
-	$(CP) $(REPLDIR)/bin/Debug/$(NETVER)/Repl.dll Repl.dll
-	$(CP) $(DIAGDIR)/bin/Debug/$(NETVER)/Diagnostics.dll Diagnostics.dll
-	$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.dll Sander.dll
-	$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.exe sander.exe
+	@echo Started to copy files for the Sander project ...
+	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Buckle.dll Buckle.dll
+	@$(CP) $(REPLDIR)/bin/Debug/$(NETVER)/Repl.dll Repl.dll
+	@$(CP) $(DIAGDIR)/bin/Debug/$(NETVER)/Diagnostics.dll Diagnostics.dll
+	@$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.dll Sander.dll
+	@$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.exe sander.exe
+	@echo "    Finished"
 
 sander: debugsander copysander
+	@echo Finished building Sander
