@@ -568,7 +568,7 @@ internal sealed class Binder {
     private VariableSymbol BindVariable(
         SyntaxToken identifier, BoundType type, BoundConstant constant = null, bool bindAsField = false) {
         var name = identifier.text ?? "?";
-        var declare = !identifier.isMissing;
+        var declare = !identifier.isFabricated;
         var variable = bindAsField
             ? new FieldSymbol(name, type, constant)
             : _function == null
@@ -1463,7 +1463,7 @@ internal sealed class Binder {
     private BoundExpression BindNameExpression(NameExpressionSyntax expression) {
         var name = expression.identifier.text;
 
-        if (expression.identifier.isMissing)
+        if (expression.identifier.isFabricated)
             return new BoundErrorExpression();
 
         var variable = BindVariableReference(expression.identifier);

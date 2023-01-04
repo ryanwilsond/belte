@@ -228,7 +228,7 @@ public sealed class BelteRepl : ReplBase {
         var syntaxTree = SyntaxTree.Parse(text);
         var lastMember = syntaxTree.root.members.LastOrDefault();
 
-        if (lastMember == null || lastMember.GetLastToken().isMissing)
+        if (lastMember == null || lastMember.GetLastToken().isFabricated)
             return false;
 
         return true;
