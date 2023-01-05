@@ -42,12 +42,12 @@ internal static partial class BoundFactory {
         return new BoundGotoStatement(label);
     }
 
-    internal static BoundConditionalGotoStatement GotoIf(BoundLabel label, BoundExpression condition) {
-        return new BoundConditionalGotoStatement(label, condition, true);
+    internal static BoundConditionalGotoStatement GotoIf(BoundLabel @goto, BoundExpression @if) {
+        return new BoundConditionalGotoStatement(@goto, @if, true);
     }
 
-    internal static BoundConditionalGotoStatement GotoIfNot(BoundLabel label, BoundExpression condition) {
-        return new BoundConditionalGotoStatement(label, condition, false);
+    internal static BoundConditionalGotoStatement GotoIfNot(BoundLabel @goto, BoundExpression @ifNot) {
+        return new BoundConditionalGotoStatement(@goto, @ifNot, false);
     }
 
     internal static BoundExpressionStatement Statement(BoundExpression expression) {
@@ -76,12 +76,12 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundTernaryExpression NullConditional(
-        BoundExpression left, BoundExpression center, BoundExpression right) {
+        BoundExpression @if, BoundExpression @then, BoundExpression @else) {
         var op = BoundTernaryOperator.Bind(
-            SyntaxKind.QuestionToken, SyntaxKind.ColonToken, left.type, center.type, right.type
+            SyntaxKind.QuestionToken, SyntaxKind.ColonToken, @if.type, @then.type, @else.type
         );
 
-        return new BoundTernaryExpression(left, op, center, right);
+        return new BoundTernaryExpression(@if, op, @then, @else);
     }
 
     internal static BoundAssignmentExpression Assignment(BoundExpression left, BoundExpression right) {

@@ -63,7 +63,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
             return RewriteStatement(
                 Block(
-                    GotoIfNot(endLabel, node.condition),
+                    GotoIfNot(
+                        @goto: endLabel,
+                        @ifNot: node.condition
+                    ),
                     node.then,
                     Label(endLabel)
                 )
@@ -74,7 +77,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
             return RewriteStatement(
                 Block(
-                    GotoIfNot(elseLabel, node.condition),
+                    GotoIfNot(
+                        @goto: elseLabel,
+                        @ifNot: node.condition
+                    ),
                     node.then,
                     Goto(endLabel),
                     Label(elseLabel),
@@ -106,7 +112,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return RewriteStatement(
             Block(
                 Label(continueLabel),
-                GotoIfNot(breakLabel, node.condition),
+                GotoIfNot(
+                    @goto: breakLabel,
+                    @ifNot: node.condition
+                ),
                 node.body,
                 Goto(continueLabel),
                 Label(breakLabel)
@@ -136,7 +145,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
             Block(
                 Label(continueLabel),
                 node.body,
-                GotoIf(continueLabel, node.condition),
+                GotoIf(
+                    @goto: continueLabel,
+                    @if: node.condition
+                ),
                 Label(breakLabel)
             )
         );
@@ -259,9 +271,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.op.opKind == BoundBinaryOperatorKind.NullCoalescing) {
             return RewriteExpression(
                 NullConditional(
-                    HasValue(expression.left),
-                    Value(expression.left),
-                    expression.right
+                    @if: HasValue(expression.left),
+                    @then: Value(expression.left),
+                    @else: expression.right
                 )
             );
         }
@@ -275,16 +287,16 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.left.type.isNullable && expression.right.type.isNullable) {
             return RewriteExpression(
                 NullConditional(
-                    And(
+                    @if: And(
                         HasValue(expression.left),
                         HasValue(expression.right)
                     ),
-                    Binary(
+                    @then: Binary(
                         Value(expression.left),
                         expression.op,
                         Value(expression.right)
                     ),
-                    Literal(null)
+                    @else: Literal(null)
                 )
             );
         }
@@ -292,13 +304,13 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.left.type.isNullable) {
             return RewriteExpression(
                 NullConditional(
-                    HasValue(expression.left),
-                    Binary(
+                    @if: HasValue(expression.left),
+                    @then: Binary(
                         Value(expression.left),
                         expression.op,
                         expression.right
                     ),
-                    Literal(null)
+                    @else: Literal(null)
                 )
             );
         }
@@ -306,13 +318,13 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.right.type.isNullable) {
             return RewriteExpression(
                 NullConditional(
-                    HasValue(expression.right),
-                    Binary(
+                    @if: HasValue(expression.right),
+                    @then: Binary(
                         expression.left,
                         expression.op,
                         Value(expression.right)
                     ),
-                    Literal(null)
+                    @else: Literal(null)
                 )
             );
         }
@@ -333,12 +345,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.operand.type.isNullable) {
             return RewriteExpression(
                 NullConditional(
-                    HasValue(expression.operand),
-                    Unary(
+                    @if: HasValue(expression.operand),
+                    @then: Unary(
                         expression.op,
                         Value(expression.operand)
                     ),
-                    Literal(null)
+                    @else: Literal(null)
                 )
             );
         }
@@ -363,12 +375,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.type.isNullable && expression.expression.type.isNullable) {
             return RewriteExpression(
                 NullConditional(
-                    HasValue(expression.expression),
-                    Cast(
+                    @if: HasValue(expression.expression),
+                    @then: Cast(
                         expression.type,
                         Value(expression.expression)
                     ),
-                    Literal(null)
+                    @else: Literal(null)
                 )
             );
         }
@@ -499,12 +511,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.isNullConditional) {
             return RewriteExpression(
                 NullConditional(
-                    HasValue(expression.operand),
-                    MemberAccess(
+                    @if: HasValue(expression.operand),
+                    @then: MemberAccess(
                         expression.operand,
                         expression.member
                     ),
-                    Literal(null)
+                    @else: Literal(null)
                 )
             );
         }
@@ -525,12 +537,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.isNullConditional) {
             return RewriteExpression(
                 NullConditional(
-                    HasValue(expression.operand),
-                    Index(
+                    @if: HasValue(expression.operand),
+                    @then: Index(
                         expression.operand,
                         expression.index
                     ),
-                    Literal(null)
+                    @else: Literal(null)
                 )
             );
         }
