@@ -288,7 +288,7 @@ public sealed class Compilation {
         if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any() || (program.diagnostics.Any() && wError))
             return program.diagnostics;
 
-        return Emitter.Emit(program, moduleName, references, outputPath);
+        return ILEmitter.Emit(program, moduleName, references, outputPath);
     }
 
     private BoundProgram GetProgram() {

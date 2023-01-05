@@ -17,7 +17,7 @@ namespace Buckle.CodeAnalysis.Emitting;
 /// <summary>
 /// Emits a bound program into a .NET assembly.
 /// </summary>
-internal sealed class Emitter {
+internal sealed class ILEmitter {
     private readonly List<AssemblyDefinition> _assemblies = new List<AssemblyDefinition>();
     private readonly List<(TypeSymbol type, string metadataName)> _builtinTypes;
     private readonly Dictionary<FunctionSymbol, MethodDefinition> _methods =
@@ -36,7 +36,7 @@ internal sealed class Emitter {
     private FieldDefinition _randomFieldDefinition;
     private Stack<MethodDefinition> _methodStack = new Stack<MethodDefinition>();
 
-    private Emitter(string moduleName, string[] references) {
+    private ILEmitter(string moduleName, string[] references) {
         diagnostics = new BelteDiagnosticQueue();
         // ? Do not know why this code was here, should always be empty at this point
         // if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
@@ -133,7 +133,7 @@ internal sealed class Emitter {
     }
 
     /// <summary>
-    /// Diagnostics produced by <see cref="Emitter" />.
+    /// Diagnostics produced by <see cref="ILEmitter" />.
     /// These diagnostics are fatal, as all error checking has been done already.
     /// </summary>
     internal BelteDiagnosticQueue diagnostics { get; set; }
@@ -171,7 +171,7 @@ internal sealed class Emitter {
         if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return program.diagnostics;
 
-        var emitter = new Emitter(moduleName, references);
+        var emitter = new ILEmitter(moduleName, references);
         return emitter.Emit(program, outputPath);
     }
 

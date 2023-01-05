@@ -17,7 +17,7 @@ using static Buckle.Utilities.FunctionUtilities;
 
 namespace Buckle.CodeAnalysis.Emitting;
 
-internal sealed class _Emitter {
+internal sealed class _ILEmitter {
     internal BelteDiagnosticQueue diagnostics = new BelteDiagnosticQueue();
 
     private readonly List<AssemblyDefinition> _assemblies = new List<AssemblyDefinition>();
@@ -62,7 +62,7 @@ internal sealed class _Emitter {
     private TypeDefinition _typeDefinition;
     private FieldDefinition _randomFieldDefinition;
 
-    private _Emitter(string moduleName, string[] references) {
+    private _ILEmitter(string moduleName, string[] references) {
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return;
 
@@ -222,7 +222,7 @@ internal sealed class _Emitter {
         if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
             return program.diagnostics;
 
-        var _Emitter = new _Emitter(moduleName, references);
+        var _Emitter = new _ILEmitter(moduleName, references);
         return _Emitter.Emit(program, outputPath);
     }
 
