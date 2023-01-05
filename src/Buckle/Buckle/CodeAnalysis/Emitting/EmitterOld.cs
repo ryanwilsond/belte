@@ -774,12 +774,12 @@ internal sealed class _Emitter {
             }
         }
 
-        if (((expression.left.constantValue != null && expression.left.constantValue?.value == null)
-            || (expression.right.constantValue != null && expression.right.constantValue?.value == null)) &&
+        if ((BoundConstant.IsNull(expression.left.constantValue) ||
+            BoundConstant.IsNull(expression.right.constantValue)) &&
             (expression.op.opKind == BoundBinaryOperatorKind.EqualityEquals ||
             expression.op.opKind == BoundBinaryOperatorKind.EqualityNotEquals)) {
-            if ((expression.left.constantValue != null && expression.left.constantValue?.value == null) &&
-                (expression.right.constantValue != null && expression.right.constantValue?.value == null)) {
+            if ((BoundConstant.IsNull(expression.left.constantValue)) &&
+                (BoundConstant.IsNull(expression.right.constantValue))) {
                 if (expression.op.opKind == BoundBinaryOperatorKind.EqualityEquals)
                     iLProcessor.Emit(OpCodes.Ldc_I4_1);
                 else
@@ -788,7 +788,7 @@ internal sealed class _Emitter {
                 return;
             }
 
-            if ((expression.left.constantValue != null && expression.left.constantValue?.value == null)) {
+            if (BoundConstant.IsNull(expression.left.constantValue)) {
                 EmitExpression(iLProcessor, expression.right);
                 iLProcessor.Emit(OpCodes.Call, GetNullableHasValue(expression.right.type));
                 iLProcessor.Emit(OpCodes.Ldc_I4_0);
