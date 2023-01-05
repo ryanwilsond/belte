@@ -8,6 +8,7 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Diagnostics;
+using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -75,14 +76,8 @@ internal sealed class Binder {
         foreach (var syntaxTree in syntaxTrees)
             binder.diagnostics.Move(syntaxTree.diagnostics);
 
-        if (binder.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
-            return new BoundGlobalScope(ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)>.Empty,
-                ImmutableArray<(StructSymbol function, ImmutableList<FieldSymbol> members)>.Empty, previous,
-                binder.diagnostics, null, null, ImmutableArray<FunctionSymbol>.Empty,
-                ImmutableArray<VariableSymbol>.Empty, ImmutableArray<TypeSymbol>.Empty,
-                ImmutableArray<BoundStatement>.Empty
-            );
-        }
+        if (binder.diagnostics.FilterOut(DiagnosticType.Warning).Any())
+            return GlobalScope(previous, binder.diagnostics);
 
         var typeDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<TypeDeclarationSyntax>();
 
@@ -185,12 +180,8 @@ internal sealed class Binder {
     internal static BoundProgram BindProgram(bool isScript, BoundProgram previous, BoundGlobalScope globalScope) {
         var parentScope = CreateParentScope(globalScope);
 
-        if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
-            return new BoundProgram(previous, globalScope.diagnostics,
-                null, null, ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty,
-                ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>>.Empty
-            );
-        }
+        if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
+            return Program(previous, globalScope.diagnostics);
 
         var functionBodies = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
         var structMembers = ImmutableDictionary.CreateBuilder<StructSymbol, ImmutableList<FieldSymbol>>();
@@ -213,12 +204,8 @@ internal sealed class Binder {
                 var body = binder.BindStatement(function.declaration.body);
                 diagnostics.Move(binder.diagnostics);
 
-                if (diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
-                    return new BoundProgram(previous, diagnostics, null, null,
-                        ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty,
-                        ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>>.Empty
-                    );
-                }
+                if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+                    return Program(previous, diagnostics);
 
                 loweredBody = Lowerer.Lower(function, body);
             } else {
@@ -568,7 +555,7 @@ internal sealed class Binder {
     private VariableSymbol BindVariable(
         SyntaxToken identifier, BoundType type, BoundConstant constant = null, bool bindAsField = false) {
         var name = identifier.text ?? "?";
-        var declare = !identifier.isMissing;
+        var declare = !identifier.isFabricated;
         var variable = bindAsField
             ? new FieldSymbol(name, type, constant)
             : _function == null
@@ -1284,6 +1271,7 @@ internal sealed class Binder {
                     var oldTrackSymbols = _trackSymbols;
                     _trackSymbols = false;
 
+                    // var argument = SyntaxFactory.Name(parameter.name.Substring(1));
                     var argument = new NameExpressionSyntax(null, new SyntaxToken(
                         null, SyntaxKind.IdentifierToken, -1, parameter.name.Substring(1), null,
                         ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty)
@@ -1463,7 +1451,7 @@ internal sealed class Binder {
     private BoundExpression BindNameExpression(NameExpressionSyntax expression) {
         var name = expression.identifier.text;
 
-        if (expression.identifier.isMissing)
+        if (expression.identifier.isFabricated)
             return new BoundErrorExpression();
 
         var variable = BindVariableReference(expression.identifier);

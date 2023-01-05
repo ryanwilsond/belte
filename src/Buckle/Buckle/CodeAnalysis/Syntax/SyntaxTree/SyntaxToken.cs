@@ -50,7 +50,7 @@ internal sealed class SyntaxToken : SyntaxNode {
     /// <summary>
     /// If <see cref="SyntaxToken" /> was created artificially, or if it came from the <see cref="SourceText" />.
     /// </summary>
-    internal bool isMissing => text == null;
+    internal bool isFabricated => text == null;
 
     internal override TextSpan span => new TextSpan(position, text?.Length ?? 0);
 

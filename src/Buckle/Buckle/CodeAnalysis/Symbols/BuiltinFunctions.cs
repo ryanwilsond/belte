@@ -13,62 +13,87 @@ internal static class BuiltinFunctions {
     /// <summary>
     /// Print function, writes text to stdout (no line break).
     /// </summary>
-    internal static readonly FunctionSymbol Print = new FunctionSymbol("Print",
-        ImmutableArray.Create(new ParameterSymbol("text", BoundType.NullableAny, 0)),
-        new BoundType(TypeSymbol.Void)
+    internal static readonly FunctionSymbol Print = new FunctionSymbol(
+        "Print",
+        ImmutableArray.Create(
+            new ParameterSymbol("text", BoundType.NullableAny, 0)
+        ),
+        NoReturn
     );
 
     /// <summary>
     /// PrintLine function, writes text to stdout (with line break).
     /// </summary>
-    internal static readonly FunctionSymbol PrintLine = new FunctionSymbol("PrintLine",
-        ImmutableArray.Create(new ParameterSymbol("text", BoundType.NullableAny, 0)),
-        new BoundType(TypeSymbol.Void)
+    internal static readonly FunctionSymbol PrintLine = new FunctionSymbol(
+        "PrintLine",
+        ImmutableArray.Create(
+            new ParameterSymbol("text", BoundType.NullableAny, 0)
+        ),
+        NoReturn
     );
 
     /// <summary>
     /// PrintLine function, writes an empty line to stdout (with line break).
     /// </summary>
-    internal static readonly FunctionSymbol PrintLineNoValue = new FunctionSymbol("PrintLine",
-        ImmutableArray<ParameterSymbol>.Empty, new BoundType(TypeSymbol.Void)
+    internal static readonly FunctionSymbol PrintLineNoValue = new FunctionSymbol(
+        "PrintLine",
+        NoParameters,
+        NoReturn
     );
 
     /// <summary>
     /// Input function, gets text input from stdin. Waits until enter is pressed.
     /// </summary>
-    internal static readonly FunctionSymbol Input = new FunctionSymbol("Input",
-        ImmutableArray<ParameterSymbol>.Empty, BoundType.String
+    internal static readonly FunctionSymbol Input = new FunctionSymbol(
+        "Input",
+        NoParameters,
+        BoundType.String
     );
 
     /// <summary>
     /// RandInt function, gets a random integer with a maximum (minimum is always 0).
     /// </summary>
-    internal static readonly FunctionSymbol RandInt = new FunctionSymbol("RandInt",
-        ImmutableArray.Create(new ParameterSymbol("max", BoundType.NullableInt, 0)), BoundType.Int
+    internal static readonly FunctionSymbol RandInt = new FunctionSymbol(
+        "RandInt",
+        ImmutableArray.Create(
+            new ParameterSymbol("max", BoundType.NullableInt, 0)
+        ),
+        BoundType.Int
     );
 
     /// <summary>
     /// Value function, gets non nullable value from nullable item (throws if item is null).
     /// Any type overload.
     /// </summary>
-    internal static readonly FunctionSymbol ValueAny = new FunctionSymbol("Value",
-        ImmutableArray.Create(new ParameterSymbol("value", BoundType.NullableAny, 0)), BoundType.Any
+    internal static readonly FunctionSymbol ValueAny = new FunctionSymbol(
+        "Value",
+        ImmutableArray.Create(
+            new ParameterSymbol("value", BoundType.NullableAny, 0)
+        ),
+        BoundType.Any
     );
 
     /// <summary>
     /// Value function, gets non nullable value from nullable item (throws if item is null).
     /// Bool type overload.
     /// </summary>
-    internal static readonly FunctionSymbol ValueBool = new FunctionSymbol("Value",
-        ImmutableArray.Create(new ParameterSymbol("value", BoundType.NullableBool, 0)), BoundType.Bool
+    internal static readonly FunctionSymbol ValueBool = new FunctionSymbol(
+        "Value",
+        ImmutableArray.Create(
+            new ParameterSymbol("value", BoundType.NullableBool, 0)
+        ),
+        BoundType.Bool
     );
 
     /// <summary>
     /// Value function, gets non nullable value from nullable item (throws if item is null).
     /// Decimal type overload.
     /// </summary>
-    internal static readonly FunctionSymbol ValueDecimal = new FunctionSymbol("Value",
-        ImmutableArray.Create(new ParameterSymbol("value", BoundType.NullableDecimal, 0)),
+    internal static readonly FunctionSymbol ValueDecimal = new FunctionSymbol(
+        "Value",
+        ImmutableArray.Create(
+            new ParameterSymbol("value", BoundType.NullableDecimal, 0)
+        ),
         BoundType.Decimal
     );
 
@@ -76,24 +101,48 @@ internal static class BuiltinFunctions {
     /// Value function, gets non nullable value from nullable item (throws if item is null).
     /// Integer type overload.
     /// </summary>
-    internal static readonly FunctionSymbol ValueInt = new FunctionSymbol("Value",
-        ImmutableArray.Create(new ParameterSymbol("value", BoundType.NullableInt, 0)), BoundType.Int
+    internal static readonly FunctionSymbol ValueInt = new FunctionSymbol(
+        "Value",
+        ImmutableArray.Create(
+            new ParameterSymbol("value", BoundType.NullableInt, 0)
+        ),
+        BoundType.Int
     );
 
     /// <summary>
     /// Value function, gets non nullable value from nullable item (throws if item is null).
     /// String type overload.
     /// </summary>
-    internal static readonly FunctionSymbol ValueString = new FunctionSymbol("Value",
-        ImmutableArray.Create(new ParameterSymbol("value", BoundType.NullableString, 0)), BoundType.String
+    internal static readonly FunctionSymbol ValueString = new FunctionSymbol(
+        "Value",
+        ImmutableArray.Create(
+            new ParameterSymbol("value", BoundType.NullableString, 0)
+        ),
+        BoundType.String
     );
 
     /// <summary>
     /// Checks if nullable item has a value (otherwise it is null).
     /// </summary>
-    internal static readonly FunctionSymbol HasValue = new FunctionSymbol("HasValue",
-        ImmutableArray.Create(new ParameterSymbol("value", BoundType.NullableAny, 0)), BoundType.Bool
+    internal static readonly FunctionSymbol HasValue = new FunctionSymbol(
+        "HasValue",
+        ImmutableArray.Create(
+            new ParameterSymbol("value", BoundType.NullableAny, 0)
+        ),
+        BoundType.Bool
     );
+
+    private static ImmutableArray<ParameterSymbol> NoParameters {
+        get {
+            return ImmutableArray<ParameterSymbol>.Empty;
+        }
+    }
+
+    private static BoundType NoReturn {
+        get {
+            return new BoundType(TypeSymbol.Void);
+        }
+    }
 
     /// <summary>
     /// Gets all builtin functions.
