@@ -686,8 +686,7 @@ internal sealed class Binder {
     private BoundStatement BindWhileStatement(WhileStatementSyntax statement) {
         var condition = BindCast(statement.condition, BoundType.NullableBool);
 
-        if (condition.constantValue != null && condition.constantValue.value != null &&
-            !(bool)condition.constantValue.value)
+        if (BoundConstant.IsNotNull(condition.constantValue) && !(bool)condition.constantValue.value)
             diagnostics.Push(Warning.UnreachableCode(statement.body));
 
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
@@ -721,7 +720,7 @@ internal sealed class Binder {
 
         BoundLiteralExpression constant = null;
 
-        if (condition.constantValue != null && condition.constantValue.value != null) {
+        if (BoundConstant.IsNotNull(condition.constantValue)) {
             if (!(bool)condition.constantValue.value)
                 diagnostics.Push(Warning.UnreachableCode(statement.then));
             else if (statement.elseClause != null)
@@ -1434,8 +1433,7 @@ internal sealed class Binder {
             boundOp.opKind == BoundBinaryOperatorKind.LessOrEqual ||
             boundOp.opKind == BoundBinaryOperatorKind.GreaterThan ||
             boundOp.opKind == BoundBinaryOperatorKind.GreatOrEqual) {
-            if (boundLeft.constantValue != null && boundRight.constantValue != null &&
-                (boundLeft.constantValue.value == null) || (boundRight.constantValue.value == null)) {
+            if (BoundConstant.IsNull(boundLeft.constantValue) || BoundConstant.IsNull(boundRight.constantValue)) {
                 diagnostics.Push(Warning.AlwaysValue(expression.location, null));
                 return new BoundLiteralExpression(null);
             }
@@ -1527,10 +1525,8 @@ internal sealed class Binder {
             var convertedExpression = BindCast(expression.right.location, boundExpression, type);
 
             if (left is BoundVariableExpression ve) {
-                if ((ve.variable.constantValue != null && ve.variable.constantValue.value != null) ||
-                    ve.variable.constantValue == null) {
+                if (ve.variable.constantValue == null || BoundConstant.IsNotNull(ve.variable.constantValue))
                     _scope.NoteAssignment(ve.variable);
-                }
             }
 
             return new BoundAssignmentExpression(left, convertedExpression);

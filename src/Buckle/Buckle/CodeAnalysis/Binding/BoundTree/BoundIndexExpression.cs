@@ -5,8 +5,8 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A bound index expression, bound from a <see cref="IndexExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundIndexExpression : BoundExpression {
-    internal BoundIndexExpression(BoundExpression expression, BoundExpression index, bool isNullConditional) {
-        this.operand = expression;
+    internal BoundIndexExpression(BoundExpression operand, BoundExpression index, bool isNullConditional) {
+        this.operand = operand;
         this.index = index;
         this.isNullConditional = isNullConditional;
     }
