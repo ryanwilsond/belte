@@ -6,7 +6,7 @@ using Xunit;
 
 namespace Buckle.Tests.CodeAnalysis.Syntax;
 
-public class LexerTests {
+public sealed class LexerTests {
     [Fact]
     public void Lexer_Lexes_UnterminatedString() {
         const string text = "\"test";

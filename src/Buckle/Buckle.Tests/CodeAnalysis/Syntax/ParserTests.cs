@@ -5,7 +5,7 @@ using Xunit;
 
 namespace Buckle.Tests.CodeAnalysis.Syntax;
 
-public class ParserTests {
+public sealed class ParserTests {
     [Theory]
     [MemberData(nameof(GetBinaryOperatorPairsData))]
     internal void Parser_BinaryExpression_HonorsPrecedences(SyntaxKind op1, SyntaxKind op2) {

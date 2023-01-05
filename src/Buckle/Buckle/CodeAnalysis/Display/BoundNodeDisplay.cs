@@ -5,12 +5,12 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 
-namespace Buckle.IO;
+namespace Buckle.CodeAnalysis.Display;
 
 /// <summary>
 /// Writes user friendly representation of BoundNodes.
 /// </summary>
-internal static class BoundNodePrinter {
+internal static class BoundNodeDisplay {
     /// <summary>
     /// Writes a single <see cref="BoundNode" />.
     /// </summary>

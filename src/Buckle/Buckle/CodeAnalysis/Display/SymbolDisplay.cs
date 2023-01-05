@@ -1,14 +1,13 @@
 using System.IO;
-using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 
-namespace Buckle.IO;
+namespace Buckle.CodeAnalysis.Display;
 
 /// <summary>
 /// Prints a <see cref="Symbol" />.
 /// </summary>
-internal static class SymbolPrinter {
+internal static class SymbolDisplay {
     /// <summary>
     /// Writes a single <see cref="Symbol" />.
     /// </summary>
@@ -40,7 +39,7 @@ internal static class SymbolPrinter {
     }
 
     private static void WriteField(FieldSymbol symbol, TextWriter writer) {
-        BoundNodePrinter.WriteType(symbol.type, writer);
+        BoundNodeDisplay.WriteType(symbol.type, writer);
         writer.WriteSpace();
         writer.WriteIdentifier(symbol.name);
     }
@@ -56,25 +55,25 @@ internal static class SymbolPrinter {
     }
 
     private static void WriteParameter(ParameterSymbol symbol, TextWriter writer) {
-        BoundNodePrinter.WriteType(symbol.type, writer);
+        BoundNodeDisplay.WriteType(symbol.type, writer);
         writer.WriteSpace();
         writer.WriteIdentifier(symbol.name);
     }
 
     private static void WriteGlobalVariable(GlobalVariableSymbol symbol, TextWriter writer) {
-        BoundNodePrinter.WriteType(symbol.type, writer);
+        BoundNodeDisplay.WriteType(symbol.type, writer);
         writer.WriteSpace();
         writer.WriteIdentifier(symbol.name);
     }
 
     private static void WriteLocalVariable(LocalVariableSymbol symbol, TextWriter writer) {
-        BoundNodePrinter.WriteType(symbol.type, writer);
+        BoundNodeDisplay.WriteType(symbol.type, writer);
         writer.WriteSpace();
         writer.WriteIdentifier(symbol.name);
     }
 
     private static void WriteFunction(FunctionSymbol symbol, TextWriter writer) {
-        BoundNodePrinter.WriteType(symbol.type, writer);
+        BoundNodeDisplay.WriteType(symbol.type, writer);
         writer.WriteSpace();
         writer.WriteIdentifier(symbol.name);
         writer.WritePunctuation("(");

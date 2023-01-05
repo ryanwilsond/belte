@@ -1,5 +1,5 @@
 using System.IO;
-using Buckle.IO;
+using Buckle.CodeAnalysis.Display;
 
 namespace Buckle.CodeAnalysis.Symbols;
 

@@ -3,7 +3,7 @@ using Xunit;
 
 namespace Buckle.Tests.CodeAnalysis.Text;
 
-public class SourceTextTests {
+public sealed class SourceTextTests {
     [Theory]
     [InlineData(".", 1)]
     [InlineData(".\r\n", 2)]

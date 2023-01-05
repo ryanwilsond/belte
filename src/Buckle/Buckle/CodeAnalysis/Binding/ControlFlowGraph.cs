@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
-using Buckle.IO;
 
 namespace Buckle.CodeAnalysis.Binding;
 

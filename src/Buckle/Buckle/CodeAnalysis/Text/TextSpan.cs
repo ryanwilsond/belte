@@ -57,7 +57,7 @@ public sealed class TextSpan {
 /// <summary>
 /// Compares two <see cref="TextSpans" />.
 /// </summary>
-public class SpanComparer : IComparer<TextSpan> {
+public sealed class SpanComparer : IComparer<TextSpan> {
     /// <summary>
     /// Checks how much two <see cref="TextSpans" /> overlap.
     /// </summary>

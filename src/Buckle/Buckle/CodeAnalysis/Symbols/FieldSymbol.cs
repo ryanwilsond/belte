@@ -5,7 +5,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// A field symbol. This is a variable declared as a member of a type.
 /// </summary>
-internal class FieldSymbol : VariableSymbol {
+internal sealed class FieldSymbol : VariableSymbol {
     /// <summary>
     /// Creates a <see cref="FieldSymbol" />.
     /// </summary>

@@ -15,7 +15,7 @@ namespace Buckle.Generators;
 /// and StatementsSyntaxes.
 /// </summary>
 [Generator]
-public class GetChildrenGenerator : ISourceGenerator {
+public sealed class GetChildrenGenerator : ISourceGenerator {
     /// <summary>
     /// Initializes generator.
     /// </summary>

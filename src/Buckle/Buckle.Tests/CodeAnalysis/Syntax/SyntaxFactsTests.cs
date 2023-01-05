@@ -5,7 +5,7 @@ using Xunit;
 
 namespace Buckle.Tests.CodeAnalysis.Syntax;
 
-public class SyntaxFactTests {
+public sealed class SyntaxFactTests {
     [Theory]
     [MemberData(nameof(GetSyntaxTypeData))]
     internal void SyntaxFact_GetText_RoundTrips(SyntaxKind kind) {
