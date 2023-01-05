@@ -77,7 +77,13 @@ internal sealed class Binder {
             binder.diagnostics.Move(syntaxTree.diagnostics);
 
         if (binder.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
-            return GlobalScope(previous, binder.diagnostics);
+            // return GlobalScope(previous, binder.diagnostics);
+            return new BoundGlobalScope(ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)>.Empty,
+                ImmutableArray<(StructSymbol function, ImmutableList<FieldSymbol> members)>.Empty, previous,
+                binder.diagnostics, null, null, ImmutableArray<FunctionSymbol>.Empty,
+                ImmutableArray<VariableSymbol>.Empty, ImmutableArray<TypeSymbol>.Empty,
+                ImmutableArray<BoundStatement>.Empty
+            );
         }
 
         var typeDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<TypeDeclarationSyntax>();
@@ -182,6 +188,7 @@ internal sealed class Binder {
         var parentScope = CreateParentScope(globalScope);
 
         if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
+            // return Program(previous, globalScope.diagnostics);
             return new BoundProgram(previous, globalScope.diagnostics,
                 null, null, ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty,
                 ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>>.Empty
@@ -210,8 +217,9 @@ internal sealed class Binder {
                 diagnostics.Move(binder.diagnostics);
 
                 if (diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
-                    return new BoundProgram(previous, diagnostics, null, null,
-                        ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty,
+                    // return Program(previous, globalScope.diagnostics);
+                    return new BoundProgram(previous, diagnostics,
+                        null, null, ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty,
                         ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>>.Empty
                     );
                 }
@@ -1280,6 +1288,7 @@ internal sealed class Binder {
                     var oldTrackSymbols = _trackSymbols;
                     _trackSymbols = false;
 
+                    // var argument = SyntaxFactory.Name(parameter.name.Substring(1));
                     var argument = new NameExpressionSyntax(null, new SyntaxToken(
                         null, SyntaxKind.IdentifierToken, -1, parameter.name.Substring(1), null,
                         ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty)
