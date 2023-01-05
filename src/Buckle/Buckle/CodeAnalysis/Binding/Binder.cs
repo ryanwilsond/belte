@@ -76,15 +76,8 @@ internal sealed class Binder {
         foreach (var syntaxTree in syntaxTrees)
             binder.diagnostics.Move(syntaxTree.diagnostics);
 
-        if (binder.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
-            // return GlobalScope(previous, binder.diagnostics);
-            return new BoundGlobalScope(ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)>.Empty,
-                ImmutableArray<(StructSymbol function, ImmutableList<FieldSymbol> members)>.Empty, previous,
-                binder.diagnostics, null, null, ImmutableArray<FunctionSymbol>.Empty,
-                ImmutableArray<VariableSymbol>.Empty, ImmutableArray<TypeSymbol>.Empty,
-                ImmutableArray<BoundStatement>.Empty
-            );
-        }
+        if (binder.diagnostics.FilterOut(DiagnosticType.Warning).Any())
+            return GlobalScope(previous, binder.diagnostics);
 
         var typeDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<TypeDeclarationSyntax>();
 
@@ -187,13 +180,8 @@ internal sealed class Binder {
     internal static BoundProgram BindProgram(bool isScript, BoundProgram previous, BoundGlobalScope globalScope) {
         var parentScope = CreateParentScope(globalScope);
 
-        if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
-            // return Program(previous, globalScope.diagnostics);
-            return new BoundProgram(previous, globalScope.diagnostics,
-                null, null, ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty,
-                ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>>.Empty
-            );
-        }
+        if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
+            return Program(previous, globalScope.diagnostics);
 
         var functionBodies = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
         var structMembers = ImmutableDictionary.CreateBuilder<StructSymbol, ImmutableList<FieldSymbol>>();
@@ -216,13 +204,8 @@ internal sealed class Binder {
                 var body = binder.BindStatement(function.declaration.body);
                 diagnostics.Move(binder.diagnostics);
 
-                if (diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
-                    // return Program(previous, globalScope.diagnostics);
-                    return new BoundProgram(previous, diagnostics,
-                        null, null, ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty,
-                        ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>>.Empty
-                    );
-                }
+                if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+                    return Program(previous, diagnostics);
 
                 loweredBody = Lowerer.Lower(function, body);
             } else {
