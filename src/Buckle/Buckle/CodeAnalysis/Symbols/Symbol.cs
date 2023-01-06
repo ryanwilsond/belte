@@ -1,4 +1,3 @@
-using System.IO;
 using Buckle.CodeAnalysis.Display;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -22,10 +21,6 @@ internal abstract class Symbol {
     internal abstract SymbolKind kind { get; }
 
     public override string ToString() {
-        using (var writer = new StringWriter()) {
-            this.WriteTo(writer);
-
-            return writer.ToString();
-        }
+        return SymbolDisplay.DisplaySymbol(this).ToString();
     }
 }

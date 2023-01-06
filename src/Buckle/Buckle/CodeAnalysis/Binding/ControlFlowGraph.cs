@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -133,12 +134,12 @@ internal sealed class ControlFlowGraph {
             if (isEnd)
                 return "<End>";
 
-            using (var writer = new StringWriter()) {
-                foreach (var statement in statements)
-                    statement.WriteTo(writer);
+            var builder = new StringBuilder();
 
-                return writer.ToString();
-            }
+            foreach (var statement in statements)
+                builder.Append(DisplayText.DisplayNode(statement));
+
+            return builder.ToString();
         }
     }
 
