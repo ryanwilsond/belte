@@ -29,5 +29,5 @@ internal sealed partial class BlockStatementSyntax : StatementSyntax {
 
     internal SyntaxToken closeBrace { get; }
 
-    internal override SyntaxKind kind => SyntaxKind.Block;
+    internal override SyntaxKind kind => SyntaxKind.BlockStatement;
 }

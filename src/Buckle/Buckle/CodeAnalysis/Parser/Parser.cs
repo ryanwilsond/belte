@@ -524,7 +524,7 @@ internal sealed class Parser {
             nestedIf = true;
             var interIf = (IfStatementSyntax)inter;
 
-            if (interIf.elseClause != null && interIf.then.kind != SyntaxKind.Block)
+            if (interIf.elseClause != null && interIf.then.kind != SyntaxKind.BlockStatement)
                 invalidElseLocations.Add(interIf.elseClause.keyword.location);
 
             if (interIf.then.kind == SyntaxKind.IfStatement)
@@ -535,7 +535,7 @@ internal sealed class Parser {
 
         var elseClause = ParseElseClause();
 
-        if (elseClause != null && statement.kind != SyntaxKind.Block && nestedIf)
+        if (elseClause != null && statement.kind != SyntaxKind.BlockStatement && nestedIf)
             invalidElseLocations.Add(elseClause.keyword.location);
 
         while (invalidElseLocations.Count > 0) {
@@ -869,18 +869,18 @@ internal sealed class Parser {
         );
     }
 
-    private SeparatedSyntaxList<ExpressionSyntax> ParseArguments() {
+    private SeparatedSyntaxList<ArgumentSyntax> ParseArguments() {
         var nodesAndSeparators = ImmutableArray.CreateBuilder<SyntaxNode>();
         var parseNextArgument = true;
 
         if (current.kind != SyntaxKind.CloseParenToken) {
             while (parseNextArgument && current.kind != SyntaxKind.EndOfFileToken) {
                 if (current.kind != SyntaxKind.CommaToken && current.kind != SyntaxKind.CloseParenToken) {
-                    var expression = ParseNonAssignmentExpression();
-                    nodesAndSeparators.Add(expression);
+                    var argument = ParseArgument();
+                    nodesAndSeparators.Add(argument);
                 } else {
-                    var expression = new EmptyExpressionSyntax(_syntaxTree);
-                    nodesAndSeparators.Add(expression);
+                    var empty = new EmptyExpressionSyntax(_syntaxTree);
+                    nodesAndSeparators.Add(empty);
                 }
 
                 if (current.kind == SyntaxKind.CommaToken) {
@@ -892,7 +892,26 @@ internal sealed class Parser {
             }
         }
 
-        return new SeparatedSyntaxList<ExpressionSyntax>(nodesAndSeparators.ToImmutable());
+        return new SeparatedSyntaxList<ArgumentSyntax>(nodesAndSeparators.ToImmutable());
+    }
+
+    private ArgumentSyntax ParseArgument() {
+        SyntaxToken name = null;
+        SyntaxToken colon = null;
+
+        if (current.kind == SyntaxKind.IdentifierToken) {
+            name = Next();
+            colon = Match(SyntaxKind.ColonToken);
+        }
+
+        ExpressionSyntax expression = null;
+
+        if (current.kind == SyntaxKind.CommaToken || current.kind == SyntaxKind.CloseParenToken)
+            expression = new EmptyExpressionSyntax(_syntaxTree);
+        else
+            expression = ParseExpression();
+
+        return new ArgumentSyntax(_syntaxTree, name, colon, expression);
     }
 
     private SyntaxList<AttributeSyntax> ParseAttributes() {

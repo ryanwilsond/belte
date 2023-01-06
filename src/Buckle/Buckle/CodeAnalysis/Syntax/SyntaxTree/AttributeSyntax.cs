@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// A parameter for a method or function declaration.
+/// An attribute for a type.
 /// </summary>
 internal sealed partial class AttributeSyntax : SyntaxNode {
     /// <param name="identifier">Name of the attribute</param>

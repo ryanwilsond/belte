@@ -19,7 +19,7 @@ internal static class Warning {
     }
 
     internal static BelteDiagnostic UnreachableCode(SyntaxNode node) {
-        if (node.kind == SyntaxKind.Block) {
+        if (node.kind == SyntaxKind.BlockStatement) {
             var firstStatement = ((BlockStatementSyntax)node).statements.FirstOrDefault();
             // Report just for non empty blocks.
             if (firstStatement != null)
