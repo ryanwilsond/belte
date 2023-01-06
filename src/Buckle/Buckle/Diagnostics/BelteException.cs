@@ -25,9 +25,7 @@ internal sealed class BelteInternalException : BelteException {
     public BelteInternalException(string message, Exception inner) : base(CreateMessage(message), inner) { }
 
     private static string CreateMessage(string message) {
-        // ! This will break if any of the GitHub project structure changes
-        // This is a shortcut to the '%20' code for spaces in urls
-        var title = message.Replace(' ', '+');
+        var title = Uri.EscapeDataString(message);
 
         return $"BU0000: {message}\n\n\tClick the following link to report this issue:\n\t" +
             $"https://github.com/ryanwilsond/belte/issues/new?assignees=&labels=&template=bug_report.md&title={title}" +
