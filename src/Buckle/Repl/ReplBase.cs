@@ -12,6 +12,11 @@ namespace Repl;
 /// </summary>
 public abstract class ReplBase {
     /// <summary>
+    /// The width of a tab or '\t' character in spaces.
+    /// </summary>
+    internal const int TabWidth = 4;
+
+    /// <summary>
     /// Handles outputting <see cref="ReplBase" /> text to an out.
     /// </summary>
     internal OutputCapture _writer = new OutputCapture();
@@ -25,8 +30,6 @@ public abstract class ReplBase {
     /// Particular <see cref="ReplBase.DiagnosticHandle" /> used to handle diagnostics in the <see cref="ReplBase" />.
     /// </summary>
     internal DiagnosticHandle diagnosticHandle;
-
-    private const int TabWidth = 4;
 
     private readonly List<string> _submissionHistory = new List<string>();
     private readonly List<MetaCommand> _metaCommands = new List<MetaCommand>();

@@ -1,6 +1,7 @@
-using System.IO;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
 namespace Buckle.CodeAnalysis.Display;
 
@@ -9,82 +10,95 @@ namespace Buckle.CodeAnalysis.Display;
 /// </summary>
 internal static class SymbolDisplay {
     /// <summary>
-    /// Writes a single <see cref="Symbol" />.
+    /// Generates a rich text representation of a single <see cref="Symbol" />.
     /// </summary>
-    /// <param name="symbol"><see cref="Symbol" /> to print (not modified).</param>
-    /// <param name="writer">Where to write to (out).</param>
-    internal static void WriteTo(this Symbol symbol, TextWriter writer) {
+    /// <param name="symbol"><see cref="Symbol" /> to convert to rich text.</param>
+    /// <returns>New <see cref="DisplayText" /> representing the <see cref="Symbol" />.</returns>
+    internal static DisplayText DisplaySymbol(Symbol symbol) {
+        var text = new DisplayText();
+        DisplaySymbol(text, symbol);
+        return text;
+    }
+
+    /// <summary>
+    /// Adds a single <see cref="Symbol" /> to an existing <see cref="DisplayText" />.
+    /// </summary>
+    /// <param name="text"><see cref="DisplayText" /> to add to.</param>
+    /// <param name="symbol"><see cref="Symbol" /> to add (not modified).</param>
+    internal static void DisplaySymbol(DisplayText text, Symbol symbol) {
         switch (symbol.kind) {
             case SymbolKind.Function:
-                WriteFunction((FunctionSymbol)symbol, writer);
+                DisplayFunction(text, (FunctionSymbol)symbol);
                 break;
             case SymbolKind.LocalVariable:
-                WriteLocalVariable((LocalVariableSymbol)symbol, writer);
+                DisplayLocalVariable(text, (LocalVariableSymbol)symbol);
                 break;
             case SymbolKind.GlobalVariable:
-                WriteGlobalVariable((GlobalVariableSymbol)symbol, writer);
+                DisplayGlobalVariable(text, (GlobalVariableSymbol)symbol);
                 break;
             case SymbolKind.Parameter:
-                WriteParameter((ParameterSymbol)symbol, writer);
+                DisplayParameter(text, (ParameterSymbol)symbol);
                 break;
             case SymbolKind.Field:
-                WriteField((FieldSymbol)symbol, writer);
+                DisplayField(text, (FieldSymbol)symbol);
                 break;
             case SymbolKind.Type:
-                WriteType((TypeSymbol)symbol,writer);
+                DisplayType(text, (TypeSymbol)symbol);
                 break;
             default:
                 throw new BelteInternalException($"WriteTo: unexpected symbol '{symbol.kind}'");
         }
     }
 
-    private static void WriteField(FieldSymbol symbol, TextWriter writer) {
-        BoundNodeDisplay.WriteType(symbol.type, writer);
-        writer.WriteSpace();
-        writer.WriteIdentifier(symbol.name);
+    private static void DisplayField(DisplayText text, FieldSymbol symbol) {
+        DisplayText.DisplayNode(text, symbol.type);
+        text.Write(CreateSpace());
+        text.Write(CreateIdentifier(symbol.name));
     }
 
-    private static void WriteType(TypeSymbol symbol, TextWriter writer) {
+    private static void DisplayType(DisplayText text, TypeSymbol symbol) {
         if (symbol is StructSymbol) {
-            writer.WriteKeyword("struct");
-            writer.WriteSpace();
-            writer.WriteIdentifier(symbol.name);
+            text.Write(CreateKeyword(SyntaxKind.StructKeyword));
+            text.Write(CreateSpace());
+            text.Write(CreateIdentifier(symbol.name));
         } else {
-            writer.WriteType(symbol.name);
+            text.Write(CreateType(symbol.name));
         }
     }
 
-    private static void WriteParameter(ParameterSymbol symbol, TextWriter writer) {
-        BoundNodeDisplay.WriteType(symbol.type, writer);
-        writer.WriteSpace();
-        writer.WriteIdentifier(symbol.name);
+    private static void DisplayParameter(DisplayText text, ParameterSymbol symbol) {
+        DisplayText.DisplayNode(text, symbol.type);
+        text.Write(CreateSpace());
+        text.Write(CreateIdentifier(symbol.name));
     }
 
-    private static void WriteGlobalVariable(GlobalVariableSymbol symbol, TextWriter writer) {
-        BoundNodeDisplay.WriteType(symbol.type, writer);
-        writer.WriteSpace();
-        writer.WriteIdentifier(symbol.name);
+    private static void DisplayGlobalVariable(DisplayText text, GlobalVariableSymbol symbol) {
+        DisplayText.DisplayNode(text, symbol.type);
+        text.Write(CreateSpace());
+        text.Write(CreateIdentifier(symbol.name));
     }
 
-    private static void WriteLocalVariable(LocalVariableSymbol symbol, TextWriter writer) {
-        BoundNodeDisplay.WriteType(symbol.type, writer);
-        writer.WriteSpace();
-        writer.WriteIdentifier(symbol.name);
+    private static void DisplayLocalVariable(DisplayText text, LocalVariableSymbol symbol) {
+        DisplayText.DisplayNode(text, symbol.type);
+        text.Write(CreateSpace());
+        text.Write(CreateIdentifier(symbol.name));
     }
 
-    private static void WriteFunction(FunctionSymbol symbol, TextWriter writer) {
-        BoundNodeDisplay.WriteType(symbol.type, writer);
-        writer.WriteSpace();
-        writer.WriteIdentifier(symbol.name);
-        writer.WritePunctuation("(");
+    private static void DisplayFunction(DisplayText text, FunctionSymbol symbol) {
+        DisplayText.DisplayNode(text, symbol.type);
+        text.Write(CreateSpace());
+        text.Write(CreateIdentifier(symbol.name));
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
 
         for (int i=0; i<symbol.parameters.Length; i++) {
-            if (i > 0)
-                writer.WritePunctuation(", ");
+            if (i > 0) {
+                text.Write(CreatePunctuation(SyntaxKind.CommaToken));
+                text.Write(CreateSpace());
+            }
 
-            symbol.parameters[i].WriteTo(writer);
+            DisplaySymbol(text, symbol.parameters[i]);
         }
 
-        writer.WritePunctuation(")");
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 }

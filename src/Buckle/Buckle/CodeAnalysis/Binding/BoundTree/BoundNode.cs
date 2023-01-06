@@ -1,4 +1,3 @@
-using System.IO;
 using Buckle.CodeAnalysis.Display;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -10,9 +9,6 @@ internal abstract class BoundNode {
     internal abstract BoundNodeKind kind { get; }
 
     public override string ToString() {
-        using (var writer = new StringWriter()) {
-            this.WriteTo(writer);
-            return writer.ToString();
-        }
+        return DisplayText.DisplayNode(this).ToString();
     }
 }

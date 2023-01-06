@@ -6,19 +6,6 @@ using Buckle.CodeAnalysis.Text;
 namespace Buckle.CodeAnalysis.Authoring;
 
 /// <summary>
-/// Simplified classification of a <see cref="SyntaxToken" />.
-/// </summary>
-internal enum Classification {
-    Identifier,
-    Keyword,
-    TypeName,
-    Number,
-    String,
-    Comment,
-    Text,
-}
-
-/// <summary>
 /// Classifies parsed SyntaxNodes.
 /// </summary>
 internal static class Classifier {
@@ -106,7 +93,7 @@ internal static class Classifier {
         var isComment = kind.IsComment();
 
         if (isTypeName)
-            return Classification.TypeName;
+            return Classification.Type;
         else if (isKeyword)
             return Classification.Keyword;
         else if (isIdentifier)

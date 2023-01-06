@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Text;
+using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
@@ -85,19 +86,18 @@ internal abstract class SyntaxNode {
     internal abstract IEnumerable<SyntaxNode> GetChildren();
 
     public override string ToString() {
-        using (var writer = new StringWriter()) {
-            WriteTo(writer);
+        var text = new DisplayText();
+        PrettyPrint(text, this);
 
-            return writer.ToString();
-        }
+        return text.ToString();
     }
 
     /// <summary>
     /// Write text representation of this <see cref="SyntaxNode" /> to an out.
     /// </summary>
-    /// <param name="writer">Out.</param>
-    internal void WriteTo(TextWriter writer) {
-        PrettyPrint(writer, this);
+    /// <param name="text">Out.</param>
+    internal void WriteTo(DisplayText text) {
+        PrettyPrint(text, this);
     }
 
     /// <summary>
@@ -111,64 +111,55 @@ internal abstract class SyntaxNode {
         return GetChildren().Last().GetLastToken();
     }
 
-    private void PrettyPrint(TextWriter writer, SyntaxNode node, string indent = "", bool isLast = true) {
-        var isConsoleOut = writer == Console.Out;
+    private void PrettyPrint(DisplayText text, SyntaxNode node, string indent = "", bool isLast = true) {
         var token = node as SyntaxToken;
-
-        if (isConsoleOut)
-            Console.ForegroundColor = ConsoleColor.Red;
 
         if (token != null) {
             foreach (var trivia in token.leadingTrivia) {
-                writer.Write(indent);
-                writer.Write("├─");
-                writer.WriteLine($"Lead: {trivia.kind} [{trivia.span.start}..{trivia.span.end})");
+                text.Write(CreatePunctuation(indent));
+                text.Write(CreatePunctuation("├─"));
+                text.Write(CreateRedNode($"Lead: {trivia.kind} [{trivia.span.start}..{trivia.span.end})"));
+                text.Write(CreateLine());
             }
         }
 
         var hasTrailingTrivia = token != null && token.trailingTrivia.Any();
         var tokenMarker = !hasTrailingTrivia && isLast ? "└─" : "├─";
 
-        if (isConsoleOut)
-            Console.ForegroundColor = ConsoleColor.DarkGray;
+        text.Write(CreatePunctuation($"{indent}{tokenMarker}"));
 
-        writer.Write($"{indent}{tokenMarker}");
-
-        if (isConsoleOut)
-            Console.ForegroundColor = node is SyntaxToken ? ConsoleColor.Green : ConsoleColor.Blue;
-
-        writer.Write(node.kind);
+        if (node is SyntaxToken)
+            text.Write(CreateGreenNode(node.kind.ToString()));
+        else
+            text.Write(CreateBlueNode(node.kind.ToString()));
 
         if (node is SyntaxToken t && t.value != null)
-            writer.Write($" {t.value}");
+            text.Write(CreatePunctuation($" {t.value}"));
 
-        writer.WriteLine($" [{node.span.start}..{node.span.end})");
+        if (node is SyntaxToken) {
+            text.Write(CreateGreenNode($" [{node.span.start}..{node.span.end})"));
+            text.Write(CreateLine());
+        } else {
+            text.Write(CreateBlueNode($" [{node.span.start}..{node.span.end})"));
+            text.Write(CreateLine());
+        }
 
         if (token != null) {
             foreach (var trivia in token.trailingTrivia) {
                 var isLastTrailingTrivia = trivia == token.trailingTrivia.Last();
                 var triviaMarker = isLast && isLastTrailingTrivia ? "└─" : "├─";
 
-                if (isConsoleOut)
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-
-                writer.Write(indent);
-                writer.Write(triviaMarker);
-
-                if (isConsoleOut)
-                    Console.ForegroundColor = ConsoleColor.Red;
-
-                writer.WriteLine($"Trail: {trivia.kind} [{trivia.span.start}..{trivia.span.end})");
+                text.Write(CreatePunctuation(indent));
+                text.Write(CreatePunctuation(triviaMarker));
+                text.Write(CreateRedNode($"Trail: {trivia.kind} [{trivia.span.start}..{trivia.span.end})"));
+                text.Write(CreateLine());
             }
         }
-
-        if (isConsoleOut)
-            Console.ResetColor();
 
         indent += isLast ? "  " : "│ ";
         var lastChild = node.GetChildren().LastOrDefault();
 
         foreach (var child in node.GetChildren())
-            PrettyPrint(writer, child, indent, child == lastChild);
+            PrettyPrint(text, child, indent, child == lastChild);
     }
 }

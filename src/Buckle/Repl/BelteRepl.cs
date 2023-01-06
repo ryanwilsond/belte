@@ -7,6 +7,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Diagnostics;
+using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
 namespace Repl;
 
@@ -87,34 +88,7 @@ public sealed class BelteRepl : ReplBase {
 
         foreach (var classifiedSpan in classifiedSpans) {
             var classifiedText = syntaxTree.text.ToString(classifiedSpan.span);
-            var color = state.colorTheme.@default;
-
-            switch (classifiedSpan.classification) {
-                case Classification.Identifier:
-                    color = state.colorTheme.identifier;
-                    break;
-                case Classification.Number:
-                    color = state.colorTheme.number;
-                    break;
-                case Classification.String:
-                    color = state.colorTheme.@string;
-                    break;
-                case Classification.Comment:
-                    color = state.colorTheme.comment;
-                    break;
-                case Classification.Keyword:
-                    color = state.colorTheme.keyword;
-                    break;
-                case Classification.TypeName:
-                    color = state.colorTheme.typeName;
-                    break;
-                case Classification.Text:
-                    color = state.colorTheme.text;
-                    break;
-                default:
-                    break;
-            }
-
+            var color = GetColorFromClassification(classifiedSpan.classification);
             texts.Add((classifiedText, color));
         }
 
@@ -161,11 +135,17 @@ public sealed class BelteRepl : ReplBase {
     protected override void EvaluateSubmission(string text) {
         var syntaxTree = SyntaxTree.Parse(text);
         var compilation = Compilation.CreateScript(state.previous, syntaxTree);
+        var displayText = new DisplayText();
 
-        if (state.showTree)
-            syntaxTree.root.WriteTo(Console.Out);
-        if (state.showProgram)
-            compilation.EmitTree(Console.Out);
+        if (state.showTree) {
+            syntaxTree.root.WriteTo(displayText);
+            WriteDisplayText(displayText);
+        }
+
+        if (state.showProgram) {
+            compilation.EmitTree(displayText);
+            WriteDisplayText(displayText);
+        }
 
         if (state.showWarnings)
             handle.diagnostics.Move(compilation.diagnostics);
@@ -251,9 +231,38 @@ public sealed class BelteRepl : ReplBase {
         return submissionsFolder;
     }
 
+    private ConsoleColor GetColorFromClassification(Classification classification) {
+        switch (classification) {
+            case Classification.Identifier:
+                return state.colorTheme.identifier;
+            case Classification.Keyword:
+                return state.colorTheme.keyword;
+            case Classification.Type:
+                return state.colorTheme.typeName;
+            case Classification.Number:
+                return state.colorTheme.number;
+            case Classification.String:
+                return state.colorTheme.@string;
+            case Classification.Comment:
+                return state.colorTheme.comment;
+            case Classification.Text:
+                return state.colorTheme.text;
+            case Classification.RedNode:
+                return state.colorTheme.redNode;
+            case Classification.GreenNode:
+                return state.colorTheme.greenNode;
+            case Classification.BlueNode:
+                return state.colorTheme.blueNode;
+            default:
+                return state.colorTheme.@default;
+        }
+    }
+
     private void RenderResult(object value) {
+        var displayText = new DisplayText();
+
         if (value == null) {
-            Console.Out.WritePunctuation("null");
+            displayText.Write(CreatePunctuation("null"));
         } else if (value.GetType().IsArray) {
             _writer.Write("{ ");
             var isFirst = true;
@@ -287,6 +296,8 @@ public sealed class BelteRepl : ReplBase {
         } else {
             _writer.Write(value);
         }
+
+        WriteDisplayText(displayText);
     }
 
     private void SaveSubmission(string text) {
@@ -303,8 +314,11 @@ public sealed class BelteRepl : ReplBase {
     private void LoadSubmissions() {
         var files = Directory.GetFiles(GetSubmissionsDirectory()).OrderBy(f => f).ToArray();
         var keyword = files.Length == 1 ? "submission" : "submissions";
-        Console.Out.WritePunctuation($"loaded {files.Length} {keyword}");
-        _writer.WriteLine();
+
+        var displayText = new DisplayText();
+        displayText.Write(CreatePunctuation($"loaded {files.Length} {keyword}"));
+        displayText.Write(CreateLine());
+        WriteDisplayText(displayText);
 
         var @out = Console.Out;
         Console.SetOut(new StreamWriter(Stream.Null));
@@ -317,6 +331,21 @@ public sealed class BelteRepl : ReplBase {
 
         state.loadingSubmissions = false;
         Console.SetOut(@out);
+    }
+
+    private void WriteDisplayText(DisplayText text) {
+        var segments = text.Flush();
+
+        foreach (var segment in segments) {
+            Console.ForegroundColor = GetColorFromClassification(segment.classification);
+
+            if (segment.classification == Classification.Line)
+                _writer.WriteLine();
+            else if (segment.classification == Classification.Indent)
+                _writer.Write(new String(' ', TabWidth));
+            else
+                _writer.Write(segment.text);
+        }
     }
 
     [MetaCommand("showTree", "Toggle to display parse tree of each input")]
@@ -368,11 +397,14 @@ public sealed class BelteRepl : ReplBase {
     private void EvaluateLs() {
         var compilation = state.previous ?? emptyCompilation;
         var symbols = compilation.GetSymbols().OrderBy(s => s.kind).ThenBy(s => s.name);
+        var displayText = new DisplayText();
 
         foreach (var symbol in symbols) {
-            symbol.WriteTo(Console.Out);
-            _writer.WriteLine();
+            SymbolDisplay.DisplaySymbol(displayText, symbol);
+            displayText.Write(CreateLine());
         }
+
+        WriteDisplayText(displayText);
     }
 
     [MetaCommand("dump", "Show contents of symbol <name>")]
@@ -385,13 +417,15 @@ public sealed class BelteRepl : ReplBase {
                 .ToArray();
 
         Symbol symbol = null;
+        var displayText = new DisplayText();
 
         if (symbols.ToArray().Length == 0 && signature.StartsWith('<')) {
             // This will find hidden function symbols not normally exposed to the user
             // Generated functions should never have overloads, so only the name is checked
             // (as apposed to the entire signature)
             try {
-                compilation.EmitTree(name, Console.Out);
+                compilation.EmitTree(name, displayText);
+                WriteDisplayText(displayText);
                 return;
             } catch (BelteInternalException) { }
         }
@@ -418,7 +452,8 @@ public sealed class BelteRepl : ReplBase {
         }
 
         if (symbol != null) {
-            compilation.EmitTree(symbol, Console.Out);
+            compilation.EmitTree(symbol, displayText);
+            WriteDisplayText(displayText);
             return;
         }
 
@@ -640,12 +675,27 @@ public sealed class BelteRepl : ReplBase {
         /// Color of code text that could not parse.
         /// </summary>
         internal abstract ConsoleColor errorText { get; }
+
+        /// <summary>
+        /// Color of red Nodes.
+        /// </summary>
+        internal abstract ConsoleColor redNode { get; }
+
+        /// <summary>
+        /// Color of green Nodes.
+        /// </summary>
+        internal abstract ConsoleColor greenNode { get; }
+
+        /// <summary>
+        /// Color of blue Nodes.
+        /// </summary>
+        internal abstract ConsoleColor blueNode { get; }
     }
 
     /// <summary>
     /// Dark theme (default). Mostly dark colors and pairs well with dark themed terminals.
     /// </summary>
-    internal sealed class DarkTheme : ColorTheme {
+    internal class DarkTheme : ColorTheme {
         internal override ConsoleColor @default => ConsoleColor.DarkGray;
         internal override ConsoleColor selection => ConsoleColor.DarkGray;
         internal override ConsoleColor textDefault => ConsoleColor.White;
@@ -659,12 +709,15 @@ public sealed class BelteRepl : ReplBase {
         internal override ConsoleColor typeName => ConsoleColor.Blue;
         internal override ConsoleColor text => ConsoleColor.DarkGray;
         internal override ConsoleColor errorText => ConsoleColor.White;
+        internal override ConsoleColor redNode => ConsoleColor.Red;
+        internal override ConsoleColor greenNode => ConsoleColor.Green;
+        internal override ConsoleColor blueNode => ConsoleColor.Blue;
     }
 
     /// <summary>
     /// Light theme. Mostly bright colors and pairs well with light themed terminals.
     /// </summary>
-    internal sealed class LightTheme : ColorTheme {
+    internal class LightTheme : ColorTheme {
         internal override ConsoleColor @default => ConsoleColor.DarkGray;
         internal override ConsoleColor selection => ConsoleColor.DarkGray;
         internal override ConsoleColor textDefault => ConsoleColor.Black;
@@ -678,24 +731,22 @@ public sealed class BelteRepl : ReplBase {
         internal override ConsoleColor typeName => ConsoleColor.DarkBlue;
         internal override ConsoleColor text => ConsoleColor.DarkGray;
         internal override ConsoleColor errorText => ConsoleColor.Black;
+        internal override ConsoleColor redNode => ConsoleColor.Red;
+        internal override ConsoleColor greenNode => ConsoleColor.Green;
+        internal override ConsoleColor blueNode => ConsoleColor.Blue;
     }
 
     /// <summary>
     /// Green theme. Mostly dark colors with green background.
     /// </summary>
-    internal sealed class GreenTheme : ColorTheme {
-        internal override ConsoleColor @default => ConsoleColor.DarkGray;
-        internal override ConsoleColor selection => ConsoleColor.DarkGray;
+    internal sealed class GreenTheme : DarkTheme {
         internal override ConsoleColor textDefault => ConsoleColor.Black;
         internal override ConsoleColor result => ConsoleColor.DarkGreen;
         internal override ConsoleColor background => ConsoleColor.Green;
-        internal override ConsoleColor identifier => ConsoleColor.White;
         internal override ConsoleColor number => ConsoleColor.DarkCyan;
         internal override ConsoleColor @string => ConsoleColor.DarkMagenta;
-        internal override ConsoleColor comment => ConsoleColor.DarkGray;
         internal override ConsoleColor keyword => ConsoleColor.DarkBlue;
         internal override ConsoleColor typeName => ConsoleColor.Red;
-        internal override ConsoleColor text => ConsoleColor.DarkGray;
         internal override ConsoleColor errorText => ConsoleColor.Gray;
     }
 

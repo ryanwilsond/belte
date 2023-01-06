@@ -13,6 +13,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Diagnostics;
+using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 using static Buckle.Utilities.FunctionUtilities;
 
 namespace Buckle.CodeAnalysis;
@@ -174,20 +175,21 @@ public sealed class Compilation {
         return result;
     }
 
+    // TODO Consider moving these methods to an extensions class under the Display namespace
     /// <summary>
     /// Emits the parse tree of the compilation.
     /// </summary>
-    /// <param name="writer">Out.</param>
-    internal void EmitTree(TextWriter writer) {
+    /// <param name="text">Out.</param>
+    internal void EmitTree(DisplayText text) {
         if (globalScope.mainFunction != null) {
-            EmitTree(globalScope.mainFunction, writer);
+            EmitTree(globalScope.mainFunction, text);
         } else if (globalScope.scriptFunction != null) {
-            EmitTree(globalScope.scriptFunction, writer);
+            EmitTree(globalScope.scriptFunction, text);
         } else {
             var program = GetProgram();
 
             foreach (var pair in program.functionBodies.OrderBy(p => p.Key.name))
-                EmitTree(pair.Key, writer);
+                EmitTree(pair.Key, text);
         }
     }
 
@@ -199,72 +201,70 @@ public sealed class Compilation {
     /// <param name="name">
     /// The name of the <see cref="FunctionSymbol" /> to search for and then print. If not found, throws.
     /// </param>
-    /// <param name="writer">Out.</param>
-    internal void EmitTree(string name, TextWriter writer) {
+    /// <param name="text">Out.</param>
+    internal void EmitTree(string name, DisplayText text) {
         var program = GetProgram();
         var pair = LookupMethodFromParentsFromName(program, name);
-        pair.Item1.WriteTo(writer);
-        writer.WriteSpace();
-        pair.Item2.WriteTo(writer);
+        SymbolDisplay.DisplaySymbol(text, pair.Item1);
+        text.Write(CreateSpace());
+        DisplayText.DisplayNode(text, pair.Item2);
     }
 
     /// <summary>
     /// Emits the parse tree of a single <see cref="Symbol" />.
     /// </summary>
     /// <param name="symbol"><see cref="Symbol" /> to be the root of the <see cref="SyntaxTree" /> displayed.</param>
-    /// <param name="writer">Out.</param>
-    internal void EmitTree(Symbol symbol, TextWriter writer) {
+    /// <param name="text">Out.</param>
+    internal void EmitTree(Symbol symbol, DisplayText text) {
         var program = GetProgram();
 
         void WriteStructMembers(StructSymbol @struct, bool writeEnding = true) {
-            var indentedWriter = new IndentedTextWriter(writer);
-
             try {
                 var members = program.structMembers[@struct];
-                indentedWriter.WriteSpace();
-                indentedWriter.WritePunctuation(SyntaxKind.OpenBraceToken);
-                indentedWriter.WriteLine();
-                indentedWriter.Indent++;
+                text.Write(CreateSpace());
+                text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+                text.Write(CreateLine());
+                text.indent++;
 
                 foreach (var field in members) {
-                    field.WriteTo(indentedWriter);
-                    indentedWriter.WriteLine();
+                    SymbolDisplay.DisplaySymbol(text, field);
+                    text.Write(CreateLine());
                 }
 
-                indentedWriter.Indent--;
-                indentedWriter.WritePunctuation(SyntaxKind.CloseBraceToken);
-                indentedWriter.WriteLine();
+                text.indent--;
+                text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
+                text.Write(CreateLine());
             } catch (BelteInternalException) {
                 if (writeEnding) {
-                    indentedWriter.WritePunctuation(SyntaxKind.SemicolonToken);
-                    indentedWriter.WriteLine();
+                    text.Write(CreatePunctuation(SyntaxKind.SemicolonToken));
+                    text.Write(CreateLine());
                 }
             }
         }
 
         if (symbol is FunctionSymbol f) {
-            f.WriteTo(writer);
+            SymbolDisplay.DisplaySymbol(text, f);
 
             try {
                 var body = LookupMethodFromParents(program, f);
-                writer.WriteSpace();
-                body.WriteTo(writer);
+                text.Write(CreateSpace());
+                DisplayText.DisplayNode(text, body);
             } catch (BelteInternalException) {
                 // If the body could not be found, it probably means it is a builtin
                 // In that case only showing the signature is what we want
-                writer.WritePunctuation(SyntaxKind.SemicolonToken);
-                writer.WriteLine();
+                text.Write(CreatePunctuation(SyntaxKind.SemicolonToken));
+                text.Write(CreateLine());
             }
         } else if (symbol is StructSymbol t) {
-            t.WriteTo(writer);
+            SymbolDisplay.DisplaySymbol(text, t);
             WriteStructMembers(t);
         } else if (symbol is VariableSymbol v) {
-            v.WriteTo(writer);
+            SymbolDisplay.DisplaySymbol(text, v);
 
             if (v.type.typeSymbol is StructSymbol s && v.type.dimensions == 0)
                 WriteStructMembers(s);
             else
-                writer.WriteLine();
+                text.Write(CreateLine());
         }
     }
 
