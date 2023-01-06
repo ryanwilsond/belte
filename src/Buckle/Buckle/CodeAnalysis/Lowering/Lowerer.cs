@@ -4,7 +4,6 @@ using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.CodeAnalysis.Syntax;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -280,7 +279,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         if (expression.op.opKind == BoundBinaryOperatorKind.Power) {
             // TODO
-            // * Will do in the StackFrameParser
+            // * Will do in the Blender
             return base.RewriteBinaryExpression(expression);
         }
 

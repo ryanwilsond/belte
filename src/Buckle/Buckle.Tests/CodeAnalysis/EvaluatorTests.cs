@@ -174,7 +174,7 @@ public sealed partial class EvaluatorTests {
     [InlineData("var a = 5; a %= 2; return a;", 1)]
     [InlineData("var a = 5; a ??= 2; return a;", 5)]
     [InlineData("int a = null; a ??= 2; return a;", 2)]
-    // * Will get fixed with StackFrameParser
+    // * Will get fixed with the introduction of the Blender
     // [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return a;", 6)]
     // [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return b;", 5)]
     [InlineData("var a = 3; return a is null;", false)]

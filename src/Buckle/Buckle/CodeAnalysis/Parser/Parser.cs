@@ -208,7 +208,7 @@ internal sealed class Parser {
     }
 
     private bool PeekIsInlineFunctionExpression() {
-        // * Temporary, inlines will be disabled until the StackFrameParser is added
+        // * Temporary, inlines will be disabled until the Blender is added
         return false;
 
         var offset = 1;

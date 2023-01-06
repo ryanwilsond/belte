@@ -28,7 +28,7 @@ internal sealed class Binder {
     private Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> _loopStack =
         new Stack<(BoundLabel breakLabel, BoundLabel continueLabel)>();
     private int _labelCount;
-    // * Temporary, inlines will be disabled until the StackFrameParser is added
+    // * Temporary, inlines will be disabled until the Blender is added
     // private Stack<int> _inlineCounts = new Stack<int>();
     // private int _inlineCount;
 
@@ -995,7 +995,7 @@ internal sealed class Binder {
             case SyntaxKind.RefExpression:
                 return BindReferenceExpression((ReferenceExpressionSyntax)expression);
             case SyntaxKind.InlineFunction:
-                // * Temporary, inlines will be disabled until the StackFrameParser is added
+                // * Temporary, inlines will be disabled until the Blender is added
                 // return BindInlineFunctionExpression((InlineFunctionExpression)expression);
                 goto default;
             case SyntaxKind.CastExpression:
