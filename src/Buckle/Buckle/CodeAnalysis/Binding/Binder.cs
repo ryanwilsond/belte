@@ -41,6 +41,7 @@ internal sealed class Binder {
     private List<string> _resolvedLocals = new List<string>();
     private Dictionary<string, LocalFunctionStatementSyntax> _unresolvedLocals =
         new Dictionary<string, LocalFunctionStatementSyntax>();
+    private string _shadowingVariable;
 
     private Binder(bool isScript, BoundScope parent, FunctionSymbol function) {
         _isScript = isScript;
@@ -532,7 +533,7 @@ internal sealed class Binder {
         var name = identifier.text;
         VariableSymbol reference = null;
 
-        switch (_scope.LookupSymbol(name)) {
+        switch (name == _shadowingVariable ? null : _scope.LookupSymbol(name)) {
             case VariableSymbol variable:
                 reference = variable;
                 break;
@@ -601,7 +602,9 @@ internal sealed class Binder {
             case SyntaxKind.ExpressionStatement:
                 return BindExpressionStatement((ExpressionStatementSyntax)syntax);
             case SyntaxKind.VariableDeclarationStatement:
-                return BindVariableDeclarationStatement((VariableDeclarationStatementSyntax)syntax);
+                var statement = BindVariableDeclarationStatement((VariableDeclarationStatementSyntax)syntax);
+                _shadowingVariable = null;
+                return statement;
             case SyntaxKind.IfStatement:
                 return BindIfStatement((IfStatementSyntax)syntax);
             case SyntaxKind.WhileStatement:
@@ -817,6 +820,7 @@ internal sealed class Binder {
         }
 
         var nullable = type.isNullable;
+        _shadowingVariable = expression.identifier.text;
 
         if (type.isReference || (type.isImplicit && expression.initializer?.kind == SyntaxKind.RefExpression)) {
             var initializer = BindReferenceExpression((ReferenceExpressionSyntax)expression.initializer);
