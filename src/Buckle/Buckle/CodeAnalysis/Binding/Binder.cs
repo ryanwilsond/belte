@@ -564,7 +564,7 @@ internal sealed class Binder {
                 : new LocalVariableSymbol(name, type, constant);
 
         if (declare && !_scope.TryDeclareVariable(variable))
-            diagnostics.Push(Error.VariableAlreadyDeclared(identifier.location, name));
+            diagnostics.Push(Error.VariableAlreadyDeclared(identifier.location, name, type.isConstant));
 
         if (_trackSymbols) {
             foreach (var frame in _trackedDeclarations)
@@ -597,7 +597,7 @@ internal sealed class Binder {
 
     private BoundStatement BindStatementInternal(StatementSyntax syntax) {
         switch (syntax.kind) {
-            case SyntaxKind.Block:
+            case SyntaxKind.BlockStatement:
                 return BindBlockStatement((BlockStatementSyntax)syntax);
             case SyntaxKind.ExpressionStatement:
                 return BindExpressionStatement((ExpressionStatementSyntax)syntax);
@@ -1171,15 +1171,16 @@ internal sealed class Binder {
         var tempDiagnostics = new BelteDiagnosticQueue();
         tempDiagnostics.Move(diagnostics);
 
-        var preBoundArgumentsBuilder = ImmutableArray.CreateBuilder<BoundExpression>();
+        var preBoundArgumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
 
         for (int i=0; i<expression.arguments.count; i++) {
-            var boundArgument = BindExpression(expression.arguments[i]);
+            var argumentName = expression.arguments[i].name?.text;
+            var boundExpression = BindExpression(expression.arguments[i].expression);
 
-            if (boundArgument is BoundEmptyExpression)
-                boundArgument = new BoundLiteralExpression(null);
+            if (boundExpression is BoundEmptyExpression)
+                boundExpression = new BoundLiteralExpression(null);
 
-            preBoundArgumentsBuilder.Add(boundArgument);
+            preBoundArgumentsBuilder.Add((argumentName, boundExpression));
         }
 
         var preBoundArguments = preBoundArgumentsBuilder.ToImmutable();
@@ -1191,6 +1192,7 @@ internal sealed class Binder {
             var score = 0;
             var actualSymbol = symbol;
             var isInner = symbol.name.Contains(">g__");
+            var seenNamed = false;
 
             if (_unresolvedLocals.ContainsKey(innerName) && !_resolvedLocals.Contains(innerName)) {
                 BindLocalFunctionDeclaration(_unresolvedLocals[innerName]);
@@ -1222,7 +1224,7 @@ internal sealed class Binder {
                     if (expression.arguments.count > function.parameters.Length) {
                         SyntaxNode firstExceedingNode;
 
-                        if (function.parameters.Length > 0) {
+                        if (function.parameters.Length > 1) {
                             firstExceedingNode = expression.arguments.GetSeparator(function.parameters.Length - 1);
                         } else {
                             firstExceedingNode = expression.arguments[0].kind == SyntaxKind.EmptyExpression
@@ -1250,11 +1252,16 @@ internal sealed class Binder {
 
             var currentBoundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
 
-            for (int i=0; i<preBoundArguments.Length; i++) {
+            for (int i=0; i<expression.arguments.count; i++) {
                 var argument = preBoundArguments[i];
+
+                if (argument.name != null)
+                    seenNamed = true;
+
                 var parameter = function.parameters[i];
                 var boundArgument = BindCast(
-                    expression.arguments[i].location, argument, parameter.type, out var castType, argument: i + 1
+                    expression.arguments[i].location, argument.expression,
+                    parameter.type, out var castType, argument: i + 1
                 );
 
                 if (castType.isImplicit && !castType.isIdentity)

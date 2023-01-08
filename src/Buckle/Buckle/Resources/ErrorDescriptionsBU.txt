@@ -107,20 +107,6 @@ decimal myDecimal = ~3.4; // But not for decimal types
 ```
 
 A possible fix to this error may be inserting a cast.
-$BU0009
-When the compiler fails to resolve a built-in type when assembling, it produces
-this error. This happens when it cannot find the built-in type. If this happens
-the build is probably broken.
-
-If this problem persists, you can report an issue on the Belte GitHub:
-https://github.com/ryanwilsond/belte/issues/new?assignees=&labels=&template=bug_report.md&title=
-$BU0010
-When the compiler fails to resolve a built-in type when assembling, it produces
-this error. This happens when it finds multiple types for a singular built-in
-type. If this happens the build is probably broken.
-
-If this problem persists, you can report an issue on the Belte GitHub:
-https://github.com/ryanwilsond/belte/issues/new?assignees=&labels=&template=bug_report.md&title=
 $BU0011
 When a binary operator is used with unsupported types, this error is produced.
 
@@ -166,13 +152,6 @@ string Main() {
 This is a callback to how older languages like C handle their entry points with
 the command line. If you are making a library with no entry point, this error
 will not come up.
-$BU0015
-When the compiler fails to resolve certain functions when assembling, it
-produces this error. This happens when the function cannot be found. If this
-happens the build is probably broken.
-
-If this problem persists, you can report an issue on the Belte GitHub:
-https://github.com/ryanwilsond/belte/issues/new?assignees=&labels=&template=bug_report.md&title=
 $BU0016
 When a `Main` function is not declared, files are run top-down. However if a
 `Main` function is declared, global statements are not allowed as it becomes

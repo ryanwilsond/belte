@@ -1,7 +1,13 @@
 
 namespace Buckle.Diagnostics;
 
+/// <summary>
+/// All codes used to represent each possible error and warning uniquely.
+/// </summary>
 internal enum DiagnosticCode : int {
+    // Never modify these codes after a release, as that would break backwards compatibility.
+    // Instead mark unused errors and warnings in the docs, and append new errors and warnings to use new codes.
+
     // 0 is reserved for exceptions
     WRN_AlwaysValue = 1,
     WRN_NullDeference = 2,
@@ -11,13 +17,13 @@ internal enum DiagnosticCode : int {
     ERR_UnexpectedToken = 6,
     ERR_CannotConvertImplicitly = 7,
     ERR_InvalidUnaryOperatorUse = 8,
-    ERR_RequiredTypeNotFound = 9,
-    ERR_RequiredTypeAmbiguous = 10,
+    // ! Unused slot 9
+    // ! Unused slot 10
     ERR_InvalidBinaryOperatorUse = 11,
     ERR_GlobalStatementsInMultipleFiles = 12,
     ERR_ParameterAlreadyDeclared = 13,
     ERR_InvalidMain = 14,
-    ERR_RequiredMethodNotFound = 15,
+    // ! Unused slot 15
     ERR_MainAndGlobals = 16,
     ERR_UndefinedSymbol = 17,
     ERR_MethodAlreadyDeclared = 18,

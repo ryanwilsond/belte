@@ -122,7 +122,7 @@ internal enum SyntaxKind {
     MemberAccessExpression,
 
     // Statements
-    Block,
+    BlockStatement,
     VariableDeclarationStatement,
     ExpressionStatement,
     LocalFunctionStatement,
@@ -158,5 +158,6 @@ internal enum SyntaxKind {
     MethodDeclaration,
 
     // Other
+    Argument,
     EndOfFileToken,
 }
