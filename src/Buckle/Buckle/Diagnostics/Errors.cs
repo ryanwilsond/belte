@@ -1,11 +1,9 @@
-using System.Linq;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Diagnostics;
-using Mono.Cecil;
 
 namespace Buckle.Diagnostics;
 
@@ -113,13 +111,28 @@ internal static class Error {
     }
 
     /// <summary>
+    /// BU0009. Run `buckle --explain BU0009` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic NamedBeforeUnnamed(TextLocation location) {
+        var message = "all named arguments must come after any unnamed arguments";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NamedBeforeUnnamed), location, message);
+    }
+
+    /// <summary>
+    /// BU0010. Run `buckle --explain BU0010` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic NamedArgumentTwice(TextLocation location, string name) {
+        var message = $"named argument '{name}' cannot be specified multiple times";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NamedArgumentTwice), location, message);
+    }
+
+    /// <summary>
     /// BU0011. Run `buckle --explain BU0011` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic InvalidBinaryOperatorUse(
         TextLocation location, string op, BoundType left, BoundType right, bool isCompound) {
         var operatorWord = isCompound ? "compound" : "binary";
         var message = $"{operatorWord} operator '{op}' is not defined for types '{left}' and '{right}'";
-
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidBinaryOperatorUse), location, message);
     }
 
@@ -145,6 +158,16 @@ internal static class Error {
     internal static BelteDiagnostic InvalidMain(TextLocation location) {
         var message = "invalid main signature: must return void or int and take no arguments";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidMain), location, message);
+    }
+
+    /// <summary>
+    /// BU0015. Run `buckle --explain BU0015` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic NoSuchParameter(
+        TextLocation location, string functionName, string parameterName, bool hasOverloads) {
+        var functionWord = hasOverloads ? "the best overload for" : "function";
+        var message = $"{functionWord} '{functionName}' does not have a parameter named '{parameterName}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuchParameter), location, message);
     }
 
     /// <summary>
@@ -262,7 +285,6 @@ internal static class Error {
         TextLocation location, string name, int expected, int actual) {
         var argWord = expected == 1 ? "argument" : "arguments";
         var message = $"function '{name}' expects {expected} {argWord}, got {actual}";
-
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_IncorrectArgumentCount), location, message);
     }
 
@@ -368,7 +390,6 @@ internal static class Error {
     internal static BelteDiagnostic NullAssignOnImplicit(TextLocation location, bool isConstant) {
         var variableWord = isConstant ? "constant" : "variable";
         var message = $"cannot initialize an implicitly-typed {variableWord} with 'null'";
-
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NullAssignOnImplicit), location, message);
     }
 
@@ -378,7 +399,6 @@ internal static class Error {
     internal static BelteDiagnostic EmptyInitializerListOnImplicit(TextLocation location, bool isConstant) {
         var variableWord = isConstant ? "constant" : "variable";
         var message = $"cannot initialize an implicitly-typed {variableWord} with an empty initializer list";
-
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_EmptyInitializerListOnImplicit), location, message);
     }
 
@@ -389,7 +409,6 @@ internal static class Error {
         var variableWord = isConstant ? "constant" : "variable";
         var message = $"collection dimensions on implicitly-typed {variableWord}s are inferred making them not necessary " +
             "in this context";
-
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ImpliedDimensions), location, message);
     }
 
@@ -423,7 +442,6 @@ internal static class Error {
     internal static BelteDiagnostic ReferenceNoInitialization(TextLocation location, bool isConstant) {
         var variableWord = isConstant ? "constant" : "variable";
         var message = $"a declaration of a by-reference {variableWord} must have an initializer";
-
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ReferenceNoInitialization), location, message);
     }
 
@@ -433,7 +451,6 @@ internal static class Error {
     internal static BelteDiagnostic ReferenceWrongInitialization(TextLocation location, bool isConstant) {
         var variableWord = isConstant ? "constant" : "variable";
         var message = $"a by-reference {variableWord} must be initialized with a reference";
-
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ReferenceWrongInitialization), location, message);
     }
 
@@ -443,7 +460,6 @@ internal static class Error {
     internal static BelteDiagnostic WrongInitializationReference(TextLocation location, bool isConstant) {
         var variableWord = isConstant ? "constant" : "variable";
         var message = $"cannot initialize a by-value {variableWord} with a reference";
-
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_WrongInitializationReference), location, message);
     }
 
@@ -461,7 +477,6 @@ internal static class Error {
     internal static BelteDiagnostic NullAssignOnNotNull(TextLocation location, bool isConstant) {
         var variableWord = isConstant ? "constant" : "variable";
         var message = $"cannot assign 'null' to a non-nullable {variableWord}";
-
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NullAssignNotNull), location, message);
     }
 
@@ -472,7 +487,6 @@ internal static class Error {
         var variableWord = isConstant ? "constant" : "variable";
         var message = $"implicitly-typed {variableWord}s infer reference types making the 'ref' keyword not " +
             "necessary in this context";
-
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ImpliedReference), location, message);
     }
 
@@ -483,7 +497,6 @@ internal static class Error {
         var variableWord = isConstant ? "constant" : "variable";
         var message = $"cannot assign a reference to a constant to a by-reference {variableWord} expecting a " +
             "reference to a variable";
-
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ReferenceToConstant), location, message);
     }
 
@@ -587,7 +600,6 @@ internal static class Error {
         var variableWord = isConstant ? "constant" : "variable";
         var message = $"cannot assign a reference to a variable to a by-reference {variableWord} expecting a " +
             "reference to a constant";
-
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstantToNonConstantReference), location, message);
     }
 
@@ -605,6 +617,15 @@ internal static class Error {
     internal static BelteDiagnostic InvalidPostfixUse(TextLocation location, string op, BoundType operand) {
         var message = $"postfix operator '{op}' is not defined for type '{operand}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidPostfixUse), location, message);
+    }
+
+    /// <summary>
+    /// BU0067. Run `buckle --explain BU0067` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic ParameterAlreadySpecified(TextLocation location, string name) {
+        var message = $"named argument '{name}' specifies a parameter for which a positional argument has already " +
+            "been given";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ParameterAlreadySpecified), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

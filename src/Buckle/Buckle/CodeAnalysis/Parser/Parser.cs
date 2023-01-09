@@ -899,7 +899,7 @@ internal sealed class Parser {
         SyntaxToken name = null;
         SyntaxToken colon = null;
 
-        if (current.kind == SyntaxKind.IdentifierToken) {
+        if (current.kind == SyntaxKind.IdentifierToken && Peek(1).kind == SyntaxKind.ColonToken) {
             name = Next();
             colon = Match(SyntaxKind.ColonToken);
         }
@@ -909,7 +909,7 @@ internal sealed class Parser {
         if (current.kind == SyntaxKind.CommaToken || current.kind == SyntaxKind.CloseParenToken)
             expression = new EmptyExpressionSyntax(_syntaxTree);
         else
-            expression = ParseExpression();
+            expression = ParseNonAssignmentExpression();
 
         return new ArgumentSyntax(_syntaxTree, name, colon, expression);
     }

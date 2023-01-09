@@ -344,13 +344,13 @@ internal sealed class Binder {
     private void BindMethodDeclaration(MethodDeclarationSyntax method) {
         var type = BindType(method.returnType);
         var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
-        var seenParametersNames = new HashSet<string>();
+        var seenParameterNames = new HashSet<string>();
 
         foreach (var parameter in method.parameters) {
             var parameterName = parameter.identifier.text;
             var parameterType = BindType(parameter.type);
 
-            if (!seenParametersNames.Add(parameterName)) {
+            if (!seenParameterNames.Add(parameterName)) {
                 diagnostics.Push(Error.ParameterAlreadyDeclared(parameter.location, parameter.identifier.text));
             } else {
                 var boundParameter = new ParameterSymbol(parameterName, parameterType, parameters.Count);
@@ -1172,15 +1172,29 @@ internal sealed class Binder {
         tempDiagnostics.Move(diagnostics);
 
         var preBoundArgumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
+        var seenNames = new HashSet<string>();
 
         for (int i=0; i<expression.arguments.count; i++) {
-            var argumentName = expression.arguments[i].name?.text;
+            var argumentName = expression.arguments[i].name;
+
+            if (i < expression.arguments.count - 1 &&
+                argumentName != null &&
+                expression.arguments[i + 1].name == null) {
+                diagnostics.Push(Error.NamedBeforeUnnamed(argumentName.location));
+                return new BoundErrorExpression();
+            }
+
+            if (argumentName != null && !seenNames.Add(argumentName.text)) {
+                diagnostics.Push(Error.NamedArgumentTwice(argumentName.location, argumentName.text));
+                return new BoundErrorExpression();
+            }
+
             var boundExpression = BindExpression(expression.arguments[i].expression);
 
             if (boundExpression is BoundEmptyExpression)
                 boundExpression = new BoundLiteralExpression(null);
 
-            preBoundArgumentsBuilder.Add((argumentName, boundExpression));
+            preBoundArgumentsBuilder.Add((argumentName?.text, boundExpression));
         }
 
         var preBoundArguments = preBoundArgumentsBuilder.ToImmutable();
@@ -1192,7 +1206,6 @@ internal sealed class Binder {
             var score = 0;
             var actualSymbol = symbol;
             var isInner = symbol.name.Contains(">g__");
-            var seenNamed = false;
 
             if (_unresolvedLocals.ContainsKey(innerName) && !_resolvedLocals.Contains(innerName)) {
                 BindLocalFunctionDeclaration(_unresolvedLocals[innerName]);
@@ -1224,7 +1237,7 @@ internal sealed class Binder {
                     if (expression.arguments.count > function.parameters.Length) {
                         SyntaxNode firstExceedingNode;
 
-                        if (function.parameters.Length > 1) {
+                        if (expression.arguments.count > 1) {
                             firstExceedingNode = expression.arguments.GetSeparator(function.parameters.Length - 1);
                         } else {
                             firstExceedingNode = expression.arguments[0].kind == SyntaxKind.EmptyExpression
@@ -1250,46 +1263,89 @@ internal sealed class Binder {
                 }
             }
 
-            var currentBoundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
+            var rearrangedArguments = new Dictionary<int, int>();
+            var seenParameterNames = new HashSet<string>();
+            var canContinue = true;
 
             for (int i=0; i<expression.arguments.count; i++) {
-                var argument = preBoundArguments[i];
+                var argumentName = preBoundArguments[i].name;
 
-                if (argument.name != null)
-                    seenNamed = true;
+                if (argumentName == null) {
+                    seenParameterNames.Add(function.parameters[i].name);
+                    rearrangedArguments[i] = i;
+                    continue;
+                }
 
-                var parameter = function.parameters[i];
-                var boundArgument = BindCast(
-                    expression.arguments[i].location, argument.expression,
-                    parameter.type, out var castType, argument: i + 1
-                );
+                int? destinationIndex = null;
 
-                if (castType.isImplicit && !castType.isIdentity)
-                    score++;
+                for (int j=0; j<expression.arguments.count; j++) {
+                    if (function.parameters[j].name == argumentName) {
+                        if (!seenParameterNames.Add(argumentName)) {
+                            diagnostics.Push(
+                                Error.ParameterAlreadySpecified(expression.arguments[i].name.location, argumentName)
+                            );
+                            canContinue = false;
+                        } else {
+                            destinationIndex = j;
+                        }
 
-                currentBoundArguments.Add(boundArgument);
+                        break;
+                    }
+                }
+
+                if (!canContinue)
+                    break;
+
+                if (!destinationIndex.HasValue) {
+                    diagnostics.Push(Error.NoSuchParameter(
+                        expression.arguments[i].name.location, name,
+                        expression.arguments[i].name.text, symbols.Length > 1
+                    ));
+
+                    canContinue = false;
+                } else {
+                    rearrangedArguments[destinationIndex.Value] = i;
+                }
             }
 
-            if (isInner) {
-                // No need to worry about currentBoundArguments because generated inlines never have overloads
-                if (symbols.Length != 1)
-                    throw new BelteInternalException("BindCallExpression: overloaded inline");
+            var currentBoundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
 
-                for (int i=expression.arguments.count; i<function.parameters.Length; i++) {
+            if (canContinue) {
+                for (int i=0; i<expression.arguments.count; i++) {
+                    var argument = preBoundArguments[rearrangedArguments[i]];
                     var parameter = function.parameters[i];
-
-                    var oldTrackSymbols = _trackSymbols;
-                    _trackSymbols = false;
-
-                    // var argument = SyntaxFactory.Name(parameter.name.Substring(1));
-                    var argument = new NameExpressionSyntax(null, new SyntaxToken(
-                        null, SyntaxKind.IdentifierToken, -1, parameter.name.Substring(1), null,
-                        ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty)
+                    var boundArgument = BindCast(
+                        expression.arguments[i].location, argument.expression,
+                        parameter.type, out var castType, argument: i + 1
                     );
 
-                    _trackSymbols = oldTrackSymbols;
-                    var boundArgument = BindCast(null, BindExpression(argument), parameter.type);
-                    boundArguments.Add(boundArgument);
+                    if (castType.isImplicit && !castType.isIdentity)
+                        score++;
+
+                    currentBoundArguments.Add(boundArgument);
+                }
+
+                if (isInner) {
+                    // No need to worry about currentBoundArguments because generated inlines never have overloads
+                    if (symbols.Length != 1)
+                        throw new BelteInternalException("BindCallExpression: overloaded inline");
+
+                    for (int i=expression.arguments.count; i<function.parameters.Length; i++) {
+                        var parameter = function.parameters[i];
+
+                        var oldTrackSymbols = _trackSymbols;
+                        _trackSymbols = false;
+
+                        // var argument = SyntaxFactory.Name(parameter.name.Substring(1));
+                        var argument = new NameExpressionSyntax(null, new SyntaxToken(
+                            null, SyntaxKind.IdentifierToken, -1, parameter.name.Substring(1), null,
+                            ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty)
+                        );
+
+                        _trackSymbols = oldTrackSymbols;
+                        var boundArgument = BindCast(null, BindExpression(argument), parameter.type);
+                        boundArguments.Add(boundArgument);
+                    }
                 }
             }
 

@@ -17,13 +17,13 @@ internal enum DiagnosticCode : int {
     ERR_UnexpectedToken = 6,
     ERR_CannotConvertImplicitly = 7,
     ERR_InvalidUnaryOperatorUse = 8,
-    // ! Unused slot 9
-    // ! Unused slot 10
+    ERR_NamedBeforeUnnamed = 9,
+    ERR_NamedArgumentTwice = 10,
     ERR_InvalidBinaryOperatorUse = 11,
     ERR_GlobalStatementsInMultipleFiles = 12,
     ERR_ParameterAlreadyDeclared = 13,
     ERR_InvalidMain = 14,
-    // ! Unused slot 15
+    ERR_NoSuchParameter = 15,
     ERR_MainAndGlobals = 16,
     ERR_UndefinedSymbol = 17,
     ERR_MethodAlreadyDeclared = 18,
@@ -76,6 +76,7 @@ internal enum DiagnosticCode : int {
     ERR_ConstantToNonConstantReference = 64,
     ERR_InvalidPrefixUse = 65,
     ERR_InvalidPostfixUse = 66,
+    ERR_ParameterAlreadySpecified = 67,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

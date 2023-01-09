@@ -107,6 +107,33 @@ decimal myDecimal = ~3.4; // But not for decimal types
 ```
 
 A possible fix to this error may be inserting a cast.
+$BU0009
+When calling a function, some arguments can reference parameters by name instead
+of by ordinal. However, all arguments referencing by name must come after any
+arguments referencing by ordinal. This is not because the compiler cannot figure
+out the intention, but rather it makes confusing code and is bad practice.
+
+For example:
+
+```
+void MyFunction(int x, int y) { }
+
+MyFunction(x: 1, 2); // Named argument before unnamed argument, not allowed
+MyFunction(1, y: 2); // Allowed
+```
+$BU0010
+When calling a function, some arguments can reference parameters by name instead
+of by ordinal. However, similar to naming parameters, each name can only be used
+once to prevent ambiguity between parameters.
+
+For example:
+
+```
+void MyFunction(int x, int y) { }
+
+MyFunction(1, y: 2, y: 3); // `y` specified twice, not allowed
+MyFunction(1, y: 2) // Allowed
+```
 $BU0011
 When a binary operator is used with unsupported types, this error is produced.
 
@@ -1073,6 +1100,18 @@ myBool++; // But not for decimal types
 ```
 
 A possible fix to this error may be inserting a cast.
+$BU0067
+When using an argument that references a parameter by name and the parameter has
+already been referenced by position, this error is thrown.
+
+For example:
+
+```
+void MyFunction(int x, int y) { }
+
+MyFunction(1, x: 2); // `x` was already specified by position by the first argument, so it is a duplicate; not allowed
+MyFunction(1, 2); // Allowed
+```
 $BU9000
 Inside a global scope without a `Main` function, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it
