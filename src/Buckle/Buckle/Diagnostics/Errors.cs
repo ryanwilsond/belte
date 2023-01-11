@@ -283,9 +283,15 @@ internal static class Error {
     /// BU0029. Run `buckle --explain BU0029` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic IncorrectArgumentCount(
-        TextLocation location, string name, int expected, int actual) {
+        TextLocation location, string name, int expected, int defaultExpected, int actual) {
         var argWord = expected == 1 ? "argument" : "arguments";
-        var message = $"function '{name}' expects {expected} {argWord}, got {actual}";
+        var expectWord = defaultExpected == 0
+            ? "expects"
+            : actual < expected - defaultExpected ? "expects at least" : "expects at most";
+
+        var expectedNumber = actual < expected - defaultExpected ? expected - defaultExpected : expected;
+        var message = $"function '{name}' {expectWord} {expectedNumber} {argWord}, got {actual}";
+
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_IncorrectArgumentCount), location, message);
     }
 

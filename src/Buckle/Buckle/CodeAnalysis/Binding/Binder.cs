@@ -1277,8 +1277,9 @@ internal sealed class Binder {
 
                     var location = new TextLocation(expression.syntaxTree.text, span);
                     diagnostics.Push(Error.IncorrectArgumentCount(
-                        location, function.name, function.parameters.Length, expression.arguments.count)
-                    );
+                        location, function.name, function.parameters.Length,
+                        defaultParameterCount, expression.arguments.count
+                    ));
 
                     continue;
                 }
