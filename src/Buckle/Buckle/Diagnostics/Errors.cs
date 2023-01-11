@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -519,9 +520,13 @@ internal static class Error {
     /// <summary>
     /// BU0056. Run `buckle --explain BU0056` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic ExpectedToken(TextLocation location, SyntaxKind type) {
-        var message = $"expected {DiagnosticText(type)}";
+    internal static BelteDiagnostic ExpectedToken(TextLocation location, string name) {
+        var message = $"expected {name}";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedToken), location, message);
+    }
+
+    internal static BelteDiagnostic ExpectedToken(TextLocation location, SyntaxKind type) {
+        return ExpectedToken(location, DiagnosticText(type));
     }
 
     /// <summary>
@@ -626,6 +631,22 @@ internal static class Error {
         var message = $"named argument '{name}' specifies a parameter for which a positional argument has already " +
             "been given";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ParameterAlreadySpecified), location, message);
+    }
+
+    /// <summary>
+    /// BU0068. Run `buckle --explain BU0068` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic DefaultMustBeConstant(TextLocation location) {
+        var message = "default values for parameters must be compile-time constants";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_DefaultMustBeConstant), location, message);
+    }
+
+    /// <summary>
+    /// BU0069. Run `buckle --explain BU0069` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic DefaultBeforeNoDefault(TextLocation location) {
+        var message = "all optional parameters must be specified after any required parameters";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_DefaultBeforeNoDefault), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

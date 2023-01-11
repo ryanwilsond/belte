@@ -229,7 +229,10 @@ internal sealed class Binder {
                         ? parameter.name.Substring(1)
                         : parameter.name;
 
-                    var newParameter = new ParameterSymbol(name, parameter.type, parameter.ordinal);
+                    var newParameter = new ParameterSymbol(
+                        name, parameter.type, parameter.ordinal, parameter.defaultValue
+                    );
+
                     newParameters.Add(newParameter);
                 }
 
@@ -346,14 +349,30 @@ internal sealed class Binder {
         var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
         var seenParameterNames = new HashSet<string>();
 
-        foreach (var parameter in method.parameters) {
+        for (int i=0; i<method.parameters.count; i++) {
+            var parameter = method.parameters[i];
             var parameterName = parameter.identifier.text;
             var parameterType = BindType(parameter.type);
+            var boundDefault = parameter.defaultValue == null
+                ? null
+                : BindExpression(parameter.defaultValue);
+
+            if (boundDefault != null && boundDefault.constantValue == null) {
+                diagnostics.Push(Error.DefaultMustBeConstant(parameter.defaultValue.location));
+                continue;
+            }
+
+            if (boundDefault != null &&
+                i < method.parameters.count - 1 &&
+                method.parameters[i + 1].defaultValue == null) {
+                diagnostics.Push(Error.DefaultBeforeNoDefault(parameter.location));
+                continue;
+            }
 
             if (!seenParameterNames.Add(parameterName)) {
                 diagnostics.Push(Error.ParameterAlreadyDeclared(parameter.location, parameter.identifier.text));
             } else {
-                var boundParameter = new ParameterSymbol(parameterName, parameterType, parameters.Count);
+                var boundParameter = new ParameterSymbol(parameterName, parameterType, parameters.Count, boundDefault);
                 parameters.Add(boundParameter);
             }
         }
@@ -418,7 +437,7 @@ internal sealed class Binder {
             if (declaredVariables.Contains(variable) || parameters.Contains(variable))
                 continue;
 
-            var parameter = new ParameterSymbol($"${variable.name}", variable.type, ordinal++);
+            var parameter = new ParameterSymbol($"${variable.name}", variable.type, ordinal++, null);
             parameters.Add(parameter);
         }
 
@@ -1197,7 +1216,6 @@ internal sealed class Binder {
             preBoundArgumentsBuilder.Add((argumentName?.text, boundExpression));
         }
 
-        var preBoundArguments = preBoundArgumentsBuilder.ToImmutable();
         var minScore = Int32.MaxValue;
         var possibleOverloads = new List<FunctionSymbol>();
 
@@ -1221,7 +1239,10 @@ internal sealed class Binder {
                 return new BoundErrorExpression();
             }
 
-            if (expression.arguments.count != function.parameters.Length) {
+            var defaultParameterCount = function.parameters.Where(p => p.defaultValue != null).ToArray().Length;
+
+            if (expression.arguments.count < function.parameters.Length - defaultParameterCount ||
+                expression.arguments.count > function.parameters.Length) {
                 var count = 0;
 
                 if (isInner) {
@@ -1268,7 +1289,7 @@ internal sealed class Binder {
             var canContinue = true;
 
             for (int i=0; i<expression.arguments.count; i++) {
-                var argumentName = preBoundArguments[i].name;
+                var argumentName = preBoundArgumentsBuilder[i].name;
 
                 if (argumentName == null) {
                     seenParameterNames.Add(function.parameters[i].name);
@@ -1278,7 +1299,7 @@ internal sealed class Binder {
 
                 int? destinationIndex = null;
 
-                for (int j=0; j<expression.arguments.count; j++) {
+                for (int j=0; j<function.parameters.Length; j++) {
                     if (function.parameters[j].name == argumentName) {
                         if (!seenParameterNames.Add(argumentName)) {
                             diagnostics.Push(
@@ -1308,14 +1329,28 @@ internal sealed class Binder {
                 }
             }
 
+            for (int i=0; i<function.parameters.Length; i++) {
+                var parameter = function.parameters[i];
+
+                if (seenParameterNames.Add(parameter.name) && parameter.defaultValue != null) {
+                    rearrangedArguments[i] = preBoundArgumentsBuilder.Count;
+                    // The name is not actually required here, but could be helpful during debugging; no harm
+                    preBoundArgumentsBuilder.Add((parameter.name, parameter.defaultValue));
+                }
+            }
+
+            var preBoundArguments = preBoundArgumentsBuilder.ToImmutable();
             var currentBoundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
 
             if (canContinue) {
-                for (int i=0; i<expression.arguments.count; i++) {
+                for (int i=0; i<preBoundArguments.Length; i++) {
                     var argument = preBoundArguments[rearrangedArguments[i]];
                     var parameter = function.parameters[i];
+                    // If this evaluates to null, it means that there was a default value automatically passed in
+                    var location = i >= expression.arguments.count ? null : expression.arguments[i].location;
+
                     var boundArgument = BindCast(
-                        expression.arguments[i].location, argument.expression,
+                        location, argument.expression,
                         parameter.type, out var castType, argument: i + 1
                     );
 

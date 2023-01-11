@@ -264,6 +264,12 @@ public sealed partial class EvaluatorTests {
     [InlineData("HasValue(3);", true)]
     [InlineData("HasValue(null);", false)]
     [InlineData("Value(\"test\");", "test")]
+    [InlineData("Print(text: \"test\");", null)]
+    [InlineData("int F(int a, int b, int c) { return a + b * c; } return F(b: 3, c: 2, a: 9);", 15)]
+    [InlineData("int F(int a = 3) { return a; } return F(5);", 5)]
+    [InlineData("int F(int a = 3) { return a; } return F();", 3)]
+    [InlineData("int F(int a, int b, int c = 6) { return a + b * c; } return F(b: 3, c: 2, a: 9);", 15)]
+    [InlineData("int F(int a, int b, int c = 6) { return a + b * c; } return F(b: 3, a: 9);", 27)]
     // Cast expressions
     [InlineData("(decimal)3;", 3)]
     [InlineData("(int)3.4;", 3)]
@@ -276,10 +282,10 @@ public sealed partial class EvaluatorTests {
     [InlineData("int a = 5; { a = 3; } return a;", 3)]
     [InlineData("int a = 5; { int b = 3 + a; return b; } return a;", 8)]
     // Local function statements
-    [InlineData("int funcA() { int funcB() { return 2; } return funcB() + 1; } return funcA(); ", 3)]
-    [InlineData("int funcA() { int funcB() { int funcA() { return 2; } return funcA() + 1; } return funcB() + 1; } return funcA();", 4)]
-    [InlineData("int funcA() { int a = 1; int funcB(int b) { return a + b; } return funcB(4); } return funcA(); ", 5)]
-    [InlineData("int funcA() { int a = 5; int funcB(int b) { return a + b; } return funcB(1); } return funcA(); ", 6)]
+    [InlineData("int A() { int B() { return 2; } return B() + 1; } return A(); ", 3)]
+    [InlineData("int A() { int B() { int A() { return 2; } return A() + 1; } return B() + 1; } return A();", 4)]
+    [InlineData("int A() { int a = 1; int B(int b) { return a + b; } return B(4); } return A(); ", 5)]
+    [InlineData("int A() { int a = 5; int B(int b) { return a + b; } return B(1); } return A(); ", 6)]
     // Member access expressions
     [InlineData("struct A { int num; } A myVar = A(); myVar.num = 3; return myVar.num + 1;", 4)]
     [InlineData("struct A { int num; } struct B { A a; } B myVar = B(); myVar.a = A(); myVar.a.num = 3; return myVar.a.num + 1;", 4)]
@@ -303,10 +309,10 @@ public sealed partial class EvaluatorTests {
     [InlineData("int result = 3; while (true) { result++; if (result == 5) break; } return result;", 5)]
     [InlineData("int result = 3; while (true) { result++; if (result > 5) break; } return result;", 6)]
     // Continue statements
-    [InlineData("var condition = false; int result = 3; while (true) { if (condition) continue; else break; result = 4; } return result;", 3)]
-    [InlineData("var condition = false; int result = 3; while (true) { if (condition) continue; result = 4; if (result == 4) break; } return result;", 4)]
-    [InlineData("var condition = true; int result = 3; while (true) { if (condition) ; else continue; result = 4; if (result == 4) break; } return result;", 4)]
-    [InlineData("var condition = true; int result = 3; while (true) { if (condition) break; else continue; result = 4; } return result;", 3)]
+    [InlineData("var cond = false; int res = 3; while (true) { if (cond) continue; else break; res = 4; } return res;", 3)]
+    [InlineData("var cond = false; int res = 3; while (true) { if (cond) continue; res = 4; if (res == 4) break; } return res;", 4)]
+    [InlineData("var cond = true; int res = 3; while (true) { if (cond) ; else continue; res = 4; if (res == 4) break; } return res;", 4)]
+    [InlineData("var cond = true; int res = 3; while (true) { if (cond) break; else continue; res = 4; } return res;", 3)]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
         AssertValue(text, expectedValue);
     }

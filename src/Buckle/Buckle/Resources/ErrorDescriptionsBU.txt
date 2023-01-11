@@ -1112,6 +1112,32 @@ void MyFunction(int x, int y) { }
 MyFunction(1, x: 2); // `x` was already specified by position by the first argument, so it is a duplicate; not allowed
 MyFunction(1, 2); // Allowed
 ```
+$BU0068
+When creating an optional parameter while declaring a function, the default
+value must be a compile-time constant, as in it needs to be computable during
+compilation. This is so the compiler can accurately place in the default value
+when the optional parameter is not specified during a call expression whilst
+preventing side effects.
+
+For example:
+
+```
+void MyFunction(string x = Input()); // `Input()` requires input from the user, so it is not constant and the compile cannot compute it; not allowed
+void MyFunction(string x = "Test"); // `"Test"` is constant; allowed
+```
+$BU0069
+Because optional parameters do not need to be specified, but required ones do,
+all required parameters must come before any optional parameters. This is
+because intermixing the two while referencing parameters by position would
+require the user to specify optional parameters to reach the required ones,
+making them not optional.
+
+For example:
+
+```
+void MyFunction(int x, int y = 3, int z); // To get to the required parameter `z` by position, the user would have to specify `y` making it required; not allowed
+void MyFunction(int x, int y, int z = 3); // Allowed
+```
 $BU9000
 Inside a global scope without a `Main` function, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it

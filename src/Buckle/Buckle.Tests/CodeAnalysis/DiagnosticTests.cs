@@ -868,6 +868,45 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
+    public void Evaluator_Reports_Error_BU0067_ParameterAlreadySpecified() {
+        var text = @"
+            Print(x: 2, [x]: 2);
+        ";
+
+        var diagnostics = @"
+            named argument 'x' cannot be specified multiple times
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Reports_Error_BU0068_DefaultMustBeConstant() {
+        var text = @"
+            void MyFunc(int a = [Input()]) { }
+        ";
+
+        var diagnostics = @"
+            default values for parameters must be compile-time constants
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Reports_Error_BU0069_DefaultBeforeNoDefault() {
+        var text = @"
+            void MyFunc([int a = 3], int b) { }
+        ";
+
+        var diagnostics = @"
+            all optional parameters must be specified after any required parameters
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
     public void Evaluator_Reports_Error_Unsupported_BU9004_CannotInitialize() {
         var text = @"
             struct A {
