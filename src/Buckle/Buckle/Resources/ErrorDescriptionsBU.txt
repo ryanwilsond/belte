@@ -108,19 +108,32 @@ decimal myDecimal = ~3.4; // But not for decimal types
 
 A possible fix to this error may be inserting a cast.
 $BU0009
-When the compiler fails to resolve a built-in type when assembling, it produces
-this error. This happens when it cannot find the built-in type. If this happens
-the build is probably broken.
+When calling a function, some arguments can reference parameters by name instead
+of by ordinal. However, all arguments referencing by name must come after any
+arguments referencing by ordinal. This is not because the compiler cannot figure
+out the intention, but rather it makes confusing code and is bad practice.
 
-If this problem persists, you can report an issue on the Belte GitHub:
-https://github.com/ryanwilsond/belte/issues/new?assignees=&labels=&template=bug_report.md&title=
+For example:
+
+```
+void MyFunction(int x, int y) { }
+
+MyFunction(x: 1, 2); // Named argument before unnamed argument, not allowed
+MyFunction(1, y: 2); // Allowed
+```
 $BU0010
-When the compiler fails to resolve a built-in type when assembling, it produces
-this error. This happens when it finds multiple types for a singular built-in
-type. If this happens the build is probably broken.
+When calling a function, some arguments can reference parameters by name instead
+of by ordinal. However, similar to naming parameters, each name can only be used
+once to prevent ambiguity between parameters.
 
-If this problem persists, you can report an issue on the Belte GitHub:
-https://github.com/ryanwilsond/belte/issues/new?assignees=&labels=&template=bug_report.md&title=
+For example:
+
+```
+void MyFunction(int x, int y) { }
+
+MyFunction(1, y: 2, y: 3); // `y` specified twice, not allowed
+MyFunction(1, y: 2) // Allowed
+```
 $BU0011
 When a binary operator is used with unsupported types, this error is produced.
 
@@ -166,13 +179,6 @@ string Main() {
 This is a callback to how older languages like C handle their entry points with
 the command line. If you are making a library with no entry point, this error
 will not come up.
-$BU0015
-When the compiler fails to resolve certain functions when assembling, it
-produces this error. This happens when the function cannot be found. If this
-happens the build is probably broken.
-
-If this problem persists, you can report an issue on the Belte GitHub:
-https://github.com/ryanwilsond/belte/issues/new?assignees=&labels=&template=bug_report.md&title=
 $BU0016
 When a `Main` function is not declared, files are run top-down. However if a
 `Main` function is declared, global statements are not allowed as it becomes
@@ -1094,6 +1100,44 @@ myBool++; // But not for decimal types
 ```
 
 A possible fix to this error may be inserting a cast.
+$BU0067
+When using an argument that references a parameter by name and the parameter has
+already been referenced by position, this error is thrown.
+
+For example:
+
+```
+void MyFunction(int x, int y) { }
+
+MyFunction(1, x: 2); // `x` was already specified by position by the first argument, so it is a duplicate; not allowed
+MyFunction(1, 2); // Allowed
+```
+$BU0068
+When creating an optional parameter while declaring a function, the default
+value must be a compile-time constant, as in it needs to be computable during
+compilation. This is so the compiler can accurately place in the default value
+when the optional parameter is not specified during a call expression whilst
+preventing side effects.
+
+For example:
+
+```
+void MyFunction(string x = Input()); // `Input()` requires input from the user, so it is not constant and the compile cannot compute it; not allowed
+void MyFunction(string x = "Test"); // `"Test"` is constant; allowed
+```
+$BU0069
+Because optional parameters do not need to be specified, but required ones do,
+all required parameters must come before any optional parameters. This is
+because intermixing the two while referencing parameters by position would
+require the user to specify optional parameters to reach the required ones,
+making them not optional.
+
+For example:
+
+```
+void MyFunction(int x, int y = 3, int z); // To get to the required parameter `z` by position, the user would have to specify `y` making it required; not allowed
+void MyFunction(int x, int y, int z = 3); // Allowed
+```
 $BU9000
 Inside a global scope without a `Main` function, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it

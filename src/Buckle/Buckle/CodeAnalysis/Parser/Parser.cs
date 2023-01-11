@@ -14,6 +14,7 @@ internal sealed class Parser {
     private readonly SourceText _text;
     private readonly SyntaxTree _syntaxTree;
     private int _position;
+    private bool _expectParenthesis;
 
     /// <summary>
     /// Creates a new <see cref="Parser" />, requiring a fully initialized <see cref="SyntaxTree" />.
@@ -27,6 +28,7 @@ internal sealed class Parser {
         SyntaxToken token;
         _text = syntaxTree.text;
         _syntaxTree = syntaxTree;
+        _expectParenthesis = false;
 
         do {
             token = lexer.LexNext();
@@ -85,6 +87,9 @@ internal sealed class Parser {
     }
 
     private SyntaxToken Match(SyntaxKind kind, SyntaxKind? nextWanted = null) {
+        if (nextWanted == null && _expectParenthesis)
+            nextWanted = SyntaxKind.CloseParenToken;
+
         if (current.kind == kind)
             return Next();
 
@@ -125,13 +130,21 @@ internal sealed class Parser {
     }
 
     private bool PeekIsFunctionDeclaration() {
+        // TODO Rewrite this so it does not look at the entire source until an EOF
         if (PeekIsType(0, out var offset, out var hasName)) {
             if (hasName)
                 offset++;
 
             if (Peek(offset).kind == SyntaxKind.OpenParenToken) {
+                var parenthesisStack = 0;
+
                 while (Peek(offset).kind != SyntaxKind.EndOfFileToken) {
-                    if (Peek(offset).kind == SyntaxKind.CloseParenToken) {
+                    if (Peek(offset).kind == SyntaxKind.OpenParenToken)
+                        parenthesisStack++;
+                    else if (Peek(offset).kind == SyntaxKind.CloseParenToken)
+                        parenthesisStack--;
+
+                    if (Peek(offset).kind == SyntaxKind.CloseParenToken && parenthesisStack == 0) {
                         if (Peek(offset+1).kind == SyntaxKind.OpenBraceToken)
                             return true;
                         else
@@ -320,7 +333,15 @@ internal sealed class Parser {
         var type = ParseType(false);
         var identifier = Match(SyntaxKind.IdentifierToken);
 
-        return new ParameterSyntax(_syntaxTree, type, identifier);
+        SyntaxToken equals = null;
+        ExpressionSyntax defaultValue = null;
+
+        if (current.kind == SyntaxKind.EqualsToken) {
+            equals = Next();
+            defaultValue = ParseNonAssignmentExpression();
+        }
+
+        return new ParameterSyntax(_syntaxTree, type, identifier, equals, defaultValue);
     }
 
     private SyntaxList<MemberSyntax> ParseFieldList() {
@@ -524,7 +545,7 @@ internal sealed class Parser {
             nestedIf = true;
             var interIf = (IfStatementSyntax)inter;
 
-            if (interIf.elseClause != null && interIf.then.kind != SyntaxKind.Block)
+            if (interIf.elseClause != null && interIf.then.kind != SyntaxKind.BlockStatement)
                 invalidElseLocations.Add(interIf.elseClause.keyword.location);
 
             if (interIf.then.kind == SyntaxKind.IfStatement)
@@ -535,7 +556,7 @@ internal sealed class Parser {
 
         var elseClause = ParseElseClause();
 
-        if (elseClause != null && statement.kind != SyntaxKind.Block && nestedIf)
+        if (elseClause != null && statement.kind != SyntaxKind.BlockStatement && nestedIf)
             invalidElseLocations.Add(elseClause.keyword.location);
 
         while (invalidElseLocations.Count > 0) {
@@ -643,7 +664,10 @@ internal sealed class Parser {
         if (current.kind == SyntaxKind.SemicolonToken)
             return ParseEmptyExpression();
 
-        return ParseOperatorExpression();
+        _expectParenthesis = true;
+        var value = ParseOperatorExpression();
+        _expectParenthesis = false;
+        return value;
     }
 
     private ExpressionSyntax ParseExpression() {
@@ -848,7 +872,12 @@ internal sealed class Parser {
     }
 
     private ExpressionSyntax ParseNameExpression() {
-        var identifier = Match(SyntaxKind.IdentifierToken);
+        SyntaxToken identifier = Token(_syntaxTree, SyntaxKind.IdentifierToken, current.position);
+
+        if (current.kind == SyntaxKind.IdentifierToken)
+            identifier = Next();
+        else
+            diagnostics.Push(Error.ExpectedToken(current.location, "expression"));
 
         return new NameExpressionSyntax(_syntaxTree, identifier);
     }
@@ -869,18 +898,18 @@ internal sealed class Parser {
         );
     }
 
-    private SeparatedSyntaxList<ExpressionSyntax> ParseArguments() {
+    private SeparatedSyntaxList<ArgumentSyntax> ParseArguments() {
         var nodesAndSeparators = ImmutableArray.CreateBuilder<SyntaxNode>();
         var parseNextArgument = true;
 
         if (current.kind != SyntaxKind.CloseParenToken) {
             while (parseNextArgument && current.kind != SyntaxKind.EndOfFileToken) {
                 if (current.kind != SyntaxKind.CommaToken && current.kind != SyntaxKind.CloseParenToken) {
-                    var expression = ParseNonAssignmentExpression();
-                    nodesAndSeparators.Add(expression);
+                    var argument = ParseArgument();
+                    nodesAndSeparators.Add(argument);
                 } else {
-                    var expression = new EmptyExpressionSyntax(_syntaxTree);
-                    nodesAndSeparators.Add(expression);
+                    var empty = new EmptyExpressionSyntax(_syntaxTree);
+                    nodesAndSeparators.Add(empty);
                 }
 
                 if (current.kind == SyntaxKind.CommaToken) {
@@ -892,7 +921,26 @@ internal sealed class Parser {
             }
         }
 
-        return new SeparatedSyntaxList<ExpressionSyntax>(nodesAndSeparators.ToImmutable());
+        return new SeparatedSyntaxList<ArgumentSyntax>(nodesAndSeparators.ToImmutable());
+    }
+
+    private ArgumentSyntax ParseArgument() {
+        SyntaxToken name = null;
+        SyntaxToken colon = null;
+
+        if (current.kind == SyntaxKind.IdentifierToken && Peek(1).kind == SyntaxKind.ColonToken) {
+            name = Next();
+            colon = Match(SyntaxKind.ColonToken);
+        }
+
+        ExpressionSyntax expression = null;
+
+        if (current.kind == SyntaxKind.CommaToken || current.kind == SyntaxKind.CloseParenToken)
+            expression = new EmptyExpressionSyntax(_syntaxTree);
+        else
+            expression = ParseNonAssignmentExpression();
+
+        return new ArgumentSyntax(_syntaxTree, name, colon, expression);
     }
 
     private SyntaxList<AttributeSyntax> ParseAttributes() {

@@ -229,7 +229,10 @@ internal sealed class Binder {
                         ? parameter.name.Substring(1)
                         : parameter.name;
 
-                    var newParameter = new ParameterSymbol(name, parameter.type, parameter.ordinal);
+                    var newParameter = new ParameterSymbol(
+                        name, parameter.type, parameter.ordinal, parameter.defaultValue
+                    );
+
                     newParameters.Add(newParameter);
                 }
 
@@ -344,16 +347,32 @@ internal sealed class Binder {
     private void BindMethodDeclaration(MethodDeclarationSyntax method) {
         var type = BindType(method.returnType);
         var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
-        var seenParametersNames = new HashSet<string>();
+        var seenParameterNames = new HashSet<string>();
 
-        foreach (var parameter in method.parameters) {
+        for (int i=0; i<method.parameters.count; i++) {
+            var parameter = method.parameters[i];
             var parameterName = parameter.identifier.text;
             var parameterType = BindType(parameter.type);
+            var boundDefault = parameter.defaultValue == null
+                ? null
+                : BindExpression(parameter.defaultValue);
 
-            if (!seenParametersNames.Add(parameterName)) {
+            if (boundDefault != null && boundDefault.constantValue == null) {
+                diagnostics.Push(Error.DefaultMustBeConstant(parameter.defaultValue.location));
+                continue;
+            }
+
+            if (boundDefault != null &&
+                i < method.parameters.count - 1 &&
+                method.parameters[i + 1].defaultValue == null) {
+                diagnostics.Push(Error.DefaultBeforeNoDefault(parameter.location));
+                continue;
+            }
+
+            if (!seenParameterNames.Add(parameterName)) {
                 diagnostics.Push(Error.ParameterAlreadyDeclared(parameter.location, parameter.identifier.text));
             } else {
-                var boundParameter = new ParameterSymbol(parameterName, parameterType, parameters.Count);
+                var boundParameter = new ParameterSymbol(parameterName, parameterType, parameters.Count, boundDefault);
                 parameters.Add(boundParameter);
             }
         }
@@ -418,7 +437,7 @@ internal sealed class Binder {
             if (declaredVariables.Contains(variable) || parameters.Contains(variable))
                 continue;
 
-            var parameter = new ParameterSymbol($"${variable.name}", variable.type, ordinal++);
+            var parameter = new ParameterSymbol($"${variable.name}", variable.type, ordinal++, null);
             parameters.Add(parameter);
         }
 
@@ -564,7 +583,7 @@ internal sealed class Binder {
                 : new LocalVariableSymbol(name, type, constant);
 
         if (declare && !_scope.TryDeclareVariable(variable))
-            diagnostics.Push(Error.VariableAlreadyDeclared(identifier.location, name));
+            diagnostics.Push(Error.VariableAlreadyDeclared(identifier.location, name, type.isConstant));
 
         if (_trackSymbols) {
             foreach (var frame in _trackedDeclarations)
@@ -597,7 +616,7 @@ internal sealed class Binder {
 
     private BoundStatement BindStatementInternal(StatementSyntax syntax) {
         switch (syntax.kind) {
-            case SyntaxKind.Block:
+            case SyntaxKind.BlockStatement:
                 return BindBlockStatement((BlockStatementSyntax)syntax);
             case SyntaxKind.ExpressionStatement:
                 return BindExpressionStatement((ExpressionStatementSyntax)syntax);
@@ -1171,18 +1190,32 @@ internal sealed class Binder {
         var tempDiagnostics = new BelteDiagnosticQueue();
         tempDiagnostics.Move(diagnostics);
 
-        var preBoundArgumentsBuilder = ImmutableArray.CreateBuilder<BoundExpression>();
+        var preBoundArgumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
+        var seenNames = new HashSet<string>();
 
         for (int i=0; i<expression.arguments.count; i++) {
-            var boundArgument = BindExpression(expression.arguments[i]);
+            var argumentName = expression.arguments[i].name;
 
-            if (boundArgument is BoundEmptyExpression)
-                boundArgument = new BoundLiteralExpression(null);
+            if (i < expression.arguments.count - 1 &&
+                argumentName != null &&
+                expression.arguments[i + 1].name == null) {
+                diagnostics.Push(Error.NamedBeforeUnnamed(argumentName.location));
+                return new BoundErrorExpression();
+            }
 
-            preBoundArgumentsBuilder.Add(boundArgument);
+            if (argumentName != null && !seenNames.Add(argumentName.text)) {
+                diagnostics.Push(Error.NamedArgumentTwice(argumentName.location, argumentName.text));
+                return new BoundErrorExpression();
+            }
+
+            var boundExpression = BindExpression(expression.arguments[i].expression);
+
+            if (boundExpression is BoundEmptyExpression)
+                boundExpression = new BoundLiteralExpression(null);
+
+            preBoundArgumentsBuilder.Add((argumentName?.text, boundExpression));
         }
 
-        var preBoundArguments = preBoundArgumentsBuilder.ToImmutable();
         var minScore = Int32.MaxValue;
         var possibleOverloads = new List<FunctionSymbol>();
 
@@ -1206,7 +1239,10 @@ internal sealed class Binder {
                 return new BoundErrorExpression();
             }
 
-            if (expression.arguments.count != function.parameters.Length) {
+            var defaultParameterCount = function.parameters.Where(p => p.defaultValue != null).ToArray().Length;
+
+            if (expression.arguments.count < function.parameters.Length - defaultParameterCount ||
+                expression.arguments.count > function.parameters.Length) {
                 var count = 0;
 
                 if (isInner) {
@@ -1222,7 +1258,7 @@ internal sealed class Binder {
                     if (expression.arguments.count > function.parameters.Length) {
                         SyntaxNode firstExceedingNode;
 
-                        if (function.parameters.Length > 0) {
+                        if (expression.arguments.count > 1) {
                             firstExceedingNode = expression.arguments.GetSeparator(function.parameters.Length - 1);
                         } else {
                             firstExceedingNode = expression.arguments[0].kind == SyntaxKind.EmptyExpression
@@ -1241,48 +1277,111 @@ internal sealed class Binder {
 
                     var location = new TextLocation(expression.syntaxTree.text, span);
                     diagnostics.Push(Error.IncorrectArgumentCount(
-                        location, function.name, function.parameters.Length, expression.arguments.count)
-                    );
+                        location, function.name, function.parameters.Length,
+                        defaultParameterCount, expression.arguments.count
+                    ));
 
                     continue;
                 }
             }
 
-            var currentBoundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
+            var rearrangedArguments = new Dictionary<int, int>();
+            var seenParameterNames = new HashSet<string>();
+            var canContinue = true;
 
-            for (int i=0; i<preBoundArguments.Length; i++) {
-                var argument = preBoundArguments[i];
-                var parameter = function.parameters[i];
-                var boundArgument = BindCast(
-                    expression.arguments[i].location, argument, parameter.type, out var castType, argument: i + 1
-                );
+            for (int i=0; i<expression.arguments.count; i++) {
+                var argumentName = preBoundArgumentsBuilder[i].name;
 
-                if (castType.isImplicit && !castType.isIdentity)
-                    score++;
+                if (argumentName == null) {
+                    seenParameterNames.Add(function.parameters[i].name);
+                    rearrangedArguments[i] = i;
+                    continue;
+                }
 
-                currentBoundArguments.Add(boundArgument);
+                int? destinationIndex = null;
+
+                for (int j=0; j<function.parameters.Length; j++) {
+                    if (function.parameters[j].name == argumentName) {
+                        if (!seenParameterNames.Add(argumentName)) {
+                            diagnostics.Push(
+                                Error.ParameterAlreadySpecified(expression.arguments[i].name.location, argumentName)
+                            );
+                            canContinue = false;
+                        } else {
+                            destinationIndex = j;
+                        }
+
+                        break;
+                    }
+                }
+
+                if (!canContinue)
+                    break;
+
+                if (!destinationIndex.HasValue) {
+                    diagnostics.Push(Error.NoSuchParameter(
+                        expression.arguments[i].name.location, name,
+                        expression.arguments[i].name.text, symbols.Length > 1
+                    ));
+
+                    canContinue = false;
+                } else {
+                    rearrangedArguments[destinationIndex.Value] = i;
+                }
             }
 
-            if (isInner) {
-                // No need to worry about currentBoundArguments because generated inlines never have overloads
-                if (symbols.Length != 1)
-                    throw new BelteInternalException("BindCallExpression: overloaded inline");
+            for (int i=0; i<function.parameters.Length; i++) {
+                var parameter = function.parameters[i];
 
-                for (int i=expression.arguments.count; i<function.parameters.Length; i++) {
+                if (seenParameterNames.Add(parameter.name) && parameter.defaultValue != null) {
+                    rearrangedArguments[i] = preBoundArgumentsBuilder.Count;
+                    // The name is not actually required here, but could be helpful during debugging; no harm
+                    preBoundArgumentsBuilder.Add((parameter.name, parameter.defaultValue));
+                }
+            }
+
+            var preBoundArguments = preBoundArgumentsBuilder.ToImmutable();
+            var currentBoundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
+
+            if (canContinue) {
+                for (int i=0; i<preBoundArguments.Length; i++) {
+                    var argument = preBoundArguments[rearrangedArguments[i]];
                     var parameter = function.parameters[i];
+                    // If this evaluates to null, it means that there was a default value automatically passed in
+                    var location = i >= expression.arguments.count ? null : expression.arguments[i].location;
 
-                    var oldTrackSymbols = _trackSymbols;
-                    _trackSymbols = false;
-
-                    // var argument = SyntaxFactory.Name(parameter.name.Substring(1));
-                    var argument = new NameExpressionSyntax(null, new SyntaxToken(
-                        null, SyntaxKind.IdentifierToken, -1, parameter.name.Substring(1), null,
-                        ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty)
+                    var boundArgument = BindCast(
+                        location, argument.expression,
+                        parameter.type, out var castType, argument: i + 1
                     );
 
-                    _trackSymbols = oldTrackSymbols;
-                    var boundArgument = BindCast(null, BindExpression(argument), parameter.type);
-                    boundArguments.Add(boundArgument);
+                    if (castType.isImplicit && !castType.isIdentity)
+                        score++;
+
+                    currentBoundArguments.Add(boundArgument);
+                }
+
+                if (isInner) {
+                    // No need to worry about currentBoundArguments because generated inlines never have overloads
+                    if (symbols.Length != 1)
+                        throw new BelteInternalException("BindCallExpression: overloaded inline");
+
+                    for (int i=expression.arguments.count; i<function.parameters.Length; i++) {
+                        var parameter = function.parameters[i];
+
+                        var oldTrackSymbols = _trackSymbols;
+                        _trackSymbols = false;
+
+                        // var argument = SyntaxFactory.Name(parameter.name.Substring(1));
+                        var argument = new NameExpressionSyntax(null, new SyntaxToken(
+                            null, SyntaxKind.IdentifierToken, -1, parameter.name.Substring(1), null,
+                            ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty)
+                        );
+
+                        _trackSymbols = oldTrackSymbols;
+                        var boundArgument = BindCast(null, BindExpression(argument), parameter.type);
+                        boundArguments.Add(boundArgument);
+                    }
                 }
             }
 

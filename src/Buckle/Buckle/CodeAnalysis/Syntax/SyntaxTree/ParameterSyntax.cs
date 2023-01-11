@@ -7,10 +7,22 @@ namespace Buckle.CodeAnalysis.Syntax;
 internal sealed partial class ParameterSyntax : SyntaxNode {
     /// <param name="type"><see cref="TypeSyntax" /> of the parameter.</param>
     /// <param name="identifier">Name of the parameter.</param>
-    internal ParameterSyntax(SyntaxTree syntaxTree, TypeSyntax type, SyntaxToken identifier)
+    /// <param name="equals">
+    /// Optional; used to separate the name from the default expression, always and only used if
+    /// <param name="defaultValue" /> is specified.
+    /// </param>
+    /// <param name="defaultValue"/>
+    /// Optional; default value of a parameter if no corresponding argument is used when calling the parent function.
+    /// Must be computable at compile-time.
+    /// </param>
+    internal ParameterSyntax(
+        SyntaxTree syntaxTree, TypeSyntax type, SyntaxToken identifier,
+        SyntaxToken equals, ExpressionSyntax defaultValue)
         : base(syntaxTree) {
         this.type = type;
         this.identifier = identifier;
+        this.equals = equals;
+        this.defaultValue = defaultValue;
     }
 
     /// <summary>
@@ -22,6 +34,18 @@ internal sealed partial class ParameterSyntax : SyntaxNode {
     /// Name of the parameter.
     /// </summary>
     internal SyntaxToken identifier { get; }
+
+    /// <summary>
+    ///Optional; used to separate the name from the default expression, always and only used if
+    /// <param name="defaultValue" /> is specified.
+    /// </summary>
+    internal SyntaxToken? equals { get; }
+
+    /// <summary>
+    /// Optional; default value of a parameter if no corresponding argument is used when calling the parent function.
+    /// Must be computable at compile-time.
+    /// </summary>
+    internal ExpressionSyntax? defaultValue { get; }
 
     internal override SyntaxKind kind => SyntaxKind.Parameter;
 }

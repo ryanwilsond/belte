@@ -217,11 +217,13 @@ internal sealed class ILEmitter {
         if (foundTypes.Length == 1) {
             var typeReference = _assemblyDefinition.MainModule.ImportReference(foundTypes[0]);
             return typeReference;
-        } else if (foundTypes.Length == 0)
-            diagnostics.Push(Error.RequiredTypeNotFound(buckleName, metadataName));
-        else
-            diagnostics.Push(Error.RequiredTypeAmbiguous(buckleName, metadataName, foundTypes));
+        } else if (foundTypes.Length == 0) {
+            ThrowRequiredTypeNotFound(buckleName, metadataName);
+        } else {
+            ThrowRequiredTypeAmbiguous(buckleName, metadataName, foundTypes);
+        }
 
+        // Unreachable
         return null;
     }
 
@@ -259,14 +261,48 @@ internal sealed class ILEmitter {
                 return _assemblyDefinition.MainModule.ImportReference(method);
             }
 
-            diagnostics.Push(Error.RequiredMethodNotFound(typeName, methodName, parameterTypeNames));
-            return null;
-        } else if (foundTypes.Length == 0)
-            diagnostics.Push(Error.RequiredTypeNotFound(null, typeName));
-        else
-            diagnostics.Push(Error.RequiredTypeAmbiguous(null, typeName, foundTypes));
+            ThrowRequiredMethodNotFound(typeName, methodName, parameterTypeNames);
+        } else if (foundTypes.Length == 0) {
+            ThrowRequiredTypeNotFound(null, typeName);
+        } else {
+            ThrowRequiredTypeAmbiguous(null, typeName, foundTypes);
+        }
 
+        // Unreachable
         return null;
+    }
+
+    private void ThrowRequiredMethodNotFound(string typeName, object methodName, string[] parameterTypeNames) {
+        string message;
+
+        if (parameterTypeNames == null) {
+            message = $"could not resolve method '{typeName}.{methodName}' with the given references";
+        } else {
+            var parameterList = string.Join(", ", parameterTypeNames);
+            message =
+                $"could not resolve method '{typeName}.{methodName}({parameterList})' with the given references";
+        }
+
+        throw new BelteInternalException($"ThrowRequiredMethodNotFound: {message}");
+    }
+
+    private void ThrowRequiredTypeNotFound(string buckleName, string metadataName) {
+        var message = buckleName != null
+            ? $"could not resolve type '{buckleName}' ('{metadataName}') with the given references"
+            : $"could not resolve type '{metadataName}' with the given references";
+
+        throw new BelteInternalException($"ThrowRequiredTypeNotFound: {message}");
+    }
+
+    private void ThrowRequiredTypeAmbiguous(string buckleName, string metadataName, TypeDefinition[] foundTypes) {
+        var assemblyNames = foundTypes.Select(t => t.Module.Assembly.Name.Name);
+        var nameList = string.Join(", ", assemblyNames);
+
+        var message = buckleName != null
+            ? $"could not resolve type '{buckleName}' ('{metadataName}') with the given references"
+            : $"could not resolve type '{metadataName}' with the given references";
+
+        throw new BelteInternalException($"ThrowRequiredTypeAmbiguous: {message}");
     }
 
     private void EmitFunctionBody(FunctionSymbol function, BoundBlockStatement body) {

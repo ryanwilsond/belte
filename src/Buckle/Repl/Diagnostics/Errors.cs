@@ -4,45 +4,64 @@ using Diagnostics;
 
 namespace Repl.Diagnostics;
 
+/// <summary>
+/// All predefined error messages that can be used by the Repl.
+/// The return value for all methods is a new diagnostic that needs to be manually handled or added to a
+/// <see cref="DiagnosticQueue<T>" />.
+/// The parameters for all methods allow the error messages to be more dynamic and represent the error more accurately.
+/// </summary>
 internal static class Error {
-    private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
-        return new DiagnosticInfo((int)code, "RE", DiagnosticType.Error);
-    }
-
-    private static DiagnosticInfo FatalErrorInfo(DiagnosticCode code) {
-        return new DiagnosticInfo((int)code, "RE", DiagnosticType.Fatal);
-    }
-
+    /// <summary>
+    /// RE0001. Run `buckle --explain RE0001` on the command line for more info.
+    /// </summary>
     internal static Diagnostic UnknownReplCommand(string line) {
         var message = $"unknown repl command '{line}'";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnknownReplCommand), message);
     }
 
+    /// <summary>
+    /// RE0002. Run `buckle --explain RE0002` on the command line for more info.
+    /// </summary>
     internal static Diagnostic WrongArgumentCount(string name, string parameterNames) {
         var message = $"invalid number of arguments\nusage: #{name} {parameterNames}";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_WrongArgumentCount), message);
     }
 
+    /// <summary>
+    /// RE0003. Run `buckle --explain RE0003` on the command line for more info.
+    /// </summary>
     internal static Diagnostic UndefinedSymbol(string name) {
         var message = $"undefined symbol '{name}'";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UndefinedSymbol), message);
     }
 
+    /// <summary>
+    /// RE0004. Run `buckle --explain RE0004` on the command line for more info.
+    /// </summary>
     internal static Diagnostic NoSuchFile(string name) {
         var message = $"{name}: no such file";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuchFile), message);
     }
 
+    /// <summary>
+    /// RE0005. Run `buckle --explain RE0005` on the command line for more info.
+    /// </summary>
     internal static Diagnostic InvalidArgument(object value, Type expected) {
         var message = $"Invalid argument '{value}'; expected argument of type {expected}";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidArgument), message);
     }
 
+    /// <summary>
+    /// RE0006. Run `buckle --explain RE0006` on the command line for more info.
+    /// </summary>
     internal static Diagnostic NoSuchFunction(string name) {
         var message = $"no such function with the signature '{name}' exists";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuchFunction), message);
     }
 
+    /// <summary>
+    /// RE0007. Run `buckle --explain RE0007` on the command line for more info.
+    /// </summary>
     internal static Diagnostic AmbiguousSignature(string signature, Symbol[] symbols) {
         var message = new StringBuilder($"'{signature}' is ambiguous between ");
 
@@ -61,5 +80,13 @@ internal static class Error {
         }
 
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_AmbiguousSignature), message.ToString());
+    }
+
+    private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
+        return new DiagnosticInfo((int)code, "RE", DiagnosticType.Error);
+    }
+
+    private static DiagnosticInfo FatalErrorInfo(DiagnosticCode code) {
+        return new DiagnosticInfo((int)code, "RE", DiagnosticType.Fatal);
     }
 }

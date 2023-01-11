@@ -16,7 +16,7 @@ internal static class BuiltinFunctions {
     internal static readonly FunctionSymbol Print = new FunctionSymbol(
         "Print",
         ImmutableArray.Create(
-            new ParameterSymbol("text", BoundType.NullableAny, 0)
+            new ParameterSymbol("text", BoundType.NullableAny, 0, NoDefault)
         ),
         NoReturn
     );
@@ -27,7 +27,7 @@ internal static class BuiltinFunctions {
     internal static readonly FunctionSymbol PrintLine = new FunctionSymbol(
         "PrintLine",
         ImmutableArray.Create(
-            new ParameterSymbol("text", BoundType.NullableAny, 0)
+            new ParameterSymbol("text", BoundType.NullableAny, 0, NoDefault)
         ),
         NoReturn
     );
@@ -56,7 +56,7 @@ internal static class BuiltinFunctions {
     internal static readonly FunctionSymbol RandInt = new FunctionSymbol(
         "RandInt",
         ImmutableArray.Create(
-            new ParameterSymbol("max", BoundType.NullableInt, 0)
+            new ParameterSymbol("max", BoundType.NullableInt, 0, NoDefault)
         ),
         BoundType.Int
     );
@@ -68,7 +68,7 @@ internal static class BuiltinFunctions {
     internal static readonly FunctionSymbol ValueAny = new FunctionSymbol(
         "Value",
         ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableAny, 0)
+            new ParameterSymbol("value", BoundType.NullableAny, 0, NoDefault)
         ),
         BoundType.Any
     );
@@ -80,7 +80,7 @@ internal static class BuiltinFunctions {
     internal static readonly FunctionSymbol ValueBool = new FunctionSymbol(
         "Value",
         ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableBool, 0)
+            new ParameterSymbol("value", BoundType.NullableBool, 0, NoDefault)
         ),
         BoundType.Bool
     );
@@ -92,7 +92,7 @@ internal static class BuiltinFunctions {
     internal static readonly FunctionSymbol ValueDecimal = new FunctionSymbol(
         "Value",
         ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableDecimal, 0)
+            new ParameterSymbol("value", BoundType.NullableDecimal, 0, NoDefault)
         ),
         BoundType.Decimal
     );
@@ -104,7 +104,7 @@ internal static class BuiltinFunctions {
     internal static readonly FunctionSymbol ValueInt = new FunctionSymbol(
         "Value",
         ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableInt, 0)
+            new ParameterSymbol("value", BoundType.NullableInt, 0, NoDefault)
         ),
         BoundType.Int
     );
@@ -116,7 +116,7 @@ internal static class BuiltinFunctions {
     internal static readonly FunctionSymbol ValueString = new FunctionSymbol(
         "Value",
         ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableString, 0)
+            new ParameterSymbol("value", BoundType.NullableString, 0, NoDefault)
         ),
         BoundType.String
     );
@@ -127,7 +127,7 @@ internal static class BuiltinFunctions {
     internal static readonly FunctionSymbol HasValue = new FunctionSymbol(
         "HasValue",
         ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableAny, 0)
+            new ParameterSymbol("value", BoundType.NullableAny, 0, NoDefault)
         ),
         BoundType.Bool
     );
@@ -141,6 +141,12 @@ internal static class BuiltinFunctions {
     private static BoundType NoReturn {
         get {
             return new BoundType(TypeSymbol.Void);
+        }
+    }
+
+    private static BoundExpression NoDefault {
+        get {
+            return null;
         }
     }
 

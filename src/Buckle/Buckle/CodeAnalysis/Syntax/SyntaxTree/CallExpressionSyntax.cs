@@ -13,7 +13,7 @@ internal sealed partial class CallExpressionSyntax : ExpressionSyntax {
     /// <param name="arguments">Parameter list.</param>
     internal CallExpressionSyntax(
         SyntaxTree syntaxTree, NameExpressionSyntax identifier, SyntaxToken openParenthesis,
-        SeparatedSyntaxList<ExpressionSyntax> arguments, SyntaxToken closeParenthesis)
+        SeparatedSyntaxList<ArgumentSyntax> arguments, SyntaxToken closeParenthesis)
         : base(syntaxTree) {
         this.identifier = identifier;
         this.openParenthesis = openParenthesis;
@@ -31,7 +31,7 @@ internal sealed partial class CallExpressionSyntax : ExpressionSyntax {
     /// <summary>
     /// Parameter list.
     /// </summary>
-    internal SeparatedSyntaxList<ExpressionSyntax> arguments { get; }
+    internal SeparatedSyntaxList<ArgumentSyntax> arguments { get; }
 
     internal SyntaxToken? closeParenthesis { get; }
 

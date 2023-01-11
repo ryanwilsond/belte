@@ -416,7 +416,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 ? oldParameter.name.Substring(1)
                 : oldParameter.name;
 
-            var parameter = new ParameterSymbol(name, oldParameter.type, oldParameter.ordinal);
+            var parameter = new ParameterSymbol(
+                name, oldParameter.type, oldParameter.ordinal, oldParameter.defaultValue
+            );
+
             parameters.Add(parameter);
         }
 

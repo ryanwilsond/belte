@@ -251,13 +251,13 @@ public sealed partial class EvaluatorTests {
     [Fact]
     public void Evaluator_FunctionParameters_NoInfiniteLoop() {
         var text = @"
-            void hi(string name[=]) {
+            void hi(string name=[)] {
                 PrintLine(""Hi "" + name + ""!"");
             }
         ";
 
         var diagnostics = @"
-            unexpected token '='
+            expected expression
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -285,7 +285,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            unexpected token ')', expected identifier
+            expected expression
             expected '}' at end of input
         ";
 

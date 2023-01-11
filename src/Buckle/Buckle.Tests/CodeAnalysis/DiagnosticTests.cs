@@ -101,6 +101,32 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
+    public void Evaluator_Reports_Error_BU0009_NamedBeforeUnnamed() {
+        var text = @"
+            Print([x]: 1, 3);
+        ";
+
+        var diagnostics = @"
+            all named arguments must come after any unnamed arguments
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Reports_Error_BU0010_NamedArgumentTwice() {
+        var text = @"
+            Print(x: 1, [x]: 3);
+        ";
+
+        var diagnostics = @"
+            named argument 'x' cannot be specified multiple times
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
     public void Evaluator_Reports_Error_BU0011_InvalidBinaryOperatorUse() {
         var text = @"
             false [+] 3;
@@ -121,6 +147,19 @@ public sealed partial class EvaluatorTests {
 
         var diagnostics = @"
             cannot reuse parameter name 'x'; parameter names must be unique
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Reports_Error_BU0015_NoSuchParameter() {
+        var text = @"
+            Print([msg]: ""test"");
+        ";
+
+        var diagnostics = @"
+            function 'Print' does not have a parameter named 'msg'
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -823,6 +862,45 @@ public sealed partial class EvaluatorTests {
 
         var diagnostics = @"
             postfix operator '++' is not defined for type 'bool'
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Reports_Error_BU0067_ParameterAlreadySpecified() {
+        var text = @"
+            Print(x: 2, [x]: 2);
+        ";
+
+        var diagnostics = @"
+            named argument 'x' cannot be specified multiple times
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Reports_Error_BU0068_DefaultMustBeConstant() {
+        var text = @"
+            void MyFunc(int a = [Input()]) { }
+        ";
+
+        var diagnostics = @"
+            default values for parameters must be compile-time constants
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Reports_Error_BU0069_DefaultBeforeNoDefault() {
+        var text = @"
+            void MyFunc([int a = 3], int b) { }
+        ";
+
+        var diagnostics = @"
+            all optional parameters must be specified after any required parameters
         ";
 
         AssertDiagnostics(text, diagnostics);
