@@ -85,7 +85,7 @@ internal static class Error {
     /// CL0011. Run `buckle --explain CL0011` on the command line for more info.
     /// </summary>
     internal static Diagnostic CannotSpecifyWithDotnet() {
-        var message = "cannot specify '-p', '-s', or '-c' with .NET integration";
+        var message = "cannot specify '-p', '-s', '-c', or '-t' with .NET integration";
         return new Diagnostic(FatalErrorInfo(DiagnosticCode.ERR_CannotSpecifyWithDotnet), message);
     }
 
@@ -93,7 +93,7 @@ internal static class Error {
     /// CL0012. Run `buckle --explain CL0012` on the command line for more info.
     /// </summary>
     internal static Diagnostic CannotSpecifyWithMultipleFiles() {
-        var message = "cannot specify output file with '-p', '-s', or '-c' with multiple files";
+        var message = "cannot specify output file with '-p', '-s', '-c', or '-t' with multiple files";
         return new Diagnostic(FatalErrorInfo(DiagnosticCode.ERR_CannotSpecifyWithMultipleFiles), message);
     }
 
@@ -101,7 +101,7 @@ internal static class Error {
     /// CL0013. Run `buckle --explain CL0013` on the command line for more info.
     /// </summary>
     internal static Diagnostic CannotSpecifyWithInterpreter() {
-        var message = "cannot specify output path or use '-p', '-s', or '-c' with interpreter";
+        var message = "cannot specify output path or use '-p', '-s', '-c', or '-t' with interpreter";
         return new Diagnostic(FatalErrorInfo(DiagnosticCode.ERR_CannotSpecifyWithInterpreter), message);
     }
 

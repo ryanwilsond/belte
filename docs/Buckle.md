@@ -15,6 +15,7 @@ Buckle is the Belte programming language compiler.
 | -s | Have the compiler stop after preprocessing and compiling (not assembling or linking). |
 | -c | Have the compiler stop before linking. |
 | -i | Interpret realtime instead of compiling to executable. Produces no output files. |
+| -t | Transpile into C# instead of emitting to an executable. |
 | -o *filename* | Specify where to put the resulting output file. Can only use this with multiple input files when not stopping before linking. Defaults to *a.exe*. |
 | -W*options* | Specify one or multiple options to forward to the compilers sub-processes. |
 | --entry=*symbol* | Specify the entry point of the program. By default searches for *main()*, *Program.Main()* or uses top of file. |

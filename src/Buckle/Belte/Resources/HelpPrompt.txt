@@ -11,7 +11,8 @@ Options:
   -p                          Preprocess only, compiler preprocesses by default.
   -s                          Compile only; do not assemble or link.
   -c                          Compile and assemble; do not link.
-  -i                          Compile and then interpret; do not assemble or link.
+  -i                          Compile and interpret; do not assemble or link.
+  -t                          Compile and transpile into C#; do not assemble or link.
   -o <file>                   Specify output file.
   -W<options>                 Forward options to various sub-processes.
   --entry=<symbol>            Specify the entry point of the program.
