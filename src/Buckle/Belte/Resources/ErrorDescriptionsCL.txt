@@ -140,7 +140,7 @@ This would successfully call the REPL, but multiple errors would be logged.
 $CL0011
 Certain options are used to tell the compiler when to stop compilation
 explicitly, instead of just doing the default full compilation. These options
-include '-p', '-s', and '-c'. All of these options assume the compiler is
+include '-p', '-s', '-c', and '-t'. All of these options assume the compiler is
 compiling to a native assembly, so they are irrelevant if interpreting or .NET
 compiling. If the compiler is compiling with .NET integration and any of these
 options are provided, this error is raised.
@@ -154,7 +154,8 @@ $CL0012
 Command-line options like '-p', '-s', and '-c' tell compilation when to stop.
 All of these stop at a stage where if multiple input files are provided,
 multiple files with be outputted. Thus specifying an output file with '-o' is
-irrelevant and this error is raised.
+irrelevant and this error is raised. This also applies to the '-t' option which
+tells the compiler to transpile into C#.
 
 For example:
 
@@ -167,8 +168,8 @@ $CL0013
 If interpreting (by using the '-i' command-line option), then the file is
 compiled and evaluated immediately. (Note that this is not technically
 interpreting, but has the same result.) Because of this, no output file is
-created making the '-o' irrelevant, and the '-c', '-p', and '-s' options become
-irrelevant. If interpreting and any of these options are provided this error is
+created making the '-o', '-c', '-p', '-s', and '-t' options irrelevant. If
+interpreting and any of these options are provided this error is
 raised.
 
 For example:

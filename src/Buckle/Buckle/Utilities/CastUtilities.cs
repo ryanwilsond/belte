@@ -3,7 +3,10 @@ using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.Utilities;
 
-public static class CastUtilities {
+/// <summary>
+/// Utilities helping casting values, and utilities related to the <see cref="Convert" /> class.
+/// </summary>
+internal static class CastUtilities {
     /// <summary>
     /// Casts a value to another type based on the given target type.
     /// </summary>
