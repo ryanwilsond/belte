@@ -275,7 +275,9 @@ public sealed class Compilation {
     /// <param name="references">All external references (.NET).</param>
     /// <param name="outputPath">Where to put the application once assembled.</param>
     /// <returns>Diagnostics.</returns>
-    internal BelteDiagnosticQueue Emit(string moduleName, string[] references, string outputPath, bool wError) {
+    internal BelteDiagnosticQueue Emit(
+        BuildMode buildMode, string moduleName, string[] references,
+        string outputPath, bool wError, CompilerStage finishStage) {
         foreach (var syntaxTree in syntaxTrees)
             diagnostics.Move(syntaxTree.diagnostics);
 
@@ -288,7 +290,12 @@ public sealed class Compilation {
         if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any() || (program.diagnostics.Any() && wError))
             return program.diagnostics;
 
-        return ILEmitter.Emit(program, moduleName, references, outputPath);
+        if (buildMode == BuildMode.Dotnet)
+            return ILEmitter.Emit(program, moduleName, references, outputPath);
+        else if (buildMode == BuildMode.Independent)
+            return NativeEmitter.Emit(program, outputPath, finishStage);
+        else // buildMode == BuildMode.CSharpTranspile
+            return CSharpEmitter.Emit(program, outputPath);
     }
 
     private BoundProgram GetProgram() {

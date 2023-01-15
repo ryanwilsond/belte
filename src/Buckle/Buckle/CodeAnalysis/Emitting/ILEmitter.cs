@@ -181,7 +181,7 @@ internal sealed class ILEmitter {
     /// <param name="program"><see cref="BoundProgram" /> to emit.</param>
     /// <param name="outputPath">Where to put the emitted assembly.</param>
     /// <returns>Diagnostics.</returns>
-    internal BelteDiagnosticQueue Emit(BoundProgram program, string outputPath) {
+    private BelteDiagnosticQueue Emit(BoundProgram program, string outputPath) {
         diagnostics.Move(program.diagnostics);
 
         if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
