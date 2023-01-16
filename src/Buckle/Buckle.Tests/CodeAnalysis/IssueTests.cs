@@ -44,7 +44,7 @@ public sealed partial class EvaluatorTests {
     public void Evaluator_AssignmentExpression_Reports_CannotAssignConstReference() {
         var text = @"
             int x = 3;
-            const var y = ref x;
+            const y = ref x;
             y [=] ref x;
         ";
 
@@ -58,7 +58,7 @@ public sealed partial class EvaluatorTests {
     [Fact]
     public void Evaluator_AssignmentExpression_Reports_CannotAssignConst() {
         var text = @"
-            const var x = 3;
+            const x = 3;
             x [=] 56;
         ";
 

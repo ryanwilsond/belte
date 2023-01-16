@@ -655,6 +655,14 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_DefaultBeforeNoDefault), location, message);
     }
 
+    /// <summary>
+    /// BU0070. Run `buckle --explain BU0070` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic ConstantAndVariable(TextLocation location) {
+        var message = "cannot mark a type as both constant and variable";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstantAndVariable), location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticType.Error);
     }

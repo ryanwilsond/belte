@@ -77,8 +77,9 @@ internal enum DiagnosticCode : int {
     ERR_InvalidPrefixUse = 65,
     ERR_InvalidPostfixUse = 66,
     ERR_ParameterAlreadySpecified = 67,
-    ERR_DefaultMustBeConstant = 68, // TODO --explain doc
-    ERR_DefaultBeforeNoDefault = 69, // TODO --explain doc
+    ERR_DefaultMustBeConstant = 68,
+    ERR_DefaultBeforeNoDefault = 69,
+    ERR_ConstantAndVariable = 70,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

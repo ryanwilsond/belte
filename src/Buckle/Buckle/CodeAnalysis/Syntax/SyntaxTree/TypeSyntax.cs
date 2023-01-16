@@ -11,14 +11,17 @@ internal sealed class TypeSyntax : SyntaxNode {
     /// <param name="constRefKeyword">Const keyword referring to a constant reference type.</param>
     /// <param name="refKeyword">Ref keyword referring to a reference type.</param>
     /// <param name="constKeyword">Const keyword referring to a constant type.</param>
+    /// <param name="varKeyword">Var keyword referring to a variable type.</param>
+    /// <param name="typeName">Name referring to a type.</param>
     /// <param name="brackets">Brackets, determine array dimensions.</param>
     internal TypeSyntax(SyntaxTree syntaxTree, SyntaxList<AttributeSyntax> attributes,
-        SyntaxToken constRefKeyword, SyntaxToken refKeyword, SyntaxToken constKeyword, SyntaxToken typeName,
-        ImmutableArray<(SyntaxToken, SyntaxToken)> brackets) : base(syntaxTree) {
+        SyntaxToken constRefKeyword, SyntaxToken refKeyword, SyntaxToken constKeyword, SyntaxToken varKeyword,
+        SyntaxToken typeName, ImmutableArray<(SyntaxToken, SyntaxToken)> brackets) : base(syntaxTree) {
         this.attributes = attributes;
         this.constRefKeyword = constRefKeyword;
         this.refKeyword = refKeyword;
         this.constKeyword = constKeyword;
+        this.varKeyword = varKeyword;
         this.typeName = typeName;
         this.brackets = brackets;
     }
@@ -44,7 +47,15 @@ internal sealed class TypeSyntax : SyntaxNode {
     /// </summary>
     internal SyntaxToken? constKeyword { get; }
 
-    internal SyntaxToken typeName { get; }
+    /// <summary>
+    /// Var keyword referring to a variable type.
+    /// </summary>
+    internal SyntaxToken? varKeyword { get; }
+
+    /// <summary>
+    /// Name referring to a type.
+    /// </summary>
+    internal SyntaxToken? typeName { get; }
 
     /// <summary>
     /// Brackets defining array dimensions ([] -> 1 dimension, [][] -> 2 dimensions).
@@ -71,7 +82,11 @@ internal sealed class TypeSyntax : SyntaxNode {
         if (constKeyword != null && constKeyword.fullSpan != null)
             yield return constKeyword;
 
-        yield return typeName;
+        if (varKeyword != null && varKeyword.fullSpan != null)
+            yield return varKeyword;
+
+        if (typeName != null && typeName.fullSpan != null)
+            yield return typeName;
 
         foreach (var pair in brackets) {
             yield return pair.openBracket;

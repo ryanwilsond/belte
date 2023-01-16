@@ -126,6 +126,9 @@ internal sealed class Parser {
         if (index >= _tokens.Length)
             return _tokens[_tokens.Length - 1];
 
+        if (index < 0)
+            return _tokens[0];
+
         return _tokens[index];
     }
 
@@ -183,15 +186,29 @@ internal sealed class Parser {
                 finalOffset++;
 
             if (Peek(finalOffset).kind == SyntaxKind.IdentifierToken ||
-                Peek(finalOffset).kind == SyntaxKind.VarKeyword) {
-                finalOffset++;
+                Peek(finalOffset).kind == SyntaxKind.VarKeyword ||
+                Peek(finalOffset - 1).kind == SyntaxKind.ConstKeyword) {
+                if (Peek(finalOffset).kind == SyntaxKind.IdentifierToken ||
+                    Peek(finalOffset).kind == SyntaxKind.VarKeyword)
+                    finalOffset++;
+
+                var hasBrackets = false;
 
                 while (Peek(finalOffset).kind == SyntaxKind.OpenBracketToken ||
-                    Peek(finalOffset).kind == SyntaxKind.CloseBracketToken)
+                    Peek(finalOffset).kind == SyntaxKind.CloseBracketToken) {
+                    hasBrackets = true;
                     finalOffset++;
+                }
 
                 if (Peek(finalOffset).kind == SyntaxKind.IdentifierToken)
                     hasName = true;
+
+                if (!hasBrackets &&
+                    Peek(finalOffset - 2).kind == SyntaxKind.ConstKeyword &&
+                    Peek(finalOffset - 1).kind == SyntaxKind.IdentifierToken) {
+                    hasName = true;
+                    finalOffset--;
+                }
 
                 return true;
             }
@@ -960,29 +977,45 @@ internal sealed class Parser {
         return new AttributeSyntax(_syntaxTree, openBracket, identifier, closeBracket);
     }
 
-    private TypeSyntax ParseType(bool allowImplicit = true) {
+    private TypeSyntax ParseType(bool allowImplicit = true, bool expectName = true) {
         var attributes = ParseAttributes();
 
         SyntaxToken constRefKeyword = null;
         SyntaxToken refKeyword = null;
         SyntaxToken constKeyword = null;
+        SyntaxToken varKeyword = null;
         SyntaxToken typeName = null;
 
         if (current.kind == SyntaxKind.ConstKeyword && Peek(1).kind == SyntaxKind.RefKeyword)
             constRefKeyword = Next();
         if (current.kind == SyntaxKind.RefKeyword)
             refKeyword = Next();
-        if (current.kind == SyntaxKind.ConstKeyword)
+
+        if (current.kind == SyntaxKind.ConstKeyword) {
             constKeyword = Next();
 
+            if (!allowImplicit && Peek(1).kind != SyntaxKind.IdentifierToken)
+                diagnostics.Push(Error.CannotUseImplicit(constKeyword.location));
+        }
+
         if (current.kind == SyntaxKind.VarKeyword) {
-            typeName = Next();
+            varKeyword = Next();
 
             if (!allowImplicit)
-                diagnostics.Push(Error.CannotUseImplicit(typeName.location));
-        } else {
-            typeName = Match(SyntaxKind.IdentifierToken);
+                diagnostics.Push(Error.CannotUseImplicit(varKeyword.location));
         }
+
+        var hasTypeName = (varKeyword == null &&
+            (!allowImplicit ||
+                (constKeyword == null ||
+                 Peek(1).kind == SyntaxKind.IdentifierToken ||
+                 Peek(1).kind == SyntaxKind.OpenBracketToken
+                )
+            )
+        );
+
+        if (hasTypeName)
+            typeName = Match(SyntaxKind.IdentifierToken);
 
         var brackets = ImmutableArray.CreateBuilder<(SyntaxToken openBracket, SyntaxToken closeBracket)>();
 
@@ -993,7 +1026,8 @@ internal sealed class Parser {
         }
 
         return new TypeSyntax(
-            _syntaxTree, attributes, constRefKeyword, refKeyword, constKeyword, typeName, brackets.ToImmutable()
+            _syntaxTree, attributes, constRefKeyword, refKeyword,
+            constKeyword, varKeyword, typeName, brackets.ToImmutable()
         );
     }
 

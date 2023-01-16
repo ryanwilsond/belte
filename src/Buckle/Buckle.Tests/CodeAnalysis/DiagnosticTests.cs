@@ -907,6 +907,19 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
+    public void Evaluator_Reports_Error_BU0070_ConstantAndVariable() {
+        var text = @"
+            [const var] x = 3;
+        ";
+
+        var diagnostics = @"
+            cannot mark a type as both constant and variable
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
     public void Evaluator_Reports_Error_Unsupported_BU9004_CannotInitialize() {
         var text = @"
             struct A {

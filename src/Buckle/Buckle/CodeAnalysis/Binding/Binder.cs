@@ -534,18 +534,50 @@ internal sealed class Binder {
             }
         }
 
-        var isRef = type.refKeyword != null;
-        var isConstRef = type.constRefKeyword != null && isRef;
-        var isConst = type.constKeyword != null;
-        var isImplicit = type.typeName.kind == SyntaxKind.VarKeyword;
+        var isReference = type.refKeyword != null;
+        var isConstantReference = type.constRefKeyword != null && isReference;
+        var isConstant = type.constKeyword != null;
+        var isVariable = type.varKeyword != null;
+        var isImplicit = type.typeName == null;
         var dimensions = type.brackets.Length;
 
-        var foundType = LookupType(type.typeName.text);
+        if (isImplicit && isReference) {
+            diagnostics.Push(Error.ImpliedReference(type.refKeyword.location, isConstant));
+            return null;
+        }
+
+        if (isImplicit && dimensions > 0) {
+            var span = TextSpan.FromBounds(
+                type.brackets.First().openBracket.location.span.start,
+                type.brackets.Last().closeBracket.location.span.end
+            );
+
+            var location = new TextLocation(type.location.text, span);
+            diagnostics.Push(Error.ImpliedDimensions(location, isConstant));
+
+            return null;
+        }
+
+        if (isConstant && isVariable) {
+            var span = TextSpan.FromBounds(
+                type.constKeyword.location.span.start,
+                type.varKeyword.location.span.end
+            );
+
+            var location = new TextLocation(type.location.text, span);
+            diagnostics.Push(Error.ConstantAndVariable(location));
+
+            return null;
+        }
+
+        var foundType = LookupType(type.typeName?.text);
 
         if (foundType == null && !isImplicit)
             diagnostics.Push(Error.UnknownType(type.location, type.typeName.text));
 
-        return new BoundType(foundType, isImplicit, isConstRef, isRef, false, isConst, isNullable, false, dimensions);
+        return new BoundType(
+            foundType, isImplicit, isConstantReference, isReference, false, isConstant, isNullable, false, dimensions
+        );
     }
 
     private VariableSymbol BindVariableReference(SyntaxToken identifier) {
@@ -809,7 +841,10 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatementSyntax expression) {
+        var currentCount = diagnostics.count;
         var type = BindType(expression.type);
+        if (diagnostics.count > currentCount)
+            return null;
 
         if (type.isImplicit && expression.initializer == null) {
             diagnostics.Push(Error.NoInitOnImplicit(expression.identifier.location));
@@ -865,11 +900,6 @@ internal sealed class Binder {
                 return null;
             }
 
-            if (type.isImplicit && type.isReference == true) {
-                diagnostics.Push(Error.ImpliedReference(expression.type.refKeyword.location, type.isConstant));
-                return null;
-            }
-
             // References cant have implicit casts
             var variable = BindVariable(expression.identifier, variableType, initializer.constantValue);
 
@@ -889,18 +919,6 @@ internal sealed class Binder {
 
                     return null;
                 }
-            }
-
-            if (type.isImplicit && type.dimensions > 0) {
-                var span = TextSpan.FromBounds(
-                    expression.type.brackets.First().openBracket.location.span.start,
-                    expression.type.brackets.Last().closeBracket.location.span.end
-                );
-
-                var location = new TextLocation(expression.location.text, span);
-                diagnostics.Push(Error.ImpliedDimensions(location, type.isConstant));
-
-                return null;
             }
 
             var variableType = type.isImplicit ? initializer.type : type;

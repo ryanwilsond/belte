@@ -1138,6 +1138,18 @@ For example:
 void MyFunction(int x, int y = 3, int z); // To get to the required parameter `z` by position, the user would have to specify `y` making it required; not allowed
 void MyFunction(int x, int y, int z = 3); // Allowed
 ```
+$BU0070
+There are two broad types of storage containers in Belte: variables and
+constants. Variables can be changed, while constants cannot (hence the names).
+Because of this, you cannot mark a type as both variable and constant.
+
+For example:
+
+```
+const var myInt = 3; // Not allowed, marked constant and variable at the same time
+const myInt = 3; // Allowed
+var myInt = 3; // Allowed
+```
 $BU9000
 Inside a global scope without a `Main` function, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it
