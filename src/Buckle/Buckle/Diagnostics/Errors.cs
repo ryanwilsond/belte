@@ -663,6 +663,15 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstantAndVariable), location, message);
     }
 
+    /// <summary>
+    /// BU0071. Run `buckle --explain BU0071` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic VariableUsingTypeName(TextLocation location, string name, bool isConstant) {
+        var constantWord = isConstant ? "constant" : "variable";
+        var message = $"{constantWord} name '{name}' is not valid as it is the name of a type";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_VariableUsingTypeName), location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticType.Error);
     }

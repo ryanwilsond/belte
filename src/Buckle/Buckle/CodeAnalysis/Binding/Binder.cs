@@ -614,6 +614,11 @@ internal sealed class Binder {
                 ? (VariableSymbol) new GlobalVariableSymbol(name, type, constant)
                 : new LocalVariableSymbol(name, type, constant);
 
+        if (LookupType(name) != null) {
+            diagnostics.Push(Error.VariableUsingTypeName(identifier.location, name, type.isConstant));
+            return variable;
+        }
+
         if (declare && !_scope.TryDeclareVariable(variable))
             diagnostics.Push(Error.VariableAlreadyDeclared(identifier.location, name, type.isConstant));
 

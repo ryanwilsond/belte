@@ -920,6 +920,21 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
+    public void Evaluator_Reports_Error_BU0071_VariableUsingTypeName() {
+        var text = @"
+            struct A { }
+
+            A [A] = A();
+        ";
+
+        var diagnostics = @"
+            variable name 'A' is not valid as it is the name of a type
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
     public void Evaluator_Reports_Error_Unsupported_BU9004_CannotInitialize() {
         var text = @"
             struct A {

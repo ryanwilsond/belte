@@ -1150,6 +1150,35 @@ const var myInt = 3; // Not allowed, marked constant and variable at the same ti
 const myInt = 3; // Allowed
 var myInt = 3; // Allowed
 ```
+$BU0071
+Types, variables, fields, and constants all share the same naming rules. Because
+of this, it can be ambiguous whether the user is referring to a variable versus a
+type for example.
+
+For example:
+
+```
+struct A { }
+
+A A = A(); // Not allowed, variable name `A` will cause confusion
+A a = A(); // Allowed
+```
+
+This prevents ambiguous statements like:
+
+```
+class A {
+    static void F() { }
+
+    void F() { }
+}
+
+A A = A();
+A.F(); // Is this referring to the static method, or the instance method?
+```
+
+In this case, it would always refer to the instance method, but reading this as
+a developer it is easily confusing. This is why this is not allowed.
 $BU9000
 Inside a global scope without a `Main` function, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it
