@@ -614,6 +614,7 @@ internal sealed class Binder {
                 ? (VariableSymbol) new GlobalVariableSymbol(name, type, constant)
                 : new LocalVariableSymbol(name, type, constant);
 
+        // TODO! doesn't catch every case
         if (LookupType(name) != null) {
             diagnostics.Push(Error.VariableUsingTypeName(identifier.location, name, type.isConstant));
             return variable;
