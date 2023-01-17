@@ -371,8 +371,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         (<type>)Value(<expression>)
 
         */
-        if (expression.constantValue != null)
-            return base.RewriteCastExpression(expression);
 
         if (expression.type.isNullable && expression.expression.type.isNullable) {
             return RewriteExpression(
@@ -470,10 +468,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         */
         if (expression.op.opKind == BoundTernaryOperatorKind.Conditional) {
-            if (expression.left.constantValue != null && (bool)expression.left.constantValue.value)
+            if (BoundConstant.IsNotNull(expression.left.constantValue) && (bool)expression.left.constantValue.value)
                 return RewriteExpression(expression.center);
 
-            if (expression.left.constantValue != null && !(bool)expression.left.constantValue.value)
+            if (BoundConstant.IsNotNull(expression.left.constantValue) && !(bool)expression.left.constantValue.value)
                 return RewriteExpression(expression.right);
         }
 

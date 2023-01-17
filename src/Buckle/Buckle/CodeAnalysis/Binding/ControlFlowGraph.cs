@@ -322,6 +322,9 @@ internal sealed class ControlFlowGraph {
         }
 
         private BoundExpression Negate(BoundExpression condition) {
+            if (BoundConstant.IsNull(condition.constantValue))
+                return condition;
+
             if (condition is BoundLiteralExpression literal) {
                 var value = (bool)literal.value;
 
@@ -334,6 +337,9 @@ internal sealed class ControlFlowGraph {
         }
 
         private void Connect(BasicBlock from, BasicBlock to, BoundExpression condition = null) {
+            if (BoundConstant.IsNull(condition?.constantValue))
+                return;
+
             if (condition is BoundLiteralExpression l) {
                 var value = (bool)l.value;
 

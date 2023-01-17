@@ -241,6 +241,10 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateCast(EvaluatorObject value, BoundType type) {
         var valueValue = Value(value);
+
+        if (value.members != null)
+            return value;
+
         valueValue = CastUtilities.Cast(valueValue, type);
 
         return new EvaluatorObject(valueValue);

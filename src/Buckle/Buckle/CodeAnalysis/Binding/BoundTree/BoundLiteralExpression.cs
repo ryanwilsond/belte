@@ -17,7 +17,7 @@ internal sealed class BoundLiteralExpression : BoundExpression {
         else if (value is double)
             type = new BoundType(TypeSymbol.Decimal, isLiteral: true);
         else if (value == null)
-            type = new BoundType(null, isLiteral: true);
+            type = new BoundType(null, isLiteral: true, isNullable: true);
         else
             throw new BelteInternalException(
                 $"BoundLiteralExpression: unexpected literal '{value}' of type '{value.GetType()}'");

@@ -21,7 +21,7 @@ internal static class CastUtilities {
         if (value == null)
             return null;
 
-        var typeSymbol = targetType.typeSymbol;
+        var typeSymbol = targetType?.typeSymbol;
 
         if (typeSymbol == TypeSymbol.Bool) {
             return Convert.ToBoolean(value);

@@ -180,6 +180,9 @@ internal abstract class BoundTreeRewriter {
     }
 
     internal virtual BoundExpression RewriteExpression(BoundExpression expression) {
+        if (expression.constantValue != null)
+            return new BoundLiteralExpression(expression.constantValue.value);
+
         switch (expression.kind) {
             case BoundNodeKind.BinaryExpression:
                 return RewriteBinaryExpression((BoundBinaryExpression)expression);

@@ -5,6 +5,15 @@ namespace Buckle.Tests.CodeAnalysis;
 
 public sealed partial class EvaluatorTests {
     [Fact]
+    public void Evaluator_TernaryExpression_AllowsNull() {
+        var text = @"
+            null ? 3 : 5;
+        ";
+
+        AssertExceptions(text, new NullReferenceException());
+    }
+
+    [Fact]
     public void Evaluator_CastExpression_Throws_NullReference() {
         var text = @"
             ([NotNull]int)null;

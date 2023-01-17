@@ -59,7 +59,7 @@ internal sealed class Cast {
     /// <param name="fromType">Target <see cref="BoundType" />.</param>
     /// <param name="toType">Existing/current <see cref="BoundType" />.</param>
     /// <returns>Created <see cref="Cast" />.</returns>
-    internal static Cast Classify(BoundType fromType, BoundType toType, bool ignoreNullability = false) {
+    internal static Cast Classify(BoundType fromType, BoundType toType) {
         var from = fromType.typeSymbol;
         var to = toType.typeSymbol;
 
@@ -89,7 +89,7 @@ internal sealed class Cast {
 
         var cast = InternalClassify();
 
-        if (cast != Cast.None && !ignoreNullability) {
+        if (cast != Cast.None) {
             // [NotNull]var -> var : implicit
             // var -> [NotNull]var : explicit
             if (!fromType.isLiteral && !fromType.isNullable && toType.isNullable && cast != Cast.Explicit)

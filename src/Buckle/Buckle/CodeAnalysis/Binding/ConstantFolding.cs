@@ -42,6 +42,22 @@ internal static class ConstantFolding {
                 return new BoundConstant(rightConstant.value);
         }
 
+        if (op?.opKind == BoundBinaryOperatorKind.Is) {
+            if (BoundConstant.IsNull(leftConstant) && BoundConstant.IsNull(rightConstant))
+                return new BoundConstant(true);
+
+            if (BoundConstant.IsNotNull(leftConstant) && BoundConstant.IsNull(rightConstant))
+                return new BoundConstant(false);
+        }
+
+        if (op?.opKind == BoundBinaryOperatorKind.Isnt) {
+            if (BoundConstant.IsNull(leftConstant) && BoundConstant.IsNull(rightConstant))
+                return new BoundConstant(false);
+
+            if (BoundConstant.IsNotNull(leftConstant) && BoundConstant.IsNull(rightConstant))
+                return new BoundConstant(true);
+        }
+
         if (leftConstant == null || rightConstant == null || op == null)
             return null;
 
@@ -157,37 +173,47 @@ internal static class ConstantFolding {
     internal static BoundConstant FoldUnary(BoundUnaryOperator op, BoundExpression operand) {
         var operandType = operand.type.typeSymbol;
 
-        if (operand.constantValue != null && operand.constantValue.value is int value) {
-            switch (op.opKind) {
-                case BoundUnaryOperatorKind.NumericalIdentity:
-                    if (operandType == TypeSymbol.Int)
-                        return new BoundConstant((int)operand.constantValue.value);
-                    else
-                        return new BoundConstant((double)operand.constantValue.value);
-                case BoundUnaryOperatorKind.NumericalNegation:
-                    if (operandType == TypeSymbol.Int)
-                        return new BoundConstant(-(int)operand.constantValue.value);
-                    else
-                        return new BoundConstant(-(double)operand.constantValue.value);
-                case BoundUnaryOperatorKind.BooleanNegation:
-                    return new BoundConstant(!(bool)operand.constantValue.value);
-                case BoundUnaryOperatorKind.BitwiseCompliment:
-                    return new BoundConstant(~(int)operand.constantValue.value);
-                default:
-                    throw new BelteInternalException($"Fold: unexpected unary operator '{op.opKind}'");
-            }
-        }
+        if (operand.constantValue == null || op == null)
+            return null;
 
-        return null;
+        var value = operand.constantValue.value;
+
+        if (value == null)
+            return new BoundConstant(null);
+
+        value = CastUtilities.Cast(value, op.operandType);
+
+        switch (op.opKind) {
+            case BoundUnaryOperatorKind.NumericalIdentity:
+                if (operandType == TypeSymbol.Int)
+                    return new BoundConstant((int)operand.constantValue.value);
+                else
+                    return new BoundConstant((double)operand.constantValue.value);
+            case BoundUnaryOperatorKind.NumericalNegation:
+                if (operandType == TypeSymbol.Int)
+                    return new BoundConstant(-(int)operand.constantValue.value);
+                else
+                    return new BoundConstant(-(double)operand.constantValue.value);
+            case BoundUnaryOperatorKind.BooleanNegation:
+                return new BoundConstant(!(bool)operand.constantValue.value);
+            case BoundUnaryOperatorKind.BitwiseCompliment:
+                return new BoundConstant(~(int)operand.constantValue.value);
+            default:
+                throw new BelteInternalException($"Fold: unexpected unary operator '{op.opKind}'");
+        }
     }
 
     internal static BoundConstant FoldTernary(
         BoundExpression left, BoundTernaryOperator op, BoundExpression center, BoundExpression right) {
         if (op.opKind == BoundTernaryOperatorKind.Conditional) {
-            if (left.constantValue != null && (bool)left.constantValue.value && center.constantValue != null)
+            if (BoundConstant.IsNotNull(left.constantValue) &&
+                (bool)left.constantValue.value &&
+                center.constantValue != null)
                 return new BoundConstant(center.constantValue.value);
 
-            if (left.constantValue != null && !(bool)left.constantValue.value && right.constantValue != null)
+            if (BoundConstant.IsNotNull(left.constantValue) &&
+                !(bool)left.constantValue.value &&
+                right.constantValue != null)
                 return new BoundConstant(right.constantValue.value);
         }
 

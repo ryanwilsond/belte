@@ -476,14 +476,14 @@ internal sealed class Binder {
 
     private BoundExpression BindCast(
         TextLocation diagnosticLocation, BoundExpression expression, BoundType type,
-        bool allowExplicit = false, int argument = 0, bool ignoreNullability = false) {
-        return BindCast(diagnosticLocation, expression, type, out _, allowExplicit, argument, ignoreNullability);
+        bool allowExplicit = false, int argument = 0) {
+        return BindCast(diagnosticLocation, expression, type, out _, allowExplicit, argument);
     }
 
     private BoundExpression BindCast(
         TextLocation diagnosticLocation, BoundExpression expression, BoundType type,
-        out Cast castType, bool allowExplicit = false, int argument = 0, bool ignoreNullability = false) {
-        var conversion = Cast.Classify(expression.type, type, ignoreNullability);
+        out Cast castType, bool allowExplicit = false, int argument = 0) {
+        var conversion = Cast.Classify(expression.type, type);
         castType = conversion;
 
         if (!conversion.exists) {
@@ -1500,11 +1500,7 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        var castedOperand = BindCast(
-            expression.operand.location, boundOperand, boundOp.operandType, ignoreNullability: true
-        );
-
-        return new BoundUnaryExpression(boundOp, castedOperand);
+        return new BoundUnaryExpression(boundOp, boundOperand);
     }
 
     private BoundExpression BindTernaryExpression(TernaryExpressionSyntax expression) {
@@ -1531,12 +1527,6 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        var castedLeft = BindCast(expression.left.location, boundLeft, boundOp.leftType, ignoreNullability: true);
-        var castedCenter = BindCast(
-            expression.center.location, boundCenter, boundOp.centerType, ignoreNullability: true
-        );
-        var castedRight = BindCast(expression.right.location, boundRight, boundOp.rightType, ignoreNullability: true);
-
         return new BoundTernaryExpression(boundLeft, boundOp, boundCenter, boundRight);
     }
 
@@ -1557,9 +1547,6 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        var castedLeft = BindCast(expression.left.location, boundLeft, boundOp.leftType, ignoreNullability: true);
-        var castedRight = BindCast(expression.right.location, boundRight, boundOp.rightType, ignoreNullability: true);
-
         // Could possible move this to ComputeConstant
         // TODO Expand the usage of this warning
         if (boundOp.opKind == BoundBinaryOperatorKind.EqualityEquals ||
@@ -1574,7 +1561,7 @@ internal sealed class Binder {
             }
         }
 
-        return new BoundBinaryExpression(castedLeft, boundOp, castedRight);
+        return new BoundBinaryExpression(boundLeft, boundOp, boundRight);
     }
 
     private BoundExpression BindParenExpression(ParenthesisExpressionSyntax expression) {
