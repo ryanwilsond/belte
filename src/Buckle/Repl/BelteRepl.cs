@@ -259,6 +259,7 @@ public sealed class BelteRepl : ReplBase {
     }
 
     private void RenderResult(object value) {
+        Console.ForegroundColor = state.colorTheme.result;
         var displayText = new DisplayText();
 
         if (value == null) {
@@ -298,6 +299,7 @@ public sealed class BelteRepl : ReplBase {
         }
 
         WriteDisplayText(displayText);
+        Console.ForegroundColor = state.colorTheme.result;
     }
 
     private void SaveSubmission(string text) {

@@ -5,6 +5,15 @@ namespace Buckle.Tests.CodeAnalysis;
 
 public sealed partial class EvaluatorTests {
     [Fact]
+    public void Evaluator_CastExpression_Throws_NullReference() {
+        var text = @"
+            ([NotNull]int)null;
+        ";
+
+        AssertExceptions(text, new NullReferenceException());
+    }
+
+    [Fact]
     public void Evaluator_CastExpression_Versus_ParenthesizedExpression() {
         var text = @"
             int x = 3;

@@ -10,8 +10,7 @@ internal sealed class BoundType : BoundNode {
     /// <summary>
     /// Decimal type that can be null.
     /// </summary>
-    internal static readonly BoundType NullableDecimal =
-        new BoundType(TypeSymbol.Decimal, isNullable: true);
+    internal static readonly BoundType NullableDecimal = new BoundType(TypeSymbol.Decimal, isNullable: true);
 
     /// <summary>
     /// Integer type that can be null.
@@ -209,13 +208,24 @@ internal sealed class BoundType : BoundNode {
 
     /// <summary>
     /// Copies all data to a new <see cref="BoundType" />, not a reference.
+    /// Optionally, any specific override values available in the constructor can be specified.
     /// </summary>
     /// <param name="type"><see cref="BoundType" /> to copy.</param>
     /// <returns>New copy <see cref="BoundType" />.</returns>
-    internal static BoundType Copy(BoundType type) {
+    internal static BoundType Copy(
+        BoundType type, TypeSymbol typeSymbol = null, bool? isImplicit = null, bool? isConstantReference = null,
+        bool? isReference = null, bool? isExplicitReference = null, bool? isConstant = null, bool? isNullable = null,
+        bool? isLiteral = null, int? dimensions = null) {
         return new BoundType(
-            type.typeSymbol, type.isImplicit, type.isConstantReference, type.isReference,
-            type.isExplicitReference, type.isConstant, type.isNullable, type.isLiteral, type.dimensions
+            typeSymbol ?? type.typeSymbol,
+            isImplicit ?? type.isImplicit,
+            isConstantReference ?? type.isConstantReference,
+            isReference ?? type.isReference,
+            isExplicitReference ?? type.isExplicitReference,
+            isConstant ?? type.isConstant,
+            isNullable ?? type.isNullable,
+            isLiteral ?? type.isLiteral,
+            dimensions ?? type.dimensions
         );
     }
 
@@ -224,88 +234,17 @@ internal sealed class BoundType : BoundNode {
     /// </summary>
     /// <param name="type"><see cref="BoundType" /> to copy.</param>
     /// <returns>Non nullable copy <see cref="BoundType" />.</returns>
-    internal static BoundType NonNullable(BoundType type) {
-        return new BoundType(
-            type.typeSymbol, type.isImplicit, type.isConstantReference, type.isReference,
-            type.isExplicitReference, type.isConstant, false, type.isLiteral, type.dimensions
-        );
-    }
-
-    /// <summary>
-    /// Copies all data to a new <see cref="BoundType" />, but makes the new <see cref="BoundType" /> nullable.
-    /// </summary>
-    /// <param name="type"><see cref="BoundType" /> to copy.</param>
-    /// <returns>Nullable copy <see cref="BoundType" />.</returns>
-    internal static BoundType Nullable(BoundType type) {
-        return new BoundType(
-            type.typeSymbol, type.isImplicit, type.isConstantReference, type.isReference,
-            type.isExplicitReference, type.isConstant, true, type.isLiteral, type.dimensions
-        );
-    }
-
-    /// <summary>
-    /// Copies all data to a new <see cref="BoundType" />, but makes the new <see cref="BoundType" /> a reference.
-    /// </summary>
-    /// <param name="type"><see cref="BoundType" /> to copy.</param>
-    /// <returns>Reference type copy of <see cref="BoundType" />.</returns>
-    internal static BoundType Reference(BoundType type) {
-        return new BoundType(
-            type.typeSymbol, type.isImplicit, false, true, type.isExplicitReference, type.isConstant,
-            type.isNullable, type.isLiteral, type.dimensions
-        );
-    }
-
-    /// <summary>
-    /// Copies all data to a new <see cref="BoundType" />, but makes the new <see cref="BoundType" /> an
-    /// explicit reference.
-    /// </summary>
-    /// <param name="type"><see cref="BoundType" /> to copy.</param>
-    /// <returns>Reference type copy of <see cref="BoundType" />.</returns>
-    internal static BoundType ExplicitReference(BoundType type) {
-        return new BoundType(
-            type.typeSymbol, type.isImplicit, false, true, true, type.isConstant,
-            type.isNullable, type.isLiteral, type.dimensions
-        );
-    }
-
-    /// <summary>
-    /// Copies all data to a new <see cref="BoundType" />, but makes the new <see cref="BoundType" /> a constant.
-    /// </summary>
-    /// <param name="type"><see cref="BoundType" /> to copy.</param>
-    /// <returns>Constant copy of <see cref="BoundType" />.</returns>
-    internal static BoundType Constant(BoundType type) {
-        return new BoundType(
-            type.typeSymbol, type.isImplicit, type.isConstantReference, type.isReference,
-            type.isExplicitReference, true, type.isNullable, type.isLiteral, type.dimensions
-        );
-    }
-
-    /// <summary>
-    /// Copies all data to a new <see cref="BoundType" />, but makes the new <see cref="BoundType" /> a constant
-    /// reference.
-    /// </summary>
-    /// <param name="type"><see cref="BoundType" /> to copy.</param>
-    /// <returns>Constant copy of <see cref="BoundType" />.</returns>
-    internal static BoundType ConstantReference(BoundType type) {
-        return new BoundType(
-            type.typeSymbol, type.isImplicit, true, true, type.isExplicitReference,
-            type.isConstant, type.isNullable, type.isLiteral, type.dimensions
-        );
-    }
+    internal static BoundType NonNullable(BoundType type) => Copy(type, isNullable: false);
 
     /// <summary>
     /// The item <see cref="BoundType" /> if this <see cref="BoundType" /> is an array, otherwise null.
     /// </summary>
     /// <returns><see cref="BoundType" /> of item type.</returns>
     internal BoundType ChildType() {
-        if (dimensions > 0) {
-            return new BoundType(
-                typeSymbol, isImplicit, isConstantReference, isReference,
-                isExplicitReference, isConstant, isNullable, isLiteral, dimensions - 1
-            );
-        } else {
+        if (dimensions > 0)
+            return Copy(this, dimensions: dimensions - 1);
+        else
             return null;
-        }
     }
 
     /// <summary>
@@ -313,13 +252,9 @@ internal sealed class BoundType : BoundNode {
     /// </summary>
     /// <returns>The base item <see cref="BoundType" />.</returns>
     internal BoundType BaseType() {
-        if (dimensions > 0) {
-            return new BoundType(
-                typeSymbol, isImplicit, isConstantReference, isReference,
-                isExplicitReference, isConstant, isNullable, isLiteral, 0
-            );
-        } else {
+        if (dimensions > 0)
+            return Copy(this, dimensions: 0);
+        else
             return this;
-        }
     }
 }

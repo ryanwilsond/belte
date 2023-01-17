@@ -16,7 +16,7 @@ internal static class ConstantFolding {
     /// <param name="op">Operator.</param>
     /// <param name="right">Right side operand.</param>
     /// <returns><see cref="BoundConstant" />, returns null if folding is not possible.</returns>
-    internal static BoundConstant Fold(
+    internal static BoundConstant FoldBinary(
         BoundExpression left, BoundBinaryOperator op, BoundExpression right) {
         var leftConstant = left.constantValue;
         var rightConstant = right.constantValue;
@@ -53,8 +53,8 @@ internal static class ConstantFolding {
         if (leftValue == null || rightValue == null)
             return new BoundConstant(null);
 
-        leftValue = CastUtilities.Cast(leftValue, leftType);
-        rightValue = CastUtilities.Cast(rightValue, leftType);
+        leftValue = CastUtilities.Cast(leftValue, op.leftType);
+        rightValue = CastUtilities.Cast(rightValue, op.rightType);
 
         switch (op.opKind) {
             case BoundBinaryOperatorKind.Addition:
@@ -154,7 +154,7 @@ internal static class ConstantFolding {
     /// <param name="op">Operator.</param>
     /// <param name="operand">Operand.</param>
     /// <returns><see cref="BoundConstant" />, returns null if folding is not possible.</returns>
-    internal static BoundConstant Fold(BoundUnaryOperator op, BoundExpression operand) {
+    internal static BoundConstant FoldUnary(BoundUnaryOperator op, BoundExpression operand) {
         var operandType = operand.type.typeSymbol;
 
         if (operand.constantValue != null && operand.constantValue.value is int value) {
@@ -181,7 +181,7 @@ internal static class ConstantFolding {
         return null;
     }
 
-    internal static BoundConstant Fold(
+    internal static BoundConstant FoldTernary(
         BoundExpression left, BoundTernaryOperator op, BoundExpression center, BoundExpression right) {
         if (op.opKind == BoundTernaryOperatorKind.Conditional) {
             if (left.constantValue != null && (bool)left.constantValue.value && center.constantValue != null)
@@ -189,6 +189,21 @@ internal static class ConstantFolding {
 
             if (left.constantValue != null && !(bool)left.constantValue.value && right.constantValue != null)
                 return new BoundConstant(right.constantValue.value);
+        }
+
+        return null;
+    }
+
+    internal static BoundConstant FoldCast(BoundExpression expression, BoundType type) {
+        if (expression.constantValue != null) {
+            if (expression.constantValue.value == null && !type.isNullable)
+                return null;
+
+            try {
+                return new BoundConstant(CastUtilities.Cast(expression.constantValue.value, type));
+            } catch (FormatException) {
+                return null;
+            }
         }
 
         return null;

@@ -476,14 +476,14 @@ internal sealed class Binder {
 
     private BoundExpression BindCast(
         TextLocation diagnosticLocation, BoundExpression expression, BoundType type,
-        bool allowExplicit = false, int argument = 0) {
-        return BindCast(diagnosticLocation, expression, type, out _, allowExplicit, argument);
+        bool allowExplicit = false, int argument = 0, bool ignoreNullability = false) {
+        return BindCast(diagnosticLocation, expression, type, out _, allowExplicit, argument, ignoreNullability);
     }
 
     private BoundExpression BindCast(
         TextLocation diagnosticLocation, BoundExpression expression, BoundType type,
-        out Cast castType, bool allowExplicit = false, int argument = 0) {
-        var conversion = Cast.Classify(expression.type, type);
+        out Cast castType, bool allowExplicit = false, int argument = 0, bool ignoreNullability = false) {
+        var conversion = Cast.Classify(expression.type, type, ignoreNullability);
         castType = conversion;
 
         if (!conversion.exists) {
@@ -873,16 +873,20 @@ internal sealed class Binder {
             return null;
         }
 
-        var nullable = type.isNullable;
+        var isNullable = type.isNullable;
         _shadowingVariable = expression.identifier.text;
 
         if (type.isReference || (type.isImplicit && expression.initializer?.kind == SyntaxKind.RefExpression)) {
             var initializer = BindReferenceExpression((ReferenceExpressionSyntax)expression.initializer);
-            var variableType = type.isImplicit ? initializer.type : type;
-            variableType = (type.isConstant && !type.isImplicit) ? BoundType.Constant(variableType) : variableType;
-            variableType = ((type.isConstant && type.isImplicit) || type.isConstantReference)
-                ? BoundType.ConstantReference(variableType)
-                : variableType;
+
+            var tempType = type.isImplicit ? initializer.type : type;
+            var variableType = BoundType.Copy(
+                tempType,
+                isConstant: (type.isConstant && !type.isImplicit) ? true : null,
+                isConstantReference: ((type.isConstant && type.isImplicit) || type.isConstantReference) ? true : null,
+                isNullable: isNullable,
+                isLiteral: false
+            );
 
             if (initializer.type.isConstant && !variableType.isConstant) {
                 diagnostics.Push(Error.ReferenceToConstant(
@@ -909,7 +913,7 @@ internal sealed class Binder {
             var initializer = (expression.initializer == null ||
                 (expression.initializer is LiteralExpressionSyntax l && l.token.kind == SyntaxKind.NullKeyword))
                 ? new BoundLiteralExpression(null)
-                : BindInitializerListExpression((InitializerListExpressionSyntax)expression.initializer, type);
+                : BindExpression(expression.initializer, initializerListType: type);
 
             if (initializer is BoundInitializerListExpression il) {
                 if (il.items.Length == 0 && type.isImplicit) {
@@ -921,13 +925,10 @@ internal sealed class Binder {
                 }
             }
 
-            var variableType = type.isImplicit ? initializer.type : type;
-            variableType = type.isConstant ? BoundType.Constant(variableType) : variableType;
-
-            if (nullable)
-                variableType = BoundType.Nullable(variableType);
-            else
-                variableType = BoundType.NonNullable(variableType);
+            var tempType = type.isImplicit ? initializer.type : type;
+            var variableType = BoundType.Copy(
+                tempType, isConstant: type.isConstant ? true : null, isNullable: isNullable, isLiteral: false
+            );
 
             if (!variableType.isNullable && initializer is BoundLiteralExpression ble && ble.value == null) {
                 diagnostics.Push(Error.NullAssignOnNotNull(expression.initializer.location, variableType.isConstant));
@@ -938,9 +939,9 @@ internal sealed class Binder {
 
             var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
             var variable = BindVariable(expression.identifier,
-                new BoundType(
-                    itemType.typeSymbol, type.isImplicit, type.isConstantReference, type.isReference,
-                    false, type.isConstant, type.isNullable, false, variableType.dimensions
+                BoundType.Copy(
+                    type, typeSymbol: itemType.typeSymbol, isExplicitReference: false,
+                    isLiteral: false, dimensions: variableType.dimensions
                 ),
                 castedInitializer.constantValue
             );
@@ -951,13 +952,10 @@ internal sealed class Binder {
                 ? BindExpression(expression.initializer)
                 : new BoundLiteralExpression(null);
 
-            var variableType = type.isImplicit ? initializer.type : type;
-            variableType = type.isConstant ? BoundType.Constant(variableType) : variableType;
-
-            if (nullable)
-                variableType = BoundType.Nullable(variableType);
-            else
-                variableType = BoundType.NonNullable(variableType);
+            var tempType = type.isImplicit ? initializer.type : type;
+            var variableType = BoundType.Copy(
+                tempType, isConstant: type.isConstant ? true : null, isNullable: isNullable, isLiteral: false
+            );
 
             if (!variableType.isNullable && initializer is BoundLiteralExpression ble && ble.value == null) {
                 diagnostics.Push(Error.NullAssignOnNotNull(expression.initializer.location, variableType.isConstant));
@@ -989,8 +987,9 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindExpression(
-        ExpressionSyntax expression, bool canBeVoid = false, bool ownStatement = false) {
-        var result = BindExpressionInternal(expression, ownStatement);
+        ExpressionSyntax expression, bool canBeVoid = false,
+        bool ownStatement = false, BoundType initializerListType = null) {
+        var result = BindExpressionInternal(expression, ownStatement, initializerListType);
 
         if (!canBeVoid && result.type?.typeSymbol == TypeSymbol.Void) {
             diagnostics.Push(Error.NoValue(expression.location));
@@ -1000,11 +999,12 @@ internal sealed class Binder {
         return result;
     }
 
-    private BoundExpression BindExpressionInternal(ExpressionSyntax expression, bool ownStatement = false) {
+    private BoundExpression BindExpressionInternal(
+        ExpressionSyntax expression, bool ownStatement, BoundType initializerListType) {
         switch (expression.kind) {
             case SyntaxKind.LiteralExpression:
                 if (expression is InitializerListExpressionSyntax il)
-                    return BindInitializerListExpression(il, null);
+                    return BindInitializerListExpression(il, initializerListType);
                 else
                     return BindLiteralExpression((LiteralExpressionSyntax)expression);
             case SyntaxKind.UnaryExpression:
@@ -1458,14 +1458,15 @@ internal sealed class Binder {
 
         foreach (var item in expression.items) {
             BoundExpression tempItem = BindExpression(item);
+            tempItem = tempItem is BoundEmptyExpression ? new BoundLiteralExpression(null) : tempItem;
+            // ! Test if this is no longer necessary
             tempItem.type.isNullable = true;
 
             if (type == null || type.isImplicit) {
                 var tempType = tempItem.type;
 
-                type = new BoundType(
-                    tempType.typeSymbol, false, tempType.isConstantReference, tempType.isReference,
-                    tempType.isExplicitReference, tempType.isConstant, true, true, tempType.dimensions + 1
+                type = BoundType.Copy(
+                    tempType, isImplicit: false, isNullable: true, isLiteral: true, dimensions: tempType.dimensions + 1
                 );
             }
 
@@ -1499,7 +1500,11 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        return new BoundUnaryExpression(boundOp, boundOperand);
+        var castedOperand = BindCast(
+            expression.operand.location, boundOperand, boundOp.operandType, ignoreNullability: true
+        );
+
+        return new BoundUnaryExpression(boundOp, castedOperand);
     }
 
     private BoundExpression BindTernaryExpression(TernaryExpressionSyntax expression) {
@@ -1526,6 +1531,12 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
+        var castedLeft = BindCast(expression.left.location, boundLeft, boundOp.leftType, ignoreNullability: true);
+        var castedCenter = BindCast(
+            expression.center.location, boundCenter, boundOp.centerType, ignoreNullability: true
+        );
+        var castedRight = BindCast(expression.right.location, boundRight, boundOp.rightType, ignoreNullability: true);
+
         return new BoundTernaryExpression(boundLeft, boundOp, boundCenter, boundRight);
     }
 
@@ -1546,6 +1557,9 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
+        var castedLeft = BindCast(expression.left.location, boundLeft, boundOp.leftType, ignoreNullability: true);
+        var castedRight = BindCast(expression.right.location, boundRight, boundOp.rightType, ignoreNullability: true);
+
         // Could possible move this to ComputeConstant
         // TODO Expand the usage of this warning
         if (boundOp.opKind == BoundBinaryOperatorKind.EqualityEquals ||
@@ -1560,7 +1574,7 @@ internal sealed class Binder {
             }
         }
 
-        return new BoundBinaryExpression(boundLeft, boundOp, boundRight);
+        return new BoundBinaryExpression(castedLeft, boundOp, castedRight);
     }
 
     private BoundExpression BindParenExpression(ParenthesisExpressionSyntax expression) {

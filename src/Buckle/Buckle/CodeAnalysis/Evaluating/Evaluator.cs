@@ -241,12 +241,7 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateCast(EvaluatorObject value, BoundType type) {
         var valueValue = Value(value);
-
-        if (valueValue == null)
-            return value;
-
-        var typeSymbol = type.typeSymbol;
-        valueValue = CastUtilities.Cast(valueValue, (TypeSymbol)typeSymbol);
+        valueValue = CastUtilities.Cast(valueValue, type);
 
         return new EvaluatorObject(valueValue);
     }
@@ -343,12 +338,13 @@ internal sealed class Evaluator {
             _hasValue = false;
 
             if (!Console.IsOutputRedirected) {
+                // TODO Move this logic to the Repl
                 if (Console.CursorLeft != 0)
                     Console.WriteLine();
 
                 var previous = Console.ForegroundColor;
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.Write("Unhandled exception: ");
+                Console.Write($"Unhandled exception ({e.GetType()}): ");
                 Console.ForegroundColor = previous;
                 Console.WriteLine(e.Message);
             }
@@ -574,7 +570,7 @@ internal sealed class Evaluator {
         if (operandValue == null)
             return new EvaluatorObject();
 
-        operandValue = CastUtilities.Cast(operandValue, expression.op.operandType.typeSymbol);
+        operandValue = CastUtilities.Cast(operandValue, expression.op.operandType);
 
         switch (expression.op.opKind) {
             case BoundUnaryOperatorKind.NumericalIdentity:
@@ -599,7 +595,7 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateTernaryExpression(BoundTernaryExpression expression, ref bool abort) {
         var left = EvaluateExpression(expression.left, ref abort);
         var leftValue = Value(left);
-        leftValue = CastUtilities.Cast(leftValue, expression.op.leftType.typeSymbol);
+        leftValue = CastUtilities.Cast(leftValue, expression.op.leftType);
 
         switch (expression.op.opKind) {
             case BoundTernaryOperatorKind.Conditional:
@@ -656,8 +652,8 @@ internal sealed class Evaluator {
         var leftType = expression.left.type.typeSymbol;
         var rightType = expression.right.type.typeSymbol;
 
-        leftValue = CastUtilities.Cast(leftValue, expression.op.leftType.typeSymbol);
-        rightValue = CastUtilities.Cast(rightValue, expression.op.rightType.typeSymbol);
+        leftValue = CastUtilities.Cast(leftValue, expression.left.type);
+        rightValue = CastUtilities.Cast(rightValue, expression.right.type);
 
         switch (expression.op.opKind) {
             case BoundBinaryOperatorKind.Addition:

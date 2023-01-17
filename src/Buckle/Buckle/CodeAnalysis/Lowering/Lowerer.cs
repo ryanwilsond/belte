@@ -371,6 +371,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         (<type>)Value(<expression>)
 
         */
+        if (expression.constantValue != null)
+            return base.RewriteCastExpression(expression);
+
         if (expression.type.isNullable && expression.expression.type.isNullable) {
             return RewriteExpression(
                 NullConditional(

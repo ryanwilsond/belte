@@ -27,10 +27,7 @@ internal sealed class BoundLiteralExpression : BoundExpression {
 
     /// <param name="override">Forces a <see cref="BoundType" /> on a value instead of implying.</param>
     internal BoundLiteralExpression(object value, BoundType @override) {
-        type = new BoundType(
-            @override.typeSymbol, @override.isImplicit, @override.isConstantReference, @override.isReference,
-            @override.isExplicitReference, @override.isConstant, @override.isNullable, true, @override.dimensions);
-
+        type = BoundType.Copy(@override, isLiteral: true);
         constantValue = new BoundConstant(value);
     }
 

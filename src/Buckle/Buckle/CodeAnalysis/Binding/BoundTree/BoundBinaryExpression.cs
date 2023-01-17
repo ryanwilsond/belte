@@ -11,7 +11,7 @@ internal sealed class BoundBinaryExpression : BoundExpression {
         this.left = left;
         this.op = op;
         this.right = right;
-        constantValue = ConstantFolding.Fold(this.left, this.op, this.right);
+        constantValue = ConstantFolding.FoldBinary(this.left, this.op, this.right);
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.BinaryExpression;

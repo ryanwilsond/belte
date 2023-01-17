@@ -20,5 +20,5 @@ internal sealed class BoundMemberAccessExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.MemberAccessExpression;
 
-    internal override BoundType type => BoundType.Reference(member.type);
+    internal override BoundType type => BoundType.Copy(member.type, isConstantReference: false, isReference: true);
 }

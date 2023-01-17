@@ -12,7 +12,7 @@ internal sealed class BoundTernaryExpression : BoundExpression {
         this.op = op;
         this.center = center;
         this.right = right;
-        constantValue = ConstantFolding.Fold(this.left, this.op, this.center, this.right);
+        constantValue = ConstantFolding.FoldTernary(this.left, this.op, this.center, this.right);
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.TernaryExpression;

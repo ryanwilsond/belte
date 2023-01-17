@@ -1,4 +1,5 @@
 using System;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.Utilities;
@@ -13,18 +14,26 @@ internal static class CastUtilities {
     /// <param name="value">What to cast.</param>
     /// <param name="type">The target type of the value.</param>
     /// <returns>The casted value, does not wrap conversion exceptions.</returns>
-    internal static object Cast(object value, TypeSymbol targetType) {
-        if (targetType == TypeSymbol.Bool) {
+    internal static object Cast(object value, BoundType targetType) {
+        if (value == null && !targetType.isNullable)
+            throw new NullReferenceException();
+
+        if (value == null)
+            return null;
+
+        var typeSymbol = targetType.typeSymbol;
+
+        if (typeSymbol == TypeSymbol.Bool) {
             return Convert.ToBoolean(value);
-        } else if (targetType == TypeSymbol.Int) {
+        } else if (typeSymbol == TypeSymbol.Int) {
             // Prevents bankers rounding from Convert.ToInt32, instead always truncate (no rounding)
             if (value.IsFloatingPoint())
                 value = Math.Truncate(Convert.ToDouble(value));
 
             return Convert.ToInt32(value);
-        } else if (targetType == TypeSymbol.Decimal) {
+        } else if (typeSymbol == TypeSymbol.Decimal) {
             return Convert.ToDouble(value);
-        } else if (targetType == TypeSymbol.String) {
+        } else if (typeSymbol == TypeSymbol.String) {
             return Convert.ToString(value);
         } else {
             return value;

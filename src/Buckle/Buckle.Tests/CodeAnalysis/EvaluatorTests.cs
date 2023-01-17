@@ -228,6 +228,8 @@ public sealed partial class EvaluatorTests {
     [InlineData("bool[] a; return a?[3];", null)]
     [InlineData("bool[] a = {true, false}; a = null; return a?[3];", null)]
     [InlineData("bool[] a = null; return a?[3];", null)]
+    [InlineData("int[] a = {1, 2, null}; return a[0];", 1)]
+    [InlineData("int[] a = {1, 2, null}; return a[2];", null)]
     // Reference expressions
     [InlineData("int x = 4; ref int y = ref x; x++; return y;", 5)]
     [InlineData("int x = 4; ref int y = ref x; y++; return x;", 5)]
@@ -276,6 +278,8 @@ public sealed partial class EvaluatorTests {
     [InlineData("(int)3.6;", 3)]
     [InlineData("([NotNull]int)3;", 3)]
     [InlineData("string a = (string)(int)3.6; return a;", "3")]
+    [InlineData("(string)null;", null)]
+    [InlineData("(int)null;", null)]
     // Block statements and return expressions
     [InlineData("{ int a = 3; return a; }", 3)]
     [InlineData("int a = 5; { a = 3; return a; }", 3)]

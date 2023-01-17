@@ -21,9 +21,7 @@ internal sealed class BoundInitializerListExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.LiteralExpression;
 
-    // Immutable design makes this required
-    internal override BoundType type => new BoundType(
-        itemType.typeSymbol, itemType.isImplicit, itemType.isConstantReference, itemType.isReference,
-        itemType.isExplicitReference, itemType.isConstant, true, itemType.isLiteral, dimensions
-    );
+    internal override BoundType type => itemType == null
+        ? null
+        : BoundType.Copy(itemType, isNullable: true, dimensions: dimensions);
 }

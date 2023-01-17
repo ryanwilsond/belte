@@ -14,7 +14,7 @@ internal sealed class BoundCastExpression : BoundExpression {
     internal BoundCastExpression(BoundType type, BoundExpression expression) {
         this.type = type;
         this.expression = expression;
-        constantValue = this.expression.constantValue;
+        constantValue = ConstantFolding.FoldCast(this.expression, this.type);
     }
 
     internal BoundExpression expression { get; }
