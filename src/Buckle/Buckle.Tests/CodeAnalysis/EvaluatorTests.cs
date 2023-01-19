@@ -272,6 +272,9 @@ public sealed partial class EvaluatorTests {
     [InlineData("int F(int a = 3) { return a; } return F();", 3)]
     [InlineData("int F(int a, int b, int c = 6) { return a + b * c; } return F(b: 3, c: 2, a: 9);", 15)]
     [InlineData("int F(int a, int b, int c = 6) { return a + b * c; } return F(b: 3, a: 9);", 27)]
+    [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(1, 2);", 3)]
+    [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(1,);", 2)]
+    [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(,2);", 1)]
     // Cast expressions
     [InlineData("(decimal)3;", 3)]
     [InlineData("(int)3.4;", 3)]

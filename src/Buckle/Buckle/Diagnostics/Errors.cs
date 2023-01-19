@@ -672,6 +672,14 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_VariableUsingTypeName), location, message);
     }
 
+    /// <summary>
+    /// BU0072. Run `buckle --explain BU0072` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotImplyNull(TextLocation location) {
+        var message = "cannot implicitly pass null in a non-nullable context";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotImplyNull), location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticType.Error);
     }

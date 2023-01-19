@@ -468,21 +468,22 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindCast(
-        ExpressionSyntax expression, BoundType type, bool allowExplicit = false, int argument = 0) {
+        ExpressionSyntax expression, BoundType type, bool allowExplicit = false,
+        int argument = 0, bool isImplicitNull = false) {
         var boundExpression = BindExpression(expression);
 
-        return BindCast(expression.location, boundExpression, type, allowExplicit, argument);
+        return BindCast(expression.location, boundExpression, type, allowExplicit, argument, isImplicitNull);
     }
 
     private BoundExpression BindCast(
         TextLocation diagnosticLocation, BoundExpression expression, BoundType type,
-        bool allowExplicit = false, int argument = 0) {
-        return BindCast(diagnosticLocation, expression, type, out _, allowExplicit, argument);
+        bool allowExplicit = false, int argument = 0, bool isImplicitNull = false) {
+        return BindCast(diagnosticLocation, expression, type, out _, allowExplicit, argument, isImplicitNull);
     }
 
     private BoundExpression BindCast(
         TextLocation diagnosticLocation, BoundExpression expression, BoundType type,
-        out Cast castType, bool allowExplicit = false, int argument = 0) {
+        out Cast castType, bool allowExplicit = false, int argument = 0, bool isImplicitNull = false) {
         var conversion = Cast.Classify(expression.type, type);
         castType = conversion;
 
@@ -493,8 +494,12 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        if (!allowExplicit && conversion.isExplicit)
-            diagnostics.Push(Error.CannotConvertImplicitly(diagnosticLocation, expression.type, type, argument));
+        if (!allowExplicit && conversion.isExplicit) {
+            if (isImplicitNull)
+                diagnostics.Push(Error.CannotImplyNull(diagnosticLocation));
+            else
+                diagnostics.Push(Error.CannotConvertImplicitly(diagnosticLocation, expression.type, type, argument));
+        }
 
         if (conversion.isIdentity) {
             if (expression is not BoundLiteralExpression le || le.type.typeSymbol != null)
@@ -1373,9 +1378,21 @@ internal sealed class Binder {
                     // If this evaluates to null, it means that there was a default value automatically passed in
                     var location = i >= expression.arguments.count ? null : expression.arguments[i].location;
 
+                    var argumentExpression = argument.expression;
+                    var isImplicitNull = false;
+
+                    if (argument.expression.type.typeSymbol == null &&
+                        argument.expression is BoundLiteralExpression &&
+                        BoundConstant.IsNull(argument.expression.constantValue)) {
+                        argumentExpression = new BoundLiteralExpression(
+                            null, BoundType.Copy(argument.expression.type, typeSymbol: parameter.type.typeSymbol)
+                        );
+                        isImplicitNull = true;
+                    }
+
                     var boundArgument = BindCast(
-                        location, argument.expression,
-                        parameter.type, out var castType, argument: i + 1
+                        location, argumentExpression, parameter.type, out var castType,
+                        argument: i + 1, isImplicitNull: isImplicitNull
                     );
 
                     if (castType.isImplicit && !castType.isIdentity)

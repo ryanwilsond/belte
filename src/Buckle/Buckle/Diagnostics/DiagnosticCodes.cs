@@ -80,7 +80,8 @@ internal enum DiagnosticCode : int {
     ERR_DefaultMustBeConstant = 68,
     ERR_DefaultBeforeNoDefault = 69,
     ERR_ConstantAndVariable = 70,
-    ERR_VariableUsingTypeName = 71, // TODO! Reconsider if this should exist
+    ERR_VariableUsingTypeName = 71,
+    ERR_CannotImplyNull = 72,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

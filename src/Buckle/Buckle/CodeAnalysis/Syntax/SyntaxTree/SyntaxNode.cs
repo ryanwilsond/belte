@@ -52,6 +52,9 @@ internal abstract class SyntaxNode {
             var first = children.First().span;
             var last = children.Last().span;
 
+            if (first == null || last == null)
+                return null;
+
             return TextSpan.FromBounds(first.start, last.end);
         }
     }
@@ -69,6 +72,9 @@ internal abstract class SyntaxNode {
 
             var first = children.First().fullSpan;
             var last = children.Last().fullSpan;
+
+            if (first == null || last == null)
+                return null;
 
             return TextSpan.FromBounds(first.start, last.end);
         }

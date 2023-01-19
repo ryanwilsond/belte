@@ -1182,6 +1182,20 @@ a developer it is easily confusing. This is why this is not allowed.
 
 This error will only apply to types in the same namespace as the variable
 declaration, so that other namespaces do not interfere with naming.
+$BU0072
+You can implicitly pass null in multiple contexts such as call expressions by
+omitting any value before or after a comma. However, if you attempt to pass null
+this way when a non-nullable type is expected, this error is raised.
+
+For example:
+
+```
+void MyFunction(int a, [NotNull]int b) { }
+
+MyFunction(, 2); // Allowed, the first parameter is nullable
+MyFunction(1,); // Not allowed, the second parameter is non-nullable
+MyFunction(,); // Not allowed, while the first parameter is nullable, the second parameter is not
+```
 $BU9000
 Inside a global scope without a `Main` function, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it

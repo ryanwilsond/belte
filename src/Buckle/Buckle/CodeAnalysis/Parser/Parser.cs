@@ -925,7 +925,14 @@ internal sealed class Parser {
                     var argument = ParseArgument();
                     nodesAndSeparators.Add(argument);
                 } else {
-                    var empty = new EmptyExpressionSyntax(_syntaxTree);
+                    var empty = new ArgumentSyntax(
+                        _syntaxTree,
+                        null,
+                        null,
+                        new EmptyExpressionSyntax(
+                            _syntaxTree, Token(_syntaxTree, SyntaxKind.BadToken, current.position)
+                        )
+                    );
                     nodesAndSeparators.Add(empty);
                 }
 

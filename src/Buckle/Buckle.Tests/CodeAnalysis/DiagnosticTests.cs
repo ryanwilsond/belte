@@ -935,6 +935,21 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
+    public void Evaluator_Reports_Error_BU0072_CannotImplyNull() {
+        var text = @"
+            void MyFunc(int a, \[NotNull\]int b) { }
+
+            MyFunc(,[]);
+        ";
+
+        var diagnostics = @"
+            cannot implicitly pass null in a non-nullable context
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
     public void Evaluator_Reports_Error_Unsupported_BU9004_CannotInitialize() {
         var text = @"
             struct A {

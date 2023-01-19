@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
@@ -10,7 +11,15 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// </code>
 /// </summary>
 internal sealed partial class EmptyExpressionSyntax : ExpressionSyntax {
-    internal EmptyExpressionSyntax(SyntaxTree syntaxTree) : base(syntaxTree) { }
+    /// <param name="location">An artificial location used by diagnostics.</param>
+    internal EmptyExpressionSyntax(SyntaxTree syntaxTree, SyntaxToken artificialLocation = null) : base(syntaxTree) {
+        this.artificialLocation = artificialLocation;
+    }
+
+    /// <summary>
+    /// An artificial location used by diagnostics.
+    /// </summary>
+    SyntaxToken? artificialLocation { get; }
 
     internal override SyntaxKind kind => SyntaxKind.EmptyExpression;
 }
