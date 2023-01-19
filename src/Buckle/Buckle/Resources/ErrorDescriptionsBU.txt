@@ -1179,6 +1179,9 @@ A.F(); // Is this referring to the static method, or the instance method?
 
 In this case, it would always refer to the instance method, but reading this as
 a developer it is easily confusing. This is why this is not allowed.
+
+This error will only apply to types in the same namespace as the variable
+declaration, so that other namespaces do not interfere with naming.
 $BU9000
 Inside a global scope without a `Main` function, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it

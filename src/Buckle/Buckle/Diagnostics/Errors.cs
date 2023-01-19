@@ -668,7 +668,7 @@ internal static class Error {
     /// </summary>
     internal static BelteDiagnostic VariableUsingTypeName(TextLocation location, string name, bool isConstant) {
         var constantWord = isConstant ? "constant" : "variable";
-        var message = $"{constantWord} name '{name}' is not valid as it is the name of a type";
+        var message = $"{constantWord} name '{name}' is not valid as it is the name of a type in this namespace";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_VariableUsingTypeName), location, message);
     }
 

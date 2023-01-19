@@ -928,7 +928,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            variable name 'A' is not valid as it is the name of a type
+            variable name 'A' is not valid as it is the name of a type in this namespace
         ";
 
         AssertDiagnostics(text, diagnostics);
