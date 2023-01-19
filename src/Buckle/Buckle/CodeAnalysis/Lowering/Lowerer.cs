@@ -458,6 +458,14 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         <left> <op> <center> <op> <right>
 
+        ---->
+
+        if (<left>) {
+            <center>
+        } else {
+            <right>
+        }
+
         ----> <op> is '?:' and <left> is constant true
 
         (<center>)
@@ -473,6 +481,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
             if (BoundConstant.IsNotNull(expression.left.constantValue) && !(bool)expression.left.constantValue.value)
                 return RewriteExpression(expression.right);
+
+            // TODO
         }
 
         return base.RewriteTernaryExpression(expression);
