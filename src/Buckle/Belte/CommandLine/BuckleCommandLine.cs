@@ -146,38 +146,39 @@ public static partial class BuckleCommandLine {
             }
         }
 
-        if (messages.ContainsKey(errorCode)) {
-            var message = messages[errorCode].Substring(2);
-
-            if (message.EndsWith('\n'))
-                message = message.Substring(0, message.Length-1);
-
-            var lines = message.Split('\n');
-            var count = 0;
-
-            while (count < lines.Length) {
-                // First -1 is required, second -1 is because we are printing -- More --
-                // -2 is to account for the next terminal input line
-                if (count > Console.WindowHeight - 1 - 1 - 2) {
-                    var key = ' ';
-
-                    do {
-                        Console.Write("-- More --");
-                        key = Console.ReadKey().KeyChar;
-                        var currentLineCursor = Console.CursorTop;
-                        Console.SetCursorPosition(0, Console.CursorTop);
-                        // * Does not need -1 in some terminals
-                        // Unfortunately the program cant tell what terminal is being used
-                        Console.Write(new string(' ', Console.WindowWidth - 1));
-                        Console.SetCursorPosition(0, currentLineCursor);
-                    } while (key != '\n' && key != '\r');
-                }
-
-                var line = lines[count++];
-                Console.WriteLine(line);
-            }
-        } else {
+        if (!messages.ContainsKey(errorCode)) {
             diagnostics.Push(Belte.Diagnostics.Error.UnusedErrorCode(error));
+            return;
+        }
+
+        var foundMessage = messages[errorCode].Substring(2);
+
+        if (foundMessage.EndsWith('\n'))
+            foundMessage = foundMessage.Substring(0, foundMessage.Length - 1);
+
+        var lines = foundMessage.Split('\n');
+        var count = 0;
+
+        while (count < lines.Length) {
+            // First -1 is required, second -1 is because we are printing -- More --
+            // -2 is to account for the next terminal input line
+            if (count > Console.WindowHeight - 1 - 1 - 2) {
+                var key = ' ';
+
+                do {
+                    Console.Write("-- More --");
+                    key = Console.ReadKey().KeyChar;
+                    var currentLineCursor = Console.CursorTop;
+                    Console.SetCursorPosition(0, Console.CursorTop);
+                    // * Does not need -1 in some terminals
+                    // Unfortunately the program cant tell what terminal is being used
+                    Console.Write(new string(' ', Console.WindowWidth - 1));
+                    Console.SetCursorPosition(0, currentLineCursor);
+                } while (key != '\n' && key != '\r');
+            }
+
+            var line = lines[count++];
+            Console.WriteLine(line);
         }
     }
 
@@ -552,75 +553,79 @@ public static partial class BuckleCommandLine {
         for (int i=0; i<args.Length; i++) {
             var arg = args[i];
 
-            if (arg.StartsWith('-')) {
-                if (arg.StartsWith("-o")) {
-                    specifyOut = true;
+            if (!arg.StartsWith('-')) {
+                diagnostics.Move(ResolveInputFileOrDir(arg, ref tasks));
+                continue;
+            }
 
-                    if (arg == "-o") {
-                        if (i >= args.Length - 1)
-                            diagnostics.Push(Belte.Diagnostics.Error.MissingFilenameO());
-                        else
-                            state.outputFilename = args[++i];
-                    } else {
-                        state.outputFilename = arg.Substring(2);
-                    }
-                } else if (arg.StartsWith("--explain")) {
-                    if (tempDialogs.error != null) {
-                        diagnostics.Push(Belte.Diagnostics.Error.MultipleExplains());
-                        continue;
-                    }
+            if (arg.StartsWith("-o")) {
+                specifyOut = true;
 
-                    if (arg == "--explain") {
-                        if (i >= args.Length - 1) {
-                            diagnostics.Push(Belte.Diagnostics.Error.MissingCodeExplain());
-                        } else {
-                            i++;
-                            tempDialogs.error = args[i];
-                        }
-                    } else {
-                        var errorCode = args[i].Substring(9);
-                        tempDialogs.error = errorCode;
-                    }
-                } else if (arg.StartsWith("--modulename")) {
-                    if (arg == "--modulename" || arg == "--modulename=") {
-                        diagnostics.Push(Belte.Diagnostics.Error.MissingModuleName(arg));
-                    } else {
-                        specifyModule = true;
-                        state.moduleName = arg.Substring(13);
-                    }
-                } else if (arg.StartsWith("--ref")) {
-                    if (arg == "--ref" || arg == "--ref=")
-                        diagnostics.Push(Belte.Diagnostics.Error.MissingReference(arg));
-                    else
-                        references.Add(arg.Substring(6));
-                } else if (arg.StartsWith("--entry")) {
-                    throw new NotImplementedException(
-                        "The '--entry' command-line option is under development and not currently available."
-                    );
+                if (arg != "-o") {
+                    state.outputFilename = arg.Substring(2);
+                    continue;
+                }
 
-                    if (arg == "--entry" || arg == "--entry=") {
-                        diagnostics.Push(Belte.Diagnostics.Error.MissingEntrySymbol(arg));
-                    } else {
-                        state.entryPoint = arg.Substring(8);
-                    }
-                } else if (arg.StartsWith("-W")) {
-                    if (arg.Length == 2) {
-                        diagnostics.Push(Belte.Diagnostics.Error.NoOptionAfterW());
-                    } else {
-                        string[] wArgs = arg.Substring(2).Split(',');
+                if (i < args.Length - 1)
+                    state.outputFilename = args[++i];
+                else
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingFilenameO());
+            } else if (arg.StartsWith("--explain")) {
+                if (tempDialogs.error != null) {
+                    diagnostics.Push(Belte.Diagnostics.Error.MultipleExplains());
+                    continue;
+                }
 
-                        foreach (string wArg in wArgs) {
-                            if (!AllowedOptions.Contains(wArg))
-                                diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedWOption(wArg));
-                            else
-                                options.Add(wArg);
-                        }
-                    }
+                if (arg != "--explain") {
+                    var errorCode = args[i].Substring(9);
+                    tempDialogs.error = errorCode;
+                    continue;
+                }
+
+                if (i < args.Length - 1) {
+                    i++;
+                    tempDialogs.error = args[i];
                 } else {
-                    DecodeSimpleOption(arg);
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingCodeExplain());
+                }
+            } else if (arg.StartsWith("--modulename")) {
+                if (arg != "--modulename" && arg != "--modulename=") {
+                    specifyModule = true;
+                    state.moduleName = arg.Substring(13);
+                } else {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingModuleName(arg));
+                }
+            } else if (arg.StartsWith("--ref")) {
+                if (arg != "--ref" && arg != "--ref=")
+                    references.Add(arg.Substring(6));
+                else
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingReference(arg));
+            } else if (arg.StartsWith("--entry")) {
+                throw new NotImplementedException(
+                    "The '--entry' command-line option is under development and not currently available."
+                );
+
+                if (arg != "--entry" && arg != "--entry=") {
+                    state.entryPoint = arg.Substring(8);
+                } else {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingEntrySymbol(arg));
+                }
+            } else if (arg.StartsWith("-W")) {
+                if (arg.Length == 2) {
+                    diagnostics.Push(Belte.Diagnostics.Error.NoOptionAfterW());
+                    continue;
+                }
+
+                string[] wArgs = arg.Substring(2).Split(',');
+
+                foreach (string wArg in wArgs) {
+                    if (AllowedOptions.Contains(wArg))
+                        options.Add(wArg);
+                    else
+                        diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedWOption(wArg));
                 }
             } else {
-                diagnostics.Move(ResolveInputFileOrDir(arg, ref tasks));
+                DecodeSimpleOption(arg);
             }
         }
 
