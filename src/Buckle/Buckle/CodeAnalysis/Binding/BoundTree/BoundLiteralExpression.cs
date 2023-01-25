@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A bound literal expression, bound from a <see cref="LiteralExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundLiteralExpression : BoundExpression {
-    internal BoundLiteralExpression(object value) {
+    internal BoundLiteralExpression(object value, bool isArtificial = false) {
         if (value is bool)
             type = new BoundType(TypeSymbol.Bool, isLiteral: true);
         else if (value is int)
@@ -22,6 +22,7 @@ internal sealed class BoundLiteralExpression : BoundExpression {
             throw new BelteInternalException(
                 $"BoundLiteralExpression: unexpected literal '{value}' of type '{value.GetType()}'");
 
+        this.isArtificial = isArtificial;
         constantValue = new BoundConstant(value);
     }
 
@@ -38,4 +39,6 @@ internal sealed class BoundLiteralExpression : BoundExpression {
     internal override BoundConstant constantValue { get; }
 
     internal object value => constantValue.value;
+
+    internal bool isArtificial { get; }
 }

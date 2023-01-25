@@ -487,7 +487,9 @@ internal sealed class Binder {
         var conversion = Cast.Classify(expression.type, type);
         castType = conversion;
 
-        if (!conversion.exists) {
+        if (!conversion.exists ||
+            (conversion.isExplicit && BoundConstant.IsNull(expression.constantValue) &&
+            !type.isNullable && !isImplicitNull)) {
             if (expression.type.typeSymbol != TypeSymbol.Error && type.typeSymbol != TypeSymbol.Error)
                 diagnostics.Push(Error.CannotConvert(diagnosticLocation, expression.type, type, argument));
 
@@ -1239,7 +1241,7 @@ internal sealed class Binder {
             var boundExpression = BindExpression(expression.arguments[i].expression);
 
             if (boundExpression is BoundEmptyExpression)
-                boundExpression = new BoundLiteralExpression(null);
+                boundExpression = new BoundLiteralExpression(null, true);
 
             preBoundArgumentsBuilder.Add((argumentName?.text, boundExpression));
         }
@@ -1382,8 +1384,9 @@ internal sealed class Binder {
                     var isImplicitNull = false;
 
                     if (argument.expression.type.typeSymbol == null &&
-                        argument.expression is BoundLiteralExpression &&
-                        BoundConstant.IsNull(argument.expression.constantValue)) {
+                        argument.expression is BoundLiteralExpression le &&
+                        BoundConstant.IsNull(argument.expression.constantValue) &&
+                        le.isArtificial) {
                         argumentExpression = new BoundLiteralExpression(
                             null, BoundType.Copy(argument.expression.type, typeSymbol: parameter.type.typeSymbol)
                         );
@@ -1481,14 +1484,12 @@ internal sealed class Binder {
         foreach (var item in expression.items) {
             BoundExpression tempItem = BindExpression(item);
             tempItem = tempItem is BoundEmptyExpression ? new BoundLiteralExpression(null) : tempItem;
-            // ! Test if this is no longer necessary
-            tempItem.type.isNullable = true;
 
             if (type == null || type.isImplicit) {
                 var tempType = tempItem.type;
 
                 type = BoundType.Copy(
-                    tempType, isImplicit: false, isNullable: true, isLiteral: true, dimensions: tempType.dimensions + 1
+                    tempType, isImplicit: false, isNullable: type.isNullable, isLiteral: true, dimensions: tempType.dimensions + 1
                 );
             }
 

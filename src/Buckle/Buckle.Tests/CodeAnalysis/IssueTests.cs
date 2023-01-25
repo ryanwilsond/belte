@@ -5,6 +5,20 @@ namespace Buckle.Tests.CodeAnalysis;
 
 public sealed partial class EvaluatorTests {
     [Fact]
+    public void Evaluator_InitializerList_AllowsNull() {
+        var text = @"
+            [NotNull]var a = { 1, 2, 3 };
+            a = { [null], 2, 3 };
+        ";
+
+        var diagnostics = @"
+            cannot convert null to '[NotNull]int' because it is a non-nullable type
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
     public void Evaluator_TernaryExpression_AllowsNull() {
         var text = @"
             null ? 3 : 5;

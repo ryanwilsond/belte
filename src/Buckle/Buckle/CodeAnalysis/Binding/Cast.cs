@@ -63,8 +63,12 @@ internal sealed class Cast {
         var from = fromType.typeSymbol;
         var to = toType.typeSymbol;
 
-        if (from == null)
+        if (from == null) {
+            if (fromType.isNullable && !toType.isNullable)
+                return Cast.None;
+
             return Cast.Identity;
+        }
 
         Cast InternalClassify() {
             if (from == to)

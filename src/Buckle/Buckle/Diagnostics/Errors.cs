@@ -208,7 +208,12 @@ internal static class Error {
     /// </summary>
     internal static BelteDiagnostic CannotConvert(
         TextLocation location, BoundType from, BoundType to, int argument = 0) {
-        var message = $"cannot convert from type '{from}' to '{to}'";
+        string message = "";
+
+        if (from.typeSymbol == null)
+            message = $"cannot convert 'null' to '{to}' because it is a non-nullable type";
+        else
+            message = $"cannot convert from type '{from}' to '{to}'";
 
         if (argument > 0)
             message = $"argument {argument}: " + message;

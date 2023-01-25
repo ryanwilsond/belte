@@ -35,33 +35,34 @@ internal sealed class Parser {
 
             if (token.kind == SyntaxKind.BadToken) {
                 badTokens.Add(token);
-            } else {
-                if (badTokens.Count > 0) {
-                    var leadingTrivia = token.leadingTrivia.ToBuilder();
-                    var index = 0;
+                continue;
+            }
 
-                    foreach (var badToken in badTokens) {
-                        foreach (var lt in badToken.leadingTrivia)
-                            leadingTrivia.Insert(index++, lt);
+            if (badTokens.Count > 0) {
+                var leadingTrivia = token.leadingTrivia.ToBuilder();
+                var index = 0;
 
-                        var trivia = new SyntaxTrivia(
-                            syntaxTree, SyntaxKind.SkippedTokenTrivia, badToken.position, badToken.text
-                        );
+                foreach (var badToken in badTokens) {
+                    foreach (var lt in badToken.leadingTrivia)
+                        leadingTrivia.Insert(index++, lt);
 
-                        leadingTrivia.Insert(index++, trivia);
-
-                        foreach (var tt in badToken.trailingTrivia)
-                            leadingTrivia.Insert(index++, tt);
-                    }
-
-                    badTokens.Clear();
-                    token = new SyntaxToken(token.syntaxTree, token.kind, token.position,
-                        token.text, token.value, leadingTrivia.ToImmutable(), token.trailingTrivia
+                    var trivia = new SyntaxTrivia(
+                        syntaxTree, SyntaxKind.SkippedTokenTrivia, badToken.position, badToken.text
                     );
+
+                    leadingTrivia.Insert(index++, trivia);
+
+                    foreach (var tt in badToken.trailingTrivia)
+                        leadingTrivia.Insert(index++, tt);
                 }
 
-                tokens.Add(token);
+                badTokens.Clear();
+                token = new SyntaxToken(token.syntaxTree, token.kind, token.position,
+                    token.text, token.value, leadingTrivia.ToImmutable(), token.trailingTrivia
+                );
             }
+
+            tokens.Add(token);
         } while (token.kind != SyntaxKind.EndOfFileToken);
 
         _tokens = tokens.ToImmutableArray();
@@ -97,27 +98,29 @@ internal sealed class Parser {
             diagnostics.Push(Error.ExpectedToken(current.location, kind));
 
             return Token(_syntaxTree, kind, current.position);
-        } else if (Peek(1).kind != kind) {
-            diagnostics.Push(Error.UnexpectedToken(current.location, current.kind, kind));
-            SyntaxToken cur = current;
-            _position++;
-
-            return Token(_syntaxTree, kind, cur.position);
-        } else {
-            diagnostics.Push(Error.UnexpectedToken(current.location, current.kind));
-            _position++;
-            SyntaxToken cur = current;
-            _position++;
-
-            return cur;
         }
+
+        if (Peek(1).kind != kind) {
+            diagnostics.Push(Error.UnexpectedToken(current.location, current.kind, kind));
+            SyntaxToken skipped = current;
+            _position++;
+
+            return Token(_syntaxTree, kind, skipped.position);
+        }
+
+        diagnostics.Push(Error.UnexpectedToken(current.location, current.kind));
+        _position++;
+        SyntaxToken saved = current;
+        _position++;
+
+        return saved;
     }
 
     private SyntaxToken Next() {
-        SyntaxToken cur = current;
+        SyntaxToken saved = current;
         _position++;
 
-        return cur;
+        return saved;
     }
 
     private SyntaxToken Peek(int offset) {
