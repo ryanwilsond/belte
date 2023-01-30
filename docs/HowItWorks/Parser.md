@@ -9,8 +9,7 @@ parsing priority over others. For example `true || false && false` would evaluat
 priority over the AND token. In reality AND has a higher priority so this expression evaluates to `true` instead.
 
 Checking for functions and variable declarations is just a matter of peeking ahead to see if the correct tokens are
-there and if not pass the tokens down the priority ladder. Inline functions VS block statements are just looking for a
-return statement in the block and checking for a semicolon at the end.
+there and if not pass the tokens down the priority ladder.
 
 After creating a parse tree, control passes onto the Binder which does most of the heavy lifting including type
 checking.

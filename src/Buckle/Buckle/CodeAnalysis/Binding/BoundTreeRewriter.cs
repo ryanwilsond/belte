@@ -210,8 +210,6 @@ internal abstract class BoundTreeRewriter {
                 return RewriteCompoundAssignmentExpression((BoundCompoundAssignmentExpression)expression);
             case BoundNodeKind.ReferenceExpression:
                 return RewriteReferenceExpression((BoundReferenceExpression)expression);
-            case BoundNodeKind.InlineFunctionExpression:
-                return RewriteInlineFunctionExpression((BoundInlineFunctionExpression)expression);
             case BoundNodeKind.TypeOfExpression:
                 return RewriteTypeOfExpression((BoundTypeOfExpression)expression);
             case BoundNodeKind.TernaryExpression:
@@ -275,15 +273,6 @@ internal abstract class BoundTreeRewriter {
         return expression;
     }
 
-    protected virtual BoundExpression RewriteInlineFunctionExpression(BoundInlineFunctionExpression expression) {
-        var rewrittenBlock = (BoundBlockStatement)RewriteBlockStatement(expression.body);
-
-        if (rewrittenBlock == expression.body)
-            return expression;
-
-        return new BoundInlineFunctionExpression(rewrittenBlock, expression.returnType);
-    }
-
     protected virtual BoundExpression RewriteReferenceExpression(BoundReferenceExpression expression) {
         return expression;
     }
@@ -320,9 +309,7 @@ internal abstract class BoundTreeRewriter {
         if (builder == null)
             return expression;
 
-        return new BoundInitializerListExpression(
-            builder.MoveToImmutable(), expression.dimensions, expression.itemType
-        );
+        return new BoundInitializerListExpression(builder.MoveToImmutable(), expression.type);
     }
 
     protected virtual BoundExpression RewriteCompoundAssignmentExpression(

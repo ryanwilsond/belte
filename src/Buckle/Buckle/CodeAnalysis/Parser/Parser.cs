@@ -240,30 +240,6 @@ internal sealed class Parser {
         return false;
     }
 
-    private bool PeekIsInlineFunctionExpression() {
-        // * Temporary, inlines will be disabled until the Blender is added
-        return false;
-
-        var offset = 1;
-        var stack = 1;
-
-        if (current.kind != SyntaxKind.OpenBraceToken)
-            return false;
-
-        while (Peek(offset).kind != SyntaxKind.EndOfFileToken && stack > 0) {
-            if (Peek(offset).kind == SyntaxKind.ReturnKeyword)
-                return true;
-            else if (Peek(offset).kind == SyntaxKind.OpenBraceToken)
-                stack++;
-            else if (Peek(offset).kind == SyntaxKind.CloseBraceToken)
-                stack--;
-
-            offset++;
-        }
-
-        return false;
-    }
-
     private ImmutableArray<MemberSyntax> ParseMembers() {
         var members = ImmutableArray.CreateBuilder<MemberSyntax>();
 
@@ -387,7 +363,7 @@ internal sealed class Parser {
         return new GlobalStatementSyntax(_syntaxTree, statement);
     }
 
-    private StatementSyntax ParseStatement(bool disableInlines = false) {
+    private StatementSyntax ParseStatement() {
         if (PeekIsFunctionDeclaration())
             return ParseLocalFunctionDeclaration();
 
@@ -396,10 +372,7 @@ internal sealed class Parser {
 
         switch (current.kind) {
             case SyntaxKind.OpenBraceToken:
-                if (!PeekIsInlineFunctionExpression() || disableInlines)
-                    return ParseBlockStatement();
-                else
-                    goto default;
+                return ParseBlockStatement();
             case SyntaxKind.IfKeyword:
                 return ParseIfStatement();
             case SyntaxKind.WhileKeyword:
@@ -481,7 +454,7 @@ internal sealed class Parser {
 
     private StatementSyntax ParseDoWhileStatement() {
         var doKeyword = Next();
-        var body = ParseStatement(true);
+        var body = ParseStatement();
         var whileKeyword = Match(SyntaxKind.WhileKeyword);
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
         var condition = ParseNonAssignmentExpression();
@@ -520,7 +493,7 @@ internal sealed class Parser {
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
         var condition = ParseNonAssignmentExpression();
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
-        var body = ParseStatement(true);
+        var body = ParseStatement();
 
         return new WhileStatementSyntax(_syntaxTree, keyword, openParenthesis, condition, closeParenthesis, body);
     }
@@ -529,7 +502,7 @@ internal sealed class Parser {
         var keyword = Next();
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
 
-        var initializer = ParseStatement(true);
+        var initializer = ParseStatement();
         var condition = ParseNonAssignmentExpression();
         var semicolon = Match(SyntaxKind.SemicolonToken);
 
@@ -553,7 +526,7 @@ internal sealed class Parser {
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
         var condition = ParseNonAssignmentExpression();
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
-        var statement = ParseStatement(true);
+        var statement = ParseStatement();
 
         // Not allow nested if statements with else clause without braces; prevents ambiguous else statements
         // * See BU0023
@@ -594,13 +567,9 @@ internal sealed class Parser {
             return null;
 
         var keyword = Match(SyntaxKind.ElseKeyword);
-        var statement = ParseStatement(true);
+        var statement = ParseStatement();
 
         return new ElseClauseSyntax(_syntaxTree, keyword, statement);
-    }
-
-    private StatementSyntax ParseBlockStatement() {
-        return (StatementSyntax)ParseBlockStatementOrInlineFunctionExpression(true);
     }
 
     private StatementSyntax ParseExpressionStatement() {
@@ -617,18 +586,7 @@ internal sealed class Parser {
         return new ExpressionStatementSyntax(_syntaxTree, expression, semicolon);
     }
 
-    private ExpressionSyntax ParseInlineFunctionExpression() {
-        var node = ParseBlockStatementOrInlineFunctionExpression(false);
-
-        if (node.kind == SyntaxKind.InlineFunction) {
-            return (ExpressionSyntax)node;
-        } else {
-            diagnostics.Push(Error.MissingReturnStatement(((BlockStatementSyntax)node).closeBrace.location));
-            return null;
-        }
-    }
-
-    private SyntaxNode ParseBlockStatementOrInlineFunctionExpression(bool isBlock = false) {
+    private StatementSyntax ParseBlockStatement() {
         var statements = ImmutableArray.CreateBuilder<StatementSyntax>();
         var openBrace = Match(SyntaxKind.OpenBraceToken);
         var startToken = current;
@@ -645,10 +603,7 @@ internal sealed class Parser {
 
         var closeBrace = Match(SyntaxKind.CloseBraceToken);
 
-        if (isBlock)
-            return new BlockStatementSyntax(_syntaxTree, openBrace, statements.ToImmutable(), closeBrace);
-        else
-            return new InlineFunctionExpressionSyntax(_syntaxTree, openBrace, statements.ToImmutable(), closeBrace);
+        return new BlockStatementSyntax(_syntaxTree, openBrace, statements.ToImmutable(), closeBrace);
     }
 
     private ExpressionSyntax ParseAssignmentExpression() {
@@ -763,10 +718,7 @@ internal sealed class Parser {
             case SyntaxKind.NullKeyword:
                 return ParseNullLiteral();
             case SyntaxKind.OpenBraceToken:
-                if (PeekIsInlineFunctionExpression())
-                    return ParseInlineFunctionExpression();
-                else
-                    return ParseInitializerListExpression();
+                return ParseInitializerListExpression();
             case SyntaxKind.RefKeyword:
                 return ParseReferenceExpression();
             case SyntaxKind.TypeOfKeyword:

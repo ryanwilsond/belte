@@ -207,12 +207,7 @@ internal static class Error {
     /// </summary>
     internal static BelteDiagnostic CannotConvert(
         TextLocation location, BoundType from, BoundType to, int argument = 0) {
-        string message = "";
-
-        if (from.typeSymbol == null)
-            message = $"cannot convert 'null' to '{to}' because it is a non-nullable type";
-        else
-            message = $"cannot convert from type '{from}' to '{to}'";
+        string message = $"cannot convert from type '{from}' to '{to}'";
 
         if (argument > 0)
             message = $"argument {argument}: " + message;
@@ -512,14 +507,6 @@ internal static class Error {
     }
 
     /// <summary>
-    /// ! Temporary BU0054. Run `buckle --explain BU0054` on the command line for more info.
-    /// </summary>
-    internal static BelteDiagnostic MissingReturnStatement(TextLocation location) {
-        var message = "missing return statement in inline function";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MissingReturnStatement), location, message);
-    }
-
-    /// <summary>
     /// BU0055. Run `buckle --explain BU0055` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic VoidVariable(TextLocation location) {
@@ -682,6 +669,15 @@ internal static class Error {
     internal static BelteDiagnostic CannotImplyNull(TextLocation location) {
         var message = "cannot implicitly pass null in a non-nullable context";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotImplyNull), location, message);
+    }
+
+    internal static BelteDiagnostic CannotConvertNull(TextLocation location, BoundType to, int argument = 0) {
+        var message = $"cannot convert 'null' to '{to}' because it is a non-nullable type";
+
+        if (argument > 0)
+            message = $"argument {argument}: " + message;
+
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotConvertNull), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

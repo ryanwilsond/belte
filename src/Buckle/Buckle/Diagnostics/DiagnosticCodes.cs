@@ -63,7 +63,6 @@ internal enum DiagnosticCode : int {
     ERR_NullAssignNotNull = 52,
     ERR_ImpliedReference = 53,
     ERR_ReferenceToConstant = 54,
-    ERR_MissingReturnStatement = 54, // ! Temporary
     ERR_VoidVariable = 55,
     ERR_ExpectedToken = 56,
     ERR_NoOverload = 57,
@@ -82,6 +81,7 @@ internal enum DiagnosticCode : int {
     ERR_ConstantAndVariable = 70,
     ERR_VariableUsingTypeName = 71,
     ERR_CannotImplyNull = 72,
+    ERR_CannotConvertNull = 73,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

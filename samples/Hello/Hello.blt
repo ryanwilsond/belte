@@ -100,26 +100,6 @@ void Main() {
     // int k = i == j;
     // PrintLine(k); // false
 
-    // * Inline tests
-    // [NotNull]int a = 3;
-    // [NotNull]int b = {
-    //     if (a > 2)
-    //         return 2;
-    //     else
-    //         return 1;
-    //     };
-    // PrintLine(b);
-
-    // int a = 2;
-    // int b = {
-    //         int left0 = null;
-    //         if (a != null) {
-    //             left0 = a + 1;
-    //         }
-    //         return left0;
-    //     }
-    // PrintLine(b);
-
     // * Loop tests
     // [NotNull]int i = 10;
     // [NotNull]int result = 0;

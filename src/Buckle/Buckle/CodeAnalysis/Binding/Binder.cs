@@ -28,9 +28,6 @@ internal sealed class Binder {
     private Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> _loopStack =
         new Stack<(BoundLabel breakLabel, BoundLabel continueLabel)>();
     private int _labelCount;
-    // * Temporary, inlines will be disabled until the Blender is added
-    // private Stack<int> _inlineCounts = new Stack<int>();
-    // private int _inlineCount;
 
     // Functions should be available correctly, so only track variables
     private Stack<HashSet<VariableSymbol>> _trackedSymbols = new Stack<HashSet<VariableSymbol>>();
@@ -201,20 +198,13 @@ internal sealed class Binder {
 
             BoundBlockStatement loweredBody = null;
 
-            if (!function.name.Contains(">g__$Inline")) {
-                var body = binder.BindStatement(function.declaration.body);
-                diagnostics.Move(binder.diagnostics);
+            var body = binder.BindStatement(function.declaration.body);
+            diagnostics.Move(binder.diagnostics);
 
-                if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
-                    return Program(previous, diagnostics);
+            if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+                return Program(previous, diagnostics);
 
-                loweredBody = Lowerer.Lower(function, body);
-            } else {
-                // Inlines are bound when they are called for the first time in BindCallExpression
-                // Using function.declaration.body uses a temporary old body
-                var functionBody = globalScope.functionBodies.Where(t => t.function == function).Single();
-                loweredBody = Lowerer.Lower(function, functionBody.body);
-            }
+            loweredBody = Lowerer.Lower(function, body);
 
             if (function.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
                 binder.diagnostics.Push(Error.NotAllPathsReturn(function.declaration.identifier.location));
@@ -487,21 +477,23 @@ internal sealed class Binder {
         var conversion = Cast.Classify(expression.type, type);
         castType = conversion;
 
-        if (!conversion.exists ||
-            (conversion.isExplicit && BoundConstant.IsNull(expression.constantValue) &&
-            !type.isNullable && !isImplicitNull)) {
-            if (expression.type.typeSymbol != TypeSymbol.Error && type.typeSymbol != TypeSymbol.Error)
-                diagnostics.Push(Error.CannotConvert(diagnosticLocation, expression.type, type, argument));
+        if (expression.type.typeSymbol == TypeSymbol.Error || type.typeSymbol == TypeSymbol.Error)
+            return new BoundErrorExpression();
+
+        if (BoundConstant.IsNull(expression.constantValue) && !type.isNullable) {
+            if (isImplicitNull)
+                diagnostics.Push(Error.CannotImplyNull(diagnosticLocation));
+            else
+                diagnostics.Push(Error.CannotConvertNull(diagnosticLocation, type, argument));
 
             return new BoundErrorExpression();
         }
 
-        if (!allowExplicit && conversion.isExplicit) {
-            if (isImplicitNull)
-                diagnostics.Push(Error.CannotImplyNull(diagnosticLocation));
-            else
-                diagnostics.Push(Error.CannotConvertImplicitly(diagnosticLocation, expression.type, type, argument));
-        }
+        if (!conversion.exists)
+            diagnostics.Push(Error.CannotConvert(diagnosticLocation, expression.type, type, argument));
+
+        if (!allowExplicit && conversion.isExplicit)
+            diagnostics.Push(Error.CannotConvertImplicitly(diagnosticLocation, expression.type, type, argument));
 
         if (conversion.isIdentity) {
             if (expression is not BoundLiteralExpression le || le.type.typeSymbol != null)
@@ -775,7 +767,6 @@ internal sealed class Binder {
         var step = BindExpression(statement.step);
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
 
-        _scope.parent.CopyInlines(_scope);
         _scope = _scope.parent;
 
         return new BoundForStatement(initializer, condition, step, body, breakLabel, continueLabel);
@@ -1043,10 +1034,6 @@ internal sealed class Binder {
                 return BindPrefixExpression((PrefixExpressionSyntax)expression);
             case SyntaxKind.RefExpression:
                 return BindReferenceExpression((ReferenceExpressionSyntax)expression);
-            case SyntaxKind.InlineFunction:
-                // * Temporary, inlines will be disabled until the Blender is added
-                // return BindInlineFunctionExpression((InlineFunctionExpression)expression);
-                goto default;
             case SyntaxKind.CastExpression:
                 return BindCastExpression((CastExpressionSyntax)expression);
             case SyntaxKind.TypeOfExpression:
@@ -1405,9 +1392,10 @@ internal sealed class Binder {
                 }
 
                 if (isInner) {
-                    // No need to worry about currentBoundArguments because generated inlines never have overloads
+                    // No need to worry about currentBoundArguments because generated
+                    // functions should never have overloads
                     if (symbols.Length != 1)
-                        throw new BelteInternalException("BindCallExpression: overloaded inline");
+                        throw new BelteInternalException("BindCallExpression: overloaded generated function");
 
                     for (int i=expression.arguments.count; i<function.parameters.Length; i++) {
                         var parameter = function.parameters[i];
@@ -1485,11 +1473,13 @@ internal sealed class Binder {
             BoundExpression tempItem = BindExpression(item);
             tempItem = tempItem is BoundEmptyExpression ? new BoundLiteralExpression(null) : tempItem;
 
-            if (type == null || type.isImplicit) {
+            // If the type is incomplete in any way, get a new one
+            if (type == null || type.isImplicit || type.typeSymbol == null) {
                 var tempType = tempItem.type;
 
                 type = BoundType.Copy(
-                    tempType, isImplicit: false, isNullable: type.isNullable, isLiteral: true, dimensions: tempType.dimensions + 1
+                    tempType, isImplicit: false, isNullable: type?.isNullable,
+                    isLiteral: true, dimensions: tempType.dimensions + 1
                 );
             }
 
@@ -1498,7 +1488,7 @@ internal sealed class Binder {
             boundItems.Add(boundItem);
         }
 
-        return new BoundInitializerListExpression(boundItems.ToImmutable(), type.dimensions, type.ChildType());
+        return new BoundInitializerListExpression(boundItems.ToImmutable(), type);
     }
 
     private BoundExpression BindLiteralExpression(LiteralExpressionSyntax expression) {

@@ -146,22 +146,11 @@ internal sealed class BoundScope {
     }
 
     /// <summary>
-    /// Copies all inlines from another <see cref="BoundScope" /> into this.
-    /// Does not shadow, instead skips already declared functions in higher scopes.
-    /// </summary>
-    /// <param name="scope"><see cref="BoundScope" /> to copy inlines from (not all functions).</param>
-    internal void CopyInlines(BoundScope scope) {
-        foreach (var inline in scope.GetDeclaredFunctions().Where(i => i.name.Contains(">g__$Inline")))
-            // Ignore failures, do not override higher level symbols
-            TryDeclareFunction(inline);
-    }
-
-    /// <summary>
     /// Finds all overloads of a <see cref="FunctionSymbol" /> by name.
     /// Technically searches for all symbols, but this function is intended to be used for functions.
     /// </summary>
     /// <param name="name">Name of <see cref="FunctionSymbol" />.</param>
-    /// <param name="strictName">Scope specific name (for inlines), searches for this first.</param>
+    /// <param name="strictName">Scope specific name, searches for this first.</param>
     /// <returns>All found overloads (including from parent scopes).</returns>
     internal ImmutableArray<Symbol> LookupOverloads(string name, string strictName) {
         var symbols = LookupOverloadsInternal(strictName, strict: true);

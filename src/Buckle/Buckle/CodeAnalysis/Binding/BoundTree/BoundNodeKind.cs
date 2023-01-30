@@ -20,7 +20,6 @@ internal enum BoundNodeKind {
     CastExpression,
     CompoundAssignmentExpression,
     ReferenceExpression,
-    InlineFunctionExpression,
     TypeOfExpression,
     ConstructorExpression,
     MemberAccessExpression,

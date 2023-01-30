@@ -7,12 +7,12 @@ public sealed partial class EvaluatorTests {
     [Fact]
     public void Evaluator_InitializerList_AllowsNull() {
         var text = @"
-            [NotNull]var a = { 1, 2, 3 };
-            a = { [null], 2, 3 };
+            \[NotNull\]var a = { 1, 2, 3 };
+            a = [{null, 2, 3 }];
         ";
 
         var diagnostics = @"
-            cannot convert null to '[NotNull]int' because it is a non-nullable type
+            cannot convert from type 'int[]' to '[NotNull]int[]'. An explicit conversion exists (are you missing a cast?)
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -28,12 +28,16 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_CastExpression_Throws_NullReference() {
+    public void Evaluator_CastExpression_NonNullableOnNull() {
         var text = @"
-            ([NotNull]int)null;
+            [(\[NotNull\]int)null];
         ";
 
-        AssertExceptions(text, new NullReferenceException());
+        var diagnostics = @"
+            cannot convert 'null' to '[NotNull]int' because it is a non-nullable type
+        ";
+
+        AssertDiagnostics(text, diagnostics);
     }
 
     [Fact]

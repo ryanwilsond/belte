@@ -115,7 +115,6 @@ internal enum SyntaxKind {
     // Primary expressions
     LiteralExpression,
     TypeOfExpression,
-    InlineFunction,
     NameExpression,
     CallExpression,
     RefExpression,

@@ -950,6 +950,19 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
+    public void Evaluator_Reports_Error_BU0073_CannotConvertNull() {
+        var text = @"
+            [(\[NotNull\]int)null];
+        ";
+
+        var diagnostics = @"
+            cannot convert 'null' to '[NotNull]int' because it is a non-nullable type
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
     public void Evaluator_Reports_Error_Unsupported_BU9004_CannotInitialize() {
         var text = @"
             struct A {

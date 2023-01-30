@@ -1196,6 +1196,16 @@ MyFunction(, 2); // Allowed, the first parameter is nullable
 MyFunction(1,); // Not allowed, the second parameter is non-nullable
 MyFunction(,); // Not allowed, while the first parameter is nullable, the second parameter is not
 ```
+$BU0073
+When a cast does not exist purely because you are trying to cast a null literal
+to a non-nullable type, this error is raised in place of BU0020.
+
+For example:
+
+```
+var myDecimal = ([NotNull]decimal)true; // Not allowed, BU0020 is raised as you cannot convert from bool to decimal
+var myDecimal = ([NotNull]decimal)null; // Not allowed, this error is raised as you cannot `null` to a non-nullable type
+```
 $BU9000
 Inside a global scope without a `Main` function, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it
