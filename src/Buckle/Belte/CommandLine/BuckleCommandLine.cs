@@ -406,7 +406,7 @@ public static partial class BuckleCommandLine {
 
             switch (compiler.state.finishStage) {
                 case CompilerStage.Preprocessed:
-                    inter += ".pble";
+                    inter += ".pblt";
                     break;
                 case CompilerStage.Compiled:
                     inter += ".s";
@@ -700,10 +700,11 @@ public static partial class BuckleCommandLine {
             var type = parts[parts.Length - 1];
 
             switch (type) {
-                case "ble":
+                case "belte":
+                case "blt":
                     task.stage = CompilerStage.Raw;
                     break;
-                case "pble":
+                case "pblt":
                     task.stage = CompilerStage.Preprocessed;
                     break;
                 case "s":
