@@ -439,7 +439,7 @@ public static partial class BuckleCommandLine {
     }
 
     private static void ResolveCompilerOutput(Compiler compiler) {
-        if (compiler.state.buildMode == BuildMode.Interpret || compiler.state.buildMode == BuildMode.Dotnet)
+        if (compiler.state.buildMode != BuildMode.Independent)
             return;
 
         if (compiler.state.finishStage == CompilerStage.Linked) {
@@ -647,11 +647,8 @@ public static partial class BuckleCommandLine {
         state.references = references.ToArray();
         state.options = options.ToArray();
 
-        if (specifyOut) {
-            var parts = state.outputFilename.Split('.');
-            // ? Not sure if there are consequences of making moduleName default to 'a'
-            // state.moduleName = string.Join('.', parts[0..(parts.Length-2)]);
-        }
+        if (!specifyOut && state.buildMode == BuildMode.CSharpTranspile)
+            state.outputFilename = "a.cs";
 
         if (args.Length > 1 && state.buildMode == BuildMode.Repl)
             diagnostics.Push(Belte.Diagnostics.Warning.ReplInvokeIgnore());

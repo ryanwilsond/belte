@@ -26,10 +26,30 @@ internal sealed class BelteInternalException : BelteException {
 
     private static string CreateMessage(string message) {
         var title = Uri.EscapeDataString(message);
+        var body = Uri.EscapeDataString($@"
+**Fatal Exception**
 
-        return $"BU0000: {message}\n\n\tClick the following link to report this issue:\n\t" +
-            $"https://github.com/ryanwilsond/belte/issues/new?assignees=&labels=&template=bug_report.md&title={title}" +
-            "\n";
+{Environment.StackTrace}
+
+**To Reproduce**
+Steps to reproduce the behavior:
+1. Go to '...'
+2. Click on '....'
+3. Scroll down to '....'
+4. See error
+
+**Screenshots**
+If applicable, add screenshots to help explain your problem.
+
+**Desktop (please complete the following information)**
+ - Buckle Version [e.g. 0.1.22]
+
+**Additional context**
+Add any other context about the problem here."
+        );
+
+        return $"BU0000: {message}\n\n     -- Click the following link to report this issue:\n\t" +
+            $"https://github.com/ryanwilsond/belte/issues/new?assignees=&labels=&title={title}&body={body}\n";
     }
 }
 

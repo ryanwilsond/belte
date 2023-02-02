@@ -8,8 +8,8 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Generators;
+using Buckle.Utilities;
 using Diagnostics;
-using MSSourceText = Microsoft.CodeAnalysis.Text.SourceText;
 
 namespace Buckle.CodeAnalysis.Emitting;
 
@@ -25,7 +25,6 @@ internal sealed class CSharpEmitter {
             return program.diagnostics;
 
         string indentString = "    ";
-        MSSourceText sourceText;
 
         using (var stringWriter = new StringWriter())
         using (var indentedTextWriter = new IndentedTextWriter(stringWriter, indentString)) {
@@ -40,26 +39,24 @@ internal sealed class CSharpEmitter {
                     EmitStruct(indentedTextWriter, structStructure);
 
                 if (program.mainFunction != null) {
-                    EmitMainMethod(
-                        indentedTextWriter, program.functionBodies.Single(p => p.Key == program.mainFunction)
-                    );
+                    var mainBody = FunctionUtilities.LookupMethod(program.functionBodies, program.mainFunction);
+                    EmitMainMethod(indentedTextWriter, KeyValuePair.Create(program.mainFunction, mainBody));
                 } else {
                     EmitEmptyMainMethod(indentedTextWriter);
                 }
 
                 foreach (var functionWithBody in program.functionBodies) {
-                    if (functionWithBody.Key != program.mainFunction)
+                    if (!functionWithBody.Key.MethodMatches(program.mainFunction))
                         EmitMethod(indentedTextWriter, functionWithBody);
                 }
             }
 
             indentedTextWriter.Flush();
             stringWriter.Flush();
-            sourceText = MSSourceText.From(stringWriter.ToString(), Encoding.UTF8);
-        }
 
-        using (var writer = new StreamWriter(outputPath))
-            sourceText.Write(writer);
+            using (var writer = new StreamWriter(outputPath))
+                writer.Write(stringWriter);
+        }
 
         return program.diagnostics;
     }
@@ -77,20 +74,23 @@ internal sealed class CSharpEmitter {
         var signature = $"public struct {GetSafeName(structure.Key.name)}";
 
         using (var structCurly = new CurlyIndenter(indentedTextWriter, signature)) {
-
+            foreach (var field in structure.Value)
+                EmitField(indentedTextWriter, field);
         }
 
         indentedTextWriter.WriteLine();
     }
 
+    private static void EmitField(IndentedTextWriter indentedTextWriter, FieldSymbol field) {
+        indentedTextWriter.WriteLine($"public {GetEquivalentType(field.type)} {GetSafeName(field.name)};");
+    }
+
     private static void EmitMainMethod(
         IndentedTextWriter indentedTextWriter, KeyValuePair<FunctionSymbol, BoundBlockStatement> method) {
-        using (var methodCurly = new CurlyIndenter(indentedTextWriter, $"public static int Main()")) {
-            EmitStatement(indentedTextWriter, method.Value);
+        var signature = $"public static {GetEquivalentType(method.Key.type)} Main()";
 
-            if (method.Key.type.typeSymbol == TypeSymbol.Void)
-                indentedTextWriter.WriteLine("\nreturn 0;");
-        }
+        using (var methodCurly = new CurlyIndenter(indentedTextWriter, signature))
+            EmitMethodBody(indentedTextWriter, method.Value);
 
         indentedTextWriter.WriteLine();
     }
@@ -119,12 +119,101 @@ internal sealed class CSharpEmitter {
             $"public static {GetEquivalentType(method.Key.type)} {GetSafeName(method.Key.name)}({parameters})";
 
         using (var methodCurly = new CurlyIndenter(indentedTextWriter, signature))
-            EmitStatement(indentedTextWriter, method.Value);
+            EmitMethodBody(indentedTextWriter, method.Value);
 
         indentedTextWriter.WriteLine();
     }
 
-    private static void EmitStatement(IndentedTextWriter indentedTextWriter, BoundStatement statement) {
+    private static void EmitMethodBody(IndentedTextWriter indentedTextWriter, BoundBlockStatement body) {
+        foreach (var statement in body.statements)
+            EmitStatement(indentedTextWriter, statement);
+    }
 
+    private static void EmitStatement(IndentedTextWriter indentedTextWriter, BoundStatement statement) {
+        switch (statement.kind) {
+            case BoundNodeKind.NopStatement:
+                EmitNopStatement(indentedTextWriter, (BoundNopStatement)statement);
+                break;
+            case BoundNodeKind.ExpressionStatement:
+                // EmitExpressionStatement(indentedTextWriter, (BoundExpressionStatement)statement);
+                break;
+            case BoundNodeKind.VariableDeclarationStatement:
+                // EmitVariableDeclarationStatement(indentedTextWriter, (BoundVariableDeclarationStatement)statement);
+                break;
+            case BoundNodeKind.GotoStatement:
+                // EmitGotoStatement(indentedTextWriter, (BoundGotoStatement)statement);
+                break;
+            case BoundNodeKind.LabelStatement:
+                // EmitLabelStatement(indentedTextWriter, (BoundLabelStatement)statement);
+                break;
+            case BoundNodeKind.ConditionalGotoStatement:
+                // EmitConditionalGotoStatement(indentedTextWriter, (BoundConditionalGotoStatement)statement);
+                break;
+            case BoundNodeKind.ReturnStatement:
+                EmitReturnStatement(indentedTextWriter, (BoundReturnStatement)statement);
+                break;
+            case BoundNodeKind.TryStatement:
+                // EmitTryStatement(indentedTextWriter, (BoundTryStatement)statement);
+                break;
+            default:
+                throw new BelteInternalException($"EmitStatement: unexpected node '{statement.kind}'");
+        }
+    }
+
+    private static void EmitNopStatement(IndentedTextWriter indentedTextWriter, BoundNopStatement statement) {
+        indentedTextWriter.WriteLine(";");
+    }
+
+    private static void EmitReturnStatement(IndentedTextWriter indentedTextWriter, BoundReturnStatement statement) {
+        if (statement.expression == null) {
+            indentedTextWriter.WriteLine("return;");
+        } else {
+            indentedTextWriter.Write("return ");
+            EmitExpression(indentedTextWriter, statement.expression);
+            indentedTextWriter.WriteLine(";");
+        }
+    }
+
+    private static void EmitExpression(IndentedTextWriter indentedTextWriter, BoundExpression expression) {
+        if (expression.constantValue != null) {
+            // EmitConstantExpression(indentedTextWriter, expression);
+            return;
+        }
+
+        switch (expression.kind) {
+            case BoundNodeKind.LiteralExpression:
+                if (expression is BoundInitializerListExpression il) {
+                    // EmitInitializerListExpression(indentedTextWriter, il);
+                    break;
+                } else {
+                    goto default;
+                }
+            case BoundNodeKind.UnaryExpression:
+                // EmitUnaryExpression(indentedTextWriter, (BoundUnaryExpression)expression);
+                break;
+            case BoundNodeKind.BinaryExpression:
+                // EmitBinaryExpression(indentedTextWriter, (BoundBinaryExpression)expression);
+                break;
+            case BoundNodeKind.VariableExpression:
+                // EmitVariableExpression(indentedTextWriter, (BoundVariableExpression)expression);
+                break;
+            case BoundNodeKind.AssignmentExpression:
+                // EmitAssignmentExpression(indentedTextWriter, (BoundAssignmentExpression)expression);
+                break;
+            case BoundNodeKind.EmptyExpression:
+                // EmitEmptyExpression(indentedTextWriter, (BoundEmptyExpression)expression);
+                break;
+            case BoundNodeKind.CallExpression:
+                // EmitCallExpression(indentedTextWriter, (BoundCallExpression)expression);
+                break;
+            case BoundNodeKind.IndexExpression:
+                // EmitIndexExpression(indentedTextWriter, (BoundIndexExpression)expression);
+                break;
+            case BoundNodeKind.CastExpression:
+                // EmitCastExpression(indentedTextWriter, (BoundCastExpression)expression);
+                break;
+            default:
+                throw new BelteInternalException($"EmitExpression: unexpected node '{expression.kind}'");
+        }
     }
 }

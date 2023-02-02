@@ -1,5 +1,23 @@
 struct A {
+    int int1;
+    [NotNull]int int2;
+    int[] int3;
+    [NotNull]int[] int4;
 
+    bool bool1;
+    [NotNull]bool bool2;
+    bool[] bool3;
+    [NotNull]bool[] bool4;
+
+    string string1;
+    [NotNull]string string2;
+    string[] string3;
+    [NotNull]string[] string4;
+
+    decimal decimal1;
+    [NotNull]decimal decimal2;
+    decimal[] decimal3;
+    [NotNull]decimal[] decimal4;
 }
 
 void Main() {
