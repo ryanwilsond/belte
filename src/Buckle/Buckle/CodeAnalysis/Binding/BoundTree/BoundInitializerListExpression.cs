@@ -10,6 +10,7 @@ internal sealed class BoundInitializerListExpression : BoundExpression {
         ImmutableArray<BoundExpression> items, BoundType type) {
         this.items = items;
         this.type = type;
+        constantValue = ConstantFolding.FoldInitializerList(this.items);
     }
 
     internal ImmutableArray<BoundExpression> items { get; }
@@ -17,4 +18,6 @@ internal sealed class BoundInitializerListExpression : BoundExpression {
     internal override BoundNodeKind kind => BoundNodeKind.LiteralExpression;
 
     internal override BoundType type { get; }
+
+    internal override BoundConstant constantValue { get; }
 }

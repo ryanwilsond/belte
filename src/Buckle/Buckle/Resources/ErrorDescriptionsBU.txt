@@ -1206,6 +1206,19 @@ For example:
 var myDecimal = ([NotNull]decimal)true; // Not allowed, BU0020 is raised as you cannot convert from bool to decimal
 var myDecimal = ([NotNull]decimal)null; // Not allowed, this error is raised as you cannot `null` to a non-nullable type
 ```
+$BU0074
+The `const` keyword cannot be used in every context. Types relating to field
+declarations cannot have be defined when declaring them, meaning you cannot
+define any constant value.
+
+For example:
+
+```
+struct MyStruct {
+    const int a; // Not allowed, cannot define so using `const` here is not allowed
+    int a; // Allowed
+}
+```
 $BU9000
 Inside a global scope without a `Main` function, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it

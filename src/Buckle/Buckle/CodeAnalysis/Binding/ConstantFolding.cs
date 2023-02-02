@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
@@ -10,7 +11,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal static class ConstantFolding {
     /// <summary>
-    /// Folds a <see cref="BinaryExpression" /> (if possible).
+    /// Folds a <see cref="BoundBinaryExpression" /> (if possible).
     /// </summary>
     /// <param name="left">Left side operand.</param>
     /// <param name="op">Operator.</param>
@@ -165,7 +166,7 @@ internal static class ConstantFolding {
     }
 
     /// <summary>
-    /// Folds a <see cref="UnaryExpression" /> (if possible).
+    /// Folds a <see cref="BoundUnaryExpression" /> (if possible).
     /// </summary>
     /// <param name="op">Operator.</param>
     /// <param name="operand">Operand.</param>
@@ -203,6 +204,14 @@ internal static class ConstantFolding {
         }
     }
 
+    /// <summary>
+    /// Folds a <see cref="BoundTernaryExpression" /> (if possible).
+    /// </summary>
+    /// <param name="left">Left operand.</param>
+    /// <param name="op">Operator.</param>
+    /// <param name="center">Center operand.</param>
+    /// <param name="right">Right operand.</param>
+    /// <returns><see cref="BoundConstant" />, returns null if folding is not possible.</returns>
     internal static BoundConstant FoldTernary(
         BoundExpression left, BoundTernaryOperator op, BoundExpression center, BoundExpression right) {
         if (op.opKind == BoundTernaryOperatorKind.Conditional) {
@@ -220,6 +229,12 @@ internal static class ConstantFolding {
         return null;
     }
 
+    /// <summary>
+    /// Folds a <see cref="BoundCastExpression" /> (if possible).
+    /// </summary>
+    /// <param name="expression">Expression operand.</param>
+    /// <param name="type">Casting to type.</param>
+    /// <returns><see cref="BoundConstant" />, returns null if folding is not possible.</returns>
     internal static BoundConstant FoldCast(BoundExpression expression, BoundType type) {
         if (expression.constantValue != null) {
             if (expression.constantValue.value == null && !type.isNullable)
@@ -233,5 +248,23 @@ internal static class ConstantFolding {
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Folds a <see cref="BoundInitializerListExpression" /> (if possible).
+    /// </summary>
+    /// <param name="items">Initializer list contents.</param>
+    /// <returns><see cref="BoundConstant" />, returns null if folding is not possible.</returns>
+    internal static BoundConstant FoldInitializerList(ImmutableArray<BoundExpression> items) {
+        var foldedItems = ImmutableArray.CreateBuilder<BoundConstant>();
+
+        foreach (var item in items) {
+            if (item.constantValue != null)
+                foldedItems.Add(item.constantValue);
+            else
+                return null;
+        }
+
+        return new BoundConstant(foldedItems.ToImmutable());
     }
 }

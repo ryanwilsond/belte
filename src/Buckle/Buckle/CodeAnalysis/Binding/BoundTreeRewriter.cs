@@ -180,7 +180,7 @@ internal abstract class BoundTreeRewriter {
     }
 
     internal virtual BoundExpression RewriteExpression(BoundExpression expression) {
-        if (expression.constantValue != null)
+        if (expression.constantValue != null && expression is not BoundInitializerListExpression)
             return new BoundLiteralExpression(expression.constantValue.value);
 
         switch (expression.kind) {

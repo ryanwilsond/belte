@@ -552,6 +552,17 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateConstantExpression(BoundExpression expression, ref bool abort) {
+        if (expression is BoundInitializerListExpression il) {
+            var builder = new List<EvaluatorObject>();
+
+            foreach (var item in il.items) {
+                EvaluatorObject value = EvaluateExpression(item, ref abort);
+                builder.Add(value);
+            }
+
+            return new EvaluatorObject(builder.ToArray());
+        }
+
         return EvaluateCast(new EvaluatorObject(expression.constantValue.value), expression.type);
     }
 
