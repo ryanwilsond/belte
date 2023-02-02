@@ -939,7 +939,7 @@ internal sealed class Parser {
         return new AttributeSyntax(_syntaxTree, openBracket, identifier, closeBracket);
     }
 
-    private TypeSyntax ParseType(bool allowImplicit = true, bool expectName = true) {
+    private TypeSyntax ParseType(bool allowImplicit = true, bool expectName = true, bool allowConst = true) {
         var attributes = ParseAttributes();
 
         SyntaxToken constRefKeyword = null;
@@ -956,7 +956,10 @@ internal sealed class Parser {
         if (current.kind == SyntaxKind.ConstKeyword) {
             constKeyword = Next();
 
-            if (!allowImplicit && Peek(1).kind != SyntaxKind.IdentifierToken)
+            if (!allowConst)
+                diagnostics.Push(Error.CannotUseConst(constKeyword.location));
+            else if (!allowImplicit &&
+                (Peek(1).kind != SyntaxKind.IdentifierToken && Peek(1).kind != SyntaxKind.OpenBracketToken))
                 diagnostics.Push(Error.CannotUseImplicit(constKeyword.location));
         }
 

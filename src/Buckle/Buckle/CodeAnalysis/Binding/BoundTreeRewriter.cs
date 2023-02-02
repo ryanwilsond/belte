@@ -181,7 +181,7 @@ internal abstract class BoundTreeRewriter {
 
     internal virtual BoundExpression RewriteExpression(BoundExpression expression) {
         if (expression.constantValue != null)
-            return new BoundLiteralExpression(expression.constantValue.value);
+            return RewriteConstantExpression(expression);
 
         switch (expression.kind) {
             case BoundNodeKind.BinaryExpression:
@@ -225,6 +225,13 @@ internal abstract class BoundTreeRewriter {
             default:
                 throw new BelteInternalException($"RewriteExpression: unexpected expression type '{expression.kind}'");
         }
+    }
+
+    protected virtual BoundExpression RewriteConstantExpression(BoundExpression expression) {
+        if (expression.constantValue.value is ImmutableArray<BoundConstant>)
+            return new BoundInitializerListExpression(expression.constantValue, expression.type);
+        else
+            return new BoundLiteralExpression(expression.constantValue.value);
     }
 
     protected virtual BoundExpression RewritePrefixExpression(BoundPrefixExpression expression) {

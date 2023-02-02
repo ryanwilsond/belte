@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -671,6 +672,9 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotImplyNull), location, message);
     }
 
+    /// <summary>
+    /// BU0073. Run `buckle --explain BU0073` on the command line for more info.
+    /// </summary>
     internal static BelteDiagnostic CannotConvertNull(TextLocation location, BoundType to, int argument = 0) {
         var message = $"cannot convert 'null' to '{to}' because it is a non-nullable type";
 
@@ -678,6 +682,14 @@ internal static class Error {
             message = $"argument {argument}: " + message;
 
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotConvertNull), location, message);
+    }
+
+    /// <summary>
+    /// BU0074. Run `buckle --explain BU0074` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotUseConst(TextLocation location) {
+        var message = "cannot declare a constant in this context";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseConstant), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

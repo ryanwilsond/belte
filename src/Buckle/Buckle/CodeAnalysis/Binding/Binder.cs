@@ -1168,7 +1168,6 @@ internal sealed class Binder {
 
     private BoundExpression BindIndexExpression(IndexExpressionSyntax expression) {
         var boundExpression = BindExpression(expression.operand);
-        boundExpression.type.isNullable = true;
 
         if (boundExpression.type.dimensions > 0) {
             var index = BindCast(

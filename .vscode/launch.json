@@ -12,11 +12,11 @@
             //     "samples/Hello",
             //     "-o samples/Hello/obj/Debug/netcoreapp3.1/Hello.dll"
             // ],
-            "args": [
-                "-t",
-                "test.blt"
-            ],
-            // "args": ["-r"],
+            // "args": [
+            //     "-t",
+            //     "test.blt"
+            // ],
+            "args": ["-r"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "stopAtEntry": false,

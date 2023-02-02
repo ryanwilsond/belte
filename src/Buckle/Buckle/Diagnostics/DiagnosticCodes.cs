@@ -82,6 +82,7 @@ internal enum DiagnosticCode : int {
     ERR_VariableUsingTypeName = 71,
     ERR_CannotImplyNull = 72,
     ERR_CannotConvertNull = 73,
+    ERR_CannotUseConstant = 74,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

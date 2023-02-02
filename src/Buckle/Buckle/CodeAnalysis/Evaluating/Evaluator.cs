@@ -245,9 +245,15 @@ internal sealed class Evaluator {
         if (value.members != null)
             return value;
 
-        valueValue = CastUtilities.Cast(valueValue, type);
+        // TODO Loop through the valueValue if it is EvaluatorObject[] or List<Object>
+
+        valueValue = EvaluateValueCast(valueValue, type);
 
         return new EvaluatorObject(valueValue);
+    }
+
+    private object EvaluateValueCast(object value, BoundType type) {
+        return CastUtilities.Cast(value, type);
     }
 
     private EvaluatorObject EvaluateStatement(
@@ -552,7 +558,20 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateConstantExpression(BoundExpression expression, ref bool abort) {
-        return EvaluateCast(new EvaluatorObject(expression.constantValue.value), expression.type);
+        return EvaluateCast(EvaluateBoundConstant(expression.constantValue), expression.type);
+    }
+
+    private EvaluatorObject EvaluateBoundConstant(BoundConstant constant) {
+        if (constant.value is ImmutableArray<BoundConstant> ia) {
+            var builder = new List<EvaluatorObject>();
+
+            foreach (var item in ia)
+                builder.Add(EvaluateBoundConstant(item));
+
+            return new EvaluatorObject(builder.ToArray());
+        } else {
+            return new EvaluatorObject(constant.value);
+        }
     }
 
     private EvaluatorObject EvaluateVariableExpression(BoundVariableExpression expression, ref bool abort) {
@@ -574,7 +593,7 @@ internal sealed class Evaluator {
         if (operandValue == null)
             return new EvaluatorObject();
 
-        operandValue = CastUtilities.Cast(operandValue, expression.op.operandType);
+        operandValue = EvaluateValueCast(operandValue, expression.op.operandType);
 
         switch (expression.op.opKind) {
             case BoundUnaryOperatorKind.NumericalIdentity:
@@ -599,7 +618,7 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateTernaryExpression(BoundTernaryExpression expression, ref bool abort) {
         var left = EvaluateExpression(expression.left, ref abort);
         var leftValue = Value(left);
-        leftValue = CastUtilities.Cast(leftValue, expression.op.leftType);
+        leftValue = EvaluateValueCast(leftValue, expression.op.leftType);
 
         switch (expression.op.opKind) {
             case BoundTernaryOperatorKind.Conditional:
@@ -656,8 +675,8 @@ internal sealed class Evaluator {
         var leftType = expression.left.type.typeSymbol;
         var rightType = expression.right.type.typeSymbol;
 
-        leftValue = CastUtilities.Cast(leftValue, expression.left.type);
-        rightValue = CastUtilities.Cast(rightValue, expression.right.type);
+        leftValue = EvaluateValueCast(leftValue, expression.left.type);
+        rightValue = EvaluateValueCast(rightValue, expression.right.type);
 
         switch (expression.op.opKind) {
             case BoundBinaryOperatorKind.Addition:
