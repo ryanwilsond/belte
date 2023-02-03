@@ -23,10 +23,12 @@ namespace Buckle.CodeAnalysis;
 /// </summary>
 public sealed class Compilation {
     private BoundGlobalScope _globalScope;
+    private bool _transpilerMode;
 
-    private Compilation(bool isScript, Compilation previous, params SyntaxTree[] syntaxTrees) {
+    private Compilation(bool isScript, Compilation previous, bool transpilerMode, params SyntaxTree[] syntaxTrees) {
         this.isScript = isScript;
         this.previous = previous;
+        _transpilerMode = transpilerMode;
         diagnostics = new BelteDiagnosticQueue();
 
         foreach (var syntaxTree in syntaxTrees)
@@ -81,7 +83,7 @@ public sealed class Compilation {
     internal BoundGlobalScope globalScope {
         get {
             if (_globalScope == null) {
-                var tempScope = Binder.BindGlobalScope(isScript, previous?.globalScope, syntaxTrees);
+                var tempScope = Binder.BindGlobalScope(isScript, previous?.globalScope, syntaxTrees, _transpilerMode);
                 // Makes assignment thread-safe, if multiple threads try to initialize they use whoever did it first
                 Interlocked.CompareExchange(ref _globalScope, tempScope, null);
             }
@@ -93,10 +95,13 @@ public sealed class Compilation {
     /// <summary>
     /// Creates a new <see cref="Compilation" /> with SyntaxTrees.
     /// </summary>
+    /// <param name="transpilerMode">
+    /// If the compiler output mode is a transpiler. Affects certain optimizations.
+    /// </param>
     /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
     /// <returns>New <see cref="Compilation" />.</returns>
-    internal static Compilation Create(params SyntaxTree[] syntaxTrees) {
-        return new Compilation(false, null, syntaxTrees);
+    internal static Compilation Create(bool transpilerMode = false, params SyntaxTree[] syntaxTrees) {
+        return new Compilation(false, null, transpilerMode, syntaxTrees);
     }
 
     /// <summary>
@@ -106,7 +111,7 @@ public sealed class Compilation {
     /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
     /// <returns>.</returns>
     internal static Compilation CreateScript(Compilation previous, params SyntaxTree[] syntaxTrees) {
-        return new Compilation(true, previous, syntaxTrees);
+        return new Compilation(true, previous, false, syntaxTrees);
     }
 
     /// <summary>
@@ -340,7 +345,7 @@ public sealed class Compilation {
 
     private BoundProgram GetProgram() {
         var _previous = previous == null ? null : previous.GetProgram();
-        return Binder.BindProgram(isScript, _previous, globalScope);
+        return Binder.BindProgram(isScript, _previous, globalScope, _transpilerMode);
     }
 
     private static void CreateCfg(BoundProgram program) {

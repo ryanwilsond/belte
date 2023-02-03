@@ -22,20 +22,23 @@ internal static class ConstantFolding {
         var leftConstant = left.constantValue;
         var rightConstant = right.constantValue;
 
+        if (op == null)
+            return null;
+
         // With and/or operators allow one side to be null
-        if (op?.opKind == BoundBinaryOperatorKind.ConditionalAnd) {
+        if (op.opKind == BoundBinaryOperatorKind.ConditionalAnd) {
             if ((leftConstant != null && leftConstant.value != null && !(bool)leftConstant.value) ||
                 (rightConstant != null && rightConstant.value != null && !(bool)rightConstant.value))
                 return new BoundConstant(false);
         }
 
-        if (op?.opKind == BoundBinaryOperatorKind.ConditionalOr) {
+        if (op.opKind == BoundBinaryOperatorKind.ConditionalOr) {
             if ((leftConstant != null && leftConstant.value != null && (bool)leftConstant.value) ||
                 (rightConstant != null && rightConstant.value != null && (bool)rightConstant.value))
                 return new BoundConstant(true);
         }
 
-        if (op?.opKind == BoundBinaryOperatorKind.NullCoalescing) {
+        if (op.opKind == BoundBinaryOperatorKind.NullCoalescing) {
             if (leftConstant != null && leftConstant.value != null)
                 return new BoundConstant(leftConstant.value);
 
@@ -43,7 +46,7 @@ internal static class ConstantFolding {
                 return new BoundConstant(rightConstant.value);
         }
 
-        if (op?.opKind == BoundBinaryOperatorKind.Is) {
+        if (op.opKind == BoundBinaryOperatorKind.Is) {
             if (BoundConstant.IsNull(leftConstant) && BoundConstant.IsNull(rightConstant))
                 return new BoundConstant(true);
 
@@ -51,7 +54,7 @@ internal static class ConstantFolding {
                 return new BoundConstant(false);
         }
 
-        if (op?.opKind == BoundBinaryOperatorKind.Isnt) {
+        if (op.opKind == BoundBinaryOperatorKind.Isnt) {
             if (BoundConstant.IsNull(leftConstant) && BoundConstant.IsNull(rightConstant))
                 return new BoundConstant(false);
 
@@ -59,16 +62,17 @@ internal static class ConstantFolding {
                 return new BoundConstant(true);
         }
 
-        if (leftConstant == null || rightConstant == null || op == null)
+        if ((BoundConstant.IsNull(leftConstant) || BoundConstant.IsNull(rightConstant)) &&
+            (op.opKind != BoundBinaryOperatorKind.Is && op.opKind != BoundBinaryOperatorKind.Isnt))
+            return new BoundConstant(null);
+
+        if (leftConstant == null || rightConstant == null)
             return null;
 
         var leftValue = leftConstant.value;
         var rightValue = rightConstant.value;
         var leftType = op.leftType.typeSymbol;
         var rightType = op.rightType.typeSymbol;
-
-        if (leftValue == null || rightValue == null)
-            return new BoundConstant(null);
 
         leftValue = CastUtilities.Cast(leftValue, op.leftType);
         rightValue = CastUtilities.Cast(rightValue, op.rightType);

@@ -117,7 +117,7 @@ internal sealed class CSharpEmitter {
         // not do anything
         if (type.isReference)
             equivalentType.Append("ref ");
-        if (type.isNullable)
+        if (type.isNullable && new List<String>() {"bool", "double", "int"}.Contains(typeName))
             typeName = $"Nullable<{typeName}>";
 
         for (int i=0; i<type.dimensions; i++)
@@ -130,12 +130,13 @@ internal sealed class CSharpEmitter {
 
     private static string GetSafeName(string name) {
         CodeDomProvider provider = CodeDomProvider.CreateProvider("C#");
-        return provider.IsValidIdentifier(name) ? name : "@" + name;
+        return (provider.IsValidIdentifier(name) ? name : "@" + name)
+            .Replace('<', '_').Replace('>', '_').Replace(':', '_');
     }
 
     private static void EmitStruct(
         IndentedTextWriter indentedTextWriter, KeyValuePair<StructSymbol, ImmutableList<FieldSymbol>> structure) {
-        var signature = $"public struct {GetSafeName(structure.Key.name)}";
+        var signature = $"public class {GetSafeName(structure.Key.name)}";
 
         using (var structCurly = new CurlyIndenter(indentedTextWriter, signature)) {
             foreach (var field in structure.Value)
@@ -151,17 +152,17 @@ internal sealed class CSharpEmitter {
 
     private static void EmitMainMethod(
         IndentedTextWriter indentedTextWriter, KeyValuePair<FunctionSymbol, BoundBlockStatement> method) {
-        var signature = $"public static {GetEquivalentType(method.Key.type)} Main()";
+        var typeName = method.Key.type.typeSymbol == TypeSymbol.Void ? "void" : "int";
+        var signature = $"public static {typeName} Main()";
 
         using (var methodCurly = new CurlyIndenter(indentedTextWriter, signature))
-            EmitBody(indentedTextWriter, method.Value);
+            EmitBody(indentedTextWriter, method.Value, true);
 
         indentedTextWriter.WriteLine();
     }
 
     private static void EmitEmptyMainMethod(IndentedTextWriter indentedTextWriter) {
-        using (var methodCurly = new CurlyIndenter(indentedTextWriter, $"public static void Main()"))
-
+        indentedTextWriter.WriteLine("public static void Main() { }");
         indentedTextWriter.WriteLine();
     }
 
@@ -188,13 +189,18 @@ internal sealed class CSharpEmitter {
         indentedTextWriter.WriteLine();
     }
 
-    private static void EmitBody(IndentedTextWriter indentedTextWriter, BoundBlockStatement body) {
+    private static void EmitBody(
+        IndentedTextWriter indentedTextWriter, BoundBlockStatement body, bool insideMain = false) {
         foreach (var statement in body.statements)
-            EmitStatement(indentedTextWriter, statement);
+            EmitStatement(indentedTextWriter, statement, insideMain);
     }
 
-    private static void EmitStatement(IndentedTextWriter indentedTextWriter, BoundStatement statement) {
+    private static void EmitStatement(
+        IndentedTextWriter indentedTextWriter, BoundStatement statement, bool insideMain) {
         switch (statement.kind) {
+            case BoundNodeKind.BlockStatement:
+                EmitBody(indentedTextWriter, (BoundBlockStatement)statement);
+                break;
             case BoundNodeKind.NopStatement:
                 EmitNopStatement(indentedTextWriter, (BoundNopStatement)statement);
                 break;
@@ -214,10 +220,28 @@ internal sealed class CSharpEmitter {
                 EmitConditionalGotoStatement(indentedTextWriter, (BoundConditionalGotoStatement)statement);
                 break;
             case BoundNodeKind.ReturnStatement:
-                EmitReturnStatement(indentedTextWriter, (BoundReturnStatement)statement);
+                EmitReturnStatement(indentedTextWriter, (BoundReturnStatement)statement, insideMain);
                 break;
             case BoundNodeKind.TryStatement:
-                EmitTryStatement(indentedTextWriter, (BoundTryStatement)statement);
+                EmitTryStatement(indentedTextWriter, (BoundTryStatement)statement, insideMain);
+                break;
+            case BoundNodeKind.IfStatement:
+                EmitIfStatement(indentedTextWriter, (BoundIfStatement)statement, insideMain);
+                break;
+            case BoundNodeKind.ForStatement:
+                EmitForStatement(indentedTextWriter, (BoundForStatement)statement, insideMain);
+                break;
+            case BoundNodeKind.WhileStatement:
+                EmitWhileStatement(indentedTextWriter, (BoundWhileStatement)statement, insideMain);
+                break;
+            case BoundNodeKind.DoWhileStatement:
+                EmitDoWhileStatement(indentedTextWriter, (BoundDoWhileStatement)statement, insideMain);
+                break;
+            case BoundNodeKind.BreakStatement:
+                EmitBreakStatement(indentedTextWriter, (BoundBreakStatement)statement);
+                break;
+            case BoundNodeKind.ContinueStatement:
+                EmitContinueStatement(indentedTextWriter, (BoundContinueStatement)statement);
                 break;
             default:
                 throw new BelteInternalException($"EmitStatement: unexpected node '{statement.kind}'");
@@ -231,8 +255,10 @@ internal sealed class CSharpEmitter {
 
     private static void EmitExpressionStatement(
         IndentedTextWriter indentedTextWriter, BoundExpressionStatement statement) {
-        EmitExpression(indentedTextWriter, statement.expression);
-        indentedTextWriter.WriteLine(";");
+        if (statement.expression is not BoundEmptyExpression) {
+            EmitExpression(indentedTextWriter, statement.expression);
+            indentedTextWriter.WriteLine(";");
+        }
     }
 
     private static void EmitVariableDeclarationStatement(
@@ -261,7 +287,7 @@ internal sealed class CSharpEmitter {
 
     private static void EmitConditionalGotoStatement(
         IndentedTextWriter indentedTextWriter, BoundConditionalGotoStatement statement) {
-        indentedTextWriter.Write($"if (");
+        indentedTextWriter.Write($"if ((");
 
         if (statement.jumpIfTrue)
             indentedTextWriter.Write("(");
@@ -270,36 +296,114 @@ internal sealed class CSharpEmitter {
 
         EmitExpression(indentedTextWriter, statement.condition);
 
-        indentedTextWriter.WriteLine("))");
+        indentedTextWriter.WriteLine(")) ?? throw new NullReferenceException())");
         indentedTextWriter.Indent++;
         indentedTextWriter.WriteLine($"goto {statement.label.name};");
         indentedTextWriter.Indent--;
         indentedTextWriter.WriteLine();
     }
 
-    private static void EmitReturnStatement(IndentedTextWriter indentedTextWriter, BoundReturnStatement statement) {
+    private static void EmitReturnStatement(
+        IndentedTextWriter indentedTextWriter, BoundReturnStatement statement, bool insideMain) {
         if (statement.expression == null) {
             indentedTextWriter.WriteLine("return;");
         } else {
-            indentedTextWriter.Write("return ");
+            indentedTextWriter.Write("return (");
             EmitExpression(indentedTextWriter, statement.expression);
-            indentedTextWriter.WriteLine(";");
+
+            if (insideMain)
+                indentedTextWriter.WriteLine(") ?? 0;");
+            else
+                indentedTextWriter.WriteLine(");");
         }
     }
 
-    private static void EmitTryStatement(IndentedTextWriter indentedTextWriter, BoundTryStatement statement) {
+    private static void EmitTryStatement(
+        IndentedTextWriter indentedTextWriter, BoundTryStatement statement, bool insideMain) {
         using (var tryCurly = new CurlyIndenter(indentedTextWriter, "try"))
-            EmitBody(indentedTextWriter, statement.body);
+            EmitBody(indentedTextWriter, statement.body, insideMain);
 
         if (statement.catchBody != null) {
             using (var catchCurly = new CurlyIndenter(indentedTextWriter, "catch"))
-                EmitBody(indentedTextWriter, statement.catchBody);
+                EmitBody(indentedTextWriter, statement.catchBody, insideMain);
         }
 
         if (statement.finallyBody != null) {
             using (var finallyCurly = new CurlyIndenter(indentedTextWriter, "finally"))
-                EmitBody(indentedTextWriter, statement.finallyBody);
+                EmitBody(indentedTextWriter, statement.finallyBody, insideMain);
         }
+    }
+
+    private static void EmitNullProtectedExpression(IndentedTextWriter indentedTextWriter, BoundExpression expression) {
+        if (expression.type.isNullable)
+            indentedTextWriter.Write("((");
+
+        EmitExpression(indentedTextWriter, expression);
+
+        if (expression.type.isNullable)
+            indentedTextWriter.Write(") ?? throw new NullReferenceException())");
+    }
+
+    private static void EmitIfStatement(
+        IndentedTextWriter indentedTextWriter, BoundIfStatement statement, bool insideMain) {
+        indentedTextWriter.Write("if (");
+        EmitNullProtectedExpression(indentedTextWriter, statement.condition);
+
+        using (var ifCurly = new CurlyIndenter(indentedTextWriter, ")"))
+            EmitStatement(indentedTextWriter, statement.then, insideMain);
+
+        if (statement.elseStatement != null) {
+            using (var elseCurly = new CurlyIndenter(indentedTextWriter, "else"))
+                EmitStatement(indentedTextWriter, statement.elseStatement, insideMain);
+        }
+
+        indentedTextWriter.WriteLine();
+    }
+
+    private static void EmitForStatement(
+        IndentedTextWriter indentedTextWriter, BoundForStatement statement, bool insideMain) {
+        indentedTextWriter.Write("for (");
+        EmitStatement(indentedTextWriter, statement.initializer, insideMain);
+        indentedTextWriter.Indent++;
+        EmitNullProtectedExpression(indentedTextWriter, statement.condition);
+        indentedTextWriter.Write("; ");
+        EmitExpression(indentedTextWriter, statement.step);
+        indentedTextWriter.Indent--;
+
+        using (var forCurly = new CurlyIndenter(indentedTextWriter, ")"))
+            EmitStatement(indentedTextWriter, statement.body, insideMain);
+
+        indentedTextWriter.WriteLine();
+    }
+
+    private static void EmitWhileStatement(
+        IndentedTextWriter indentedTextWriter, BoundWhileStatement statement, bool insideMain) {
+        indentedTextWriter.Write("while (");
+        EmitNullProtectedExpression(indentedTextWriter, statement.condition);
+
+        using (var forCurly = new CurlyIndenter(indentedTextWriter, ")"))
+            EmitStatement(indentedTextWriter, statement.body, insideMain);
+
+        indentedTextWriter.WriteLine();
+    }
+
+    private static void EmitDoWhileStatement(
+        IndentedTextWriter indentedTextWriter, BoundDoWhileStatement statement, bool insideMain) {
+        using (var forCurly = new CurlyIndenter(indentedTextWriter, "do"))
+            EmitStatement(indentedTextWriter, statement.body, insideMain);
+
+        indentedTextWriter.Write("while (");
+        EmitNullProtectedExpression(indentedTextWriter, statement.condition);
+        indentedTextWriter.WriteLine(");");
+        indentedTextWriter.WriteLine();
+    }
+
+    private static void EmitBreakStatement(IndentedTextWriter indentedTextWriter, BoundBreakStatement statement) {
+        indentedTextWriter.WriteLine("break;");
+    }
+
+    private static void EmitContinueStatement(IndentedTextWriter indentedTextWriter, BoundContinueStatement statement) {
+        indentedTextWriter.WriteLine("continue;");
     }
 
     private static void EmitExpression(IndentedTextWriter indentedTextWriter, BoundExpression expression) {
@@ -343,6 +447,24 @@ internal sealed class CSharpEmitter {
             case BoundNodeKind.TernaryExpression:
                 EmitTernaryExpression(indentedTextWriter, (BoundTernaryExpression)expression);
                 break;
+            case BoundNodeKind.PrefixExpression:
+                EmitPrefixExpression(indentedTextWriter, (BoundPrefixExpression)expression);
+                break;
+            case BoundNodeKind.PostfixExpression:
+                EmitPostfixExpression(indentedTextWriter, (BoundPostfixExpression)expression);
+                break;
+            case BoundNodeKind.CompoundAssignmentExpression:
+                EmitCompoundAssignmentExpression(indentedTextWriter, (BoundCompoundAssignmentExpression)expression);
+                break;
+            case BoundNodeKind.ReferenceExpression:
+                EmitReferenceExpression(indentedTextWriter, (BoundReferenceExpression)expression);
+                break;
+            case BoundNodeKind.ConstructorExpression:
+                EmitConstructorExpression(indentedTextWriter, (BoundConstructorExpression)expression);
+                break;
+            case BoundNodeKind.MemberAccessExpression:
+                EmitMemberAccessExpression(indentedTextWriter, (BoundMemberAccessExpression)expression);
+                break;
             default:
                 throw new BelteInternalException($"EmitExpression: unexpected node '{expression.kind}'");
         }
@@ -371,6 +493,8 @@ internal sealed class CSharpEmitter {
         } else {
             if (BoundConstant.IsNull(constant))
                 indentedTextWriter.Write("null");
+            else if (constant.value is bool)
+                indentedTextWriter.Write(constant.value.ToString().ToLower());
             else
                 indentedTextWriter.Write(constant.value);
         }
@@ -421,9 +545,7 @@ internal sealed class CSharpEmitter {
         EmitExpression(indentedTextWriter, expression.right);
     }
 
-    private static void EmitEmptyExpression(IndentedTextWriter indentedTextWriter, BoundEmptyExpression expression) {
-        indentedTextWriter.Write("/* EmptyExpression */");
-    }
+    private static void EmitEmptyExpression(IndentedTextWriter indentedTextWriter, BoundEmptyExpression expression) { }
 
     private static void EmitCallExpression(IndentedTextWriter indentedTextWriter, BoundCallExpression expression) {
         string functionName = null;
@@ -447,14 +569,18 @@ internal sealed class CSharpEmitter {
             case "Value":
                 EmitExpression(indentedTextWriter, expression.arguments[0]);
 
-                if (expression.arguments[0].type.isNullable)
+                if (GetEquivalentType(expression.arguments[0].type).StartsWith("Nullable"))
                     indentedTextWriter.Write(".Value");
 
                 return;
             case "HasValue":
-                if (expression.arguments[0].type.isNullable) {
+                if (GetEquivalentType(expression.arguments[0].type).StartsWith("Nullable")) {
                     EmitExpression(indentedTextWriter, expression.arguments[0]);
                     indentedTextWriter.Write(".HasValue");
+                } else if (expression.arguments[0].type.isNullable) {
+                    indentedTextWriter.Write("((");
+                    EmitExpression(indentedTextWriter, expression.arguments[0]);
+                    indentedTextWriter.Write($") is not null)");
                 } else {
                     indentedTextWriter.Write("true");
                 }
@@ -492,11 +618,50 @@ internal sealed class CSharpEmitter {
 
     private static void EmitTernaryExpression(IndentedTextWriter indentedTextWriter, BoundTernaryExpression expression) {
         indentedTextWriter.Write("(");
+
+        if (expression.left.type.isNullable)
+            indentedTextWriter.Write("((");
+
         EmitExpression(indentedTextWriter, expression.left);
+
+        if (expression.left.type.isNullable)
+            indentedTextWriter.Write(") ?? throw new NullReferenceException())");
+
         indentedTextWriter.Write($" {SyntaxFacts.GetText(expression.op.leftOpKind)} ");
         EmitExpression(indentedTextWriter, expression.center);
         indentedTextWriter.Write($" {SyntaxFacts.GetText(expression.op.rightOpKind)} ");
         EmitExpression(indentedTextWriter, expression.right);
         indentedTextWriter.Write(")");
+    }
+
+    private static void EmitPrefixExpression(IndentedTextWriter indentedTextWriter, BoundPrefixExpression expression) {
+        indentedTextWriter.Write(SyntaxFacts.GetText(expression.op.kind));
+        EmitExpression(indentedTextWriter, expression.operand);
+    }
+
+    private static void EmitPostfixExpression(IndentedTextWriter indentedTextWriter, BoundPostfixExpression expression) {
+        EmitExpression(indentedTextWriter, expression.operand);
+        indentedTextWriter.Write(SyntaxFacts.GetText(expression.op.kind));
+    }
+
+    private static void EmitCompoundAssignmentExpression(
+        IndentedTextWriter indentedTextWriter, BoundCompoundAssignmentExpression expression) {
+        EmitExpression(indentedTextWriter, expression.left);
+        indentedTextWriter.Write($" {SyntaxFacts.GetText(expression.op.kind)}= ");
+        EmitExpression(indentedTextWriter, expression.right);
+    }
+
+    private static void EmitReferenceExpression(IndentedTextWriter indentedTextWriter, BoundReferenceExpression expression) {
+        indentedTextWriter.Write($"ref {GetSafeName(expression.variable.name)}");
+    }
+
+    private static void EmitConstructorExpression(
+        IndentedTextWriter indentedTextWriter, BoundConstructorExpression expression) {
+        indentedTextWriter.Write($"new {GetSafeName(expression.symbol.name)}()");
+    }
+
+    private static void EmitMemberAccessExpression(IndentedTextWriter indentedTextWriter, BoundMemberAccessExpression expression) {
+        EmitExpression(indentedTextWriter, expression.operand);
+        indentedTextWriter.Write($".{GetSafeName(expression.member.name)}");
     }
 }

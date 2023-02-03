@@ -28,6 +28,9 @@ internal sealed class Binder {
     private Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> _loopStack =
         new Stack<(BoundLabel breakLabel, BoundLabel continueLabel)>();
     private int _labelCount;
+    private bool _transpilerMode;
+    private ImmutableArray<string> _peekedLocals = ImmutableArray<string>.Empty;
+    private int _checkPeekedLocals = 0;
 
     // Functions should be available correctly, so only track variables
     private Stack<HashSet<VariableSymbol>> _trackedSymbols = new Stack<HashSet<VariableSymbol>>();
@@ -40,11 +43,12 @@ internal sealed class Binder {
         new Dictionary<string, LocalFunctionStatementSyntax>();
     private string _shadowingVariable;
 
-    private Binder(bool isScript, BoundScope parent, FunctionSymbol function) {
+    private Binder(bool isScript, BoundScope parent, FunctionSymbol function, bool transpilerMode) {
         _isScript = isScript;
         diagnostics = new BelteDiagnosticQueue();
         _scope = new BoundScope(parent);
         _function = function;
+        _transpilerMode = transpilerMode;
 
         if (function != null) {
             foreach (var parameter in function.parameters)
@@ -65,11 +69,14 @@ internal sealed class Binder {
     /// </param>
     /// <param name="previous">Previous <see cref="BoundGlobalScope" /> (if applicable).</param>
     /// <param name="syntaxTrees">All SyntaxTrees, as files are bound together.</param>
+    /// <param name="transpilerMode">
+    /// If the compiler output mode is a transpiler. Affects certain optimizations.
+    /// </param>
     /// <returns>A new <see cref="BoundGlobalScope" />.</returns>
     internal static BoundGlobalScope BindGlobalScope(
-        bool isScript, BoundGlobalScope previous, ImmutableArray<SyntaxTree> syntaxTrees) {
+        bool isScript, BoundGlobalScope previous, ImmutableArray<SyntaxTree> syntaxTrees, bool transpilerMode) {
         var parentScope = CreateParentScope(previous);
-        var binder = new Binder(isScript, parentScope, null);
+        var binder = new Binder(isScript, parentScope, null, transpilerMode);
 
         foreach (var syntaxTree in syntaxTrees)
             binder.diagnostics.Move(syntaxTree.diagnostics);
@@ -89,6 +96,8 @@ internal sealed class Binder {
 
         var globalStatements = syntaxTrees.SelectMany(st => st.root.members).OfType<GlobalStatementSyntax>();
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
+
+        binder._peekedLocals = PeekLocals(globalStatements.Select(s => s.statement), null);
 
         foreach (var globalStatement in globalStatements)
             statements.Add(binder.BindStatement(globalStatement.statement, true));
@@ -174,8 +183,12 @@ internal sealed class Binder {
     /// <param name="isScript">If being bound as a script (used by the REPL), otherwise an application.</param>
     /// <param name="previous">Previous <see cref="BoundProgram" /> (if applicable).</param>
     /// <param name="globalScope">The already bound <see cref="BoundGlobalScope" />.</param>
+    /// <param name="transpilerMode">
+    /// If the compiler output mode is a transpiler. Affects certain optimizations.
+    /// </param>
     /// <returns>A new <see cref="BoundProgram" /> (then either emitted or evaluated).</returns>
-    internal static BoundProgram BindProgram(bool isScript, BoundProgram previous, BoundGlobalScope globalScope) {
+    internal static BoundProgram BindProgram(
+        bool isScript, BoundProgram previous, BoundGlobalScope globalScope, bool transpilerMode) {
         var parentScope = CreateParentScope(globalScope);
 
         if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
@@ -191,20 +204,20 @@ internal sealed class Binder {
         diagnostics.Move(globalScope.diagnostics);
 
         foreach (var function in globalScope.functions) {
-            var binder = new Binder(isScript, parentScope, function);
+            var binder = new Binder(isScript, parentScope, function, transpilerMode);
 
             binder._innerPrefix = new Stack<string>();
             binder._innerPrefix.Push(function.name);
 
             BoundBlockStatement loweredBody = null;
 
-            var body = binder.BindStatement(function.declaration.body);
+            var body = binder.BindMethodBody(function.declaration.body, function.parameters);
             diagnostics.Move(binder.diagnostics);
 
             if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
                 return Program(previous, diagnostics);
 
-            loweredBody = Lowerer.Lower(function, body);
+            loweredBody = Lowerer.Lower(function, body, transpilerMode);
 
             if (function.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
                 binder.diagnostics.Push(Error.NotAllPathsReturn(function.declaration.identifier.location));
@@ -238,7 +251,10 @@ internal sealed class Binder {
         }
 
         if (globalScope.mainFunction != null && globalScope.statements.Any()) {
-            var body = Lowerer.Lower(globalScope.mainFunction, new BoundBlockStatement(globalScope.statements));
+            var body = Lowerer.Lower(
+                globalScope.mainFunction, new BoundBlockStatement(globalScope.statements), transpilerMode
+            );
+
             functionBodies.Add(globalScope.mainFunction, body);
         } else if (globalScope.scriptFunction != null) {
             var statements = globalScope.statements;
@@ -249,13 +265,30 @@ internal sealed class Binder {
             else if (statements.Any() && statements.Last().kind != BoundNodeKind.ReturnStatement)
                 statements = statements.Add(new BoundReturnStatement(null));
 
-            var body = Lowerer.Lower(globalScope.scriptFunction, new BoundBlockStatement(statements));
+            var body = Lowerer.Lower(globalScope.scriptFunction, new BoundBlockStatement(statements), transpilerMode);
             functionBodies.Add(globalScope.scriptFunction, body);
         }
 
         return new BoundProgram(previous, diagnostics, globalScope.mainFunction,
             globalScope.scriptFunction, functionBodies.ToImmutable(), structMembers.ToImmutable()
         );
+    }
+
+    private static ImmutableArray<string> PeekLocals(
+        IEnumerable<StatementSyntax> statements, IEnumerable<ParameterSymbol> parameters) {
+        var locals = ImmutableArray.CreateBuilder<string>();
+
+        foreach (var statement in statements) {
+            if (statement is VariableDeclarationStatementSyntax vd)
+                locals.Add(vd.identifier.text);
+        }
+
+        if (parameters != null) {
+            foreach (var parameter in parameters)
+                locals.Add(parameter.name);
+        }
+
+        return locals.ToImmutable();
     }
 
     private static BoundScope CreateParentScope(BoundGlobalScope previous) {
@@ -373,6 +406,12 @@ internal sealed class Binder {
             diagnostics.Push(Error.MethodAlreadyDeclared(method.identifier.location, newMethod.name));
     }
 
+    private BoundStatement BindMethodBody(BlockStatementSyntax syntax, ImmutableArray<ParameterSymbol> parameters) {
+        _peekedLocals = PeekLocals(syntax.statements, parameters);
+
+        return BindStatement(syntax);
+    }
+
     private void BindTypeDeclaration(TypeDeclarationSyntax @type) {
         if (@type is StructDeclarationSyntax)
             BindStructDeclaration(@type as StructDeclarationSyntax);
@@ -399,7 +438,8 @@ internal sealed class Binder {
 
     private BoundStatement BindLocalFunctionDeclaration(LocalFunctionStatementSyntax statement) {
         var functionSymbol = (FunctionSymbol)_scope.LookupSymbol(statement.identifier.text);
-        var binder = new Binder(_isScript, _scope, functionSymbol);
+
+        var binder = new Binder(_isScript, _scope, functionSymbol, _transpilerMode);
         binder._innerPrefix = new Stack<string>(_innerPrefix.Reverse());
         var oldTrackSymbols = _trackSymbols;
         binder._trackSymbols = true;
@@ -409,7 +449,7 @@ internal sealed class Binder {
         binder._trackedDeclarations.Push(new HashSet<VariableSymbol>());
         _innerPrefix.Push(functionSymbol.name);
         binder._innerPrefix.Push(functionSymbol.name);
-        var body = (BoundBlockStatement)binder.BindBlockStatement(functionSymbol.declaration.body);
+        var body = binder.BindMethodBody(functionSymbol.declaration.body, functionSymbol.parameters);
         _trackSymbols = oldTrackSymbols;
 
         var innerName = ConstructInnerName();
@@ -435,7 +475,7 @@ internal sealed class Binder {
             innerName, parameters.ToImmutable(), functionSymbol.type, functionSymbol.declaration
         );
 
-        var loweredBody = Lowerer.Lower(newFunctionSymbol, body);
+        var loweredBody = Lowerer.Lower(newFunctionSymbol, body, _transpilerMode);
 
         if (newFunctionSymbol.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
             diagnostics.Push(Error.NotAllPathsReturn(newFunctionSymbol.declaration.identifier.location));
@@ -727,8 +767,12 @@ internal sealed class Binder {
             return BindErrorStatement();
         }
 
-        var continueLabel = _loopStack.Peek().continueLabel;
-        return new BoundGotoStatement(continueLabel);
+        if (!_transpilerMode) {
+            var continueLabel = _loopStack.Peek().continueLabel;
+            return new BoundGotoStatement(continueLabel);
+        } else {
+            return new BoundContinueStatement();
+        }
     }
 
     private BoundStatement BindBreakStatement(BreakStatementSyntax syntax) {
@@ -737,8 +781,12 @@ internal sealed class Binder {
             return BindErrorStatement();
         }
 
-        var breakLabel = _loopStack.Peek().breakLabel;
-        return new BoundGotoStatement(breakLabel);
+        if (!_transpilerMode) {
+            var breakLabel = _loopStack.Peek().breakLabel;
+            return new BoundGotoStatement(breakLabel);
+        } else {
+            return new BoundBreakStatement();
+        }
     }
 
     private BoundStatement BindWhileStatement(WhileStatementSyntax statement) {
@@ -761,6 +809,7 @@ internal sealed class Binder {
 
     private BoundStatement BindForStatement(ForStatementSyntax statement) {
         _scope = new BoundScope(_scope);
+        _checkPeekedLocals++;
 
         var initializer = BindStatement(statement.initializer);
         var condition = BindCast(statement.condition, BoundType.NullableBool);
@@ -768,6 +817,7 @@ internal sealed class Binder {
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
 
         _scope = _scope.parent;
+        _checkPeekedLocals--;
 
         return new BoundForStatement(initializer, condition, step, body, breakLabel, continueLabel);
     }
@@ -798,6 +848,8 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindBlockStatement(BlockStatementSyntax statement) {
+        _checkPeekedLocals++;
+
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
         _scope = new BoundScope(_scope, true);
 
@@ -840,12 +892,15 @@ internal sealed class Binder {
         _localLocals.Pop();
         _scope = _scope.parent;
 
+        _checkPeekedLocals--;
+
         return new BoundBlockStatement(statements.ToImmutable());
     }
 
     private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatementSyntax expression) {
         var currentCount = diagnostics.count;
         var type = BindType(expression.type);
+
         if (diagnostics.count > currentCount)
             return null;
 
@@ -878,6 +933,12 @@ internal sealed class Binder {
 
         var isNullable = type.isNullable;
         _shadowingVariable = expression.identifier.text;
+
+        if (_peekedLocals.Contains(expression.identifier.text) && _checkPeekedLocals > 1) {
+            diagnostics.Push(
+                Error.NameUsedInEnclosingScope(expression.identifier.location, expression.identifier.text)
+            );
+        }
 
         if (type.isReference || (type.isImplicit && expression.initializer?.kind == SyntaxKind.RefExpression)) {
             var initializer = BindReferenceExpression((ReferenceExpressionSyntax)expression.initializer);
@@ -1579,6 +1640,12 @@ internal sealed class Binder {
                 diagnostics.Push(Warning.AlwaysValue(expression.location, null));
                 return new BoundLiteralExpression(null);
             }
+        }
+
+        if (boundOp.opKind == BoundBinaryOperatorKind.Division &&
+            boundRight.constantValue != null && boundRight.constantValue.value.Equals(0)) {
+            diagnostics.Push(Error.DivideByZero(expression.location));
+            return new BoundErrorExpression();
         }
 
         return new BoundBinaryExpression(boundLeft, boundOp, boundRight);

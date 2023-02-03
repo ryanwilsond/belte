@@ -352,7 +352,7 @@ internal sealed class Parser {
     }
 
     private FieldDeclarationSyntax ParseFieldDeclaration() {
-        var declaration = (VariableDeclarationStatementSyntax)ParseVariableDeclarationStatement(false, false);
+        var declaration = (VariableDeclarationStatementSyntax)ParseVariableDeclarationStatement(true);
 
         return new FieldDeclarationSyntax(_syntaxTree, declaration);
     }
@@ -466,8 +466,8 @@ internal sealed class Parser {
         );
     }
 
-    private StatementSyntax ParseVariableDeclarationStatement(bool allowDefinition = true, bool allowImplicit = true) {
-        var type = ParseType(allowImplicit);
+    private StatementSyntax ParseVariableDeclarationStatement(bool declarationOnly = false) {
+        var type = ParseType(allowImplicit: !declarationOnly, declarationOnly: declarationOnly);
         var identifier = Match(SyntaxKind.IdentifierToken);
 
         SyntaxToken equals = null;
@@ -477,7 +477,7 @@ internal sealed class Parser {
             equals = Next();
             initializer = ParseExpression();
 
-            if (!allowDefinition)
+            if (declarationOnly)
                 diagnostics.Push(Error.Unsupported.CannotInitialize(equals.location));
         }
 
@@ -939,7 +939,7 @@ internal sealed class Parser {
         return new AttributeSyntax(_syntaxTree, openBracket, identifier, closeBracket);
     }
 
-    private TypeSyntax ParseType(bool allowImplicit = true, bool expectName = true, bool allowConst = true) {
+    private TypeSyntax ParseType(bool allowImplicit = true, bool expectName = true, bool declarationOnly = false) {
         var attributes = ParseAttributes();
 
         SyntaxToken constRefKeyword = null;
@@ -950,13 +950,18 @@ internal sealed class Parser {
 
         if (current.kind == SyntaxKind.ConstKeyword && Peek(1).kind == SyntaxKind.RefKeyword)
             constRefKeyword = Next();
-        if (current.kind == SyntaxKind.RefKeyword)
+
+        if (current.kind == SyntaxKind.RefKeyword) {
             refKeyword = Next();
+
+            if (declarationOnly)
+                diagnostics.Push(Error.CannotUseRef(refKeyword.location));
+        }
 
         if (current.kind == SyntaxKind.ConstKeyword) {
             constKeyword = Next();
 
-            if (!allowConst)
+            if (declarationOnly)
                 diagnostics.Push(Error.CannotUseConst(constKeyword.location));
             else if (!allowImplicit &&
                 (Peek(1).kind != SyntaxKind.IdentifierToken && Peek(1).kind != SyntaxKind.OpenBracketToken))

@@ -174,11 +174,11 @@ public sealed partial class EvaluatorTests {
     [InlineData("var a = 5; a %= 2; return a;", 1)]
     [InlineData("var a = 5; a ??= 2; return a;", 5)]
     [InlineData("int a = null; a ??= 2; return a;", 2)]
-    // * Will get fixed with the introduction of the Blender
-    // [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return a;", 6)]
-    // [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return b;", 5)]
+    [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return a;", 6)]
+    [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return b;", 5)]
     [InlineData("var a = 3; return a is null;", false)]
     [InlineData("var a = 3; return a isnt null;", true)]
+    [InlineData("var a = 3; a += null; return a;", null)]
     [InlineData("int a = 3; a += null; return a is null;", true)]
     [InlineData("int a = 3; a += null; return a isnt null;", false)]
     // Ternary expressions
@@ -312,9 +312,9 @@ public sealed partial class EvaluatorTests {
     [InlineData("type a = typeof([NotNull]decimal);", null)]
     [InlineData("struct A { int num; } type a = typeof(A);", null)]
     // Try statements
-    [InlineData("try { int a = 56/0; return a; } catch { return 3; }", 3)]
+    [InlineData("try { int x = 0; int a = 56/x; return a; } catch { return 3; }", 3)]
     [InlineData("try { int a = 56/1; return a; } catch { return 3; }", 56)]
-    [InlineData("int a = 3; try { int b = 56/0; a += b; } catch { a += 3; } finally { return a; }", 6)]
+    [InlineData("int a = 3; try { int x = 0; int b = 56/x; a += b; } catch { a += 3; } finally { return a; }", 6)]
     [InlineData("int a = 3; try { int b = 56/1; a += b; } catch { a += 3; } finally { return a; }", 59)]
     // Break statements
     [InlineData("int result = 3; for (int i=0; i<10; i++) { result++; if (result == 5) break; } return result;", 5)]

@@ -1,0 +1,16 @@
+struct A {
+    int a;
+    bool b;
+}
+
+void Main() {
+    var g = A();
+    g.a = 5;
+    bool c = g.b;
+    bool d = c is null;
+
+    A h;
+
+    int j = h?.a;
+    PrintLine(j is null);
+}

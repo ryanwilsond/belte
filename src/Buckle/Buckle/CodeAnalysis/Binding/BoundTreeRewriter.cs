@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using Buckle.Diagnostics;
 
@@ -42,9 +43,21 @@ internal abstract class BoundTreeRewriter {
                 return RewriteReturnStatement((BoundReturnStatement)statement);
             case BoundNodeKind.TryStatement:
                 return RewriteTryStatement((BoundTryStatement)statement);
+            case BoundNodeKind.BreakStatement:
+                return RewriteBreakStatement((BoundBreakStatement)statement);
+            case BoundNodeKind.ContinueStatement:
+                return RewriteContinueStatement((BoundContinueStatement)statement);
             default:
                 throw new BelteInternalException($"RewriteStatement: unexpected expression type '{statement.kind}'");
         }
+    }
+
+    protected virtual BoundStatement RewriteContinueStatement(BoundContinueStatement statement) {
+        return statement;
+    }
+
+    protected virtual BoundStatement RewriteBreakStatement(BoundBreakStatement statement) {
+        return statement;
     }
 
     protected virtual BoundStatement RewriteTryStatement(BoundTryStatement statement) {

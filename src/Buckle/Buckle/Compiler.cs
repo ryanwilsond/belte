@@ -107,7 +107,7 @@ public sealed class Compiler {
             }
         }
 
-        var compilation = Compilation.Create(syntaxTrees.ToArray());
+        var compilation = Compilation.Create(false, syntaxTrees.ToArray());
         diagnostics.Move(compilation.diagnostics);
 
         if (!state.options.Contains("all") && !state.options.Contains("error"))
@@ -141,7 +141,7 @@ public sealed class Compiler {
             }
         }
 
-        var compilation = Compilation.Create(syntaxTrees.ToArray());
+        var compilation = Compilation.Create(state.buildMode == BuildMode.CSharpTranspile, syntaxTrees.ToArray());
         var result = compilation.Emit(
             state.buildMode, state.moduleName, state.references, state.outputFilename,
             state.options.Contains("error"), state.finishStage
