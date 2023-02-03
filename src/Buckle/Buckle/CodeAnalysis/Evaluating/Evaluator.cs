@@ -245,9 +245,17 @@ internal sealed class Evaluator {
         if (value.members != null)
             return value;
 
-        // TODO Loop through the valueValue if it is EvaluatorObject[] or List<Object>
+        if (valueValue is EvaluatorObject[]) {
+            var builder = new List<EvaluatorObject>();
+            var castedValue = (EvaluatorObject[])valueValue;
 
-        valueValue = EvaluateValueCast(valueValue, type);
+            foreach (var item in castedValue)
+                builder.Add(EvaluateCast(item, type.ChildType()));
+
+            valueValue = builder.ToArray();
+        } else {
+            valueValue = EvaluateValueCast(valueValue, type);
+        }
 
         return new EvaluatorObject(valueValue);
     }
