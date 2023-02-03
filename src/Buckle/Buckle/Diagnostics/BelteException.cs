@@ -48,8 +48,10 @@ If applicable, add screenshots to help explain your problem.
 Add any other context about the problem here."
         );
 
-        return $"BU0000: {message}\n\n     -- Click the following link to report this issue:\n\t" +
-            $"https://github.com/ryanwilsond/belte/issues/new?assignees=&labels=&title={title}&body={body}\n";
+        return $"BU0000: {message}{Environment.NewLine}{Environment.NewLine}     " +
+            $"-- Click the following link to report this issue:{Environment.NewLine}\t" +
+            $"https://github.com/ryanwilsond/belte/issues/new?assignees=&labels=&title={title}&body={body}" +
+            $"{Environment.NewLine}";
     }
 }
 

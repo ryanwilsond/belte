@@ -153,10 +153,10 @@ public static partial class BuckleCommandLine {
 
         var foundMessage = messages[errorCode].Substring(2);
 
-        if (foundMessage.EndsWith('\n'))
+        if (foundMessage.EndsWith(Environment.NewLine))
             foundMessage = foundMessage.Substring(0, foundMessage.Length - 1);
 
-        var lines = foundMessage.Split('\n');
+        var lines = foundMessage.Split(Environment.NewLine);
         var count = 0;
 
         while (count < lines.Length) {

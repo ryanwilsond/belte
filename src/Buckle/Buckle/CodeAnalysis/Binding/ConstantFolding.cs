@@ -242,7 +242,7 @@ internal static class ConstantFolding {
 
             try {
                 return new BoundConstant(CastUtilities.Cast(expression.constantValue.value, type));
-            } catch (FormatException) {
+            } catch (Exception e) when (e is FormatException || e is InvalidCastException) {
                 return null;
             }
         }

@@ -271,9 +271,15 @@ public sealed class Compilation {
     /// <summary>
     /// Emits the program to an assembly.
     /// </summary>
+    /// <param name="buildMode">Which emitter to use.</param>
     /// <param name="moduleName">Application name.</param>
     /// <param name="references">All external references (.NET).</param>
     /// <param name="outputPath">Where to put the application once assembled.</param>
+    /// <param name="wError">If warnings should be treated as errors.</param>
+    /// <param name="finishStage">
+    /// What stage to finish at (only applicable if <param name="buildMode" /> is set to
+    /// <see cref="BuildMode.Independent" />.
+    /// </param>
     /// <returns>Diagnostics.</returns>
     internal BelteDiagnosticQueue Emit(
         BuildMode buildMode, string moduleName, string[] references,
@@ -296,6 +302,40 @@ public sealed class Compilation {
             return NativeEmitter.Emit(program, outputPath, finishStage);
         else // buildMode == BuildMode.CSharpTranspile
             return CSharpEmitter.Emit(program, outputPath);
+    }
+
+    /// <summary>
+    /// Emits the program to a string.
+    /// NOTE: Only the CSharpTranspile build mode is currently supported. Passing in any other build mode will cause the
+    /// method to return null.
+    /// </summary>
+    /// <param name="buildMode">Which emitter to use.</param>
+    /// <param name="moduleName">
+    /// Name of the module. If <param name="buildMode" /> is set to <see cref="BuildMode.CSharpTranspile" /> this is
+    /// used as the namespace name.
+    /// </param>
+    /// <param name="wError">If warnings should be treated as errors.</param>
+    /// <returns>Emitted program as a string. Diagnostics must be accessed manually off of this.</returns>
+    internal string EmitToString(BuildMode buildMode, string moduleName, bool wError) {
+        foreach (var syntaxTree in syntaxTrees)
+            diagnostics.Move(syntaxTree.diagnostics);
+
+        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+            return null;
+
+        var program = GetProgram();
+        program.diagnostics.Move(diagnostics);
+
+        if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any() || (program.diagnostics.Any() && wError))
+            return null;
+
+        if (buildMode == BuildMode.CSharpTranspile) {
+            var content = CSharpEmitter.Emit(program, moduleName, out var emitterDiagnostics);
+            diagnostics.Move(emitterDiagnostics);
+            return content;
+        }
+
+        return null;
     }
 
     private BoundProgram GetProgram() {

@@ -1449,9 +1449,17 @@ internal sealed class Binder {
 
             return new BoundErrorExpression();
         } else if (symbols.Length > 1 && possibleOverloads.Count > 1) {
-            diagnostics.Push(Error.AmbiguousOverload(expression.identifier.location, possibleOverloads.ToArray()));
-
-            return new BoundErrorExpression();
+            // Special case where there are default overloads
+            if (possibleOverloads[0].name == "HasValue") {
+                possibleOverloads.Clear();
+                possibleOverloads.Add(BuiltinFunctions.HasValueAny);
+            } else if (possibleOverloads[0].name == "Value") {
+                possibleOverloads.Clear();
+                possibleOverloads.Add(BuiltinFunctions.ValueAny);
+            } else {
+                diagnostics.Push(Error.AmbiguousOverload(expression.identifier.location, possibleOverloads.ToArray()));
+                return new BoundErrorExpression();
+            }
         }
 
         return new BoundCallExpression(possibleOverloads.SingleOrDefault(), boundArguments.ToImmutable());

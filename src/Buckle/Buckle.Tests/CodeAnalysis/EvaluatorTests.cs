@@ -283,6 +283,12 @@ public sealed partial class EvaluatorTests {
     [InlineData("string a = (string)(int)3.6; return a;", "3")]
     [InlineData("(string)null;", null)]
     [InlineData("(int)null;", null)]
+    [InlineData("any a = {1, 2, 3}; return ((int[])a)[1];", 2)]
+    [InlineData("any a = {true, false}; return ((bool[])a)[0];", true)]
+    [InlineData("any[] a = {1, 3.5, true, \"test\"}; return a[0];", 1)]
+    [InlineData("any[] a = {1, 3.5, true, \"test\"}; return a[1];", 3.5)]
+    [InlineData("any[] a = {1, 3.5, true, \"test\"}; return a[2];", true)]
+    [InlineData("any[] a = {1, 3.5, true, \"test\"}; return a[3];", "test")]
     // Block statements and return expressions
     [InlineData("{ int a = 3; return a; }", 3)]
     [InlineData("int a = 5; { a = 3; return a; }", 3)]

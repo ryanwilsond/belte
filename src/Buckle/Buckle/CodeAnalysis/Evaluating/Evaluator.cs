@@ -523,6 +523,7 @@ internal sealed class Evaluator {
 
             return new EvaluatorObject(_random.Next(max));
         } else if (node.function.name == "Value") {
+            // TODO This needs to check if the builtin has been shadowed (check for HasValue too)
             var value = EvaluateExpression(node.arguments[0], ref abort);
             var hasNoMembers = value.isReference ? Get(value.reference).members == null : value.members == null;
 
@@ -533,7 +534,7 @@ internal sealed class Evaluator {
                 return new EvaluatorObject(Value(value));
             else
                 return Copy(value);
-        } else if (node.function.MethodMatches(BuiltinFunctions.HasValue)) {
+        } else if (node.function.name == "HasValue") {
             var value = EvaluateExpression(node.arguments[0], ref abort);
             var hasNoMembers = value.isReference ? Get(value.reference).members == null : value.members == null;
 

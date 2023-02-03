@@ -408,9 +408,22 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         Now parameters do not have compiler generated '$' symbols in their name
 
+        ----> <function> is 'Value' and <parameter> is not nullable
+
+        <parameter>
+
+        ----> <function> is 'HasValue' and <parameter> is not nullable
+
+        true
+
         */
         var function = expression.function;
         var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
+
+        if (function.name == "Value" && !expression.arguments[0].type.isNullable)
+            return RewriteExpression(expression.arguments[0]);
+        else if (function.name == "HasValue" && !expression.arguments[0].type.isNullable)
+            return new BoundLiteralExpression(true);
 
         foreach (var oldParameter in function.parameters) {
             var name = oldParameter.name.StartsWith("$")
@@ -647,10 +660,16 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     private BoundExpression HasValue(BoundExpression expression) {
-        return Call(
-            BuiltinFunctions.HasValue,
-            expression
-        );
+        if (expression.type.typeSymbol == TypeSymbol.Bool)
+            return Call(BuiltinFunctions.HasValueBool, expression);
+        if (expression.type.typeSymbol == TypeSymbol.Decimal)
+            return Call(BuiltinFunctions.HasValueDecimal, expression);
+        if (expression.type.typeSymbol == TypeSymbol.Int)
+            return Call(BuiltinFunctions.HasValueInt, expression);
+        if (expression.type.typeSymbol == TypeSymbol.String)
+            return Call(BuiltinFunctions.HasValueString, expression);
+
+        return Call(BuiltinFunctions.HasValueAny, expression);
     }
 
     private static BoundBlockStatement RemoveDeadCode(BoundBlockStatement statement) {
