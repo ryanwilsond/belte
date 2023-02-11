@@ -28,7 +28,7 @@ Please delete options that are not relevant.
 - [ ] I updated the error resource docs (e.g. src/Buckle/Buckle/Resources/ErrorDescriptionsBU.txt) if any new errors or warnings were added
 - [ ] I have added a test case to the [diagnostics tests](src/Buckle/Buckle.Tests/CodeAnalysis/DiagnosticTests.cs) if any new errors or warnings were added
 
-**If a new syntax was added:**
+**If a new syntax was added (delete this section otherwise):**
 
 - [ ] I updated the Parser class
 - [ ] I updated the Binder class
