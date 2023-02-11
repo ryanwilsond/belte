@@ -202,7 +202,7 @@ internal sealed class CSharpEmitter {
         IndentedTextWriter indentedTextWriter, BoundStatement statement, bool insideMain) {
         switch (statement.kind) {
             case BoundNodeKind.BlockStatement:
-                EmitBody(indentedTextWriter, (BoundBlockStatement)statement);
+                EmitBody(indentedTextWriter, (BoundBlockStatement)statement, insideMain);
                 break;
             case BoundNodeKind.NopStatement:
                 EmitNopStatement(indentedTextWriter, (BoundNopStatement)statement);
@@ -522,18 +522,14 @@ internal sealed class CSharpEmitter {
     }
 
     private static void EmitUnaryExpression(IndentedTextWriter indentedTextWriter, BoundUnaryExpression expression) {
-        indentedTextWriter.Write("(");
         indentedTextWriter.Write(SyntaxFacts.GetText(expression.op.kind));
         EmitExpression(indentedTextWriter, expression.operand);
-        indentedTextWriter.Write(")");
     }
 
     private static void EmitBinaryExpression(IndentedTextWriter indentedTextWriter, BoundBinaryExpression expression) {
-        indentedTextWriter.Write("(");
         EmitExpression(indentedTextWriter, expression.left);
         indentedTextWriter.Write($" {SyntaxFacts.GetText(expression.op.kind)} ");
         EmitExpression(indentedTextWriter, expression.right);
-        indentedTextWriter.Write(")");
     }
 
     private static void EmitVariableExpression(
@@ -565,9 +561,20 @@ internal sealed class CSharpEmitter {
                 break;
             case "RandInt":
                 var signature = $"Func<{GetEquivalentType(expression.type)}>";
-                indentedTextWriter.Write($"(({signature})(() => {{ var random = new System.Random(); return r.Next(");
+                indentedTextWriter.Write(
+                    $"(({signature})(() => {{ var random = new System.Random(); var temp = "
+                );
+
                 EmitExpression(indentedTextWriter, expression.arguments[0]);
-                indentedTextWriter.Write("); }))()");
+                indentedTextWriter.Write("; ");
+
+                if (expression.arguments[0].type.isNullable)
+                    indentedTextWriter.Write("return temp.HasValue ? random.Next(temp.Value) : random.Next();");
+                else
+                    indentedTextWriter.Write("return random.Next(temp);");
+
+                indentedTextWriter.Write(" }))()");
+
                 return;
             case "Value":
                 EmitExpression(indentedTextWriter, expression.arguments[0]);
@@ -615,8 +622,31 @@ internal sealed class CSharpEmitter {
     }
 
     private static void EmitCastExpression(IndentedTextWriter indentedTextWriter, BoundCastExpression expression) {
-        indentedTextWriter.Write($"({GetEquivalentType(expression.type)})");
+        if (expression.type.isNullable)
+            indentedTextWriter.Write($"({GetEquivalentType(expression.type)})");
+
+        var neededParenthesis = 1;
+        var typeSymbol = expression.type.typeSymbol;
+
+        if (typeSymbol == TypeSymbol.Bool) {
+            indentedTextWriter.Write("Convert.ToBoolean(");
+        } else if (typeSymbol == TypeSymbol.Decimal) {
+            indentedTextWriter.Write("Convert.ToDouble(");
+        } else if (typeSymbol == TypeSymbol.String) {
+            indentedTextWriter.Write("Convert.ToString(");
+        } else if (typeSymbol == TypeSymbol.Int) {
+            indentedTextWriter.Write("Convert.ToInt32(");
+
+            if (expression.expression.type.typeSymbol == TypeSymbol.Decimal) {
+                indentedTextWriter.Write("Math.Truncate(");
+                neededParenthesis = 2;
+            }
+        } else {
+            neededParenthesis = 0;
+        }
+
         EmitExpression(indentedTextWriter, expression.expression);
+        indentedTextWriter.Write(new String(')', neededParenthesis));
     }
 
     private static void EmitTernaryExpression(IndentedTextWriter indentedTextWriter, BoundTernaryExpression expression) {

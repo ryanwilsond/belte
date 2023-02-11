@@ -904,10 +904,10 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatementSyntax expression) {
-        var currentCount = diagnostics.count;
+        var currentCount = diagnostics.FilterOut(DiagnosticType.Warning).count;
         var type = BindType(expression.type);
 
-        if (diagnostics.count > currentCount)
+        if (diagnostics.FilterOut(DiagnosticType.Warning).count > currentCount)
             return null;
 
         if (type.isImplicit && expression.initializer == null) {
@@ -974,6 +974,9 @@ internal sealed class Binder {
                 return null;
             }
 
+            if (diagnostics.FilterOut(DiagnosticType.Warning).count > currentCount)
+                return null;
+
             // References cant have implicit casts
             var variable = BindVariable(expression.identifier, variableType, initializer.constantValue);
 
@@ -1016,6 +1019,9 @@ internal sealed class Binder {
                 castedInitializer.constantValue
             );
 
+            if (diagnostics.FilterOut(DiagnosticType.Warning).count > currentCount)
+                return null;
+
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
         } else {
             var initializer = expression.initializer != null
@@ -1045,6 +1051,9 @@ internal sealed class Binder {
 
             if (initializer.constantValue == null || initializer.constantValue.value != null)
                 _scope.NoteAssignment(variable);
+
+            if (diagnostics.FilterOut(DiagnosticType.Warning).count > currentCount)
+                return null;
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
         }
