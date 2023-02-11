@@ -18,6 +18,10 @@ internal static partial class SyntaxFactory {
         return Token(syntaxTree, kind, position, null);
     }
 
+    internal static SyntaxToken Token(SyntaxKind kind) {
+        return Token(kind, null);
+    }
+
     internal static SyntaxToken Identifier(string name) {
         return new SyntaxToken(null, SyntaxKind.IdentifierToken, -1, name, null,
             ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty
@@ -26,5 +30,11 @@ internal static partial class SyntaxFactory {
 
     internal static NameExpressionSyntax Name(string name) {
         return new NameExpressionSyntax(null, Token(SyntaxKind.IdentifierToken, name));
+    }
+
+    internal static ReferenceExpressionSyntax Reference(string name) {
+        return new ReferenceExpressionSyntax(
+            null, Token(SyntaxKind.RefExpression), Token(SyntaxKind.IdentifierToken, name)
+        );
     }
 }

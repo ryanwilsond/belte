@@ -688,7 +688,7 @@ internal static class Error {
     /// BU0074. Run `buckle --explain BU0074` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic CannotUseConst(TextLocation location) {
-        var message = "cannot declare a constant in this context";
+        var message = "cannot use a constant in this context";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseConstant), location, message);
     }
 
@@ -696,7 +696,7 @@ internal static class Error {
     /// BU0075. Run `buckle --explain BU0075` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic CannotUseRef(TextLocation location) {
-        var message = "cannot declare a reference type in this context";
+        var message = "cannot use a reference type in this context";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseRef), location, message);
     }
 

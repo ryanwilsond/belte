@@ -143,9 +143,9 @@ internal sealed class BoundType : BoundNode {
         if (!isNullable && !isLiteral)
             text += "[NotNull]";
 
-        if (isConstantReference)
+        if (isConstantReference && isExplicitReference)
             text += "const ";
-        if (isReference)
+        if (isExplicitReference)
             text += "ref ";
         if (isConstant)
             text += "const ";

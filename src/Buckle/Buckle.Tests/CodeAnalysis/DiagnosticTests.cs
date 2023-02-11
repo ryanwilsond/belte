@@ -971,7 +971,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            cannot declare a constant in this context
+            cannot use a constant in this context
         ";
 
         AssertDiagnostics(text, diagnostics);
@@ -986,7 +986,7 @@ public sealed partial class EvaluatorTests {
         ";
 
         var diagnostics = @"
-            cannot declare a reference type in this context
+            cannot use a reference type in this context
         ";
 
         AssertDiagnostics(text, diagnostics);

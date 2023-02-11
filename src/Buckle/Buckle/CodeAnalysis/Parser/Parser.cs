@@ -765,7 +765,7 @@ internal sealed class Parser {
 
     private ExpressionSyntax ParseCastExpression() {
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
-        var type = ParseType();
+        var type = ParseType(false, false, true);
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
         var expression = ParseExpression();
 

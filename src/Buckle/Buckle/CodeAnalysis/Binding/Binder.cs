@@ -467,7 +467,13 @@ internal sealed class Binder {
             if (declaredVariables.Contains(variable) || parameters.Contains(variable))
                 continue;
 
-            var parameter = new ParameterSymbol($"${variable.name}", variable.type, ordinal++, null);
+            var parameter = new ParameterSymbol(
+                $"${variable.name}",
+                BoundType.Copy(variable.type, isReference: true, isExplicitReference: true),
+                ordinal++,
+                null
+            );
+
             parameters.Add(parameter);
         }
 
@@ -1305,7 +1311,7 @@ internal sealed class Binder {
             if (_unresolvedLocals.ContainsKey(innerName) && !_resolvedLocals.Contains(innerName)) {
                 BindLocalFunctionDeclaration(_unresolvedLocals[innerName]);
                 _resolvedLocals.Add(innerName);
-                actualSymbol = _scope.LookupSymbol(innerName) as FunctionSymbol;
+                actualSymbol = _scope.LookupSymbol(innerName);
                 isInner = true;
             }
 
@@ -1410,9 +1416,10 @@ internal sealed class Binder {
             for (int i=0; i<function.parameters.Length; i++) {
                 var parameter = function.parameters[i];
 
-                if (seenParameterNames.Add(parameter.name) && parameter.defaultValue != null) {
+                if (!parameter.name.StartsWith('$') &&
+                    seenParameterNames.Add(parameter.name) &&
+                    parameter.defaultValue != null) {
                     rearrangedArguments[i] = preBoundArgumentsBuilder.Count;
-                    // The name is not actually required here, but could be helpful during debugging; no harm
                     preBoundArgumentsBuilder.Add((parameter.name, parameter.defaultValue));
                 }
             }
@@ -1452,26 +1459,23 @@ internal sealed class Binder {
                 }
 
                 if (isInner) {
-                    // No need to worry about currentBoundArguments because generated
-                    // functions should never have overloads
                     if (symbols.Length != 1)
                         throw new BelteInternalException("BindCallExpression: overloaded generated function");
 
-                    for (int i=expression.arguments.count; i<function.parameters.Length; i++) {
+                    for (int i=0; i<function.parameters.Length; i++) {
                         var parameter = function.parameters[i];
+
+                        if (!parameter.name.StartsWith('$'))
+                            continue;
 
                         var oldTrackSymbols = _trackSymbols;
                         _trackSymbols = false;
 
-                        // var argument = SyntaxFactory.Name(parameter.name.Substring(1));
-                        var argument = new NameExpressionSyntax(null, new SyntaxToken(
-                            null, SyntaxKind.IdentifierToken, -1, parameter.name.Substring(1), null,
-                            ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty)
-                        );
+                        var argument = SyntaxFactory.Reference(parameter.name.Substring(1));
 
                         _trackSymbols = oldTrackSymbols;
                         var boundArgument = BindCast(null, BindExpression(argument), parameter.type);
-                        boundArguments.Add(boundArgument);
+                        currentBoundArguments.Add(boundArgument);
                     }
                 }
             }

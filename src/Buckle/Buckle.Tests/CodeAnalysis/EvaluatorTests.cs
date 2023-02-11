@@ -299,6 +299,7 @@ public sealed partial class EvaluatorTests {
     [InlineData("int A() { int B() { int A() { return 2; } return A() + 1; } return B() + 1; } return A();", 4)]
     [InlineData("int A() { int a = 1; int B(int b) { return a + b; } return B(4); } return A(); ", 5)]
     [InlineData("int A() { int a = 5; int B(int b) { return a + b; } return B(1); } return A(); ", 6)]
+    [InlineData("int A() { int a = 5; void B() { a = 6; } B(); return a; } return A();", 6)]
     // Member access expressions
     [InlineData("struct A { int num; } A myVar = A(); myVar.num = 3; return myVar.num + 1;", 4)]
     [InlineData("struct A { int num; } struct B { A a; } B myVar = B(); myVar.a = A(); myVar.a.num = 3; return myVar.a.num + 1;", 4)]
