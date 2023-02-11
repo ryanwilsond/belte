@@ -14,6 +14,9 @@ using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Emitting;
 
+/// <summary>
+/// Emits a bound program into a C# source.
+/// </summary>
 internal sealed class CSharpEmitter {
     /// <summary>
     /// Emits a program to a C# source.
