@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 
