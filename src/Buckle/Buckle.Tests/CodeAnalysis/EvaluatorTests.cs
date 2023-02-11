@@ -174,11 +174,11 @@ public sealed partial class EvaluatorTests {
     [InlineData("var a = 5; a %= 2; return a;", 1)]
     [InlineData("var a = 5; a ??= 2; return a;", 5)]
     [InlineData("int a = null; a ??= 2; return a;", 2)]
-    // * Will get fixed with the introduction of the Blender
-    // [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return a;", 6)]
-    // [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return b;", 5)]
+    [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return a;", 6)]
+    [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return b;", 5)]
     [InlineData("var a = 3; return a is null;", false)]
     [InlineData("var a = 3; return a isnt null;", true)]
+    [InlineData("var a = 3; a += null; return a;", null)]
     [InlineData("int a = 3; a += null; return a is null;", true)]
     [InlineData("int a = 3; a += null; return a isnt null;", false)]
     // Ternary expressions
@@ -283,6 +283,12 @@ public sealed partial class EvaluatorTests {
     [InlineData("string a = (string)(int)3.6; return a;", "3")]
     [InlineData("(string)null;", null)]
     [InlineData("(int)null;", null)]
+    [InlineData("any a = {1, 2, 3}; return ((int[])a)[1];", 2)]
+    [InlineData("any a = {true, false}; return ((bool[])a)[0];", true)]
+    [InlineData("any[] a = {1, 3.5, true, \"test\"}; return a[0];", 1)]
+    [InlineData("any[] a = {1, 3.5, true, \"test\"}; return a[1];", 3.5)]
+    [InlineData("any[] a = {1, 3.5, true, \"test\"}; return a[2];", true)]
+    [InlineData("any[] a = {1, 3.5, true, \"test\"}; return a[3];", "test")]
     // Block statements and return expressions
     [InlineData("{ int a = 3; return a; }", 3)]
     [InlineData("int a = 5; { a = 3; return a; }", 3)]
@@ -293,6 +299,7 @@ public sealed partial class EvaluatorTests {
     [InlineData("int A() { int B() { int A() { return 2; } return A() + 1; } return B() + 1; } return A();", 4)]
     [InlineData("int A() { int a = 1; int B(int b) { return a + b; } return B(4); } return A(); ", 5)]
     [InlineData("int A() { int a = 5; int B(int b) { return a + b; } return B(1); } return A(); ", 6)]
+    [InlineData("int A() { int a = 5; void B() { a = 6; } B(); return a; } return A();", 6)]
     // Member access expressions
     [InlineData("struct A { int num; } A myVar = A(); myVar.num = 3; return myVar.num + 1;", 4)]
     [InlineData("struct A { int num; } struct B { A a; } B myVar = B(); myVar.a = A(); myVar.a.num = 3; return myVar.a.num + 1;", 4)]
@@ -306,9 +313,9 @@ public sealed partial class EvaluatorTests {
     [InlineData("type a = typeof([NotNull]decimal);", null)]
     [InlineData("struct A { int num; } type a = typeof(A);", null)]
     // Try statements
-    [InlineData("try { int a = 56/0; return a; } catch { return 3; }", 3)]
+    [InlineData("try { int x = 0; int a = 56/x; return a; } catch { return 3; }", 3)]
     [InlineData("try { int a = 56/1; return a; } catch { return 3; }", 56)]
-    [InlineData("int a = 3; try { int b = 56/0; a += b; } catch { a += 3; } finally { return a; }", 6)]
+    [InlineData("int a = 3; try { int x = 0; int b = 56/x; a += b; } catch { a += 3; } finally { return a; }", 6)]
     [InlineData("int a = 3; try { int b = 56/1; a += b; } catch { a += 3; } finally { return a; }", 59)]
     // Break statements
     [InlineData("int result = 3; for (int i=0; i<10; i++) { result++; if (result == 5) break; } return result;", 5)]

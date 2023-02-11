@@ -23,7 +23,7 @@ internal static class Error {
     /// RE0002. Run `buckle --explain RE0002` on the command line for more info.
     /// </summary>
     internal static Diagnostic WrongArgumentCount(string name, string parameterNames) {
-        var message = $"invalid number of arguments\nusage: #{name} {parameterNames}";
+        var message = $"invalid number of arguments{Environment.NewLine}usage: #{name} {parameterNames}";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_WrongArgumentCount), message);
     }
 

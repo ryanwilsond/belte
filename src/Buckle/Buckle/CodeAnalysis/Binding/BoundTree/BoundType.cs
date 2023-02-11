@@ -120,12 +120,10 @@ internal sealed class BoundType : BoundNode {
     /// </summary>
     internal bool isConstant { get; }
 
-    // ! Use NonNullable and Nullable methods whenever possible
-    // Only nullable because making it immutable is more convoluted then allowing a couple exceptions
     /// <summary>
     /// If the value this type is referring to can be null.
     /// </summary>
-    internal bool isNullable { get; set; }
+    internal bool isNullable { get; }
 
     /// <summary>
     /// If the type was assumed from a literal.
@@ -145,9 +143,9 @@ internal sealed class BoundType : BoundNode {
         if (!isNullable && !isLiteral)
             text += "[NotNull]";
 
-        if (isConstantReference)
+        if (isConstantReference && isExplicitReference)
             text += "const ";
-        if (isReference)
+        if (isExplicitReference)
             text += "ref ";
         if (isConstant)
             text += "const ";

@@ -2,11 +2,13 @@
 PROJDIR:=src/Buckle/Belte
 BUCKDIR:=src/Buckle/Buckle
 TESTDIR:=src/Buckle/Buckle.Tests
+GENRDIR:=src/Buckle/Buckle.Generators
 DIAGDIR:=src/Buckle/Diagnostics
 REPLDIR:=src/Buckle/Repl
 SANDDIR:=src/Sander
 
 NETVER:=net7.0
+NETSSTANDVER:=netstandard2.0
 SYSTEM:=win-x64
 SLN:=src/Buckle/Buckle.sln
 SSLN:=src/Sander/Sander.sln
@@ -29,6 +31,7 @@ debugcopy:
 	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.dll Belte.dll
 	@$(CP) $(DIAGDIR)/bin/Debug/$(NETVER)/Diagnostics.dll Diagnostics.dll
 	@$(CP) $(REPLDIR)/bin/Debug/$(NETVER)/Repl.dll Repl.dll
+	@$(CP) $(GENRDIR)/bin/Debug/$(NETSSTANDVER)/Buckle.Generators.dll Buckle.Generators.dll
 	@-$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.exe buckle.exe
 	@-$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte buckle.exe
 	@echo "    Finished"

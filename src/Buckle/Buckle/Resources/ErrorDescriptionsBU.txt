@@ -1206,6 +1206,70 @@ For example:
 var myDecimal = ([NotNull]decimal)true; // Not allowed, BU0020 is raised as you cannot convert from bool to decimal
 var myDecimal = ([NotNull]decimal)null; // Not allowed, this error is raised as you cannot `null` to a non-nullable type
 ```
+$BU0074
+The `const` keyword cannot be used in every context. Types relating to field
+declarations cannot be defined when declaring them, meaning you cannot define
+any constant value.
+
+For example:
+
+```
+struct MyStruct {
+    const int a; // Not allowed, cannot define so using `const` here is not allowed
+    int a; // Allowed
+}
+```
+$BU0075
+The `ref` keyword cannot be used in every context. Types relating to field
+declarations cannot be defined when declaring them, meaning you cannot assign
+a reference.
+
+For example:
+
+```
+struct MyStruct {
+    ref int a; // Not allowed, cannot define so using `ref` here is not allowed
+    int a; // Allowed
+}
+```
+$BU0076
+Dividing by zero is a defined operation, thus it is not allowed. When the
+compiler can detect code that will divide by zero, this error is raised.
+
+For example:
+
+```
+int myInt = 5 / 0; // Not allowed, attempting to divide by zero
+```
+$BU0077
+To prevent ambiguity, if a name is used inside the closest enclosing function
+scope that name is reserved and cannot be used inside nested non-function
+scopes (such as for loops).
+
+For example:
+
+```
+void MyFunc() {
+    for (int i=0; i<5; i++) ; // Not allowed, `i` is used later to declare a local
+
+    int i = 1;
+}
+```
+
+Because this only applies to non-function scopes, the following is allowed:
+
+```
+void MyFunc() {
+    int i = 1;
+
+    void MyNestedFunc() {
+        int i = 5;
+    }
+}
+```
+
+This only applies to non-function scopes because function scopes shadow, whilst
+other blocks and bodies do not.
 $BU9000
 Inside a global scope without a `Main` function, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it

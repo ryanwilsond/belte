@@ -70,13 +70,14 @@ internal sealed class Cast {
             return Cast.Identity;
         }
 
+        if (from != TypeSymbol.Void && to == TypeSymbol.Any)
+            return Cast.Implicit;
+        if (from == TypeSymbol.Any && to != TypeSymbol.Void)
+            return Cast.Explicit;
+
         Cast InternalClassify() {
             if (from == to)
                 return Cast.Identity;
-            if (from != TypeSymbol.Void && to == TypeSymbol.Any)
-                return Cast.Implicit;
-            if (from == TypeSymbol.Any && to != TypeSymbol.Void)
-                return Cast.Explicit;
             if (from == TypeSymbol.Bool || from == TypeSymbol.Int || from == TypeSymbol.Decimal)
                 if (to == TypeSymbol.String)
                     return Cast.Explicit;
@@ -106,7 +107,7 @@ internal sealed class Cast {
         // Special cases that are not allowed
         if ((fromType.isReference && !fromType.isExplicitReference && toType.isReference) ||
             (fromType.isReference && fromType.isExplicitReference && !toType.isReference) ||
-            (fromType.dimensions != toType.dimensions)) {
+            fromType.dimensions != toType.dimensions) {
             cast = Cast.None;
         }
 

@@ -656,7 +656,7 @@ internal sealed class _ILEmitter {
         } else if (expression.function.name == "Value") {
             EmitExpression(iLProcessor, expression.arguments[0]);
             iLProcessor.Emit(OpCodes.Call, GetNullableValue(expression.arguments[0].type));
-        } else if (expression.function.MethodMatches(BuiltinFunctions.HasValue)) {
+        } else if (expression.function.name == "HasValue") {
             EmitExpression(iLProcessor, expression.arguments[0]);
             iLProcessor.Emit(OpCodes.Call, GetNullableHasValue(expression.arguments[0].type));
         } else {

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
@@ -10,7 +11,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal static class ConstantFolding {
     /// <summary>
-    /// Folds a <see cref="BinaryExpression" /> (if possible).
+    /// Folds a <see cref="BoundBinaryExpression" /> (if possible).
     /// </summary>
     /// <param name="left">Left side operand.</param>
     /// <param name="op">Operator.</param>
@@ -21,20 +22,23 @@ internal static class ConstantFolding {
         var leftConstant = left.constantValue;
         var rightConstant = right.constantValue;
 
+        if (op == null)
+            return null;
+
         // With and/or operators allow one side to be null
-        if (op?.opKind == BoundBinaryOperatorKind.ConditionalAnd) {
+        if (op.opKind == BoundBinaryOperatorKind.ConditionalAnd) {
             if ((leftConstant != null && leftConstant.value != null && !(bool)leftConstant.value) ||
                 (rightConstant != null && rightConstant.value != null && !(bool)rightConstant.value))
                 return new BoundConstant(false);
         }
 
-        if (op?.opKind == BoundBinaryOperatorKind.ConditionalOr) {
+        if (op.opKind == BoundBinaryOperatorKind.ConditionalOr) {
             if ((leftConstant != null && leftConstant.value != null && (bool)leftConstant.value) ||
                 (rightConstant != null && rightConstant.value != null && (bool)rightConstant.value))
                 return new BoundConstant(true);
         }
 
-        if (op?.opKind == BoundBinaryOperatorKind.NullCoalescing) {
+        if (op.opKind == BoundBinaryOperatorKind.NullCoalescing) {
             if (leftConstant != null && leftConstant.value != null)
                 return new BoundConstant(leftConstant.value);
 
@@ -42,7 +46,7 @@ internal static class ConstantFolding {
                 return new BoundConstant(rightConstant.value);
         }
 
-        if (op?.opKind == BoundBinaryOperatorKind.Is) {
+        if (op.opKind == BoundBinaryOperatorKind.Is) {
             if (BoundConstant.IsNull(leftConstant) && BoundConstant.IsNull(rightConstant))
                 return new BoundConstant(true);
 
@@ -50,7 +54,7 @@ internal static class ConstantFolding {
                 return new BoundConstant(false);
         }
 
-        if (op?.opKind == BoundBinaryOperatorKind.Isnt) {
+        if (op.opKind == BoundBinaryOperatorKind.Isnt) {
             if (BoundConstant.IsNull(leftConstant) && BoundConstant.IsNull(rightConstant))
                 return new BoundConstant(false);
 
@@ -58,16 +62,17 @@ internal static class ConstantFolding {
                 return new BoundConstant(true);
         }
 
-        if (leftConstant == null || rightConstant == null || op == null)
+        if ((BoundConstant.IsNull(leftConstant) || BoundConstant.IsNull(rightConstant)) &&
+            (op.opKind != BoundBinaryOperatorKind.Is && op.opKind != BoundBinaryOperatorKind.Isnt))
+            return new BoundConstant(null);
+
+        if (leftConstant == null || rightConstant == null)
             return null;
 
         var leftValue = leftConstant.value;
         var rightValue = rightConstant.value;
         var leftType = op.leftType.typeSymbol;
         var rightType = op.rightType.typeSymbol;
-
-        if (leftValue == null || rightValue == null)
-            return new BoundConstant(null);
 
         leftValue = CastUtilities.Cast(leftValue, op.leftType);
         rightValue = CastUtilities.Cast(rightValue, op.rightType);
@@ -165,7 +170,7 @@ internal static class ConstantFolding {
     }
 
     /// <summary>
-    /// Folds a <see cref="UnaryExpression" /> (if possible).
+    /// Folds a <see cref="BoundUnaryExpression" /> (if possible).
     /// </summary>
     /// <param name="op">Operator.</param>
     /// <param name="operand">Operand.</param>
@@ -203,6 +208,14 @@ internal static class ConstantFolding {
         }
     }
 
+    /// <summary>
+    /// Folds a <see cref="BoundTernaryExpression" /> (if possible).
+    /// </summary>
+    /// <param name="left">Left operand.</param>
+    /// <param name="op">Operator.</param>
+    /// <param name="center">Center operand.</param>
+    /// <param name="right">Right operand.</param>
+    /// <returns><see cref="BoundConstant" />, returns null if folding is not possible.</returns>
     internal static BoundConstant FoldTernary(
         BoundExpression left, BoundTernaryOperator op, BoundExpression center, BoundExpression right) {
         if (op.opKind == BoundTernaryOperatorKind.Conditional) {
@@ -220,6 +233,12 @@ internal static class ConstantFolding {
         return null;
     }
 
+    /// <summary>
+    /// Folds a <see cref="BoundCastExpression" /> (if possible).
+    /// </summary>
+    /// <param name="expression">Expression operand.</param>
+    /// <param name="type">Casting to type.</param>
+    /// <returns><see cref="BoundConstant" />, returns null if folding is not possible.</returns>
     internal static BoundConstant FoldCast(BoundExpression expression, BoundType type) {
         if (expression.constantValue != null) {
             if (expression.constantValue.value == null && !type.isNullable)
@@ -227,11 +246,29 @@ internal static class ConstantFolding {
 
             try {
                 return new BoundConstant(CastUtilities.Cast(expression.constantValue.value, type));
-            } catch (FormatException) {
+            } catch (Exception e) when (e is FormatException || e is InvalidCastException) {
                 return null;
             }
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Folds a <see cref="BoundInitializerListExpression" /> (if possible).
+    /// </summary>
+    /// <param name="items">Initializer list contents.</param>
+    /// <returns><see cref="BoundConstant" />, returns null if folding is not possible.</returns>
+    internal static BoundConstant FoldInitializerList(ImmutableArray<BoundExpression> items) {
+        var foldedItems = ImmutableArray.CreateBuilder<BoundConstant>();
+
+        foreach (var item in items) {
+            if (item.constantValue != null)
+                foldedItems.Add(item.constantValue);
+            else
+                return null;
+        }
+
+        return new BoundConstant(foldedItems.ToImmutable());
     }
 }

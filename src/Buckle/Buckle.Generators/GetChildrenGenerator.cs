@@ -48,7 +48,9 @@ public sealed class GetChildrenGenerator : ISourceGenerator {
         using (var indentedTextWriter = new IndentedTextWriter(stringWriter, indentString)) {
             indentedTextWriter.WriteLine("using System;");
             indentedTextWriter.WriteLine("using System.Collections.Generic;");
-            indentedTextWriter.WriteLine("\nnamespace Buckle.CodeAnalysis.Syntax;\n");
+            indentedTextWriter.WriteLine();
+            indentedTextWriter.WriteLine("namespace Buckle.CodeAnalysis.Syntax;");
+            indentedTextWriter.WriteLine();
 
             foreach (var type in nodeTypes) {
                 using (var classCurly = new CurlyIndenter(indentedTextWriter, $"partial class {type.Name}"))

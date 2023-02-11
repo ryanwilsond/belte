@@ -23,10 +23,12 @@ namespace Buckle.CodeAnalysis;
 /// </summary>
 public sealed class Compilation {
     private BoundGlobalScope _globalScope;
+    private bool _transpilerMode;
 
-    private Compilation(bool isScript, Compilation previous, params SyntaxTree[] syntaxTrees) {
+    private Compilation(bool isScript, Compilation previous, bool transpilerMode, params SyntaxTree[] syntaxTrees) {
         this.isScript = isScript;
         this.previous = previous;
+        _transpilerMode = transpilerMode;
         diagnostics = new BelteDiagnosticQueue();
 
         foreach (var syntaxTree in syntaxTrees)
@@ -81,7 +83,7 @@ public sealed class Compilation {
     internal BoundGlobalScope globalScope {
         get {
             if (_globalScope == null) {
-                var tempScope = Binder.BindGlobalScope(isScript, previous?.globalScope, syntaxTrees);
+                var tempScope = Binder.BindGlobalScope(isScript, previous?.globalScope, syntaxTrees, _transpilerMode);
                 // Makes assignment thread-safe, if multiple threads try to initialize they use whoever did it first
                 Interlocked.CompareExchange(ref _globalScope, tempScope, null);
             }
@@ -93,10 +95,13 @@ public sealed class Compilation {
     /// <summary>
     /// Creates a new <see cref="Compilation" /> with SyntaxTrees.
     /// </summary>
+    /// <param name="transpilerMode">
+    /// If the compiler output mode is a transpiler. Affects certain optimizations.
+    /// </param>
     /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
     /// <returns>New <see cref="Compilation" />.</returns>
-    internal static Compilation Create(params SyntaxTree[] syntaxTrees) {
-        return new Compilation(false, null, syntaxTrees);
+    internal static Compilation Create(bool transpilerMode = false, params SyntaxTree[] syntaxTrees) {
+        return new Compilation(false, null, transpilerMode, syntaxTrees);
     }
 
     /// <summary>
@@ -106,7 +111,7 @@ public sealed class Compilation {
     /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
     /// <returns>.</returns>
     internal static Compilation CreateScript(Compilation previous, params SyntaxTree[] syntaxTrees) {
-        return new Compilation(true, previous, syntaxTrees);
+        return new Compilation(true, previous, false, syntaxTrees);
     }
 
     /// <summary>
@@ -271,9 +276,15 @@ public sealed class Compilation {
     /// <summary>
     /// Emits the program to an assembly.
     /// </summary>
+    /// <param name="buildMode">Which emitter to use.</param>
     /// <param name="moduleName">Application name.</param>
     /// <param name="references">All external references (.NET).</param>
     /// <param name="outputPath">Where to put the application once assembled.</param>
+    /// <param name="wError">If warnings should be treated as errors.</param>
+    /// <param name="finishStage">
+    /// What stage to finish at (only applicable if <param name="buildMode" /> is set to
+    /// <see cref="BuildMode.Independent" />.
+    /// </param>
     /// <returns>Diagnostics.</returns>
     internal BelteDiagnosticQueue Emit(
         BuildMode buildMode, string moduleName, string[] references,
@@ -298,9 +309,43 @@ public sealed class Compilation {
             return CSharpEmitter.Emit(program, outputPath);
     }
 
+    /// <summary>
+    /// Emits the program to a string.
+    /// NOTE: Only the CSharpTranspile build mode is currently supported. Passing in any other build mode will cause the
+    /// method to return null.
+    /// </summary>
+    /// <param name="buildMode">Which emitter to use.</param>
+    /// <param name="moduleName">
+    /// Name of the module. If <param name="buildMode" /> is set to <see cref="BuildMode.CSharpTranspile" /> this is
+    /// used as the namespace name.
+    /// </param>
+    /// <param name="wError">If warnings should be treated as errors.</param>
+    /// <returns>Emitted program as a string. Diagnostics must be accessed manually off of this.</returns>
+    internal string EmitToString(BuildMode buildMode, string moduleName, bool wError) {
+        foreach (var syntaxTree in syntaxTrees)
+            diagnostics.Move(syntaxTree.diagnostics);
+
+        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+            return null;
+
+        var program = GetProgram();
+        program.diagnostics.Move(diagnostics);
+
+        if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any() || (program.diagnostics.Any() && wError))
+            return null;
+
+        if (buildMode == BuildMode.CSharpTranspile) {
+            var content = CSharpEmitter.Emit(program, moduleName, out var emitterDiagnostics);
+            diagnostics.Move(emitterDiagnostics);
+            return content;
+        }
+
+        return null;
+    }
+
     private BoundProgram GetProgram() {
         var _previous = previous == null ? null : previous.GetProgram();
-        return Binder.BindProgram(isScript, _previous, globalScope);
+        return Binder.BindProgram(isScript, _previous, globalScope, _transpilerMode);
     }
 
     private static void CreateCfg(BoundProgram program) {

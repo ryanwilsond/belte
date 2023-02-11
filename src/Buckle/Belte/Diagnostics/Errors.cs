@@ -1,3 +1,4 @@
+using System;
 using Diagnostics;
 
 namespace Belte.Diagnostics;
@@ -142,7 +143,7 @@ internal static class Error {
     /// </summary>
     internal static Diagnostic InvalidErrorCode(string error) {
         var message = $"'{error}' is not a valid error code; must be in the format: [BU|CL|RE]<code>" +
-            "\n\texamples: BU0001, CL0001, BU54, CL012, RE0001, RE6";
+            $"{Environment.NewLine}\texamples: BU0001, CL0001, BU54, CL012, RE0001, RE6";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidErrorCode), message);
     }
 

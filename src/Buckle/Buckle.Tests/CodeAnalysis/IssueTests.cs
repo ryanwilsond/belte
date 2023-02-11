@@ -662,15 +662,6 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
-    public void Evaluator_DivideByZero_ThrowsException() {
-        var text = @"
-            56/0;
-        ";
-
-        AssertExceptions(text, new DivideByZeroException());
-    }
-
-    [Fact]
     public void Evaluator_Function_CanDeclare() {
         var text = @"
             void myFunction(int num1, int num2) {

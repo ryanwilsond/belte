@@ -40,6 +40,8 @@ internal enum BoundNodeKind {
     ReturnStatement,
     NopStatement,
     FieldDeclarationStatement,
+    BreakStatement,
+    ContinueStatement,
 
     Type,
 }

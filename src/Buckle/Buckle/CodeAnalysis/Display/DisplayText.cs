@@ -423,7 +423,7 @@ internal sealed class DisplayText {
     private static void DisplayReferenceExpression(DisplayText text, BoundReferenceExpression node) {
         text.Write(CreateKeyword(SyntaxKind.RefKeyword));
         text.Write(CreateSpace());
-        SymbolDisplay.DisplaySymbol(text, node.variable);
+        text.Write(CreateIdentifier(node.variable.name));
     }
 
     private static void DisplayNestedExpression(DisplayText text, BoundExpression expression, int parentPrecedence) {

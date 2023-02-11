@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using Buckle.Diagnostics;
 
@@ -42,9 +43,21 @@ internal abstract class BoundTreeRewriter {
                 return RewriteReturnStatement((BoundReturnStatement)statement);
             case BoundNodeKind.TryStatement:
                 return RewriteTryStatement((BoundTryStatement)statement);
+            case BoundNodeKind.BreakStatement:
+                return RewriteBreakStatement((BoundBreakStatement)statement);
+            case BoundNodeKind.ContinueStatement:
+                return RewriteContinueStatement((BoundContinueStatement)statement);
             default:
                 throw new BelteInternalException($"RewriteStatement: unexpected expression type '{statement.kind}'");
         }
+    }
+
+    protected virtual BoundStatement RewriteContinueStatement(BoundContinueStatement statement) {
+        return statement;
+    }
+
+    protected virtual BoundStatement RewriteBreakStatement(BoundBreakStatement statement) {
+        return statement;
     }
 
     protected virtual BoundStatement RewriteTryStatement(BoundTryStatement statement) {
@@ -181,7 +194,7 @@ internal abstract class BoundTreeRewriter {
 
     internal virtual BoundExpression RewriteExpression(BoundExpression expression) {
         if (expression.constantValue != null)
-            return new BoundLiteralExpression(expression.constantValue.value);
+            return RewriteConstantExpression(expression);
 
         switch (expression.kind) {
             case BoundNodeKind.BinaryExpression:
@@ -225,6 +238,13 @@ internal abstract class BoundTreeRewriter {
             default:
                 throw new BelteInternalException($"RewriteExpression: unexpected expression type '{expression.kind}'");
         }
+    }
+
+    protected virtual BoundExpression RewriteConstantExpression(BoundExpression expression) {
+        if (expression.constantValue.value is ImmutableArray<BoundConstant>)
+            return new BoundInitializerListExpression(expression.constantValue, expression.type);
+        else
+            return new BoundLiteralExpression(expression.constantValue.value);
     }
 
     protected virtual BoundExpression RewritePrefixExpression(BoundPrefixExpression expression) {

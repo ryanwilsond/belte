@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -671,6 +672,9 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotImplyNull), location, message);
     }
 
+    /// <summary>
+    /// BU0073. Run `buckle --explain BU0073` on the command line for more info.
+    /// </summary>
     internal static BelteDiagnostic CannotConvertNull(TextLocation location, BoundType to, int argument = 0) {
         var message = $"cannot convert 'null' to '{to}' because it is a non-nullable type";
 
@@ -678,6 +682,39 @@ internal static class Error {
             message = $"argument {argument}: " + message;
 
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotConvertNull), location, message);
+    }
+
+    /// <summary>
+    /// BU0074. Run `buckle --explain BU0074` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotUseConst(TextLocation location) {
+        var message = "cannot use a constant in this context";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseConstant), location, message);
+    }
+
+    /// <summary>
+    /// BU0075. Run `buckle --explain BU0075` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotUseRef(TextLocation location) {
+        var message = "cannot use a reference type in this context";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseRef), location, message);
+    }
+
+    /// <summary>
+    /// BU0076. Run `buckle --explain BU0076` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic DivideByZero(TextLocation location) {
+        var message = "cannot divide by zero";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_DivideByZero), location, message);
+    }
+
+    /// <summary>
+    /// BU0077. Run `buckle --explain BU0077` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic NameUsedInEnclosingScope(TextLocation location, string name) {
+        var message = $"a local named '{name}' cannot be declared in this scope because that name is used " +
+            "in an enclosing scope to define a local or parameter";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NameUsedInEnclosingScope), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

@@ -963,6 +963,66 @@ public sealed partial class EvaluatorTests {
     }
 
     [Fact]
+    public void Evaluator_Reports_Error_BU0074_CannotUseConst() {
+        var text = @"
+            struct MyStruct {
+                [const] int myField;
+            }
+        ";
+
+        var diagnostics = @"
+            cannot use a constant in this context
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Reports_Error_BU0075_CannotUseRef() {
+        var text = @"
+            struct MyStruct {
+                [ref] int myField;
+            }
+        ";
+
+        var diagnostics = @"
+            cannot use a reference type in this context
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Reports_Error_BU0076_CannotUseRef() {
+        var text = @"
+            int myInt = [5 / 0];
+        ";
+
+        var diagnostics = @"
+            cannot divide by zero
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
+    public void Evaluator_Reports_Error_BU0077_NameUsedInEnclosingScope() {
+        var text = @"
+            void MyFunc() {
+                for (int [i]=0; i<10; i++) ;
+
+                int i = 5;
+            }
+        ";
+
+        var diagnostics = @"
+            a local named 'i' cannot be declared in this scope because that name is used in an enclosing scope to define a local or parameter
+        ";
+
+        AssertDiagnostics(text, diagnostics);
+    }
+
+    [Fact]
     public void Evaluator_Reports_Error_Unsupported_BU9004_CannotInitialize() {
         var text = @"
             struct A {

@@ -123,11 +123,60 @@ internal static class BuiltinFunctions {
 
     /// <summary>
     /// Checks if nullable item has a value (otherwise it is null).
+    /// Any type overload.
     /// </summary>
-    internal static readonly FunctionSymbol HasValue = new FunctionSymbol(
+    internal static readonly FunctionSymbol HasValueAny = new FunctionSymbol(
         "HasValue",
         ImmutableArray.Create(
             new ParameterSymbol("value", BoundType.NullableAny, 0, NoDefault)
+        ),
+        BoundType.Bool
+    );
+
+    /// <summary>
+    /// Checks if nullable item has a value (otherwise it is null).
+    /// Bool type overload.
+    /// </summary>
+    internal static readonly FunctionSymbol HasValueBool = new FunctionSymbol(
+        "HasValue",
+        ImmutableArray.Create(
+            new ParameterSymbol("value", BoundType.NullableBool, 0, NoDefault)
+        ),
+        BoundType.Bool
+    );
+
+    /// <summary>
+    /// Checks if nullable item has a value (otherwise it is null).
+    /// Decimal type overload.
+    /// </summary>
+    internal static readonly FunctionSymbol HasValueDecimal = new FunctionSymbol(
+        "HasValue",
+        ImmutableArray.Create(
+            new ParameterSymbol("value", BoundType.NullableDecimal, 0, NoDefault)
+        ),
+        BoundType.Bool
+    );
+
+    /// <summary>
+    /// Checks if nullable item has a value (otherwise it is null).
+    /// Int type overload.
+    /// </summary>
+    internal static readonly FunctionSymbol HasValueInt = new FunctionSymbol(
+        "HasValue",
+        ImmutableArray.Create(
+            new ParameterSymbol("value", BoundType.NullableInt, 0, NoDefault)
+        ),
+        BoundType.Bool
+    );
+
+    /// <summary>
+    /// Checks if nullable item has a value (otherwise it is null).
+    /// String type overload.
+    /// </summary>
+    internal static readonly FunctionSymbol HasValueString = new FunctionSymbol(
+        "HasValue",
+        ImmutableArray.Create(
+            new ParameterSymbol("value", BoundType.NullableString, 0, NoDefault)
         ),
         BoundType.Bool
     );

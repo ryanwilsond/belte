@@ -13,19 +13,25 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// </summary>
 internal sealed class Lowerer : BoundTreeRewriter {
     private int _labelCount;
+    private bool _onlyOptimize;
 
-    private Lowerer() { }
+    private Lowerer(bool onlyOptimize) {
+        _onlyOptimize = onlyOptimize;
+    }
 
     /// <summary>
     /// Lowers a <see cref="FunctionSymbol" />.
     /// </summary>
     /// <param name="statement">Function body.</param>
     /// <returns>Lowered function body (same type).</returns>
-    internal static BoundBlockStatement Lower(FunctionSymbol function, BoundStatement statement) {
-        var lowerer = new Lowerer();
+    internal static BoundBlockStatement Lower(FunctionSymbol function, BoundStatement statement, bool onlyOptimize) {
+        var lowerer = new Lowerer(onlyOptimize);
         var block = Flatten(function, lowerer.RewriteStatement(statement));
 
-        return RemoveDeadCode(block);
+        if (onlyOptimize)
+            return block;
+        else
+            return RemoveDeadCode(block);
     }
 
     protected override BoundStatement RewriteIfStatement(BoundIfStatement node) {
@@ -57,6 +63,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         end:
 
         */
+        if (_onlyOptimize)
+            return base.RewriteIfStatement(node);
+
         if (node.elseStatement == null) {
             var endLabel = GenerateLabel();
 
@@ -105,6 +114,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         break:
 
         */
+        if (_onlyOptimize)
+            return base.RewriteWhileStatement(node);
+
         var continueLabel = node.continueLabel;
         var breakLabel = node.breakLabel;
 
@@ -137,6 +149,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         break:
 
         */
+        if (_onlyOptimize)
+            return base.RewriteDoWhileStatement(node);
+
         var continueLabel = node.continueLabel;
         var breakLabel = node.breakLabel;
 
@@ -171,6 +186,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         */
+        if (_onlyOptimize)
+            return base.RewriteForStatement(node);
+
         var continueLabel = node.continueLabel;
         var breakLabel = node.breakLabel;
         var condition = node.condition.kind == BoundNodeKind.EmptyExpression
@@ -279,7 +297,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         if (expression.op.opKind == BoundBinaryOperatorKind.Power) {
             // TODO
-            // * Will do in the Blender
             return base.RewriteBinaryExpression(expression);
         }
 
@@ -362,30 +379,13 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         (<type>)<expression>
 
-        ----> <type> is nullable and <expression> is nullable
-
-        (HasValue(<expression>) ? (<type>)Value(<expression>) : null)
-
         ----> <expression> is nullable
 
         (<type>)Value(<expression>)
 
         */
 
-        if (expression.type.isNullable && expression.expression.type.isNullable) {
-            return RewriteExpression(
-                NullConditional(
-                    @if: HasValue(expression.expression),
-                    @then: Cast(
-                        expression.type,
-                        Value(expression.expression)
-                    ),
-                    @else: Literal(null)
-                )
-            );
-        }
-
-        if (expression.expression.type.isNullable) {
+        if (expression.expression.type.isNullable && !expression.type.isNullable) {
             return base.RewriteCastExpression(
                 Cast(
                     expression.type,
@@ -408,9 +408,22 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         Now parameters do not have compiler generated '$' symbols in their name
 
+        ----> <function> is 'Value' and <parameter> is not nullable
+
+        <parameter>
+
+        ----> <function> is 'HasValue' and <parameter> is not nullable
+
+        true
+
         */
         var function = expression.function;
         var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
+
+        if (function.name == "Value" && !expression.arguments[0].type.isNullable)
+            return RewriteExpression(expression.arguments[0]);
+        else if (function.name == "HasValue" && !expression.arguments[0].type.isNullable)
+            return new BoundLiteralExpression(true);
 
         foreach (var oldParameter in function.parameters) {
             var name = oldParameter.name.StartsWith("$")
@@ -499,13 +512,19 @@ internal sealed class Lowerer : BoundTreeRewriter {
         (<left> = <left> <op> <right>)
 
         */
+        if (_onlyOptimize)
+            return base.RewriteCompoundAssignmentExpression(expression);
+
+        var left = RewriteExpression(expression.left);
+        var right = RewriteExpression(expression.right);
+
         return RewriteExpression(
             Assignment(
-                expression.left,
+                left,
                 Binary(
-                    expression.left,
+                    left,
                     expression.op,
-                    expression.right
+                    right
                 )
             )
         );
@@ -577,6 +596,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         (<operand> -= 1)
 
         */
+        if (_onlyOptimize)
+            return base.RewritePrefixExpression(expression);
+
         if (expression.op.opKind == BoundPrefixOperatorKind.Increment)
             return RewriteExpression(Increment(expression.operand));
         else
@@ -609,8 +631,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
         ((<operand> -= 1) + 1)
 
         */
+
         if (expression.op.opKind == BoundPostfixOperatorKind.NullAssert)
             return RewriteExpression(Value(expression.operand));
+
+        if (_onlyOptimize)
+            return base.RewritePostfixExpression(expression);
 
         var assignment = expression.op.opKind == BoundPostfixOperatorKind.Increment
             ? Increment(expression.operand)
@@ -647,10 +673,16 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     private BoundExpression HasValue(BoundExpression expression) {
-        return Call(
-            BuiltinFunctions.HasValue,
-            expression
-        );
+        if (expression.type.typeSymbol == TypeSymbol.Bool)
+            return Call(BuiltinFunctions.HasValueBool, expression);
+        if (expression.type.typeSymbol == TypeSymbol.Decimal)
+            return Call(BuiltinFunctions.HasValueDecimal, expression);
+        if (expression.type.typeSymbol == TypeSymbol.Int)
+            return Call(BuiltinFunctions.HasValueInt, expression);
+        if (expression.type.typeSymbol == TypeSymbol.String)
+            return Call(BuiltinFunctions.HasValueString, expression);
+
+        return Call(BuiltinFunctions.HasValueAny, expression);
     }
 
     private static BoundBlockStatement RemoveDeadCode(BoundBlockStatement statement) {
