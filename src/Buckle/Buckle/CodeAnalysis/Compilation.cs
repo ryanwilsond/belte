@@ -311,17 +311,18 @@ public sealed class Compilation {
 
     /// <summary>
     /// Emits the program to a string.
-    /// NOTE: Only the CSharpTranspile build mode is currently supported. Passing in any other build mode will cause the
-    /// method to return null.
     /// </summary>
     /// <param name="buildMode">Which emitter to use.</param>
     /// <param name="moduleName">
     /// Name of the module. If <param name="buildMode" /> is set to <see cref="BuildMode.CSharpTranspile" /> this is
-    /// used as the namespace name.
+    /// used as the namespace name instead.
     /// </param>
     /// <param name="wError">If warnings should be treated as errors.</param>
+    /// <param name="references">
+    /// .NET references, only appicable if <param name="buildMode" /> is set to <see cref="BuildMode.Dotnet" />.
+    /// </param>
     /// <returns>Emitted program as a string. Diagnostics must be accessed manually off of this.</returns>
-    internal string EmitToString(BuildMode buildMode, string moduleName, bool wError) {
+    internal string EmitToString(BuildMode buildMode, string moduleName, bool wError, string[] references = null) {
         foreach (var syntaxTree in syntaxTrees)
             diagnostics.Move(syntaxTree.diagnostics);
 
@@ -336,6 +337,10 @@ public sealed class Compilation {
 
         if (buildMode == BuildMode.CSharpTranspile) {
             var content = CSharpEmitter.Emit(program, moduleName, out var emitterDiagnostics);
+            diagnostics.Move(emitterDiagnostics);
+            return content;
+        } else if (buildMode == BuildMode.Dotnet) {
+            var content = ILEmitter.Emit(program, moduleName, references, out var emitterDiagnostics);
             diagnostics.Move(emitterDiagnostics);
             return content;
         }

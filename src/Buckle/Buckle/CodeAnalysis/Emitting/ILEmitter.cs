@@ -1,11 +1,14 @@
 using System;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.Generators;
 using Diagnostics;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
@@ -38,9 +41,15 @@ internal sealed class ILEmitter {
 
     private ILEmitter(string moduleName, string[] references) {
         diagnostics = new BelteDiagnosticQueue();
-        // ? Do not know why this code was here, should always be empty at this point
-        // if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
-        //     return;
+
+        var tempReferences = references.ToList();
+        tempReferences.AddRange(new string[] {
+            "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/3.1.0/ref/netcoreapp3.1/System.Console.dll",
+            "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/3.1.0/ref/netcoreapp3.1/System.Runtime.dll",
+            "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/3.1.0/ref/netcoreapp3.1/System.Runtime.Extensions.dll"
+        });
+
+        references = tempReferences.ToArray();
 
         foreach (var reference in references) {
             try {
@@ -48,11 +57,9 @@ internal sealed class ILEmitter {
                 _assemblies.Add(assembly);
             } catch (BadImageFormatException) {
                 diagnostics.Push(Error.InvalidReference(reference));
+                return;
             }
         }
-
-        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
-            return;
 
         _builtinTypes = new List<(TypeSymbol type, string metadataName)>() {
             (TypeSymbol.Any, "System.Object"),
@@ -165,28 +172,62 @@ internal sealed class ILEmitter {
     /// <param name="moduleName">Name of emitted assembly/application.</param>
     /// <param name="references">All external .NET references.</param>
     /// <param name="outputPath">Where to put the emitted assembly.</param>
-    /// <returns>Diagnostics.</returns>
+    /// <returns>Any produced diagnostics.</returns>
     internal static BelteDiagnosticQueue Emit(
         BoundProgram program, string moduleName, string[] references, string outputPath) {
-        if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
-            return program.diagnostics;
-
         var emitter = new ILEmitter(moduleName, references);
-        return emitter.Emit(program, outputPath);
+        return emitter.EmitToFile(program, outputPath);
     }
 
     /// <summary>
-    /// Emits a program to a .NET assembly.
+    /// Emits a program to a string.
     /// </summary>
     /// <param name="program"><see cref="BoundProgram" /> to emit.</param>
-    /// <param name="outputPath">Where to put the emitted assembly.</param>
-    /// <returns>Diagnostics.</returns>
-    private BelteDiagnosticQueue Emit(BoundProgram program, string outputPath) {
-        diagnostics.Move(program.diagnostics);
+    /// <param name="moduleName">Name of emitted assembly/application.</param>
+    /// <param name="references">All external .NET references.</param>
+    /// <param name="diagnostics">Any produced diagnostics.</param>
+    /// <returns>IL code as a string.</returns>
+    internal static string Emit(
+        BoundProgram program, string moduleName, string[] references, out BelteDiagnosticQueue diagnostics) {
+        var emitter = new ILEmitter(moduleName, references);
+        return emitter.EmitToString(program, out diagnostics);
+    }
 
-        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
-            return diagnostics;
+    private BelteDiagnosticQueue EmitToFile(BoundProgram program, string outputPath) {
+        EmitInternal(program);
+        _assemblyDefinition.Write(outputPath);
+        return diagnostics;
+    }
 
+    private string EmitToString(BoundProgram program, out BelteDiagnosticQueue diagnostics) {
+        EmitInternal(program);
+        diagnostics = this.diagnostics;
+
+        var stringWriter = new StringWriter();
+        var indentString = "    ";
+        var isFirst = true;
+
+        using (var indentedTextWriter = new IndentedTextWriter(stringWriter, indentString)) {
+            foreach (var method in _methods) {
+                if (isFirst)
+                    isFirst = false;
+                else
+                    stringWriter.WriteLine();
+
+                using (var methodCurly = new CurlyIndenter(indentedTextWriter, method.Value.ToString())) {
+                    foreach (var instruction in method.Value.Body.Instructions) {
+                        stringWriter.Write(instruction);
+                    }
+                }
+            }
+
+            stringWriter.Flush();
+        }
+
+        return stringWriter.ToString();
+    }
+
+    private void EmitInternal(BoundProgram program) {
         var objectType = _knownTypes[TypeSymbol.Any];
         _typeDefinition = new TypeDefinition(
             "", "<Program>$", TypeAttributes.Abstract | TypeAttributes.Sealed, objectType);
@@ -202,10 +243,6 @@ internal sealed class ILEmitter {
 
         if (program.mainFunction != null)
             _assemblyDefinition.EntryPoint = LookupMethod(_methods, program.mainFunction);
-
-        _assemblyDefinition.Write(outputPath);
-
-        return diagnostics;
     }
 
     private TypeReference ResolveType(string buckleName, string metadataName) {
@@ -305,220 +342,6 @@ internal sealed class ILEmitter {
         throw new BelteInternalException($"ThrowRequiredTypeAmbiguous: {message}");
     }
 
-    private void EmitFunctionBody(FunctionSymbol function, BoundBlockStatement body) {
-        var method = _methods[function];
-        _locals.Clear();
-        _labels.Clear();
-        _fixups.Clear();
-        var iLProcessor = method.Body.GetILProcessor();
-
-        _methodStack.Push(method);
-
-        foreach (var statement in body.statements)
-            EmitStatement(iLProcessor, statement);
-
-        _methodStack.Pop();
-
-        foreach (var fixup in _fixups) {
-            var targetLabel = fixup.target;
-            var targetInstructionIndex = _labels[targetLabel];
-            var targetInstruction = iLProcessor.Body.Instructions[targetInstructionIndex];
-            var instructionFix = iLProcessor.Body.Instructions[fixup.instructionIndex];
-            instructionFix.Operand = targetInstruction;
-        }
-
-        method.Body.OptimizeMacros();
-    }
-
-    private void EmitStatement(ILProcessor iLProcessor, BoundStatement statement) {
-        switch (statement.kind) {
-            case BoundNodeKind.NopStatement:
-                EmitNopStatement(iLProcessor, (BoundNopStatement)statement);
-                break;
-            case BoundNodeKind.ExpressionStatement:
-                // EmitExpressionStatement(iLProcessor, (BoundExpressionStatement)statement);
-                break;
-            case BoundNodeKind.VariableDeclarationStatement:
-                // EmitVariableDeclarationStatement(iLProcessor, (BoundVariableDeclarationStatement)statement);
-                break;
-            case BoundNodeKind.GotoStatement:
-                EmitGotoStatement(iLProcessor, (BoundGotoStatement)statement);
-                break;
-            case BoundNodeKind.LabelStatement:
-                EmitLabelStatement(iLProcessor, (BoundLabelStatement)statement);
-                break;
-            case BoundNodeKind.ConditionalGotoStatement:
-                // EmitConditionalGotoStatement(iLProcessor, (BoundConditionalGotoStatement)statement);
-                break;
-            case BoundNodeKind.ReturnStatement:
-                // EmitReturnStatement(iLProcessor, (BoundReturnStatement)statement);
-                break;
-            case BoundNodeKind.TryStatement:
-                EmitTryStatement(iLProcessor, (BoundTryStatement)statement);
-                break;
-            default:
-                throw new BelteInternalException($"EmitStatement: unexpected node '{statement.kind}'");
-        }
-    }
-
-    private void EmitTryStatement(ILProcessor iLProcessor, BoundTryStatement statement) {
-        var method = _methodStack.Last();
-
-        if (statement.catchBody == null) {
-            var tryBody = statement.body.statements;
-            var end = iLProcessor.Create(OpCodes.Nop);
-            var tryStart = iLProcessor.Create(OpCodes.Nop);
-            var tryEnd = iLProcessor.Create(OpCodes.Leave_S, end);
-
-            var finallyBody = statement.finallyBody.statements;
-            var handlerStart = iLProcessor.Create(OpCodes.Nop);
-            var handlerEnd = iLProcessor.Create(OpCodes.Endfinally);
-
-            iLProcessor.Append(tryStart);
-
-            foreach (var node in tryBody)
-                EmitStatement(iLProcessor, node);
-
-            iLProcessor.Append(tryEnd);
-            iLProcessor.Append(handlerStart);
-
-            foreach (var node in finallyBody)
-                EmitStatement(iLProcessor, node);
-
-            iLProcessor.Append(handlerEnd);
-            iLProcessor.Append(end);
-
-            var handler = new ExceptionHandler(ExceptionHandlerType.Finally) {
-                TryStart = tryStart,
-                TryEnd = handlerStart,
-                HandlerStart = handlerStart,
-                HandlerEnd = end,
-            };
-
-            method.Body.ExceptionHandlers.Add(handler);
-        } else if (statement.finallyBody == null) {
-            var tryBody = statement.body.statements;
-            var end = iLProcessor.Create(OpCodes.Nop);
-            var tryStart = iLProcessor.Create(OpCodes.Nop);
-            var tryEnd = iLProcessor.Create(OpCodes.Leave_S, end);
-
-            var catchBody = statement.catchBody.statements;
-            var handlerStart = iLProcessor.Create(OpCodes.Nop);
-            var handlerEnd = iLProcessor.Create(OpCodes.Leave_S, end);
-
-            iLProcessor.Append(tryStart);
-
-            foreach (var node in tryBody)
-                EmitStatement(iLProcessor, node);
-
-            iLProcessor.Append(tryEnd);
-            iLProcessor.Append(handlerStart);
-
-            foreach (var node in catchBody)
-                EmitStatement(iLProcessor, node);
-
-            iLProcessor.Append(handlerEnd);
-            iLProcessor.Append(end);
-
-            var handler = new ExceptionHandler(ExceptionHandlerType.Catch) {
-                TryStart = tryStart,
-                TryEnd = handlerStart,
-                HandlerStart = handlerStart,
-                HandlerEnd = end,
-                CatchType = _knownTypes[TypeSymbol.Any],
-            };
-
-            method.Body.ExceptionHandlers.Add(handler);
-        } else {
-            var innerTryBody = statement.body.statements;
-            var end = iLProcessor.Create(OpCodes.Nop);
-            var innerTryStart = iLProcessor.Create(OpCodes.Nop);
-            var innerTryEnd = iLProcessor.Create(OpCodes.Leave_S, end);
-
-            var innerCatchBody = statement.catchBody.statements;
-            var innerHandlerStart = iLProcessor.Create(OpCodes.Nop);
-            var innerHandlerEnd = iLProcessor.Create(OpCodes.Leave_S, end);
-
-            var finallyBody = statement.finallyBody.statements;
-            var finallyStart = iLProcessor.Create(OpCodes.Nop);
-            var finallyEnd = iLProcessor.Create(OpCodes.Endfinally);
-
-            iLProcessor.Append(innerTryStart);
-
-            foreach (var node in innerTryBody)
-                EmitStatement(iLProcessor, node);
-
-            iLProcessor.Append(innerTryEnd);
-            iLProcessor.Append(innerHandlerStart);
-
-            foreach (var node in innerCatchBody)
-                EmitStatement(iLProcessor, node);
-
-            iLProcessor.Append(innerHandlerEnd);
-            iLProcessor.Append(finallyStart);
-
-            var innerHandler = new ExceptionHandler(ExceptionHandlerType.Catch) {
-                TryStart = innerTryStart,
-                TryEnd = innerHandlerStart,
-                HandlerStart = innerHandlerStart,
-                HandlerEnd = finallyStart,
-                CatchType = _knownTypes[TypeSymbol.Any],
-            };
-
-            foreach (var node in finallyBody)
-                EmitStatement(iLProcessor, node);
-
-            iLProcessor.Append(finallyEnd);
-            iLProcessor.Append(end);
-
-            var handler = new ExceptionHandler(ExceptionHandlerType.Finally) {
-                TryStart = innerTryStart,
-                TryEnd = finallyStart,
-                HandlerStart = finallyStart,
-                HandlerEnd = end,
-            };
-
-            method.Body.ExceptionHandlers.Add(innerHandler);
-            method.Body.ExceptionHandlers.Add(handler);
-        }
-    }
-
-    private void EmitNopStatement(ILProcessor iLProcessor, BoundNopStatement statement) {
-        iLProcessor.Emit(OpCodes.Nop);
-    }
-
-    private void EmitLabelStatement(ILProcessor iLProcessor, BoundLabelStatement statement) {
-        _labels.Add(statement.label, iLProcessor.Body.Instructions.Count);
-    }
-
-    private void EmitGotoStatement(ILProcessor iLProcessor, BoundGotoStatement statement) {
-        _fixups.Add((iLProcessor.Body.Instructions.Count, statement.label));
-        iLProcessor.Emit(OpCodes.Br, Instruction.Create(OpCodes.Nop));
-    }
-
-    private void EmitRandomField() {
-        _randomFieldDefinition = new FieldDefinition(
-                                "$randInt", FieldAttributes.Static | FieldAttributes.Private, _randomReference);
-        _typeDefinition.Fields.Add(_randomFieldDefinition);
-        var staticConstructor = new MethodDefinition(
-            ".cctor",
-            MethodAttributes.Static | MethodAttributes.Private |
-            MethodAttributes.RTSpecialName | MethodAttributes.SpecialName,
-            _knownTypes[TypeSymbol.Void]
-        );
-        _typeDefinition.Methods.Insert(0, staticConstructor);
-
-        var iLProcessor = staticConstructor.Body.GetILProcessor();
-        iLProcessor.Emit(OpCodes.Newobj, _methodReferences[NetMethodReference.RandomCtor]);
-        iLProcessor.Emit(OpCodes.Stsfld, _randomFieldDefinition);
-        iLProcessor.Emit(OpCodes.Ret);
-    }
-
-    private void EmitEmptyExpression(ILProcessor iLProcessor, BoundEmptyExpression expression) {
-        // TODO Breaks control flow, debug why this does not work
-        // iLProcessor.Emit(OpCodes.Nop);
-    }
-
     private MethodReference GetNullableCtor(BoundType type) {
         var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.typeSymbol]);
         var methodReference =
@@ -574,22 +397,6 @@ internal sealed class ILEmitter {
         throw new BelteInternalException("GetConvertTo: cannot convert nullable types");
     }
 
-    private void EmitFunctionDeclaration(FunctionSymbol function) {
-        var functionType = GetType(function.type);
-        var method = new MethodDefinition(
-            function.name, MethodAttributes.Static | MethodAttributes.Private, functionType);
-
-        foreach (var parameter in function.parameters) {
-            var parameterType = GetType(parameter.type);
-            var parameterAttributes = ParameterAttributes.None;
-            var parameterDefinition = new ParameterDefinition(parameter.name, parameterAttributes, parameterType);
-            method.Parameters.Add(parameterDefinition);
-        }
-
-        _typeDefinition.Methods.Add(method);
-        _methods.Add(function, method);
-    }
-
     private TypeReference GetType(
         BoundType type, bool overrideNullability = false, bool ignoreReference = false) {
         if ((type.dimensions == 0 && !type.isNullable && !overrideNullability) ||
@@ -620,5 +427,238 @@ internal sealed class ILEmitter {
             arrayType.Resolve();
             return arrayType;
         }
+    }
+
+    private void EmitRandomField() {
+        _randomFieldDefinition = new FieldDefinition(
+                                "$randInt", FieldAttributes.Static | FieldAttributes.Private, _randomReference);
+        _typeDefinition.Fields.Add(_randomFieldDefinition);
+        var staticConstructor = new MethodDefinition(
+            ".cctor",
+            MethodAttributes.Static | MethodAttributes.Private |
+            MethodAttributes.RTSpecialName | MethodAttributes.SpecialName,
+            _knownTypes[TypeSymbol.Void]
+        );
+        _typeDefinition.Methods.Insert(0, staticConstructor);
+
+        var iLProcessor = staticConstructor.Body.GetILProcessor();
+        iLProcessor.Emit(OpCodes.Newobj, _methodReferences[NetMethodReference.RandomCtor]);
+        iLProcessor.Emit(OpCodes.Stsfld, _randomFieldDefinition);
+        iLProcessor.Emit(OpCodes.Ret);
+    }
+
+    private void EmitFunctionBody(FunctionSymbol function, BoundBlockStatement body) {
+        var method = _methods[function];
+        _locals.Clear();
+        _labels.Clear();
+        _fixups.Clear();
+        var iLProcessor = method.Body.GetILProcessor();
+
+        _methodStack.Push(method);
+
+        foreach (var statement in body.statements)
+            EmitStatement(iLProcessor, statement);
+
+        _methodStack.Pop();
+
+        foreach (var fixup in _fixups) {
+            var targetLabel = fixup.target;
+            var targetInstructionIndex = _labels[targetLabel];
+            var targetInstruction = iLProcessor.Body.Instructions[targetInstructionIndex];
+            var instructionFix = iLProcessor.Body.Instructions[fixup.instructionIndex];
+            instructionFix.Operand = targetInstruction;
+        }
+
+        method.Body.OptimizeMacros();
+    }
+
+    private void EmitFunctionDeclaration(FunctionSymbol function) {
+        var functionType = GetType(function.type);
+        var method = new MethodDefinition(
+            function.name, MethodAttributes.Static | MethodAttributes.Private, functionType);
+
+        foreach (var parameter in function.parameters) {
+            var parameterType = GetType(parameter.type);
+            var parameterAttributes = ParameterAttributes.None;
+            var parameterDefinition = new ParameterDefinition(parameter.name, parameterAttributes, parameterType);
+            method.Parameters.Add(parameterDefinition);
+        }
+
+        _typeDefinition.Methods.Add(method);
+        _methods.Add(function, method);
+    }
+
+    private void EmitStatement(ILProcessor iLProcessor, BoundStatement statement) {
+        switch (statement.kind) {
+            case BoundNodeKind.NopStatement:
+                EmitNopStatement(iLProcessor, (BoundNopStatement)statement);
+                break;
+            case BoundNodeKind.GotoStatement:
+                EmitGotoStatement(iLProcessor, (BoundGotoStatement)statement);
+                break;
+            case BoundNodeKind.LabelStatement:
+                EmitLabelStatement(iLProcessor, (BoundLabelStatement)statement);
+                break;
+            case BoundNodeKind.VariableDeclarationStatement:
+                // EmitVariableDeclarationStatement(iLProcessor, (BoundVariableDeclarationStatement)statement);
+                break;
+            case BoundNodeKind.ConditionalGotoStatement:
+                // EmitConditionalGotoStatement(iLProcessor, (BoundConditionalGotoStatement)statement);
+                break;
+            case BoundNodeKind.ReturnStatement:
+                // EmitReturnStatement(iLProcessor, (BoundReturnStatement)statement);
+                break;
+            case BoundNodeKind.TryStatement:
+                // EmitTryStatement(iLProcessor, (BoundTryStatement)statement);
+                break;
+            case BoundNodeKind.ExpressionStatement:
+                // EmitExpressionStatement(iLProcessor, (BoundExpressionStatement)statement);
+                break;
+            default:
+                throw new BelteInternalException($"EmitStatement: unexpected node '{statement.kind}'");
+        }
+    }
+
+    private void EmitNopStatement(ILProcessor iLProcessor, BoundNopStatement statement) {
+        iLProcessor.Emit(OpCodes.Nop);
+    }
+
+    private void EmitLabelStatement(ILProcessor iLProcessor, BoundLabelStatement statement) {
+        _labels.Add(statement.label, iLProcessor.Body.Instructions.Count);
+    }
+
+    private void EmitGotoStatement(ILProcessor iLProcessor, BoundGotoStatement statement) {
+        _fixups.Add((iLProcessor.Body.Instructions.Count, statement.label));
+        iLProcessor.Emit(OpCodes.Br, Instruction.Create(OpCodes.Nop));
+    }
+
+    private void EmitTryStatement(ILProcessor iLProcessor, BoundTryStatement statement) {
+        // var method = _methodStack.Last();
+
+        // if (statement.catchBody == null) {
+        //     var tryBody = statement.body.statements;
+        //     var end = iLProcessor.Create(OpCodes.Nop);
+        //     var tryStart = iLProcessor.Create(OpCodes.Nop);
+        //     var tryEnd = iLProcessor.Create(OpCodes.Leave_S, end);
+
+        //     var finallyBody = statement.finallyBody.statements;
+        //     var handlerStart = iLProcessor.Create(OpCodes.Nop);
+        //     var handlerEnd = iLProcessor.Create(OpCodes.Endfinally);
+
+        //     iLProcessor.Append(tryStart);
+
+        //     foreach (var node in tryBody)
+        //         EmitStatement(iLProcessor, node);
+
+        //     iLProcessor.Append(tryEnd);
+        //     iLProcessor.Append(handlerStart);
+
+        //     foreach (var node in finallyBody)
+        //         EmitStatement(iLProcessor, node);
+
+        //     iLProcessor.Append(handlerEnd);
+        //     iLProcessor.Append(end);
+
+        //     var handler = new ExceptionHandler(ExceptionHandlerType.Finally) {
+        //         TryStart = tryStart,
+        //         TryEnd = handlerStart,
+        //         HandlerStart = handlerStart,
+        //         HandlerEnd = end,
+        //     };
+
+        //     method.Body.ExceptionHandlers.Add(handler);
+        // } else if (statement.finallyBody == null) {
+        //     var tryBody = statement.body.statements;
+        //     var end = iLProcessor.Create(OpCodes.Nop);
+        //     var tryStart = iLProcessor.Create(OpCodes.Nop);
+        //     var tryEnd = iLProcessor.Create(OpCodes.Leave_S, end);
+
+        //     var catchBody = statement.catchBody.statements;
+        //     var handlerStart = iLProcessor.Create(OpCodes.Nop);
+        //     var handlerEnd = iLProcessor.Create(OpCodes.Leave_S, end);
+
+        //     iLProcessor.Append(tryStart);
+
+        //     foreach (var node in tryBody)
+        //         EmitStatement(iLProcessor, node);
+
+        //     iLProcessor.Append(tryEnd);
+        //     iLProcessor.Append(handlerStart);
+
+        //     foreach (var node in catchBody)
+        //         EmitStatement(iLProcessor, node);
+
+        //     iLProcessor.Append(handlerEnd);
+        //     iLProcessor.Append(end);
+
+        //     var handler = new ExceptionHandler(ExceptionHandlerType.Catch) {
+        //         TryStart = tryStart,
+        //         TryEnd = handlerStart,
+        //         HandlerStart = handlerStart,
+        //         HandlerEnd = end,
+        //         CatchType = _knownTypes[TypeSymbol.Any],
+        //     };
+
+        //     method.Body.ExceptionHandlers.Add(handler);
+        // } else {
+        //     var innerTryBody = statement.body.statements;
+        //     var end = iLProcessor.Create(OpCodes.Nop);
+        //     var innerTryStart = iLProcessor.Create(OpCodes.Nop);
+        //     var innerTryEnd = iLProcessor.Create(OpCodes.Leave_S, end);
+
+        //     var innerCatchBody = statement.catchBody.statements;
+        //     var innerHandlerStart = iLProcessor.Create(OpCodes.Nop);
+        //     var innerHandlerEnd = iLProcessor.Create(OpCodes.Leave_S, end);
+
+        //     var finallyBody = statement.finallyBody.statements;
+        //     var finallyStart = iLProcessor.Create(OpCodes.Nop);
+        //     var finallyEnd = iLProcessor.Create(OpCodes.Endfinally);
+
+        //     iLProcessor.Append(innerTryStart);
+
+        //     foreach (var node in innerTryBody)
+        //         EmitStatement(iLProcessor, node);
+
+        //     iLProcessor.Append(innerTryEnd);
+        //     iLProcessor.Append(innerHandlerStart);
+
+        //     foreach (var node in innerCatchBody)
+        //         EmitStatement(iLProcessor, node);
+
+        //     iLProcessor.Append(innerHandlerEnd);
+        //     iLProcessor.Append(finallyStart);
+
+        //     var innerHandler = new ExceptionHandler(ExceptionHandlerType.Catch) {
+        //         TryStart = innerTryStart,
+        //         TryEnd = innerHandlerStart,
+        //         HandlerStart = innerHandlerStart,
+        //         HandlerEnd = finallyStart,
+        //         CatchType = _knownTypes[TypeSymbol.Any],
+        //     };
+
+        //     foreach (var node in finallyBody)
+        //         EmitStatement(iLProcessor, node);
+
+        //     iLProcessor.Append(finallyEnd);
+        //     iLProcessor.Append(end);
+
+        //     var handler = new ExceptionHandler(ExceptionHandlerType.Finally) {
+        //         TryStart = innerTryStart,
+        //         TryEnd = finallyStart,
+        //         HandlerStart = finallyStart,
+        //         HandlerEnd = end,
+        //     };
+
+        //     method.Body.ExceptionHandlers.Add(innerHandler);
+        //     method.Body.ExceptionHandlers.Add(handler);
+        // }
+    }
+
+
+
+
+    private void EmitEmptyExpression(ILProcessor iLProcessor, BoundEmptyExpression expression) {
+        // TODO Breaks control flow, debug why this does not work
+        // iLProcessor.Emit(OpCodes.Nop);
     }
 }

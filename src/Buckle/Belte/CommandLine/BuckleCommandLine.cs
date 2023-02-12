@@ -107,7 +107,6 @@ public static partial class BuckleCommandLine {
     }
 
     private static void ShowErrorHelp(string error, out DiagnosticQueue<Diagnostic> diagnostics) {
-        // TODO This only works for debug builds currently, not release
         string prefix;
 
         if (error.Length < 3 || (Char.IsDigit(error[0]) && Char.IsDigit(error[1]))) {
@@ -141,9 +140,7 @@ public static partial class BuckleCommandLine {
             try {
                 string code = message.Substring(0, 4);
                 messages[Convert.ToInt32(code)] = message.Substring(4);
-            } catch (ArgumentOutOfRangeException) {
-                // ! This is bad practice
-            }
+            } catch (ArgumentOutOfRangeException) { }
         }
 
         if (!messages.ContainsKey(errorCode)) {
@@ -189,10 +186,7 @@ public static partial class BuckleCommandLine {
     }
 
     private static string GetExecutingPath() {
-        var executingLocation = Assembly.GetExecutingAssembly().Location;
-        var executingPath = System.IO.Path.GetDirectoryName(executingLocation);
-
-        return executingPath;
+        return AppDomain.CurrentDomain.BaseDirectory;
     }
 
     private static void ShowMachineDialog() {
@@ -634,14 +628,6 @@ public static partial class BuckleCommandLine {
 
         if (dialogs.machine || dialogs.help || dialogs.version || dialogs.error != null)
             return state;
-
-        if (state.buildMode == BuildMode.Dotnet) {
-            references.AddRange(new string[] {
-                "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/3.1.0/ref/netcoreapp3.1/System.Console.dll",
-                "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/3.1.0/ref/netcoreapp3.1/System.Runtime.dll",
-                "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/3.1.0/ref/netcoreapp3.1/System.Runtime.Extensions.dll"
-            });
-        }
 
         state.tasks = tasks.ToArray();
         state.references = references.ToArray();

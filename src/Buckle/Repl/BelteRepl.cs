@@ -63,6 +63,7 @@ public sealed class BelteRepl : ReplBase {
         state.showTree = false;
         state.showProgram = false;
         state.showWarnings = false;
+        state.showIL = false;
         state.loadingSubmissions = false;
         state.variables = new Dictionary<VariableSymbol, EvaluatorObject>();
         state.previous = null;
@@ -145,6 +146,11 @@ public sealed class BelteRepl : ReplBase {
         if (state.showProgram) {
             compilation.EmitTree(displayText);
             WriteDisplayText(displayText);
+        }
+
+        if (state.showIL) {
+            var iLCode = compilation.EmitToString(BuildMode.Dotnet, "REPLSubmission", false, new string[] { });
+            _writer.Write(iLCode);
         }
 
         if (state.showWarnings)
@@ -609,6 +615,12 @@ public sealed class BelteRepl : ReplBase {
         _writer.WriteLine(_showTime ? "Execution time visible" : "Execution time hidden");
     }
 
+    [MetaCommand("showIL", "Toggle to display the IL version of the code")]
+    private void EvaluateShowIL() {
+        state.showIL = !state.showIL;
+        _writer.WriteLine(state.showIL ? "IL visible" : "IL hidden");
+    }
+
     /// <summary>
     /// All required fields to implement for a REPL color theme (only supported if using System.Console as out).
     /// </summary>
@@ -759,42 +771,47 @@ public sealed class BelteRepl : ReplBase {
         /// <summary>
         /// Show the parse tree after a submission.
         /// </summary>
-        public bool showTree = false;
+        internal bool showTree = false;
 
         /// <summary>
         /// Show the lowered code after a submission.
         /// </summary>
-        public bool showProgram = false;
+        internal bool showProgram = false;
 
         /// <summary>
         /// Show compiler produced warnings.
         /// </summary>
-        public bool showWarnings = false;
+        internal bool showWarnings = false;
+
+        /// <summary>
+        /// Show the IL code after a submission.
+        /// </summary>
+        internal bool showIL = false;
 
         /// <summary>
         /// If to ignore statements with side effects (Print, PrintLine, etc.).
         /// </summary>
-        public bool loadingSubmissions = false;
+        internal bool loadingSubmissions = false;
 
         /// <summary>
         /// What color theme to use (can change).
         /// </summary>
-        public ColorTheme colorTheme = new DarkTheme();
+        internal ColorTheme colorTheme = new DarkTheme();
 
         /// <summary>
         /// Current <see cref="Page" /> the user is viewing.
         /// </summary>
-        public Page currentPage = Page.Repl;
+        internal Page currentPage = Page.Repl;
 
         /// <summary>
         /// Previous <see cref="Compilation" /> (used to build of previous).
         /// </summary>
-        public Compilation previous;
+        internal Compilation previous;
 
         /// <summary>
         /// Current defined variables.
         /// Not tracked after REPL instance is over, instead previous submissions are reevaluated.
         /// </summary>
-        public Dictionary<VariableSymbol, EvaluatorObject> variables;
+        internal Dictionary<VariableSymbol, EvaluatorObject> variables;
     }
 }

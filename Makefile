@@ -17,7 +17,7 @@ RM=rm
 
 all: build
 
-build: debugbuild debugcopy resources
+build: presetup debugbuild debugcopy resources setup
 	@echo Finished building Buckle
 
 debugbuild:
@@ -27,19 +27,32 @@ debugbuild:
 
 debugcopy:
 	@echo Started to copy files for the Buckle solution ...
-	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Buckle.dll Buckle.dll
-	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.dll Belte.dll
+	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Buckle.dll bin/Buckle.dll
+	@$(CP) $(REPLDIR)/bin/Debug/$(NETVER)/Repl.dll bin/Repl.dll
+	@$(CP) $(GENRDIR)/bin/Debug/$(NETSSTANDVER)/Buckle.Generators.dll bin/Buckle.Generators.dll
+# Necessary files to run the execeutable at all, so they need to be in the root directory and not in ./bin
 	@$(CP) $(DIAGDIR)/bin/Debug/$(NETVER)/Diagnostics.dll Diagnostics.dll
-	@$(CP) $(REPLDIR)/bin/Debug/$(NETVER)/Repl.dll Repl.dll
-	@$(CP) $(GENRDIR)/bin/Debug/$(NETSSTANDVER)/Buckle.Generators.dll Buckle.Generators.dll
+	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.dll Belte.dll
 	@-$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.exe buckle.exe
 	@-$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte buckle.exe
+	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.deps.json Belte.deps.json
+	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.runtimeconfig.json Belte.runtimeconfig.json
 	@echo "    Finished"
+
+presetup:
+	@echo Starting setting up the directory ...
+	@$(RM) -f -r bin
+	@mkdir bin
+	@echo     Finished
 
 setup:
 	@echo Started setting up the Buckle solution ...
-	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.deps.json Belte.deps.json
-	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.runtimeconfig.json Belte.runtimeconfig.json
+	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.Mdb.dll bin/Mono.Cecil.Mdb.dll
+	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.Pdb.dll bin/Mono.Cecil.Pdb.dll
+	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.Rocks.dll bin/Mono.Cecil.Rocks.dll
+	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.dll bin/Mono.Cecil.dll
+	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/System.Configuration.ConfigurationManager.dll System.Configuration.ConfigurationManager.dll
+	@$(CP) $(PROJDIR)/App.config App.config
 	@echo     Finished
 
 .PHONY: resources
@@ -61,7 +74,7 @@ release: releasebuild resources
 	@echo Finished building Buckle
 
 releasebuild:
-	@echo Started building the Buckle solution (release) ...
+	@echo "Started building the Buckle solution (release) ..."
 	@dotnet publish $(PROJDIR)/Belte.csproj -r $(SYSTEM) -p:PublishSingleFile=true --self-contained true \
 		-p:PublishReadyToRunShowWarnings=true -p:IncludeNativeLibrariesForSelfExtract=true --configuration Release
 	@$(CP) $(PROJDIR)/bin/Release/$(NETVER)/$(SYSTEM)/publish/Belte.exe buckle.exe
