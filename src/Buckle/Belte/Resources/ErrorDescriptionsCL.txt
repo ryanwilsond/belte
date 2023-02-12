@@ -65,19 +65,6 @@ buckle -d Program.ble --ref=Path/To/System.Console.dll // Correct
 It is important to note that 'System.Console.dll', 'System.Runtime.dll', and
 'System.Runtime.Extensions.dll' are always included references, so they do not
 need to be added manually. 'System.Console.dll' was purely used as an example.
-$CL0006
-The '--entry' command-line option requires a method or function symbol name to
-use as an entry point, so without a name, it cannot perform its action.
-
-By default, the entry point is a global method symbol named 'Main', but the user
-can use this option to specify where to start execution explicitly.
-
-For example
-
-```
-buckle -i Program.ble --entry // Incorrect, no symbol name is provided
-buckle -i Program.ble --entry=Program.Main // Correct
-```
 $CL0007
 The '-W' command-line option is used to tell the compiler special ways to handle
 warnings. This can either be '-Werror' to treat all warnings as errors,

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 
 namespace Buckle;
 
@@ -27,11 +26,6 @@ public struct CompilerState {
     public string[] options;
 
     /// <summary>
-    /// Where the application will start.
-    /// </summary>
-    public string entryPoint;
-
-    /// <summary>
     /// At what point to stop compilation (usually unrestricted).
     /// </summary>
     public CompilerStage finishStage;
@@ -40,11 +34,6 @@ public struct CompilerState {
     /// The name of the final executable/application.
     /// </summary>
     public string outputFilename;
-
-    /// <summary>
-    /// Final file content if stopped after link stage.
-    /// </summary>
-    public List<byte> linkOutputContent;
 
     /// <summary>
     /// All files to be managed/modified during compilation.

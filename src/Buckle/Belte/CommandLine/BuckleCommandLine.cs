@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using Buckle;
 using Buckle.CodeAnalysis.Text;
@@ -100,8 +99,6 @@ public static partial class BuckleCommandLine {
 
         if (err > 0)
             return err;
-
-        ResolveCompilerOutput(compiler);
 
         return SuccessExitCode;
     }
@@ -432,27 +429,6 @@ public static partial class BuckleCommandLine {
         CleanOutputFiles(compiler);
     }
 
-    private static void ResolveCompilerOutput(Compiler compiler) {
-        if (compiler.state.buildMode != BuildMode.Independent)
-            return;
-
-        if (compiler.state.finishStage == CompilerStage.Linked) {
-            if (compiler.state.linkOutputContent != null)
-                File.WriteAllBytes(compiler.state.outputFilename, compiler.state.linkOutputContent.ToArray());
-
-            return;
-        }
-
-        foreach (FileState file in compiler.state.tasks) {
-            if (file.stage == compiler.state.finishStage) {
-                if (file.stage == CompilerStage.Assembled)
-                    File.WriteAllBytes(file.outputFilename, file.fileContent.bytes.ToArray());
-                else
-                    File.WriteAllText(file.outputFilename, file.fileContent.text);
-            }
-        }
-    }
-
     private static void ReadInputFiles(Compiler compiler, out DiagnosticQueue<Diagnostic> diagnostics) {
         diagnostics = new DiagnosticQueue<Diagnostic>();
 
@@ -594,16 +570,6 @@ public static partial class BuckleCommandLine {
                     references.Add(arg.Substring(6));
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.MissingReference(arg));
-            } else if (arg.StartsWith("--entry")) {
-                throw new NotImplementedException(
-                    "The '--entry' command-line option is under development and not currently available."
-                );
-
-                if (arg != "--entry" && arg != "--entry=") {
-                    state.entryPoint = arg.Substring(8);
-                } else {
-                    diagnostics.Push(Belte.Diagnostics.Error.MissingEntrySymbol(arg));
-                }
             } else if (arg.StartsWith("-W")) {
                 if (arg.Length == 2) {
                     diagnostics.Push(Belte.Diagnostics.Error.NoOptionAfterW());

@@ -15,7 +15,6 @@ Options:
   -t                          Compile and transpile into C#; do not assemble or link.
   -o <file>                   Specify output file.
   -W<options>                 Forward options to various sub-processes.
-  --entry=<symbol>            Specify the entry point of the program.
 
   -d                          Compile with .NET integration (cannot stop at assembly or linking).
   --modulename=<name>         Specify the module name (used with .NET integration only).

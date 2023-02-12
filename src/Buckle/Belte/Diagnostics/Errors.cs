@@ -51,14 +51,6 @@ internal static class Error {
     }
 
     /// <summary>
-    /// CL0006. Run `buckle --explain CL0006` on the command line for more info.
-    /// </summary>
-    internal static Diagnostic MissingEntrySymbol(string arg) {
-        var message = $"missing symbol after '{arg}' (usage: '--entry=<symbol>')";
-        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingEntrySymbol), message);
-    }
-
-    /// <summary>
     /// CL0007. Run `buckle --explain CL0007` on the command line for more info.
     /// </summary>
     internal static Diagnostic NoOptionAfterW() {

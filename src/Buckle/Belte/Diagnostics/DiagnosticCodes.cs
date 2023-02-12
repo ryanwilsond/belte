@@ -14,7 +14,7 @@ internal enum DiagnosticCode : int {
     ERR_MissingCodeExplain = 3,
     ERR_MissingModuleName = 4,
     ERR_MissingReference = 5,
-    ERR_MissingEntrySymbol = 6,
+    // ! Unused slot 6
     ERR_NoOptionAfterW = 7,
     ERR_UnrecognizedWOption = 8,
     ERR_UnrecognizedOption = 9,
