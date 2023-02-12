@@ -1,6 +1,7 @@
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -29,7 +30,7 @@ internal sealed class ILEmitter {
     private readonly Dictionary<TypeSymbol, TypeReference> _knownTypes;
     private readonly Dictionary<VariableSymbol, VariableDefinition> _locals =
         new Dictionary<VariableSymbol, VariableDefinition>();
-    private readonly List<(int instructionIndex, BoundLabel target)> _fixups =
+    private readonly List<(int instructionIndex, BoundLabel target)> _unhandledGotos =
         new List<(int instructionIndex, BoundLabel target)>();
     private readonly Dictionary<BoundLabel, int> _labels = new Dictionary<BoundLabel, int>();
     private readonly Dictionary<NetMethodReference, MethodReference> _methodReferences;
@@ -212,11 +213,11 @@ internal sealed class ILEmitter {
                 if (isFirst)
                     isFirst = false;
                 else
-                    stringWriter.WriteLine();
+                    indentedTextWriter.WriteLine();
 
                 using (var methodCurly = new CurlyIndenter(indentedTextWriter, method.Value.ToString())) {
                     foreach (var instruction in method.Value.Body.Instructions) {
-                        stringWriter.Write(instruction);
+                        indentedTextWriter.WriteLine(instruction);
                     }
                 }
             }
@@ -451,7 +452,7 @@ internal sealed class ILEmitter {
         var method = _methods[function];
         _locals.Clear();
         _labels.Clear();
-        _fixups.Clear();
+        _unhandledGotos.Clear();
         var iLProcessor = method.Body.GetILProcessor();
 
         _methodStack.Push(method);
@@ -461,7 +462,7 @@ internal sealed class ILEmitter {
 
         _methodStack.Pop();
 
-        foreach (var fixup in _fixups) {
+        foreach (var fixup in _unhandledGotos) {
             var targetLabel = fixup.target;
             var targetInstructionIndex = _labels[targetLabel];
             var targetInstruction = iLProcessor.Body.Instructions[targetInstructionIndex];
@@ -499,20 +500,20 @@ internal sealed class ILEmitter {
             case BoundNodeKind.LabelStatement:
                 EmitLabelStatement(iLProcessor, (BoundLabelStatement)statement);
                 break;
-            case BoundNodeKind.VariableDeclarationStatement:
-                // EmitVariableDeclarationStatement(iLProcessor, (BoundVariableDeclarationStatement)statement);
-                break;
             case BoundNodeKind.ConditionalGotoStatement:
-                // EmitConditionalGotoStatement(iLProcessor, (BoundConditionalGotoStatement)statement);
+                EmitConditionalGotoStatement(iLProcessor, (BoundConditionalGotoStatement)statement);
+                break;
+            case BoundNodeKind.VariableDeclarationStatement:
+                EmitVariableDeclarationStatement(iLProcessor, (BoundVariableDeclarationStatement)statement);
                 break;
             case BoundNodeKind.ReturnStatement:
-                // EmitReturnStatement(iLProcessor, (BoundReturnStatement)statement);
+                EmitReturnStatement(iLProcessor, (BoundReturnStatement)statement);
                 break;
             case BoundNodeKind.TryStatement:
-                // EmitTryStatement(iLProcessor, (BoundTryStatement)statement);
+                EmitTryStatement(iLProcessor, (BoundTryStatement)statement);
                 break;
             case BoundNodeKind.ExpressionStatement:
-                // EmitExpressionStatement(iLProcessor, (BoundExpressionStatement)statement);
+                EmitExpressionStatement(iLProcessor, (BoundExpressionStatement)statement);
                 break;
             default:
                 throw new BelteInternalException($"EmitStatement: unexpected node '{statement.kind}'");
@@ -520,6 +521,13 @@ internal sealed class ILEmitter {
     }
 
     private void EmitNopStatement(ILProcessor iLProcessor, BoundNopStatement statement) {
+        /*
+
+        ---->
+
+        nop
+
+        */
         iLProcessor.Emit(OpCodes.Nop);
     }
 
@@ -528,137 +536,393 @@ internal sealed class ILEmitter {
     }
 
     private void EmitGotoStatement(ILProcessor iLProcessor, BoundGotoStatement statement) {
-        _fixups.Add((iLProcessor.Body.Instructions.Count, statement.label));
-        iLProcessor.Emit(OpCodes.Br, Instruction.Create(OpCodes.Nop));
+        /*
+
+        <label>
+
+        ---->
+
+        br.s <label>
+
+        */
+        _unhandledGotos.Add((iLProcessor.Body.Instructions.Count, statement.label));
+        iLProcessor.Emit(OpCodes.Br_S, Instruction.Create(OpCodes.Nop));
+    }
+
+    private void EmitConditionalGotoStatement(ILProcessor iLProcessor, BoundConditionalGotoStatement statement) {
+        /*
+
+        <label> <condition> <jumpIfTrue>
+
+        ----> <jumpIfTrue> is true
+
+        <condition>
+        brtrue <label>
+
+        ----> <jumpIfTrue> is false
+
+        <condition>
+        brfalse <label>
+
+        */
+        EmitExpression(iLProcessor, statement.condition);
+
+        var opcode = statement.jumpIfTrue
+            ? OpCodes.Brtrue
+            : OpCodes.Brfalse;
+        _unhandledGotos.Add((iLProcessor.Body.Instructions.Count, statement.label));
+        iLProcessor.Emit(opcode, Instruction.Create(OpCodes.Nop));
+    }
+
+    private void EmitVariableDeclarationStatement(ILProcessor iLProcessor, BoundVariableDeclarationStatement statement) {
+        /*
+
+        <type> <variable> <initializer>
+
+        ----> default case
+
+        <initializer>
+        stloc #
+
+        ----> <type> is nullable and <initializer> is null
+
+        ldloca.s #
+        initobj valuetype <type>
+
+        ----> <type> is nullable and <initializer> is not null
+
+        ldloca.s #
+        <initializer>
+        call instance void valuetype <type>::.ctor(!0)
+
+        ----> <type> is a struct
+
+        <initializer>
+        stloc.s #
+
+        */
+        var typeReference = GetType(statement.variable.type);
+        var variableDefinition = new VariableDefinition(typeReference);
+        iLProcessor.Body.Variables.Add(variableDefinition);
+
+        var preset = true;
+
+        if (statement.variable.type.isNullable && statement.variable.type.typeSymbol is not StructSymbol)
+            iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
+        else
+            preset = false;
+
+        EmitExpression(iLProcessor, statement.initializer);
+
+        if (statement.variable.type.typeSymbol is StructSymbol)
+            iLProcessor.Emit(OpCodes.Stloc_S, variableDefinition);
+        else if (statement.variable.type.isNullable && !BoundConstant.IsNull(statement.initializer.constantValue))
+            iLProcessor.Emit(OpCodes.Call, GetNullableCtor(statement.initializer.type));
+        else if (!preset)
+            iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
+    }
+
+    private void EmitReturnStatement(ILProcessor iLProcessor, BoundReturnStatement statement) {
+        /*
+
+        <expression>
+
+        ----> no <expression>
+
+        ret
+
+        ---->
+
+        <expression>
+        ret
+
+        */
+        if (statement.expression != null)
+            EmitExpression(iLProcessor, statement.expression);
+
+        iLProcessor.Emit(OpCodes.Ret);
     }
 
     private void EmitTryStatement(ILProcessor iLProcessor, BoundTryStatement statement) {
-        // var method = _methodStack.Last();
+        /*
 
-        // if (statement.catchBody == null) {
-        //     var tryBody = statement.body.statements;
-        //     var end = iLProcessor.Create(OpCodes.Nop);
-        //     var tryStart = iLProcessor.Create(OpCodes.Nop);
-        //     var tryEnd = iLProcessor.Create(OpCodes.Leave_S, end);
+        <body> <catchBody> <finallyBody>
 
-        //     var finallyBody = statement.finallyBody.statements;
-        //     var handlerStart = iLProcessor.Create(OpCodes.Nop);
-        //     var handlerEnd = iLProcessor.Create(OpCodes.Endfinally);
+        ----> <catchBody> is null
 
-        //     iLProcessor.Append(tryStart);
+        nop
+        .try {
+            nop
+            <body>
+            leave.s <label>
+        } finally {
+            nop
+            <finallyBody>
+            leave.s <label>
+        }
 
-        //     foreach (var node in tryBody)
-        //         EmitStatement(iLProcessor, node);
+        ----> <finallyBody> is null
 
-        //     iLProcessor.Append(tryEnd);
-        //     iLProcessor.Append(handlerStart);
+        nop
+        .try {
+            nop
+            <body>
+            leave.s <label>
+        } catch {
+            nop
+            <catchBody>
+            leave.s <label>
+        }
 
-        //     foreach (var node in finallyBody)
-        //         EmitStatement(iLProcessor, node);
+        ---->
 
-        //     iLProcessor.Append(handlerEnd);
-        //     iLProcessor.Append(end);
+        nop
+        .try {
+            nop
+            nop
+            .try {
+                nop
+                <body>
+            } catch {
+                nop
+                <catchBody>
+                leave.s <label>
+            }
+            leave.s <label>
+        } finally {
+            nop
+            <finallyBody>
+            leave.s <label>
+        }
 
-        //     var handler = new ExceptionHandler(ExceptionHandlerType.Finally) {
-        //         TryStart = tryStart,
-        //         TryEnd = handlerStart,
-        //         HandlerStart = handlerStart,
-        //         HandlerEnd = end,
-        //     };
+        */
+        var method = _methodStack.Last();
 
-        //     method.Body.ExceptionHandlers.Add(handler);
-        // } else if (statement.finallyBody == null) {
-        //     var tryBody = statement.body.statements;
-        //     var end = iLProcessor.Create(OpCodes.Nop);
-        //     var tryStart = iLProcessor.Create(OpCodes.Nop);
-        //     var tryEnd = iLProcessor.Create(OpCodes.Leave_S, end);
+        void EmitTryCatch(ImmutableArray<BoundStatement> tryBody, ImmutableArray<BoundStatement> catchBody) {
+            var end = iLProcessor.Create(OpCodes.Nop);
+            var tryStart = iLProcessor.Create(OpCodes.Nop);
+            var tryEnd = iLProcessor.Create(OpCodes.Leave_S, end);
 
-        //     var catchBody = statement.catchBody.statements;
-        //     var handlerStart = iLProcessor.Create(OpCodes.Nop);
-        //     var handlerEnd = iLProcessor.Create(OpCodes.Leave_S, end);
+            var handlerStart = iLProcessor.Create(OpCodes.Nop);
+            var handlerEnd = iLProcessor.Create(OpCodes.Leave_S, end);
 
-        //     iLProcessor.Append(tryStart);
+            iLProcessor.Append(tryStart);
 
-        //     foreach (var node in tryBody)
-        //         EmitStatement(iLProcessor, node);
+            foreach (var node in tryBody)
+                EmitStatement(iLProcessor, node);
 
-        //     iLProcessor.Append(tryEnd);
-        //     iLProcessor.Append(handlerStart);
+            iLProcessor.Append(tryEnd);
+            iLProcessor.Append(handlerStart);
 
-        //     foreach (var node in catchBody)
-        //         EmitStatement(iLProcessor, node);
+            foreach (var node in catchBody)
+                EmitStatement(iLProcessor, node);
 
-        //     iLProcessor.Append(handlerEnd);
-        //     iLProcessor.Append(end);
+            iLProcessor.Append(handlerEnd);
+            iLProcessor.Append(end);
 
-        //     var handler = new ExceptionHandler(ExceptionHandlerType.Catch) {
-        //         TryStart = tryStart,
-        //         TryEnd = handlerStart,
-        //         HandlerStart = handlerStart,
-        //         HandlerEnd = end,
-        //         CatchType = _knownTypes[TypeSymbol.Any],
-        //     };
+            var handler = new ExceptionHandler(ExceptionHandlerType.Catch) {
+                TryStart = tryStart,
+                TryEnd = handlerStart,
+                HandlerStart = handlerStart,
+                HandlerEnd = end,
+                CatchType = _knownTypes[TypeSymbol.Any],
+            };
 
-        //     method.Body.ExceptionHandlers.Add(handler);
-        // } else {
-        //     var innerTryBody = statement.body.statements;
-        //     var end = iLProcessor.Create(OpCodes.Nop);
-        //     var innerTryStart = iLProcessor.Create(OpCodes.Nop);
-        //     var innerTryEnd = iLProcessor.Create(OpCodes.Leave_S, end);
+            method.Body.ExceptionHandlers.Add(handler);
+        }
 
-        //     var innerCatchBody = statement.catchBody.statements;
-        //     var innerHandlerStart = iLProcessor.Create(OpCodes.Nop);
-        //     var innerHandlerEnd = iLProcessor.Create(OpCodes.Leave_S, end);
+        void EmitTryFinally(ImmutableArray<BoundStatement> tryBody, ImmutableArray<BoundStatement> finallyBody) {
+            var end = iLProcessor.Create(OpCodes.Nop);
+            var tryStart = iLProcessor.Create(OpCodes.Nop);
+            var tryEnd = iLProcessor.Create(OpCodes.Leave_S, end);
 
-        //     var finallyBody = statement.finallyBody.statements;
-        //     var finallyStart = iLProcessor.Create(OpCodes.Nop);
-        //     var finallyEnd = iLProcessor.Create(OpCodes.Endfinally);
+            var handlerStart = iLProcessor.Create(OpCodes.Nop);
+            var handlerEnd = iLProcessor.Create(OpCodes.Endfinally);
 
-        //     iLProcessor.Append(innerTryStart);
+            iLProcessor.Append(tryStart);
 
-        //     foreach (var node in innerTryBody)
-        //         EmitStatement(iLProcessor, node);
+            foreach (var node in tryBody)
+                EmitStatement(iLProcessor, node);
 
-        //     iLProcessor.Append(innerTryEnd);
-        //     iLProcessor.Append(innerHandlerStart);
+            iLProcessor.Append(tryEnd);
+            iLProcessor.Append(handlerStart);
 
-        //     foreach (var node in innerCatchBody)
-        //         EmitStatement(iLProcessor, node);
+            foreach (var node in finallyBody)
+                EmitStatement(iLProcessor, node);
 
-        //     iLProcessor.Append(innerHandlerEnd);
-        //     iLProcessor.Append(finallyStart);
+            iLProcessor.Append(handlerEnd);
+            iLProcessor.Append(end);
 
-        //     var innerHandler = new ExceptionHandler(ExceptionHandlerType.Catch) {
-        //         TryStart = innerTryStart,
-        //         TryEnd = innerHandlerStart,
-        //         HandlerStart = innerHandlerStart,
-        //         HandlerEnd = finallyStart,
-        //         CatchType = _knownTypes[TypeSymbol.Any],
-        //     };
+            var handler = new ExceptionHandler(ExceptionHandlerType.Finally) {
+                TryStart = tryStart,
+                TryEnd = handlerStart,
+                HandlerStart = handlerStart,
+                HandlerEnd = end,
+            };
 
-        //     foreach (var node in finallyBody)
-        //         EmitStatement(iLProcessor, node);
+            method.Body.ExceptionHandlers.Add(handler);
+        }
 
-        //     iLProcessor.Append(finallyEnd);
-        //     iLProcessor.Append(end);
+        if (statement.catchBody == null) {
+            EmitTryFinally(statement.body.statements, statement.finallyBody.statements);
+        } else if (statement.finallyBody == null) {
+            EmitTryCatch(statement.body.statements, statement.catchBody.statements);
+        } else {
+            EmitTryFinally(
+                ImmutableArray.Create<BoundStatement>(new BoundTryStatement(statement.body, statement.catchBody, null)),
+                statement.finallyBody.statements
+            );
+            // var innerTryBody = statement.body.statements;
+            // var end = iLProcessor.Create(OpCodes.Nop);
+            // var innerTryStart = iLProcessor.Create(OpCodes.Nop);
+            // var innerTryEnd = iLProcessor.Create(OpCodes.Leave_S, end);
 
-        //     var handler = new ExceptionHandler(ExceptionHandlerType.Finally) {
-        //         TryStart = innerTryStart,
-        //         TryEnd = finallyStart,
-        //         HandlerStart = finallyStart,
-        //         HandlerEnd = end,
-        //     };
+            // var innerCatchBody = statement.catchBody.statements;
+            // var innerHandlerStart = iLProcessor.Create(OpCodes.Nop);
+            // var innerHandlerEnd = iLProcessor.Create(OpCodes.Leave_S, end);
 
-        //     method.Body.ExceptionHandlers.Add(innerHandler);
-        //     method.Body.ExceptionHandlers.Add(handler);
-        // }
+            // var finallyBody = statement.finallyBody.statements;
+            // var finallyStart = iLProcessor.Create(OpCodes.Nop);
+            // var finallyEnd = iLProcessor.Create(OpCodes.Endfinally);
+
+            // iLProcessor.Append(innerTryStart);
+
+            // foreach (var node in innerTryBody)
+            //     EmitStatement(iLProcessor, node);
+
+            // iLProcessor.Append(innerTryEnd);
+            // iLProcessor.Append(innerHandlerStart);
+
+            // foreach (var node in innerCatchBody)
+            //     EmitStatement(iLProcessor, node);
+
+            // iLProcessor.Append(innerHandlerEnd);
+            // iLProcessor.Append(finallyStart);
+
+            // var innerHandler = new ExceptionHandler(ExceptionHandlerType.Catch) {
+            //     TryStart = innerTryStart,
+            //     TryEnd = innerHandlerStart,
+            //     HandlerStart = innerHandlerStart,
+            //     HandlerEnd = finallyStart,
+            //     CatchType = _knownTypes[TypeSymbol.Any],
+            // };
+
+            // foreach (var node in finallyBody)
+            //     EmitStatement(iLProcessor, node);
+
+            // iLProcessor.Append(finallyEnd);
+            // iLProcessor.Append(end);
+
+            // var handler = new ExceptionHandler(ExceptionHandlerType.Finally) {
+            //     TryStart = innerTryStart,
+            //     TryEnd = finallyStart,
+            //     HandlerStart = finallyStart,
+            //     HandlerEnd = end,
+            // };
+
+            // method.Body.ExceptionHandlers.Add(innerHandler);
+            // method.Body.ExceptionHandlers.Add(handler);
+        }
     }
 
+    private void EmitExpressionStatement(ILProcessor iLProcessor, BoundExpressionStatement statement) {
+        EmitExpression(iLProcessor, statement.expression);
 
+        if (statement.expression.type.typeSymbol != TypeSymbol.Void)
+            iLProcessor.Emit(OpCodes.Pop);
+    }
 
+    private void EmitExpression(ILProcessor iLProcessor, BoundExpression expression) {
+        if (expression.constantValue != null) {
+            EmitConstantExpression(iLProcessor, expression);
+            return;
+        }
+
+        switch (expression.kind) {
+            case BoundNodeKind.LiteralExpression:
+                if (expression is BoundInitializerListExpression il) {
+                    // EmitInitializerListExpression(indentedTextWriter, il);
+                    break;
+                } else {
+                    goto default;
+                }
+            case BoundNodeKind.UnaryExpression:
+                // EmitUnaryExpression(indentedTextWriter, (BoundUnaryExpression)expression);
+                break;
+            case BoundNodeKind.BinaryExpression:
+                // EmitBinaryExpression(indentedTextWriter, (BoundBinaryExpression)expression);
+                break;
+            case BoundNodeKind.VariableExpression:
+                // EmitVariableExpression(indentedTextWriter, (BoundVariableExpression)expression);
+                break;
+            case BoundNodeKind.AssignmentExpression:
+                // EmitAssignmentExpression(indentedTextWriter, (BoundAssignmentExpression)expression);
+                break;
+            case BoundNodeKind.EmptyExpression:
+                EmitEmptyExpression(iLProcessor, (BoundEmptyExpression)expression);
+                break;
+            case BoundNodeKind.CallExpression:
+                // EmitCallExpression(indentedTextWriter, (BoundCallExpression)expression);
+                break;
+            case BoundNodeKind.IndexExpression:
+                // EmitIndexExpression(indentedTextWriter, (BoundIndexExpression)expression);
+                break;
+            case BoundNodeKind.CastExpression:
+                // EmitCastExpression(indentedTextWriter, (BoundCastExpression)expression);
+                break;
+            case BoundNodeKind.TernaryExpression:
+                // EmitTernaryExpression(indentedTextWriter, (BoundTernaryExpression)expression);
+                break;
+            case BoundNodeKind.ReferenceExpression:
+                // EmitReferenceExpression(indentedTextWriter, (BoundReferenceExpression)expression);
+                break;
+            case BoundNodeKind.ConstructorExpression:
+                EmitConstructorExpression(iLProcessor, (BoundConstructorExpression)expression);
+                break;
+            case BoundNodeKind.MemberAccessExpression:
+                // EmitMemberAccessExpression(indentedTextWriter, (BoundMemberAccessExpression)expression);
+                break;
+            default:
+                throw new BelteInternalException($"EmitExpression: unexpected node '{expression.kind}'");
+        }
+    }
+
+    private void EmitConstantExpression(ILProcessor iLProcessor, BoundExpression expression) {
+        if (BoundConstant.IsNull(expression.constantValue)) {
+            if (expression.type.typeSymbol is StructSymbol)
+                iLProcessor.Emit(OpCodes.Ldnull);
+            else
+                iLProcessor.Emit(OpCodes.Initobj, GetType(expression.type));
+
+            return;
+        }
+
+        var expressionType = expression.type.typeSymbol;
+
+        if (expressionType == TypeSymbol.Int) {
+            var value = Convert.ToInt32(expression.constantValue.value);
+            iLProcessor.Emit(OpCodes.Ldc_I4, value);
+        } else if (expressionType == TypeSymbol.String) {
+            var value = Convert.ToString(expression.constantValue.value);
+            iLProcessor.Emit(OpCodes.Ldstr, value);
+        } else if (expressionType == TypeSymbol.Bool) {
+            var value = Convert.ToBoolean(expression.constantValue.value);
+            var instruction = value ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0;
+            iLProcessor.Emit(instruction);
+        } else if (expressionType == TypeSymbol.Decimal) {
+            var value = Convert.ToSingle(expression.constantValue.value);
+            iLProcessor.Emit(OpCodes.Ldc_R4, value);
+        } else {
+            throw new BelteInternalException(
+                $"EmitConstantExpression: unexpected constant expression type '{expressionType}'");
+        }
+    }
 
     private void EmitEmptyExpression(ILProcessor iLProcessor, BoundEmptyExpression expression) {
-        // TODO Breaks control flow, debug why this does not work
-        // iLProcessor.Emit(OpCodes.Nop);
+        iLProcessor.Emit(OpCodes.Nop);
+    }
+
+    private void EmitConstructorExpression(ILProcessor iLProcessor, BoundConstructorExpression expression) {
+        // iLProcessor.Emit(OpCodes.Newobj, /* TODO */null);
     }
 }
