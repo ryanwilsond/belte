@@ -4,13 +4,10 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Buckle.Generators;
-using Diagnostics;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
@@ -28,6 +25,8 @@ internal sealed class ILEmitter {
         new Dictionary<FunctionSymbol, MethodDefinition>();
     private readonly AssemblyDefinition _assemblyDefinition;
     private readonly Dictionary<TypeSymbol, TypeReference> _knownTypes;
+    private readonly Dictionary<TypeSymbol, TypeDefinition> _typeDefinitions =
+        new Dictionary<TypeSymbol, TypeDefinition>();
     private readonly Dictionary<VariableSymbol, VariableDefinition> _locals =
         new Dictionary<VariableSymbol, VariableDefinition>();
     private readonly List<(int instructionIndex, BoundLabel target)> _unhandledGotos =
@@ -36,12 +35,15 @@ internal sealed class ILEmitter {
     private readonly Dictionary<NetMethodReference, MethodReference> _methodReferences;
     private readonly TypeReference _randomReference;
     private readonly TypeReference _nullableReference;
-    private TypeDefinition _typeDefinition;
+    private readonly string _namespaceName;
+
+    private TypeDefinition _programTypeDefinition;
     private FieldDefinition _randomFieldDefinition;
     private Stack<MethodDefinition> _methodStack = new Stack<MethodDefinition>();
 
     private ILEmitter(string moduleName, string[] references) {
         diagnostics = new BelteDiagnosticQueue();
+        _namespaceName = moduleName;
 
         var tempReferences = references.ToList();
         tempReferences.AddRange(new string[] {
@@ -194,6 +196,12 @@ internal sealed class ILEmitter {
         return emitter.EmitToString(program, out diagnostics);
     }
 
+    private static string GetSafeName(string name) {
+        CodeDomProvider provider = CodeDomProvider.CreateProvider("C#");
+        return (provider.IsValidIdentifier(name) ? name : "@" + name)
+            .Replace('<', '_').Replace('>', '_').Replace(':', '_');
+    }
+
     private BelteDiagnosticQueue EmitToFile(BoundProgram program, string outputPath) {
         EmitInternal(program);
         _assemblyDefinition.Write(outputPath);
@@ -207,8 +215,24 @@ internal sealed class ILEmitter {
         var stringWriter = new StringWriter();
         var indentString = "    ";
         var isFirst = true;
+        var seenTypes = new HashSet<string>();
 
         using (var indentedTextWriter = new IndentedTextWriter(stringWriter, indentString)) {
+            foreach (var type in _typeDefinitions) {
+                if (!seenTypes.Add(type.Key.name))
+                    continue;
+
+                if (isFirst)
+                    isFirst = false;
+                else
+                    indentedTextWriter.WriteLine();
+
+                using (var methodCurly = new CurlyIndenter(indentedTextWriter, type.Value.ToString())) {
+                    foreach (var field in type.Value.Fields)
+                        indentedTextWriter.WriteLine(field);
+                }
+            }
+
             foreach (var method in _methods) {
                 if (isFirst)
                     isFirst = false;
@@ -216,9 +240,8 @@ internal sealed class ILEmitter {
                     indentedTextWriter.WriteLine();
 
                 using (var methodCurly = new CurlyIndenter(indentedTextWriter, method.Value.ToString())) {
-                    foreach (var instruction in method.Value.Body.Instructions) {
+                    foreach (var instruction in method.Value.Body.Instructions)
                         indentedTextWriter.WriteLine(instruction);
-                    }
                 }
             }
 
@@ -230,17 +253,18 @@ internal sealed class ILEmitter {
 
     private void EmitInternal(BoundProgram program) {
         var objectType = _knownTypes[TypeSymbol.Any];
-        _typeDefinition = new TypeDefinition(
+        _programTypeDefinition = new TypeDefinition(
             "", "<Program>$", TypeAttributes.Abstract | TypeAttributes.Sealed, objectType);
-        _assemblyDefinition.MainModule.Types.Add(_typeDefinition);
+        _assemblyDefinition.MainModule.Types.Add(_programTypeDefinition);
+
+        foreach (var structWithBody in program.structMembers)
+            EmitStructDeclaration(structWithBody);
 
         foreach (var functionWithBody in program.functionBodies)
             EmitFunctionDeclaration(functionWithBody.Key);
 
-        foreach (var functionWithBody in program.functionBodies) {
-            // _currentFunction = functionWithBody.Key;
+        foreach (var functionWithBody in program.functionBodies)
             EmitFunctionBody(functionWithBody.Key, functionWithBody.Value);
-        }
 
         if (program.mainFunction != null)
             _assemblyDefinition.EntryPoint = LookupMethod(_methods, program.mainFunction);
@@ -398,6 +422,12 @@ internal sealed class ILEmitter {
         throw new BelteInternalException("GetConvertTo: cannot convert nullable types");
     }
 
+    private FieldReference GetFieldReference(BoundMemberAccessExpression expression) {
+        return new FieldReference(
+            GetSafeName(expression.member.name), GetType(expression.member.type), GetType(expression.type)
+        );
+    }
+
     private TypeReference GetType(
         BoundType type, bool overrideNullability = false, bool ignoreReference = false) {
         if ((type.dimensions == 0 && !type.isNullable && !overrideNullability) ||
@@ -433,14 +463,14 @@ internal sealed class ILEmitter {
     private void EmitRandomField() {
         _randomFieldDefinition = new FieldDefinition(
                                 "$randInt", FieldAttributes.Static | FieldAttributes.Private, _randomReference);
-        _typeDefinition.Fields.Add(_randomFieldDefinition);
+        _programTypeDefinition.Fields.Add(_randomFieldDefinition);
         var staticConstructor = new MethodDefinition(
             ".cctor",
             MethodAttributes.Static | MethodAttributes.Private |
             MethodAttributes.RTSpecialName | MethodAttributes.SpecialName,
             _knownTypes[TypeSymbol.Void]
         );
-        _typeDefinition.Methods.Insert(0, staticConstructor);
+        _programTypeDefinition.Methods.Insert(0, staticConstructor);
 
         var iLProcessor = staticConstructor.Body.GetILProcessor();
         iLProcessor.Emit(OpCodes.Newobj, _methodReferences[NetMethodReference.RandomCtor]);
@@ -485,8 +515,27 @@ internal sealed class ILEmitter {
             method.Parameters.Add(parameterDefinition);
         }
 
-        _typeDefinition.Methods.Add(method);
+        _programTypeDefinition.Methods.Add(method);
         _methods.Add(function, method);
+    }
+
+    private void EmitStructDeclaration(KeyValuePair<StructSymbol, ImmutableList<FieldSymbol>> structWithBody) {
+        var objectType = _knownTypes[TypeSymbol.Any];
+        var typeDefinition = new TypeDefinition(
+            _namespaceName, GetSafeName(structWithBody.Key.name), TypeAttributes.NestedPublic, objectType
+        );
+
+        foreach (var field in structWithBody.Value) {
+            var fieldDefinition = new FieldDefinition(
+                GetSafeName(field.name), FieldAttributes.Public, GetType(field.type)
+            );
+
+            typeDefinition.Fields.Add(fieldDefinition);
+        }
+
+        _knownTypes.Add(structWithBody.Key, typeDefinition);
+        _typeDefinitions.Add(structWithBody.Key, typeDefinition);
+        _assemblyDefinition.MainModule.Types.Add(typeDefinition);
     }
 
     private void EmitStatement(ILProcessor iLProcessor, BoundStatement statement) {
@@ -607,7 +656,9 @@ internal sealed class ILEmitter {
 
         var preset = true;
 
-        if (statement.variable.type.isNullable && statement.variable.type.typeSymbol is not StructSymbol)
+        if (statement.variable.type.isNullable &&
+            statement.variable.type.typeSymbol is not StructSymbol &&
+            statement.variable.type.dimensions < 1)
             iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
         else
             preset = false;
@@ -616,7 +667,9 @@ internal sealed class ILEmitter {
 
         if (statement.variable.type.typeSymbol is StructSymbol)
             iLProcessor.Emit(OpCodes.Stloc_S, variableDefinition);
-        else if (statement.variable.type.isNullable && !BoundConstant.IsNull(statement.initializer.constantValue))
+        else if (statement.variable.type.isNullable &&
+            !BoundConstant.IsNull(statement.initializer.constantValue) &&
+            statement.variable.type.dimensions < 1)
             iLProcessor.Emit(OpCodes.Call, GetNullableCtor(statement.initializer.type));
         else if (!preset)
             iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
@@ -772,56 +825,6 @@ internal sealed class ILEmitter {
                 ImmutableArray.Create<BoundStatement>(new BoundTryStatement(statement.body, statement.catchBody, null)),
                 statement.finallyBody.statements
             );
-            // var innerTryBody = statement.body.statements;
-            // var end = iLProcessor.Create(OpCodes.Nop);
-            // var innerTryStart = iLProcessor.Create(OpCodes.Nop);
-            // var innerTryEnd = iLProcessor.Create(OpCodes.Leave_S, end);
-
-            // var innerCatchBody = statement.catchBody.statements;
-            // var innerHandlerStart = iLProcessor.Create(OpCodes.Nop);
-            // var innerHandlerEnd = iLProcessor.Create(OpCodes.Leave_S, end);
-
-            // var finallyBody = statement.finallyBody.statements;
-            // var finallyStart = iLProcessor.Create(OpCodes.Nop);
-            // var finallyEnd = iLProcessor.Create(OpCodes.Endfinally);
-
-            // iLProcessor.Append(innerTryStart);
-
-            // foreach (var node in innerTryBody)
-            //     EmitStatement(iLProcessor, node);
-
-            // iLProcessor.Append(innerTryEnd);
-            // iLProcessor.Append(innerHandlerStart);
-
-            // foreach (var node in innerCatchBody)
-            //     EmitStatement(iLProcessor, node);
-
-            // iLProcessor.Append(innerHandlerEnd);
-            // iLProcessor.Append(finallyStart);
-
-            // var innerHandler = new ExceptionHandler(ExceptionHandlerType.Catch) {
-            //     TryStart = innerTryStart,
-            //     TryEnd = innerHandlerStart,
-            //     HandlerStart = innerHandlerStart,
-            //     HandlerEnd = finallyStart,
-            //     CatchType = _knownTypes[TypeSymbol.Any],
-            // };
-
-            // foreach (var node in finallyBody)
-            //     EmitStatement(iLProcessor, node);
-
-            // iLProcessor.Append(finallyEnd);
-            // iLProcessor.Append(end);
-
-            // var handler = new ExceptionHandler(ExceptionHandlerType.Finally) {
-            //     TryStart = innerTryStart,
-            //     TryEnd = finallyStart,
-            //     HandlerStart = finallyStart,
-            //     HandlerEnd = end,
-            // };
-
-            // method.Body.ExceptionHandlers.Add(innerHandler);
-            // method.Body.ExceptionHandlers.Add(handler);
         }
     }
 
@@ -841,7 +844,7 @@ internal sealed class ILEmitter {
         switch (expression.kind) {
             case BoundNodeKind.LiteralExpression:
                 if (expression is BoundInitializerListExpression il) {
-                    // EmitInitializerListExpression(indentedTextWriter, il);
+                    EmitInitializerListExpression(iLProcessor, il);
                     break;
                 } else {
                     goto default;
@@ -853,10 +856,10 @@ internal sealed class ILEmitter {
                 // EmitBinaryExpression(indentedTextWriter, (BoundBinaryExpression)expression);
                 break;
             case BoundNodeKind.VariableExpression:
-                // EmitVariableExpression(indentedTextWriter, (BoundVariableExpression)expression);
+                EmitVariableExpression(iLProcessor, (BoundVariableExpression)expression);
                 break;
             case BoundNodeKind.AssignmentExpression:
-                // EmitAssignmentExpression(indentedTextWriter, (BoundAssignmentExpression)expression);
+                EmitAssignmentExpression(iLProcessor, (BoundAssignmentExpression)expression);
                 break;
             case BoundNodeKind.EmptyExpression:
                 EmitEmptyExpression(iLProcessor, (BoundEmptyExpression)expression);
@@ -888,33 +891,105 @@ internal sealed class ILEmitter {
     }
 
     private void EmitConstantExpression(ILProcessor iLProcessor, BoundExpression expression) {
-        if (BoundConstant.IsNull(expression.constantValue)) {
-            if (expression.type.typeSymbol is StructSymbol)
+        EmitBoundConstant(iLProcessor, expression.constantValue, expression.type);
+    }
+
+    private void EmitBoundConstant(ILProcessor iLProcessor, BoundConstant constant, BoundType type) {
+        if (BoundConstant.IsNull(constant)) {
+            if (type.typeSymbol is StructSymbol)
                 iLProcessor.Emit(OpCodes.Ldnull);
             else
-                iLProcessor.Emit(OpCodes.Initobj, GetType(expression.type));
+                iLProcessor.Emit(OpCodes.Initobj, GetType(type));
 
             return;
         }
 
-        var expressionType = expression.type.typeSymbol;
+        var expressionType = type.typeSymbol;
+
+        if (constant.value is ImmutableArray<BoundConstant> ia) {
+            for (int i=0; i<ia.Length; i++) {
+                var item = ia[i];
+                iLProcessor.Emit(OpCodes.Dup);
+                iLProcessor.Emit(OpCodes.Ldc_I4, i);
+                EmitBoundConstant(iLProcessor, item, type.ChildType());
+
+                if (type.ChildType().dimensions == 0)
+                    iLProcessor.Emit(OpCodes.Stelem_Any, GetType(type.ChildType()));
+                else
+                    iLProcessor.Emit(OpCodes.Stelem_Ref);
+            }
+        }
 
         if (expressionType == TypeSymbol.Int) {
-            var value = Convert.ToInt32(expression.constantValue.value);
+            var value = Convert.ToInt32(constant.value);
             iLProcessor.Emit(OpCodes.Ldc_I4, value);
         } else if (expressionType == TypeSymbol.String) {
-            var value = Convert.ToString(expression.constantValue.value);
+            var value = Convert.ToString(constant.value);
             iLProcessor.Emit(OpCodes.Ldstr, value);
         } else if (expressionType == TypeSymbol.Bool) {
-            var value = Convert.ToBoolean(expression.constantValue.value);
+            var value = Convert.ToBoolean(constant.value);
             var instruction = value ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0;
             iLProcessor.Emit(instruction);
         } else if (expressionType == TypeSymbol.Decimal) {
-            var value = Convert.ToSingle(expression.constantValue.value);
+            var value = Convert.ToSingle(constant.value);
             iLProcessor.Emit(OpCodes.Ldc_R4, value);
         } else {
             throw new BelteInternalException(
                 $"EmitConstantExpression: unexpected constant expression type '{expressionType}'");
+        }
+    }
+
+    private void EmitInitializerListExpression(ILProcessor iLProcessor, BoundInitializerListExpression expression) {
+        iLProcessor.Emit(OpCodes.Ldc_I4, expression.items.Length);
+        iLProcessor.Emit(OpCodes.Newarr, GetType(expression.type.ChildType()));
+
+        for (int i=0; i<expression.items.Length; i++) {
+            var item = expression.items[i];
+            iLProcessor.Emit(OpCodes.Dup);
+            iLProcessor.Emit(OpCodes.Ldc_I4, i);
+            EmitExpression(iLProcessor, item);
+
+            if (item.type.dimensions == 0) {
+                iLProcessor.Emit(OpCodes.Stelem_Any, GetType(item.type));
+            } else {
+                iLProcessor.Emit(OpCodes.Stelem_Ref);
+            }
+        }
+    }
+
+    private void EmitVariableExpression(ILProcessor iLProcessor, BoundVariableExpression expression) {
+        iLProcessor.Emit(OpCodes.Ldloc, _locals[expression.variable]);
+    }
+
+    private void EmitAssignmentExpression(ILProcessor iLProcessor, BoundAssignmentExpression expression) {
+        var isNullable = false;
+
+        if (expression.left is BoundVariableExpression ve) {
+            if (ve.variable.type.isNullable &&
+                ve.variable.type.typeSymbol is not StructSymbol &&
+                ve.variable.type.dimensions < 1) {
+                if (!expression.right.type.isNullable) {
+                    isNullable = true;
+                    iLProcessor.Emit(OpCodes.Ldloca_S, _locals[ve.variable]);
+                }
+            }
+        } else {
+            EmitExpression(iLProcessor, expression.left);
+        }
+
+        EmitExpression(iLProcessor, expression.right);
+
+        if (expression.left is BoundIndexExpression)
+            iLProcessor.Emit(OpCodes.Stelem_Any);
+        else if (expression.left is BoundMemberAccessExpression ma)
+            iLProcessor.Emit(OpCodes.Stfld, GetFieldReference(ma));
+        else if (expression.left is BoundVariableExpression bve) {
+            if (expression.left.type.typeSymbol is StructSymbol)
+                iLProcessor.Emit(OpCodes.Stloc_S, _locals[bve.variable]);
+            else if (!isNullable)
+                iLProcessor.Emit(OpCodes.Stloc, _locals[bve.variable]);
+            else if (isNullable)
+                iLProcessor.Emit(OpCodes.Call, GetNullableCtor(expression.left.type));
         }
     }
 

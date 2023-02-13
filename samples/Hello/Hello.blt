@@ -11,6 +11,8 @@
 // }
 
 void Main() {
+    int a = 3;
+    PrintLine(a);
     // * Reference and null tests
     // int a = 3;
     // ref int b = ref a;
@@ -113,6 +115,6 @@ void Main() {
     // PrintLine(i);
 
     // * Casting tests
-    decimal a = 3;
+    // decimal a = 3;
     // int b = (int)a;
 }

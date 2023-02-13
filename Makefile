@@ -51,6 +51,7 @@ setup:
 	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.Pdb.dll bin/Mono.Cecil.Pdb.dll
 	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.Rocks.dll bin/Mono.Cecil.Rocks.dll
 	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Mono.Cecil.dll bin/Mono.Cecil.dll
+	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/System.CodeDom.dll bin/System.CodeDom.dll
 	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/System.Configuration.ConfigurationManager.dll System.Configuration.ConfigurationManager.dll
 	@$(CP) $(PROJDIR)/App.config App.config
 	@echo     Finished
