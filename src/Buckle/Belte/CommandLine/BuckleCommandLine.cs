@@ -31,7 +31,7 @@ public static partial class BuckleCommandLine {
     /// </summary>
     /// <param name="args">Command-line arguments from Main.</param>
     /// <returns>Error code, 0 = success.</returns>
-    public static int ProcessArgs(string[] args) {
+    public static int ProcessArgs(string[] args, AppSettings appSettings) {
         int err;
         var compiler = new Compiler();
         compiler.me = Process.GetCurrentProcess().ProcessName;
@@ -41,11 +41,9 @@ public static partial class BuckleCommandLine {
         );
 
         var hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error != null;
-
-        var resources = Path.Combine(GetExecutingPath(), "Resources");
         var corrupt = false;
 
-        if (!Directory.Exists(resources)) {
+        if (!Directory.Exists(appSettings.resourcesPath)) {
             corrupt = true;
             ResolveDiagnostic(Belte.Diagnostics.Warning.CorruptInstallation(), compiler.me, compiler.state.options);
         }
@@ -60,10 +58,10 @@ public static partial class BuckleCommandLine {
             ShowVersionDialog();
 
         if (dialogs.help && !corrupt)
-            ShowHelpDialog();
+            ShowHelpDialog(appSettings);
 
         if (dialogs.error != null && !corrupt) {
-            ShowErrorHelp(dialogs.error, out DiagnosticQueue<Diagnostic> dialogDiagnostics);
+            ShowErrorHelp(dialogs.error, appSettings, out DiagnosticQueue<Diagnostic> dialogDiagnostics);
             diagnostics.Move(dialogDiagnostics);
         }
 
@@ -103,7 +101,8 @@ public static partial class BuckleCommandLine {
         return SuccessExitCode;
     }
 
-    private static void ShowErrorHelp(string error, out DiagnosticQueue<Diagnostic> diagnostics) {
+    private static void ShowErrorHelp(
+        string error, AppSettings appSettings, out DiagnosticQueue<Diagnostic> diagnostics) {
         string prefix;
 
         if (error.Length < 3 || (Char.IsDigit(error[0]) && Char.IsDigit(error[1]))) {
@@ -123,7 +122,7 @@ public static partial class BuckleCommandLine {
             return;
         }
 
-        var path = Path.Combine(GetExecutingPath(), $"Resources/ErrorDescriptions{prefix}.txt");
+        var path = Path.Combine(appSettings.resourcesPath, $"ErrorDescriptions{prefix}.txt");
 
         if (!File.Exists(path)) {
             diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
@@ -176,14 +175,10 @@ public static partial class BuckleCommandLine {
         }
     }
 
-    private static void ShowHelpDialog() {
-        var path = Path.Combine(GetExecutingPath(), "Resources/HelpPrompt.txt");
+    private static void ShowHelpDialog(AppSettings appSettings) {
+        var path = Path.Combine(appSettings.resourcesPath, "HelpPrompt.txt");
         var helpMessage = File.ReadAllText(path);
         Console.WriteLine(helpMessage);
-    }
-
-    private static string GetExecutingPath() {
-        return AppDomain.CurrentDomain.BaseDirectory;
     }
 
     private static void ShowMachineDialog() {

@@ -70,7 +70,7 @@ internal static class Error {
     /// CL0009. Run `buckle --explain CL0009` on the command line for more info.
     /// </summary>
     internal static Diagnostic UnrecognizedOption(string arg) {
-        var message = $"unrecognized command line option '{arg}'";
+        var message = $"unrecognized command line option '{arg}'; see 'buckle --help'";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnrecognizedOption), message);
     }
 

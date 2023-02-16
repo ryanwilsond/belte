@@ -40,7 +40,7 @@ debugcopy:
 	@echo "    Finished"
 
 presetup:
-	@echo Starting setting up the directory ...
+	@echo Started setting up the directory ...
 	@$(RM) -f -r bin
 	@mkdir bin
 	@echo     Finished
