@@ -1,8 +1,16 @@
 using Xunit;
+using Xunit.Abstractions;
+using static Buckle.Tests.Assertions;
 
-namespace Buckle.Tests.CodeAnalysis;
+namespace Buckle.Tests.Diagnostics;
 
-public sealed partial class EvaluatorTests {
+public sealed class DiagnosticTests {
+    private readonly ITestOutputHelper writer;
+
+    public DiagnosticTests(ITestOutputHelper writer) {
+        this.writer = writer;
+    }
+
     [Fact]
     public void Evaluator_Reports_Warning_BU0001_AlwaysValue() {
         var text = @"
@@ -13,7 +21,7 @@ public sealed partial class EvaluatorTests {
             expression will always result to 'null'
         ";
 
-        AssertDiagnostics(text, diagnostics, true);
+        AssertDiagnostics(text, diagnostics, writer, true);
     }
 
     [Fact]
@@ -32,7 +40,7 @@ public sealed partial class EvaluatorTests {
             deference of a possibly null value
         ";
 
-        AssertDiagnostics(text, diagnostics, true);
+        AssertDiagnostics(text, diagnostics, writer, true);
     }
 
     [Fact]
@@ -45,7 +53,7 @@ public sealed partial class EvaluatorTests {
             '99999999999999999' is not a valid 'int'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -58,7 +66,7 @@ public sealed partial class EvaluatorTests {
             unknown character '#'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -71,7 +79,7 @@ public sealed partial class EvaluatorTests {
             unexpected token '='
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -84,7 +92,7 @@ public sealed partial class EvaluatorTests {
             cannot convert from type 'int' to 'string'. An explicit conversion exists (are you missing a cast?)
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -97,7 +105,7 @@ public sealed partial class EvaluatorTests {
             unary operator '-' is not defined for type 'bool'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -110,7 +118,7 @@ public sealed partial class EvaluatorTests {
             all named arguments must come after any unnamed arguments
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -123,7 +131,7 @@ public sealed partial class EvaluatorTests {
             named argument 'x' cannot be specified multiple times
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -136,7 +144,7 @@ public sealed partial class EvaluatorTests {
             binary operator '+' is not defined for types 'bool' and 'int'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -149,7 +157,7 @@ public sealed partial class EvaluatorTests {
             cannot reuse parameter name 'x'; parameter names must be unique
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -162,7 +170,7 @@ public sealed partial class EvaluatorTests {
             function 'Print' does not have a parameter named 'msg'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -175,7 +183,7 @@ public sealed partial class EvaluatorTests {
             undefined symbol 'y'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -190,7 +198,7 @@ public sealed partial class EvaluatorTests {
             redefinition of method 'myFunc'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -203,7 +211,7 @@ public sealed partial class EvaluatorTests {
             not all code paths return a value
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -220,7 +228,7 @@ public sealed partial class EvaluatorTests {
             cannot convert from type '[NotNull]A' to 'bool'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -234,7 +242,7 @@ public sealed partial class EvaluatorTests {
             argument 2: cannot convert from type 'int' to 'bool'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -248,7 +256,7 @@ public sealed partial class EvaluatorTests {
             variable 'x' is already declared in this scope
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -262,7 +270,7 @@ public sealed partial class EvaluatorTests {
             'x' cannot be assigned to as it is a constant
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -279,7 +287,7 @@ public sealed partial class EvaluatorTests {
             ambiguous what if-statement this else-clause belongs to; use curly braces
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -292,7 +300,7 @@ public sealed partial class EvaluatorTests {
             expression must have a value
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -306,7 +314,7 @@ public sealed partial class EvaluatorTests {
             cannot apply indexing with [] to an expression of type 'int'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -322,7 +330,7 @@ public sealed partial class EvaluatorTests {
             unreachable code
         ";
 
-        AssertDiagnostics(text, diagnostics, true);
+        AssertDiagnostics(text, diagnostics, writer, true);
     }
 
     [Fact]
@@ -336,7 +344,7 @@ public sealed partial class EvaluatorTests {
             expected ';' at end of input
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -349,7 +357,7 @@ public sealed partial class EvaluatorTests {
             undefined function 'myFunc'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -363,7 +371,7 @@ public sealed partial class EvaluatorTests {
             function 'myFunc' expects 0 arguments, got 1
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -378,7 +386,7 @@ public sealed partial class EvaluatorTests {
             struct 'A' has already been declared in this scope
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -391,7 +399,7 @@ public sealed partial class EvaluatorTests {
             attribute 'NotNull' has already been applied
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -405,7 +413,7 @@ public sealed partial class EvaluatorTests {
             called object 'x' is not a function
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -420,7 +428,7 @@ public sealed partial class EvaluatorTests {
             only assignment and call expressions can be used as a statement
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -433,7 +441,7 @@ public sealed partial class EvaluatorTests {
             unknown type 'MyType'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -446,7 +454,7 @@ public sealed partial class EvaluatorTests {
             break statements can only be used within a loop
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -461,7 +469,7 @@ public sealed partial class EvaluatorTests {
             cannot return a value in a function returning void
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -476,7 +484,7 @@ public sealed partial class EvaluatorTests {
             cannot return without a value in a function returning non-void
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -491,7 +499,7 @@ public sealed partial class EvaluatorTests {
             function 'myFunc' cannot be used as a variable
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -504,7 +512,7 @@ public sealed partial class EvaluatorTests {
             implicitly-typed variable must have initializer
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -517,7 +525,7 @@ public sealed partial class EvaluatorTests {
             unterminated multi-line comment
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -530,7 +538,7 @@ public sealed partial class EvaluatorTests {
             cannot initialize an implicitly-typed variable with 'null'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -543,7 +551,7 @@ public sealed partial class EvaluatorTests {
             cannot initialize an implicitly-typed variable with an empty initializer list
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -556,7 +564,7 @@ public sealed partial class EvaluatorTests {
             collection dimensions on implicitly-typed variables are inferred making them not necessary in this context
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -569,7 +577,7 @@ public sealed partial class EvaluatorTests {
             cannot use implicit-typing in this context
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -582,7 +590,7 @@ public sealed partial class EvaluatorTests {
             try statement must have a catch or finally
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -595,7 +603,7 @@ public sealed partial class EvaluatorTests {
             expected method name
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -608,7 +616,7 @@ public sealed partial class EvaluatorTests {
             a declaration of a by-reference variable must have an initializer
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -622,7 +630,7 @@ public sealed partial class EvaluatorTests {
             a by-reference variable must be initialized with a reference
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -636,7 +644,7 @@ public sealed partial class EvaluatorTests {
             cannot initialize a by-value variable with a reference
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -649,7 +657,7 @@ public sealed partial class EvaluatorTests {
             unknown attribute 'MyAttrib'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -662,7 +670,7 @@ public sealed partial class EvaluatorTests {
             cannot assign 'null' to a non-nullable variable
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -676,7 +684,7 @@ public sealed partial class EvaluatorTests {
             implicitly-typed variables infer reference types making the 'ref' keyword not necessary in this context
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -690,7 +698,7 @@ public sealed partial class EvaluatorTests {
             cannot assign a reference to a constant to a by-reference variable expecting a reference to a variable
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -703,7 +711,7 @@ public sealed partial class EvaluatorTests {
             cannot use void as a type
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -718,7 +726,7 @@ public sealed partial class EvaluatorTests {
             expected identifier
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -735,7 +743,7 @@ public sealed partial class EvaluatorTests {
             no overload for function 'myFunc' matches parameter list
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -752,7 +760,7 @@ public sealed partial class EvaluatorTests {
             function call is ambiguous between 'void myFunc(int a)' and 'void myFunc(string a)'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -765,7 +773,7 @@ public sealed partial class EvaluatorTests {
             the operand of an increment or decrement operator must be a variable, field, or indexer
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -778,7 +786,7 @@ public sealed partial class EvaluatorTests {
             ternary operator '?:' is not defined for types 'int', 'int', and 'int'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -792,7 +800,7 @@ public sealed partial class EvaluatorTests {
             'int' contains no such member 'Max'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -805,7 +813,7 @@ public sealed partial class EvaluatorTests {
             left side of assignment operation must be a variable, field, or indexer
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -822,7 +830,7 @@ public sealed partial class EvaluatorTests {
             cannot overload nested functions; nested function 'myFunc2' has already been defined
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -836,7 +844,7 @@ public sealed partial class EvaluatorTests {
             cannot assign a reference to a variable to a by-reference variable expecting a reference to a constant
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -850,7 +858,7 @@ public sealed partial class EvaluatorTests {
             prefix operator '++' is not defined for type 'bool'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -864,7 +872,7 @@ public sealed partial class EvaluatorTests {
             postfix operator '++' is not defined for type 'bool'
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -877,7 +885,7 @@ public sealed partial class EvaluatorTests {
             named argument 'x' cannot be specified multiple times
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -890,7 +898,7 @@ public sealed partial class EvaluatorTests {
             default values for parameters must be compile-time constants
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -903,7 +911,7 @@ public sealed partial class EvaluatorTests {
             all optional parameters must be specified after any required parameters
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -916,7 +924,7 @@ public sealed partial class EvaluatorTests {
             cannot mark a type as both constant and variable
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -931,7 +939,7 @@ public sealed partial class EvaluatorTests {
             variable name 'A' is not valid as it is the name of a type in this namespace
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -946,7 +954,7 @@ public sealed partial class EvaluatorTests {
             cannot implicitly pass null in a non-nullable context
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -959,7 +967,7 @@ public sealed partial class EvaluatorTests {
             cannot convert 'null' to '[NotNull]int' because it is a non-nullable type
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -974,7 +982,7 @@ public sealed partial class EvaluatorTests {
             cannot use a constant in this context
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -989,7 +997,7 @@ public sealed partial class EvaluatorTests {
             cannot use a reference type in this context
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -1002,7 +1010,7 @@ public sealed partial class EvaluatorTests {
             cannot divide by zero
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -1019,7 +1027,7 @@ public sealed partial class EvaluatorTests {
             a local named 'i' cannot be declared in this scope because that name is used in an enclosing scope to define a local or parameter
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
@@ -1034,6 +1042,6 @@ public sealed partial class EvaluatorTests {
             cannot initialize declared symbol in this context
         ";
 
-        AssertDiagnostics(text, diagnostics);
+        AssertDiagnostics(text, diagnostics, writer);
     }
 }

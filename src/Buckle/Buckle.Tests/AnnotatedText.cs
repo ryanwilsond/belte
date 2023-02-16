@@ -5,7 +5,7 @@ using System.IO;
 using System.Text;
 using Buckle.CodeAnalysis.Text;
 
-namespace Buckle.Tests.CodeAnalysis;
+namespace Buckle.Tests;
 
 internal sealed class AnnotatedText {
     internal string text { get; }

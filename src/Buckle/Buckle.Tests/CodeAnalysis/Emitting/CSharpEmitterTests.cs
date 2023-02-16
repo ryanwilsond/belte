@@ -1,10 +1,8 @@
 using System;
-using Buckle.CodeAnalysis;
-using Buckle.CodeAnalysis.Syntax;
-using Diagnostics;
 using Xunit;
+using static Buckle.Tests.Assertions;
 
-namespace Buckle.Tests.CodeAnalysis;
+namespace Buckle.Tests.CodeAnalysis.Emitting;
 
 public sealed class CSharpEmitterTests {
     [Theory]
@@ -18,7 +16,7 @@ void Main() { }
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -44,7 +42,7 @@ int Main() {
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -68,7 +66,7 @@ PrintLine(a);
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -89,7 +87,7 @@ public static class Program {
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -133,7 +131,7 @@ struct TypeTests {
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -187,7 +185,7 @@ int Main() {
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -251,7 +249,7 @@ void Main() {
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -322,7 +320,7 @@ void Main() {
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -366,7 +364,7 @@ int Add(int a, int b = 3) {
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -403,7 +401,7 @@ void Main() {
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -446,7 +444,7 @@ void Main() {
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -479,7 +477,7 @@ var randInt = RandInt(max);
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -493,16 +491,7 @@ public static class Program {
         "
         /* C# Code */
     )]
-    public void Emitter_EmitsCorrectly(string text, string expectedText) {
-        AssertText(text, expectedText.Trim() + Environment.NewLine);
-    }
-
-    private void AssertText(string text, string expectedText) {
-        var syntaxTree = SyntaxTree.Parse(text);
-        var compilation = Compilation.Create(true, syntaxTree);
-        var result = compilation.EmitToString(BuildMode.CSharpTranspile, "CSharpEmitterTests", false);
-
-        Assert.Empty(compilation.diagnostics.FilterOut(DiagnosticType.Warning).ToArray());
-        Assert.Equal(expectedText, result);
+    public void Emitter_Emits_CorrectText(string text, string expectedText) {
+        AssertText(text, expectedText.Trim() + Environment.NewLine, BuildMode.CSharpTranspile);
     }
 }
