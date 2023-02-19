@@ -91,6 +91,7 @@ clean:
 
 hardclean: clean
 	@dotnet clean $(SLN)
+	@$(RM) -f -r Resources
 	@echo Hard cleaned the project
 
 sandersetup:
