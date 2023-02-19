@@ -244,7 +244,7 @@ internal abstract class BoundTreeRewriter {
         if (expression.constantValue.value is ImmutableArray<BoundConstant>)
             return new BoundInitializerListExpression(expression.constantValue, expression.type);
         else if (expression is not BoundTypeWrapper)
-            return new BoundLiteralExpression(expression.constantValue.value);
+            return new BoundLiteralExpression(expression.constantValue.value, expression.type);
         else
             return expression;
     }

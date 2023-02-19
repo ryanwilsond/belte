@@ -112,5 +112,5 @@ copysander:
 	@$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.exe sander.exe
 	@echo "    Finished"
 
-sander: debugsander copysander
+sander: debugsander copysander sandersetup
 	@echo Finished building Sander

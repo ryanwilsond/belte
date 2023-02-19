@@ -4,8 +4,10 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Buckle.Generators;
 using Mono.Cecil;
@@ -41,6 +43,7 @@ internal sealed class ILEmitter {
     private FieldDefinition _randomFieldDefinition;
     private Stack<MethodDefinition> _methodStack = new Stack<MethodDefinition>();
     private bool _insideMain;
+    private int _ternaryLabelCount;
 
     private ILEmitter(string moduleName, string[] references) {
         diagnostics = new BelteDiagnosticQueue();
@@ -90,6 +93,9 @@ internal sealed class ILEmitter {
             }, {
                 NetMethodReference.ConsoleWriteLine,
                 ResolveMethod("System.Console", "WriteLine", new [] { "System.Object" })
+            }, {
+                NetMethodReference.ConsoleWriteLineNoArgs,
+                ResolveMethod("System.Console", "WriteLine", Array.Empty<string>())
             }, {
                 NetMethodReference.ConsoleReadLine,
                 ResolveMethod("System.Console", "ReadLine", Array.Empty<string>())
@@ -152,6 +158,7 @@ internal sealed class ILEmitter {
     private enum NetMethodReference {
         ConsoleWrite,
         ConsoleWriteLine,
+        ConsoleWriteLineNoArgs,
         ConsoleReadLine,
         StringConcat2,
         StringConcat3,
@@ -660,6 +667,7 @@ internal sealed class ILEmitter {
         */
         var typeReference = GetType(statement.variable.type);
         var variableDefinition = new VariableDefinition(typeReference);
+        _locals.Add(statement.variable, variableDefinition);
         iLProcessor.Body.Variables.Add(variableDefinition);
 
         var preset = true;
@@ -846,9 +854,23 @@ internal sealed class ILEmitter {
     }
 
     private void EmitExpressionStatement(ILProcessor iLProcessor, BoundExpressionStatement statement) {
+        /*
+
+        <expression>;
+
+        ----> <expression> is a call and the return is not picked up
+
+        <expression>
+        pop
+
+        ---->
+
+        <expression>
+
+        */
         EmitExpression(iLProcessor, statement.expression);
 
-        if (statement.expression.type.typeSymbol != TypeSymbol.Void)
+        if (statement.expression is BoundCallExpression && statement.expression.type.typeSymbol != TypeSymbol.Void)
             iLProcessor.Emit(OpCodes.Pop);
     }
 
@@ -867,10 +889,10 @@ internal sealed class ILEmitter {
                     goto default;
                 }
             case BoundNodeKind.UnaryExpression:
-                // EmitUnaryExpression(indentedTextWriter, (BoundUnaryExpression)expression);
+                EmitUnaryExpression(iLProcessor, (BoundUnaryExpression)expression);
                 break;
             case BoundNodeKind.BinaryExpression:
-                // EmitBinaryExpression(indentedTextWriter, (BoundBinaryExpression)expression);
+                EmitBinaryExpression(iLProcessor, (BoundBinaryExpression)expression);
                 break;
             case BoundNodeKind.VariableExpression:
                 EmitVariableExpression(iLProcessor, (BoundVariableExpression)expression);
@@ -882,16 +904,16 @@ internal sealed class ILEmitter {
                 EmitEmptyExpression(iLProcessor, (BoundEmptyExpression)expression);
                 break;
             case BoundNodeKind.CallExpression:
-                // EmitCallExpression(indentedTextWriter, (BoundCallExpression)expression);
+                EmitCallExpression(iLProcessor, (BoundCallExpression)expression);
                 break;
             case BoundNodeKind.IndexExpression:
                 // EmitIndexExpression(indentedTextWriter, (BoundIndexExpression)expression);
                 break;
             case BoundNodeKind.CastExpression:
-                // EmitCastExpression(indentedTextWriter, (BoundCastExpression)expression);
+                EmitCastExpression(iLProcessor, (BoundCastExpression)expression);
                 break;
             case BoundNodeKind.TernaryExpression:
-                // EmitTernaryExpression(indentedTextWriter, (BoundTernaryExpression)expression);
+                EmitTernaryExpression(iLProcessor, (BoundTernaryExpression)expression);
                 break;
             case BoundNodeKind.ReferenceExpression:
                 // EmitReferenceExpression(indentedTextWriter, (BoundReferenceExpression)expression);
@@ -952,11 +974,34 @@ internal sealed class ILEmitter {
             iLProcessor.Emit(OpCodes.Ldc_R4, value);
         } else {
             throw new BelteInternalException(
-                $"EmitConstantExpression: unexpected constant expression type '{expressionType}'");
+                $"EmitConstantExpression: unexpected constant expression type '{expressionType}'"
+            );
         }
     }
 
     private void EmitInitializerListExpression(ILProcessor iLProcessor, BoundInitializerListExpression expression) {
+        /*
+
+        <items>
+
+        ---->
+
+        ldc.i4 <items.Length>
+        newarr <type>
+
+            For each item (single dimension):
+        dup
+        ldc.i4 <i>
+        <items[i]>
+        stelem.any <item[i].type>
+
+            For each item (multi-dimensional):
+        dup
+        ldc.i4 <i>
+        <items[i]>
+        stelem.ref
+
+        */
         iLProcessor.Emit(OpCodes.Ldc_I4, expression.items.Length);
         iLProcessor.Emit(OpCodes.Newarr, GetType(expression.type.ChildType()));
 
@@ -974,11 +1019,315 @@ internal sealed class ILEmitter {
         }
     }
 
+    private void EmitUnaryExpression(ILProcessor iLProcessor, BoundUnaryExpression expression) {
+        /*
+
+        <op> <operand>
+
+        ---->
+
+        <operand>
+
+            Depending on <op>:
+        | neg
+        | ldc.i4.0
+          ceq
+        | not
+
+        */
+        EmitExpression(iLProcessor, expression.operand);
+
+        if (expression.op.opKind == BoundUnaryOperatorKind.NumericalNegation) {
+            iLProcessor.Emit(OpCodes.Neg);
+        } else if (expression.op.opKind == BoundUnaryOperatorKind.BooleanNegation) {
+            iLProcessor.Emit(OpCodes.Ldc_I4_0);
+            iLProcessor.Emit(OpCodes.Ceq);
+        } else if (expression.op.opKind == BoundUnaryOperatorKind.BitwiseCompliment) {
+            iLProcessor.Emit(OpCodes.Not);
+        } else {
+            throw new BelteInternalException($"EmitUnaryExpression: unexpected unary operator" +
+                $"{SyntaxFacts.GetText(expression.op.kind)}({expression.operand.type.typeSymbol})"
+            );
+        }
+    }
+
+    private void EmitBinaryExpression(ILProcessor iLProcessor, BoundBinaryExpression expression) {
+        /*
+
+        <left> <op> <right>
+
+        ----> <left> and <right> are strings and <op> is addition
+
+        <left>
+        <right>
+        call System.String System.String::Concat(System.String, System.String)
+
+        ---->
+
+        <left>
+        <right>
+
+            Depending on <op>:
+        | add
+        | sub
+        | mul
+        | div
+        | and
+        | or
+        | xor
+        | shl
+        | shr.un
+        | and
+        | or
+        | ceq
+        | ceq
+          ldc.i4.0
+          ceq
+        | clt
+        | cgt
+        | cgt
+          ldc.i4.0
+          ceq
+        | clt
+          ldc.it.0
+          ceq
+        | rem
+
+        */
+        var leftType = expression.left.type.typeSymbol;
+        var rightType = expression.right.type.typeSymbol;
+
+        if (expression.op.opKind == BoundBinaryOperatorKind.Addition) {
+            if (leftType == TypeSymbol.String && rightType == TypeSymbol.String ||
+                leftType == TypeSymbol.Any && rightType == TypeSymbol.Any) {
+                EmitStringConcatExpression(iLProcessor, expression);
+                return;
+            }
+        }
+
+        EmitExpression(iLProcessor, expression.left);
+        EmitExpression(iLProcessor, expression.right);
+
+        switch (expression.op.opKind) {
+            case BoundBinaryOperatorKind.Addition:
+                iLProcessor.Emit(OpCodes.Add);
+                break;
+            case BoundBinaryOperatorKind.Subtraction:
+                iLProcessor.Emit(OpCodes.Sub);
+                break;
+            case BoundBinaryOperatorKind.Multiplication:
+                iLProcessor.Emit(OpCodes.Mul);
+                break;
+            case BoundBinaryOperatorKind.Division:
+                iLProcessor.Emit(OpCodes.Div);
+                break;
+            case BoundBinaryOperatorKind.LogicalAnd:
+                iLProcessor.Emit(OpCodes.And);
+                break;
+            case BoundBinaryOperatorKind.LogicalOr:
+                iLProcessor.Emit(OpCodes.Or);
+                break;
+            case BoundBinaryOperatorKind.LogicalXor:
+                iLProcessor.Emit(OpCodes.Xor);
+                break;
+            case BoundBinaryOperatorKind.LeftShift:
+                iLProcessor.Emit(OpCodes.Shl);
+                break;
+            case BoundBinaryOperatorKind.RightShift:
+                iLProcessor.Emit(OpCodes.Shr);
+                break;
+            case BoundBinaryOperatorKind.UnsignedRightShift:
+                iLProcessor.Emit(OpCodes.Shr_Un);
+                break;
+            case BoundBinaryOperatorKind.ConditionalAnd:
+                iLProcessor.Emit(OpCodes.And);
+                break;
+            case BoundBinaryOperatorKind.ConditionalOr:
+                iLProcessor.Emit(OpCodes.Or);
+                break;
+            case BoundBinaryOperatorKind.EqualityEquals:
+                iLProcessor.Emit(OpCodes.Ceq);
+                break;
+            case BoundBinaryOperatorKind.EqualityNotEquals:
+                iLProcessor.Emit(OpCodes.Ceq);
+                iLProcessor.Emit(OpCodes.Ldc_I4_0);
+                iLProcessor.Emit(OpCodes.Ceq);
+                break;
+            case BoundBinaryOperatorKind.LessThan:
+                iLProcessor.Emit(OpCodes.Clt);
+                break;
+            case BoundBinaryOperatorKind.GreaterThan:
+                iLProcessor.Emit(OpCodes.Cgt);
+                break;
+            case BoundBinaryOperatorKind.LessOrEqual:
+                iLProcessor.Emit(OpCodes.Cgt);
+                iLProcessor.Emit(OpCodes.Ldc_I4_0);
+                iLProcessor.Emit(OpCodes.Ceq);
+                break;
+            case BoundBinaryOperatorKind.GreatOrEqual:
+                iLProcessor.Emit(OpCodes.Clt);
+                iLProcessor.Emit(OpCodes.Ldc_I4_0);
+                iLProcessor.Emit(OpCodes.Ceq);
+                break;
+            case BoundBinaryOperatorKind.Modulo:
+                iLProcessor.Emit(OpCodes.Rem);
+                break;
+            default:
+                throw new BelteInternalException($"EmitBinaryOperator: unexpected binary operator" +
+                    $"({expression.left.type}){SyntaxFacts.GetText(expression.op.kind)}({expression.right.type})"
+                );
+        }
+    }
+
+    private void EmitStringConcatExpression(ILProcessor iLProcessor, BoundBinaryExpression expression) {
+        // Flatten the expression tree to a sequence of nodes to concatenate,
+        // Then fold consecutive constants in that sequence.
+        // This approach enables constant folding of non-sibling nodes,
+        // Which cannot be done in theConstantFolding class as it would require changing the tree.
+        // Example: folding b and c in ((a + b) + c) if they are constant.
+
+        var nodes = FoldConstants(Flatten(expression)).ToList();
+
+        switch (nodes.Count) {
+            case 0:
+                iLProcessor.Emit(OpCodes.Ldstr, string.Empty);
+                break;
+            case 1:
+                EmitExpression(iLProcessor, nodes[0]);
+                break;
+            case 2:
+                EmitExpression(iLProcessor, nodes[0]);
+                EmitExpression(iLProcessor, nodes[1]);
+                iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.StringConcat2]);
+                break;
+            case 3:
+                EmitExpression(iLProcessor, nodes[0]);
+                EmitExpression(iLProcessor, nodes[1]);
+                EmitExpression(iLProcessor, nodes[2]);
+                iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.StringConcat3]);
+                break;
+            case 4:
+                EmitExpression(iLProcessor, nodes[0]);
+                EmitExpression(iLProcessor, nodes[1]);
+                EmitExpression(iLProcessor, nodes[2]);
+                EmitExpression(iLProcessor, nodes[3]);
+                iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.StringConcat4]);
+                break;
+            default:
+                iLProcessor.Emit(OpCodes.Ldc_I4, nodes.Count);
+                iLProcessor.Emit(OpCodes.Newarr, _knownTypes[TypeSymbol.String]);
+
+                for (var i=0; i<nodes.Count; i++) {
+                    iLProcessor.Emit(OpCodes.Dup);
+                    iLProcessor.Emit(OpCodes.Ldc_I4, i);
+                    EmitExpression(iLProcessor, nodes[i]);
+                    iLProcessor.Emit(OpCodes.Stelem_Ref);
+                }
+
+                iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.StringConcatArray]);
+                break;
+        }
+
+        // TODO Use similar logic for other data types and operators (e.g. 2 * x * 4 -> 8 * x)
+
+        // (a + b) + (c + d) --> [a, b, c, d]
+        static IEnumerable<BoundExpression> Flatten(BoundExpression node) {
+            if (node is BoundBinaryExpression binaryExpression &&
+                binaryExpression.op.opKind == BoundBinaryOperatorKind.Addition &&
+                binaryExpression.left.type.typeSymbol == TypeSymbol.String &&
+                binaryExpression.right.type.typeSymbol == TypeSymbol.String) {
+                foreach (var result in Flatten(binaryExpression.left))
+                    yield return result;
+
+                foreach (var result in Flatten(binaryExpression.right))
+                    yield return result;
+            } else {
+                if (node.type.typeSymbol != TypeSymbol.String)
+                    throw new BelteInternalException(
+                        $"Flatten: unexpected node type in string concatenation '{node.type.typeSymbol}'"
+                    );
+
+                yield return node;
+            }
+        }
+
+        // [a, "foo", "bar", b, ""] --> [a, "foobar", b]
+        static IEnumerable<BoundExpression> FoldConstants(IEnumerable<BoundExpression> nodes) {
+            StringBuilder sb = null;
+
+            foreach (var node in nodes) {
+                if (node.constantValue != null) {
+                    var stringValue = (string)node.constantValue.value;
+
+                    if (string.IsNullOrEmpty(stringValue))
+                        continue;
+
+                    sb ??= new StringBuilder();
+                    sb.Append(stringValue);
+                } else {
+                    if (sb?.Length > 0) {
+                        yield return new BoundLiteralExpression(sb.ToString());
+                        sb.Clear();
+                    }
+
+                    yield return node;
+                }
+            }
+
+            if (sb?.Length > 0)
+                yield return new BoundLiteralExpression(sb.ToString());
+        }
+    }
+
     private void EmitVariableExpression(ILProcessor iLProcessor, BoundVariableExpression expression) {
+        /*
+
+        <variable>
+
+        ---->
+
+        ldloc <variable>
+
+        */
         iLProcessor.Emit(OpCodes.Ldloc, _locals[expression.variable]);
     }
 
     private void EmitAssignmentExpression(ILProcessor iLProcessor, BoundAssignmentExpression expression) {
+        /*
+
+        <left> = <right>
+
+        ----> <left> is an IndexExpression
+
+        <left>
+        <right>
+        stelem.any
+
+        ----> <left> is a MemberAccessExpression
+
+        <left>
+        <right>
+        stfld <left.field>
+
+        ----> <left> is a VariableExpression and a struct
+
+        ldloca.s <left.variable>
+        <right>
+        stloc.s <left.variable>
+
+        ----> <left> is a VariableExpression and nullable or dimensioned
+
+        ldloca.s <left.variable>
+        <right>
+        call T System.Nullable`1< <left.type> >::.ctor(T)
+
+        ----> <left> is a VariableExpression and not nullable
+
+        <left>
+        <right>
+        stloc <left.variable>
+
+        */
         var isNullable = false;
 
         if (expression.left is BoundVariableExpression ve) {
@@ -1011,7 +1360,184 @@ internal sealed class ILEmitter {
     }
 
     private void EmitEmptyExpression(ILProcessor iLProcessor, BoundEmptyExpression expression) {
+        /*
+
+        ---->
+
+        nop
+
+        */
         iLProcessor.Emit(OpCodes.Nop);
+    }
+
+    private void EmitCallExpression(ILProcessor iLProcessor, BoundCallExpression expression) {
+        /*
+
+        <function>(<arguments>)
+
+        ----> <function> is RandInt
+
+        <arguments>
+        callvirt System.Int32 System.Random::Next()
+
+        ----> <function> is Print
+
+        <arguments>
+        call System.Void System.Console::Write(System.Object)
+
+        ----> <function> is PrintLine
+
+        <arguments>
+        call System.Void System.Console::WriteLine(System.Object)
+
+        ----> <function> is PrintLineNoValue
+
+        call System.Void System.Console::WriteLine()
+
+        ----> <function> is Input
+
+        call System.String System.Console::ReadLine()
+
+        ----> <function> is Value
+
+        <arguments>
+        stloc.s
+        ldloca.s
+        call T System.Nullable`1< <type> >::.get_Value()
+
+        ----> <function> is HasValue
+
+        <arguments>
+        stloc.s
+        ldloca.s
+        call System.Boolean System.Nullable`1< <type> >::.get_HasValue()
+
+        ---->
+
+        <arguments>
+        call <function>
+
+        */
+        if (expression.function.MethodMatches(BuiltinFunctions.RandInt)) {
+            if (_randomFieldDefinition == null)
+                EmitRandomField();
+
+            iLProcessor.Emit(OpCodes.Ldsfld, _randomFieldDefinition);
+        }
+
+        foreach (var argument in expression.arguments)
+            EmitExpression(iLProcessor, argument);
+
+        if (expression.function.MethodMatches(BuiltinFunctions.RandInt)) {
+            iLProcessor.Emit(OpCodes.Callvirt, _methodReferences[NetMethodReference.RandomNext]);
+            return;
+        }
+
+        if (expression.function.MethodMatches(BuiltinFunctions.Print)) {
+            iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleWrite]);
+        } else if (expression.function.MethodMatches(BuiltinFunctions.PrintLine)) {
+            iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleWriteLine]);
+        } else if (expression.function.MethodMatches(BuiltinFunctions.PrintLineNoValue)) {
+            iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleWriteLineNoArgs]);
+        } else if (expression.function.MethodMatches(BuiltinFunctions.Input)) {
+            iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleReadLine]);
+        } else if (expression.function.name == "Value") {
+            var typeReference = GetType(expression.arguments[0].type);
+            var variableDefinition = new VariableDefinition(typeReference);
+            iLProcessor.Body.Variables.Add(variableDefinition);
+
+            iLProcessor.Emit(OpCodes.Stloc_S, variableDefinition);
+            iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
+            iLProcessor.Emit(OpCodes.Call, GetNullableValue(expression.arguments[0].type));
+        } else if (expression.function.name == "HasValue") {
+            var typeReference = GetType(expression.arguments[0].type);
+            var variableDefinition = new VariableDefinition(typeReference);
+            iLProcessor.Body.Variables.Add(variableDefinition);
+
+            iLProcessor.Emit(OpCodes.Stloc_S, variableDefinition);
+            iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
+            iLProcessor.Emit(OpCodes.Call, GetNullableHasValue(expression.arguments[0].type));
+        } else {
+            var methodDefinition = LookupMethod(_methods, expression.function);
+            iLProcessor.Emit(OpCodes.Call, methodDefinition);
+        }
+    }
+
+    private void EmitCastExpression(ILProcessor iLProcessor, BoundCastExpression expression) {
+        if (BoundConstant.IsNull(expression.expression.constantValue)) {
+            EmitExpression(iLProcessor, new BoundLiteralExpression(null, expression.type));
+            return;
+        }
+
+        EmitExpression(iLProcessor, expression.expression);
+        var subExpressionType = expression.expression.type;
+        var expressionType = expression.type;
+
+        var needsBoxing = subExpressionType.typeSymbol == TypeSymbol.Int ||
+            subExpressionType.typeSymbol == TypeSymbol.Bool ||
+            subExpressionType.typeSymbol == TypeSymbol.Decimal;
+
+        if (needsBoxing)
+            iLProcessor.Emit(OpCodes.Box, GetType(subExpressionType));
+
+        if (expressionType.typeSymbol != TypeSymbol.Any)
+            iLProcessor.Emit(OpCodes.Call, GetConvertTo(subExpressionType, expressionType, true));
+
+        if (expression.type.isNullable && !needsBoxing)
+            iLProcessor.Emit(OpCodes.Call, GetNullableCtor(expression.type));
+    }
+
+    private void EmitTernaryExpression(ILProcessor iLProcessor, BoundTernaryExpression expression) {
+        /*
+
+        <left> <center> <op> <right>
+
+        ----> <op> is conditional
+
+        <left>
+        brtrue.s TernaryLabel0
+        <right>
+        br.s TernaryLabel1
+    TernaryLabel0
+        nop
+        <center>
+    TernaryLabel1
+        nop
+
+        */
+        switch (expression.op.opKind) {
+            case BoundTernaryOperatorKind.Conditional:
+                EmitExpression(iLProcessor, expression.left);
+
+                var centerBranchLabel = GenerateLabel();
+                _unhandledGotos.Add((iLProcessor.Body.Instructions.Count, centerBranchLabel));
+                iLProcessor.Emit(OpCodes.Brtrue_S, Instruction.Create(OpCodes.Nop));
+
+                EmitExpression(iLProcessor, expression.right);
+
+                var rightBranchLabel = GenerateLabel();
+                _unhandledGotos.Add((iLProcessor.Body.Instructions.Count, rightBranchLabel));
+                iLProcessor.Emit(OpCodes.Br_S, Instruction.Create(OpCodes.Nop));
+
+                _labels.Add(centerBranchLabel, iLProcessor.Body.Instructions.Count);
+
+                EmitExpression(iLProcessor, expression.center);
+
+                _labels.Add(rightBranchLabel, iLProcessor.Body.Instructions.Count);
+                break;
+            default:
+                throw new BelteInternalException(
+                    $"EmitTernaryExpression: unexpected ternary operator ({expression.left.type})" +
+                    $"{SyntaxFacts.GetText(expression.op.leftOpKind)}({expression.center.type})" +
+                    $"{SyntaxFacts.GetText(expression.op.rightOpKind)}({expression.right.type})"
+                );
+        }
+    }
+
+    private BoundLabel GenerateLabel() {
+        var name = $"TernaryLabel{++_ternaryLabelCount}";
+
+        return new BoundLabel(name);
     }
 
     private void EmitConstructorExpression(ILProcessor iLProcessor, BoundConstructorExpression expression) {

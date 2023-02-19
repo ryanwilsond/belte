@@ -4,7 +4,7 @@ using static Buckle.Tests.Assertions;
 
 namespace Buckle.Tests.CodeAnalysis.Emitting;
 
-public sealed class CSharpEmitterTests {
+public sealed class EmitterTests {
     [Theory]
     [InlineData(
         /* Belte Code */
@@ -24,6 +24,46 @@ public static class Program {
         return;
     }
 
+}
+        ",
+        /* IL Code */
+        @"
+<Program>$ {
+    System.Void <Program>$::Main() {
+        IL_0000: ret
+    }
+}
+        "
+    )]
+    [InlineData(
+        /* Belte Code */
+        @"
+int Main() {
+    return 1;
+}
+        ",
+        /* C# Code */
+        @"
+using System;
+using System.Collections.Generic;
+
+namespace EmitterTests;
+
+public static class Program {
+
+    public static int Main() {
+        return (1);
+    }
+
+}
+        ",
+        /* IL Code */
+        @"
+<Program>$ {
+    System.Int32 <Program>$::Main() {
+        IL_0000: ldc.i4.1
+        IL_0001: ret
+    }
 }
         "
     )]
@@ -47,6 +87,15 @@ public static class Program {
         return (0);
     }
 
+}
+        ",
+        /* IL Code */
+        @"
+<Program>$ {
+    System.Int32 <Program>$::Main() {
+        IL_0000: ldc.i4.0
+        IL_0001: ret
+    }
 }
         "
     )]
@@ -76,6 +125,9 @@ public static class Program {
     }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -100,6 +152,9 @@ public static class Program {
     }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -117,6 +172,9 @@ public static class Program {
     public static void Main() { }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -184,6 +242,9 @@ public static class Program {
     public static void Main() { }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -226,6 +287,9 @@ public static class Program {
     }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -314,6 +378,9 @@ public static class Program {
     }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -366,6 +433,9 @@ public static class Program {
     }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -404,6 +474,9 @@ public static class Program {
     }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -440,6 +513,9 @@ public static class Program {
     }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -488,6 +564,9 @@ public static class Program {
     }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -496,6 +575,7 @@ public static class Program {
 var max = (int)Input();
 var randInt = RandInt(max);
         ",
+        /* C# Code */
         @"
 using System;
 using System.Collections.Generic;
@@ -511,10 +591,13 @@ public static class Program {
     }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
-        /* C# Code */
     )]
-    public void Emitter_Emits_CorrectText(string text, string expectedText) {
-        AssertText(text, expectedText.Trim() + Environment.NewLine, BuildMode.CSharpTranspile);
+    public void Emitter_Emits_CorrectText(string text, string expectedCSharpText, string expectedILText) {
+        AssertText(text, expectedCSharpText.Trim() + Environment.NewLine, BuildMode.CSharpTranspile);
+        AssertText(text, expectedILText.Trim() + Environment.NewLine, BuildMode.Dotnet);
     }
 }

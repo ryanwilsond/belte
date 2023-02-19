@@ -176,6 +176,11 @@ internal sealed class DisplayText {
             case BoundNodeKind.MemberAccessExpression:
                 DisplayMemberAccessExpression(text, (BoundMemberAccessExpression)node);
                 break;
+            case BoundNodeKind.TypeWrapper:
+                DisplayLiteralExpression(
+                    text, new BoundLiteralExpression(((BoundTypeWrapper)node).constantValue.value)
+                );
+                break;
             default:
                 throw new BelteInternalException($"WriteTo: unexpected node '{node.kind}'");
         }

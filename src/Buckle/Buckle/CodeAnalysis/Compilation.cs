@@ -303,8 +303,6 @@ public sealed class Compilation {
 
         if (buildMode == BuildMode.Dotnet)
             return ILEmitter.Emit(program, moduleName, references, outputPath);
-        else if (buildMode == BuildMode.Independent)
-            return NativeEmitter.Emit(program, outputPath, finishStage);
         else // buildMode == BuildMode.CSharpTranspile
             return CSharpEmitter.Emit(program, outputPath);
     }

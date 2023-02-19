@@ -312,7 +312,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         expression.op,
                         Value(expression.right)
                     ),
-                    @else: Literal(null)
+                    @else: Literal(null, expression.type)
                 )
             );
         }
@@ -326,7 +326,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         expression.op,
                         expression.right
                     ),
-                    @else: Literal(null)
+                    @else: Literal(null, expression.type)
                 )
             );
         }
@@ -340,7 +340,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         expression.op,
                         Value(expression.right)
                     ),
-                    @else: Literal(null)
+                    @else: Literal(null, expression.type)
                 )
             );
         }
@@ -353,11 +353,18 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         <op> <operand>
 
+        ----> <op> is +
+
+        <operand>
+
         ----> <operand> is nullable
 
         (HasValue(<operand>) ? <op> Value(<operand>) : null)
 
         */
+        if (expression.op.opKind == BoundUnaryOperatorKind.NumericalIdentity)
+            return RewriteExpression(expression.operand);
+
         if (expression.operand.type.isNullable) {
             return RewriteExpression(
                 NullConditional(
@@ -366,7 +373,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         expression.op,
                         Value(expression.operand)
                     ),
-                    @else: Literal(null)
+                    @else: Literal(null, expression.type)
                 )
             );
         }
@@ -548,7 +555,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         expression.operand,
                         expression.member
                     ),
-                    @else: Literal(null)
+                    @else: Literal(null, expression.type)
                 )
             );
         }
@@ -574,7 +581,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         expression.operand,
                         expression.index
                     ),
-                    @else: Literal(null)
+                    @else: Literal(null, expression.type)
                 )
             );
         }

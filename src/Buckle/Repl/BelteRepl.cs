@@ -149,8 +149,12 @@ public sealed class BelteRepl : ReplBase {
         }
 
         if (state.showIL) {
-            var iLCode = compilation.EmitToString(BuildMode.Dotnet, "REPLSubmission", false, new string[] { });
-            _writer.Write(iLCode);
+            try {
+                var iLCode = compilation.EmitToString(BuildMode.Dotnet, "REPLSubmission", false, new string[] { });
+                _writer.Write(iLCode);
+            } catch (KeyNotFoundException) {
+                handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.FailedILGeneration()));
+            }
         }
 
         if (state.showWarnings)

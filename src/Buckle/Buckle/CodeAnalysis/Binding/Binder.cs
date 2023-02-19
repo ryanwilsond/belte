@@ -987,7 +987,7 @@ internal sealed class Binder {
             (type.isImplicit && expression.initializer is InitializerListExpressionSyntax)) {
             var initializer = (expression.initializer == null ||
                 (expression.initializer is LiteralExpressionSyntax l && l.token.kind == SyntaxKind.NullKeyword))
-                ? new BoundLiteralExpression(null)
+                ? new BoundTypeWrapper(type, new BoundConstant(null))
                 : BindExpression(expression.initializer, initializerListType: type);
 
             if (initializer is BoundInitializerListExpression il) {
@@ -1028,7 +1028,7 @@ internal sealed class Binder {
         } else {
             var initializer = expression.initializer != null
                 ? BindExpression(expression.initializer)
-                : new BoundLiteralExpression(null);
+                : new BoundTypeWrapper(type, new BoundConstant(null));
 
             var tempType = type.isImplicit ? initializer.type : type;
             var variableType = BoundType.Copy(
@@ -1643,17 +1643,13 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        // Could possible move this to ComputeConstant
-        // TODO Expand the usage of this warning
-        if (boundOp.opKind == BoundBinaryOperatorKind.EqualityEquals ||
-            boundOp.opKind == BoundBinaryOperatorKind.EqualityNotEquals ||
-            boundOp.opKind == BoundBinaryOperatorKind.LessThan ||
-            boundOp.opKind == BoundBinaryOperatorKind.LessOrEqual ||
-            boundOp.opKind == BoundBinaryOperatorKind.GreaterThan ||
-            boundOp.opKind == BoundBinaryOperatorKind.GreatOrEqual) {
+        // ? TODO Move this to ComputeConstant?
+        if (boundOp.opKind != BoundBinaryOperatorKind.NullCoalescing ||
+            boundOp.opKind != BoundBinaryOperatorKind.Is ||
+            boundOp.opKind != BoundBinaryOperatorKind.Isnt) {
             if (BoundConstant.IsNull(boundLeft.constantValue) || BoundConstant.IsNull(boundRight.constantValue)) {
                 diagnostics.Push(Warning.AlwaysValue(expression.location, null));
-                return new BoundLiteralExpression(null);
+                return new BoundTypeWrapper(boundOp.type, new BoundConstant(null));
             }
         }
 

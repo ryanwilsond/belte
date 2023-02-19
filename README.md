@@ -16,6 +16,14 @@ very easy to learn and use effectively.
 
 ___
 
+## Samples
+
+There are multiple code samples to show what the language is capable of in it's current state.
+
+More information about them [here](samples/README.md).
+
+___
+
 ## Documentation
 
 To know what makes Belte unique from other languages, read [Principles.md](docs/Principles.md).

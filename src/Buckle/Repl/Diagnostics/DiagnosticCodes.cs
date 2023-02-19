@@ -16,4 +16,5 @@ internal enum DiagnosticCode : int {
     ERR_InvalidArgument = 5,
     ERR_NoSuchFunction = 6,
     ERR_AmbiguousSignature = 7,
+    ERR_FailedILGeneration = 8,
 }
