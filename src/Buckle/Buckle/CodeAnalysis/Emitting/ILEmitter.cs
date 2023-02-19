@@ -40,12 +40,13 @@ internal sealed class ILEmitter {
     private TypeDefinition _programTypeDefinition;
     private FieldDefinition _randomFieldDefinition;
     private Stack<MethodDefinition> _methodStack = new Stack<MethodDefinition>();
+    private bool _insideMain;
 
     private ILEmitter(string moduleName, string[] references) {
         diagnostics = new BelteDiagnosticQueue();
         _namespaceName = moduleName;
 
-        var tempReferences = references.ToList();
+        var tempReferences = (references ?? new string[] {}).ToList();
         tempReferences.AddRange(new string[] {
             "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/3.1.0/ref/netcoreapp3.1/System.Console.dll",
             "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/3.1.0/ref/netcoreapp3.1/System.Runtime.dll",
@@ -217,7 +218,8 @@ internal sealed class ILEmitter {
         var isFirst = true;
         var seenTypes = new HashSet<string>();
 
-        using (var indentedTextWriter = new IndentedTextWriter(stringWriter, indentString)) {
+        using (var indentedTextWriter = new IndentedTextWriter(stringWriter, indentString))
+        using (var classCurly = new CurlyIndenter(indentedTextWriter, _programTypeDefinition.ToString())) {
             foreach (var type in _typeDefinitions) {
                 if (!seenTypes.Add(type.Key.name))
                     continue;
@@ -227,7 +229,7 @@ internal sealed class ILEmitter {
                 else
                     indentedTextWriter.WriteLine();
 
-                using (var methodCurly = new CurlyIndenter(indentedTextWriter, type.Value.ToString())) {
+                using (var structCurly = new CurlyIndenter(indentedTextWriter, type.Value.ToString())) {
                     foreach (var field in type.Value.Fields)
                         indentedTextWriter.WriteLine(field);
                 }
@@ -260,11 +262,17 @@ internal sealed class ILEmitter {
         foreach (var structWithBody in program.structMembers)
             EmitStructDeclaration(structWithBody);
 
-        foreach (var functionWithBody in program.functionBodies)
-            EmitFunctionDeclaration(functionWithBody.Key);
+        foreach (var functionWithBody in program.functionBodies) {
+            var isMain = (program.mainFunction ?? program.scriptFunction)?.MethodMatches(functionWithBody.Key) ?? false;
+            EmitFunctionDeclaration(functionWithBody.Key, isMain);
+        }
 
-        foreach (var functionWithBody in program.functionBodies)
+        foreach (var functionWithBody in program.functionBodies) {
+            _insideMain = (program.mainFunction ?? program.scriptFunction)
+                ?.MethodMatches(functionWithBody.Key) ?? false;
+
             EmitFunctionBody(functionWithBody.Key, functionWithBody.Value);
+        }
 
         if (program.mainFunction != null)
             _assemblyDefinition.EntryPoint = LookupMethod(_methods, program.mainFunction);
@@ -503,8 +511,8 @@ internal sealed class ILEmitter {
         method.Body.OptimizeMacros();
     }
 
-    private void EmitFunctionDeclaration(FunctionSymbol function) {
-        var functionType = GetType(function.type);
+    private void EmitFunctionDeclaration(FunctionSymbol function, bool isMain) {
+        var functionType = isMain ? GetType(BoundType.Copy(function.type, isNullable: false)) : GetType(function.type);
         var method = new MethodDefinition(
             function.name, MethodAttributes.Static | MethodAttributes.Private, functionType);
 
@@ -684,14 +692,23 @@ internal sealed class ILEmitter {
 
         ret
 
+        ----> inside Program.Main and <expresion> is 'null'
+
+        ldc.i4.0
+        ret
+
         ---->
 
         <expression>
         ret
 
         */
-        if (statement.expression != null)
-            EmitExpression(iLProcessor, statement.expression);
+        if (statement.expression != null) {
+            if (_insideMain && BoundConstant.IsNull(statement.expression.constantValue))
+                iLProcessor.Emit(OpCodes.Ldc_I4_0);
+            else
+                EmitExpression(iLProcessor, statement.expression);
+        }
 
         iLProcessor.Emit(OpCodes.Ret);
     }

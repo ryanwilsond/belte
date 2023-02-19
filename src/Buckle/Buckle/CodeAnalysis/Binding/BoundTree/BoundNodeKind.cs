@@ -44,4 +44,5 @@ internal enum BoundNodeKind {
     ContinueStatement,
 
     Type,
+    TypeWrapper,
 }

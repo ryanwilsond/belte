@@ -542,8 +542,10 @@ internal sealed class Binder {
             diagnostics.Push(Error.CannotConvertImplicitly(diagnosticLocation, expression.type, type, argument));
 
         if (conversion.isIdentity) {
-            if (expression is not BoundLiteralExpression le || le.type.typeSymbol != null)
+            if (expression.type.typeSymbol != null)
                 return expression;
+            else if (expression.constantValue != null)
+                return new BoundTypeWrapper(type, expression.constantValue);
         }
 
         return new BoundCastExpression(type, expression);

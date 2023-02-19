@@ -31,6 +31,29 @@ public static class Program {
         /* Belte Code */
         @"
 int Main() {
+    return null;
+}
+        ",
+        /* C# Code */
+        @"
+using System;
+using System.Collections.Generic;
+
+namespace EmitterTests;
+
+public static class Program {
+
+    public static int Main() {
+        return (0);
+    }
+
+}
+        "
+    )]
+    [InlineData(
+        /* Belte Code */
+        @"
+int Main() {
     ;
     var a = 1;
     a += (2 + 3);

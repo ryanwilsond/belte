@@ -243,8 +243,10 @@ internal abstract class BoundTreeRewriter {
     protected virtual BoundExpression RewriteConstantExpression(BoundExpression expression) {
         if (expression.constantValue.value is ImmutableArray<BoundConstant>)
             return new BoundInitializerListExpression(expression.constantValue, expression.type);
-        else
+        else if (expression is not BoundTypeWrapper)
             return new BoundLiteralExpression(expression.constantValue.value);
+        else
+            return expression;
     }
 
     protected virtual BoundExpression RewritePrefixExpression(BoundPrefixExpression expression) {

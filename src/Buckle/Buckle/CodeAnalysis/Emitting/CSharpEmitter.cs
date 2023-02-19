@@ -312,9 +312,15 @@ internal sealed class CSharpEmitter {
             indentedTextWriter.WriteLine("return;");
         } else {
             indentedTextWriter.Write("return (");
+
+            if (BoundConstant.IsNull(statement.expression.constantValue)) {
+                indentedTextWriter.WriteLine("0);");
+                return;
+            }
+
             EmitExpression(indentedTextWriter, statement.expression);
 
-            if (insideMain)
+            if (insideMain && statement.expression.type.isNullable)
                 indentedTextWriter.WriteLine(") ?? 0;");
             else
                 indentedTextWriter.WriteLine(");");

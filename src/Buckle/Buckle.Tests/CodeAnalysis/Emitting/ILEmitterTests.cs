@@ -13,7 +13,45 @@ void Main() { }
         ",
         /* IL Code */
         @"
-TODO
+<Program>$ {
+    System.Void <Program>$::Main() {
+        IL_0000: ret
+    }
+}
+        "
+    )]
+    [InlineData(
+        /* Belte Code */
+        @"
+int Main() {
+    return 0;
+}
+        ",
+        /* IL Code */
+        @"
+<Program>$ {
+    System.Int32 <Program>$::Main() {
+        IL_0000: ldc.i4.0
+        IL_0001: ret
+    }
+}
+        "
+    )]
+    [InlineData(
+        /* Belte Code */
+        @"
+int Main() {
+    return null;
+}
+        ",
+        /* IL Code */
+        @"
+<Program>$ {
+    System.Int32 <Program>$::Main() {
+        IL_0000: ldc.i4.0
+        IL_0001: ret
+    }
+}
         "
     )]
     public void Emitter_Emits_CorrectText(string text, string expectedText) {
