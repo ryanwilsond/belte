@@ -1,9 +1,12 @@
 using System;
 using Xunit;
-using static Buckle.Tests.Assertions;
+using static Buckle.Tests.Buckle.Assertions;
 
-namespace Buckle.Tests.CodeAnalysis.Emitting;
+namespace Buckle.Tests.Buckle.CodeAnalysis.Emitting;
 
+/// <summary>
+/// Tests on the <see cref="ILEmitter" /> and <see cref="CSharpEmitter" /> classes.
+/// </summary>
 public sealed class EmitterTests {
     [Theory]
     [InlineData(

@@ -4,8 +4,11 @@ using System.Linq;
 using Buckle.CodeAnalysis.Syntax;
 using Xunit;
 
-namespace Buckle.Tests.CodeAnalysis.Syntax;
+namespace Buckle.Tests.Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
+/// <summary>
+/// Tests on the <see cref="Lexer" /> class.
+/// </summary>
 public sealed class LexerTests {
     [Fact]
     public void Lexer_Lexes_UnterminatedString() {

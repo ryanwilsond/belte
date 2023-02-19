@@ -54,9 +54,18 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     /// <summary>
     /// Copies <see cref="BelteDiagnosticQueue" /> without a specific severity of <see cref="BelteDiagnostic" />.
     /// </summary>
-    /// <param name="type">Severity to not copy (see <see cref="DiagnosticType" />).</param>
+    /// <param name="types">Severities to not copy (see <see cref="DiagnosticType" />).</param>
     /// <returns>New, unlinked <see cref="BelteDiagnosticQueue" />.</returns>
-    public new BelteDiagnosticQueue FilterOut(DiagnosticType type) {
-        return new BelteDiagnosticQueue(AsList().Where(d => d.info.severity != type));
+    public BelteDiagnosticQueue FilterOut(params DiagnosticType[] types) {
+        return new BelteDiagnosticQueue(AsList().Where(d => !types.Contains(d.info.severity)));
+    }
+
+    /// <summary>
+    /// Copies <see cref="BelteDiagnosticQueue" /> only with a specific severity of <see cref="BelteDiagnostic" />.
+    /// </summary>
+    /// <param name="types">Severities to copy (see <see cref="DiagnosticType" />).</param>
+    /// <returns>New, unlinked <see cref="BelteDiagnosticQueue" />.</returns>
+    public BelteDiagnosticQueue Filter(params DiagnosticType[] types) {
+        return new BelteDiagnosticQueue(AsList().Where(d => types.Contains(d.info.severity)));
     }
 }

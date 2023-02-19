@@ -1,10 +1,13 @@
 using System;
 using Xunit;
 using Xunit.Abstractions;
-using static Buckle.Tests.Assertions;
+using static Buckle.Tests.Buckle.Assertions;
 
-namespace Buckle.Tests;
+namespace Buckle.Tests.Buckle;
 
+/// <summary>
+/// Tests that were added in result to a bug.
+/// </summary>
 public sealed class IssueTests {
     private readonly ITestOutputHelper writer;
 

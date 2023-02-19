@@ -1,8 +1,11 @@
 using Xunit;
-using static Buckle.Tests.Assertions;
+using static Buckle.Tests.Buckle.Assertions;
 
-namespace Buckle.Tests.CodeAnalysis.Evaluating;
+namespace Buckle.Tests.Buckle.CodeAnalysis.Evaluating;
 
+/// <summary>
+/// Tests on the <see cref="Evaluator" /> class.
+/// </summary>
 public sealed class EvaluatorTests {
     [Theory]
     // Empty expressions

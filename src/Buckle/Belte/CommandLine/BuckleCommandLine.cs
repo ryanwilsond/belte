@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using Buckle;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -30,6 +31,7 @@ public static partial class BuckleCommandLine {
     /// Processes/decodes command-line arguments, and invokes <see cref="Compiler" />.
     /// </summary>
     /// <param name="args">Command-line arguments from Main.</param>
+    /// <param name="appSettings">Settings from the App.config.</param>
     /// <returns>Error code, 0 = success.</returns>
     public static int ProcessArgs(string[] args, AppSettings appSettings) {
         int err;
@@ -45,32 +47,16 @@ public static partial class BuckleCommandLine {
 
         if (!Directory.Exists(appSettings.resourcesPath)) {
             corrupt = true;
-            ResolveDiagnostic(Belte.Diagnostics.Warning.CorruptInstallation(), compiler.me, compiler.state.options);
-        }
-
-        if (hasDialog)
-            diagnostics.Clear();
-
-        if (dialogs.machine)
-            ShowMachineDialog();
-
-        if (dialogs.version)
-            ShowVersionDialog();
-
-        if (dialogs.help && !corrupt)
-            ShowHelpDialog(appSettings);
-
-        if (dialogs.error != null && !corrupt) {
-            ShowErrorHelp(dialogs.error, appSettings, out DiagnosticQueue<Diagnostic> dialogDiagnostics);
-            diagnostics.Move(dialogDiagnostics);
+            ResolveDiagnostic(Belte.Diagnostics.Warning.CorruptInstallation(), compiler.me, compiler.state);
         }
 
         if (hasDialog) {
-            ResolveDiagnostics(diagnostics, compiler.me, compiler.state.options);
+            diagnostics.Clear();
+            diagnostics.Move(ShowDialogs(dialogs, corrupt, appSettings));
+            ResolveDiagnostics(diagnostics, compiler.me, compiler.state);
+
             return SuccessExitCode;
         }
-
-        err = ResolveDiagnostics(diagnostics, compiler.me, compiler.state.options);
 
         // Only mode that does not go through one-time compilation
         if (compiler.state.buildMode == BuildMode.Repl) {
@@ -80,13 +66,15 @@ public static partial class BuckleCommandLine {
             return SuccessExitCode;
         }
 
+        err = ResolveDiagnostics(diagnostics, compiler.me, compiler.state);
+
         if (err > 0)
             return err;
 
         ResolveOutputFiles(compiler);
         ReadInputFiles(compiler, out diagnostics);
 
-        err = ResolveDiagnostics(diagnostics, compiler.me, compiler.state.options);
+        err = ResolveDiagnostics(diagnostics, compiler.me, compiler.state);
 
         if (err > 0)
             return err;
@@ -99,6 +87,61 @@ public static partial class BuckleCommandLine {
             return err;
 
         return SuccessExitCode;
+    }
+
+    /// <summary>
+    /// Processes/decodes command-line arguments, and then exits.
+    /// </summary>
+    /// <param name="args">Command-line arguments from Main.</param>
+    /// <param name="appSettings">App settings.</param>
+    /// <param name="diagnostics">Where to store produced diagnostics.</param>
+    [ConditionalAttribute("DEBUG")]
+    internal static void ProcessArgs(
+        string[] args, AppSettings appSettings, ref DiagnosticQueue<Diagnostic> diagnostics) {
+        var compiler = new Compiler();
+        compiler.me = Process.GetCurrentProcess().ProcessName;
+        compiler.state = DecodeOptions(args, out diagnostics, out ShowDialogs dialogs);
+
+        var hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error != null;
+        var corrupt = false;
+
+        if (!Directory.Exists(appSettings.resourcesPath)) {
+            corrupt = true;
+            diagnostics.Push(Belte.Diagnostics.Warning.CorruptInstallation());
+        }
+
+        if (hasDialog) {
+            diagnostics.Clear();
+            diagnostics.Move(ShowDialogs(dialogs, corrupt, appSettings));
+            return;
+        }
+
+        if (compiler.state.buildMode == BuildMode.Repl)
+            return;
+
+        ResolveOutputFiles(compiler);
+        ReadInputFiles(compiler, out var readInputDiagnostics);
+        diagnostics.Move(readInputDiagnostics);
+
+        compiler.Compile();
+    }
+
+    private static DiagnosticQueue<Diagnostic> ShowDialogs(ShowDialogs dialogs, bool corrupt, AppSettings appSettings) {
+        DiagnosticQueue<Diagnostic> diagnostics = new DiagnosticQueue<Diagnostic>();
+
+        if (dialogs.machine)
+            ShowMachineDialog();
+
+        if (dialogs.version)
+            ShowVersionDialog();
+
+        if (dialogs.help && !corrupt)
+            ShowHelpDialog(appSettings);
+
+        if (dialogs.error != null && !corrupt)
+            ShowErrorHelp(dialogs.error, appSettings, out diagnostics);
+
+        return diagnostics;
     }
 
     private static void ShowErrorHelp(
@@ -280,7 +323,7 @@ public static partial class BuckleCommandLine {
     }
 
     private static DiagnosticType ResolveDiagnostic<Type>(
-        Type diagnostic, string me, string[] options, ConsoleColor? textColor = null)
+        Type diagnostic, string me, CompilerState state, ConsoleColor? textColor = null)
         where Type : Diagnostic {
         var previous = Console.ForegroundColor;
 
@@ -293,14 +336,17 @@ public static partial class BuckleCommandLine {
 
         var severity = diagnostic.info.severity;
 
-        if (severity == DiagnosticType.Warning && options.Contains("error"))
+        if (severity == DiagnosticType.Warning && state.options.Contains("error"))
             severity = DiagnosticType.Error;
-        if (severity == DiagnosticType.Warning && options.Contains("ignore"))
+        if (severity == DiagnosticType.Warning && state.options.Contains("ignore"))
             severity = DiagnosticType.Unknown;
 
         ResetColor();
 
-        if (severity == DiagnosticType.Unknown) {
+        if (severity == DiagnosticType.Unknown ||
+            (state.buildMode == BuildMode.Interpret &&
+             severity == DiagnosticType.Warning &&
+             !state.options.Contains("all"))) {
             // Ignore
         } else if (diagnostic.info.module != "BU" || (diagnostic is BelteDiagnostic bd && bd.location == null)) {
             Console.Write($"{me}: ");
@@ -323,7 +369,7 @@ public static partial class BuckleCommandLine {
             ResetColor();
             Console.WriteLine(diagnostic.message);
         } else {
-            PrettyPrintDiagnostic(diagnostic as BelteDiagnostic, textColor, options);
+            PrettyPrintDiagnostic(diagnostic as BelteDiagnostic, textColor, state.options);
         }
 
         Console.ForegroundColor = previous;
@@ -332,7 +378,7 @@ public static partial class BuckleCommandLine {
     }
 
     private static int ResolveDiagnostics<Type>(
-        DiagnosticQueue<Type> diagnostics, string me, string[] options, ConsoleColor? textColor = null)
+        DiagnosticQueue<Type> diagnostics, string me, CompilerState state, ConsoleColor? textColor = null)
         where Type : Diagnostic {
         if (diagnostics.count == 0)
             return SuccessExitCode;
@@ -341,7 +387,7 @@ public static partial class BuckleCommandLine {
         var diagnostic = diagnostics.Pop();
 
         while (diagnostic != null) {
-            var temp = ResolveDiagnostic(diagnostic, me, options, textColor);
+            var temp = ResolveDiagnostic(diagnostic, me, state, textColor);
 
             switch (temp) {
                 case DiagnosticType.Warning:
@@ -380,7 +426,7 @@ public static partial class BuckleCommandLine {
 
     private static int ResolveDiagnostics(
         Compiler compiler, string me = null, ConsoleColor textColor = ConsoleColor.White) {
-        return ResolveDiagnostics(compiler.diagnostics, me ?? compiler.me, compiler.state.options, textColor);
+        return ResolveDiagnostics(compiler.diagnostics, me ?? compiler.me, compiler.state, textColor);
     }
 
     private static void ProduceOutputFiles(Compiler compiler) {
@@ -429,15 +475,46 @@ public static partial class BuckleCommandLine {
 
         for (int i=0; i<compiler.state.tasks.Length; i++) {
             ref var task = ref compiler.state.tasks[i];
+            var opened = false;
 
             switch (task.stage) {
                 case CompilerStage.Raw:
                 case CompilerStage.Preprocessed:
                 case CompilerStage.Compiled:
-                    task.fileContent.text = File.ReadAllText(task.inputFilename);
+                    for (int j=0; j<3; j++) {
+                        try {
+                            task.fileContent.text = File.ReadAllText(task.inputFilename);
+                            opened = true;
+                            break;
+                        } catch (IOException) {
+                            Thread.Sleep(100);
+
+                            if (j == 2)
+                                throw;
+                        }
+                    }
+
+                    if (!opened)
+                        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(task.inputFilename));
+
                     break;
                 case CompilerStage.Assembled:
-                    task.fileContent.bytes = File.ReadAllBytes(task.inputFilename).ToList();
+                    for (int j=0; j<3; j++) {
+                        try {
+                            task.fileContent.bytes = File.ReadAllBytes(task.inputFilename).ToList();
+                            opened = true;
+                            break;
+                        } catch (IOException) {
+                            Thread.Sleep(100);
+
+                            if (j == 2)
+                                throw;
+                        }
+                    }
+
+                    if (!opened)
+                        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(task.inputFilename));
+
                     break;
                 case CompilerStage.Linked:
                     diagnostics.Push(Belte.Diagnostics.Warning.IgnoringCompiledFile(task.inputFilename));

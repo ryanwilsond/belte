@@ -110,22 +110,17 @@ public sealed class Compiler {
         var compilation = Compilation.Create(false, syntaxTrees.ToArray());
         diagnostics.Move(compilation.diagnostics);
 
-        if (!state.options.Contains("all") && !state.options.Contains("error"))
-            diagnostics = diagnostics.FilterOut(DiagnosticType.Warning);
-
-        if ((diagnostics.FilterOut(DiagnosticType.Warning).Any()) ||
-            (diagnostics.Any() && state.options.Contains("error")))
+        if ((diagnostics.Filter(DiagnosticType.Error, DiagnosticType.Fatal).Any()) ||
+            (diagnostics.Any() && state.options.Contains("error") && !state.options.Contains("ignore"))) {
             return;
+        }
 
         var _ = false; // Unused, just to satisfy ref parameter
         var result = compilation.Evaluate(
             new Dictionary<VariableSymbol, EvaluatorObject>(), ref _, state.options.Contains("error")
         );
 
-        if (!state.options.Contains("all") && !state.options.Contains("error"))
-            diagnostics.Move(result.diagnostics.FilterOut(DiagnosticType.Warning));
-        else
-            diagnostics.Move(result.diagnostics);
+        diagnostics.Move(result.diagnostics);
     }
 
     private void InternalCompiler() {

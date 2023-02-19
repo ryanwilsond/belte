@@ -65,6 +65,12 @@ buckle -d Program.ble --ref=Path/To/System.Console.dll // Correct
 It is important to note that 'System.Console.dll', 'System.Runtime.dll', and
 'System.Runtime.Extensions.dll' are always included references, so they do not
 need to be added manually. 'System.Console.dll' was purely used as an example.
+$BU0006
+When the compiler attempts to read the files passed on the command line and
+fails, this error is produced. This is most likely due to another process using
+the file, so a common way to fix this error is to just retry. If that does not
+fix the issue, double check the file passed is unlocked. If the problem
+persists, submit a bug report.
 $CL0007
 The '-W' command-line option is used to tell the compiler special ways to handle
 warnings. This can either be '-Werror' to treat all warnings as errors,

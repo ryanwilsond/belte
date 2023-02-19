@@ -66,8 +66,9 @@ resources:
 	@$(CP) -a $(REPLDIR)/Resources/. Resources
 	@echo "    Finished"
 
+.PHONY: test
 test:
-	@echo Started testing the Buckle project
+	@echo Started testing the Buckle solution ...
 	@dotnet test $(TESTDIR)/Buckle.Tests.csproj
 	@echo "    Finished"
 

@@ -1,7 +1,5 @@
-
 using System;
 using System.Collections.Generic;
-using System.IO;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.Symbols;
@@ -11,8 +9,11 @@ using Diagnostics;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Buckle.Tests;
+namespace Buckle.Tests.Buckle;
 
+/// <summary>
+/// All assertions used by Buckle tests.
+/// </summary>
 internal static class Assertions {
     /// <summary>
     /// Asserts that a piece of Belte code evaluates to a value.
@@ -117,6 +118,12 @@ internal static class Assertions {
         }
     }
 
+    /// <summary>
+    /// Asserts that a piece of Belte code emits into the expected text.
+    /// </summary>
+    /// <param name="text">Belte code.</param>
+    /// <param name="expectedText">Expected text after emitting.</param>
+    /// <param name="buildMode">Which emitter to use.</param>
     internal static void AssertText(string text, string expectedText, BuildMode buildMode) {
         var syntaxTree = SyntaxTree.Parse(text);
         var compilation = Compilation.Create(true, syntaxTree);

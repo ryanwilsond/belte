@@ -1,8 +1,11 @@
 using Buckle.CodeAnalysis.Text;
 using Xunit;
 
-namespace Buckle.Tests.CodeAnalysis.Text;
+namespace Buckle.Tests.Tests.CodeAnalysis.Text;
 
+/// <summary>
+/// Tests on the <see cref="SourceText" /> class.
+/// </summary>
 public sealed class SourceTextTests {
     [Theory]
     [InlineData(".", 1)]

@@ -525,13 +525,9 @@ public sealed class BelteRepl : ReplBase {
                 File.WriteAllLines(path, subset);
                 wrote = true;
                 break;
-            } catch (Exception) {
+            } catch (IOException) {
                 // In case file is being used by another process, retry
                 Thread.Sleep(100);
-
-                // If there is an exception unrelated to the file being used, it should be shown
-                if (i == 2)
-                    throw;
             }
         }
 
