@@ -64,13 +64,27 @@ internal sealed class BoundUnaryOperator {
     /// <param name="operandType">Operand <see cref="BoundType" />.</param>
     /// <returns><see cref="BoundUnaryOperator" /> if an operator exists, otherwise null.</returns>
     internal static BoundUnaryOperator Bind(SyntaxKind kind, BoundType operandType) {
-        var nonNullableOperand = BoundType.NonNullable(operandType);
+        var nonNullableOperand = BoundType.Copy(operandType, isNullable: false);
 
         foreach (var op in _operators) {
-            var operandIsCorrect = Cast.Classify(nonNullableOperand, op.operandType).isImplicit;
+            var operandIsCorrect = op.operandType == null
+                ? true
+                : Cast.Classify(nonNullableOperand, op.operandType).isImplicit;
 
-            if (op.kind == kind && operandIsCorrect)
-                return op;
+            if (op.kind == kind && operandIsCorrect) {
+                if (op.operandType == null) {
+                    return new BoundUnaryOperator(kind, op.opKind, operandType);
+                } else if (operandType.isNullable) {
+                    return new BoundUnaryOperator(
+                        kind,
+                        op.opKind,
+                        BoundType.Copy(op.operandType, isNullable: true),
+                        BoundType.Copy(op.type, isNullable: true)
+                    );
+                } else {
+                    return op;
+                }
+            }
         }
 
         return null;

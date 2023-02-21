@@ -1643,10 +1643,11 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        // ? TODO Move this to ComputeConstant?
-        if (boundOp.opKind != BoundBinaryOperatorKind.NullCoalescing ||
-            boundOp.opKind != BoundBinaryOperatorKind.Is ||
-            boundOp.opKind != BoundBinaryOperatorKind.Isnt) {
+        if (boundOp.opKind != BoundBinaryOperatorKind.NullCoalescing &&
+            boundOp.opKind != BoundBinaryOperatorKind.Is &&
+            boundOp.opKind != BoundBinaryOperatorKind.Isnt &&
+            boundOp.opKind != BoundBinaryOperatorKind.ConditionalAnd &&
+            boundOp.opKind != BoundBinaryOperatorKind.ConditionalOr) {
             if (BoundConstant.IsNull(boundLeft.constantValue) || BoundConstant.IsNull(boundRight.constantValue)) {
                 diagnostics.Push(Warning.AlwaysValue(expression.location, null));
                 return new BoundTypeWrapper(boundOp.type, new BoundConstant(null));

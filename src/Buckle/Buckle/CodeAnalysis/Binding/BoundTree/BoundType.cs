@@ -158,25 +158,7 @@ internal sealed class BoundType : BoundNode {
     }
 
     /// <summary>
-    /// If the <see cref="BoundType.typeSymbol" />, <see cref="BoundType.isReference" />,
-    /// and <see cref="BoundType.dimensions" /> are the same between the two types.
-    /// </summary>
-    /// <param name="a"><see cref="BoundType" /> to compare.</param>
-    /// <param name="b"><see cref="BoundType" /> to compare.</param>
-    /// <returns>If described fields match.</returns>
-    internal static bool AboutEqual(BoundType a, BoundType b) {
-        if (a.typeSymbol != b.typeSymbol)
-            return false;
-        if (a.isReference != b.isReference)
-            return false;
-        if (a.dimensions != b.dimensions)
-            return false;
-
-        return true;
-    }
-
-    /// <summary>
-    /// If all fields are the same between the two types, they do not need to reference the same object in memory.
+    /// If two types are the same.
     /// </summary>
     /// <param name="a"><see cref="BoundType" /> to compare.</param>
     /// <param name="b"><see cref="BoundType" /> to compare.</param>
@@ -225,13 +207,6 @@ internal sealed class BoundType : BoundNode {
             dimensions ?? type.dimensions
         );
     }
-
-    /// <summary>
-    /// Copies all data to a new <see cref="BoundType" />, but makes the new <see cref="BoundType" /> non nullable.
-    /// </summary>
-    /// <param name="type"><see cref="BoundType" /> to copy.</param>
-    /// <returns>Non nullable copy <see cref="BoundType" />.</returns>
-    internal static BoundType NonNullable(BoundType type) => Copy(type, isNullable: false);
 
     /// <summary>
     /// The item <see cref="BoundType" /> if this <see cref="BoundType" /> is an array, otherwise null.

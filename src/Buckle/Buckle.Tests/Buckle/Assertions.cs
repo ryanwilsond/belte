@@ -126,7 +126,7 @@ internal static class Assertions {
     /// <param name="buildMode">Which emitter to use.</param>
     internal static void AssertText(string text, string expectedText, BuildMode buildMode) {
         var syntaxTree = SyntaxTree.Parse(text);
-        var compilation = Compilation.Create(true, syntaxTree);
+        var compilation = Compilation.Create(buildMode == BuildMode.CSharpTranspile, syntaxTree);
         var result = compilation.EmitToString(buildMode, "EmitterTests", false);
 
         Assert.Empty(compilation.diagnostics.FilterOut(DiagnosticType.Warning).ToArray());

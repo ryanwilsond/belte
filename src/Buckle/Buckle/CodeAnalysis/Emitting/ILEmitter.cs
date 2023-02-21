@@ -50,10 +50,11 @@ internal sealed class ILEmitter {
         _namespaceName = moduleName;
 
         var tempReferences = (references ?? new string[] {}).ToList();
+        // ! TODO This will break really easy, need a different solution
         tempReferences.AddRange(new string[] {
-            "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/3.1.0/ref/netcoreapp3.1/System.Console.dll",
-            "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/3.1.0/ref/netcoreapp3.1/System.Runtime.dll",
-            "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/3.1.0/ref/netcoreapp3.1/System.Runtime.Extensions.dll"
+            "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/7.0.3/ref/net7.0/System.Console.dll",
+            "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/7.0.3/ref/net7.0/System.Runtime.dll",
+            "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/7.0.3/ref/net7.0/System.Runtime.Extensions.dll"
         });
 
         references = tempReferences.ToArray();
