@@ -8,20 +8,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundLiteralExpression : BoundExpression {
     internal BoundLiteralExpression(object value, bool isArtificial = false) {
-        if (value is bool)
-            type = new BoundType(TypeSymbol.Bool, isLiteral: true);
-        else if (value is int)
-            type = new BoundType(TypeSymbol.Int, isLiteral: true);
-        else if (value is string)
-            type = new BoundType(TypeSymbol.String, isLiteral: true);
-        else if (value is double)
-            type = new BoundType(TypeSymbol.Decimal, isLiteral: true);
-        else if (value == null)
-            type = new BoundType(null, isLiteral: true, isNullable: true);
-        else
-            throw new BelteInternalException(
-                $"BoundLiteralExpression: unexpected literal '{value}' of type '{value.GetType()}'");
-
+        type = BoundType.Assume(value);
         this.isArtificial = isArtificial;
         constantValue = new BoundConstant(value);
     }

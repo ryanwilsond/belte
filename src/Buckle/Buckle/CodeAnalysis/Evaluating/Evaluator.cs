@@ -104,7 +104,7 @@ internal sealed class Evaluator {
 
     private EvaluatorObject GetFrom(Dictionary<VariableSymbol, EvaluatorObject> variables, VariableSymbol variable) {
         foreach (var pair in variables) {
-            if (variable.name == pair.Key.name && BoundType.Equals(variable.type, pair.Key.type))
+            if (variable.name == pair.Key.name && variable.type.Equals(pair.Key.type))
                 return pair.Value;
         }
 

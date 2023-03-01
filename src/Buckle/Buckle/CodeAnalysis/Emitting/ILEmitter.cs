@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -50,11 +51,10 @@ internal sealed class ILEmitter {
         _namespaceName = moduleName;
 
         var tempReferences = (references ?? new string[] {}).ToList();
-        // ! TODO This will break really easy, need a different solution
         tempReferences.AddRange(new string[] {
-            "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/7.0.3/ref/net7.0/System.Console.dll",
-            "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/7.0.3/ref/net7.0/System.Runtime.dll",
-            "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/7.0.3/ref/net7.0/System.Runtime.Extensions.dll"
+            LocateSystemDLL("System.Console.dll"),
+            LocateSystemDLL("System.Runtime.dll"),
+            LocateSystemDLL("System.Runtime.Extensions.dll")
         });
 
         references = tempReferences.ToArray();
@@ -203,6 +203,20 @@ internal sealed class ILEmitter {
         BoundProgram program, string moduleName, string[] references, out BelteDiagnosticQueue diagnostics) {
         var emitter = new ILEmitter(moduleName, references);
         return emitter.EmitToString(program, out diagnostics);
+    }
+
+    private static string LocateSystemDLL(string dllName) {
+        // ! Not fully tested
+        var basePath = "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref";
+        var frameworkVersion = RuntimeInformation.FrameworkDescription.Split(' ');
+        var fullVersion = frameworkVersion.Contains("Core") || frameworkVersion.Contains("Framework")
+            ? frameworkVersion[2]
+            : frameworkVersion[1];
+
+        var majorMinorVersion = string.Join('.', fullVersion.Split('.').Take(2));
+        var fullPath = Path.Combine(basePath, fullVersion, $"ref/net{majorMinorVersion}", dllName);
+
+        return fullPath;
     }
 
     private static string GetSafeName(string name) {
@@ -958,6 +972,8 @@ internal sealed class ILEmitter {
                 else
                     iLProcessor.Emit(OpCodes.Stelem_Ref);
             }
+
+            return;
         }
 
         if (expressionType == TypeSymbol.Int) {
@@ -973,9 +989,13 @@ internal sealed class ILEmitter {
         } else if (expressionType == TypeSymbol.Decimal) {
             var value = Convert.ToSingle(constant.value);
             iLProcessor.Emit(OpCodes.Ldc_R4, value);
+        } else if (expressionType == TypeSymbol.Any) {
+            var assumedType = BoundType.Assume(constant.value);
+            EmitBoundConstant(iLProcessor, constant, assumedType);
+            iLProcessor.Emit(OpCodes.Box, GetType(assumedType));
         } else {
             throw new BelteInternalException(
-                $"EmitConstantExpression: unexpected constant expression type '{expressionType}'"
+                $"EmitBoundConstant: unexpected constant expression type '{expressionType}'"
             );
         }
     }

@@ -16,14 +16,24 @@ public sealed class DiagnosticTests {
 
     [Fact]
     public void Reports_Error_CL0001_MissingFilenameO() {
-        var file = "reports_error_cl0001_missingfilename0.blt";
-        var args = new string[] { file, "-o" };
+        var args = new string[] { "-o" };
 
         var diagnostics = @"
             missing filename after '-o'
         ";
 
-        AssertDiagnostics(args, diagnostics, writer, false, file);
+        AssertDiagnostics(args, diagnostics, writer);
+    }
+
+    [Fact]
+    public void Reports_Error_CL0002_MultipleExplains() {
+        var args = new string[] { "--explain1", "--explain2" };
+
+        var diagnostics = @"
+            cannot specify '--explain' more than once
+        ";
+
+        AssertDiagnostics(args, diagnostics, writer);
     }
 
     // TODO All the other ones

@@ -15,6 +15,9 @@ SSLN:=src/Sander/Sander.sln
 CP=cp
 RM=rm
 
+RESOURCES:=Resources
+TESTRESRC:=$(TESTDIR)/bin/Debug/${NETVER}/${RESOURCES}
+
 all: build
 
 build: presetup debugbuild debugcopy resources setup
@@ -59,16 +62,21 @@ setup:
 .PHONY: resources
 resources:
 	@echo Started coping resources for the Buckle solution ...
-	@$(RM) -f -r Resources
-	@mkdir Resources
-	@$(CP) -a $(PROJDIR)/Resources/. Resources
-	@$(CP) -a $(BUCKDIR)/Resources/. Resources
-	@$(CP) -a $(REPLDIR)/Resources/. Resources
+	@$(RM) -f -r ${RESOURCES}
+	@mkdir ${RESOURCES}
+	@$(CP) -a $(PROJDIR)/${RESOURCES}/. ${RESOURCES}
+	@$(CP) -a $(BUCKDIR)/${RESOURCES}/. ${RESOURCES}
+	@$(CP) -a $(REPLDIR)/${RESOURCES}/. ${RESOURCES}
 	@echo "    Finished"
 
 .PHONY: test
 test:
 	@echo Started testing the Buckle solution ...
+	@$(RM) -f -r $(TESTRESRC)
+	@mkdir $(TESTRESRC)
+	@$(CP) -a $(PROJDIR)/${RESOURCES}/. $(TESTRESRC)
+	@$(CP) -a $(BUCKDIR)/${RESOURCES}/. $(TESTRESRC)
+	@$(CP) -a $(REPLDIR)/${RESOURCES}/. $(TESTRESRC)
 	@dotnet test $(TESTDIR)/Buckle.Tests.csproj
 	@echo "    Finished"
 
@@ -91,7 +99,7 @@ clean:
 
 hardclean: clean
 	@dotnet clean $(SLN)
-	@$(RM) -f -r Resources
+	@$(RM) -f -r ${RESOURCES}
 	@echo Hard cleaned the project
 
 sandersetup:

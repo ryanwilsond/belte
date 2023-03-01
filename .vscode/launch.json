@@ -13,6 +13,7 @@
             //     "-o samples/Hello/obj/Debug/netcoreapp3.1/Hello.dll"
             // ],
             "args": ["-r"],
+            // "args": ["temp.blt", "-t"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "stopAtEntry": false,

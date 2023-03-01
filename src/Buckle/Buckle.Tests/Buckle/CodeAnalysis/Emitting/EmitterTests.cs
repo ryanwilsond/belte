@@ -556,12 +556,12 @@ public static class Program {
     }
 
     public static void Main() {
-        A g = (A)new A();
+        A g = new A();
         g.a = 5;
         Nullable<bool> c = g.b;
-        Nullable<bool> d = (Nullable<bool>)Convert.ToBoolean(!c.HasValue);
+        Nullable<bool> d = !c.HasValue;
         A h = null;
-        Nullable<int> j = (((h) is not null) ? h.a : null);
+        Nullable<int> j = (h is not null ? h.a : null);
         Console.WriteLine((object)!j.HasValue);
         return;
     }

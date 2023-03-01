@@ -26,10 +26,12 @@ internal sealed class BelteInternalException : BelteException {
 
     private static string CreateMessage(string message) {
         var title = Uri.EscapeDataString(message);
+        // First 3 traces are from BelteInternalException, 4th one is where the exception was actually thrown
+        var trace = string.Join(Environment.NewLine, Environment.StackTrace.Split(Environment.NewLine)[3]);
         var body = Uri.EscapeDataString($@"
 **Fatal Exception**
 
-{Environment.StackTrace}
+{trace}
 
 **To Reproduce**
 Steps to reproduce the behavior:

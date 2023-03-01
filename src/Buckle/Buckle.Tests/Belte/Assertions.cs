@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Belte;
 using Belte.CommandLine;
 using Diagnostics;
@@ -25,15 +26,18 @@ internal static class Assertions {
         bool assertWarnings = false, params string[] filesToCreate) {
         var appSettings = new AppSettings();
         appSettings.executingPath = AppDomain.CurrentDomain.BaseDirectory;
-        appSettings.resourcesPath = appSettings.executingPath;
+        appSettings.resourcesPath = Path.Combine(appSettings.executingPath, "Resources");
 
-        foreach (var file in filesToCreate) {
+        var firstArgFilename = "BelteTestsAssertDiagnosticDefaultFile.blt";
+        var argsList = args.ToList().Append(firstArgFilename);
+
+        foreach (var file in filesToCreate.ToList().Append(firstArgFilename)) {
             var fileStream = File.Create(Path.Combine(appSettings.executingPath, file));
             fileStream.Close();
         }
 
         var diagnostics = new DiagnosticQueue<Diagnostic>();
-        BuckleCommandLine.ProcessArgs(args, appSettings, ref diagnostics);
+        BuckleCommandLine.ProcessArgs(argsList.ToArray(), appSettings, ref diagnostics);
 
         var expectedDiagnostics = AnnotatedText.UnindentLines(diagnosticText);
 
@@ -42,7 +46,7 @@ internal static class Assertions {
             : diagnostics.FilterOut(DiagnosticType.Warning);
 
         if (expectedDiagnostics.Length != diagnostics.count) {
-            writer.WriteLine($"Input: {String.Join(' ', args)}");
+            writer.WriteLine($"Input: {String.Join(' ', argsList)}");
 
             foreach (var diagnostic in diagnostics.AsList())
                 writer.WriteLine($"Diagnostic ({diagnostic.info.severity}): {diagnostic.message}");

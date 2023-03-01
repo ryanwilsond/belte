@@ -22,7 +22,7 @@ internal static class Error {
     /// CL0002. Run `buckle --explain CL0002` on the command line for more info.
     /// </summary>
     internal static Diagnostic MultipleExplains() {
-        var message = "'--explain' specified more than once";
+        var message = "cannot specify '--explain' more than once";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MultipleExplains), message);
     }
 

@@ -37,10 +37,7 @@ public static partial class BuckleCommandLine {
         int err;
         var compiler = new Compiler();
         compiler.me = Process.GetCurrentProcess().ProcessName;
-
-        compiler.state = DecodeOptions(
-            args, out DiagnosticQueue<Diagnostic> diagnostics, out ShowDialogs dialogs
-        );
+        compiler.state = DecodeOptions(args, out var diagnostics, out var dialogs, out var multipleExplains);
 
         var hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error != null;
         var corrupt = false;
@@ -49,6 +46,9 @@ public static partial class BuckleCommandLine {
             corrupt = true;
             ResolveDiagnostic(Belte.Diagnostics.Warning.CorruptInstallation(), compiler.me, compiler.state);
         }
+
+        if (multipleExplains)
+            ResolveDiagnostic(Belte.Diagnostics.Error.MultipleExplains(), compiler.me, compiler.state);
 
         if (hasDialog) {
             diagnostics.Clear();
@@ -100,7 +100,7 @@ public static partial class BuckleCommandLine {
         string[] args, AppSettings appSettings, ref DiagnosticQueue<Diagnostic> diagnostics) {
         var compiler = new Compiler();
         compiler.me = Process.GetCurrentProcess().ProcessName;
-        compiler.state = DecodeOptions(args, out diagnostics, out ShowDialogs dialogs);
+        compiler.state = DecodeOptions(args, out diagnostics, out var dialogs, out var multipleExplains);
 
         var hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error != null;
         var corrupt = false;
@@ -109,6 +109,9 @@ public static partial class BuckleCommandLine {
             corrupt = true;
             diagnostics.Push(Belte.Diagnostics.Warning.CorruptInstallation());
         }
+
+        if (multipleExplains)
+            ResolveDiagnostic(Belte.Diagnostics.Error.MultipleExplains(), compiler.me, compiler.state);
 
         if (hasDialog) {
             diagnostics.Clear();
@@ -526,7 +529,8 @@ public static partial class BuckleCommandLine {
     }
 
     private static CompilerState DecodeOptions(
-        string[] args, out DiagnosticQueue<Diagnostic> diagnostics, out ShowDialogs dialogs) {
+        string[] args, out DiagnosticQueue<Diagnostic> diagnostics,
+        out ShowDialogs dialogs, out bool multipleExplains) {
         var state = new CompilerState();
         var tasks = new List<FileState>();
         var references = new List<string>();
@@ -544,6 +548,7 @@ public static partial class BuckleCommandLine {
         tempDialogs.machine = false;
         tempDialogs.version = false;
         tempDialogs.error = null;
+        multipleExplains = false;
 
         state.buildMode = BuildMode.Independent;
         state.finishStage = CompilerStage.Linked;
@@ -614,7 +619,7 @@ public static partial class BuckleCommandLine {
                     diagnostics.Push(Belte.Diagnostics.Error.MissingFilenameO());
             } else if (arg.StartsWith("--explain")) {
                 if (tempDialogs.error != null) {
-                    diagnostics.Push(Belte.Diagnostics.Error.MultipleExplains());
+                    multipleExplains = true;
                     continue;
                 }
 

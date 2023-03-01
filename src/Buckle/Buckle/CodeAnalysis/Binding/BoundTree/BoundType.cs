@@ -1,4 +1,5 @@
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -158,34 +159,6 @@ internal sealed class BoundType : BoundNode {
     }
 
     /// <summary>
-    /// If two types are the same.
-    /// </summary>
-    /// <param name="a"><see cref="BoundType" /> to compare.</param>
-    /// <param name="b"><see cref="BoundType" /> to compare.</param>
-    /// <returns>If all fields match.</returns>
-    internal static bool Equals(BoundType a, BoundType b) {
-        // A little brute force
-        if (a.typeSymbol != b.typeSymbol)
-            return false;
-        if (a.isImplicit != b.isImplicit)
-            return false;
-        if (a.isConstantReference != b.isConstantReference)
-            return false;
-        if (a.isReference != b.isReference)
-            return false;
-        if (a.isConstant != b.isConstant)
-            return false;
-        if (a.isNullable != b.isNullable)
-            return false;
-        if (a.isLiteral != b.isLiteral)
-            return false;
-        if (a.dimensions != b.dimensions)
-            return false;
-
-        return true;
-    }
-
-    /// <summary>
     /// Copies all data to a new <see cref="BoundType" />, not a reference.
     /// Optionally, any specific override values available in the constructor can be specified.
     /// </summary>
@@ -206,6 +179,52 @@ internal sealed class BoundType : BoundNode {
             isLiteral ?? type.isLiteral,
             dimensions ?? type.dimensions
         );
+    }
+
+    /// <summary>
+    /// Assumes the type of a value.
+    /// </summary>
+    /// <param name="value">Value to assume <see cref="BoundType" /> from.</param>
+    /// <returns>The assumed <see cref="BoundType" />.</returns>
+    internal static BoundType Assume(object value) {
+        if (value is bool)
+            return new BoundType(TypeSymbol.Bool, isLiteral: true);
+        if (value is int)
+            return new BoundType(TypeSymbol.Int, isLiteral: true);
+        if (value is string)
+            return new BoundType(TypeSymbol.String, isLiteral: true);
+        if (value is double)
+            return new BoundType(TypeSymbol.Decimal, isLiteral: true);
+        if (value == null)
+            return new BoundType(null, isLiteral: true, isNullable: true);
+        else
+            throw new BelteInternalException($"Assume: unexpected literal '{value}' of type '{value.GetType()}'");
+    }
+
+    /// <summary>
+    /// If the given type is the same as this.
+    /// </summary>
+    /// <param name="type"><see cref="BoundType" /> to compare this to.</param>
+    /// <returns>If all fields match.</returns>
+    internal bool Equals(BoundType type) {
+        if (typeSymbol != type.typeSymbol)
+            return false;
+        if (isImplicit != type.isImplicit)
+            return false;
+        if (isConstantReference != type.isConstantReference)
+            return false;
+        if (isReference != type.isReference)
+            return false;
+        if (isConstant != type.isConstant)
+            return false;
+        if (isNullable != type.isNullable)
+            return false;
+        if (isLiteral != type.isLiteral)
+            return false;
+        if (dimensions != type.dimensions)
+            return false;
+
+        return true;
     }
 
     /// <summary>

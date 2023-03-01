@@ -285,6 +285,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.op.opKind == BoundBinaryOperatorKind.Isnt)
             return RewriteExpression(HasValue(expression.left));
 
+        if (expression.op.opKind == BoundBinaryOperatorKind.Power) {
+            // TODO
+            return base.RewriteBinaryExpression(expression);
+        }
+
         if (expression.op.opKind == BoundBinaryOperatorKind.NullCoalescing) {
             return RewriteExpression(
                 NullConditional(
@@ -293,11 +298,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
                     @else: expression.right
                 )
             );
-        }
-
-        if (expression.op.opKind == BoundBinaryOperatorKind.Power) {
-            // TODO
-            return base.RewriteBinaryExpression(expression);
         }
 
         if (expression.left.type.isNullable && expression.right.type.isNullable) {
@@ -390,6 +390,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         (<type>)Value(<expression>)
 
+        ----> <expression> is not nullable and <type> is nullable and <expression>.type and <type> are otherwise equal
+
         */
 
         if (expression.expression.type.isNullable && !expression.type.isNullable) {
@@ -400,6 +402,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 )
             );
         }
+
+        if (BoundType.Copy(expression.expression.type, isNullable: true).Equals(expression.type))
+            return RewriteExpression(expression.expression);
 
         return base.RewriteCastExpression(expression);
     }
@@ -478,14 +483,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         <left> <op> <center> <op> <right>
 
-        ---->
-
-        if (<left>) {
-            <center>
-        } else {
-            <right>
-        }
-
         ----> <op> is '?:' and <left> is constant true
 
         (<center>)
@@ -501,8 +498,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
             if (BoundConstant.IsNotNull(expression.left.constantValue) && !(bool)expression.left.constantValue.value)
                 return RewriteExpression(expression.right);
-
-            // TODO
         }
 
         return base.RewriteTernaryExpression(expression);
