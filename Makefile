@@ -46,7 +46,7 @@ presetup:
 	@echo Started setting up the directory ...
 	@$(RM) -f -r bin
 	@mkdir bin
-	@echo     Finished
+	@echo "    Finished"
 
 setup:
 	@echo Started setting up the Buckle solution ...
@@ -57,7 +57,7 @@ setup:
 	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/System.CodeDom.dll bin/System.CodeDom.dll
 	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/System.Configuration.ConfigurationManager.dll System.Configuration.ConfigurationManager.dll
 	@$(CP) $(PROJDIR)/App.config App.config
-	@echo     Finished
+	@echo "    Finished"
 
 .PHONY: resources
 resources:
