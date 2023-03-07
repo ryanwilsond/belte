@@ -74,15 +74,6 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     }
 
     /// <summary>
-    /// Pushes a <see cref="Diagnostic" /> to the front of the <see cref="DiagnosticQueue" />.
-    /// </summary>
-    /// <param name="diagnostic"><see cref="Diagnostic" /> to copy onto the <see cref="DiagnosticQueue" />.</param>
-    public void PushToFront(T diagnostic) {
-        if (diagnostic != null)
-            _diagnostics.Insert(0, diagnostic);
-    }
-
-    /// <summary>
     /// Pops all Diagnostics off <see cref="DiagnosticQueue" /> and pushes them onto this.
     /// </summary>
     /// <param name="diagnosticQueue"><see cref="DiagnosticQueue" /> to pop and copy from.</param>
@@ -96,18 +87,6 @@ public class DiagnosticQueue<T> where T : Diagnostic {
             _diagnostics.Add(diagnostic);
             diagnostic = diagnosticQueue.Pop();
         }
-    }
-
-    /// <summary>
-    /// Pops all Diagnostics off all DiagnosticQueues and pushes them onto this.
-    /// </summary>
-    /// <param name="diagnosticQueues">DiagnosticQueues to pop and copy from.</param>
-    public void MoveMany(IEnumerable<DiagnosticQueue<T>> diagnosticQueues) {
-        if (diagnosticQueues == null)
-            return;
-
-        foreach (var diagnosticQueue in diagnosticQueues)
-            Move(diagnosticQueue);
     }
 
     /// <summary>
@@ -177,10 +156,10 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// <summary>
     /// Returns a new queue without a specific type of <see cref="Diagnostic" />, does not affect this instance.
     /// </summary>
-    /// <param name="type">Which <see cref="Diagnostic" /> type to exclude.</param>
+    /// <param name="types">Which <see cref="Diagnostic" /> types to exclude.</param>
     /// <returns>New <see cref="DiagnosticQueue" /> without any Diagnostics of type <paramref name="type" />.</returns>
-    public DiagnosticQueue<T> FilterOut(DiagnosticType type) {
-        return new DiagnosticQueue<T>(_diagnostics.Where(d => d.info.severity != type));
+    public DiagnosticQueue<T> FilterOut(params DiagnosticType[] types) {
+        return new DiagnosticQueue<T>(_diagnostics.Where(d => !types.Contains(d.info.severity)));
     }
 
     /// <summary>
