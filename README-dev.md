@@ -2,9 +2,9 @@
 
 To view future plans, docs, etc:
 
-Github: [github.com/flamechain/belte](https://github.com/flamechain/belte)
+Github: [github.com/ryanwilsond/belte](https://github.com/ryanwilsond/belte)
 
-Docs/Pages: [flamechain.github.io/belte](https://flamechain.github.io/belte/)
+Docs/Pages: [ryanwilsond.github.io/belte](https://ryanwilsond.github.io/belte/)
 
 Trello: [trello.com/belteindustries](https://trello.com/belteindustries)
 
