@@ -39,4 +39,9 @@ public struct CompilerState {
     /// All files to be managed/modified during compilation.
     /// </summary>
     public FileState[] tasks;
+
+    /// <summary>
+    /// Enable to disable any possible output, used for debugging.
+    /// </summary>
+    public bool noOut;
 }

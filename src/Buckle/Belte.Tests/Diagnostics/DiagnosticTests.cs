@@ -1,8 +1,8 @@
 using Xunit;
 using Xunit.Abstractions;
-using static Buckle.Tests.Belte.Assertions;
+using static Belte.Tests.Assertions;
 
-namespace Buckle.Tests.Belte.Diagnostics;
+namespace Belte.Tests.Diagnostics;
 
 /// <summary>
 /// At least one test per diagnostic (any severity) if testable.

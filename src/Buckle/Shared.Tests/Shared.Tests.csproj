@@ -5,4 +5,8 @@
     <Nullable>annotations</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Buckle\Buckle.csproj" />
+  </ItemGroup>
+
 </Project>

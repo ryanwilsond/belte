@@ -9,6 +9,7 @@ Buckle is the Belte programming language compiler.
 | -h \| --help | Displays the help information. |
 | --version | Display the compiler version information. |
 | --dumpmachine | Display the compiler's target system. |
+| --no-out | Disable any output the compiler would have produced; mainly used for checking syntax or debugging. |
 | --explain[BU\|RE\|CL]\<code\> | Extended information for a specific error. |
 | -r | Invoke the builtin Repl, ignoring all other arguments. |
 | -p | Have the compiler stop after preprocessing. |
