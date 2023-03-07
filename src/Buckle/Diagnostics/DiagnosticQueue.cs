@@ -154,6 +154,15 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     }
 
     /// <summary>
+    /// Returns a new queue with a specific type of <see cref="Diagnostic" />, does not affect this instance.
+    /// </summary>
+    /// <param name="types">Which <see cref="Diagnostic" /> types to include.</param>
+    /// <returns>New <see cref="DiagnosticQueue" /> with only Diagnostics of type <paramref name="type" />.</returns>
+    public DiagnosticQueue<T> Filter(params DiagnosticType[] types) {
+        return new DiagnosticQueue<T>(_diagnostics.Where(d => types.Contains(d.info.severity)));
+    }
+
+    /// <summary>
     /// Returns a new queue without a specific type of <see cref="Diagnostic" />, does not affect this instance.
     /// </summary>
     /// <param name="types">Which <see cref="Diagnostic" /> types to exclude.</param>

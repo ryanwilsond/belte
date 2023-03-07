@@ -136,6 +136,17 @@ public sealed class DiagnosticQueueTests {
     }
 
     [Fact]
+    public void DiagnosticQueue_Filter_FiltersByErrors() {
+        var diagnosticQueue = new DiagnosticQueue<Diagnostic>();
+        diagnosticQueue.Push(new Diagnostic(DiagnosticType.Error, ""));
+        diagnosticQueue.Push(new Diagnostic(DiagnosticType.Error, ""));
+        diagnosticQueue.Push(new Diagnostic(DiagnosticType.Warning, ""));
+        var newDiagnosticQueue = diagnosticQueue.Filter(DiagnosticType.Error);
+
+        Assert.Equal(2, newDiagnosticQueue.ToArray().Length);
+    }
+
+    [Fact]
     public void DiagnosticQueue_FilterOut_FiltersOutErrors() {
         var diagnosticQueue = new DiagnosticQueue<Diagnostic>();
         diagnosticQueue.Push(new Diagnostic(DiagnosticType.Error, ""));
