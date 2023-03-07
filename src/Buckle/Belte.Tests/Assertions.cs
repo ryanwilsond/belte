@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Belte.CommandLine;
@@ -23,13 +24,19 @@ internal static class Assertions {
     /// <param name="filesToCreate">Files to create that are needed by the test.</param>
     internal static void AssertDiagnostics(
         string[] args, string diagnosticText, ITestOutputHelper writer,
-        bool assertWarnings = false, params string[] filesToCreate) {
+        bool assertWarnings = false, bool noInputFiles = false, params string[] filesToCreate) {
         var appSettings = new AppSettings();
         appSettings.executingPath = AppDomain.CurrentDomain.BaseDirectory;
         appSettings.resourcesPath = Path.Combine(appSettings.executingPath, "Resources");
 
         var firstArgFilename = "BelteTestsAssertDiagnosticDefaultFile.blt";
-        var argsList = args.Prepend(firstArgFilename).Prepend("--no-out");
+
+        var argsList = args.AsEnumerable<string>();
+
+        if (!noInputFiles)
+            argsList = argsList.Prepend(firstArgFilename);
+
+        argsList = argsList.Prepend("--no-out");
 
         foreach (var file in filesToCreate.ToList().Append(firstArgFilename)) {
             var fileStream = File.Create(Path.Combine(appSettings.executingPath, file));
@@ -57,7 +64,11 @@ internal static class Assertions {
         Assert.Equal(expectedDiagnostics.Length, diagnostics.Count);
 
         for (int i=0; i<expectedDiagnostics.Length; i++) {
-            var diagnostic = diagnostics[i].Split(": ").Last();
+            var diagnosticParts = diagnostics[i].Split(": ").Skip(2);
+            var diagnostic = diagnosticParts.Count() == 1
+                ? diagnosticParts.Single()
+                : string.Join(": ", diagnosticParts);
+
             var expectedMessage = expectedDiagnostics[i];
             Assert.Equal(expectedMessage, diagnostic);
         }

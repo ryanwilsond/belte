@@ -60,8 +60,12 @@ public static partial class BuckleCommandLine {
 
         // Only mode that does not go through one-time compilation
         if (compiler.state.buildMode == BuildMode.Repl) {
-            BelteRepl repl = new BelteRepl(compiler, ResolveDiagnostics);
-            repl.Run();
+            ResolveDiagnostics(diagnostics, compiler.me, compiler.state);
+
+            if (!compiler.state.noOut) {
+                BelteRepl repl = new BelteRepl(compiler, ResolveDiagnostics);
+                repl.Run();
+            }
 
             return SuccessExitCode;
         }
@@ -705,6 +709,9 @@ public static partial class BuckleCommandLine {
                 case "o":
                 case "obj":
                     task.stage = CompilerStage.Assembled;
+                    break;
+                case "exe":
+                    task.stage = CompilerStage.Linked;
                     break;
                 default:
                     diagnostics.Push(Belte.Diagnostics.Warning.IgnoringUnknownFileType(task.inputFilename));
