@@ -115,6 +115,9 @@ public sealed class Compiler {
             return;
         }
 
+        if (state.noOut)
+            return;
+
         var _ = false; // Unused, just to satisfy ref parameter
         var result = compilation.Evaluate(
             new Dictionary<VariableSymbol, EvaluatorObject>(), ref _, state.options.Contains("error")
@@ -137,6 +140,10 @@ public sealed class Compiler {
         }
 
         var compilation = Compilation.Create(state.buildMode == BuildMode.CSharpTranspile, syntaxTrees.ToArray());
+
+        if (state.noOut)
+            return;
+
         var result = compilation.Emit(
             state.buildMode, state.moduleName, state.references, state.outputFilename,
             state.options.Contains("error"), state.finishStage

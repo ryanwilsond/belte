@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Buckle\Buckle.csproj" />
+    <ProjectReference Include="..\Belte\Belte.csproj" />
     <ProjectReference Include="..\Shared.Tests\Shared.Tests.csproj" />
   </ItemGroup>
 

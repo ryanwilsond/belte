@@ -1,7 +1,7 @@
 using Xunit;
-using static Buckle.Tests.Buckle.Assertions;
+using static Buckle.Tests.Assertions;
 
-namespace Buckle.Tests.Buckle.CodeAnalysis.Evaluating;
+namespace Buckle.Tests.CodeAnalysis.Evaluating;
 
 /// <summary>
 /// Tests on the <see cref="Evaluator" /> class.

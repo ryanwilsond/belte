@@ -3,7 +3,7 @@ using System.Diagnostics;
 using Buckle.CodeAnalysis.Syntax;
 using Xunit;
 
-namespace Buckle.Tests.Buckle.CodeAnalysis.Syntax.InternalSyntax;
+namespace Buckle.Tests.CodeAnalysis.Syntax.InternalSyntax;
 
 /// <summary>
 /// Tests on the <see cref="Parser" /> class.

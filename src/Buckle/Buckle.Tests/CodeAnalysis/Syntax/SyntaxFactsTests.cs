@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Buckle.CodeAnalysis.Syntax;
 using Xunit;
 
-namespace Buckle.Tests.Buckle.CodeAnalysis.Syntax;
+namespace Buckle.Tests.CodeAnalysis.Syntax;
 
 /// <summary>
 /// Tests on the <see cref="SyntaxFacts" /> class.

@@ -19,8 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Buckle\Buckle.csproj" />
-    <ProjectReference Include="..\Shared.Tests\Shared.Tests.csproj" />
+    <ProjectReference Include="..\Diagnostics\Diagnostics.csproj" />
   </ItemGroup>
 
 </Project>

@@ -6,10 +6,11 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Diagnostics;
+using Shared.Tests;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Buckle.Tests.Buckle;
+namespace Buckle.Tests;
 
 /// <summary>
 /// All assertions used by Buckle tests.

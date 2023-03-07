@@ -1,13 +1,13 @@
 using System;
 using System.IO;
 using System.Linq;
-using Belte;
 using Belte.CommandLine;
 using Diagnostics;
+using Shared.Tests;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Buckle.Tests.Belte;
+namespace Belte.Tests;
 
 /// <summary>
 /// All assertions used by Belte tests.
@@ -29,37 +29,37 @@ internal static class Assertions {
         appSettings.resourcesPath = Path.Combine(appSettings.executingPath, "Resources");
 
         var firstArgFilename = "BelteTestsAssertDiagnosticDefaultFile.blt";
-        var argsList = args.ToList().Append(firstArgFilename);
+        var argsList = args.Prepend(firstArgFilename).Prepend("--no-out");
 
         foreach (var file in filesToCreate.ToList().Append(firstArgFilename)) {
             var fileStream = File.Create(Path.Combine(appSettings.executingPath, file));
             fileStream.Close();
         }
 
-        var diagnostics = new DiagnosticQueue<Diagnostic>();
-        BuckleCommandLine.ProcessArgs(argsList.ToArray(), appSettings, ref diagnostics);
+        var stringWriter = new StringWriter();
+        Console.SetOut(stringWriter);
+        BuckleCommandLine.ProcessArgs(argsList.ToArray(), appSettings);
 
         var expectedDiagnostics = AnnotatedText.UnindentLines(diagnosticText);
+        var diagnostics = stringWriter.ToString().Split(Environment.NewLine).ToList();
 
         diagnostics = assertWarnings
-            ? diagnostics
-            : diagnostics.FilterOut(DiagnosticType.Warning);
+            ? diagnostics.Where(t => !string.IsNullOrEmpty(t)).ToList()
+            : diagnostics.Where(t => !t.Contains(": Warning: ") && !string.IsNullOrEmpty(t)).ToList();
 
-        if (expectedDiagnostics.Length != diagnostics.count) {
+        if (expectedDiagnostics.Length != diagnostics.Count) {
             writer.WriteLine($"Input: {String.Join(' ', argsList)}");
 
-            foreach (var diagnostic in diagnostics.AsList())
-                writer.WriteLine($"Diagnostic ({diagnostic.info.severity}): {diagnostic.message}");
+            foreach (var diagnostic in diagnostics)
+                writer.WriteLine(diagnostic);
         }
 
-        Assert.Equal(expectedDiagnostics.Length, diagnostics.count);
+        Assert.Equal(expectedDiagnostics.Length, diagnostics.Count);
 
         for (int i=0; i<expectedDiagnostics.Length; i++) {
-            var diagnostic = diagnostics.Pop();
-
+            var diagnostic = diagnostics[i].Split(": ").Last();
             var expectedMessage = expectedDiagnostics[i];
-            var actualMessage = diagnostic.message;
-            Assert.Equal(expectedMessage, actualMessage);
+            Assert.Equal(expectedMessage, diagnostic);
         }
     }
 }

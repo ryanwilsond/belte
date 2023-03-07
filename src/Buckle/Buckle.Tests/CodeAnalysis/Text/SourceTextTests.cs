@@ -1,7 +1,7 @@
 using Buckle.CodeAnalysis.Text;
 using Xunit;
 
-namespace Buckle.Tests.Tests.CodeAnalysis.Text;
+namespace Buckle.Tests.CodeAnalysis.Text;
 
 /// <summary>
 /// Tests on the <see cref="SourceText" /> class.

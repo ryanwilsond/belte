@@ -1,9 +1,9 @@
 using System;
 using Xunit;
 using Xunit.Abstractions;
-using static Buckle.Tests.Buckle.Assertions;
+using static Buckle.Tests.Assertions;
 
-namespace Buckle.Tests.Buckle;
+namespace Buckle.Tests;
 
 /// <summary>
 /// Tests that were added in result to a bug.

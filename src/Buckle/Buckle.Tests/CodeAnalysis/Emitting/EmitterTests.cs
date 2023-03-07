@@ -1,8 +1,8 @@
 using System;
 using Xunit;
-using static Buckle.Tests.Buckle.Assertions;
+using static Buckle.Tests.Assertions;
 
-namespace Buckle.Tests.Buckle.CodeAnalysis.Emitting;
+namespace Buckle.Tests.CodeAnalysis.Emitting;
 
 /// <summary>
 /// Tests on the <see cref="ILEmitter" /> and <see cref="CSharpEmitter" /> classes.

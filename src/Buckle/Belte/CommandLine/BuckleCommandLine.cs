@@ -52,7 +52,7 @@ public static partial class BuckleCommandLine {
 
         if (hasDialog) {
             diagnostics.Clear();
-            diagnostics.Move(ShowDialogs(dialogs, corrupt, appSettings));
+            diagnostics.Move(ShowDialogs(dialogs, corrupt, appSettings, multipleExplains));
             ResolveDiagnostics(diagnostics, compiler.me, compiler.state);
 
             return SuccessExitCode;
@@ -89,47 +89,8 @@ public static partial class BuckleCommandLine {
         return SuccessExitCode;
     }
 
-    /// <summary>
-    /// Processes/decodes command-line arguments, and then exits.
-    /// </summary>
-    /// <param name="args">Command-line arguments from Main.</param>
-    /// <param name="appSettings">App settings.</param>
-    /// <param name="diagnostics">Where to store produced diagnostics.</param>
-    [ConditionalAttribute("DEBUG")]
-    internal static void ProcessArgs(
-        string[] args, AppSettings appSettings, ref DiagnosticQueue<Diagnostic> diagnostics) {
-        var compiler = new Compiler();
-        compiler.me = Process.GetCurrentProcess().ProcessName;
-        compiler.state = DecodeOptions(args, out diagnostics, out var dialogs, out var multipleExplains);
-
-        var hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error != null;
-        var corrupt = false;
-
-        if (!Directory.Exists(appSettings.resourcesPath)) {
-            corrupt = true;
-            diagnostics.Push(Belte.Diagnostics.Warning.CorruptInstallation());
-        }
-
-        if (multipleExplains)
-            ResolveDiagnostic(Belte.Diagnostics.Error.MultipleExplains(), compiler.me, compiler.state);
-
-        if (hasDialog) {
-            diagnostics.Clear();
-            diagnostics.Move(ShowDialogs(dialogs, corrupt, appSettings));
-            return;
-        }
-
-        if (compiler.state.buildMode == BuildMode.Repl)
-            return;
-
-        ResolveOutputFiles(compiler);
-        ReadInputFiles(compiler, out var readInputDiagnostics);
-        diagnostics.Move(readInputDiagnostics);
-
-        compiler.Compile();
-    }
-
-    private static DiagnosticQueue<Diagnostic> ShowDialogs(ShowDialogs dialogs, bool corrupt, AppSettings appSettings) {
+    private static DiagnosticQueue<Diagnostic> ShowDialogs(
+        ShowDialogs dialogs, bool corrupt, AppSettings appSettings, bool multipleExplains) {
         DiagnosticQueue<Diagnostic> diagnostics = new DiagnosticQueue<Diagnostic>();
 
         if (dialogs.machine)
@@ -141,7 +102,7 @@ public static partial class BuckleCommandLine {
         if (dialogs.help && !corrupt)
             ShowHelpDialog(appSettings);
 
-        if (dialogs.error != null && !corrupt)
+        if (dialogs.error != null && !corrupt && !multipleExplains)
             ShowErrorHelp(dialogs.error, appSettings, out diagnostics);
 
         return diagnostics;
@@ -554,6 +515,7 @@ public static partial class BuckleCommandLine {
         state.finishStage = CompilerStage.Linked;
         state.outputFilename = "a.exe";
         state.moduleName = "defaultModuleName";
+        state.noOut = false;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -590,6 +552,9 @@ public static partial class BuckleCommandLine {
                     break;
                 case "--version":
                     tempDialogs.version = true;
+                    break;
+                case "--no-out":
+                    state.noOut = true;
                     break;
                 default:
                     diagnosticsCL.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
