@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound empty expression, bound from a <see cref="EmptyExpressionSyntax" />.
+/// A bound empty expression, bound from a <see cref="Syntax.EmptyExpressionSyntax" />.
 /// Converted to NOP statements eventually.
 /// </summary>
 internal sealed class BoundEmptyExpression : BoundExpression {

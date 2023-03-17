@@ -21,7 +21,7 @@ public struct CompilerState {
     public string[] references;
 
     /// <summary>
-    /// Compile time options (see <see cref="BuckleCommandLine" />).
+    /// Compile time options.
     /// </summary>
     public string[] options;
 

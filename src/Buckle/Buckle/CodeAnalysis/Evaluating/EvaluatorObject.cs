@@ -44,7 +44,7 @@ internal sealed class EvaluatorObject {
     }
 
     /// <summary>
-    /// Creates an <see cref="EvaluatorObjet" /> without a value, and instead a reference to member of
+    /// Creates an <see cref="EvaluatorObject" /> without a value, and instead a reference to member of
     /// a <see cref="VariableSymbol" />.
     /// Note that it is not an actual C# reference, just a copy of a <see cref="VariableSymbol" /> stored in the locals
     /// or globals dictionary.
@@ -68,13 +68,13 @@ internal sealed class EvaluatorObject {
     }
 
     /// <summary>
-    /// Value of object, only applicable if <see cref="EvaluatorObject.isReference" /> is set to false.
+    /// Value of object, only applicable if <see cref="isReference" /> is set to false.
     /// </summary>
     internal object value { get; set; }
 
     /// <summary>
     /// If this is to be treated as a reference. If so, value is set to null but ignored.
-    /// If value is set to null and <see cref="EvaluatorObject.isReference" /> is false,
+    /// If value is set to null and <see cref="isReference" /> is false,
     /// Then it treats value as being the value null, not lacking a value.
     /// </summary>
     internal bool isReference { get; set; }

@@ -4,7 +4,7 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound call expression, bound from a <see cref="CallExpressionSyntax" />.
+/// A bound call expression, bound from a <see cref="Syntax.CallExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundCallExpression : BoundExpression {
     internal BoundCallExpression(FunctionSymbol function, ImmutableArray<BoundExpression> arguments) {

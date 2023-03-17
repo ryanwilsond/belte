@@ -7,11 +7,11 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// </summary>
 internal sealed class GlobalVariableSymbol : VariableSymbol {
     /// <summary>
-    /// Creates a <see cref="GlobalVariable" />.
+    /// Creates a <see cref="GlobalVariableSymbol" />.
     /// </summary>
     /// <param name="name">Name of the variable.</param>
     /// <param name="type"><see cref="BoundType" /> of the variable.</param>
-    /// <param name="constant"><see cref="ConstantValue" /> of the variable.</param>
+    /// <param name="constant"><see cref="BoundConstant" /> of the variable.</param>
     internal GlobalVariableSymbol(string name, BoundType type, BoundConstant constant)
         : base(name, type, constant) { }
 

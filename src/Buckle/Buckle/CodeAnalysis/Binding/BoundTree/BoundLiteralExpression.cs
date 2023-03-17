@@ -4,7 +4,7 @@ using Buckle.Diagnostics;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound literal expression, bound from a <see cref="LiteralExpressionSyntax" />.
+/// A bound literal expression, bound from a <see cref="Syntax.LiteralExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundLiteralExpression : BoundExpression {
     internal BoundLiteralExpression(object value, bool isArtificial = false) {

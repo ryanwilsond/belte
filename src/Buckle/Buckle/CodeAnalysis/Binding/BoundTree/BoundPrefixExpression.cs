@@ -2,8 +2,8 @@
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound prefix expression. Bound from a <see cref="PrefixExpressionSyntax" />.
-/// Always gets rewritten by the <see cref="Lowerer" /> into a <see cref="BoundAssignmentExpression" />.
+/// A bound prefix expression. Bound from a <see cref="Syntax.PrefixExpressionSyntax" />.
+/// Always gets rewritten by the <see cref="Lowering.Lowerer" /> into a <see cref="BoundAssignmentExpression" />.
 /// </summary>
 internal sealed class BoundPrefixExpression : BoundExpression {
     internal BoundPrefixExpression(BoundPrefixOperator op, BoundExpression operand) {

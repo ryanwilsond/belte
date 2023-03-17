@@ -5,7 +5,8 @@ using Buckle.Diagnostics;
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Basic syntax facts references by the <see cref="Parser" /> and the <see cref="Lexer" />.
+/// Basic syntax facts references by the <see cref="InternalSyntax.Parser" /> and the
+/// <see cref="InternalSyntax.Lexer" />.
 /// </summary>
 internal static class SyntaxFacts {
     /// <summary>

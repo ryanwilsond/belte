@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Reference expression, returns the reference to a <see cref="Symbol" />.<br/>
+/// Reference expression, returns the reference to a <see cref="Symbols.Symbol" />.<br/>
 /// E.g.
 /// <code>
 /// ref myVar
@@ -23,7 +23,7 @@ internal sealed partial class ReferenceExpressionSyntax : ExpressionSyntax {
     internal SyntaxToken keyword { get; }
 
     /// <summary>
-    /// Name of the referenced <see cref="Symbol" />.
+    /// Name of the referenced <see cref="Symbols.Symbol" />.
     /// </summary>
     internal SyntaxToken identifier { get; }
 

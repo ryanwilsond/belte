@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound if statement, bound from a <see cref="IfStatementSyntax" />.
+/// A bound if statement, bound from a <see cref="Syntax.IfStatementSyntax" />.
 /// </summary>
 internal sealed class BoundIfStatement : BoundStatement {
     internal BoundIfStatement(BoundExpression condition, BoundStatement then, BoundStatement elseStatement) {

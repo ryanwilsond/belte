@@ -8,11 +8,9 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// 4 + 3;
 /// </code>
 /// The allowed Expressions are:</br>
-/// - <see cref="CallExpressionSyntax" /></br>
-/// - <see cref="AssignmentExpression" /></br>
-/// - <see cref="EmptyExpression" /></br>
-/// - <see cref="ErrorExpression" /></br>
-/// - <see cref="CompoundAssignmentExpression" />
+/// - <see cref="CallExpressionSyntax" />
+/// - <see cref="AssignmentExpressionSyntax" />
+/// - <see cref="EmptyExpressionSyntax" />
 /// </summary>
 internal sealed partial class ExpressionStatementSyntax : StatementSyntax {
     internal ExpressionStatementSyntax(SyntaxTree syntaxTree, ExpressionSyntax expression, SyntaxToken semicolon)

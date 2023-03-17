@@ -2,16 +2,6 @@
 namespace Diagnostics;
 
 /// <summary>
-/// Severity of <see cref="Diagnostic" />, does not effect how the <see cref="DiagnosticQueue" /> interacts with them.
-/// </summary>
-public enum DiagnosticType {
-    Error,
-    Warning,
-    Fatal,
-    Unknown,
-}
-
-/// <summary>
 /// Information about a <see cref="Diagnostic" /> including severity (see <see cref="DiagnosticType" />),
 /// code, and module.
 /// </summary>

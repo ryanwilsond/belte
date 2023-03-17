@@ -1,5 +1,4 @@
 using System;
-using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
@@ -19,7 +18,7 @@ using static Buckle.Utilities.FunctionUtilities;
 namespace Buckle.CodeAnalysis;
 
 /// <summary>
-/// Handles evaluation of program, and keeps track of Symbols (mainly for <see cref="BelteRepl" /> use).
+/// Handles evaluation of program, and keeps track of Symbols.
 /// </summary>
 public sealed class Compilation {
     private BoundGlobalScope _globalScope;
@@ -68,7 +67,7 @@ public sealed class Compilation {
     internal ImmutableArray<SyntaxTree> syntaxTrees { get; }
 
     /// <summary>
-    /// Previous <see cref="Compilation" /> (used for <see cref="BelteRepl" /> submission chaining).
+    /// Previous <see cref="Compilation" />.
     /// </summary>
     internal Compilation previous { get; }
 
@@ -317,7 +316,7 @@ public sealed class Compilation {
     /// </param>
     /// <param name="wError">If warnings should be treated as errors.</param>
     /// <param name="references">
-    /// .NET references, only appicable if <param name="buildMode" /> is set to <see cref="BuildMode.Dotnet" />.
+    /// .NET references, only applicable if <param name="buildMode" /> is set to <see cref="BuildMode.Dotnet" />.
     /// </param>
     /// <returns>Emitted program as a string. Diagnostics must be accessed manually off of this.</returns>
     internal string EmitToString(BuildMode buildMode, string moduleName, bool wError, string[] references = null) {

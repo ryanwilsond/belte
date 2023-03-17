@@ -13,8 +13,8 @@ using static Buckle.CodeAnalysis.Binding.BoundFactory;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Binds a <see cref="Parser" /> output into a immutable "bound" tree. This is where most error checking happens.
-/// The <see cref="Lowerer" /> is also called here to simplify the code,
+/// Binds a <see cref="Syntax.InternalSyntax.Parser" /> output into a immutable "bound" tree. This is where most error
+/// checking happens. The <see cref="Lowerer" /> is also called here to simplify the code,
 /// And convert control of flow into gotos and labels. Dead code is also removed here, as well as other optimizations.
 /// </summary>
 internal sealed class Binder {
@@ -65,7 +65,7 @@ internal sealed class Binder {
     /// Binds everything in the global scope.
     /// </summary>
     /// <param name="isScript">
-    /// If being bound as a script (used by the <see cref="BelteRepl" />), otherwise an application.
+    /// If being bound as a script, otherwise an application.
     /// </param>
     /// <param name="previous">Previous <see cref="BoundGlobalScope" /> (if applicable).</param>
     /// <param name="syntaxTrees">All SyntaxTrees, as files are bound together.</param>

@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound for statement, bound from a <see cref="ForStatementSyntax" />.
+/// A bound for statement, bound from a <see cref="Syntax.ForStatementSyntax" />.
 /// </summary>
 internal sealed class BoundForStatement : BoundLoopStatement {
     internal BoundForStatement(

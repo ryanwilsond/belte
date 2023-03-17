@@ -50,8 +50,7 @@ internal sealed class Evaluator {
     }
 
     /// <summary>
-    /// If it has a Print statement, adds a line break to avoid formatting issues
-    /// (mostly for the <see cref="BelteRepl" />).
+    /// If it has a Print statement, adds a line break to avoid formatting issues.
     /// </summary>
     internal bool hasPrint {
         get {

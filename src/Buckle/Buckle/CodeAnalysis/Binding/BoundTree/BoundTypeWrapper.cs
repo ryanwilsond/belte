@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound type wrapper expression. No <see cref="Parser" /> equivalent.
+/// A bound type wrapper expression. No <see cref="Syntax.InternalSyntax.Parser" /> equivalent.
 /// Purely an implementation detail, used to wrap constant expressions without a full type.
 /// </summary>
 internal sealed class BoundTypeWrapper : BoundExpression {
