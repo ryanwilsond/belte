@@ -4,7 +4,7 @@ using static Buckle.Tests.Assertions;
 namespace Buckle.Tests.CodeAnalysis.Evaluating;
 
 /// <summary>
-/// Tests on the <see cref="Evaluator" /> class.
+/// Tests on the <see cref="Buckle.CodeAnalysis.Evaluating.Evaluator" /> class.
 /// </summary>
 public sealed class EvaluatorTests {
     [Theory]

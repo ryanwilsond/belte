@@ -7,7 +7,7 @@ using Xunit;
 namespace Buckle.Tests.CodeAnalysis.Syntax.InternalSyntax;
 
 /// <summary>
-/// Tests on the <see cref="Lexer" /> class.
+/// Tests on the <see cref="Buckle.CodeAnalysis.Syntax.InternalSyntax.Lexer" /> class.
 /// </summary>
 public sealed class LexerTests {
     [Fact]

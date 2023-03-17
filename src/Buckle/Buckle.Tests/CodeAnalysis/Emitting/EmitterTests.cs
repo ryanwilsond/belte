@@ -5,7 +5,8 @@ using static Buckle.Tests.Assertions;
 namespace Buckle.Tests.CodeAnalysis.Emitting;
 
 /// <summary>
-/// Tests on the <see cref="ILEmitter" /> and <see cref="CSharpEmitter" /> classes.
+/// Tests on the <see cref="Buckle.CodeAnalysis.Emitting.ILEmitter" /> and
+/// <see cref="Buckle.CodeAnalysis.Emitting.CSharpEmitter" /> classes.
 /// </summary>
 public sealed class EmitterTests {
     [Theory]

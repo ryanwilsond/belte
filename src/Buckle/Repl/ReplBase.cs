@@ -58,7 +58,7 @@ public abstract class ReplBase {
     /// <param name="compiler"><see cref="Compiler" /> object representing entirety of compilation.</param>
     /// <param name="me">Display name of the program.</param>
     /// <param name="textColor">Color to display Diagnostics (if displaying).</param>
-    /// <returns>C-Style error code of most severe <see cref="Diagnostic" />.</returns>
+    /// <returns>C-Style error code of most severe Diagnostic.</returns>
     public delegate int DiagnosticHandle(
         Compiler compiler, string me = null, ConsoleColor textColor = ConsoleColor.White);
 

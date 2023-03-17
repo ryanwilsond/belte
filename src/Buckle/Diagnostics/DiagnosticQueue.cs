@@ -11,20 +11,20 @@ namespace Diagnostics;
 public class DiagnosticQueue<T> where T : Diagnostic {
     /// <summary>
     /// Diagnostics in queue currently.
-    /// <see cref="DiagnosticQueue" /> is a wrapper to simulate a list, but internal representation of Diagnostics
+    /// <see cref="DiagnosticQueue<T>" /> is a wrapper to simulate a list, but internal representation of Diagnostics
     /// is a list.
     /// </summary>
     internal List<T> _diagnostics;
 
     /// <summary>
-    /// Creates an empty <see cref="DiagnosticQueue" /> (no Diagnostics)
+    /// Creates an empty <see cref="DiagnosticQueue<T>" /> (no Diagnostics)
     /// </summary>
     public DiagnosticQueue() {
         _diagnostics = new List<T>();
     }
 
     /// <summary>
-    /// Creates a <see cref="DiagnosticQueue" /> with items (ordered from oldest -> newest).
+    /// Creates a <see cref="DiagnosticQueue<T>" /> with items (ordered from oldest -> newest).
     /// </summary>
     /// <param name="diagnostics">Initialize with enumerable (copy).</param>
     public DiagnosticQueue(IEnumerable<T> diagnostics) {
@@ -32,27 +32,29 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     }
 
     /// <summary>
-    /// How many Diagnostics are currently stored in the <see cref="DiagnosticQueue" />.
+    /// How many Diagnostics are currently stored in the <see cref="DiagnosticQueue<T>" />.
     /// </summary>
     public int count => _diagnostics.Count;
 
     /// <summary>
-    /// Checks for any Diagnostics in the <see cref="DiagnosticQueue" />.
+    /// Checks for any Diagnostics in the <see cref="DiagnosticQueue<T>" />.
     /// </summary>
-    /// <returns>True if there are at least 1 <see cref="Diagnostic" /> in the <see cref="DiagnosticQueue" />.</returns>
+    /// <returns>
+    /// True if there are at least 1 <see cref="Diagnostic" /> in the <see cref="DiagnosticQueue<T>" />.
+    /// </returns>
     public bool Any() => _diagnostics.Any();
 
     /// <summary>
-    /// Gets an enumerator for the <see cref="DiagnosticQueue" /> collection (sidestepping the queue structure).
+    /// Gets an enumerator for the <see cref="DiagnosticQueue<T>" /> collection (sidestepping the queue structure).
     /// </summary>
-    /// <returns>The enumerator for the <see cref="DiagnosticQueue" /> as if it were a list.</returns>
+    /// <returns>The enumerator for the <see cref="DiagnosticQueue<T>" /> as if it were a list.</returns>
     public IEnumerator GetEnumerator() => _diagnostics.GetEnumerator();
 
     /// <summary>
-    /// Converts the <see cref="DiagnosticQueue" /> into an array (ordered from oldest -> newest item added to
-    /// <see cref="DiagnosticQueue" />).
+    /// Converts the <see cref="DiagnosticQueue<T>" /> into an array (ordered from oldest -> newest item added to
+    /// <see cref="DiagnosticQueue<T>" />).
     /// </summary>
-    /// <returns>Array copy of the <see cref="DiagnosticQueue" /> (not a reference).</returns>
+    /// <returns>Array copy of the <see cref="DiagnosticQueue<T>" /> (not a reference).</returns>
     public Diagnostic[] ToArray() => _diagnostics.ToArray();
 
     /// <summary>
@@ -65,18 +67,18 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     }
 
     /// <summary>
-    /// Pushes a <see cref="Diagnostic" /> onto the <see cref="DiagnosticQueue" />.
+    /// Pushes a <see cref="Diagnostic" /> onto the <see cref="DiagnosticQueue<T>" />.
     /// </summary>
-    /// <param name="diagnostic"><see cref="Diagnostic" /> to copy onto the <see cref="DiagnosticQueue" />.</param>
+    /// <param name="diagnostic"><see cref="Diagnostic" /> to copy onto the <see cref="DiagnosticQueue<T>" />.</param>
     public void Push(T diagnostic) {
         if (diagnostic != null)
             _diagnostics.Add(diagnostic);
     }
 
     /// <summary>
-    /// Pops all Diagnostics off <see cref="DiagnosticQueue" /> and pushes them onto this.
+    /// Pops all Diagnostics off <see cref="DiagnosticQueue<T>" /> and pushes them onto this.
     /// </summary>
-    /// <param name="diagnosticQueue"><see cref="DiagnosticQueue" /> to pop and copy from.</param>
+    /// <param name="diagnosticQueue"><see cref="DiagnosticQueue<T>" /> to pop and copy from.</param>
     public void Move(DiagnosticQueue<T> diagnosticQueue) {
         if (diagnosticQueue == null)
             return;
@@ -92,7 +94,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// <summary>
     /// Removes first <see cref="Diagnostic" />.
     /// </summary>
-    /// <returns>First <see cref="Diagnostic" /> on the <see cref="DiagnosticQueue" />.</returns>
+    /// <returns>First <see cref="Diagnostic" /> on the <see cref="DiagnosticQueue<T>" />.</returns>
     public T? Pop() {
         if (_diagnostics.Count == 0)
             return null;
@@ -106,7 +108,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// <summary>
     /// Removes last <see cref="Diagnostic" />.
     /// </summary>
-    /// <returns>Last <see cref="Diagnostic" /> on the <see cref="DiagnosticQueue" />.</returns>
+    /// <returns>Last <see cref="Diagnostic" /> on the <see cref="DiagnosticQueue<T>" />.</returns>
     public T? PopBack() {
         if (_diagnostics.Count == 0)
             return null;
@@ -136,7 +138,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     }
 
     /// <summary>
-    /// Returns a list of all the Diagnostics in the <see cref="DiagnosticQueue" /> in order.
+    /// Returns a list of all the Diagnostics in the <see cref="DiagnosticQueue<T>" /> in order.
     /// </summary>
     /// <returns>List of Diagnostics (ordered oldest -> newest).</returns>
     public List<T> AsList() {
@@ -144,7 +146,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     }
 
     /// <summary>
-    /// Returns a list of all the Diagnostics in the <see cref="DiagnosticQueue" /> in order, and casts them to a new
+    /// Returns a list of all the Diagnostics in the <see cref="DiagnosticQueue<T>" /> in order, and casts them to a new
     /// <see cref="Diagnostic" /> child type.
     /// </summary>
     /// <typeparam name="NewType">Type of <see cref="Diagnostic" /> to cast existing Diagnostics to.</typeparam>
@@ -157,7 +159,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// Returns a new queue with a specific type of <see cref="Diagnostic" />, does not affect this instance.
     /// </summary>
     /// <param name="types">Which <see cref="Diagnostic" /> types to include.</param>
-    /// <returns>New <see cref="DiagnosticQueue" /> with only Diagnostics of type <paramref name="type" />.</returns>
+    /// <returns>New <see cref="DiagnosticQueue<T>" /> with only Diagnostics of type <paramref name="type" />.</returns>
     public DiagnosticQueue<T> Filter(params DiagnosticType[] types) {
         return new DiagnosticQueue<T>(_diagnostics.Where(d => types.Contains(d.info.severity)));
     }
@@ -166,16 +168,16 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// Returns a new queue without a specific type of <see cref="Diagnostic" />, does not affect this instance.
     /// </summary>
     /// <param name="types">Which <see cref="Diagnostic" /> types to exclude.</param>
-    /// <returns>New <see cref="DiagnosticQueue" /> without any Diagnostics of type <paramref name="type" />.</returns>
+    /// <returns>New <see cref="DiagnosticQueue<T>" /> without any Diagnostics of type <paramref name="type" />.</returns>
     public DiagnosticQueue<T> FilterOut(params DiagnosticType[] types) {
         return new DiagnosticQueue<T>(_diagnostics.Where(d => !types.Contains(d.info.severity)));
     }
 
     /// <summary>
-    /// Copies another <see cref="Diagnostic" /> queue to the front of this <see cref="DiagnosticQueue" />.
+    /// Copies another <see cref="Diagnostic" /> queue to the front of this <see cref="DiagnosticQueue<T>" />.
     /// </summary>
     /// <param name="queue">
-    /// <see cref="DiagnosticQueue" /> to copy, does not modify this <see cref="DiagnosticQueue" />.
+    /// <see cref="DiagnosticQueue<T>" /> to copy, does not modify this <see cref="DiagnosticQueue<T>" />.
     /// </param>
     public void CopyToFront(DiagnosticQueue<T> queue) {
         _diagnostics.InsertRange(0, queue._diagnostics);

@@ -6,7 +6,7 @@ using Xunit;
 namespace Buckle.Tests.CodeAnalysis.Syntax.InternalSyntax;
 
 /// <summary>
-/// Tests on the <see cref="Parser" /> class.
+/// Tests on the <see cref="Buckle.CodeAnalysis.Syntax.InternalSyntax.Parser" /> class.
 /// </summary>
 public sealed class ParserTests {
     [Theory]

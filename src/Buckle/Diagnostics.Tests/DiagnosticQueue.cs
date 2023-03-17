@@ -4,7 +4,7 @@ using Xunit;
 namespace Diagnostics.Tests;
 
 /// <summary>
-/// Tests on the <see cref="Diagnostics.DiagnosticQueue" /> class.
+/// Tests on the <see cref="DiagnosticQueue<T>" /> class.
 /// </summary>
 public sealed class DiagnosticQueueTests {
     [Fact]

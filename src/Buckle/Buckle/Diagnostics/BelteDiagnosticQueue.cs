@@ -5,7 +5,7 @@ using Diagnostics;
 namespace Buckle.Diagnostics;
 
 /// <summary>
-/// A <see cref="DiagnosticQueue" /> containing <see cref="BelteDiagnostic" />s.
+/// A <see cref="DiagnosticQueue<T>" /> containing <see cref="BelteDiagnostic" />s.
 /// </summary>
 public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     /// <summary>
