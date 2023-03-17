@@ -16,6 +16,19 @@ public sealed class IssueTests {
     }
 
     [Fact]
+    public void Evaluator_VariableDeclaration_Reports_UndefinedSymbol() {
+        var text = @"
+            ref int a = ref [b];
+        ";
+
+        var diagnostics = @"
+            undefined symbol 'b'
+        ";
+
+        AssertDiagnostics(text, diagnostics, writer);
+    }
+
+    [Fact]
     public void Evaluator_InitializerList_AllowsNull() {
         var text = @"
             \[NotNull\]var a = { 1, 2, 3 };

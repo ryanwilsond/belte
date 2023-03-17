@@ -75,7 +75,9 @@ public static partial class BuckleCommandLine {
         if (err > 0)
             return err;
 
-        ResolveOutputFiles(compiler);
+        if (!compiler.state.noOut)
+            ResolveOutputFiles(compiler);
+
         ReadInputFiles(compiler, out diagnostics);
 
         err = ResolveDiagnostics(diagnostics, compiler.me, compiler.state);
@@ -453,12 +455,11 @@ public static partial class BuckleCommandLine {
                         try {
                             task.fileContent.text = File.ReadAllText(task.inputFilename);
                             opened = true;
-                            break;
                         } catch (IOException) {
                             Thread.Sleep(100);
 
                             if (j == 2)
-                                throw;
+                                break;
                         }
                     }
 
@@ -471,12 +472,11 @@ public static partial class BuckleCommandLine {
                         try {
                             task.fileContent.bytes = File.ReadAllBytes(task.inputFilename).ToList();
                             opened = true;
-                            break;
                         } catch (IOException) {
                             Thread.Sleep(100);
 
                             if (j == 2)
-                                throw;
+                                break;
                         }
                     }
 

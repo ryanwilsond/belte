@@ -83,11 +83,11 @@ public sealed class Compiler {
         for (int i=0; i<state.tasks.Length; i++) {
             ref FileState task = ref state.tasks[i];
 
-            if (task.stage == CompilerStage.Raw)
+            if (task.stage == CompilerStage.Raw) {
+                var text = preprocessor.PreprocessText(task.inputFilename, task.fileContent.text);
+                task.fileContent.text = text;
                 task.stage = CompilerStage.Preprocessed;
-
-            var text = preprocessor.PreprocessText(task.inputFilename, task.fileContent.text);
-            task.fileContent.text = text;
+            }
         }
 
         diagnostics.Move(preprocessor.diagnostics);

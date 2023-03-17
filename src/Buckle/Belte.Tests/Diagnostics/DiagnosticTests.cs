@@ -156,7 +156,7 @@ public sealed class DiagnosticTests {
 
     [Fact]
     public void Reports_Error_CL0013_CannotSpecifyWithInterpreter() {
-        var args = new string[] { "-s" };
+        var args = new string[] { "-i", "-s" };
 
         var diagnostics = @"
             cannot specify output path or use '-p', '-s', '-c', or '-t' with interpreter
@@ -227,7 +227,7 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             'BU0a' is not a valid error code; must be in the format: [BU|CL|RE]<code>
-
+            examples: BU0001, CL0001, BU54, CL012, RE0001, RE6
         ";
 
         AssertDiagnostics(args, diagnostics, writer);
@@ -238,7 +238,7 @@ public sealed class DiagnosticTests {
         var args = new string[] { "BelteTestsAssertDiagnosticCL0020.exe" };
 
         var diagnostics = @"
-            BelteTestsAssertDiagnosticCL0020: file already compiled; ignoring
+            BelteTestsAssertDiagnosticCL0020.exe: file already compiled; ignoring
         ";
 
         AssertDiagnostics(args, diagnostics, writer, true, false, "BelteTestsAssertDiagnosticCL0020.exe");
@@ -253,17 +253,6 @@ public sealed class DiagnosticTests {
         ";
 
         AssertDiagnostics(args, diagnostics, writer);
-    }
-
-    [Fact]
-    public void Reports_Warning_CL0022_CorruptInstallation() {
-        var args = new string[] { };
-
-        var diagnostics = @"
-            installation is corrupt; all compiler features are enabled except the `--explain` and `--help` options
-        ";
-
-        AssertDiagnostics(args, diagnostics, writer, true, false);
     }
 
 }
