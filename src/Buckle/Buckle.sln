@@ -3,37 +3,28 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30114.105
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{58B8D318-6685-480A-B339-6EF5F43FB43A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Buckle", "Buckle\Buckle.csproj", "{B7972EC5-5B63-4D8C-943F-E29132D14851}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Buckle", "Buckle", "{A46AFE10-BD06-4BF0-AF55-62482020EB15}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Buckle.Tests", "Buckle.Tests\Buckle.Tests.csproj", "{01DBA7E1-B71D-441B-8DA1-1296AAD2E1D6}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Silver", "Silver", "{8EAB8A10-F067-4203-A2FE-D3D9DDA389FE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Buckle.Generators", "Buckle.Generators\Buckle.Generators.csproj", "{B3377DBF-9FAB-4798-9AC5-6BF65E0C3D75}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Buckle", "Buckle\Buckle.csproj", "{B7972EC5-5B63-4D8C-943F-E29132D14851}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Belte", "Belte\Belte.csproj", "{93EB9937-68E3-46C5-8078-FAB92C9FB7E5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Buckle.Tests", "Buckle.Tests\Buckle.Tests.csproj", "{01DBA7E1-B71D-441B-8DA1-1296AAD2E1D6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Diagnostics", "Diagnostics\Diagnostics.csproj", "{89E032F4-AE15-4A5C-9A17-047A02D1A5B0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Buckle.Generators", "Buckle.Generators\Buckle.Generators.csproj", "{B3377DBF-9FAB-4798-9AC5-6BF65E0C3D75}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Repl", "Repl\Repl.csproj", "{234133B1-033F-4D7E-8DCD-61F0BF021258}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Belte", "Belte\Belte.csproj", "{93EB9937-68E3-46C5-8078-FAB92C9FB7E5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Belte.Tests", "Belte.Tests\Belte.Tests.csproj", "{3D6221AF-A1A0-4D9D-8C50-DF506F36F6B2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Diagnostics", "Diagnostics\Diagnostics.csproj", "{89E032F4-AE15-4A5C-9A17-047A02D1A5B0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Diagnostics.Tests", "Diagnostics.Tests\Diagnostics.Tests.csproj", "{46CE995F-A18F-4A50-AB68-BAB79734538F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Repl", "Repl\Repl.csproj", "{234133B1-033F-4D7E-8DCD-61F0BF021258}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Belte.Tests", "Belte.Tests\Belte.Tests.csproj", "{3D6221AF-A1A0-4D9D-8C50-DF506F36F6B2}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Diagnostics.Tests", "Diagnostics.Tests\Diagnostics.Tests.csproj", "{46CE995F-A18F-4A50-AB68-BAB79734538F}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shared.Tests", "Shared.Tests\Shared.Tests.csproj", "{4C9AECA3-DCD4-4E07-989F-417031723105}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Shared.Tests", "Shared.Tests\Shared.Tests.csproj", "{4C9AECA3-DCD4-4E07-989F-417031723105}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{B7972EC5-5B63-4D8C-943F-E29132D14851}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
@@ -73,10 +64,10 @@ Global
 		{4C9AECA3-DCD4-4E07-989F-417031723105}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4C9AECA3-DCD4-4E07-989F-417031723105}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{A46AFE10-BD06-4BF0-AF55-62482020EB15} = {58B8D318-6685-480A-B339-6EF5F43FB43A}
-		{8EAB8A10-F067-4203-A2FE-D3D9DDA389FE} = {A46AFE10-BD06-4BF0-AF55-62482020EB15}
-		{B7972EC5-5B63-4D8C-943F-E29132D14851} = {8EAB8A10-F067-4203-A2FE-D3D9DDA389FE}
-		{01DBA7E1-B71D-441B-8DA1-1296AAD2E1D6} = {8EAB8A10-F067-4203-A2FE-D3D9DDA389FE}
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {93B1E232-E212-4DD1-AC4D-856D2832608C}
 	EndGlobalSection
 EndGlobal
