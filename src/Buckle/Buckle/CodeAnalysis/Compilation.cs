@@ -154,17 +154,17 @@ public sealed class Compilation {
     /// Evaluates SyntaxTrees.
     /// </summary>
     /// <param name="variables">Existing variables to add to the scope.</param>
+    /// <param name="abort">External flag used to cancel evaluation.</param>
     /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
-    internal EvaluationResult Evaluate(
-        Dictionary<VariableSymbol, EvaluatorObject> variables, ref bool abort, bool wError = false) {
-        if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
+    internal EvaluationResult Evaluate(Dictionary<VariableSymbol, EvaluatorObject> variables, ref bool abort) {
+        if (globalScope.diagnostics.FilterAbove(DiagnosticSeverity.Error).Any())
             return new EvaluationResult(null, false, globalScope.diagnostics, null);
 
         var program = GetProgram();
         // * Only for debugging purposes
         // CreateCfg(program);
 
-        if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any() || (program.diagnostics.Any() && wError))
+        if (program.diagnostics.FilterAbove(DiagnosticSeverity.Error).Any())
             return new EvaluationResult(null, false, program.diagnostics, null);
 
         diagnostics.Move(program.diagnostics);
@@ -279,31 +279,33 @@ public sealed class Compilation {
     /// <param name="moduleName">Application name.</param>
     /// <param name="references">All external references (.NET).</param>
     /// <param name="outputPath">Where to put the application once assembled.</param>
-    /// <param name="wError">If warnings should be treated as errors.</param>
     /// <param name="finishStage">
     /// What stage to finish at (only applicable if <param name="buildMode" /> is set to
     /// <see cref="BuildMode.Independent" />.
     /// </param>
     /// <returns>Diagnostics.</returns>
     internal BelteDiagnosticQueue Emit(
-        BuildMode buildMode, string moduleName, string[] references,
-        string outputPath, bool wError, CompilerStage finishStage) {
+        BuildMode buildMode, string moduleName, string[] references, string outputPath, CompilerStage finishStage) {
         foreach (var syntaxTree in syntaxTrees)
             diagnostics.Move(syntaxTree.diagnostics);
 
-        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+        if (diagnostics.FilterAbove(DiagnosticSeverity.Error).Any())
             return diagnostics;
 
         var program = GetProgram();
         program.diagnostics.Move(diagnostics);
 
-        if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any() || (program.diagnostics.Any() && wError))
+        if (program.diagnostics.FilterAbove(DiagnosticSeverity.Error).Any())
             return program.diagnostics;
 
         if (buildMode == BuildMode.Dotnet)
             return ILEmitter.Emit(program, moduleName, references, outputPath);
-        else // buildMode == BuildMode.CSharpTranspile
+        else if (buildMode == BuildMode.CSharpTranspile)
             return CSharpEmitter.Emit(program, outputPath);
+        else
+            diagnostics.Push(Fatal.Unsupported.IndependentCompilation());
+
+        return diagnostics;
     }
 
     /// <summary>
@@ -314,22 +316,21 @@ public sealed class Compilation {
     /// Name of the module. If <param name="buildMode" /> is set to <see cref="BuildMode.CSharpTranspile" /> this is
     /// used as the namespace name instead.
     /// </param>
-    /// <param name="wError">If warnings should be treated as errors.</param>
     /// <param name="references">
     /// .NET references, only applicable if <param name="buildMode" /> is set to <see cref="BuildMode.Dotnet" />.
     /// </param>
     /// <returns>Emitted program as a string. Diagnostics must be accessed manually off of this.</returns>
-    internal string EmitToString(BuildMode buildMode, string moduleName, bool wError, string[] references = null) {
+    internal string EmitToString(BuildMode buildMode, string moduleName, string[] references = null) {
         foreach (var syntaxTree in syntaxTrees)
             diagnostics.Move(syntaxTree.diagnostics);
 
-        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+        if (diagnostics.FilterAbove(DiagnosticSeverity.Error).Any())
             return null;
 
         var program = GetProgram();
         program.diagnostics.Move(diagnostics);
 
-        if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any() || (program.diagnostics.Any() && wError))
+        if (program.diagnostics.FilterAbove(DiagnosticSeverity.Error).Any())
             return null;
 
         if (buildMode == BuildMode.CSharpTranspile) {

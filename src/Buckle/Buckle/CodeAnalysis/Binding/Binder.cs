@@ -81,7 +81,7 @@ internal sealed class Binder {
         foreach (var syntaxTree in syntaxTrees)
             binder.diagnostics.Move(syntaxTree.diagnostics);
 
-        if (binder.diagnostics.FilterOut(DiagnosticType.Warning).Any())
+        if (binder.diagnostics.Errors().Any())
             return GlobalScope(previous, binder.diagnostics);
 
         var typeDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<TypeDeclarationSyntax>();
@@ -191,7 +191,7 @@ internal sealed class Binder {
         bool isScript, BoundProgram previous, BoundGlobalScope globalScope, bool transpilerMode) {
         var parentScope = CreateParentScope(globalScope);
 
-        if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
+        if (globalScope.diagnostics.Errors().Any())
             return Program(previous, globalScope.diagnostics);
 
         var functionBodies = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
@@ -214,7 +214,7 @@ internal sealed class Binder {
             var body = binder.BindMethodBody(function.declaration.body, function.parameters);
             diagnostics.Move(binder.diagnostics);
 
-            if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+            if (diagnostics.Errors().Any())
                 return Program(previous, diagnostics);
 
             loweredBody = Lowerer.Lower(function, body, transpilerMode);
@@ -906,10 +906,10 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatementSyntax expression) {
-        var currentCount = diagnostics.FilterOut(DiagnosticType.Warning).count;
+        var currentCount = diagnostics.Errors().count;
         var type = BindType(expression.type);
 
-        if (diagnostics.FilterOut(DiagnosticType.Warning).count > currentCount)
+        if (diagnostics.Errors().count > currentCount)
             return null;
 
         if (type.isImplicit && expression.initializer == null) {
@@ -976,7 +976,7 @@ internal sealed class Binder {
                 return null;
             }
 
-            if (diagnostics.FilterOut(DiagnosticType.Warning).count > currentCount)
+            if (diagnostics.Errors().count > currentCount)
                 return null;
 
             // References cant have implicit casts
@@ -1021,7 +1021,7 @@ internal sealed class Binder {
                 castedInitializer.constantValue
             );
 
-            if (diagnostics.FilterOut(DiagnosticType.Warning).count > currentCount)
+            if (diagnostics.Errors().count > currentCount)
                 return null;
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
@@ -1054,7 +1054,7 @@ internal sealed class Binder {
             if (initializer.constantValue == null || initializer.constantValue.value != null)
                 _scope.NoteAssignment(variable);
 
-            if (diagnostics.FilterOut(DiagnosticType.Warning).count > currentCount)
+            if (diagnostics.Errors().count > currentCount)
                 return null;
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
@@ -1491,7 +1491,7 @@ internal sealed class Binder {
                 }
             }
 
-            if (symbols.Length == 1 && diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
+            if (symbols.Length == 1 && diagnostics.Errors().Any()) {
                 tempDiagnostics.Move(diagnostics);
                 diagnostics.Move(tempDiagnostics);
 

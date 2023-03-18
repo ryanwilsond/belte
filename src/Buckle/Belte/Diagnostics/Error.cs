@@ -61,17 +61,17 @@ internal static class Error {
     /// <summary>
     /// CL0007. Run `buckle --explain CL0007` on the command line for more info.
     /// </summary>
-    internal static Diagnostic NoOptionAfterW() {
-        var message = "must specify option after '-W' (usage: '-W<options>')";
-        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_NoOptionAfterW), message);
+    internal static Diagnostic MissingSeverity(string arg) {
+        var message = $"missing severity after '{arg}' (usage: '--severity=<severity>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingSeverity), message);
     }
 
     /// <summary>
     /// CL0008. Run `buckle --explain CL0008` on the command line for more info.
     /// </summary>
-    internal static Diagnostic UnrecognizedWOption(string wArg) {
-        var message = $"unrecognized option '{wArg}'";
-        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnrecognizedWOption), message);
+    internal static Diagnostic UnrecognizedSeverity(string severity) {
+        var message = $"unrecognized severity '{severity}'";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnrecognizedSeverity), message);
     }
 
     /// <summary>
@@ -80,54 +80,6 @@ internal static class Error {
     internal static Diagnostic UnrecognizedOption(string arg) {
         var message = $"unrecognized command line option '{arg}'; see 'buckle --help'";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnrecognizedOption), message);
-    }
-
-    /// <summary>
-    /// CL0011. Run `buckle --explain CL0011` on the command line for more info.
-    /// </summary>
-    internal static Diagnostic CannotSpecifyWithDotnet() {
-        var message = "cannot specify '-p', '-s', '-c', or '-t' with .NET integration";
-        return new Diagnostic(FatalErrorInfo(DiagnosticCode.ERR_CannotSpecifyWithDotnet), message);
-    }
-
-    /// <summary>
-    /// CL0012. Run `buckle --explain CL0012` on the command line for more info.
-    /// </summary>
-    internal static Diagnostic CannotSpecifyWithMultipleFiles() {
-        var message = "cannot specify output file with '-p', '-s', '-c', or '-t' with multiple files";
-        return new Diagnostic(FatalErrorInfo(DiagnosticCode.ERR_CannotSpecifyWithMultipleFiles), message);
-    }
-
-    /// <summary>
-    /// CL0013. Run `buckle --explain CL0013` on the command line for more info.
-    /// </summary>
-    internal static Diagnostic CannotSpecifyWithInterpreter() {
-        var message = "cannot specify output path or use '-p', '-s', '-c', or '-t' with interpreter";
-        return new Diagnostic(FatalErrorInfo(DiagnosticCode.ERR_CannotSpecifyWithInterpreter), message);
-    }
-
-    /// <summary>
-    /// CL0014. Run `buckle --explain CL0014` on the command line for more info.
-    /// </summary>
-    internal static Diagnostic CannotSpecifyModuleNameWithoutDotnet() {
-        var message = "cannot specify module name without .NET integration";
-        return new Diagnostic(FatalErrorInfo(DiagnosticCode.ERR_CannotSpecifyModuleNameWithoutDotnet), message);
-    }
-
-    /// <summary>
-    /// CL0015. Run `buckle --explain CL0015` on the command line for more info.
-    /// </summary>
-    internal static Diagnostic CannotSpecifyReferencesWithoutDotnet() {
-        var message = "cannot specify references without .NET integration";
-        return new Diagnostic(FatalErrorInfo(DiagnosticCode.ERR_CannotSpecifyReferencesWithoutDotnet), message);
-    }
-
-    /// <summary>
-    /// CL0016. Run `buckle --explain CL0016` on the command line for more info.
-    /// </summary>
-    internal static Diagnostic NoInputFiles() {
-        var message = "no input files";
-        return new Diagnostic(FatalErrorInfo(DiagnosticCode.ERR_NoInputFiles), message);
     }
 
     /// <summary>
@@ -156,10 +108,6 @@ internal static class Error {
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
-        return new DiagnosticInfo((int)code, "CL", DiagnosticType.Error);
-    }
-
-    private static DiagnosticInfo FatalErrorInfo(DiagnosticCode code) {
-        return new DiagnosticInfo((int)code, "CL", DiagnosticType.Fatal);
+        return new DiagnosticInfo((int)code, "CL", DiagnosticSeverity.Error);
     }
 }

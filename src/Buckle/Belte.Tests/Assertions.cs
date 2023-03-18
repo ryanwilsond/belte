@@ -24,7 +24,8 @@ internal static class Assertions {
     /// <param name="filesToCreate">Files to create that are needed by the test.</param>
     internal static void AssertDiagnostics(
         string[] args, string diagnosticText, ITestOutputHelper writer,
-        bool assertWarnings = false, bool noInputFiles = false, params string[] filesToCreate) {
+        DiagnosticSeverity lowestAssert = DiagnosticSeverity.Error,
+        bool noInputFiles = false, params string[] filesToCreate) {
         var appSettings = new AppSettings();
         appSettings.executingPath = AppDomain.CurrentDomain.BaseDirectory;
         appSettings.resourcesPath = Path.Combine(appSettings.executingPath, "Resources");
@@ -37,6 +38,7 @@ internal static class Assertions {
             argsList = argsList.Prepend(firstArgFilename);
 
         argsList = argsList.Prepend("--no-out");
+        argsList = argsList.Prepend("--severity=all");
 
         foreach (var file in filesToCreate.ToList().Append(firstArgFilename)) {
             var fileStream = File.Create(Path.Combine(appSettings.executingPath, file));
@@ -50,9 +52,11 @@ internal static class Assertions {
         var expectedDiagnostics = AnnotatedText.UnindentLines(diagnosticText);
         var diagnostics = stringWriter.ToString().Split(Environment.NewLine).ToList();
 
-        diagnostics = assertWarnings
-            ? diagnostics.Where(t => !string.IsNullOrEmpty(t)).ToList()
-            : diagnostics.Where(t => !t.Contains(": Warning: ") && !string.IsNullOrEmpty(t)).ToList();
+        diagnostics = diagnostics
+            .Where(t => !string.IsNullOrEmpty(t))
+            .Where(t => !Enum.TryParse<DiagnosticSeverity>(t.Split(' ')[1], true, out var severity) ||
+                (int)severity >= (int)lowestAssert)
+            .ToList();
 
         if (expectedDiagnostics.Length != diagnostics.Count) {
             writer.WriteLine($"Input: {String.Join(' ', argsList)}");

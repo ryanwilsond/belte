@@ -1,3 +1,4 @@
+using Diagnostics;
 
 namespace Buckle;
 
@@ -21,9 +22,9 @@ public struct CompilerState {
     public string[] references;
 
     /// <summary>
-    /// Compile time options.
+    /// Lowest severity to report.
     /// </summary>
-    public string[] options;
+    public DiagnosticSeverity severity;
 
     /// <summary>
     /// At what point to stop compilation (usually unrestricted).

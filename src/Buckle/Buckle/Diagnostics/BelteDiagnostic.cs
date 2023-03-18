@@ -35,7 +35,7 @@ public sealed class BelteDiagnostic : Diagnostic {
     /// <param name="type">Severity of <see cref="BelteDiagnostic" />.</param>
     /// <param name="location">Location of the <see cref="BelteDiagnostic" />.</param>
     /// <param name="message">Message/info on the <see cref="BelteDiagnostic" />.</param>
-    public BelteDiagnostic(DiagnosticType type, TextLocation location, string message)
+    public BelteDiagnostic(DiagnosticSeverity type, TextLocation location, string message)
         : this(new DiagnosticInfo(type), location, message, null) { }
 
     /// <summary>
@@ -44,7 +44,7 @@ public sealed class BelteDiagnostic : Diagnostic {
     /// </summary>
     /// <param name="type">Severity of <see cref="BelteDiagnostic" />.</param>
     /// <param name="message">Message/info on the <see cref="BelteDiagnostic" />.</param>
-    public BelteDiagnostic(DiagnosticType type, string message)
+    public BelteDiagnostic(DiagnosticSeverity type, string message)
         : this(new DiagnosticInfo(type), null, message, null) { }
 
     /// <summary>

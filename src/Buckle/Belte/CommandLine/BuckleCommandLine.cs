@@ -21,12 +21,6 @@ public static partial class BuckleCommandLine {
     private const int ErrorExitCode = 1;
     private const int FatalExitCode = 2;
 
-    private static readonly string[] AllowedOptions = {
-        "error",    // Treats all warnings as errors
-        "ignore",   // Ignores all warnings
-        "all"       // Shows additional warnings, and shows warnings while interpreting
-    };
-
     /// <summary>
     /// Processes/decodes command-line arguments, and invokes <see cref="Compiler" />.
     /// </summary>
@@ -204,7 +198,7 @@ public static partial class BuckleCommandLine {
         Console.WriteLine(versionMessage);
     }
 
-    private static void PrettyPrintDiagnostic(BelteDiagnostic diagnostic, ConsoleColor? textColor, string[] options) {
+    private static void PrettyPrintDiagnostic(BelteDiagnostic diagnostic, ConsoleColor? textColor) {
         void ResetColor() {
             if (textColor != null)
                 Console.ForegroundColor = textColor.Value;
@@ -231,21 +225,32 @@ public static partial class BuckleCommandLine {
 
         var severity = diagnostic.info.severity;
 
-        if (severity == DiagnosticType.Warning && options.Contains("error"))
-            severity = DiagnosticType.Error;
-
-        if (severity == DiagnosticType.Error) {
-            highlightColor = ConsoleColor.Red;
-            Console.ForegroundColor = highlightColor;
-            Console.Write(" error");
-        } else if (severity == DiagnosticType.Fatal) {
-            highlightColor = ConsoleColor.Red;
-            Console.ForegroundColor = highlightColor;
-            Console.Write(" fatal error");
-        } else if (severity == DiagnosticType.Warning) {
-            highlightColor = ConsoleColor.Magenta;
-            Console.ForegroundColor = highlightColor;
-            Console.Write(" warning");
+        switch (severity) {
+            case DiagnosticSeverity.Debug:
+                highlightColor = ConsoleColor.Gray;
+                Console.ForegroundColor = highlightColor;
+                Console.Write("debug ");
+                break;
+            case DiagnosticSeverity.Info:
+                highlightColor = ConsoleColor.Yellow;
+                Console.ForegroundColor = highlightColor;
+                Console.Write(" info");
+                break;
+            case DiagnosticSeverity.Warning:
+                highlightColor = ConsoleColor.Magenta;
+                Console.ForegroundColor = highlightColor;
+                Console.Write(" warning");
+                break;
+            case DiagnosticSeverity.Error:
+                highlightColor = ConsoleColor.Red;
+                Console.ForegroundColor = highlightColor;
+                Console.Write(" error");
+                break;
+            case DiagnosticSeverity.Fatal:
+                highlightColor = ConsoleColor.Red;
+                Console.ForegroundColor = highlightColor;
+                Console.Write(" fatal");
+                break;
         }
 
         if (diagnostic.info.code != null && diagnostic.info.code > 0) {
@@ -292,7 +297,7 @@ public static partial class BuckleCommandLine {
         ResetColor();
     }
 
-    private static DiagnosticType ResolveDiagnostic<Type>(
+    private static DiagnosticSeverity ResolveDiagnostic<Type>(
         Type diagnostic, string me, CompilerState state, ConsoleColor? textColor = null)
         where Type : Diagnostic {
         var previous = Console.ForegroundColor;
@@ -305,31 +310,34 @@ public static partial class BuckleCommandLine {
         }
 
         var severity = diagnostic.info.severity;
-
-        if (severity == DiagnosticType.Warning && state.options.Contains("error"))
-            severity = DiagnosticType.Error;
-        if (severity == DiagnosticType.Warning && state.options.Contains("ignore"))
-            severity = DiagnosticType.Unknown;
-
         ResetColor();
 
-        if (severity == DiagnosticType.Unknown ||
-            (state.buildMode == BuildMode.Interpret &&
-             severity == DiagnosticType.Warning &&
-             !state.options.Contains("all"))) {
+        if ((int)state.severity > (int)severity) {
             // Ignore
         } else if (diagnostic.info.module != "BU" || (diagnostic is BelteDiagnostic bd && bd.location == null)) {
             Console.Write($"{me}: ");
 
-            if (severity == DiagnosticType.Warning) {
-                Console.ForegroundColor = ConsoleColor.Magenta;
-                Console.Write("warning ");
-            } else if (severity == DiagnosticType.Error) {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Write("error ");
-            } else if (severity == DiagnosticType.Fatal) {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Write("fatal error ");
+            switch (severity) {
+                case DiagnosticSeverity.Debug:
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                    Console.Write("debug ");
+                    break;
+                case DiagnosticSeverity.Info:
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.Write("info ");
+                    break;
+                case DiagnosticSeverity.Warning:
+                    Console.ForegroundColor = ConsoleColor.Magenta;
+                    Console.Write("warning ");
+                    break;
+                case DiagnosticSeverity.Error:
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Write("error ");
+                    break;
+                case DiagnosticSeverity.Fatal:
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Write("fatal ");
+                    break;
             }
 
             var errorCode = diagnostic.info.code.Value.ToString();
@@ -339,7 +347,7 @@ public static partial class BuckleCommandLine {
             ResetColor();
             Console.WriteLine(diagnostic.message);
         } else {
-            PrettyPrintDiagnostic(diagnostic as BelteDiagnostic, textColor, state.options);
+            PrettyPrintDiagnostic(diagnostic as BelteDiagnostic, textColor);
         }
 
         Console.ForegroundColor = previous;
@@ -353,38 +361,22 @@ public static partial class BuckleCommandLine {
         if (diagnostics.count == 0)
             return SuccessExitCode;
 
-        var worst = DiagnosticType.Unknown;
+        var worst = diagnostics.ToList().Select(d => (int)d.info.severity).Max();
         var diagnostic = diagnostics.Pop();
 
         while (diagnostic != null) {
-            var temp = ResolveDiagnostic(diagnostic, me, state, textColor);
-
-            switch (temp) {
-                case DiagnosticType.Warning:
-                    if (worst == DiagnosticType.Unknown)
-                        worst = temp;
-
-                    break;
-                case DiagnosticType.Error:
-                    if (worst != DiagnosticType.Fatal)
-                        worst = temp;
-
-                    break;
-                case DiagnosticType.Fatal:
-                    worst = temp;
-                    break;
-            }
-
+            ResolveDiagnostic(diagnostic, me, state, textColor);
             diagnostic = diagnostics.Pop();
         }
 
-        switch (worst) {
-            case DiagnosticType.Error:
-                return ErrorExitCode;
-            case DiagnosticType.Fatal:
+        switch ((DiagnosticSeverity)worst) {
+            case DiagnosticSeverity.Fatal:
                 return FatalExitCode;
-            case DiagnosticType.Unknown:
-            case DiagnosticType.Warning:
+            case DiagnosticSeverity.Error:
+                return ErrorExitCode;
+            case DiagnosticSeverity.Warning:
+            case DiagnosticSeverity.Info:
+            case DiagnosticSeverity.Debug:
             default:
                 return SuccessExitCode;
         }
@@ -485,7 +477,7 @@ public static partial class BuckleCommandLine {
 
                     break;
                 case CompilerStage.Linked:
-                    diagnostics.Push(Belte.Diagnostics.Warning.IgnoringCompiledFile(task.inputFilename));
+                    diagnostics.Push(Belte.Diagnostics.Info.IgnoringCompiledFile(task.inputFilename));
                     break;
                 default:
                     break;
@@ -499,13 +491,13 @@ public static partial class BuckleCommandLine {
         var state = new CompilerState();
         var tasks = new List<FileState>();
         var references = new List<string>();
-        var options = new List<string>();
         var diagnosticsCL = new DiagnosticQueue<Diagnostic>();
         diagnostics = new DiagnosticQueue<Diagnostic>();
 
         var specifyStage = false;
         var specifyOut = false;
         var specifyModule = false;
+        DiagnosticSeverity? severity = null;
 
         var tempDialogs = new ShowDialogs();
 
@@ -616,20 +608,18 @@ public static partial class BuckleCommandLine {
                     references.Add(arg.Substring(6));
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.MissingReference(arg));
-            } else if (arg.StartsWith("-W")) {
-                if (arg.Length == 2) {
-                    diagnostics.Push(Belte.Diagnostics.Error.NoOptionAfterW());
+            } else if (arg.StartsWith("--severity")) {
+                if (arg == "--severity" || arg == "--severity=") {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingSeverity(arg));
                     continue;
                 }
 
-                string[] wArgs = arg.Substring(2).Split(',');
+                var severityString = arg.Substring(11);
 
-                foreach (string wArg in wArgs) {
-                    if (AllowedOptions.Contains(wArg))
-                        options.Add(wArg);
-                    else
-                        diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedWOption(wArg));
-                }
+                if (Enum.TryParse<DiagnosticSeverity>(severityString, true, out var severityLevel))
+                    severity = severityLevel;
+                else
+                    diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedSeverity(severityString));
             } else {
                 DecodeSimpleOption(arg);
             }
@@ -643,31 +633,32 @@ public static partial class BuckleCommandLine {
 
         state.tasks = tasks.ToArray();
         state.references = references.ToArray();
-        state.options = options.ToArray();
+        state.severity = severity ??
+            (state.buildMode == BuildMode.Independent ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning);
 
         if (!specifyOut && state.buildMode == BuildMode.CSharpTranspile)
             state.outputFilename = "a.cs";
 
         if (args.Length > 1 && state.buildMode == BuildMode.Repl)
-            diagnostics.Push(Belte.Diagnostics.Warning.ReplInvokeIgnore());
+            diagnostics.Push(Belte.Diagnostics.Info.ReplInvokeIgnore());
 
         if (specifyStage && state.buildMode == BuildMode.Dotnet)
-            diagnostics.Push(Belte.Diagnostics.Error.CannotSpecifyWithDotnet());
+            diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithDotnet());
 
         if (specifyOut && specifyStage && state.tasks.Length > 1 && !(state.buildMode == BuildMode.Dotnet))
-            diagnostics.Push(Belte.Diagnostics.Error.CannotSpecifyWithMultipleFiles());
+            diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithMultipleFiles());
 
         if ((specifyStage || specifyOut) && state.buildMode == BuildMode.Interpret)
-            diagnostics.Push(Belte.Diagnostics.Error.CannotSpecifyWithInterpreter());
+            diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithInterpreter());
 
         if (specifyModule && state.buildMode != BuildMode.Dotnet)
-            diagnostics.Push(Belte.Diagnostics.Error.CannotSpecifyModuleNameWithoutDotnet());
+            diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyModuleNameWithoutDotnet());
 
         if (references.Count != 0 && state.buildMode != BuildMode.Dotnet)
-            diagnostics.Push(Belte.Diagnostics.Error.CannotSpecifyReferencesWithoutDotnet());
+            diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyReferencesWithoutDotnet());
 
         if (state.tasks.Length == 0 && !(state.buildMode == BuildMode.Repl))
-            diagnostics.Push(Belte.Diagnostics.Error.NoInputFiles());
+            diagnostics.Push(Belte.Diagnostics.Fatal.NoInputFiles());
 
         state.outputFilename = state.outputFilename.Trim();
 
@@ -714,7 +705,7 @@ public static partial class BuckleCommandLine {
                     task.stage = CompilerStage.Linked;
                     break;
                 default:
-                    diagnostics.Push(Belte.Diagnostics.Warning.IgnoringUnknownFileType(task.inputFilename));
+                    diagnostics.Push(Belte.Diagnostics.Info.IgnoringUnknownFileType(task.inputFilename));
                     continue;
             }
 

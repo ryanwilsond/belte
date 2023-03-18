@@ -94,10 +94,6 @@ internal static class Error {
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
-        return new DiagnosticInfo((int)code, "RE", DiagnosticType.Error);
-    }
-
-    private static DiagnosticInfo FatalErrorInfo(DiagnosticCode code) {
-        return new DiagnosticInfo((int)code, "RE", DiagnosticType.Fatal);
+        return new DiagnosticInfo((int)code, "RE", DiagnosticSeverity.Error);
     }
 }

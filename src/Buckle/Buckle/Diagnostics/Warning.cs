@@ -85,6 +85,6 @@ internal static class Warning {
     }
 
     private static DiagnosticInfo WarningInfo(DiagnosticCode code) {
-        return new DiagnosticInfo((int)code, "BU", DiagnosticType.Warning);
+        return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Warning);
     }
 }

@@ -9,12 +9,7 @@ namespace Diagnostics;
 /// </summary>
 /// <typeparam name="T">The type of <see cref="Diagnostic" /> to store.</typeparam>
 public class DiagnosticQueue<T> where T : Diagnostic {
-    /// <summary>
-    /// Diagnostics in queue currently.
-    /// <see cref="DiagnosticQueue<T>" /> is a wrapper to simulate a list, but internal representation of Diagnostics
-    /// is a list.
-    /// </summary>
-    internal List<T> _diagnostics;
+    private List<T> _diagnostics;
 
     /// <summary>
     /// Creates an empty <see cref="DiagnosticQueue<T>" /> (no Diagnostics)
@@ -62,7 +57,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// </summary>
     /// <param name="type">Type to check for, ignores all other Diagnostics.</param>
     /// <returns>If any Diagnostics of type.</returns>
-    public bool Any(DiagnosticType type) {
+    public bool Any(DiagnosticSeverity type) {
         return _diagnostics.Where(d => d.info.severity == type).Any();
     }
 
@@ -127,10 +122,10 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     }
 
     /// <summary>
-    /// Removes all Diagnostics of a specific severity (see <see cref="DiagnosticType" />).
+    /// Removes all Diagnostics of a specific severity (see <see cref="DiagnosticSeverity" />).
     /// </summary>
     /// <param name="type">Severity of Diagnostics to remove.</param>
-    public void Clear(DiagnosticType type) {
+    public void Clear(DiagnosticSeverity type) {
         for (int i=0; i<_diagnostics.Count; i++) {
             if (_diagnostics[i].info.severity == type)
                 _diagnostics.RemoveAt(i--);
@@ -141,7 +136,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// Returns a list of all the Diagnostics in the <see cref="DiagnosticQueue<T>" /> in order.
     /// </summary>
     /// <returns>List of Diagnostics (ordered oldest -> newest).</returns>
-    public List<T> AsList() {
+    public List<T> ToList() {
         return _diagnostics;
     }
 
@@ -151,26 +146,35 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// </summary>
     /// <typeparam name="NewType">Type of <see cref="Diagnostic" /> to cast existing Diagnostics to.</typeparam>
     /// <returns>List of Diagnostics (ordered oldest -> newest).</returns>
-    public List<NewType> AsList<NewType>() where NewType : Diagnostic {
+    public List<NewType> ToList<NewType>() where NewType : Diagnostic {
         return _diagnostics as List<NewType>;
     }
 
     /// <summary>
-    /// Returns a new queue with a specific type of <see cref="Diagnostic" />, does not affect this instance.
+    /// Returns a new queue only including specific DiagnosticSeverities. Does not affect this instance.
     /// </summary>
-    /// <param name="types">Which <see cref="Diagnostic" /> types to include.</param>
-    /// <returns>New <see cref="DiagnosticQueue<T>" /> with only Diagnostics of type <paramref name="type" />.</returns>
-    public DiagnosticQueue<T> Filter(params DiagnosticType[] types) {
-        return new DiagnosticQueue<T>(_diagnostics.Where(d => types.Contains(d.info.severity)));
+    /// <param name="types">Which DiagnosticSeverities to include.</param>
+    /// <returns>Filtered queue.</returns>
+    public DiagnosticQueue<T> Filter(params DiagnosticSeverity[] severities) {
+        return new DiagnosticQueue<T>(_diagnostics.Where(d => severities.Contains(d.info.severity)));
     }
 
     /// <summary>
-    /// Returns a new queue without a specific type of <see cref="Diagnostic" />, does not affect this instance.
+    /// Returns a new queue with all Diagnostics above or equal to a specific severity. Does not affect this instance.
     /// </summary>
-    /// <param name="types">Which <see cref="Diagnostic" /> types to exclude.</param>
-    /// <returns>New <see cref="DiagnosticQueue<T>" /> without any Diagnostics of type <paramref name="type" />.</returns>
-    public DiagnosticQueue<T> FilterOut(params DiagnosticType[] types) {
-        return new DiagnosticQueue<T>(_diagnostics.Where(d => !types.Contains(d.info.severity)));
+    /// <param name="severity">Lowest <see cref="DiagnosticSeverity" /> to include.</param>
+    /// <returns>Filtered queue.</returns>
+    public DiagnosticQueue<T> FilterAbove(DiagnosticSeverity severity) {
+        return new DiagnosticQueue<T>(_diagnostics.Where(d => (int)d.info.severity >= (int)severity));
+    }
+
+    /// <summary>
+    /// Returns a new queue without specific DiagnosticSeverities. Does not affect this instance.
+    /// </summary>
+    /// <param name="types">Which DiagnosticSeverities to exclude.</param>
+    /// <returns>Filtered queue.</returns>
+    public DiagnosticQueue<T> FilterOut(params DiagnosticSeverity[] severities) {
+        return new DiagnosticQueue<T>(_diagnostics.Where(d => !severities.Contains(d.info.severity)));
     }
 
     /// <summary>

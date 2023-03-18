@@ -72,39 +72,31 @@ the file, so a common way to fix this error is to just retry. If that does not
 fix the issue, double check the file passed is unlocked. If the problem
 persists, submit a bug report.
 $CL0007
-The '-W' command-line option is used to tell the compiler special ways to handle
-warnings. This can either be '-Werror' to treat all warnings as errors,
-'-Wignore' to ignore all warnings, or '-Wall' to show some hidden warnings and
-also to show warnings while interpreting.
+The '--severity' command-line option is used to tell the compiler which
+diagnostics to report.
 
-Because of how this option works, it requires an option name after the '-W'. If
-no option name is given, this error is raised.
+Because of how this option works, it requires an severity name after the
+'--severity'. If no severity name is given, this error is raised.
 
 For example:
 
 ```
-buckle -i Program.ble -W // Incorrect, no option name is provided
-buckle -i Program.ble -Wall // Correct
-```
-
-If multiple options are to be provided, you can choose to comma separate them.
-The following examples show two ways to write the same thing:
-
-```
-buckle -d Program.ble -Wall,error
-buckle -d Program.ble -Wall -Werror
+buckle -i Program.ble --severity // Incorrect, no severity name is provided
+buckle -i Program.ble --severity=all // Correct
 ```
 $CL0008
-The '-W' command-line option has a predefined set of known options. If an option
-is provided that the compiler does not recognize, this error is raised.
+The '--severity' command-line option has a predefined set of known severities.
+If a severity is provided that the compiler does not recognize, this error is
+raised.
 
 For example:
 
 ```
-buckle -i Program.ble -Wextra // Incorrect, 'extra' is not a known warning option
+buckle -i Program.ble --severity=suggestion // Incorrect, 'suggestion' is not a known severity
 ```
 
-Reference the Belte docs to learn more about what options '-W' supports.
+Reference the Belte docs to learn more about what severities '--severity'
+supports.
 $CL0009
 If an unknown option is provided to the command line, instead of ignoring it the
 compiler raises an error to let the user know. Usually, this error is the result

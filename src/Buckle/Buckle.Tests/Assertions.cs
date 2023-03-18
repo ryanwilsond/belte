@@ -31,7 +31,7 @@ internal static class Assertions {
         if (result.value is double && (Convert.ToDouble(expectedValue)).CompareTo(result.value) == 0)
             expectedValue = Convert.ToDouble(expectedValue);
 
-        Assert.Empty(result.diagnostics.FilterOut(DiagnosticType.Warning).ToArray());
+        Assert.Empty(result.diagnostics.Errors().ToArray());
         Assert.Equal(expectedValue, result.value);
     }
 
@@ -74,7 +74,7 @@ internal static class Assertions {
 
         var tempDiagnostics = new BelteDiagnosticQueue();
 
-        if (syntaxTree.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
+        if (syntaxTree.diagnostics.Errors().Any()) {
             tempDiagnostics.Move(syntaxTree.diagnostics);
         } else {
             var compilation = Compilation.CreateScript(null, syntaxTree);
@@ -90,12 +90,12 @@ internal static class Assertions {
 
         var diagnostics = assertWarnings
             ? tempDiagnostics
-            : tempDiagnostics.FilterOut(DiagnosticType.Warning);
+            : tempDiagnostics.Errors();
 
         if (expectedDiagnostics.Length != diagnostics.count) {
             writer.WriteLine($"Input: {annotatedText.text}");
 
-            foreach (var diagnostic in diagnostics.AsList())
+            foreach (var diagnostic in diagnostics.ToList())
                 writer.WriteLine($"Diagnostic ({diagnostic.info.severity}): {diagnostic.message}");
         }
 
@@ -128,9 +128,9 @@ internal static class Assertions {
     internal static void AssertText(string text, string expectedText, BuildMode buildMode) {
         var syntaxTree = SyntaxTree.Parse(text);
         var compilation = Compilation.Create(buildMode == BuildMode.CSharpTranspile, syntaxTree);
-        var result = compilation.EmitToString(buildMode, "EmitterTests", false);
+        var result = compilation.EmitToString(buildMode, "EmitterTests");
 
-        Assert.Empty(compilation.diagnostics.FilterOut(DiagnosticType.Warning).ToArray());
+        Assert.Empty(compilation.diagnostics.Errors().ToArray());
         Assert.Equal(expectedText, result);
     }
 }

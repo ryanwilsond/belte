@@ -29,7 +29,7 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
         var cleanedDiagnostics = new BelteDiagnosticQueue();
         var specialDiagnostics = new BelteDiagnosticQueue();
 
-        var diagnosticList = diagnostics.AsList<BelteDiagnostic>();
+        var diagnosticList = diagnostics.ToList<BelteDiagnostic>();
 
         for (int i=0; i<diagnosticList.Count; i++) {
             var diagnostic = diagnosticList[i];
@@ -49,6 +49,14 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
         cleanedDiagnostics.Move(specialDiagnostics);
 
         return cleanedDiagnostics;
+    }
+
+    /// <summary>
+    /// Filters out any non-error diagnostics. Does not affect this.
+    /// </summary>
+    /// <returns>Filtered queue.</returns>
+    public BelteDiagnosticQueue Errors() {
+        return new BelteDiagnosticQueue(FilterAbove(DiagnosticSeverity.Error).ToList());
     }
 
 }

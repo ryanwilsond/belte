@@ -155,7 +155,7 @@ public sealed class BelteRepl : ReplBase {
 
         if (state.showIL) {
             try {
-                var iLCode = compilation.EmitToString(BuildMode.Dotnet, "REPLSubmission", false, new string[] { });
+                var iLCode = compilation.EmitToString(BuildMode.Dotnet, "REPLSubmission");
                 _writer.Write(iLCode);
             } catch (KeyNotFoundException) {
                 handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.FailedILGeneration()));
@@ -165,12 +165,12 @@ public sealed class BelteRepl : ReplBase {
         if (state.showWarnings)
             handle.diagnostics.Move(compilation.diagnostics);
         else
-            handle.diagnostics.Move(compilation.diagnostics.FilterOut(DiagnosticType.Warning));
+            handle.diagnostics.Move(compilation.diagnostics.Errors());
 
         EvaluationResult result = null;
         Console.ForegroundColor = state.colorTheme.result;
 
-        if (!handle.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
+        if (!handle.diagnostics.Errors().Any()) {
             result = compilation.Evaluate(state.variables, ref _abortEvaluation);
 
             if (_abortEvaluation) {
@@ -181,10 +181,10 @@ public sealed class BelteRepl : ReplBase {
             if (state.showWarnings)
                 handle.diagnostics.Move(result.diagnostics);
             else
-                handle.diagnostics.Move(result.diagnostics.FilterOut(DiagnosticType.Warning));
+                handle.diagnostics.Move(result.diagnostics.Errors());
         }
 
-        var hasErrors = handle.diagnostics.FilterOut(DiagnosticType.Warning).Any();
+        var hasErrors = handle.diagnostics.Errors().Any();
 
         if (handle.diagnostics.Any()) {
             if (diagnosticHandle != null) {

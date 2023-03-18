@@ -71,7 +71,7 @@ public sealed class Compiler {
         var worst = SuccessExitCode;
 
         foreach (Diagnostic diagnostic in diagnostics)
-            if (diagnostic.info.severity == DiagnosticType.Error)
+            if (diagnostic.info.severity == DiagnosticSeverity.Error)
                 worst = ErrorExitCode;
 
         return worst;
@@ -94,7 +94,7 @@ public sealed class Compiler {
     }
 
     private void InternalInterpreter() {
-        diagnostics.Clear(DiagnosticType.Warning);
+        diagnostics.Clear(DiagnosticSeverity.Warning);
         var syntaxTrees = new List<SyntaxTree>();
 
         for (int i=0; i<state.tasks.Length; i++) {
@@ -110,18 +110,14 @@ public sealed class Compiler {
         var compilation = Compilation.Create(false, syntaxTrees.ToArray());
         diagnostics.Move(compilation.diagnostics);
 
-        if ((diagnostics.Filter(DiagnosticType.Error, DiagnosticType.Fatal).Any()) ||
-            (diagnostics.Any() && state.options.Contains("error") && !state.options.Contains("ignore"))) {
+        if ((diagnostics.FilterAbove(DiagnosticSeverity.Error).Any()))
             return;
-        }
 
         if (state.noOut)
             return;
 
         var _ = false; // Unused, just to satisfy ref parameter
-        var result = compilation.Evaluate(
-            new Dictionary<VariableSymbol, EvaluatorObject>(), ref _, state.options.Contains("error")
-        );
+        var result = compilation.Evaluate(new Dictionary<VariableSymbol, EvaluatorObject>(), ref _);
 
         diagnostics.Move(result.diagnostics);
     }
@@ -145,8 +141,7 @@ public sealed class Compiler {
             return;
 
         var result = compilation.Emit(
-            state.buildMode, state.moduleName, state.references, state.outputFilename,
-            state.options.Contains("error"), state.finishStage
+            state.buildMode, state.moduleName, state.references, state.outputFilename, state.finishStage
         );
 
         diagnostics.Move(result);

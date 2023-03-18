@@ -1,4 +1,5 @@
 using System.IO;
+using Diagnostics;
 using Xunit;
 using Xunit.Abstractions;
 using static Belte.Tests.Assertions;
@@ -86,22 +87,22 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_CL0007_NoOptionAfterW() {
-        var args = new string[] { "-W" };
+    public void Reports_Error_CL0007_MissingSeverity() {
+        var args = new string[] { "--severity" };
 
         var diagnostics = @"
-            must specify option after '-W' (usage: '-W<options>')
+            missing severity after '--severity' (usage: '--severity=<severity>')
         ";
 
         AssertDiagnostics(args, diagnostics, writer);
     }
 
     [Fact]
-    public void Reports_Error_CL0008_UnrecognizedWOption() {
-        var args = new string[] { "-Wasdf" };
+    public void Reports_Error_CL0008_UnrecognizedSeverity() {
+        var args = new string[] { "--severity=asdf" };
 
         var diagnostics = @"
-            unrecognized option 'asdf'
+            unrecognized severity 'asdf'
         ";
 
         AssertDiagnostics(args, diagnostics, writer);
@@ -119,14 +120,14 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Warning_CL0010_ReplInvokeIgnore() {
+    public void Reports_Info_CL0010_ReplInvokeIgnore() {
         var args = new string[] { "-r" };
 
         var diagnostics = @"
             all arguments are ignored when invoking the repl
         ";
 
-        AssertDiagnostics(args, diagnostics, writer, true);
+        AssertDiagnostics(args, diagnostics, writer, DiagnosticSeverity.Info);
     }
 
     [Fact]
@@ -151,7 +152,7 @@ public sealed class DiagnosticTests {
             cannot specify output file with '-p', '-s', '-c', or '-t' with multiple files
         ";
 
-        AssertDiagnostics(args, diagnostics, writer, false, false, filename);
+        AssertDiagnostics(args, diagnostics, writer, DiagnosticSeverity.Error, false, filename);
     }
 
     [Fact]
@@ -210,7 +211,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Warning_CL0018_IgnoringUnknownFileType() {
+    public void Reports_Info_CL0018_IgnoringUnknownFileType() {
         var filename = "BelteTestsAssertDiagnosticCL0018.ablt";
         var args = new string[] { filename };
 
@@ -218,7 +219,7 @@ public sealed class DiagnosticTests {
             unknown file type of input file 'BelteTestsAssertDiagnosticCL0018.ablt'; ignoring
         ";
 
-        AssertDiagnostics(args, diagnostics, writer, true, false, filename);
+        AssertDiagnostics(args, diagnostics, writer, DiagnosticSeverity.Info, false, filename);
     }
 
     [Fact]
@@ -234,14 +235,16 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Warning_CL0020_IgnoringCompiledFile() {
+    public void Reports_Info_CL0020_IgnoringCompiledFile() {
         var args = new string[] { "BelteTestsAssertDiagnosticCL0020.exe" };
 
         var diagnostics = @"
             BelteTestsAssertDiagnosticCL0020.exe: file already compiled; ignoring
         ";
 
-        AssertDiagnostics(args, diagnostics, writer, true, false, "BelteTestsAssertDiagnosticCL0020.exe");
+        AssertDiagnostics(
+            args, diagnostics, writer, DiagnosticSeverity.Info, false, "BelteTestsAssertDiagnosticCL0020.exe"
+        );
     }
 
     [Fact]
