@@ -176,6 +176,11 @@ internal sealed class DisplayText {
             case BoundNodeKind.MemberAccessExpression:
                 DisplayMemberAccessExpression(text, (BoundMemberAccessExpression)node);
                 break;
+            case BoundNodeKind.TypeWrapper:
+                DisplayLiteralExpression(
+                    text, new BoundLiteralExpression(((BoundTypeWrapper)node).constantValue.value)
+                );
+                break;
             default:
                 throw new BelteInternalException($"WriteTo: unexpected node '{node.kind}'");
         }
@@ -395,15 +400,17 @@ internal sealed class DisplayText {
     private static void DisplayTernaryExpression(DisplayText text, BoundTernaryExpression node) {
         var precedence = SyntaxFacts.GetTernaryPrecedence(node.op.leftOpKind);
 
-        DisplayNestedExpression(text, node.left, precedence);
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        DisplayNode(text, node.left);
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(node.op.leftOpKind));
         text.Write(CreateSpace());
-        DisplayNestedExpression(text, node.center, precedence);
+        DisplayNode(text, node.center);
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(node.op.rightOpKind));
         text.Write(CreateSpace());
-        DisplayNestedExpression(text, node.right, precedence);
+        DisplayNode(text, node.right);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
     private static void DisplayTypeOfExpression(DisplayText text, BoundTypeOfExpression node) {
@@ -424,38 +431,6 @@ internal sealed class DisplayText {
         text.Write(CreateKeyword(SyntaxKind.RefKeyword));
         text.Write(CreateSpace());
         text.Write(CreateIdentifier(node.variable.name));
-    }
-
-    private static void DisplayNestedExpression(DisplayText text, BoundExpression expression, int parentPrecedence) {
-        var expr = expression;
-
-        if (expression is BoundAssignmentExpression a)
-            expr = a.right;
-
-        if (expr is BoundUnaryExpression u) {
-            DisplayNestedExpression(text, expression, parentPrecedence, SyntaxFacts.GetUnaryPrecedence(u.op.kind));
-        } else if (expr is BoundBinaryExpression b) {
-            DisplayNestedExpression(text, expression, parentPrecedence, SyntaxFacts.GetBinaryPrecedence(b.op.kind));
-        } else if (expr is BoundTernaryExpression t) {
-            DisplayNestedExpression(
-                text, expression, parentPrecedence, SyntaxFacts.GetTernaryPrecedence(t.op.leftOpKind)
-            );
-        } else {
-            DisplayNode(text, expression);
-        }
-    }
-
-    private static void DisplayNestedExpression(
-        DisplayText text, BoundExpression expression, int parentPrecedence, int currentPrecedence) {
-        var needsParenthesis = parentPrecedence >= currentPrecedence;
-
-        if (needsParenthesis)
-            text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-
-        DisplayNode(text, expression);
-
-        if (needsParenthesis)
-            text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
     private static void DisplayCastExpression(DisplayText text, BoundCastExpression node) {
@@ -525,11 +500,13 @@ internal sealed class DisplayText {
     private static void DisplayBinaryExpression(DisplayText text, BoundBinaryExpression node) {
         var precedence = SyntaxFacts.GetBinaryPrecedence(node.op.kind);
 
-        DisplayNestedExpression(text, node.left, precedence);
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        DisplayNode(text, node.left);
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(node.op.kind));
         text.Write(CreateSpace());
-        DisplayNestedExpression(text, node.right, precedence);
+        DisplayNode(text, node.right);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
     private static void DisplayLiteralExpression(DisplayText text, BoundLiteralExpression node) {
@@ -558,6 +535,6 @@ internal sealed class DisplayText {
         var precedence = SyntaxFacts.GetUnaryPrecedence(node.op.kind);
 
         text.Write(CreatePunctuation(node.op.kind));
-        DisplayNestedExpression(text, node.operand, precedence);
+        DisplayNode(text, node.operand);
     }
 }

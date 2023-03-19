@@ -65,53 +65,38 @@ buckle -d Program.ble --ref=Path/To/System.Console.dll // Correct
 It is important to note that 'System.Console.dll', 'System.Runtime.dll', and
 'System.Runtime.Extensions.dll' are always included references, so they do not
 need to be added manually. 'System.Console.dll' was purely used as an example.
-$CL0006
-The '--entry' command-line option requires a method or function symbol name to
-use as an entry point, so without a name, it cannot perform its action.
-
-By default, the entry point is a global method symbol named 'Main', but the user
-can use this option to specify where to start execution explicitly.
-
-For example
-
-```
-buckle -i Program.ble --entry // Incorrect, no symbol name is provided
-buckle -i Program.ble --entry=Program.Main // Correct
-```
+$BU0006
+When the compiler attempts to read the files passed on the command line and
+fails, this error is produced. This is most likely due to another process using
+the file, so a common way to fix this error is to just retry. If that does not
+fix the issue, double check the file passed is unlocked. If the problem
+persists, submit a bug report.
 $CL0007
-The '-W' command-line option is used to tell the compiler special ways to handle
-warnings. This can either be '-Werror' to treat all warnings as errors,
-'-Wignore' to ignore all warnings, or '-Wall' to show some hidden warnings and
-also to show warnings while interpreting.
+The '--severity' command-line option is used to tell the compiler which
+diagnostics to report.
 
-Because of how this option works, it requires an option name after the '-W'. If
-no option name is given, this error is raised.
+Because of how this option works, it requires an severity name after the
+'--severity'. If no severity name is given, this error is raised.
 
 For example:
 
 ```
-buckle -i Program.ble -W // Incorrect, no option name is provided
-buckle -i Program.ble -Wall // Correct
-```
-
-If multiple options are to be provided, you can choose to comma separate them.
-The following examples show two ways to write the same thing:
-
-```
-buckle -d Program.ble -Wall,error
-buckle -d Program.ble -Wall -Werror
+buckle -i Program.ble --severity // Incorrect, no severity name is provided
+buckle -i Program.ble --severity=all // Correct
 ```
 $CL0008
-The '-W' command-line option has a predefined set of known options. If an option
-is provided that the compiler does not recognize, this error is raised.
+The '--severity' command-line option has a predefined set of known severities.
+If a severity is provided that the compiler does not recognize, this error is
+raised.
 
 For example:
 
 ```
-buckle -i Program.ble -Wextra // Incorrect, 'extra' is not a known warning option
+buckle -i Program.ble --severity=suggestion // Incorrect, 'suggestion' is not a known severity
 ```
 
-Reference the Belte docs to learn more about what options '-W' supports.
+Reference the Belte docs to learn more about what severities '--severity'
+supports.
 $CL0009
 If an unknown option is provided to the command line, instead of ignoring it the
 compiler raises an error to let the user know. Usually, this error is the result
@@ -312,12 +297,3 @@ buckle --explain BU6307 // Correct format, but the error code 'BU6307' is not cu
 ```
 
 If the error code is in the incorrect format, then error CL0019 is raised.
-$CL0022
-Certain command-line options like '--explain' and '--help' require accessing
-text documents for their information. If the installation of Buckle is corrupt
-in a way that these files cannot be located by the compiler, then the stored
-information cannot be found. This means that these options are disabled.
-All other compiler features should still perform correctly.
-
-However, if you are seeing this message it means your installation is not
-corrupt (at least regarding these documents), so you should not be worried!

@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// An argument used in a <see cref="CallExpression" />.
+/// An argument used in a <see cref="CallExpressionSyntax" />.
 /// </summary>
 internal sealed partial class ArgumentSyntax : SyntaxNode {
     /// <param name="name">

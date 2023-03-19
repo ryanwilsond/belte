@@ -151,8 +151,7 @@ compiling multiple files, it becomes ambiguous which file to run first.
 Because of this, only one file can contain global statements.
 
 If this becomes a problem, consider reworking your project to use an explicit
-entry point such as `Main`, or specify one with the '--entry' command-line
-option.
+entry point such as `Main`.
 $BU0013
 When a function is declared with multiple parameters of the same name, it
 becomes ambiguous when referencing parameters. Because of this, each parameter

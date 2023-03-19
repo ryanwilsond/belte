@@ -9,6 +9,7 @@ Buckle is the Belte programming language compiler.
 | -h \| --help | Displays the help information. |
 | --version | Display the compiler version information. |
 | --dumpmachine | Display the compiler's target system. |
+| --no-out | Disable any output the compiler would have produced; mainly used for checking syntax or debugging. |
 | --explain[BU\|RE\|CL]\<code\> | Extended information for a specific error. |
 | -r | Invoke the builtin Repl, ignoring all other arguments. |
 | -p | Have the compiler stop after preprocessing. |
@@ -17,11 +18,21 @@ Buckle is the Belte programming language compiler.
 | -i | Interpret realtime instead of compiling to executable. Produces no output files. |
 | -t | Transpile into C# instead of emitting to an executable. |
 | -o *filename* | Specify where to put the resulting output file. Can only use this with multiple input files when not stopping before linking. Defaults to *a.exe*. |
-| -W*options* | Specify one or multiple options to forward to the compilers sub-processes. |
-| --entry=*symbol* | Specify the entry point of the program. By default searches for *main()*, *Program.Main()* or uses top of file. |
+| --severity=*severity* | Specify a reporting severity, default is *warning*. [Here](#severities) for more information on severities. |
 | -d | Build with .NET integration. Gives compatibility with .NET but generally slightly slower runtime speed. |
 | --modulename=*name* | Specify the name of the .NET module produced, defaults to *a* or the name of the specified output file without the extension. |
 | --ref=*file* | Specify a .NET reference to add to the project. Can specify multiple. |
+
+### Severities
+
+| Severity | Description |
+|-|-|
+| *all* | Everything is shown. |
+| *debug* | Verbose information is shown. Used for debugging purposes. |
+| *info* | Any information hidden by default. |
+| *warning* | Information that usually suggests a non-required change. |
+| *error* | Any problem that does not immediately stop execution. |
+| *fatal* | Any problem that immediately stops execution. |
 
 ## Running the Interpreter
 

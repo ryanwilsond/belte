@@ -50,8 +50,7 @@ internal sealed class Evaluator {
     }
 
     /// <summary>
-    /// If it has a Print statement, adds a line break to avoid formatting issues
-    /// (mostly for the <see cref="BelteRepl" />).
+    /// If it has a Print statement, adds a line break to avoid formatting issues.
     /// </summary>
     internal bool hasPrint {
         get {
@@ -79,6 +78,8 @@ internal sealed class Evaluator {
     /// <summary>
     /// Evaluate the provided <see cref="BoundProgram" />.
     /// </summary>
+    /// <param name="abort">External flag used to cancel evaluation.</param>
+    /// <param name="hasValue">If the evaluation had a returned result.</param>
     /// <returns>Result of <see cref="BoundProgram" /> (if applicable).</returns>
     internal object Evaluate(ref bool abort, out bool hasValue) {
         var function = _program.mainFunction ?? _program.scriptFunction;
@@ -104,7 +105,7 @@ internal sealed class Evaluator {
 
     private EvaluatorObject GetFrom(Dictionary<VariableSymbol, EvaluatorObject> variables, VariableSymbol variable) {
         foreach (var pair in variables) {
-            if (variable.name == pair.Key.name && BoundType.Equals(variable.type, pair.Key.type))
+            if (variable.name == pair.Key.name && variable.type.Equals(pair.Key.type))
                 return pair.Value;
         }
 

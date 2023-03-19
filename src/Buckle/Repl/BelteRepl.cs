@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
 using Buckle;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Authoring;
@@ -63,6 +68,7 @@ public sealed class BelteRepl : ReplBase {
         state.showTree = false;
         state.showProgram = false;
         state.showWarnings = false;
+        state.showIL = false;
         state.loadingSubmissions = false;
         state.variables = new Dictionary<VariableSymbol, EvaluatorObject>();
         state.previous = null;
@@ -147,15 +153,24 @@ public sealed class BelteRepl : ReplBase {
             WriteDisplayText(displayText);
         }
 
+        if (state.showIL) {
+            try {
+                var iLCode = compilation.EmitToString(BuildMode.Dotnet, "REPLSubmission");
+                _writer.Write(iLCode);
+            } catch (KeyNotFoundException) {
+                handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.FailedILGeneration()));
+            }
+        }
+
         if (state.showWarnings)
             handle.diagnostics.Move(compilation.diagnostics);
         else
-            handle.diagnostics.Move(compilation.diagnostics.FilterOut(DiagnosticType.Warning));
+            handle.diagnostics.Move(compilation.diagnostics.Errors());
 
         EvaluationResult result = null;
         Console.ForegroundColor = state.colorTheme.result;
 
-        if (!handle.diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
+        if (!handle.diagnostics.Errors().Any()) {
             result = compilation.Evaluate(state.variables, ref _abortEvaluation);
 
             if (_abortEvaluation) {
@@ -166,10 +181,10 @@ public sealed class BelteRepl : ReplBase {
             if (state.showWarnings)
                 handle.diagnostics.Move(result.diagnostics);
             else
-                handle.diagnostics.Move(result.diagnostics.FilterOut(DiagnosticType.Warning));
+                handle.diagnostics.Move(result.diagnostics.Errors());
         }
 
-        var hasErrors = handle.diagnostics.FilterOut(DiagnosticType.Warning).Any();
+        var hasErrors = handle.diagnostics.Errors().Any();
 
         if (handle.diagnostics.Any()) {
             if (diagnosticHandle != null) {
@@ -515,13 +530,9 @@ public sealed class BelteRepl : ReplBase {
                 File.WriteAllLines(path, subset);
                 wrote = true;
                 break;
-            } catch (Exception) {
+            } catch (IOException) {
                 // In case file is being used by another process, retry
                 Thread.Sleep(100);
-
-                // If there is an exception unrelated to the file being used, it should be shown
-                if (i == 2)
-                    throw;
             }
         }
 
@@ -607,6 +618,12 @@ public sealed class BelteRepl : ReplBase {
     private void EvaluateShowTime() {
         _showTime = !_showTime;
         _writer.WriteLine(_showTime ? "Execution time visible" : "Execution time hidden");
+    }
+
+    [MetaCommand("showIL", "Toggle to display the IL version of the code")]
+    private void EvaluateShowIL() {
+        state.showIL = !state.showIL;
+        _writer.WriteLine(state.showIL ? "IL visible" : "IL hidden");
     }
 
     /// <summary>
@@ -759,42 +776,47 @@ public sealed class BelteRepl : ReplBase {
         /// <summary>
         /// Show the parse tree after a submission.
         /// </summary>
-        public bool showTree = false;
+        internal bool showTree = false;
 
         /// <summary>
         /// Show the lowered code after a submission.
         /// </summary>
-        public bool showProgram = false;
+        internal bool showProgram = false;
 
         /// <summary>
         /// Show compiler produced warnings.
         /// </summary>
-        public bool showWarnings = false;
+        internal bool showWarnings = false;
+
+        /// <summary>
+        /// Show the IL code after a submission.
+        /// </summary>
+        internal bool showIL = false;
 
         /// <summary>
         /// If to ignore statements with side effects (Print, PrintLine, etc.).
         /// </summary>
-        public bool loadingSubmissions = false;
+        internal bool loadingSubmissions = false;
 
         /// <summary>
         /// What color theme to use (can change).
         /// </summary>
-        public ColorTheme colorTheme = new DarkTheme();
+        internal ColorTheme colorTheme = new DarkTheme();
 
         /// <summary>
         /// Current <see cref="Page" /> the user is viewing.
         /// </summary>
-        public Page currentPage = Page.Repl;
+        internal Page currentPage = Page.Repl;
 
         /// <summary>
         /// Previous <see cref="Compilation" /> (used to build of previous).
         /// </summary>
-        public Compilation previous;
+        internal Compilation previous;
 
         /// <summary>
         /// Current defined variables.
         /// Not tracked after REPL instance is over, instead previous submissions are reevaluated.
         /// </summary>
-        public Dictionary<VariableSymbol, EvaluatorObject> variables;
+        internal Dictionary<VariableSymbol, EvaluatorObject> variables;
     }
 }

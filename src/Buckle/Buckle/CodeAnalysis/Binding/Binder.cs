@@ -13,8 +13,8 @@ using static Buckle.CodeAnalysis.Binding.BoundFactory;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Binds a <see cref="Parser" /> output into a immutable "bound" tree. This is where most error checking happens.
-/// The <see cref="Lowerer" /> is also called here to simplify the code,
+/// Binds a <see cref="Syntax.InternalSyntax.Parser" /> output into a immutable "bound" tree. This is where most error
+/// checking happens. The <see cref="Lowerer" /> is also called here to simplify the code,
 /// And convert control of flow into gotos and labels. Dead code is also removed here, as well as other optimizations.
 /// </summary>
 internal sealed class Binder {
@@ -65,7 +65,7 @@ internal sealed class Binder {
     /// Binds everything in the global scope.
     /// </summary>
     /// <param name="isScript">
-    /// If being bound as a script (used by the <see cref="BelteRepl" />), otherwise an application.
+    /// If being bound as a script, otherwise an application.
     /// </param>
     /// <param name="previous">Previous <see cref="BoundGlobalScope" /> (if applicable).</param>
     /// <param name="syntaxTrees">All SyntaxTrees, as files are bound together.</param>
@@ -81,7 +81,7 @@ internal sealed class Binder {
         foreach (var syntaxTree in syntaxTrees)
             binder.diagnostics.Move(syntaxTree.diagnostics);
 
-        if (binder.diagnostics.FilterOut(DiagnosticType.Warning).Any())
+        if (binder.diagnostics.Errors().Any())
             return GlobalScope(previous, binder.diagnostics);
 
         var typeDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<TypeDeclarationSyntax>();
@@ -191,7 +191,7 @@ internal sealed class Binder {
         bool isScript, BoundProgram previous, BoundGlobalScope globalScope, bool transpilerMode) {
         var parentScope = CreateParentScope(globalScope);
 
-        if (globalScope.diagnostics.FilterOut(DiagnosticType.Warning).Any())
+        if (globalScope.diagnostics.Errors().Any())
             return Program(previous, globalScope.diagnostics);
 
         var functionBodies = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
@@ -214,7 +214,7 @@ internal sealed class Binder {
             var body = binder.BindMethodBody(function.declaration.body, function.parameters);
             diagnostics.Move(binder.diagnostics);
 
-            if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+            if (diagnostics.Errors().Any())
                 return Program(previous, diagnostics);
 
             loweredBody = Lowerer.Lower(function, body, transpilerMode);
@@ -542,8 +542,10 @@ internal sealed class Binder {
             diagnostics.Push(Error.CannotConvertImplicitly(diagnosticLocation, expression.type, type, argument));
 
         if (conversion.isIdentity) {
-            if (expression is not BoundLiteralExpression le || le.type.typeSymbol != null)
+            if (expression.type.typeSymbol != null)
                 return expression;
+            else if (expression.constantValue != null)
+                return new BoundTypeWrapper(type, expression.constantValue);
         }
 
         return new BoundCastExpression(type, expression);
@@ -904,10 +906,10 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatementSyntax expression) {
-        var currentCount = diagnostics.FilterOut(DiagnosticType.Warning).count;
+        var currentCount = diagnostics.Errors().count;
         var type = BindType(expression.type);
 
-        if (diagnostics.FilterOut(DiagnosticType.Warning).count > currentCount)
+        if (diagnostics.Errors().count > currentCount)
             return null;
 
         if (type.isImplicit && expression.initializer == null) {
@@ -949,6 +951,9 @@ internal sealed class Binder {
         if (type.isReference || (type.isImplicit && expression.initializer?.kind == SyntaxKind.RefExpression)) {
             var initializer = BindReferenceExpression((ReferenceExpressionSyntax)expression.initializer);
 
+            if (diagnostics.Errors().count > currentCount)
+                return null;
+
             var tempType = type.isImplicit ? initializer.type : type;
             var variableType = BoundType.Copy(
                 tempType,
@@ -974,7 +979,7 @@ internal sealed class Binder {
                 return null;
             }
 
-            if (diagnostics.FilterOut(DiagnosticType.Warning).count > currentCount)
+            if (diagnostics.Errors().count > currentCount)
                 return null;
 
             // References cant have implicit casts
@@ -985,7 +990,7 @@ internal sealed class Binder {
             (type.isImplicit && expression.initializer is InitializerListExpressionSyntax)) {
             var initializer = (expression.initializer == null ||
                 (expression.initializer is LiteralExpressionSyntax l && l.token.kind == SyntaxKind.NullKeyword))
-                ? new BoundLiteralExpression(null)
+                ? new BoundTypeWrapper(type, new BoundConstant(null))
                 : BindExpression(expression.initializer, initializerListType: type);
 
             if (initializer is BoundInitializerListExpression il) {
@@ -1019,14 +1024,14 @@ internal sealed class Binder {
                 castedInitializer.constantValue
             );
 
-            if (diagnostics.FilterOut(DiagnosticType.Warning).count > currentCount)
+            if (diagnostics.Errors().count > currentCount)
                 return null;
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
         } else {
             var initializer = expression.initializer != null
                 ? BindExpression(expression.initializer)
-                : new BoundLiteralExpression(null);
+                : new BoundTypeWrapper(type, new BoundConstant(null));
 
             var tempType = type.isImplicit ? initializer.type : type;
             var variableType = BoundType.Copy(
@@ -1052,7 +1057,7 @@ internal sealed class Binder {
             if (initializer.constantValue == null || initializer.constantValue.value != null)
                 _scope.NoteAssignment(variable);
 
-            if (diagnostics.FilterOut(DiagnosticType.Warning).count > currentCount)
+            if (diagnostics.Errors().count > currentCount)
                 return null;
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
@@ -1489,7 +1494,7 @@ internal sealed class Binder {
                 }
             }
 
-            if (symbols.Length == 1 && diagnostics.FilterOut(DiagnosticType.Warning).Any()) {
+            if (symbols.Length == 1 && diagnostics.Errors().Any()) {
                 tempDiagnostics.Move(diagnostics);
                 diagnostics.Move(tempDiagnostics);
 
@@ -1641,17 +1646,14 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        // Could possible move this to ComputeConstant
-        // TODO Expand the usage of this warning
-        if (boundOp.opKind == BoundBinaryOperatorKind.EqualityEquals ||
-            boundOp.opKind == BoundBinaryOperatorKind.EqualityNotEquals ||
-            boundOp.opKind == BoundBinaryOperatorKind.LessThan ||
-            boundOp.opKind == BoundBinaryOperatorKind.LessOrEqual ||
-            boundOp.opKind == BoundBinaryOperatorKind.GreaterThan ||
-            boundOp.opKind == BoundBinaryOperatorKind.GreatOrEqual) {
+        if (boundOp.opKind != BoundBinaryOperatorKind.NullCoalescing &&
+            boundOp.opKind != BoundBinaryOperatorKind.Is &&
+            boundOp.opKind != BoundBinaryOperatorKind.Isnt &&
+            boundOp.opKind != BoundBinaryOperatorKind.ConditionalAnd &&
+            boundOp.opKind != BoundBinaryOperatorKind.ConditionalOr) {
             if (BoundConstant.IsNull(boundLeft.constantValue) || BoundConstant.IsNull(boundRight.constantValue)) {
                 diagnostics.Push(Warning.AlwaysValue(expression.location, null));
-                return new BoundLiteralExpression(null);
+                return new BoundTypeWrapper(boundOp.type, new BoundConstant(null));
             }
         }
 

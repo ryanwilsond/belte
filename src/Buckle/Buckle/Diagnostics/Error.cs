@@ -1,4 +1,3 @@
-using System;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -26,14 +25,6 @@ internal static class Error {
         internal static BelteDiagnostic GlobalReturnValue(TextLocation location) {
             var message = "unsupported: global return cannot return a value";
             return new BelteDiagnostic(ErrorInfo(DiagnosticCode.UNS_GlobalReturnValue), location, message);
-        }
-
-        /// <summary>
-        /// BU9003. Run `buckle --explain BU9003` on the command line for more info.
-        /// </summary>
-        internal static BelteDiagnostic IndependentCompilation() {
-            var message = "unsupported: cannot compile independently; must specify '-i', '-d', or '-r'";
-            return new BelteDiagnostic(FatalErrorInfo(DiagnosticCode.UNS_IndependentCompilation), message);
         }
 
         /// <summary>
@@ -718,11 +709,7 @@ internal static class Error {
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
-        return new DiagnosticInfo((int)code, "BU", DiagnosticType.Error);
-    }
-
-    private static DiagnosticInfo FatalErrorInfo(DiagnosticCode code) {
-        return new DiagnosticInfo((int)code, "BU", DiagnosticType.Fatal);
+        return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }
 
     private static string DiagnosticText(SyntaxKind type, bool sayToken = true) {

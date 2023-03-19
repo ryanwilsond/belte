@@ -161,15 +161,39 @@ internal sealed class BoundBinaryOperator {
     /// <param name="rightType">Right operand type.</param>
     /// <returns><see cref="BoundBinaryOperator" /> if an operator exists, otherwise null.</returns>
     internal static BoundBinaryOperator Bind(SyntaxKind kind, BoundType leftType, BoundType rightType) {
-        var nonNullableLeft = BoundType.NonNullable(leftType);
-        var nonNullableRight = BoundType.NonNullable(rightType);
+        var nonNullableLeft = BoundType.Copy(leftType, isNullable: false);
+        var nonNullableRight = BoundType.Copy(rightType, isNullable: false);
 
         foreach (var op in _operators) {
-            var leftIsCorrect = Cast.Classify(nonNullableLeft, op.leftType).isImplicit;
-            var rightIsCorrect = Cast.Classify(nonNullableRight, op.rightType).isImplicit;
+            var leftIsCorrect = op.leftType == null
+                ? true
+                : Cast.Classify(nonNullableLeft, op.leftType).isImplicit;
 
-            if (op.kind == kind && leftIsCorrect && rightIsCorrect)
-                return op;
+            var rightIsCorrect = op.rightType == null
+                ? true
+                : Cast.Classify(nonNullableRight, op.rightType).isImplicit;
+
+            if (op.kind == kind && leftIsCorrect && rightIsCorrect) {
+                if (op.leftType == null || op.rightType == null) {
+                    return new BoundBinaryOperator(
+                        op.kind,
+                        op.opKind,
+                        op.leftType == null ? leftType : op.leftType,
+                        op.rightType == null ? rightType : op.rightType,
+                        op.type == null ? leftType : op.type
+                    );
+                } else if (leftType.isNullable || rightType.isNullable) {
+                    return new BoundBinaryOperator(
+                        op.kind,
+                        op.opKind,
+                        BoundType.Copy(op.leftType, isNullable: true),
+                        BoundType.Copy(op.rightType, isNullable: true),
+                        BoundType.Copy(op.type, isNullable: true)
+                    );
+                } else {
+                    return op;
+                }
+            }
         }
 
         return null;

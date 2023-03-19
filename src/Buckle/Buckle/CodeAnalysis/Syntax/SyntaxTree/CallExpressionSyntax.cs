@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Call expression, invokes a callable <see cref="Symbol" /> (function).<br/>
+/// Call expression, invokes a callable <see cref="Symbols.Symbol" /> (function).<br/>
 /// E.g.
 /// <code>
 /// myFunc(...)

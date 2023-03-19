@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Immutable;
 using Buckle.Diagnostics;
 
@@ -9,11 +8,11 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal abstract class BoundTreeRewriter {
     /// <summary>
-    /// Rewrites a single <see cref="StatementSyntax" /> (including all children, recursive).
+    /// Rewrites a single <see cref="Syntax.StatementSyntax" /> (including all children, recursive).
     /// </summary>
-    /// <param name="statement"><see cref="StatementSyntax" /> to rewrite.</param>
+    /// <param name="statement"><see cref="Syntax.StatementSyntax" /> to rewrite.</param>
     /// <returns>
-    /// New <see cref="StatementSyntax" /> or input <see cref="StatementSyntax" /> if nothing changed.
+    /// New <see cref="Syntax.StatementSyntax" /> or input <see cref="Syntax.StatementSyntax" /> if nothing changed.
     /// </returns>
     internal virtual BoundStatement RewriteStatement(BoundStatement statement) {
         switch (statement.kind) {
@@ -243,8 +242,10 @@ internal abstract class BoundTreeRewriter {
     protected virtual BoundExpression RewriteConstantExpression(BoundExpression expression) {
         if (expression.constantValue.value is ImmutableArray<BoundConstant>)
             return new BoundInitializerListExpression(expression.constantValue, expression.type);
+        else if (expression is not BoundTypeWrapper)
+            return new BoundLiteralExpression(expression.constantValue.value, expression.type);
         else
-            return new BoundLiteralExpression(expression.constantValue.value);
+            return expression;
     }
 
     protected virtual BoundExpression RewritePrefixExpression(BoundPrefixExpression expression) {

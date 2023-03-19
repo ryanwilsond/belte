@@ -2,25 +2,26 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": ".NET Core Launch (console)",
+            "name": "Debug",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build",
+            "preLaunchTask": "build debug",
             "program": "${workspaceFolder}/src/Buckle/Belte/bin/Debug/net7.0/Belte.dll",
-            // "args": [
-            //     "-d",
-            //     "samples/Hello",
-            //     "-o samples/Hello/obj/Debug/netcoreapp3.1/Hello.dll"
-            // ],
             "args": ["-r"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "stopAtEntry": false,
         },
         {
-            "name": ".NET Core Attach",
+            "name": "Release",
             "type": "coreclr",
-            "request": "attach"
+            "request": "launch",
+            "preLaunchTask": "build release",
+            "program": "${workspaceFolder}/src/Buckle/Belte/bin/Release/net7.0/Belte.dll",
+            "args": ["-r"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "stopAtEntry": false,
         }
     ]
 }

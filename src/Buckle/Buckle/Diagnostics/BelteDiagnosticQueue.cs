@@ -5,7 +5,7 @@ using Diagnostics;
 namespace Buckle.Diagnostics;
 
 /// <summary>
-/// A <see cref="DiagnosticQueue" /> containing <see cref="BelteDiagnostic" />s.
+/// A <see cref="DiagnosticQueue<T>" /> containing <see cref="BelteDiagnostic" />s.
 /// </summary>
 public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     /// <summary>
@@ -29,7 +29,7 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
         var cleanedDiagnostics = new BelteDiagnosticQueue();
         var specialDiagnostics = new BelteDiagnosticQueue();
 
-        var diagnosticList = diagnostics.AsList<BelteDiagnostic>();
+        var diagnosticList = diagnostics.ToList<BelteDiagnostic>();
 
         for (int i=0; i<diagnosticList.Count; i++) {
             var diagnostic = diagnosticList[i];
@@ -52,11 +52,11 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     }
 
     /// <summary>
-    /// Copies <see cref="BelteDiagnosticQueue" /> without a specific severity of <see cref="BelteDiagnostic" />.
+    /// Filters out any non-error diagnostics. Does not affect this.
     /// </summary>
-    /// <param name="type">Severity to not copy (see <see cref="DiagnosticType" />).</param>
-    /// <returns>New, unlinked <see cref="BelteDiagnosticQueue" />.</returns>
-    public new BelteDiagnosticQueue FilterOut(DiagnosticType type) {
-        return new BelteDiagnosticQueue(AsList().Where(d => d.info.severity != type));
+    /// <returns>Filtered queue.</returns>
+    public BelteDiagnosticQueue Errors() {
+        return new BelteDiagnosticQueue(FilterAbove(DiagnosticSeverity.Error).ToList());
     }
+
 }

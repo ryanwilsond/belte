@@ -3,7 +3,7 @@ using Buckle.CodeAnalysis.Display;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Bound node, gets created from a <see cref="SyntaxNode" />.
+/// Bound node, gets created from a <see cref="Syntax.SyntaxNode" />.
 /// </summary>
 internal abstract class BoundNode {
     internal abstract BoundNodeKind kind { get; }

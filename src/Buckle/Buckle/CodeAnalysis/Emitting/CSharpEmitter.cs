@@ -25,7 +25,7 @@ internal sealed class CSharpEmitter {
     /// <param name="outputPath">Where to put the emitted assembly.</param>
     /// <returns>Diagnostics.</returns>
     internal static BelteDiagnosticQueue Emit(BoundProgram program, string outputPath) {
-        if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
+        if (program.diagnostics.Errors().Any())
             return program.diagnostics;
 
         var stringWriter = Emit(program, Path.GetFileNameWithoutExtension(outputPath), out var diagnostics);
@@ -312,9 +312,15 @@ internal sealed class CSharpEmitter {
             indentedTextWriter.WriteLine("return;");
         } else {
             indentedTextWriter.Write("return (");
+
+            if (BoundConstant.IsNull(statement.expression.constantValue)) {
+                indentedTextWriter.WriteLine("0);");
+                return;
+            }
+
             EmitExpression(indentedTextWriter, statement.expression);
 
-            if (insideMain)
+            if (insideMain && statement.expression.type.isNullable)
                 indentedTextWriter.WriteLine(") ?? 0;");
             else
                 indentedTextWriter.WriteLine(");");
@@ -339,12 +345,12 @@ internal sealed class CSharpEmitter {
 
     private static void EmitNullProtectedExpression(IndentedTextWriter indentedTextWriter, BoundExpression expression) {
         if (expression.type.isNullable)
-            indentedTextWriter.Write("((");
+            indentedTextWriter.Write("(");
 
         EmitExpression(indentedTextWriter, expression);
 
         if (expression.type.isNullable)
-            indentedTextWriter.Write(") ?? throw new NullReferenceException())");
+            indentedTextWriter.Write(" ?? throw new NullReferenceException())");
     }
 
     private static void EmitIfStatement(
@@ -527,9 +533,11 @@ internal sealed class CSharpEmitter {
     }
 
     private static void EmitBinaryExpression(IndentedTextWriter indentedTextWriter, BoundBinaryExpression expression) {
+        indentedTextWriter.Write("(");
         EmitExpression(indentedTextWriter, expression.left);
         indentedTextWriter.Write($" {SyntaxFacts.GetText(expression.op.kind)} ");
         EmitExpression(indentedTextWriter, expression.right);
+        indentedTextWriter.Write(")");
     }
 
     private static void EmitVariableExpression(
@@ -588,9 +596,8 @@ internal sealed class CSharpEmitter {
                     EmitExpression(indentedTextWriter, expression.arguments[0]);
                     indentedTextWriter.Write(".HasValue");
                 } else if (expression.arguments[0].type.isNullable) {
-                    indentedTextWriter.Write("((");
                     EmitExpression(indentedTextWriter, expression.arguments[0]);
-                    indentedTextWriter.Write($") is not null)");
+                    indentedTextWriter.Write($" is not null");
                 } else {
                     indentedTextWriter.Write("true");
                 }

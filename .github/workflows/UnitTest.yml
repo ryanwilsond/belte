@@ -16,7 +16,7 @@ jobs:
         run: dotnet clean --configuration Release ./src/Buckle/Buckle.sln
 
       - name: Build
-        run: dotnet build -t:rebuild --configuration Release ./src/Buckle/Buckle.sln 
+        run: dotnet build -t:rebuild --configuration Release ./src/Buckle/Buckle.sln
 
       - name: Test
-        run: dotnet test --configuration Release ./src/Buckle/Buckle.Tests/Buckle.Tests.csproj
+        run: dotnet test --configuration Release ./src/Buckle/Buckle.sln

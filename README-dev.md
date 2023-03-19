@@ -1,33 +1,27 @@
-# Developing Environment
+# README for Developers
 
 To view future plans, docs, etc:
 
-Github: [github.com/flamechain/belte](https://github.com/flamechain/belte)
+Github: [github.com/ryanwilsond/belte](https://github.com/ryanwilsond/belte)
 
-Docs/Pages: [flamechain.github.io/belte](https://flamechain.github.io/belte/)
+Docs/Pages: [ryanwilsond.github.io/belte](https://ryanwilsond.github.io/belte/)
 
 Trello: [trello.com/belteindustries](https://trello.com/belteindustries)
 
 OnBoarding:
 [Belte Industries OnBoarding Presentation](https://docs.google.com/presentation/d/1OPQQ2u9eYoLJ0EJMaahhTUQPkZ3FQ6KigO9uWFbu9zQ/edit?usp=sharing)
 
-## Tools
+## Tools for Building
 
-This project uses the .NET SDK (7.0) for building, wrapped with GNU Make.
+This project uses the .NET SDK (7.0). To run the project, launch a debug or
+release profile (currently only for Visual Studio Code). For publishing the
+project, GNU Make is used.
 
-## Building Buckle
+Visual Studio Code is strongly recommended, but not required.
 
-The final executable is put into `./buckle.exe`.
+## Publishing Buckle
 
-Run `$ make` to build the project, and run `$ make test` to run the unit tests.
+Run `$ make` to publish the project, and run `$ make test` to run the project's
+tests.
 
-If you are building for the first time, run `$ make setup` after you build to
-copy some files to the root of the project.
-
-## Building Sander
-
-The final executable is put into `./sander.exe`.
-
-For first time setup run `$ make debugsander` followed by `$ make sandersetup`.
-
-Run `$ make sander` to build the project.
+The final executable is put into `./bin/release/buckle.exe`.

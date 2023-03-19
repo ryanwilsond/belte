@@ -81,9 +81,9 @@ internal sealed class BoundTernaryOperator {
     /// <returns><see cref="BoundTernaryOperator" /> if an operator exists, otherwise null.</returns>
     internal static BoundTernaryOperator Bind(SyntaxKind leftOpKind, SyntaxKind rightOpKind,
         BoundType leftType, BoundType centerType, BoundType rightType) {
-        var nonNullableLeft = BoundType.NonNullable(leftType);
-        var nonNullableCenter = BoundType.NonNullable(centerType);
-        var nonNullableRight = BoundType.NonNullable(rightType);
+        var nonNullableLeft = BoundType.Copy(leftType, isNullable: false);
+        var nonNullableCenter = BoundType.Copy(centerType, isNullable: false);
+        var nonNullableRight = BoundType.Copy(rightType, isNullable: false);
 
         foreach (var op in _operators) {
             var leftIsCorrect = op.leftType == null
@@ -110,9 +110,9 @@ internal sealed class BoundTernaryOperator {
                         op.rightType == null ? rightType : op.rightType,
                         op.type == null ? centerType : op.type
                     );
+                } else {
+                    return op;
                 }
-
-                return op;
             }
         }
 

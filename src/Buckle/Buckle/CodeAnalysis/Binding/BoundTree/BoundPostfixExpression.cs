@@ -2,8 +2,8 @@
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound postfix expression. Bound from a <see cref="PostfixExpressionSyntax" />.
-/// Always gets rewritten by the <see cref="Lowerer" /> into a <see cref="BoundAssignmentExpression" />.
+/// A bound postfix expression. Bound from a <see cref="Syntax.PostfixExpressionSyntax" />.
+/// Always gets rewritten by the <see cref="Lowering.Lowerer" /> into a <see cref="BoundAssignmentExpression" />.
 /// </summary>
 internal sealed class BoundPostfixExpression : BoundExpression {
     internal BoundPostfixExpression(BoundExpression operand, BoundPostfixOperator op, bool isOwnStatement) {
@@ -17,7 +17,8 @@ internal sealed class BoundPostfixExpression : BoundExpression {
     internal BoundPostfixOperator op { get; }
 
     /// <summary>
-    /// If the expression is an expression statement, as if this is the case the <see cref="Lowerer" /> has to do less.
+    /// If the expression is an expression statement, as if this is the case the <see cref="Lowering.Lowerer" /> has to
+    /// do less.
     /// </summary>
     internal bool isOwnStatement { get; }
 

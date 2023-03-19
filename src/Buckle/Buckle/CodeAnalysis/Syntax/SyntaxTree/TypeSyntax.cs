@@ -33,7 +33,7 @@ internal sealed class TypeSyntax : SyntaxNode {
 
     /// <summary>
     /// Const keyword referring to a constant reference type, only valid if the
-    /// <see cref="TypeSyntax.refKeyword" /> field is also set.
+    /// <see cref="refKeyword" /> field is also set.
     /// </summary>
     internal SyntaxToken? constRefKeyword { get; }
 

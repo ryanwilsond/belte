@@ -1,12 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\Buckle\Buckle.csproj" />
-    <Content Update="Resources/help.txt">
-    </Content>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Buckle.Tests</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Belte.Tests</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 
   <ItemGroup>
+    <Content Remove="Resources/ErrorDescriptionsCL.txt" />
+    <Content Remove="Resources/HelpPrompt.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources/ErrorDescriptionsCL.txt" />
+    <EmbeddedResource Include="Resources/HelpPrompt.txt" />
+    </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Buckle\Buckle.csproj" />
     <ProjectReference Include="..\Diagnostics\Diagnostics.csproj" />
     <ProjectReference Include="..\Repl\Repl.csproj" />
   </ItemGroup>

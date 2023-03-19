@@ -63,7 +63,7 @@ internal sealed class _ILEmitter {
     private FieldDefinition _randomFieldDefinition;
 
     private _ILEmitter(string moduleName, string[] references) {
-        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+        if (diagnostics.Errors().Any())
             return;
 
         foreach (var reference in references) {
@@ -75,7 +75,7 @@ internal sealed class _ILEmitter {
             }
         }
 
-        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+        if (diagnostics.Errors().Any())
             return;
 
         _builtinTypes = new List<(TypeSymbol type, string metadataName)>() {
@@ -255,7 +255,7 @@ internal sealed class _ILEmitter {
 
     internal static BelteDiagnosticQueue Emit(
         BoundProgram program, string moduleName, string[] references, string outputPath) {
-        if (program.diagnostics.FilterOut(DiagnosticType.Warning).Any())
+        if (program.diagnostics.Errors().Any())
             return program.diagnostics;
 
         var _Emitter = new _ILEmitter(moduleName, references);
@@ -264,7 +264,7 @@ internal sealed class _ILEmitter {
 
     internal BelteDiagnosticQueue Emit(BoundProgram program, string outputPath) {
         diagnostics.Move(program.diagnostics);
-        if (diagnostics.FilterOut(DiagnosticType.Warning).Any())
+        if (diagnostics.Errors().Any())
             return diagnostics;
 
         var objectType = _knownTypes[TypeSymbol.Any];

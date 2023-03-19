@@ -11,7 +11,7 @@ internal sealed class FieldSymbol : VariableSymbol {
     /// </summary>
     /// <param name="name">Name of the field.</param>
     /// <param name="type"><see cref="BoundType" /> of the field.</param>
-    /// <param name="constant"><see cref="ConstantValue" /> of the field.</param>
+    /// <param name="constant"><see cref="BoundConstant" /> of the field.</param>
     internal FieldSymbol(string name, BoundType type, BoundConstant constant)
         : base(name, type, constant) { }
 

@@ -71,7 +71,7 @@ public sealed class Compiler {
         var worst = SuccessExitCode;
 
         foreach (Diagnostic diagnostic in diagnostics)
-            if (diagnostic.info.severity == DiagnosticType.Error)
+            if (diagnostic.info.severity == DiagnosticSeverity.Error)
                 worst = ErrorExitCode;
 
         return worst;
@@ -83,18 +83,18 @@ public sealed class Compiler {
         for (int i=0; i<state.tasks.Length; i++) {
             ref FileState task = ref state.tasks[i];
 
-            if (task.stage == CompilerStage.Raw)
+            if (task.stage == CompilerStage.Raw) {
+                var text = preprocessor.PreprocessText(task.inputFilename, task.fileContent.text);
+                task.fileContent.text = text;
                 task.stage = CompilerStage.Preprocessed;
-
-            var text = preprocessor.PreprocessText(task.inputFilename, task.fileContent.text);
-            task.fileContent.text = text;
+            }
         }
 
         diagnostics.Move(preprocessor.diagnostics);
     }
 
     private void InternalInterpreter() {
-        diagnostics.Clear(DiagnosticType.Warning);
+        diagnostics.Clear(DiagnosticSeverity.Warning);
         var syntaxTrees = new List<SyntaxTree>();
 
         for (int i=0; i<state.tasks.Length; i++) {
@@ -110,22 +110,16 @@ public sealed class Compiler {
         var compilation = Compilation.Create(false, syntaxTrees.ToArray());
         diagnostics.Move(compilation.diagnostics);
 
-        if (!state.options.Contains("all") && !state.options.Contains("error"))
-            diagnostics = diagnostics.FilterOut(DiagnosticType.Warning);
+        if ((diagnostics.Errors().Any()))
+            return;
 
-        if ((diagnostics.FilterOut(DiagnosticType.Warning).Any()) ||
-            (diagnostics.Any() && state.options.Contains("error")))
+        if (state.noOut)
             return;
 
         var _ = false; // Unused, just to satisfy ref parameter
-        var result = compilation.Evaluate(
-            new Dictionary<VariableSymbol, EvaluatorObject>(), ref _, state.options.Contains("error")
-        );
+        var result = compilation.Evaluate(new Dictionary<VariableSymbol, EvaluatorObject>(), ref _);
 
-        if (!state.options.Contains("all") && !state.options.Contains("error"))
-            diagnostics.Move(result.diagnostics.FilterOut(DiagnosticType.Warning));
-        else
-            diagnostics.Move(result.diagnostics);
+        diagnostics.Move(result.diagnostics);
     }
 
     private void InternalCompiler() {
@@ -142,9 +136,12 @@ public sealed class Compiler {
         }
 
         var compilation = Compilation.Create(state.buildMode == BuildMode.CSharpTranspile, syntaxTrees.ToArray());
+
+        if (state.noOut)
+            return;
+
         var result = compilation.Emit(
-            state.buildMode, state.moduleName, state.references, state.outputFilename,
-            state.options.Contains("error"), state.finishStage
+            state.buildMode, state.moduleName, state.references, state.outputFilename, state.finishStage
         );
 
         diagnostics.Move(result);

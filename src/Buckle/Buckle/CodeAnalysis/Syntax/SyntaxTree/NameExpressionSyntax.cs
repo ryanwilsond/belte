@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Name expression, references a <see cref="Symbol" /> (variable or function).<br/>
+/// Name expression, references a <see cref="Symbols.Symbol" /> (variable or function).<br/>
 /// E.g.
 /// <code>
 /// myVar
@@ -15,7 +15,7 @@ internal sealed partial class NameExpressionSyntax : ExpressionSyntax {
     }
 
     /// <summary>
-    /// Name of the <see cref="Symbol" />.
+    /// Name of the <see cref="Symbols.Symbol" />.
     /// </summary>
     internal SyntaxToken identifier { get; }
 

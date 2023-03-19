@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound do while statement, bound from a <see cref="DoWhileStatementSyntax" />.
+/// A bound do while statement, bound from a <see cref="Syntax.DoWhileStatementSyntax" />.
 /// </summary>
 internal sealed class BoundDoWhileStatement : BoundLoopStatement {
     internal BoundDoWhileStatement(

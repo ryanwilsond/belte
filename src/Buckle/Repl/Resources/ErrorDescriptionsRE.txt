@@ -104,3 +104,26 @@ think you are providing more than 1 argument, so strip any whitespace:
 » #dump myFunc(int, string) // Incorrect, no whitespace is allowed
 » #dump void myFunc(int,string) // Incorrect, no whitespace is allowed and there should not be a return type
 ```
+$RE0008
+While the '#showIL' REPL toggle is active, submissions cannot reference locals
+or globals from previous submissions. This may be possible in the future, but
+currently the IL emitter used to generate the IL cannot see previous locals and
+globals.
+
+For example:
+
+```
+» #showIL
+IL visible
+» int myInt = 3;
+» int myOtherInt = myInt + 5; // Not allowed, referencing `myInt` which is a global from a previous submission
+```
+
+To work around this limitation, the submissions would need to be combined:
+
+```
+» #showIL
+IL visible
+» int myInt = 3;
+· int myOtherInt = myInt + 5; // Allowed, `myInt` is apart of this submission
+```

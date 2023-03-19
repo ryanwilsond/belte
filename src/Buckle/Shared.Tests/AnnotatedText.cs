@@ -5,18 +5,27 @@ using System.IO;
 using System.Text;
 using Buckle.CodeAnalysis.Text;
 
-namespace Buckle.Tests.CodeAnalysis;
+namespace Shared.Tests;
 
-internal sealed class AnnotatedText {
-    internal string text { get; }
-    internal ImmutableArray<TextSpan> spans { get; }
+/// <summary>
+/// Allows tracking TextSpans in a piece of text.
+/// </summary>
+public sealed class AnnotatedText {
+    public string text { get; }
+    public ImmutableArray<TextSpan> spans { get; }
 
     private AnnotatedText(string text, ImmutableArray<TextSpan> spans) {
         this.text = text;
         this.spans = spans;
     }
 
-    internal static AnnotatedText Parse(string text) {
+    /// <summary>
+    /// Converts a piece of text into an <see cref="AnnotatedText" />. Removes square brackets, which indicate to
+    /// track a span.
+    /// </summary>
+    /// <param name="text">Text to parse.</param>
+    /// <returns>Parsed text.</returns>
+    public static AnnotatedText Parse(string text) {
         text = Unindent(text);
 
         var textBuilder = new StringBuilder();
@@ -61,12 +70,12 @@ internal sealed class AnnotatedText {
         return new AnnotatedText(textBuilder.ToString(), spanBuilder.ToImmutable());
     }
 
-    private static string Unindent(string text) {
-        var lines = UnindentLines(text);
-        return string.Join(Environment.NewLine, lines);
-    }
-
-    internal static string[] UnindentLines(string text) {
+    /// <summary>
+    /// Removes any leading indentation on a piece of text.
+    /// </summary>
+    /// <param name="text">Text to unindent.</param>
+    /// <returns>Text without indentation.</returns>
+    public static string[] UnindentLines(string text) {
         var lines = new List<string>();
 
         using (var stringReader = new StringReader(text)) {
@@ -104,5 +113,10 @@ internal sealed class AnnotatedText {
             lines.RemoveAt(lines.Count - 1);
 
         return lines.ToArray();
+    }
+
+    private static string Unindent(string text) {
+        var lines = UnindentLines(text);
+        return string.Join(Environment.NewLine, lines);
     }
 }

@@ -285,6 +285,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.op.opKind == BoundBinaryOperatorKind.Isnt)
             return RewriteExpression(HasValue(expression.left));
 
+        if (expression.op.opKind == BoundBinaryOperatorKind.Power) {
+            // TODO
+            return base.RewriteBinaryExpression(expression);
+        }
+
         if (expression.op.opKind == BoundBinaryOperatorKind.NullCoalescing) {
             return RewriteExpression(
                 NullConditional(
@@ -293,11 +298,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
                     @else: expression.right
                 )
             );
-        }
-
-        if (expression.op.opKind == BoundBinaryOperatorKind.Power) {
-            // TODO
-            return base.RewriteBinaryExpression(expression);
         }
 
         if (expression.left.type.isNullable && expression.right.type.isNullable) {
@@ -312,7 +312,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         expression.op,
                         Value(expression.right)
                     ),
-                    @else: Literal(null)
+                    @else: Literal(null, expression.type)
                 )
             );
         }
@@ -326,7 +326,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         expression.op,
                         expression.right
                     ),
-                    @else: Literal(null)
+                    @else: Literal(null, expression.type)
                 )
             );
         }
@@ -340,7 +340,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         expression.op,
                         Value(expression.right)
                     ),
-                    @else: Literal(null)
+                    @else: Literal(null, expression.type)
                 )
             );
         }
@@ -353,11 +353,18 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         <op> <operand>
 
+        ----> <op> is +
+
+        <operand>
+
         ----> <operand> is nullable
 
         (HasValue(<operand>) ? <op> Value(<operand>) : null)
 
         */
+        if (expression.op.opKind == BoundUnaryOperatorKind.NumericalIdentity)
+            return RewriteExpression(expression.operand);
+
         if (expression.operand.type.isNullable) {
             return RewriteExpression(
                 NullConditional(
@@ -366,7 +373,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         expression.op,
                         Value(expression.operand)
                     ),
-                    @else: Literal(null)
+                    @else: Literal(null, expression.type)
                 )
             );
         }
@@ -383,6 +390,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         (<type>)Value(<expression>)
 
+        ----> <expression> is not nullable and <type> is nullable and <expression>.type and <type> are otherwise equal
+
         */
 
         if (expression.expression.type.isNullable && !expression.type.isNullable) {
@@ -393,6 +402,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 )
             );
         }
+
+        if (BoundType.Copy(expression.expression.type, isNullable: true).Equals(expression.type))
+            return RewriteExpression(expression.expression);
 
         return base.RewriteCastExpression(expression);
     }
@@ -471,14 +483,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         <left> <op> <center> <op> <right>
 
-        ---->
-
-        if (<left>) {
-            <center>
-        } else {
-            <right>
-        }
-
         ----> <op> is '?:' and <left> is constant true
 
         (<center>)
@@ -494,8 +498,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
             if (BoundConstant.IsNotNull(expression.left.constantValue) && !(bool)expression.left.constantValue.value)
                 return RewriteExpression(expression.right);
-
-            // TODO
         }
 
         return base.RewriteTernaryExpression(expression);
@@ -515,16 +517,13 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (_onlyOptimize)
             return base.RewriteCompoundAssignmentExpression(expression);
 
-        var left = RewriteExpression(expression.left);
-        var right = RewriteExpression(expression.right);
-
         return RewriteExpression(
             Assignment(
-                left,
+                expression.left,
                 Binary(
-                    left,
+                    expression.left,
                     expression.op,
-                    right
+                    expression.right
                 )
             )
         );
@@ -548,7 +547,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         expression.operand,
                         expression.member
                     ),
-                    @else: Literal(null)
+                    @else: Literal(null, expression.type)
                 )
             );
         }
@@ -574,7 +573,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         expression.operand,
                         expression.index
                     ),
-                    @else: Literal(null)
+                    @else: Literal(null, expression.type)
                 )
             );
         }

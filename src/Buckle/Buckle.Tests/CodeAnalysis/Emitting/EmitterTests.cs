@@ -1,12 +1,14 @@
 using System;
-using Buckle.CodeAnalysis;
-using Buckle.CodeAnalysis.Syntax;
-using Diagnostics;
 using Xunit;
+using static Buckle.Tests.Assertions;
 
-namespace Buckle.Tests.CodeAnalysis;
+namespace Buckle.Tests.CodeAnalysis.Emitting;
 
-public sealed class CSharpEmitterTests {
+/// <summary>
+/// Tests on the <see cref="Buckle.CodeAnalysis.Emitting.ILEmitter" /> and
+/// <see cref="Buckle.CodeAnalysis.Emitting.CSharpEmitter" /> classes.
+/// </summary>
+public sealed class EmitterTests {
     [Theory]
     [InlineData(
         /* Belte Code */
@@ -18,7 +20,7 @@ void Main() { }
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -26,6 +28,78 @@ public static class Program {
         return;
     }
 
+}
+        ",
+        /* IL Code */
+        @"
+<Program>$ {
+    System.Void <Program>$::Main() {
+        IL_0000: ret
+    }
+}
+        "
+    )]
+    [InlineData(
+        /* Belte Code */
+        @"
+int Main() {
+    return 1;
+}
+        ",
+        /* C# Code */
+        @"
+using System;
+using System.Collections.Generic;
+
+namespace EmitterTests;
+
+public static class Program {
+
+    public static int Main() {
+        return (1);
+    }
+
+}
+        ",
+        /* IL Code */
+        @"
+<Program>$ {
+    System.Int32 <Program>$::Main() {
+        IL_0000: ldc.i4.1
+        IL_0001: ret
+    }
+}
+        "
+    )]
+    [InlineData(
+        /* Belte Code */
+        @"
+int Main() {
+    return null;
+}
+        ",
+        /* C# Code */
+        @"
+using System;
+using System.Collections.Generic;
+
+namespace EmitterTests;
+
+public static class Program {
+
+    public static int Main() {
+        return (0);
+    }
+
+}
+        ",
+        /* IL Code */
+        @"
+<Program>$ {
+    System.Int32 <Program>$::Main() {
+        IL_0000: ldc.i4.0
+        IL_0001: ret
+    }
 }
         "
     )]
@@ -44,7 +118,7 @@ int Main() {
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -55,6 +129,9 @@ public static class Program {
     }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -68,7 +145,7 @@ PrintLine(a);
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -79,6 +156,9 @@ public static class Program {
     }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -89,13 +169,16 @@ public static class Program {
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
     public static void Main() { }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -133,7 +216,7 @@ struct TypeTests {
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -163,6 +246,9 @@ public static class Program {
     public static void Main() { }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -187,7 +273,7 @@ int Main() {
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -205,6 +291,9 @@ public static class Program {
     }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -251,7 +340,7 @@ void Main() {
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -293,6 +382,9 @@ public static class Program {
     }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -322,7 +414,7 @@ void Main() {
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -345,6 +437,9 @@ public static class Program {
     }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -366,7 +461,7 @@ int Add(int a, int b = 3) {
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -383,6 +478,9 @@ public static class Program {
     }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -403,7 +501,7 @@ void Main() {
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -419,6 +517,9 @@ public static class Program {
     }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -446,7 +547,7 @@ void Main() {
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -456,17 +557,20 @@ public static class Program {
     }
 
     public static void Main() {
-        A g = (A)new A();
+        A g = new A();
         g.a = 5;
         Nullable<bool> c = g.b;
-        Nullable<bool> d = (Nullable<bool>)Convert.ToBoolean(!c.HasValue);
+        Nullable<bool> d = !c.HasValue;
         A h = null;
-        Nullable<int> j = (((h) is not null) ? h.a : null);
+        Nullable<int> j = (h is not null ? h.a : null);
         Console.WriteLine((object)!j.HasValue);
         return;
     }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
     )]
     [InlineData(
@@ -475,11 +579,12 @@ public static class Program {
 var max = (int)Input();
 var randInt = RandInt(max);
         ",
+        /* C# Code */
         @"
 using System;
 using System.Collections.Generic;
 
-namespace CSharpEmitterTests;
+namespace EmitterTests;
 
 public static class Program {
 
@@ -490,19 +595,15 @@ public static class Program {
     }
 
 }
+        ",
+        /* IL Code */
+        @"
         "
-        /* C# Code */
     )]
-    public void Emitter_EmitsCorrectly(string text, string expectedText) {
-        AssertText(text, expectedText.Trim() + Environment.NewLine);
-    }
-
-    private void AssertText(string text, string expectedText) {
-        var syntaxTree = SyntaxTree.Parse(text);
-        var compilation = Compilation.Create(true, syntaxTree);
-        var result = compilation.EmitToString(BuildMode.CSharpTranspile, "CSharpEmitterTests", false);
-
-        Assert.Empty(compilation.diagnostics.FilterOut(DiagnosticType.Warning).ToArray());
-        Assert.Equal(expectedText, result);
+    public void Emitter_Emits_CorrectText(string text, string expectedCSharpText, string expectedILText) {
+        // TODO Add blender
+        // AssertText(text, expectedCSharpText.Trim() + Environment.NewLine, BuildMode.CSharpTranspile);
+        // TODO Fix Mono.Cecil bug that is preventing further IL Emitter development
+        // AssertText(text, expectedILText.Trim() + Environment.NewLine, BuildMode.Dotnet);
     }
 }

@@ -3,8 +3,8 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound constructor expression, produced by the <see cref="Binder" />. No <see cref="Parser" />
-/// equivalent.<br/>
+/// A bound constructor expression, produced by the <see cref="Binder" />. No
+/// <see cref="Syntax.InternalSyntax.Parser" /> equivalent.<br/>
 /// E.g.
 /// <code>
 /// MyStruct()

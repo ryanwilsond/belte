@@ -5,6 +5,9 @@ using Xunit;
 
 namespace Buckle.Tests.CodeAnalysis.Syntax;
 
+/// <summary>
+/// Tests on the <see cref="SyntaxFacts" /> class.
+/// </summary>
 public sealed class SyntaxFactTests {
     [Theory]
     [MemberData(nameof(GetSyntaxTypeData))]

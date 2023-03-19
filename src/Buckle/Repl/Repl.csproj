@@ -1,13 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+   <Content Remove="Resources/ErrorDescriptionsRE.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources/ErrorDescriptionsRE.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Buckle\Buckle.csproj" />
     <ProjectReference Include="..\Diagnostics\Diagnostics.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>annotations</Nullable>
   </PropertyGroup>
 

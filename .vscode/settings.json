@@ -3,8 +3,10 @@
         "*.csproj": "msbuild",
     },
     "files.exclude": {
-        "**/bin": true,
+        "src/**/bin": true,
+        "samples/**/bin": true,
         "**/obj": true,
+        "**/.vs": true,
     },
     "editor.rulers": [
         80,

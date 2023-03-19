@@ -1,0 +1,11 @@
+/*
+
+    Hello, world!
+
+    This program writes "Hello, world!" to standard out (the terminal).
+
+*/
+
+// With no entry point specified, execution starts from the top of the file.
+// The `PrintLine` function is included by default, so no imports are necessary!
+PrintLine("Hello, world!");

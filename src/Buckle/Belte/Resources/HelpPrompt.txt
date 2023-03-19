@@ -4,6 +4,7 @@ Options:
   -h|--help                   Display this information.
   --version                   Display compiler version information.
   --dumpmachine               Display the compiler's target system.
+  --no-out                    Disable any output the compiler would have produced.
   --explain[BU|RE|CL]<code>   Extended information for a specific error.
 
   -r                          Invoke the Repl.
@@ -14,8 +15,7 @@ Options:
   -i                          Compile and interpret; do not assemble or link.
   -t                          Compile and transpile into C#; do not assemble or link.
   -o <file>                   Specify output file.
-  -W<options>                 Forward options to various sub-processes.
-  --entry=<symbol>            Specify the entry point of the program.
+  --severity=<severity>       Specify a reporting severity; defaults to warning.
 
   -d                          Compile with .NET integration (cannot stop at assembly or linking).
   --modulename=<name>         Specify the module name (used with .NET integration only).

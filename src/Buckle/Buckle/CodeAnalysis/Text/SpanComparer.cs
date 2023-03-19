@@ -3,11 +3,11 @@ using System.Collections.Generic;
 namespace Buckle.CodeAnalysis.Text;
 
 /// <summary>
-/// Compares two <see cref="TextSpans" />.
+/// Compares two TextSpans.
 /// </summary>
 public sealed class SpanComparer : IComparer<TextSpan> {
     /// <summary>
-    /// Checks how much two <see cref="TextSpans" /> overlap.
+    /// Checks how much two TextSpans overlap.
     /// </summary>
     /// <param name="a"><see cref="TextSpan" /> to compare.</param>
     /// <param name="b"><see cref="TextSpan" /> to compare.</param>

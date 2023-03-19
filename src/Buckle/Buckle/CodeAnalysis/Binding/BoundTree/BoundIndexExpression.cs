@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound index expression, bound from a <see cref="IndexExpressionSyntax" />.
+/// A bound index expression, bound from a <see cref="Syntax.IndexExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundIndexExpression : BoundExpression {
     internal BoundIndexExpression(BoundExpression operand, BoundExpression index, bool isNullConditional) {

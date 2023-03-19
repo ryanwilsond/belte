@@ -1,102 +1,56 @@
 # Works with bash and powershell
-PROJDIR:=src/Buckle/Belte
+BELTDIR:=src/Buckle/Belte
 BUCKDIR:=src/Buckle/Buckle
-TESTDIR:=src/Buckle/Buckle.Tests
-GENRDIR:=src/Buckle/Buckle.Generators
 DIAGDIR:=src/Buckle/Diagnostics
 REPLDIR:=src/Buckle/Repl
-SANDDIR:=src/Sander
 
 NETVER:=net7.0
-NETSSTANDVER:=netstandard2.0
 SYSTEM:=win-x64
 SLN:=src/Buckle/Buckle.sln
-SSLN:=src/Sander/Sander.sln
 CP=cp
 RM=rm
 
-all: build
+RESOURCES:=Resources
+TESTRESRC:=$(BELTDIR).Tests/bin/Debug/$(NETVER)/$(RESOURCES)
 
-build: debugbuild debugcopy resources
-	@echo Finished building Buckle
+FLAGS:=-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false \
+	--sc true -c Release -f $(NETVER)
 
-debugbuild:
-	@echo "Started building the Buckle solution (debug) ..."
-	@dotnet build $(SLN) -t:rebuild
-	@echo "    Finished"
+all: prebuild build postbuild
+portable: prebuild portablebuild postbuild
 
-debugcopy:
-	@echo Started to copy files for the Buckle solution ...
-	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Buckle.dll Buckle.dll
-	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.dll Belte.dll
-	@$(CP) $(DIAGDIR)/bin/Debug/$(NETVER)/Diagnostics.dll Diagnostics.dll
-	@$(CP) $(REPLDIR)/bin/Debug/$(NETVER)/Repl.dll Repl.dll
-	@$(CP) $(GENRDIR)/bin/Debug/$(NETSSTANDVER)/Buckle.Generators.dll Buckle.Generators.dll
-	@-$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.exe buckle.exe
-	@-$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte buckle.exe
-	@echo "    Finished"
-
-setup:
-	@echo Started setting up the Buckle solution ...
-	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.deps.json Belte.deps.json
-	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Belte.runtimeconfig.json Belte.runtimeconfig.json
-	@echo     Finished
-
-.PHONY: resources
-resources:
-	@echo Started coping resources for the Buckle solution ...
-	@$(RM) -f -r Resources
-	@mkdir Resources
-	@$(CP) -a $(PROJDIR)/Resources/. Resources
-	@$(CP) -a $(BUCKDIR)/Resources/. Resources
-	@$(CP) -a $(REPLDIR)/Resources/. Resources
-	@echo "    Finished"
-
+# Tests the solution
+.PHONY: test
 test:
-	@echo Started testing the Buckle project
-	@dotnet test $(TESTDIR)/Buckle.Tests.csproj
+	@echo Started testing the Buckle solution ...
+	@dotnet build $(BELTDIR).Tests/Belte.Tests.csproj
+	@dotnet build $(BUCKDIR).Tests/Buckle.Tests.csproj
+	@dotnet build $(DIAGDIR).Tests/Diagnostics.Tests.csproj
+	@$(RM) -f -r $(TESTRESRC)
+	@mkdir $(TESTRESRC)
+	@$(CP) -a $(BELTDIR)/$(RESOURCES)/. $(TESTRESRC)
+	@$(CP) -a $(BUCKDIR)/$(RESOURCES)/. $(TESTRESRC)
+	@$(CP) -a $(REPLDIR)/$(RESOURCES)/. $(TESTRESRC)
+	@dotnet test $(SLN)
 	@echo "    Finished"
 
-release: releasebuild resources
-	@echo Finished building Buckle
-
-releasebuild:
-	@echo Started building the Buckle solution (release) ...
-	@dotnet publish $(PROJDIR)/Belte.csproj -r $(SYSTEM) -p:PublishSingleFile=true --self-contained true \
-		-p:PublishReadyToRunShowWarnings=true -p:IncludeNativeLibrariesForSelfExtract=true --configuration Release
-	@$(CP) $(PROJDIR)/bin/Release/$(NETVER)/$(SYSTEM)/publish/Belte.exe buckle.exe
-	@echo "    Finished"
-
+# Cleans the solution
 clean:
-	@$(RM) -f *.dll ||:
-	@$(RM) -f *.exe ||:
-	@$(RM) -f *.json ||:
-	@$(RM) -f *.dot ||:
-	@echo Soft cleaned the project
-
-hardclean: clean
 	@dotnet clean $(SLN)
 	@echo Hard cleaned the project
 
-sandersetup:
-	@echo Started setting up the Sander project ...
-	@$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.deps.json Sander.deps.json
-	@$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.runtimeconfig.json Sander.runtimeconfig.json
+prebuild:
+	@echo "Started building the Buckle solution (release) ..."
+	@mkdir -p bin
+	@mkdir -p bin/release
+
+postbuild:
+	@mv bin/release/Belte.exe bin/release/buckle.exe
 	@echo "    Finished"
 
-debugsander:
-	@echo "Started to build Sander project (debug) ..."
-	@dotnet build $(SSLN)
-	@echo "    Finished"
+build:
+	@dotnet publish $(BELTDIR)/Belte.csproj $(FLAGS) -r $(SYSTEM) -o bin/release -p:PublishReadyToRunShowWarnings=true
 
-copysander:
-	@echo Started to copy files for the Sander project ...
-	@$(CP) $(PROJDIR)/bin/Debug/$(NETVER)/Buckle.dll Buckle.dll
-	@$(CP) $(REPLDIR)/bin/Debug/$(NETVER)/Repl.dll Repl.dll
-	@$(CP) $(DIAGDIR)/bin/Debug/$(NETVER)/Diagnostics.dll Diagnostics.dll
-	@$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.dll Sander.dll
-	@$(CP) $(SANDDIR)/bin/Debug/$(NETVER)/Sander.exe sander.exe
-	@echo "    Finished"
+portablebuild:
+	@dotnet publish $(BELTDIR)/Belte.csproj $(FLAGS) -o bin/release
 
-sander: debugsander copysander
-	@echo Finished building Sander

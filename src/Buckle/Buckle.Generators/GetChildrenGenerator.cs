@@ -11,7 +11,7 @@ using Microsoft.CodeAnalysis.Text;
 namespace Buckle.Generators;
 
 /// <summary>
-/// Generates a more optimized but brute force <see cref="Node.GetChildren" /> implementation for ExpressionSyntaxes
+/// Generates a more optimized but brute force SyntaxNode.GetChildren implementation for ExpressionSyntaxes
 /// and StatementsSyntaxes.
 /// </summary>
 [Generator]

@@ -7,7 +7,7 @@ using Buckle.Diagnostics;
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Tree of SyntaxNodes produced from the <see cref="Parser" />.
+/// Tree of SyntaxNodes produced from the <see cref="InternalSyntax.Parser" />.
 /// </summary>
 internal sealed class SyntaxTree {
     private SyntaxTree(SourceText text, ParseHandler handler) {

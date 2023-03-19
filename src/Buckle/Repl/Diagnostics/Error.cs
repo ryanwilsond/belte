@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using Buckle.CodeAnalysis.Symbols;
 using Diagnostics;
@@ -82,11 +83,17 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_AmbiguousSignature), message.ToString());
     }
 
-    private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
-        return new DiagnosticInfo((int)code, "RE", DiagnosticType.Error);
+    /// <summary>
+    /// RE0008. Run `buckle --explain RE0008` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic FailedILGeneration() {
+        var message = $"failed to generate IL: cannot reference locals or globals from previous submissions with the " +
+            "'#showIL' toggle on";
+
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_FailedILGeneration), message);
     }
 
-    private static DiagnosticInfo FatalErrorInfo(DiagnosticCode code) {
-        return new DiagnosticInfo((int)code, "RE", DiagnosticType.Fatal);
+    private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
+        return new DiagnosticInfo((int)code, "RE", DiagnosticSeverity.Error);
     }
 }

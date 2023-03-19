@@ -3,8 +3,11 @@ using System.Diagnostics;
 using Buckle.CodeAnalysis.Syntax;
 using Xunit;
 
-namespace Buckle.Tests.CodeAnalysis.Syntax;
+namespace Buckle.Tests.CodeAnalysis.Syntax.InternalSyntax;
 
+/// <summary>
+/// Tests on the <see cref="Buckle.CodeAnalysis.Syntax.InternalSyntax.Parser" /> class.
+/// </summary>
 public sealed class ParserTests {
     [Theory]
     [MemberData(nameof(GetBinaryOperatorPairsData))]
