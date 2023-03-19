@@ -13,28 +13,28 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// </summary>
 internal sealed class Lowerer : BoundTreeRewriter {
     private int _labelCount;
-    private bool _onlyOptimize;
+    private bool _transpilerMode;
 
-    private Lowerer(bool onlyOptimize) {
-        _onlyOptimize = onlyOptimize;
+    private Lowerer(bool transpilerMode) {
+        _transpilerMode = transpilerMode;
     }
 
     /// <summary>
     /// Lowers a <see cref="FunctionSymbol" />.
     /// </summary>
+    /// <param name="function">Function to lower.</param>
     /// <param name="statement">Function body.</param>
+    /// <param name="transpilerMode">If the compiler is transpiling, if true skips part of lowering.</param>
     /// <returns>Lowered function body (same type).</returns>
-    internal static BoundBlockStatement Lower(FunctionSymbol function, BoundStatement statement, bool onlyOptimize) {
-        var lowerer = new Lowerer(onlyOptimize);
-        var block = Flatten(function, lowerer.RewriteStatement(statement));
+    internal static BoundBlockStatement Lower(FunctionSymbol function, BoundStatement statement, bool transpilerMode) {
+        var expandedStatement = Expander.Expand(statement);
+        var lowerer = new Lowerer(transpilerMode);
+        var block = Flatten(function, lowerer.RewriteStatement(expandedStatement));
 
-        if (onlyOptimize)
-            return block;
-        else
-            return RemoveDeadCode(block);
+        return Optimizer.Optimize(block) as BoundBlockStatement;
     }
 
-    protected override BoundStatement RewriteIfStatement(BoundIfStatement node) {
+    protected override BoundStatement RewriteIfStatement(BoundIfStatement statement) {
         /*
 
         if <condition>
@@ -63,19 +63,19 @@ internal sealed class Lowerer : BoundTreeRewriter {
         end:
 
         */
-        if (_onlyOptimize)
-            return base.RewriteIfStatement(node);
+        if (_transpilerMode)
+            return base.RewriteIfStatement(statement);
 
-        if (node.elseStatement == null) {
+        if (statement.elseStatement == null) {
             var endLabel = GenerateLabel();
 
             return RewriteStatement(
                 Block(
                     GotoIfNot(
                         @goto: endLabel,
-                        @ifNot: node.condition
+                        @ifNot: statement.condition
                     ),
-                    node.then,
+                    statement.then,
                     Label(endLabel)
                 )
             );
@@ -87,19 +87,19 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 Block(
                     GotoIfNot(
                         @goto: elseLabel,
-                        @ifNot: node.condition
+                        @ifNot: statement.condition
                     ),
-                    node.then,
+                    statement.then,
                     Goto(endLabel),
                     Label(elseLabel),
-                    node.elseStatement,
+                    statement.elseStatement,
                     Label(endLabel)
                 )
             );
         }
     }
 
-    protected override BoundStatement RewriteWhileStatement(BoundWhileStatement node) {
+    protected override BoundStatement RewriteWhileStatement(BoundWhileStatement statement) {
         /*
 
         while <condition>
@@ -114,27 +114,27 @@ internal sealed class Lowerer : BoundTreeRewriter {
         break:
 
         */
-        if (_onlyOptimize)
-            return base.RewriteWhileStatement(node);
+        if (_transpilerMode)
+            return base.RewriteWhileStatement(statement);
 
-        var continueLabel = node.continueLabel;
-        var breakLabel = node.breakLabel;
+        var continueLabel = statement.continueLabel;
+        var breakLabel = statement.breakLabel;
 
         return RewriteStatement(
             Block(
                 Label(continueLabel),
                 GotoIfNot(
                     @goto: breakLabel,
-                    @ifNot: node.condition
+                    @ifNot: statement.condition
                 ),
-                node.body,
+                statement.body,
                 Goto(continueLabel),
                 Label(breakLabel)
             )
         );
     }
 
-    protected override BoundStatement RewriteDoWhileStatement(BoundDoWhileStatement node) {
+    protected override BoundStatement RewriteDoWhileStatement(BoundDoWhileStatement statement) {
         /*
 
         do
@@ -149,26 +149,26 @@ internal sealed class Lowerer : BoundTreeRewriter {
         break:
 
         */
-        if (_onlyOptimize)
-            return base.RewriteDoWhileStatement(node);
+        if (_transpilerMode)
+            return base.RewriteDoWhileStatement(statement);
 
-        var continueLabel = node.continueLabel;
-        var breakLabel = node.breakLabel;
+        var continueLabel = statement.continueLabel;
+        var breakLabel = statement.breakLabel;
 
         return RewriteStatement(
             Block(
                 Label(continueLabel),
-                node.body,
+                statement.body,
                 GotoIf(
                     @goto: continueLabel,
-                    @if: node.condition
+                    @if: statement.condition
                 ),
                 Label(breakLabel)
             )
         );
     }
 
-    protected override BoundStatement RewriteForStatement(BoundForStatement node) {
+    protected override BoundStatement RewriteForStatement(BoundForStatement statement) {
         /*
 
         for (<initializer> <condition>; <step>)
@@ -186,57 +186,30 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         */
-        if (_onlyOptimize)
-            return base.RewriteForStatement(node);
+        if (_transpilerMode)
+            return base.RewriteForStatement(statement);
 
-        var continueLabel = node.continueLabel;
-        var breakLabel = node.breakLabel;
-        var condition = node.condition.kind == BoundNodeKind.EmptyExpression
+        var continueLabel = statement.continueLabel;
+        var breakLabel = statement.breakLabel;
+        var condition = statement.condition.kind == BoundNodeKind.EmptyExpression
             ? Literal(true)
-            : node.condition;
+            : statement.condition;
 
         return RewriteStatement(
             Block(
-                node.initializer,
+                statement.initializer,
                 While(
                     condition,
                     Block(
-                        node.body,
+                        statement.body,
                         Label(continueLabel),
-                        Statement(node.step)
+                        Statement(statement.step)
                     ),
                     breakLabel,
                     GenerateLabel()
                 )
             )
         );
-    }
-
-    protected override BoundStatement RewriteConditionalGotoStatement(BoundConditionalGotoStatement statement) {
-        /*
-
-        goto <label> if <condition>
-
-        ----> <condition> is constant true
-
-        goto <label>
-
-        ----> <condition> is constant false
-
-        ;
-
-        */
-        if (BoundConstant.IsNotNull(statement.condition.constantValue)) {
-            var condition = (bool)statement.condition.constantValue.value;
-            condition = statement.jumpIfTrue ? condition : !condition;
-
-            if (condition)
-                return RewriteStatement(Goto(statement.label));
-            else
-                return RewriteStatement(Nop());
-        }
-
-        return base.RewriteConditionalGotoStatement(statement);
     }
 
     protected override BoundExpression RewriteBinaryExpression(BoundBinaryExpression expression) {
@@ -478,31 +451,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return base.RewriteCallExpression(new BoundCallExpression(newFunction, builder.ToImmutable()));
     }
 
-    protected override BoundExpression RewriteTernaryExpression(BoundTernaryExpression expression) {
-        /*
-
-        <left> <op> <center> <op> <right>
-
-        ----> <op> is '?:' and <left> is constant true
-
-        (<center>)
-
-        ----> <op> is '?:' and <left> is constant false
-
-       (<right>)
-
-        */
-        if (expression.op.opKind == BoundTernaryOperatorKind.Conditional) {
-            if (BoundConstant.IsNotNull(expression.left.constantValue) && (bool)expression.left.constantValue.value)
-                return RewriteExpression(expression.center);
-
-            if (BoundConstant.IsNotNull(expression.left.constantValue) && !(bool)expression.left.constantValue.value)
-                return RewriteExpression(expression.right);
-        }
-
-        return base.RewriteTernaryExpression(expression);
-    }
-
     protected override BoundExpression RewriteCompoundAssignmentExpression(
         BoundCompoundAssignmentExpression expression) {
         /*
@@ -514,7 +462,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         (<left> = <left> <op> <right>)
 
         */
-        if (_onlyOptimize)
+        if (_transpilerMode)
             return base.RewriteCompoundAssignmentExpression(expression);
 
         return RewriteExpression(
@@ -595,7 +543,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         (<operand> -= 1)
 
         */
-        if (_onlyOptimize)
+        if (_transpilerMode)
             return base.RewritePrefixExpression(expression);
 
         if (expression.op.opKind == BoundPrefixOperatorKind.Increment)
@@ -634,7 +582,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.op.opKind == BoundPostfixOperatorKind.NullAssert)
             return RewriteExpression(Value(expression.operand));
 
-        if (_onlyOptimize)
+        if (_transpilerMode)
             return base.RewritePostfixExpression(expression);
 
         var assignment = expression.op.opKind == BoundPostfixOperatorKind.Increment
@@ -682,19 +630,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return Call(BuiltinFunctions.HasValueString, expression);
 
         return Call(BuiltinFunctions.HasValueAny, expression);
-    }
-
-    private static BoundBlockStatement RemoveDeadCode(BoundBlockStatement statement) {
-        var controlFlow = ControlFlowGraph.Create(statement);
-        var reachableStatements = new HashSet<BoundStatement>(controlFlow.blocks.SelectMany(b => b.statements));
-
-        var builder = statement.statements.ToBuilder();
-        for (int i=builder.Count-1; i>=0; i--) {
-            if (!reachableStatements.Contains(builder[i]))
-                builder.RemoveAt(i);
-        }
-
-        return new BoundBlockStatement(builder.ToImmutable());
     }
 
     private static BoundBlockStatement Flatten(FunctionSymbol function, BoundStatement statement) {
