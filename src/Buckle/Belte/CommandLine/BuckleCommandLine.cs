@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Buckle;
@@ -25,28 +26,21 @@ public static partial class BuckleCommandLine {
     /// Processes/decodes command-line arguments, and invokes <see cref="Compiler" />.
     /// </summary>
     /// <param name="args">Command-line arguments from Main.</param>
-    /// <param name="appSettings">Settings from the App.config.</param>
     /// <returns>Error code, 0 = success.</returns>
-    public static int ProcessArgs(string[] args, AppSettings appSettings) {
+    public static int ProcessArgs(string[] args) {
         int err;
         var compiler = new Compiler();
         compiler.me = Process.GetCurrentProcess().ProcessName;
         compiler.state = DecodeOptions(args, out var diagnostics, out var dialogs, out var multipleExplains);
 
         var hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error != null;
-        var corrupt = false;
-
-        if (!Directory.Exists(appSettings.resourcesPath)) {
-            corrupt = true;
-            ResolveDiagnostic(Belte.Diagnostics.Warning.CorruptInstallation(), compiler.me, compiler.state);
-        }
 
         if (multipleExplains)
             ResolveDiagnostic(Belte.Diagnostics.Error.MultipleExplains(), compiler.me, compiler.state);
 
         if (hasDialog) {
             diagnostics.Clear();
-            diagnostics.Move(ShowDialogs(dialogs, corrupt, appSettings, multipleExplains));
+            diagnostics.Move(ShowDialogs(dialogs, multipleExplains));
             ResolveDiagnostics(diagnostics, compiler.me, compiler.state);
 
             return SuccessExitCode;
@@ -89,8 +83,7 @@ public static partial class BuckleCommandLine {
         return SuccessExitCode;
     }
 
-    private static DiagnosticQueue<Diagnostic> ShowDialogs(
-        ShowDialogs dialogs, bool corrupt, AppSettings appSettings, bool multipleExplains) {
+    private static DiagnosticQueue<Diagnostic> ShowDialogs(ShowDialogs dialogs, bool multipleExplains) {
         DiagnosticQueue<Diagnostic> diagnostics = new DiagnosticQueue<Diagnostic>();
 
         if (dialogs.machine)
@@ -99,22 +92,21 @@ public static partial class BuckleCommandLine {
         if (dialogs.version)
             ShowVersionDialog();
 
-        if (dialogs.help && !corrupt)
-            ShowHelpDialog(appSettings);
+        if (dialogs.help)
+            ShowHelpDialog();
 
-        if (dialogs.error != null && !corrupt && !multipleExplains)
-            ShowErrorHelp(dialogs.error, appSettings, out diagnostics);
+        if (dialogs.error != null && !multipleExplains)
+            ShowErrorHelp(dialogs.error, out diagnostics);
 
         return diagnostics;
     }
 
-    private static void ShowErrorHelp(
-        string error, AppSettings appSettings, out DiagnosticQueue<Diagnostic> diagnostics) {
+    private static void ShowErrorHelp(string error, out DiagnosticQueue<Diagnostic> diagnostics) {
         string prefix;
 
         if (error.Length < 3 || (Char.IsDigit(error[0]) && Char.IsDigit(error[1]))) {
             prefix = "BU";
-            error = "BU" + error;
+            error = prefix + error;
         } else {
             prefix = error.Substring(0, 2);
         }
@@ -129,17 +121,29 @@ public static partial class BuckleCommandLine {
             return;
         }
 
-        var path = Path.Combine(appSettings.resourcesPath, $"ErrorDescriptions{prefix}.txt");
+        string allDescriptions = null;
 
-        if (!File.Exists(path)) {
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()) {
+            var foundDescriptions = assembly.GetManifestResourceNames()
+                .Where(r => r.EndsWith($"Resources.ErrorDescriptions{prefix}.txt"));
+
+            if (foundDescriptions.Any()) {
+                using (var stream = assembly.GetManifestResourceStream(foundDescriptions.First()))
+                using (var reader = new StreamReader(stream)) {
+                    allDescriptions = reader.ReadToEnd();
+                    break;
+                }
+            }
+        }
+
+        if (allDescriptions == null) {
             diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
             return;
         }
 
-        var allMessages = File.ReadAllText(path);
         var messages = new Dictionary<int, string>();
 
-        foreach (string message in allMessages.Split($"${prefix}")) {
+        foreach (string message in allDescriptions.Split($"${prefix}")) {
             try {
                 string code = message.Substring(0, 4);
                 messages[Convert.ToInt32(code)] = message.Substring(4);
@@ -182,10 +186,12 @@ public static partial class BuckleCommandLine {
         }
     }
 
-    private static void ShowHelpDialog(AppSettings appSettings) {
-        var path = Path.Combine(appSettings.resourcesPath, "HelpPrompt.txt");
-        var helpMessage = File.ReadAllText(path);
-        Console.WriteLine(helpMessage);
+    private static void ShowHelpDialog() {
+        var assembly = Assembly.GetExecutingAssembly();
+
+        using (var stream = assembly.GetManifestResourceStream("Belte.Resources.HelpPrompt.txt"))
+        using (var reader = new StreamReader(stream))
+            Console.WriteLine(reader.ReadToEnd());
     }
 
     private static void ShowMachineDialog() {

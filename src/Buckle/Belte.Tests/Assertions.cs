@@ -26,9 +26,7 @@ internal static class Assertions {
         string[] args, string diagnosticText, ITestOutputHelper writer,
         DiagnosticSeverity lowestAssert = DiagnosticSeverity.Error,
         bool noInputFiles = false, params string[] filesToCreate) {
-        var appSettings = new AppSettings();
-        appSettings.executingPath = AppDomain.CurrentDomain.BaseDirectory;
-        appSettings.resourcesPath = Path.Combine(appSettings.executingPath, "Resources");
+        var executingPath = AppDomain.CurrentDomain.BaseDirectory;
 
         var firstArgFilename = "BelteTestsAssertDiagnosticDefaultFile.blt";
 
@@ -41,13 +39,13 @@ internal static class Assertions {
         argsList = argsList.Prepend("--severity=all");
 
         foreach (var file in filesToCreate.ToList().Append(firstArgFilename)) {
-            var fileStream = File.Create(Path.Combine(appSettings.executingPath, file));
+            var fileStream = File.Create(Path.Combine(executingPath, file));
             fileStream.Close();
         }
 
         var stringWriter = new StringWriter();
         Console.SetOut(stringWriter);
-        BuckleCommandLine.ProcessArgs(argsList.ToArray(), appSettings);
+        BuckleCommandLine.ProcessArgs(argsList.ToArray());
 
         var expectedDiagnostics = AnnotatedText.UnindentLines(diagnosticText);
         var diagnostics = stringWriter.ToString().Split(Environment.NewLine).ToList();

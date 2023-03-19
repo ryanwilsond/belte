@@ -58,10 +58,12 @@ internal sealed class ILEmitter {
         });
 
         references = tempReferences.ToArray();
+        var resolver = new DefaultAssemblyResolver();
+        resolver.AddSearchDirectory(Path.GetDirectoryName(tempReferences.Last()));
 
         foreach (var reference in references) {
             try {
-                var assembly = AssemblyDefinition.ReadAssembly(reference);
+                var assembly = AssemblyDefinition.ReadAssembly(reference, new ReaderParameters() { AssemblyResolver = resolver });
                 _assemblies.Add(assembly);
             } catch (BadImageFormatException) {
                 diagnostics.Push(Error.InvalidReference(reference));
@@ -1563,5 +1565,21 @@ internal sealed class ILEmitter {
 
     private void EmitConstructorExpression(ILProcessor iLProcessor, BoundConstructorExpression expression) {
         // iLProcessor.Emit(OpCodes.Newobj, /* TODO */null);
+    }
+
+    private class MonoAssemblyResolver : IAssemblyResolver {
+        public AssemblyDefinition assemblyDefinition;
+
+        public AssemblyDefinition Resolve(AssemblyNameReference name) {
+            return assemblyDefinition;
+        }
+
+        public AssemblyDefinition Resolve(AssemblyNameReference name, ReaderParameters parameters) {
+            return assemblyDefinition;
+        }
+
+        public void Dispose() {
+            assemblyDefinition = null;
+        }
     }
 }

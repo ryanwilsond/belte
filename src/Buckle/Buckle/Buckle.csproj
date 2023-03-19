@@ -7,10 +7,14 @@
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>Repl</_Parameter1>
     </AssemblyAttribute>
-    <!-- TODO This still does not allow sander to see the internals during runtime -->
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
-      <_Parameter1>Sander</_Parameter1>
-    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="Resources/ErrorDescriptionsBU.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources/ErrorDescriptionsBU.txt" />
   </ItemGroup>
 
   <ItemGroup>
