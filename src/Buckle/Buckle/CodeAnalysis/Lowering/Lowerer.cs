@@ -517,16 +517,13 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (_onlyOptimize)
             return base.RewriteCompoundAssignmentExpression(expression);
 
-        var left = RewriteExpression(expression.left);
-        var right = RewriteExpression(expression.right);
-
         return RewriteExpression(
             Assignment(
-                left,
+                expression.left,
                 Binary(
-                    left,
+                    expression.left,
                     expression.op,
-                    right
+                    expression.right
                 )
             )
         );

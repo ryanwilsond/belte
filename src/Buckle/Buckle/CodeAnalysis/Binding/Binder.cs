@@ -951,6 +951,9 @@ internal sealed class Binder {
         if (type.isReference || (type.isImplicit && expression.initializer?.kind == SyntaxKind.RefExpression)) {
             var initializer = BindReferenceExpression((ReferenceExpressionSyntax)expression.initializer);
 
+            if (diagnostics.Errors().count > currentCount)
+                return null;
+
             var tempType = type.isImplicit ? initializer.type : type;
             var variableType = BoundType.Copy(
                 tempType,
