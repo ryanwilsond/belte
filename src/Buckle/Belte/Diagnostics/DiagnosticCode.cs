@@ -30,5 +30,4 @@ internal enum DiagnosticCode : int {
     ERR_InvalidErrorCode = 19,
     INF_IgnoringCompiledFile = 20,
     ERR_UnusedErrorCode = 21,
-    WRN_CorruptInstallation = 22,
 }

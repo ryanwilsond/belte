@@ -297,12 +297,3 @@ buckle --explain BU6307 // Correct format, but the error code 'BU6307' is not cu
 ```
 
 If the error code is in the incorrect format, then error CL0019 is raised.
-$CL0022
-Certain command-line options like '--explain' and '--help' require accessing
-text documents for their information. If the installation of Buckle is corrupt
-in a way that these files cannot be located by the compiler, then the stored
-information cannot be found. This means that these options are disabled.
-All other compiler features should still perform correctly.
-
-However, if you are seeing this message it means your installation is not
-corrupt (at least regarding these documents), so you should not be worried!
