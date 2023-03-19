@@ -235,7 +235,7 @@ public static partial class BuckleCommandLine {
             case DiagnosticSeverity.Debug:
                 highlightColor = ConsoleColor.Gray;
                 Console.ForegroundColor = highlightColor;
-                Console.Write("debug ");
+                Console.Write(" debug");
                 break;
             case DiagnosticSeverity.Info:
                 highlightColor = ConsoleColor.Yellow;

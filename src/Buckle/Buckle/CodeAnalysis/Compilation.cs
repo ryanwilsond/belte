@@ -157,14 +157,14 @@ public sealed class Compilation {
     /// <param name="abort">External flag used to cancel evaluation.</param>
     /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
     internal EvaluationResult Evaluate(Dictionary<VariableSymbol, EvaluatorObject> variables, ref bool abort) {
-        if (globalScope.diagnostics.FilterAbove(DiagnosticSeverity.Error).Any())
+        if (globalScope.diagnostics.Errors().Any())
             return new EvaluationResult(null, false, globalScope.diagnostics, null);
 
         var program = GetProgram();
         // * Only for debugging purposes
         // CreateCfg(program);
 
-        if (program.diagnostics.FilterAbove(DiagnosticSeverity.Error).Any())
+        if (program.diagnostics.Errors().Any())
             return new EvaluationResult(null, false, program.diagnostics, null);
 
         diagnostics.Move(program.diagnostics);
@@ -289,13 +289,13 @@ public sealed class Compilation {
         foreach (var syntaxTree in syntaxTrees)
             diagnostics.Move(syntaxTree.diagnostics);
 
-        if (diagnostics.FilterAbove(DiagnosticSeverity.Error).Any())
+        if (diagnostics.Errors().Any())
             return diagnostics;
 
         var program = GetProgram();
         program.diagnostics.Move(diagnostics);
 
-        if (program.diagnostics.FilterAbove(DiagnosticSeverity.Error).Any())
+        if (program.diagnostics.Errors().Any())
             return program.diagnostics;
 
         if (buildMode == BuildMode.Dotnet)
@@ -324,13 +324,13 @@ public sealed class Compilation {
         foreach (var syntaxTree in syntaxTrees)
             diagnostics.Move(syntaxTree.diagnostics);
 
-        if (diagnostics.FilterAbove(DiagnosticSeverity.Error).Any())
+        if (diagnostics.Errors().Any())
             return null;
 
         var program = GetProgram();
         program.diagnostics.Move(diagnostics);
 
-        if (program.diagnostics.FilterAbove(DiagnosticSeverity.Error).Any())
+        if (program.diagnostics.Errors().Any())
             return null;
 
         if (buildMode == BuildMode.CSharpTranspile) {

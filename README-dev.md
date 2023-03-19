@@ -13,24 +13,15 @@ OnBoarding:
 
 ## Tools for Building
 
-This project uses the .NET SDK (7.0) for building, wrapped with GNU Make. You
-can also run the project without GNU Make by launching a debug profile (
-currently only for Visual Studio Code).
+This project uses the .NET SDK (7.0). To run the project, launch a debug or
+release profile (currently only for Visual Studio Code). For publishing the
+project, GNU Make is used.
 
 Visual Studio Code is strongly recommended, but not required.
 
-## Building Buckle
+## Publishing Buckle
 
-Run `$ make` to build the project, and run `$ make test` to run the project's
+Run `$ make` to publish the project, and run `$ make test` to run the project's
 tests.
 
-The final executable is put into `./buckle.exe`.
-
-If you are using Visual Studio Code, a debug task is provided and can be
-launched by pressing F5.
-
-## Building Sander
-
-Run `$ make sander` to build the project.
-
-The final executable is put into `./sander.exe`.
+The final executable is put into `./bin/release/buckle.exe`.

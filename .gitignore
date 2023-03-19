@@ -11,11 +11,5 @@
 # Temporary, add this back in once 0.1 is released and update it to match the current features
 [Ee]xtension/
 
-/App.config
-/*.exe
-/*.dll
-/*.deps.json
-/*.runtimeconfig.json
-/*.pdb
 *.dot
 *.g.cs

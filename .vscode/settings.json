@@ -4,6 +4,7 @@
     },
     "files.exclude": {
         "src/**/bin": true,
+        "samples/**/bin": true,
         "**/obj": true,
         "**/.vs": true,
     },

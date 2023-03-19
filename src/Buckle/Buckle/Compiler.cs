@@ -110,7 +110,7 @@ public sealed class Compiler {
         var compilation = Compilation.Create(false, syntaxTrees.ToArray());
         diagnostics.Move(compilation.diagnostics);
 
-        if ((diagnostics.FilterAbove(DiagnosticSeverity.Error).Any()))
+        if ((diagnostics.Errors().Any()))
             return;
 
         if (state.noOut)
