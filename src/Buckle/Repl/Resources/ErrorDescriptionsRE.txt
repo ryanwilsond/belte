@@ -1,36 +1,36 @@
 $RE0001
-The REPL produces this error when an unknown REPL command is invoked. REPL
+The Repl produces this error when an unknown Repl command is invoked. Repl
 commands can only be invoked by prefixing their name with a pound ('#'). This
 means that any single line submission that starts with a pound will be treated
-as if it is a call to a REPL command, and that line will never be treated as
-Belte code. A full list of known REPL commands can be viewed at any time by
-typing '#help' in the REPL. This will only show known REPL commands in the
-version of the REPL that is being run.
+as if it is a call to a Repl command, and that line will never be treated as
+Belte code. A full list of known Repl commands can be viewed at any time by
+typing '#help' in the Repl. This will only show known Repl commands in the
+version of the Repl that is being run.
 
-Some REPL commands require arguments, and if that is the case different error
+Some Repl commands require arguments, and if that is the case different error
 codes such as RE0002 and RE0005 will be used to report issues with arguments.
 
 For example:
 
 ```
-» #hepl // Correct format to invoke a REPL command, but the command 'hepl' does not exist
+» #hepl // Correct format to invoke a Repl command, but the command 'hepl' does not exist
 » #help // Correct
 ```
 $RE0002
-The REPL produces this error when a known REPL command is invoked with the
+The Repl produces this error when a known Repl command is invoked with the
 incorrect number of arguments (similar to a method or function call in Belte).
-REPL commands vary in how many arguments they have, so the list of all arguments
-for all REPL commands can be viewed by invoking the '#help' command.
+Repl commands vary in how many arguments they have, so the list of all arguments
+for all Repl commands can be viewed by invoking the '#help' command.
 
 For example:
 
 ```
-» #dump // This is a known REPL command but requires one argument (symbol name)
+» #dump // This is a known Repl command but requires one argument (symbol name)
 ```
 $RE0003
-When using the '#dump' REPL command, the user must pass in the name of a symbol.
+When using the '#dump' Repl command, the user must pass in the name of a symbol.
 If the symbol name passed could not be found in the global scope (of any
-submission) then the REPL raises with error. If a full function signature is
+submission) then the Repl raises with error. If a full function signature is
 passed instead of just a symbol name, the error code RE0006 is used instead.
 
 For example:
@@ -42,8 +42,8 @@ loaded 0 submissions
 » #dump x // Correct
 ```
 $RE0004
-When using the '#load' REPL command, the user must pass the path to a file.
-If the file could not be located (either relatively or absolutely) then the REPL
+When using the '#load' Repl command, the user must pass the path to a file.
+If the file could not be located (either relatively or absolutely) then the Repl
 raises this error.
 
 For example:
@@ -52,7 +52,7 @@ For example:
 » #load someNonexistentFile // Correct format, but assuming this file does not exist this error would be raised
 ```
 $RE0005
-When using a REPL command, all arguments are passed as strings. If an argument
+When using a Repl command, all arguments are passed as strings. If an argument
 fails to parse into its predefined type then this error is raised.
 
 For example:
@@ -62,9 +62,9 @@ For example:
 » #saveToFile 4 // Correct
 ```
 $RE0006
-When using the '#dump' REPL command, the user can either pass in just a symbol
+When using the '#dump' Repl command, the user can either pass in just a symbol
 name or a full function signature. If the name of the symbol or function is
-unknown, the REPL raises an error. If just a symbol name is passed, then the
+unknown, the Repl raises an error. If just a symbol name is passed, then the
 error code RE0003 is used. If it was a function signature, then this error code
 is used instead. This error is raised even if the function name exists but any
 part of the signature is off.
@@ -79,10 +79,10 @@ loaded 0 submissions
 » #dump myFunc(int) // Correct
 ```
 $RE0007
-When using the '#dump' REPL command, the user can pass a symbol name. If this
+When using the '#dump' Repl command, the user can pass a symbol name. If this
 symbol name refers to an overloaded function and the name is ambiguous between
 more than one overload, then this error is raised. This makes sure the user is
-seeing the function body they expect and not just the first one the REPL finds.
+seeing the function body they expect and not just the first one the Repl finds.
 
 For example:
 
@@ -90,12 +90,12 @@ For example:
 loaded 0 submissions
 » void myFunc(int a, string a) { }
 » void myFunc(string a) { }
-» #dump myFunc // The REPL cannot tell which overload to show, so it raises this error
+» #dump myFunc // The Repl cannot tell which overload to show, so it raises this error
 ```
 
 To avoid this error, use a partial function signature instead of just the name.
 Note that this signature is picky, so make sure to not include the return type,
-and do not provide parameter names. Putting any whitespace will make the REPL
+and do not provide parameter names. Putting any whitespace will make the Repl
 think you are providing more than 1 argument, so strip any whitespace:
 
 ```
@@ -105,7 +105,7 @@ think you are providing more than 1 argument, so strip any whitespace:
 » #dump void myFunc(int,string) // Incorrect, no whitespace is allowed and there should not be a return type
 ```
 $RE0008
-While the '#showIL' REPL toggle is active, submissions cannot reference locals
+While the '#showIL' Repl toggle is active, submissions cannot reference locals
 or globals from previous submissions. This may be possible in the future, but
 currently the IL emitter used to generate the IL cannot see previous locals and
 globals.

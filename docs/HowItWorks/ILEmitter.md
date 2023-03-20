@@ -2,7 +2,7 @@
 
 The emitter is a tricky component to implement, but in theory, is not complicated. Most of the logic is straightforward.
 The way it works is by initializing an assembly, then adding IL statements by going through the code statement by
-statement, similar to the evaluator. Because all control of flow is simplified into gotos, this method works without
+statement, similar to the Evaluator. Because all control of flow is simplified into gotos, this method works without
 error.
 
 The only hiccup is null, which has some logic to it. Even though there is only one meaning of null, there are different

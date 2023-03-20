@@ -180,7 +180,7 @@ internal sealed class Binder {
     /// <summary>
     /// Binds a program.
     /// </summary>
-    /// <param name="isScript">If being bound as a script (used by the REPL), otherwise an application.</param>
+    /// <param name="isScript">If being bound as a script, otherwise an application.</param>
     /// <param name="previous">Previous <see cref="BoundProgram" /> (if applicable).</param>
     /// <param name="globalScope">The already bound <see cref="BoundGlobalScope" />.</param>
     /// <param name="transpilerMode">
