@@ -10,8 +10,6 @@ namespace Buckle.CodeAnalysis.Binding;
 /// Rewrites BoundStatements and all child BoundStatements, allowing expansion.
 /// </summary>
 internal abstract class BoundTreeExpander {
-    protected List<string> _localNames = new List<string>();
-
     protected static BoundStatement Simplify(List<BoundStatement> statements) {
         if (statements.Count == 1)
             return statements[0];
@@ -69,10 +67,9 @@ internal abstract class BoundTreeExpander {
         return new List<BoundStatement>() { Block(statements.ToArray()) };
     }
 
-    protected virtual List<BoundStatement> ExpandVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
+    protected virtual List<BoundStatement> ExpandVariableDeclarationStatement(
+        BoundVariableDeclarationStatement statement) {
         var statements = ExpandExpression(statement.initializer, out var replacement);
-
-        _localNames.Add(statement.variable.name);
 
         if (statements.Any()) {
             statements.Add(new BoundVariableDeclarationStatement(statement.variable, replacement));

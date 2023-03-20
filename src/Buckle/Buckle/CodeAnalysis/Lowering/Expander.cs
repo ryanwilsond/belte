@@ -11,6 +11,7 @@ internal sealed class Expander : BoundTreeExpander {
     private int _tempCount = 0;
     private int _compoundAssignmentDepth = 0;
     private int _operatorDepth = 0;
+    private List<string> _localNames = new List<string>();
 
     /// <summary>
     /// Expands all expression in a <see cref="BoundStatement" />.
@@ -32,6 +33,13 @@ internal sealed class Expander : BoundTreeExpander {
         var expander = new Expander();
         var statements = expander.ExpandStatement(statement);
         return statements;
+    }
+
+
+    protected override List<BoundStatement> ExpandVariableDeclarationStatement(
+        BoundVariableDeclarationStatement statement) {
+        _localNames.Add(statement.variable.name);
+        return base.ExpandVariableDeclarationStatement(statement);
     }
 
     protected override List<BoundStatement> ExpandCompoundAssignmentExpression(

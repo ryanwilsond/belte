@@ -1018,7 +1018,8 @@ internal sealed class Binder {
             var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
             var variable = BindVariable(expression.identifier,
                 BoundType.Copy(
-                    type, typeSymbol: itemType.typeSymbol, isLiteral: false, dimensions: variableType.dimensions
+                    type, typeSymbol: itemType.typeSymbol, isExplicitReference: false,
+                    isLiteral: false, dimensions: variableType.dimensions
                 ),
                 castedInitializer.constantValue
             );
