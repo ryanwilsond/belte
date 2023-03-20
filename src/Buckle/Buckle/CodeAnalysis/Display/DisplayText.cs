@@ -516,18 +516,19 @@ internal sealed class DisplayText {
         }
 
         var value = node.value.ToString();
+        var typeSymbol = BoundType.Assume(node.value).typeSymbol;
 
-        if (node.type.typeSymbol == TypeSymbol.Bool) {
-            text.Write(CreateKeyword(value));
-        } else if (node.type.typeSymbol == TypeSymbol.Int) {
+        if (typeSymbol == TypeSymbol.Bool) {
+            text.Write(CreateKeyword(value.ToLower()));
+        } else if (typeSymbol == TypeSymbol.Int) {
             text.Write(CreateNumber(value));
-        } else if (node.type.typeSymbol == TypeSymbol.String) {
+        } else if (typeSymbol == TypeSymbol.String) {
             value = "\"" + value.Replace("\"", "\"\"") + "\"";
             text.Write(CreateString(value));
-        } else if (node.type.typeSymbol == TypeSymbol.Decimal) {
+        } else if (typeSymbol == TypeSymbol.Decimal) {
             text.Write(CreateNumber(value));
         } else {
-            throw new BelteInternalException($"WriteLiteralExpression: unexpected type '{node.type.typeSymbol}'");
+            throw new BelteInternalException($"WriteLiteralExpression: unexpected type '{typeSymbol}'");
         }
     }
 

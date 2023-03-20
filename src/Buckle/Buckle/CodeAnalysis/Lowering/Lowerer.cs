@@ -196,17 +196,19 @@ internal sealed class Lowerer : BoundTreeRewriter {
             : statement.condition;
 
         return RewriteStatement(
-            Block(
-                statement.initializer,
-                While(
-                    condition,
-                    Block(
-                        statement.body,
-                        Label(continueLabel),
-                        Statement(statement.step)
-                    ),
-                    breakLabel,
-                    GenerateLabel()
+            Expander.Expand(
+                Block(
+                    statement.initializer,
+                    While(
+                        condition,
+                        Block(
+                            statement.body,
+                            Label(continueLabel),
+                            Statement(statement.step)
+                        ),
+                        breakLabel,
+                        GenerateLabel()
+                    )
                 )
             )
         );

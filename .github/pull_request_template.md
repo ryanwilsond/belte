@@ -28,11 +28,14 @@ Please delete options that are not relevant.
 - [ ] I updated the error resource docs (e.g. src/Buckle/Buckle/Resources/ErrorDescriptionsBU.txt) if any new errors or warnings were added
 - [ ] I have added a test case to the [diagnostics tests](src/Buckle/Buckle.Tests/CodeAnalysis/DiagnosticTests.cs) if any new errors or warnings were added
 
-**If a new syntax was added (delete this section otherwise):**
+**If no new syntax was added delete this section:**
 
+- [ ] I updated the Lexer class (if applicable)
 - [ ] I updated the Parser class
 - [ ] I updated the Binder class
 - [ ] I updated the Lowerer class
+- [ ] I updated the Optimizer class (if applicable)
+- [ ] I updated the Expander class
 - [ ] I updated the DisplayText class
 - [ ] I updated the Evaluator class
 - [ ] I updated the CSharpEmitter class
