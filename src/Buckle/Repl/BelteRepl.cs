@@ -338,7 +338,9 @@ public sealed class BelteRepl : ReplBase {
         WriteDisplayText(displayText);
 
         var @out = Console.Out;
+        var @in = Console.In;
         Console.SetOut(new StreamWriter(Stream.Null));
+        Console.SetIn(TextReader.Null);
         state.loadingSubmissions = true;
 
         foreach (var file in files) {
@@ -348,6 +350,7 @@ public sealed class BelteRepl : ReplBase {
 
         state.loadingSubmissions = false;
         Console.SetOut(@out);
+        Console.SetIn(@in);
     }
 
     private void WriteDisplayText(DisplayText text) {

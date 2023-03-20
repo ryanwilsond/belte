@@ -31,7 +31,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var lowerer = new Lowerer(transpilerMode);
         var block = Flatten(function, lowerer.RewriteStatement(expandedStatement));
 
-        return Optimizer.Optimize(block) as BoundBlockStatement;
+        return Optimizer.Optimize(block, transpilerMode) as BoundBlockStatement;
     }
 
     protected override BoundStatement RewriteIfStatement(BoundIfStatement statement) {

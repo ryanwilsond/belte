@@ -56,7 +56,7 @@ namespace EmitterTests;
 public static class Program {
 
     public static int Main() {
-        return (1);
+        return 1;
     }
 
 }
@@ -88,7 +88,7 @@ namespace EmitterTests;
 public static class Program {
 
     public static int Main() {
-        return (0);
+        return 0;
     }
 
 }
@@ -125,7 +125,7 @@ public static class Program {
     public static int Main() {
         Nullable<int> a = 1;
         a += 5;
-        return (a) ?? 0;
+        return a ?? 0;
     }
 
 }
@@ -280,14 +280,17 @@ public static class Program {
     public static int Main() {
         Nullable<int> a = 1;
         Nullable<int> b = -1;
-        Nullable<int> c = (Nullable<int>)Convert.ToInt32((a.HasValue ? 5 + a.Value : null));
-        Nullable<int> d = (Nullable<int>)Convert.ToInt32(2 + (a.HasValue ? 3 * a.Value : null));
-        Nullable<int> e = (Nullable<int>)Convert.ToInt32((a.HasValue ? 5 * a.Value : null));
+        int temp0 = 5;
+        Nullable<int> c = (a.HasValue ? (Nullable<int>)(temp0 + a.Value) : null);
+        Nullable<int> temp1 = (a.HasValue ? (Nullable<int>)(3 * a.Value) : null);
+        Nullable<int> d = (temp1.HasValue ? (Nullable<int>)(2 + temp1.Value) : null);
+        int temp2 = 5;
+        Nullable<int> e = (a.HasValue ? (Nullable<int>)(temp2 * a.Value) : null);
         Nullable<int> f = (a.HasValue ? a.Value : 3);
         a += 5;
-        Nullable<bool> bo = (Nullable<bool>)Convert.ToBoolean((a.HasValue ? a.Value > 4 : null));
+        Nullable<bool> bo = (a.HasValue ? (Nullable<bool>)(a.Value > 4) : null);
         Console.WriteLine((object)(((bo) ?? throw new NullReferenceException()) ? 3 : 65));
-        return ((Nullable<int>)Convert.ToInt32((a.HasValue ? a.Value * 10 : null))) ?? 0;
+        return (a.HasValue ? (Nullable<int>)(a.Value * 10) : null) ?? 0;
     }
 
 }
@@ -320,7 +323,7 @@ void Main() {
     int x = 0;
 
     while (x <= 10) {
-        a++;
+        x++;
         continue;
     }
 
@@ -346,7 +349,7 @@ public static class Program {
 
     public static void Main() {
         Nullable<int> a = 0;
-        if ((((Nullable<bool>)Convert.ToBoolean((a.HasValue ? a.Value == 0 : null))) ?? throw new NullReferenceException())) {
+        if (((a.HasValue ? (Nullable<bool>)(a.Value == 0) : null) ?? throw new NullReferenceException())) {
             a = 10;
         }
         else {
@@ -355,25 +358,25 @@ public static class Program {
 
         Nullable<int> result = 1;
         for (Nullable<int> i = 0;
-            (((Nullable<bool>)Convert.ToBoolean((i.HasValue ? i.Value <= 10 : null))) ?? throw new NullReferenceException()); i++) {
+            ((i.HasValue ? (Nullable<bool>)(i.Value <= 10) : null) ?? throw new NullReferenceException()); i++) {
             result *= 2;
             break;
         }
 
-        Console.WriteLine((object)(result.HasValue && a.HasValue ? result.Value + a.Value : null));
+        Console.WriteLine((object)((result.HasValue && a.HasValue) ? (Nullable<int>)(result.Value + a.Value) : null));
         Nullable<int> x = 0;
-        while ((((Nullable<bool>)Convert.ToBoolean((x.HasValue ? x.Value <= 10 : null))) ?? throw new NullReferenceException())) {
-            a++;
+        while (((x.HasValue ? (Nullable<bool>)(x.Value <= 10) : null) ?? throw new NullReferenceException())) {
+            x++;
             continue;
         }
 
         do {
             result++;
         }
-        while ((((Nullable<bool>)Convert.ToBoolean((result.HasValue ? result.Value < 20 : null))) ?? throw new NullReferenceException()));
+        while (((result.HasValue ? (Nullable<bool>)(result.Value < 20) : null) ?? throw new NullReferenceException()));
 
         try {
-            Nullable<int> b = (Nullable<int>)Convert.ToInt32((a.HasValue ? 5 / a.Value : null));
+            Nullable<int> b = (a.HasValue ? (Nullable<int>)(5 / a.Value) : null);
         }
         catch {
             Nullable<int> b = 6;
@@ -466,7 +469,8 @@ namespace EmitterTests;
 public static class Program {
 
     public static void Main() {
-        Console.Write((object)(Add(1, 5).HasValue ? (Add(2, 3).HasValue && Add(5, 6).HasValue ? Add(2, 3).Value + Add(5, 6).Value : null) + Add(1, 5).Value : null));
+        Nullable<int> temp0 = ((Add(2, 3).HasValue && Add(5, 6).HasValue) ? (Nullable<int>)(Add(2, 3).Value + Add(5, 6).Value) : null);
+        Console.Write((object)((temp0.HasValue && Add(1, 5).HasValue) ? (Nullable<int>)(temp0.Value + Add(1, 5).Value) : null));
         Console.Write((object)Add(null, null));
         Console.Write((object)Add(1, null));
         Console.Write((object)Add(null, 2));
@@ -474,7 +478,7 @@ public static class Program {
     }
 
     public static Nullable<int> Add(Nullable<int> a, Nullable<int> b) {
-        return ((Nullable<int>)Convert.ToInt32((a.HasValue && b.HasValue ? a.Value + b.Value : null)));
+        return ((a.HasValue && b.HasValue) ? (Nullable<int>)(a.Value + b.Value) : null);
     }
 
 }
@@ -562,7 +566,7 @@ public static class Program {
         Nullable<bool> c = g.b;
         Nullable<bool> d = !c.HasValue;
         A h = null;
-        Nullable<int> j = (h is not null ? h.a : null);
+        Nullable<int> j = (h is not null ? (Nullable<int>)h.a : null);
         Console.WriteLine((object)!j.HasValue);
         return;
     }
@@ -590,7 +594,7 @@ public static class Program {
 
     public static void Main() {
         Nullable<int> max = (Nullable<int>)Convert.ToInt32(Console.ReadLine());
-        Nullable<int> randInt = (Nullable<int>)Convert.ToInt32(((Func<int>)(() => { var random = new System.Random(); var temp = max; return temp.HasValue ? random.Next(temp.Value) : random.Next(); }))());
+        Nullable<int> randInt = ((Func<int>)(() => { var random = new System.Random(); var temp = max; return temp.HasValue ? random.Next(temp.Value) : random.Next(); }))();
         return;
     }
 
@@ -601,8 +605,7 @@ public static class Program {
         "
     )]
     public void Emitter_Emits_CorrectText(string text, string expectedCSharpText, string expectedILText) {
-        // TODO Add blender
-        // AssertText(text, expectedCSharpText.Trim() + Environment.NewLine, BuildMode.CSharpTranspile);
+        AssertText(text, expectedCSharpText.Trim() + Environment.NewLine, BuildMode.CSharpTranspile);
         // TODO Fix Mono.Cecil bug that is preventing further IL Emitter development
         // AssertText(text, expectedILText.Trim() + Environment.NewLine, BuildMode.Dotnet);
     }
