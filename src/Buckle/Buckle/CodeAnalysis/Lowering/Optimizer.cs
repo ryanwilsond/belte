@@ -13,12 +13,13 @@ internal sealed class Optimizer : BoundTreeRewriter {
     /// Optimizes a <see cref="BoundStatement" />.
     /// </summary>
     /// <param name="statement"><see cref="BoundStatement" /> to optimize.</param>
+    /// <param name="transpilerMode">If the compiler is transpiling, if true skips part of optimizing.</param>
     /// <returns>Optimized <param name="statement" />.</returns>
-    internal static BoundStatement Optimize(BoundStatement statement) {
+    internal static BoundStatement Optimize(BoundStatement statement, bool transpilerMode) {
         var optimizer = new Optimizer();
         var optimizedStatement = optimizer.RewriteStatement(statement);
 
-        if (statement is BoundBlockStatement)
+        if (statement is BoundBlockStatement && !transpilerMode)
             return RemoveDeadCode(optimizedStatement as BoundBlockStatement);
         else
             return optimizedStatement;

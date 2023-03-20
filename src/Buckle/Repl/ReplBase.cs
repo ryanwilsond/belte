@@ -84,9 +84,16 @@ public abstract class ReplBase {
     /// </summary>
     public void Run() {
         string text;
+        bool broke;
 
         void EvaluateSubmissionWrapper() {
             EvaluateSubmission(text);
+        }
+
+        void ctrlCHandler(object sender, ConsoleCancelEventArgs args) {
+            _abortEvaluation = true;
+            args.Cancel = true;
+            broke = true;
         }
 
         while (true) {
@@ -102,28 +109,12 @@ public abstract class ReplBase {
                     var evaluateSubmissionReference = new ThreadStart(EvaluateSubmissionWrapper);
                     var evaluateSubmissionThread = new Thread(evaluateSubmissionReference);
                     _abortEvaluation = false;
+                    broke = false;
+                    Console.CancelKeyPress += new ConsoleCancelEventHandler(ctrlCHandler);
                     var startTime = DateTime.Now;
                     evaluateSubmissionThread.Start();
 
-                    Console.TreatControlCAsInput = true;
-
-                    var broke = false;
-
-                    while (evaluateSubmissionThread.IsAlive) {
-                        if (Console.KeyAvailable) {
-                            var key = Console.ReadKey(true);
-
-                            if (key.Key == ConsoleKey.C && key.Modifiers == ConsoleModifiers.Control) {
-                                broke = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    _abortEvaluation = true;
-                    Console.TreatControlCAsInput = false;
-
-                    while (evaluateSubmissionThread.IsAlive) { }
+                    while (evaluateSubmissionThread.IsAlive) ;
 
                     if (broke || _showTime) {
                         var finishWord = broke ? "Aborted" : "Finished";

@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.Preprocessing;
@@ -116,8 +118,25 @@ public sealed class Compiler {
         if (state.noOut)
             return;
 
-        var _ = false; // Unused, just to satisfy ref parameter
-        var result = compilation.Evaluate(new Dictionary<VariableSymbol, EvaluatorObject>(), ref _);
+        EvaluationResult result = null;
+        var abort = false;
+
+        void EvaluateWrapper() {
+            result = compilation.Evaluate(new Dictionary<VariableSymbol, EvaluatorObject>(), ref abort);
+        }
+
+        void ctrlCHandler(object sender, ConsoleCancelEventArgs args) {
+            abort = true;
+            args.Cancel = true;
+        }
+
+        Console.CancelKeyPress += new ConsoleCancelEventHandler(ctrlCHandler);
+
+        var evaluateWrapperReference = new ThreadStart(EvaluateWrapper);
+        var evaluateWrapperThread = new Thread(evaluateWrapperReference);
+        evaluateWrapperThread.Start();
+
+        while (evaluateWrapperThread.IsAlive) ;
 
         diagnostics.Move(result.diagnostics);
     }

@@ -10,6 +10,8 @@ namespace Buckle.CodeAnalysis.Binding;
 /// Rewrites BoundStatements and all child BoundStatements, allowing expansion.
 /// </summary>
 internal abstract class BoundTreeExpander {
+    protected List<string> _localNames = new List<string>();
+
     protected static BoundStatement Simplify(List<BoundStatement> statements) {
         if (statements.Count == 1)
             return statements[0];
@@ -70,6 +72,8 @@ internal abstract class BoundTreeExpander {
     protected virtual List<BoundStatement> ExpandVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
         var statements = ExpandExpression(statement.initializer, out var replacement);
 
+        _localNames.Add(statement.variable.name);
+
         if (statements.Any()) {
             statements.Add(new BoundVariableDeclarationStatement(statement.variable, replacement));
             return statements;
@@ -79,24 +83,32 @@ internal abstract class BoundTreeExpander {
     }
 
     protected virtual List<BoundStatement> ExpandIfStatement(BoundIfStatement statement) {
-        return new List<BoundStatement>() {
+        var statements = ExpandExpression(statement.condition, out var conditionReplacement);
+
+        statements.Add(
             new BoundIfStatement(
-                statement.condition,
+                conditionReplacement,
                 Simplify(ExpandStatement(statement.then)),
                 statement.elseStatement != null ? Simplify(ExpandStatement(statement.elseStatement)) : null
             )
-        };
+        );
+
+        return statements;
     }
 
     protected virtual List<BoundStatement> ExpandWhileStatement(BoundWhileStatement statement) {
-        return new List<BoundStatement>() {
+        var statements = ExpandExpression(statement.condition, out var conditionReplacement);
+
+        statements.Add(
             new BoundWhileStatement(
-                statement.condition,
+                conditionReplacement,
                 Simplify(ExpandStatement(statement.body)),
                 statement.breakLabel,
                 statement.continueLabel
             )
-        };
+        );
+
+        return statements;
     }
 
     protected virtual List<BoundStatement> ExpandForStatement(BoundForStatement statement) {
@@ -128,14 +140,18 @@ internal abstract class BoundTreeExpander {
     }
 
     protected virtual List<BoundStatement> ExpandDoWhileStatement(BoundDoWhileStatement statement) {
-        return new List<BoundStatement>() {
+        var statements = ExpandExpression(statement.condition, out var conditionReplacement);
+
+        statements.Add(
             new BoundDoWhileStatement(
                 Simplify(ExpandStatement(statement.body)),
-                statement.condition,
+                conditionReplacement,
                 statement.breakLabel,
                 statement.continueLabel
             )
-        };
+        );
+
+        return statements;
     }
 
     protected virtual List<BoundStatement> ExpandReturnStatement(BoundReturnStatement statement) {

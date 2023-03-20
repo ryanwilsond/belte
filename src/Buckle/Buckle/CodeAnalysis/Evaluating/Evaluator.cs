@@ -506,16 +506,22 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateCallExpression(BoundCallExpression node, ref bool abort) {
         if (node.function.MethodMatches(BuiltinFunctions.Input)) {
-            return new EvaluatorObject(Console.ReadLine());
+            return new EvaluatorObject(Console.IsInputRedirected ? null : Console.ReadLine());
         } else if (node.function.MethodMatches(BuiltinFunctions.Print)) {
             var message = EvaluateExpression(node.arguments[0], ref abort);
-            Console.Write(Value(message));
+
+            if (!Console.IsOutputRedirected)
+                Console.Write(Value(message));
+
             hasPrint = true;
         } else if (node.function.MethodMatches(BuiltinFunctions.PrintLine)) {
             var message = EvaluateExpression(node.arguments[0], ref abort);
-            Console.WriteLine(Value(message));
+
+            if (!Console.IsOutputRedirected)
+                Console.WriteLine(Value(message));
         } else if (node.function.MethodMatches(BuiltinFunctions.PrintLineNoValue)) {
-            Console.WriteLine();
+            if (!Console.IsOutputRedirected)
+                Console.WriteLine();
         } else if (node.function.MethodMatches(BuiltinFunctions.RandInt)) {
             var max = (int)Value(EvaluateExpression(node.arguments[0], ref abort));
 

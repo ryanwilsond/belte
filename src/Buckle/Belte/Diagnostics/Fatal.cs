@@ -15,7 +15,7 @@ internal static class Fatal {
     /// </summary>
     internal static Diagnostic CannotSpecifyWithDotnet() {
         var message = "cannot specify '-p', '-s', '-c', or '-t' with .NET integration";
-        return new Diagnostic(FatalInfo(DiagnosticCode.ERR_CannotSpecifyWithDotnet), message);
+        return new Diagnostic(FatalInfo(DiagnosticCode.FTL_CannotSpecifyWithDotnet), message);
     }
 
     /// <summary>
@@ -23,7 +23,7 @@ internal static class Fatal {
     /// </summary>
     internal static Diagnostic CannotSpecifyWithMultipleFiles() {
         var message = "cannot specify output file with '-p', '-s', '-c', or '-t' with multiple files";
-        return new Diagnostic(FatalInfo(DiagnosticCode.ERR_CannotSpecifyWithMultipleFiles), message);
+        return new Diagnostic(FatalInfo(DiagnosticCode.FTL_CannotSpecifyWithMultipleFiles), message);
     }
 
     /// <summary>
@@ -31,7 +31,7 @@ internal static class Fatal {
     /// </summary>
     internal static Diagnostic CannotSpecifyWithInterpreter() {
         var message = "cannot specify output path or use '-p', '-s', '-c', or '-t' with interpreter";
-        return new Diagnostic(FatalInfo(DiagnosticCode.ERR_CannotSpecifyWithInterpreter), message);
+        return new Diagnostic(FatalInfo(DiagnosticCode.FTL_CannotSpecifyWithInterpreter), message);
     }
 
     /// <summary>
@@ -39,7 +39,7 @@ internal static class Fatal {
     /// </summary>
     internal static Diagnostic CannotSpecifyModuleNameWithoutDotnet() {
         var message = "cannot specify module name without .NET integration";
-        return new Diagnostic(FatalInfo(DiagnosticCode.ERR_CannotSpecifyModuleNameWithoutDotnet), message);
+        return new Diagnostic(FatalInfo(DiagnosticCode.FTL_CannotSpecifyModuleNameWithoutDotnet), message);
     }
 
     /// <summary>
@@ -47,7 +47,7 @@ internal static class Fatal {
     /// </summary>
     internal static Diagnostic CannotSpecifyReferencesWithoutDotnet() {
         var message = "cannot specify references without .NET integration";
-        return new Diagnostic(FatalInfo(DiagnosticCode.ERR_CannotSpecifyReferencesWithoutDotnet), message);
+        return new Diagnostic(FatalInfo(DiagnosticCode.FTL_CannotSpecifyReferencesWithoutDotnet), message);
     }
 
     /// <summary>
@@ -55,7 +55,7 @@ internal static class Fatal {
     /// </summary>
     internal static Diagnostic NoInputFiles() {
         var message = "no input files";
-        return new Diagnostic(FatalInfo(DiagnosticCode.ERR_NoInputFiles), message);
+        return new Diagnostic(FatalInfo(DiagnosticCode.FTL_NoInputFiles), message);
     }
 
     private static DiagnosticInfo FatalInfo(DiagnosticCode code) {
