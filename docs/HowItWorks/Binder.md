@@ -11,7 +11,7 @@ of every variable reference it finds, and then adds them to the parameter list a
 function.
 
 To handle the main function, it checks for any declaration with the name main OR if it is run in interpreting mode
-(usually just used for the REPL) it creates a main function called $eval. This serves as the entry point to a file. If
+(usually just used for the Repl) it creates a main function called $eval. This serves as the entry point to a file. If
 no main or $eval function is present, the file is run top to bottom like a script (by enclosing the entire file contents
 into a new main function).
 
@@ -38,9 +38,13 @@ type clause. This means that if a variable is implicit it just checks the expres
 This is why implicit variables must be defined when declared.
 
 There are many more small details to talk about in the binder, but the ones listed above are the most important ones
-or the ones with the hardest solution. During and after the binding process, lowering happens which simplifies the code
-by removing language features and replacing them with lower-level code.
+or the ones with the hardest solution. During and after the binding process, expansion, lowering, and optimization
+occurs.
 
 ### Mentioned Components
 
+-> [Expander](Expander.md)
+
 -> [Lowerer](Lowerer.md)
+
+-> [Optimizer](Optimizer.md)

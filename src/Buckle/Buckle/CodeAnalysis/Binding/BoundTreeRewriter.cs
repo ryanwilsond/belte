@@ -4,7 +4,7 @@ using Buckle.Diagnostics;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Rewrites statements and all child statements.
+/// Rewrites BoundStatements and all child BoundStatements.
 /// </summary>
 internal abstract class BoundTreeRewriter {
     /// <summary>

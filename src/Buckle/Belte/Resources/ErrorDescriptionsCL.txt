@@ -111,9 +111,9 @@ buckle -i Program.ble --release // Incorrect, '--release' is not a known option
 For more information on what options are supported, try 'buckle --help' or visit
 the Belte docs.
 $CL0010
-When invoking the REPL (by using the '-r' option), the compiler ignores all
+When invoking the Repl (by using the '-r' option), the compiler ignores all
 other command-line options. The other options are still checked if they are
-valid for logging purposes, but they do not prevent the REPL from being called.
+valid for logging purposes, but they do not prevent the Repl from being called.
 
 For example:
 
@@ -121,7 +121,7 @@ For example:
 buckle -fakeOption NotAFile.ble -Wfake -r
 ```
 
-This would successfully call the REPL, but multiple errors would be logged.
+This would successfully call the Repl, but multiple errors would be logged.
 $CL0011
 Certain options are used to tell the compiler when to stop compilation
 explicitly, instead of just doing the default full compilation. These options
@@ -194,7 +194,7 @@ It is important to note that 'System.Console.dll', 'System.Runtime.dll', and
 'System.Runtime.Extensions.dll' are always included references, so they do not
 need to be added manually. 'System.Console.dll' was purely used as an example.
 $CL0016
-Unless invoking the REPL (by using the '-r' command-line option), input files
+Unless invoking the Repl (by using the '-r' command-line option), input files
 are needed to compile, as that is what is being compiled. Without them, the
 compiler has nothing to compile and cannot be invoked. If that is the case,
 this error is raised.
@@ -242,7 +242,7 @@ provided. The error code needs to be in the format [BU|CL|RE]<code> to work.
 
 - BU: Errors and warnings related/produced by the compilation process
 - CL: Errors and warnings related/produced by the command-line
-- RE: Errors and warnings related/produced by the REPL
+- RE: Errors and warnings related/produced by the Repl
 
 The <code> can be any 4-digit integer. Whenever an error or warning is produced,
 it records its error code so the user can then later use the '--explain' option.

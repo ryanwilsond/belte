@@ -155,7 +155,7 @@ public sealed class BelteRepl : ReplBase {
 
         if (state.showIL) {
             try {
-                var iLCode = compilation.EmitToString(BuildMode.Dotnet, "REPLSubmission");
+                var iLCode = compilation.EmitToString(BuildMode.Dotnet, "ReplSubmission");
                 _writer.Write(iLCode);
             } catch (KeyNotFoundException) {
                 handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.FailedILGeneration()));
@@ -627,7 +627,7 @@ public sealed class BelteRepl : ReplBase {
     }
 
     /// <summary>
-    /// All required fields to implement for a REPL color theme (only supported if using System.Console as out).
+    /// All required fields to implement for a Repl color theme (only supported if using System.Console as out).
     /// </summary>
     internal abstract class ColorTheme {
         /// <summary>
@@ -770,7 +770,7 @@ public sealed class BelteRepl : ReplBase {
     }
 
     /// <summary>
-    /// REPL specific state, maintained throughout instance, recreated every instance.
+    /// Repl specific state, maintained throughout instance, recreated every instance.
     /// </summary>
     internal sealed class BelteReplState {
         /// <summary>
@@ -815,7 +815,7 @@ public sealed class BelteRepl : ReplBase {
 
         /// <summary>
         /// Current defined variables.
-        /// Not tracked after REPL instance is over, instead previous submissions are reevaluated.
+        /// Not tracked after Repl instance is over, instead previous submissions are reevaluated.
         /// </summary>
         internal Dictionary<VariableSymbol, EvaluatorObject> variables;
     }
