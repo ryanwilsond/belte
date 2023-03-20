@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Expands expressions to make them simpler to handle by the <see cref="Lowerer" />.
 /// </summary>
 internal sealed class Expander : BoundTreeExpander {
-    private int _tempCount;
+    private int _compoundAssignmentDepth = 0;
 
     /// <summary>
     /// Expands all expression in a <see cref="BoundStatement" />.
@@ -33,7 +33,23 @@ internal sealed class Expander : BoundTreeExpander {
 
     protected override List<BoundStatement> ExpandCompoundAssignmentExpression(
         BoundCompoundAssignmentExpression expression, out BoundExpression replacement) {
-        // ! TEMP - This should actually expand something
-        return base.ExpandCompoundAssignmentExpression(expression, out replacement);
+        _compoundAssignmentDepth++;
+
+        if (_compoundAssignmentDepth > 1) {
+            var statements = ExpandExpression(expression.left, out var leftReplacement);
+            statements.AddRange(ExpandExpression(expression.right, out var rightReplacement));
+            statements.Add(
+                new BoundExpressionStatement(
+                    new BoundCompoundAssignmentExpression(leftReplacement, expression.op, rightReplacement)
+                )
+            );
+            replacement = leftReplacement;
+            _compoundAssignmentDepth--;
+            return statements;
+        }
+
+        var baseStatements = base.ExpandCompoundAssignmentExpression(expression, out replacement);
+        _compoundAssignmentDepth--;
+        return baseStatements;
     }
 }
