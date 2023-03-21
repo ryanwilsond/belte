@@ -788,14 +788,19 @@ internal sealed class Parser {
     private ExpressionSyntax ParseInitializerListExpression() {
         var left = Match(SyntaxKind.OpenBraceToken);
         var nodesAndSeparators = ImmutableArray.CreateBuilder<SyntaxNode>();
-
         var parseNextItem = true;
 
-        while (parseNextItem &&
-            current.kind != SyntaxKind.CloseBraceToken &&
-            current.kind != SyntaxKind.EndOfFileToken) {
-            var expression = ParseExpression();
-            nodesAndSeparators.Add(expression);
+        while (parseNextItem && current.kind != SyntaxKind.EndOfFileToken) {
+            if (current.kind != SyntaxKind.CommaToken && current.kind != SyntaxKind.CloseBraceToken) {
+                var expression = ParseExpression();
+                nodesAndSeparators.Add(expression);
+            } else {
+                var empty = new EmptyExpressionSyntax(
+                    _syntaxTree, Token(_syntaxTree, SyntaxKind.BadToken, current.position)
+                );
+
+                nodesAndSeparators.Add(empty);
+            }
 
             if (current.kind == SyntaxKind.CommaToken) {
                 var comma = Next();
@@ -888,6 +893,7 @@ internal sealed class Parser {
                             _syntaxTree, Token(_syntaxTree, SyntaxKind.BadToken, current.position)
                         )
                     );
+
                     nodesAndSeparators.Add(empty);
                 }
 
