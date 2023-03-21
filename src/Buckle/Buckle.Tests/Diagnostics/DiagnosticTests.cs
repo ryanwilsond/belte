@@ -1034,6 +1034,19 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
+    public void Reports_Error_BU0078_NullInitializerListOnImplicit() {
+        var text = @"
+            var myArray = [{ null, null }];
+        ";
+
+        var diagnostics = @"
+            cannot initialize an implicitly-typed variable with an initializer list only containing 'null'
+        ";
+
+        AssertDiagnostics(text, diagnostics, writer);
+    }
+
+    [Fact]
     public void Reports_Error_Unsupported_BU9004_CannotInitialize() {
         var text = @"
             struct A {

@@ -993,10 +993,25 @@ internal sealed class Binder {
                 ? new BoundTypeWrapper(type, new BoundConstant(null))
                 : BindExpression(expression.initializer, initializerListType: type);
 
-            if (initializer is BoundInitializerListExpression il) {
-                if (il.items.Length == 0 && type.isImplicit) {
+            if (initializer is BoundInitializerListExpression il && type.isImplicit) {
+                if (il.items.Length == 0) {
                     diagnostics.Push(
                         Error.EmptyInitializerListOnImplicit(expression.initializer.location, type.isConstant)
+                    );
+
+                    return null;
+                }
+
+                var allNull = true;
+
+                foreach (var item in il.items) {
+                    if (!BoundConstant.IsNull(item.constantValue))
+                        allNull = false;
+                }
+
+                if (allNull) {
+                    diagnostics.Push(
+                        Error.NullInitializerListOnImplicit(expression.initializer.location, type.isConstant)
                     );
 
                     return null;

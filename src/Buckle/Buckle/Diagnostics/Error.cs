@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -706,6 +707,16 @@ internal static class Error {
         var message = $"a local named '{name}' cannot be declared in this scope because that name is used " +
             "in an enclosing scope to define a local or parameter";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NameUsedInEnclosingScope), location, message);
+    }
+
+    /// <summary>
+    /// BU0078. Run `buckle --explain BU0078` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic NullInitializerListOnImplicit(TextLocation location, bool isConstant) {
+        var variableWord = isConstant ? "constant" : "variable";
+        var message = $"cannot initialize an implicitly-typed {variableWord} with an " +
+            "initializer list only containing 'null'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NullInitializerListOnImplicit), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

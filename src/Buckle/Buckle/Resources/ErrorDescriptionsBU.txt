@@ -1078,7 +1078,7 @@ For example:
 
 ```
 int myInt = 2;
-++myInt; // '++' is allowed with integer types
+++myInt; // `++` is allowed with integer types
 
 bool myBool = false;
 ++myBool; // But not for decimal types
@@ -1092,7 +1092,7 @@ For example:
 
 ```
 int myInt = 2;
-myInt++; // '++' is allowed with integer types
+myInt++; // `++` is allowed with integer types
 
 bool myBool = false;
 myBool++; // But not for decimal types
@@ -1269,6 +1269,17 @@ void MyFunc() {
 
 This only applies to non-function scopes because function scopes shadow, whilst
 other blocks and bodies do not.
+$BU0078
+When implicitly initializing a variable or constant, you cannot use an
+initializer list only containing `null`. This is because `null` can be used for
+most types, so the compiler cannot figure out the type based on only `null`.
+
+For example:
+
+```
+var myArray = { null, null }; // Not allowed, the compiler cannot deduce the type of the variable
+var myArray = { null, 3 }; // Allowed, the compiler can use the non-null value to deduce the type of the variable
+```
 $BU9000
 Inside a global scope without a `Main` function, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it

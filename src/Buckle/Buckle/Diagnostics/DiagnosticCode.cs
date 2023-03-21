@@ -86,6 +86,7 @@ internal enum DiagnosticCode : int {
     ERR_CannotUseRef = 75,
     ERR_DivideByZero = 76,
     ERR_NameUsedInEnclosingScope = 77,
+    ERR_NullInitializerListOnImplicit = 78,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,
