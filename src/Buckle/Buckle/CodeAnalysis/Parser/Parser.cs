@@ -790,7 +790,9 @@ internal sealed class Parser {
         var nodesAndSeparators = ImmutableArray.CreateBuilder<SyntaxNode>();
         var parseNextItem = true;
 
-        while (parseNextItem && current.kind != SyntaxKind.EndOfFileToken) {
+        while (parseNextItem &&
+            current.kind != SyntaxKind.EndOfFileToken &&
+            current.kind != SyntaxKind.CloseBraceToken) {
             if (current.kind != SyntaxKind.CommaToken && current.kind != SyntaxKind.CloseBraceToken) {
                 var expression = ParseExpression();
                 nodesAndSeparators.Add(expression);

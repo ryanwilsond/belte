@@ -7,7 +7,6 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Diagnostics;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -1000,21 +999,21 @@ internal sealed class Binder {
                     );
 
                     return null;
-                }
+                } else {
+                    var allNull = true;
 
-                var allNull = true;
+                    foreach (var item in il.items) {
+                        if (!BoundConstant.IsNull(item.constantValue))
+                            allNull = false;
+                    }
 
-                foreach (var item in il.items) {
-                    if (!BoundConstant.IsNull(item.constantValue))
-                        allNull = false;
-                }
+                    if (allNull) {
+                        diagnostics.Push(
+                            Error.NullInitializerListOnImplicit(expression.initializer.location, type.isConstant)
+                        );
 
-                if (allNull) {
-                    diagnostics.Push(
-                        Error.NullInitializerListOnImplicit(expression.initializer.location, type.isConstant)
-                    );
-
-                    return null;
+                        return null;
+                    }
                 }
             }
 
