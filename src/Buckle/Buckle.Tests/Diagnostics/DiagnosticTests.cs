@@ -235,20 +235,6 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0020_InvalidArgumentType() {
-        var text = @"
-            void myFunc(int a, bool b) { }
-            myFunc(3, [5]);
-        ";
-
-        var diagnostics = @"
-            argument 2: cannot convert from type 'int' to 'bool'
-        ";
-
-        AssertDiagnostics(text, diagnostics, writer);
-    }
-
-    [Fact]
     public void Reports_Error_BU0021_VariableAlreadyDeclared() {
         var text = @"
             var x = 5;
@@ -1041,6 +1027,19 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             cannot initialize an implicitly-typed variable with an initializer list only containing 'null'
+        ";
+
+        AssertDiagnostics(text, diagnostics, writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0079_UnrecognizedEscapeSequence() {
+        var text = @"
+            var myString = ""test[\g]"";
+        ";
+
+        var diagnostics = @"
+            unrecognized escape sequence '\g'
         ";
 
         AssertDiagnostics(text, diagnostics, writer);

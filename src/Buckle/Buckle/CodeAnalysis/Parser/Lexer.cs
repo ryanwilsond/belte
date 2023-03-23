@@ -505,8 +505,12 @@ internal sealed class Lexer {
                             sb.Append('\\');
                             _position++;
                             break;
+                        case '\0':
+                            break;
                         default:
-                            sb.Append('\\');
+                            var errorSpan = new TextSpan(_position - 1, 2);
+                            var errorLocation = new TextLocation(_text, errorSpan);
+                            diagnostics.Push(Error.UnrecognizedEscapeSequence(errorLocation, current));
                             break;
                     }
                     break;

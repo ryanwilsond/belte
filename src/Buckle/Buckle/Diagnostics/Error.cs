@@ -719,6 +719,14 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NullInitializerListOnImplicit), location, message);
     }
 
+    /// <summary>
+    /// BU0079. Run `buckle --explain BU0079` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic UnrecognizedEscapeSequence(TextLocation location, char escapeChar) {
+        var message = $"unrecognized escape sequence '\\{escapeChar}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnrecognizedEscapeSequence), location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

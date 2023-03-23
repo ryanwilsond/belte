@@ -493,7 +493,7 @@ int myInt = 3; // This is an allowed expression statement
 4 + 7; // This is not an allowed expression statement
 ```
 
-For a full list of allowed expression statements, visit the Belte docs.
+For a full list of allowed expression statements, visit the Belte documentation.
 $BU0034
 Belte is a statically typed language, so all variables, parameters, etc. need
 a type associated with them at compile time. If a type is used that the compiler
@@ -998,7 +998,8 @@ MyStruct myStruct = MyStruct();
 int myInt = myStruct.myOtherMember; // `myOtherMember` is not a member of the user-defined `MyStruct` type
 ```
 
-A full list of all the members of built-in types can be found in the Belte docs.
+A full list of all the members of built-in types can be found in the Belte
+documentation.
 $BU0062
 Not every expression can be assigned to. If an assignment expression is
 attempted where the left side cannot be assigned to, this error is raised.
@@ -1280,6 +1281,17 @@ For example:
 var myArray = { null, null }; // Not allowed, the compiler cannot deduce the type of the variable
 var myArray = { null, 3 }; // Allowed, the compiler can use the non-null value to deduce the type of the variable
 ```
+$BU0079
+If the compiler does not recognize an escape sequence, this error is raised.
+
+For example:
+
+```
+var myString = "test\g"; // Not allowed, `\g` is not a known escape sequence
+var myString = "test\n"; // Allowed
+```
+
+Refer to the Belte documentation for a list of accepted escape sequences.
 $BU9000
 Inside a global scope without a `Main` function, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it
