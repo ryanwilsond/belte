@@ -14,7 +14,7 @@ using Buckle.Generators;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
-using static Buckle.Utilities.FunctionUtilities;
+using static Buckle.Utilities.MethodUtilities;
 
 namespace Buckle.CodeAnalysis.Emitting;
 
@@ -24,8 +24,8 @@ namespace Buckle.CodeAnalysis.Emitting;
 internal sealed class ILEmitter {
     private readonly List<AssemblyDefinition> _assemblies = new List<AssemblyDefinition>();
     private readonly List<(TypeSymbol type, string metadataName)> _builtinTypes;
-    private readonly Dictionary<FunctionSymbol, MethodDefinition> _methods =
-        new Dictionary<FunctionSymbol, MethodDefinition>();
+    private readonly Dictionary<MethodSymbol, MethodDefinition> _methods =
+        new Dictionary<MethodSymbol, MethodDefinition>();
     private readonly AssemblyDefinition _assemblyDefinition;
     private readonly Dictionary<TypeSymbol, TypeReference> _knownTypes;
     private readonly Dictionary<TypeSymbol, TypeDefinition> _typeDefinitions =
@@ -286,20 +286,20 @@ internal sealed class ILEmitter {
         foreach (var structWithBody in program.structMembers)
             EmitStructDeclaration(structWithBody);
 
-        foreach (var functionWithBody in program.functionBodies) {
-            var isMain = (program.mainFunction ?? program.scriptFunction)?.MethodMatches(functionWithBody.Key) ?? false;
-            EmitFunctionDeclaration(functionWithBody.Key, isMain);
+        foreach (var methodWithBody in program.methodBodies) {
+            var isMain = (program.mainMethod ?? program.scriptMethod)?.MethodMatches(methodWithBody.Key) ?? false;
+            EmitMethodDeclaration(methodWithBody.Key, isMain);
         }
 
-        foreach (var functionWithBody in program.functionBodies) {
-            _insideMain = (program.mainFunction ?? program.scriptFunction)
-                ?.MethodMatches(functionWithBody.Key) ?? false;
+        foreach (var methodWithBody in program.methodBodies) {
+            _insideMain = (program.mainMethod ?? program.scriptMethod)
+                ?.MethodMatches(methodWithBody.Key) ?? false;
 
-            EmitFunctionBody(functionWithBody.Key, functionWithBody.Value);
+            EmitMethodBody(methodWithBody.Key, methodWithBody.Value);
         }
 
-        if (program.mainFunction != null)
-            _assemblyDefinition.EntryPoint = LookupMethod(_methods, program.mainFunction);
+        if (program.mainMethod != null)
+            _assemblyDefinition.EntryPoint = LookupMethod(_methods, program.mainMethod);
     }
 
     private TypeReference ResolveType(string buckleName, string metadataName) {
@@ -510,14 +510,14 @@ internal sealed class ILEmitter {
         iLProcessor.Emit(OpCodes.Ret);
     }
 
-    private void EmitFunctionBody(FunctionSymbol function, BoundBlockStatement body) {
-        var method = _methods[function];
+    private void EmitMethodBody(MethodSymbol method, BoundBlockStatement body) {
+        var methodDefinition = _methods[method];
         _locals.Clear();
         _labels.Clear();
         _unhandledGotos.Clear();
-        var iLProcessor = method.Body.GetILProcessor();
+        var iLProcessor = methodDefinition.Body.GetILProcessor();
 
-        _methodStack.Push(method);
+        _methodStack.Push(methodDefinition);
 
         foreach (var statement in body.statements)
             EmitStatement(iLProcessor, statement);
@@ -532,23 +532,23 @@ internal sealed class ILEmitter {
             instructionFix.Operand = targetInstruction;
         }
 
-        method.Body.OptimizeMacros();
+        methodDefinition.Body.OptimizeMacros();
     }
 
-    private void EmitFunctionDeclaration(FunctionSymbol function, bool isMain) {
-        var functionType = isMain ? GetType(BoundType.Copy(function.type, isNullable: false)) : GetType(function.type);
-        var method = new MethodDefinition(
-            function.name, MethodAttributes.Static | MethodAttributes.Private, functionType);
+    private void EmitMethodDeclaration(MethodSymbol method, bool isMain) {
+        var methodType = isMain ? GetType(BoundType.Copy(method.type, isNullable: false)) : GetType(method.type);
+        var newMethod = new MethodDefinition(
+            method.name, MethodAttributes.Static | MethodAttributes.Private, methodType);
 
-        foreach (var parameter in function.parameters) {
+        foreach (var parameter in method.parameters) {
             var parameterType = GetType(parameter.type);
             var parameterAttributes = ParameterAttributes.None;
             var parameterDefinition = new ParameterDefinition(parameter.name, parameterAttributes, parameterType);
-            method.Parameters.Add(parameterDefinition);
+            newMethod.Parameters.Add(parameterDefinition);
         }
 
-        _programTypeDefinition.Methods.Add(method);
-        _methods.Add(function, method);
+        _programTypeDefinition.Methods.Add(newMethod);
+        _methods.Add(method, newMethod);
     }
 
     private void EmitStructDeclaration(KeyValuePair<StructSymbol, ImmutableList<FieldSymbol>> structWithBody) {
@@ -1396,39 +1396,39 @@ internal sealed class ILEmitter {
     private void EmitCallExpression(ILProcessor iLProcessor, BoundCallExpression expression) {
         /*
 
-        <function>(<arguments>)
+        <method>(<arguments>)
 
-        ----> <function> is RandInt
+        ----> <method> is RandInt
 
         <arguments>
         callvirt System.Int32 System.Random::Next()
 
-        ----> <function> is Print
+        ----> <method> is Print
 
         <arguments>
         call System.Void System.Console::Write(System.Object)
 
-        ----> <function> is PrintLine
+        ----> <method> is PrintLine
 
         <arguments>
         call System.Void System.Console::WriteLine(System.Object)
 
-        ----> <function> is PrintLineNoValue
+        ----> <method> is PrintLineNoValue
 
         call System.Void System.Console::WriteLine()
 
-        ----> <function> is Input
+        ----> <method> is Input
 
         call System.String System.Console::ReadLine()
 
-        ----> <function> is Value
+        ----> <method> is Value
 
         <arguments>
         stloc.s
         ldloca.s
         call T System.Nullable`1< <type> >::.get_Value()
 
-        ----> <function> is HasValue
+        ----> <method> is HasValue
 
         <arguments>
         stloc.s
@@ -1438,10 +1438,10 @@ internal sealed class ILEmitter {
         ---->
 
         <arguments>
-        call <function>
+        call <method>
 
         */
-        if (expression.function.MethodMatches(BuiltinFunctions.RandInt)) {
+        if (expression.method.MethodMatches(BuiltinMethods.RandInt)) {
             if (_randomFieldDefinition == null)
                 EmitRandomField();
 
@@ -1451,20 +1451,20 @@ internal sealed class ILEmitter {
         foreach (var argument in expression.arguments)
             EmitExpression(iLProcessor, argument);
 
-        if (expression.function.MethodMatches(BuiltinFunctions.RandInt)) {
+        if (expression.method.MethodMatches(BuiltinMethods.RandInt)) {
             iLProcessor.Emit(OpCodes.Callvirt, _methodReferences[NetMethodReference.RandomNext]);
             return;
         }
 
-        if (expression.function.MethodMatches(BuiltinFunctions.Print)) {
+        if (expression.method.MethodMatches(BuiltinMethods.Print)) {
             iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleWrite]);
-        } else if (expression.function.MethodMatches(BuiltinFunctions.PrintLine)) {
+        } else if (expression.method.MethodMatches(BuiltinMethods.PrintLine)) {
             iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleWriteLine]);
-        } else if (expression.function.MethodMatches(BuiltinFunctions.PrintLineNoValue)) {
+        } else if (expression.method.MethodMatches(BuiltinMethods.PrintLineNoValue)) {
             iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleWriteLineNoArgs]);
-        } else if (expression.function.MethodMatches(BuiltinFunctions.Input)) {
+        } else if (expression.method.MethodMatches(BuiltinMethods.Input)) {
             iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleReadLine]);
-        } else if (expression.function.name == "Value") {
+        } else if (expression.method.name == "Value") {
             var typeReference = GetType(expression.arguments[0].type);
             var variableDefinition = new VariableDefinition(typeReference);
             iLProcessor.Body.Variables.Add(variableDefinition);
@@ -1472,7 +1472,7 @@ internal sealed class ILEmitter {
             iLProcessor.Emit(OpCodes.Stloc_S, variableDefinition);
             iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
             iLProcessor.Emit(OpCodes.Call, GetNullableValue(expression.arguments[0].type));
-        } else if (expression.function.name == "HasValue") {
+        } else if (expression.method.name == "HasValue") {
             var typeReference = GetType(expression.arguments[0].type);
             var variableDefinition = new VariableDefinition(typeReference);
             iLProcessor.Body.Variables.Add(variableDefinition);
@@ -1481,7 +1481,7 @@ internal sealed class ILEmitter {
             iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
             iLProcessor.Emit(OpCodes.Call, GetNullableHasValue(expression.arguments[0].type));
         } else {
-            var methodDefinition = LookupMethod(_methods, expression.function);
+            var methodDefinition = LookupMethod(_methods, expression.method);
             iLProcessor.Emit(OpCodes.Call, methodDefinition);
         }
     }

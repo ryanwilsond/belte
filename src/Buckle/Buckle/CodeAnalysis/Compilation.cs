@@ -13,7 +13,7 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Diagnostics;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
-using static Buckle.Utilities.FunctionUtilities;
+using static Buckle.Utilities.MethodUtilities;
 
 namespace Buckle.CodeAnalysis;
 
@@ -42,14 +42,14 @@ public sealed class Compilation {
     public BelteDiagnosticQueue diagnostics { get; set; }
 
     /// <summary>
-    /// The main function/entry point of the program.
+    /// The main method/entry point of the program.
     /// </summary>
-    internal FunctionSymbol mainFunction => globalScope.mainFunction;
+    internal MethodSymbol mainMethod => globalScope.mainMethod;
 
     /// <summary>
-    /// All FunctionSymbols in the global scope.
+    /// All MethodSymbols in the global scope.
     /// </summary>
-    internal ImmutableArray<FunctionSymbol> functions => globalScope.functions;
+    internal ImmutableArray<MethodSymbol> methods => globalScope.methods;
 
     /// <summary>
     /// All VariableSymbols in the global scope.
@@ -127,12 +127,12 @@ public sealed class Compilation {
     internal IEnumerable<T> GetSymbols<T>() where T : Symbol {
         var submission = this;
         var seenSymbolNames = new HashSet<string>();
-        var builtins = BuiltinFunctions.GetAll();
+        var builtins = BuiltinMethods.GetAll();
 
         while (submission != null) {
-            foreach (var function in submission.functions)
-                if (seenSymbolNames.Add(function.SignatureNoReturnNoParameterNames()) && function is T)
-                    yield return function as T;
+            foreach (var method in submission.methods)
+                if (seenSymbolNames.Add(method.SignatureNoReturnNoParameterNames()) && method is T)
+                    yield return method as T;
 
             foreach (var builtin in builtins)
                 if (seenSymbolNames.Add(builtin.SignatureNoReturnNoParameterNames()) && builtin is T)
@@ -185,25 +185,25 @@ public sealed class Compilation {
     /// </summary>
     /// <param name="text">Out.</param>
     internal void EmitTree(DisplayText text) {
-        if (globalScope.mainFunction != null) {
-            EmitTree(globalScope.mainFunction, text);
-        } else if (globalScope.scriptFunction != null) {
-            EmitTree(globalScope.scriptFunction, text);
+        if (globalScope.mainMethod != null) {
+            EmitTree(globalScope.mainMethod, text);
+        } else if (globalScope.scriptMethod != null) {
+            EmitTree(globalScope.scriptMethod, text);
         } else {
             var program = GetProgram();
 
-            foreach (var pair in program.functionBodies.OrderBy(p => p.Key.name))
+            foreach (var pair in program.methodBodies.OrderBy(p => p.Key.name))
                 EmitTree(pair.Key, text);
         }
     }
 
     /// <summary>
-    /// Emits the parse tree of a single <see cref="FunctionSymbol" /> after attempting to find it based on name.
-    /// Note: this only searches for functions, so if the name of another type of <see cref="Symbol" /> is passed it
+    /// Emits the parse tree of a single <see cref="MethodSymbol" /> after attempting to find it based on name.
+    /// Note: this only searches for methods, so if the name of another type of <see cref="Symbol" /> is passed it
     /// will not be found.
     /// </summary>
     /// <param name="name">
-    /// The name of the <see cref="FunctionSymbol" /> to search for and then print. If not found, throws.
+    /// The name of the <see cref="MethodSymbol" /> to search for and then print. If not found, throws.
     /// </param>
     /// <param name="text">Out.</param>
     internal void EmitTree(string name, DisplayText text) {
@@ -246,7 +246,7 @@ public sealed class Compilation {
             }
         }
 
-        if (symbol is FunctionSymbol f) {
+        if (symbol is MethodSymbol f) {
             SymbolDisplay.DisplaySymbol(text, f);
 
             try {
@@ -355,11 +355,11 @@ public sealed class Compilation {
         var appPath = Environment.GetCommandLineArgs()[0];
         var appDirectory = Path.GetDirectoryName(appPath);
         var cfgPath = Path.Combine(appDirectory, "cfg.dot");
-        var cfgStatement = program.scriptFunction == null && program.mainFunction == null
+        var cfgStatement = program.scriptMethod == null && program.mainMethod == null
             ? null
-            : program.scriptFunction == null
-                ? program.functionBodies[program.mainFunction]
-                : program.functionBodies[program.scriptFunction];
+            : program.scriptMethod == null
+                ? program.methodBodies[program.mainMethod]
+                : program.methodBodies[program.scriptMethod];
 
         if (cfgStatement != null) {
             var cfg = ControlFlowGraph.Create(cfgStatement);

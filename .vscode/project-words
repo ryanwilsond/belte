@@ -7,5 +7,7 @@ redeclaration
 builtins
 unawaited
 transpiling
+struct
+structs
 
 belte

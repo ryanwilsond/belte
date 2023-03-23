@@ -82,6 +82,7 @@ internal enum SyntaxKind {
     IsKeyword,
     IsntKeyword,
     StructKeyword,
+    ClassKeyword,
     VarKeyword,
 
     // Tokens with text
@@ -151,6 +152,7 @@ internal enum SyntaxKind {
 
     // Type declarations
     StructDeclaration,
+    ClassDeclaration,
     FieldDeclaration,
     Type,
     Parameter,

@@ -442,7 +442,7 @@ internal sealed class DisplayText {
     }
 
     private static void DisplayCallExpression(DisplayText text, BoundCallExpression node) {
-        text.Write(CreateIdentifier(node.function.name));
+        text.Write(CreateIdentifier(node.method.name));
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
 
         var isFirst = true;

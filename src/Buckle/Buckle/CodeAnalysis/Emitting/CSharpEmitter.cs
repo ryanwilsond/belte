@@ -71,16 +71,16 @@ internal sealed class CSharpEmitter {
                 foreach (var structStructure in program.structMembers)
                     EmitStruct(indentedTextWriter, structStructure);
 
-                if (program.mainFunction != null) {
-                    var mainBody = FunctionUtilities.LookupMethod(program.functionBodies, program.mainFunction);
-                    EmitMainMethod(indentedTextWriter, KeyValuePair.Create(program.mainFunction, mainBody));
+                if (program.mainMethod != null) {
+                    var mainBody = MethodUtilities.LookupMethod(program.methodBodies, program.mainMethod);
+                    EmitMainMethod(indentedTextWriter, KeyValuePair.Create(program.mainMethod, mainBody));
                 } else {
                     EmitEmptyMainMethod(indentedTextWriter);
                 }
 
-                foreach (var functionWithBody in program.functionBodies) {
-                    if (!functionWithBody.Key.MethodMatches(program.mainFunction))
-                        EmitMethod(indentedTextWriter, functionWithBody);
+                foreach (var methodWithBody in program.methodBodies) {
+                    if (!methodWithBody.Key.MethodMatches(program.mainMethod))
+                        EmitMethod(indentedTextWriter, methodWithBody);
                 }
             }
 
@@ -162,7 +162,7 @@ internal sealed class CSharpEmitter {
     }
 
     private void EmitMainMethod(
-        IndentedTextWriter indentedTextWriter, KeyValuePair<FunctionSymbol, BoundBlockStatement> method) {
+        IndentedTextWriter indentedTextWriter, KeyValuePair<MethodSymbol, BoundBlockStatement> method) {
         var typeName = method.Key.type.typeSymbol == TypeSymbol.Void ? "void" : "int";
         var signature = $"public static {typeName} Main()";
 
@@ -181,7 +181,7 @@ internal sealed class CSharpEmitter {
     }
 
     private void EmitMethod(
-        IndentedTextWriter indentedTextWriter, KeyValuePair<FunctionSymbol, BoundBlockStatement> method) {
+        IndentedTextWriter indentedTextWriter, KeyValuePair<MethodSymbol, BoundBlockStatement> method) {
         StringBuilder parameters = new StringBuilder();
         var isFirst = true;
 
@@ -555,17 +555,17 @@ internal sealed class CSharpEmitter {
     private void EmitEmptyExpression(IndentedTextWriter indentedTextWriter, BoundEmptyExpression expression) { }
 
     private void EmitCallExpression(IndentedTextWriter indentedTextWriter, BoundCallExpression expression) {
-        string functionName = null;
+        string methodName = null;
 
-        switch (expression.function.name) {
+        switch (expression.method.name) {
             case "Print":
-                functionName = "Console.Write";
+                methodName = "Console.Write";
                 break;
             case "PrintLine":
-                functionName = "Console.WriteLine";
+                methodName = "Console.WriteLine";
                 break;
             case "Input":
-                functionName = "Console.ReadLine";
+                methodName = "Console.ReadLine";
                 break;
             case "RandInt":
                 var signature = $"Func<{GetEquivalentType(expression.type)}>";
@@ -605,7 +605,7 @@ internal sealed class CSharpEmitter {
                 return;
         }
 
-        indentedTextWriter.Write($"{functionName ?? GetSafeName(expression.function.name)}(");
+        indentedTextWriter.Write($"{methodName ?? GetSafeName(expression.method.name)}(");
 
         var isFirst = true;
 

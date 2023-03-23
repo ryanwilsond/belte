@@ -36,7 +36,7 @@ internal class TypeSymbol : Symbol {
     internal static readonly TypeSymbol Any = new TypeSymbol("any");
 
     /// <summary>
-    /// Void type (lack of type, exclusively used in function declarations).
+    /// Void type (lack of type, exclusively used in method declarations).
     /// </summary>
     internal static readonly TypeSymbol Void = new TypeSymbol("void");
 

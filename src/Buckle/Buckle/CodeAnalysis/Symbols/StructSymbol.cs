@@ -4,7 +4,7 @@ using Buckle.CodeAnalysis.Syntax;
 namespace Buckle.CodeAnalysis.Symbols;
 
 /// <summary>
-/// A function symbol.
+/// A struct symbol.
 /// </summary>
 internal sealed class StructSymbol : TypeSymbol {
     /// <summary>

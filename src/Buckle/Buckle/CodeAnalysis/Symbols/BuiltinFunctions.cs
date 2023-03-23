@@ -7,13 +7,13 @@ using Buckle.CodeAnalysis.Binding;
 namespace Buckle.CodeAnalysis.Symbols;
 
 /// <summary>
-/// All builtin functions (included by default).
+/// All builtin methods (included by default).
 /// </summary>
-internal static class BuiltinFunctions {
+internal static class BuiltinMethods {
     /// <summary>
-    /// Print function, writes text to stdout (no line break).
+    /// Print method, writes text to stdout (no line break).
     /// </summary>
-    internal static readonly FunctionSymbol Print = new FunctionSymbol(
+    internal static readonly MethodSymbol Print = new MethodSymbol(
         "Print",
         ImmutableArray.Create(
             new ParameterSymbol("text", BoundType.NullableAny, 0, NoDefault)
@@ -22,9 +22,9 @@ internal static class BuiltinFunctions {
     );
 
     /// <summary>
-    /// PrintLine function, writes text to stdout (with line break).
+    /// PrintLine method, writes text to stdout (with line break).
     /// </summary>
-    internal static readonly FunctionSymbol PrintLine = new FunctionSymbol(
+    internal static readonly MethodSymbol PrintLine = new MethodSymbol(
         "PrintLine",
         ImmutableArray.Create(
             new ParameterSymbol("text", BoundType.NullableAny, 0, NoDefault)
@@ -33,27 +33,27 @@ internal static class BuiltinFunctions {
     );
 
     /// <summary>
-    /// PrintLine function, writes an empty line to stdout (with line break).
+    /// PrintLine method, writes an empty line to stdout (with line break).
     /// </summary>
-    internal static readonly FunctionSymbol PrintLineNoValue = new FunctionSymbol(
+    internal static readonly MethodSymbol PrintLineNoValue = new MethodSymbol(
         "PrintLine",
         NoParameters,
         NoReturn
     );
 
     /// <summary>
-    /// Input function, gets text input from stdin. Waits until enter is pressed.
+    /// Input method, gets text input from stdin. Waits until enter is pressed.
     /// </summary>
-    internal static readonly FunctionSymbol Input = new FunctionSymbol(
+    internal static readonly MethodSymbol Input = new MethodSymbol(
         "Input",
         NoParameters,
         BoundType.String
     );
 
     /// <summary>
-    /// RandInt function, gets a random integer with a maximum (minimum is always 0).
+    /// RandInt method, gets a random integer with a maximum (minimum is always 0).
     /// </summary>
-    internal static readonly FunctionSymbol RandInt = new FunctionSymbol(
+    internal static readonly MethodSymbol RandInt = new MethodSymbol(
         "RandInt",
         ImmutableArray.Create(
             new ParameterSymbol("max", BoundType.NullableInt, 0, NoDefault)
@@ -62,10 +62,10 @@ internal static class BuiltinFunctions {
     );
 
     /// <summary>
-    /// Value function, gets non nullable value from nullable item (throws if item is null).
+    /// Value method, gets non nullable value from nullable item (throws if item is null).
     /// Any type overload.
     /// </summary>
-    internal static readonly FunctionSymbol ValueAny = new FunctionSymbol(
+    internal static readonly MethodSymbol ValueAny = new MethodSymbol(
         "Value",
         ImmutableArray.Create(
             new ParameterSymbol("value", BoundType.NullableAny, 0, NoDefault)
@@ -74,10 +74,10 @@ internal static class BuiltinFunctions {
     );
 
     /// <summary>
-    /// Value function, gets non nullable value from nullable item (throws if item is null).
+    /// Value method, gets non nullable value from nullable item (throws if item is null).
     /// Bool type overload.
     /// </summary>
-    internal static readonly FunctionSymbol ValueBool = new FunctionSymbol(
+    internal static readonly MethodSymbol ValueBool = new MethodSymbol(
         "Value",
         ImmutableArray.Create(
             new ParameterSymbol("value", BoundType.NullableBool, 0, NoDefault)
@@ -86,10 +86,10 @@ internal static class BuiltinFunctions {
     );
 
     /// <summary>
-    /// Value function, gets non nullable value from nullable item (throws if item is null).
+    /// Value method, gets non nullable value from nullable item (throws if item is null).
     /// Decimal type overload.
     /// </summary>
-    internal static readonly FunctionSymbol ValueDecimal = new FunctionSymbol(
+    internal static readonly MethodSymbol ValueDecimal = new MethodSymbol(
         "Value",
         ImmutableArray.Create(
             new ParameterSymbol("value", BoundType.NullableDecimal, 0, NoDefault)
@@ -98,10 +98,10 @@ internal static class BuiltinFunctions {
     );
 
     /// <summary>
-    /// Value function, gets non nullable value from nullable item (throws if item is null).
+    /// Value method, gets non nullable value from nullable item (throws if item is null).
     /// Integer type overload.
     /// </summary>
-    internal static readonly FunctionSymbol ValueInt = new FunctionSymbol(
+    internal static readonly MethodSymbol ValueInt = new MethodSymbol(
         "Value",
         ImmutableArray.Create(
             new ParameterSymbol("value", BoundType.NullableInt, 0, NoDefault)
@@ -110,10 +110,10 @@ internal static class BuiltinFunctions {
     );
 
     /// <summary>
-    /// Value function, gets non nullable value from nullable item (throws if item is null).
+    /// Value method, gets non nullable value from nullable item (throws if item is null).
     /// String type overload.
     /// </summary>
-    internal static readonly FunctionSymbol ValueString = new FunctionSymbol(
+    internal static readonly MethodSymbol ValueString = new MethodSymbol(
         "Value",
         ImmutableArray.Create(
             new ParameterSymbol("value", BoundType.NullableString, 0, NoDefault)
@@ -125,7 +125,7 @@ internal static class BuiltinFunctions {
     /// Checks if nullable item has a value (otherwise it is null).
     /// Any type overload.
     /// </summary>
-    internal static readonly FunctionSymbol HasValueAny = new FunctionSymbol(
+    internal static readonly MethodSymbol HasValueAny = new MethodSymbol(
         "HasValue",
         ImmutableArray.Create(
             new ParameterSymbol("value", BoundType.NullableAny, 0, NoDefault)
@@ -137,7 +137,7 @@ internal static class BuiltinFunctions {
     /// Checks if nullable item has a value (otherwise it is null).
     /// Bool type overload.
     /// </summary>
-    internal static readonly FunctionSymbol HasValueBool = new FunctionSymbol(
+    internal static readonly MethodSymbol HasValueBool = new MethodSymbol(
         "HasValue",
         ImmutableArray.Create(
             new ParameterSymbol("value", BoundType.NullableBool, 0, NoDefault)
@@ -149,7 +149,7 @@ internal static class BuiltinFunctions {
     /// Checks if nullable item has a value (otherwise it is null).
     /// Decimal type overload.
     /// </summary>
-    internal static readonly FunctionSymbol HasValueDecimal = new FunctionSymbol(
+    internal static readonly MethodSymbol HasValueDecimal = new MethodSymbol(
         "HasValue",
         ImmutableArray.Create(
             new ParameterSymbol("value", BoundType.NullableDecimal, 0, NoDefault)
@@ -161,7 +161,7 @@ internal static class BuiltinFunctions {
     /// Checks if nullable item has a value (otherwise it is null).
     /// Int type overload.
     /// </summary>
-    internal static readonly FunctionSymbol HasValueInt = new FunctionSymbol(
+    internal static readonly MethodSymbol HasValueInt = new MethodSymbol(
         "HasValue",
         ImmutableArray.Create(
             new ParameterSymbol("value", BoundType.NullableInt, 0, NoDefault)
@@ -173,7 +173,7 @@ internal static class BuiltinFunctions {
     /// Checks if nullable item has a value (otherwise it is null).
     /// String type overload.
     /// </summary>
-    internal static readonly FunctionSymbol HasValueString = new FunctionSymbol(
+    internal static readonly MethodSymbol HasValueString = new MethodSymbol(
         "HasValue",
         ImmutableArray.Create(
             new ParameterSymbol("value", BoundType.NullableString, 0, NoDefault)
@@ -200,11 +200,11 @@ internal static class BuiltinFunctions {
     }
 
     /// <summary>
-    /// Gets all builtin functions.
+    /// Gets all builtin methods.
     /// </summary>
     /// <returns>All builtins, calling code should not depend on order.</returns>
-    internal static IEnumerable<FunctionSymbol> GetAll()
-        => typeof(BuiltinFunctions).GetFields(BindingFlags.NonPublic | BindingFlags.Static)
-            .Where(f => f.FieldType == typeof(FunctionSymbol))
-            .Select(f => (FunctionSymbol)f.GetValue(null));
+    internal static IEnumerable<MethodSymbol> GetAll()
+        => typeof(BuiltinMethods).GetFields(BindingFlags.NonPublic | BindingFlags.Static)
+            .Where(f => f.FieldType == typeof(MethodSymbol))
+            .Select(f => (MethodSymbol)f.GetValue(null));
 }

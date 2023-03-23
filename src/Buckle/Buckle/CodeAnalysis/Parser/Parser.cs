@@ -81,7 +81,7 @@ internal sealed class Parser {
     /// </summary>
     /// <returns>The parsed file.</returns>
     internal CompilationUnitSyntax ParseCompilationUnit() {
-        var members = ParseMembers();
+        var members = ParseMembers(true);
         var endOfFile = Match(SyntaxKind.EndOfFileToken);
 
         return new CompilationUnitSyntax(_syntaxTree, members, endOfFile);
@@ -135,7 +135,7 @@ internal sealed class Parser {
         return _tokens[index];
     }
 
-    private bool PeekIsFunctionDeclaration() {
+    private bool PeekIsFunctionOrMethodDeclaration() {
         // TODO Rewrite this so it does not look at the entire source until an EOF
         if (PeekIsType(0, out var offset, out var hasName)) {
             if (hasName)
@@ -240,13 +240,13 @@ internal sealed class Parser {
         return false;
     }
 
-    private ImmutableArray<MemberSyntax> ParseMembers() {
+    private ImmutableArray<MemberSyntax> ParseMembers(bool allowGlobalStatements = false) {
         var members = ImmutableArray.CreateBuilder<MemberSyntax>();
 
         while (current.kind != SyntaxKind.EndOfFileToken) {
             var startToken = current;
 
-            var member = ParseMember();
+            var member = ParseMember(allowGlobalStatements);
             members.Add(member);
 
             if (current == startToken)
@@ -256,15 +256,20 @@ internal sealed class Parser {
         return members.ToImmutable();
     }
 
-    private MemberSyntax ParseMember() {
-        if (PeekIsFunctionDeclaration())
-            return ParseFunctionDeclaration();
+    private MemberSyntax ParseMember(bool allowGlobalStatements = false) {
+        if (PeekIsFunctionOrMethodDeclaration())
+            return ParseMethodDeclaration();
 
         switch (current.kind) {
             case SyntaxKind.StructKeyword:
                 return ParseStructDeclaration();
+            case SyntaxKind.ClassKeyword:
+                return ParseClassDeclaration();
             default:
-                return ParseGlobalStatement();
+                if (allowGlobalStatements)
+                    return ParseGlobalStatement();
+                else
+                    return ParseFieldDeclaration();
         }
     }
 
@@ -278,7 +283,17 @@ internal sealed class Parser {
         return new StructDeclarationSyntax(_syntaxTree, keyword, identifier, openBrace, members, closeBrace);
     }
 
-    private MemberSyntax ParseFunctionDeclaration() {
+    private MemberSyntax ParseClassDeclaration() {
+        var keyword = Next();
+        var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
+        var openBrace = Match(SyntaxKind.OpenBraceToken);
+        var members = new SyntaxList<MemberSyntax>(ParseMembers());
+        var closeBrace = Match(SyntaxKind.CloseBraceToken);
+
+        return new ClassDeclarationSyntax(_syntaxTree, keyword, identifier, openBrace, members, closeBrace);
+    }
+
+    private MemberSyntax ParseMethodDeclaration() {
         var type = ParseType(false);
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenParenToken);
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
@@ -364,7 +379,7 @@ internal sealed class Parser {
     }
 
     private StatementSyntax ParseStatement() {
-        if (PeekIsFunctionDeclaration())
+        if (PeekIsFunctionOrMethodDeclaration())
             return ParseLocalFunctionDeclaration();
 
         if (PeekIsType(0, out _, out var hasName) && hasName)

@@ -434,15 +434,15 @@ public sealed class BelteRepl : ReplBase {
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
         var symbols = (signature == name
             ? compilation.GetSymbols().Where(f => f.name == name)
-            : compilation.GetSymbols<FunctionSymbol>().Where(f => f.SignatureNoReturnNoParameterNames() == signature))
+            : compilation.GetSymbols<MethodSymbol>().Where(f => f.SignatureNoReturnNoParameterNames() == signature))
                 .ToArray();
 
         Symbol symbol = null;
         var displayText = new DisplayText();
 
         if (symbols.ToArray().Length == 0 && signature.StartsWith('<')) {
-            // This will find hidden function symbols not normally exposed to the user
-            // Generated functions should never have overloads, so only the name is checked
+            // This will find hidden method symbols not normally exposed to the user
+            // Generated methods should never have overloads, so only the name is checked
             // (as apposed to the entire signature)
             try {
                 compilation.EmitTree(name, displayText);
@@ -455,11 +455,11 @@ public sealed class BelteRepl : ReplBase {
             if (signature == name)
                 handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.UndefinedSymbol(name)));
             else
-                handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.NoSuchFunction(signature)));
+                handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.NoSuchMethod(signature)));
         } else if (symbols.Length == 1) {
             symbol = symbols.Single();
         } else if (signature == name) {
-            var temp = symbols.Where(s => s is not FunctionSymbol);
+            var temp = symbols.Where(s => s is not MethodSymbol);
 
             if (temp.Any()) {
                 symbol = temp.First();

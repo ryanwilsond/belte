@@ -330,7 +330,7 @@ internal abstract class BoundTreeExpander {
         }
 
         if (statements.Any()) {
-            replacement = new BoundCallExpression(expression.function, replacementArguments.ToImmutable());
+            replacement = new BoundCallExpression(expression.method, replacementArguments.ToImmutable());
             return statements;
         }
 

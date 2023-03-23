@@ -10,26 +10,26 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class BoundGlobalScope {
     /// <param name="previous">Previous <see cref="BoundGlobalScope" /> (if applicable).</param>
     internal BoundGlobalScope(
-        ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)> functionBodies,
+        ImmutableArray<(MethodSymbol method, BoundBlockStatement body)> methodBodies,
         ImmutableArray<(StructSymbol @struct, ImmutableList<FieldSymbol> members)> structMembers,
-        BoundGlobalScope previous, BelteDiagnosticQueue diagnostics, FunctionSymbol mainFunction,
-        FunctionSymbol scriptFunction, ImmutableArray<FunctionSymbol> functions,
+        BoundGlobalScope previous, BelteDiagnosticQueue diagnostics, MethodSymbol mainMethod,
+        MethodSymbol scriptMethod, ImmutableArray<MethodSymbol> methods,
         ImmutableArray<VariableSymbol> variables, ImmutableArray<TypeSymbol> types,
         ImmutableArray<BoundStatement> statements) {
-        this.functionBodies = functionBodies;
+        this.methodBodies = methodBodies;
         this.structMembers = structMembers;
         this.previous = previous;
         this.diagnostics = new BelteDiagnosticQueue();
         this.diagnostics.Move(diagnostics);
-        this.mainFunction = mainFunction;
-        this.scriptFunction = scriptFunction;
-        this.functions = functions;
+        this.mainMethod = mainMethod;
+        this.scriptMethod = scriptMethod;
+        this.methods = methods;
         this.variables = variables;
         this.types = types;
         this.statements = statements;
     }
 
-    internal ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)> functionBodies { get; }
+    internal ImmutableArray<(MethodSymbol method, BoundBlockStatement body)> methodBodies { get; }
 
     internal ImmutableArray<(StructSymbol @struct, ImmutableList<FieldSymbol> members)> structMembers { get; }
 
@@ -40,11 +40,11 @@ internal sealed class BoundGlobalScope {
 
     internal BelteDiagnosticQueue diagnostics { get; }
 
-    internal FunctionSymbol mainFunction { get; }
+    internal MethodSymbol mainMethod { get; }
 
-    internal FunctionSymbol scriptFunction { get; }
+    internal MethodSymbol scriptMethod { get; }
 
-    internal ImmutableArray<FunctionSymbol> functions { get; }
+    internal ImmutableArray<MethodSymbol> methods { get; }
 
     internal ImmutableArray<VariableSymbol> variables { get; }
 

@@ -3,7 +3,7 @@ using Buckle.CodeAnalysis.Binding;
 namespace Buckle.CodeAnalysis.Symbols;
 
 /// <summary>
-/// Parameter symbol (used in a <see cref="FunctionSymbol" />).
+/// Parameter symbol (used in a <see cref="MethodSymbol" />).
 /// </summary>
 internal sealed class ParameterSymbol : LocalVariableSymbol {
     /// <summary>

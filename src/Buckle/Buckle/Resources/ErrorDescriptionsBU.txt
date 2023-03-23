@@ -108,7 +108,7 @@ decimal myDecimal = ~3.4; // But not for decimal types
 
 A possible fix to this error may be inserting a cast.
 $BU0009
-When calling a function, some arguments can reference parameters by name instead
+When calling a method, some arguments can reference parameters by name instead
 of by ordinal. However, all arguments referencing by name must come after any
 arguments referencing by ordinal. This is not because the compiler cannot figure
 out the intention, but rather it makes confusing code and is bad practice.
@@ -122,7 +122,7 @@ MyFunction(x: 1, 2); // Named argument before unnamed argument, not allowed
 MyFunction(1, y: 2); // Allowed
 ```
 $BU0010
-When calling a function, some arguments can reference parameters by name instead
+When calling a method, some arguments can reference parameters by name instead
 of by ordinal. However, similar to naming parameters, each name can only be used
 once to prevent ambiguity between parameters.
 
@@ -146,17 +146,17 @@ bool myBool = true + 3; // But not for a boolean and an integer
 
 A possible fix to this error may be inserting a cast.
 $BU0012
-Without a `Main` function, the compiler will run files top-down. However when
+Without a `Main` method, the compiler will run files top-down. However when
 compiling multiple files, it becomes ambiguous which file to run first.
 Because of this, only one file can contain global statements.
 
 If this becomes a problem, consider reworking your project to use an explicit
 entry point such as `Main`.
 $BU0013
-When a function is declared with multiple parameters of the same name, it
+When a method is declared with multiple parameters of the same name, it
 becomes ambiguous when referencing parameters. Because of this, each parameter
 must have a unique name, even if they are different types. This also makes the
-code easier to read inside the function body.
+code easier to read inside the method body.
 
 For example:
 
@@ -164,7 +164,7 @@ For example:
 void MyFunction(int myParam, bool myParam) { } // Not allowed because both parameters have the same name
 ```
 $BU0014
-`Main` can only return void or an integer. If a `Main` function is declared
+`Main` can only return void or an integer. If a `Main` method is declared
 with any other return type this error is produced.
 
 For example:
@@ -179,8 +179,8 @@ This is a callback to how older languages like C handle their entry points with
 the command line. If you are making a library with no entry point, this error
 will not come up.
 $BU0016
-When a `Main` function is not declared, files are run top-down. However if a
-`Main` function is declared, global statements are not allowed as it becomes
+When a `Main` method is not declared, files are run top-down. However if a
+`Main` method is declared, global statements are not allowed as it becomes
 ambiguous about where to start execution.
 
 For example:
@@ -200,12 +200,12 @@ For example:
 int myInt = 3 + myOtherInt; // `myOtherInt` was never declared, so this is not allowed
 ```
 $BU0018
-Functions in the same scope have to have unique names (unless you are
-overloading). When an attempt is made to declare a function with a name already
+Methods in the same scope have to have unique names (unless you are
+overloading). When an attempt is made to declare a method with a name already
 used (and the parameter list is the same), the compiler produces this error.
-This is to make sure there is no ambiguity when calling functions. Other
+This is to make sure there is no ambiguity when calling methods. Other
 overload-related errors such as BU0057 and BU0058 will be used with overloaded
-functions instead.
+methods instead.
 
 For example:
 
@@ -225,7 +225,7 @@ For example:
 int MyFunction(int myParam) {
     if (myParam > 3)
         return myParam + 1;
-    // If `myParam` is not greater than 3 this function does not return, not allowed
+    // If `myParam` is not greater than 3 this method does not return, not allowed
 }
 ```
 
@@ -366,8 +366,8 @@ int myInt = 2; // The string was never terminated, so an error is produced
 This error assumes that multi-line strings are not allowed, and they are not
 currently.
 $BU0028
-A function must have a declaration, so when a function without a declaration is
-called, the compiler does not know what function is being referenced. In this
+A method must have a declaration, so when a method without a declaration is
+called, the compiler does not know what method is being referenced. In this
 case, the compiler produces this error.
 
 For example:
@@ -376,12 +376,12 @@ For example:
 int myInt = MyFunction(); // `MyFunction` does not exist in this scope, not allowed
 ```
 
-This error is usually temporary when implementing new functions, or the result
+This error is usually temporary when implementing new methods, or the result
 of a typo or scoping issue.
 $BU0029
-When calling a function, there must be the correct number of arguments provided
-so the function can safely assume it can use the data it requests. If the number
-of arguments provided in a function call does not match the function signature,
+When calling a method, there must be the correct number of arguments provided
+so the method can safely assume it can use the data it requests. If the number
+of arguments provided in a method call does not match the method signature,
 this error is raised.
 
 For example:
@@ -415,7 +415,7 @@ Add(,2);
 Add(null, 2);
 ```
 $BU0030
-Similar to functions, variables, fields, and constants, structure types
+Similar to methods, variables, fields, and constants, structure types
 (structs) cannot have more than one definition in a single scope. This is so
 there is no ambiguity when referencing a structure.
 
@@ -450,7 +450,7 @@ $BU0032
 Only methods, functions, and constructors are called objects. This is because
 they have a body that can be run. Variables, constants, and other similar
 objects only store data, they do not act on that data themselves. Hence, they
-cannot be called as a function can. If it is attempted to call a variable,
+cannot be called as a method can. If it is attempted to call a variable,
 field, constant, or indexer this error is raised.
 
 For example:
@@ -460,7 +460,7 @@ void MyFunction() { }
 
 int myInt = 3;
 
-MyFunction(); // `MyFunction` is a function, allowed
+MyFunction(); // `MyFunction` is a method, allowed
 
 myInt(); // `myInt` is a variable (cannot be called), not allowed
 ```
@@ -529,7 +529,7 @@ For example:
 
 ```
 int Main() {
-    return 3; // Inside of a function, allowed
+    return 3; // Inside of a method, allowed
 }
 
 return 4; // Outside of a function or method, not allowed
@@ -538,26 +538,26 @@ return 4; // Outside of a function or method, not allowed
 The only exception to this rule is when a file is being run with global
 statements. In that case, the return signals the end of the entire program.
 $BU0037
-Some functions are procedures, functions that do not return a value. In Belte
-this is indicated by replacing the return type of a function with the `void`
-keyword. If it is attempted to return a value in a void function, this error is
+Some methods are procedures, methods that do not return a value. In Belte
+this is indicated by replacing the return type of a method with the `void`
+keyword. If it is attempted to return a value in a void method, this error is
 raised.
 
 For example:
 
 ```
 void MyFunction() {
-    return; // Normal return in void function, allowed
+    return; // Normal return in void method, allowed
 }
 
 void MyOtherFunction() {
-    return 3; // Returning a value in a void function, not allowed
+    return 3; // Returning a value in a void method, not allowed
 }
 ```
 $BU0038
-Some functions return values. If a function is indicated to return a value, it
+Some methods return values. If a method is indicated to return a value, it
 must always return a value (or lack thereof using `null`). If a return statement
-is used without a value in one of these functions, this error is raised.
+is used without a value in one of these methods, this error is raised.
 
 For example:
 
@@ -579,13 +579,13 @@ For example:
 ```
 void MyFunction() { }
 
-MyFunction(); // Calling a function, allowed
+MyFunction(); // Calling a method, allowed
 
-MyFunction = 3; // Treating a function as a variable, not allowed
+MyFunction = 3; // Treating a method as a variable, not allowed
 ```
 
 This error is fairly general, and will be raised in any expression attempting
-to use a function as a variable, including (but not limited to): binary, unary,
+to use a method as a variable, including (but not limited to): binary, unary,
 postfix, prefix, index, and assignment expressions.
 $BU0040
 In Belte, you can have the compiler guess the type of a variable by replacing
@@ -745,7 +745,7 @@ raised.
 For example:
 
 ```
-PrintLine(); // Allowed, `PrintLine` is an identifier and a function name
+PrintLine(); // Allowed, `PrintLine` is an identifier and a method name
 3(); // Not allowed, `3` is not an identifier
 ```
 
@@ -880,7 +880,7 @@ int myInt = 3;
 ref int myRef = ref myInt;
 ```
 $BU0055
-Void is used to denote that a function is a procedure. If void is used in most
+Void is used to denote that a method is a procedure. If void is used in most
 other scenarios, the compiler produces this error. This is because `void` is NOT
 a type, but rather an indicator that nothing will be returned.
 
@@ -908,11 +908,11 @@ struct { // An identifier is expected before the opening curly brace to identify
 Another example:
 
 ```
-void () { } // An identifier is expected before the opening parenthesis to identify the function
+void () { } // An identifier is expected before the opening parenthesis to identify the method
 ```
 $BU0057
-Error BU0029 is used if a function call has the wrong number of arguments. This
-error is raised in place of that one if the function being called has overloads.
+Error BU0029 is used if a method call has the wrong number of arguments. This
+error is raised in place of that one if the method being called has overloads.
 
 For example:
 
@@ -928,7 +928,7 @@ The reason the error is different is that the argument count can be correct,
 but the types can be incorrect. A casting error cannot be raised because since
 there are overloads, the compiler cannot tell the exact casting errors.
 $BU0058
-Sometimes a function call can be ambiguous between multiple overloads,
+Sometimes a method call can be ambiguous between multiple overloads,
 especially when the arguments are `null`. If the compiler cannot tell which
 overload to use in a call expression, this error is raised.
 
@@ -1113,7 +1113,7 @@ MyFunction(1, x: 2); // `x` was already specified by position by the first argum
 MyFunction(1, 2); // Allowed
 ```
 $BU0068
-When creating an optional parameter while declaring a function, the default
+When creating an optional parameter while declaring a method, the default
 value must be a compile-time constant, as in it needs to be computable during
 compilation. This is so the compiler can accurately place in the default value
 when the optional parameter is not specified during a call expression whilst
@@ -1242,8 +1242,8 @@ For example:
 int myInt = 5 / 0; // Not allowed, attempting to divide by zero
 ```
 $BU0077
-To prevent ambiguity, if a name is used inside the closest enclosing function
-scope that name is reserved and cannot be used inside nested non-function
+To prevent ambiguity, if a name is used inside the closest enclosing method
+scope that name is reserved and cannot be used inside nested non-method
 scopes (such as for loops).
 
 For example:
@@ -1256,7 +1256,7 @@ void MyFunc() {
 }
 ```
 
-Because this only applies to non-function scopes, the following is allowed:
+Because this only applies to non-method scopes, the following is allowed:
 
 ```
 void MyFunc() {
@@ -1268,7 +1268,7 @@ void MyFunc() {
 }
 ```
 
-This only applies to non-function scopes because function scopes shadow, whilst
+This only applies to non-method scopes because method scopes shadow, whilst
 other blocks and bodies do not.
 $BU0078
 When implicitly initializing a variable or constant, you cannot use an
@@ -1293,7 +1293,7 @@ var myString = "test\n"; // Allowed
 
 Refer to the Belte documentation for a list of accepted escape sequences.
 $BU9000
-Inside a global scope without a `Main` function, the compiler will run the
+Inside a global scope without a `Main` method, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it
 is currently unsupported to return a value in this case.
 

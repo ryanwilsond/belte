@@ -3,21 +3,21 @@
 The Binder is where the type checking and symbol resolving happens. In addition, it also rewrites some of the code to be
 more explicit for the next stages of compilation. These code rewrites usually revolve around null checking.
 
-One complicated feature to implement is nested functions. These are functions that are inside other functions. The
+One complicated feature to implement is nested functions. These are methods that are inside other methods. The
 challenge is that in IL nested functions do not exist (mostly), they are artificial. To accomplish this task, whenever
-the binder finds a nested function it will move it to a normally scoped function, and add a hidden parameter for each
+the binder finds a nested function it will move it to a normally scoped method, and add a hidden parameter for each
 local it references. The way it finds these is by turning on a toggle when binding that tells the binder to keep track
 of every variable reference it finds, and then adds them to the parameter list and thus every call of the nested
 function.
 
-To handle the main function, it checks for any declaration with the name main OR if it is run in interpreting mode
-(usually just used for the Repl) it creates a main function called $eval. This serves as the entry point to a file. If
-no main or $eval function is present, the file is run top to bottom like a script (by enclosing the entire file contents
-into a new main function).
+To handle the main method, it checks for any declaration with the name main OR if it is run in interpreting mode
+(usually just used for the Repl) it creates a main method called $eval. This serves as the entry point to a file. If
+no main or $eval method is present, the file is run top to bottom like a script (by enclosing the entire file contents
+into a new main method).
 
 Scoping works by having a stack of scopes, where the most recent scope takes priority (shadowing). It is in essence
-simple, but can because complex when functions come into play. Function calls can happen before the function is
-declared in the file, so before binding the compiler must first add all function declarations to the scope. Then add
+simple, but can because complex when methods come into play. Method calls can happen before the method is
+declared in the file, so before binding the compiler must first add all method declarations to the scope. Then add
 placeholders for their contents, and come back to them when they find them on the final pass through the binder. This
 means modifying past scopes which is hard to do because the structure is immutable.
 

@@ -170,7 +170,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            function 'Print' does not have a parameter named 'msg'
+            callable 'Print' does not have a parameter named 'msg'
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -337,13 +337,13 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0028_UndefinedFunction() {
+    public void Reports_Error_BU0028_UndefinedMethod() {
         var text = @"
             string x = [myFunc]();
         ";
 
         var diagnostics = @"
-            undefined function 'myFunc'
+            undefined method or function 'myFunc'
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -357,7 +357,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            function 'myFunc' expects 0 arguments, got 1
+            callable 'myFunc' expects 0 arguments, got 1
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -392,14 +392,14 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0032_CannotCallNonFunction() {
+    public void Reports_Error_BU0032_CannotCallNonMethod() {
         var text = @"
             int x = 3;
             int y = [x]();
         ";
 
         var diagnostics = @"
-            called object 'x' is not a function
+            called object 'x' is not a method or function
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -455,7 +455,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot return a value in a function returning void
+            cannot return a value in a method or function returning void
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -470,7 +470,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot return without a value in a function returning non-void
+            cannot return without a value in a method or function returning non-void
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -485,7 +485,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            function 'myFunc' cannot be used as a variable
+            callable 'myFunc' cannot be used as a variable
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -746,7 +746,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            function call is ambiguous between 'void myFunc(int a)' and 'void myFunc(string a)'
+            call is ambiguous between 'void myFunc(int a)' and 'void myFunc(string a)'
         ";
 
         AssertDiagnostics(text, diagnostics, writer);

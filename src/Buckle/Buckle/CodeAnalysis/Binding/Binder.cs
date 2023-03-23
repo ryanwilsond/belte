@@ -18,9 +18,9 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class Binder {
     private readonly bool _isScript;
-    private readonly FunctionSymbol _function;
-    private readonly List<(FunctionSymbol function, BoundBlockStatement body)> _functionBodies =
-        new List<(FunctionSymbol function, BoundBlockStatement body)>();
+    private readonly MethodSymbol _method;
+    private readonly List<(MethodSymbol method, BoundBlockStatement body)> _methodBodies =
+        new List<(MethodSymbol method, BoundBlockStatement body)>();
     private readonly List<(StructSymbol @struct, ImmutableList<FieldSymbol> members)> _structMembers =
         new List<(StructSymbol @struct, ImmutableList<FieldSymbol> members)>();
     private BoundScope _scope;
@@ -31,7 +31,7 @@ internal sealed class Binder {
     private ImmutableArray<string> _peekedLocals = ImmutableArray<string>.Empty;
     private int _checkPeekedLocals = 0;
 
-    // Functions should be available correctly, so only track variables
+    // Methods should be available correctly, so only track variables
     private Stack<HashSet<VariableSymbol>> _trackedSymbols = new Stack<HashSet<VariableSymbol>>();
     private Stack<HashSet<VariableSymbol>> _trackedDeclarations = new Stack<HashSet<VariableSymbol>>();
     private bool _trackSymbols = false;
@@ -42,15 +42,15 @@ internal sealed class Binder {
         new Dictionary<string, LocalFunctionStatementSyntax>();
     private string _shadowingVariable;
 
-    private Binder(bool isScript, BoundScope parent, FunctionSymbol function, bool transpilerMode) {
+    private Binder(bool isScript, BoundScope parent, MethodSymbol method, bool transpilerMode) {
         _isScript = isScript;
         diagnostics = new BelteDiagnosticQueue();
         _scope = new BoundScope(parent);
-        _function = function;
+        _method = method;
         _transpilerMode = transpilerMode;
 
-        if (function != null) {
-            foreach (var parameter in function.parameters)
+        if (method != null) {
+            foreach (var parameter in method.parameters)
                 _scope.TryDeclareVariable(parameter);
         }
     }
@@ -109,48 +109,48 @@ internal sealed class Binder {
             foreach (var globalStatement in firstGlobalPerTree)
                 binder.diagnostics.Push(Error.GlobalStatementsInMultipleFiles(globalStatement.location));
 
-        var functions = binder._scope.GetDeclaredFunctions();
+        var methods = binder._scope.GetDeclaredMethods();
 
-        FunctionSymbol mainFunction;
-        FunctionSymbol scriptFunction;
+        MethodSymbol mainMethod;
+        MethodSymbol scriptMethod;
 
         if (isScript) {
             if (globalStatements.Any()) {
-                scriptFunction = new FunctionSymbol(
+                scriptMethod = new MethodSymbol(
                     "<Eval>$", ImmutableArray<ParameterSymbol>.Empty, BoundType.NullableAny
                 );
             } else {
-                scriptFunction = null;
+                scriptMethod = null;
             }
 
-            mainFunction = null;
+            mainMethod = null;
         } else {
-            scriptFunction = null;
-            mainFunction = functions.FirstOrDefault(f => f.name.ToLower() == "main");
+            scriptMethod = null;
+            mainMethod = methods.FirstOrDefault(f => f.name.ToLower() == "main");
 
-            if (mainFunction != null) {
-                if (mainFunction.type.typeSymbol != TypeSymbol.Void && mainFunction.type.typeSymbol != TypeSymbol.Int)
-                    binder.diagnostics.Push(Error.InvalidMain(mainFunction.declaration.returnType.location));
+            if (mainMethod != null) {
+                if (mainMethod.type.typeSymbol != TypeSymbol.Void && mainMethod.type.typeSymbol != TypeSymbol.Int)
+                    binder.diagnostics.Push(Error.InvalidMain(mainMethod.declaration.returnType.location));
 
-                if (mainFunction.parameters.Any()) {
+                if (mainMethod.parameters.Any()) {
                     var span = TextSpan.FromBounds(
-                        mainFunction.declaration.openParenthesis.span.start + 1,
-                        mainFunction.declaration.closeParenthesis.span.end - 1
+                        mainMethod.declaration.openParenthesis.span.start + 1,
+                        mainMethod.declaration.closeParenthesis.span.end - 1
                     );
 
-                    var location = new TextLocation(mainFunction.declaration.syntaxTree.text, span);
+                    var location = new TextLocation(mainMethod.declaration.syntaxTree.text, span);
                     binder.diagnostics.Push(Error.InvalidMain(location));
                 }
             }
 
             if (globalStatements.Any()) {
-                if (mainFunction != null) {
-                    binder.diagnostics.Push(Error.MainAndGlobals(mainFunction.declaration.identifier.location));
+                if (mainMethod != null) {
+                    binder.diagnostics.Push(Error.MainAndGlobals(mainMethod.declaration.identifier.location));
 
                     foreach (var globalStatement in firstGlobalPerTree)
                         binder.diagnostics.Push(Error.MainAndGlobals(globalStatement.location));
                 } else {
-                    mainFunction = new FunctionSymbol(
+                    mainMethod = new MethodSymbol(
                         "<Main>$", ImmutableArray<ParameterSymbol>.Empty, new BoundType(TypeSymbol.Void)
                     );
                 }
@@ -163,16 +163,16 @@ internal sealed class Binder {
         if (previous != null)
             binder.diagnostics.CopyToFront(previous.diagnostics);
 
-        var functionBodies = previous == null
-            ? binder._functionBodies.ToImmutableArray()
-            : previous.functionBodies.AddRange(binder._functionBodies);
+        var methodBodies = previous == null
+            ? binder._methodBodies.ToImmutableArray()
+            : previous.methodBodies.AddRange(binder._methodBodies);
 
         var structMembers = previous == null
             ? binder._structMembers.ToImmutableArray()
             : previous.structMembers.AddRange(binder._structMembers);
 
-        return new BoundGlobalScope(functionBodies, structMembers, previous, binder.diagnostics, mainFunction,
-            scriptFunction, functions, variables, types, statements.ToImmutable()
+        return new BoundGlobalScope(methodBodies, structMembers, previous, binder.diagnostics, mainMethod,
+            scriptMethod, methods, variables, types, statements.ToImmutable()
         );
     }
 
@@ -193,7 +193,7 @@ internal sealed class Binder {
         if (globalScope.diagnostics.Errors().Any())
             return Program(previous, globalScope.diagnostics);
 
-        var functionBodies = ImmutableDictionary.CreateBuilder<FunctionSymbol, BoundBlockStatement>();
+        var methodBodies = ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
         var structMembers = ImmutableDictionary.CreateBuilder<StructSymbol, ImmutableList<FieldSymbol>>();
 
         foreach (var @struct in globalScope.structMembers)
@@ -202,31 +202,31 @@ internal sealed class Binder {
         var diagnostics = new BelteDiagnosticQueue();
         diagnostics.Move(globalScope.diagnostics);
 
-        foreach (var function in globalScope.functions) {
-            var binder = new Binder(isScript, parentScope, function, transpilerMode);
+        foreach (var methods in globalScope.methods) {
+            var binder = new Binder(isScript, parentScope, methods, transpilerMode);
 
             binder._innerPrefix = new Stack<string>();
-            binder._innerPrefix.Push(function.name);
+            binder._innerPrefix.Push(methods.name);
 
             BoundBlockStatement loweredBody = null;
 
-            var body = binder.BindMethodBody(function.declaration.body, function.parameters);
+            var body = binder.BindMethodBody(methods.declaration.body, methods.parameters);
             diagnostics.Move(binder.diagnostics);
 
             if (diagnostics.Errors().Any())
                 return Program(previous, diagnostics);
 
-            loweredBody = Lowerer.Lower(function, body, transpilerMode);
+            loweredBody = Lowerer.Lower(methods, body, transpilerMode);
 
-            if (function.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
-                binder.diagnostics.Push(Error.NotAllPathsReturn(function.declaration.identifier.location));
+            if (methods.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
+                binder.diagnostics.Push(Error.NotAllPathsReturn(methods.declaration.identifier.location));
 
-            binder._functionBodies.Add((function, loweredBody));
+            binder._methodBodies.Add((methods, loweredBody));
 
-            foreach (var functionBody in binder._functionBodies) {
+            foreach (var methodBody in binder._methodBodies) {
                 var newParameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
 
-                foreach (var parameter in functionBody.function.parameters) {
+                foreach (var parameter in methodBody.method.parameters) {
                     var name = parameter.name.StartsWith("$")
                         ? parameter.name.Substring(1)
                         : parameter.name;
@@ -238,24 +238,24 @@ internal sealed class Binder {
                     newParameters.Add(newParameter);
                 }
 
-                var newFunction = new FunctionSymbol(
-                    functionBody.function.name, newParameters.ToImmutable(), functionBody.function.type,
-                    functionBody.function.declaration
+                var newMethod = new MethodSymbol(
+                    methodBody.method.name, newParameters.ToImmutable(), methodBody.method.type,
+                    methodBody.method.declaration
                 );
 
-                functionBodies.Add(newFunction, functionBody.body);
+                methodBodies.Add(newMethod, methodBody.body);
             }
 
             diagnostics.Move(binder.diagnostics);
         }
 
-        if (globalScope.mainFunction != null && globalScope.statements.Any()) {
+        if (globalScope.mainMethod != null && globalScope.statements.Any()) {
             var body = Lowerer.Lower(
-                globalScope.mainFunction, new BoundBlockStatement(globalScope.statements), transpilerMode
+                globalScope.mainMethod, new BoundBlockStatement(globalScope.statements), transpilerMode
             );
 
-            functionBodies.Add(globalScope.mainFunction, body);
-        } else if (globalScope.scriptFunction != null) {
+            methodBodies.Add(globalScope.mainMethod, body);
+        } else if (globalScope.scriptMethod != null) {
             var statements = globalScope.statements;
 
             if (statements.Length == 1 && statements[0] is BoundExpressionStatement es &&
@@ -264,12 +264,12 @@ internal sealed class Binder {
             else if (statements.Any() && statements.Last().kind != BoundNodeKind.ReturnStatement)
                 statements = statements.Add(new BoundReturnStatement(null));
 
-            var body = Lowerer.Lower(globalScope.scriptFunction, new BoundBlockStatement(statements), transpilerMode);
-            functionBodies.Add(globalScope.scriptFunction, body);
+            var body = Lowerer.Lower(globalScope.scriptMethod, new BoundBlockStatement(statements), transpilerMode);
+            methodBodies.Add(globalScope.scriptMethod, body);
         }
 
-        return new BoundProgram(previous, diagnostics, globalScope.mainFunction,
-            globalScope.scriptFunction, functionBodies.ToImmutable(), structMembers.ToImmutable()
+        return new BoundProgram(previous, diagnostics, globalScope.mainMethod,
+            globalScope.scriptMethod, methodBodies.ToImmutable(), structMembers.ToImmutable()
         );
     }
 
@@ -304,8 +304,8 @@ internal sealed class Binder {
             previous = stack.Pop();
             var scope = new BoundScope(parent);
 
-            foreach (var function in previous.functions)
-                scope.TryDeclareFunction(function);
+            foreach (var method in previous.methods)
+                scope.TryDeclareMethod(method);
 
             foreach (var variable in previous.variables)
                 scope.TryDeclareVariable(variable);
@@ -322,8 +322,8 @@ internal sealed class Binder {
     private static BoundScope CreateRootScope() {
         var result = new BoundScope(null);
 
-        foreach (var f in BuiltinFunctions.GetAll())
-            result.TryDeclareFunction(f);
+        foreach (var function in BuiltinMethods.GetAll())
+            result.TryDeclareMethod(function);
 
         return result;
     }
@@ -399,9 +399,9 @@ internal sealed class Binder {
             }
         }
 
-        var newMethod = new FunctionSymbol(method.identifier.text, parameters.ToImmutable(), type, method);
+        var newMethod = new MethodSymbol(method.identifier.text, parameters.ToImmutable(), type, method);
 
-        if (newMethod.declaration.identifier.text != null && !_scope.TryDeclareFunction(newMethod))
+        if (newMethod.declaration.identifier.text != null && !_scope.TryDeclareMethod(newMethod))
             diagnostics.Push(Error.MethodAlreadyDeclared(method.identifier.location, newMethod.name));
     }
 
@@ -436,7 +436,7 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindLocalFunctionDeclaration(LocalFunctionStatementSyntax statement) {
-        var functionSymbol = (FunctionSymbol)_scope.LookupSymbol(statement.identifier.text);
+        var functionSymbol = (MethodSymbol)_scope.LookupSymbol(statement.identifier.text);
 
         var binder = new Binder(_isScript, _scope, functionSymbol, _transpilerMode);
         binder._innerPrefix = new Stack<string>(_innerPrefix.Reverse());
@@ -476,7 +476,7 @@ internal sealed class Binder {
             parameters.Add(parameter);
         }
 
-        var newFunctionSymbol = new FunctionSymbol(
+        var newFunctionSymbol = new MethodSymbol(
             innerName, parameters.ToImmutable(), functionSymbol.type, functionSymbol.declaration
         );
 
@@ -485,9 +485,9 @@ internal sealed class Binder {
         if (newFunctionSymbol.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
             diagnostics.Push(Error.NotAllPathsReturn(newFunctionSymbol.declaration.identifier.location));
 
-        _functionBodies.Add((newFunctionSymbol, loweredBody));
+        _methodBodies.Add((newFunctionSymbol, loweredBody));
         diagnostics.Move(binder.diagnostics);
-        _functionBodies.AddRange(binder._functionBodies);
+        _methodBodies.AddRange(binder._methodBodies);
 
         if (!_scope.TryModifySymbol(functionSymbol.name, newFunctionSymbol))
             throw new BelteInternalException($"BindLocalFunction: failed to set function '{functionSymbol.name}'");
@@ -656,7 +656,7 @@ internal sealed class Binder {
         var declare = !identifier.isFabricated;
         var variable = bindAsField
             ? new FieldSymbol(name, type, constant)
-            : _function == null
+            : _method == null
                 ? (VariableSymbol) new GlobalVariableSymbol(name, type, constant)
                 : new LocalVariableSymbol(name, type, constant);
 
@@ -746,18 +746,18 @@ internal sealed class Binder {
     private BoundStatement BindReturnStatement(ReturnStatementSyntax expression) {
         var boundExpression = expression.expression == null ? null : BindExpression(expression.expression);
 
-        if (_function == null) {
+        if (_method == null) {
             if (!_isScript && boundExpression != null)
                 diagnostics.Push(Error.Unsupported.GlobalReturnValue(expression.keyword.location));
         } else {
-            if (_function.type.typeSymbol == TypeSymbol.Void) {
+            if (_method.type.typeSymbol == TypeSymbol.Void) {
                 if (boundExpression != null)
                     diagnostics.Push(Error.UnexpectedReturnValue(expression.keyword.location));
             } else {
                 if (boundExpression == null)
                     diagnostics.Push(Error.MissingReturnValue(expression.keyword.location));
                 else
-                    boundExpression = BindCast(expression.expression.location, boundExpression, _function.type);
+                    boundExpression = BindCast(expression.expression.location, boundExpression, _method.type);
             }
         }
 
@@ -1294,7 +1294,7 @@ internal sealed class Binder {
         var symbols = _scope.LookupOverloads(name, innerName);
 
         if (symbols == null || symbols.Length == 0) {
-            diagnostics.Push(Error.UndefinedFunction(expression.identifier.location, name));
+            diagnostics.Push(Error.UndefinedMethod(expression.identifier.location, name));
             return new BoundErrorExpression();
         }
 
@@ -1328,7 +1328,7 @@ internal sealed class Binder {
         }
 
         var minScore = Int32.MaxValue;
-        var possibleOverloads = new List<FunctionSymbol>();
+        var possibleOverloads = new List<MethodSymbol>();
 
         foreach (var symbol in symbols) {
             var beforeCount = diagnostics.count;
@@ -1343,34 +1343,34 @@ internal sealed class Binder {
                 isInner = true;
             }
 
-            var function = actualSymbol as FunctionSymbol;
+            var method = actualSymbol as MethodSymbol;
 
-            if (function == null) {
-                diagnostics.Push(Error.CannotCallNonFunction(expression.identifier.location, name));
+            if (method == null) {
+                diagnostics.Push(Error.CannotCallNonMethod(expression.identifier.location, name));
                 return new BoundErrorExpression();
             }
 
-            var defaultParameterCount = function.parameters.Where(p => p.defaultValue != null).ToArray().Length;
+            var defaultParameterCount = method.parameters.Where(p => p.defaultValue != null).ToArray().Length;
 
-            if (expression.arguments.count < function.parameters.Length - defaultParameterCount ||
-                expression.arguments.count > function.parameters.Length) {
+            if (expression.arguments.count < method.parameters.Length - defaultParameterCount ||
+                expression.arguments.count > method.parameters.Length) {
                 var count = 0;
 
                 if (isInner) {
-                    foreach (var parameter in function.parameters) {
+                    foreach (var parameter in method.parameters) {
                         if (parameter.name.StartsWith("$"))
                             count++;
                     }
                 }
 
-                if (!isInner || expression.arguments.count + count != function.parameters.Length) {
+                if (!isInner || expression.arguments.count + count != method.parameters.Length) {
                     TextSpan span;
 
-                    if (expression.arguments.count > function.parameters.Length) {
+                    if (expression.arguments.count > method.parameters.Length) {
                         SyntaxNode firstExceedingNode;
 
                         if (expression.arguments.count > 1) {
-                            firstExceedingNode = expression.arguments.GetSeparator(function.parameters.Length - 1);
+                            firstExceedingNode = expression.arguments.GetSeparator(method.parameters.Length - 1);
                         } else {
                             firstExceedingNode = expression.arguments[0].kind == SyntaxKind.EmptyExpression
                                 ? expression.arguments.GetSeparator(0)
@@ -1388,7 +1388,7 @@ internal sealed class Binder {
 
                     var location = new TextLocation(expression.syntaxTree.text, span);
                     diagnostics.Push(Error.IncorrectArgumentCount(
-                        location, function.name, function.parameters.Length,
+                        location, method.name, method.parameters.Length,
                         defaultParameterCount, expression.arguments.count
                     ));
 
@@ -1404,15 +1404,15 @@ internal sealed class Binder {
                 var argumentName = preBoundArgumentsBuilder[i].name;
 
                 if (argumentName == null) {
-                    seenParameterNames.Add(function.parameters[i].name);
+                    seenParameterNames.Add(method.parameters[i].name);
                     rearrangedArguments[i] = i;
                     continue;
                 }
 
                 int? destinationIndex = null;
 
-                for (int j=0; j<function.parameters.Length; j++) {
-                    if (function.parameters[j].name == argumentName) {
+                for (int j=0; j<method.parameters.Length; j++) {
+                    if (method.parameters[j].name == argumentName) {
                         if (!seenParameterNames.Add(argumentName)) {
                             diagnostics.Push(
                                 Error.ParameterAlreadySpecified(expression.arguments[i].name.location, argumentName)
@@ -1441,8 +1441,8 @@ internal sealed class Binder {
                 }
             }
 
-            for (int i=0; i<function.parameters.Length; i++) {
-                var parameter = function.parameters[i];
+            for (int i=0; i<method.parameters.Length; i++) {
+                var parameter = method.parameters[i];
 
                 if (!parameter.name.StartsWith('$') &&
                     seenParameterNames.Add(parameter.name) &&
@@ -1458,7 +1458,7 @@ internal sealed class Binder {
             if (canContinue) {
                 for (int i=0; i<preBoundArguments.Length; i++) {
                     var argument = preBoundArguments[rearrangedArguments[i]];
-                    var parameter = function.parameters[i];
+                    var parameter = method.parameters[i];
                     // If this evaluates to null, it means that there was a default value automatically passed in
                     var location = i >= expression.arguments.count ? null : expression.arguments[i].location;
 
@@ -1490,8 +1490,8 @@ internal sealed class Binder {
                     if (symbols.Length != 1)
                         throw new BelteInternalException("BindCallExpression: overloaded generated function");
 
-                    for (int i=0; i<function.parameters.Length; i++) {
-                        var parameter = function.parameters[i];
+                    for (int i=0; i<method.parameters.Length; i++) {
+                        var parameter = method.parameters[i];
 
                         if (!parameter.name.StartsWith('$'))
                             continue;
@@ -1524,7 +1524,7 @@ internal sealed class Binder {
                 }
 
                 if (score == minScore) {
-                    possibleOverloads.Add(function);
+                    possibleOverloads.Add(method);
                 }
             }
         }
@@ -1545,10 +1545,10 @@ internal sealed class Binder {
             // Special case where there are default overloads
             if (possibleOverloads[0].name == "HasValue") {
                 possibleOverloads.Clear();
-                possibleOverloads.Add(BuiltinFunctions.HasValueAny);
+                possibleOverloads.Add(BuiltinMethods.HasValueAny);
             } else if (possibleOverloads[0].name == "Value") {
                 possibleOverloads.Clear();
-                possibleOverloads.Add(BuiltinFunctions.ValueAny);
+                possibleOverloads.Add(BuiltinMethods.ValueAny);
             } else {
                 diagnostics.Push(Error.AmbiguousOverload(expression.identifier.location, possibleOverloads.ToArray()));
                 return new BoundErrorExpression();

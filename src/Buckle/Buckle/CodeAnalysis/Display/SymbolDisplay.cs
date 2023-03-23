@@ -27,8 +27,8 @@ internal static class SymbolDisplay {
     /// <param name="symbol"><see cref="Symbol" /> to add (not modified).</param>
     internal static void DisplaySymbol(DisplayText text, Symbol symbol) {
         switch (symbol.kind) {
-            case SymbolKind.Function:
-                DisplayFunction(text, (FunctionSymbol)symbol);
+            case SymbolKind.Method:
+                DisplayMethod(text, (MethodSymbol)symbol);
                 break;
             case SymbolKind.LocalVariable:
                 DisplayLocalVariable(text, (LocalVariableSymbol)symbol);
@@ -84,7 +84,7 @@ internal static class SymbolDisplay {
         text.Write(CreateIdentifier(symbol.name));
     }
 
-    private static void DisplayFunction(DisplayText text, FunctionSymbol symbol) {
+    private static void DisplayMethod(DisplayText text, MethodSymbol symbol) {
         DisplayText.DisplayNode(text, symbol.type);
         text.Write(CreateSpace());
         text.Write(CreateIdentifier(symbol.name));

@@ -6,17 +6,17 @@ using Buckle.CodeAnalysis.Syntax;
 namespace Buckle.CodeAnalysis.Symbols;
 
 /// <summary>
-/// A function symbol.
+/// A method symbol.
 /// </summary>
-internal sealed class FunctionSymbol : Symbol {
+internal sealed class MethodSymbol : Symbol {
     /// <summary>
-    /// Creates a <see cref="FunctionSymbol" />.
+    /// Creates a <see cref="MethodSymbol" />.
     /// </summary>
-    /// <param name="name">Name of function.</param>
-    /// <param name="parameters">Parameters of function.</param>
+    /// <param name="name">Name of method.</param>
+    /// <param name="parameters">Parameters of method.</param>
     /// <param name="type"><see cref="BoundType" /> of return type.</param>
-    /// <param name="declaration">Declaration of function.</param>
-    internal FunctionSymbol(
+    /// <param name="declaration">Declaration of method.</param>
+    internal MethodSymbol(
         string name, ImmutableArray<ParameterSymbol> parameters,
         BoundType type, MethodDeclarationSyntax declaration = null)
         : base(name) {
@@ -31,16 +31,16 @@ internal sealed class FunctionSymbol : Symbol {
     internal ImmutableArray<ParameterSymbol> parameters { get; }
 
     /// <summary>
-    /// <see cref="BoundType" /> of function return type.
+    /// <see cref="BoundType" /> of method return type.
     /// </summary>
     internal BoundType type { get; }
 
     /// <summary>
-    /// Declaration of function (see <see cref="MethodDeclarationSyntax">).
+    /// Declaration of method (see <see cref="MethodDeclarationSyntax">).
     /// </summary>
     internal MethodDeclarationSyntax declaration { get; }
 
-    internal override SymbolKind kind => SymbolKind.Function;
+    internal override SymbolKind kind => SymbolKind.Method;
 
     /// <summary>
     /// Compares this to <paramref name="right" /> to see if the method signatures match, even if they are not the
@@ -49,7 +49,7 @@ internal sealed class FunctionSymbol : Symbol {
     /// </summary>
     /// <param name="right">Method to compare this to.</param>
     /// <returns>If the method signatures match completely.</returns>
-    internal bool MethodMatches(FunctionSymbol right) {
+    internal bool MethodMatches(MethodSymbol right) {
         if (name == right.name && parameters.Length == right.parameters.Length) {
             var parametersMatch = true;
 
@@ -73,7 +73,7 @@ internal sealed class FunctionSymbol : Symbol {
     /// <summary>
     /// Gets the signature of this without the return type or parameter names.
     /// </summary>
-    /// <returns>Signature if this <see cref="FunctionSymbol" />.</returns>
+    /// <returns>Signature if this <see cref="MethodSymbol" />.</returns>
     internal string SignatureNoReturnNoParameterNames() {
         var signature = new StringBuilder($"{name}(");
         var isFirst = true;

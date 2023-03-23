@@ -8,7 +8,7 @@ if it fails, send it to the next check. This creates a priority system where cer
 parsing priority over others. For example `true || false && false` would evaluate to `false` if the OR token took
 priority over the AND token. In reality AND has a higher priority so this expression evaluates to `true` instead.
 
-Checking for functions and variable declarations is just a matter of peeking ahead to see if the correct tokens are
+Checking for method and variable declarations is just a matter of peeking ahead to see if the correct tokens are
 there and if not pass the tokens down the priority ladder.
 
 After creating a parse tree, control passes onto the Binder which does most of the heavy lifting including type

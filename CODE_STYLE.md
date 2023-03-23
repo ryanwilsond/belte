@@ -36,7 +36,7 @@ This code style is most similar to C++ standards, and is what the Belte Standard
 - Public member names are lowerCamelCase
 - Non-public member names are lowerCamelCase with a leading underscore (_lowerCamelCase)
 - Variable names are lowerCamelCase
-- Function names are UpperCamelCase
+- Method names are UpperCamelCase
 - Label names are UpperCamelCase
 - Namespace names are UpperCamelCase
 - Enum names are UpperCamelCase

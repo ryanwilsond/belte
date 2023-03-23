@@ -2,14 +2,14 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Call expression, invokes a callable <see cref="Symbols.Symbol" /> (function).<br/>
+/// Call expression, invokes a callable <see cref="Symbols.Symbol" /> (methods and functions).<br/>
 /// E.g.
 /// <code>
 /// myFunc(...)
 /// </code>
 /// </summary>
 internal sealed partial class CallExpressionSyntax : ExpressionSyntax {
-    /// <param name="identifier">Name of the called function.</param>
+    /// <param name="identifier">Name of the called method or function.</param>
     /// <param name="arguments">Parameter list.</param>
     internal CallExpressionSyntax(
         SyntaxTree syntaxTree, NameExpressionSyntax identifier, SyntaxToken openParenthesis,
@@ -22,7 +22,7 @@ internal sealed partial class CallExpressionSyntax : ExpressionSyntax {
     }
 
     /// <summary>
-    /// Name of the called function.
+    /// Name of the called method or function.
     /// </summary>
     internal NameExpressionSyntax identifier { get; }
 

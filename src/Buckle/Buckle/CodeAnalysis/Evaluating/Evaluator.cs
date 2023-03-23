@@ -5,7 +5,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
-using static Buckle.Utilities.FunctionUtilities;
+using static Buckle.Utilities.MethodUtilities;
 
 namespace Buckle.CodeAnalysis.Evaluating;
 
@@ -14,8 +14,8 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// </summary>
 internal sealed class Evaluator {
     private readonly BoundProgram _program;
-    private readonly Dictionary<FunctionSymbol, BoundBlockStatement> _functions =
-        new Dictionary<FunctionSymbol, BoundBlockStatement>();
+    private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methods =
+        new Dictionary<MethodSymbol, BoundBlockStatement>();
     private readonly Dictionary<TypeSymbol, ImmutableList<FieldSymbol>> _types =
         new Dictionary<TypeSymbol, ImmutableList<FieldSymbol>>();
     private readonly Dictionary<VariableSymbol, EvaluatorObject> _globals;
@@ -37,8 +37,8 @@ internal sealed class Evaluator {
         var current = program;
 
         while (current != null) {
-            foreach (var (function, body) in current.functionBodies)
-                _functions.Add(function, body);
+            foreach (var (method, body) in current.methodBodies)
+                _methods.Add(method, body);
 
             foreach (var (@struct, body) in current.structMembers)
                 // Because structs do not store their declarations, shadowing ones have the same key
@@ -82,15 +82,15 @@ internal sealed class Evaluator {
     /// <param name="hasValue">If the evaluation had a returned result.</param>
     /// <returns>Result of <see cref="BoundProgram" /> (if applicable).</returns>
     internal object Evaluate(ref bool abort, out bool hasValue) {
-        var function = _program.mainFunction ?? _program.scriptFunction;
+        var method = _program.mainMethod ?? _program.scriptMethod;
 
-        if (function == null) {
+        if (method == null) {
             hasValue = false;
 
             return null;
         }
 
-        var body = LookupMethod(_functions, function);
+        var body = LookupMethod(_methods, method);
         var result = EvaluateStatement(body, ref abort, out _);
         hasValue = _hasValue;
 
@@ -505,31 +505,31 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateCallExpression(BoundCallExpression node, ref bool abort) {
-        if (node.function.MethodMatches(BuiltinFunctions.Input)) {
+        if (node.method.MethodMatches(BuiltinMethods.Input)) {
             return new EvaluatorObject(Console.IsInputRedirected ? null : Console.ReadLine());
-        } else if (node.function.MethodMatches(BuiltinFunctions.Print)) {
+        } else if (node.method.MethodMatches(BuiltinMethods.Print)) {
             var message = EvaluateExpression(node.arguments[0], ref abort);
 
             if (!Console.IsOutputRedirected)
                 Console.Write(Value(message));
 
             hasPrint = true;
-        } else if (node.function.MethodMatches(BuiltinFunctions.PrintLine)) {
+        } else if (node.method.MethodMatches(BuiltinMethods.PrintLine)) {
             var message = EvaluateExpression(node.arguments[0], ref abort);
 
             if (!Console.IsOutputRedirected)
                 Console.WriteLine(Value(message));
-        } else if (node.function.MethodMatches(BuiltinFunctions.PrintLineNoValue)) {
+        } else if (node.method.MethodMatches(BuiltinMethods.PrintLineNoValue)) {
             if (!Console.IsOutputRedirected)
                 Console.WriteLine();
-        } else if (node.function.MethodMatches(BuiltinFunctions.RandInt)) {
+        } else if (node.method.MethodMatches(BuiltinMethods.RandInt)) {
             var max = (int)Value(EvaluateExpression(node.arguments[0], ref abort));
 
             if (_random == null)
                 _random = new Random();
 
             return new EvaluatorObject(_random.Next(max));
-        } else if (node.function.name == "Value") {
+        } else if (node.method.name == "Value") {
             // TODO This needs to check if the builtin has been shadowed (check for HasValue too)
             var value = EvaluateExpression(node.arguments[0], ref abort);
             var hasNoMembers = value.isReference ? Get(value.reference).members == null : value.members == null;
@@ -541,7 +541,7 @@ internal sealed class Evaluator {
                 return new EvaluatorObject(Value(value));
             else
                 return Copy(value);
-        } else if (node.function.name == "HasValue") {
+        } else if (node.method.name == "HasValue") {
             var value = EvaluateExpression(node.arguments[0], ref abort);
             var hasNoMembers = value.isReference ? Get(value.reference).members == null : value.members == null;
 
@@ -553,7 +553,7 @@ internal sealed class Evaluator {
             var locals = new Dictionary<VariableSymbol, EvaluatorObject>();
 
             for (int i=0; i<node.arguments.Length; i++) {
-                var parameter = node.function.parameters[i];
+                var parameter = node.method.parameters[i];
                 var value = EvaluateExpression(node.arguments[i], ref abort);
 
                 while (!parameter.type.isReference && value.isReference)
@@ -563,7 +563,7 @@ internal sealed class Evaluator {
             }
 
             _locals.Push(locals);
-            var statement = LookupMethod(_functions, node.function);
+            var statement = LookupMethod(_methods, node.method);
             var result = EvaluateStatement(statement, ref abort, out _);
             _locals.Pop();
 

@@ -8,7 +8,7 @@ internal enum SymbolKind {
     GlobalVariable,
     LocalVariable,
     Type,
-    Function,
+    Method,
     Parameter,
     Field,
 }

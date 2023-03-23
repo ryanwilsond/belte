@@ -12,7 +12,8 @@ internal sealed partial class ParameterSyntax : SyntaxNode {
     /// <param name="defaultValue" /> is specified.
     /// </param>
     /// <param name="defaultValue"/>
-    /// Optional; default value of a parameter if no corresponding argument is used when calling the parent function.
+    /// Optional; default value of a parameter if no corresponding argument is used when calling the parent method
+    /// or function.
     /// Must be computable at compile-time.
     /// </param>
     internal ParameterSyntax(
@@ -42,7 +43,8 @@ internal sealed partial class ParameterSyntax : SyntaxNode {
     internal SyntaxToken? equals { get; }
 
     /// <summary>
-    /// Optional; default value of a parameter if no corresponding argument is used when calling the parent function.
+    /// Optional; default value of a parameter if no corresponding argument is used when calling the parent function
+    /// or method.
     /// Must be computable at compile-time.
     /// </summary>
     internal ExpressionSyntax? defaultValue { get; }

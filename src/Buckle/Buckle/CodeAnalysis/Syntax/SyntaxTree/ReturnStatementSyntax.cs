@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Return statement. Only used in function bodies, or scopes that are inside a function body.
+/// Return statement. Only used in method or function bodies.
 /// Have an optional return value.<br/>
 /// E.g.
 /// <code>

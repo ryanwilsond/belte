@@ -10,14 +10,14 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class BoundProgram {
     /// <param name="previous">Previous <see cref="BoundProgram" /> (if applicable).</param>
     internal BoundProgram(
-        BoundProgram previous, BelteDiagnosticQueue diagnostics, FunctionSymbol mainFunction,
-        FunctionSymbol scriptFunction, ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies,
+        BoundProgram previous, BelteDiagnosticQueue diagnostics, MethodSymbol mainMethod,
+        MethodSymbol scriptMethod, ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies,
         ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>> structMembers) {
         this.previous = previous;
         this.diagnostics = diagnostics;
-        this.mainFunction = mainFunction;
-        this.scriptFunction = scriptFunction;
-        this.functionBodies = functionBodies;
+        this.mainMethod = mainMethod;
+        this.scriptMethod = scriptMethod;
+        this.methodBodies = methodBodies;
         this.structMembers = structMembers;
     }
 
@@ -28,11 +28,11 @@ internal sealed class BoundProgram {
 
     internal BelteDiagnosticQueue diagnostics { get; }
 
-    internal FunctionSymbol mainFunction { get; }
+    internal MethodSymbol mainMethod { get; }
 
-    internal FunctionSymbol scriptFunction { get; }
+    internal MethodSymbol scriptMethod { get; }
 
-    internal ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies { get; }
+    internal ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies { get; }
 
     internal ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>> structMembers { get; }
 }
