@@ -15,6 +15,7 @@ internal enum Classification {
     Text,
     Line,
     Indent,
+    Escape,
     RedNode,
     GreenNode,
     BlueNode,

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Text;
@@ -518,17 +519,75 @@ internal sealed class DisplayText {
         var value = node.value.ToString();
         var typeSymbol = BoundType.Assume(node.value).typeSymbol;
 
-        if (typeSymbol == TypeSymbol.Bool) {
+        if (typeSymbol == TypeSymbol.Bool)
             text.Write(CreateKeyword(value.ToLower()));
-        } else if (typeSymbol == TypeSymbol.Int) {
+        else if (typeSymbol == TypeSymbol.Int)
             text.Write(CreateNumber(value));
-        } else if (typeSymbol == TypeSymbol.String) {
-            value = "\"" + value.Replace("\"", "\"\"") + "\"";
-            text.Write(CreateString(value));
-        } else if (typeSymbol == TypeSymbol.Decimal) {
+        else if (typeSymbol == TypeSymbol.String)
+            DisplayStringLiteral(value);
+        else if (typeSymbol == TypeSymbol.Decimal)
             text.Write(CreateNumber(value));
-        } else {
+        else
             throw new BelteInternalException($"WriteLiteralExpression: unexpected type '{typeSymbol}'");
+
+        void DisplayStringLiteral(string value) {
+            var stringBuilder = new StringBuilder("\"");
+
+            foreach (var c in value) {
+                switch (c) {
+                    case '\a':
+                        text.Write(CreateString(stringBuilder.ToString()));
+                        stringBuilder.Clear();
+                        text.Write(CreateEscape("\\a"));
+                        break;
+                    case '\b':
+                        text.Write(CreateString(stringBuilder.ToString()));
+                        stringBuilder.Clear();
+                        text.Write(CreateEscape("\\b"));
+                        break;
+                    case '\f':
+                        text.Write(CreateString(stringBuilder.ToString()));
+                        stringBuilder.Clear();
+                        text.Write(CreateEscape("\\f"));
+                        break;
+                    case '\n':
+                        text.Write(CreateString(stringBuilder.ToString()));
+                        stringBuilder.Clear();
+                        text.Write(CreateEscape("\\n"));
+                        break;
+                    case '\r':
+                        text.Write(CreateString(stringBuilder.ToString()));
+                        stringBuilder.Clear();
+                        text.Write(CreateEscape("\\r"));
+                        break;
+                    case '\t':
+                        text.Write(CreateString(stringBuilder.ToString()));
+                        stringBuilder.Clear();
+                        text.Write(CreateEscape("\\t"));
+                        break;
+                    case '\v':
+                        text.Write(CreateString(stringBuilder.ToString()));
+                        stringBuilder.Clear();
+                        text.Write(CreateEscape("\\v"));
+                        break;
+                    case '\"':
+                        text.Write(CreateString(stringBuilder.ToString()));
+                        stringBuilder.Clear();
+                        text.Write(CreateEscape("\\\""));
+                        break;
+                    case '\\':
+                        text.Write(CreateString(stringBuilder.ToString()));
+                        stringBuilder.Clear();
+                        text.Write(CreateEscape("\\\\"));
+                        break;
+                    default:
+                        stringBuilder.Append(c);
+                        break;
+                }
+            }
+
+            stringBuilder.Append("\"");
+            text.Write(CreateString(stringBuilder.ToString()));
         }
     }
 

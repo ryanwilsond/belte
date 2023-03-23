@@ -11,7 +11,6 @@ using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
-using Diagnostics;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
 namespace Repl;
@@ -262,6 +261,8 @@ public sealed class BelteRepl : ReplBase {
                 return state.colorTheme.comment;
             case Classification.Text:
                 return state.colorTheme.text;
+            case Classification.Escape:
+                return state.colorTheme.escape;
             case Classification.RedNode:
                 return state.colorTheme.redNode;
             case Classification.GreenNode:
@@ -694,6 +695,11 @@ public sealed class BelteRepl : ReplBase {
         internal abstract ConsoleColor text { get; }
 
         /// <summary>
+        /// Color of a string escape sequence.
+        /// </summary>
+        internal abstract ConsoleColor escape { get; }
+
+        /// <summary>
         /// Color of code text that could not parse.
         /// </summary>
         internal abstract ConsoleColor errorText { get; }
@@ -730,6 +736,7 @@ public sealed class BelteRepl : ReplBase {
         internal override ConsoleColor keyword => ConsoleColor.Blue;
         internal override ConsoleColor typeName => ConsoleColor.Blue;
         internal override ConsoleColor text => ConsoleColor.DarkGray;
+        internal override ConsoleColor escape => ConsoleColor.Cyan;
         internal override ConsoleColor errorText => ConsoleColor.White;
         internal override ConsoleColor redNode => ConsoleColor.Red;
         internal override ConsoleColor greenNode => ConsoleColor.Green;
@@ -752,6 +759,7 @@ public sealed class BelteRepl : ReplBase {
         internal override ConsoleColor keyword => ConsoleColor.DarkBlue;
         internal override ConsoleColor typeName => ConsoleColor.DarkBlue;
         internal override ConsoleColor text => ConsoleColor.DarkGray;
+        internal override ConsoleColor escape => ConsoleColor.DarkCyan;
         internal override ConsoleColor errorText => ConsoleColor.Black;
         internal override ConsoleColor redNode => ConsoleColor.Red;
         internal override ConsoleColor greenNode => ConsoleColor.Green;

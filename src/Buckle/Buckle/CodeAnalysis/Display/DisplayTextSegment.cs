@@ -108,6 +108,14 @@ internal sealed class DisplayTextSegment {
     }
 
     /// <summary>
+    /// Creates a string escape sequence.
+    /// </summary>
+    /// <param name="text">Text to be treated as an escape sequence.</param>
+    internal static DisplayTextSegment CreateEscape(string text) {
+        return new DisplayTextSegment(text, Classification.Escape);
+    }
+
+    /// <summary>
     /// Creates a red Node.
     /// </summary>
     /// <param name="text">Text to be treated as a red Node.</param>
