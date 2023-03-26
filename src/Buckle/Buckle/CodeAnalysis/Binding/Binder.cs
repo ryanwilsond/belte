@@ -322,8 +322,8 @@ internal sealed class Binder {
     private static BoundScope CreateRootScope() {
         var result = new BoundScope(null);
 
-        foreach (var function in BuiltinMethods.GetAll())
-            result.TryDeclareMethod(function);
+        foreach (var method in BuiltinMethods.GetAll())
+            result.TryDeclareMethod(method);
 
         return result;
     }

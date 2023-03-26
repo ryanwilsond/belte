@@ -170,7 +170,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            callable 'Print' does not have a parameter named 'msg'
+            method 'Print' does not have a parameter named 'msg'
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -343,7 +343,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            undefined method or function 'myFunc'
+            undefined method 'myFunc'
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -357,7 +357,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            callable 'myFunc' expects 0 arguments, got 1
+            method 'myFunc' expects 0 arguments, got 1
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -399,7 +399,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            called object 'x' is not a method or function
+            called object 'x' is not a method
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -455,7 +455,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot return a value in a method or function returning void
+            cannot return a value in a method returning void
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -470,7 +470,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot return without a value in a method or function returning non-void
+            cannot return without a value in a method returning non-void
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -485,7 +485,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            callable 'myFunc' cannot be used as a variable
+            method 'myFunc' cannot be used as a variable
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -729,7 +729,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            no overload for function 'myFunc' matches parameter list
+            no overload for method 'myFunc' matches parameter list
         ";
 
         AssertDiagnostics(text, diagnostics, writer);

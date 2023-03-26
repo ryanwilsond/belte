@@ -157,7 +157,7 @@ internal static class Error {
     /// </summary>
     internal static BelteDiagnostic NoSuchParameter(
         TextLocation location, string methodName, string parameterName, bool hasOverloads) {
-        var methodWord = hasOverloads ? "the best overload for" : "callable";
+        var methodWord = hasOverloads ? "the best overload for" : "method";
         var message = $"{methodWord} '{methodName}' does not have a parameter named '{parameterName}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuchParameter), location, message);
     }
@@ -266,7 +266,7 @@ internal static class Error {
     /// BU0028. Run `buckle --explain BU0028` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic UndefinedMethod(TextLocation location, string name) {
-        var message = $"undefined method or function '{name}'";
+        var message = $"undefined method '{name}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UndefinedMethod), location, message);
     }
 
@@ -281,7 +281,7 @@ internal static class Error {
             : actual < expected - defaultExpected ? "expects at least" : "expects at most";
 
         var expectedNumber = actual < expected - defaultExpected ? expected - defaultExpected : expected;
-        var message = $"callable '{name}' {expectWord} {expectedNumber} {argWord}, got {actual}";
+        var message = $"method '{name}' {expectWord} {expectedNumber} {argWord}, got {actual}";
 
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_IncorrectArgumentCount), location, message);
     }
@@ -306,7 +306,7 @@ internal static class Error {
     /// BU0032. Run `buckle --explain BU0032` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic CannotCallNonMethod(TextLocation location, string text) {
-        var message = $"called object '{text}' is not a method or function";
+        var message = $"called object '{text}' is not a method";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotCallNonMethod), location, message);
     }
 
@@ -338,7 +338,7 @@ internal static class Error {
     /// BU0036. Run `buckle --explain BU0036` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic ReturnOutsideMethod(TextLocation location) {
-        var message = "return statements can only be used within a method or function";
+        var message = "return statements can only be used within a method";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ReturnOutsideMethod), location, message);
     }
 
@@ -346,7 +346,7 @@ internal static class Error {
     /// BU0037. Run `buckle --explain BU0037` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic UnexpectedReturnValue(TextLocation location) {
-        var message = "cannot return a value in a method or function returning void";
+        var message = "cannot return a value in a method returning void";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnexpectedReturnValue), location, message);
     }
 
@@ -354,7 +354,7 @@ internal static class Error {
     /// BU0038. Run `buckle --explain BU0038` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic MissingReturnValue(TextLocation location) {
-        var message = "cannot return without a value in a method or function returning non-void";
+        var message = "cannot return without a value in a method returning non-void";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MissingReturnValue), location, message);
     }
 
@@ -362,7 +362,7 @@ internal static class Error {
     /// BU0039. Run `buckle --explain BU0039` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic NotAVariable(TextLocation location, string name) {
-        var message = $"callable '{name}' cannot be used as a variable";
+        var message = $"method '{name}' cannot be used as a variable";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NotAVariable), location, message);
     }
 
@@ -522,7 +522,7 @@ internal static class Error {
     /// BU0057. Run `buckle --explain BU0057` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic NoOverload(TextLocation location, string name) {
-        var message = $"no overload for callable '{name}' matches parameter list";
+        var message = $"no overload for method '{name}' matches parameter list";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoOverload), location, message);
     }
 

@@ -56,7 +56,7 @@ internal static class Error {
     /// RE0006. Run `buckle --explain RE0006` on the command line for more info.
     /// </summary>
     internal static Diagnostic NoSuchMethod(string name) {
-        var message = $"no such method or function with the signature '{name}' exists";
+        var message = $"no such method with the signature '{name}' exists";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuchMethod), message);
     }
 

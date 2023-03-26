@@ -215,7 +215,7 @@ void MyFunction() { } // `MyFunction` has not been declared in this scope, allow
 void MyFunction() { } // `MyFunction` has already been declared, not allowed
 ```
 $BU0019
-To prevent undefined behavior, all functions must return in all scenarios if
+To prevent undefined behavior, all methods must return in all scenarios if
 they have a non-void return type. The compiler checks this, and raises an error
 if any code path does not return.
 
