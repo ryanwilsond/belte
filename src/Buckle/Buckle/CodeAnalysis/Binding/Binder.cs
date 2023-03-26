@@ -20,17 +20,18 @@ internal sealed class Binder {
     private readonly bool _isScript;
     private readonly MethodSymbol _method;
     private readonly List<(MethodSymbol method, BoundBlockStatement body)> _methodBodies =
-        new List<(MethodSymbol method, BoundBlockStatement body)>();
-    private readonly List<(StructSymbol @struct, ImmutableList<FieldSymbol> members)> _structMembers =
-        new List<(StructSymbol @struct, ImmutableList<FieldSymbol> members)>();
+        new List<(MethodSymbol, BoundBlockStatement)>();
+    private readonly List<(StructSymbol, ImmutableList<Symbol>)> _structMembers =
+        new List<(StructSymbol, ImmutableList<Symbol>)>();
+    private readonly List<(ClassSymbol, ImmutableList<Symbol>)> _classMembers =
+        new List<(ClassSymbol, ImmutableList<Symbol>)>();
+
     private BoundScope _scope;
-    private Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> _loopStack =
-        new Stack<(BoundLabel breakLabel, BoundLabel continueLabel)>();
+    private Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> _loopStack = new Stack<(BoundLabel, BoundLabel)>();
     private int _labelCount;
     private bool _transpilerMode;
     private ImmutableArray<string> _peekedLocals = ImmutableArray<string>.Empty;
     private int _checkPeekedLocals = 0;
-
     // Methods should be available correctly, so only track variables
     private Stack<HashSet<VariableSymbol>> _trackedSymbols = new Stack<HashSet<VariableSymbol>>();
     private Stack<HashSet<VariableSymbol>> _trackedDeclarations = new Stack<HashSet<VariableSymbol>>();
@@ -86,12 +87,12 @@ internal sealed class Binder {
         var typeDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<TypeDeclarationSyntax>();
 
         foreach (var @type in typeDeclarations)
-            binder.BindTypeDeclaration(@type);
+            binder.BindAndDeclareTypeDeclaration(@type);
 
         var methodDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<MethodDeclarationSyntax>();
 
         foreach (var method in methodDeclarations)
-            binder.BindMethodDeclaration(method);
+            binder.BindAndDeclareMethodDeclaration(method);
 
         var globalStatements = syntaxTrees.SelectMany(st => st.root.members).OfType<GlobalStatementSyntax>();
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
@@ -171,8 +172,13 @@ internal sealed class Binder {
             ? binder._structMembers.ToImmutableArray()
             : previous.structMembers.AddRange(binder._structMembers);
 
-        return new BoundGlobalScope(methodBodies, structMembers, previous, binder.diagnostics, mainMethod,
-            scriptMethod, methods, variables, types, statements.ToImmutable()
+        var classMembers = previous == null
+            ? binder._classMembers.ToImmutableArray()
+            : previous.classMembers.AddRange(binder._classMembers);
+
+        return new BoundGlobalScope(
+            methodBodies, structMembers, classMembers, previous, binder.diagnostics,
+            mainMethod, scriptMethod, methods, variables, types, statements.ToImmutable()
         );
     }
 
@@ -194,10 +200,14 @@ internal sealed class Binder {
             return Program(previous, globalScope.diagnostics);
 
         var methodBodies = ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
-        var structMembers = ImmutableDictionary.CreateBuilder<StructSymbol, ImmutableList<FieldSymbol>>();
+        var structMembers = ImmutableDictionary.CreateBuilder<StructSymbol, ImmutableList<Symbol>>();
+        var classMembers = ImmutableDictionary.CreateBuilder<ClassSymbol, ImmutableList<Symbol>>();
 
         foreach (var @struct in globalScope.structMembers)
             structMembers.Add(@struct.@struct, @struct.members);
+
+        foreach (var @class in globalScope.classMembers)
+            classMembers.Add(@class.@class, @class.members);
 
         var diagnostics = new BelteDiagnosticQueue();
         diagnostics.Move(globalScope.diagnostics);
@@ -268,8 +278,9 @@ internal sealed class Binder {
             methodBodies.Add(globalScope.scriptMethod, body);
         }
 
-        return new BoundProgram(previous, diagnostics, globalScope.mainMethod,
-            globalScope.scriptMethod, methodBodies.ToImmutable(), structMembers.ToImmutable()
+        return new BoundProgram(
+            previous, diagnostics, globalScope.mainMethod, globalScope.scriptMethod,
+            methodBodies.ToImmutable(), structMembers.ToImmutable(), classMembers.ToImmutable()
         );
     }
 
@@ -366,7 +377,7 @@ internal sealed class Binder {
         }
     }
 
-    private void BindMethodDeclaration(MethodDeclarationSyntax method) {
+    private MethodSymbol BindMethodDeclaration(MethodDeclarationSyntax method) {
         var type = BindType(method.returnType);
         var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
         var seenParameterNames = new HashSet<string>();
@@ -401,8 +412,7 @@ internal sealed class Binder {
 
         var newMethod = new MethodSymbol(method.identifier.text, parameters.ToImmutable(), type, method);
 
-        if (newMethod.declaration.identifier.text != null && !_scope.TryDeclareMethod(newMethod))
-            diagnostics.Push(Error.MethodAlreadyDeclared(method.identifier.location, newMethod.name));
+        return newMethod;
     }
 
     private BoundStatement BindMethodBody(BlockStatementSyntax syntax, ImmutableArray<ParameterSymbol> parameters) {
@@ -411,28 +421,87 @@ internal sealed class Binder {
         return BindStatement(syntax);
     }
 
-    private void BindTypeDeclaration(TypeDeclarationSyntax @type) {
-        if (@type is StructDeclarationSyntax)
-            BindStructDeclaration(@type as StructDeclarationSyntax);
+    private void BindAndDeclareMethodDeclaration(MethodDeclarationSyntax method) {
+        var newMethod = BindMethodDeclaration(method);
+
+        if (newMethod.declaration.identifier.text != null && !_scope.TryDeclareMethod(newMethod))
+            diagnostics.Push(Error.MethodAlreadyDeclared(method.identifier.location, newMethod.name));
     }
 
-    private void BindStructDeclaration(StructDeclarationSyntax @struct) {
-        var builder = ImmutableList.CreateBuilder<FieldSymbol>();
-        var symbols = ImmutableArray.CreateBuilder<Symbol>();
+    private TypeSymbol BindTypeDeclaration(TypeDeclarationSyntax @type) {
+        if (@type is StructDeclarationSyntax s)
+            return BindStructDeclaration(s);
+        else if (@type is ClassDeclarationSyntax c)
+            return BindClassDeclaration(c);
+        else
+            throw new BelteInternalException($"BindTypeDeclaration: unexpected type '{@type.identifier.text}'");
+    }
+
+    private void BindAndDeclareTypeDeclaration(TypeDeclarationSyntax @type) {
+        if (@type is StructDeclarationSyntax s)
+            BindAndDeclareStructDeclaration(s);
+        else if (@type is ClassDeclarationSyntax c)
+            BindAndDeclareClassDeclaration(c);
+        else
+            throw new BelteInternalException(
+                $"BindAndDeclareTypeDeclaration: unexpected type '{@type.identifier.text}'"
+            );
+    }
+
+    private StructSymbol BindStructDeclaration(StructDeclarationSyntax @struct) {
+        var builder = ImmutableList.CreateBuilder<Symbol>();
         _scope = new BoundScope(_scope);
 
         foreach (var fieldDeclaration in @struct.members.OfType<FieldDeclarationSyntax>()) {
             var field = BindFieldDeclaration(fieldDeclaration);
             builder.Add(field);
-            symbols.Add(field);
         }
 
         _scope = _scope.parent;
-        var newStruct = new StructSymbol(@struct.identifier.text, symbols.ToImmutable(), @struct);
+        var newStruct = new StructSymbol(@struct.identifier.text, builder.ToImmutableArray(), @struct);
         _structMembers.Add((newStruct, builder.ToImmutable()));
 
+        return newStruct;
+    }
+
+    private void BindAndDeclareStructDeclaration(StructDeclarationSyntax @struct) {
+        var newStruct = BindStructDeclaration(@struct);
+
         if (!_scope.TryDeclareType(newStruct))
-            diagnostics.Push(Error.StructAlreadyDeclared(@struct.identifier.location, @struct.identifier.text));
+            diagnostics.Push(Error.TypeAlreadyDeclared(@struct.identifier.location, @struct.identifier.text, false));
+    }
+
+    private ClassSymbol BindClassDeclaration(ClassDeclarationSyntax @class) {
+        var builder = ImmutableList.CreateBuilder<Symbol>();
+        _scope = new BoundScope(_scope);
+
+        foreach (var fieldDeclaration in @class.members.OfType<FieldDeclarationSyntax>()) {
+            var field = BindFieldDeclaration(fieldDeclaration);
+            builder.Add(field);
+        }
+
+        foreach (var methodDeclaration in @class.members.OfType<MethodDeclarationSyntax>()) {
+            var method = BindMethodDeclaration(methodDeclaration);
+            builder.Add(method);
+        }
+
+        foreach (var typeDeclaration in @class.members.OfType<TypeDeclarationSyntax>()) {
+            var type = BindTypeDeclaration(typeDeclaration);
+            builder.Add(type);
+        }
+
+        _scope = _scope.parent;
+        var newClass = new ClassSymbol(@class.identifier.text, builder.ToImmutableArray(), @class);
+        _classMembers.Add((newClass, builder.ToImmutable()));
+
+        return newClass;
+    }
+
+    private void BindAndDeclareClassDeclaration(ClassDeclarationSyntax @class) {
+        var newClass = BindClassDeclaration(@class);
+
+        if (!_scope.TryDeclareType(newClass))
+            diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
     }
 
     private BoundStatement BindLocalFunctionDeclaration(LocalFunctionStatementSyntax statement) {
@@ -875,7 +944,7 @@ internal sealed class Binder {
                     fd.parameters, fd.closeParenthesis, fd.body
                 );
 
-                BindMethodDeclaration(declaration);
+                BindAndDeclareMethodDeclaration(declaration);
                 frame.Add(fd.identifier.text);
                 _innerPrefix.Push(fd.identifier.text);
 
@@ -1146,19 +1215,19 @@ internal sealed class Binder {
         if (operand is BoundErrorExpression)
             return operand;
 
-        if (operand.type.typeSymbol is not StructSymbol) {
+        if (operand.type.typeSymbol is not ITypeSymbolWithMembers) {
             diagnostics.Push(
-                Error.NoSuchMember(expression.identifier.location, operand.type, expression.identifier.text)
+                Error.PrimitivesDoNotHaveMembers(expression.op.location)
             );
 
             return new BoundErrorExpression();
         }
 
-        var @struct = operand?.type?.typeSymbol as StructSymbol;
+        var type = operand.type.typeSymbol as ITypeSymbolWithMembers;
 
         FieldSymbol symbol = null;
 
-        foreach (var field in @struct.symbols.Where(f => f is FieldSymbol)) {
+        foreach (var field in @type.symbols.Where(f => f is FieldSymbol)) {
             if (field.name == expression.identifier.text)
                 symbol = field as FieldSymbol;
         }

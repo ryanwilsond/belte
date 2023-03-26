@@ -132,7 +132,7 @@ internal static class Error {
     /// BU0012. Run `buckle --explain BU0012` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic GlobalStatementsInMultipleFiles(TextLocation location) {
-        var message = "multiple files with global statements creates ambigous entry point";
+        var message = "multiple files with global statements creates ambiguous entry point";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_GlobalStatementsInMultipleFiles), location, message);
     }
 
@@ -289,9 +289,10 @@ internal static class Error {
     /// <summary>
     /// BU0030. Run `buckle --explain BU0030` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic StructAlreadyDeclared(TextLocation location, string name) {
-        var message = $"struct '{name}' has already been declared in this scope";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StructAlreadyDeclared), location, message);
+    internal static BelteDiagnostic TypeAlreadyDeclared(TextLocation location, string name, bool isClass) {
+        var classWord = isClass ? "class" : "struct";
+        var message = $"{classWord} '{name}' has already been declared in this scope";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_TypeAlreadyDeclared), location, message);
     }
 
     /// <summary>
@@ -724,6 +725,14 @@ internal static class Error {
     internal static BelteDiagnostic UnrecognizedEscapeSequence(TextLocation location, char escapeChar) {
         var message = $"unrecognized escape sequence '\\{escapeChar}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnrecognizedEscapeSequence), location, message);
+    }
+
+    /// <summary>
+    /// BU0080. Run `buckle --explain BU0080` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic PrimitivesDoNotHaveMembers(TextLocation location) {
+        var message = $"primitive types do not contain any members";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_PrimitivesDoNotHaveMembers), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

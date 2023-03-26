@@ -11,13 +11,15 @@ internal sealed class BoundGlobalScope {
     /// <param name="previous">Previous <see cref="BoundGlobalScope" /> (if applicable).</param>
     internal BoundGlobalScope(
         ImmutableArray<(MethodSymbol method, BoundBlockStatement body)> methodBodies,
-        ImmutableArray<(StructSymbol @struct, ImmutableList<FieldSymbol> members)> structMembers,
+        ImmutableArray<(StructSymbol @struct, ImmutableList<Symbol> members)> structMembers,
+        ImmutableArray<(ClassSymbol @class, ImmutableList<Symbol> members)> classMembers,
         BoundGlobalScope previous, BelteDiagnosticQueue diagnostics, MethodSymbol mainMethod,
         MethodSymbol scriptMethod, ImmutableArray<MethodSymbol> methods,
         ImmutableArray<VariableSymbol> variables, ImmutableArray<TypeSymbol> types,
         ImmutableArray<BoundStatement> statements) {
         this.methodBodies = methodBodies;
         this.structMembers = structMembers;
+        this.classMembers = classMembers;
         this.previous = previous;
         this.diagnostics = new BelteDiagnosticQueue();
         this.diagnostics.Move(diagnostics);
@@ -31,7 +33,9 @@ internal sealed class BoundGlobalScope {
 
     internal ImmutableArray<(MethodSymbol method, BoundBlockStatement body)> methodBodies { get; }
 
-    internal ImmutableArray<(StructSymbol @struct, ImmutableList<FieldSymbol> members)> structMembers { get; }
+    internal ImmutableArray<(StructSymbol @struct, ImmutableList<Symbol> members)> structMembers { get; }
+
+    internal ImmutableArray<(ClassSymbol @class, ImmutableList<Symbol> members)> classMembers { get; }
 
     /// <summary>
     /// Previous <see cref="BoundGlobalScope" /> (if applicable).

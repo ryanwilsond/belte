@@ -38,7 +38,7 @@ internal enum DiagnosticCode : int {
     ERR_UnterminatedString = 27,
     ERR_UndefinedMethod = 28,
     ERR_IncorrectArgumentCount = 29,
-    ERR_StructAlreadyDeclared = 30,
+    ERR_TypeAlreadyDeclared = 30,
     ERR_DuplicateAttribute = 31,
     ERR_CannotCallNonMethod = 32,
     ERR_InvalidExpressionStatement = 33,
@@ -88,6 +88,7 @@ internal enum DiagnosticCode : int {
     ERR_NameUsedInEnclosingScope = 77,
     ERR_NullInitializerListOnImplicit = 78,
     ERR_UnrecognizedEscapeSequence = 79,
+    ERR_PrimitivesDoNotHaveMembers = 80,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

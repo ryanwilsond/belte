@@ -364,7 +364,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0030_StructAlreadyDeclared() {
+    public void Reports_Error_BU0030_TypeAlreadyDeclared() {
         var text = @"
             struct A { }
 

@@ -3,6 +3,7 @@ using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
+using System.Linq;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -146,11 +147,11 @@ internal sealed class CSharpEmitter {
     }
 
     private void EmitStruct(
-        IndentedTextWriter indentedTextWriter, KeyValuePair<StructSymbol, ImmutableList<FieldSymbol>> structure) {
+        IndentedTextWriter indentedTextWriter, KeyValuePair<StructSymbol, ImmutableList<Symbol>> structure) {
         var signature = $"public class {GetSafeName(structure.Key.name)}";
 
         using (var structCurly = new CurlyIndenter(indentedTextWriter, signature)) {
-            foreach (var field in structure.Value)
+            foreach (var field in structure.Value.OfType<FieldSymbol>())
                 EmitField(indentedTextWriter, field);
         }
 

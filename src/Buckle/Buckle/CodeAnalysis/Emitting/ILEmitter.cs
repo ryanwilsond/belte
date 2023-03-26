@@ -551,13 +551,13 @@ internal sealed class ILEmitter {
         _methods.Add(method, newMethod);
     }
 
-    private void EmitStructDeclaration(KeyValuePair<StructSymbol, ImmutableList<FieldSymbol>> structWithBody) {
+    private void EmitStructDeclaration(KeyValuePair<StructSymbol, ImmutableList<Symbol>> structWithBody) {
         var objectType = _knownTypes[TypeSymbol.Any];
         var typeDefinition = new TypeDefinition(
             _namespaceName, GetSafeName(structWithBody.Key.name), TypeAttributes.NestedPublic, objectType
         );
 
-        foreach (var field in structWithBody.Value) {
+        foreach (var field in structWithBody.Value.OfType<FieldSymbol>()) {
             var fieldDefinition = new FieldDefinition(
                 GetSafeName(field.name), FieldAttributes.Public, GetType(field.type)
             );

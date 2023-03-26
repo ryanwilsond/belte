@@ -61,6 +61,10 @@ internal static class SymbolDisplay {
             text.Write(CreateKeyword(SyntaxKind.StructKeyword));
             text.Write(CreateSpace());
             text.Write(CreateIdentifier(symbol.name));
+        } else if (symbol is ClassSymbol) {
+            text.Write(CreateKeyword(SyntaxKind.ClassKeyword));
+            text.Write(CreateSpace());
+            text.Write(CreateIdentifier(symbol.name));
         } else {
             text.Write(CreateType(symbol.name));
         }

@@ -240,13 +240,16 @@ internal sealed class Parser {
         return false;
     }
 
-    private ImmutableArray<MemberSyntax> ParseMembers(bool allowGlobalStatements = false) {
+    private ImmutableArray<MemberSyntax> ParseMembers(bool isGlobal = false) {
         var members = ImmutableArray.CreateBuilder<MemberSyntax>();
 
         while (current.kind != SyntaxKind.EndOfFileToken) {
+            if (!isGlobal && current.kind == SyntaxKind.CloseBraceToken)
+                break;
+
             var startToken = current;
 
-            var member = ParseMember(allowGlobalStatements);
+            var member = ParseMember(isGlobal);
             members.Add(member);
 
             if (current == startToken)

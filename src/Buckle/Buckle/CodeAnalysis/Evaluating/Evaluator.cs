@@ -16,8 +16,8 @@ internal sealed class Evaluator {
     private readonly BoundProgram _program;
     private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methods =
         new Dictionary<MethodSymbol, BoundBlockStatement>();
-    private readonly Dictionary<TypeSymbol, ImmutableList<FieldSymbol>> _types =
-        new Dictionary<TypeSymbol, ImmutableList<FieldSymbol>>();
+    private readonly Dictionary<TypeSymbol, ImmutableList<Symbol>> _types =
+        new Dictionary<TypeSymbol, ImmutableList<Symbol>>();
     private readonly Dictionary<VariableSymbol, EvaluatorObject> _globals;
     private readonly Stack<Dictionary<VariableSymbol, EvaluatorObject>> _locals =
         new Stack<Dictionary<VariableSymbol, EvaluatorObject>>();
@@ -44,6 +44,9 @@ internal sealed class Evaluator {
                 // Because structs do not store their declarations, shadowing ones have the same key
                 // As what they are shadowing, so this will just update instead of adding and throwing
                 _types[@struct] = body;
+
+            foreach (var (@class, body) in current.classMembers)
+                _types[@class] = body;
 
             current = current.previous;
         }
@@ -129,7 +132,7 @@ internal sealed class Evaluator {
         }
     }
 
-    private object DictionaryValue(Dictionary<FieldSymbol, EvaluatorObject> value) {
+    private object DictionaryValue(Dictionary<Symbol, EvaluatorObject> value) {
         var dictionary = new Dictionary<object, object>();
 
         foreach (var pair in value)
@@ -171,8 +174,8 @@ internal sealed class Evaluator {
             return new EvaluatorObject(value.value);
     }
 
-    private Dictionary<FieldSymbol, EvaluatorObject> Copy(Dictionary<FieldSymbol, EvaluatorObject> members) {
-        var newMembers = new Dictionary<FieldSymbol, EvaluatorObject>();
+    private Dictionary<Symbol, EvaluatorObject> Copy(Dictionary<Symbol, EvaluatorObject> members) {
+        var newMembers = new Dictionary<Symbol, EvaluatorObject>();
 
         foreach (var member in members)
             newMembers.Add(member.Key, Copy(member.Value));
@@ -456,10 +459,10 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateConstructorExpression(BoundConstructorExpression node, ref bool abort) {
         var body = _types[node.symbol];
-        var members = new Dictionary<FieldSymbol, EvaluatorObject>();
+        var members = new Dictionary<Symbol, EvaluatorObject>();
 
-        foreach (var field in body)
-            members.Add(field, new EvaluatorObject());
+        foreach (var member in body)
+            members.Add(member, new EvaluatorObject());
 
         return new EvaluatorObject(members);
     }

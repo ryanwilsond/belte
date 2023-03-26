@@ -222,16 +222,36 @@ public sealed class Compilation {
     internal void EmitTree(Symbol symbol, DisplayText text) {
         var program = GetProgram();
 
-        void WriteStructMembers(StructSymbol @struct, bool writeEnding = true) {
+        void WriteTypeMembers(ITypeSymbolWithMembers type, bool writeEnding = true) {
             try {
-                var members = program.structMembers[@struct];
+                ImmutableList<Symbol> members = ImmutableList<Symbol>.Empty;
+
+                if (type is StructSymbol s)
+                    members = program.structMembers[s];
+                else if (type is ClassSymbol c)
+                    members = program.classMembers[c];
+
                 text.Write(CreateSpace());
                 text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
                 text.Write(CreateLine());
                 text.indent++;
 
-                foreach (var field in members) {
+                foreach (var field in members.OfType<FieldSymbol>()) {
                     SymbolDisplay.DisplaySymbol(text, field);
+                    text.Write(CreateLine());
+                }
+
+                text.Write(CreateLine());
+
+                foreach (var method in members.OfType<MethodSymbol>()) {
+                    SymbolDisplay.DisplaySymbol(text, method);
+                    text.Write(CreateLine());
+                }
+
+                text.Write(CreateLine());
+
+                foreach (var typeMember in members.OfType<TypeSymbol>()) {
+                    SymbolDisplay.DisplaySymbol(text, typeMember);
                     text.Write(CreateLine());
                 }
 
@@ -259,14 +279,14 @@ public sealed class Compilation {
                 text.Write(CreatePunctuation(SyntaxKind.SemicolonToken));
                 text.Write(CreateLine());
             }
-        } else if (symbol is StructSymbol t) {
-            SymbolDisplay.DisplaySymbol(text, t);
-            WriteStructMembers(t);
+        } else if (symbol is ITypeSymbolWithMembers t) {
+            SymbolDisplay.DisplaySymbol(text, symbol);
+            WriteTypeMembers(t);
         } else if (symbol is VariableSymbol v) {
             SymbolDisplay.DisplaySymbol(text, v);
 
-            if (v.type.typeSymbol is StructSymbol s && v.type.dimensions == 0)
-                WriteStructMembers(s);
+            if (v.type.typeSymbol is ITypeSymbolWithMembers s && v.type.dimensions == 0)
+                WriteTypeMembers(s);
             else
                 text.Write(CreateLine());
         }

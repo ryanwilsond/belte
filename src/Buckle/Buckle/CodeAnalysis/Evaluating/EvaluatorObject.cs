@@ -35,7 +35,7 @@ internal sealed class EvaluatorObject {
     /// Creates an <see cref="EvaluatorObject" /> without a value, and instead a list of members.
     /// </summary>
     /// <param name="members">Members to contain by this.</param>
-    internal EvaluatorObject(Dictionary<FieldSymbol, EvaluatorObject> members) {
+    internal EvaluatorObject(Dictionary<Symbol, EvaluatorObject> members) {
         this.value = null;
         this.isReference = false;
         this.reference = null;
@@ -98,5 +98,5 @@ internal sealed class EvaluatorObject {
     /// <summary>
     /// Members stored by this.
     /// </summary>
-    internal Dictionary<FieldSymbol, EvaluatorObject> members { get; set; }
+    internal Dictionary<Symbol, EvaluatorObject> members { get; set; }
 }
