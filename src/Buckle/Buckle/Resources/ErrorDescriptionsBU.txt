@@ -983,8 +983,12 @@ expression, this error is raised.
 For example:
 
 ```
-int myInt = 3;
-bool myBool = myInt.IsGreaterThanFour; // `IsGreaterThanFour` is not a member of the `int` type
+class MyClass {
+    int a;
+}
+
+MyClass myVar = MyClass();
+int myInt = myVar.b; // `b` is not a member of the `MyClass` type
 ```
 
 Another example:
@@ -1292,6 +1296,17 @@ var myString = "test\n"; // Allowed
 ```
 
 Refer to the Belte documentation for a list of accepted escape sequences.
+$BU0080
+Primitives types in Belte are purely data, and no state. This means they have no
+members and do not inherit from Object. If a member is attempted to be accessed
+off of a primitive, this error is raised.
+
+For example:
+
+```
+int myInt = 3;
+string myString = myInt.ToString(); // Not allowed, primitive types have no members
+```
 $BU9000
 Inside a global scope without a `Main` method, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it

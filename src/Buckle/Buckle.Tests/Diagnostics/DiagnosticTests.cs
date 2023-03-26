@@ -781,12 +781,16 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0061_NoSuchMember() {
         var text = @"
-            int a = 3;
-            a.[Max];
+            class MyClass {
+                int a;
+            }
+
+            var myVar = MyClass();
+            myVar.[b];
         ";
 
         var diagnostics = @"
-            'int' contains no such member 'Max'
+            'MyClass' contains no such member 'b'
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -1040,6 +1044,20 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             unrecognized escape sequence '\g'
+        ";
+
+        AssertDiagnostics(text, diagnostics, writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0080_PrimitivesDoNotHaveMembers() {
+        var text = @"
+            int myInt = 3;
+            myInt[.]b;
+        ";
+
+        var diagnostics = @"
+            primitive types do not contain any members
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
