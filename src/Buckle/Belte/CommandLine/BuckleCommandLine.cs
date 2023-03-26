@@ -220,10 +220,10 @@ public static partial class BuckleCommandLine {
         var column = span.start - line.start + 1;
         var lineText = line.ToString();
 
-        var filename = diagnostic.location.fileName;
+        var fileName = diagnostic.location.fileName;
 
-        if (!string.IsNullOrEmpty(filename))
-            Console.Write($"{filename}:");
+        if (!string.IsNullOrEmpty(fileName))
+            Console.Write($"{fileName}:");
 
         Console.Write($"{lineNumber + 1}:{column}:");
 
@@ -402,7 +402,7 @@ public static partial class BuckleCommandLine {
             return;
 
         foreach (FileState file in compiler.state.tasks) {
-            var inter = file.inputFilename.Split('.')[0];
+            var inter = file.inputFileName.Split('.')[0];
 
             switch (compiler.state.finishStage) {
                 case CompilerStage.Preprocessed:
@@ -451,7 +451,7 @@ public static partial class BuckleCommandLine {
                 case CompilerStage.Compiled:
                     for (int j=0; j<3; j++) {
                         try {
-                            task.fileContent.text = File.ReadAllText(task.inputFilename);
+                            task.fileContent.text = File.ReadAllText(task.inputFileName);
                             opened = true;
                         } catch (IOException) {
                             Thread.Sleep(100);
@@ -462,13 +462,13 @@ public static partial class BuckleCommandLine {
                     }
 
                     if (!opened)
-                        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(task.inputFilename));
+                        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(task.inputFileName));
 
                     break;
                 case CompilerStage.Assembled:
                     for (int j=0; j<3; j++) {
                         try {
-                            task.fileContent.bytes = File.ReadAllBytes(task.inputFilename).ToList();
+                            task.fileContent.bytes = File.ReadAllBytes(task.inputFileName).ToList();
                             opened = true;
                         } catch (IOException) {
                             Thread.Sleep(100);
@@ -479,11 +479,11 @@ public static partial class BuckleCommandLine {
                     }
 
                     if (!opened)
-                        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(task.inputFilename));
+                        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(task.inputFileName));
 
                     break;
                 case CompilerStage.Linked:
-                    diagnostics.Push(Belte.Diagnostics.Info.IgnoringCompiledFile(task.inputFilename));
+                    diagnostics.Push(Belte.Diagnostics.Info.IgnoringCompiledFile(task.inputFileName));
                     break;
                 default:
                     break;
@@ -672,23 +672,23 @@ public static partial class BuckleCommandLine {
     }
 
     private static DiagnosticQueue<Diagnostic> ResolveInputFileOrDir(string name, ref List<FileState> tasks) {
-        var filenames = new List<string>();
+        var fileNames = new List<string>();
         var diagnostics = new DiagnosticQueue<Diagnostic>();
 
         if (Directory.Exists(name)) {
-            filenames.AddRange(Directory.GetFiles(name));
+            fileNames.AddRange(Directory.GetFiles(name));
         } else if (File.Exists(name)) {
-            filenames.Add(name);
+            fileNames.Add(name);
         } else {
             diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(name));
             return diagnostics;
         }
 
-        foreach (string filename in filenames) {
+        foreach (string fileName in fileNames) {
             var task = new FileState();
-            task.inputFilename = filename;
+            task.inputFileName = fileName;
 
-            var parts = task.inputFilename.Split('.');
+            var parts = task.inputFileName.Split('.');
             var type = parts[parts.Length - 1];
 
             switch (type) {
@@ -711,7 +711,7 @@ public static partial class BuckleCommandLine {
                     task.stage = CompilerStage.Linked;
                     break;
                 default:
-                    diagnostics.Push(Belte.Diagnostics.Info.IgnoringUnknownFileType(task.inputFilename));
+                    diagnostics.Push(Belte.Diagnostics.Info.IgnoringUnknownFileType(task.inputFileName));
                     continue;
             }
 

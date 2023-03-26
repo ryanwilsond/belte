@@ -8,7 +8,7 @@ public struct FileState {
     /// <summary>
     /// Original name of source file.
     /// </summary>
-    public string inputFilename;
+    public string inputFileName;
 
     /// <summary>
     /// Current stage of the file (see <see cref="CompilerStage" />).

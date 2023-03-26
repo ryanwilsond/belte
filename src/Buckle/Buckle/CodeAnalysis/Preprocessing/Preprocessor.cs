@@ -19,11 +19,11 @@ internal sealed class Preprocessor {
     /// <summary>
     /// Preprocesses a file.
     /// </summary>
-    /// <param name="filename">Name of input file.</param>
+    /// <param name="fileName">Name of input file.</param>
     /// <param name="text">Contents of file.</param>
     /// <returns>Preprocessed text.</returns>
-    internal string PreprocessText(string filename, string text) {
-        var sourceText = SourceText.From(text, filename);
+    internal string PreprocessText(string fileName, string text) {
+        var sourceText = SourceText.From(text, fileName);
         var lines = sourceText.lines;
 
         var preprocessFile = PreprocessFile.Parse(lines);

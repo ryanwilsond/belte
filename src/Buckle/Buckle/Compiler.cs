@@ -87,7 +87,7 @@ public sealed class Compiler {
             ref FileState task = ref state.tasks[i];
 
             if (task.stage == CompilerStage.Raw) {
-                var text = preprocessor.PreprocessText(task.inputFilename, task.fileContent.text);
+                var text = preprocessor.PreprocessText(task.inputFileName, task.fileContent.text);
                 task.fileContent.text = text;
                 task.stage = CompilerStage.Preprocessed;
             }
@@ -104,7 +104,7 @@ public sealed class Compiler {
             ref FileState task = ref state.tasks[i];
 
             if (task.stage == CompilerStage.Preprocessed) {
-                var syntaxTree = SyntaxTree.Load(task.inputFilename, task.fileContent.text);
+                var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text);
                 syntaxTrees.Add(syntaxTree);
                 task.stage = CompilerStage.Compiled;
             }
@@ -149,7 +149,7 @@ public sealed class Compiler {
             ref FileState task = ref state.tasks[i];
 
             if (task.stage == CompilerStage.Preprocessed) {
-                var syntaxTree = SyntaxTree.Load(task.inputFilename, task.fileContent.text);
+                var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text);
                 syntaxTrees.Add(syntaxTree);
                 task.stage = CompilerStage.Compiled;
             }

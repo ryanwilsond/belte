@@ -40,10 +40,10 @@ public sealed class SourceText {
     /// Creates a <see cref="SourceText" /> from a text, not necessarily relating to a source file.
     /// </summary>
     /// <param name="text">Text.</param>
-    /// <param name="filename">Optional filename if sourced from a file.</param>
+    /// <param name="fileName">Optional filename if sourced from a file.</param>
     /// <returns>New <see cref="SourceText" />.</returns>
-    public static SourceText From(string text, string filename = "") {
-        return new SourceText(filename, text);
+    public static SourceText From(string text, string fileName = "") {
+        return new SourceText(fileName, text);
     }
 
     /// <summary>
