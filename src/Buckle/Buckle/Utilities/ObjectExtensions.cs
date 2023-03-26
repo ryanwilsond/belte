@@ -13,8 +13,8 @@ internal static class ObjectExtensions {
     /// Note: The value of this is ignored, so (double)1 would still return true.
     /// </summary>
     /// <returns>True if the type of this is a floating point.</returns>
-    internal static bool IsFloatingPoint(this object obj) {
-        foreach (Type t in obj.GetType().GetInterfaces())
+    internal static bool IsFloatingPoint(this object self) {
+        foreach (Type t in self.GetType().GetInterfaces())
             if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IFloatingPoint<>))
                 return true;
 

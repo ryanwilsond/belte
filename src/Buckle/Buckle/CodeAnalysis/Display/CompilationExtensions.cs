@@ -8,21 +8,24 @@ using static Buckle.Utilities.MethodUtilities;
 
 namespace Buckle.CodeAnalysis.Display;
 
+/// <summary>
+/// Extensions on the <see cref="Compilation" /> class, adding the ability to emit the tree to a display.
+/// </summary>
 internal static class CompilationExtensions {
     /// <summary>
     /// Emits the parse tree of the compilation.
     /// </summary>
     /// <param name="text">Out.</param>
-    internal static void EmitTree(this Compilation compilation, DisplayText text) {
-        if (compilation.globalScope.mainMethod != null) {
-            EmitTree(compilation, compilation.globalScope.mainMethod, text);
-        } else if (compilation.globalScope.scriptMethod != null) {
-            EmitTree(compilation, compilation.globalScope.scriptMethod, text);
+    internal static void EmitTree(this Compilation self, DisplayText text) {
+        if (self.globalScope.mainMethod != null) {
+            EmitTree(self, self.globalScope.mainMethod, text);
+        } else if (self.globalScope.scriptMethod != null) {
+            EmitTree(self, self.globalScope.scriptMethod, text);
         } else {
-            var program = compilation.GetProgram();
+            var program = self.GetProgram();
 
             foreach (var pair in program.methodBodies.OrderBy(p => p.Key.name))
-                EmitTree(compilation, pair.Key, text);
+                EmitTree(self, pair.Key, text);
         }
     }
 
@@ -35,8 +38,8 @@ internal static class CompilationExtensions {
     /// The name of the <see cref="MethodSymbol" /> to search for and then print. If not found, throws.
     /// </param>
     /// <param name="text">Out.</param>
-    internal static void EmitTree(this Compilation compilation, string name, DisplayText text) {
-        var program = compilation.GetProgram();
+    internal static void EmitTree(this Compilation self, string name, DisplayText text) {
+        var program = self.GetProgram();
         var pair = LookupMethodFromParentsFromName(program, name);
         SymbolDisplay.DisplaySymbol(text, pair.Item1);
         text.Write(CreateSpace());
@@ -48,8 +51,8 @@ internal static class CompilationExtensions {
     /// </summary>
     /// <param name="symbol"><see cref="Symbol" /> to be the root of the <see cref="SyntaxTree" /> displayed.</param>
     /// <param name="text">Out.</param>
-    internal static void EmitTree(this Compilation compilation, Symbol symbol, DisplayText text) {
-        var program = compilation.GetProgram();
+    internal static void EmitTree(this Compilation self, Symbol symbol, DisplayText text) {
+        var program = self.GetProgram();
 
         void WriteTypeMembers(ITypeSymbolWithMembers type, bool writeEnding = true) {
             try {

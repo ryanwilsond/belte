@@ -6,6 +6,7 @@ using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Emitting;
 using Buckle.CodeAnalysis.Evaluating;
+using Buckle.CodeAnalysis.FlowAnalysis;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -17,12 +18,10 @@ namespace Buckle.CodeAnalysis;
 /// </summary>
 public sealed class Compilation {
     private BoundGlobalScope _globalScope;
-    private bool _transpilerMode;
 
-    private Compilation(bool isScript, Compilation previous, bool transpilerMode, params SyntaxTree[] syntaxTrees) {
-        this.isScript = isScript;
+    private Compilation(CompilationOptions options, Compilation previous, params SyntaxTree[] syntaxTrees) {
         this.previous = previous;
-        _transpilerMode = transpilerMode;
+        this.options = options;
         diagnostics = new BelteDiagnosticQueue();
 
         foreach (var syntaxTree in syntaxTrees)
@@ -35,6 +34,11 @@ public sealed class Compilation {
     /// Diagnostics relating to the <see cref="Compilation" />.
     /// </summary>
     public BelteDiagnosticQueue diagnostics { get; set; }
+
+    /// <summary>
+    /// Options and flags for the compilation.
+    /// </summary>
+    internal CompilationOptions options { get; }
 
     /// <summary>
     /// The main method/entry point of the program.
@@ -67,17 +71,12 @@ public sealed class Compilation {
     internal Compilation previous { get; }
 
     /// <summary>
-    /// If the compilation is a script to run top down versus being an application with an entry point.
-    /// </summary>
-    internal bool isScript { get; }
-
-    /// <summary>
     /// The global scope (top level) of the program, contains Symbols.
     /// </summary>
     internal BoundGlobalScope globalScope {
         get {
             if (_globalScope == null) {
-                var tempScope = Binder.BindGlobalScope(isScript, previous?.globalScope, syntaxTrees, _transpilerMode);
+                var tempScope = Binder.BindGlobalScope(options, previous?.globalScope, syntaxTrees);
                 // Makes assignment thread-safe, if multiple threads try to initialize they use whoever did it first
                 Interlocked.CompareExchange(ref _globalScope, tempScope, null);
             }
@@ -94,18 +93,21 @@ public sealed class Compilation {
     /// </param>
     /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
     /// <returns>New <see cref="Compilation" />.</returns>
-    internal static Compilation Create(bool transpilerMode = false, params SyntaxTree[] syntaxTrees) {
-        return new Compilation(false, null, transpilerMode, syntaxTrees);
+    internal static Compilation Create(CompilationOptions options, params SyntaxTree[] syntaxTrees) {
+        return new Compilation(options, null, syntaxTrees);
     }
 
     /// <summary>
     /// Creates a new script <see cref="Compilation" /> with SyntaxTrees, and the previous <see cref="Compilation" />.
     /// </summary>
+    /// <param name="options">Additional flags and options for compilation.</param>
     /// <param name="previous">Previous <see cref="Compilation" />.</param>
     /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
     /// <returns>.</returns>
-    internal static Compilation CreateScript(Compilation previous, params SyntaxTree[] syntaxTrees) {
-        return new Compilation(true, previous, false, syntaxTrees);
+    internal static Compilation CreateScript(
+        CompilationOptions options, Compilation previous, params SyntaxTree[] syntaxTrees) {
+        options.isScript = true;
+        return new Compilation(options, previous, syntaxTrees);
     }
 
     /// <summary>
@@ -156,8 +158,10 @@ public sealed class Compilation {
             return new EvaluationResult(null, false, globalScope.diagnostics, null);
 
         var program = GetProgram();
-        // * Only for debugging purposes
-        // CreateCfg(program);
+#if DEBUG
+        if (options.enableOutput)
+            CreateCfg(program);
+#endif
 
         if (program.diagnostics.Errors().Any())
             return new EvaluationResult(null, false, program.diagnostics, null);
@@ -254,7 +258,7 @@ public sealed class Compilation {
     /// <returns>Newly bound <see cref="BoundProgram" />.</returns>
     internal BoundProgram GetProgram() {
         var _previous = previous == null ? null : previous.GetProgram();
-        return Binder.BindProgram(isScript, _previous, globalScope, _transpilerMode);
+        return Binder.BindProgram(options, _previous, globalScope);
     }
 
     private static void CreateCfg(BoundProgram program) {

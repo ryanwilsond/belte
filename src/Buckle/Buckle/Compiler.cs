@@ -20,6 +20,8 @@ public sealed class Compiler {
     private const int ErrorExitCode = 1;
     private const int FatalExitCode = 2;
 
+    private CompilationOptions _options => new CompilationOptions(state.buildMode, false, !state.noOut);
+
     /// <summary>
     /// Creates a new <see cref="Compiler" />, state needs to be set separately.
     /// </summary>
@@ -108,7 +110,7 @@ public sealed class Compiler {
             }
         }
 
-        var compilation = Compilation.Create(false, syntaxTrees.ToArray());
+        var compilation = Compilation.Create(_options, syntaxTrees.ToArray());
         diagnostics.Move(compilation.diagnostics);
 
         if ((diagnostics.Errors().Any()))
@@ -153,7 +155,7 @@ public sealed class Compiler {
             }
         }
 
-        var compilation = Compilation.Create(state.buildMode == BuildMode.CSharpTranspile, syntaxTrees.ToArray());
+        var compilation = Compilation.Create(_options, syntaxTrees.ToArray());
 
         if (state.noOut)
             return;

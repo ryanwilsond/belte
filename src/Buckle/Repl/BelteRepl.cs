@@ -19,7 +19,8 @@ namespace Repl;
 /// Uses framework from <see cref="ReplBase" /> and adds syntax highlighting and evaluation.
 /// </summary>
 public sealed class BelteRepl : ReplBase {
-    private static readonly Compilation emptyCompilation = Compilation.CreateScript(null);
+    private static readonly CompilationOptions defaultOptions = new CompilationOptions(BuildMode.Repl, true, false);
+    private static readonly Compilation emptyCompilation = Compilation.CreateScript(defaultOptions, null);
     private Dictionary<string, ColorTheme> InUse = new Dictionary<string, ColorTheme>() {
         {"Dark", new DarkTheme()},
         {"Light", new LightTheme()},
@@ -139,7 +140,7 @@ public sealed class BelteRepl : ReplBase {
 
     protected override void EvaluateSubmission(string text) {
         var syntaxTree = SyntaxTree.Parse(text);
-        var compilation = Compilation.CreateScript(state.previous, syntaxTree);
+        var compilation = Compilation.CreateScript(defaultOptions, state.previous, syntaxTree);
         var displayText = new DisplayText();
 
         if (state.showTree) {
