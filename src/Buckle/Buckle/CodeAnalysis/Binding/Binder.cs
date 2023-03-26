@@ -18,17 +18,17 @@ namespace Buckle.CodeAnalysis.Binding;
 /// And convert control of flow into gotos and labels. Dead code is also removed here, as well as other optimizations.
 /// </summary>
 internal sealed class Binder {
-    private readonly MethodSymbol _method;
+    private readonly BoundType _enclosingType;
     private readonly List<(MethodSymbol method, BoundBlockStatement body)> _methodBodies =
         new List<(MethodSymbol, BoundBlockStatement)>();
     private readonly List<(StructSymbol, ImmutableList<Symbol>)> _structMembers =
         new List<(StructSymbol, ImmutableList<Symbol>)>();
     private readonly List<(ClassSymbol, ImmutableList<Symbol>)> _classMembers =
         new List<(ClassSymbol, ImmutableList<Symbol>)>();
-
     private readonly CompilationOptions _options;
     private readonly BinderFlags _flags;
 
+    private OverloadResolution _overloadResolution;
     private BoundScope _scope;
     private Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> _loopStack = new Stack<(BoundLabel, BoundLabel)>();
     private int _labelCount;
@@ -47,9 +47,10 @@ internal sealed class Binder {
     private Binder(CompilationOptions options, BinderFlags flags, BoundScope parent, MethodSymbol method) {
         diagnostics = new BelteDiagnosticQueue();
         _scope = new BoundScope(parent);
-        _method = method;
+        _enclosingType = method.type;
         _options = options;
-        _flags = flags;
+        _flags = method == null ? flags : flags | BinderFlags.Method;
+        _overloadResolution = new OverloadResolution(this);
 
         if (method != null) {
             foreach (var parameter in method.parameters)
@@ -286,6 +287,63 @@ internal sealed class Binder {
             previous, diagnostics, globalScope.mainMethod, globalScope.scriptMethod,
             methodBodies.ToImmutable(), structMembers.ToImmutable(), classMembers.ToImmutable()
         );
+    }
+
+    /// <summary>
+    /// Binds a created cast.
+    /// </summary>
+    /// <param name="expression"><see cref="Expression" /> to bind and cast.</param>
+    /// <param name="type">Type to cast the bound <param name="expression" /> to.</param>
+    /// <param name="allowExplicit"></param>
+    /// <param name="argument"></param>
+    /// <param name="isImplicitNull"></param>
+    /// <returns>Created bound cast.</returns>
+    internal BoundExpression BindCast(
+        ExpressionSyntax expression, BoundType type, bool allowExplicit = false,
+        int argument = 0, bool isImplicitNull = false) {
+        var boundExpression = BindExpression(expression);
+
+        return BindCast(expression.location, boundExpression, type, allowExplicit, argument, isImplicitNull);
+    }
+
+    internal BoundExpression BindCast(
+        TextLocation diagnosticLocation, BoundExpression expression, BoundType type,
+        bool allowExplicit = false, int argument = 0, bool isImplicitNull = false) {
+        return BindCast(diagnosticLocation, expression, type, out _, allowExplicit, argument, isImplicitNull);
+    }
+
+    internal BoundExpression BindCast(
+        TextLocation diagnosticLocation, BoundExpression expression, BoundType type,
+        out Cast castType, bool allowExplicit = false, int argument = 0, bool isImplicitNull = false) {
+        var conversion = Cast.Classify(expression.type, type);
+        castType = conversion;
+
+        if (expression.type.typeSymbol == TypeSymbol.Error || type.typeSymbol == TypeSymbol.Error)
+            return new BoundErrorExpression();
+
+        if (BoundConstant.IsNull(expression.constantValue) && !type.isNullable) {
+            if (isImplicitNull)
+                diagnostics.Push(Error.CannotImplyNull(diagnosticLocation));
+            else
+                diagnostics.Push(Error.CannotConvertNull(diagnosticLocation, type, argument));
+
+            return new BoundErrorExpression();
+        }
+
+        if (!conversion.exists)
+            diagnostics.Push(Error.CannotConvert(diagnosticLocation, expression.type, type, argument));
+
+        if (!allowExplicit && conversion.isExplicit)
+            diagnostics.Push(Error.CannotConvertImplicitly(diagnosticLocation, expression.type, type, argument));
+
+        if (conversion.isIdentity) {
+            if (expression.type.typeSymbol != null)
+                return expression;
+            else if (expression.constantValue != null)
+                return new BoundTypeWrapper(type, expression.constantValue);
+        }
+
+        return new BoundCastExpression(type, expression);
     }
 
     private static ImmutableArray<string> PeekLocals(
@@ -572,54 +630,6 @@ internal sealed class Binder {
             fieldDeclaration.declaration.identifier, type, bindAsField: true) as FieldSymbol;
     }
 
-    private BoundExpression BindCast(
-        ExpressionSyntax expression, BoundType type, bool allowExplicit = false,
-        int argument = 0, bool isImplicitNull = false) {
-        var boundExpression = BindExpression(expression);
-
-        return BindCast(expression.location, boundExpression, type, allowExplicit, argument, isImplicitNull);
-    }
-
-    private BoundExpression BindCast(
-        TextLocation diagnosticLocation, BoundExpression expression, BoundType type,
-        bool allowExplicit = false, int argument = 0, bool isImplicitNull = false) {
-        return BindCast(diagnosticLocation, expression, type, out _, allowExplicit, argument, isImplicitNull);
-    }
-
-    private BoundExpression BindCast(
-        TextLocation diagnosticLocation, BoundExpression expression, BoundType type,
-        out Cast castType, bool allowExplicit = false, int argument = 0, bool isImplicitNull = false) {
-        var conversion = Cast.Classify(expression.type, type);
-        castType = conversion;
-
-        if (expression.type.typeSymbol == TypeSymbol.Error || type.typeSymbol == TypeSymbol.Error)
-            return new BoundErrorExpression();
-
-        if (BoundConstant.IsNull(expression.constantValue) && !type.isNullable) {
-            if (isImplicitNull)
-                diagnostics.Push(Error.CannotImplyNull(diagnosticLocation));
-            else
-                diagnostics.Push(Error.CannotConvertNull(diagnosticLocation, type, argument));
-
-            return new BoundErrorExpression();
-        }
-
-        if (!conversion.exists)
-            diagnostics.Push(Error.CannotConvert(diagnosticLocation, expression.type, type, argument));
-
-        if (!allowExplicit && conversion.isExplicit)
-            diagnostics.Push(Error.CannotConvertImplicitly(diagnosticLocation, expression.type, type, argument));
-
-        if (conversion.isIdentity) {
-            if (expression.type.typeSymbol != null)
-                return expression;
-            else if (expression.constantValue != null)
-                return new BoundTypeWrapper(type, expression.constantValue);
-        }
-
-        return new BoundCastExpression(type, expression);
-    }
-
     private BoundStatement BindLoopBody(
         StatementSyntax body, out BoundLabel breakLabel, out BoundLabel continueLabel) {
         _labelCount++;
@@ -726,9 +736,9 @@ internal sealed class Binder {
         var declare = !identifier.isFabricated;
         var variable = bindAsField
             ? new FieldSymbol(name, type, constant)
-            : _method == null
-                ? (VariableSymbol) new GlobalVariableSymbol(name, type, constant)
-                : new LocalVariableSymbol(name, type, constant);
+            : _flags.Includes(BinderFlags.Method)
+                ? new LocalVariableSymbol(name, type, constant)
+                : (VariableSymbol) new GlobalVariableSymbol(name, type, constant);
 
         if (LookupType(name) != null) {
             diagnostics.Push(Error.VariableUsingTypeName(identifier.location, name, type.isConstant));
@@ -816,19 +826,19 @@ internal sealed class Binder {
     private BoundStatement BindReturnStatement(ReturnStatementSyntax expression) {
         var boundExpression = expression.expression == null ? null : BindExpression(expression.expression);
 
-        if (_method == null) {
-            if (!_options.isScript && boundExpression != null)
-                diagnostics.Push(Error.Unsupported.GlobalReturnValue(expression.keyword.location));
-        } else {
-            if (_method.type.typeSymbol == TypeSymbol.Void) {
+        if (_flags.Includes(BinderFlags.Method)) {
+            if (_enclosingType.typeSymbol == TypeSymbol.Void) {
                 if (boundExpression != null)
                     diagnostics.Push(Error.UnexpectedReturnValue(expression.keyword.location));
             } else {
                 if (boundExpression == null)
                     diagnostics.Push(Error.MissingReturnValue(expression.keyword.location));
                 else
-                    boundExpression = BindCast(expression.expression.location, boundExpression, _method.type);
+                    boundExpression = BindCast(expression.expression.location, boundExpression, _enclosingType);
             }
+        } else {
+            if (!_options.isScript && boundExpression != null)
+                diagnostics.Push(Error.Unsupported.GlobalReturnValue(expression.keyword.location));
         }
 
         return new BoundReturnStatement(boundExpression);
@@ -1355,23 +1365,18 @@ internal sealed class Binder {
         if (typeSymbol != null)
             return new BoundConstructorExpression(typeSymbol);
 
-        var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
-
         _innerPrefix.Push(name);
         var innerName = ConstructInnerName();
         _innerPrefix.Pop();
 
-        var symbols = _scope.LookupOverloads(name, innerName);
+        var methods = _scope.LookupOverloads<Symbol>(name, innerName);
 
-        if (symbols == null || symbols.Length == 0) {
+        if (methods == null || methods.Length == 0) {
             diagnostics.Push(Error.UndefinedMethod(expression.identifier.location, name));
             return new BoundErrorExpression();
         }
 
-        var tempDiagnostics = new BelteDiagnosticQueue();
-        tempDiagnostics.Move(diagnostics);
-
-        var preBoundArgumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
+        var argumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
         var seenNames = new HashSet<string>();
 
         for (int i=0; i<expression.arguments.count; i++) {
@@ -1394,233 +1399,35 @@ internal sealed class Binder {
             if (boundExpression is BoundEmptyExpression)
                 boundExpression = new BoundLiteralExpression(null, true);
 
-            preBoundArgumentsBuilder.Add((argumentName?.text, boundExpression));
+            argumentsBuilder.Add((argumentName?.text, boundExpression));
         }
 
-        var minScore = Int32.MaxValue;
-        var possibleOverloads = new List<MethodSymbol>();
+        var isInner = false;
 
-        foreach (var symbol in symbols) {
-            var beforeCount = diagnostics.count;
-            var score = 0;
-            var actualSymbol = symbol;
-            var isInner = symbol.name.Contains(">g__");
-
+        foreach (var symbol in methods) {
             if (_unresolvedLocals.ContainsKey(innerName) && !_resolvedLocals.Contains(innerName)) {
                 BindLocalFunctionDeclaration(_unresolvedLocals[innerName]);
                 _resolvedLocals.Add(innerName);
-                actualSymbol = _scope.LookupSymbol(innerName);
                 isInner = true;
-            }
 
-            var method = actualSymbol as MethodSymbol;
-
-            if (method == null) {
-                diagnostics.Push(Error.CannotCallNonMethod(expression.identifier.location, name));
-                return new BoundErrorExpression();
-            }
-
-            var defaultParameterCount = method.parameters.Where(p => p.defaultValue != null).ToArray().Length;
-
-            if (expression.arguments.count < method.parameters.Length - defaultParameterCount ||
-                expression.arguments.count > method.parameters.Length) {
-                var count = 0;
-
-                if (isInner) {
-                    foreach (var parameter in method.parameters) {
-                        if (parameter.name.StartsWith("$"))
-                            count++;
-                    }
-                }
-
-                if (!isInner || expression.arguments.count + count != method.parameters.Length) {
-                    TextSpan span;
-
-                    if (expression.arguments.count > method.parameters.Length) {
-                        SyntaxNode firstExceedingNode;
-
-                        if (expression.arguments.count > 1) {
-                            firstExceedingNode = expression.arguments.GetSeparator(method.parameters.Length - 1);
-                        } else {
-                            firstExceedingNode = expression.arguments[0].kind == SyntaxKind.EmptyExpression
-                                ? expression.arguments.GetSeparator(0)
-                                : expression.arguments[0];
-                        }
-
-                        SyntaxNode lastExceedingNode = expression.arguments.Last().kind == SyntaxKind.EmptyExpression
-                            ? expression.arguments.GetSeparator(expression.arguments.count - 2)
-                            : expression.arguments.Last();
-
-                        span = TextSpan.FromBounds(firstExceedingNode.span.start, lastExceedingNode.span.end);
-                    } else {
-                        span = expression.closeParenthesis.span;
-                    }
-
-                    var location = new TextLocation(expression.syntaxTree.text, span);
-                    diagnostics.Push(Error.IncorrectArgumentCount(
-                        location, method.name, method.parameters.Length,
-                        defaultParameterCount, expression.arguments.count
-                    ));
-
-                    continue;
-                }
-            }
-
-            var rearrangedArguments = new Dictionary<int, int>();
-            var seenParameterNames = new HashSet<string>();
-            var canContinue = true;
-
-            for (int i=0; i<expression.arguments.count; i++) {
-                var argumentName = preBoundArgumentsBuilder[i].name;
-
-                if (argumentName == null) {
-                    seenParameterNames.Add(method.parameters[i].name);
-                    rearrangedArguments[i] = i;
-                    continue;
-                }
-
-                int? destinationIndex = null;
-
-                for (int j=0; j<method.parameters.Length; j++) {
-                    if (method.parameters[j].name == argumentName) {
-                        if (!seenParameterNames.Add(argumentName)) {
-                            diagnostics.Push(
-                                Error.ParameterAlreadySpecified(expression.arguments[i].name.location, argumentName)
-                            );
-                            canContinue = false;
-                        } else {
-                            destinationIndex = j;
-                        }
-
-                        break;
-                    }
-                }
-
-                if (!canContinue)
-                    break;
-
-                if (!destinationIndex.HasValue) {
-                    diagnostics.Push(Error.NoSuchParameter(
-                        expression.arguments[i].name.location, name,
-                        expression.arguments[i].name.text, symbols.Length > 1
-                    ));
-
-                    canContinue = false;
-                } else {
-                    rearrangedArguments[destinationIndex.Value] = i;
-                }
-            }
-
-            for (int i=0; i<method.parameters.Length; i++) {
-                var parameter = method.parameters[i];
-
-                if (!parameter.name.StartsWith('$') &&
-                    seenParameterNames.Add(parameter.name) &&
-                    parameter.defaultValue != null) {
-                    rearrangedArguments[i] = preBoundArgumentsBuilder.Count;
-                    preBoundArgumentsBuilder.Add((parameter.name, parameter.defaultValue));
-                }
-            }
-
-            var preBoundArguments = preBoundArgumentsBuilder.ToImmutable();
-            var currentBoundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
-
-            if (canContinue) {
-                for (int i=0; i<preBoundArguments.Length; i++) {
-                    var argument = preBoundArguments[rearrangedArguments[i]];
-                    var parameter = method.parameters[i];
-                    // If this evaluates to null, it means that there was a default value automatically passed in
-                    var location = i >= expression.arguments.count ? null : expression.arguments[i].location;
-
-                    var argumentExpression = argument.expression;
-                    var isImplicitNull = false;
-
-                    if (argument.expression.type.typeSymbol == null &&
-                        argument.expression is BoundLiteralExpression le &&
-                        BoundConstant.IsNull(argument.expression.constantValue) &&
-                        le.isArtificial) {
-                        argumentExpression = new BoundLiteralExpression(
-                            null, BoundType.Copy(argument.expression.type, typeSymbol: parameter.type.typeSymbol)
-                        );
-                        isImplicitNull = true;
-                    }
-
-                    var boundArgument = BindCast(
-                        location, argumentExpression, parameter.type, out var castType,
-                        argument: i + 1, isImplicitNull: isImplicitNull
+                if (methods.Length > 1)
+                    throw new BelteInternalException(
+                        "BindCallExpression: overloaded generated function"
                     );
-
-                    if (castType.isImplicit && !castType.isIdentity)
-                        score++;
-
-                    currentBoundArguments.Add(boundArgument);
-                }
-
-                if (isInner) {
-                    if (symbols.Length != 1)
-                        throw new BelteInternalException("BindCallExpression: overloaded generated function");
-
-                    for (int i=0; i<method.parameters.Length; i++) {
-                        var parameter = method.parameters[i];
-
-                        if (!parameter.name.StartsWith('$'))
-                            continue;
-
-                        var argument = SyntaxFactory.Reference(parameter.name.Substring(1));
-                        var boundArgument = BindCast(null, BindExpression(argument), parameter.type);
-                        currentBoundArguments.Add(boundArgument);
-                    }
-                }
-            }
-
-            if (symbols.Length == 1 && diagnostics.Errors().Any()) {
-                tempDiagnostics.Move(diagnostics);
-                diagnostics.Move(tempDiagnostics);
-
-                return new BoundErrorExpression();
-            }
-
-            if (diagnostics.count == beforeCount) {
-                if (score < minScore) {
-                    boundArguments.Clear();
-                    boundArguments.AddRange(currentBoundArguments);
-                    minScore = score;
-                    possibleOverloads.Clear();
-                }
-
-                if (score == minScore) {
-                    possibleOverloads.Add(method);
-                }
             }
         }
 
-        if (symbols.Length > 1) {
-            diagnostics.Clear();
-            diagnostics.Move(tempDiagnostics);
-        } else if (symbols.Length == 1) {
-            tempDiagnostics.Move(diagnostics);
-            diagnostics.Move(tempDiagnostics);
-        }
+        if (isInner)
+            methods = ImmutableArray.Create<Symbol>(_scope.LookupSymbol<Symbol>(innerName));
 
-        if (symbols.Length > 1 && possibleOverloads.Count == 0) {
-            diagnostics.Push(Error.NoOverload(expression.identifier.location, name));
+        var result = _overloadResolution.MethodInvocationOverloadResolution(
+            methods, argumentsBuilder.ToImmutable(), expression
+        );
 
+        if (!result.succeeded)
             return new BoundErrorExpression();
-        } else if (symbols.Length > 1 && possibleOverloads.Count > 1) {
-            // Special case where there are default overloads
-            if (possibleOverloads[0].name == "HasValue") {
-                possibleOverloads.Clear();
-                possibleOverloads.Add(BuiltinMethods.HasValueAny);
-            } else if (possibleOverloads[0].name == "Value") {
-                possibleOverloads.Clear();
-                possibleOverloads.Add(BuiltinMethods.ValueAny);
-            } else {
-                diagnostics.Push(Error.AmbiguousOverload(expression.identifier.location, possibleOverloads.ToArray()));
-                return new BoundErrorExpression();
-            }
-        }
 
-        return new BoundCallExpression(possibleOverloads.SingleOrDefault(), boundArguments.ToImmutable());
+        return new BoundCallExpression(result.bestOverload, result.arguments);
     }
 
     private BoundExpression BindCastExpression(CastExpressionSyntax expression) {

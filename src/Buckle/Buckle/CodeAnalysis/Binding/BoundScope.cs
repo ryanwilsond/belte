@@ -146,22 +146,6 @@ internal sealed class BoundScope {
     }
 
     /// <summary>
-    /// Finds all overloads of a <see cref="MethodSymbol" /> by name.
-    /// Technically searches for all symbols, but this method is intended to be used for methods.
-    /// </summary>
-    /// <param name="name">Name of <see cref="MethodSymbol" />.</param>
-    /// <param name="strictName">Scope specific name, searches for this first.</param>
-    /// <returns>All found overloads (including from parent scopes).</returns>
-    internal ImmutableArray<Symbol> LookupOverloads(string name, string strictName) {
-        var symbols = LookupOverloadsInternal(strictName, strict: true);
-
-        if (symbols.Length > 0)
-            return symbols;
-
-        return LookupOverloadsInternal(name);
-    }
-
-    /// <summary>
     /// Note the assignment of a <see cref="Symbol" />. This does not actually change anything about the scope, rather
     /// this acts as readonly tracking data for some <see cref="Binder" /> components.
     /// </summary>
@@ -173,14 +157,31 @@ internal sealed class BoundScope {
         _assignedSymbols.Add(symbol);
     }
 
-    private ImmutableArray<Symbol> LookupOverloadsInternal(
-        string name, bool strict = false, ImmutableArray<Symbol>? _current = null) {
-        var overloads = ImmutableArray.CreateBuilder<Symbol>();
+    /// <summary>
+    /// Finds all overloads by name.
+    /// Can technically searches for all symbols, but this method is intended to be used for methods.
+    /// </summary>
+    /// <param name="name">Name of <see cref="Symbol" />.</param>
+    /// <param name="strictName">Scope specific name, searches for this first.</param>
+    /// <typeparam name="T">Type of <see cref="Symbol" /> to look for while searching.</typeparam>
+    /// <returns>All found overloads (including from parent scopes), allows shadowing.</returns>
+    internal ImmutableArray<T> LookupOverloads<T>(string name, string strictName) where T : Symbol {
+        var symbols = LookupOverloadsInternal<T>(strictName, strict: true);
+
+        if (symbols.Length > 0)
+            return symbols;
+
+        return LookupOverloadsInternal<T>(name);
+    }
+
+    private ImmutableArray<T> LookupOverloadsInternal<T>(
+        string name, bool strict = false, ImmutableArray<T>? _current = null) where T : Symbol {
+        var overloads = ImmutableArray.CreateBuilder<T>();
 
         if (_symbols != null) {
             foreach (var symbol in _symbols) {
                 // If it is a nested function, the name will be something like <funcName>g__name
-                if (symbol is Symbol s &&
+                if (symbol is T s &&
                     (symbol.name == name || (!strict && symbol.name.Contains($">g__{name}")))) {
                     if (_current != null) {
                         var skip = false;
@@ -203,7 +204,7 @@ internal sealed class BoundScope {
         }
 
         if (parent != null) {
-            overloads.AddRange(parent?.LookupOverloadsInternal(
+            overloads.AddRange(parent?.LookupOverloadsInternal<T>(
                 name,
                 strict: strict,
                 _current: _current == null
