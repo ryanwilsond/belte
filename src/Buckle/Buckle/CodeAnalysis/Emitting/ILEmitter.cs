@@ -21,7 +21,7 @@ namespace Buckle.CodeAnalysis.Emitting;
 /// <summary>
 /// Emits a bound program into a .NET assembly.
 /// </summary>
-internal sealed class ILEmitter {
+internal sealed partial class ILEmitter {
     private readonly List<AssemblyDefinition> _assemblies = new List<AssemblyDefinition>();
     private readonly List<(TypeSymbol type, string metadataName)> _builtinTypes;
     private readonly Dictionary<MethodSymbol, MethodDefinition> _methods =
@@ -157,27 +157,6 @@ internal sealed class ILEmitter {
     /// These diagnostics are fatal, as all error checking has been done already.
     /// </summary>
     internal BelteDiagnosticQueue diagnostics { get; set; }
-
-    private enum NetMethodReference {
-        ConsoleWrite,
-        ConsoleWriteLine,
-        ConsoleWriteLineNoArgs,
-        ConsoleReadLine,
-        StringConcat2,
-        StringConcat3,
-        StringConcat4,
-        StringConcatArray,
-        ConvertToBoolean,
-        ConvertToInt32,
-        ConvertToString,
-        ConvertToDouble,
-        ObjectEquals,
-        RandomNext,
-        RandomCtor,
-        NullableCtor,
-        NullableValue,
-        NullableHasValue,
-    }
 
     /// <summary>
     /// Emits a program to a .NET assembly.
@@ -1564,21 +1543,5 @@ internal sealed class ILEmitter {
 
     private void EmitConstructorExpression(ILProcessor iLProcessor, BoundConstructorExpression expression) {
         // iLProcessor.Emit(OpCodes.Newobj, /* TODO */null);
-    }
-
-    private class MonoAssemblyResolver : IAssemblyResolver {
-        public AssemblyDefinition assemblyDefinition;
-
-        public AssemblyDefinition Resolve(AssemblyNameReference name) {
-            return assemblyDefinition;
-        }
-
-        public AssemblyDefinition Resolve(AssemblyNameReference name, ReaderParameters parameters) {
-            return assemblyDefinition;
-        }
-
-        public void Dispose() {
-            assemblyDefinition = null;
-        }
     }
 }

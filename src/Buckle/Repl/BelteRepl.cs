@@ -11,6 +11,7 @@ using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Repl.Themes;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
 namespace Repl;
@@ -18,7 +19,7 @@ namespace Repl;
 /// <summary>
 /// Uses framework from <see cref="Repl" /> and adds syntax highlighting and evaluation.
 /// </summary>
-public sealed class BelteRepl : Repl {
+public sealed partial class BelteRepl : Repl {
     private static readonly CompilationOptions defaultOptions = new CompilationOptions(BuildMode.Repl, true, false);
     private static readonly Compilation emptyCompilation = Compilation.CreateScript(defaultOptions, null);
     private Dictionary<string, ColorTheme> InUse = new Dictionary<string, ColorTheme>() {
@@ -40,14 +41,6 @@ public sealed class BelteRepl : Repl {
         Console.BackgroundColor = state.colorTheme.background;
         EvaluateClear();
         LoadSubmissions();
-    }
-
-    /// <summary>
-    /// Indicated to the state what page is being displayed to the user.
-    /// </summary>
-    internal enum Page {
-        Repl,
-        Settings
     }
 
     internal override object _state { get; set; }
@@ -631,206 +624,5 @@ public sealed class BelteRepl : Repl {
     private void EvaluateShowIL() {
         state.showIL = !state.showIL;
         _writer.WriteLine(state.showIL ? "IL visible" : "IL hidden");
-    }
-
-    /// <summary>
-    /// All required fields to implement for a Repl color theme (only supported if using System.Console as out).
-    /// </summary>
-    internal abstract class ColorTheme {
-        /// <summary>
-        /// Default color to result to for unformatted text.
-        /// </summary>
-        internal abstract ConsoleColor @default { get; }
-
-        /// <summary>
-        /// Background color to indicate selected text.
-        /// </summary>
-        internal abstract ConsoleColor selection { get; }
-
-        /// <summary>
-        /// Default color for text with no special color.
-        /// </summary>
-        internal abstract ConsoleColor textDefault { get; }
-
-        /// <summary>
-        /// Color of all results.
-        /// </summary>
-        internal abstract ConsoleColor result { get; }
-
-        /// <summary>
-        /// Background color of terminal.
-        /// </summary>
-        internal abstract ConsoleColor background { get; }
-
-        /// <summary>
-        /// Color of identifer tokens.
-        /// </summary>
-        internal abstract ConsoleColor identifier { get; }
-
-        /// <summary>
-        /// Color of number literals.
-        /// </summary>
-        internal abstract ConsoleColor number { get; }
-
-        /// <summary>
-        /// Color of string literals.
-        /// </summary>
-        internal abstract ConsoleColor @string { get; }
-
-        /// <summary>
-        /// Color of comments (all types).
-        /// </summary>
-        internal abstract ConsoleColor comment { get; }
-
-        /// <summary>
-        /// Color of keywords.
-        /// </summary>
-        internal abstract ConsoleColor keyword { get; }
-
-        /// <summary>
-        /// Color of type names (not full type clauses).
-        /// </summary>
-        internal abstract ConsoleColor typeName { get; }
-
-        /// <summary>
-        /// Color any other code text.
-        /// </summary>
-        internal abstract ConsoleColor text { get; }
-
-        /// <summary>
-        /// Color of a string escape sequence.
-        /// </summary>
-        internal abstract ConsoleColor escape { get; }
-
-        /// <summary>
-        /// Color of code text that could not parse.
-        /// </summary>
-        internal abstract ConsoleColor errorText { get; }
-
-        /// <summary>
-        /// Color of red Nodes.
-        /// </summary>
-        internal abstract ConsoleColor redNode { get; }
-
-        /// <summary>
-        /// Color of green Nodes.
-        /// </summary>
-        internal abstract ConsoleColor greenNode { get; }
-
-        /// <summary>
-        /// Color of blue Nodes.
-        /// </summary>
-        internal abstract ConsoleColor blueNode { get; }
-    }
-
-    /// <summary>
-    /// Dark theme (default). Mostly dark colors and pairs well with dark themed terminals.
-    /// </summary>
-    internal class DarkTheme : ColorTheme {
-        internal override ConsoleColor @default => ConsoleColor.DarkGray;
-        internal override ConsoleColor selection => ConsoleColor.DarkGray;
-        internal override ConsoleColor textDefault => ConsoleColor.White;
-        internal override ConsoleColor result => ConsoleColor.White;
-        internal override ConsoleColor background => ConsoleColor.Black;
-        internal override ConsoleColor identifier => ConsoleColor.White;
-        internal override ConsoleColor number => ConsoleColor.Cyan;
-        internal override ConsoleColor @string => ConsoleColor.Yellow;
-        internal override ConsoleColor comment => ConsoleColor.DarkGray;
-        internal override ConsoleColor keyword => ConsoleColor.Blue;
-        internal override ConsoleColor typeName => ConsoleColor.Blue;
-        internal override ConsoleColor text => ConsoleColor.DarkGray;
-        internal override ConsoleColor escape => ConsoleColor.Cyan;
-        internal override ConsoleColor errorText => ConsoleColor.White;
-        internal override ConsoleColor redNode => ConsoleColor.Red;
-        internal override ConsoleColor greenNode => ConsoleColor.Green;
-        internal override ConsoleColor blueNode => ConsoleColor.Blue;
-    }
-
-    /// <summary>
-    /// Light theme. Mostly bright colors and pairs well with light themed terminals.
-    /// </summary>
-    internal class LightTheme : ColorTheme {
-        internal override ConsoleColor @default => ConsoleColor.DarkGray;
-        internal override ConsoleColor selection => ConsoleColor.DarkGray;
-        internal override ConsoleColor textDefault => ConsoleColor.Black;
-        internal override ConsoleColor result => ConsoleColor.Black;
-        internal override ConsoleColor background => ConsoleColor.White;
-        internal override ConsoleColor identifier => ConsoleColor.Black;
-        internal override ConsoleColor number => ConsoleColor.DarkCyan;
-        internal override ConsoleColor @string => ConsoleColor.DarkYellow;
-        internal override ConsoleColor comment => ConsoleColor.DarkGray;
-        internal override ConsoleColor keyword => ConsoleColor.DarkBlue;
-        internal override ConsoleColor typeName => ConsoleColor.DarkBlue;
-        internal override ConsoleColor text => ConsoleColor.DarkGray;
-        internal override ConsoleColor escape => ConsoleColor.DarkCyan;
-        internal override ConsoleColor errorText => ConsoleColor.Black;
-        internal override ConsoleColor redNode => ConsoleColor.Red;
-        internal override ConsoleColor greenNode => ConsoleColor.Green;
-        internal override ConsoleColor blueNode => ConsoleColor.Blue;
-    }
-
-    /// <summary>
-    /// Green theme. Mostly dark colors with green background.
-    /// </summary>
-    internal sealed class GreenTheme : DarkTheme {
-        internal override ConsoleColor textDefault => ConsoleColor.Black;
-        internal override ConsoleColor result => ConsoleColor.DarkGreen;
-        internal override ConsoleColor background => ConsoleColor.Green;
-        internal override ConsoleColor number => ConsoleColor.DarkCyan;
-        internal override ConsoleColor @string => ConsoleColor.DarkMagenta;
-        internal override ConsoleColor keyword => ConsoleColor.DarkBlue;
-        internal override ConsoleColor typeName => ConsoleColor.Red;
-        internal override ConsoleColor errorText => ConsoleColor.Gray;
-    }
-
-    /// <summary>
-    /// Repl specific state, maintained throughout instance, recreated every instance.
-    /// </summary>
-    internal sealed class BelteReplState {
-        /// <summary>
-        /// Show the parse tree after a submission.
-        /// </summary>
-        internal bool showTree = false;
-
-        /// <summary>
-        /// Show the lowered code after a submission.
-        /// </summary>
-        internal bool showProgram = false;
-
-        /// <summary>
-        /// Show compiler produced warnings.
-        /// </summary>
-        internal bool showWarnings = false;
-
-        /// <summary>
-        /// Show the IL code after a submission.
-        /// </summary>
-        internal bool showIL = false;
-
-        /// <summary>
-        /// If to ignore statements with side effects (Print, PrintLine, etc.).
-        /// </summary>
-        internal bool loadingSubmissions = false;
-
-        /// <summary>
-        /// What color theme to use (can change).
-        /// </summary>
-        internal ColorTheme colorTheme = new DarkTheme();
-
-        /// <summary>
-        /// Current <see cref="Page" /> the user is viewing.
-        /// </summary>
-        internal Page currentPage = Page.Repl;
-
-        /// <summary>
-        /// Previous <see cref="Compilation" /> (used to build of previous).
-        /// </summary>
-        internal Compilation previous;
-
-        /// <summary>
-        /// Current defined variables.
-        /// Not tracked after Repl instance is over, instead previous submissions are reevaluated.
-        /// </summary>
-        internal Dictionary<IVariableSymbol, IEvaluatorObject> variables;
     }
 }
