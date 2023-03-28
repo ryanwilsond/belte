@@ -11,16 +11,14 @@ namespace Buckle.CodeAnalysis.Display;
 /// <summary>
 /// Extensions on the <see cref="Compilation" /> class, adding the ability to emit the tree to a display.
 /// </summary>
-internal static class CompilationExtensions {
+public static class CompilationExtensions {
     /// <summary>
     /// Emits the parse tree of the compilation.
     /// </summary>
     /// <param name="text">Out.</param>
-    internal static void EmitTree(this Compilation self, DisplayText text) {
-        if (self.globalScope.mainMethod != null) {
-            EmitTree(self, self.globalScope.mainMethod, text);
-        } else if (self.globalScope.scriptMethod != null) {
-            EmitTree(self, self.globalScope.scriptMethod, text);
+    public static void EmitTree(this Compilation self, DisplayText text) {
+        if (self.globalScope.entryPoint != null) {
+            EmitTree(self, self.globalScope.entryPoint, text);
         } else {
             var program = self.GetProgram();
 
@@ -38,7 +36,7 @@ internal static class CompilationExtensions {
     /// The name of the <see cref="MethodSymbol" /> to search for and then print. If not found, throws.
     /// </param>
     /// <param name="text">Out.</param>
-    internal static void EmitTree(this Compilation self, string name, DisplayText text) {
+    public static void EmitTree(this Compilation self, string name, DisplayText text) {
         var program = self.GetProgram();
         var pair = LookupMethodFromParentsFromName(program, name);
         SymbolDisplay.DisplaySymbol(text, pair.Item1);
@@ -51,7 +49,7 @@ internal static class CompilationExtensions {
     /// </summary>
     /// <param name="symbol"><see cref="Symbol" /> to be the root of the <see cref="SyntaxTree" /> displayed.</param>
     /// <param name="text">Out.</param>
-    internal static void EmitTree(this Compilation self, Symbol symbol, DisplayText text) {
+    public static void EmitTree(this Compilation self, ISymbol symbol, DisplayText text) {
         var program = self.GetProgram();
 
         void WriteTypeMembers(ITypeSymbolWithMembers type, bool writeEnding = true) {

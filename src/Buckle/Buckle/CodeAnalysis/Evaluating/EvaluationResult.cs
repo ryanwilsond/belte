@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// <summary>
 /// Result of an evaluation, including Diagnostics.
 /// </summary>
-internal sealed class EvaluationResult {
+public sealed class EvaluationResult {
     /// <summary>
     /// Creates an <see cref="EvaluationResult" />, given the result and Diagnostics (does no computation).
     /// </summary>
@@ -30,17 +30,17 @@ internal sealed class EvaluationResult {
     /// <summary>
     /// Diagnostics related to a single evaluation.
     /// </summary>
-    internal BelteDiagnosticQueue diagnostics { get; set; }
+    public BelteDiagnosticQueue diagnostics { get; set; }
 
     /// <summary>
     /// Value resulting from evaluation.
     /// </summary>
-    internal object value { get; set; }
+    public object value { get; set; }
 
     /// <summary>
     /// Flag to distinguish the lack of value from the value of null.
     /// </summary>
-    internal bool hasValue { get; set; }
+    public bool hasValue { get; set; }
 
     /// <summary>
     /// All exceptions thrown while evaluating.

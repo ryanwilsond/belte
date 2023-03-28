@@ -175,7 +175,7 @@ internal sealed class OverloadResolution {
                         BoundConstant.IsNull(argument.expression.constantValue) &&
                         le.isArtificial) {
                         argumentExpression = new BoundLiteralExpression(
-                            null, BoundType.Copy(argument.expression.type, typeSymbol: parameter.type.typeSymbol)
+                            null, BoundType.CopyWith(argument.expression.type, typeSymbol: parameter.type.typeSymbol)
                         );
                         isImplicitNull = true;
                     }

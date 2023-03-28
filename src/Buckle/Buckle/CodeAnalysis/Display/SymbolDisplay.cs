@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Display;
 /// <summary>
 /// Prints a <see cref="Symbol" />.
 /// </summary>
-internal static class SymbolDisplay {
+public static class SymbolDisplay {
     /// <summary>
     /// Generates a rich text representation of a single <see cref="Symbol" />.
     /// </summary>
@@ -25,7 +25,7 @@ internal static class SymbolDisplay {
     /// </summary>
     /// <param name="text"><see cref="DisplayText" /> to add to.</param>
     /// <param name="symbol"><see cref="Symbol" /> to add (not modified).</param>
-    internal static void DisplaySymbol(DisplayText text, Symbol symbol) {
+    public static void DisplaySymbol(DisplayText text, ISymbol symbol) {
         switch (symbol.kind) {
             case SymbolKind.Method:
                 DisplayMethod(text, (MethodSymbol)symbol);

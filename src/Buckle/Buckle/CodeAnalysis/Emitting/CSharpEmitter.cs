@@ -72,15 +72,15 @@ internal sealed class CSharpEmitter {
                 foreach (var structStructure in program.structMembers)
                     EmitStruct(indentedTextWriter, structStructure);
 
-                if (program.mainMethod != null) {
-                    var mainBody = MethodUtilities.LookupMethod(program.methodBodies, program.mainMethod);
-                    EmitMainMethod(indentedTextWriter, KeyValuePair.Create(program.mainMethod, mainBody));
+                if (program.entryPoint != null) {
+                    var mainBody = MethodUtilities.LookupMethod(program.methodBodies, program.entryPoint);
+                    EmitMainMethod(indentedTextWriter, KeyValuePair.Create(program.entryPoint, mainBody));
                 } else {
                     EmitEmptyMainMethod(indentedTextWriter);
                 }
 
                 foreach (var methodWithBody in program.methodBodies) {
-                    if (!methodWithBody.Key.MethodMatches(program.mainMethod))
+                    if (!methodWithBody.Key.MethodMatches(program.entryPoint))
                         EmitMethod(indentedTextWriter, methodWithBody);
                 }
             }

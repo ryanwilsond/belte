@@ -9,7 +9,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// Tree of SyntaxNodes produced from the <see cref="InternalSyntax.Parser" />.
 /// </summary>
-internal sealed class SyntaxTree {
+public sealed class SyntaxTree {
     private SyntaxTree(SourceText text, ParseHandler handler) {
         this.text = text;
         diagnostics = new BelteDiagnosticQueue();
@@ -26,7 +26,12 @@ internal sealed class SyntaxTree {
     /// <summary>
     /// Root <see cref="SyntaxNode" />, does not represent something in a source file rather the entire source file.
     /// </summary>
-    internal CompilationUnitSyntax root { get; }
+    public CompilationUnitSyntax root { get; }
+
+    /// <summary>
+    /// <see cref="SourceText" /> the <see cref="SyntaxTree" /> was created from.
+    /// </summary>
+    public SourceText text { get; }
 
     /// <summary>
     /// EOF <see cref="SyntaxToken" />.
@@ -34,14 +39,20 @@ internal sealed class SyntaxTree {
     internal SyntaxToken endOfFile { get; }
 
     /// <summary>
-    /// <see cref="SourceText" /> the <see cref="SyntaxTree" /> was created from.
-    /// </summary>
-    internal SourceText text { get; }
-
-    /// <summary>
     /// Diagnostics relating to <see cref="SyntaxTree" />.
     /// </summary>
     internal BelteDiagnosticQueue diagnostics;
+
+    /// <summary>
+    /// Parses text (not necessarily related to a source file).
+    /// </summary>
+    /// <param name="text">Text to generate <see cref="SyntaxTree" /> from.</param>
+    /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
+    public static SyntaxTree Parse(string text) {
+        var sourceText = SourceText.From(text);
+
+        return Parse(sourceText);
+    }
 
     /// <summary>
     /// Create a <see cref="SyntaxTree" /> from a source file.
@@ -63,17 +74,6 @@ internal sealed class SyntaxTree {
     internal static SyntaxTree Load(string fileName) {
         var text = File.ReadAllText(fileName);
         var sourceText = SourceText.From(text, fileName);
-
-        return Parse(sourceText);
-    }
-
-    /// <summary>
-    /// Parses text (not necessarily related to a source file).
-    /// </summary>
-    /// <param name="text">Text to generate <see cref="SyntaxTree" /> from.</param>
-    /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
-    internal static SyntaxTree Parse(string text) {
-        var sourceText = SourceText.From(text);
 
         return Parse(sourceText);
     }

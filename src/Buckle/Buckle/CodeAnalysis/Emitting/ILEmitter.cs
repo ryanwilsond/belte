@@ -21,7 +21,7 @@ namespace Buckle.CodeAnalysis.Emitting;
 /// <summary>
 /// Emits a bound program into a .NET assembly.
 /// </summary>
-internal sealed class ILEmitter {
+internal sealed partial class ILEmitter {
     private readonly List<AssemblyDefinition> _assemblies = new List<AssemblyDefinition>();
     private readonly List<(TypeSymbol type, string metadataName)> _builtinTypes;
     private readonly Dictionary<MethodSymbol, MethodDefinition> _methods =
@@ -158,27 +158,6 @@ internal sealed class ILEmitter {
     /// </summary>
     internal BelteDiagnosticQueue diagnostics { get; set; }
 
-    private enum NetMethodReference {
-        ConsoleWrite,
-        ConsoleWriteLine,
-        ConsoleWriteLineNoArgs,
-        ConsoleReadLine,
-        StringConcat2,
-        StringConcat3,
-        StringConcat4,
-        StringConcatArray,
-        ConvertToBoolean,
-        ConvertToInt32,
-        ConvertToString,
-        ConvertToDouble,
-        ObjectEquals,
-        RandomNext,
-        RandomCtor,
-        NullableCtor,
-        NullableValue,
-        NullableHasValue,
-    }
-
     /// <summary>
     /// Emits a program to a .NET assembly.
     /// </summary>
@@ -287,19 +266,18 @@ internal sealed class ILEmitter {
             EmitStructDeclaration(structWithBody);
 
         foreach (var methodWithBody in program.methodBodies) {
-            var isMain = (program.mainMethod ?? program.scriptMethod)?.MethodMatches(methodWithBody.Key) ?? false;
+            var isMain = program.entryPoint?.MethodMatches(methodWithBody.Key) ?? false;
             EmitMethodDeclaration(methodWithBody.Key, isMain);
         }
 
         foreach (var methodWithBody in program.methodBodies) {
-            _insideMain = (program.mainMethod ?? program.scriptMethod)
-                ?.MethodMatches(methodWithBody.Key) ?? false;
+            _insideMain = program.entryPoint?.MethodMatches(methodWithBody.Key) ?? false;
 
             EmitMethodBody(methodWithBody.Key, methodWithBody.Value);
         }
 
-        if (program.mainMethod != null)
-            _assemblyDefinition.EntryPoint = LookupMethod(_methods, program.mainMethod);
+        if (program.entryPoint != null)
+            _assemblyDefinition.EntryPoint = LookupMethod(_methods, program.entryPoint);
     }
 
     private TypeReference ResolveType(string buckleName, string metadataName) {
@@ -536,7 +514,7 @@ internal sealed class ILEmitter {
     }
 
     private void EmitMethodDeclaration(MethodSymbol method, bool isMain) {
-        var methodType = isMain ? GetType(BoundType.Copy(method.type, isNullable: false)) : GetType(method.type);
+        var methodType = isMain ? GetType(BoundType.CopyWith(method.type, isNullable: false)) : GetType(method.type);
         var newMethod = new MethodDefinition(
             method.name, MethodAttributes.Static | MethodAttributes.Private, methodType);
 
@@ -1565,21 +1543,5 @@ internal sealed class ILEmitter {
 
     private void EmitConstructorExpression(ILProcessor iLProcessor, BoundConstructorExpression expression) {
         // iLProcessor.Emit(OpCodes.Newobj, /* TODO */null);
-    }
-
-    private class MonoAssemblyResolver : IAssemblyResolver {
-        public AssemblyDefinition assemblyDefinition;
-
-        public AssemblyDefinition Resolve(AssemblyNameReference name) {
-            return assemblyDefinition;
-        }
-
-        public AssemblyDefinition Resolve(AssemblyNameReference name, ReaderParameters parameters) {
-            return assemblyDefinition;
-        }
-
-        public void Dispose() {
-            assemblyDefinition = null;
-        }
     }
 }

@@ -10,15 +10,15 @@ internal static partial class BoundFactory {
         return new BoundGlobalScope(ImmutableArray<(MethodSymbol, BoundBlockStatement)>.Empty,
             ImmutableArray<(StructSymbol, ImmutableList<Symbol>)>.Empty,
             ImmutableArray<(ClassSymbol, ImmutableList<Symbol>)>.Empty,
-            previous, diagnostics, null, null, ImmutableArray<MethodSymbol>.Empty,
+            previous, diagnostics, null, ImmutableArray<MethodSymbol>.Empty,
             ImmutableArray<VariableSymbol>.Empty, ImmutableArray<TypeSymbol>.Empty,
             ImmutableArray<BoundStatement>.Empty
         );
     }
 
     internal static BoundProgram Program(BoundProgram previous, BelteDiagnosticQueue diagnostics) {
-        return new BoundProgram(previous, diagnostics,
-            null, null, ImmutableDictionary<MethodSymbol, BoundBlockStatement>.Empty,
+        return new BoundProgram(previous, diagnostics, null,
+            ImmutableDictionary<MethodSymbol, BoundBlockStatement>.Empty,
             ImmutableDictionary<StructSymbol, ImmutableList<Symbol>>.Empty,
             ImmutableDictionary<ClassSymbol, ImmutableList<Symbol>>.Empty
         );

@@ -12,7 +12,7 @@ internal sealed class BoundReferenceExpression : BoundExpression {
 
     internal VariableSymbol variable { get; }
 
-    internal override BoundType type => BoundType.Copy(
+    internal override BoundType type => BoundType.CopyWith(
         variable.type, isConstantReference: false, isReference: true, isExplicitReference: true
     );
 

@@ -13,18 +13,16 @@ internal sealed class BoundGlobalScope {
         ImmutableArray<(MethodSymbol method, BoundBlockStatement body)> methodBodies,
         ImmutableArray<(StructSymbol @struct, ImmutableList<Symbol> members)> structMembers,
         ImmutableArray<(ClassSymbol @class, ImmutableList<Symbol> members)> classMembers,
-        BoundGlobalScope previous, BelteDiagnosticQueue diagnostics, MethodSymbol mainMethod,
-        MethodSymbol scriptMethod, ImmutableArray<MethodSymbol> methods,
-        ImmutableArray<VariableSymbol> variables, ImmutableArray<TypeSymbol> types,
-        ImmutableArray<BoundStatement> statements) {
+        BoundGlobalScope previous, BelteDiagnosticQueue diagnostics, MethodSymbol entryPoint,
+        ImmutableArray<MethodSymbol> methods, ImmutableArray<VariableSymbol> variables,
+        ImmutableArray<TypeSymbol> types, ImmutableArray<BoundStatement> statements) {
         this.methodBodies = methodBodies;
         this.structMembers = structMembers;
         this.classMembers = classMembers;
         this.previous = previous;
         this.diagnostics = new BelteDiagnosticQueue();
         this.diagnostics.Move(diagnostics);
-        this.mainMethod = mainMethod;
-        this.scriptMethod = scriptMethod;
+        this.entryPoint = entryPoint;
         this.methods = methods;
         this.variables = variables;
         this.types = types;
@@ -44,9 +42,7 @@ internal sealed class BoundGlobalScope {
 
     internal BelteDiagnosticQueue diagnostics { get; }
 
-    internal MethodSymbol mainMethod { get; }
-
-    internal MethodSymbol scriptMethod { get; }
+    internal MethodSymbol entryPoint { get; }
 
     internal ImmutableArray<MethodSymbol> methods { get; }
 

@@ -22,7 +22,7 @@ internal sealed class ParameterSymbol : LocalVariableSymbol {
         this.defaultValue = defaultValue;
     }
 
-    internal override SymbolKind kind => SymbolKind.Parameter;
+    public override SymbolKind kind => SymbolKind.Parameter;
 
     /// <summary>
     /// Ordinal of this parameter.

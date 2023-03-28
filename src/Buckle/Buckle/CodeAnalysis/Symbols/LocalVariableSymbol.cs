@@ -15,5 +15,5 @@ internal class LocalVariableSymbol : VariableSymbol {
     internal LocalVariableSymbol(string name, BoundType type, BoundConstant constant)
         : base(name, type, constant) { }
 
-    internal override SymbolKind kind => SymbolKind.LocalVariable;
+    public override SymbolKind kind => SymbolKind.LocalVariable;
 }

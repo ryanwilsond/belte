@@ -63,7 +63,7 @@ internal static class Error {
     /// <summary>
     /// RE0007. Run `buckle --explain RE0007` on the command line for more info.
     /// </summary>
-    internal static Diagnostic AmbiguousSignature(string signature, Symbol[] symbols) {
+    internal static Diagnostic AmbiguousSignature(string signature, ISymbol[] symbols) {
         var message = new StringBuilder($"'{signature}' is ambiguous between ");
 
         for (int i=0; i<symbols.Length; i++) {
@@ -74,7 +74,7 @@ internal static class Error {
             else if (i > 0)
                 message.Append(", ");
 
-            if (symbols[i] is MethodSymbol f)
+            if (symbols[i] is IMethodSymbol f)
                 message.Append($"'{f.SignatureNoReturnNoParameterNames()}'");
             else
                 message.Append($"'{symbols[i]}'");

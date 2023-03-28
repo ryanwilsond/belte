@@ -5,8 +5,16 @@ namespace Buckle.CodeAnalysis;
 /// <summary>
 /// Options and flags specific to a compilation.
 /// </summary>
-internal struct CompilationOptions {
-    internal CompilationOptions(BuildMode buildMode, bool isScript, bool enableOutput) {
+public struct CompilationOptions {
+    /// <summary>
+    /// Specifies options and flags to a housing <see cref="Compilation" />.
+    /// </summary>
+    /// <param name="buildMode">Build mode of the housing <see cref="Compilation" />.</param>
+    /// <param name="isScript">
+    /// If the housing <see cref="Compilation" /> is a partial compilation, that will not be emitted.
+    /// </param>
+    /// <param name="enableOutput">If output is enabled, otherwise only code checking is performed.</param>
+    public CompilationOptions(BuildMode buildMode, bool isScript, bool enableOutput) {
         topLevelBinderFlags = BinderFlags.None;
         this.buildMode = buildMode;
         this.isScript = isScript;

@@ -5,7 +5,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// A variable symbol. This can be any type of variable.
 /// </summary>
-internal abstract class VariableSymbol : Symbol {
+internal abstract class VariableSymbol : Symbol, IVariableSymbol {
     /// <summary>
     /// Creates a <see cref="VariableSymbol" />.
     /// </summary>
@@ -16,6 +16,24 @@ internal abstract class VariableSymbol : Symbol {
         this.type = type;
         constantValue = type.isConstant && !type.isReference ? constant : null;
     }
+
+    public ITypeSymbol typeSymbol => type.typeSymbol;
+
+    public bool isImplicit => type.isImplicit;
+
+    public bool isConstantReference => type.isConstantReference;
+
+    public bool isReference => type.isReference;
+
+    public bool isExplicitReference => type.isExplicitReference;
+
+    public bool isConstant => type.isConstant;
+
+    public bool isNullable => type.isNullable;
+
+    public bool isLiteral => type.isLiteral;
+
+    public int dimensions => type.dimensions;
 
     /// <summary>
     /// <see cref="BoundType" /> of the variable.

@@ -5,7 +5,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// A base symbol.
 /// </summary>
-internal abstract class Symbol {
+internal abstract class Symbol : ISymbol {
     private protected Symbol(string name) {
         this.name = name;
     }
@@ -13,12 +13,12 @@ internal abstract class Symbol {
     /// <summary>
     /// Name of the symbol.
     /// </summary>
-    internal string name { get; }
+    public string name { get; }
 
     /// <summary>
     /// The type of symbol this is (see <see cref="SymbolKind" />).
     /// </summary>
-    internal abstract SymbolKind kind { get; }
+    public abstract SymbolKind kind { get; }
 
     public override string ToString() {
         return SymbolDisplay.DisplaySymbol(this).ToString();

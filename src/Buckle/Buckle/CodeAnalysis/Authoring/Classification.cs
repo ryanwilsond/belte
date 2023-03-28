@@ -5,7 +5,7 @@ namespace Buckle.CodeAnalysis.Authoring;
 /// <summary>
 /// Simplified classification of a <see cref="SyntaxToken" />.
 /// </summary>
-internal enum Classification {
+public enum Classification {
     Identifier,
     Keyword,
     Type,

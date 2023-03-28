@@ -164,7 +164,7 @@ internal sealed class BoundType : BoundNode {
     /// </summary>
     /// <param name="type"><see cref="BoundType" /> to copy.</param>
     /// <returns>New copy <see cref="BoundType" />.</returns>
-    internal static BoundType Copy(
+    internal static BoundType CopyWith(
         BoundType type, TypeSymbol typeSymbol = null, bool? isImplicit = null, bool? isConstantReference = null,
         bool? isReference = null, bool? isExplicitReference = null, bool? isConstant = null, bool? isNullable = null,
         bool? isLiteral = null, int? dimensions = null) {
@@ -233,7 +233,7 @@ internal sealed class BoundType : BoundNode {
     /// <returns><see cref="BoundType" /> of item type.</returns>
     internal BoundType ChildType() {
         if (dimensions > 0)
-            return Copy(this, dimensions: dimensions - 1);
+            return CopyWith(this, dimensions: dimensions - 1);
         else
             return null;
     }
@@ -244,7 +244,7 @@ internal sealed class BoundType : BoundNode {
     /// <returns>The base item <see cref="BoundType" />.</returns>
     internal BoundType BaseType() {
         if (dimensions > 0)
-            return Copy(this, dimensions: 0);
+            return CopyWith(this, dimensions: 0);
         else
             return this;
     }

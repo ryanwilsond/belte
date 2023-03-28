@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -15,14 +13,14 @@ namespace Repl;
 /// <summary>
 /// Overrides default console handling and controls all keystrokes. Adds framework for meta commands and submissions.
 /// </summary>
-public abstract class ReplBase {
+public abstract partial class Repl {
     /// <summary>
     /// The width of a tab or '\t' character in spaces.
     /// </summary>
     internal const int TabWidth = 4;
 
     /// <summary>
-    /// Handles outputting <see cref="ReplBase" /> text to an out.
+    /// Handles outputting <see cref="Repl" /> text to an out.
     /// </summary>
     internal OutputCapture _writer = new OutputCapture();
 
@@ -32,7 +30,7 @@ public abstract class ReplBase {
     internal Compiler handle;
 
     /// <summary>
-    /// Particular <see cref="ReplBase.DiagnosticHandle" /> used to handle diagnostics in the <see cref="ReplBase" />.
+    /// Particular <see cref="Repl.DiagnosticHandle" /> used to handle diagnostics in the <see cref="Repl" />.
     /// </summary>
     internal DiagnosticHandle diagnosticHandle;
 
@@ -46,7 +44,7 @@ public abstract class ReplBase {
     private bool _done;
     private bool _evaluate;
 
-    protected ReplBase(Compiler handle, DiagnosticHandle diagnosticHandle) {
+    protected Repl(Compiler handle, DiagnosticHandle diagnosticHandle) {
         this.handle = handle;
         this.diagnosticHandle = diagnosticHandle;
         InitializeMetaCommands();
@@ -65,7 +63,7 @@ public abstract class ReplBase {
     private delegate object LineRenderHandler(IReadOnlyList<string> lines, int lineIndex, object state);
 
     /// <summary>
-    /// <see cref="ReplBase" /> specific state used by child classes.
+    /// <see cref="Repl" /> specific state used by child classes.
     /// </summary>
     internal abstract object _state { get; set; }
 
@@ -79,8 +77,8 @@ public abstract class ReplBase {
     }
 
     /// <summary>
-    /// Run loop of the <see cref="ReplBase" /> (exited with ctrl + c or entering blank lines).
-    /// Does not initialize <see cref="ReplBase" />, only runs it.
+    /// Run loop of the <see cref="Repl" /> (exited with ctrl + c or entering blank lines).
+    /// Does not initialize <see cref="Repl" />, only runs it.
     /// </summary>
     public void Run() {
         string text;
@@ -143,7 +141,7 @@ public abstract class ReplBase {
     }
 
     /// <summary>
-    /// Reloads <see cref="ReplBase" /> to start accepting submissions again.
+    /// Reloads <see cref="Repl" /> to start accepting submissions again.
     /// </summary>
     internal void ReviveDocument() {
         // TODO Redisplay previous submissions
@@ -970,7 +968,7 @@ public abstract class ReplBase {
         var command = _metaCommands.SingleOrDefault(mc => mc.name == commandName);
 
         if (command == null) {
-            handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.UnknownReplCommand(line)));
+            handle.diagnostics.Push(new BelteDiagnostic(global::Repl.Diagnostics.Error.UnknownReplCommand(line)));
 
             if (diagnosticHandle != null)
                 diagnosticHandle(handle, "repl");
@@ -990,7 +988,7 @@ public abstract class ReplBase {
             } else {
                 var parameterNames = string.Join(" ", parameters.Select(p => $"<{p.Name}>"));
                 handle.diagnostics.Push(
-                    new BelteDiagnostic(Repl.Diagnostics.Error.WrongArgumentCount(command.name, parameterNames))
+                    new BelteDiagnostic(global::Repl.Diagnostics.Error.WrongArgumentCount(command.name, parameterNames))
                 );
 
                 if (diagnosticHandle != null)
@@ -1004,165 +1002,5 @@ public abstract class ReplBase {
 
         var instance = command.method.IsStatic ? null : this;
         command.method.Invoke(instance, args.ToArray());
-    }
-
-    /// <summary>
-    /// Wrapper around the System.Console class.
-    /// </summary>
-    internal sealed class OutputCapture : TextWriter, IDisposable {
-        /// <summary>
-        /// Creates an out.
-        /// </summary>
-        internal OutputCapture() {
-            // captured = new List<List<string>>();
-        }
-
-        // internal List<List<string>> captured { get; private set; }
-
-        /// <summary>
-        /// Encoding to use, constant.
-        /// </summary>
-        /// <value>Ascii.</value>
-        public override Encoding Encoding { get { return Encoding.ASCII; } }
-
-        public override void Write(string output) {
-            Console.Write(output);
-        }
-
-        public override void WriteLine(string output) {
-            Console.WriteLine(output);
-        }
-
-        public override void WriteLine() {
-            Console.WriteLine();
-        }
-
-        /// <summary>
-        /// Changes Console cursor position.
-        /// </summary>
-        /// <param name="left">Column position (left (0) -> right).</param>
-        /// <param name="top">Row position (top (0) -> down).</param>
-        public void SetCursorPosition(int left, int top) {
-            Console.SetCursorPosition(left, top);
-        }
-    }
-
-    [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
-    protected sealed class MetaCommandAttribute : Attribute {
-        public MetaCommandAttribute(string name, string description) {
-            this.name = name;
-            this.description = description;
-        }
-
-        public string name { get; }
-        public string description { get; }
-    }
-
-    private sealed class MetaCommand {
-        public MetaCommand(string name, string description, MethodInfo method) {
-            this.name = name;
-            this.method = method;
-            this.description = description;
-        }
-
-        public string name { get; }
-        public string description { get; set; }
-        public MethodInfo method { get; }
-    }
-
-    private sealed class SubmissionView {
-        private readonly LineRenderHandler _lineRenderer;
-        private readonly ObservableCollection<string> _document;
-        private int _cursorTop;
-        private int _renderedLineCount;
-        private int _currentLine;
-        private int _currentCharacter;
-        private OutputCapture _writer;
-
-        internal SubmissionView(
-            LineRenderHandler lineRenderer, ObservableCollection<string> document, OutputCapture writer) {
-            _lineRenderer = lineRenderer;
-            _document = document;
-            _document.CollectionChanged += SubmissionDocumentChanged;
-            _cursorTop = Console.CursorTop;
-            _writer = writer;
-            Render();
-        }
-
-        internal int currentLine {
-            get => _currentLine;
-            set {
-                if (_currentLine != value) {
-                    _currentLine = value;
-                    _currentCharacter = Math.Min(_document[_currentLine].Length, _currentCharacter);
-                    UpdateCursorPosition();
-                }
-            }
-        }
-
-        internal int currentCharacter {
-            get => _currentCharacter;
-            set {
-                if (_currentCharacter != value) {
-                    _currentCharacter = value;
-                    UpdateCursorPosition();
-                }
-            }
-        }
-
-        internal Stack<(char, int)> currentBlockTabbing = new Stack<(char, int)>();
-        internal int currentTypingTabbing = 0;
-
-        private void SubmissionDocumentChanged(object sender, NotifyCollectionChangedEventArgs e) {
-            Render();
-        }
-
-        private void Render() {
-            Console.CursorVisible = false;
-            var lineCount = 0;
-
-            foreach (var line in _document) {
-                if (_cursorTop + lineCount >= Console.WindowHeight - 1) {
-                    _writer.SetCursorPosition(0, Console.WindowHeight - 1);
-                    _writer.WriteLine();
-
-                    if (_cursorTop > 0)
-                        _cursorTop--;
-                }
-
-                _writer.SetCursorPosition(0, _cursorTop + lineCount);
-                var previous = Console.ForegroundColor;
-                Console.ForegroundColor = ConsoleColor.Green;
-
-                if (lineCount == 0)
-                    _writer.Write("» ");
-                else
-                    _writer.Write("· ");
-
-                Console.ForegroundColor = previous;
-                _lineRenderer(_document, lineCount, null);
-                _writer.Write(new string(' ', Console.WindowWidth - line.Length - 2));
-                lineCount++;
-            }
-
-            var blankLineCount = _renderedLineCount - lineCount;
-
-            if (blankLineCount > 0) {
-                var blankLine = new string(' ', Console.WindowWidth);
-
-                for (int i=0; i<blankLineCount; i++) {
-                    _writer.SetCursorPosition(0, _cursorTop + lineCount + i);
-                    _writer.WriteLine(blankLine);
-                }
-            }
-
-            _renderedLineCount = lineCount;
-            Console.CursorVisible = true;
-            UpdateCursorPosition();
-        }
-
-        private void UpdateCursorPosition() {
-            _writer.SetCursorPosition(2 + _currentCharacter, _cursorTop + _currentLine);
-        }
     }
 }

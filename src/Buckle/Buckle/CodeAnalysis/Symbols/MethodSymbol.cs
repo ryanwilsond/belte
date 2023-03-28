@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// A method symbol.
 /// </summary>
-internal sealed class MethodSymbol : Symbol {
+internal sealed class MethodSymbol : Symbol, IMethodSymbol {
     /// <summary>
     /// Creates a <see cref="MethodSymbol" />.
     /// </summary>
@@ -25,6 +25,8 @@ internal sealed class MethodSymbol : Symbol {
         this.declaration = declaration;
     }
 
+    public override SymbolKind kind => SymbolKind.Method;
+
     /// <summary>
     /// All parameters (see <see cref="ParameterSymbol" />).
     /// </summary>
@@ -40,7 +42,23 @@ internal sealed class MethodSymbol : Symbol {
     /// </summary>
     internal MethodDeclarationSyntax declaration { get; }
 
-    internal override SymbolKind kind => SymbolKind.Method;
+    public string SignatureNoReturnNoParameterNames() {
+        var signature = new StringBuilder($"{name}(");
+        var isFirst = true;
+
+        foreach (var parameter in parameters) {
+            if (isFirst)
+                isFirst = false;
+            else
+                signature.Append(',');
+
+            signature.Append(parameter.type.ToString());
+        }
+
+        signature.Append(')');
+
+        return signature.ToString();
+    }
 
     /// <summary>
     /// Compares this to <paramref name="right" /> to see if the method signatures match, even if they are not the
@@ -68,28 +86,6 @@ internal sealed class MethodSymbol : Symbol {
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// Gets the signature of this without the return type or parameter names.
-    /// </summary>
-    /// <returns>Signature if this <see cref="MethodSymbol" />.</returns>
-    internal string SignatureNoReturnNoParameterNames() {
-        var signature = new StringBuilder($"{name}(");
-        var isFirst = true;
-
-        foreach (var parameter in parameters) {
-            if (isFirst)
-                isFirst = false;
-            else
-                signature.Append(',');
-
-            signature.Append(parameter.type.ToString());
-        }
-
-        signature.Append(')');
-
-        return signature.ToString();
     }
 
     internal string Signature() {

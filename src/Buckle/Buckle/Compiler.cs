@@ -123,7 +123,7 @@ public sealed class Compiler {
         var abort = false;
 
         void EvaluateWrapper() {
-            result = compilation.Evaluate(new Dictionary<VariableSymbol, EvaluatorObject>(), ref abort);
+            result = compilation.Evaluate(new Dictionary<IVariableSymbol, IEvaluatorObject>(), ref abort);
         }
 
         void ctrlCHandler(object sender, ConsoleCancelEventArgs args) {

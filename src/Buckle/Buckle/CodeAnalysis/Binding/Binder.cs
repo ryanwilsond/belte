@@ -47,7 +47,7 @@ internal sealed class Binder {
     private Binder(CompilationOptions options, BinderFlags flags, BoundScope parent, MethodSymbol method) {
         diagnostics = new BelteDiagnosticQueue();
         _scope = new BoundScope(parent);
-        _enclosingType = method.type;
+        _enclosingType = method?.type;
         _options = options;
         _flags = method == null ? flags : flags | BinderFlags.Method;
         _overloadResolution = new OverloadResolution(this);
@@ -114,46 +114,40 @@ internal sealed class Binder {
 
         var methods = binder._scope.GetDeclaredMethods();
 
-        MethodSymbol mainMethod;
-        MethodSymbol scriptMethod;
+        MethodSymbol entryPoint = null;
 
         if (binder._options.isScript) {
             if (globalStatements.Any()) {
-                scriptMethod = new MethodSymbol(
+                entryPoint = new MethodSymbol(
                     "<Eval>$", ImmutableArray<ParameterSymbol>.Empty, BoundType.NullableAny
                 );
-            } else {
-                scriptMethod = null;
             }
-
-            mainMethod = null;
         } else {
-            scriptMethod = null;
-            mainMethod = methods.FirstOrDefault(f => f.name.ToLower() == "main");
+            entryPoint = methods.FirstOrDefault(f => f.name.ToLower() == "main");
 
-            if (mainMethod != null) {
-                if (mainMethod.type.typeSymbol != TypeSymbol.Void && mainMethod.type.typeSymbol != TypeSymbol.Int)
-                    binder.diagnostics.Push(Error.InvalidMain(mainMethod.declaration.returnType.location));
+            if (entryPoint != null) {
+                if (entryPoint.type.typeSymbol != TypeSymbol.Void && entryPoint.type.typeSymbol != TypeSymbol.Int)
+                    binder.diagnostics.Push(Error.InvalidMain(entryPoint.declaration.returnType.location));
 
-                if (mainMethod.parameters.Any()) {
+                if (entryPoint.parameters.Any()) {
                     var span = TextSpan.FromBounds(
-                        mainMethod.declaration.openParenthesis.span.start + 1,
-                        mainMethod.declaration.closeParenthesis.span.end - 1
+                        entryPoint.declaration.openParenthesis.span.start + 1,
+                        entryPoint.declaration.closeParenthesis.span.end - 1
                     );
 
-                    var location = new TextLocation(mainMethod.declaration.syntaxTree.text, span);
+                    var location = new TextLocation(entryPoint.declaration.syntaxTree.text, span);
                     binder.diagnostics.Push(Error.InvalidMain(location));
                 }
             }
 
             if (globalStatements.Any()) {
-                if (mainMethod != null) {
-                    binder.diagnostics.Push(Error.MainAndGlobals(mainMethod.declaration.identifier.location));
+                if (entryPoint != null) {
+                    binder.diagnostics.Push(Error.MainAndGlobals(entryPoint.declaration.identifier.location));
 
                     foreach (var globalStatement in firstGlobalPerTree)
                         binder.diagnostics.Push(Error.MainAndGlobals(globalStatement.location));
                 } else {
-                    mainMethod = new MethodSymbol(
+                    entryPoint = new MethodSymbol(
                         "<Main>$", ImmutableArray<ParameterSymbol>.Empty, new BoundType(TypeSymbol.Void)
                     );
                 }
@@ -180,7 +174,7 @@ internal sealed class Binder {
 
         return new BoundGlobalScope(
             methodBodies, structMembers, classMembers, previous, binder.diagnostics,
-            mainMethod, scriptMethod, methods, variables, types, statements.ToImmutable()
+            entryPoint, methods, variables, types, statements.ToImmutable()
         );
     }
 
@@ -214,26 +208,26 @@ internal sealed class Binder {
         var diagnostics = new BelteDiagnosticQueue();
         diagnostics.Move(globalScope.diagnostics);
 
-        foreach (var methods in globalScope.methods) {
-            var binder = new Binder(options, options.topLevelBinderFlags, parentScope, methods);
+        foreach (var method in globalScope.methods) {
+            var binder = new Binder(options, options.topLevelBinderFlags, parentScope, method);
 
             binder._innerPrefix = new Stack<string>();
-            binder._innerPrefix.Push(methods.name);
+            binder._innerPrefix.Push(method.name);
 
             BoundBlockStatement loweredBody = null;
 
-            var body = binder.BindMethodBody(methods.declaration.body, methods.parameters);
+            var body = binder.BindMethodBody(method.declaration.body, method.parameters);
             diagnostics.Move(binder.diagnostics);
 
             if (diagnostics.Errors().Any())
                 return Program(previous, diagnostics);
 
-            loweredBody = Lowerer.Lower(methods, body, options.isTranspiling);
+            loweredBody = Lowerer.Lower(method, body, options.isTranspiling);
 
-            if (methods.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
-                binder.diagnostics.Push(Error.NotAllPathsReturn(methods.declaration.identifier.location));
+            if (method.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
+                binder.diagnostics.Push(Error.NotAllPathsReturn(method.declaration.identifier.location));
 
-            binder._methodBodies.Add((methods, loweredBody));
+            binder._methodBodies.Add((method, loweredBody));
 
             foreach (var methodBody in binder._methodBodies) {
                 var newParameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
@@ -261,13 +255,13 @@ internal sealed class Binder {
             diagnostics.Move(binder.diagnostics);
         }
 
-        if (globalScope.mainMethod != null && globalScope.statements.Any()) {
+        if (globalScope.entryPoint != null && globalScope.statements.Any() && !options.isScript) {
             var body = Lowerer.Lower(
-                globalScope.mainMethod, new BoundBlockStatement(globalScope.statements), options.isTranspiling
+                globalScope.entryPoint, new BoundBlockStatement(globalScope.statements), options.isTranspiling
             );
 
-            methodBodies.Add(globalScope.mainMethod, body);
-        } else if (globalScope.scriptMethod != null) {
+            methodBodies.Add(globalScope.entryPoint, body);
+        } else if (globalScope.entryPoint != null && options.isScript) {
             var statements = globalScope.statements;
 
             if (statements.Length == 1 && statements[0] is BoundExpressionStatement es &&
@@ -277,15 +271,15 @@ internal sealed class Binder {
                 statements = statements.Add(new BoundReturnStatement(null));
 
             var body = Lowerer.Lower(
-                globalScope.scriptMethod, new BoundBlockStatement(statements), options.isTranspiling
+                globalScope.entryPoint, new BoundBlockStatement(statements), options.isTranspiling
             );
 
-            methodBodies.Add(globalScope.scriptMethod, body);
+            methodBodies.Add(globalScope.entryPoint, body);
         }
 
         return new BoundProgram(
-            previous, diagnostics, globalScope.mainMethod, globalScope.scriptMethod,
-            methodBodies.ToImmutable(), structMembers.ToImmutable(), classMembers.ToImmutable()
+            previous, diagnostics, globalScope.entryPoint, methodBodies.ToImmutable(),
+            structMembers.ToImmutable(), classMembers.ToImmutable()
         );
     }
 
@@ -596,7 +590,7 @@ internal sealed class Binder {
 
             var parameter = new ParameterSymbol(
                 $"${variable.name}",
-                BoundType.Copy(variable.type, isReference: true, isExplicitReference: true),
+                BoundType.CopyWith(variable.type, isReference: true, isExplicitReference: true),
                 ordinal++,
                 null
             );
@@ -1034,7 +1028,7 @@ internal sealed class Binder {
                 return null;
 
             var tempType = type.isImplicit ? initializer.type : type;
-            var variableType = BoundType.Copy(
+            var variableType = BoundType.CopyWith(
                 tempType,
                 isConstant: (type.isConstant && !type.isImplicit) ? true : null,
                 isConstantReference: ((type.isConstant && type.isImplicit) || type.isConstantReference) ? true : null,
@@ -1098,7 +1092,7 @@ internal sealed class Binder {
             }
 
             var tempType = type.isImplicit ? initializer.type : type;
-            var variableType = BoundType.Copy(
+            var variableType = BoundType.CopyWith(
                 tempType, isConstant: type.isConstant ? true : null, isNullable: isNullable, isLiteral: false
             );
 
@@ -1111,7 +1105,7 @@ internal sealed class Binder {
 
             var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
             var variable = BindVariable(expression.identifier,
-                BoundType.Copy(
+                BoundType.CopyWith(
                     type, typeSymbol: itemType.typeSymbol, isExplicitReference: false,
                     isLiteral: false, dimensions: variableType.dimensions
                 ),
@@ -1128,7 +1122,7 @@ internal sealed class Binder {
                 : new BoundTypeWrapper(type, new BoundConstant(null));
 
             var tempType = type.isImplicit ? initializer.type : type;
-            var variableType = BoundType.Copy(
+            var variableType = BoundType.CopyWith(
                 tempType, isConstant: type.isConstant ? true : null, isNullable: isNullable, isLiteral: false
             );
 
@@ -1449,7 +1443,7 @@ internal sealed class Binder {
             if (type == null || type.isImplicit || type.typeSymbol == null) {
                 var tempType = tempItem.type;
 
-                type = BoundType.Copy(
+                type = BoundType.CopyWith(
                     tempType, isImplicit: false, isNullable: type?.isNullable,
                     isLiteral: true, dimensions: tempType.dimensions + 1
                 );
