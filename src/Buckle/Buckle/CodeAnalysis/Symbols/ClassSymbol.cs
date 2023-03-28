@@ -22,10 +22,10 @@ internal sealed class ClassSymbol : TypeSymbol, ITypeSymbolWithMembers {
 
     public ImmutableArray<Symbol> symbols { get; }
 
+    public override SymbolKind kind => SymbolKind.Type;
+
     /// <summary>
     /// Declaration of the class (see <see cref="ClassDeclarationSyntax">).
     /// </summary>
     internal ClassDeclarationSyntax declaration { get; }
-
-    internal override SymbolKind kind => SymbolKind.Type;
 }

@@ -5,7 +5,7 @@ namespace Buckle.CodeAnalysis.Authoring;
 /// <summary>
 /// <see cref="TextSpan" /> of where a <see cref="Classification" /> refers to.
 /// </summary>
-internal sealed class ClassifiedSpan {
+public sealed class ClassifiedSpan {
     /// <summary>
     /// Creates a <see cref="ClassifiedSpan" />.
     /// </summary>
@@ -18,7 +18,7 @@ internal sealed class ClassifiedSpan {
     /// <summary>
     /// <see cref="TextSpan" /> of where referring to.
     /// </summary>
-    internal TextSpan span { get; }
+    public TextSpan span { get; }
 
-    internal Classification classification { get; }
+    public Classification classification { get; }
 }

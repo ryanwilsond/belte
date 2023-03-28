@@ -22,10 +22,11 @@ internal sealed class StructSymbol : TypeSymbol, ITypeSymbolWithMembers {
 
     public ImmutableArray<Symbol> symbols { get; }
 
+    public override SymbolKind kind => SymbolKind.Type;
+
     /// <summary>
     /// Declaration of the struct (see <see cref="StructDeclarationSyntax">).
     /// </summary>
     internal StructDeclarationSyntax declaration { get; }
 
-    internal override SymbolKind kind => SymbolKind.Type;
 }

@@ -93,7 +93,7 @@ public sealed class Compilation {
     /// </param>
     /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
     /// <returns>New <see cref="Compilation" />.</returns>
-    internal static Compilation Create(CompilationOptions options, params SyntaxTree[] syntaxTrees) {
+    public static Compilation Create(CompilationOptions options, params SyntaxTree[] syntaxTrees) {
         return new Compilation(options, null, syntaxTrees);
     }
 
@@ -104,47 +104,10 @@ public sealed class Compilation {
     /// <param name="previous">Previous <see cref="Compilation" />.</param>
     /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
     /// <returns>.</returns>
-    internal static Compilation CreateScript(
+    public static Compilation CreateScript(
         CompilationOptions options, Compilation previous, params SyntaxTree[] syntaxTrees) {
         options.isScript = true;
         return new Compilation(options, previous, syntaxTrees);
-    }
-
-    /// <summary>
-    /// Gets all Symbols across submissions (only global scope).
-    /// </summary>
-    /// <returns>All Symbols (checks all previous Compilations).</returns>
-    internal IEnumerable<Symbol> GetSymbols() => GetSymbols<Symbol>();
-
-    /// <summary>
-    /// Gets all Symbols of certain child type across submissions (only global scope).
-    /// </summary>
-    /// <typeparam name="T">Type of <see cref="Symbol" /> to get.</typeparam>
-    /// <returns>Found symbols.</returns>
-    internal IEnumerable<T> GetSymbols<T>() where T : Symbol {
-        var submission = this;
-        var seenSymbolNames = new HashSet<string>();
-        var builtins = BuiltinMethods.GetAll();
-
-        while (submission != null) {
-            foreach (var method in submission.methods)
-                if (seenSymbolNames.Add(method.SignatureNoReturnNoParameterNames()) && method is T)
-                    yield return method as T;
-
-            foreach (var builtin in builtins)
-                if (seenSymbolNames.Add(builtin.SignatureNoReturnNoParameterNames()) && builtin is T)
-                    yield return builtin as T;
-
-            foreach (var variable in submission.variables)
-                if (seenSymbolNames.Add(variable.name) && variable is T)
-                    yield return variable as T;
-
-            foreach (var @type in submission.types)
-                if (seenSymbolNames.Add(@type.name) && @type is T)
-                    yield return @type as T;
-
-            submission = submission.previous;
-        }
     }
 
     /// <summary>
@@ -153,7 +116,7 @@ public sealed class Compilation {
     /// <param name="variables">Existing variables to add to the scope.</param>
     /// <param name="abort">External flag used to cancel evaluation.</param>
     /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
-    internal EvaluationResult Evaluate(Dictionary<VariableSymbol, EvaluatorObject> variables, ref bool abort) {
+    public EvaluationResult Evaluate(Dictionary<IVariableSymbol, IEvaluatorObject> variables, ref bool abort) {
         if (globalScope.diagnostics.Errors().Any())
             return new EvaluationResult(null, false, globalScope.diagnostics, null);
 
@@ -176,6 +139,81 @@ public sealed class Compilation {
         diagnostics.Move(eval.diagnostics);
         var result = new EvaluationResult(evalResult, hasValue, diagnostics, eval.exceptions);
         return result;
+    }
+
+    /// <summary>
+    /// Emits the program to a string.
+    /// </summary>
+    /// <param name="buildMode">Which emitter to use.</param>
+    /// <param name="moduleName">
+    /// Name of the module. If <param name="buildMode" /> is set to <see cref="BuildMode.CSharpTranspile" /> this is
+    /// used as the namespace name instead.
+    /// </param>
+    /// <param name="references">
+    /// .NET references, only applicable if <param name="buildMode" /> is set to <see cref="BuildMode.Dotnet" />.
+    /// </param>
+    /// <returns>Emitted program as a string. Diagnostics must be accessed manually off of this.</returns>
+    public string EmitToString(BuildMode buildMode, string moduleName, string[] references = null) {
+        foreach (var syntaxTree in syntaxTrees)
+            diagnostics.Move(syntaxTree.diagnostics);
+
+        if (diagnostics.Errors().Any())
+            return null;
+
+        var program = GetProgram();
+        program.diagnostics.Move(diagnostics);
+
+        if (program.diagnostics.Errors().Any())
+            return null;
+
+        if (buildMode == BuildMode.CSharpTranspile) {
+            var content = CSharpEmitter.Emit(program, moduleName, out var emitterDiagnostics);
+            diagnostics.Move(emitterDiagnostics);
+            return content;
+        } else if (buildMode == BuildMode.Dotnet) {
+            var content = ILEmitter.Emit(program, moduleName, references, out var emitterDiagnostics);
+            diagnostics.Move(emitterDiagnostics);
+            return content;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Gets all Symbols across submissions (only global scope).
+    /// </summary>
+    /// <returns>All Symbols (checks all previous Compilations).</returns>
+    public IEnumerable<ISymbol> GetSymbols() => GetSymbols<ISymbol>();
+
+    /// <summary>
+    /// Gets all Symbols of certain child type across submissions (only global scope).
+    /// </summary>
+    /// <typeparam name="T">Type of <see cref="Symbol" /> to get.</typeparam>
+    /// <returns>Found symbols.</returns>
+    public IEnumerable<T> GetSymbols<T>() where T : ISymbol {
+        var submission = this;
+        var seenSymbolNames = new HashSet<string>();
+        var builtins = BuiltinMethods.GetAll();
+
+        while (submission != null) {
+            foreach (var method in submission.methods)
+                if (seenSymbolNames.Add(method.SignatureNoReturnNoParameterNames()) && method is T t)
+                    yield return t;
+
+            foreach (var builtin in builtins)
+                if (seenSymbolNames.Add(builtin.SignatureNoReturnNoParameterNames()) && builtin is T t)
+                    yield return t;
+
+            foreach (var variable in submission.variables)
+                if (seenSymbolNames.Add(variable.name) && variable is T t)
+                    yield return t;
+
+            foreach (var type in submission.types)
+                if (seenSymbolNames.Add(type.name) && type is T t)
+                    yield return t;
+
+            submission = submission.previous;
+        }
     }
 
     /// <summary>
@@ -212,44 +250,6 @@ public sealed class Compilation {
             diagnostics.Push(Fatal.Unsupported.IndependentCompilation());
 
         return diagnostics;
-    }
-
-    /// <summary>
-    /// Emits the program to a string.
-    /// </summary>
-    /// <param name="buildMode">Which emitter to use.</param>
-    /// <param name="moduleName">
-    /// Name of the module. If <param name="buildMode" /> is set to <see cref="BuildMode.CSharpTranspile" /> this is
-    /// used as the namespace name instead.
-    /// </param>
-    /// <param name="references">
-    /// .NET references, only applicable if <param name="buildMode" /> is set to <see cref="BuildMode.Dotnet" />.
-    /// </param>
-    /// <returns>Emitted program as a string. Diagnostics must be accessed manually off of this.</returns>
-    internal string EmitToString(BuildMode buildMode, string moduleName, string[] references = null) {
-        foreach (var syntaxTree in syntaxTrees)
-            diagnostics.Move(syntaxTree.diagnostics);
-
-        if (diagnostics.Errors().Any())
-            return null;
-
-        var program = GetProgram();
-        program.diagnostics.Move(diagnostics);
-
-        if (program.diagnostics.Errors().Any())
-            return null;
-
-        if (buildMode == BuildMode.CSharpTranspile) {
-            var content = CSharpEmitter.Emit(program, moduleName, out var emitterDiagnostics);
-            diagnostics.Move(emitterDiagnostics);
-            return content;
-        } else if (buildMode == BuildMode.Dotnet) {
-            var content = ILEmitter.Emit(program, moduleName, references, out var emitterDiagnostics);
-            diagnostics.Move(emitterDiagnostics);
-            return content;
-        }
-
-        return null;
     }
 
     /// <summary>

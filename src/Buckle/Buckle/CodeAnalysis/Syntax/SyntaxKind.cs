@@ -4,7 +4,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// All types of things to be found in a source file.
 /// </summary>
-internal enum SyntaxKind {
+public enum SyntaxKind {
     // Punctuation
     TildeToken,
     ExclamationToken,

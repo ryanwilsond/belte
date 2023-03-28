@@ -4,7 +4,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// A type symbol. This is just the base type name, not a full <see cref="Binding.BoundType" />.
 /// </summary>
-internal class TypeSymbol : Symbol {
+internal class TypeSymbol : Symbol, ITypeSymbol {
     /// <summary>
     /// Error type (meaning something went wrong, not an actual type).
     /// </summary>
@@ -52,5 +52,5 @@ internal class TypeSymbol : Symbol {
     /// <param name="name">Name of type.</param>
     internal TypeSymbol(string name) : base(name) { }
 
-    internal override SymbolKind kind => SymbolKind.Type;
+    public override SymbolKind kind => SymbolKind.Type;
 }

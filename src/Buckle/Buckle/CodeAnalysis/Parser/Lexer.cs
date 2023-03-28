@@ -112,8 +112,6 @@ internal sealed class Lexer {
                     break;
                 default:
                     // Other whitespace; use case labels on most common whitespace because its faster
-                    // ! However the speed gain is almost definitely negligible and probably not worth the
-                    // ! readability loss
                     if (char.IsWhiteSpace(current))
                         ReadWhitespace();
                     else

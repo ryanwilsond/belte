@@ -15,14 +15,14 @@ namespace Repl;
 /// <summary>
 /// Overrides default console handling and controls all keystrokes. Adds framework for meta commands and submissions.
 /// </summary>
-public abstract class ReplBase {
+public abstract class Repl {
     /// <summary>
     /// The width of a tab or '\t' character in spaces.
     /// </summary>
     internal const int TabWidth = 4;
 
     /// <summary>
-    /// Handles outputting <see cref="ReplBase" /> text to an out.
+    /// Handles outputting <see cref="Repl" /> text to an out.
     /// </summary>
     internal OutputCapture _writer = new OutputCapture();
 
@@ -32,7 +32,7 @@ public abstract class ReplBase {
     internal Compiler handle;
 
     /// <summary>
-    /// Particular <see cref="ReplBase.DiagnosticHandle" /> used to handle diagnostics in the <see cref="ReplBase" />.
+    /// Particular <see cref="Repl.DiagnosticHandle" /> used to handle diagnostics in the <see cref="Repl" />.
     /// </summary>
     internal DiagnosticHandle diagnosticHandle;
 
@@ -46,7 +46,7 @@ public abstract class ReplBase {
     private bool _done;
     private bool _evaluate;
 
-    protected ReplBase(Compiler handle, DiagnosticHandle diagnosticHandle) {
+    protected Repl(Compiler handle, DiagnosticHandle diagnosticHandle) {
         this.handle = handle;
         this.diagnosticHandle = diagnosticHandle;
         InitializeMetaCommands();
@@ -65,7 +65,7 @@ public abstract class ReplBase {
     private delegate object LineRenderHandler(IReadOnlyList<string> lines, int lineIndex, object state);
 
     /// <summary>
-    /// <see cref="ReplBase" /> specific state used by child classes.
+    /// <see cref="Repl" /> specific state used by child classes.
     /// </summary>
     internal abstract object _state { get; set; }
 
@@ -79,8 +79,8 @@ public abstract class ReplBase {
     }
 
     /// <summary>
-    /// Run loop of the <see cref="ReplBase" /> (exited with ctrl + c or entering blank lines).
-    /// Does not initialize <see cref="ReplBase" />, only runs it.
+    /// Run loop of the <see cref="Repl" /> (exited with ctrl + c or entering blank lines).
+    /// Does not initialize <see cref="Repl" />, only runs it.
     /// </summary>
     public void Run() {
         string text;
@@ -143,7 +143,7 @@ public abstract class ReplBase {
     }
 
     /// <summary>
-    /// Reloads <see cref="ReplBase" /> to start accepting submissions again.
+    /// Reloads <see cref="Repl" /> to start accepting submissions again.
     /// </summary>
     internal void ReviveDocument() {
         // TODO Redisplay previous submissions
@@ -970,7 +970,7 @@ public abstract class ReplBase {
         var command = _metaCommands.SingleOrDefault(mc => mc.name == commandName);
 
         if (command == null) {
-            handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.UnknownReplCommand(line)));
+            handle.diagnostics.Push(new BelteDiagnostic(global::Repl.Diagnostics.Error.UnknownReplCommand(line)));
 
             if (diagnosticHandle != null)
                 diagnosticHandle(handle, "repl");
@@ -990,7 +990,7 @@ public abstract class ReplBase {
             } else {
                 var parameterNames = string.Join(" ", parameters.Select(p => $"<{p.Name}>"));
                 handle.diagnostics.Push(
-                    new BelteDiagnostic(Repl.Diagnostics.Error.WrongArgumentCount(command.name, parameterNames))
+                    new BelteDiagnostic(global::Repl.Diagnostics.Error.WrongArgumentCount(command.name, parameterNames))
                 );
 
                 if (diagnosticHandle != null)

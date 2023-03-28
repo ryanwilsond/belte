@@ -15,11 +15,11 @@ namespace Buckle.CodeAnalysis.Display;
 /// Represents a piece of text with classifications for segments of text.
 /// Can be multiple lines.
 /// </summary>
-internal sealed class DisplayText {
+public sealed class DisplayText {
     private List<DisplayTextSegment> _segments;
     private bool _writeIndent = true;
 
-    internal DisplayText() {
+    public DisplayText() {
         _segments = new List<DisplayTextSegment>();
         indent = 0;
     }
@@ -42,7 +42,11 @@ internal sealed class DisplayText {
         return builder.ToString();
     }
 
-    internal ImmutableArray<DisplayTextSegment> Flush() {
+    /// <summary>
+    /// Returns the contents of this, and then clears this.
+    /// </summary>
+    /// <returns>The contents before clearing.</returns>
+    public ImmutableArray<DisplayTextSegment> Flush() {
         var array = ImmutableArray.CreateRange<DisplayTextSegment>(_segments);
         _segments.Clear();
 
@@ -53,7 +57,7 @@ internal sealed class DisplayText {
     /// Appends a <see cref="DisplayTextSegment" /> to the end of this <see cref="DisplayText" />.
     /// </summary>
     /// <param name="segment"><see cref="DisplayTextSegment" /> to append.</param>
-    internal void Write(DisplayTextSegment segment) {
+    public void Write(DisplayTextSegment segment) {
         if (_writeIndent) {
             _writeIndent = false;
 

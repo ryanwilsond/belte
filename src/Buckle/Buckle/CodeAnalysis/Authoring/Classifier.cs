@@ -8,14 +8,14 @@ namespace Buckle.CodeAnalysis.Authoring;
 /// <summary>
 /// Classifies parsed SyntaxNodes.
 /// </summary>
-internal static class Classifier {
+public static class Classifier {
     /// <summary>
     /// Classifies SyntaxNodes in a <see cref="SyntaxTree" /> within a <see cref="TextSpan" />.
     /// </summary>
     /// <param name="syntaxTree"><see cref="SyntaxTree" /> to classify.</param>
     /// <param name="span">What segment of the <see cref="SyntaxTree" /> to classify.</param>
     /// <returns>All Classifications made within the <see cref="TextSpan" /> of the <see cref="SyntaxTree" />.</returns>
-    internal static ImmutableArray<ClassifiedSpan> Classify(SyntaxTree syntaxTree, TextSpan span) {
+    public static ImmutableArray<ClassifiedSpan> Classify(SyntaxTree syntaxTree, TextSpan span) {
         var result = ImmutableArray.CreateBuilder<ClassifiedSpan>();
         ClassifyNode(syntaxTree.root, span, result);
 

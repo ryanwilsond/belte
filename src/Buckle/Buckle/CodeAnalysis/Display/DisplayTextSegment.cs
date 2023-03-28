@@ -6,7 +6,7 @@ namespace Buckle.CodeAnalysis.Display;
 /// <summary>
 /// A single piece of text with a single <see cref="Classification" /> associated with it.
 /// </summary>
-internal sealed class DisplayTextSegment {
+public sealed class DisplayTextSegment {
     private DisplayTextSegment(string text, Classification classification) {
         this.text = text;
         this.classification = classification;
@@ -15,31 +15,31 @@ internal sealed class DisplayTextSegment {
     /// <summary>
     /// Raw text being represented.
     /// </summary>
-    internal string text { get; }
+    public string text { get; }
 
     /// <summary>
     /// The <see cref="Classification" /> associated with the represented text.
     /// </summary>
-    internal Classification classification { get; }
+    public Classification classification { get; }
 
     /// <summary>
     /// Creates a new line.
     /// </summary>
-    internal static DisplayTextSegment CreateLine() {
+    public static DisplayTextSegment CreateLine() {
         return new DisplayTextSegment(null, Classification.Line);
     }
 
     /// <summary>
     /// Creates a space.
     /// </summary>
-    internal static DisplayTextSegment CreateSpace() {
+    public static DisplayTextSegment CreateSpace() {
         return new DisplayTextSegment(" ", Classification.Text);
     }
 
     /// <summary>
     /// Creates an indentation (usually displayed as a tab).
     /// </summary>
-    internal static DisplayTextSegment CreateIndent() {
+    public static DisplayTextSegment CreateIndent() {
         return new DisplayTextSegment(null, Classification.Indent);
     }
 
@@ -47,7 +47,7 @@ internal sealed class DisplayTextSegment {
     /// Creates a keyword.
     /// </summary>
     /// <param name="text">Text to be treated as a keyword.</param>
-    internal static DisplayTextSegment CreateKeyword(string text) {
+    public static DisplayTextSegment CreateKeyword(string text) {
         return new DisplayTextSegment(text, Classification.Keyword);
     }
 
@@ -55,7 +55,7 @@ internal sealed class DisplayTextSegment {
     /// Creates a keyword.
     /// </summary>
     /// <param name="kind"><see cref="SyntaxKind" /> to be treated as a keyword, converts to text.</param>
-    internal static DisplayTextSegment CreateKeyword(SyntaxKind kind) {
+    public static DisplayTextSegment CreateKeyword(SyntaxKind kind) {
         return CreateKeyword(SyntaxFacts.GetText(kind));
     }
 
@@ -63,7 +63,7 @@ internal sealed class DisplayTextSegment {
     /// Creates a punctuation.
     /// </summary>
     /// <param name="text">Text to be treated as a punctuation.</param>
-    internal static DisplayTextSegment CreatePunctuation(string text) {
+    public static DisplayTextSegment CreatePunctuation(string text) {
         return new DisplayTextSegment(text, Classification.Text);
     }
 
@@ -71,7 +71,7 @@ internal sealed class DisplayTextSegment {
     /// Creates a punctuation.
     /// </summary>
     /// <param name="text"><see cref="SyntaxKind" /> to be treated as a punctuation, converts to text.</param>
-    internal static DisplayTextSegment CreatePunctuation(SyntaxKind kind) {
+    public static DisplayTextSegment CreatePunctuation(SyntaxKind kind) {
         return CreatePunctuation(SyntaxFacts.GetText(kind));
     }
 
@@ -79,7 +79,7 @@ internal sealed class DisplayTextSegment {
     /// Creates a identifier.
     /// </summary>
     /// <param name="text">Text to be treated as a identifier.</param>
-    internal static DisplayTextSegment CreateIdentifier(string text) {
+    public static DisplayTextSegment CreateIdentifier(string text) {
         return new DisplayTextSegment(text, Classification.Identifier);
     }
 
@@ -87,7 +87,7 @@ internal sealed class DisplayTextSegment {
     /// Creates a type.
     /// </summary>
     /// <param name="text">Text to be treated as a type.</param>
-    internal static DisplayTextSegment CreateType(string text) {
+    public static DisplayTextSegment CreateType(string text) {
         return new DisplayTextSegment(text, Classification.Type);
     }
 
@@ -95,7 +95,7 @@ internal sealed class DisplayTextSegment {
     /// Creates a number.
     /// </summary>
     /// <param name="text">Text to be treated as a number.</param>
-    internal static DisplayTextSegment CreateNumber(string text) {
+    public static DisplayTextSegment CreateNumber(string text) {
         return new DisplayTextSegment(text, Classification.Number);
     }
 
@@ -103,7 +103,7 @@ internal sealed class DisplayTextSegment {
     /// Creates a string.
     /// </summary>
     /// <param name="text">Text to be treated as a string (Belte string, not a C# string).</param>
-    internal static DisplayTextSegment CreateString(string text) {
+    public static DisplayTextSegment CreateString(string text) {
         return new DisplayTextSegment(text, Classification.String);
     }
 
@@ -111,7 +111,7 @@ internal sealed class DisplayTextSegment {
     /// Creates a string escape sequence.
     /// </summary>
     /// <param name="text">Text to be treated as an escape sequence.</param>
-    internal static DisplayTextSegment CreateEscape(string text) {
+    public static DisplayTextSegment CreateEscape(string text) {
         return new DisplayTextSegment(text, Classification.Escape);
     }
 
@@ -119,7 +119,7 @@ internal sealed class DisplayTextSegment {
     /// Creates a red Node.
     /// </summary>
     /// <param name="text">Text to be treated as a red Node.</param>
-    internal static DisplayTextSegment CreateRedNode(string text) {
+    public static DisplayTextSegment CreateRedNode(string text) {
         return new DisplayTextSegment(text, Classification.RedNode);
     }
 
@@ -127,7 +127,7 @@ internal sealed class DisplayTextSegment {
     /// Creates a green Node.
     /// </summary>
     /// <param name="text">Text to be treated as a green Node.</param>
-    internal static DisplayTextSegment CreateGreenNode(string text) {
+    public static DisplayTextSegment CreateGreenNode(string text) {
         return new DisplayTextSegment(text, Classification.GreenNode);
     }
 
@@ -135,7 +135,7 @@ internal sealed class DisplayTextSegment {
     /// Creates a green Node.
     /// </summary>
     /// <param name="text"><see cref="SyntaxKind" /> to be treated as a green Node, converts to text.</param>
-    internal static DisplayTextSegment CreateGreenNode(SyntaxKind kind) {
+    public static DisplayTextSegment CreateGreenNode(SyntaxKind kind) {
         return CreateGreenNode(SyntaxFacts.GetText(kind));
     }
 
@@ -143,7 +143,7 @@ internal sealed class DisplayTextSegment {
     /// Creates a blue Node.
     /// </summary>
     /// <param name="text">Text to be treated as a blue Node.</param>
-    internal static DisplayTextSegment CreateBlueNode(string text) {
+    public static DisplayTextSegment CreateBlueNode(string text) {
         return new DisplayTextSegment(text, Classification.BlueNode);
     }
 
@@ -151,7 +151,7 @@ internal sealed class DisplayTextSegment {
     /// Creates a blue Node.
     /// </summary>
     /// <param name="text"><see cref="SyntaxKind" /> to be treated as a blue Node, converts to text.</param>
-    internal static DisplayTextSegment CreateBlueNode(SyntaxKind kind) {
+    public static DisplayTextSegment CreateBlueNode(SyntaxKind kind) {
         return CreateBlueNode(SyntaxFacts.GetText(kind));
     }
 }

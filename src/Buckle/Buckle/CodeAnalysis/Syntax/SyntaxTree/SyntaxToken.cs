@@ -9,7 +9,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// Token type.
 /// </summary>
-internal sealed class SyntaxToken : SyntaxNode {
+public sealed class SyntaxToken : SyntaxNode {
     /// <param name="position">
     /// Position of <see cref="SyntaxToken" /> (indexed by the <see cref="SyntaxNode" />, not character
     /// in <see cref="SourceText" />).
@@ -50,7 +50,7 @@ internal sealed class SyntaxToken : SyntaxNode {
     /// <summary>
     /// If <see cref="SyntaxToken" /> was created artificially, or if it came from the <see cref="SourceText" />.
     /// </summary>
-    internal bool isFabricated => text == null;
+    public bool isFabricated => text == null;
 
     internal override TextSpan span => new TextSpan(position, text?.Length ?? 0);
 

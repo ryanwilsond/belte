@@ -366,7 +366,6 @@ internal abstract class BoundTreeExpander {
 
     protected virtual List<BoundStatement> ExpandCompoundAssignmentExpression(
         BoundCompoundAssignmentExpression expression, out BoundExpression replacement) {
-        // ! TEMP - This should actually expand something
         var statements = ExpandExpression(expression.left, out var leftReplacement);
         statements.AddRange(ExpandExpression(expression.right, out var rightReplacement));
 

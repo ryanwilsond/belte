@@ -16,9 +16,9 @@ using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 namespace Repl;
 
 /// <summary>
-/// Uses framework from <see cref="ReplBase" /> and adds syntax highlighting and evaluation.
+/// Uses framework from <see cref="Repl" /> and adds syntax highlighting and evaluation.
 /// </summary>
-public sealed class BelteRepl : ReplBase {
+public sealed class BelteRepl : Repl {
     private static readonly CompilationOptions defaultOptions = new CompilationOptions(BuildMode.Repl, true, false);
     private static readonly Compilation emptyCompilation = Compilation.CreateScript(defaultOptions, null);
     private Dictionary<string, ColorTheme> InUse = new Dictionary<string, ColorTheme>() {
@@ -53,7 +53,7 @@ public sealed class BelteRepl : ReplBase {
     internal override object _state { get; set; }
 
     /// <summary>
-    /// Cast of <see cref="ReplBase" /> specific state that has <see cref="BelteRepl" /> related state.
+    /// Cast of <see cref="Repl" /> specific state that has <see cref="BelteRepl" /> related state.
     /// </summary>
     internal BelteReplState state {
         get {
@@ -70,7 +70,7 @@ public sealed class BelteRepl : ReplBase {
         state.showWarnings = false;
         state.showIL = false;
         state.loadingSubmissions = false;
-        state.variables = new Dictionary<VariableSymbol, EvaluatorObject>();
+        state.variables = new Dictionary<IVariableSymbol, IEvaluatorObject>();
         state.previous = null;
         state.currentPage = Page.Repl;
         base.ResetState();
@@ -158,7 +158,7 @@ public sealed class BelteRepl : ReplBase {
                 var iLCode = compilation.EmitToString(BuildMode.Dotnet, "ReplSubmission");
                 _writer.Write(iLCode);
             } catch (KeyNotFoundException) {
-                handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.FailedILGeneration()));
+                handle.diagnostics.Push(new BelteDiagnostic(global::Repl.Diagnostics.Error.FailedILGeneration()));
             }
         }
 
@@ -401,7 +401,7 @@ public sealed class BelteRepl : ReplBase {
     [MetaCommand("load", "Load in text from <path>")]
     private void EvaluateLoad(string path) {
         if (!File.Exists(path)) {
-            handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.NoSuchFile(path)));
+            handle.diagnostics.Push(new BelteDiagnostic(global::Repl.Diagnostics.Error.NoSuchFile(path)));
 
             if (diagnosticHandle != null)
                 diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
@@ -435,10 +435,10 @@ public sealed class BelteRepl : ReplBase {
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
         var symbols = (signature == name
             ? compilation.GetSymbols().Where(f => f.name == name)
-            : compilation.GetSymbols<MethodSymbol>().Where(f => f.SignatureNoReturnNoParameterNames() == signature))
+            : compilation.GetSymbols<IMethodSymbol>().Where(f => f.SignatureNoReturnNoParameterNames() == signature))
                 .ToArray();
 
-        Symbol symbol = null;
+        ISymbol symbol = null;
         var displayText = new DisplayText();
 
         if (symbols.ToArray().Length == 0 && signature.StartsWith('<')) {
@@ -449,24 +449,26 @@ public sealed class BelteRepl : ReplBase {
                 compilation.EmitTree(name, displayText);
                 WriteDisplayText(displayText);
                 return;
-            } catch (BelteInternalException) { }
+            } catch (BelteException) {
+                // If the generated method does not actually exist, just ignore and continue
+            }
         }
 
         if (symbols.Length == 0) {
             if (signature == name)
-                handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.UndefinedSymbol(name)));
+                handle.diagnostics.Push(new BelteDiagnostic(global::Repl.Diagnostics.Error.UndefinedSymbol(name)));
             else
-                handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.NoSuchMethod(signature)));
+                handle.diagnostics.Push(new BelteDiagnostic(global::Repl.Diagnostics.Error.NoSuchMethod(signature)));
         } else if (symbols.Length == 1) {
             symbol = symbols.Single();
         } else if (signature == name) {
-            var temp = symbols.Where(s => s is not MethodSymbol);
+            var temp = symbols.Where(s => s is not IMethodSymbol);
 
             if (temp.Any()) {
                 symbol = temp.First();
             } else {
                 handle.diagnostics.Push(
-                    new BelteDiagnostic(Repl.Diagnostics.Error.AmbiguousSignature(signature, symbols))
+                    new BelteDiagnostic(global::Repl.Diagnostics.Error.AmbiguousSignature(signature, symbols))
                 );
             }
         } else {
@@ -496,7 +498,7 @@ public sealed class BelteRepl : ReplBase {
     private void EvaluateSaveToFile(string path, string count = "1") {
         if (!Int32.TryParse(count, out var countInt)) {
             handle.diagnostics.Push(
-                new BelteDiagnostic(Repl.Diagnostics.Error.InvalidArgument(count, typeof(Int32))));
+                new BelteDiagnostic(global::Repl.Diagnostics.Error.InvalidArgument(count, typeof(Int32))));
 
             if (diagnosticHandle != null)
                 diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
@@ -829,6 +831,6 @@ public sealed class BelteRepl : ReplBase {
         /// Current defined variables.
         /// Not tracked after Repl instance is over, instead previous submissions are reevaluated.
         /// </summary>
-        internal Dictionary<VariableSymbol, EvaluatorObject> variables;
+        internal Dictionary<IVariableSymbol, IEvaluatorObject> variables;
     }
 }

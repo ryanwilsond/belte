@@ -1,15 +1,10 @@
-using Buckle.CodeAnalysis.Display;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 /// <summary>
-/// A base symbol.
+/// Represents a symbol (class, method, parameter, etc.) exposed by the compiler.
 /// </summary>
-internal abstract class Symbol : ISymbol {
-    private protected Symbol(string name) {
-        this.name = name;
-    }
-
+public interface ISymbol {
     /// <summary>
     /// Name of the symbol.
     /// </summary>
@@ -19,8 +14,4 @@ internal abstract class Symbol : ISymbol {
     /// The type of symbol this is (see <see cref="SymbolKind" />).
     /// </summary>
     public abstract SymbolKind kind { get; }
-
-    public override string ToString() {
-        return SymbolDisplay.DisplaySymbol(this).ToString();
-    }
 }

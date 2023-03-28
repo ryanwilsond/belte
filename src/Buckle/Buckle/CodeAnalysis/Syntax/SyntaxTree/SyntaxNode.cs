@@ -23,7 +23,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// }
 /// <code>
 /// </summary>
-internal abstract class SyntaxNode {
+public abstract class SyntaxNode {
     protected SyntaxNode(SyntaxTree syntaxTree) {
         this.syntaxTree = syntaxTree;
     }
@@ -102,7 +102,7 @@ internal abstract class SyntaxNode {
     /// Write text representation of this <see cref="SyntaxNode" /> to an out.
     /// </summary>
     /// <param name="text">Out.</param>
-    internal void WriteTo(DisplayText text) {
+    public void WriteTo(DisplayText text) {
         PrettyPrint(text, this);
     }
 
@@ -110,7 +110,7 @@ internal abstract class SyntaxNode {
     /// Gets last <see cref="SyntaxToken" /> (of all children, recursive) under this <see cref="SyntaxNode" />.
     /// </summary>
     /// <returns>Last <see cref="SyntaxToken" />.</returns>
-    internal SyntaxToken GetLastToken() {
+    public SyntaxToken GetLastToken() {
         if (this is SyntaxToken t)
             return t;
 
