@@ -535,7 +535,7 @@ internal sealed class ILEmitter {
     }
 
     private void EmitMethodDeclaration(MethodSymbol method, bool isMain) {
-        var methodType = isMain ? GetType(BoundType.Copy(method.type, isNullable: false)) : GetType(method.type);
+        var methodType = isMain ? GetType(BoundType.CopyWith(method.type, isNullable: false)) : GetType(method.type);
         var newMethod = new MethodDefinition(
             method.name, MethodAttributes.Static | MethodAttributes.Private, methodType);
 

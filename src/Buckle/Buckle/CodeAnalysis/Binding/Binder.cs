@@ -590,7 +590,7 @@ internal sealed class Binder {
 
             var parameter = new ParameterSymbol(
                 $"${variable.name}",
-                BoundType.Copy(variable.type, isReference: true, isExplicitReference: true),
+                BoundType.CopyWith(variable.type, isReference: true, isExplicitReference: true),
                 ordinal++,
                 null
             );
@@ -1028,7 +1028,7 @@ internal sealed class Binder {
                 return null;
 
             var tempType = type.isImplicit ? initializer.type : type;
-            var variableType = BoundType.Copy(
+            var variableType = BoundType.CopyWith(
                 tempType,
                 isConstant: (type.isConstant && !type.isImplicit) ? true : null,
                 isConstantReference: ((type.isConstant && type.isImplicit) || type.isConstantReference) ? true : null,
@@ -1092,7 +1092,7 @@ internal sealed class Binder {
             }
 
             var tempType = type.isImplicit ? initializer.type : type;
-            var variableType = BoundType.Copy(
+            var variableType = BoundType.CopyWith(
                 tempType, isConstant: type.isConstant ? true : null, isNullable: isNullable, isLiteral: false
             );
 
@@ -1105,7 +1105,7 @@ internal sealed class Binder {
 
             var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
             var variable = BindVariable(expression.identifier,
-                BoundType.Copy(
+                BoundType.CopyWith(
                     type, typeSymbol: itemType.typeSymbol, isExplicitReference: false,
                     isLiteral: false, dimensions: variableType.dimensions
                 ),
@@ -1122,7 +1122,7 @@ internal sealed class Binder {
                 : new BoundTypeWrapper(type, new BoundConstant(null));
 
             var tempType = type.isImplicit ? initializer.type : type;
-            var variableType = BoundType.Copy(
+            var variableType = BoundType.CopyWith(
                 tempType, isConstant: type.isConstant ? true : null, isNullable: isNullable, isLiteral: false
             );
 
@@ -1443,7 +1443,7 @@ internal sealed class Binder {
             if (type == null || type.isImplicit || type.typeSymbol == null) {
                 var tempType = tempItem.type;
 
-                type = BoundType.Copy(
+                type = BoundType.CopyWith(
                     tempType, isImplicit: false, isNullable: type?.isNullable,
                     isLiteral: true, dimensions: tempType.dimensions + 1
                 );

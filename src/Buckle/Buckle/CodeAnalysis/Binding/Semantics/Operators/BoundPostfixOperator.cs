@@ -56,12 +56,10 @@ internal sealed class BoundPostfixOperator {
     /// <param name="operandType">Operand <see cref="BoundType" />.</param>
     /// <returns><see cref="BoundPostfixOperator" /> if an operator exists, otherwise null.</returns>
     internal static BoundPostfixOperator Bind(SyntaxKind kind, BoundType operandType) {
-        var nonNullableOperand = BoundType.Copy(operandType, isNullable: false);
-
         foreach (var op in _operators) {
             var operandIsCorrect = op.operandType == null
                 ? true
-                : Cast.Classify(nonNullableOperand, op.operandType).isImplicit;
+                : Cast.Classify(operandType, op.operandType, false).isImplicit;
 
             if (op.kind == kind && operandIsCorrect) {
                 if (op.operandType == null) {
@@ -70,8 +68,8 @@ internal sealed class BoundPostfixOperator {
                     return new BoundPostfixOperator(
                         kind,
                         op.opKind,
-                        BoundType.Copy(op.operandType, isNullable: true),
-                        BoundType.Copy(op.type, isNullable: true)
+                        BoundType.CopyWith(op.operandType, isNullable: true),
+                        BoundType.CopyWith(op.type, isNullable: true)
                     );
                 } else {
                     return op;

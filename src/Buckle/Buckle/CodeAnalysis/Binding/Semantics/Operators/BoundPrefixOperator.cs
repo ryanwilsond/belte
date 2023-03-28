@@ -58,12 +58,10 @@ internal sealed class BoundPrefixOperator {
     /// <param name="operandType">Operand <see cref="BoundType" />.</param>
     /// <returns><see cref="BoundPrefixOperator" /> if an operator exists, otherwise null.</returns>
     internal static BoundPrefixOperator Bind(SyntaxKind kind, BoundType operandType) {
-        var nonNullableOperand = BoundType.Copy(operandType, isNullable: false);
-
         foreach (var op in _operators) {
             var operandIsCorrect = op.operandType == null
                 ? true
-                : Cast.Classify(nonNullableOperand, op.operandType).isImplicit;
+                : Cast.Classify(operandType, op.operandType, false).isImplicit;
 
             if (op.kind == kind && operandIsCorrect) {
                 if (op.operandType == null) {
@@ -72,8 +70,8 @@ internal sealed class BoundPrefixOperator {
                     return new BoundPrefixOperator(
                         kind,
                         op.opKind,
-                        BoundType.Copy(op.operandType, isNullable: true),
-                        BoundType.Copy(op.type, isNullable: true)
+                        BoundType.CopyWith(op.operandType, isNullable: true),
+                        BoundType.CopyWith(op.type, isNullable: true)
                     );
                 } else {
                     return op;

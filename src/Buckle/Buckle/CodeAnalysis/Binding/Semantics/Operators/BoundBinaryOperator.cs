@@ -161,17 +161,14 @@ internal sealed class BoundBinaryOperator {
     /// <param name="rightType">Right operand type.</param>
     /// <returns><see cref="BoundBinaryOperator" /> if an operator exists, otherwise null.</returns>
     internal static BoundBinaryOperator Bind(SyntaxKind kind, BoundType leftType, BoundType rightType) {
-        var nonNullableLeft = BoundType.Copy(leftType, isNullable: false);
-        var nonNullableRight = BoundType.Copy(rightType, isNullable: false);
-
         foreach (var op in _operators) {
             var leftIsCorrect = op.leftType == null
                 ? true
-                : Cast.Classify(nonNullableLeft, op.leftType).isImplicit;
+                : Cast.Classify(leftType, op.leftType, false).isImplicit;
 
             var rightIsCorrect = op.rightType == null
                 ? true
-                : Cast.Classify(nonNullableRight, op.rightType).isImplicit;
+                : Cast.Classify(rightType, op.rightType, false).isImplicit;
 
             if (op.kind == kind && leftIsCorrect && rightIsCorrect) {
                 if (op.leftType == null || op.rightType == null) {
@@ -186,9 +183,9 @@ internal sealed class BoundBinaryOperator {
                     return new BoundBinaryOperator(
                         op.kind,
                         op.opKind,
-                        BoundType.Copy(op.leftType, isNullable: true),
-                        BoundType.Copy(op.rightType, isNullable: true),
-                        BoundType.Copy(op.type, isNullable: true)
+                        BoundType.CopyWith(op.leftType, isNullable: true),
+                        BoundType.CopyWith(op.rightType, isNullable: true),
+                        BoundType.CopyWith(op.type, isNullable: true)
                     );
                 } else {
                     return op;
