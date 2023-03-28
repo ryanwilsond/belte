@@ -17,10 +17,8 @@ internal static class CompilationExtensions {
     /// </summary>
     /// <param name="text">Out.</param>
     internal static void EmitTree(this Compilation self, DisplayText text) {
-        if (self.globalScope.mainMethod != null) {
-            EmitTree(self, self.globalScope.mainMethod, text);
-        } else if (self.globalScope.scriptMethod != null) {
-            EmitTree(self, self.globalScope.scriptMethod, text);
+        if (self.globalScope.entryPoint != null) {
+            EmitTree(self, self.globalScope.entryPoint, text);
         } else {
             var program = self.GetProgram();
 

@@ -41,9 +41,9 @@ public sealed class Compilation {
     internal CompilationOptions options { get; }
 
     /// <summary>
-    /// The main method/entry point of the program.
+    /// The entry point of the program.
     /// </summary>
-    internal MethodSymbol mainMethod => globalScope.mainMethod;
+    internal MethodSymbol entryPoint => globalScope.entryPoint;
 
     /// <summary>
     /// All MethodSymbols in the global scope.
@@ -265,11 +265,7 @@ public sealed class Compilation {
         var appPath = Environment.GetCommandLineArgs()[0];
         var appDirectory = Path.GetDirectoryName(appPath);
         var cfgPath = Path.Combine(appDirectory, "cfg.dot");
-        var cfgStatement = program.scriptMethod == null && program.mainMethod == null
-            ? null
-            : program.scriptMethod == null
-                ? program.methodBodies[program.mainMethod]
-                : program.methodBodies[program.scriptMethod];
+        var cfgStatement = program.entryPoint == null ? null : program.methodBodies[program.entryPoint];
 
         if (cfgStatement != null) {
             var cfg = ControlFlowGraph.Create(cfgStatement);

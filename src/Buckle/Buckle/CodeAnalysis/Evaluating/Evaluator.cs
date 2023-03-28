@@ -85,15 +85,12 @@ internal sealed class Evaluator {
     /// <param name="hasValue">If the evaluation had a returned result.</param>
     /// <returns>Result of <see cref="BoundProgram" /> (if applicable).</returns>
     internal object Evaluate(ref bool abort, out bool hasValue) {
-        var method = _program.mainMethod ?? _program.scriptMethod;
-
-        if (method == null) {
+        if (_program.entryPoint == null) {
             hasValue = false;
-
             return null;
         }
 
-        var body = LookupMethod(_methods, method);
+        var body = LookupMethod(_methods, _program.entryPoint);
         var result = EvaluateStatement(body, ref abort, out _);
         hasValue = _hasValue;
 

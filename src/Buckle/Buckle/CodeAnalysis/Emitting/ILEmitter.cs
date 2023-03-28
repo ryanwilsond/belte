@@ -287,19 +287,18 @@ internal sealed class ILEmitter {
             EmitStructDeclaration(structWithBody);
 
         foreach (var methodWithBody in program.methodBodies) {
-            var isMain = (program.mainMethod ?? program.scriptMethod)?.MethodMatches(methodWithBody.Key) ?? false;
+            var isMain = program.entryPoint?.MethodMatches(methodWithBody.Key) ?? false;
             EmitMethodDeclaration(methodWithBody.Key, isMain);
         }
 
         foreach (var methodWithBody in program.methodBodies) {
-            _insideMain = (program.mainMethod ?? program.scriptMethod)
-                ?.MethodMatches(methodWithBody.Key) ?? false;
+            _insideMain = program.entryPoint?.MethodMatches(methodWithBody.Key) ?? false;
 
             EmitMethodBody(methodWithBody.Key, methodWithBody.Value);
         }
 
-        if (program.mainMethod != null)
-            _assemblyDefinition.EntryPoint = LookupMethod(_methods, program.mainMethod);
+        if (program.entryPoint != null)
+            _assemblyDefinition.EntryPoint = LookupMethod(_methods, program.entryPoint);
     }
 
     private TypeReference ResolveType(string buckleName, string metadataName) {
