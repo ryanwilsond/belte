@@ -10,6 +10,7 @@ using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Repl.Themes;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
@@ -66,6 +67,8 @@ public sealed partial class BelteRepl : Repl {
         state.variables = new Dictionary<IVariableSymbol, IEvaluatorObject>();
         state.previous = null;
         state.currentPage = Page.Repl;
+        state.changes = new List<TextChange>();
+        state.tree = SyntaxTree.Parse("");
         base.ResetState();
     }
 
@@ -133,6 +136,15 @@ public sealed partial class BelteRepl : Repl {
 
     protected override void EvaluateSubmission(string text) {
         var syntaxTree = SyntaxTree.Parse(text);
+        EvaluateSubmissionInternal(syntaxTree);
+    }
+
+    protected override void EvaluateSubmission() {
+        state.tree = state.tree.WithChanges(state.changes.ToArray());
+        EvaluateSubmissionInternal(state.tree);
+    }
+
+    private void EvaluateSubmissionInternal(SyntaxTree syntaxTree) {
         var compilation = Compilation.CreateScript(defaultOptions, state.previous, syntaxTree);
         var displayText = new DisplayText();
 
@@ -195,7 +207,7 @@ public sealed partial class BelteRepl : Repl {
             }
 
             state.previous = compilation;
-            SaveSubmission(text);
+            SaveSubmission(syntaxTree.text.ToString());
         }
 
         Console.ForegroundColor = state.colorTheme.@default;

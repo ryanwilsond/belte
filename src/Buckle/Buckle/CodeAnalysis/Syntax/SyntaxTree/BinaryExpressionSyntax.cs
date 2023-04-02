@@ -37,3 +37,8 @@ internal sealed partial class BinaryExpressionSyntax : ExpressionSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.BinaryExpression;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal BinaryExpressionSyntax BinaryExpression(ExpressionSyntax left, SyntaxToken op, ExpressionSyntax right) =>
+        Create(new BinaryExpressionSyntax(_syntaxTree, left, op, right));
+}

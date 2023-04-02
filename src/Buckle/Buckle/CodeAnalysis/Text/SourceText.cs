@@ -1,8 +1,14 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace Buckle.CodeAnalysis.Text;
 
-public sealed class SourceText {
+/// <summary>
+/// A source of text the compiler uses, usually representing a source file.
+/// </summary>
+public class SourceText {
     private readonly string _text;
 
     /// <summary>
@@ -10,7 +16,7 @@ public sealed class SourceText {
     /// </summary>
     /// <param name="fileName">File name of the <see cref="SourceText" /> (where the text came from).</param>
     /// <param name="text">The contents of the file the <see cref="SourceText" /> comes from.</param>
-    private SourceText(string fileName, string text) {
+    protected SourceText(string fileName, string text) {
         lines = ParseLines(this, text);
         _text = text;
         this.fileName = fileName;
@@ -29,12 +35,12 @@ public sealed class SourceText {
     /// <summary>
     /// Indexing the source file contents.
     /// </summary>
-    public char this[int index] => _text[index];
+    public virtual char this[int index] => _text[index];
 
     /// <summary>
     /// The length of the entire <see cref="SourceText" />.
     /// </summary>
-    public int length => _text.Length;
+    public virtual int length => _text.Length;
 
     /// <summary>
     /// Creates a <see cref="SourceText" /> from a text, not necessarily relating to a source file.
@@ -101,6 +107,98 @@ public sealed class SourceText {
         return false;
     }
 
+    /// <summary>
+    /// Constructs a new <see cref="SourceText" /> from this with the specified changes.
+    /// </summary>
+    public SourceText WithChanges(params TextChange[] changes) {
+        return WithChanges(ImmutableArray.Create(changes));
+    }
+
+    /// <summary>
+    /// Constructs a new <see cref="SourceText" /> from this with the specified changes.
+    /// </summary>
+    public SourceText WithChanges(IEnumerable<TextChange> changes) {
+        if (!changes.Any())
+            return this;
+
+        var segments = ImmutableArray.CreateBuilder<SourceText>();
+        var changeRanges = ImmutableArray.CreateBuilder<TextChangeRange>();
+
+        int position = 0;
+
+        foreach (var change in changes) {
+            if (change.span.end > length)
+                throw new ArgumentException($"Changes ({nameof(changes)}) must be within bounds of SourceText");
+
+            if (change.span.start < position) {
+                if (change.span.end <= changeRanges.Last().span.start) {
+                    changes = (from c in changes
+                               where !(c.span.length == 0) || c.newText?.Length > 0
+                               orderby c.span
+                               select c).ToList();
+
+                    return WithChanges(changes);
+                }
+
+                throw new ArgumentException($"Changes ({nameof(changes)}) must not overlap");
+            }
+
+            var newTextLength = change.newText?.Length ?? 0;
+
+            if (change.span.length == 0 && newTextLength == 0)
+                continue;
+
+            if (change.span.start > position) {
+                var subText = GetSubText(new TextSpan(position, change.span.start - position));
+                CompositeText.AddSegments(segments, subText);
+            }
+
+            if (newTextLength > 0) {
+                var segment = SourceText.From(change.newText);
+                CompositeText.AddSegments(segments, segment);
+            }
+
+            position = change.span.end;
+            changeRanges.Add(new TextChangeRange(change.span, newTextLength));
+        }
+
+        if (position == 0 && segments.Count == 0)
+            return this;
+
+        if (position < length) {
+            var subText = GetSubText(new TextSpan(position, length - position));
+            CompositeText.AddSegments(segments, subText);
+        }
+
+        var newText = CompositeText.ToSourceText(segments.ToImmutable());
+        return new ChangedText(this, newText, changeRanges.ToImmutable());
+    }
+
+    /// <summary>
+    /// Gets all changes between <param name="oldText" /> and this.
+    /// </summary>
+    /// <returns>A collection of all changes (a delta collection).</returns>
+    internal virtual ImmutableArray<TextChangeRange> GetChangeRanges(SourceText oldText) {
+        if (oldText == this)
+            return ImmutableArray<TextChangeRange>.Empty;
+
+        return ImmutableArray.Create(new TextChangeRange(new TextSpan(0, oldText.length), length));
+    }
+
+    /// <summary>
+    /// Gets a <see cref="SourceText" /> that contains the characters in the specified span of this text.
+    /// </summary>
+    internal virtual SourceText GetSubText(TextSpan span) {
+        var spanLength = span.length;
+
+        if (spanLength == 0)
+            return SourceText.From("");
+        else if (spanLength == length && span.start == 0)
+            return this;
+        else
+            return new SubText(this, span);
+    }
+
     private static ImmutableArray<TextLine> ParseLines(SourceText pointer, string text) {
         var result = ImmutableArray.CreateBuilder<TextLine>();
 
@@ -108,13 +206,13 @@ public sealed class SourceText {
         int lineStart = 0;
 
         while (position < text.Length) {
-            var linebreakWidth = GetLineBreakWidth(text, position);
+            var lineBreakWidth = GetLineBreakWidth(text, position);
 
-            if (linebreakWidth == 0) {
+            if (lineBreakWidth == 0) {
                 position++;
             } else {
-                AddLine(result, pointer, position, lineStart, linebreakWidth);
-                position += linebreakWidth;
+                AddLine(result, pointer, position, lineStart, lineBreakWidth);
+                position += lineBreakWidth;
                 lineStart = position;
             }
         }
@@ -126,9 +224,9 @@ public sealed class SourceText {
     }
 
     private static void AddLine(ImmutableArray<TextLine>.Builder result, SourceText pointer,
-        int position, int lineStart, int linebreakWidth) {
+        int position, int lineStart, int lineBreakWidth) {
         var lineLength = position - lineStart;
-        var line = new TextLine(pointer, lineStart, lineLength, lineLength + linebreakWidth);
+        var line = new TextLine(pointer, lineStart, lineLength, lineLength + lineBreakWidth);
         result.Add(line);
     }
 

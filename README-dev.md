@@ -13,7 +13,7 @@ OnBoarding:
 
 ## Tools for Building
 
-This project uses the .NET SDK (7.0). To run the project, launch a debug or
+This project uses the .NET SDK (8.0). To run the project, launch a debug or
 release profile (currently only for Visual Studio Code). For publishing the
 project, GNU Make is used.
 

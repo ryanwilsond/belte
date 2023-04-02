@@ -25,3 +25,8 @@ internal sealed partial class PostfixExpressionSyntax : ExpressionSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.PostfixExpression;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal PostfixExpressionSyntax PostfixExpression(ExpressionSyntax operand, SyntaxToken op) =>
+        Create(new PostfixExpressionSyntax(_syntaxTree, operand, op));
+}

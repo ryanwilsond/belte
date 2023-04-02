@@ -4,7 +4,7 @@ BUCKDIR:=src/Buckle/Buckle
 DIAGDIR:=src/Buckle/Diagnostics
 REPLDIR:=src/Buckle/Repl
 
-NETVER:=net7.0
+NETVER:=net8.0
 SYSTEM:=win-x64
 SLN:=src/Buckle/Buckle.sln
 CP=cp

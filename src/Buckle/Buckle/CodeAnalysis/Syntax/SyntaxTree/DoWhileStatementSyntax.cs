@@ -40,3 +40,12 @@ internal sealed partial class DoWhileStatementSyntax : StatementSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.DoWhileStatement;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal DoWhileStatementSyntax DoWhileStatement(
+        SyntaxToken doKeyword, StatementSyntax body, SyntaxToken whileKeyword, SyntaxToken openParenthesis,
+        ExpressionSyntax condition, SyntaxToken closeParenthesis, SyntaxToken semicolon) =>
+        Create(new DoWhileStatementSyntax(
+            _syntaxTree, doKeyword, body, whileKeyword, openParenthesis, condition, closeParenthesis, semicolon)
+        );
+}

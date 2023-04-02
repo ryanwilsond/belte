@@ -22,3 +22,8 @@ internal sealed partial class BreakStatementSyntax : StatementSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.BreakStatement;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal BreakStatementSyntax BreakStatement(SyntaxToken keyword, SyntaxToken semicolon) =>
+        Create(new BreakStatementSyntax(_syntaxTree, keyword, semicolon));
+}

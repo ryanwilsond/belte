@@ -25,3 +25,9 @@ internal sealed partial class InitializerListExpressionSyntax : ExpressionSyntax
 
     internal override SyntaxKind kind => SyntaxKind.LiteralExpression;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal InitializerListExpressionSyntax InitializerListExpression(
+        SyntaxToken openBrace, SeparatedSyntaxList<ExpressionSyntax> items, SyntaxToken closeBrace) =>
+        Create(new InitializerListExpressionSyntax(_syntaxTree, openBrace, items, closeBrace));
+}

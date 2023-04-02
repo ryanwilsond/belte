@@ -11,11 +11,11 @@ namespace Buckle.CodeAnalysis.Syntax;
 internal sealed partial class MemberAccessExpressionSyntax : ExpressionSyntax {
     /// <param name="identifier">Name of the member to access.</param>
     internal MemberAccessExpressionSyntax(
-        SyntaxTree syntaxTree, ExpressionSyntax operand, SyntaxToken op, SyntaxToken identifer)
+        SyntaxTree syntaxTree, ExpressionSyntax operand, SyntaxToken op, SyntaxToken identifier)
         : base(syntaxTree) {
         this.operand = operand;
         this.op = op;
-        this.identifier = identifer;
+        this.identifier = identifier;
     }
 
     internal ExpressionSyntax operand { get; }
@@ -32,4 +32,10 @@ internal sealed partial class MemberAccessExpressionSyntax : ExpressionSyntax {
     internal SyntaxToken? identifier { get; }
 
     internal override SyntaxKind kind => SyntaxKind.MemberAccessExpression;
+}
+
+internal sealed partial class SyntaxFactory {
+    internal MemberAccessExpressionSyntax MemberAccessExpression(
+        ExpressionSyntax operand, SyntaxToken op, SyntaxToken identifier) =>
+        Create(new MemberAccessExpressionSyntax(_syntaxTree, operand, op, identifier));
 }

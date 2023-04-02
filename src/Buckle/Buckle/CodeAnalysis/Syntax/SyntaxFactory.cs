@@ -2,39 +2,57 @@ using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
-internal static partial class SyntaxFactory {
-    internal static SyntaxToken Token(SyntaxTree syntaxTree, SyntaxKind kind, int position, string text) {
+/// <summary>
+/// Class used for handling the creation of SyntaxNodes.
+/// </summary>
+internal sealed partial class SyntaxFactory {
+    private readonly SyntaxTree _syntaxTree;
+
+    internal SyntaxFactory(SyntaxTree syntaxTree) {
+        _syntaxTree = syntaxTree;
+    }
+
+    internal SyntaxToken Token(SyntaxKind kind, int position, string text) {
         return new SyntaxToken(
-            syntaxTree, kind, position, text, null,
+            _syntaxTree, kind, position, text, null,
             ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty
         );
     }
 
-    internal static SyntaxToken Token(SyntaxKind kind, string text) {
-        return Token(null, kind, -1, text);
+    internal SyntaxToken Token(SyntaxKind kind, string text) {
+        return Token(kind, -1, text);
     }
 
-    internal static SyntaxToken Token(SyntaxTree syntaxTree, SyntaxKind kind, int position) {
-        return Token(syntaxTree, kind, position, null);
+    internal SyntaxToken Token(SyntaxKind kind, int position) {
+        return Token(kind, position, null);
     }
 
-    internal static SyntaxToken Token(SyntaxKind kind) {
+    internal SyntaxToken Token(SyntaxKind kind) {
         return Token(kind, null);
     }
 
-    internal static SyntaxToken Identifier(string name) {
-        return new SyntaxToken(null, SyntaxKind.IdentifierToken, -1, name, null,
+    internal SyntaxToken Identifier(string name) {
+        return new SyntaxToken(
+            _syntaxTree, SyntaxKind.IdentifierToken, -1, name, null,
             ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty
         );
     }
 
-    internal static NameExpressionSyntax Name(string name) {
-        return new NameExpressionSyntax(null, Token(SyntaxKind.IdentifierToken, name));
+    internal NameExpressionSyntax Name(string name) {
+        return new NameExpressionSyntax(_syntaxTree, Token(SyntaxKind.IdentifierToken, name));
     }
 
-    internal static ReferenceExpressionSyntax Reference(string name) {
+    internal ReferenceExpressionSyntax Reference(string name) {
         return new ReferenceExpressionSyntax(
-            null, Token(SyntaxKind.RefExpression), Token(SyntaxKind.IdentifierToken, name)
+            _syntaxTree, Token(SyntaxKind.RefExpression), Token(SyntaxKind.IdentifierToken, name)
         );
+    }
+
+    internal SyntaxTrivia Skipped(SyntaxToken badToken) {
+        return new SyntaxTrivia(_syntaxTree, SyntaxKind.SkippedTokenTrivia, badToken.position, badToken.text);
+    }
+
+    private T Create<T>(T node) where T : SyntaxNode {
+        return SyntaxNode.InitializeChildrenParents(node);
     }
 }

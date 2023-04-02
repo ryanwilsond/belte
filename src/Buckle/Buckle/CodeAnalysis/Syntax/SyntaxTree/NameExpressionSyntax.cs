@@ -21,3 +21,8 @@ internal sealed partial class NameExpressionSyntax : ExpressionSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.NameExpression;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal NameExpressionSyntax NameExpression(SyntaxToken identifier) =>
+        Create(new NameExpressionSyntax(_syntaxTree, identifier));
+}

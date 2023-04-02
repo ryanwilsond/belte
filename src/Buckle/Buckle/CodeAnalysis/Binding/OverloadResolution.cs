@@ -198,7 +198,7 @@ internal sealed class OverloadResolution {
                         if (!parameter.name.StartsWith('$'))
                             continue;
 
-                        var argument = SyntaxFactory.Reference(parameter.name.Substring(1));
+                        var argument = new SyntaxFactory(null).Reference(parameter.name.Substring(1));
                         var boundArgument = _binder.BindCast(argument, parameter.type, argument: i);
                         currentBoundArguments.Add(boundArgument);
                     }

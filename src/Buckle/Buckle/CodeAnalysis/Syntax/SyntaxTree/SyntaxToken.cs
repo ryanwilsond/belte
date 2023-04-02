@@ -79,4 +79,11 @@ public sealed class SyntaxToken : SyntaxNode {
     internal override IEnumerable<SyntaxNode> GetChildren() {
         return Array.Empty<SyntaxNode>();
     }
+
+    /// <summary>
+    /// Creates a new token identical to this, except for the leading trivia.
+    /// </summary>
+    internal SyntaxToken WithLeadingTrivia(ImmutableArray<SyntaxTrivia> newLeadingTrivia) {
+        return new SyntaxToken(syntaxTree, kind, position, text, value, newLeadingTrivia, trailingTrivia);
+    }
 }

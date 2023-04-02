@@ -1412,7 +1412,7 @@ internal sealed class Binder {
         }
 
         if (isInner)
-            methods = ImmutableArray.Create<Symbol>(_scope.LookupSymbol<Symbol>(innerName));
+            methods = ImmutableArray.Create(_scope.LookupSymbol<Symbol>(innerName));
 
         var result = _overloadResolution.MethodInvocationOverloadResolution(
             methods, argumentsBuilder.ToImmutable(), expression

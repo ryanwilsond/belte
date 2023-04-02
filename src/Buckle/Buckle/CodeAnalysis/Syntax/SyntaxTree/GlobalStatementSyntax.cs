@@ -22,3 +22,8 @@ internal sealed partial class GlobalStatementSyntax : MemberSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.GlobalStatement;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal GlobalStatementSyntax GlobalStatement(StatementSyntax statement) =>
+        Create(new GlobalStatementSyntax(_syntaxTree, statement));
+}

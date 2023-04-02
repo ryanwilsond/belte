@@ -37,3 +37,9 @@ internal sealed partial class IndexExpressionSyntax : ExpressionSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.IndexExpression;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal IndexExpressionSyntax IndexExpression(
+        ExpressionSyntax operand, SyntaxToken openBracket, ExpressionSyntax index, SyntaxToken closeBracket) =>
+        Create(new IndexExpressionSyntax(_syntaxTree, operand, openBracket, index, closeBracket));
+}

@@ -26,3 +26,8 @@ public sealed partial class CompilationUnitSyntax : SyntaxNode {
 
     internal override SyntaxKind kind => SyntaxKind.CompilationUnit;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal CompilationUnitSyntax CompilationUnit(ImmutableArray<MemberSyntax> members, SyntaxToken endOfFile) =>
+        Create(new CompilationUnitSyntax(_syntaxTree, members, endOfFile));
+}

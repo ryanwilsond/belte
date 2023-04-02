@@ -10,12 +10,14 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// Tree of SyntaxNodes produced from the <see cref="InternalSyntax.Parser" />.
 /// </summary>
 public sealed class SyntaxTree {
-    private SyntaxTree(SourceText text, ParseHandler handler) {
+    private SyntaxTree(SourceText text) {
+        // Responsibility of settings the root is put on the caller
         this.text = text;
         diagnostics = new BelteDiagnosticQueue();
+    }
 
+    private SyntaxTree(SourceText text, ParseHandler handler) : this(text) {
         handler(this, out var _root, out diagnostics);
-
         root = _root;
     }
 
@@ -26,7 +28,7 @@ public sealed class SyntaxTree {
     /// <summary>
     /// Root <see cref="SyntaxNode" />, does not represent something in a source file rather the entire source file.
     /// </summary>
-    public CompilationUnitSyntax root { get; }
+    public CompilationUnitSyntax root { get; private set; }
 
     /// <summary>
     /// <see cref="SourceText" /> the <see cref="SyntaxTree" /> was created from.
@@ -43,6 +45,8 @@ public sealed class SyntaxTree {
     /// </summary>
     internal BelteDiagnosticQueue diagnostics;
 
+    private int length => root?.fullSpan?.length ?? text.length;
+
     /// <summary>
     /// Parses text (not necessarily related to a source file).
     /// </summary>
@@ -52,6 +56,14 @@ public sealed class SyntaxTree {
         var sourceText = SourceText.From(text);
 
         return Parse(sourceText);
+    }
+
+    /// <summary>
+    /// Creates a new <see cref="SyntaxTree" /> with the given changes.
+    /// </summary>
+    public SyntaxTree WithChanges(params TextChange[] changes) {
+        var newText = text.WithChanges(changes);
+        return WithChangedText(newText);
     }
 
     /// <summary>
@@ -160,6 +172,34 @@ public sealed class SyntaxTree {
         diagnostics.Move(syntaxTree.diagnostics);
 
         return tokens.ToImmutableArray();
+    }
+
+    /// <summary>
+    /// Creates a new syntax based off this tree using a new source text.
+    /// </summary>
+    internal SyntaxTree WithChangedText(SourceText newText) {
+        var changes = newText.GetChangeRanges(text);
+
+        return WithChanges(newText, changes);
+    }
+
+    private SyntaxTree WithChanges(SourceText newText, ImmutableArray<TextChangeRange> changes) {
+        ImmutableArray<TextChangeRange>? workingChanges = changes;
+        var oldTree = this;
+
+        if (workingChanges?.Length == 1 &&
+            workingChanges?[0].span == new TextSpan(0, length) &&
+            workingChanges?[0].newLength == newText.length) {
+            workingChanges = null;
+            oldTree = null;
+        }
+
+        var tree = new SyntaxTree(newText);
+        var parser = new InternalSyntax.Parser(tree, oldTree?.root, workingChanges);
+        tree.root = parser.ParseCompilationUnit();
+        tree.diagnostics.Move(parser.diagnostics);
+
+        return tree;
     }
 
     private static void Parse(

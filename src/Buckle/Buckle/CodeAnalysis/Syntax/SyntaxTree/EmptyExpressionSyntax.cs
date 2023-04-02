@@ -23,3 +23,8 @@ internal sealed partial class EmptyExpressionSyntax : ExpressionSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.EmptyExpression;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal EmptyExpressionSyntax Empty(SyntaxToken artificialLocation = null) =>
+        Create(new EmptyExpressionSyntax(_syntaxTree, artificialLocation));
+}

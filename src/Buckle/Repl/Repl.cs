@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using Buckle;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 
 namespace Repl;
@@ -37,6 +38,7 @@ public abstract partial class Repl {
     private readonly List<string> _submissionHistory = new List<string>();
     private readonly List<MetaCommand> _metaCommands = new List<MetaCommand>();
 
+    protected List<TextChange> _changes = new List<TextChange>();
     protected bool _abortEvaluation;
     protected bool _showTime;
 
@@ -74,6 +76,7 @@ public abstract partial class Repl {
         _done = false;
         _evaluate = true;
         _showTime = false;
+        _changes = new List<TextChange>();
     }
 
     /// <summary>
@@ -85,7 +88,7 @@ public abstract partial class Repl {
         bool broke;
 
         void EvaluateSubmissionWrapper() {
-            EvaluateSubmission(text);
+            EvaluateSubmission();
         }
 
         void ctrlCHandler(object sender, ConsoleCancelEventArgs args) {
@@ -175,6 +178,7 @@ public abstract partial class Repl {
 
     protected abstract bool IsCompleteSubmission(string text);
     protected abstract void EvaluateSubmission(string text);
+    protected abstract void EvaluateSubmission();
 
     [MetaCommand("help", "Shows this document")]
     protected void EvaluateHelp() {

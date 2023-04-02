@@ -28,3 +28,8 @@ internal sealed partial class PrefixExpressionSyntax : ExpressionSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.PrefixExpression;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal PrefixExpressionSyntax PrefixExpression(SyntaxToken op, ExpressionSyntax operand) =>
+        Create(new PrefixExpressionSyntax(_syntaxTree, op, operand));
+}

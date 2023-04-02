@@ -47,3 +47,10 @@ internal sealed partial class TryStatementSyntax : StatementSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.TryStatement;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal TryStatementSyntax TryStatement(
+        SyntaxToken keyword, BlockStatementSyntax body,
+        CatchClauseSyntax catchClause, FinallyClauseSyntax finallyClause) =>
+        Create(new TryStatementSyntax(_syntaxTree, keyword, body, catchClause, finallyClause));
+}

@@ -19,3 +19,8 @@ internal sealed partial class FieldDeclarationSyntax : MemberSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.FieldDeclaration;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal FieldDeclarationSyntax FieldDeclaration(VariableDeclarationStatementSyntax declaration) =>
+        Create(new FieldDeclarationSyntax(_syntaxTree, declaration));
+}

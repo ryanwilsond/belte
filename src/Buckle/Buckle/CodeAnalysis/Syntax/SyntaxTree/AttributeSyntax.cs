@@ -25,3 +25,8 @@ internal sealed partial class AttributeSyntax : SyntaxNode {
 
     internal override SyntaxKind kind => SyntaxKind.Attribute;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal AttributeSyntax Attribute(SyntaxToken openBracket, SyntaxToken identifier, SyntaxToken closeBracket) =>
+        Create(new AttributeSyntax(_syntaxTree, openBracket, identifier, closeBracket));
+}

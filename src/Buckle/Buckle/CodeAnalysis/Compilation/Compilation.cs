@@ -33,7 +33,7 @@ public sealed class Compilation {
     /// <summary>
     /// Diagnostics relating to the <see cref="Compilation" />.
     /// </summary>
-    public BelteDiagnosticQueue diagnostics { get; set; }
+    public BelteDiagnosticQueue diagnostics { get; }
 
     /// <summary>
     /// Options and flags for the compilation.

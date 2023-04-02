@@ -30,3 +30,9 @@ internal sealed partial class ReturnStatementSyntax : StatementSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.ReturnStatement;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal ReturnStatementSyntax ReturnStatement(
+        SyntaxToken keyword, ExpressionSyntax expression, SyntaxToken semicolon) =>
+        Create(new ReturnStatementSyntax(_syntaxTree, keyword, expression, semicolon));
+}

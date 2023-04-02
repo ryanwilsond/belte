@@ -45,3 +45,12 @@ internal sealed partial class MethodDeclarationSyntax : MemberSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.MethodDeclaration;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal MethodDeclarationSyntax MethodDeclaration(
+        TypeSyntax returnType, SyntaxToken identifier, SyntaxToken openParenthesis,
+        SeparatedSyntaxList<ParameterSyntax> parameters, SyntaxToken closeParenthesis, BlockStatementSyntax body) =>
+        Create(new MethodDeclarationSyntax(
+            _syntaxTree, returnType, identifier, openParenthesis, parameters, closeParenthesis, body
+        ));
+}

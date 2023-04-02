@@ -51,3 +51,12 @@ internal sealed partial class IfStatementSyntax : StatementSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.IfStatement;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal IfStatementSyntax IfStatement(
+        SyntaxToken keyword, SyntaxToken openParenthesis, ExpressionSyntax condition,
+        SyntaxToken closeParenthesis, StatementSyntax then, ElseClauseSyntax elseClause) =>
+        Create(new IfStatementSyntax(
+            _syntaxTree, keyword, openParenthesis, condition, closeParenthesis, then, elseClause
+        ));
+}

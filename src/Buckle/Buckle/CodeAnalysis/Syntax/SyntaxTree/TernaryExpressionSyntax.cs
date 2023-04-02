@@ -52,3 +52,10 @@ internal sealed partial class TernaryExpressionSyntax : ExpressionSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.TernaryExpression;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal TernaryExpressionSyntax TernaryExpression(
+        ExpressionSyntax left, SyntaxToken leftOp,
+        ExpressionSyntax center, SyntaxToken rightOp, ExpressionSyntax right) =>
+        Create(new TernaryExpressionSyntax(_syntaxTree, left, leftOp, center, rightOp, right));
+}

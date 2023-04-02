@@ -34,3 +34,9 @@ internal sealed partial class AssignmentExpressionSyntax : ExpressionSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.AssignExpression;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal AssignmentExpressionSyntax AssignmentExpression(
+        ExpressionSyntax left, SyntaxToken assignmentToken, ExpressionSyntax right) =>
+        Create(new AssignmentExpressionSyntax(_syntaxTree, left, assignmentToken, right));
+}

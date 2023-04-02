@@ -1,6 +1,4 @@
 
-using System.Collections.Immutable;
-
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
@@ -29,4 +27,11 @@ internal sealed partial class ClassDeclarationSyntax : TypeDeclarationSyntax {
     internal new SyntaxToken closeBrace => base.closeBrace;
 
     internal override SyntaxKind kind => SyntaxKind.ClassDeclaration;
+}
+
+internal sealed partial class SyntaxFactory {
+    internal ClassDeclarationSyntax ClassDeclaration(
+        SyntaxToken keyword, SyntaxToken identifier, SyntaxToken openBrace,
+        SyntaxList<MemberSyntax> members, SyntaxToken closeBrace) =>
+        Create(new ClassDeclarationSyntax(_syntaxTree, keyword, identifier, openBrace, members, closeBrace));
 }

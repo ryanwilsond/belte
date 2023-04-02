@@ -39,3 +39,8 @@ internal sealed partial class ArgumentSyntax : SyntaxNode {
 
     internal override SyntaxKind kind => SyntaxKind.Argument;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal ArgumentSyntax Argument(SyntaxToken name, SyntaxToken colon, ExpressionSyntax expression) =>
+        Create(new ArgumentSyntax(_syntaxTree, name, colon, expression));
+}

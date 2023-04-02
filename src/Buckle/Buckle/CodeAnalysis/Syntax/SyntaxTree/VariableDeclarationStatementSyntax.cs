@@ -48,3 +48,10 @@ internal sealed partial class VariableDeclarationStatementSyntax : StatementSynt
 
     internal override SyntaxKind kind => SyntaxKind.VariableDeclarationStatement;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal VariableDeclarationStatementSyntax VariableDeclarationStatement(
+        TypeSyntax type, SyntaxToken identifier, SyntaxToken equals,
+        ExpressionSyntax initializer, SyntaxToken semicolon) =>
+        Create(new VariableDeclarationStatementSyntax(_syntaxTree, type, identifier, equals, initializer, semicolon));
+}

@@ -20,3 +20,8 @@ internal sealed partial class ElseClauseSyntax : SyntaxNode {
 
     internal override SyntaxKind kind => SyntaxKind.ElseClause;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal ElseClauseSyntax ElseClause(SyntaxToken keyword, StatementSyntax body) =>
+        Create(new ElseClauseSyntax(_syntaxTree, keyword, body));
+}

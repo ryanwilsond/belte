@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Repl.Themes;
 
 namespace Repl;
@@ -50,6 +52,16 @@ public sealed partial class BelteRepl {
         /// Previous <see cref="Compilation" /> (used to build of previous).
         /// </summary>
         internal Compilation previous;
+
+        /// <summary>
+        /// Current tree representation of the most recent submission.
+        /// </summary>
+        internal SyntaxTree tree;
+
+        /// <summary>
+        /// All changes to the text made between evaluating submissions.
+        /// </summary>
+        internal List<TextChange> changes;
 
         /// <summary>
         /// Current defined variables.

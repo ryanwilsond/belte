@@ -24,3 +24,11 @@ internal sealed partial class LiteralExpressionSyntax : ExpressionSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.LiteralExpression;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal LiteralExpressionSyntax Literal(SyntaxToken token, object value) =>
+        Create(new LiteralExpressionSyntax(_syntaxTree, token, value));
+
+    internal LiteralExpressionSyntax Literal(SyntaxToken token) =>
+        Create(new LiteralExpressionSyntax(_syntaxTree, token, token.value));
+}

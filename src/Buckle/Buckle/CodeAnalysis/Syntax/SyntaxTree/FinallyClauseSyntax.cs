@@ -25,3 +25,8 @@ internal sealed partial class FinallyClauseSyntax : SyntaxNode {
 
     internal override SyntaxKind kind => SyntaxKind.FinallyClause;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal FinallyClauseSyntax FinallyClause(SyntaxToken keyword, BlockStatementSyntax body) =>
+        Create(new FinallyClauseSyntax(_syntaxTree, keyword, body));
+}

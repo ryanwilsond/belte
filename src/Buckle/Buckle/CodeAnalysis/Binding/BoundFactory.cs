@@ -36,7 +36,7 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundBlockStatement Block(params BoundStatement[] statements) {
-        return new BoundBlockStatement(ImmutableArray.Create<BoundStatement>(statements));
+        return new BoundBlockStatement(ImmutableArray.Create(statements));
     }
 
     internal static BoundLabelStatement Label(BoundLabel label) {
@@ -65,7 +65,7 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundCallExpression Call(MethodSymbol method, params BoundExpression[] arguments) {
-        return new BoundCallExpression(method, ImmutableArray.Create<BoundExpression>(arguments));
+        return new BoundCallExpression(method, ImmutableArray.Create(arguments));
     }
 
     internal static BoundCastExpression Cast(BoundType type, BoundExpression expression) {

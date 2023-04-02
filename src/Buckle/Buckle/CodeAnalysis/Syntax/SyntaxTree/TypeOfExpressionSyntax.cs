@@ -34,3 +34,9 @@ internal sealed partial class TypeOfExpressionSyntax : ExpressionSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.TypeOfExpression;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal TypeOfExpressionSyntax TypeOfExpression(
+        SyntaxToken keyword, SyntaxToken openParenthesis, TypeSyntax type, SyntaxToken closeParenthesis) =>
+        Create(new TypeOfExpressionSyntax(_syntaxTree, keyword, openParenthesis, type, closeParenthesis));
+}

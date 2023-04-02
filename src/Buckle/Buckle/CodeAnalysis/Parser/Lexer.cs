@@ -44,6 +44,12 @@ internal sealed class Lexer {
     internal BelteDiagnosticQueue diagnostics { get; set; }
 
     /// <summary>
+    /// Current position of the lexer. This represents the next character that has not yet been lexed,
+    /// not the most recently lexed character.
+    /// </summary>
+    internal int position => _position;
+
+    /// <summary>
     /// Lexes the next un-lexed text to create a single <see cref="SyntaxToken" />.
     /// </summary>
     /// <returns>A new <see cref="SyntaxToken" />.</returns>
@@ -68,6 +74,13 @@ internal sealed class Lexer {
         return new SyntaxToken(
             _syntaxTree, tokenKind, tokenStart, tokenText, tokenValue, leadingTrivia, trailingTrivia
         );
+    }
+
+    /// <summary>
+    /// Moves where the lexer is reading from.
+    /// </summary>
+    internal void Move(int position) {
+        _position = position;
     }
 
     private char Peek(int offset) {

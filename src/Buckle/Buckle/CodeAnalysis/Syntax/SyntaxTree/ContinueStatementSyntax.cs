@@ -22,3 +22,8 @@ internal sealed partial class ContinueStatementSyntax : StatementSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.ContinueStatement;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal ContinueStatementSyntax ContinueStatement(SyntaxToken keyword, SyntaxToken semicolon) =>
+        Create(new ContinueStatementSyntax(_syntaxTree, keyword, semicolon));
+}

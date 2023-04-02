@@ -1,8 +1,9 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Diagnostics;
+using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -26,6 +27,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 public abstract class SyntaxNode {
     protected SyntaxNode(SyntaxTree syntaxTree) {
         this.syntaxTree = syntaxTree;
+        parent = null;
     }
 
     /// <summary>
@@ -86,6 +88,11 @@ public abstract class SyntaxNode {
     internal TextLocation location => syntaxTree == null ? null : new TextLocation(syntaxTree.text, span);
 
     /// <summary>
+    /// The parent of this node. The parent's children are this node's siblings.
+    /// </summary>
+    internal SyntaxNode parent { get; private set; }
+
+    /// <summary>
     /// Gets all child SyntaxNodes.
     /// Order should be consistent of how they look in a file, but calling code should not depend on that.
     /// </summary>
@@ -115,6 +122,96 @@ public abstract class SyntaxNode {
             return t;
 
         return GetChildren().Last().GetLastToken();
+    }
+
+    /// <summary>
+    /// Finds a token of this node whose span includes the supplied position.
+    /// </summary>
+    /// <param name="position">The character position of the token relative to the beginning of the file.</param>
+    internal SyntaxToken FindToken(int position) {
+        SyntaxToken endOfFile;
+        if (TryGetEndOfFileAt(position, out endOfFile))
+            return endOfFile;
+
+        if (!fullSpan.Contains(position))
+            throw new BelteInternalException($"FindToken: ArgumentOutOfRangeException: {nameof(position)}");
+
+        SyntaxNode currentNode = this;
+
+        while (true) {
+            var node = currentNode is not SyntaxToken ? currentNode : null;
+
+            if (node != null)
+                currentNode = node.ChildThatContainsPosition(position);
+            else
+                return currentNode as SyntaxToken;
+        }
+    }
+
+    /// <summary>
+    /// Sets each child node's parent to this.
+    /// </summary>
+    internal static T InitializeChildrenParents<T>(T node) where T : SyntaxNode {
+        foreach (var child in node.GetChildren())
+            child.parent = node;
+
+        return node as T;
+    }
+
+    internal static int GetFirstChildIndexSpanningPosition(SyntaxNode[] list, int position) {
+        int lo = 0;
+        int hi = list.Length - 1;
+
+        while (lo <= hi) {
+            int r = lo + ((hi - lo) >> 1);
+
+            var m = list[r];
+            if (position < m.fullSpan.start) {
+                hi = r - 1;
+            } else {
+                if (position == m.fullSpan.start) {
+                    for (; r > 0 && list[r - 1].fullSpan.length == 0; r--) ;
+
+                    return r;
+                }
+
+                if (position >= m.fullSpan.end) {
+                    lo = r + 1;
+                    continue;
+                }
+
+                return r;
+            }
+        }
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    private SyntaxNode ChildThatContainsPosition(int position) {
+        var children = GetChildren();
+
+        if (children.Count() == 0)
+            return this;
+
+        foreach (var child in children)
+            if (child.fullSpan.Contains(position))
+                return child.ChildThatContainsPosition(position);
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    private bool TryGetEndOfFileAt(int position, out SyntaxToken endOfFile) {
+        if (fullSpan.length == 0) {
+            var compilationUnit = this as CompilationUnitSyntax;
+
+            if (compilationUnit != null) {
+                endOfFile = compilationUnit.endOfFile;
+                return true;
+            }
+        }
+
+        endOfFile = null;
+        return false;
     }
 
     private void PrettyPrint(DisplayText text, SyntaxNode node, string indent = "", bool isLast = true) {

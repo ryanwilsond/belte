@@ -33,3 +33,9 @@ internal sealed partial class CastExpressionSyntax : ExpressionSyntax {
 
     internal override SyntaxKind kind => SyntaxKind.CastExpression;
 }
+
+internal sealed partial class SyntaxFactory {
+    internal CastExpressionSyntax CastExpression(
+        SyntaxToken openParenthesis, TypeSyntax type, SyntaxToken closeParenthesis, ExpressionSyntax expression) =>
+        Create(new CastExpressionSyntax(_syntaxTree, openParenthesis, type, closeParenthesis, expression));
+}
