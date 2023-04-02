@@ -30,6 +30,8 @@ Please delete options that are not relevant.
 
 **If no new syntax was added delete this section:**
 
+- [ ] I added my new syntax to the SyntaxTree folder
+- [ ] I updated the SyntaxFactory class (create a partial inside the new syntax source file)
 - [ ] I updated the Lexer class (if applicable)
 - [ ] I updated the Parser class
 - [ ] I updated the Binder class
