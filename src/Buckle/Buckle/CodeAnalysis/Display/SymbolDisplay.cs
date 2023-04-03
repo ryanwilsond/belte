@@ -94,7 +94,7 @@ public static class SymbolDisplay {
         text.Write(CreateIdentifier(symbol.name));
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
 
-        for (int i=0; i<symbol.parameters.Length; i++) {
+        for (int i = 0; i < symbol.parameters.Length; i++) {
             if (i > 0) {
                 text.Write(CreatePunctuation(SyntaxKind.CommaToken));
                 text.Write(CreateSpace());

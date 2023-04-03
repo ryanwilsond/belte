@@ -8,9 +8,9 @@ public sealed class TextLocation {
     /// <summary>
     /// Creates a <see cref="TextLocation" />.
     /// </summary>
-    /// <param name="text"><see cref="SourceText" /> the location is referencing.</param>
+    /// <param name="text"><see cref="StringText" /> the location is referencing.</param>
     /// <param name="span"><see cref="TextSpan" /> of how much <see cref="TextLocation" /> is referencing.</param>
-    public TextLocation(SourceText text, TextSpan span) {
+    internal TextLocation(SourceText text, TextSpan span) {
         this.text = text;
         this.span = span;
     }
@@ -28,7 +28,12 @@ public sealed class TextLocation {
     /// <summary>
     /// The filename of the source file.
     /// </summary>
-    public string fileName => text.fileName;
+    public string fileName {
+        get {
+            var stringText = text as StringText;
+            return stringText?.fileName;
+        }
+    }
 
     /// <summary>
     /// Checks what line (divided by line breaks) the <see cref="TextLocation" /> refers to by start of

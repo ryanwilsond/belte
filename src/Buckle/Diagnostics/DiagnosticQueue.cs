@@ -126,7 +126,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// </summary>
     /// <param name="type">Severity of Diagnostics to remove.</param>
     public void Clear(DiagnosticSeverity type) {
-        for (int i=0; i<_diagnostics.Count; i++) {
+        for (int i = 0; i < _diagnostics.Count; i++) {
             if (_diagnostics[i].info.severity == type)
                 _diagnostics.RemoveAt(i--);
         }

@@ -398,7 +398,7 @@ internal sealed class Binder {
     private string ConstructInnerName() {
         var name = "<";
 
-        for (int i=_innerPrefix.Count-1; i>0; i--) {
+        for (int i = _innerPrefix.Count - 1; i > 0; i--) {
             name += _innerPrefix.ToArray()[i];
 
             if (i > 1)
@@ -438,7 +438,7 @@ internal sealed class Binder {
         var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
         var seenParameterNames = new HashSet<string>();
 
-        for (int i=0; i<method.parameters.count; i++) {
+        for (int i = 0; i < method.parameters.count; i++) {
             var parameter = method.parameters[i];
             var parameterName = parameter.identifier.text;
             var parameterType = BindType(parameter.type);
@@ -1373,7 +1373,7 @@ internal sealed class Binder {
         var argumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
         var seenNames = new HashSet<string>();
 
-        for (int i=0; i<expression.arguments.count; i++) {
+        for (int i = 0; i < expression.arguments.count; i++) {
             var argumentName = expression.arguments[i].name;
 
             if (i < expression.arguments.count - 1 &&

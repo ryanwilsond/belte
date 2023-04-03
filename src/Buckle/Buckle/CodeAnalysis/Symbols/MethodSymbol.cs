@@ -71,7 +71,7 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
         if (name == right.name && parameters.Length == right.parameters.Length) {
             var parametersMatch = true;
 
-            for (int i=0; i<parameters.Length; i++) {
+            for (int i = 0; i < parameters.Length; i++) {
                 var checkParameter = parameters[i];
                 var parameter = right.parameters[i];
 

@@ -533,7 +533,7 @@ internal static class Error {
     internal static BelteDiagnostic AmbiguousOverload(TextLocation location, MethodSymbol[] symbols) {
         var message = new StringBuilder($"call is ambiguous between ");
 
-        for (int i=0; i<symbols.Length; i++) {
+        for (int i = 0; i < symbols.Length; i++) {
             if (i == symbols.Length - 1 && i > 1)
                 message.Append(", and ");
             else if (i == symbols.Length - 1)

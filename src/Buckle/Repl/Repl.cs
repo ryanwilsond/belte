@@ -62,7 +62,7 @@ public abstract partial class Repl {
     public delegate int DiagnosticHandle(
         Compiler compiler, string me = null, ConsoleColor textColor = ConsoleColor.White);
 
-    private delegate object LineRenderHandler(IReadOnlyList<string> lines, int lineIndex, object state);
+    private delegate void LineRenderHandler(IReadOnlyList<string> lines, int lineIndex);
 
     /// <summary>
     /// <see cref="Repl" /> specific state used by child classes.
@@ -88,7 +88,7 @@ public abstract partial class Repl {
         bool broke;
 
         void EvaluateSubmissionWrapper() {
-            EvaluateSubmission();
+            EvaluateSubmission(text);
         }
 
         void ctrlCHandler(object sender, ConsoleCancelEventArgs args) {
@@ -167,9 +167,8 @@ public abstract partial class Repl {
         return _submissionHistory;
     }
 
-    protected virtual object RenderLine(IReadOnlyList<string> lines, int lineIndex, object state) {
+    protected virtual void RenderLine(IReadOnlyList<string> lines, int lineIndex) {
         _writer.Write(lines[lineIndex]);
-        return state;
     }
 
     protected void ClearHistory() {
@@ -188,27 +187,43 @@ public abstract partial class Repl {
                 string.Join(" ", mc.method.GetParameters().SelectMany(p => p.Name).ToList()).Length +
                 string.Join(" ", mc.method.GetParameters().SelectMany(p => p.DefaultValue.ToString()).ToList()).Length);
 
-        var previous = Console.ForegroundColor;
-
         foreach (var metaCommand in _metaCommands.OrderBy(mc => mc.name)) {
             var name = metaCommand.name;
+            var args = "";
 
             foreach (var parameter in metaCommand.method.GetParameters()) {
                 if (parameter.HasDefaultValue)
-                    name += $" <{parameter.Name}={parameter.DefaultValue}>";
+                    args += $" <{parameter.Name}={parameter.DefaultValue}>";
                 else
-                    name += $" <{parameter.Name}>";
+                    args += $" <{parameter.Name}>";
             }
 
-            var paddedName = name.PadRight(maxLength);
             Console.ForegroundColor = ConsoleColor.DarkGray;
             _writer.Write("#");
-            Console.ForegroundColor = previous;
-            _writer.Write(paddedName);
-            _writer.Write("  ");
+            Console.ResetColor();
+            _writer.Write(name);
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            _writer.Write(metaCommand.description);
-            Console.ForegroundColor = previous;
+            _writer.Write($"{args.PadRight(maxLength - name.Length)}  {metaCommand.description}");
+            Console.ResetColor();
+            _writer.WriteLine();
+        }
+    }
+
+    [MetaCommand("state", "Dumps the current state of the Repl")]
+    protected void EvaluateState() {
+        var fields = _state.GetType()
+            .GetFields(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
+
+        var maxLength = fields.Max(f => f.Name.Length);
+        var previous = Console.ForegroundColor;
+
+        foreach (var field in fields) {
+            var paddedName = field.Name.PadRight(maxLength);
+            Console.ResetColor();
+            _writer.Write($"{paddedName}  ");
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            _writer.Write(field.GetValue(_state));
+            Console.ResetColor();
             _writer.WriteLine();
         }
     }
@@ -402,6 +417,7 @@ public abstract partial class Repl {
         if (remainingSpaces == 0 && whitespace > 0)
             remainingSpaces = 4;
 
+        AddChange(document, view.currentLine, 0, line.Length, line.Substring(remainingSpaces));
         document[view.currentLine] = line.Substring(remainingSpaces);
         view.currentCharacter -= remainingSpaces;
 
@@ -427,7 +443,9 @@ public abstract partial class Repl {
                 return;
 
             var nextLine = document[view.currentLine + 1];
+            AddChange(document, view.currentLine, document[view.currentLine].Length, 0, nextLine);
             document[view.currentLine] += nextLine;
+            AddRemoveLineChange(document, view.currentLine + 1);
             document.RemoveAt(view.currentLine + 1);
 
             return;
@@ -440,6 +458,7 @@ public abstract partial class Repl {
         if (ContainsOpening(line.Substring(start, offset)))
             view.currentBlockTabbing.Clear();
 
+        AddChange(document, lineIndex, 0, line.Length, before + after);
         document[lineIndex] = before + after;
     }
 
@@ -459,8 +478,10 @@ public abstract partial class Repl {
 
             var currentLine = document[view.currentLine];
             var previousLine = document[view.currentLine - 1];
+            AddRemoveLineChange(document, view.currentLine);
             document.RemoveAt(view.currentLine);
             view.currentLine--;
+            AddChange(document, view.currentLine, 0, previousLine.Length, previousLine + currentLine);
             document[view.currentLine] = previousLine + currentLine;
             view.currentCharacter = previousLine.Length;
         } else {
@@ -474,6 +495,7 @@ public abstract partial class Repl {
             if (ContainsOpening(line.Substring(start - offset, offset)))
                 view.currentBlockTabbing.Clear();
 
+            AddChange(document, lineIndex, 0, line.Length, before + after);
             document[lineIndex] = before + after;
             view.currentCharacter -= offset;
         }
@@ -698,19 +720,23 @@ public abstract partial class Repl {
         if (_submissionHistory.Count == 0)
             return;
 
+        AddClearChange(document);
         document.Clear();
 
         var historyItem = _submissionHistory[_submissionHistoryIndex];
         var lines = historyItem.Split(Environment.NewLine);
 
-        foreach (var line in lines)
+        foreach (var line in lines) {
+            AddInsertLineChange(document, document.Count, line);
             document.Add(line);
+        }
 
         view.currentLine = document.Count - 1;
         view.currentCharacter = document[view.currentLine].Length;
     }
 
     private void HandleEscape(ObservableCollection<string> document, SubmissionView view) {
+        AddClearChange(document);
         document.Clear();
         document.Add(string.Empty);
         view.currentLine = 0;
@@ -721,7 +747,9 @@ public abstract partial class Repl {
         var start = view.currentCharacter;
         var remainingSpaces = TabWidth - start % TabWidth;
         var line = document[view.currentLine];
-        document[view.currentLine] = line.Insert(start, new string(' ', remainingSpaces));
+        var newLine = line.Insert(start, new string(' ', remainingSpaces));
+        AddChange(document, view.currentLine, 0, line.Length, newLine);
+        document[view.currentLine] = newLine;
         view.currentCharacter += remainingSpaces;
 
         view.currentTypingTabbing++;
@@ -745,7 +773,9 @@ public abstract partial class Repl {
                 return;
 
             var nextLine = document[view.currentLine + 1];
+            AddChange(document, view.currentLine, document[view.currentLine].Length, 0, nextLine);
             document[view.currentLine] += nextLine;
+            AddRemoveLineChange(document, view.currentLine + 1);
             document.RemoveAt(view.currentLine + 1);
 
             return;
@@ -757,6 +787,7 @@ public abstract partial class Repl {
         if (ContainsOpening(line.Substring(start, 1)))
             view.currentBlockTabbing.Clear();
 
+        AddChange(document, lineIndex, 0, line.Length, before + after);
         document[lineIndex] = before + after;
     }
 
@@ -769,8 +800,10 @@ public abstract partial class Repl {
 
             var currentLine = document[view.currentLine];
             var previousLine = document[view.currentLine - 1];
+            AddRemoveLineChange(document, view.currentLine);
             document.RemoveAt(view.currentLine);
             view.currentLine--;
+            AddChange(document, view.currentLine, 0, previousLine.Length, previousLine + currentLine);
             document[view.currentLine] = previousLine + currentLine;
             view.currentCharacter = previousLine.Length;
         } else {
@@ -785,6 +818,7 @@ public abstract partial class Repl {
             if (ContainsOpening(line.Substring(start - offset, offset)))
                 view.currentBlockTabbing.Clear();
 
+            AddChange(document, lineIndex, 0, line.Length, before + after);
             document[lineIndex] = before + after;
             view.currentCharacter -= offset;
         }
@@ -855,19 +889,21 @@ public abstract partial class Repl {
                     foundPair = true;
 
                     if (string.IsNullOrWhiteSpace(document[lineIndex])) {
-                        for (int i=view.currentTypingTabbing; i>targetTabbing.Item2; i--)
+                        for (int i = view.currentTypingTabbing; i > targetTabbing.Item2; i--)
                             HandleShiftTab(document, view);
                     }
                 }
             }
 
             if (!foundPair && string.IsNullOrWhiteSpace(document[lineIndex])) {
+                AddChange(document, lineIndex, 0, document[lineIndex].Length, "");
                 document[lineIndex] = "";
                 view.currentCharacter = 0;
             }
         }
 
         var start = view.currentCharacter;
+        AddChange(document, lineIndex, start, 0, text);
         document[lineIndex] = document[lineIndex].Insert(start, text);
         view.currentCharacter += text.Length;
     }
@@ -906,10 +942,13 @@ public abstract partial class Repl {
     }
 
     private void InsertLine(ObservableCollection<string> document, SubmissionView view) {
+        var beginning = document[view.currentLine].Substring(0, view.currentCharacter);
         var remainder = document[view.currentLine].Substring(view.currentCharacter);
-        document[view.currentLine] = document[view.currentLine].Substring(0, view.currentCharacter);
+        AddChange(document, view.currentLine, 0, document[view.currentLine].Length, beginning);
+        document[view.currentLine] = beginning;
 
         var lineIndex = view.currentLine + 1;
+        AddInsertLineChange(document, lineIndex, remainder);
         document.Insert(lineIndex, remainder);
         view.currentCharacter = 0;
         view.currentLine = lineIndex;
@@ -923,6 +962,57 @@ public abstract partial class Repl {
         }
 
         HandleTyping(document, view, new String(' ', whitespace * TabWidth));
+    }
+
+    private void AddChange(
+        ObservableCollection<string> document, int lineIndex, int startIndex, int oldLength, string newText) {
+        var position = startIndex;
+
+        for (int i = 0; i < lineIndex; i++) {
+            position += document[i].Length + Environment.NewLine.Length;
+
+            if (i > 0)
+                position += Environment.NewLine.Length;
+        }
+
+        _changes.Add(new TextChange(new TextSpan(position, oldLength), newText));
+    }
+
+    private void AddClearChange(ObservableCollection<string> document) {
+        var length = 0;
+
+        foreach (var line in document)
+            length += line.Length + Environment.NewLine.Length;
+
+        _changes.Add(new TextChange(new TextSpan(0, length), ""));
+    }
+
+    private void AddInsertLineChange(ObservableCollection<string> document, int lineIndex, string newText) {
+        var position = 0;
+
+        for (int i = 0; i < lineIndex; i++) {
+            position += document[i].Length;
+
+            if (i > 0)
+                position += Environment.NewLine.Length;
+        }
+
+        _changes.Add(new TextChange(new TextSpan(position, 0), newText + Environment.NewLine));
+    }
+
+    private void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) {
+        var position = 0;
+
+        for (int i = 0; i < lineIndex; i++) {
+            position += document[i].Length;
+
+            if (i > 0)
+                position += Environment.NewLine.Length;
+        }
+
+        _changes.Add(
+            new TextChange(new TextSpan(position, document[lineIndex].Length + Environment.NewLine.Length), "")
+        );
     }
 
     private void EvaluateReplCommand(string line) {

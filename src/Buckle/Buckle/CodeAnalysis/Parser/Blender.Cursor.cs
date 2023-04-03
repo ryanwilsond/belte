@@ -26,7 +26,7 @@ internal sealed partial class Blender {
             if (currentNode.parent != null) {
                 var siblings = currentNode.parent.GetChildren().ToArray();
 
-                for (int i=_indexInParent+1, n=siblings.Length; i<n; i++) {
+                for (int i = _indexInParent + 1, n = siblings.Length; i < n; i++) {
                     var sibling = siblings[i];
 
                     if (IsNonZeroWidthOrIsEndOfFile(sibling))
@@ -64,7 +64,7 @@ internal sealed partial class Blender {
             var cursor = this;
 
             if (!cursor.isFinished) {
-                for (var node=cursor.currentNode; !node.kind.IsToken(); node=cursor.currentNode)
+                for (var node = cursor.currentNode; !node.kind.IsToken(); node = cursor.currentNode)
                     cursor = cursor.MoveToFirstChild();
             }
 
@@ -84,7 +84,7 @@ internal sealed partial class Blender {
             var children = node.parent.GetChildren().ToArray();
             var index = SyntaxNode.GetFirstChildIndexSpanningPosition(children, node.fullSpan.start);
 
-            for (int i=index, n=children.Length; i<n; i++) {
+            for (int i = index, n = children.Length; i < n; i++) {
                 var child = children[i];
 
                 if (child == node)

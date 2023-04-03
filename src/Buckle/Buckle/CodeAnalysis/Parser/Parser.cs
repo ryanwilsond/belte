@@ -46,7 +46,7 @@ internal sealed class Parser {
         _syntaxTree = syntaxTree;
         _lexer = new Lexer(_syntaxTree);
         _expectParenthesis = false;
-        _isIncremental = oldTree != null && changes != null;
+        _isIncremental = oldTree != null && changes.HasValue && changes.Value.Length > 0;
         _syntaxFactory = new SyntaxFactory(_syntaxTree);
 
         if (_isIncremental) {
@@ -70,7 +70,11 @@ internal sealed class Parser {
         }
     }
 
-    private SyntaxToken currentToken => _currentToken ?? (_currentToken = FetchCurrentToken());
+    private SyntaxToken currentToken {
+        get {
+            return _currentToken ?? (_currentToken = FetchCurrentToken());
+        }
+    }
 
     // Used for reusing nodes from the old tree. Just validate and call EatNode to reuse an old node.
     private SyntaxNode currentNode {
@@ -96,49 +100,41 @@ internal sealed class Parser {
     }
 
     private void PreLex() {
-        var size = Math.Min(4096, _syntaxTree.text.length);
+        var size = Math.Min(4096, Math.Max(32, _syntaxTree.text.length / 2));
         _lexedTokens = new ArrayElement<SyntaxToken>[size];
-        var badTokens = new List<SyntaxToken>();
 
-        for (int i=0; i<size; i++) {
+        for (int i = 0; i < size; i++) {
             var token = _lexer.LexNext();
 
-            if (token.kind == SyntaxKind.BadToken) {
-                badTokens.Add(token);
-                continue;
-            }
+            // if (token.kind == SyntaxKind.BadToken) {
+            //     badTokens.Add(token);
+            //     continue;
+            // }
 
-            if (badTokens.Count > 0) {
-                var leadingTrivia = token.leadingTrivia.ToBuilder();
-                var index = 0;
+            // if (badTokens.Count > 0) {
+            //     var leadingTrivia = token.leadingTrivia.ToBuilder();
+            //     var index = 0;
 
-                foreach (var badToken in badTokens) {
-                    foreach (var lt in badToken.leadingTrivia)
-                        leadingTrivia.Insert(index++, lt);
+            //     foreach (var badToken in badTokens) {
+            //         foreach (var lt in badToken.leadingTrivia)
+            //             leadingTrivia.Insert(index++, lt);
 
-                    var trivia = _syntaxFactory.Skipped(badToken);
-                    leadingTrivia.Insert(index++, trivia);
+            //         var trivia = _syntaxFactory.Skipped(badToken);
+            //         leadingTrivia.Insert(index++, trivia);
 
-                    foreach (var tt in badToken.trailingTrivia)
-                        leadingTrivia.Insert(index++, tt);
-                }
+            //         foreach (var tt in badToken.trailingTrivia)
+            //             leadingTrivia.Insert(index++, tt);
+            //     }
 
-                badTokens.Clear();
-                token = token.WithLeadingTrivia(leadingTrivia.ToImmutable());
-            }
+            //     badTokens.Clear();
+            //     token = token.WithLeadingTrivia(leadingTrivia.ToImmutable());
+            // }
 
             AddLexedToken(token);
 
             if (token.kind == SyntaxKind.EndOfFileToken)
                 break;
         }
-    }
-
-    private void ReadCurrentNode() {
-        if (_tokenOffset == 0)
-            _currentNode = _firstBlender.ReadNode();
-        else
-            _currentNode = _blendedTokens[_tokenOffset - 1].blender.ReadNode();
     }
 
     private SyntaxNode EatNode() {
@@ -154,6 +150,19 @@ internal sealed class Parser {
         _currentToken = null;
 
         return result;
+    }
+
+    private SyntaxToken EatToken() {
+        var saved = _currentToken;
+        MoveToNextToken();
+        return saved;
+    }
+
+    private void ReadCurrentNode() {
+        if (_tokenOffset == 0)
+            _currentNode = _firstBlender.ReadNode();
+        else
+            _currentNode = _blendedTokens[_tokenOffset - 1].blender.ReadNode();
     }
 
     private SyntaxToken FetchCurrentToken() {
@@ -182,7 +191,7 @@ internal sealed class Parser {
             if (_tokenCount > 0) {
                 AddToken(_blendedTokens[_tokenCount - 1].blender.ReadToken());
             } else {
-                if (_currentNode.token != null)
+                if (_currentNode?.token != null)
                     AddToken(_currentNode);
                 else
                     AddToken(_firstBlender.ReadToken());
@@ -211,7 +220,7 @@ internal sealed class Parser {
             nextWanted = SyntaxKind.CloseParenToken;
 
         if (currentToken.kind == kind)
-            return Next();
+            return EatToken();
 
         if (nextWanted != null && currentToken.kind == nextWanted) {
             diagnostics.Push(Error.ExpectedToken(currentToken.location, kind));
@@ -232,12 +241,6 @@ internal sealed class Parser {
         var saved = currentToken;
         _tokenOffset++;
 
-        return saved;
-    }
-
-    private SyntaxToken Next() {
-        var saved = _currentToken;
-        MoveToNextToken();
         return saved;
     }
 
@@ -383,7 +386,7 @@ internal sealed class Parser {
             members.Add(member);
 
             if (currentToken == startToken)
-                Next();
+                EatToken();
         }
 
         return members.ToImmutable();
@@ -407,7 +410,7 @@ internal sealed class Parser {
     }
 
     private MemberSyntax ParseStructDeclaration() {
-        var keyword = Next();
+        var keyword = EatToken();
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
         var openBrace = Match(SyntaxKind.OpenBraceToken);
         var members = ParseFieldList();
@@ -417,7 +420,7 @@ internal sealed class Parser {
     }
 
     private MemberSyntax ParseClassDeclaration() {
-        var keyword = Next();
+        var keyword = EatToken();
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
         var openBrace = Match(SyntaxKind.OpenBraceToken);
         var members = new SyntaxList<MemberSyntax>(ParseMembers());
@@ -461,7 +464,7 @@ internal sealed class Parser {
             nodesAndSeparators.Add(expression);
 
             if (currentToken.kind == SyntaxKind.CommaToken) {
-                var comma = Next();
+                var comma = EatToken();
                 nodesAndSeparators.Add(comma);
             } else {
                 parseNextParameter = false;
@@ -479,7 +482,7 @@ internal sealed class Parser {
         ExpressionSyntax defaultValue = null;
 
         if (currentToken.kind == SyntaxKind.EqualsToken) {
-            equals = Next();
+            equals = EatToken();
             defaultValue = ParseNonAssignmentExpression();
         }
 
@@ -539,7 +542,7 @@ internal sealed class Parser {
     }
 
     private StatementSyntax ParseTryStatement() {
-        var keyword = Next();
+        var keyword = EatToken();
         var body = ParseBlockStatement();
         var catchClause = ParseCatchClause();
         var finallyClause = ParseFinallyClause();
@@ -554,7 +557,7 @@ internal sealed class Parser {
         if (currentToken.kind != SyntaxKind.CatchKeyword)
             return null;
 
-        var keyword = Next();
+        var keyword = EatToken();
         var body = ParseBlockStatement();
 
         return _syntaxFactory.CatchClause(keyword, (BlockStatementSyntax)body);
@@ -564,14 +567,14 @@ internal sealed class Parser {
         if (currentToken.kind != SyntaxKind.FinallyKeyword)
             return null;
 
-        var keyword = Next();
+        var keyword = EatToken();
         var body = ParseBlockStatement();
 
         return _syntaxFactory.FinallyClause(keyword, (BlockStatementSyntax)body);
     }
 
     private StatementSyntax ParseReturnStatement() {
-        var keyword = Next();
+        var keyword = EatToken();
         ExpressionSyntax expression = null;
 
         if (currentToken.kind != SyntaxKind.SemicolonToken)
@@ -583,21 +586,21 @@ internal sealed class Parser {
     }
 
     private StatementSyntax ParseContinueStatement() {
-        var keyword = Next();
+        var keyword = EatToken();
         var semicolon = Match(SyntaxKind.SemicolonToken);
 
         return _syntaxFactory.ContinueStatement(keyword, semicolon);
     }
 
     private StatementSyntax ParseBreakStatement() {
-        var keyword = Next();
+        var keyword = EatToken();
         var semicolon = Match(SyntaxKind.SemicolonToken);
 
         return _syntaxFactory.BreakStatement(keyword, semicolon);
     }
 
     private StatementSyntax ParseDoWhileStatement() {
-        var doKeyword = Next();
+        var doKeyword = EatToken();
         var body = ParseStatement();
         var whileKeyword = Match(SyntaxKind.WhileKeyword);
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
@@ -618,7 +621,7 @@ internal sealed class Parser {
         ExpressionSyntax initializer = null;
 
         if (currentToken.kind == SyntaxKind.EqualsToken) {
-            equals = Next();
+            equals = EatToken();
             initializer = ParseExpression();
 
             if (declarationOnly)
@@ -631,7 +634,7 @@ internal sealed class Parser {
     }
 
     private StatementSyntax ParseWhileStatement() {
-        var keyword = Next();
+        var keyword = EatToken();
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
         var condition = ParseNonAssignmentExpression();
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
@@ -641,7 +644,7 @@ internal sealed class Parser {
     }
 
     private StatementSyntax ParseForStatement() {
-        var keyword = Next();
+        var keyword = EatToken();
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
 
         var initializer = ParseStatement();
@@ -664,7 +667,7 @@ internal sealed class Parser {
     }
 
     private StatementSyntax ParseIfStatement() {
-        var keyword = Next();
+        var keyword = EatToken();
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
         var condition = ParseNonAssignmentExpression();
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
@@ -736,7 +739,7 @@ internal sealed class Parser {
             statements.Add(statement);
 
             if (currentToken == startToken)
-                Next();
+                EatToken();
 
             startToken = currentToken;
         }
@@ -764,7 +767,7 @@ internal sealed class Parser {
             case SyntaxKind.PercentEqualsToken:
             case SyntaxKind.QuestionQuestionEqualsToken:
             case SyntaxKind.EqualsToken:
-                var operatorToken = Next();
+                var operatorToken = EatToken();
                 var right = ParseAssignmentExpression();
                 left = _syntaxFactory.AssignmentExpression(left, operatorToken, right);
                 break;
@@ -801,7 +804,7 @@ internal sealed class Parser {
         var unaryPrecedence = currentToken.kind.GetUnaryPrecedence();
 
         if (unaryPrecedence != 0 && unaryPrecedence >= parentPrecedence) {
-            var op = Next();
+            var op = EatToken();
 
             if (op.kind == SyntaxKind.PlusPlusToken || op.kind == SyntaxKind.MinusMinusToken) {
                 var operand = ParsePrimaryExpression();
@@ -820,7 +823,7 @@ internal sealed class Parser {
             if (precedence == 0 || precedence <= parentPrecedence)
                 break;
 
-            var op = Next();
+            var op = EatToken();
             var right = ParseOperatorExpression(precedence);
             left = _syntaxFactory.BinaryExpression(left, op, right);
         }
@@ -831,7 +834,7 @@ internal sealed class Parser {
             if (precedence == 0 || precedence < parentPrecedence)
                 break;
 
-            var leftOp = Next();
+            var leftOp = EatToken();
             var center = ParseOperatorExpression(precedence);
             var rightOp = Match(leftOp.kind.GetTernaryOperatorPair());
             var right = ParseOperatorExpression(precedence);
@@ -897,7 +900,7 @@ internal sealed class Parser {
             left = ParsePrimaryExpression(precedence, left);
 
             if (startToken == currentToken)
-                Next();
+                EatToken();
         }
 
         return left;
@@ -920,7 +923,7 @@ internal sealed class Parser {
     }
 
     private ExpressionSyntax ParsePostfixExpression(ExpressionSyntax operand) {
-        var op = Next();
+        var op = EatToken();
         return _syntaxFactory.PostfixExpression(operand, op);
     }
 
@@ -941,7 +944,7 @@ internal sealed class Parser {
             }
 
             if (currentToken.kind == SyntaxKind.CommaToken) {
-                var comma = Next();
+                var comma = EatToken();
                 nodesAndSeparators.Add(comma);
             } else {
                 parseNextItem = false;
@@ -963,7 +966,7 @@ internal sealed class Parser {
     }
 
     private ExpressionSyntax ParseTypeOfExpression() {
-        var keyword = Next();
+        var keyword = EatToken();
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
         var type = ParseType(false);
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
@@ -972,14 +975,14 @@ internal sealed class Parser {
     }
 
     private ExpressionSyntax ParseMemberAccessExpression(ExpressionSyntax operand) {
-        var op = Next();
+        var op = EatToken();
         var member = Match(SyntaxKind.IdentifierToken);
 
         return _syntaxFactory.MemberAccessExpression(operand, op, member);
     }
 
     private ExpressionSyntax ParseIndexExpression(ExpressionSyntax operand) {
-        var openBracket = Next();
+        var openBracket = EatToken();
         var index = ParseExpression();
         var closeBracket = Match(SyntaxKind.CloseBracketToken);
 
@@ -990,7 +993,7 @@ internal sealed class Parser {
         SyntaxToken identifier = _syntaxFactory.Token(SyntaxKind.IdentifierToken, currentToken.position);
 
         if (currentToken.kind == SyntaxKind.IdentifierToken)
-            identifier = Next();
+            identifier = EatToken();
         else
             diagnostics.Push(Error.ExpectedToken(currentToken.location, "expression"));
 
@@ -1003,7 +1006,7 @@ internal sealed class Parser {
             return operand;
         }
 
-        var openParenthesis = Next();
+        var openParenthesis = EatToken();
         var arguments = ParseArguments();
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
 
@@ -1032,7 +1035,7 @@ internal sealed class Parser {
                 }
 
                 if (currentToken.kind == SyntaxKind.CommaToken) {
-                    var comma = Next();
+                    var comma = EatToken();
                     nodesAndSeparators.Add(comma);
                 } else {
                     parseNextArgument = false;
@@ -1048,7 +1051,7 @@ internal sealed class Parser {
         SyntaxToken colon = null;
 
         if (currentToken.kind == SyntaxKind.IdentifierToken && Peek(1).kind == SyntaxKind.ColonToken) {
-            name = Next();
+            name = EatToken();
             colon = Match(SyntaxKind.ColonToken);
         }
 
@@ -1072,7 +1075,7 @@ internal sealed class Parser {
     }
 
     private AttributeSyntax ParseAttribute() {
-        var openBracket = Next();
+        var openBracket = EatToken();
         var identifier = Match(SyntaxKind.IdentifierToken);
         var closeBracket = Match(SyntaxKind.CloseBracketToken);
 
@@ -1089,17 +1092,17 @@ internal sealed class Parser {
         SyntaxToken typeName = null;
 
         if (currentToken.kind == SyntaxKind.ConstKeyword && Peek(1).kind == SyntaxKind.RefKeyword)
-            constRefKeyword = Next();
+            constRefKeyword = EatToken();
 
         if (currentToken.kind == SyntaxKind.RefKeyword) {
-            refKeyword = Next();
+            refKeyword = EatToken();
 
             if (declarationOnly)
                 diagnostics.Push(Error.CannotUseRef(refKeyword.location));
         }
 
         if (currentToken.kind == SyntaxKind.ConstKeyword) {
-            constKeyword = Next();
+            constKeyword = EatToken();
 
             if (declarationOnly)
                 diagnostics.Push(Error.CannotUseConst(constKeyword.location));
@@ -1109,7 +1112,7 @@ internal sealed class Parser {
         }
 
         if (currentToken.kind == SyntaxKind.VarKeyword) {
-            varKeyword = Next();
+            varKeyword = EatToken();
 
             if (!allowImplicit)
                 diagnostics.Push(Error.CannotUseImplicit(varKeyword.location));
@@ -1130,7 +1133,7 @@ internal sealed class Parser {
         var brackets = ImmutableArray.CreateBuilder<(SyntaxToken openBracket, SyntaxToken closeBracket)>();
 
         while (currentToken.kind == SyntaxKind.OpenBracketToken) {
-            var openBracket = Next();
+            var openBracket = EatToken();
             var closeBracket = Match(SyntaxKind.CloseBracketToken);
             brackets.Add((openBracket, closeBracket));
         }

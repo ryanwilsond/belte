@@ -20,7 +20,7 @@ internal struct ArrayElement<T> {
 
         var array = new ArrayElement<T>[items.Length];
 
-        for (int i=0; i<items.Length; i++)
+        for (int i = 0; i < items.Length; i++)
             array[i].Value = items[i];
 
         return array;
@@ -37,7 +37,7 @@ internal struct ArrayElement<T> {
 
         var array = new T[items.Length];
 
-        for (int i=0; i<items.Length; i++)
+        for (int i = 0; i < items.Length; i++)
             array[i] = items[i].Value;
 
         return array;

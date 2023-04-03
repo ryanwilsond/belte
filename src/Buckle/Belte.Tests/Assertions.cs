@@ -65,7 +65,7 @@ internal static class Assertions {
 
         Assert.Equal(expectedDiagnostics.Length, diagnostics.Count);
 
-        for (int i=0; i<expectedDiagnostics.Length; i++) {
+        for (int i = 0; i < expectedDiagnostics.Length; i++) {
             var diagnosticParts = diagnostics[i].Split(": ").Skip(2);
             var diagnostic = (diagnosticParts.Count() == 0
                 ? diagnostics[i]

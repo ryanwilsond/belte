@@ -398,7 +398,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_ForStatement_Reports_CannotConvert() {
         var text = @"
-            for (int i=0; [i]; i++) {}
+            for (int i = 0; [i]; i++) {}
         ";
 
         var diagnostics = @"

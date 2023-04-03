@@ -1254,7 +1254,7 @@ For example:
 
 ```
 void MyFunc() {
-    for (int i=0; i<5; i++) ; // Not allowed, `i` is used later to declare a local
+    for (int i = 0; i < 5; i++) ; // Not allowed, `i` is used later to declare a local
 
     int i = 1;
 }

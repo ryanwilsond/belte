@@ -441,7 +441,7 @@ public static partial class BuckleCommandLine {
     private static void ReadInputFiles(Compiler compiler, out DiagnosticQueue<Diagnostic> diagnostics) {
         diagnostics = new DiagnosticQueue<Diagnostic>();
 
-        for (int i=0; i<compiler.state.tasks.Length; i++) {
+        for (int i = 0; i < compiler.state.tasks.Length; i++) {
             ref var task = ref compiler.state.tasks[i];
             var opened = false;
 
@@ -449,7 +449,7 @@ public static partial class BuckleCommandLine {
                 case CompilerStage.Raw:
                 case CompilerStage.Preprocessed:
                 case CompilerStage.Compiled:
-                    for (int j=0; j<3; j++) {
+                    for (int j = 0; j < 3; j++) {
                         try {
                             task.fileContent.text = File.ReadAllText(task.inputFileName);
                             opened = true;
@@ -466,7 +466,7 @@ public static partial class BuckleCommandLine {
 
                     break;
                 case CompilerStage.Assembled:
-                    for (int j=0; j<3; j++) {
+                    for (int j = 0; j < 3; j++) {
                         try {
                             task.fileContent.bytes = File.ReadAllBytes(task.inputFileName).ToList();
                             opened = true;
@@ -564,7 +564,7 @@ public static partial class BuckleCommandLine {
             }
         }
 
-        for (int i=0; i<args.Length; i++) {
+        for (int i = 0; i < args.Length; i++) {
             var arg = args[i];
 
             if (!arg.StartsWith('-')) {

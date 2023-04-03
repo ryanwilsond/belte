@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Display;
@@ -134,7 +135,7 @@ public abstract class SyntaxNode {
             return endOfFile;
 
         if (!fullSpan.Contains(position))
-            throw new BelteInternalException($"FindToken: ArgumentOutOfRangeException: {nameof(position)}");
+            throw new BelteInternalException("FindToken", new ArgumentOutOfRangeException(nameof(position)));
 
         SyntaxNode currentNode = this;
 

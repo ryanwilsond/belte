@@ -67,36 +67,28 @@ public sealed partial class BelteRepl : Repl {
         state.variables = new Dictionary<IVariableSymbol, IEvaluatorObject>();
         state.previous = null;
         state.currentPage = Page.Repl;
-        state.changes = new List<TextChange>();
         state.tree = SyntaxTree.Parse("");
         base.ResetState();
     }
 
-    protected override object RenderLine(IReadOnlyList<string> lines, int lineIndex, object rState) {
-        SyntaxTree syntaxTree;
-
-        if (rState == null) {
-            var text = string.Join(Environment.NewLine, lines);
-            syntaxTree = SyntaxTree.Parse(text);
-        } else {
-            syntaxTree = (SyntaxTree)rState;
-        }
+    protected override void RenderLine(IReadOnlyList<string> lines, int lineIndex) {
+        UpdateTree();
 
         var texts = new List<(string text, ConsoleColor color)>();
-        var lineSpan = syntaxTree.text.lines[lineIndex].span;
-        var fullText = syntaxTree.text.ToString(lineSpan);
+        var lineSpan = state.tree.text.lines[lineIndex].span;
+        var fullText = state.tree.text.ToString(lineSpan);
 
-        var classifiedSpans = Classifier.Classify(syntaxTree, lineSpan);
+        var classifiedSpans = Classifier.Classify(state.tree, lineSpan);
 
         foreach (var classifiedSpan in classifiedSpans) {
-            var classifiedText = syntaxTree.text.ToString(classifiedSpan.span);
+            var classifiedText = state.tree.text.ToString(classifiedSpan.span);
             var color = GetColorFromClassification(classifiedSpan.classification);
             texts.Add((classifiedText, color));
         }
 
         var offset = 0;
 
-        for (int i=0; i<texts.Count(); i++) {
+        for (int i = 0; i < texts.Count(); i++) {
             var line = texts[i].text;
 
             if (fullText.Substring(offset, line.Length) == line) {
@@ -130,8 +122,6 @@ public sealed partial class BelteRepl : Repl {
         }
 
         Console.ForegroundColor = state.colorTheme.@default;
-
-        return syntaxTree;
     }
 
     protected override void EvaluateSubmission(string text) {
@@ -140,8 +130,9 @@ public sealed partial class BelteRepl : Repl {
     }
 
     protected override void EvaluateSubmission() {
-        state.tree = state.tree.WithChanges(state.changes.ToArray());
+        UpdateTree();
         EvaluateSubmissionInternal(state.tree);
+        state.tree = SyntaxTree.Parse("");
     }
 
     private void EvaluateSubmissionInternal(SyntaxTree syntaxTree) {
@@ -225,8 +216,8 @@ public sealed partial class BelteRepl : Repl {
         if (twoBlankTines)
             return true;
 
-        var syntaxTree = SyntaxTree.Parse(text);
-        var lastMember = syntaxTree.root.members.LastOrDefault();
+        UpdateTree();
+        var lastMember = state.tree.root.members.LastOrDefault();
 
         if (lastMember == null || lastMember.GetLastToken().isFabricated)
             return false;
@@ -278,6 +269,12 @@ public sealed partial class BelteRepl : Repl {
             default:
                 return state.colorTheme.@default;
         }
+    }
+
+    private void UpdateTree() {
+        var changes = _changes.ToArray();
+        _changes.Clear();
+        state.tree = state.tree.WithChanges(changes);
     }
 
     private void RenderResult(object value) {
@@ -537,7 +534,7 @@ public sealed partial class BelteRepl : Repl {
 
         var wrote = false;
 
-        for (int i=0; i<3; i++) {
+        for (int i = 0; i < 3; i++) {
             try {
                 File.WriteAllLines(path, subset);
                 wrote = true;

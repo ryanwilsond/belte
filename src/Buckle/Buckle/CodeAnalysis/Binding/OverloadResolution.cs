@@ -105,7 +105,7 @@ internal sealed class OverloadResolution {
             var seenParameterNames = new HashSet<string>();
             var canContinue = true;
 
-            for (int i=0; i<expression.arguments.count; i++) {
+            for (int i = 0; i < expression.arguments.count; i++) {
                 var argumentName = preBoundArgumentsBuilder[i].name;
 
                 if (argumentName == null) {
@@ -116,7 +116,7 @@ internal sealed class OverloadResolution {
 
                 int? destinationIndex = null;
 
-                for (int j=0; j<method.parameters.Length; j++) {
+                for (int j = 0; j < method.parameters.Length; j++) {
                     if (method.parameters[j].name == argumentName) {
                         if (!seenParameterNames.Add(argumentName)) {
                             _binder.diagnostics.Push(
@@ -146,7 +146,7 @@ internal sealed class OverloadResolution {
                 }
             }
 
-            for (int i=0; i<method.parameters.Length; i++) {
+            for (int i = 0; i < method.parameters.Length; i++) {
                 var parameter = method.parameters[i];
 
                 if (!parameter.name.StartsWith('$') &&
@@ -161,7 +161,7 @@ internal sealed class OverloadResolution {
             var currentBoundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
 
             if (canContinue) {
-                for (int i=0; i<preBoundArguments.Length; i++) {
+                for (int i = 0; i < preBoundArguments.Length; i++) {
                     var argument = preBoundArguments[rearrangedArguments[i]];
                     var parameter = method.parameters[i];
                     // If this evaluates to null, it means that there was a default value automatically passed in
@@ -192,7 +192,7 @@ internal sealed class OverloadResolution {
                 }
 
                 if (isInner) {
-                    for (int i=0; i<method.parameters.Length; i++) {
+                    for (int i = 0; i < method.parameters.Length; i++) {
                         var parameter = method.parameters[i];
 
                         if (!parameter.name.StartsWith('$'))

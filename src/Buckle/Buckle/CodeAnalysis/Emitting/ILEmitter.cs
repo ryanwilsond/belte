@@ -320,7 +320,7 @@ internal sealed partial class ILEmitter {
 
                 var allParametersMatch = true;
 
-                for (int i=0; i<parameterTypeNames.Length; i++) {
+                for (int i = 0; i < parameterTypeNames.Length; i++) {
                     if (method.Parameters[i].ParameterType.FullName != parameterTypeNames[i]) {
                         allParametersMatch = false;
                         break;
@@ -941,7 +941,7 @@ internal sealed partial class ILEmitter {
         var expressionType = type.typeSymbol;
 
         if (constant.value is ImmutableArray<BoundConstant> ia) {
-            for (int i=0; i<ia.Length; i++) {
+            for (int i = 0; i < ia.Length; i++) {
                 var item = ia[i];
                 iLProcessor.Emit(OpCodes.Dup);
                 iLProcessor.Emit(OpCodes.Ldc_I4, i);
@@ -1006,7 +1006,7 @@ internal sealed partial class ILEmitter {
         iLProcessor.Emit(OpCodes.Ldc_I4, expression.items.Length);
         iLProcessor.Emit(OpCodes.Newarr, GetType(expression.type.ChildType()));
 
-        for (int i=0; i<expression.items.Length; i++) {
+        for (int i = 0; i < expression.items.Length; i++) {
             var item = expression.items[i];
             iLProcessor.Emit(OpCodes.Dup);
             iLProcessor.Emit(OpCodes.Ldc_I4, i);
@@ -1218,7 +1218,7 @@ internal sealed partial class ILEmitter {
                 iLProcessor.Emit(OpCodes.Ldc_I4, nodes.Count);
                 iLProcessor.Emit(OpCodes.Newarr, _knownTypes[TypeSymbol.String]);
 
-                for (var i=0; i<nodes.Count; i++) {
+                for (var i = 0; i < nodes.Count; i++) {
                     iLProcessor.Emit(OpCodes.Dup);
                     iLProcessor.Emit(OpCodes.Ldc_I4, i);
                     EmitExpression(iLProcessor, nodes[i]);

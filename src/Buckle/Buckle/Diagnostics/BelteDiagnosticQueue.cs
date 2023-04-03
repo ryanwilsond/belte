@@ -31,7 +31,7 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
 
         var diagnosticList = diagnostics.ToList<BelteDiagnostic>();
 
-        for (int i=0; i<diagnosticList.Count; i++) {
+        for (int i = 0; i < diagnosticList.Count; i++) {
             var diagnostic = diagnosticList[i];
 
             if (diagnostic.location == null) {

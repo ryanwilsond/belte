@@ -46,7 +46,7 @@ internal sealed class SeparatedSyntaxList<T> : SeparatedSyntaxList, IEnumerable<
     /// </summary>
     /// <returns>Yields all SyntaxNodes.</returns>
     public IEnumerator<T> GetEnumerator() {
-        for (int i=0; i<count; i++)
+        for (int i = 0; i < count; i++)
             yield return this[i];
     }
 

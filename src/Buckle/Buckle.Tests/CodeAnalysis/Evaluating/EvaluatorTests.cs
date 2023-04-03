@@ -186,15 +186,15 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 0; if (a == 0) { a = 10; } else { a = 5; } return a;", 10)]
     [InlineData("int a = 0; if (a == 4) { a = 10; } else { a = 5; } return a;", 5)]
     // For statements
-    [InlineData("int result = 1; for (int i=0; i<=10; i++) { result+=result; } return result;", 2048)]
-    [InlineData("int result = 0; for (int i=0; i<5; i++) { result++; } return result;", 5)]
-    [InlineData("int result; for (int i=0; i<=10; i++) { result=i; } return result;", 10)]
-    [InlineData("int result = 1; for (int i=10; i>0; i--) { result+=i; } return result;", 56)]
+    [InlineData("int result = 1; for (int i = 0; i <= 10; i++) { result += result; } return result;", 2048)]
+    [InlineData("int result = 0; for (int i = 0; i < 5; i++) { result++; } return result;", 5)]
+    [InlineData("int result; for (int i = 0; i <= 10; i++) { result = i; } return result;", 10)]
+    [InlineData("int result = 1; for (int i = 10; i > 0; i--) { result += i; } return result;", 56)]
     // While statements
-    [InlineData("int i = 0; int result = 1; while (i<=10) { result+=result; i++; } return result;", 2048)]
-    [InlineData("int i = 0; int result = 0; while (i<5) { result++; i++; } return result;", 5)]
-    [InlineData("int i = 0; int result; while (i<=10) { result=i; i++; } return result;", 10)]
-    [InlineData("int i = 10; int result = 1; while (i>0) { result+=i; i--; } return result;", 56)]
+    [InlineData("int i = 0; int result = 1; while (i <= 10) { result += result; i++; } return result;", 2048)]
+    [InlineData("int i = 0; int result = 0; while (i < 5) { result++; i++; } return result;", 5)]
+    [InlineData("int i = 0; int result; while (i <= 10) { result = i; i++; } return result;", 10)]
+    [InlineData("int i = 10; int result = 1; while (i > 0) { result += i; i--; } return result;", 56)]
     // Do-While statements
     [InlineData("int result = 0; do { result++; } while (result < 10); return result;", 10)]
     [InlineData("int result = 0; do { result++; } while (false); return result;", 1)]
@@ -307,8 +307,8 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 3; try { int x = 0; int b = 56/x; a += b; } catch { a += 3; } finally { return a; }", 6)]
     [InlineData("int a = 3; try { int b = 56/1; a += b; } catch { a += 3; } finally { return a; }", 59)]
     // Break statements
-    [InlineData("int result = 3; for (int i=0; i<10; i++) { result++; if (result == 5) break; } return result;", 5)]
-    [InlineData("int result = 3; for (int i=0; i<10; i++) { result++; if (result < 5) break; } return result;", 4)]
+    [InlineData("int result = 3; for (int i = 0; i < 10; i++) { result++; if (result == 5) break; } return result;", 5)]
+    [InlineData("int result = 3; for (int i = 0; i < 10; i++) { result++; if (result < 5) break; } return result;", 4)]
     [InlineData("int result = 3; while (true) { result++; if (result == 5) break; } return result;", 5)]
     [InlineData("int result = 3; while (true) { result++; if (result > 5) break; } return result;", 6)]
     // Continue statements

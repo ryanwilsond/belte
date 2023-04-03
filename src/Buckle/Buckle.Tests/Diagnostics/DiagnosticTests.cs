@@ -1010,7 +1010,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0077_NameUsedInEnclosingScope() {
         var text = @"
             void MyFunc() {
-                for (int [i]=0; i<10; i++) ;
+                for (int [i] = 0; i < 10; i++) ;
 
                 int i = 5;
             }

@@ -61,7 +61,7 @@ public sealed class DisplayText {
         if (_writeIndent) {
             _writeIndent = false;
 
-            for (int i=0; i<indent; i++)
+            for (int i = 0; i < indent; i++)
                 _segments.Add(DisplayTextSegment.CreateIndent());
         }
 
@@ -195,7 +195,7 @@ public sealed class DisplayText {
         text.Write(CreateType(type.BaseType().ToString()));
         var brackets = "";
 
-        for (int i=0; i<type.dimensions; i++)
+        for (int i = 0; i < type.dimensions; i++)
             brackets += "[]";
 
         text.Write(CreatePunctuation(brackets));

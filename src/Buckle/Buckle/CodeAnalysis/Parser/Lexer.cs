@@ -69,7 +69,7 @@ internal sealed class Lexer {
 
         var tokenText = SyntaxFacts.GetText(tokenKind);
         if (tokenText == null)
-            tokenText = _text.ToString(tokenStart, tokenLength);
+            tokenText = _text.ToString(new TextSpan(tokenStart, tokenLength));
 
         return new SyntaxToken(
             _syntaxTree, tokenKind, tokenStart, tokenText, tokenValue, leadingTrivia, trailingTrivia
@@ -135,7 +135,7 @@ internal sealed class Lexer {
             var length = _position - _start;
 
             if (length > 0) {
-                var text = _text.ToString(_start, length);
+                var text = _text.ToString(new TextSpan(_start, length));
                 var trivia = new SyntaxTrivia(_syntaxTree, _kind, _start, text);
                 _triviaBuilder.Add(trivia);
             }
@@ -588,7 +588,7 @@ internal sealed class Lexer {
         }
 
         int length = _position - _start;
-        string text = _text.ToString(_start, length);
+        string text = _text.ToString(new TextSpan(_start, length));
         string parsedText = text.Replace("_", "");
 
         if (!hasDecimal && !hasExponent) {
@@ -663,7 +663,7 @@ internal sealed class Lexer {
             _position++;
 
         int length = _position - _start;
-        string text = _text.ToString(_start, length);
+        string text = _text.ToString(new TextSpan(_start, length));
         _kind = SyntaxFacts.GetKeywordType(text);
     }
 }

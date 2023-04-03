@@ -124,7 +124,7 @@ internal sealed class BoundScope {
 
         while (true) {
             if (symbols != null) {
-                for (int i=0; i<symbols.Count; i++) {
+                for (int i = 0; i < symbols.Count; i++) {
                     if (symbols[i].name == name) {
                         symbols[i] = newSymbol;
                         succeeded = true;
@@ -243,7 +243,7 @@ internal sealed class BoundScope {
         if (a.parameters.Length != b.parameters.Length)
             return false;
 
-        for (int i=0; i<a.parameters.Length; i++) {
+        for (int i = 0; i < a.parameters.Length; i++) {
             if (!a.parameters[i].type.Equals(b.parameters[i].type))
                 return false;
         }

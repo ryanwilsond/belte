@@ -59,11 +59,6 @@ public sealed partial class BelteRepl {
         internal SyntaxTree tree;
 
         /// <summary>
-        /// All changes to the text made between evaluating submissions.
-        /// </summary>
-        internal List<TextChange> changes;
-
-        /// <summary>
         /// Current defined variables.
         /// Not tracked after Repl instance is over, instead previous submissions are reevaluated.
         /// </summary>

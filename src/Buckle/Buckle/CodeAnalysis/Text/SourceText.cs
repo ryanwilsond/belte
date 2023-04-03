@@ -1,46 +1,47 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Text;
 
 /// <summary>
 /// A source of text the compiler uses, usually representing a source file.
 /// </summary>
-public class SourceText {
-    private readonly string _text;
+public abstract class SourceText {
+    internal const int LargeObjectHeapLimitInChars = 40 * 1024;
 
-    /// <summary>
-    /// Creates a <see cref="SourceText" /> provided the file name and contents.
-    /// </summary>
-    /// <param name="fileName">File name of the <see cref="SourceText" /> (where the text came from).</param>
-    /// <param name="text">The contents of the file the <see cref="SourceText" /> comes from.</param>
-    protected SourceText(string fileName, string text) {
-        lines = ParseLines(this, text);
-        _text = text;
-        this.fileName = fileName;
+    private const int CharBufferSize = 32 * 1024;
+    private const int CharBufferCount = 5;
+
+    private static readonly ObjectPool<char[]> _charArrayPool =
+        new ObjectPool<char[]>(() => new char[CharBufferSize], CharBufferCount);
+
+    protected ImmutableArray<TextLine> _lines;
+
+    public ImmutableArray<TextLine> lines {
+        get {
+            EnsureLines();
+            return _lines;
+        }
     }
 
     /// <summary>
-    /// All lines in the <see cref="SourceText" />.
+    /// Number of lines in the <see cref="SourceText" />.
     /// </summary>
-    public ImmutableArray<TextLine> lines { get; }
-
-    /// <summary>
-    /// The file name of the source file.
-    /// </summary>
-    public string fileName { get; }
+    public virtual int lineCount => lines.Length;
 
     /// <summary>
     /// Indexing the source file contents.
     /// </summary>
-    public virtual char this[int index] => _text[index];
+    public abstract char this[int index] { get; }
 
     /// <summary>
     /// The length of the entire <see cref="SourceText" />.
     /// </summary>
-    public virtual int length => _text.Length;
+    public abstract int length { get; }
 
     /// <summary>
     /// Creates a <see cref="SourceText" /> from a text, not necessarily relating to a source file.
@@ -49,17 +50,17 @@ public class SourceText {
     /// <param name="fileName">Optional filename if sourced from a file.</param>
     /// <returns>New <see cref="SourceText" />.</returns>
     public static SourceText From(string text, string fileName = "") {
-        return new SourceText(fileName, text);
+        return new StringText(fileName, text);
     }
 
     /// <summary>
-    /// Gets a line index based on an absolute index.
+    /// Gets a line index based on an absolute index. Very expensive.
     /// </summary>
     /// <param name="position">Absolute index.</param>
     /// <returns>Line index.</returns>
     public int GetLineIndex(int position) {
         int lower = 0;
-        int upper = lines.Length - 1;
+        int upper = lineCount - 1;
 
         while (lower <= upper) {
             int index = lower + (upper - lower) / 2;
@@ -76,22 +77,59 @@ public class SourceText {
         return lower - 1;
     }
 
-    public override string ToString() => _text;
-
-    /// <summary>
-    /// String representation of part of the text.
-    /// </summary>
-    /// <param name="start">Start index (absolute).</param>
-    /// <param name="length">Length of text to grab.</param>
-    /// <returns>Substring of the text.</returns>
-    public string ToString(int start, int length) => _text.Substring(start, length);
+    public override string ToString() => ToString(new TextSpan(0, length));
 
     /// <summary>
     /// String representation of part of the text.
     /// </summary>
     /// <param name="span"><see cref="TextSpan" /> of what text to grab (inclusive).</param>
     /// <returns>Substring of the text.</returns>
-    public string ToString(TextSpan span) => ToString(span.start, span.length);
+    public virtual string ToString(TextSpan span) {
+        var builder = PooledStringBuilder.GetInstance();
+        var buffer = _charArrayPool.Allocate();
+
+        int position = Math.Max(Math.Min(span.start, length), 0);
+        int newLength = Math.Min(span.end, length) - position;
+        builder.Builder.EnsureCapacity(newLength);
+
+        while (position < length && newLength > 0) {
+            int copyLength = Math.Min(buffer.Length, newLength);
+            CopyTo(position, buffer, 0, copyLength);
+            builder.Builder.Append(buffer, 0, copyLength);
+            newLength -= copyLength;
+            position += copyLength;
+        }
+
+        _charArrayPool.Free(buffer);
+
+        return builder.ToStringAndFree();
+    }
+
+    /// <summary>
+    /// Copy a range of characters from this to a destination array.
+    /// </summary>
+    public abstract void CopyTo(int sourceIndex, char[] destination, int destinationIndex, int count);
+
+    /// <summary>
+    /// Write this to a text writer.
+    /// </summary>
+    public virtual void Write(TextWriter writer) {
+        var buffer = _charArrayPool.Allocate();
+
+        try {
+            int offset = 0;
+            int end = length;
+
+            while (offset < end) {
+                int count = Math.Min(buffer.Length, end - offset);
+                CopyTo(offset, buffer, 0, count);
+                writer.Write(buffer, 0, count);
+                offset += count;
+            }
+        } finally {
+            _charArrayPool.Free(buffer);
+        }
+    }
 
     /// <summary>
     /// Checks if the <see cref="TextSpan" /> starts at the end of the text.
@@ -101,7 +139,7 @@ public class SourceText {
     /// <param name="span"><see cref="TextSpan" /> to check.</param>
     /// <returns>If the <see cref="TextSpan" /> is at the end of the text.</returns>
     public bool IsAtEndOfInput(TextSpan span) {
-        if (span.start == _text.Length)
+        if (span.start == length)
             return true;
 
         return false;
@@ -117,7 +155,7 @@ public class SourceText {
     /// <summary>
     /// Constructs a new <see cref="SourceText" /> from this with the specified changes.
     /// </summary>
-    public SourceText WithChanges(IEnumerable<TextChange> changes) {
+    public virtual SourceText WithChanges(IEnumerable<TextChange> changes) {
         if (!changes.Any())
             return this;
 
@@ -170,8 +208,12 @@ public class SourceText {
             CompositeText.AddSegments(segments, subText);
         }
 
-        var newText = CompositeText.ToSourceText(segments.ToImmutable());
-        return new ChangedText(this, newText, changeRanges.ToImmutable());
+        var newText = CompositeText.ToSourceText(segments);
+
+        if (newText != null)
+            return new ChangedText(this, newText, changeRanges.ToImmutable());
+        else
+            return this;
     }
 
     /// <summary>
@@ -199,8 +241,11 @@ public class SourceText {
             return new SubText(this, span);
     }
 
-    private static ImmutableArray<TextLine> ParseLines(SourceText pointer, string text) {
+    protected static ImmutableArray<TextLine> ParseLines(SourceText pointer, string text) {
         var result = ImmutableArray.CreateBuilder<TextLine>();
+
+        if (text == null)
+            return result.ToImmutable();
 
         int position = 0;
         int lineStart = 0;
@@ -222,6 +267,8 @@ public class SourceText {
 
         return result.ToImmutable();
     }
+
+    protected abstract void EnsureLines();
 
     private static void AddLine(ImmutableArray<TextLine>.Builder result, SourceText pointer,
         int position, int lineStart, int lineBreakWidth) {

@@ -83,7 +83,7 @@ public sealed class Compiler {
     private void InternalPreprocessor() {
         var preprocessor = new Preprocessor();
 
-        for (int i=0; i<state.tasks.Length; i++) {
+        for (int i = 0; i < state.tasks.Length; i++) {
             ref FileState task = ref state.tasks[i];
 
             if (task.stage == CompilerStage.Raw) {
@@ -100,7 +100,7 @@ public sealed class Compiler {
         diagnostics.Clear(DiagnosticSeverity.Warning);
         var syntaxTrees = new List<SyntaxTree>();
 
-        for (int i=0; i<state.tasks.Length; i++) {
+        for (int i = 0; i < state.tasks.Length; i++) {
             ref FileState task = ref state.tasks[i];
 
             if (task.stage == CompilerStage.Preprocessed) {
@@ -145,7 +145,7 @@ public sealed class Compiler {
     private void InternalCompiler() {
         var syntaxTrees = new List<SyntaxTree>();
 
-        for (int i=0; i<state.tasks.Length; i++) {
+        for (int i = 0; i < state.tasks.Length; i++) {
             ref FileState task = ref state.tasks[i];
 
             if (task.stage == CompilerStage.Preprocessed) {

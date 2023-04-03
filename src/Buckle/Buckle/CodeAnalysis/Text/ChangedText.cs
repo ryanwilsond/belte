@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Text;
@@ -11,10 +12,41 @@ internal sealed partial class ChangedText : SourceText {
     private readonly SourceText _newText;
     private readonly ChangeInfo _info;
 
-    internal ChangedText(SourceText oldText, SourceText newText, ImmutableArray<TextChangeRange> changeRanges)
-        : base(null, null) {
+    internal ChangedText(SourceText oldText, SourceText newText, ImmutableArray<TextChangeRange> changeRanges) {
         _newText = newText;
         _info = new ChangeInfo(changeRanges, new WeakReference<SourceText>(oldText), (oldText as ChangedText)?._info);
+    }
+
+    public override int lineCount => _newText.lineCount;
+
+    public override char this[int index] => _newText[index];
+
+    public override int length => _newText.length;
+
+    public override string ToString(TextSpan span) {
+        return _newText.ToString(span);
+    }
+
+    public override string ToString() {
+        return _newText.ToString();
+    }
+
+    public override void CopyTo(int sourceIndex, char[] destination, int destinationIndex, int count) {
+        _newText.CopyTo(sourceIndex, destination, destinationIndex, count);
+    }
+
+    public override SourceText WithChanges(IEnumerable<TextChange> changes) {
+        var changed = _newText.WithChanges(changes) as ChangedText;
+
+        if (changed != null)
+            return new ChangedText(this, changed._newText, changed._info.changeRanges);
+        else
+            return this;
+    }
+
+    protected override void EnsureLines() {
+        if (_lines == null)
+            _lines = _newText.lines;
     }
 
     internal override ImmutableArray<TextChangeRange> GetChangeRanges(SourceText oldText) {
@@ -28,8 +60,12 @@ internal sealed partial class ChangedText : SourceText {
         return ImmutableArray.Create(new TextChangeRange(new TextSpan(0, oldText.length), length));
     }
 
+    internal override SourceText GetSubText(TextSpan span) {
+        return _newText.GetSubText(span);
+    }
+
     private bool IsChangedFrom(SourceText oldText) {
-        for (var info=_info; info!=null; info=info.previous) {
+        for (var info = _info; info != null; info = info.previous) {
             SourceText temp;
 
             if (info.weakOldText.TryGetTarget(out temp) && temp == oldText)
@@ -66,7 +102,7 @@ internal sealed partial class ChangedText : SourceText {
     private static ImmutableArray<TextChangeRange> Merge(ImmutableArray<ImmutableArray<TextChangeRange>> changeSets) {
         var merged = changeSets[0];
 
-        for (int i=1; i<changeSets.Length; i++)
+        for (int i = 1; i < changeSets.Length; i++)
             merged = TextChangeRange.Merge(merged, changeSets[i]);
 
         return merged;

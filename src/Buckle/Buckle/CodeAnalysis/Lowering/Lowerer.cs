@@ -426,7 +426,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         ImmutableArray<BoundExpression>.Builder builder = null;
 
-        for (int i=0; i<expression.arguments.Length; i++) {
+        for (int i = 0; i < expression.arguments.Length; i++) {
             var oldArgument = expression.arguments[i];
             var newArgument = RewriteExpression(oldArgument);
 
@@ -434,7 +434,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 if (builder == null) {
                     builder = ImmutableArray.CreateBuilder<BoundExpression>(expression.arguments.Length);
 
-                    for (int j=0; j<i; j++)
+                    for (int j = 0; j < i; j++)
                         builder.Add(expression.arguments[j]);
                 }
             }

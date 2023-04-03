@@ -132,7 +132,7 @@ internal sealed class CSharpEmitter {
         if (type.isNullable && new List<String>() {"bool", "double", "int"}.Contains(typeName))
             typeName = $"Nullable<{typeName}>";
 
-        for (int i=0; i<type.dimensions; i++)
+        for (int i = 0; i < type.dimensions; i++)
             typeName = $"List<{typeName}>";
 
         equivalentType.Append(typeName);
