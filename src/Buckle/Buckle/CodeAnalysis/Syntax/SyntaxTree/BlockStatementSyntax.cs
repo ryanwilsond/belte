@@ -34,6 +34,6 @@ internal sealed partial class BlockStatementSyntax : StatementSyntax {
 
 internal sealed partial class SyntaxFactory {
     internal BlockStatementSyntax BlockStatement(
-        SyntaxToken openBrace, ImmutableArray<StatementSyntax> statements, SyntaxToken closeBrace) =>
-        Create(new BlockStatementSyntax(_syntaxTree, openBrace, statements, closeBrace));
+        SyntaxToken openBrace, ImmutableArray<StatementSyntax> statements, SyntaxToken closeBrace)
+        => Create(new BlockStatementSyntax(_syntaxTree, openBrace, statements, closeBrace));
 }

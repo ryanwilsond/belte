@@ -6,5 +6,5 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// Statements either end with a closing curly brace or semicolon.
 /// </summary>
 internal abstract class StatementSyntax : SyntaxNode {
-    protected StatementSyntax(SyntaxTree syntaxTree): base(syntaxTree) { }
+    protected StatementSyntax(SyntaxTree syntaxTree) : base(syntaxTree) { }
 }

@@ -152,7 +152,7 @@ internal sealed class BoundType : BoundNode {
 
         text += typeSymbol.name;
 
-        for (int i = 0; i < dimensions; i++)
+        for (var i = 0; i < dimensions; i++)
             text += "[]";
 
         return text;

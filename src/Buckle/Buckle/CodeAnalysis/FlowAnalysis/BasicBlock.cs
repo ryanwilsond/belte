@@ -15,7 +15,7 @@ internal sealed class BasicBlock {
     internal bool isStart { get; }
     internal bool isEnd { get; }
 
-    internal BasicBlock() {}
+    internal BasicBlock() { }
 
     internal BasicBlock(bool isStart) {
         this.isStart = isStart;

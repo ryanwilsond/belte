@@ -28,5 +28,4 @@ internal sealed class StructSymbol : TypeSymbol, ITypeSymbolWithMembers {
     /// Declaration of the struct (see <see cref="StructDeclarationSyntax">).
     /// </summary>
     internal StructDeclarationSyntax declaration { get; }
-
 }

@@ -26,6 +26,6 @@ internal sealed partial class UnaryExpressionSyntax : ExpressionSyntax {
 }
 
 internal sealed partial class SyntaxFactory {
-    internal UnaryExpressionSyntax UnaryExpression(SyntaxToken op, ExpressionSyntax operand) =>
-        Create(new UnaryExpressionSyntax(_syntaxTree, op, operand));
+    internal UnaryExpressionSyntax UnaryExpression(SyntaxToken op, ExpressionSyntax operand)
+        => Create(new UnaryExpressionSyntax(_syntaxTree, op, operand));
 }

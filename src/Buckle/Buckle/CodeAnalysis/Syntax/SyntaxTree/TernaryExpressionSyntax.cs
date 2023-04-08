@@ -56,6 +56,6 @@ internal sealed partial class TernaryExpressionSyntax : ExpressionSyntax {
 internal sealed partial class SyntaxFactory {
     internal TernaryExpressionSyntax TernaryExpression(
         ExpressionSyntax left, SyntaxToken leftOp,
-        ExpressionSyntax center, SyntaxToken rightOp, ExpressionSyntax right) =>
-        Create(new TernaryExpressionSyntax(_syntaxTree, left, leftOp, center, rightOp, right));
+        ExpressionSyntax center, SyntaxToken rightOp, ExpressionSyntax right)
+        => Create(new TernaryExpressionSyntax(_syntaxTree, left, leftOp, center, rightOp, right));
 }

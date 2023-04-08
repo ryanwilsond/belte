@@ -21,6 +21,6 @@ internal sealed partial class FieldDeclarationSyntax : MemberSyntax {
 }
 
 internal sealed partial class SyntaxFactory {
-    internal FieldDeclarationSyntax FieldDeclaration(VariableDeclarationStatementSyntax declaration) =>
-        Create(new FieldDeclarationSyntax(_syntaxTree, declaration));
+    internal FieldDeclarationSyntax FieldDeclaration(VariableDeclarationStatementSyntax declaration)
+        => Create(new FieldDeclarationSyntax(_syntaxTree, declaration));
 }

@@ -10,6 +10,6 @@ internal static class ExceptionUtilities {
     /// <summary>
     /// An exception indicating that a certain code path should never be reached.
     /// </summary>
-    internal static Exception Unreachable() =>
-        new InvalidOperationException("This program location is thought to be unreachable");
+    internal static Exception Unreachable()
+        => new InvalidOperationException("This program location is thought to be unreachable");
 }

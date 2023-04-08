@@ -67,9 +67,7 @@ internal sealed class Lexer {
         ReadTrivia(false);
         var trailingTrivia = _triviaBuilder.ToImmutable();
 
-        var tokenText = SyntaxFacts.GetText(tokenKind);
-        if (tokenText == null)
-            tokenText = _text.ToString(new TextSpan(tokenStart, tokenLength));
+        var tokenText = SyntaxFacts.GetText(tokenKind) ?? _text.ToString(new TextSpan(tokenStart, tokenLength));
 
         return new SyntaxToken(
             _syntaxTree, tokenKind, tokenStart, tokenText, tokenValue, leadingTrivia, trailingTrivia
@@ -84,7 +82,7 @@ internal sealed class Lexer {
     }
 
     private char Peek(int offset) {
-        int index = _position + offset;
+        var index = _position + offset;
 
         if (index >= _text.length)
             return '\0';
@@ -386,9 +384,9 @@ internal sealed class Lexer {
                 ReadIdentifierOrKeyword();
                 break;
             default:
-                if (char.IsLetter(current))
+                if (char.IsLetter(current)) {
                     ReadIdentifierOrKeyword();
-                else {
+                } else {
                     var span = new TextSpan(_position, 1);
                     var location = new TextLocation(_text, span);
                     diagnostics.Push(Error.BadCharacter(location, _position, current));
@@ -451,7 +449,7 @@ internal sealed class Lexer {
     private void ReadStringLiteral() {
         _position++;
         var sb = new StringBuilder();
-        bool done = false;
+        var done = false;
 
         while (!done) {
             switch (current) {
@@ -587,14 +585,14 @@ internal sealed class Lexer {
             previous = Peek(-1);
         }
 
-        int length = _position - _start;
-        string text = _text.ToString(new TextSpan(_start, length));
-        string parsedText = text.Replace("_", "");
+        var length = _position - _start;
+        var text = _text.ToString(new TextSpan(_start, length));
+        var parsedText = text.Replace("_", "");
 
         if (!hasDecimal && !hasExponent) {
             var @base = isBinary ? 2 : 16;
             var failed = false;
-            int value = 0;
+            var value = 0;
 
             if (isBinary || isHexadecimal) {
                 try {
@@ -662,8 +660,8 @@ internal sealed class Lexer {
         while (char.IsLetterOrDigit(current) || current == '_')
             _position++;
 
-        int length = _position - _start;
-        string text = _text.ToString(new TextSpan(_start, length));
+        var length = _position - _start;
+        var text = _text.ToString(new TextSpan(_start, length));
         _kind = SyntaxFacts.GetKeywordType(text);
     }
 }

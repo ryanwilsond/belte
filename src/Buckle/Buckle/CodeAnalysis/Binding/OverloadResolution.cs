@@ -33,7 +33,7 @@ internal sealed class OverloadResolution {
     internal OverloadResolutionResult MethodInvocationOverloadResolution(
         ImmutableArray<Symbol> methods, ImmutableArray<(string name, BoundExpression expression)> arguments,
         CallExpressionSyntax expression) {
-        var minScore = Int32.MaxValue;
+        var minScore = int.MaxValue;
         var possibleOverloads = new List<MethodSymbol>();
         var name = expression.identifier.identifier.text;
 
@@ -48,11 +48,11 @@ internal sealed class OverloadResolution {
             var beforeCount = _binder.diagnostics.count;
             var score = 0;
             var isInner = symbol.name.Contains(">g__");
-            var method = symbol as MethodSymbol;
 
-            if (method == null) {
+            if (symbol is not MethodSymbol method) {
                 _binder.diagnostics.Push(Error.CannotCallNonMethod(expression.identifier.location, name));
-                return OverloadResolutionResult.Failed();;
+                return OverloadResolutionResult.Failed();
+                ;
             }
 
             var defaultParameterCount = method.parameters.Where(p => p.defaultValue != null).ToArray().Length;
@@ -105,7 +105,7 @@ internal sealed class OverloadResolution {
             var seenParameterNames = new HashSet<string>();
             var canContinue = true;
 
-            for (int i = 0; i < expression.arguments.count; i++) {
+            for (var i = 0; i < expression.arguments.count; i++) {
                 var argumentName = preBoundArgumentsBuilder[i].name;
 
                 if (argumentName == null) {
@@ -116,7 +116,7 @@ internal sealed class OverloadResolution {
 
                 int? destinationIndex = null;
 
-                for (int j = 0; j < method.parameters.Length; j++) {
+                for (var j = 0; j < method.parameters.Length; j++) {
                     if (method.parameters[j].name == argumentName) {
                         if (!seenParameterNames.Add(argumentName)) {
                             _binder.diagnostics.Push(
@@ -146,7 +146,7 @@ internal sealed class OverloadResolution {
                 }
             }
 
-            for (int i = 0; i < method.parameters.Length; i++) {
+            for (var i = 0; i < method.parameters.Length; i++) {
                 var parameter = method.parameters[i];
 
                 if (!parameter.name.StartsWith('$') &&
@@ -161,7 +161,7 @@ internal sealed class OverloadResolution {
             var currentBoundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
 
             if (canContinue) {
-                for (int i = 0; i < preBoundArguments.Length; i++) {
+                for (var i = 0; i < preBoundArguments.Length; i++) {
                     var argument = preBoundArguments[rearrangedArguments[i]];
                     var parameter = method.parameters[i];
                     // If this evaluates to null, it means that there was a default value automatically passed in
@@ -192,7 +192,7 @@ internal sealed class OverloadResolution {
                 }
 
                 if (isInner) {
-                    for (int i = 0; i < method.parameters.Length; i++) {
+                    for (var i = 0; i < method.parameters.Length; i++) {
                         var parameter = method.parameters[i];
 
                         if (!parameter.name.StartsWith('$'))
@@ -209,7 +209,8 @@ internal sealed class OverloadResolution {
                 tempDiagnostics.Move(_binder.diagnostics);
                 _binder.diagnostics.Move(tempDiagnostics);
 
-                return OverloadResolutionResult.Failed();;
+                return OverloadResolutionResult.Failed();
+                ;
             }
 
             if (_binder.diagnostics.count == beforeCount) {
@@ -237,7 +238,8 @@ internal sealed class OverloadResolution {
         if (methods.Length > 1 && possibleOverloads.Count == 0) {
             _binder.diagnostics.Push(Error.NoOverload(expression.identifier.location, name));
 
-            return OverloadResolutionResult.Failed();;
+            return OverloadResolutionResult.Failed();
+            ;
         } else if (methods.Length > 1 && possibleOverloads.Count > 1) {
             // Special case where there are default overloads
             if (possibleOverloads[0].name == "HasValue") {

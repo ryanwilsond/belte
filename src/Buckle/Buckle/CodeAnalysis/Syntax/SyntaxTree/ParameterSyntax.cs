@@ -54,6 +54,6 @@ internal sealed partial class ParameterSyntax : SyntaxNode {
 
 internal sealed partial class SyntaxFactory {
     internal ParameterSyntax Parameter(
-        TypeSyntax type, SyntaxToken identifier, SyntaxToken equals, ExpressionSyntax defaultValue) =>
-        Create(new ParameterSyntax(_syntaxTree, type, identifier, equals, defaultValue));
+        TypeSyntax type, SyntaxToken identifier, SyntaxToken equals, ExpressionSyntax defaultValue)
+        => Create(new ParameterSyntax(_syntaxTree, type, identifier, equals, defaultValue));
 }

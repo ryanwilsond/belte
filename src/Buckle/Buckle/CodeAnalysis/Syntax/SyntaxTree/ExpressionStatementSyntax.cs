@@ -27,6 +27,6 @@ internal sealed partial class ExpressionStatementSyntax : StatementSyntax {
 }
 
 internal sealed partial class SyntaxFactory {
-    internal ExpressionStatementSyntax ExpressionStatement(ExpressionSyntax expression, SyntaxToken semicolon) =>
-        Create(new ExpressionStatementSyntax(_syntaxTree, expression, semicolon));
+    internal ExpressionStatementSyntax ExpressionStatement(ExpressionSyntax expression, SyntaxToken semicolon)
+        => Create(new ExpressionStatementSyntax(_syntaxTree, expression, semicolon));
 }

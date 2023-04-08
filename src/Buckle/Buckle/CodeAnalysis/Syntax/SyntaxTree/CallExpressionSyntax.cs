@@ -41,6 +41,6 @@ internal sealed partial class CallExpressionSyntax : ExpressionSyntax {
 internal sealed partial class SyntaxFactory {
     internal CallExpressionSyntax CallExpression(
         NameExpressionSyntax identifier, SyntaxToken openParenthesis,
-        SeparatedSyntaxList<ArgumentSyntax> arguments, SyntaxToken closeParenthesis) =>
-        Create(new CallExpressionSyntax(_syntaxTree, identifier, openParenthesis, arguments, closeParenthesis));
+        SeparatedSyntaxList<ArgumentSyntax> arguments, SyntaxToken closeParenthesis)
+        => Create(new CallExpressionSyntax(_syntaxTree, identifier, openParenthesis, arguments, closeParenthesis));
 }

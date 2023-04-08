@@ -7,9 +7,9 @@ namespace Buckle.Diagnostics;
 /// the usage of Exception.
 /// </summary>
 public abstract class BelteException : Exception {
-    public BelteException() { }
+    protected BelteException() { }
 
-    public BelteException(string message) : base(message) { }
+    protected BelteException(string message) : base(message) { }
 
-    public BelteException(string message, Exception inner) : base(message, inner) { }
+    protected BelteException(string message, Exception inner) : base(message, inner) { }
 }

@@ -33,6 +33,6 @@ internal sealed partial class ReturnStatementSyntax : StatementSyntax {
 
 internal sealed partial class SyntaxFactory {
     internal ReturnStatementSyntax ReturnStatement(
-        SyntaxToken keyword, ExpressionSyntax expression, SyntaxToken semicolon) =>
-        Create(new ReturnStatementSyntax(_syntaxTree, keyword, expression, semicolon));
+        SyntaxToken keyword, ExpressionSyntax expression, SyntaxToken semicolon)
+        => Create(new ReturnStatementSyntax(_syntaxTree, keyword, expression, semicolon));
 }

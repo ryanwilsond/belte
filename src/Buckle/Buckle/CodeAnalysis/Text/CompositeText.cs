@@ -21,9 +21,9 @@ internal sealed class CompositeText : SourceText {
             _length += segment.length;
 
         _segmentOffsets = new int[segments.Length];
-        int offset = 0;
+        var offset = 0;
 
-        for (int i = 0; i < _segmentOffsets.Length; i++) {
+        for (var i = 0; i < _segmentOffsets.Length; i++) {
             _segmentOffsets[i] = offset;
             offset += _segments[i].length;
         }
@@ -33,9 +33,7 @@ internal sealed class CompositeText : SourceText {
 
     public override char this[int index] {
         get {
-            int position;
-            int offset;
-            GetIndexAndOffset(index, out position, out offset);
+            GetIndexAndOffset(index, out var position, out var offset);
 
             return _segments[position][offset];
         }
@@ -50,9 +48,7 @@ internal sealed class CompositeText : SourceText {
         if (!CheckCopyToArguments(sourceIndex, destination, destinationIndex, count))
             return;
 
-        int segmentIndex;
-        int segmentOffset;
-        GetIndexAndOffset(sourceIndex, out segmentIndex, out segmentOffset);
+        GetIndexAndOffset(sourceIndex, out var segmentIndex, out var segmentOffset);
 
         while (segmentIndex < _segments.Length && count > 0) {
             var segment = _segments[segmentIndex];
@@ -71,9 +67,7 @@ internal sealed class CompositeText : SourceText {
         var sourceIndex = span.start;
         var count = span.length;
 
-        int segmentIndex;
-        int segmentOffset;
-        GetIndexAndOffset(sourceIndex, out segmentIndex, out segmentOffset);
+        GetIndexAndOffset(sourceIndex, out var segmentIndex, out var segmentOffset);
 
         var newSegments = ImmutableArray.CreateBuilder<SourceText>();
 
@@ -95,9 +89,7 @@ internal sealed class CompositeText : SourceText {
     /// Adds a SourceText's segments to an array of segments.
     /// </summary>
     internal static void AddSegments(ImmutableArray<SourceText>.Builder segments, SourceText text) {
-        var composite = text as CompositeText;
-
-        if (composite == null)
+        if (text is not CompositeText composite)
             segments.Add(text);
         else
             segments.AddRange(composite._segments);
@@ -124,10 +116,10 @@ internal sealed class CompositeText : SourceText {
         var builder = ImmutableArray.CreateBuilder<SourceText>();
         builder.AddRange(_segments);
 
-        if (GetSegmentCountIfCombined(builder, Int32.MaxValue) > 1)
+        if (GetSegmentCountIfCombined(builder, int.MaxValue) > 1)
             throw new BelteInternalException("EnsureLines: cannot get the lines of this composite");
 
-        CombineSegments(builder, Int32.MaxValue);
+        CombineSegments(builder, int.MaxValue);
         var singleText = builder.Single();
         _lines = singleText.lines;
     }
@@ -151,13 +143,13 @@ internal sealed class CompositeText : SourceText {
     }
 
     private static int GetSegmentCountIfCombined(ImmutableArray<SourceText>.Builder segments, int segmentSize) {
-        int numberOfSegmentsReduced = 0;
+        var numberOfSegmentsReduced = 0;
 
-        for (int i = 0; i < segments.Count - 1; i++) {
+        for (var i = 0; i < segments.Count - 1; i++) {
             if (segments[i].length <= segmentSize) {
-                int count = 1;
+                var count = 1;
 
-                for (int j = i + 1; j < segments.Count; j++) {
+                for (var j = i + 1; j < segments.Count; j++) {
                     if (segments[j].length <= segmentSize)
                         count++;
                 }
@@ -174,13 +166,13 @@ internal sealed class CompositeText : SourceText {
     }
 
     private static void CombineSegments(ImmutableArray<SourceText>.Builder segments, int segmentSize) {
-        for (int i = 0; i < segments.Count - 1; i++) {
+        for (var i = 0; i < segments.Count - 1; i++) {
             if (segments[i].length <= segmentSize) {
-                int combinedLength = segments[i].length;
+                var combinedLength = segments[i].length;
 
-                int count = 1;
+                var count = 1;
 
-                for (int j = i + 1; j < segments.Count; j++) {
+                for (var j = i + 1; j < segments.Count; j++) {
                     if (segments[j].length <= segmentSize) {
                         count++;
                         combinedLength += segments[j].length;
@@ -207,15 +199,17 @@ internal sealed class CompositeText : SourceText {
         if (destination == null)
             throw new BelteInternalException("CheckCopyToArguments", new ArgumentNullException(nameof(destination)));
 
-        if (sourceIndex < 0)
+        if (sourceIndex < 0) {
             throw new BelteInternalException(
                 "CheckCopyToArguments", new ArgumentOutOfRangeException(nameof(sourceIndex))
             );
+        }
 
-        if (destinationIndex < 0)
+        if (destinationIndex < 0) {
             throw new BelteInternalException(
                 "CheckCopyToArguments", new ArgumentOutOfRangeException(nameof(destinationIndex))
             );
+        }
 
         if (count < 0 || count > length - sourceIndex || count > destination.Length - destinationIndex)
             throw new BelteInternalException("CheckCopyToArguments", new ArgumentOutOfRangeException(nameof(count)));

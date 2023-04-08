@@ -34,7 +34,7 @@ public sealed class AnnotatedText {
 
         var position = 0;
 
-        for (int i = 0; i < text.Length; i++) {
+        for (var i = 0; i < text.Length; i++) {
             if (text[i] == '\\' && i < text.Length - 1) {
                 position++;
 
@@ -87,7 +87,7 @@ public sealed class AnnotatedText {
 
         var minIndent = int.MaxValue;
 
-        for (int i = 0; i < lines.Count; i++) {
+        for (var i = 0; i < lines.Count; i++) {
             var line = lines[i];
 
             if (line.Trim().Length == 0) {

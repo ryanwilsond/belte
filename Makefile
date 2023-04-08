@@ -37,7 +37,12 @@ test:
 # Cleans the solution
 clean:
 	@dotnet clean $(SLN)
-	@echo Hard cleaned the project
+	@echo Hard cleaned the solution
+
+# Formats the solution
+format:
+	@dotnet format $(SLN)
+	@echo Formated the solution
 
 prebuild:
 	@echo "Started building the Buckle solution (release) ..."
@@ -53,4 +58,3 @@ build:
 
 portablebuild:
 	@dotnet publish $(BELTDIR)/Belte.csproj $(FLAGS) -o bin/release
-

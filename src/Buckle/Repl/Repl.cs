@@ -115,7 +115,8 @@ public abstract partial class Repl {
                     var startTime = DateTime.Now;
                     evaluateSubmissionThread.Start();
 
-                    while (evaluateSubmissionThread.IsAlive) ;
+                    while (evaluateSubmissionThread.IsAlive)
+                        ;
 
                     if (broke || _showTime) {
                         var finishWord = broke ? "Aborted" : "Finished";
@@ -846,9 +847,10 @@ public abstract partial class Repl {
                 break;
         }
 
-        if (offset <= start)
+        if (offset <= start) {
             if (string.IsNullOrWhiteSpace(line.Substring(start - offset, offset)))
                 return offset;
+        }
 
         return 1;
     }
@@ -863,7 +865,7 @@ public abstract partial class Repl {
 
         var lineIndex = view.currentLine;
 
-        Dictionary<char, char> pairs = new Dictionary<char, char>(){
+        var pairs = new Dictionary<char, char>(){
             {'{', '}'},
             {'[', ']'},
             {'(', ')'}
@@ -889,7 +891,7 @@ public abstract partial class Repl {
                     foundPair = true;
 
                     if (string.IsNullOrWhiteSpace(document[lineIndex])) {
-                        for (int i = view.currentTypingTabbing; i > targetTabbing.Item2; i--)
+                        for (var i = view.currentTypingTabbing; i > targetTabbing.Item2; i--)
                             HandleShiftTab(document, view);
                     }
                 }
@@ -961,14 +963,14 @@ public abstract partial class Repl {
             whitespace++;
         }
 
-        HandleTyping(document, view, new String(' ', whitespace * TabWidth));
+        HandleTyping(document, view, new string(' ', whitespace * TabWidth));
     }
 
     private void AddChange(
         ObservableCollection<string> document, int lineIndex, int startIndex, int oldLength, string newText) {
         var position = startIndex;
 
-        for (int i = 0; i < lineIndex; i++) {
+        for (var i = 0; i < lineIndex; i++) {
             position += document[i].Length + Environment.NewLine.Length;
 
             if (i > 0)
@@ -990,7 +992,7 @@ public abstract partial class Repl {
     private void AddInsertLineChange(ObservableCollection<string> document, int lineIndex, string newText) {
         var position = 0;
 
-        for (int i = 0; i < lineIndex; i++) {
+        for (var i = 0; i < lineIndex; i++) {
             position += document[i].Length;
 
             if (i > 0)
@@ -1003,7 +1005,7 @@ public abstract partial class Repl {
     private void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) {
         var position = 0;
 
-        for (int i = 0; i < lineIndex; i++) {
+        for (var i = 0; i < lineIndex; i++) {
             position += document[i].Length;
 
             if (i > 0)

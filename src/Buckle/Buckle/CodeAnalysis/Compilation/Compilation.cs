@@ -196,21 +196,25 @@ public sealed class Compilation {
         var builtins = BuiltinMethods.GetAll();
 
         while (submission != null) {
-            foreach (var method in submission.methods)
+            foreach (var method in submission.methods) {
                 if (seenSymbolNames.Add(method.SignatureNoReturnNoParameterNames()) && method is T t)
                     yield return t;
+            }
 
-            foreach (var builtin in builtins)
+            foreach (var builtin in builtins) {
                 if (seenSymbolNames.Add(builtin.SignatureNoReturnNoParameterNames()) && builtin is T t)
                     yield return t;
+            }
 
-            foreach (var variable in submission.variables)
+            foreach (var variable in submission.variables) {
                 if (seenSymbolNames.Add(variable.name) && variable is T t)
                     yield return t;
+            }
 
-            foreach (var type in submission.types)
+            foreach (var type in submission.types) {
                 if (seenSymbolNames.Add(type.name) && type is T t)
                     yield return t;
+            }
 
             submission = submission.previous;
         }
@@ -257,7 +261,7 @@ public sealed class Compilation {
     /// </summary>
     /// <returns>Newly bound <see cref="BoundProgram" />.</returns>
     internal BoundProgram GetProgram() {
-        var _previous = previous == null ? null : previous.GetProgram();
+        var _previous = previous?.GetProgram();
         return Binder.BindProgram(options, _previous, globalScope);
     }
 

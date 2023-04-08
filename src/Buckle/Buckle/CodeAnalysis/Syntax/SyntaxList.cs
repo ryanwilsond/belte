@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// A syntax list of SyntaxNodes.
 /// </summary>
 /// <typeparam name="T">Child type of <see cref="SyntaxNode" />.</typeparam>
-internal sealed class SyntaxList<T> : IEnumerable<T> where T: SyntaxNode {
+internal sealed class SyntaxList<T> : IEnumerable<T> where T : SyntaxNode {
     private readonly ImmutableArray<T> _nodes;
 
     internal SyntaxList(ImmutableArray<T> nodes) {
@@ -32,7 +32,7 @@ internal sealed class SyntaxList<T> : IEnumerable<T> where T: SyntaxNode {
     /// </summary>
     /// <returns>Yields all SyntaxNodes.</returns>
     public IEnumerator<T> GetEnumerator() {
-        for (int i = 0; i < count; i++)
+        for (var i = 0; i < count; i++)
             yield return this[i];
     }
 

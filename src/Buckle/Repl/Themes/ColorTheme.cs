@@ -32,7 +32,7 @@ internal abstract class ColorTheme {
     internal abstract ConsoleColor background { get; }
 
     /// <summary>
-    /// Color of identifer tokens.
+    /// Color of identifier tokens.
     /// </summary>
     internal abstract ConsoleColor identifier { get; }
 

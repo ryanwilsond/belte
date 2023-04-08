@@ -199,7 +199,7 @@ internal static class Error {
     /// </summary>
     internal static BelteDiagnostic CannotConvert(
         TextLocation location, BoundType from, BoundType to, int argument = 0) {
-        string message = $"cannot convert from type '{from}' to '{to}'";
+        var message = $"cannot convert from type '{from}' to '{to}'";
 
         if (argument > 0)
             message = $"argument {argument}: " + message;
@@ -533,7 +533,7 @@ internal static class Error {
     internal static BelteDiagnostic AmbiguousOverload(TextLocation location, MethodSymbol[] symbols) {
         var message = new StringBuilder($"call is ambiguous between ");
 
-        for (int i = 0; i < symbols.Length; i++) {
+        for (var i = 0; i < symbols.Length; i++) {
             if (i == symbols.Length - 1 && i > 1)
                 message.Append(", and ");
             else if (i == symbols.Length - 1)
@@ -756,7 +756,7 @@ internal static class Error {
         } else if (type.IsToken()) {
             var text = new StringBuilder();
 
-            foreach (var c in type.ToString().Substring(0, type.ToString().Length-5)) {
+            foreach (var c in type.ToString().Substring(0, type.ToString().Length - 5)) {
                 if (char.IsUpper(c))
                     text.Append(' ');
 

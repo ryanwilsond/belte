@@ -103,7 +103,7 @@ internal sealed class Parser {
         var size = Math.Min(4096, Math.Max(32, _syntaxTree.text.length / 2));
         _lexedTokens = new ArrayElement<SyntaxToken>[size];
 
-        for (int i = 0; i < size; i++) {
+        for (var i = 0; i < size; i++) {
             var token = _lexer.LexNext();
 
             // if (token.kind == SyntaxKind.BadToken) {
@@ -284,7 +284,7 @@ internal sealed class Parser {
                         parenthesisStack--;
 
                     if (Peek(offset).kind == SyntaxKind.CloseParenToken && parenthesisStack == 0) {
-                        if (Peek(offset+1).kind == SyntaxKind.OpenBraceToken)
+                        if (Peek(offset + 1).kind == SyntaxKind.OpenBraceToken)
                             return true;
                         else
                             return false;
@@ -318,15 +318,17 @@ internal sealed class Parser {
             }
 
             while (Peek(finalOffset).kind == SyntaxKind.ConstKeyword ||
-                Peek(finalOffset).kind == SyntaxKind.RefKeyword)
+                Peek(finalOffset).kind == SyntaxKind.RefKeyword) {
                 finalOffset++;
+            }
 
             if (Peek(finalOffset).kind == SyntaxKind.IdentifierToken ||
                 Peek(finalOffset).kind == SyntaxKind.VarKeyword ||
                 Peek(finalOffset - 1).kind == SyntaxKind.ConstKeyword) {
                 if (Peek(finalOffset).kind == SyntaxKind.IdentifierToken ||
-                    Peek(finalOffset).kind == SyntaxKind.VarKeyword)
+                    Peek(finalOffset).kind == SyntaxKind.VarKeyword) {
                     finalOffset++;
+                }
 
                 var hasBrackets = false;
 
@@ -580,7 +582,7 @@ internal sealed class Parser {
         if (currentToken.kind != SyntaxKind.SemicolonToken)
             expression = ParseExpression();
 
-        SyntaxToken semicolon = Match(SyntaxKind.SemicolonToken);
+        var semicolon = Match(SyntaxKind.SemicolonToken);
 
         return _syntaxFactory.ReturnStatement(keyword, expression, semicolon);
     }
@@ -651,8 +653,7 @@ internal sealed class Parser {
         var condition = ParseNonAssignmentExpression();
         var semicolon = Match(SyntaxKind.SemicolonToken);
 
-        ExpressionSyntax step = null;
-
+        ExpressionSyntax step;
         if (currentToken.kind == SyntaxKind.CloseParenToken)
             step = _syntaxFactory.Empty();
         else
@@ -675,8 +676,8 @@ internal sealed class Parser {
 
         // Not allow nested if statements with else clause without braces; prevents ambiguous else statements
         // * See BU0023
-        bool nestedIf = false;
-        List<TextLocation> invalidElseLocations = new List<TextLocation>();
+        var nestedIf = false;
+        var invalidElseLocations = new List<TextLocation>();
         var inter = statement;
 
         while (inter.kind == SyntaxKind.IfStatement) {
@@ -716,9 +717,9 @@ internal sealed class Parser {
     }
 
     private StatementSyntax ParseExpressionStatement() {
-        int previousCount = diagnostics.count;
+        var previousCount = diagnostics.count;
         var expression = ParseExpression();
-        bool popLast = previousCount != diagnostics.count;
+        var popLast = previousCount != diagnostics.count;
         previousCount = diagnostics.count;
         var semicolon = Match(SyntaxKind.SemicolonToken);
         popLast = popLast && previousCount != diagnostics.count;
@@ -818,7 +819,7 @@ internal sealed class Parser {
         }
 
         while (true) {
-            int precedence = currentToken.kind.GetBinaryPrecedence();
+            var precedence = currentToken.kind.GetBinaryPrecedence();
 
             if (precedence == 0 || precedence <= parentPrecedence)
                 break;
@@ -829,7 +830,7 @@ internal sealed class Parser {
         }
 
         while (true) {
-            int precedence = currentToken.kind.GetTernaryPrecedence();
+            var precedence = currentToken.kind.GetTernaryPrecedence();
 
             if (precedence == 0 || precedence < parentPrecedence)
                 break;
@@ -881,13 +882,14 @@ internal sealed class Parser {
             else if (currentToken.kind == SyntaxKind.PeriodToken || currentToken.kind == SyntaxKind.QuestionPeriodToken)
                 return ParseMemberAccessExpression(operand);
             else if (currentToken.kind == SyntaxKind.MinusMinusToken ||
-                currentToken.kind == SyntaxKind.PlusPlusToken || currentToken.kind == SyntaxKind.ExclamationToken)
+                currentToken.kind == SyntaxKind.PlusPlusToken || currentToken.kind == SyntaxKind.ExclamationToken) {
                 return ParsePostfixExpression(operand);
+            }
 
             return operand;
         }
 
-        left = left == null ? ParsePrimaryExpressionInternal() : left;
+        left = left ?? ParsePrimaryExpressionInternal();
 
         while (true) {
             var startToken = currentToken;
@@ -990,7 +992,7 @@ internal sealed class Parser {
     }
 
     private ExpressionSyntax ParseNameExpression() {
-        SyntaxToken identifier = _syntaxFactory.Token(SyntaxKind.IdentifierToken, currentToken.position);
+        var identifier = _syntaxFactory.Token(SyntaxKind.IdentifierToken, currentToken.position);
 
         if (currentToken.kind == SyntaxKind.IdentifierToken)
             identifier = EatToken();
@@ -1055,8 +1057,7 @@ internal sealed class Parser {
             colon = Match(SyntaxKind.ColonToken);
         }
 
-        ExpressionSyntax expression = null;
-
+        ExpressionSyntax expression;
         if (currentToken.kind == SyntaxKind.CommaToken || currentToken.kind == SyntaxKind.CloseParenToken)
             expression = _syntaxFactory.Empty();
         else
@@ -1107,8 +1108,9 @@ internal sealed class Parser {
             if (declarationOnly)
                 diagnostics.Push(Error.CannotUseConst(constKeyword.location));
             else if (!allowImplicit &&
-                (Peek(1).kind != SyntaxKind.IdentifierToken && Peek(1).kind != SyntaxKind.OpenBracketToken))
+                (Peek(1).kind != SyntaxKind.IdentifierToken && Peek(1).kind != SyntaxKind.OpenBracketToken)) {
                 diagnostics.Push(Error.CannotUseImplicit(constKeyword.location));
+            }
         }
 
         if (currentToken.kind == SyntaxKind.VarKeyword) {

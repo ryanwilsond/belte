@@ -27,6 +27,6 @@ internal sealed partial class CatchClauseSyntax : SyntaxNode {
 }
 
 internal sealed partial class SyntaxFactory {
-    internal CatchClauseSyntax CatchClause(SyntaxToken keyword, BlockStatementSyntax body) =>
-        Create(new CatchClauseSyntax(_syntaxTree, keyword, body));
+    internal CatchClauseSyntax CatchClause(SyntaxToken keyword, BlockStatementSyntax body)
+        => Create(new CatchClauseSyntax(_syntaxTree, keyword, body));
 }

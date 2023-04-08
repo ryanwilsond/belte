@@ -35,9 +35,9 @@ internal sealed partial class ControlFlowGraphBuilder {
             }
         }
 
-        for (int i = 0; i < blocks.Count; i++) {
+        for (var i = 0; i < blocks.Count; i++) {
             var current = blocks[i];
-            var next = i == blocks.Count - 1 ? _end : blocks[i+1];
+            var next = i == blocks.Count - 1 ? _end : blocks[i + 1];
 
             foreach (var statement in current.statements) {
                 var isLastStatement = statement == current.statements.Last();

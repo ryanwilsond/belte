@@ -28,6 +28,6 @@ internal sealed partial class InitializerListExpressionSyntax : ExpressionSyntax
 
 internal sealed partial class SyntaxFactory {
     internal InitializerListExpressionSyntax InitializerListExpression(
-        SyntaxToken openBrace, SeparatedSyntaxList<ExpressionSyntax> items, SyntaxToken closeBrace) =>
-        Create(new InitializerListExpressionSyntax(_syntaxTree, openBrace, items, closeBrace));
+        SyntaxToken openBrace, SeparatedSyntaxList<ExpressionSyntax> items, SyntaxToken closeBrace)
+        => Create(new InitializerListExpressionSyntax(_syntaxTree, openBrace, items, closeBrace));
 }

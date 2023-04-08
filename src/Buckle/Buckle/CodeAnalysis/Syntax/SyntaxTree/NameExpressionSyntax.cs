@@ -23,6 +23,6 @@ internal sealed partial class NameExpressionSyntax : ExpressionSyntax {
 }
 
 internal sealed partial class SyntaxFactory {
-    internal NameExpressionSyntax NameExpression(SyntaxToken identifier) =>
-        Create(new NameExpressionSyntax(_syntaxTree, identifier));
+    internal NameExpressionSyntax NameExpression(SyntaxToken identifier)
+        => Create(new NameExpressionSyntax(_syntaxTree, identifier));
 }

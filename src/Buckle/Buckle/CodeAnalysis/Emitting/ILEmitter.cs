@@ -50,7 +50,7 @@ internal sealed partial class ILEmitter {
         diagnostics = new BelteDiagnosticQueue();
         _namespaceName = moduleName;
 
-        var tempReferences = (references ?? new string[] {}).ToList();
+        var tempReferences = (references ?? new string[] { }).ToList();
         tempReferences.AddRange(new string[] {
             LocateSystemDLL("System.Console.dll"),
             LocateSystemDLL("System.Runtime.dll"),
@@ -201,7 +201,7 @@ internal sealed partial class ILEmitter {
     }
 
     private static string GetSafeName(string name) {
-        CodeDomProvider provider = CodeDomProvider.CreateProvider("C#");
+        var provider = CodeDomProvider.CreateProvider("C#");
         return (provider.IsValidIdentifier(name) ? name : "@" + name)
             .Replace('<', '_').Replace('>', '_').Replace(':', '_');
     }
@@ -320,7 +320,7 @@ internal sealed partial class ILEmitter {
 
                 var allParametersMatch = true;
 
-                for (int i = 0; i < parameterTypeNames.Length; i++) {
+                for (var i = 0; i < parameterTypeNames.Length; i++) {
                     if (method.Parameters[i].ParameterType.FullName != parameterTypeNames[i]) {
                         allParametersMatch = false;
                         break;
@@ -441,8 +441,9 @@ internal sealed partial class ILEmitter {
     private TypeReference GetType(
         BoundType type, bool overrideNullability = false, bool ignoreReference = false) {
         if ((type.dimensions == 0 && !type.isNullable && !overrideNullability) ||
-            type.typeSymbol == TypeSymbol.Void)
+            type.typeSymbol == TypeSymbol.Void) {
             return _knownTypes[type.typeSymbol];
+        }
 
         var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.typeSymbol]);
         var typeReference = new GenericInstanceType(_nullableReference);
@@ -669,9 +670,9 @@ internal sealed partial class ILEmitter {
 
         if (statement.variable.type.isNullable &&
             statement.variable.type.typeSymbol is not StructSymbol &&
-            statement.variable.type.dimensions < 1)
+            statement.variable.type.dimensions < 1) {
             iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
-        else
+        } else
             preset = false;
 
         EmitExpression(iLProcessor, statement.initializer);
@@ -680,9 +681,9 @@ internal sealed partial class ILEmitter {
             iLProcessor.Emit(OpCodes.Stloc_S, variableDefinition);
         else if (statement.variable.type.isNullable &&
             !BoundConstant.IsNull(statement.initializer.constantValue) &&
-            statement.variable.type.dimensions < 1)
+            statement.variable.type.dimensions < 1) {
             iLProcessor.Emit(OpCodes.Call, GetNullableCtor(statement.initializer.type));
-        else if (!preset)
+        } else if (!preset)
             iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
     }
 
@@ -941,7 +942,7 @@ internal sealed partial class ILEmitter {
         var expressionType = type.typeSymbol;
 
         if (constant.value is ImmutableArray<BoundConstant> ia) {
-            for (int i = 0; i < ia.Length; i++) {
+            for (var i = 0; i < ia.Length; i++) {
                 var item = ia[i];
                 iLProcessor.Emit(OpCodes.Dup);
                 iLProcessor.Emit(OpCodes.Ldc_I4, i);
@@ -1006,7 +1007,7 @@ internal sealed partial class ILEmitter {
         iLProcessor.Emit(OpCodes.Ldc_I4, expression.items.Length);
         iLProcessor.Emit(OpCodes.Newarr, GetType(expression.type.ChildType()));
 
-        for (int i = 0; i < expression.items.Length; i++) {
+        for (var i = 0; i < expression.items.Length; i++) {
             var item = expression.items[i];
             iLProcessor.Emit(OpCodes.Dup);
             iLProcessor.Emit(OpCodes.Ldc_I4, i);
@@ -1243,10 +1244,11 @@ internal sealed partial class ILEmitter {
                 foreach (var result in Flatten(binaryExpression.right))
                     yield return result;
             } else {
-                if (node.type.typeSymbol != TypeSymbol.String)
+                if (node.type.typeSymbol != TypeSymbol.String) {
                     throw new BelteInternalException(
                         $"Flatten: unexpected node type in string concatenation '{node.type.typeSymbol}'"
                     );
+                }
 
                 yield return node;
             }
@@ -1346,11 +1348,11 @@ internal sealed partial class ILEmitter {
 
         EmitExpression(iLProcessor, expression.right);
 
-        if (expression.left is BoundIndexExpression)
+        if (expression.left is BoundIndexExpression) {
             iLProcessor.Emit(OpCodes.Stelem_Any);
-        else if (expression.left is BoundMemberAccessExpression ma)
+        } else if (expression.left is BoundMemberAccessExpression ma) {
             iLProcessor.Emit(OpCodes.Stfld, GetFieldReference(ma));
-        else if (expression.left is BoundVariableExpression bve) {
+        } else if (expression.left is BoundVariableExpression bve) {
             if (expression.left.type.typeSymbol is StructSymbol)
                 iLProcessor.Emit(OpCodes.Stloc_S, _locals[bve.variable]);
             else if (!isNullable)

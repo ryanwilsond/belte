@@ -57,7 +57,7 @@ internal static class Assertions {
             .ToList();
 
         if (expectedDiagnostics.Length != diagnostics.Count) {
-            writer.WriteLine($"Input: {String.Join(' ', argsList)}");
+            writer.WriteLine($"Input: {string.Join(' ', argsList)}");
 
             foreach (var diagnostic in diagnostics)
                 writer.WriteLine(diagnostic);
@@ -65,7 +65,7 @@ internal static class Assertions {
 
         Assert.Equal(expectedDiagnostics.Length, diagnostics.Count);
 
-        for (int i = 0; i < expectedDiagnostics.Length; i++) {
+        for (var i = 0; i < expectedDiagnostics.Length; i++) {
             var diagnosticParts = diagnostics[i].Split(": ").Skip(2);
             var diagnostic = (diagnosticParts.Count() == 0
                 ? diagnostics[i]

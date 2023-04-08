@@ -39,6 +39,6 @@ internal sealed partial class BinaryExpressionSyntax : ExpressionSyntax {
 }
 
 internal sealed partial class SyntaxFactory {
-    internal BinaryExpressionSyntax BinaryExpression(ExpressionSyntax left, SyntaxToken op, ExpressionSyntax right) =>
-        Create(new BinaryExpressionSyntax(_syntaxTree, left, op, right));
+    internal BinaryExpressionSyntax BinaryExpression(ExpressionSyntax left, SyntaxToken op, ExpressionSyntax right)
+        => Create(new BinaryExpressionSyntax(_syntaxTree, left, op, right));
 }

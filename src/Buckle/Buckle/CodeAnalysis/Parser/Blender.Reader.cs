@@ -29,9 +29,8 @@ internal sealed partial class Blender {
                 } else if (_changeDelta > 0) {
                     return ReadNewToken();
                 } else {
-                    BlendedNode blendedNode;
 
-                    if (TryTakeOldNodeOrToken(asToken, out blendedNode))
+                    if (TryTakeOldNodeOrToken(asToken, out var blendedNode))
                         return blendedNode;
 
                     if (!_oldTreeCursor.currentNode.kind.IsToken())

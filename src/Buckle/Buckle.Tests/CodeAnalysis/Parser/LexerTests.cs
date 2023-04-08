@@ -317,11 +317,15 @@ public sealed class LexerTests {
         if (t1Kind == SyntaxKind.GreaterThanToken && t2Kind == SyntaxKind.GreaterThanGreaterThanGreaterThanToken)
             return true;
         if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind ==
-            SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken)
+            SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken) {
             return true;
+        }
+
         if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind ==
-            SyntaxKind.GreaterThanGreaterThanGreaterThanToken)
+            SyntaxKind.GreaterThanGreaterThanGreaterThanToken) {
             return true;
+        }
+
         if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind == SyntaxKind.GreaterThanGreaterThanEqualsToken)
             return true;
         if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind == SyntaxKind.GreaterThanEqualsToken)

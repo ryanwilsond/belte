@@ -54,7 +54,7 @@ public static class CompilationExtensions {
 
         void WriteTypeMembers(ITypeSymbolWithMembers type, bool writeEnding = true) {
             try {
-                ImmutableList<Symbol> members = ImmutableList<Symbol>.Empty;
+                var members = ImmutableList<Symbol>.Empty;
 
                 if (type is StructSymbol s)
                     members = program.structMembers[s];

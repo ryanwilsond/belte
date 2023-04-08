@@ -57,7 +57,7 @@ internal sealed class CSharpEmitter {
 
     private string EmitInternal(BoundProgram program, string namespaceName, out BelteDiagnosticQueue diagnostics) {
         var stringWriter = new StringWriter();
-        string indentString = "    ";
+        var indentString = "    ";
 
         using (var indentedTextWriter = new IndentedTextWriter(stringWriter, indentString)) {
             indentedTextWriter.WriteLine("using System;");
@@ -129,10 +129,10 @@ internal sealed class CSharpEmitter {
         // so specifying const here would not do anything
         if (type.isExplicitReference || (type.isReference && makeReferenceExplicit))
             equivalentType.Append("ref ");
-        if (type.isNullable && new List<String>() {"bool", "double", "int"}.Contains(typeName))
+        if (type.isNullable && new List<string>() { "bool", "double", "int" }.Contains(typeName))
             typeName = $"Nullable<{typeName}>";
 
-        for (int i = 0; i < type.dimensions; i++)
+        for (var i = 0; i < type.dimensions; i++)
             typeName = $"List<{typeName}>";
 
         equivalentType.Append(typeName);
@@ -141,7 +141,7 @@ internal sealed class CSharpEmitter {
     }
 
     private string GetSafeName(string name) {
-        CodeDomProvider provider = CodeDomProvider.CreateProvider("C#");
+        var provider = CodeDomProvider.CreateProvider("C#");
         return (provider.IsValidIdentifier(name) ? name : "@" + name)
             .Replace('<', '_').Replace('>', '_').Replace(':', '_');
     }
@@ -183,7 +183,7 @@ internal sealed class CSharpEmitter {
 
     private void EmitMethod(
         IndentedTextWriter indentedTextWriter, KeyValuePair<MethodSymbol, BoundBlockStatement> method) {
-        StringBuilder parameters = new StringBuilder();
+        var parameters = new StringBuilder();
         var isFirst = true;
 
         foreach (var parameter in method.Key.parameters) {
@@ -654,7 +654,7 @@ internal sealed class CSharpEmitter {
         }
 
         EmitExpression(indentedTextWriter, expression.expression);
-        indentedTextWriter.Write(new String(')', neededParenthesis));
+        indentedTextWriter.Write(new string(')', neededParenthesis));
     }
 
     private void EmitTernaryExpression(IndentedTextWriter indentedTextWriter, BoundTernaryExpression expression) {

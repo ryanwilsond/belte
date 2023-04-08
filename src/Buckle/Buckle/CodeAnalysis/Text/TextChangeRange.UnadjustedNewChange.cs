@@ -15,7 +15,7 @@ internal sealed partial class TextChangeRange {
             this.newLength = newLength;
         }
 
-        internal UnadjustedNewChange(TextChangeRange range) :
-            this(range.span.start, range.span.length, range.newLength) { }
+        internal UnadjustedNewChange(TextChangeRange range)
+            : this(range.span.start, range.span.length, range.newLength) { }
     }
 }

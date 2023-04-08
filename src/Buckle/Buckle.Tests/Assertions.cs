@@ -61,7 +61,7 @@ internal static class Assertions {
 
         Assert.Equal(exceptions.Length, result.exceptions.Count);
 
-        for (int i = 0; i < exceptions.Length; i++)
+        for (var i = 0; i < exceptions.Length; i++)
             Assert.Equal(exceptions[i].GetType(), result.exceptions[i].GetType());
     }
 
@@ -109,7 +109,7 @@ internal static class Assertions {
 
         Assert.Equal(expectedDiagnostics.Length, diagnostics.count);
 
-        for (int i = 0; i < expectedDiagnostics.Length; i++) {
+        for (var i = 0; i < expectedDiagnostics.Length; i++) {
             var diagnostic = diagnostics.Pop();
 
             var expectedMessage = expectedDiagnostics[i];

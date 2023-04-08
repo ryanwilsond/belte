@@ -71,14 +71,15 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
         if (name == right.name && parameters.Length == right.parameters.Length) {
             var parametersMatch = true;
 
-            for (int i = 0; i < parameters.Length; i++) {
+            for (var i = 0; i < parameters.Length; i++) {
                 var checkParameter = parameters[i];
                 var parameter = right.parameters[i];
 
                 // The Replace call allows rewritten nested functions that prefix parameter names with '$'
                 if (checkParameter.name != parameter.name.Replace("$", "") ||
-                    checkParameter.type != parameter.type)
+                    checkParameter.type != parameter.type) {
                     parametersMatch = false;
+                }
             }
 
             if (parametersMatch)

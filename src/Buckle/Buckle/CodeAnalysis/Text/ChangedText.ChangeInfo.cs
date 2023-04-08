@@ -25,9 +25,8 @@ internal sealed partial class ChangedText {
 
             // Look for last info in the chain that still has a reference to old text
             for (var info = this; info != null; info = info.previous) {
-                SourceText temp;
 
-                if (info.weakOldText.TryGetTarget(out temp))
+                if (info.weakOldText.TryGetTarget(out var temp))
                     lastInfo = info;
             }
 

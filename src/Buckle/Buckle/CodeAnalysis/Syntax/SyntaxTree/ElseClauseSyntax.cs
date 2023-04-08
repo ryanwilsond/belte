@@ -22,6 +22,6 @@ internal sealed partial class ElseClauseSyntax : SyntaxNode {
 }
 
 internal sealed partial class SyntaxFactory {
-    internal ElseClauseSyntax ElseClause(SyntaxToken keyword, StatementSyntax body) =>
-        Create(new ElseClauseSyntax(_syntaxTree, keyword, body));
+    internal ElseClauseSyntax ElseClause(SyntaxToken keyword, StatementSyntax body)
+        => Create(new ElseClauseSyntax(_syntaxTree, keyword, body));
 }

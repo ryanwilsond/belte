@@ -28,6 +28,6 @@ public sealed partial class CompilationUnitSyntax : SyntaxNode {
 }
 
 internal sealed partial class SyntaxFactory {
-    internal CompilationUnitSyntax CompilationUnit(ImmutableArray<MemberSyntax> members, SyntaxToken endOfFile) =>
-        Create(new CompilationUnitSyntax(_syntaxTree, members, endOfFile));
+    internal CompilationUnitSyntax CompilationUnit(ImmutableArray<MemberSyntax> members, SyntaxToken endOfFile)
+        => Create(new CompilationUnitSyntax(_syntaxTree, members, endOfFile));
 }

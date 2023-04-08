@@ -73,9 +73,10 @@ public sealed class Compiler {
     private int CheckErrors() {
         var worst = SuccessExitCode;
 
-        foreach (Diagnostic diagnostic in diagnostics)
+        foreach (Diagnostic diagnostic in diagnostics) {
             if (diagnostic.info.severity == DiagnosticSeverity.Error)
                 worst = ErrorExitCode;
+        }
 
         return worst;
     }
@@ -83,8 +84,8 @@ public sealed class Compiler {
     private void InternalPreprocessor() {
         var preprocessor = new Preprocessor();
 
-        for (int i = 0; i < state.tasks.Length; i++) {
-            ref FileState task = ref state.tasks[i];
+        for (var i = 0; i < state.tasks.Length; i++) {
+            ref var task = ref state.tasks[i];
 
             if (task.stage == CompilerStage.Raw) {
                 var text = preprocessor.PreprocessText(task.inputFileName, task.fileContent.text);
@@ -100,8 +101,8 @@ public sealed class Compiler {
         diagnostics.Clear(DiagnosticSeverity.Warning);
         var syntaxTrees = new List<SyntaxTree>();
 
-        for (int i = 0; i < state.tasks.Length; i++) {
-            ref FileState task = ref state.tasks[i];
+        for (var i = 0; i < state.tasks.Length; i++) {
+            ref var task = ref state.tasks[i];
 
             if (task.stage == CompilerStage.Preprocessed) {
                 var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text);
@@ -137,7 +138,8 @@ public sealed class Compiler {
         var evaluateWrapperThread = new Thread(evaluateWrapperReference);
         evaluateWrapperThread.Start();
 
-        while (evaluateWrapperThread.IsAlive) ;
+        while (evaluateWrapperThread.IsAlive)
+            ;
 
         diagnostics.Move(result.diagnostics);
     }
@@ -145,8 +147,8 @@ public sealed class Compiler {
     private void InternalCompiler() {
         var syntaxTrees = new List<SyntaxTree>();
 
-        for (int i = 0; i < state.tasks.Length; i++) {
-            ref FileState task = ref state.tasks[i];
+        for (var i = 0; i < state.tasks.Length; i++) {
+            ref var task = ref state.tasks[i];
 
             if (task.stage == CompilerStage.Preprocessed) {
                 var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text);

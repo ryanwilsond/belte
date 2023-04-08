@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// A syntax list separated by a common <see cref="SyntaxNode" />.
 /// </summary>
 /// <typeparam name="T">Child type of <see cref="SyntaxNode" />.</typeparam>
-internal sealed class SeparatedSyntaxList<T> : SeparatedSyntaxList, IEnumerable<T> where T: SyntaxNode {
+internal sealed class SeparatedSyntaxList<T> : SeparatedSyntaxList, IEnumerable<T> where T : SyntaxNode {
     private readonly ImmutableArray<SyntaxNode> _nodesAndSeparators;
 
     internal SeparatedSyntaxList(ImmutableArray<SyntaxNode> nodesAndSeparators) {
@@ -46,7 +46,7 @@ internal sealed class SeparatedSyntaxList<T> : SeparatedSyntaxList, IEnumerable<
     /// </summary>
     /// <returns>Yields all SyntaxNodes.</returns>
     public IEnumerator<T> GetEnumerator() {
-        for (int i = 0; i < count; i++)
+        for (var i = 0; i < count; i++)
             yield return this[i];
     }
 

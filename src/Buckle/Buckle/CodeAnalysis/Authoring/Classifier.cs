@@ -34,7 +34,7 @@ public static class Classifier {
             ClassifyToken(token, span, result, isTypeName);
 
         if (node is TypeSyntax) {
-            bool inAttribute = false;
+            var inAttribute = false;
             isTypeName = false;
 
             foreach (var child in node.GetChildren()) {

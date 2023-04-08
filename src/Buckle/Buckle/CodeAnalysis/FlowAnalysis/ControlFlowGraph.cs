@@ -92,7 +92,7 @@ internal sealed class ControlFlowGraph {
 
         var blockIds = new Dictionary<BasicBlock, string>();
 
-        for (int i = 0; i < blocks.Count; i++) {
+        for (var i = 0; i < blocks.Count; i++) {
             var id = $"N{i}";
             blockIds.Add(blocks[i], id);
         }

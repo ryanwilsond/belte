@@ -122,8 +122,7 @@ internal sealed class Expander : BoundTreeExpander {
     }
 
     private LocalVariableSymbol GenerateTempLocal(BoundType type) {
-        string name = null;
-
+        string name;
         do {
             name = $"temp{_tempCount++}";
         } while (_localNames.Contains(name));

@@ -88,7 +88,7 @@ public sealed partial class BelteRepl : Repl {
 
         var offset = 0;
 
-        for (int i = 0; i < texts.Count(); i++) {
+        for (var i = 0; i < texts.Count(); i++) {
             var line = texts[i].text;
 
             if (fullText.Substring(offset, line.Length) == line) {
@@ -287,7 +287,7 @@ public sealed partial class BelteRepl : Repl {
             _writer.Write("{ ");
             var isFirst = true;
 
-            foreach (object item in (Array)value) {
+            foreach (var item in (Array)value) {
                 if (isFirst)
                     isFirst = false;
                 else
@@ -366,7 +366,7 @@ public sealed partial class BelteRepl : Repl {
             if (segment.classification == Classification.Line)
                 _writer.WriteLine();
             else if (segment.classification == Classification.Indent)
-                _writer.Write(new String(' ', TabWidth));
+                _writer.Write(new string(' ', TabWidth));
             else
                 _writer.Write(segment.text);
         }
@@ -498,9 +498,9 @@ public sealed partial class BelteRepl : Repl {
 
     [MetaCommand("saveToFile", "Save previous <count> submissions to <path>")]
     private void EvaluateSaveToFile(string path, string count = "1") {
-        if (!Int32.TryParse(count, out var countInt)) {
+        if (!int.TryParse(count, out var countInt)) {
             handle.diagnostics.Push(
-                new BelteDiagnostic(global::Repl.Diagnostics.Error.InvalidArgument(count, typeof(Int32))));
+                new BelteDiagnostic(global::Repl.Diagnostics.Error.InvalidArgument(count, typeof(int))));
 
             if (diagnosticHandle != null)
                 diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
@@ -534,7 +534,7 @@ public sealed partial class BelteRepl : Repl {
 
         var wrote = false;
 
-        for (int i = 0; i < 3; i++) {
+        for (var i = 0; i < 3; i++) {
             try {
                 File.WriteAllLines(path, subset);
                 wrote = true;

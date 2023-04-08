@@ -40,8 +40,8 @@ internal sealed partial class LocalFunctionStatementSyntax : StatementSyntax {
 internal sealed partial class SyntaxFactory {
     internal LocalFunctionStatementSyntax LocalFunctionStatement(
         TypeSyntax returnType, SyntaxToken identifier, SyntaxToken openParenthesis,
-        SeparatedSyntaxList<ParameterSyntax> parameters, SyntaxToken closeParenthesis, BlockStatementSyntax body) =>
-        Create(new LocalFunctionStatementSyntax(
+        SeparatedSyntaxList<ParameterSyntax> parameters, SyntaxToken closeParenthesis, BlockStatementSyntax body)
+        => Create(new LocalFunctionStatementSyntax(
             _syntaxTree, returnType, identifier, openParenthesis, parameters, closeParenthesis, body
         ));
 }

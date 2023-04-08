@@ -34,6 +34,6 @@ internal sealed partial class StructDeclarationSyntax : TypeDeclarationSyntax {
 internal sealed partial class SyntaxFactory {
     internal StructDeclarationSyntax StructDeclaration(
         SyntaxToken keyword, SyntaxToken identifier, SyntaxToken openBrace,
-        SyntaxList<MemberSyntax> members, SyntaxToken closeBrace) =>
-        Create(new StructDeclarationSyntax(_syntaxTree, keyword, identifier, openBrace, members, closeBrace));
+        SyntaxList<MemberSyntax> members, SyntaxToken closeBrace)
+        => Create(new StructDeclarationSyntax(_syntaxTree, keyword, identifier, openBrace, members, closeBrace));
 }

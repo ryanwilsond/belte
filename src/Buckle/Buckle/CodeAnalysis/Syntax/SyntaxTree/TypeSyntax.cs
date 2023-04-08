@@ -99,8 +99,8 @@ internal sealed partial class SyntaxFactory {
     internal TypeSyntax Type(
         SyntaxList<AttributeSyntax> attributes,
         SyntaxToken constRefKeyword, SyntaxToken refKeyword, SyntaxToken constKeyword, SyntaxToken varKeyword,
-        SyntaxToken typeName, ImmutableArray<(SyntaxToken, SyntaxToken)> brackets) =>
-        Create(new TypeSyntax(
+        SyntaxToken typeName, ImmutableArray<(SyntaxToken, SyntaxToken)> brackets)
+        => Create(new TypeSyntax(
             _syntaxTree, attributes, constRefKeyword, refKeyword, constKeyword, varKeyword, typeName, brackets
         ));
 }

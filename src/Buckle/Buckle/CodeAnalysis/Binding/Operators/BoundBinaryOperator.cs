@@ -175,9 +175,9 @@ internal sealed class BoundBinaryOperator {
                     return new BoundBinaryOperator(
                         op.kind,
                         op.opKind,
-                        op.leftType == null ? leftType : op.leftType,
-                        op.rightType == null ? rightType : op.rightType,
-                        op.type == null ? leftType : op.type
+                        op.leftType ?? leftType,
+                        op.rightType ?? rightType,
+                        op.type ?? leftType
                     );
                 } else if (leftType.isNullable || rightType.isNullable) {
                     return new BoundBinaryOperator(

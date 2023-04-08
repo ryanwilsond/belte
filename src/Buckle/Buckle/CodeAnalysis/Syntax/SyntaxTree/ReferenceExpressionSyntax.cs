@@ -31,6 +31,6 @@ internal sealed partial class ReferenceExpressionSyntax : ExpressionSyntax {
 }
 
 internal sealed partial class SyntaxFactory {
-    internal ReferenceExpressionSyntax ReferenceExpression(SyntaxToken keyword, SyntaxToken identifier) =>
-        Create(new ReferenceExpressionSyntax(_syntaxTree, keyword, identifier));
+    internal ReferenceExpressionSyntax ReferenceExpression(SyntaxToken keyword, SyntaxToken identifier)
+        => Create(new ReferenceExpressionSyntax(_syntaxTree, keyword, identifier));
 }

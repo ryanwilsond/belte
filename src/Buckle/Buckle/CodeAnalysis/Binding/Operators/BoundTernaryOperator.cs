@@ -101,10 +101,10 @@ internal sealed class BoundTernaryOperator {
                         leftOpKind,
                         rightOpKind,
                         op.opKind,
-                        op.leftType == null ? leftType : op.leftType,
-                        op.centerType == null ? centerType : op.centerType,
-                        op.rightType == null ? rightType : op.rightType,
-                        op.type == null ? centerType : op.type
+                        op.leftType ?? leftType,
+                        op.centerType ?? centerType,
+                        op.rightType ?? rightType,
+                        op.type ?? centerType
                     );
                 } else {
                     return op;

@@ -1,6 +1,7 @@
 
 .*/
 !.github
+# VSCode is the offical supported code editor, hence .vs is ignored
 !.vscode
 
 /[Rr]esources/

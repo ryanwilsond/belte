@@ -49,7 +49,7 @@ internal sealed partial class Blender {
                     return new Cursor(child, 0);
             }
 
-            int index = 0;
+            var index = 0;
             foreach (var child in children) {
                 if (IsNonZeroWidthOrIsEndOfFile(child))
                     return new Cursor(child, index);

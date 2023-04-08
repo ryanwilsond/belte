@@ -24,6 +24,6 @@ internal sealed partial class BreakStatementSyntax : StatementSyntax {
 }
 
 internal sealed partial class SyntaxFactory {
-    internal BreakStatementSyntax BreakStatement(SyntaxToken keyword, SyntaxToken semicolon) =>
-        Create(new BreakStatementSyntax(_syntaxTree, keyword, semicolon));
+    internal BreakStatementSyntax BreakStatement(SyntaxToken keyword, SyntaxToken semicolon)
+        => Create(new BreakStatementSyntax(_syntaxTree, keyword, semicolon));
 }

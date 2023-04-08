@@ -27,6 +27,6 @@ internal sealed partial class AttributeSyntax : SyntaxNode {
 }
 
 internal sealed partial class SyntaxFactory {
-    internal AttributeSyntax Attribute(SyntaxToken openBracket, SyntaxToken identifier, SyntaxToken closeBracket) =>
-        Create(new AttributeSyntax(_syntaxTree, openBracket, identifier, closeBracket));
+    internal AttributeSyntax Attribute(SyntaxToken openBracket, SyntaxToken identifier, SyntaxToken closeBracket)
+        => Create(new AttributeSyntax(_syntaxTree, openBracket, identifier, closeBracket));
 }

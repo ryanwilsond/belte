@@ -53,8 +53,8 @@ internal sealed partial class SyntaxFactory {
     internal ForStatementSyntax ForStatement(
         SyntaxToken keyword, SyntaxToken openParenthesis, StatementSyntax initializer,
         ExpressionSyntax condition, SyntaxToken semicolon, ExpressionSyntax step,
-        SyntaxToken closeParenthesis, StatementSyntax body) =>
-        Create(new ForStatementSyntax(
+        SyntaxToken closeParenthesis, StatementSyntax body)
+        => Create(new ForStatementSyntax(
             _syntaxTree, keyword, openParenthesis, initializer, condition, semicolon, step, closeParenthesis, body
         ));
 }

@@ -257,5 +257,4 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(args, diagnostics, writer);
     }
-
 }

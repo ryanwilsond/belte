@@ -73,7 +73,7 @@ internal sealed partial class Blender {
         var lastCharIndex = oldTree.fullSpan.length - 1;
         var start = Math.Max(Math.Min(changeRange.span.start, lastCharIndex), 0);
 
-        for (int i = 0; start > 0 && i <= maxLookahead;) {
+        for (var i = 0; start > 0 && i <= maxLookahead;) {
             var token = oldTree.FindToken(start);
             start = Math.Max(0, token.fullSpan.start - 1);
 

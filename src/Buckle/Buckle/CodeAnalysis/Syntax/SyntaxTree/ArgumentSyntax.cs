@@ -15,7 +15,7 @@ internal sealed partial class ArgumentSyntax : SyntaxNode {
     /// <param name="expression">Value of the argument.</param>
     internal ArgumentSyntax(
         SyntaxTree syntaxTree, SyntaxToken name, SyntaxToken colon, ExpressionSyntax expression)
-        : base (syntaxTree) {
+        : base(syntaxTree) {
         this.name = name;
         this.colon = colon;
         this.expression = expression;
@@ -41,6 +41,6 @@ internal sealed partial class ArgumentSyntax : SyntaxNode {
 }
 
 internal sealed partial class SyntaxFactory {
-    internal ArgumentSyntax Argument(SyntaxToken name, SyntaxToken colon, ExpressionSyntax expression) =>
-        Create(new ArgumentSyntax(_syntaxTree, name, colon, expression));
+    internal ArgumentSyntax Argument(SyntaxToken name, SyntaxToken colon, ExpressionSyntax expression)
+        => Create(new ArgumentSyntax(_syntaxTree, name, colon, expression));
 }

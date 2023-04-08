@@ -52,6 +52,6 @@ internal sealed partial class VariableDeclarationStatementSyntax : StatementSynt
 internal sealed partial class SyntaxFactory {
     internal VariableDeclarationStatementSyntax VariableDeclarationStatement(
         TypeSyntax type, SyntaxToken identifier, SyntaxToken equals,
-        ExpressionSyntax initializer, SyntaxToken semicolon) =>
-        Create(new VariableDeclarationStatementSyntax(_syntaxTree, type, identifier, equals, initializer, semicolon));
+        ExpressionSyntax initializer, SyntaxToken semicolon)
+        => Create(new VariableDeclarationStatementSyntax(_syntaxTree, type, identifier, equals, initializer, semicolon));
 }

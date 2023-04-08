@@ -19,12 +19,12 @@ internal sealed partial class EmptyExpressionSyntax : ExpressionSyntax {
     /// <summary>
     /// An artificial location used by diagnostics.
     /// </summary>
-    SyntaxToken? artificialLocation { get; }
+    private SyntaxToken? artificialLocation { get; }
 
     internal override SyntaxKind kind => SyntaxKind.EmptyExpression;
 }
 
 internal sealed partial class SyntaxFactory {
-    internal EmptyExpressionSyntax Empty(SyntaxToken artificialLocation = null) =>
-        Create(new EmptyExpressionSyntax(_syntaxTree, artificialLocation));
+    internal EmptyExpressionSyntax Empty(SyntaxToken artificialLocation = null)
+        => Create(new EmptyExpressionSyntax(_syntaxTree, artificialLocation));
 }

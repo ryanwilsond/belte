@@ -66,7 +66,7 @@ internal static class Error {
     internal static Diagnostic AmbiguousSignature(string signature, ISymbol[] symbols) {
         var message = new StringBuilder($"'{signature}' is ambiguous between ");
 
-        for (int i = 0; i < symbols.Length; i++) {
+        for (var i = 0; i < symbols.Length; i++) {
             if (i == symbols.Length - 1 && i > 1)
                 message.Append(", and ");
             else if (i == symbols.Length - 1)

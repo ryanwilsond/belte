@@ -130,14 +130,13 @@ public abstract class SyntaxNode {
     /// </summary>
     /// <param name="position">The character position of the token relative to the beginning of the file.</param>
     internal SyntaxToken FindToken(int position) {
-        SyntaxToken endOfFile;
-        if (TryGetEndOfFileAt(position, out endOfFile))
+        if (TryGetEndOfFileAt(position, out var endOfFile))
             return endOfFile;
 
         if (!fullSpan.Contains(position))
             throw new BelteInternalException("FindToken", new ArgumentOutOfRangeException(nameof(position)));
 
-        SyntaxNode currentNode = this;
+        var currentNode = this;
 
         while (true) {
             var node = currentNode is not SyntaxToken ? currentNode : null;
@@ -160,18 +159,19 @@ public abstract class SyntaxNode {
     }
 
     internal static int GetFirstChildIndexSpanningPosition(SyntaxNode[] list, int position) {
-        int lo = 0;
-        int hi = list.Length - 1;
+        var lo = 0;
+        var hi = list.Length - 1;
 
         while (lo <= hi) {
-            int r = lo + ((hi - lo) >> 1);
+            var r = lo + ((hi - lo) >> 1);
 
             var m = list[r];
             if (position < m.fullSpan.start) {
                 hi = r - 1;
             } else {
                 if (position == m.fullSpan.start) {
-                    for (; r > 0 && list[r - 1].fullSpan.length == 0; r--) ;
+                    for (; r > 0 && list[r - 1].fullSpan.length == 0; r--)
+                        ;
 
                     return r;
                 }
@@ -194,18 +194,17 @@ public abstract class SyntaxNode {
         if (children.Count() == 0)
             return this;
 
-        foreach (var child in children)
+        foreach (var child in children) {
             if (child.fullSpan.Contains(position))
                 return child.ChildThatContainsPosition(position);
+        }
 
         throw ExceptionUtilities.Unreachable();
     }
 
     private bool TryGetEndOfFileAt(int position, out SyntaxToken endOfFile) {
         if (fullSpan.length == 0) {
-            var compilationUnit = this as CompilationUnitSyntax;
-
-            if (compilationUnit != null) {
+            if (this is CompilationUnitSyntax compilationUnit) {
                 endOfFile = compilationUnit.endOfFile;
                 return true;
             }

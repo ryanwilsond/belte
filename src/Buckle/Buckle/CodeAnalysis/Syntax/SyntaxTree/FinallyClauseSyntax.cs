@@ -27,6 +27,6 @@ internal sealed partial class FinallyClauseSyntax : SyntaxNode {
 }
 
 internal sealed partial class SyntaxFactory {
-    internal FinallyClauseSyntax FinallyClause(SyntaxToken keyword, BlockStatementSyntax body) =>
-        Create(new FinallyClauseSyntax(_syntaxTree, keyword, body));
+    internal FinallyClauseSyntax FinallyClause(SyntaxToken keyword, BlockStatementSyntax body)
+        => Create(new FinallyClauseSyntax(_syntaxTree, keyword, body));
 }

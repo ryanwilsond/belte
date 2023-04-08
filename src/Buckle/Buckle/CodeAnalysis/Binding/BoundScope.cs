@@ -26,7 +26,8 @@ internal sealed class BoundScope {
     internal BoundScope parent {
         get {
             return _parent;
-        } set {
+        }
+        set {
             _parent = value;
         }
     }
@@ -119,12 +120,12 @@ internal sealed class BoundScope {
             return false;
 
         var succeeded = false;
-        ref BoundScope parentRef = ref _parent;
-        ref List<Symbol> symbols = ref _symbols;
+        ref var parentRef = ref _parent;
+        ref var symbols = ref _symbols;
 
         while (true) {
             if (symbols != null) {
-                for (int i = 0; i < symbols.Count; i++) {
+                for (var i = 0; i < symbols.Count; i++) {
                     if (symbols[i].name == name) {
                         symbols[i] = newSymbol;
                         succeeded = true;
@@ -243,7 +244,7 @@ internal sealed class BoundScope {
         if (a.parameters.Length != b.parameters.Length)
             return false;
 
-        for (int i = 0; i < a.parameters.Length; i++) {
+        for (var i = 0; i < a.parameters.Length; i++) {
             if (!a.parameters[i].type.Equals(b.parameters[i].type))
                 return false;
         }

@@ -36,6 +36,6 @@ internal sealed partial class MemberAccessExpressionSyntax : ExpressionSyntax {
 
 internal sealed partial class SyntaxFactory {
     internal MemberAccessExpressionSyntax MemberAccessExpression(
-        ExpressionSyntax operand, SyntaxToken op, SyntaxToken identifier) =>
-        Create(new MemberAccessExpressionSyntax(_syntaxTree, operand, op, identifier));
+        ExpressionSyntax operand, SyntaxToken op, SyntaxToken identifier)
+        => Create(new MemberAccessExpressionSyntax(_syntaxTree, operand, op, identifier));
 }

@@ -97,8 +97,8 @@ internal sealed class SubText : SourceText {
     }
 
     private TextSpan GetCompositeSpan(int start, int length) {
-        int compositeStart = Math.Min(underlyingText.length, underlyingSpan.start + start);
-        int compositeEnd = Math.Min(underlyingText.length, compositeStart + length);
+        var compositeStart = Math.Min(underlyingText.length, underlyingSpan.start + start);
+        var compositeEnd = Math.Min(underlyingText.length, compositeStart + length);
         return new TextSpan(compositeStart, compositeEnd - compositeStart);
     }
 }

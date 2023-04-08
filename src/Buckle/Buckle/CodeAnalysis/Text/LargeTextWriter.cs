@@ -35,7 +35,7 @@ internal sealed class LargeTextWriter : SourceTextWriter {
             return;
 
         var count = value.Length;
-        int index = 0;
+        var index = 0;
 
         while (count > 0) {
             EnsureBuffer();

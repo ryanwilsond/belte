@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using System.Threading;
 
 namespace Repl;
 
@@ -87,7 +86,7 @@ public abstract partial class Repl {
             if (blankLineCount > 0) {
                 var blankLine = new string(' ', Console.WindowWidth);
 
-                for (int i = 0; i < blankLineCount; i++) {
+                for (var i = 0; i < blankLineCount; i++) {
                     _writer.SetCursorPosition(0, _cursorTop + lineCount + i);
                     _writer.WriteLine(blankLine);
                 }

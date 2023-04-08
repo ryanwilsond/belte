@@ -58,7 +58,8 @@ internal sealed class Evaluator {
     internal bool hasPrint {
         get {
             return _hasPrint;
-        } set {
+        }
+        set {
             _hasPrint = value;
         }
     }
@@ -285,7 +286,7 @@ internal sealed class Evaluator {
         try {
             var labelToIndex = new Dictionary<BoundLabel, int>();
 
-            for (int i = 0; i < statement.statements.Length; i++) {
+            for (var i = 0; i < statement.statements.Length; i++) {
                 if (statement.statements[i] is BoundLabelStatement l)
                     labelToIndex.Add(l.label, i + 1);
             }
@@ -503,7 +504,7 @@ internal sealed class Evaluator {
         var builder = new List<EvaluatorObject>();
 
         foreach (var item in node.items) {
-            EvaluatorObject value = EvaluateExpression(item, ref abort);
+            var value = EvaluateExpression(item, ref abort);
             builder.Add(value);
         }
 
@@ -564,7 +565,7 @@ internal sealed class Evaluator {
         } else {
             var locals = new Dictionary<IVariableSymbol, IEvaluatorObject>();
 
-            for (int i = 0; i < node.arguments.Length; i++) {
+            for (var i = 0; i < node.arguments.Length; i++) {
                 var parameter = node.method.parameters[i];
                 var value = EvaluateExpression(node.arguments[i], ref abort);
 

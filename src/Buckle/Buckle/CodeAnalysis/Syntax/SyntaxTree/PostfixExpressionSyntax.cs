@@ -27,6 +27,6 @@ internal sealed partial class PostfixExpressionSyntax : ExpressionSyntax {
 }
 
 internal sealed partial class SyntaxFactory {
-    internal PostfixExpressionSyntax PostfixExpression(ExpressionSyntax operand, SyntaxToken op) =>
-        Create(new PostfixExpressionSyntax(_syntaxTree, operand, op));
+    internal PostfixExpressionSyntax PostfixExpression(ExpressionSyntax operand, SyntaxToken op)
+        => Create(new PostfixExpressionSyntax(_syntaxTree, operand, op));
 }

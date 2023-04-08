@@ -131,8 +131,9 @@ internal abstract class BoundTreeRewriter {
         var body = RewriteStatement(statement.body);
 
         if (initializer == statement.initializer && condition == statement.condition &&
-            step == statement.step && body == statement.body)
+            step == statement.step && body == statement.body) {
             return statement;
+        }
 
         return new BoundForStatement(initializer, condition, step, body, statement.breakLabel, statement.continueLabel);
     }
@@ -170,19 +171,18 @@ internal abstract class BoundTreeRewriter {
     protected virtual BoundStatement RewriteBlockStatement(BoundBlockStatement statement) {
         ImmutableArray<BoundStatement>.Builder builder = null;
 
-        for (int i = 0; i < statement.statements.Length; i++) {
+        for (var i = 0; i < statement.statements.Length; i++) {
             var oldStatement = statement.statements[i];
             var newStatement = RewriteStatement(oldStatement);
 
             if (newStatement != oldStatement && builder == null) {
                 builder = ImmutableArray.CreateBuilder<BoundStatement>(statement.statements.Length);
 
-                for (int j = 0; j < i; j++)
+                for (var j = 0; j < i; j++)
                     builder.Add(statement.statements[j]);
             }
 
-            if (builder != null)
-                builder.Add(newStatement);
+            builder?.Add(newStatement);
         }
 
         if (builder == null)
@@ -310,7 +310,7 @@ internal abstract class BoundTreeRewriter {
     protected virtual BoundExpression RewriteInitializerListExpression(BoundInitializerListExpression expression) {
         ImmutableArray<BoundExpression>.Builder builder = null;
 
-        for (int i = 0; i < expression.items.Length; i++) {
+        for (var i = 0; i < expression.items.Length; i++) {
             var oldItem = expression.items[i];
             var newItem = RewriteExpression(oldItem);
 
@@ -318,13 +318,12 @@ internal abstract class BoundTreeRewriter {
                 if (builder == null) {
                     builder = ImmutableArray.CreateBuilder<BoundExpression>(expression.items.Length);
 
-                    for (int j = 0; j < i; j++)
+                    for (var j = 0; j < i; j++)
                         builder.Add(expression.items[j]);
                 }
             }
 
-            if (builder != null)
-                builder.Add(newItem);
+            builder?.Add(newItem);
         }
 
         if (builder == null)
@@ -356,7 +355,7 @@ internal abstract class BoundTreeRewriter {
     protected virtual BoundExpression RewriteCallExpression(BoundCallExpression expression) {
         ImmutableArray<BoundExpression>.Builder builder = null;
 
-        for (int i = 0; i < expression.arguments.Length; i++) {
+        for (var i = 0; i < expression.arguments.Length; i++) {
             var oldArgument = expression.arguments[i];
             var newArgument = RewriteExpression(oldArgument);
 
@@ -364,13 +363,12 @@ internal abstract class BoundTreeRewriter {
                 if (builder == null) {
                     builder = ImmutableArray.CreateBuilder<BoundExpression>(expression.arguments.Length);
 
-                    for (int j = 0; j < i; j++)
+                    for (var j = 0; j < i; j++)
                         builder.Add(expression.arguments[j]);
                 }
             }
 
-            if (builder != null)
-                builder.Add(newArgument);
+            builder?.Add(newArgument);
         }
 
         if (builder == null)

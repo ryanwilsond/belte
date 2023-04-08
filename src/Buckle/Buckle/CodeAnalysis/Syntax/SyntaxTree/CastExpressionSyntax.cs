@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Cast expresion (C-Style).<br/>
+/// Cast expression (C-Style).<br/>
 /// E.g.
 /// <code>
 /// (int)3.4
@@ -36,6 +36,6 @@ internal sealed partial class CastExpressionSyntax : ExpressionSyntax {
 
 internal sealed partial class SyntaxFactory {
     internal CastExpressionSyntax CastExpression(
-        SyntaxToken openParenthesis, TypeSyntax type, SyntaxToken closeParenthesis, ExpressionSyntax expression) =>
-        Create(new CastExpressionSyntax(_syntaxTree, openParenthesis, type, closeParenthesis, expression));
+        SyntaxToken openParenthesis, TypeSyntax type, SyntaxToken closeParenthesis, ExpressionSyntax expression)
+        => Create(new CastExpressionSyntax(_syntaxTree, openParenthesis, type, closeParenthesis, expression));
 }

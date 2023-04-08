@@ -83,7 +83,7 @@ internal sealed class Optimizer : BoundTreeRewriter {
         var reachableStatements = new HashSet<BoundStatement>(controlFlow.blocks.SelectMany(b => b.statements));
 
         var builder = statement.statements.ToBuilder();
-        for (int i = builder.Count - 1; i >= 0; i--) {
+        for (var i = builder.Count - 1; i >= 0; i--) {
             if (!reachableStatements.Contains(builder[i]))
                 builder.RemoveAt(i);
         }

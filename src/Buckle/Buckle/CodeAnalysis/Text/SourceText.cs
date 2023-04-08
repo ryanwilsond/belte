@@ -59,12 +59,12 @@ public abstract class SourceText {
     /// <param name="position">Absolute index.</param>
     /// <returns>Line index.</returns>
     public int GetLineIndex(int position) {
-        int lower = 0;
-        int upper = lineCount - 1;
+        var lower = 0;
+        var upper = lineCount - 1;
 
         while (lower <= upper) {
-            int index = lower + (upper - lower) / 2;
-            int start = lines[index].start;
+            var index = lower + (upper - lower) / 2;
+            var start = lines[index].start;
 
             if (position == start)
                 return index;
@@ -88,12 +88,12 @@ public abstract class SourceText {
         var builder = PooledStringBuilder.GetInstance();
         var buffer = _charArrayPool.Allocate();
 
-        int position = Math.Max(Math.Min(span.start, length), 0);
-        int newLength = Math.Min(span.end, length) - position;
+        var position = Math.Max(Math.Min(span.start, length), 0);
+        var newLength = Math.Min(span.end, length) - position;
         builder.Builder.EnsureCapacity(newLength);
 
         while (position < length && newLength > 0) {
-            int copyLength = Math.Min(buffer.Length, newLength);
+            var copyLength = Math.Min(buffer.Length, newLength);
             CopyTo(position, buffer, 0, copyLength);
             builder.Builder.Append(buffer, 0, copyLength);
             newLength -= copyLength;
@@ -117,11 +117,11 @@ public abstract class SourceText {
         var buffer = _charArrayPool.Allocate();
 
         try {
-            int offset = 0;
-            int end = length;
+            var offset = 0;
+            var end = length;
 
             while (offset < end) {
-                int count = Math.Min(buffer.Length, end - offset);
+                var count = Math.Min(buffer.Length, end - offset);
                 CopyTo(offset, buffer, 0, count);
                 writer.Write(buffer, 0, count);
                 offset += count;
@@ -162,7 +162,7 @@ public abstract class SourceText {
         var segments = ImmutableArray.CreateBuilder<SourceText>();
         var changeRanges = ImmutableArray.CreateBuilder<TextChangeRange>();
 
-        int position = 0;
+        var position = 0;
 
         foreach (var change in changes) {
             if (change.span.end > length)
@@ -247,8 +247,8 @@ public abstract class SourceText {
         if (text == null)
             return result.ToImmutable();
 
-        int position = 0;
-        int lineStart = 0;
+        var position = 0;
+        var lineStart = 0;
 
         while (position < text.Length) {
             var lineBreakWidth = GetLineBreakWidth(text, position);

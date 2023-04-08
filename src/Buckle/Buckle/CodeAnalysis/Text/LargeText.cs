@@ -19,8 +19,8 @@ internal sealed class LargeText : SourceText {
         _chunks = chunks;
         _chunkStartOffsets = new int[chunks.Length];
 
-        int offset = 0;
-        for (int i = 0; i < chunks.Length; i++) {
+        var offset = 0;
+        for (var i = 0; i < chunks.Length; i++) {
             _chunkStartOffsets[i] = offset;
             offset += chunks[i].Length;
         }
@@ -32,7 +32,7 @@ internal sealed class LargeText : SourceText {
 
     public override char this[int index] {
         get {
-            int i = GetIndexFromPosition(index);
+            var i = GetIndexFromPosition(index);
             return _chunks[i][index - _chunkStartOffsets[i]];
         }
     }
@@ -41,12 +41,12 @@ internal sealed class LargeText : SourceText {
         if (count == 0)
             return;
 
-        int chunkIndex = GetIndexFromPosition(sourceIndex);
-        int chunkStartOffset = sourceIndex - _chunkStartOffsets[chunkIndex];
+        var chunkIndex = GetIndexFromPosition(sourceIndex);
+        var chunkStartOffset = sourceIndex - _chunkStartOffsets[chunkIndex];
 
         while (true) {
             var chunk = _chunks[chunkIndex];
-            int charsToCopy = Math.Min(chunk.Length - chunkStartOffset, count);
+            var charsToCopy = Math.Min(chunk.Length - chunkStartOffset, count);
             Array.Copy(chunk, chunkStartOffset, destination, destinationIndex, charsToCopy);
             count -= charsToCopy;
 
@@ -60,20 +60,19 @@ internal sealed class LargeText : SourceText {
     }
 
     public override void Write(TextWriter writer) {
-        int count = length;
+        var count = length;
 
         if (length == 0)
             return;
 
-        var chunkWriter = writer as LargeTextWriter;
-        int chunkIndex = GetIndexFromPosition(0);
-        int chunkStartOffset = 0 - _chunkStartOffsets[chunkIndex];
+        var chunkIndex = GetIndexFromPosition(0);
+        var chunkStartOffset = 0 - _chunkStartOffsets[chunkIndex];
 
         while (true) {
             var chunk = _chunks[chunkIndex];
-            int charsToWrite = Math.Min(chunk.Length - chunkStartOffset, count);
+            var charsToWrite = Math.Min(chunk.Length - chunkStartOffset, count);
 
-            if (chunkWriter != null && chunkStartOffset == 0 && charsToWrite == chunk.Length)
+            if (writer is LargeTextWriter chunkWriter && chunkStartOffset == 0 && charsToWrite == chunk.Length)
                 chunkWriter.AppendChunk(chunk);
             else
                 writer.Write(chunk, chunkStartOffset, charsToWrite);
@@ -93,7 +92,7 @@ internal sealed class LargeText : SourceText {
     }
 
     private int GetIndexFromPosition(int position) {
-        int index = _chunkStartOffsets.BinarySearch(position);
+        var index = _chunkStartOffsets.BinarySearch(position);
         return index >= 0 ? index : (~index - 1);
     }
 }

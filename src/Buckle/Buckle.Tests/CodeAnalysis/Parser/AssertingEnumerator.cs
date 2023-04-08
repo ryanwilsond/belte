@@ -67,7 +67,7 @@ internal sealed class AssertingEnumerator : IDisposable {
         while (stack.Count > 0) {
             var n = stack.Pop();
             yield return n;
-            IEnumerable<SyntaxNode> nodeList = n.GetChildren();
+            var nodeList = n.GetChildren();
 
             foreach (var child in nodeList.Reverse())
                 stack.Push(child);

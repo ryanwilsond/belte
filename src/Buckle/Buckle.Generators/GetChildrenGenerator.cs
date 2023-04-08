@@ -1,4 +1,4 @@
-﻿using System.CodeDom.Compiler;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -41,7 +41,7 @@ public sealed class GetChildrenGenerator : ISourceGenerator {
         if (immutableArrayType == null || separatedSyntaxListType == null || nodeType == null || syntaxListType == null)
             return;
 
-        string indentString = "    ";
+        var indentString = "    ";
         SourceText sourceText;
 
         using (var stringWriter = new StringWriter())

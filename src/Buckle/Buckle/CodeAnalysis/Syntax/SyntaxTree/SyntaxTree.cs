@@ -148,7 +148,7 @@ public sealed class SyntaxTree {
 
         void ParseTokens(SyntaxTree syntaxTree, out CompilationUnitSyntax root, out BelteDiagnosticQueue diagnostics) {
             root = null;
-            InternalSyntax.Lexer lexer = new InternalSyntax.Lexer(syntaxTree);
+            var lexer = new InternalSyntax.Lexer(syntaxTree);
 
             while (true) {
                 var token = lexer.LexNext();

@@ -24,9 +24,9 @@ internal sealed partial class TypeOfExpressionSyntax : ExpressionSyntax {
     /// <summary>
     /// TypeOf keyword.
     /// </summary>
-    internal SyntaxToken keyword { get;  }
+    internal SyntaxToken keyword { get; }
 
-    internal SyntaxToken openParenthesis { get;  }
+    internal SyntaxToken openParenthesis { get; }
 
     internal TypeSyntax type { get; }
 
@@ -37,6 +37,6 @@ internal sealed partial class TypeOfExpressionSyntax : ExpressionSyntax {
 
 internal sealed partial class SyntaxFactory {
     internal TypeOfExpressionSyntax TypeOfExpression(
-        SyntaxToken keyword, SyntaxToken openParenthesis, TypeSyntax type, SyntaxToken closeParenthesis) =>
-        Create(new TypeOfExpressionSyntax(_syntaxTree, keyword, openParenthesis, type, closeParenthesis));
+        SyntaxToken keyword, SyntaxToken openParenthesis, TypeSyntax type, SyntaxToken closeParenthesis)
+        => Create(new TypeOfExpressionSyntax(_syntaxTree, keyword, openParenthesis, type, closeParenthesis));
 }

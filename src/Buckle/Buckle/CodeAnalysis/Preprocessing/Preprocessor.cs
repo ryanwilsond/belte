@@ -29,7 +29,6 @@ internal sealed class Preprocessor {
         var preprocessFile = PreprocessFile.Parse(lines);
 
         foreach (var line in preprocessFile.lines) {
-
         }
 
         // ! Temp code - just so it compiles

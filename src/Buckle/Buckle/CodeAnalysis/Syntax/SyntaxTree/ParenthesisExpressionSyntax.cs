@@ -29,6 +29,6 @@ internal sealed partial class ParenthesisExpressionSyntax : ExpressionSyntax {
 
 internal sealed partial class SyntaxFactory {
     internal ParenthesisExpressionSyntax ParenthesisExpression(
-        SyntaxToken openParenthesis, ExpressionSyntax expression, SyntaxToken closeParenthesis) =>
-        Create(new ParenthesisExpressionSyntax(_syntaxTree, openParenthesis, expression, closeParenthesis));
+        SyntaxToken openParenthesis, ExpressionSyntax expression, SyntaxToken closeParenthesis)
+        => Create(new ParenthesisExpressionSyntax(_syntaxTree, openParenthesis, expression, closeParenthesis));
 }

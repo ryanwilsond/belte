@@ -36,9 +36,7 @@ internal sealed partial class ChangedText : SourceText {
     }
 
     public override SourceText WithChanges(IEnumerable<TextChange> changes) {
-        var changed = _newText.WithChanges(changes) as ChangedText;
-
-        if (changed != null)
+        if (_newText.WithChanges(changes) is ChangedText changed)
             return new ChangedText(this, changed._newText, changed._info.changeRanges);
         else
             return this;
@@ -66,9 +64,8 @@ internal sealed partial class ChangedText : SourceText {
 
     private bool IsChangedFrom(SourceText oldText) {
         for (var info = _info; info != null; info = info.previous) {
-            SourceText temp;
 
-            if (info.weakOldText.TryGetTarget(out temp) && temp == oldText)
+            if (info.weakOldText.TryGetTarget(out var temp) && temp == oldText)
                 return true;
         }
 
@@ -82,8 +79,7 @@ internal sealed partial class ChangedText : SourceText {
         builder.Add(change.changeRanges);
 
         while (change != null) {
-            SourceText actualOldText;
-            change.weakOldText.TryGetTarget(out actualOldText);
+            change.weakOldText.TryGetTarget(out var actualOldText);
 
             if (actualOldText == oldText)
                 return builder.ToImmutable();
@@ -102,7 +98,7 @@ internal sealed partial class ChangedText : SourceText {
     private static ImmutableArray<TextChangeRange> Merge(ImmutableArray<ImmutableArray<TextChangeRange>> changeSets) {
         var merged = changeSets[0];
 
-        for (int i = 1; i < changeSets.Length; i++)
+        for (var i = 1; i < changeSets.Length; i++)
             merged = TextChangeRange.Merge(merged, changeSets[i]);
 
         return merged;

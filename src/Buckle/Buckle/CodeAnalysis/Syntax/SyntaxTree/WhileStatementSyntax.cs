@@ -38,6 +38,6 @@ internal sealed partial class WhileStatementSyntax : StatementSyntax {
 internal sealed partial class SyntaxFactory {
     internal WhileStatementSyntax WhileStatement(
         SyntaxToken keyword, SyntaxToken openParenthesis,
-        ExpressionSyntax condition, SyntaxToken closeParenthesis, StatementSyntax body) =>
-        Create(new WhileStatementSyntax(_syntaxTree, keyword, openParenthesis, condition, closeParenthesis, body));
+        ExpressionSyntax condition, SyntaxToken closeParenthesis, StatementSyntax body)
+        => Create(new WhileStatementSyntax(_syntaxTree, keyword, openParenthesis, condition, closeParenthesis, body));
 }
