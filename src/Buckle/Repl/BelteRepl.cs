@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -23,11 +24,13 @@ namespace Repl;
 public sealed partial class BelteRepl : Repl {
     private static readonly CompilationOptions defaultOptions = new CompilationOptions(BuildMode.Repl, true, false);
     private static readonly Compilation emptyCompilation = Compilation.CreateScript(defaultOptions, null);
-    private Dictionary<string, ColorTheme> InUse = new Dictionary<string, ColorTheme>() {
+    private static readonly Dictionary<string, ColorTheme> InUse = new Dictionary<string, ColorTheme>() {
         {"Dark", new DarkTheme()},
         {"Light", new LightTheme()},
         {"Green", new GreenTheme()},
     };
+
+    private List<TextChange> _changes = new List<TextChange>();
 
     /// <summary>
     /// Creates a new instance of a <see cref="BelteRepl" />, can run in parallel with other BelteRepls with
@@ -67,7 +70,8 @@ public sealed partial class BelteRepl : Repl {
         state.variables = new Dictionary<IVariableSymbol, IEvaluatorObject>();
         state.previous = null;
         state.currentPage = Page.Repl;
-        state.tree = SyntaxTree.Parse("");
+        _changes.Clear();
+        ClearTree();
         base.ResetState();
     }
 
@@ -125,6 +129,8 @@ public sealed partial class BelteRepl : Repl {
     }
 
     protected override void EvaluateSubmission(string text) {
+        // ONLY use this when evaluating previous submissions, where incremental compilation would do nothing
+        // Otherwise, this is much slower than the 0 arity overload
         var syntaxTree = SyntaxTree.Parse(text);
         EvaluateSubmissionInternal(syntaxTree);
     }
@@ -132,7 +138,47 @@ public sealed partial class BelteRepl : Repl {
     protected override void EvaluateSubmission() {
         UpdateTree();
         EvaluateSubmissionInternal(state.tree);
+        ClearTree();
+    }
+
+    protected override string EditSubmission() {
+        ClearTree();
+        return base.EditSubmission();
+    }
+
+    protected override void AddChange(
+        ObservableCollection<string> document, int lineIndex, int startIndex, int oldLength, string newText) {
+        var position = startIndex;
+
+        for (var i = 0; i < lineIndex; i++)
+            position += document[i].Length + Environment.NewLine.Length;
+
+        _changes.Add(new TextChange(new TextSpan(position, oldLength), newText));
+    }
+
+    protected override void AddClearChange(ObservableCollection<string> document) {
+        ClearTree();
+    }
+
+    protected override void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) {
+        var position = 0;
+
+        for (var i = 0; i < lineIndex; i++) {
+            position += document[i].Length;
+
+            if (i > 0)
+                position += Environment.NewLine.Length;
+        }
+
+        _changes.Add(
+            new TextChange(new TextSpan(position, document[lineIndex].Length + Environment.NewLine.Length), "")
+        );
+    }
+
+    private void ClearTree() {
         state.tree = SyntaxTree.Parse("");
+        // This should always be empty by now, but just in case there was a race condition
+        _changes.Clear();
     }
 
     private void EvaluateSubmissionInternal(SyntaxTree syntaxTree) {

@@ -21,6 +21,9 @@ internal sealed class Parser {
     private readonly SyntaxFactory _syntaxFactory;
     private readonly SyntaxTree _syntaxTree;
 
+    private bool _expectParenthesis;
+
+    // Treat all of these as readonly unless you know exactly what you are doing
     private Blender _firstBlender;
     private ArrayElement<SyntaxToken>[] _lexedTokens;
     private BlendedNode[] _blendedTokens;
@@ -28,7 +31,6 @@ internal sealed class Parser {
     private SyntaxToken _currentToken;
     private int _tokenOffset;
     private int _tokenCount;
-    private bool _expectParenthesis;
 
     /// <summary>
     /// Creates a new <see cref="Parser" />, requiring a fully initialized <see cref="SyntaxTree" />.
@@ -138,7 +140,7 @@ internal sealed class Parser {
     }
 
     private SyntaxNode EatNode() {
-        var result = currentNode;
+        var saved = currentNode;
 
         if (_tokenOffset >= _blendedTokens.Length)
             AddTokenSlot();
@@ -149,11 +151,11 @@ internal sealed class Parser {
         _currentNode = null;
         _currentToken = null;
 
-        return result;
+        return saved;
     }
 
     private SyntaxToken EatToken() {
-        var saved = _currentToken;
+        var saved = currentToken;
         MoveToNextToken();
         return saved;
     }
@@ -231,17 +233,15 @@ internal sealed class Parser {
         if (Peek(1).kind != kind) {
             diagnostics.Push(Error.UnexpectedToken(currentToken.location, currentToken.kind, kind));
             var skipped = currentToken;
-            _tokenOffset++;
+            EatToken();
 
             return _syntaxFactory.Token(kind, skipped.position);
         }
 
         diagnostics.Push(Error.UnexpectedToken(currentToken.location, currentToken.kind));
-        _tokenOffset++;
-        var saved = currentToken;
-        _tokenOffset++;
+        EatToken();
 
-        return saved;
+        return EatToken();
     }
 
     private void MoveToNextToken() {

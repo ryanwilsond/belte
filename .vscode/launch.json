@@ -7,9 +7,11 @@
             "request": "launch",
             "preLaunchTask": "build debug",
             "program": "${workspaceFolder}/src/Buckle/Belte/bin/Debug/net8.0/Belte.dll",
-            "args": ["-r"],
+            "args": [
+                "-r"
+            ],
             "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
+            "console": "externalTerminal",
             "stopAtEntry": false,
         },
         {
@@ -18,9 +20,11 @@
             "request": "launch",
             "preLaunchTask": "build release",
             "program": "${workspaceFolder}/src/Buckle/Belte/bin/Release/net8.0/Belte.dll",
-            "args": ["-r"],
+            "args": [
+                "-r"
+            ],
             "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
+            "console": "externalTerminal",
             "stopAtEntry": false,
         }
     ]

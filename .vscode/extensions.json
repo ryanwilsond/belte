@@ -1,7 +1,7 @@
 {
     "recommendations": [
-      "ms-dotnettools.csharp",
-      "EditorConfig.EditorConfig",
-      "tintoy.msbuild-project-tools",
+        "ms-dotnettools.csharp",
+        "EditorConfig.EditorConfig",
+        "tintoy.msbuild-project-tools",
     ]
 }

@@ -38,7 +38,6 @@ public abstract partial class Repl {
     private readonly List<string> _submissionHistory = new List<string>();
     private readonly List<MetaCommand> _metaCommands = new List<MetaCommand>();
 
-    protected List<TextChange> _changes = new List<TextChange>();
     protected bool _abortEvaluation;
     protected bool _showTime;
 
@@ -76,7 +75,6 @@ public abstract partial class Repl {
         _done = false;
         _evaluate = true;
         _showTime = false;
-        _changes = new List<TextChange>();
     }
 
     /// <summary>
@@ -229,7 +227,7 @@ public abstract partial class Repl {
         }
     }
 
-    private string EditSubmission() {
+    protected virtual string EditSubmission() {
         _done = false;
 
         var document = new ObservableCollection<string>() { "" };
@@ -728,7 +726,7 @@ public abstract partial class Repl {
         var lines = historyItem.Split(Environment.NewLine);
 
         foreach (var line in lines) {
-            AddInsertLineChange(document, document.Count, line);
+            AddChange(document, document.Count, 0, 0, line + Environment.NewLine);
             document.Add(line);
         }
 
@@ -946,11 +944,11 @@ public abstract partial class Repl {
     private void InsertLine(ObservableCollection<string> document, SubmissionView view) {
         var beginning = document[view.currentLine].Substring(0, view.currentCharacter);
         var remainder = document[view.currentLine].Substring(view.currentCharacter);
-        AddChange(document, view.currentLine, 0, document[view.currentLine].Length, beginning);
+        AddChange(document, view.currentLine, 0, document[view.currentLine].Length, beginning + Environment.NewLine);
         document[view.currentLine] = beginning;
 
         var lineIndex = view.currentLine + 1;
-        AddInsertLineChange(document, lineIndex, remainder);
+        AddChange(document, lineIndex, 0, 0, remainder);
         document.Insert(lineIndex, remainder);
         view.currentCharacter = 0;
         view.currentLine = lineIndex;
@@ -966,56 +964,12 @@ public abstract partial class Repl {
         HandleTyping(document, view, new string(' ', whitespace * TabWidth));
     }
 
-    private void AddChange(
-        ObservableCollection<string> document, int lineIndex, int startIndex, int oldLength, string newText) {
-        var position = startIndex;
+    protected virtual void AddChange(
+        ObservableCollection<string> document, int lineIndex, int startIndex, int oldLength, string newText) { }
 
-        for (var i = 0; i < lineIndex; i++) {
-            position += document[i].Length + Environment.NewLine.Length;
+    protected virtual void AddClearChange(ObservableCollection<string> document) { }
 
-            if (i > 0)
-                position += Environment.NewLine.Length;
-        }
-
-        _changes.Add(new TextChange(new TextSpan(position, oldLength), newText));
-    }
-
-    private void AddClearChange(ObservableCollection<string> document) {
-        var length = 0;
-
-        foreach (var line in document)
-            length += line.Length + Environment.NewLine.Length;
-
-        _changes.Add(new TextChange(new TextSpan(0, length), ""));
-    }
-
-    private void AddInsertLineChange(ObservableCollection<string> document, int lineIndex, string newText) {
-        var position = 0;
-
-        for (var i = 0; i < lineIndex; i++) {
-            position += document[i].Length;
-
-            if (i > 0)
-                position += Environment.NewLine.Length;
-        }
-
-        _changes.Add(new TextChange(new TextSpan(position, 0), newText + Environment.NewLine));
-    }
-
-    private void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) {
-        var position = 0;
-
-        for (var i = 0; i < lineIndex; i++) {
-            position += document[i].Length;
-
-            if (i > 0)
-                position += Environment.NewLine.Length;
-        }
-
-        _changes.Add(
-            new TextChange(new TextSpan(position, document[lineIndex].Length + Environment.NewLine.Length), "")
-        );
-    }
+    protected virtual void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) { }
 
     private void EvaluateReplCommand(string line) {
         var position = 1;
