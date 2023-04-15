@@ -66,7 +66,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            unknown character '#'
+            unexpected character '#'
         ";
 
         AssertDiagnostics(text, diagnostics, writer);

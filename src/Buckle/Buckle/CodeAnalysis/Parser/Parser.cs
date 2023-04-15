@@ -108,30 +108,6 @@ internal sealed class Parser {
         for (var i = 0; i < size; i++) {
             var token = _lexer.LexNext();
 
-            // if (token.kind == SyntaxKind.BadToken) {
-            //     badTokens.Add(token);
-            //     continue;
-            // }
-
-            // if (badTokens.Count > 0) {
-            //     var leadingTrivia = token.leadingTrivia.ToBuilder();
-            //     var index = 0;
-
-            //     foreach (var badToken in badTokens) {
-            //         foreach (var lt in badToken.leadingTrivia)
-            //             leadingTrivia.Insert(index++, lt);
-
-            //         var trivia = _syntaxFactory.Skipped(badToken);
-            //         leadingTrivia.Insert(index++, trivia);
-
-            //         foreach (var tt in badToken.trailingTrivia)
-            //             leadingTrivia.Insert(index++, tt);
-            //     }
-
-            //     badTokens.Clear();
-            //     token = token.WithLeadingTrivia(leadingTrivia.ToImmutable());
-            // }
-
             AddLexedToken(token);
 
             if (token.kind == SyntaxKind.EndOfFileToken)
@@ -392,6 +368,16 @@ internal sealed class Parser {
         }
 
         return members.ToImmutable();
+    }
+
+    private bool TryParseMember(bool allowGlobalStatements, out MemberSyntax member) {
+        if (currentToken.kind == SyntaxKind.BadToken) {
+            member = null;
+            return false;
+        }
+
+        member = ParseMember(allowGlobalStatements);
+        return true;
     }
 
     private MemberSyntax ParseMember(bool allowGlobalStatements = false) {
@@ -718,7 +704,7 @@ internal sealed class Parser {
 
     private StatementSyntax ParseExpressionStatement() {
         var previousCount = diagnostics.count;
-        var expression = ParseExpression();
+        var expression = ParseExpression(allowEmpty: true);
         var popLast = previousCount != diagnostics.count;
         previousCount = diagnostics.count;
         var semicolon = Match(SyntaxKind.SemicolonToken);
@@ -789,9 +775,13 @@ internal sealed class Parser {
         return value;
     }
 
-    private ExpressionSyntax ParseExpression() {
-        if (currentToken.kind == SyntaxKind.SemicolonToken)
+    private ExpressionSyntax ParseExpression(bool allowEmpty = false) {
+        if (currentToken.kind == SyntaxKind.SemicolonToken) {
+            if (!allowEmpty)
+                diagnostics.Push(Error.ExpectedToken(currentToken.location, SyntaxKind.NameExpression));
+
             return ParseEmptyExpression();
+        }
 
         return ParseAssignmentExpression();
     }

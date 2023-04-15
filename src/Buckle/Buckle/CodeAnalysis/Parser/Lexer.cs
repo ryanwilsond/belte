@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Text;
 using Buckle.CodeAnalysis.Symbols;
@@ -54,6 +55,69 @@ internal sealed class Lexer {
     /// </summary>
     /// <returns>A new <see cref="SyntaxToken" />.</returns>
     internal SyntaxToken LexNext() {
+        var badTokens = new List<SyntaxToken>();
+        SyntaxToken token;
+
+        while (true) {
+            token = LexNextInternal();
+
+            if (token.kind == SyntaxKind.BadToken) {
+                badTokens.Add(token);
+                continue;
+            }
+
+            if (badTokens.Count > 0) {
+                var leadingTrivia = token.leadingTrivia.ToBuilder();
+                var index = 0;
+
+                foreach (var badToken in badTokens) {
+                    foreach (var lt in badToken.leadingTrivia)
+                        leadingTrivia.Insert(index++, lt);
+
+                    var trivia = new SyntaxTrivia(
+                        _syntaxTree, SyntaxKind.SkippedTokenTrivia, badToken.position, badToken.text
+                    );
+
+                    leadingTrivia.Insert(index++, trivia);
+
+                    foreach (var tt in badToken.trailingTrivia)
+                        leadingTrivia.Insert(index++, tt);
+                }
+
+                token = new SyntaxToken(
+                    token.syntaxTree,
+                    token.kind,
+                    token.position,
+                    token.text,
+                    token.value,
+                    leadingTrivia.ToImmutable(),
+                    token.trailingTrivia
+                );
+            }
+
+            break;
+        }
+
+        return token;
+    }
+
+    /// <summary>
+    /// Moves where the lexer is reading from.
+    /// </summary>
+    internal void Move(int position) {
+        _position = position;
+    }
+
+    private char Peek(int offset) {
+        var index = _position + offset;
+
+        if (index >= _text.length)
+            return '\0';
+
+        return _text[index];
+    }
+
+    private SyntaxToken LexNextInternal() {
         ReadTrivia(true);
         var leadingTrivia = _triviaBuilder.ToImmutable();
         var tokenStart = _position;
@@ -72,22 +136,6 @@ internal sealed class Lexer {
         return new SyntaxToken(
             _syntaxTree, tokenKind, tokenStart, tokenText, tokenValue, leadingTrivia, trailingTrivia
         );
-    }
-
-    /// <summary>
-    /// Moves where the lexer is reading from.
-    /// </summary>
-    internal void Move(int position) {
-        _position = position;
-    }
-
-    private char Peek(int offset) {
-        var index = _position + offset;
-
-        if (index >= _text.length)
-            return '\0';
-
-        return _text[index];
     }
 
     private void ReadTrivia(bool leading) {

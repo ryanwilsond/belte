@@ -56,7 +56,7 @@ internal static class Error {
     /// BU0005. Run `buckle --explain BU0005` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic BadCharacter(TextLocation location, int position, char input) {
-        var message = $"unknown character '{input}'";
+        var message = $"unexpected character '{input}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_BadCharacter), location, message);
     }
 
