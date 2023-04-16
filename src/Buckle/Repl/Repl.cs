@@ -6,7 +6,6 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using Buckle;
-using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 
 namespace Repl;

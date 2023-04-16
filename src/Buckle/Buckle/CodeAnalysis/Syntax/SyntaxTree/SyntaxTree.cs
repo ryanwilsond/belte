@@ -180,6 +180,9 @@ public sealed class SyntaxTree {
     internal SyntaxTree WithChangedText(SourceText newText) {
         var changes = newText.GetChangeRanges(text);
 
+        if (changes.Length == 0 && text == newText)
+            return this;
+
         return WithChanges(newText, changes);
     }
 

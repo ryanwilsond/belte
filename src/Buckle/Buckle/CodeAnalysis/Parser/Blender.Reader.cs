@@ -29,7 +29,6 @@ internal sealed partial class Blender {
                 } else if (_changeDelta > 0) {
                     return ReadNewToken();
                 } else {
-
                     if (TryTakeOldNodeOrToken(asToken, out var blendedNode))
                         return blendedNode;
 
@@ -91,6 +90,7 @@ internal sealed partial class Blender {
                 return false;
             }
 
+            var oldPosition = _newPosition;
             _newPosition += node.fullSpan.length;
             _oldTreeCursor = _oldTreeCursor.MoveToNextSibling();
 

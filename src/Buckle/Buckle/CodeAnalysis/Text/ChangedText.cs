@@ -48,12 +48,24 @@ internal sealed partial class ChangedText : SourceText {
     }
 
     internal override ImmutableArray<TextChangeRange> GetChangeRanges(SourceText oldText) {
+        if (this == oldText)
+            return ImmutableArray<TextChangeRange>.Empty;
+
+        SourceText actualOldText;
+        if (_info.weakOldText.TryGetTarget(out actualOldText) && actualOldText == oldText)
+            // Checks if the given oldText is what we reference, if so our changes must be accurate
+            return _info.changeRanges;
+
         if (IsChangedFrom(oldText)) {
             var changes = GetChangesBetween(oldText, this);
 
-            if (changes.Length > 1)
+            if (changes.Length > 0)
                 return Merge(changes);
         }
+
+        if (actualOldText != null && actualOldText.GetChangeRanges(oldText).Length == 0)
+            // Checks if the given oldText is equal to what we reference, if so our changes must be accurate
+            return _info.changeRanges;
 
         return ImmutableArray.Create(new TextChangeRange(new TextSpan(0, oldText.length), length));
     }

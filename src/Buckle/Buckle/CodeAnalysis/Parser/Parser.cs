@@ -8,7 +8,8 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
 /// <summary>
-/// Lexes then parses text into a tree of SyntaxNodes, in doing so doing syntax checking.
+/// Lexes and parses text into a tree of SyntaxNodes, in doing so performing syntax checking.
+/// Can optionally reuse SyntaxNodes from an old tree to speed up the parsing process.
 /// </summary>
 internal sealed class Parser {
     private static readonly ObjectPool<BlendedNode[]> _blendedNodesPool =
