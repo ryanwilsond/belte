@@ -25,7 +25,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// }
 /// <code>
 /// </summary>
-public abstract class SyntaxNode {
+public abstract partial class SyntaxNode {
     protected SyntaxNode(SyntaxTree syntaxTree) {
         this.syntaxTree = syntaxTree;
         parent = null;
@@ -34,12 +34,22 @@ public abstract class SyntaxNode {
     /// <summary>
     /// Type of <see cref="SyntaxNode" /> (see <see cref="SyntaxKind" />).
     /// </summary>
-    internal abstract SyntaxKind kind { get; }
+    public abstract SyntaxKind kind { get; }
+
+    /// <summary>
+    /// The parent of this node. The parent's children are this node's siblings.
+    /// </summary>
+    public SyntaxNode parent { get; private set; }
 
     /// <summary>
     /// <see cref="SyntaxTree" /> this <see cref="SyntaxNode" /> resides in.
     /// </summary>
     internal SyntaxTree syntaxTree { get; }
+
+    /// <summary>
+    /// The malleable state of this node.
+    /// </summary>
+    internal NodeFlags flags { get; private set; }
 
     /// <summary>
     /// <see cref="TextSpan" /> of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />
@@ -89,15 +99,10 @@ public abstract class SyntaxNode {
     internal TextLocation location => syntaxTree == null ? null : new TextLocation(syntaxTree.text, span);
 
     /// <summary>
-    /// The parent of this node. The parent's children are this node's siblings.
+    /// If any diagnostics have spans that overlap with this node.
+    /// Aka this node produced any diagnostics.
     /// </summary>
-    internal SyntaxNode parent { get; private set; }
-
-    /// <summary>
-    /// Gets all child SyntaxNodes.
-    /// Order should be consistent of how they look in a file, but calling code should not depend on that.
-    /// </summary>
-    internal abstract IEnumerable<SyntaxNode> GetChildren();
+    internal bool containsDiagnostics => (flags & NodeFlags.ContainsDiagnostics) != 0;
 
     public override string ToString() {
         var text = new DisplayText();
@@ -105,6 +110,12 @@ public abstract class SyntaxNode {
 
         return text.ToString();
     }
+
+    /// <summary>
+    /// Gets all child SyntaxNodes.
+    /// Order should be consistent of how they look in a file, but calling code should not depend on that.
+    /// </summary>
+    public abstract IEnumerable<SyntaxNode> GetChildren();
 
     /// <summary>
     /// Write text representation of this <see cref="SyntaxNode" /> to an out.
@@ -123,6 +134,20 @@ public abstract class SyntaxNode {
             return t;
 
         return GetChildren().Last().GetLastToken();
+    }
+
+    /// <summary>
+    /// Enables given flags.
+    /// </summary>
+    internal void SetFlags(NodeFlags flags) {
+        this.flags |= flags;
+    }
+
+    /// <summary>
+    /// Disables given flags.
+    /// </summary>
+    internal void ClearFlags(NodeFlags flags) {
+        this.flags &= ~flags;
     }
 
     /// <summary>
@@ -158,6 +183,9 @@ public abstract class SyntaxNode {
         return node as T;
     }
 
+    /// <summary>
+    /// Finds the index of the first child whose span contains the given position.
+    /// </summary>
     internal static int GetFirstChildIndexSpanningPosition(SyntaxNode[] list, int position) {
         var lo = 0;
         var hi = list.Length - 1;

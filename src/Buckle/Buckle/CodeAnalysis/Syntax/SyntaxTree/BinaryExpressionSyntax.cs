@@ -20,6 +20,8 @@ internal sealed partial class BinaryExpressionSyntax : ExpressionSyntax {
         this.right = right;
     }
 
+    public override SyntaxKind kind => SyntaxKind.BinaryExpression;
+
     /// <summary>
     /// Left side operand.
     /// </summary>
@@ -34,8 +36,6 @@ internal sealed partial class BinaryExpressionSyntax : ExpressionSyntax {
     /// Right side operand.
     /// </summary>
     internal ExpressionSyntax right { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.BinaryExpression;
 }
 
 internal sealed partial class SyntaxFactory {

@@ -28,6 +28,8 @@ internal sealed partial class IfStatementSyntax : StatementSyntax {
         this.elseClause = elseClause;
     }
 
+    public override SyntaxKind kind => SyntaxKind.IfStatement;
+
     /// <summary>
     /// If keyword.
     /// </summary>
@@ -48,8 +50,6 @@ internal sealed partial class IfStatementSyntax : StatementSyntax {
     /// <see cref="ElseClauseSyntax" /> (includes keyword and body).
     /// </summary>
     internal ElseClauseSyntax? elseClause { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.IfStatement;
 }
 
 internal sealed partial class SyntaxFactory {

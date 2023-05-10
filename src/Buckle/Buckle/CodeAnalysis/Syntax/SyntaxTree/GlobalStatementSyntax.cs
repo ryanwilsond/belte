@@ -15,12 +15,12 @@ internal sealed partial class GlobalStatementSyntax : MemberSyntax {
         this.statement = statement;
     }
 
+    public override SyntaxKind kind => SyntaxKind.GlobalStatement;
+
     /// <summary>
     /// <see cref="StatementSyntax" /> (should ignore that fact that it is global).
     /// </summary>
     internal StatementSyntax statement { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.GlobalStatement;
 }
 
 internal sealed partial class SyntaxFactory {

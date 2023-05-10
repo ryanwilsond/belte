@@ -14,12 +14,12 @@ internal sealed partial class NameExpressionSyntax : ExpressionSyntax {
         this.identifier = identifier;
     }
 
+    public override SyntaxKind kind => SyntaxKind.NameExpression;
+
     /// <summary>
     /// Name of the <see cref="Symbols.Symbol" />.
     /// </summary>
     internal SyntaxToken identifier { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.NameExpression;
 }
 
 internal sealed partial class SyntaxFactory {

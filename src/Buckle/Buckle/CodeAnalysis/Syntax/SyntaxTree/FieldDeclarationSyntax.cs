@@ -15,9 +15,9 @@ internal sealed partial class FieldDeclarationSyntax : MemberSyntax {
         this.declaration = declaration;
     }
 
-    internal VariableDeclarationStatementSyntax declaration { get; }
+    public override SyntaxKind kind => SyntaxKind.FieldDeclaration;
 
-    internal override SyntaxKind kind => SyntaxKind.FieldDeclaration;
+    internal VariableDeclarationStatementSyntax declaration { get; }
 }
 
 internal sealed partial class SyntaxFactory {

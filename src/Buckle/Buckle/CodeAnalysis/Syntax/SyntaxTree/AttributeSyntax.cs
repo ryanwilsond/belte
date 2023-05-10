@@ -14,6 +14,8 @@ internal sealed partial class AttributeSyntax : SyntaxNode {
         this.closeBracket = closeBracket;
     }
 
+    public override SyntaxKind kind => SyntaxKind.Attribute;
+
     internal SyntaxToken openBracket { get; }
 
     /// <summary>
@@ -22,8 +24,6 @@ internal sealed partial class AttributeSyntax : SyntaxNode {
     internal SyntaxToken identifier { get; }
 
     internal SyntaxToken closeBracket { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.Attribute;
 }
 
 internal sealed partial class SyntaxFactory {

@@ -24,6 +24,8 @@ internal sealed partial class VariableDeclarationStatementSyntax : StatementSynt
         this.semicolon = semicolon;
     }
 
+    public override SyntaxKind kind => SyntaxKind.VariableDeclarationStatement;
+
     /// <summary>
     /// <see cref="TypeSyntax" /> of the variable being declared.
     /// </summary>
@@ -45,8 +47,6 @@ internal sealed partial class VariableDeclarationStatementSyntax : StatementSynt
     internal ExpressionSyntax? initializer { get; }
 
     internal SyntaxToken semicolon { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.VariableDeclarationStatement;
 }
 
 internal sealed partial class SyntaxFactory {

@@ -15,14 +15,14 @@ internal sealed partial class UnaryExpressionSyntax : ExpressionSyntax {
         this.operand = operand;
     }
 
+    public override SyntaxKind kind => SyntaxKind.UnaryExpression;
+
     /// <summary>
     /// Operator.
     /// </summary>
     internal SyntaxToken op { get; }
 
     internal ExpressionSyntax operand { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.UnaryExpression;
 }
 
 internal sealed partial class SyntaxFactory {

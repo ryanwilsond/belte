@@ -34,6 +34,8 @@ internal sealed partial class TryStatementSyntax : StatementSyntax {
         this.finallyClause = finallyClause;
     }
 
+    public override SyntaxKind kind => SyntaxKind.TryStatement;
+
     /// <summary>
     /// Try keyword.
     /// </summary>
@@ -44,8 +46,6 @@ internal sealed partial class TryStatementSyntax : StatementSyntax {
     internal CatchClauseSyntax? catchClause { get; }
 
     internal FinallyClauseSyntax? finallyClause { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.TryStatement;
 }
 
 internal sealed partial class SyntaxFactory {

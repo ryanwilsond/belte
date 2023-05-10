@@ -26,6 +26,8 @@ internal sealed partial class ParameterSyntax : SyntaxNode {
         this.defaultValue = defaultValue;
     }
 
+    public override SyntaxKind kind => SyntaxKind.Parameter;
+
     /// <summary>
     /// <see cref="TypeSyntax" /> of the parameter.
     /// </summary>
@@ -48,8 +50,6 @@ internal sealed partial class ParameterSyntax : SyntaxNode {
     /// Must be computable at compile-time.
     /// </summary>
     internal ExpressionSyntax? defaultValue { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.Parameter;
 }
 
 internal sealed partial class SyntaxFactory {

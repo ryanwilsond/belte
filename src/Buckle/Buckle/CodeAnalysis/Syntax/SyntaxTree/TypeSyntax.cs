@@ -26,6 +26,8 @@ internal sealed class TypeSyntax : SyntaxNode {
         this.brackets = brackets;
     }
 
+    public override SyntaxKind kind => SyntaxKind.Type;
+
     /// <summary>
     /// Simple flag modifiers on a type.
     /// </summary>
@@ -64,9 +66,7 @@ internal sealed class TypeSyntax : SyntaxNode {
     /// <param name="closeBracket">Close square bracket token.</param>
     internal ImmutableArray<(SyntaxToken openBracket, SyntaxToken closeBracket)> brackets { get; }
 
-    internal override SyntaxKind kind => SyntaxKind.Type;
-
-    internal override IEnumerable<SyntaxNode> GetChildren() {
+    public override IEnumerable<SyntaxNode> GetChildren() {
         foreach (var attribute in attributes) {
             yield return attribute.openBracket;
             yield return attribute.identifier;

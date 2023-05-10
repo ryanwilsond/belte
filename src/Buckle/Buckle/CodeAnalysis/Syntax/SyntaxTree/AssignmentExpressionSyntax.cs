@@ -20,6 +20,8 @@ internal sealed partial class AssignmentExpressionSyntax : ExpressionSyntax {
         this.right = right;
     }
 
+    public override SyntaxKind kind => SyntaxKind.AssignExpression;
+
     /// <summary>
     /// What is being assigned,
     /// </summary>
@@ -31,8 +33,6 @@ internal sealed partial class AssignmentExpressionSyntax : ExpressionSyntax {
     /// Value to assign..
     /// </summary>
     internal ExpressionSyntax right { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.AssignExpression;
 }
 
 internal sealed partial class SyntaxFactory {

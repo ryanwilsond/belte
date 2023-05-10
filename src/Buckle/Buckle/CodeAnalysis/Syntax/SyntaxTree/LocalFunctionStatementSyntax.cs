@@ -19,6 +19,8 @@ internal sealed partial class LocalFunctionStatementSyntax : StatementSyntax {
         this.body = body;
     }
 
+    public override SyntaxKind kind => SyntaxKind.LocalFunctionStatement;
+
     internal TypeSyntax returnType { get; }
 
     /// <summary>
@@ -33,8 +35,6 @@ internal sealed partial class LocalFunctionStatementSyntax : StatementSyntax {
     internal SyntaxToken closeParenthesis { get; }
 
     internal BlockStatementSyntax body { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.LocalFunctionStatement;
 }
 
 internal sealed partial class SyntaxFactory {

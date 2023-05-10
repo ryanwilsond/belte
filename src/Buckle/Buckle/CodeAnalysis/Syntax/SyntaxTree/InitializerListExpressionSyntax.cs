@@ -17,13 +17,13 @@ internal sealed partial class InitializerListExpressionSyntax : ExpressionSyntax
         this.closeBrace = closeBrace;
     }
 
+    public override SyntaxKind kind => SyntaxKind.LiteralExpression;
+
     internal SyntaxToken? openBrace { get; }
 
     internal SeparatedSyntaxList<ExpressionSyntax> items { get; }
 
     internal SyntaxToken? closeBrace { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.LiteralExpression;
 }
 
 internal sealed partial class SyntaxFactory {

@@ -20,6 +20,8 @@ internal sealed partial class CastExpressionSyntax : ExpressionSyntax {
         this.expression = expression;
     }
 
+    public override SyntaxKind kind => SyntaxKind.CastExpression;
+
     internal SyntaxToken? openParenthesis { get; }
 
     /// <summary>
@@ -30,8 +32,6 @@ internal sealed partial class CastExpressionSyntax : ExpressionSyntax {
     internal SyntaxToken? closeParenthesis { get; }
 
     internal ExpressionSyntax expression { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.CastExpression;
 }
 
 internal sealed partial class SyntaxFactory {

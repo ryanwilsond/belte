@@ -21,6 +21,8 @@ internal sealed partial class ArgumentSyntax : SyntaxNode {
         this.expression = expression;
     }
 
+    public override SyntaxKind kind => SyntaxKind.Argument;
+
     /// <summary>
     /// Optional; name if the argument is referencing a parameter by name instead of by ordinal.
     /// </summary>
@@ -36,8 +38,6 @@ internal sealed partial class ArgumentSyntax : SyntaxNode {
     /// Value of the argument.
     /// </summary>
     internal ExpressionSyntax expression { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.Argument;
 }
 
 internal sealed partial class SyntaxFactory {

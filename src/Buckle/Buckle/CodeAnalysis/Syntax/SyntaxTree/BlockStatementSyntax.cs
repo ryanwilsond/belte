@@ -23,13 +23,13 @@ internal sealed partial class BlockStatementSyntax : StatementSyntax {
         this.closeBrace = closeBrace;
     }
 
+    public override SyntaxKind kind => SyntaxKind.BlockStatement;
+
     internal SyntaxToken openBrace { get; }
 
     internal ImmutableArray<StatementSyntax> statements { get; }
 
     internal SyntaxToken closeBrace { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.BlockStatement;
 }
 
 internal sealed partial class SyntaxFactory {

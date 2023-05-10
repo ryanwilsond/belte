@@ -16,11 +16,11 @@ internal sealed partial class ContinueStatementSyntax : StatementSyntax {
         this.semicolon = semicolon;
     }
 
+    public override SyntaxKind kind => SyntaxKind.ContinueStatement;
+
     internal SyntaxToken keyword { get; }
 
     internal SyntaxToken semicolon { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.ContinueStatement;
 }
 
 internal sealed partial class SyntaxFactory {

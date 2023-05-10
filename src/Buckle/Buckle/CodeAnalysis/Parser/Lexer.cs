@@ -14,7 +14,7 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 /// <code>
 /// int myInt;
 /// --->
-/// IdentiferToken IdentifierToken SemicolonToken
+/// IdentifierToken IdentifierToken SemicolonToken
 /// </code>
 /// </summary>
 internal sealed class Lexer {
@@ -84,6 +84,8 @@ internal sealed class Lexer {
                         leadingTrivia.Insert(index++, tt);
                 }
 
+                var flags = token.flags;
+
                 token = new SyntaxToken(
                     token.syntaxTree,
                     token.kind,
@@ -93,6 +95,8 @@ internal sealed class Lexer {
                     leadingTrivia.ToImmutable(),
                     token.trailingTrivia
                 );
+
+                token.SetFlags(flags | SyntaxNode.NodeFlags.ContainsSkippedText);
             }
 
             break;
@@ -118,9 +122,11 @@ internal sealed class Lexer {
     }
 
     private SyntaxToken LexNextInternal() {
+        var currentDiagnosticCount = diagnostics.count;
+
         ReadTrivia(true);
         var leadingTrivia = _triviaBuilder.ToImmutable();
-        var tokenStart = _position;
+        var tokenPosition = _position;
 
         ReadToken();
 
@@ -131,11 +137,25 @@ internal sealed class Lexer {
         ReadTrivia(false);
         var trailingTrivia = _triviaBuilder.ToImmutable();
 
-        var tokenText = SyntaxFacts.GetText(tokenKind) ?? _text.ToString(new TextSpan(tokenStart, tokenLength));
+        var tokenText = SyntaxFacts.GetText(tokenKind) ?? _text.ToString(new TextSpan(tokenPosition, tokenLength));
+        var hasDiagnostics = diagnostics.count > currentDiagnosticCount;
 
-        return new SyntaxToken(
-            _syntaxTree, tokenKind, tokenStart, tokenText, tokenValue, leadingTrivia, trailingTrivia
+        return Create(tokenKind, tokenPosition, tokenText, tokenValue, leadingTrivia, trailingTrivia, hasDiagnostics);
+    }
+
+    private SyntaxToken Create(
+        SyntaxKind kind, int position, string text, object value,
+        ImmutableArray<SyntaxTrivia> leadingTrivia, ImmutableArray<SyntaxTrivia> trailingTrivia, bool hasDiagnostics) {
+        var token = new SyntaxToken(
+            _syntaxTree, kind, position, text, value, leadingTrivia, trailingTrivia
         );
+
+        if (hasDiagnostics)
+            token.SetFlags(SyntaxNode.NodeFlags.ContainsDiagnostics);
+        if (text == null)
+            token.SetFlags(SyntaxNode.NodeFlags.IsMissing);
+
+        return token;
     }
 
     private void ReadTrivia(bool leading) {

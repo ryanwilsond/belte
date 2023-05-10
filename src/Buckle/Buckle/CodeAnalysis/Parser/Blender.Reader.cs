@@ -90,7 +90,6 @@ internal sealed partial class Blender {
                 return false;
             }
 
-            var oldPosition = _newPosition;
             _newPosition += node.fullSpan.length;
             _oldTreeCursor = _oldTreeCursor.MoveToNextSibling();
 
@@ -99,13 +98,20 @@ internal sealed partial class Blender {
         }
 
         private bool CanReuse(SyntaxNode node) {
+            // Doing the least performant checks last
+            if (node.containsDiagnostics)
+                return false;
+
             if (node.fullSpan.length == 0)
                 return false;
 
-            if (IntersectsNextChange(node))
+            if (node.kind.IsToken() && (node as SyntaxToken).isFabricated)
                 return false;
 
-            if (node.kind.IsToken() && (node as SyntaxToken).isFabricated)
+            if (node.kind.IsToken() && (node as SyntaxToken).containsSkippedText)
+                return false;
+
+            if (IntersectsNextChange(node))
                 return false;
 
             if (node.GetLastToken().isFabricated)

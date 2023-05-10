@@ -55,7 +55,7 @@ public sealed class GetChildrenGenerator : ISourceGenerator {
             foreach (var type in nodeTypes) {
                 using (var classCurly = new CurlyIndenter(indentedTextWriter, $"partial class {type.Name}"))
                 using (var getChildCurly = new CurlyIndenter(
-                    indentedTextWriter, "internal override IEnumerable<SyntaxNode> GetChildren()")) {
+                    indentedTextWriter, "public override IEnumerable<SyntaxNode> GetChildren()")) {
                     var properties = type.GetMembers().OfType<IPropertySymbol>();
 
                     foreach (var property in properties) {

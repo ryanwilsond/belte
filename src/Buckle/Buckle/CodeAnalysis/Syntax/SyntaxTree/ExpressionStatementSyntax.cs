@@ -19,11 +19,11 @@ internal sealed partial class ExpressionStatementSyntax : StatementSyntax {
         this.semicolon = semicolon;
     }
 
+    public override SyntaxKind kind => SyntaxKind.ExpressionStatement;
+
     internal ExpressionSyntax? expression { get; }
 
     internal SyntaxToken semicolon { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.ExpressionStatement;
 }
 
 internal sealed partial class SyntaxFactory {

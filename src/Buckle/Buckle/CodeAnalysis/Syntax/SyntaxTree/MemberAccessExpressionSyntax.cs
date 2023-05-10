@@ -18,6 +18,8 @@ internal sealed partial class MemberAccessExpressionSyntax : ExpressionSyntax {
         this.identifier = identifier;
     }
 
+    public override SyntaxKind kind => SyntaxKind.MemberAccessExpression;
+
     internal ExpressionSyntax operand { get; }
 
     /// <summary>
@@ -30,8 +32,6 @@ internal sealed partial class MemberAccessExpressionSyntax : ExpressionSyntax {
     /// Name of the member to access.
     /// </summary>
     internal SyntaxToken? identifier { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.MemberAccessExpression;
 }
 
 internal sealed partial class SyntaxFactory {

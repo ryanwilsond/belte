@@ -19,6 +19,8 @@ internal sealed partial class ReturnStatementSyntax : StatementSyntax {
         this.semicolon = semicolon;
     }
 
+    public override SyntaxKind kind => SyntaxKind.ReturnStatement;
+
     internal SyntaxToken keyword { get; }
 
     /// <summary>
@@ -27,8 +29,6 @@ internal sealed partial class ReturnStatementSyntax : StatementSyntax {
     internal ExpressionSyntax? expression { get; }
 
     internal SyntaxToken semicolon { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.ReturnStatement;
 }
 
 internal sealed partial class SyntaxFactory {

@@ -17,6 +17,8 @@ internal sealed partial class ReferenceExpressionSyntax : ExpressionSyntax {
         this.identifier = identifier;
     }
 
+    public override SyntaxKind kind => SyntaxKind.RefExpression;
+
     /// <summary>
     /// Ref keyword.
     /// </summary>
@@ -26,8 +28,6 @@ internal sealed partial class ReferenceExpressionSyntax : ExpressionSyntax {
     /// Name of the referenced <see cref="Symbols.Symbol" />.
     /// </summary>
     internal SyntaxToken identifier { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.RefExpression;
 }
 
 internal sealed partial class SyntaxFactory {

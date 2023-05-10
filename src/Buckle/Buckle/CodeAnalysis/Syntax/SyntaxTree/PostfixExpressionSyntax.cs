@@ -16,14 +16,14 @@ internal sealed partial class PostfixExpressionSyntax : ExpressionSyntax {
         this.op = op;
     }
 
+    public override SyntaxKind kind => SyntaxKind.PostfixExpression;
+
     internal ExpressionSyntax operand { get; }
 
     /// <summary>
     /// Operator.
     /// </summary>
     internal SyntaxToken op { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.PostfixExpression;
 }
 
 internal sealed partial class SyntaxFactory {

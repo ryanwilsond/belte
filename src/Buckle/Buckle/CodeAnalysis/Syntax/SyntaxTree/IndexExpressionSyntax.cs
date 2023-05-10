@@ -21,6 +21,8 @@ internal sealed partial class IndexExpressionSyntax : ExpressionSyntax {
         this.closeBracket = closeBracket;
     }
 
+    public override SyntaxKind kind => SyntaxKind.IndexExpression;
+
     /// <summary>
     /// Anything with a type with dimension greater than 0.
     /// </summary>
@@ -34,8 +36,6 @@ internal sealed partial class IndexExpressionSyntax : ExpressionSyntax {
     internal ExpressionSyntax index { get; }
 
     internal SyntaxToken? closeBracket { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.IndexExpression;
 }
 
 internal sealed partial class SyntaxFactory {

@@ -18,6 +18,8 @@ internal sealed partial class StructDeclarationSyntax : TypeDeclarationSyntax {
         SyntaxList<MemberSyntax> members, SyntaxToken closeBrace)
         : base(syntaxTree, keyword, identifier, openBrace, members, closeBrace) { }
 
+    public override SyntaxKind kind => SyntaxKind.StructDeclaration;
+
     internal new SyntaxToken keyword => base.keyword;
 
     internal new SyntaxToken identifier => base.identifier;
@@ -27,8 +29,6 @@ internal sealed partial class StructDeclarationSyntax : TypeDeclarationSyntax {
     internal new SyntaxList<MemberSyntax> members => base.members;
 
     internal new SyntaxToken closeBrace => base.closeBrace;
-
-    internal override SyntaxKind kind => SyntaxKind.StructDeclaration;
 }
 
 internal sealed partial class SyntaxFactory {

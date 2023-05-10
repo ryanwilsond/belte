@@ -25,6 +25,8 @@ internal sealed partial class TernaryExpressionSyntax : ExpressionSyntax {
         this.right = right;
     }
 
+    public override SyntaxKind kind => SyntaxKind.TernaryExpression;
+
     /// <summary>
     /// Left side operand.
     /// </summary>
@@ -49,8 +51,6 @@ internal sealed partial class TernaryExpressionSyntax : ExpressionSyntax {
     /// Right side operand.
     /// </summary>
     internal ExpressionSyntax right { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.TernaryExpression;
 }
 
 internal sealed partial class SyntaxFactory {

@@ -14,6 +14,8 @@ public sealed partial class CompilationUnitSyntax : SyntaxNode {
         this.endOfFile = endOfFile;
     }
 
+    public override SyntaxKind kind => SyntaxKind.CompilationUnit;
+
     /// <summary>
     /// The top level SyntaxNodes (global) in the source file.
     /// </summary>
@@ -23,8 +25,6 @@ public sealed partial class CompilationUnitSyntax : SyntaxNode {
     /// EOF token.
     /// </summary>
     internal SyntaxToken endOfFile { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.CompilationUnit;
 }
 
 internal sealed partial class SyntaxFactory {

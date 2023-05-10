@@ -18,13 +18,13 @@ internal sealed partial class ParenthesisExpressionSyntax : ExpressionSyntax {
         this.closeParenthesis = closeParenthesis;
     }
 
+    public override SyntaxKind kind => SyntaxKind.ParenthesizedExpression;
+
     internal SyntaxToken? openParenthesis { get; }
 
     internal ExpressionSyntax expression { get; }
 
     internal SyntaxToken? closeParenthesis { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.ParenthesizedExpression;
 }
 
 internal sealed partial class SyntaxFactory {

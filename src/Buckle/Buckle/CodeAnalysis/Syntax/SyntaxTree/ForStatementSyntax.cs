@@ -27,6 +27,8 @@ internal sealed partial class ForStatementSyntax : StatementSyntax {
         this.body = body;
     }
 
+    public override SyntaxKind kind => SyntaxKind.ForStatement;
+
     internal SyntaxToken keyword { get; }
 
     internal SyntaxToken openParenthesis { get; }
@@ -45,8 +47,6 @@ internal sealed partial class ForStatementSyntax : StatementSyntax {
     internal SyntaxToken closeParenthesis { get; }
 
     internal StatementSyntax body { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.ForStatement;
 }
 
 internal sealed partial class SyntaxFactory {

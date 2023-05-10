@@ -24,6 +24,8 @@ internal sealed partial class DoWhileStatementSyntax : StatementSyntax {
         this.semicolon = semicolon;
     }
 
+    public override SyntaxKind kind => SyntaxKind.DoWhileStatement;
+
     internal SyntaxToken doKeyword { get; }
 
     internal StatementSyntax body { get; }
@@ -37,8 +39,6 @@ internal sealed partial class DoWhileStatementSyntax : StatementSyntax {
     internal SyntaxToken closeParenthesis { get; }
 
     internal SyntaxToken semicolon { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.DoWhileStatement;
 }
 
 internal sealed partial class SyntaxFactory {

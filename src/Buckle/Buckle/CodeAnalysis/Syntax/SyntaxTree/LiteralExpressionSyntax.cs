@@ -18,11 +18,11 @@ internal sealed partial class LiteralExpressionSyntax : ExpressionSyntax {
     internal LiteralExpressionSyntax(SyntaxTree syntaxTree, SyntaxToken token)
         : this(syntaxTree, token, token.value) { }
 
+    public override SyntaxKind kind => SyntaxKind.LiteralExpression;
+
     internal SyntaxToken token { get; }
 
     internal object value { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.LiteralExpression;
 }
 
 internal sealed partial class SyntaxFactory {

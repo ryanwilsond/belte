@@ -16,6 +16,8 @@ internal sealed partial class PrefixExpressionSyntax : ExpressionSyntax {
         this.operand = operand;
     }
 
+    public override SyntaxKind kind => SyntaxKind.PrefixExpression;
+
     /// <summary>
     /// Operator.
     /// </summary>
@@ -25,8 +27,6 @@ internal sealed partial class PrefixExpressionSyntax : ExpressionSyntax {
     /// Existing variable name.
     /// </summary>
     internal ExpressionSyntax operand { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.PrefixExpression;
 }
 
 internal sealed partial class SyntaxFactory {

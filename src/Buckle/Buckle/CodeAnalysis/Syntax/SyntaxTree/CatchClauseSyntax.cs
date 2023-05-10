@@ -16,14 +16,14 @@ internal sealed partial class CatchClauseSyntax : SyntaxNode {
         this.body = body;
     }
 
+    public override SyntaxKind kind => SyntaxKind.CatchClause;
+
     /// <summary>
     /// Catch keyword.
     /// </summary>
     internal SyntaxToken keyword { get; }
 
     internal BlockStatementSyntax body { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.CatchClause;
 }
 
 internal sealed partial class SyntaxFactory {

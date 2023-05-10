@@ -21,6 +21,8 @@ internal sealed partial class CallExpressionSyntax : ExpressionSyntax {
         this.closeParenthesis = closeParenthesis;
     }
 
+    public override SyntaxKind kind => SyntaxKind.CallExpression;
+
     /// <summary>
     /// Name of the called method or function.
     /// </summary>
@@ -34,8 +36,6 @@ internal sealed partial class CallExpressionSyntax : ExpressionSyntax {
     internal SeparatedSyntaxList<ArgumentSyntax> arguments { get; }
 
     internal SyntaxToken? closeParenthesis { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.CallExpression;
 }
 
 internal sealed partial class SyntaxFactory {

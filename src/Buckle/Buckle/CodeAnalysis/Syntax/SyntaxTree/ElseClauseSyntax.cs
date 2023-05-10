@@ -11,14 +11,14 @@ internal sealed partial class ElseClauseSyntax : SyntaxNode {
         this.body = body;
     }
 
+    public override SyntaxKind kind => SyntaxKind.ElseClause;
+
     /// <summary>
     /// Else keyword.
     /// </summary>
     internal SyntaxToken keyword { get; }
 
     internal StatementSyntax body { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.ElseClause;
 }
 
 internal sealed partial class SyntaxFactory {

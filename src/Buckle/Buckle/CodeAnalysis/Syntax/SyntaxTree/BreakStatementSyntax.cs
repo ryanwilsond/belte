@@ -16,11 +16,11 @@ internal sealed partial class BreakStatementSyntax : StatementSyntax {
         this.semicolon = semicolon;
     }
 
+    public override SyntaxKind kind => SyntaxKind.BreakStatement;
+
     internal SyntaxToken keyword { get; }
 
     internal SyntaxToken semicolon { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.BreakStatement;
 }
 
 internal sealed partial class SyntaxFactory {

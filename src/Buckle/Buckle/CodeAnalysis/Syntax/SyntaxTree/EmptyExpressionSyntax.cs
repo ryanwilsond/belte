@@ -16,12 +16,12 @@ internal sealed partial class EmptyExpressionSyntax : ExpressionSyntax {
         this.artificialLocation = artificialLocation;
     }
 
+    public override SyntaxKind kind => SyntaxKind.EmptyExpression;
+
     /// <summary>
     /// An artificial location used by diagnostics.
     /// </summary>
     private SyntaxToken? artificialLocation { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.EmptyExpression;
 }
 
 internal sealed partial class SyntaxFactory {

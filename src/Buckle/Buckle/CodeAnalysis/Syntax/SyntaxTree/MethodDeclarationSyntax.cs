@@ -25,6 +25,8 @@ internal sealed partial class MethodDeclarationSyntax : MemberSyntax {
         this.body = body;
     }
 
+    public override SyntaxKind kind => SyntaxKind.MethodDeclaration;
+
     /// <summary>
     /// <see cref="TypeSyntax" /> of return type.
     /// </summary>
@@ -42,8 +44,6 @@ internal sealed partial class MethodDeclarationSyntax : MemberSyntax {
     internal SyntaxToken closeParenthesis { get; }
 
     internal BlockStatementSyntax body { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.MethodDeclaration;
 }
 
 internal sealed partial class SyntaxFactory {

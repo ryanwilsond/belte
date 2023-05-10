@@ -21,6 +21,8 @@ internal sealed partial class TypeOfExpressionSyntax : ExpressionSyntax {
         this.closeParenthesis = closeParenthesis;
     }
 
+    public override SyntaxKind kind => SyntaxKind.TypeOfExpression;
+
     /// <summary>
     /// TypeOf keyword.
     /// </summary>
@@ -31,8 +33,6 @@ internal sealed partial class TypeOfExpressionSyntax : ExpressionSyntax {
     internal TypeSyntax type { get; }
 
     internal SyntaxToken closeParenthesis { get; }
-
-    internal override SyntaxKind kind => SyntaxKind.TypeOfExpression;
 }
 
 internal sealed partial class SyntaxFactory {

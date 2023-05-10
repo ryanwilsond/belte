@@ -29,7 +29,13 @@ public sealed class SyntaxToken : SyntaxNode {
         this.trailingTrivia = trailingTrivia;
     }
 
-    internal override SyntaxKind kind { get; }
+    public override SyntaxKind kind { get; }
+
+    /// <summary>
+    /// If this <see cref="SyntaxToken" /> was created artificially instead of coming from the
+    /// <see cref="SourceText" />.
+    /// </summary>
+    public bool isFabricated => (flags & NodeFlags.IsMissing) != 0;
 
     /// <summary>
     /// Position of <see cref="SyntaxToken" /> (indexed by the <see cref="SyntaxNode" />, not character in
@@ -48,9 +54,10 @@ public sealed class SyntaxToken : SyntaxNode {
     internal object value { get; }
 
     /// <summary>
-    /// If <see cref="SyntaxToken" /> was created artificially, or if it came from the <see cref="SourceText" />.
+    /// If the <see cref="SyntaxToken" /> contains any text from the <see cref="SourceText" /> that was skipped,
+    /// in the form of bad token trivia.
     /// </summary>
-    public bool isFabricated => text == null;
+    internal bool containsSkippedText => (flags & NodeFlags.ContainsSkippedText) != 0;
 
     internal override TextSpan span => new TextSpan(position, text?.Length ?? 0);
 
@@ -76,7 +83,7 @@ public sealed class SyntaxToken : SyntaxNode {
     /// <summary>
     /// Gets all child SyntaxNodes, which is none.
     /// </summary>
-    internal override IEnumerable<SyntaxNode> GetChildren() {
+    public override IEnumerable<SyntaxNode> GetChildren() {
         return Array.Empty<SyntaxNode>();
     }
 }
