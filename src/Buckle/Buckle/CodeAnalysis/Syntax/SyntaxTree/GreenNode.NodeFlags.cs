@@ -2,7 +2,7 @@ using System;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
-public abstract partial class SyntaxNode {
+internal sealed partial class GreenNode {
     /// <summary>
     /// Represents the possible states of the node.
     /// </summary>

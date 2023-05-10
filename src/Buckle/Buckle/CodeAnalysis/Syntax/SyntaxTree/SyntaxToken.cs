@@ -9,7 +9,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// Token type.
 /// </summary>
-public sealed class SyntaxToken : SyntaxNode {
+public sealed class SyntaxToken {
     /// <param name="position">
     /// Position of <see cref="SyntaxToken" /> (indexed by the <see cref="SyntaxNode" />, not character
     /// in <see cref="SourceText" />).
@@ -18,9 +18,8 @@ public sealed class SyntaxToken : SyntaxNode {
     /// <param name="value">Value related to <see cref="SyntaxToken" /> (if applicable).</param>
     /// <param name="leadingTrivia"><see cref="SyntaxTrivia" /> before <see cref="SyntaxToken" /> (anything).</param>
     /// <param name="trailingTrivia"><see cref="SyntaxTrivia" /> after <see cref="SyntaxToken" /> (same line).</param>
-    internal SyntaxToken(SyntaxTree syntaxTree, SyntaxKind kind, int position, string text, object value,
-        ImmutableArray<SyntaxTrivia> leadingTrivia, ImmutableArray<SyntaxTrivia> trailingTrivia)
-        : base(syntaxTree) {
+    internal SyntaxToken(SyntaxKind kind, int position, string text, object value,
+        ImmutableArray<SyntaxTrivia> leadingTrivia, ImmutableArray<SyntaxTrivia> trailingTrivia) {
         this.kind = kind;
         this.position = position;
         this.text = text;
@@ -53,11 +52,18 @@ public sealed class SyntaxToken : SyntaxNode {
     /// </summary>
     internal object value { get; }
 
+    internal int width => text?.Length ?? 0;
+
+    /// <summary>
+    /// The underlying basic node information.
+    /// </summary>
+    internal GreenNode green { get; }
+
     /// <summary>
     /// If the <see cref="SyntaxToken" /> contains any text from the <see cref="SourceText" /> that was skipped,
     /// in the form of bad token trivia.
     /// </summary>
-    internal bool containsSkippedText => (flags & NodeFlags.ContainsSkippedText) != 0;
+    internal bool containsSkippedText => (green.flags & GreenNode.NodeFlags.ContainsSkippedText) != 0;
 
     internal override TextSpan span => new TextSpan(position, text?.Length ?? 0);
 

@@ -26,15 +26,17 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <code>
 /// </summary>
 public abstract partial class SyntaxNode {
-    protected SyntaxNode(SyntaxTree syntaxTree) {
+    protected SyntaxNode(SyntaxTree syntaxTree, GreenNode node, int position) {
         this.syntaxTree = syntaxTree;
+        green = node;
+        this.position = position;
         parent = null;
     }
 
     /// <summary>
     /// Type of <see cref="SyntaxNode" /> (see <see cref="SyntaxKind" />).
     /// </summary>
-    public abstract SyntaxKind kind { get; }
+    public SyntaxKind kind { get; }
 
     /// <summary>
     /// The parent of this node. The parent's children are this node's siblings.
@@ -47,9 +49,14 @@ public abstract partial class SyntaxNode {
     internal SyntaxTree syntaxTree { get; }
 
     /// <summary>
-    /// The malleable state of this node.
+    /// The underlying basic node information.
     /// </summary>
-    internal NodeFlags flags { get; private set; }
+    internal GreenNode green { get; }
+
+    /// <summary>
+    /// The absolute position of this <see cref="SyntaxNode" /> in the <see cref="SourceText" /> it came from.
+    /// </summary>
+    internal int position { get; }
 
     /// <summary>
     /// <see cref="TextSpan" /> of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />
@@ -76,22 +83,7 @@ public abstract partial class SyntaxNode {
     /// <see cref="TextSpan" /> of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />
     /// (including line break).
     /// </summary>
-    internal virtual TextSpan fullSpan {
-        get {
-            var children = GetChildren();
-
-            if (children.ToArray().Length == 0)
-                return null;
-
-            var first = children.First().fullSpan;
-            var last = children.Last().fullSpan;
-
-            if (first == null || last == null)
-                return null;
-
-            return TextSpan.FromBounds(first.start, last.end);
-        }
-    }
+    internal virtual TextSpan fullSpan => new TextSpan(position, green.fullWidth);
 
     /// <summary>
     /// Location of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />.
@@ -102,7 +94,7 @@ public abstract partial class SyntaxNode {
     /// If any diagnostics have spans that overlap with this node.
     /// Aka this node produced any diagnostics.
     /// </summary>
-    internal bool containsDiagnostics => (flags & NodeFlags.ContainsDiagnostics) != 0;
+    internal bool containsDiagnostics => green.containsDiagnostics;
 
     public override string ToString() {
         var text = new DisplayText();
@@ -130,24 +122,7 @@ public abstract partial class SyntaxNode {
     /// </summary>
     /// <returns>Last <see cref="SyntaxToken" />.</returns>
     public SyntaxToken GetLastToken() {
-        if (this is SyntaxToken t)
-            return t;
-
         return GetChildren().Last().GetLastToken();
-    }
-
-    /// <summary>
-    /// Enables given flags.
-    /// </summary>
-    internal void SetFlags(NodeFlags flags) {
-        this.flags |= flags;
-    }
-
-    /// <summary>
-    /// Disables given flags.
-    /// </summary>
-    internal void ClearFlags(NodeFlags flags) {
-        this.flags &= ~flags;
     }
 
     /// <summary>
