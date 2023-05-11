@@ -1,95 +1,62 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Token type.
+/// Represents a token in the syntax tree.
 /// </summary>
 public sealed class SyntaxToken {
-    /// <param name="position">
-    /// Position of <see cref="SyntaxToken" /> (indexed by the <see cref="SyntaxNode" />, not character
-    /// in <see cref="SourceText" />).
-    /// </param>
-    /// <param name="text">Text related to <see cref="SyntaxToken" /> (if applicable).</param>
-    /// <param name="value">Value related to <see cref="SyntaxToken" /> (if applicable).</param>
-    /// <param name="leadingTrivia"><see cref="SyntaxTrivia" /> before <see cref="SyntaxToken" /> (anything).</param>
-    /// <param name="trailingTrivia"><see cref="SyntaxTrivia" /> after <see cref="SyntaxToken" /> (same line).</param>
-    internal SyntaxToken(SyntaxKind kind, int position, string text, object value,
-        ImmutableArray<SyntaxTrivia> leadingTrivia, ImmutableArray<SyntaxTrivia> trailingTrivia) {
-        this.kind = kind;
+    internal SyntaxToken(SyntaxNode parent, GreenNode token, int position, int index) {
+        this.parent = parent;
+        node = token;
         this.position = position;
-        this.text = text;
-        this.value = value;
-        this.leadingTrivia = leadingTrivia;
-        this.trailingTrivia = trailingTrivia;
+        this.index = index;
     }
 
-    public override SyntaxKind kind { get; }
+    internal SyntaxNode parent { get; }
 
-    /// <summary>
-    /// If this <see cref="SyntaxToken" /> was created artificially instead of coming from the
-    /// <see cref="SourceText" />.
-    /// </summary>
-    public bool isFabricated => (flags & NodeFlags.IsMissing) != 0;
+    internal GreenNode node { get; }
 
-    /// <summary>
-    /// Position of <see cref="SyntaxToken" /> (indexed by the <see cref="SyntaxNode" />, not character in
-    /// <see cref="SourceText" />).
-    /// </summary>
     internal int position { get; }
 
-    /// <summary>
-    /// Text related to <see cref="SyntaxToken" /> (if applicable).
-    /// </summary>
-    internal string text { get; }
+    internal int index { get; }
 
-    /// <summary>
-    /// Value related to <see cref="SyntaxToken" /> (if applicable).
-    /// </summary>
-    internal object value { get; }
+    internal SyntaxKind kind => node.kind;
 
-    internal int width => text?.Length ?? 0;
+    internal object value => node.GetValue();
 
-    /// <summary>
-    /// The underlying basic node information.
-    /// </summary>
-    internal GreenNode green { get; }
+    internal int width => node?.width ?? 0;
 
-    /// <summary>
-    /// If the <see cref="SyntaxToken" /> contains any text from the <see cref="SourceText" /> that was skipped,
-    /// in the form of bad token trivia.
-    /// </summary>
-    internal bool containsSkippedText => (green.flags & GreenNode.NodeFlags.ContainsSkippedText) != 0;
+    internal int fullWidth => node?.fullWidth ?? 0;
 
-    internal override TextSpan span => new TextSpan(position, text?.Length ?? 0);
+    internal TextSpan span => node != null ? new TextSpan(position + node.GetLeadingTriviaWidth(), node.width) : null;
 
-    internal override TextSpan fullSpan {
+    internal SyntaxTree syntaxTree => parent?.syntaxTree;
+
+    internal TextLocation location => syntaxTree != null ? new TextLocation(syntaxTree.text, span) : null;
+
+    internal SyntaxTriviaList leadingTrivia => node != null ?
+        new SyntaxTriviaList(this, node.GetLeadingTrivia(), position)
+        : null;
+
+    internal SyntaxTriviaList trailingTrivia {
         get {
-            var start = leadingTrivia.Length == 0 ? span.start : leadingTrivia.First().span.start;
-            var end = trailingTrivia.Length == 0 ? span.end : trailingTrivia.Last().span.end;
+            if (node == null)
+                return null;
 
-            return TextSpan.FromBounds(start, end);
+            var leading = node.GetLeadingTrivia();
+            int index = 0;
+
+            if (leading != null)
+                index = 1;
+
+            var trailingGreen = node.GetTrailingTrivia();
+            int trailingPosition = position + fullWidth;
+
+            if (trailingGreen != null)
+                trailingPosition -= trailingGreen.fullWidth;
+
+            return new SyntaxTriviaList(this, trailingGreen, trailingPosition, index);
         }
-    }
-
-    /// <summary>
-    /// <see cref="SyntaxTrivia" /> before <see cref="SyntaxToken" /> (anything).
-    /// </summary>
-    internal ImmutableArray<SyntaxTrivia> leadingTrivia { get; }
-
-    /// <summary>
-    /// <see cref="SyntaxTrivia" /> after <see cref="SyntaxToken" /> (same line).
-    /// </summary>
-    internal ImmutableArray<SyntaxTrivia> trailingTrivia { get; }
-
-    /// <summary>
-    /// Gets all child SyntaxNodes, which is none.
-    /// </summary>
-    public override IEnumerable<SyntaxNode> GetChildren() {
-        return Array.Empty<SyntaxNode>();
     }
 }

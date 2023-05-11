@@ -6,31 +6,34 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// All trivia: comments and whitespace. Text that does not affect compilation.
 /// </summary>
 internal sealed class SyntaxTrivia {
-    /// <param name="position">Position of the trivia (indexed by nodes, not by character).</param>
-    /// <param name="text">Text associated with the trivia.</param>
-    internal SyntaxTrivia(SyntaxTree syntaxTree, SyntaxKind kind, int position, string text) {
-        this.syntaxTree = syntaxTree;
+    internal SyntaxTrivia(SyntaxToken token, GreenNode trivia, int position, int index) {
+        this.token = token;
+        green = trivia;
         this.position = position;
-        this.kind = kind;
-        this.text = text;
+        this.index = index;
     }
 
-    internal SyntaxTree syntaxTree { get; }
+    internal SyntaxToken token { get; }
 
-    internal SyntaxKind kind { get; }
+    internal GreenNode green { get; }
 
-    /// <summary>
-    /// The position of the <see cref="SyntaxTrivia" />.
-    /// </summary>
     internal int position { get; }
 
-    /// <summary>
-    /// <see cref="TextSpan" /> of where the <see cref="SyntaxTrivia" /> is in the <see cref="SourceText" />.
-    /// </summary>
-    internal TextSpan span => new TextSpan(position, text?.Length ?? 0);
+    internal int index { get; }
 
-    /// <summary>
-    /// Text associated with the <see cref="SyntaxTrivia" />.
-    /// </summary>
-    internal string text { get; }
+    internal int width => green?.width ?? 0;
+
+    internal int fullWidth => green?.width ?? 0;
+
+    internal TextSpan span => green != null
+        ? new TextSpan(position + green.GetLeadingTriviaWidth(), green.width)
+        : null;
+
+    internal TextSpan fullSpan => green != null ? new TextSpan(position, green.fullWidth) : null;
+
+    internal bool containsDiagnostics => green?.containsDiagnostics ?? false;
+
+    internal SyntaxTree syntaxTree => token.syntaxTree;
+
+    internal TextLocation location => new TextLocation(syntaxTree.text, span);
 }

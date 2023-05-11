@@ -11,5 +11,6 @@ struct
 structs
 subrange
 arity
+trivias
 
 belte

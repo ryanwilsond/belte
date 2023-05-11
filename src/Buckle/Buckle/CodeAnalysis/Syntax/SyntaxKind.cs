@@ -5,6 +5,9 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// All types of things to be found in a source file.
 /// </summary>
 public enum SyntaxKind {
+    None = 0,
+    List = GreenNode.ListKind,
+
     // Punctuation
     TildeToken,
     ExclamationToken,
