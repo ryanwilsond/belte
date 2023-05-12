@@ -26,6 +26,10 @@ internal sealed partial class ChildSyntaxList {
         return new Enumerator(_node);
     }
 
+    internal Reversed Reverse() {
+        return new Reversed(_node);
+    }
+
     private int CountNodes() {
         int n = 0;
         var enumerator = GetEnumerator();

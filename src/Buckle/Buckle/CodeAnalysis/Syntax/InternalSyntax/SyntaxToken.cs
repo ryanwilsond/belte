@@ -28,6 +28,23 @@ internal sealed class SyntaxToken : GreenNode {
         this._trailing = trailingTrivia;
     }
 
+    internal SyntaxToken(SyntaxKind kind, string text, object value, GreenNode leadingTrivia, GreenNode trailingTrivia)
+        : base(kind) {
+        this.value = value;
+        _text = text;
+        fullWidth = text.Length;
+        AdjustFlagsAndWidth(leadingTrivia);
+        this._leading = leadingTrivia;
+        AdjustFlagsAndWidth(trailingTrivia);
+        this._trailing = trailingTrivia;
+    }
+
+    internal SyntaxToken(SyntaxKind kind, string text, object value) : base(kind) {
+        fullWidth = text.Length;
+        _text = text;
+        this.value = value;
+    }
+
     /// <summary>
     /// Position of <see cref="SyntaxToken" /> (indexed by the <see cref="SyntaxNode" />, not character in
     /// <see cref="SourceText" />).
@@ -48,13 +65,6 @@ internal sealed class SyntaxToken : GreenNode {
     /// The width of the <see cref="SyntaxToken" />, not including any leading or trailing trivia.
     /// </summary>
     internal override int width => text.Length;
-
-    /// <summary>
-    /// If the <see cref="SyntaxToken" /> contains any text from the <see cref="SourceText" /> that was skipped,
-    /// in the form of bad token trivia.
-    /// </summary>
-    internal bool containsSkippedText => (flags & NodeFlags.ContainsSkippedText) != 0;
-
     /// <summary>
     /// <see cref="SyntaxTrivia" /> before <see cref="SyntaxToken" /> (anything).
     /// </summary>
@@ -93,5 +103,25 @@ internal sealed class SyntaxToken : GreenNode {
 
     internal override SyntaxNode CreateRed(SyntaxNode parent, int position) {
         throw ExceptionUtilities.Unreachable();
+    }
+
+    internal override GreenNode WithLeadingTrivia(GreenNode trivia) {
+        return TokenWithLeadingTrivia(trivia);
+    }
+
+    internal override GreenNode WithTrailingTrivia(GreenNode trivia) {
+        return TokenWithTrailingTrivia(trivia);
+    }
+
+    internal SyntaxToken TokenWithLeadingTrivia(GreenNode trivia) {
+        var token = new SyntaxToken(kind, text, value, trivia, GetTrailingTrivia());
+        token.flags |= flags;
+        return token;
+    }
+
+    internal SyntaxToken TokenWithTrailingTrivia(GreenNode trivia) {
+        var token = new SyntaxToken(kind, text, value, GetLeadingTrivia(), trivia);
+        token.flags |= flags;
+        return token;
     }
 }

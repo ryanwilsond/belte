@@ -16,12 +16,12 @@ public sealed class SyntaxTree {
         diagnostics = new BelteDiagnosticQueue();
     }
 
-    private SyntaxTree(SourceText text, ParseHandler handler) : this(text) {
+    internal SyntaxTree(SourceText text, ParseHandler handler) : this(text) {
         handler(this, out var _root, out diagnostics);
         root = _root;
     }
 
-    private delegate void ParseHandler(
+    internal delegate void ParseHandler(
         SyntaxTree syntaxTree, out CompilationUnitSyntax root, out BelteDiagnosticQueue diagnostics
     );
 
@@ -100,81 +100,6 @@ public sealed class SyntaxTree {
     }
 
     /// <summary>
-    /// Parses text into an array of SyntaxTokens (not a <see cref="SyntaxTree" />).
-    /// </summary>
-    /// <param name="text">Text to parse.</param>
-    /// <param name="includeEOF">If to include the EOF <see cref="SyntaxToken" /> at the end.</param>
-    /// <returns>SyntaxTokens in order.</returns>
-    internal static ImmutableArray<SyntaxToken> ParseTokens(string text, bool includeEOF = false) {
-        var sourceText = SourceText.From(text);
-
-        return ParseTokens(sourceText, includeEOF);
-    }
-
-    /// <summary>
-    /// Parses text into an array of SyntaxTokens (not a <see cref="SyntaxTree" />).
-    /// </summary>
-    /// <param name="text">Text to parse.</param>
-    /// <param name="diagnostics">Diagnostics produced from parsing.</param>
-    /// <param name="includeEOF">If to include the EOF <see cref="SyntaxToken" /> at the end.</param>
-    /// <returns>SyntaxTokens in order.</returns>
-    internal static ImmutableArray<SyntaxToken> ParseTokens(
-        string text, out BelteDiagnosticQueue diagnostics, bool includeEOF = false) {
-        var sourceText = SourceText.From(text);
-
-        return ParseTokens(sourceText, out diagnostics, includeEOF);
-    }
-
-    /// <summary>
-    /// Parses text into an array of SyntaxTokens (not a <see cref="SyntaxTree" />).
-    /// </summary>
-    /// <param name="text">Text to parse.</param>
-    /// <param name="includeEOF">If to include the EOF <see cref="SyntaxToken" /> at the end.</param>
-    /// <returns>SyntaxTokens in order.</returns>
-    internal static ImmutableArray<SyntaxToken> ParseTokens(SourceText text, bool includeEOF = false) {
-        return ParseTokens(text, out _, includeEOF);
-    }
-
-    /// <summary>
-    /// Parses text into an array of SyntaxTokens (not a <see cref="SyntaxTree" />).
-    /// </summary>
-    /// <param name="text">Text to parse.</param>
-    /// <param name="diagnostics">Diagnostics produced from parsing.</param>
-    /// <param name="includeEOF">If to include the EOF <see cref="SyntaxToken" /> at the end.</param>
-    /// <returns>SyntaxTokens in order.</returns>
-    internal static ImmutableArray<SyntaxToken> ParseTokens(
-        SourceText text, out BelteDiagnosticQueue diagnostics, bool includeEOF = false) {
-        var tokens = new List<SyntaxToken>();
-
-        void ParseTokens(SyntaxTree syntaxTree, out CompilationUnitSyntax root, out BelteDiagnosticQueue diagnostics) {
-            root = null;
-            var lexer = new InternalSyntax.Lexer(syntaxTree);
-
-            while (true) {
-                var token = lexer.LexNext();
-
-                if (token.kind == SyntaxKind.EndOfFileToken)
-                    root = new CompilationUnitSyntax(syntaxTree, ImmutableArray<MemberSyntax>.Empty, token);
-
-                if (token.kind != SyntaxKind.EndOfFileToken || includeEOF)
-                    tokens.Add(token);
-
-                if (token.kind == SyntaxKind.EndOfFileToken)
-                    break;
-            }
-
-            diagnostics = new BelteDiagnosticQueue();
-            diagnostics.Move(lexer.diagnostics);
-        }
-
-        var syntaxTree = new SyntaxTree(text, ParseTokens);
-        diagnostics = new BelteDiagnosticQueue();
-        diagnostics.Move(syntaxTree.diagnostics);
-
-        return tokens.ToImmutableArray();
-    }
-
-    /// <summary>
     /// Creates a new syntax based off this tree using a new source text.
     /// </summary>
     internal SyntaxTree WithChangedText(SourceText newText) {
@@ -199,7 +124,7 @@ public sealed class SyntaxTree {
 
         var tree = new SyntaxTree(newText);
         var parser = new InternalSyntax.Parser(tree, oldTree?.root, workingChanges);
-        tree.root = parser.ParseCompilationUnit();
+        tree.root = parser.ParseCompilationUnit().CreateRed();
         tree.diagnostics.Move(parser.diagnostics);
 
         return tree;
@@ -208,7 +133,7 @@ public sealed class SyntaxTree {
     private static void Parse(
         SyntaxTree syntaxTree, out CompilationUnitSyntax root, out BelteDiagnosticQueue diagnostics) {
         var parser = new InternalSyntax.Parser(syntaxTree);
-        root = parser.ParseCompilationUnit();
+        root = parser.ParseCompilationUnit().CreateRed();
         diagnostics = new BelteDiagnosticQueue();
         diagnostics.Move(parser.diagnostics);
     }

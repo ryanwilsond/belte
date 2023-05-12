@@ -76,6 +76,16 @@ public abstract partial class SyntaxNode {
     internal int slotCount => green.slotCount;
 
     /// <summary>
+    /// The width of this <see cref="SyntaxNode" /> including all trivia.
+    /// </summary>
+    internal int fullWidth => green.fullWidth;
+
+    /// <summary>
+    /// The width of this <see cref="SyntaxNode" /> excluding all trivia.
+    /// </summary>
+    internal int width => green.width;
+
+    /// <summary>
     /// <see cref="TextSpan" /> of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />
     /// (not including line break).
     /// </summary>
@@ -224,39 +234,6 @@ public abstract partial class SyntaxNode {
         }
 
         return endPosition - offset;
-    }
-
-    /// <summary>
-    /// Finds the index of the first child whose span contains the given position.
-    /// </summary>
-    internal static int GetFirstChildIndexSpanningPosition(SyntaxNode[] list, int position) {
-        var lo = 0;
-        var hi = list.Length - 1;
-
-        while (lo <= hi) {
-            var r = lo + ((hi - lo) >> 1);
-
-            var m = list[r];
-            if (position < m.fullSpan.start) {
-                hi = r - 1;
-            } else {
-                if (position == m.fullSpan.start) {
-                    for (; r > 0 && list[r - 1].fullSpan.length == 0; r--)
-                        ;
-
-                    return r;
-                }
-
-                if (position >= m.fullSpan.end) {
-                    lo = r + 1;
-                    continue;
-                }
-
-                return r;
-            }
-        }
-
-        throw ExceptionUtilities.Unreachable();
     }
 
     internal SyntaxNode GetRedElement(ref SyntaxNode element, int slot) {

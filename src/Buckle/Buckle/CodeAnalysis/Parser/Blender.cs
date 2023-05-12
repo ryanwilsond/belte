@@ -75,9 +75,9 @@ internal sealed partial class Blender {
 
         for (var i = 0; start > 0 && i <= maxLookahead;) {
             var token = oldTree.FindToken(start);
-            start = Math.Max(0, token.fullSpan.start - 1);
+            start = Math.Max(0, token.position - 1);
 
-            if (token.fullSpan.length > 0)
+            if (token.fullWidth > 0)
                 i++;
         }
 

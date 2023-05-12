@@ -57,6 +57,11 @@ internal abstract partial class GreenNode {
     internal bool containsDiagnostics => (flags & NodeFlags.ContainsDiagnostics) != 0;
 
     /// <summary>
+    /// If this node contains any skipped text from the source text in the form of trivia.
+    /// </summary>
+    internal bool containsSkippedText => (flags & NodeFlags.ContainsSkippedText) != 0;
+
+    /// <summary>
     /// If this <see cref="GreenNode" /> is any token type.
     /// </summary>
     internal virtual bool isToken => false;
@@ -182,6 +187,20 @@ internal abstract partial class GreenNode {
     /// </summary>
     internal virtual object GetValue() {
         return null;
+    }
+
+    /// <summary>
+    /// Returns a copy of this node with leading trivia.
+    /// </summary>
+    internal virtual GreenNode WithLeadingTrivia(GreenNode trivia) {
+        return this;
+    }
+
+    /// <summary>
+    /// Returns a copy of this node with trailing trivia.
+    /// </summary>
+    internal virtual GreenNode WithTrailingTrivia(GreenNode trivia) {
+        return this;
     }
 
     /// <summary>

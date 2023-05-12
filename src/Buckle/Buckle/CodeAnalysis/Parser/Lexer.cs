@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Text;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Text;
@@ -27,7 +26,8 @@ internal sealed class Lexer {
     private SyntaxKind _kind;
     private object _value;
     private SyntaxTree _syntaxTree;
-    private ImmutableArray<SyntaxTrivia>.Builder _triviaBuilder = ImmutableArray.CreateBuilder<SyntaxTrivia>();
+    private SyntaxListBuilder _leadingTriviaCache = new SyntaxListBuilder(10);
+    private SyntaxListBuilder _trailingTriviaCache = new SyntaxListBuilder(10);
 
     /// <summary>
     /// Creates a new <see cref="Lexer" />, requires a fully initialized <see cref="SyntaxTree" />.
@@ -67,36 +67,22 @@ internal sealed class Lexer {
             }
 
             if (badTokens.Count > 0) {
-                var leadingTrivia = token.leadingTrivia.ToBuilder();
-                var index = 0;
+                var leadingTrivia = new SyntaxListBuilder(token.leadingTrivia.count + 10);
 
                 foreach (var badToken in badTokens) {
                     foreach (var lt in badToken.leadingTrivia)
-                        leadingTrivia.Insert(index++, lt);
+                        leadingTrivia.Add(lt);
 
-                    var trivia = new SyntaxTrivia(
-                        _syntaxTree, SyntaxKind.SkippedTokenTrivia, badToken.position, badToken.text
-                    );
-
-                    leadingTrivia.Insert(index++, trivia);
+                    var trivia = SyntaxFactory.Skipped(badToken.text);
+                    leadingTrivia.Add(trivia);
 
                     foreach (var tt in badToken.trailingTrivia)
-                        leadingTrivia.Insert(index++, tt);
+                        leadingTrivia.Add(tt);
                 }
 
-                var flags = token.flags;
-
-                token = new SyntaxToken(
-                    token.syntaxTree,
-                    token.kind,
-                    token.position,
-                    token.text,
-                    token.value,
-                    leadingTrivia.ToImmutable(),
-                    token.trailingTrivia
-                );
-
-                token.SetFlags(flags | SyntaxNode.NodeFlags.ContainsSkippedText);
+                leadingTrivia.AddRange(token.leadingTrivia);
+                token = token.TokenWithLeadingTrivia(leadingTrivia.ToListNode());
+                token.SetFlags(GreenNode.NodeFlags.ContainsSkippedText);
             }
 
             break;
@@ -124,42 +110,41 @@ internal sealed class Lexer {
     private SyntaxToken LexNextInternal() {
         var currentDiagnosticCount = diagnostics.count;
 
-        ReadTrivia(true);
-        var leadingTrivia = _triviaBuilder.ToImmutable();
-        var tokenPosition = _position;
+        _leadingTriviaCache.Clear();
+        ReadTrivia(isTrailing: false);
 
+        var tokenPosition = _position;
         ReadToken();
 
         var tokenKind = _kind;
         var tokenValue = _value;
-        var tokenLength = _position - _start;
+        var tokenWidth = _position - _start;
 
-        ReadTrivia(false);
-        var trailingTrivia = _triviaBuilder.ToImmutable();
+        _trailingTriviaCache.Clear();
+        ReadTrivia(isTrailing: true);
 
-        var tokenText = SyntaxFacts.GetText(tokenKind) ?? _text.ToString(new TextSpan(tokenPosition, tokenLength));
+        var tokenText = SyntaxFacts.GetText(tokenKind) ?? _text.ToString(new TextSpan(tokenPosition, tokenWidth));
         var hasDiagnostics = diagnostics.count > currentDiagnosticCount;
 
-        return Create(tokenKind, tokenPosition, tokenText, tokenValue, leadingTrivia, trailingTrivia, hasDiagnostics);
+        return Create(tokenKind, tokenWidth, tokenText, tokenValue, hasDiagnostics);
     }
 
-    private SyntaxToken Create(
-        SyntaxKind kind, int position, string text, object value,
-        ImmutableArray<SyntaxTrivia> leadingTrivia, ImmutableArray<SyntaxTrivia> trailingTrivia, bool hasDiagnostics) {
-        var token = new SyntaxToken(
-            _syntaxTree, kind, position, text, value, leadingTrivia, trailingTrivia
-        );
+    private SyntaxToken Create(SyntaxKind kind, int fullWidth, string text, object value, bool hasDiagnostics) {
+        var leading = _leadingTriviaCache.ToListNode();
+        var trailing = _trailingTriviaCache.ToListNode();
+
+        var token = SyntaxFactory.Token(kind, fullWidth, text, value, leading, trailing);
 
         if (hasDiagnostics)
-            token.SetFlags(SyntaxNode.NodeFlags.ContainsDiagnostics);
+            token.SetFlags(GreenNode.NodeFlags.ContainsDiagnostics);
         if (text == null)
-            token.SetFlags(SyntaxNode.NodeFlags.IsMissing);
+            token.SetFlags(GreenNode.NodeFlags.IsMissing);
 
         return token;
     }
 
-    private void ReadTrivia(bool leading) {
-        _triviaBuilder.Clear();
+    private void ReadTrivia(bool isTrailing) {
+        var triviaList = isTrailing ? ref _trailingTriviaCache : ref _leadingTriviaCache;
         var done = false;
 
         while (!done) {
@@ -181,8 +166,9 @@ internal sealed class Lexer {
                     break;
                 case '\r':
                 case '\n':
-                    if (!leading)
+                    if (isTrailing)
                         done = true;
+
                     ReadLineBreak();
                     break;
                 case ' ':
@@ -202,8 +188,8 @@ internal sealed class Lexer {
 
             if (length > 0) {
                 var text = _text.ToString(new TextSpan(_start, length));
-                var trivia = new SyntaxTrivia(_syntaxTree, _kind, _start, text);
-                _triviaBuilder.Add(trivia);
+                var trivia = SyntaxFactory.Trivia(_kind, text);
+                triviaList.Add(trivia);
             }
         }
     }

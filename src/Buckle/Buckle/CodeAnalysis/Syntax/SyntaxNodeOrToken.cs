@@ -1,8 +1,10 @@
+using System;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
-public sealed class SyntaxNodeOrToken {
+public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     private readonly SyntaxNode _nodeOrParent;
     private readonly GreenNode _token;
     private readonly int _tokenIndex;
@@ -19,6 +21,8 @@ public sealed class SyntaxNodeOrToken {
         _nodeOrParent = parent;
         _token = token;
     }
+
+    internal SyntaxKind kind => _token?.kind ?? _nodeOrParent?.kind ?? SyntaxKind.None;
 
     /// <summary>
     /// The underlying <see cref="SyntaxNode" /> or parent of the token.
@@ -44,6 +48,23 @@ public sealed class SyntaxNodeOrToken {
     /// If this <see cref="SyntaxNodeOrToken" /> is wrapping a <see cref="SyntaxNode" />.
     /// </summary>
     internal bool isNode => _tokenIndex < 0;
+
+    /// <summary>
+    /// The full width of the token or underlying node.
+    /// </summary>
+    internal int fullWidth => _token?.fullWidth ?? _nodeOrParent?.fullWidth ?? 0;
+
+    /// <summary>
+    /// The width of the token or underlying node.
+    /// </summary>
+    internal int width => _token?.width ?? _nodeOrParent?.width ?? 0;
+
+    /// <summary>
+    /// The ending position of the token or the underlying node.
+    /// </summary>
+    internal int endPosition => position + fullWidth;
+
+    internal bool containsDiagnostics => _token?.containsDiagnostics ?? _nodeOrParent?.containsDiagnostics ?? false;
 
     /// <summary>
     /// Returns the underlying <see cref="SyntaxToken" /> if this <see cref="SyntaxNodeOrToken" /> is
@@ -127,6 +148,39 @@ public sealed class SyntaxNodeOrToken {
         }
     }
 
+    /// <summary>
+    /// Finds the index of the first child whose span contains the given position.
+    /// </summary>
+    internal static int GetFirstChildIndexSpanningPosition(ChildSyntaxList list, int position) {
+        var lo = 0;
+        var hi = list.Count - 1;
+
+        while (lo <= hi) {
+            var r = lo + ((hi - lo) >> 1);
+            var m = list[r];
+
+            if (position < m.position) {
+                hi = r - 1;
+            } else {
+                if (position == m.position) {
+                    for (; r > 0 && list[r - 1].fullWidth == 0; r--)
+                        ;
+
+                    return r;
+                }
+
+                if (position >= m.endPosition) {
+                    lo = r + 1;
+                    continue;
+                }
+
+                return r;
+            }
+        }
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
     public static implicit operator SyntaxNodeOrToken(SyntaxToken token) {
         return new SyntaxNodeOrToken(token.parent, token.node, token.position, token.index);
     }
@@ -135,5 +189,27 @@ public sealed class SyntaxNodeOrToken {
         return node is object
             ? new SyntaxNodeOrToken(node)
             : null;
+    }
+
+    public bool Equals(SyntaxNodeOrToken other) {
+        return _nodeOrParent == other._nodeOrParent &&
+               _token == other._token &&
+               _tokenIndex == other._tokenIndex;
+    }
+
+    public static bool operator ==(SyntaxNodeOrToken left, SyntaxNodeOrToken right) {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(SyntaxNodeOrToken left, SyntaxNodeOrToken right) {
+        return !left.Equals(right);
+    }
+
+    public override bool Equals(object? obj) {
+        return obj is SyntaxNodeOrToken token && Equals(token);
+    }
+
+    public override int GetHashCode() {
+        return HashCode.Combine(_nodeOrParent, HashCode.Combine(_token, _tokenIndex));
     }
 }

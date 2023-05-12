@@ -19,7 +19,7 @@ internal sealed class Parser {
     private readonly SourceText _text;
     private readonly bool _isIncremental;
     private readonly BelteDiagnosticQueue _diagnostics;
-    private readonly SyntaxFactory _syntaxFactory;
+    private readonly Syntax.SyntaxFactory _syntaxFactory;
     private readonly SyntaxTree _syntaxTree;
 
     private bool _expectParenthesis;
@@ -50,7 +50,7 @@ internal sealed class Parser {
         _lexer = new Lexer(_syntaxTree);
         _expectParenthesis = false;
         _isIncremental = oldTree != null && changes.HasValue && changes.Value.Length > 0;
-        _syntaxFactory = new SyntaxFactory(_syntaxTree);
+        _syntaxFactory = new Syntax.SyntaxFactory(_syntaxTree);
 
         if (_isIncremental) {
             _firstBlender = new Blender(_lexer, oldTree, changes.Value);

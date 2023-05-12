@@ -50,7 +50,7 @@ public sealed class SyntaxToken {
             int index = 0;
 
             if (leading != null)
-                index = 1;
+                index = leading.isList ? leading.slotCount : 1;
 
             var trailingGreen = node.GetTrailingTrivia();
             int trailingPosition = position + fullWidth;

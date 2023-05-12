@@ -32,7 +32,7 @@ internal sealed partial class Blender {
                     if (TryTakeOldNodeOrToken(asToken, out var blendedNode))
                         return blendedNode;
 
-                    if (!_oldTreeCursor.currentNode.kind.IsToken())
+                    if (_oldTreeCursor.currentNodeOrToken.isNode)
                         _oldTreeCursor = _oldTreeCursor.MoveToFirstChild();
                     else
                         SkipOldToken();
@@ -42,16 +42,16 @@ internal sealed partial class Blender {
 
         private void SkipOldToken() {
             _oldTreeCursor = _oldTreeCursor.MoveToFirstToken();
-            var node = _oldTreeCursor.currentNode;
+            var node = _oldTreeCursor.currentNodeOrToken;
 
-            _changeDelta += node.fullSpan.length;
+            _changeDelta += node.fullWidth;
             _oldTreeCursor = _oldTreeCursor.MoveToNextSibling();
 
             SkipPastChanges();
         }
 
         private void SkipPastChanges() {
-            var oldPosition = _oldTreeCursor.currentNode.fullSpan.start;
+            var oldPosition = _oldTreeCursor.currentNodeOrToken.position;
 
             while (!_changes.IsEmpty && oldPosition >= _changes.Peek().span.end) {
                 var change = _changes.Peek();
@@ -62,7 +62,7 @@ internal sealed partial class Blender {
 
         private BlendedNode ReadNewToken() {
             var token = LexNewToken();
-            var width = token.fullSpan.length;
+            var width = token.fullWidth;
             _newPosition += width;
             _changeDelta -= width;
 
@@ -83,44 +83,50 @@ internal sealed partial class Blender {
             if (asToken)
                 _oldTreeCursor = _oldTreeCursor.MoveToFirstToken();
 
-            var node = _oldTreeCursor.currentNode;
+            var currentNodeOrToken = _oldTreeCursor.currentNodeOrToken;
 
-            if (!CanReuse(node)) {
+            if (!CanReuse(currentNodeOrToken)) {
                 blendedNode = null;
                 return false;
             }
 
-            _newPosition += node.fullSpan.length;
+            _newPosition += currentNodeOrToken.fullWidth;
             _oldTreeCursor = _oldTreeCursor.MoveToNextSibling();
 
-            blendedNode = CreateBlendedNode(node.kind.IsToken() ? null : node, node as SyntaxToken);
+            blendedNode = CreateBlendedNode(
+                currentNodeOrToken.AsNode(),
+                (InternalSyntax.SyntaxToken)currentNodeOrToken.AsToken().node
+            );
+
             return true;
         }
 
-        private bool CanReuse(SyntaxNode node) {
+        private bool CanReuse(SyntaxNodeOrToken nodeOrToken) {
             // Doing the least performant checks last
-            if (node.containsDiagnostics)
+            if (nodeOrToken.fullWidth == 0)
                 return false;
 
-            if (node.fullSpan.length == 0)
+            if (IntersectsNextChange(nodeOrToken))
                 return false;
 
-            if (node.kind.IsToken() && (node as SyntaxToken).isFabricated)
+            if (nodeOrToken.containsDiagnostics ||
+                (nodeOrToken.isToken &&
+                    nodeOrToken.AsToken().node.containsSkippedText &&
+                    nodeOrToken.parent.containsDiagnostics))
                 return false;
 
-            if (node.kind.IsToken() && (node as SyntaxToken).containsSkippedText)
-                return false;
-
-            if (IntersectsNextChange(node))
-                return false;
-
-            if (node.GetLastToken().isFabricated)
+            if ((nodeOrToken.isToken && nodeOrToken.AsToken().isFabricated) ||
+                (nodeOrToken.isNode && IsIncomplete(nodeOrToken.AsNode())))
                 return false;
 
             return true;
         }
 
-        private bool IntersectsNextChange(SyntaxNode node) {
+        private static bool IsIncomplete(SyntaxNode node) {
+            return node.green.GetLastTerminal().isFabricated;
+        }
+
+        private bool IntersectsNextChange(SyntaxNodeOrToken node) {
             if (_changes.IsEmpty)
                 return false;
 
