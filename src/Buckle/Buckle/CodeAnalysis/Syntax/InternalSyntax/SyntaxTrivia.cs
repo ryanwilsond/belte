@@ -20,4 +20,8 @@ internal sealed class SyntaxTrivia : GreenNode {
     internal override GreenNode GetSlot(int index) {
         throw ExceptionUtilities.Unreachable();
     }
+
+    internal override SyntaxNode CreateRed(SyntaxNode parent, int position) {
+        throw ExceptionUtilities.Unreachable();
+    }
 }

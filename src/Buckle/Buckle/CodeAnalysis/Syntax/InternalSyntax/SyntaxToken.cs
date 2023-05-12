@@ -8,6 +8,8 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 /// </summary>
 internal sealed class SyntaxToken : GreenNode {
     private string _text;
+    private GreenNode _leading;
+    private GreenNode _trailing;
 
     /// <param name="position">
     /// Position of <see cref="SyntaxToken" /> (indexed by the <see cref="SyntaxNode" />, not character
@@ -18,19 +20,13 @@ internal sealed class SyntaxToken : GreenNode {
     /// <param name="leadingTrivia"><see cref="SyntaxTrivia" /> before <see cref="SyntaxToken" /> (anything).</param>
     /// <param name="trailingTrivia"><see cref="SyntaxTrivia" /> after <see cref="SyntaxToken" /> (same line).</param>
     internal SyntaxToken(SyntaxKind kind, int fullWidth, string text, object value,
-        SyntaxTriviaList leadingTrivia, SyntaxTriviaList trailingTrivia)
+        GreenNode leadingTrivia, GreenNode trailingTrivia)
         : base(kind, fullWidth) {
         _text = text;
         this.value = value;
-        this.leadingTrivia = leadingTrivia;
-        this.trailingTrivia = trailingTrivia;
+        this._leading = leadingTrivia;
+        this._trailing = trailingTrivia;
     }
-
-    /// <summary>
-    /// If this <see cref="SyntaxToken" /> was created artificially instead of coming from the
-    /// <see cref="SourceText" />.
-    /// </summary>
-    internal bool isFabricated => (flags & NodeFlags.IsMissing) != 0;
 
     /// <summary>
     /// Position of <see cref="SyntaxToken" /> (indexed by the <see cref="SyntaxNode" />, not character in
@@ -62,27 +58,29 @@ internal sealed class SyntaxToken : GreenNode {
     /// <summary>
     /// <see cref="SyntaxTrivia" /> before <see cref="SyntaxToken" /> (anything).
     /// </summary>
-    internal SyntaxTriviaList leadingTrivia { get; }
+    internal SyntaxList<GreenNode> leadingTrivia => new SyntaxList<GreenNode>(GetLeadingTrivia());
 
     /// <summary>
     /// <see cref="SyntaxTrivia" /> after <see cref="SyntaxToken" /> (same line).
     /// </summary>
-    internal SyntaxTriviaList trailingTrivia { get; }
+    internal SyntaxList<GreenNode> trailingTrivia => new SyntaxList<GreenNode>(GetTrailingTrivia());
 
     internal override int GetLeadingTriviaWidth() {
-        return leadingTrivia != null ? leadingTrivia.fullWidth : 0;
+        var leading = GetLeadingTrivia();
+        return leading != null ? leading.fullWidth : 0;
     }
 
     internal override int GetTrailingTriviaWidth() {
-        return trailingTrivia != null ? trailingTrivia.fullWidth : 0;
+        var trailing = GetTrailingTrivia();
+        return trailing != null ? trailing.fullWidth : 0;
     }
 
-    internal override SyntaxTriviaList GetLeadingTrivia() {
-        return leadingTrivia;
+    internal override GreenNode GetLeadingTrivia() {
+        return _leading;
     }
 
-    internal override SyntaxTriviaList GetTrailingTrivia() {
-        return trailingTrivia;
+    internal override GreenNode GetTrailingTrivia() {
+        return _trailing;
     }
 
     internal override object GetValue() {
@@ -90,6 +88,10 @@ internal sealed class SyntaxToken : GreenNode {
     }
 
     internal override GreenNode GetSlot(int index) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    internal override SyntaxNode CreateRed(SyntaxNode parent, int position) {
         throw ExceptionUtilities.Unreachable();
     }
 }

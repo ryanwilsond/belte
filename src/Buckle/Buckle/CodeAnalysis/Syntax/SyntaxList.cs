@@ -1,42 +1,54 @@
-using System.Collections;
-using System.Collections.Generic;
-using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
-/// <summary>
-/// A syntax list of SyntaxNodes.
-/// </summary>
-/// <typeparam name="T">Child type of <see cref="SyntaxNode" />.</typeparam>
-internal sealed class SyntaxList<T> : IEnumerable<T> where T : SyntaxNode {
-    private readonly ImmutableArray<T> _nodes;
+internal class SyntaxList : SyntaxNode {
+    private readonly ArrayElement<SyntaxNode>[] _children;
 
-    internal SyntaxList(ImmutableArray<T> nodes) {
-        _nodes = nodes;
+    internal SyntaxList(SyntaxNode parent, InternalSyntax.SyntaxList green, int position)
+        : base(parent, green, position) {
+        _children = new ArrayElement<SyntaxNode>[green.slotCount];
     }
 
-    /// <summary>
-    /// Number of SyntaxNodes in collection.
-    /// </summary>
-    /// <returns>Count.</returns>
-    internal int count => _nodes.Length;
-
-    /// <summary>
-    /// Indexes SyntaxNodes in collection.
-    /// </summary>
-    /// <returns><see cref="SyntaxNode" /> at index.</returns>
-    internal T this[int index] => (T)_nodes[index];
-
-    /// <summary>
-    /// Gets enumerator of all SyntaxNodes.
-    /// </summary>
-    /// <returns>Yields all SyntaxNodes.</returns>
-    public IEnumerator<T> GetEnumerator() {
-        for (var i = 0; i < count; i++)
-            yield return this[i];
+    internal override SyntaxNode GetNodeSlot(int index) {
+        return GetRedElement(ref _children[index].Value, index);
     }
 
-    IEnumerator IEnumerable.GetEnumerator() {
-        return GetEnumerator();
+    internal override SyntaxNode GetCachedSlot(int index) {
+        return _children[index];
+    }
+
+    internal sealed class SeparatedSyntaxList : SyntaxList {
+        private new readonly ArrayElement<SyntaxNode?>[] _children;
+
+        internal SeparatedSyntaxList(SyntaxNode parent, InternalSyntax.SyntaxList green, int position)
+            : base(parent, green, position) {
+            _children = new ArrayElement<SyntaxNode?>[(green.slotCount + 1) >> 1];
+        }
+
+        internal override SyntaxNode GetNodeSlot(int i) {
+            if ((i & 1) != 0)
+                return null;
+
+            return GetRedElement(ref _children[i >> 1].Value, i);
+        }
+
+        internal override SyntaxNode? GetCachedSlot(int i) {
+            if ((i & 1) != 0)
+                return null;
+
+            return _children[i >> 1].Value;
+        }
+
+        internal override int GetChildPosition(int index) {
+            int valueIndex = (index & 1) != 0 ? index - 1 : index;
+
+            if (valueIndex > 1
+                && GetCachedSlot(valueIndex - 2) is null
+                && (valueIndex >= green.slotCount - 2 || GetCachedSlot(valueIndex + 2) is { })) {
+                return GetChildPositionFromEnd(index);
+            }
+
+            return GetChildPosition(index);
+        }
     }
 }

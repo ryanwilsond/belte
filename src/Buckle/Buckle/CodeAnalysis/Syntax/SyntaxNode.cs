@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -32,6 +33,13 @@ public abstract partial class SyntaxNode {
         parent = null;
     }
 
+    internal SyntaxNode(SyntaxNode parent, GreenNode node, int position) {
+        syntaxTree = null;
+        green = node;
+        this.position = position;
+        this.parent = parent;
+    }
+
     /// <summary>
     /// Type of <see cref="SyntaxNode" /> (see <see cref="SyntaxKind" />).
     /// </summary>
@@ -56,6 +64,11 @@ public abstract partial class SyntaxNode {
     /// The absolute position of this <see cref="SyntaxNode" /> in the <see cref="SourceText" /> it came from.
     /// </summary>
     internal int position { get; }
+
+    /// <summary>
+    /// The position of the very end of this <see cref="SyntaxNode" />.
+    /// </summary>
+    internal int endPosition => position + green.fullWidth;
 
     /// <summary>
     /// The number of children.
@@ -98,9 +111,14 @@ public abstract partial class SyntaxNode {
     /// </summary>
     internal bool containsDiagnostics => green.containsDiagnostics;
 
+    /// <summary>
+    /// If this node is a list.
+    /// </summary>
+    internal bool isList => green.isList;
+
     public override string ToString() {
         var text = new DisplayText();
-        PrettyPrint(text, new SyntaxNodeOrToken(this));
+        PrettyPrint(text, this);
 
         return text.ToString();
     }
@@ -110,13 +128,18 @@ public abstract partial class SyntaxNode {
     /// </summary>
     /// <param name="text">Out.</param>
     public void WriteTo(DisplayText text) {
-        PrettyPrint(text, new SyntaxNodeOrToken(this));
+        PrettyPrint(text, this);
     }
 
     /// <summary>
-    /// Gets the node at the given index.
+    /// Gets the node at the given index, and if no node exists create one.
     /// </summary>
-    internal abstract SyntaxNode GetNodeSlot(int slot);
+    internal abstract SyntaxNode GetNodeSlot(int index);
+
+    /// <summary>
+    /// Get the node at the given index.
+    /// </summary>
+    internal abstract SyntaxNode GetCachedSlot(int index);
 
     /// <summary>
     /// All child nodes and tokens of this node.
@@ -130,7 +153,7 @@ public abstract partial class SyntaxNode {
     /// </summary>
     /// <returns>Last <see cref="SyntaxToken" />.</returns>
     public SyntaxToken GetLastToken() {
-        // TODO implement SyntaxNavigator
+        return SyntaxNavigator.Instance.GetLastToken(this);
     }
 
     /// <summary>
@@ -144,7 +167,7 @@ public abstract partial class SyntaxNode {
         if (!fullSpan.Contains(position))
             throw new BelteInternalException("FindToken", new ArgumentOutOfRangeException(nameof(position)));
 
-        SyntaxNodeOrToken currentNode = new SyntaxNodeOrToken(this);
+        SyntaxNodeOrToken currentNode = this;
 
         while (true) {
             var node = currentNode.AsNode();
@@ -154,6 +177,53 @@ public abstract partial class SyntaxNode {
             else
                 return currentNode.AsToken();
         }
+    }
+
+    internal virtual int GetChildPosition(int index) {
+        if (GetCachedSlot(index) is { } node)
+            return node.position;
+
+        int offset = 0;
+        var green = this.green;
+
+        while (index > 0) {
+            index--;
+            var prevSibling = GetCachedSlot(index);
+
+            if (prevSibling != null)
+                return prevSibling.endPosition + offset;
+
+            var greenChild = green.GetSlot(index);
+
+            if (greenChild != null)
+                offset += greenChild.fullWidth;
+        }
+
+        return position + offset;
+    }
+
+    internal int GetChildPositionFromEnd(int index) {
+        if (this.GetCachedSlot(index) is { } node)
+            return node.position;
+
+        var green = this.green;
+        int offset = green.GetSlot(index)?.fullWidth ?? 0;
+        int slotCount = green.slotCount;
+
+        while (index < slotCount - 1) {
+            index++;
+            var nextSibling = this.GetCachedSlot(index);
+
+            if (nextSibling != null)
+                return nextSibling.position - offset;
+
+            var greenChild = green.GetSlot(index);
+
+            if (greenChild != null)
+                offset += greenChild.fullWidth;
+        }
+
+        return endPosition - offset;
     }
 
     /// <summary>
@@ -187,6 +257,18 @@ public abstract partial class SyntaxNode {
         }
 
         throw ExceptionUtilities.Unreachable();
+    }
+
+    internal SyntaxNode GetRedElement(ref SyntaxNode element, int slot) {
+        var result = element;
+
+        if (result == null) {
+            var green = this.green.GetSlot(slot);
+            Interlocked.CompareExchange(ref element, green.CreateRed(parent, GetChildPosition(slot)), null);
+            result = element;
+        }
+
+        return result;
     }
 
     private SyntaxNodeOrToken ChildThatContainsPosition(int position) {
@@ -226,7 +308,7 @@ public abstract partial class SyntaxNode {
 
         text.Write(CreatePunctuation($"{indent}{tokenMarker}"));
 
-        if (node.IsToken)
+        if (node.isToken)
             text.Write(CreateGreenNode(node.AsToken().kind.ToString()));
         else
             text.Write(CreateBlueNode(node.AsNode().kind.ToString()));
@@ -234,7 +316,7 @@ public abstract partial class SyntaxNode {
         if (node.AsToken(out var t) && t.value != null)
             text.Write(CreatePunctuation($" {t.value}"));
 
-        if (node.IsToken) {
+        if (node.isToken) {
             text.Write(CreateGreenNode($" [{node.span.start}..{node.span.end})"));
             text.Write(CreateLine());
         } else {
@@ -256,7 +338,7 @@ public abstract partial class SyntaxNode {
 
         indent += isLast ? "  " : "│ ";
 
-        if (node.IsToken)
+        if (node.isToken)
             return;
 
         var children = node.AsNode().ChildNodesAndTokens();

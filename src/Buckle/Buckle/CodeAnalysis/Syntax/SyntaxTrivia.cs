@@ -5,7 +5,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// All trivia: comments and whitespace. Text that does not affect compilation.
 /// </summary>
-internal sealed class SyntaxTrivia {
+public sealed class SyntaxTrivia {
     internal SyntaxTrivia(SyntaxToken token, GreenNode trivia, int position, int index) {
         this.token = token;
         green = trivia;
@@ -24,6 +24,8 @@ internal sealed class SyntaxTrivia {
     internal int width => green?.width ?? 0;
 
     internal int fullWidth => green?.width ?? 0;
+
+    internal SyntaxKind kind => green?.kind ?? SyntaxKind.None;
 
     internal TextSpan span => green != null
         ? new TextSpan(position + green.GetLeadingTriviaWidth(), green.width)

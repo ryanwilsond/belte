@@ -38,12 +38,12 @@ public sealed class SyntaxNodeOrToken {
     /// <summary>
     /// If this <see cref="SyntaxNodeOrToken" /> is wrapping a <see cref="SyntaxToken" />.
     /// </summary>
-    internal bool IsToken => !IsNode;
+    internal bool isToken => !isNode;
 
     /// <summary>
     /// If this <see cref="SyntaxNodeOrToken" /> is wrapping a <see cref="SyntaxNode" />.
     /// </summary>
-    internal bool IsNode => _tokenIndex < 0;
+    internal bool isNode => _tokenIndex < 0;
 
     /// <summary>
     /// Returns the underlying <see cref="SyntaxToken" /> if this <see cref="SyntaxNodeOrToken" /> is
@@ -57,7 +57,7 @@ public sealed class SyntaxNodeOrToken {
     }
 
     internal bool AsToken(out SyntaxToken token) {
-        if (IsToken) {
+        if (isToken) {
             token = AsToken();
             return token is object;
         }
@@ -78,7 +78,7 @@ public sealed class SyntaxNodeOrToken {
     }
 
     internal bool AsNode(out SyntaxNode node) {
-        if (IsNode) {
+        if (isNode) {
             node = _nodeOrParent;
             return node is object;
         }
@@ -125,5 +125,15 @@ public sealed class SyntaxNodeOrToken {
 
             return null;
         }
+    }
+
+    public static implicit operator SyntaxNodeOrToken(SyntaxToken token) {
+        return new SyntaxNodeOrToken(token.parent, token.node, token.position, token.index);
+    }
+
+    public static implicit operator SyntaxNodeOrToken(SyntaxNode node) {
+        return node is object
+            ? new SyntaxNodeOrToken(node)
+            : null;
     }
 }

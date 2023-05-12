@@ -32,13 +32,18 @@ internal abstract partial class GreenNode {
     /// <summary>
     /// The number of children / "slots".
     /// </summary>
-    public int slotCount { get; protected set; }
+    public virtual int slotCount { get; protected set; }
 
     /// <summary>
     /// The width/length of the <see cref="GreenNode" /> excluding the leading and trailing trivia.
     /// </summary>
     /// <returns></returns>
     internal virtual int width => fullWidth - GetLeadingTriviaWidth() - GetTrailingTriviaWidth();
+
+    /// <summary>
+    /// If the node was created by the compiler rather than representing a part of the source text.
+    /// </summary>
+    internal bool isFabricated => (flags & NodeFlags.IsMissing) != 0;
 
     /// <summary>
     /// Type of <see cref="GreenNode" /> (see <see cref="SyntaxKind" />).
@@ -54,17 +59,27 @@ internal abstract partial class GreenNode {
     /// <summary>
     /// If this <see cref="GreenNode" /> is any token type.
     /// </summary>
-    internal virtual bool IsToken => false;
+    internal virtual bool isToken => false;
 
     /// <summary>
     /// If this <see cref="GreenNode" /> is any trivia type.
     /// </summary>
-    internal virtual bool IsTrivia => false;
+    internal virtual bool isTrivia => false;
+
+    /// <summary>
+    /// If this <see cref="GreeNode" /> is a syntax list.
+    /// </summary>
+    internal bool isList => (int)kind == ListKind;
 
     /// <summary>
     /// Returns a child at slot <param name="index" />.
     /// </summary>
     internal abstract GreenNode GetSlot(int index);
+
+    /// <summary>
+    /// Creates a "red" tree node.
+    /// </summary>
+    internal abstract SyntaxNode CreateRed(SyntaxNode parent, int position);
 
     /// <summary>
     /// Gets all child <see cref="GreenNodes" />.
@@ -89,6 +104,13 @@ internal abstract partial class GreenNode {
     }
 
     /// <summary>
+    /// Creates a "red" tree node.
+    /// </summary>
+    internal SyntaxNode CreateRed() {
+        return CreateRed(null, 0);
+    }
+
+    /// <summary>
     /// Gets the offset from the start of this <see cref="GreenNode" /> to the start of the child at slot
     /// <param name="index" />.
     /// </summary>
@@ -103,6 +125,27 @@ internal abstract partial class GreenNode {
         }
 
         return offset;
+    }
+
+    /// <summary>
+    /// Finds which child/slot contains the offset from the start of the node.
+    /// </summary>
+    internal int FindSlotIndexContainingOffset(int offset) {
+        int i;
+        int accumulatedWidth = 0;
+
+        for (i = 0; ; i++) {
+            var child = GetSlot(i);
+
+            if (child != null) {
+                accumulatedWidth += child.fullWidth;
+
+                if (offset < accumulatedWidth)
+                    break;
+            }
+        }
+
+        return i;
     }
 
     /// <summary>
@@ -123,14 +166,14 @@ internal abstract partial class GreenNode {
     /// <summary>
     /// Gets all leading trivia.
     /// </summary>
-    internal virtual InternalSyntax.SyntaxTriviaList GetLeadingTrivia() {
+    internal virtual GreenNode GetLeadingTrivia() {
         return null;
     }
 
     /// <summary>
     /// Gets all trailing trivia.
     /// </summary>
-    internal virtual InternalSyntax.SyntaxTriviaList GetTrailingTrivia() {
+    internal virtual GreenNode GetTrailingTrivia() {
         return null;
     }
 

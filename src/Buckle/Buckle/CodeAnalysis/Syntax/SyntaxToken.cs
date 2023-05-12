@@ -13,6 +13,8 @@ public sealed class SyntaxToken {
         this.index = index;
     }
 
+    public bool isFabricated => node?.isFabricated ?? false;
+
     internal SyntaxNode parent { get; }
 
     internal GreenNode node { get; }

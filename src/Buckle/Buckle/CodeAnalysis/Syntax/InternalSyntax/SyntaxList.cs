@@ -14,6 +14,8 @@ internal sealed class SyntaxList : GreenNode {
 
     internal ArrayElement<GreenNode>[] children { get; }
 
+    public override int slotCount => children.Length;
+
     internal static GreenNode List(GreenNode[] nodes) {
         return List(nodes, nodes.Length);
     }
@@ -45,5 +47,25 @@ internal sealed class SyntaxList : GreenNode {
         for (int i = 0; i < children.Length; i++)
             AdjustFlagsAndWidth(children[i]);
     }
-    // TODO finish this
+
+    internal override GreenNode GetSlot(int index) {
+        return children[index];
+    }
+
+    internal override SyntaxNode CreateRed(SyntaxNode parent, int position) {
+        var separated = slotCount > 1 && HasNodeTokenPattern();
+
+        return separated
+            ? new Syntax.SyntaxList.SeparatedSyntaxList(parent, this, position)
+            : (SyntaxNode)new Syntax.SyntaxList(parent, this, position);
+    }
+
+    private bool HasNodeTokenPattern() {
+        for (int i = 0; i < slotCount; i++) {
+            if (GetSlot(i).isToken == ((i & 1) == 0))
+                return false;
+        }
+
+        return true;
+    }
 }

@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
 
+namespace Buckle.CodeAnalysis;
+
 public class EmptyEnumerator<T> : IEnumerator<T> {
     public T Current => default(T);
 

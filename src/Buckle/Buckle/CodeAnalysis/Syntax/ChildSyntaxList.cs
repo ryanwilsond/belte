@@ -46,11 +46,19 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         for (int i = 0, s = green.slotCount; i < s; i++) {
             var child = green.GetSlot(i);
 
-            if (child != null)
-                n++;
+            if (child != null) {
+                if (!child.isList)
+                    n++;
+                else
+                    n += child.slotCount;
+            }
         }
 
         return n;
+    }
+
+    internal Reversed Reverse() {
+        return new Reversed(node, Count);
     }
 
     internal static SyntaxNode? ItemInternalAsNode(SyntaxNode node, int index) {
@@ -75,6 +83,10 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         }
 
         var red = node.GetNodeSlot(slotIndex);
+
+        if (greenChild.isList && red != null)
+            return red.GetNodeSlot(idx);
+
         return red;
     }
 
@@ -103,8 +115,21 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
 
         var red = node.GetNodeSlot(slotIndex);
 
-        if (red != null)
-            return new SyntaxNodeOrToken(red);
+        if (!greenChild.isList) {
+            if (red != null)
+                return red;
+        } else if (red != null) {
+            var redChild = red.GetNodeSlot(idx);
+
+            if (redChild != null)
+                return redChild;
+
+            greenChild = greenChild.GetSlot(idx);
+            position = red.GetChildPosition(idx);
+        } else {
+            position += greenChild.GetSlotOffset(idx);
+            greenChild = greenChild.GetSlot(idx);
+        }
 
         return new SyntaxNodeOrToken(node, greenChild, position, index);
     }
@@ -134,8 +159,23 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
 
         var red = node.GetNodeSlot(slot);
 
-        if (red != null)
-            return new SyntaxNodeOrToken(red);
+        if (!green.isList) {
+            if (red != null)
+                return red;
+        } else {
+            slot = green.FindSlotIndexContainingOffset(targetPosition - position);
+
+            if (red != null) {
+                red = red.GetNodeSlot(slot);
+
+                if (red != null)
+                    return red;
+            }
+
+            position += green.GetSlotOffset(slot);
+            green = green.GetSlot(slot);
+            index += slot;
+        }
 
         return new SyntaxNodeOrToken(node, green, position, index);
     }
@@ -158,8 +198,7 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         throw new InvalidOperationException();
     }
 
-    private static int Occupancy(GreenNode node) {
-        // Allowing room to add IsList in the future
-        return node.slotCount;
+    private static int Occupancy(GreenNode green) {
+        return green.isList ? green.slotCount : 1;
     }
 }
