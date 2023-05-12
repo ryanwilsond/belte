@@ -57,8 +57,8 @@ internal sealed class OverloadResolution {
 
             var defaultParameterCount = method.parameters.Where(p => p.defaultValue != null).ToArray().Length;
 
-            if (expression.arguments.count < method.parameters.Length - defaultParameterCount ||
-                expression.arguments.count > method.parameters.Length) {
+            if (expression.arguments.Count < method.parameters.Length - defaultParameterCount ||
+                expression.arguments.Count > method.parameters.Length) {
                 var count = 0;
 
                 if (isInner) {
@@ -68,13 +68,13 @@ internal sealed class OverloadResolution {
                     }
                 }
 
-                if (!isInner || expression.arguments.count + count != method.parameters.Length) {
+                if (!isInner || expression.arguments.Count + count != method.parameters.Length) {
                     TextSpan span;
 
-                    if (expression.arguments.count > method.parameters.Length) {
-                        SyntaxNode firstExceedingNode;
+                    if (expression.arguments.Count > method.parameters.Length) {
+                        SyntaxNodeOrToken firstExceedingNode;
 
-                        if (expression.arguments.count > 1) {
+                        if (expression.arguments.Count > 1) {
                             firstExceedingNode = expression.arguments.GetSeparator(method.parameters.Length - 1);
                         } else {
                             firstExceedingNode = expression.arguments[0].kind == SyntaxKind.EmptyExpression
@@ -82,8 +82,8 @@ internal sealed class OverloadResolution {
                                 : expression.arguments[0];
                         }
 
-                        SyntaxNode lastExceedingNode = expression.arguments.Last().kind == SyntaxKind.EmptyExpression
-                            ? expression.arguments.GetSeparator(expression.arguments.count - 2)
+                        SyntaxNodeOrToken lastExceedingNode = expression.arguments.Last().kind == SyntaxKind.EmptyExpression
+                            ? expression.arguments.GetSeparator(expression.arguments.Count - 2)
                             : expression.arguments.Last();
 
                         span = TextSpan.FromBounds(firstExceedingNode.span.start, lastExceedingNode.span.end);
@@ -94,7 +94,7 @@ internal sealed class OverloadResolution {
                     var location = new TextLocation(expression.syntaxTree.text, span);
                     _binder.diagnostics.Push(Error.IncorrectArgumentCount(
                         location, method.name, method.parameters.Length,
-                        defaultParameterCount, expression.arguments.count
+                        defaultParameterCount, expression.arguments.Count
                     ));
 
                     continue;
@@ -105,7 +105,7 @@ internal sealed class OverloadResolution {
             var seenParameterNames = new HashSet<string>();
             var canContinue = true;
 
-            for (var i = 0; i < expression.arguments.count; i++) {
+            for (var i = 0; i < expression.arguments.Count; i++) {
                 var argumentName = preBoundArgumentsBuilder[i].name;
 
                 if (argumentName == null) {
@@ -165,7 +165,7 @@ internal sealed class OverloadResolution {
                     var argument = preBoundArguments[rearrangedArguments[i]];
                     var parameter = method.parameters[i];
                     // If this evaluates to null, it means that there was a default value automatically passed in
-                    var location = i >= expression.arguments.count ? null : expression.arguments[i].location;
+                    var location = i >= expression.arguments.Count ? null : expression.arguments[i].location;
 
                     var argumentExpression = argument.expression;
                     var isImplicitNull = false;

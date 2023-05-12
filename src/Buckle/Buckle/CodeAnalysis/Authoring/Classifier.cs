@@ -23,21 +23,21 @@ public static class Classifier {
     }
 
     private static void ClassifyNode(
-        SyntaxNode node, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result, bool isTypeName = false) {
+        SyntaxNodeOrToken node, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result, bool isTypeName = false) {
         if (node == null)
             return;
 
         if (node.fullSpan != null && !node.fullSpan.OverlapsWith(span))
             return;
 
-        if (node is SyntaxToken token)
-            ClassifyToken(token, span, result, isTypeName);
+        if (node.isToken)
+            ClassifyToken(node.AsToken(), span, result, isTypeName);
 
-        if (node is TypeSyntax) {
+        if (node.AsNode() is TypeSyntax) {
             var inAttribute = false;
             isTypeName = false;
 
-            foreach (var child in node.GetChildren()) {
+            foreach (var child in node.ChildNodesAndTokens()) {
                 // Does not matter that it catches on array brackets because they do not contain identifiers
                 if (child.kind == SyntaxKind.OpenBracketToken)
                     inAttribute = true;
@@ -50,7 +50,7 @@ public static class Classifier {
                 ClassifyNode(child, span, result, isTypeName);
             }
         } else {
-            foreach (var child in node.GetChildren())
+            foreach (var child in node.ChildNodesAndTokens())
                 ClassifyNode(child, span, result);
         }
     }

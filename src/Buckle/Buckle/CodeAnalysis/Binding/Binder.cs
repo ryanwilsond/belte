@@ -437,7 +437,7 @@ internal sealed class Binder {
         var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
         var seenParameterNames = new HashSet<string>();
 
-        for (var i = 0; i < method.parameters.count; i++) {
+        for (var i = 0; i < method.parameters.Count; i++) {
             var parameter = method.parameters[i];
             var parameterName = parameter.identifier.text;
             var parameterType = BindType(parameter.type);
@@ -451,7 +451,7 @@ internal sealed class Binder {
             }
 
             if (boundDefault != null &&
-                i < method.parameters.count - 1 &&
+                i < method.parameters.Count - 1 &&
                 method.parameters[i + 1].defaultValue == null) {
                 diagnostics.Push(Error.DefaultBeforeNoDefault(parameter.location));
                 continue;
@@ -1374,10 +1374,10 @@ internal sealed class Binder {
         var argumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
         var seenNames = new HashSet<string>();
 
-        for (var i = 0; i < expression.arguments.count; i++) {
+        for (var i = 0; i < expression.arguments.Count; i++) {
             var argumentName = expression.arguments[i].name;
 
-            if (i < expression.arguments.count - 1 &&
+            if (i < expression.arguments.Count - 1 &&
                 argumentName != null &&
                 expression.arguments[i + 1].name == null) {
                 diagnostics.Push(Error.NamedBeforeUnnamed(argumentName.location));

@@ -27,11 +27,15 @@ public sealed class SyntaxToken {
 
     internal object value => node.GetValue();
 
+    internal string text => ToString();
+
     internal int width => node?.width ?? 0;
 
     internal int fullWidth => node?.fullWidth ?? 0;
 
     internal TextSpan span => node != null ? new TextSpan(position + node.GetLeadingTriviaWidth(), node.width) : null;
+
+    internal TextSpan fullSpan => new TextSpan(position, fullWidth);
 
     internal SyntaxTree syntaxTree => parent?.syntaxTree;
 
@@ -60,5 +64,9 @@ public sealed class SyntaxToken {
 
             return new SyntaxTriviaList(this, trailingGreen, trailingPosition, index);
         }
+    }
+
+    public override string ToString() {
+        return node != null ? node.ToString() : string.Empty;
     }
 }
