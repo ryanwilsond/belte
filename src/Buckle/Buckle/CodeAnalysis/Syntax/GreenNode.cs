@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
@@ -7,20 +11,41 @@ namespace Buckle.CodeAnalysis.Syntax;
 internal abstract partial class GreenNode {
     protected NodeFlags flags;
 
-    internal const int ListKind = 1;
+    internal const SyntaxKind ListKind = (SyntaxKind)1;
 
-    internal GreenNode() { }
+    private static readonly ConditionalWeakTable<GreenNode, Diagnostic[]> _diagnosticsTable =
+        new ConditionalWeakTable<GreenNode, Diagnostic[]>();
+    private static readonly Diagnostic[] _noDiagnostics = Array.Empty<Diagnostic>();
 
     internal GreenNode(SyntaxKind kind) {
         this.kind = kind;
     }
 
-    /// <summary>
-    /// Creates a <see cref="GreenNode" />.
-    /// </summary>
+    internal GreenNode(SyntaxKind kind, Diagnostic[] diagnostics) {
+        this.kind = kind;
+
+        if (diagnostics.Length > 0) {
+            flags |= NodeFlags.ContainsDiagnostics;
+            _diagnosticsTable.Add(this, diagnostics);
+        }
+    }
+
     internal GreenNode(SyntaxKind kind, int fullWidth) {
         this.kind = kind;
         this.fullWidth = fullWidth;
+    }
+
+    /// <summary>
+    /// Creates a <see cref="GreenNode" />.
+    /// </summary>
+    internal GreenNode(SyntaxKind kind, int fullWidth, Diagnostic[] diagnostics) {
+        this.kind = kind;
+        this.fullWidth = fullWidth;
+
+        if (diagnostics.Length > 0) {
+            flags |= NodeFlags.ContainsDiagnostics;
+            _diagnosticsTable.Add(this, diagnostics);
+        }
     }
 
     /// <summary>
@@ -74,7 +99,7 @@ internal abstract partial class GreenNode {
     /// <summary>
     /// If this <see cref="GreeNode" /> is a syntax list.
     /// </summary>
-    internal bool isList => (int)kind == ListKind;
+    internal bool isList => kind == ListKind;
 
     /// <summary>
     /// Returns a child at slot <param name="index" />.
@@ -92,6 +117,33 @@ internal abstract partial class GreenNode {
     /// </summary>
     internal InternalSyntax.ChildSyntaxList ChildNodesAndTokens() {
         return new InternalSyntax.ChildSyntaxList(this);
+    }
+
+    /// <summary>
+    /// Numerates all child nodes and tokens of the tree rooted y this node.
+    /// </summary>
+    internal IEnumerable<GreenNode> EnumerateNodes() {
+        yield return this;
+
+        var stack = new Stack<Syntax.InternalSyntax.ChildSyntaxList.Enumerator>(24);
+        stack.Push(this.ChildNodesAndTokens().GetEnumerator());
+
+        while (stack.Count > 0) {
+            var en = stack.Pop();
+
+            if (!en.MoveNext())
+                continue;
+
+            var current = en.current;
+            stack.Push(en);
+
+            yield return current;
+
+            if (!current.isToken) {
+                stack.Push(current.ChildNodesAndTokens().GetEnumerator());
+                continue;
+            }
+        }
     }
 
     /// <summary>
@@ -250,6 +302,25 @@ internal abstract partial class GreenNode {
 
         return node;
     }
+
+    /// <summary>
+    /// Gets all diagnostics under this node.
+    /// </summary>
+    internal Diagnostic[] GetDiagnostics() {
+        if (containsDiagnostics) {
+            Diagnostic[] diagnostics;
+
+            if (_diagnosticsTable.TryGetValue(this, out diagnostics))
+                return diagnostics;
+        }
+
+        return _noDiagnostics;
+    }
+
+    /// <summary>
+    /// Returns a new node with assigned diagnostics.
+    /// </summary>
+    internal abstract GreenNode SetDiagnostics(Diagnostic[] diagnostics);
 
     protected void AdjustFlagsAndWidth(GreenNode node) {
         flags |= node.flags;

@@ -1,12 +1,13 @@
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
+using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
 /// <summary>
 /// Token type.
 /// </summary>
-internal sealed class SyntaxToken : GreenNode {
+internal sealed class SyntaxToken : BelteSyntaxNode {
     private string _text;
     private GreenNode _leading;
     private GreenNode _trailing;
@@ -28,8 +29,30 @@ internal sealed class SyntaxToken : GreenNode {
         this._trailing = trailingTrivia;
     }
 
+    internal SyntaxToken(SyntaxKind kind, int fullWidth, string text, object value,
+        GreenNode leadingTrivia, GreenNode trailingTrivia, Diagnostic[] diagnostics)
+        : base(kind, fullWidth, diagnostics) {
+        _text = text;
+        this.value = value;
+        this._leading = leadingTrivia;
+        this._trailing = trailingTrivia;
+    }
+
     internal SyntaxToken(SyntaxKind kind, string text, object value, GreenNode leadingTrivia, GreenNode trailingTrivia)
         : base(kind) {
+        this.value = value;
+        _text = text;
+        fullWidth = text.Length;
+        AdjustFlagsAndWidth(leadingTrivia);
+        this._leading = leadingTrivia;
+        AdjustFlagsAndWidth(trailingTrivia);
+        this._trailing = trailingTrivia;
+    }
+
+    internal SyntaxToken(
+        SyntaxKind kind, string text, object value, GreenNode leadingTrivia,
+        GreenNode trailingTrivia, Diagnostic[] diagnostics)
+        : base(kind, diagnostics) {
         this.value = value;
         _text = text;
         fullWidth = text.Length;
@@ -68,12 +91,12 @@ internal sealed class SyntaxToken : GreenNode {
     /// <summary>
     /// <see cref="SyntaxTrivia" /> before <see cref="SyntaxToken" /> (anything).
     /// </summary>
-    internal SyntaxList<GreenNode> leadingTrivia => new SyntaxList<GreenNode>(GetLeadingTrivia());
+    internal SyntaxList<BelteSyntaxNode> leadingTrivia => new SyntaxList<BelteSyntaxNode>(GetLeadingTrivia());
 
     /// <summary>
     /// <see cref="SyntaxTrivia" /> after <see cref="SyntaxToken" /> (same line).
     /// </summary>
-    internal SyntaxList<GreenNode> trailingTrivia => new SyntaxList<GreenNode>(GetTrailingTrivia());
+    internal SyntaxList<BelteSyntaxNode> trailingTrivia => new SyntaxList<BelteSyntaxNode>(GetTrailingTrivia());
 
     internal override int GetLeadingTriviaWidth() {
         var leading = GetLeadingTrivia();
@@ -111,6 +134,18 @@ internal sealed class SyntaxToken : GreenNode {
 
     internal override GreenNode WithTrailingTrivia(GreenNode trivia) {
         return TokenWithTrailingTrivia(trivia);
+    }
+
+    internal override GreenNode SetDiagnostics(Diagnostic[] diagnostics) {
+        return new SyntaxToken(kind, fullWidth, text, value, GetLeadingTrivia(), GetTrailingTrivia(), diagnostics);
+    }
+
+    internal override TResult Accept<TResult>(SyntaxVisitor<TResult> visitor) {
+        return visitor.VisitToken(this);
+    }
+
+    internal override void Accept(SyntaxVisitor visitor) {
+        visitor.VisitToken(this);
     }
 
     internal SyntaxToken TokenWithLeadingTrivia(GreenNode trivia) {

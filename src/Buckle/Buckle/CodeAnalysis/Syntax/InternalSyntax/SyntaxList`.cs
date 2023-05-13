@@ -66,6 +66,10 @@ internal sealed partial class SyntaxList<T> where T : GreenNode {
         return new Enumerator(this);
     }
 
+    internal SeparatedSyntaxList<TOther> AsSeparatedList<TOther>() where TOther : GreenNode {
+        return new SeparatedSyntaxList<TOther>(this);
+    }
+
     internal void CopyTo(int offset, ArrayElement<GreenNode>[] array, int arrayOffset, int count) {
         for (int i = 0; i < count; i++)
             array[arrayOffset + i].Value = GetRequiredItem(i + offset);

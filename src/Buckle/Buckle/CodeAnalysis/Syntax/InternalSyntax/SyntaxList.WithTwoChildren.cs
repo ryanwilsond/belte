@@ -1,3 +1,4 @@
+using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
@@ -7,6 +8,14 @@ internal partial class SyntaxList {
         private readonly GreenNode _child1;
 
         internal WithTwoChildren(GreenNode child0, GreenNode child1) {
+            slotCount = 2;
+            this.AdjustFlagsAndWidth(child0);
+            _child0 = child0;
+            this.AdjustFlagsAndWidth(child1);
+            _child1 = child1;
+        }
+
+        internal WithTwoChildren(GreenNode child0, GreenNode child1, Diagnostic[] diagnostics) : base(diagnostics) {
             slotCount = 2;
             this.AdjustFlagsAndWidth(child0);
             _child0 = child0;
@@ -27,6 +36,15 @@ internal partial class SyntaxList {
 
         internal override SyntaxNode CreateRed(SyntaxNode parent, int position) {
             return new Syntax.SyntaxList.WithTwoChildren(parent, this, position);
+        }
+
+        internal override void CopyTo(ArrayElement<GreenNode>[] array, int offset) {
+            array[offset].Value = _child0;
+            array[offset + 1].Value = _child1;
+        }
+
+        internal override GreenNode SetDiagnostics(Diagnostic[] diagnostics) {
+            return new WithTwoChildren(_child0, _child1, diagnostics);
         }
     }
 }

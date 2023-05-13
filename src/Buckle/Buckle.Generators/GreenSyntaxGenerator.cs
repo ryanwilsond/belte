@@ -24,12 +24,16 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
 
         using (var stringWriter = new StringWriter())
         using (var indentedTextWriter = new IndentedTextWriter(stringWriter, indentString)) {
+            indentedTextWriter.WriteLine("using Diagnostics;");
             indentedTextWriter.WriteLine();
             indentedTextWriter.WriteLine("namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;");
             indentedTextWriter.WriteLine();
 
             GenerateAbstractNodes(indentedTextWriter);
             GenerateNodes(indentedTextWriter);
+            GenerateSyntaxVisitorT(indentedTextWriter);
+            GenerateSyntaxVisitor(indentedTextWriter);
+            GenerateSyntaxRewriter(indentedTextWriter);
 
             indentedTextWriter.Flush();
             stringWriter.Flush();
@@ -51,12 +55,12 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
             Debug.Assert(baseName != null);
             Debug.Assert(knownTypes.Contains(baseName));
 
-            baseName = baseName == "SyntaxNode" ? "GreenNode" : baseName;
+            baseName = baseName == "SyntaxNode" ? "BelteSyntaxNode" : baseName;
 
             using (var classCurly =
                 new CurlyIndenter(writer, $"internal abstract class {typeName} : {baseName}")) {
-                var constructor = $"internal {typeName}(SyntaxKind kind) : base(kind) {{ }}";
-                writer.WriteLine(constructor);
+                writer.WriteLine($"internal {typeName}(SyntaxKind kind)");
+                writer.WriteLine($"{indentString}: base(kind) {{ }}");
                 writer.WriteLine();
 
                 var fields = DeserializeFields(abstractNode);
@@ -80,14 +84,22 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
             Debug.Assert(knownTypes.Contains(baseName));
 
             baseName = baseName == "SyntaxNode" ? "GreenNode" : baseName;
-            FieldList fields;
+            var fields = DeserializeFields(node);
 
             using (var classCurly = new CurlyIndenter(writer, $"internal sealed class {typeName} : {baseName}")) {
-                (var constructor, fields) = GenerateConstructorAndFields(node, typeName);
                 GeneratePrivateFieldDeclarations(writer, fields);
                 writer.WriteLine();
 
-                using (var constructorCurly = new CurlyIndenter(writer, constructor)) {
+                GenerateConstructor(writer, node, fields, typeName);
+                using (var constructorCurly = new CurlyIndenter(writer)) {
+                    writer.WriteLine($"slotCount = {fields.Count};");
+                    GenerateConstructorBody(writer, fields);
+                }
+
+                writer.WriteLine();
+
+                GenerateConstructorWithDiagnostics(writer, node, fields, typeName);
+                using (var constructorCurly = new CurlyIndenter(writer)) {
                     writer.WriteLine($"slotCount = {fields.Count};");
                     GenerateConstructorBody(writer, fields);
                 }
@@ -101,29 +113,54 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
                 var createRedDeclaration = "internal override SyntaxNode CreateRed(SyntaxNode parent, int position)";
                 var createRedBody = $"=> new Syntax.{typeName}(parent, this, position);";
                 writer.WriteLine($"{createRedDeclaration} {createRedBody}");
+                writer.WriteLine();
+
+                writer.WriteLine(
+                    $"internal override void Accept(SyntaxVisitor visitor) => visitor.Visit{typeName}(this);"
+                );
+                writer.WriteLine();
+
+                writer.WriteLine(
+                    $"internal override TResult Accept<TResult>(SyntaxVisitor<TResult> visitor) => " +
+                    $"visitor.Visit{typeName}(this);"
+                );
+                writer.WriteLine();
+
+                GenerateUpdateMethod(writer, fields, typeName);
+                writer.WriteLine();
+                GenerateSetDiagnosticsMethod(writer, fields, typeName);
             }
 
             writer.WriteLine();
 
             using (var classCurly = new CurlyIndenter(writer, $"internal static partial class SyntaxFactory"))
                 GenerateFactoryMethod(writer, fields, typeName);
-
-            writer.WriteLine();
         }
     }
 
-    private (string, FieldList) GenerateConstructorAndFields(
-        XmlNode node, string typeName) {
+    private void GenerateConstructor(IndentedTextWriter writer, XmlNode node, FieldList fields, string typeName) {
         var kind = node.FirstChild;
         Debug.Assert(kind.Name == "Kind");
         var syntaxKind = kind.Attributes["Name"]?.Value;
         Debug.Assert(syntaxKind != null);
 
-        var fields = DeserializeFields(node);
         var arguments = GenerateArguments(fields);
-        var constructor = $"internal {typeName}({arguments}) : base(SyntaxKind.{syntaxKind})";
 
-        return (constructor, fields);
+        writer.WriteLine($"internal {typeName}({arguments})");
+        writer.WriteLine($"{indentString}: base(SyntaxKind.{syntaxKind})");
+    }
+
+    private void GenerateConstructorWithDiagnostics(
+        IndentedTextWriter writer, XmlNode node, FieldList fields, string typeName) {
+        var kind = node.FirstChild;
+        Debug.Assert(kind.Name == "Kind");
+        var syntaxKind = kind.Attributes["Name"]?.Value;
+        Debug.Assert(syntaxKind != null);
+
+        var arguments = GenerateArguments(fields);
+
+        writer.WriteLine($"internal {typeName}({arguments}, Diagnostic[] diagnostics)");
+        writer.WriteLine($"{indentString}: base(SyntaxKind.{syntaxKind}, diagnostics)");
     }
 
     private string GenerateArguments(FieldList fields) {
@@ -203,6 +240,48 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
         }
     }
 
+    private void GenerateUpdateMethod(IndentedTextWriter writer, FieldList fields, string typeName) {
+        var arguments = "";
+        var condition = "";
+        var parameters = "";
+
+        for (int i = 0; i < fields.Count; i++) {
+            var field = fields[i];
+            arguments += $"{field.type} {field.name}";
+            condition += $"{field.name} != this.{field.name}";
+            parameters += field.name;
+
+            if (i < fields.Count - 1) {
+                arguments += ", ";
+                condition += " || ";
+                parameters += ", ";
+            }
+        }
+
+        using (var methodCurly = new CurlyIndenter(writer, $"internal {typeName} Update({arguments})")) {
+            using (var ifCurly = new CurlyIndenter(writer, $"if ({condition})")) {
+                writer.WriteLine($"var newNode = SyntaxFactory.{ShortName(typeName)}({parameters});");
+                writer.WriteLine("var diagnostics = GetDiagnostics();");
+                writer.WriteLine("if (diagnostics.Length > 0)");
+                writer.WriteLine($"{indentString}newNode = newNode.WithDiagnosticsGreen(diagnostics);");
+                writer.WriteLine("return newNode;");
+            }
+
+            writer.WriteLine();
+            writer.WriteLine("return this;");
+        }
+    }
+
+    private void GenerateSetDiagnosticsMethod(IndentedTextWriter writer, FieldList fields, string typeName) {
+        var parameters = "";
+
+        foreach (var field in fields)
+            parameters += $"{field.name}, ";
+
+        writer.WriteLine("internal override GreenNode SetDiagnostics(Diagnostic[] diagnostics)");
+        writer.WriteLine($"{indentString}=> new {typeName}({parameters}diagnostics);");
+    }
+
     private void GenerateFactoryMethod(IndentedTextWriter writer, FieldList fields, string typeName) {
         var allArguments = "";
         var requiredArguments = "";
@@ -239,16 +318,85 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
         if (requiredArguments.EndsWith(", "))
             requiredArguments = requiredArguments.Substring(0, requiredArguments.Length - 2);
 
-        writer.WriteLine(
-            $"internal static {typeName} {typeName.Replace("Syntax", "")}({allArguments}) " +
-            $"=> new {typeName}({allParameters});"
-        );
+        writer.WriteLine($"internal static {typeName} {ShortName(typeName)}({allArguments})");
+        writer.WriteLine($"{indentString}=> new {typeName}({allParameters});");
 
         if (allArguments != requiredArguments) {
-            writer.WriteLine(
-                $"internal static {typeName} {typeName.Replace("Syntax", "")}({requiredArguments}) " +
-                $"=> new {typeName}({requiredParameters});"
-            );
+            writer.WriteLine($"internal static {typeName} {ShortName(typeName)}({requiredArguments})");
+            writer.WriteLine($"{indentString}=> new {typeName}({requiredParameters});");
         }
+    }
+
+    private void GenerateSyntaxVisitorT(IndentedTextWriter writer) {
+        var nodes = syntax.GetElementsByTagName("Node");
+
+        using (var classCurly = new CurlyIndenter(writer, $"internal partial class SyntaxVisitor<TResult>")) {
+            for (int i = 0; i < nodes.Count; i++) {
+                var node = nodes.Item(i);
+
+                var typeName = node.Attributes["Name"]?.Value;
+                Debug.Assert(typeName != null);
+
+                writer.WriteLine(
+                    $"internal virtual TResult Visit{ShortName(typeName)}({typeName} node) => DefaultVisit(node);"
+                );
+            }
+        }
+    }
+
+    private void GenerateSyntaxVisitor(IndentedTextWriter writer) {
+        var nodes = syntax.GetElementsByTagName("Node");
+
+        using (var classCurly = new CurlyIndenter(writer, $"internal partial class SyntaxVisitor")) {
+            for (int i = 0; i < nodes.Count; i++) {
+                var node = nodes.Item(i);
+
+                var typeName = node.Attributes["Name"]?.Value;
+                Debug.Assert(typeName != null);
+
+                writer.WriteLine(
+                    $"internal virtual void Visit{ShortName(typeName)}({typeName} node) => DefaultVisit(node);"
+                );
+            }
+        }
+    }
+
+    private void GenerateSyntaxRewriter(IndentedTextWriter writer) {
+        var nodes = syntax.GetElementsByTagName("Node");
+
+        var declaration = "internal partial class SyntaxRewriter : SyntaxVisitor<BelteSyntaxNode>";
+        using (var classCurly = new CurlyIndenter(writer, declaration)) {
+            for (int i = 0; i < nodes.Count; i++) {
+                var node = nodes.Item(i);
+
+                var typeName = node.Attributes["Name"]?.Value;
+                Debug.Assert(typeName != null);
+
+                writer.WriteLine($"internal override BelteSyntaxNode Visit{ShortName(typeName)}({typeName} node)");
+                GenerateVisitBody(writer, node);
+
+                writer.WriteLine();
+            }
+        }
+    }
+
+    private void GenerateVisitBody(IndentedTextWriter writer, XmlNode node) {
+        var fields = DeserializeFields(node);
+
+        var parameters = "";
+
+        for (int i = 0; i < fields.Count; i++) {
+            var field = fields[i];
+
+            if (field.type.StartsWith("SyntaxList") || field.type.StartsWith("SeparatedSyntaxList"))
+                parameters += $"VisitList(node.{field.name})";
+            else
+                parameters += $"({field.type})Visit(node.{field.name})";
+
+            if (i < fields.Count - 1)
+                parameters += ", ";
+        }
+
+        writer.WriteLine($"{indentString}=> node.Update({parameters});");
     }
 }

@@ -1,3 +1,4 @@
+using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
@@ -6,9 +7,19 @@ internal static partial class SyntaxFactory {
         return new SyntaxTrivia(SyntaxKind.SkippedTokenTrivia, text);
     }
 
+    internal static SyntaxTrivia Skipped(SyntaxToken token) {
+        return new SyntaxTrivia(SyntaxKind.SkippedTokenTrivia, token.text);
+    }
+
     internal static SyntaxToken Token(
         SyntaxKind kind, int fullWidth, string text, object value, GreenNode leading, GreenNode trailing) {
         return new SyntaxToken(kind, fullWidth, text, value, leading, trailing);
+    }
+
+    internal static SyntaxToken Token(
+        SyntaxKind kind, int fullWidth, string text, object value,
+        GreenNode leading, GreenNode trailing, Diagnostic[] diagnostics) {
+        return new SyntaxToken(kind, fullWidth, text, value, leading, trailing, diagnostics);
     }
 
     internal static SyntaxTrivia Trivia(SyntaxKind kind, string text) {

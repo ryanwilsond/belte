@@ -80,9 +80,6 @@ internal sealed class Binder {
         var parentScope = CreateParentScope(previous);
         var binder = new Binder(options, options.topLevelBinderFlags, parentScope, null);
 
-        foreach (var syntaxTree in syntaxTrees)
-            binder.diagnostics.Move(syntaxTree.diagnostics);
-
         if (binder.diagnostics.Errors().Any())
             return GlobalScope(previous, binder.diagnostics);
 
@@ -945,8 +942,8 @@ internal sealed class Binder {
 
         foreach (var statementSyntax in statement.statements) {
             if (statementSyntax is LocalFunctionStatementSyntax fd) {
-                var declaration = new MethodDeclarationSyntax(
-                    fd.syntaxTree, fd.returnType, fd.identifier, fd.openParenthesis,
+                var declaration = SyntaxFactory.MethodDeclaration(
+                    fd.returnType, fd.identifier, fd.openParenthesis,
                     fd.parameters, fd.closeParenthesis, fd.body
                 );
 
@@ -1460,8 +1457,7 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindLiteralExpression(LiteralExpressionSyntax expression) {
-        var value = expression.value;
-
+        var value = expression.token.value;
         return new BoundLiteralExpression(value);
     }
 

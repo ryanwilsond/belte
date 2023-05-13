@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using Buckle.CodeAnalysis.Text;
@@ -10,19 +11,16 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// </summary>
 public sealed class SyntaxTree {
     private SyntaxTree(SourceText text) {
-        // Responsibility of settings the root is put on the caller
+        // Responsibility of setting the root is put on the caller
         this.text = text;
-        diagnostics = new BelteDiagnosticQueue();
     }
 
     internal SyntaxTree(SourceText text, ParseHandler handler) : this(text) {
-        handler(this, out var _root, out diagnostics);
+        handler(this, out var _root);
         root = _root;
     }
 
-    internal delegate void ParseHandler(
-        SyntaxTree syntaxTree, out CompilationUnitSyntax root, out BelteDiagnosticQueue diagnostics
-    );
+    internal delegate void ParseHandler(SyntaxTree syntaxTree, out CompilationUnitSyntax root);
 
     /// <summary>
     /// Root <see cref="SyntaxNode" />, does not represent something in a source file rather the entire source file.
@@ -38,11 +36,6 @@ public sealed class SyntaxTree {
     /// EOF <see cref="SyntaxToken" />.
     /// </summary>
     internal SyntaxToken endOfFile { get; }
-
-    /// <summary>
-    /// Diagnostics relating to <see cref="SyntaxTree" />.
-    /// </summary>
-    internal BelteDiagnosticQueue diagnostics;
 
     private int length => root?.fullSpan?.length ?? text.length;
 
@@ -110,6 +103,37 @@ public sealed class SyntaxTree {
         return WithChanges(newText, changes);
     }
 
+    /// <summary>
+    /// Gets all diagnostics on the tree.
+    /// </summary>
+    internal BelteDiagnosticQueue GetDiagnostics() {
+        return GetDiagnostics(root);
+    }
+
+    /// <summary>
+    /// Gets all diagnostics on a node.
+    /// </summary>
+    internal BelteDiagnosticQueue GetDiagnostics(SyntaxNode node) {
+        return GetDiagnostics(node.green, node.position);
+    }
+
+    /// <summary>
+    /// Gets all diagnostics on a green node and gives them an absolute position.
+    /// </summary>
+    internal BelteDiagnosticQueue GetDiagnostics(GreenNode green, int position) {
+        if (green.containsDiagnostics)
+            return new BelteDiagnosticQueue(EnumerateDiagnostics(green, position));
+
+        return new BelteDiagnosticQueue();
+    }
+
+    private IEnumerable<BelteDiagnostic> EnumerateDiagnostics(GreenNode node, int position) {
+        var enumerator = new SyntaxTreeDiagnosticEnumerator(this, node, position);
+
+        while (enumerator.MoveNext())
+            yield return enumerator.Current;
+    }
+
     private SyntaxTree WithChanges(SourceText newText, ImmutableArray<TextChangeRange> changes) {
         ImmutableArray<TextChangeRange>? workingChanges = changes;
         var oldTree = this;
@@ -124,16 +148,12 @@ public sealed class SyntaxTree {
         var tree = new SyntaxTree(newText);
         var parser = new InternalSyntax.Parser(tree, oldTree?.root, workingChanges);
         tree.root = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();
-        tree.diagnostics.Move(parser.diagnostics);
-
         return tree;
     }
 
     private static void Parse(
-        SyntaxTree syntaxTree, out CompilationUnitSyntax root, out BelteDiagnosticQueue diagnostics) {
+        SyntaxTree syntaxTree, out CompilationUnitSyntax root) {
         var parser = new InternalSyntax.Parser(syntaxTree);
         root = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();
-        diagnostics = new BelteDiagnosticQueue();
-        diagnostics.Move(parser.diagnostics);
     }
 }

@@ -55,7 +55,7 @@ public static class SyntaxTreeExtensions {
         SourceText text, out BelteDiagnosticQueue diagnostics, bool includeEOF = false) {
         var tokens = new SyntaxListBuilder<InternalSyntax.SyntaxToken>(32);
 
-        void ParseTokens(SyntaxTree syntaxTree, out CompilationUnitSyntax root, out BelteDiagnosticQueue diagnostics) {
+        void ParseTokens(SyntaxTree syntaxTree, out CompilationUnitSyntax root) {
             root = null;
             var lexer = new InternalSyntax.Lexer(syntaxTree);
 
@@ -71,14 +71,10 @@ public static class SyntaxTreeExtensions {
                 if (token.kind == SyntaxKind.EndOfFileToken)
                     break;
             }
-
-            diagnostics = new BelteDiagnosticQueue();
-            diagnostics.Move(lexer.diagnostics);
         }
 
         var syntaxTree = new SyntaxTree(text, ParseTokens);
-        diagnostics = new BelteDiagnosticQueue();
-        diagnostics.Move(syntaxTree.diagnostics);
+        diagnostics = syntaxTree.GetDiagnostics();
 
         return tokens.ToList();
     }

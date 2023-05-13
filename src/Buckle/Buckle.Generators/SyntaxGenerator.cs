@@ -118,4 +118,8 @@ public abstract class SyntaxGenerator : ISourceGenerator {
 
         return fields;
     }
+
+    protected string ShortName(string typeName) {
+        return typeName.Replace("Syntax", "");
+    }
 }

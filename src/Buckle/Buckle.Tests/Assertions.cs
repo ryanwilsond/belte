@@ -78,9 +78,10 @@ internal static class Assertions {
         var syntaxTree = SyntaxTree.Parse(annotatedText.text);
 
         var tempDiagnostics = new BelteDiagnosticQueue();
+        var treeDiagnostics = syntaxTree.GetDiagnostics();
 
-        if (syntaxTree.diagnostics.Errors().Any()) {
-            tempDiagnostics.Move(syntaxTree.diagnostics);
+        if (treeDiagnostics.Errors().Any()) {
+            tempDiagnostics.Move(treeDiagnostics);
         } else {
             var compilation = Compilation.CreateScript(
                 new CompilationOptions(BuildMode.Independent, true, false), null, syntaxTree

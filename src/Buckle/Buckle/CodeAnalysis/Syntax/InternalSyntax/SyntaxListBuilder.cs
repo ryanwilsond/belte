@@ -118,9 +118,9 @@ internal class SyntaxListBuilder {
             case 1:
                 return _nodes[0];
             case 2:
-                // Can add optimized lists later if needed
-                return SyntaxList.List(new[] { _nodes[0], _nodes[1] });
+                return SyntaxList.List(_nodes[0], _nodes[1]);
             case 3:
+                // Can optimize and add a three child list if needed later
                 return SyntaxList.List(new[] { _nodes[0], _nodes[1], _nodes[2] });
             default:
                 var tmp = new ArrayElement<GreenNode>[this.count];

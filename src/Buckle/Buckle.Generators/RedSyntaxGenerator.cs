@@ -50,11 +50,14 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
             Debug.Assert(baseName != null);
             Debug.Assert(knownTypes.Contains(baseName));
 
-            using (var classCurly =
-                new CurlyIndenter(writer, $"public abstract class {typeName} : {baseName}")) {
-                var constructor = $"internal {typeName}(SyntaxNode parent, GreenNode green, int position) : " +
-                    "base(parent, green, position) { }";
-                writer.WriteLine(constructor);
+            using (var classCurly = new CurlyIndenter(writer, $"public abstract class {typeName} : {baseName}")) {
+                writer.WriteLine($"internal {typeName}(SyntaxNode parent, GreenNode green, int position)");
+                writer.WriteLine($"{indentString}: base(parent, green, position) {{ }}");
+                writer.WriteLine();
+                writer.WriteLine(
+                    $"internal {typeName}(SyntaxNode parent, GreenNode green, int position, Diagnostic[] diagnostics)"
+                );
+                writer.WriteLine($"{indentString}: base(parent, green, position, diagnostics) {{ }}");
                 writer.WriteLine();
 
                 var fields = DeserializeFields(abstractNode);
@@ -77,15 +80,14 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
             Debug.Assert(baseName != null);
             Debug.Assert(knownTypes.Contains(baseName));
 
+            var fields = DeserializeFields(node);
+
             using (var classCurly = new CurlyIndenter(writer, $"public sealed class {typeName} : {baseName}")) {
-                var fields = DeserializeFields(node);
                 GeneratePrivateFieldDeclarations(writer, fields);
 
-                var constructor = $"internal {typeName}(SyntaxNode parent, GreenNode green, " +
-                    "int position) : base(parent, green, position) { }";
-
                 writer.WriteLine();
-                writer.WriteLine(constructor);
+                writer.WriteLine($"internal {typeName}(SyntaxNode parent, GreenNode green, int position)");
+                writer.WriteLine($"{indentString}: base(parent, green, position) {{ }}");
                 writer.WriteLine();
 
                 GenerateFieldDeclarations(writer, fields, typeName);
@@ -93,6 +95,11 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
                 writer.WriteLine();
                 GenerateGetCachedSlotMethod(writer, fields);
             }
+
+            writer.WriteLine();
+
+            using (var classCurly = new CurlyIndenter(writer, $"internal static partial class SyntaxFactory"))
+                GenerateFactoryMethod(writer, fields, typeName);
 
             writer.WriteLine();
         }
@@ -187,6 +194,57 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
             }
 
             writer.WriteLine("_ => null,");
+        }
+    }
+
+    private void GenerateFactoryMethod(IndentedTextWriter writer, FieldList fields, string typeName) {
+        var allArguments = "";
+        var requiredArguments = "";
+        var allParameters = "";
+        var requiredParameters = "";
+
+        string GenerateParameter(string name, string type) {
+            if (type.StartsWith("SyntaxList"))
+                return $"{name}.node.ToGreenList<{type.Substring(11, type.Length - 12)}>()";
+            else if (type.StartsWith("SeparatedSyntaxList"))
+                return $"{name}.node.ToGreenSeparatedList<{type.Substring(19, type.Length - 20)}>()";
+            else if (!knownTypes.Contains(type) || type == "SyntaxToken")
+                return $"({type}){name}.node";
+            else
+                return $"({type}){name}.green";
+        }
+
+        for (int i = 0; i < fields.Count; i++) {
+            var field = fields[i];
+            allParameters += GenerateParameter(field.name, field.type);
+            allArguments += $"{field.type} {field.name}";
+
+            if (!field.isOptional) {
+                requiredParameters += GenerateParameter(field.name, field.type);
+                requiredArguments += $"{field.type} {field.name}";
+            } else {
+                requiredParameters += "null";
+            }
+
+            if (i < fields.Count - 1) {
+                allParameters += ", ";
+                allArguments += ", ";
+                requiredParameters += ", ";
+
+                if (!field.isOptional)
+                    requiredArguments += ", ";
+            }
+        }
+
+        if (requiredArguments.EndsWith(", "))
+            requiredArguments = requiredArguments.Substring(0, requiredArguments.Length - 2);
+
+        writer.WriteLine($"internal static {typeName} {ShortName(typeName)}({allArguments})");
+        writer.WriteLine($"{indentString}=> new {typeName}({allParameters});");
+
+        if (allArguments != requiredArguments) {
+            writer.WriteLine($"internal static {typeName} {ShortName(typeName)}({requiredArguments})");
+            writer.WriteLine($"{indentString}=> new {typeName}({requiredParameters});");
         }
     }
 }

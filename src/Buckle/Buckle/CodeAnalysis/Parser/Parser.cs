@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
@@ -17,7 +19,6 @@ internal sealed class Parser {
     private readonly Lexer _lexer;
     private readonly SourceText _text;
     private readonly bool _isIncremental;
-    private readonly BelteDiagnosticQueue _diagnostics;
     private readonly SyntaxTree _syntaxTree;
 
     private bool _expectParenthesis;
@@ -28,6 +29,8 @@ internal sealed class Parser {
     private BlendedNode[] _blendedTokens;
     private BlendedNode _currentNode;
     private SyntaxToken _currentToken;
+    private GreenNode _prevTokenTrailingTrivia;
+    private List<Diagnostic> _futureDiagnostics;
     private int _tokenOffset;
     private int _tokenCount;
 
@@ -42,7 +45,7 @@ internal sealed class Parser {
     /// In addition, incremental parsing is enabled by passing in the previous tree and all changes.
     /// </summary>
     internal Parser(SyntaxTree syntaxTree, SyntaxNode oldTree, IEnumerable<TextChangeRange> changes) {
-        _diagnostics = new BelteDiagnosticQueue();
+        _futureDiagnostics = new List<Diagnostic>();
         _text = syntaxTree.text;
         _syntaxTree = syntaxTree;
         _lexer = new Lexer(_syntaxTree);
@@ -58,21 +61,17 @@ internal sealed class Parser {
         }
     }
 
-    /// <summary>
-    /// Diagnostics produced during the parsing process.
-    /// </summary>
-    internal BelteDiagnosticQueue diagnostics {
-        get {
-            if (_lexer.diagnostics.Any())
-                _diagnostics.Move(_lexer.diagnostics);
-
-            return _diagnostics;
-        }
-    }
-
     private SyntaxToken currentToken {
         get {
-            return _currentToken ?? (_currentToken = FetchCurrentToken());
+            if (_currentToken == null)
+                _currentToken = FetchCurrentToken();
+
+            if (_futureDiagnostics.Count > 0) {
+                _currentToken = WithAdditionalDiagnostics(_currentToken, _futureDiagnostics.ToArray());
+                _futureDiagnostics.Clear();
+            }
+
+            return _currentToken;
         }
     }
 
@@ -111,6 +110,166 @@ internal sealed class Parser {
             if (token.kind == SyntaxKind.EndOfFileToken)
                 break;
         }
+    }
+
+    private T AddDiagnostic<T>(T node, Diagnostic diagnostic) where T : BelteSyntaxNode {
+        if (!node.isFabricated) {
+            return WithAdditionalDiagnostics(
+                node, new SyntaxDiagnostic(diagnostic, node.GetLeadingTriviaWidth(), node.width)
+            );
+        }
+
+        int offset, width;
+        var token = node as SyntaxToken;
+
+        if (token != null && token.containsSkippedText) {
+            offset = token.GetLeadingTriviaWidth();
+            width = 0;
+            var seenSkipped = false;
+
+            foreach (var trivia in token.trailingTrivia) {
+                if (trivia.kind == SyntaxKind.SkippedTokenTrivia) {
+                    seenSkipped = true;
+                    width += trivia.width;
+                } else if (seenSkipped) {
+                    break;
+                } else {
+                    offset += trivia.width;
+                }
+            }
+        } else {
+            GetDiagnosticSpanForMissingToken(out offset, out width);
+        }
+
+        return WithAdditionalDiagnostics(node, new SyntaxDiagnostic(diagnostic, offset, width));
+    }
+
+    private T AddDiagnostic<T>(T node, Diagnostic diagnostic, int offset, int width) where T : BelteSyntaxNode {
+        return WithAdditionalDiagnostics(node, new SyntaxDiagnostic(diagnostic, offset, width));
+    }
+
+    private T WithAdditionalDiagnostics<T>(T node, params Diagnostic[] diagnostics) where T : BelteSyntaxNode {
+        var existingDiagnostics = node.GetDiagnostics();
+        var existingLength = existingDiagnostics.Length;
+
+        if (existingLength == 0) {
+            return node.WithDiagnosticsGreen(diagnostics);
+        } else {
+            var result = new Diagnostic[existingDiagnostics.Length + diagnostics.Length];
+            existingDiagnostics.CopyTo(result, 0);
+            diagnostics.CopyTo(result, existingLength);
+            return node.WithDiagnosticsGreen(result);
+        }
+    }
+
+    private void GetDiagnosticSpanForMissingToken(out int offset, out int width) {
+        var trivia = _prevTokenTrailingTrivia;
+
+        if (trivia != null) {
+            var triviaList = new SyntaxList<BelteSyntaxNode>(trivia);
+            var prevTokenHasEndOfLineTrivia = triviaList.Any(SyntaxKind.EndOfLineTrivia);
+
+            if (prevTokenHasEndOfLineTrivia) {
+                offset = -trivia.fullWidth;
+                width = 0;
+                return;
+            }
+        }
+
+        var ct = currentToken;
+        offset = ct.GetLeadingTriviaWidth();
+        width = ct.width;
+    }
+
+    private T AddLeadingSkippedSyntax<T>(T node, GreenNode skippedSyntax) where T : BelteSyntaxNode {
+        var oldToken = (node as SyntaxToken) ?? (SyntaxToken)node.GetFirstTerminal();
+        var newToken = AddSkippedSyntax(oldToken, skippedSyntax, isTrailing: false);
+        return SyntaxFirstTokenReplacer.Replace(node, oldToken, newToken, skippedSyntax.fullWidth);
+    }
+
+    private SyntaxToken AddSkippedSyntax(SyntaxToken target, GreenNode skippedSyntax, bool isTrailing) {
+        var builder = new SyntaxListBuilder(4);
+
+        SyntaxDiagnostic diagnostic = null;
+        var diagnosticOffset = 0;
+        var currentOffset = 0;
+
+        foreach (var node in skippedSyntax.EnumerateNodes()) {
+            var token = node as SyntaxToken;
+
+            if (token != null) {
+                builder.Add(token.GetLeadingTrivia());
+
+                if (token.width > 0) {
+                    var tk = token.TokenWithLeadingTrivia(null).TokenWithTrailingTrivia(null);
+
+                    int leadingWidth = token.GetLeadingTriviaWidth();
+
+                    if (leadingWidth > 0) {
+                        var tokenDiagnostics = tk.GetDiagnostics();
+
+                        for (int i = 0; i < tokenDiagnostics.Length; i++) {
+                            var d = (SyntaxDiagnostic)tokenDiagnostics[i];
+                            tokenDiagnostics[i] = new SyntaxDiagnostic(d, d.offset - leadingWidth, d.width);
+                        }
+                    }
+
+                    builder.Add(SyntaxFactory.Skipped(tk));
+                } else {
+                    var existing = (SyntaxDiagnostic)token.GetDiagnostics().FirstOrDefault();
+
+                    if (existing != null) {
+                        diagnostic = existing;
+                        diagnosticOffset = currentOffset;
+                    }
+                }
+
+                builder.Add(token.GetTrailingTrivia());
+                currentOffset += token.fullWidth;
+            } else if (node.containsDiagnostics && diagnostic == null) {
+                var existing = (SyntaxDiagnostic)node.GetDiagnostics().FirstOrDefault();
+
+                if (existing != null) {
+                    diagnostic = existing;
+                    diagnosticOffset = currentOffset;
+                }
+            }
+        }
+
+        int triviaWidth = currentOffset;
+        var trivia = builder.ToListNode();
+
+        int triviaOffset;
+
+        if (isTrailing) {
+            var trailingTrivia = target.GetTrailingTrivia();
+            triviaOffset = target.fullWidth;
+            target = target.TokenWithTrailingTrivia(SyntaxList.Concat(trailingTrivia, trivia));
+        } else {
+            if (triviaWidth > 0) {
+                var targetDiagnostics = target.GetDiagnostics();
+
+                for (int i = 0; i < targetDiagnostics.Length; i++) {
+                    var d = (SyntaxDiagnostic)targetDiagnostics[i];
+                    targetDiagnostics[i] = new SyntaxDiagnostic(d, d.offset + triviaWidth, d.width);
+                }
+            }
+
+            var leadingTrivia = target.GetLeadingTrivia();
+            target = target.TokenWithLeadingTrivia(SyntaxList.Concat(trivia, leadingTrivia));
+            triviaOffset = 0;
+        }
+
+        if (diagnostic != null) {
+            int newOffset = triviaOffset + diagnosticOffset + diagnostic.offset;
+            target = WithAdditionalDiagnostics(target, new SyntaxDiagnostic(diagnostic, newOffset, diagnostic.width));
+        }
+
+        return target;
+    }
+
+    private void AddDiagnosticToNextToken(Diagnostic diagnostic) {
+        _futureDiagnostics.Add(diagnostic);
     }
 
     private SyntaxNode EatNode() {
@@ -198,27 +357,23 @@ internal sealed class Parser {
         if (currentToken.kind == kind)
             return EatToken();
 
-        if (nextWanted != null && currentToken.kind == nextWanted) {
-            diagnostics.Push(Error.ExpectedToken(currentToken.location, kind));
-
-            return SyntaxFactory.Token(kind, currentToken.position);
-        }
+        if (nextWanted != null && currentToken.kind == nextWanted)
+            return AddDiagnostic(SyntaxFactory.Token(kind), Error.ExpectedToken(kind));
 
         if (Peek(1).kind != kind) {
-            diagnostics.Push(Error.UnexpectedToken(currentToken.location, currentToken.kind, kind));
-            var skipped = currentToken;
+            var token = AddDiagnostic(SyntaxFactory.Token(kind), Error.UnexpectedToken(currentToken.kind, kind));
             EatToken();
-
-            return SyntaxFactory.Token(kind, skipped.position);
+            return token;
         }
 
-        diagnostics.Push(Error.UnexpectedToken(currentToken.location, currentToken.kind));
-        EatToken();
+        var currentKind = currentToken.kind;
+        var unexpected = AddDiagnostic(EatToken(), Error.UnexpectedToken(currentKind));
 
-        return EatToken();
+        return AddLeadingSkippedSyntax(EatToken(), unexpected);
     }
 
     private void MoveToNextToken() {
+        _prevTokenTrailingTrivia = _currentToken.GetTrailingTrivia();
         _currentToken = null;
 
         if (_blendedTokens != null)
@@ -440,7 +595,7 @@ internal sealed class Parser {
     }
 
     private SeparatedSyntaxList<ParameterSyntax> ParseParameterList() {
-        var nodesAndSeparators = new SyntaxListBuilder<GreenNode>();
+        var nodesAndSeparators = new SyntaxListBuilder<BelteSyntaxNode>();
         var parseNextParameter = true;
 
         while (parseNextParameter &&
@@ -529,14 +684,20 @@ internal sealed class Parser {
 
     private StatementSyntax ParseTryStatement() {
         var keyword = EatToken();
-        var body = ParseBlockStatement();
+        var body = (BlockStatementSyntax)ParseBlockStatement();
         var catchClause = ParseCatchClause();
         var finallyClause = ParseFinallyClause();
 
-        if (catchClause == null && finallyClause == null)
-            diagnostics.Push(Error.NoCatchOrFinally(((BlockStatementSyntax)body).closeBrace.location));
+        if (catchClause == null && finallyClause == null) {
+            body = AddDiagnostic(
+                body,
+                Error.NoCatchOrFinally(),
+                body.GetSlotOffset(2) + body.closeBrace.GetLeadingTriviaWidth(),
+                body.closeBrace.width
+            );
+        }
 
-        return SyntaxFactory.TryStatement(keyword, (BlockStatementSyntax)body, catchClause, finallyClause);
+        return SyntaxFactory.TryStatement(keyword, body, catchClause, finallyClause);
     }
 
     private CatchClauseSyntax ParseCatchClause() {
@@ -607,11 +768,8 @@ internal sealed class Parser {
         ExpressionSyntax initializer = null;
 
         if (currentToken.kind == SyntaxKind.EqualsToken) {
-            equals = EatToken();
+            equals = AddDiagnostic(EatToken(), Error.Unsupported.CannotInitialize());
             initializer = ParseExpression();
-
-            if (declarationOnly)
-                diagnostics.Push(Error.Unsupported.CannotInitialize(equals.location));
         }
 
         var semicolon = Match(SyntaxKind.SemicolonToken);
@@ -661,30 +819,39 @@ internal sealed class Parser {
         // Not allow nested if statements with else clause without braces; prevents ambiguous else statements
         // * See BU0023
         var nestedIf = false;
-        var invalidElseLocations = new List<TextLocation>();
         var inter = statement;
+        var offset = 0;
 
         while (inter.kind == SyntaxKind.IfStatement) {
             nestedIf = true;
             var interIf = (IfStatementSyntax)inter;
 
-            if (interIf.elseClause != null && interIf.then.kind != SyntaxKind.BlockStatement)
-                invalidElseLocations.Add(interIf.elseClause.keyword.location);
+            if (interIf.elseClause != null && interIf.then.kind != SyntaxKind.BlockStatement) {
+                keyword = AddDiagnostic(
+                    keyword,
+                    Error.AmbiguousElse(),
+                    interIf.GetSlotOffset(5) + interIf.elseClause.keyword.GetLeadingTriviaWidth(),
+                    interIf.elseClause.keyword.width
+                );
+            }
 
-            if (interIf.then.kind == SyntaxKind.IfStatement)
+            if (interIf.then.kind == SyntaxKind.IfStatement) {
+                offset += interIf.GetSlotOffset(4);
                 inter = interIf.then;
-            else
+            } else {
                 break;
+            }
         }
 
         var elseClause = ParseElseClause();
 
-        if (elseClause != null && statement.kind != SyntaxKind.BlockStatement && nestedIf)
-            invalidElseLocations.Add(elseClause.keyword.location);
-
-        while (invalidElseLocations.Count > 0) {
-            diagnostics.Push(Error.AmbiguousElse(invalidElseLocations[0]));
-            invalidElseLocations.RemoveAt(0);
+        if (elseClause != null && statement.kind != SyntaxKind.BlockStatement && nestedIf) {
+            elseClause = AddDiagnostic(
+                elseClause,
+                Error.AmbiguousElse(),
+                elseClause.keyword.GetLeadingTriviaWidth(),
+                elseClause.keyword.width
+            );
         }
 
         return SyntaxFactory.IfStatement(keyword, openParenthesis, condition, closeParenthesis, statement, elseClause);
@@ -701,15 +868,13 @@ internal sealed class Parser {
     }
 
     private StatementSyntax ParseExpressionStatement() {
-        var previousCount = diagnostics.count;
         var expression = ParseExpression(allowEmpty: true);
-        var popLast = previousCount != diagnostics.count;
-        previousCount = diagnostics.count;
         var semicolon = Match(SyntaxKind.SemicolonToken);
-        popLast = popLast && previousCount != diagnostics.count;
 
-        if (popLast)
-            diagnostics.PopBack();
+        if (expression.containsDiagnostics && semicolon.containsDiagnostics) {
+            var diagnostics = semicolon.GetDiagnostics();
+            semicolon = semicolon.WithDiagnosticsGreen(diagnostics.SkipLast(1).ToArray());
+        }
 
         return SyntaxFactory.ExpressionStatement(expression, semicolon);
     }
@@ -776,7 +941,7 @@ internal sealed class Parser {
     private ExpressionSyntax ParseExpression(bool allowEmpty = false) {
         if (currentToken.kind == SyntaxKind.SemicolonToken) {
             if (!allowEmpty)
-                diagnostics.Push(Error.ExpectedToken(currentToken.location, SyntaxKind.NameExpression));
+                AddDiagnosticToNextToken(Error.ExpectedToken(SyntaxKind.NameExpression));
 
             return ParseEmptyExpression();
         }
@@ -919,7 +1084,7 @@ internal sealed class Parser {
 
     private ExpressionSyntax ParseInitializerListExpression() {
         var left = Match(SyntaxKind.OpenBraceToken);
-        var nodesAndSeparators = new SyntaxListBuilder<GreenNode>();
+        var nodesAndSeparators = new SyntaxListBuilder<BelteSyntaxNode>();
         var parseNextItem = true;
 
         while (parseNextItem &&
@@ -929,7 +1094,7 @@ internal sealed class Parser {
                 var expression = ParseExpression();
                 nodesAndSeparators.Add(expression);
             } else {
-                var empty = SyntaxFactory.Empty(SyntaxFactory.Token(SyntaxKind.BadToken, currentToken.position));
+                var empty = SyntaxFactory.Empty();
                 nodesAndSeparators.Add(empty);
             }
 
@@ -980,21 +1145,20 @@ internal sealed class Parser {
     }
 
     private ExpressionSyntax ParseNameExpression() {
-        var identifier = SyntaxFactory.Token(SyntaxKind.IdentifierToken, currentToken.position);
+        var identifier = SyntaxFactory.Token(SyntaxKind.IdentifierToken);
 
         if (currentToken.kind == SyntaxKind.IdentifierToken)
             identifier = EatToken();
         else
-            diagnostics.Push(Error.ExpectedToken(currentToken.location, "expression"));
+            // diagnostics.Push(Error.ExpectedToken(currentToken.location, "expression"));
+            AddDiagnosticToNextToken(Error.ExpectedToken("expression"));
 
         return SyntaxFactory.NameExpression(identifier);
     }
 
     private ExpressionSyntax ParseCallExpression(ExpressionSyntax operand) {
-        if (operand.kind != SyntaxKind.NameExpression) {
-            diagnostics.Push(Error.ExpectedMethodName(operand.location));
-            return operand;
-        }
+        if (operand.kind != SyntaxKind.NameExpression)
+            return AddDiagnostic(operand, Error.ExpectedMethodName());
 
         var openParenthesis = EatToken();
         var arguments = ParseArguments();
@@ -1006,7 +1170,7 @@ internal sealed class Parser {
     }
 
     private SeparatedSyntaxList<ArgumentSyntax> ParseArguments() {
-        var nodesAndSeparators = new SyntaxListBuilder<GreenNode>();
+        var nodesAndSeparators = new SyntaxListBuilder<BelteSyntaxNode>();
         var parseNextArgument = true;
 
         if (currentToken.kind != SyntaxKind.CloseParenToken) {
@@ -1018,7 +1182,7 @@ internal sealed class Parser {
                     var empty = SyntaxFactory.Argument(
                         null,
                         null,
-                        SyntaxFactory.Empty(SyntaxFactory.Token(SyntaxKind.BadToken, currentToken.position))
+                        SyntaxFactory.Empty()
                     );
 
                     nodesAndSeparators.Add(empty);
@@ -1087,17 +1251,17 @@ internal sealed class Parser {
             refKeyword = EatToken();
 
             if (declarationOnly)
-                diagnostics.Push(Error.CannotUseRef(refKeyword.location));
+                refKeyword = AddDiagnostic(refKeyword, Error.CannotUseRef());
         }
 
         if (currentToken.kind == SyntaxKind.ConstKeyword) {
             constKeyword = EatToken();
 
-            if (declarationOnly)
-                diagnostics.Push(Error.CannotUseConst(constKeyword.location));
-            else if (!allowImplicit &&
-                (Peek(1).kind != SyntaxKind.IdentifierToken && Peek(1).kind != SyntaxKind.OpenBracketToken)) {
-                diagnostics.Push(Error.CannotUseImplicit(constKeyword.location));
+            if (declarationOnly) {
+                constKeyword = AddDiagnostic(constKeyword, Error.CannotUseConst());
+            } else if (!allowImplicit &&
+                    (Peek(1).kind != SyntaxKind.IdentifierToken && Peek(1).kind != SyntaxKind.OpenBracketToken)) {
+                constKeyword = AddDiagnostic(constKeyword, Error.CannotUseImplicit());
             }
         }
 
@@ -1105,7 +1269,7 @@ internal sealed class Parser {
             varKeyword = EatToken();
 
             if (!allowImplicit)
-                diagnostics.Push(Error.CannotUseImplicit(varKeyword.location));
+                varKeyword = AddDiagnostic(varKeyword, Error.CannotUseImplicit());
         }
 
         var hasTypeName = (varKeyword == null &&
