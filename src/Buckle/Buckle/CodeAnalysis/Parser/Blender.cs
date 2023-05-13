@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Text;
 
@@ -17,7 +18,7 @@ internal sealed partial class Blender {
     /// <summary>
     /// Creates an instance of <see cref="Blender" />.
     /// </summary>
-    internal Blender(Lexer lexer, SyntaxNode oldTree, ImmutableArray<TextChangeRange> changes) {
+    internal Blender(Lexer lexer, SyntaxNode oldTree, IEnumerable<TextChangeRange> changes) {
         _lexer = lexer;
         _changes = ImmutableStack.Create<TextChangeRange>();
 

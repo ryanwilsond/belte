@@ -3,12 +3,12 @@ using System.Collections.Generic;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
-public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : SyntaxNode {
+public sealed partial class SyntaxList<T> : IReadOnlyList<T> where T : SyntaxNode {
     public struct Enumerator {
-        private readonly SeparatedSyntaxList<T> _list;
+        private readonly SyntaxList<T> _list;
         private int _index;
 
-        internal Enumerator(SeparatedSyntaxList<T> list) {
+        internal Enumerator(SyntaxList<T> list) {
             _list = list;
             _index = -1;
         }
@@ -24,7 +24,7 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
             return false;
         }
 
-        public T Current => _list[_index];
+        public T Current => (T)_list.ItemInternal(_index);
 
         public void Reset() {
             _index = -1;
@@ -38,4 +38,5 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
             throw new NotSupportedException();
         }
     }
+
 }

@@ -996,7 +996,7 @@ internal sealed class Binder {
             return null;
         }
 
-        if (type.isReference && expression.initializer?.kind != SyntaxKind.RefExpression) {
+        if (type.isReference && expression.initializer?.kind != SyntaxKind.ReferenceExpression) {
             diagnostics.Push(Error.ReferenceWrongInitialization(expression.equals.location, type.isConstant));
             return null;
         }
@@ -1022,7 +1022,7 @@ internal sealed class Binder {
             );
         }
 
-        if (type.isReference || (type.isImplicit && expression.initializer?.kind == SyntaxKind.RefExpression)) {
+        if (type.isReference || (type.isImplicit && expression.initializer?.kind == SyntaxKind.ReferenceExpression)) {
             var initializer = BindReferenceExpression((ReferenceExpressionSyntax)expression.initializer);
 
             if (diagnostics.Errors().count > currentCount)
@@ -1132,7 +1132,7 @@ internal sealed class Binder {
                 return null;
             }
 
-            if (!variableType.isReference && expression.initializer?.kind == SyntaxKind.RefExpression) {
+            if (!variableType.isReference && expression.initializer?.kind == SyntaxKind.ReferenceExpression) {
                 diagnostics.Push(
                     Error.WrongInitializationReference(expression.equals.location, variableType.isConstant)
                 );
@@ -1190,7 +1190,7 @@ internal sealed class Binder {
                 return BindParenExpression((ParenthesisExpressionSyntax)expression);
             case SyntaxKind.NameExpression:
                 return BindNameExpression((NameExpressionSyntax)expression);
-            case SyntaxKind.AssignExpression:
+            case SyntaxKind.AssignmentExpression:
                 return BindAssignmentExpression((AssignmentExpressionSyntax)expression);
             case SyntaxKind.CallExpression:
                 return BindCallExpression((CallExpressionSyntax)expression);
@@ -1202,7 +1202,7 @@ internal sealed class Binder {
                 return BindPostfixExpression((PostfixExpressionSyntax)expression, ownStatement);
             case SyntaxKind.PrefixExpression:
                 return BindPrefixExpression((PrefixExpressionSyntax)expression);
-            case SyntaxKind.RefExpression:
+            case SyntaxKind.ReferenceExpression:
                 return BindReferenceExpression((ReferenceExpressionSyntax)expression);
             case SyntaxKind.CastExpression:
                 return BindCastExpression((CastExpressionSyntax)expression);

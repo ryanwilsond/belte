@@ -9,7 +9,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// A syntax list separated by a common <see cref="SyntaxNode" />.
 /// </summary>
 /// <typeparam name="T">Child type of <see cref="SyntaxNode" />.</typeparam>
-internal sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : SyntaxNode {
+public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : SyntaxNode {
     private readonly SyntaxNodeOrTokenList _list;
     private readonly int _separatorCount;
 
@@ -19,6 +19,8 @@ internal sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T 
         _separatorCount = allCount >> 1;
         _list = list;
     }
+
+    internal SeparatedSyntaxList(SyntaxNode node, int index) : this(new SyntaxNodeOrTokenList(node, index)) { }
 
     /// <summary>
     /// Number of non-separator SyntaxNodes in collection.

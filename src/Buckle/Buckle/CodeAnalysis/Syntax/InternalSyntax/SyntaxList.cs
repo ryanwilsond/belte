@@ -4,7 +4,7 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 /// <summary>
 /// Represents a list of GreenNodes.
 /// </summary>
-internal sealed class SyntaxList : GreenNode {
+internal partial class SyntaxList : GreenNode {
     internal SyntaxList() : base((SyntaxKind)GreenNode.ListKind) { }
 
     internal SyntaxList(ArrayElement<GreenNode>[] children) : this() {

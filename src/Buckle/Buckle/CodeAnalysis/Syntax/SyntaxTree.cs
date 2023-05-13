@@ -123,7 +123,7 @@ public sealed class SyntaxTree {
 
         var tree = new SyntaxTree(newText);
         var parser = new InternalSyntax.Parser(tree, oldTree?.root, workingChanges);
-        tree.root = parser.ParseCompilationUnit().CreateRed();
+        tree.root = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();
         tree.diagnostics.Move(parser.diagnostics);
 
         return tree;
@@ -132,7 +132,7 @@ public sealed class SyntaxTree {
     private static void Parse(
         SyntaxTree syntaxTree, out CompilationUnitSyntax root, out BelteDiagnosticQueue diagnostics) {
         var parser = new InternalSyntax.Parser(syntaxTree);
-        root = parser.ParseCompilationUnit().CreateRed();
+        root = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();
         diagnostics = new BelteDiagnosticQueue();
         diagnostics.Move(parser.diagnostics);
     }

@@ -113,7 +113,7 @@ public enum SyntaxKind {
     IndexExpression,
     PrefixExpression,
     PostfixExpression,
-    AssignExpression,
+    AssignmentExpression,
     CompoundAssignmentExpression,
 
     // Primary expressions
@@ -121,7 +121,7 @@ public enum SyntaxKind {
     TypeOfExpression,
     NameExpression,
     CallExpression,
-    RefExpression,
+    ReferenceExpression,
     MemberAccessExpression,
 
     // Statements

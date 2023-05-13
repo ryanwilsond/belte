@@ -236,6 +236,23 @@ public abstract partial class SyntaxNode {
         return endPosition - offset;
     }
 
+    internal int GetChildIndex(int slot) {
+        int index = 0;
+
+        for (int i = 0; i < slot; i++) {
+            var item = green.GetSlot(i);
+
+            if (item != null) {
+                if (item.isList)
+                    index += item.slotCount;
+                else
+                    index++;
+            }
+        }
+
+        return index;
+    }
+
     internal SyntaxNode GetRedElement(ref SyntaxNode element, int slot) {
         var result = element;
 
@@ -243,6 +260,83 @@ public abstract partial class SyntaxNode {
             var green = this.green.GetSlot(slot);
             Interlocked.CompareExchange(ref element, green.CreateRed(parent, GetChildPosition(slot)), null);
             result = element;
+        }
+
+        return result;
+    }
+
+    internal SyntaxNode GetRedElementIfNotToken(ref SyntaxNode element) {
+        var result = element;
+
+        if (result == null) {
+            var green = this.green.GetSlot(1);
+
+            if (!green.isToken) {
+                Interlocked.CompareExchange(ref element, green.CreateRed(parent, GetChildPosition(1)), null);
+                result = element;
+            }
+        }
+
+        return result;
+    }
+
+    internal SyntaxNode GetRed(ref SyntaxNode field, int slot) {
+        var result = field;
+
+        if (result == null) {
+            var green = this.green.GetSlot(slot);
+
+            if (green != null) {
+                Interlocked.CompareExchange(ref field, green.CreateRed(this, GetChildPosition(slot)), null);
+                result = field;
+            }
+        }
+
+        return result;
+    }
+
+    internal SyntaxNode GetRedAtZero(ref SyntaxNode field) {
+        // Special case where getting the child position is unnecessary (would always return 0)
+        var result = field;
+
+        if (result == null) {
+            var green = this.green.GetSlot(0);
+
+            if (green != null) {
+                Interlocked.CompareExchange(ref field, green.CreateRed(this, position), null);
+                result = field;
+            }
+        }
+
+        return result;
+    }
+
+    protected T? GetRed<T>(ref T? field, int slot) where T : SyntaxNode {
+        var result = field;
+
+        if (result == null) {
+            var green = this.green.GetSlot(slot);
+
+            if (green != null) {
+                Interlocked.CompareExchange(ref field, (T)green.CreateRed(this, GetChildPosition(slot)), null);
+                result = field;
+            }
+        }
+
+        return result;
+    }
+
+    // special case of above function where slot = 0, does not need GetChildPosition
+    protected T? GetRedAtZero<T>(ref T? field) where T : SyntaxNode {
+        var result = field;
+
+        if (result == null) {
+            var green = this.green.GetSlot(0);
+
+            if (green != null) {
+                Interlocked.CompareExchange(ref field, (T)green.CreateRed(this, position), null);
+                result = field;
+            }
         }
 
         return result;

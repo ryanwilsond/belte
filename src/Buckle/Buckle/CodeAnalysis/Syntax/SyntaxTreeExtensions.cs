@@ -14,7 +14,7 @@ public static class SyntaxTreeExtensions {
     /// <param name="text">Text to parse.</param>
     /// <param name="includeEOF">If to include the EOF <see cref="SyntaxToken" /> at the end.</param>
     /// <returns>SyntaxTokens in order.</returns>
-    internal static SyntaxList<InternalSyntax.SyntaxToken> ParseTokens(string text, bool includeEOF = false) {
+    internal static InternalSyntax.SyntaxList<InternalSyntax.SyntaxToken> ParseTokens(string text, bool includeEOF = false) {
         var sourceText = SourceText.From(text);
 
         return ParseTokens(sourceText, includeEOF);
@@ -27,7 +27,7 @@ public static class SyntaxTreeExtensions {
     /// <param name="diagnostics">Diagnostics produced from parsing.</param>
     /// <param name="includeEOF">If to include the EOF <see cref="SyntaxToken" /> at the end.</param>
     /// <returns>SyntaxTokens in order.</returns>
-    internal static SyntaxList<InternalSyntax.SyntaxToken> ParseTokens(
+    internal static InternalSyntax.SyntaxList<InternalSyntax.SyntaxToken> ParseTokens(
         string text, out BelteDiagnosticQueue diagnostics, bool includeEOF = false) {
         var sourceText = SourceText.From(text);
 
@@ -40,7 +40,7 @@ public static class SyntaxTreeExtensions {
     /// <param name="text">Text to parse.</param>
     /// <param name="includeEOF">If to include the EOF <see cref="SyntaxToken" /> at the end.</param>
     /// <returns>SyntaxTokens in order.</returns>
-    internal static SyntaxList<InternalSyntax.SyntaxToken> ParseTokens(SourceText text, bool includeEOF = false) {
+    internal static InternalSyntax.SyntaxList<InternalSyntax.SyntaxToken> ParseTokens(SourceText text, bool includeEOF = false) {
         return ParseTokens(text, out _, includeEOF);
     }
 
@@ -51,7 +51,7 @@ public static class SyntaxTreeExtensions {
     /// <param name="diagnostics">Diagnostics produced from parsing.</param>
     /// <param name="includeEOF">If to include the EOF <see cref="SyntaxToken" /> at the end.</param>
     /// <returns>SyntaxTokens in order.</returns>
-    internal static SyntaxList<InternalSyntax.SyntaxToken> ParseTokens(
+    internal static InternalSyntax.SyntaxList<InternalSyntax.SyntaxToken> ParseTokens(
         SourceText text, out BelteDiagnosticQueue diagnostics, bool includeEOF = false) {
         var tokens = new SyntaxListBuilder<InternalSyntax.SyntaxToken>(32);
 
@@ -63,7 +63,7 @@ public static class SyntaxTreeExtensions {
                 var token = lexer.LexNext();
 
                 if (token.kind == SyntaxKind.EndOfFileToken)
-                    root = new CompilationUnitSyntax(null, token);
+                    root = (CompilationUnitSyntax)new InternalSyntax.CompilationUnitSyntax(null, token).CreateRed();
 
                 if (token.kind != SyntaxKind.EndOfFileToken || includeEOF)
                     tokens.Add(token);

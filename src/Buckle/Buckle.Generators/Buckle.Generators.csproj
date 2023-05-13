@@ -6,6 +6,14 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Content Remove="../Buckle/CodeAnalysis/Syntax/Syntax.xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="../Buckle/CodeAnalysis/Syntax/Syntax.xml" />
+  </ItemGroup>
+
   <PropertyGroup>
     <RestoreAdditionalProjectSources>https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet5/nuget/v3/index.json ;$(RestoreAdditionalProjectSources)</RestoreAdditionalProjectSources>
   </PropertyGroup>

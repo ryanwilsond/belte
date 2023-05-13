@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Syntax.InternalSyntax;
 using Xunit;
 
 namespace Buckle.Tests.CodeAnalysis.Syntax.InternalSyntax;
@@ -94,11 +95,11 @@ public sealed class ParserTests {
         }
     }
 
-    private static ExpressionSyntax ParseExpression(string text) {
+    private static InternalSyntax.ExpressionSyntax ParseExpression(string text) {
         var syntaxTree = SyntaxTree.Parse(text);
         var member = Assert.Single(syntaxTree.root.members);
-        var globalStatement = Assert.IsType<GlobalStatementSyntax>(member);
-        return Assert.IsType<ExpressionStatementSyntax>(globalStatement.statement).expression;
+        var globalStatement = Assert.IsType<InternalSyntax.GlobalStatementSyntax>(member);
+        return Assert.IsType<InternalSyntax.ExpressionStatementSyntax>(globalStatement.statement).expression;
     }
 
     public static IEnumerable<object[]> GetBinaryOperatorPairsData() {

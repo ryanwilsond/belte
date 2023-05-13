@@ -1,27 +1,28 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
-public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : SyntaxNode {
+public sealed partial class SyntaxList<T> : IReadOnlyList<T> where T : SyntaxNode {
     private class EnumeratorImpl : IEnumerator<T> {
         private Enumerator _enumerator;
 
-        internal EnumeratorImpl(SeparatedSyntaxList<T> list) {
+        internal EnumeratorImpl(in SyntaxList<T> list) {
             _enumerator = new Enumerator(list);
         }
-
-        public T Current => _enumerator.Current;
-
-        object IEnumerator.Current => _enumerator.Current;
-
-        public void Dispose() { }
 
         public bool MoveNext() {
             return _enumerator.MoveNext();
         }
 
-        public void Reset() {
+        public T Current => _enumerator.Current;
+
+        void IDisposable.Dispose() { }
+
+        object IEnumerator.Current => _enumerator.Current;
+
+        void IEnumerator.Reset() {
             _enumerator.Reset();
         }
     }
