@@ -17,7 +17,7 @@ public static class Classifier {
     /// <returns>All Classifications made within the <see cref="TextSpan" /> of the <see cref="SyntaxTree" />.</returns>
     public static ImmutableArray<ClassifiedSpan> Classify(SyntaxTree syntaxTree, TextSpan span) {
         var result = ImmutableArray.CreateBuilder<ClassifiedSpan>();
-        ClassifyNode(syntaxTree.root, span, result);
+        ClassifyNode(syntaxTree.GetRoot(), span, result);
 
         return result.ToImmutable();
     }
@@ -30,10 +30,9 @@ public static class Classifier {
         if (node.fullSpan != null && !node.fullSpan.OverlapsWith(span))
             return;
 
-        if (node.isToken)
+        if (node.isToken) {
             ClassifyToken(node.AsToken(), span, result, isTypeName);
-
-        if (node.AsNode() is TypeSyntax) {
+        } else if (node.AsNode() is TypeSyntax) {
             var inAttribute = false;
             isTypeName = false;
 

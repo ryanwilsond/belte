@@ -84,7 +84,7 @@ public abstract class SyntaxGenerator : ISourceGenerator {
 
         if (!File.Exists(filePath) || File.ReadAllText(filePath) != sourceText.ToString()) {
             if (!File.Exists(filePath))
-                context.AddSource($"Generated.{fileName}", sourceText);
+                context.AddSource(fileName, sourceText);
 
             using (var writer = new StreamWriter(filePath))
                 sourceText.Write(writer);

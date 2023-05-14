@@ -1,7 +1,7 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 public sealed partial class ChildSyntaxList {
-    internal struct Enumerator {
+    public struct Enumerator {
         private SyntaxNode? _node;
         private int _count;
         private int _childIndex;
@@ -29,7 +29,7 @@ public sealed partial class ChildSyntaxList {
             return false;
         }
 
-        internal SyntaxNodeOrToken current => ItemInternal(_node, _childIndex);
+        public SyntaxNodeOrToken Current => ItemInternal(_node, _childIndex);
 
         internal void Reset() {
             _childIndex = -1;

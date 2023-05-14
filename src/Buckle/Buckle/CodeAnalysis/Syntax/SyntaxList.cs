@@ -9,6 +9,8 @@ public partial class SyntaxList : SyntaxNode {
         _children = new ArrayElement<SyntaxNode>[green.slotCount];
     }
 
+    internal override SyntaxTree syntaxTree => parent.syntaxTree;
+
     internal override SyntaxNode GetNodeSlot(int index) {
         return GetRedElement(ref _children[index].Value, index);
     }

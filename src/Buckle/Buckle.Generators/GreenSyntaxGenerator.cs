@@ -155,7 +155,7 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
         var arguments = GenerateArguments(fields);
 
         writer.WriteLine($"internal {typeName}({arguments})");
-        writer.Write($"{indentString}: base(SyntaxKind.{syntaxKind})");
+        writer.Write($"{indentString}: base(SyntaxKind.{syntaxKind}) ");
     }
 
     private void GenerateConstructorWithDiagnostics(
@@ -168,7 +168,7 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
         var arguments = GenerateArguments(fields);
 
         writer.WriteLine($"internal {typeName}({arguments}, Diagnostic[] diagnostics)");
-        writer.Write($"{indentString}: base(SyntaxKind.{syntaxKind}, diagnostics)");
+        writer.Write($"{indentString}: base(SyntaxKind.{syntaxKind}, diagnostics) ");
     }
 
     private string GenerateArguments(FieldList fields) {

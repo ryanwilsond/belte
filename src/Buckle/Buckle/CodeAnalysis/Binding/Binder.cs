@@ -83,17 +83,21 @@ internal sealed class Binder {
         if (binder.diagnostics.Errors().Any())
             return GlobalScope(previous, binder.diagnostics);
 
-        var typeDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<TypeDeclarationSyntax>();
+        var typeDeclarations = syntaxTrees.SelectMany(st => st.GetCompilationUnitRoot().members)
+            .OfType<TypeDeclarationSyntax>();
 
         foreach (var @type in typeDeclarations)
             binder.BindAndDeclareTypeDeclaration(@type);
 
-        var methodDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<MethodDeclarationSyntax>();
+        var methodDeclarations = syntaxTrees.SelectMany(st => st.GetCompilationUnitRoot().members)
+            .OfType<MethodDeclarationSyntax>();
 
         foreach (var method in methodDeclarations)
             binder.BindAndDeclareMethodDeclaration(method);
 
-        var globalStatements = syntaxTrees.SelectMany(st => st.root.members).OfType<GlobalStatementSyntax>();
+        var globalStatements = syntaxTrees.SelectMany(st => st.GetCompilationUnitRoot().members)
+            .OfType<GlobalStatementSyntax>();
+
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
 
         binder._peekedLocals = PeekLocals(globalStatements.Select(s => s.statement), null);
@@ -102,7 +106,7 @@ internal sealed class Binder {
             statements.Add(binder.BindStatement(globalStatement.statement, true));
 
         var firstGlobalPerTree = syntaxTrees
-            .Select(st => st.root.members.OfType<GlobalStatementSyntax>().FirstOrDefault())
+            .Select(st => st.GetCompilationUnitRoot().members.OfType<GlobalStatementSyntax>().FirstOrDefault())
             .Where(g => g != null).ToArray();
 
         if (firstGlobalPerTree.Length > 1) {

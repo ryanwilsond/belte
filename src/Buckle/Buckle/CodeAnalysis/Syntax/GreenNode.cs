@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.CompilerServices;
 using Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
@@ -255,11 +257,18 @@ internal abstract partial class GreenNode {
         return this;
     }
 
+    public override string ToString() {
+        var sb = PooledStringBuilder.GetInstance();
+        var writer = new StringWriter(sb.Builder);
+        WriteTo(writer, leading: false, trailing: false);
+        return sb.ToStringAndFree();
+    }
+
     /// <summary>
     /// Gets the first existing child <see cref="GreenNode" />.
     /// </summary>
     internal GreenNode GetFirstTerminal() {
-        GreenNode node = this;
+        var node = this;
 
         do {
             GreenNode firstChild = null;
@@ -274,7 +283,7 @@ internal abstract partial class GreenNode {
             }
 
             node = firstChild;
-        } while (node.slotCount > 0);
+        } while (node?.slotCount > 0);
 
         return node;
     }
@@ -322,8 +331,84 @@ internal abstract partial class GreenNode {
     /// </summary>
     internal abstract GreenNode SetDiagnostics(Diagnostic[] diagnostics);
 
+    protected virtual void WriteTriviaTo(TextWriter writer) {
+        throw new NotImplementedException();
+    }
+
+    protected virtual void WriteTokenTo(TextWriter writer, bool leading, bool trailing) {
+        throw new NotImplementedException();
+    }
+
     protected void AdjustFlagsAndWidth(GreenNode node) {
         flags |= node.flags;
         fullWidth += node.fullWidth;
+    }
+
+    protected internal void WriteTo(TextWriter writer, bool leading, bool trailing) {
+        var stack = new Stack<(GreenNode node, bool leading, bool trailing)>();
+        stack.Push((this, leading, trailing));
+
+        processStack(writer, stack);
+        return;
+
+        static void processStack(TextWriter writer, Stack<(GreenNode node, bool leading, bool trailing)> stack) {
+            while (stack.Count > 0) {
+                var current = stack.Pop();
+                var currentNode = current.node;
+                var currentLeading = current.leading;
+                var currentTrailing = current.trailing;
+
+                if (currentNode.isToken) {
+                    currentNode.WriteTokenTo(writer, currentLeading, currentTrailing);
+                    continue;
+                }
+
+                if (currentNode.isTrivia) {
+                    currentNode.WriteTriviaTo(writer);
+                    continue;
+                }
+
+                var firstIndex = GetFirstNonNullChildIndex(currentNode);
+                var lastIndex = GetLastNonNullChildIndex(currentNode);
+
+                for (var i = lastIndex; i >= firstIndex; i--) {
+                    var child = currentNode.GetSlot(i);
+
+                    if (child != null) {
+                        var first = i == firstIndex;
+                        var last = i == lastIndex;
+                        stack.Push((child, currentLeading | !first, currentTrailing | !last));
+                    }
+                }
+            }
+        }
+    }
+
+    private static int GetFirstNonNullChildIndex(GreenNode node) {
+        int n = node.slotCount;
+        int firstIndex = 0;
+
+        for (; firstIndex < n; firstIndex++) {
+            var child = node.GetSlot(firstIndex);
+
+            if (child != null)
+                break;
+        }
+
+        return firstIndex;
+    }
+
+    private static int GetLastNonNullChildIndex(GreenNode node) {
+        int n = node.slotCount;
+        int lastIndex = n - 1;
+
+        for (; lastIndex >= 0; lastIndex--) {
+            var child = node.GetSlot(lastIndex);
+
+            if (child != null)
+                break;
+        }
+
+        return lastIndex;
     }
 }

@@ -19,7 +19,7 @@ internal sealed class SyntaxListBuilder {
         count = 0;
     }
 
-    internal GreenNode? this[int index] {
+    internal GreenNode this[int index] {
         get {
             return _nodes[index];
         }
@@ -28,7 +28,7 @@ internal sealed class SyntaxListBuilder {
         }
     }
 
-    internal void Add(GreenNode? item) {
+    internal void Add(GreenNode item) {
         if (item == null) return;
 
         if (item.isList) {

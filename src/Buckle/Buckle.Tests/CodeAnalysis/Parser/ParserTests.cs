@@ -96,7 +96,7 @@ public sealed class ParserTests {
 
     private static Buckle.CodeAnalysis.Syntax.InternalSyntax.ExpressionSyntax ParseExpression(string text) {
         var syntaxTree = SyntaxTree.Parse(text);
-        var member = Assert.Single(syntaxTree.root.members);
+        var member = Assert.Single(syntaxTree.GetCompilationUnitRoot().members);
         var globalStatement = Assert.IsType<Buckle.CodeAnalysis.Syntax.InternalSyntax.GlobalStatementSyntax>(member);
 
         return Assert.IsType<Buckle.CodeAnalysis.Syntax.InternalSyntax.ExpressionStatementSyntax>(

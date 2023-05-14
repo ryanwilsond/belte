@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
+using Buckle.CodeAnalysis.Syntax.InternalSyntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 
@@ -9,23 +10,26 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// Tree of SyntaxNodes produced from the <see cref="InternalSyntax.Parser" />.
 /// </summary>
-public sealed class SyntaxTree {
+public partial class SyntaxTree {
     private SyntaxTree(SourceText text) {
-        // Responsibility of setting the root is put on the caller
         this.text = text;
     }
 
-    internal SyntaxTree(SourceText text, ParseHandler handler) : this(text) {
-        handler(this, out var _root);
-        root = _root;
+    internal static SyntaxTree CreateWithoutClone(BelteSyntaxNode root) {
+        return new ParsedSyntaxTree(null, root, false);
+    }
+
+    internal static SyntaxTree Create(SourceText text, ParseHandler handler) {
+        return new ParsedSyntaxTree(text, handler);
     }
 
     internal delegate void ParseHandler(SyntaxTree syntaxTree, out CompilationUnitSyntax root);
 
-    /// <summary>
-    /// Root <see cref="SyntaxNode" />, does not represent something in a source file rather the entire source file.
-    /// </summary>
-    public CompilationUnitSyntax root { get; private set; }
+    public virtual BelteSyntaxNode GetRoot() => null;
+
+    public CompilationUnitSyntax GetCompilationUnitRoot() {
+        return (CompilationUnitSyntax)GetRoot();
+    }
 
     /// <summary>
     /// <see cref="SourceText" /> the <see cref="SyntaxTree" /> was created from.
@@ -37,7 +41,7 @@ public sealed class SyntaxTree {
     /// </summary>
     internal SyntaxToken endOfFile { get; }
 
-    private int length => root?.fullSpan?.length ?? text.length;
+    protected virtual int length => text.length;
 
     /// <summary>
     /// Parses text (not necessarily related to a source file).
@@ -88,7 +92,12 @@ public sealed class SyntaxTree {
     /// <param name="text">Text to generate <see cref="SyntaxTree" /> from.</param>
     /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
     internal static SyntaxTree Parse(SourceText text) {
-        return new SyntaxTree(text, Parse);
+        var tree = new SyntaxTree(text);
+        var parser = new InternalSyntax.Parser(tree);
+        var compilationUnit = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();
+        var parsedTree = new ParsedSyntaxTree(tree.text, compilationUnit, true);
+
+        return parsedTree;
     }
 
     /// <summary>
@@ -107,7 +116,7 @@ public sealed class SyntaxTree {
     /// Gets all diagnostics on the tree.
     /// </summary>
     internal BelteDiagnosticQueue GetDiagnostics() {
-        return GetDiagnostics(root);
+        return GetDiagnostics(GetRoot());
     }
 
     /// <summary>
@@ -125,6 +134,10 @@ public sealed class SyntaxTree {
             return new BelteDiagnosticQueue(EnumerateDiagnostics(green, position));
 
         return new BelteDiagnosticQueue();
+    }
+
+    protected T CloneNodeAsRoot<T>(T node) where T : BelteSyntaxNode {
+        return BelteSyntaxNode.CloneNodeAsRoot(node, this);
     }
 
     private IEnumerable<BelteDiagnostic> EnumerateDiagnostics(GreenNode node, int position) {
@@ -146,14 +159,10 @@ public sealed class SyntaxTree {
         }
 
         var tree = new SyntaxTree(newText);
-        var parser = new InternalSyntax.Parser(tree, oldTree?.root, workingChanges);
-        tree.root = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();
-        return tree;
-    }
+        var parser = new InternalSyntax.Parser(tree, oldTree?.GetRoot(), workingChanges);
 
-    private static void Parse(
-        SyntaxTree syntaxTree, out CompilationUnitSyntax root) {
-        var parser = new InternalSyntax.Parser(syntaxTree);
-        root = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();
+        var compilationUnit = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();
+        var parsedTree = new ParsedSyntaxTree(newText, compilationUnit, true);
+        return parsedTree;
     }
 }

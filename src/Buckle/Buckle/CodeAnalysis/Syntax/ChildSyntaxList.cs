@@ -26,6 +26,10 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
 
     internal SyntaxNode node { get; }
 
+    public Enumerator GetEnumerator() {
+        return new Enumerator(node, Count);
+    }
+
     IEnumerator<SyntaxNodeOrToken> IEnumerable<SyntaxNodeOrToken>.GetEnumerator() {
         if (node == null)
             return new EmptyEnumerator<SyntaxNodeOrToken>();

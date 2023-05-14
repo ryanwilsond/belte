@@ -22,12 +22,22 @@ internal static partial class SyntaxFactory {
         return new SyntaxToken(kind, fullWidth, text, value, leading, trailing, diagnostics);
     }
 
+    internal static SyntaxToken Token(
+        SyntaxKind kind, string text, object value,
+        GreenNode leading, GreenNode trailing, Diagnostic[] diagnostics) {
+        return new SyntaxToken(kind, text, value, leading, trailing, diagnostics);
+    }
+
     internal static SyntaxTrivia Trivia(SyntaxKind kind, string text) {
         return new SyntaxTrivia(kind, text);
     }
 
     internal static SyntaxToken Token(SyntaxKind kind) {
         return new SyntaxToken(kind, null, null);
+    }
+
+    internal static SyntaxToken Missing(SyntaxKind kind) {
+        return SyntaxToken.CreateMissing(kind, null, null);
     }
 
     internal static SyntaxToken Token(SyntaxKind kind, string text) {

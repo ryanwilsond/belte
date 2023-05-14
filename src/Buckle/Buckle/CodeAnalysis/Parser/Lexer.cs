@@ -131,7 +131,7 @@ internal sealed class Lexer {
 
         var tokenText = SyntaxFacts.GetText(tokenKind) ?? _text.ToString(new TextSpan(tokenPosition, tokenWidth));
 
-        return Create(tokenKind, tokenWidth, tokenText, tokenValue, diagnostics);
+        return Create(tokenKind, tokenText, tokenValue, diagnostics);
     }
 
     private SyntaxDiagnostic[] GetDiagnostics(int leadingTriviaWidth) {
@@ -154,12 +154,11 @@ internal sealed class Lexer {
         _diagnostics.Add(new SyntaxDiagnostic(diagnostic, position - _start, width));
     }
 
-    private SyntaxToken Create(
-        SyntaxKind kind, int fullWidth, string text, object value, SyntaxDiagnostic[] diagnostics) {
+    private SyntaxToken Create(SyntaxKind kind, string text, object value, SyntaxDiagnostic[] diagnostics) {
         var leading = _leadingTriviaCache.ToListNode();
         var trailing = _trailingTriviaCache.ToListNode();
 
-        var token = SyntaxFactory.Token(kind, fullWidth, text, value, leading, trailing, diagnostics);
+        var token = SyntaxFactory.Token(kind, text, value, leading, trailing, diagnostics);
 
         if (text == null)
             token.SetFlags(GreenNode.NodeFlags.IsMissing);

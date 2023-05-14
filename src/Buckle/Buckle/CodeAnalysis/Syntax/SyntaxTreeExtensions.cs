@@ -76,7 +76,7 @@ public static class SyntaxTreeExtensions {
             }
         }
 
-        var syntaxTree = new SyntaxTree(text, ParseTokens);
+        var syntaxTree = SyntaxTree.Create(text, ParseTokens);
         diagnostics = syntaxTree.GetDiagnostics();
 
         return tokens.ToList();

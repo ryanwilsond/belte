@@ -1,3 +1,4 @@
+using System;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -6,6 +7,9 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// Represents a token in the syntax tree.
 /// </summary>
 public sealed class SyntaxToken {
+    internal static readonly Func<SyntaxToken, bool> NonZeroWidth = t => t.width > 0;
+    internal static readonly Func<SyntaxToken, bool> Any = t => true;
+
     internal SyntaxToken(SyntaxNode parent, GreenNode token, int position, int index) {
         this.parent = parent;
         node = token;

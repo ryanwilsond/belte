@@ -192,9 +192,9 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     }
 
     public bool Equals(SyntaxNodeOrToken other) {
-        return _nodeOrParent == other._nodeOrParent &&
-               _token == other._token &&
-               _tokenIndex == other._tokenIndex;
+        return _nodeOrParent == other?._nodeOrParent &&
+               _token == other?._token &&
+               _tokenIndex == other?._tokenIndex;
     }
 
     public static bool operator ==(SyntaxNodeOrToken left, SyntaxNodeOrToken right) {

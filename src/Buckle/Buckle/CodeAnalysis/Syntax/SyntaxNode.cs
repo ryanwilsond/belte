@@ -1,10 +1,8 @@
 using System;
-using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -26,15 +24,9 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <code>
 /// </summary>
 public abstract partial class SyntaxNode {
-    internal SyntaxNode(SyntaxTree syntaxTree, GreenNode node, int position) {
-        this.syntaxTree = syntaxTree;
-        green = node;
-        this.position = position;
-        parent = null;
-    }
+    internal SyntaxTree _syntaxTree;
 
     internal SyntaxNode(SyntaxNode parent, GreenNode node, int position) {
-        syntaxTree = null;
         green = node;
         this.position = position;
         this.parent = parent;
@@ -43,17 +35,17 @@ public abstract partial class SyntaxNode {
     /// <summary>
     /// Type of <see cref="SyntaxNode" /> (see <see cref="SyntaxKind" />).
     /// </summary>
-    public SyntaxKind kind { get; }
+    public SyntaxKind kind => green.kind;
 
     /// <summary>
     /// The parent of this node. The parent's children are this node's siblings.
     /// </summary>
-    public SyntaxNode parent { get; private set; }
+    public SyntaxNode parent { get; }
 
     /// <summary>
     /// <see cref="SyntaxTree" /> this <see cref="SyntaxNode" /> resides in.
     /// </summary>
-    internal SyntaxTree syntaxTree { get; }
+    internal abstract SyntaxTree syntaxTree { get; }
 
     /// <summary>
     /// The underlying basic node information.
@@ -151,6 +143,14 @@ public abstract partial class SyntaxNode {
     /// </summary>
     internal abstract SyntaxNode GetCachedSlot(int index);
 
+    internal SyntaxTriviaList GetLeadingTrivia() {
+        return GetFirstToken(includeZeroWidth: true).leadingTrivia;
+    }
+
+    internal SyntaxTriviaList GetTrailingTrivia() {
+        return GetLastToken(includeZeroWidth: true).trailingTrivia;
+    }
+
     /// <summary>
     /// All child nodes and tokens of this node.
     /// </summary>
@@ -162,8 +162,18 @@ public abstract partial class SyntaxNode {
     /// Gets last <see cref="SyntaxToken" /> (of all children, recursive) under this <see cref="SyntaxNode" />.
     /// </summary>
     /// <returns>Last <see cref="SyntaxToken" />.</returns>
-    public SyntaxToken GetLastToken() {
-        return SyntaxNavigator.Instance.GetLastToken(this);
+    public SyntaxToken GetLastToken(bool includeZeroWidth = false, bool includeSkipped = false) {
+        return SyntaxNavigator.Instance.GetLastToken(this, includeZeroWidth, includeSkipped);
+    }
+
+    public SyntaxToken GetFirstToken(bool includeZeroWidth = false, bool includeSkipped = false) {
+        return SyntaxNavigator.Instance.GetFirstToken(this, includeZeroWidth, includeSkipped);
+    }
+
+    internal static T CloneNodeAsRoot<T>(T node, SyntaxTree syntaxTree) where T : SyntaxNode {
+        var clone = (T)node.green.CreateRed(null, 0);
+        clone._syntaxTree = syntaxTree;
+        return clone;
     }
 
     /// <summary>
@@ -311,7 +321,7 @@ public abstract partial class SyntaxNode {
         return result;
     }
 
-    protected T? GetRed<T>(ref T? field, int slot) where T : SyntaxNode {
+    protected T GetRed<T>(ref T field, int slot) where T : SyntaxNode {
         var result = field;
 
         if (result == null) {

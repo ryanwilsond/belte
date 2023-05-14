@@ -11,9 +11,9 @@ public sealed partial class ChildSyntaxList {
             _enumerator = new Enumerator(node, count);
         }
 
-        public SyntaxNodeOrToken Current => _enumerator.current;
+        public SyntaxNodeOrToken Current => _enumerator.Current;
 
-        object IEnumerator.Current => _enumerator.current;
+        object IEnumerator.Current => _enumerator.Current;
 
         public bool MoveNext() {
             return _enumerator.MoveNext();

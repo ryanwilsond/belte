@@ -47,7 +47,7 @@ internal partial struct SyntaxTreeDiagnosticEnumerator {
                 if (diagnostic is SyntaxDiagnostic sd) {
                     int leadingWidthAlreadyCounted = node.isToken ? node.GetLeadingTriviaWidth() : 0;
 
-                    var length = _syntaxTree.root.fullSpan.length;
+                    var length = _syntaxTree.GetRoot().fullSpan.length;
                     var spanStart = Math.Min(_position - leadingWidthAlreadyCounted + sd.offset, length);
                     var spanWidth = Math.Min(spanStart + sd.width, length) - spanStart;
 

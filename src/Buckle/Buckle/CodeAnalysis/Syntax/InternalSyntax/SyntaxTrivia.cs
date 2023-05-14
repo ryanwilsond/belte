@@ -23,6 +23,14 @@ internal sealed class SyntaxTrivia : BelteSyntaxNode {
     /// </summary>
     internal string text { get; }
 
+    internal override int width => fullWidth;
+
+    internal override bool isTrivia => true;
+
+    public override string ToString() {
+        return text;
+    }
+
     internal override GreenNode GetSlot(int index) {
         throw ExceptionUtilities.Unreachable();
     }
@@ -33,6 +41,14 @@ internal sealed class SyntaxTrivia : BelteSyntaxNode {
 
     internal override GreenNode SetDiagnostics(Diagnostic[] diagnostics) {
         return new SyntaxTrivia(kind, text, diagnostics);
+    }
+
+    internal override int GetLeadingTriviaWidth() {
+        return 0;
+    }
+
+    internal override int GetTrailingTriviaWidth() {
+        return 0;
     }
 
     internal override TResult Accept<TResult>(SyntaxVisitor<TResult> visitor) {

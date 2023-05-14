@@ -357,11 +357,23 @@ internal sealed class Parser {
         if (currentToken.kind == kind)
             return EatToken();
 
-        if (nextWanted != null && currentToken.kind == nextWanted)
-            return AddDiagnostic(SyntaxFactory.Token(kind), Error.ExpectedToken(kind));
+        if (nextWanted != null && currentToken.kind == nextWanted) {
+            return AddDiagnostic(
+                SyntaxFactory.Missing(kind),
+                Error.ExpectedToken(kind),
+                currentToken.GetLeadingTriviaWidth(),
+                currentToken.width
+            );
+        }
 
         if (Peek(1).kind != kind) {
-            var token = AddDiagnostic(SyntaxFactory.Token(kind), Error.UnexpectedToken(currentToken.kind, kind));
+            var token = AddDiagnostic(
+                SyntaxFactory.Missing(kind),
+                Error.UnexpectedToken(currentToken.kind, kind),
+                currentToken.GetLeadingTriviaWidth(),
+                currentToken.width
+            );
+
             EatToken();
             return token;
         }
@@ -764,17 +776,20 @@ internal sealed class Parser {
         var type = ParseType(allowImplicit: !declarationOnly, declarationOnly: declarationOnly);
         var identifier = Match(SyntaxKind.IdentifierToken);
 
-        SyntaxToken equals = null;
-        ExpressionSyntax initializer = null;
-
         if (currentToken.kind == SyntaxKind.EqualsToken) {
-            equals = AddDiagnostic(EatToken(), Error.Unsupported.CannotInitialize());
-            initializer = ParseExpression();
+            var equals = EatToken();
+            var initializer = ParseExpression();
+            var semicolon = Match(SyntaxKind.SemicolonToken);
+
+            if (declarationOnly)
+                equals = AddDiagnostic(equals, Error.Unsupported.CannotInitialize());
+
+            return SyntaxFactory.VariableDeclarationStatement(type, identifier, equals, initializer, semicolon);
+        } else {
+            var semicolon = Match(SyntaxKind.SemicolonToken);
+
+            return SyntaxFactory.VariableDeclarationStatement(type, identifier, semicolon);
         }
-
-        var semicolon = Match(SyntaxKind.SemicolonToken);
-
-        return SyntaxFactory.VariableDeclarationStatement(type, identifier, equals, initializer, semicolon);
     }
 
     private StatementSyntax ParseWhileStatement() {
@@ -1145,13 +1160,13 @@ internal sealed class Parser {
     }
 
     private ExpressionSyntax ParseNameExpression() {
-        var identifier = SyntaxFactory.Token(SyntaxKind.IdentifierToken);
+        // var identifier = SyntaxFactory.Token(SyntaxKind.IdentifierToken);
 
-        if (currentToken.kind == SyntaxKind.IdentifierToken)
-            identifier = EatToken();
-        else
-            // diagnostics.Push(Error.ExpectedToken(currentToken.location, "expression"));
-            AddDiagnosticToNextToken(Error.ExpectedToken("expression"));
+        // if (currentToken.kind == SyntaxKind.IdentifierToken)
+        //     identifier = EatToken();
+        // else
+        //     AddDiagnosticToNextToken(Error.ExpectedToken("expression"));
+        var identifier = Match(SyntaxKind.IdentifierToken);
 
         return SyntaxFactory.NameExpression(identifier);
     }

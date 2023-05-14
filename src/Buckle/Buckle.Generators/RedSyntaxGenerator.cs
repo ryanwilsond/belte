@@ -52,6 +52,8 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
             Debug.Assert(baseName != null);
             Debug.Assert(knownTypes.Contains(baseName));
 
+            baseName = baseName == "SyntaxNode" ? "BelteSyntaxNode" : baseName;
+
             using (var classCurly = new CurlyIndenter(writer, $"public abstract class {typeName} : {baseName}")) {
                 writer.WriteLine($"internal {typeName}(SyntaxNode parent, GreenNode green, int position)");
                 writer.WriteLine($"{indentString}: base(parent, green, position) {{ }}");
@@ -77,13 +79,14 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
             Debug.Assert(baseName != null);
             Debug.Assert(knownTypes.Contains(baseName));
 
+            baseName = baseName == "SyntaxNode" ? "BelteSyntaxNode" : baseName;
             var fields = DeserializeFields(node);
 
             using (var classCurly = new CurlyIndenter(writer, $"public sealed class {typeName} : {baseName}")) {
                 GeneratePrivateFieldDeclarations(writer, fields);
 
                 writer.WriteLine();
-                writer.WriteLine($"internal {typeName}(SyntaxNode parent, GreenNode green, int position)");
+                writer.WriteLine($"internal {typeName}(SyntaxNode parent, InternalSyntax.BelteSyntaxNode green, int position)");
                 writer.WriteLine($"{indentString}: base(parent, green, position) {{ }}");
                 writer.WriteLine();
 
@@ -131,10 +134,21 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
                 modifiers += " override";
 
             if (field.type == "SyntaxToken") {
-                writer.WriteLine(
-                    $"{modifiers} {field.type} {field.name} => new SyntaxToken(this, ((Syntax.InternalSyntax." +
-                    $"{typeName})green).{field.name}, GetChildPosition({i}), GetChildIndex({i}));"
-                );
+                if (field.isOptional) {
+                    using (var fieldCurly = new CurlyIndenter(writer, $"{modifiers} {field.type} {field.name}"))
+                    using (var getCurly = new CurlyIndenter(writer, "get")) {
+                        writer.WriteLine($"var slot = ((Syntax.InternalSyntax.{typeName})green).{field.name};");
+                        writer.WriteLine(
+                            $"return slot != null ? new SyntaxToken(this, slot, " +
+                            $"GetChildPosition({i}), GetChildIndex({i})) : null;"
+                        );
+                    }
+                } else {
+                    writer.WriteLine(
+                        $"{modifiers} {field.type} {field.name} => new SyntaxToken(this, ((Syntax.InternalSyntax." +
+                        $"{typeName})green).{field.name}, GetChildPosition({i}), GetChildIndex({i}));"
+                    );
+                }
             } else if (field.type.StartsWith("SeparatedSyntaxList")) {
                 writer.WriteLine(
                     $"{modifiers} {field.type} {field.name} => new {field.type}" +
@@ -154,7 +168,6 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
 
     private void GenerateGetNodeSlotMethod(IndentedTextWriter writer, FieldList fields) {
         var declaration = $"internal override SyntaxNode GetNodeSlot(int index) => index switch";
-        var index = 0;
 
         using (var methodCurly = new CurlyIndenter(writer, declaration, includeSemicolon: true)) {
             for (int i = 0; i < fields.Count; i++) {
@@ -163,12 +176,10 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
                 if (field.type == "SyntaxToken")
                     continue;
 
-                if (index == 0)
+                if (i == 0)
                     writer.WriteLine($"0 => GetRedAtZero(ref this._{field.name}),");
                 else
-                    writer.WriteLine($"{index} => GetRed(ref this._{field.name}, {index}),");
-
-                index++;
+                    writer.WriteLine($"{i} => GetRed(ref this._{field.name}, {i}),");
             }
 
             writer.WriteLine("_ => null,");
@@ -177,7 +188,6 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
 
     private void GenerateGetCachedSlotMethod(IndentedTextWriter writer, FieldList fields) {
         var declaration = $"internal override SyntaxNode GetCachedSlot(int index) => index switch";
-        var index = 0;
 
         using (var methodCurly = new CurlyIndenter(writer, declaration, includeSemicolon: true)) {
             for (int i = 0; i < fields.Count; i++) {
@@ -186,8 +196,7 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
                 if (field.type == "SyntaxToken")
                     continue;
 
-                writer.WriteLine($"{index} => this._{field.name},");
-                index++;
+                writer.WriteLine($"{i} => this._{field.name},");
             }
 
             writer.WriteLine("_ => null,");

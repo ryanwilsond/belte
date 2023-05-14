@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 /// <summary>
 /// Token type.
 /// </summary>
-internal sealed class SyntaxToken : BelteSyntaxNode {
+internal partial class SyntaxToken : BelteSyntaxNode {
     private string _text;
     private GreenNode _leading;
     private GreenNode _trailing;
@@ -29,6 +29,7 @@ internal sealed class SyntaxToken : BelteSyntaxNode {
         this._trailing = trailingTrivia;
     }
 
+    // Because this constructor is called possibly thousands of times, the duplicate code is warranted for efficiency
     internal SyntaxToken(SyntaxKind kind, int fullWidth, string text, object value,
         GreenNode leadingTrivia, GreenNode trailingTrivia, Diagnostic[] diagnostics)
         : base(kind, fullWidth, diagnostics) {
@@ -38,15 +39,47 @@ internal sealed class SyntaxToken : BelteSyntaxNode {
         this._trailing = trailingTrivia;
     }
 
+    internal SyntaxToken(SyntaxKind kind, GreenNode leadingTrivia, GreenNode trailingTrivia)
+        : base(kind) {
+        if (leadingTrivia != null) {
+            AdjustFlagsAndWidth(leadingTrivia);
+            this._leading = leadingTrivia;
+        }
+
+        if (trailingTrivia != null) {
+            AdjustFlagsAndWidth(trailingTrivia);
+            this._trailing = trailingTrivia;
+        }
+    }
+
+    internal SyntaxToken(SyntaxKind kind, GreenNode leadingTrivia, GreenNode trailingTrivia, Diagnostic[] diagnostics)
+        : base(kind, diagnostics) {
+        if (leadingTrivia != null) {
+            AdjustFlagsAndWidth(leadingTrivia);
+            this._leading = leadingTrivia;
+        }
+
+        if (trailingTrivia != null) {
+            AdjustFlagsAndWidth(trailingTrivia);
+            this._trailing = trailingTrivia;
+        }
+    }
+
     internal SyntaxToken(SyntaxKind kind, string text, object value, GreenNode leadingTrivia, GreenNode trailingTrivia)
         : base(kind) {
         this.value = value;
         _text = text;
-        fullWidth = text.Length;
-        AdjustFlagsAndWidth(leadingTrivia);
-        this._leading = leadingTrivia;
-        AdjustFlagsAndWidth(trailingTrivia);
-        this._trailing = trailingTrivia;
+        fullWidth = this.text.Length;
+
+        if (leadingTrivia != null) {
+            AdjustFlagsAndWidth(leadingTrivia);
+            this._leading = leadingTrivia;
+        }
+
+        if (trailingTrivia != null) {
+            AdjustFlagsAndWidth(trailingTrivia);
+            this._trailing = trailingTrivia;
+        }
     }
 
     internal SyntaxToken(
@@ -55,18 +88,26 @@ internal sealed class SyntaxToken : BelteSyntaxNode {
         : base(kind, diagnostics) {
         this.value = value;
         _text = text;
-        fullWidth = text.Length;
-        AdjustFlagsAndWidth(leadingTrivia);
-        this._leading = leadingTrivia;
-        AdjustFlagsAndWidth(trailingTrivia);
-        this._trailing = trailingTrivia;
+        fullWidth = this.text.Length;
+
+        if (leadingTrivia != null) {
+            AdjustFlagsAndWidth(leadingTrivia);
+            this._leading = leadingTrivia;
+        }
+
+        if (trailingTrivia != null) {
+            AdjustFlagsAndWidth(trailingTrivia);
+            this._trailing = trailingTrivia;
+        }
     }
 
     internal SyntaxToken(SyntaxKind kind, string text, object value) : base(kind) {
-        fullWidth = text.Length;
         _text = text;
+        fullWidth = this.text.Length;
         this.value = value;
     }
+
+    private SyntaxToken(SyntaxKind kind) : base(kind) { }
 
     /// <summary>
     /// Position of <see cref="SyntaxToken" /> (indexed by the <see cref="SyntaxNode" />, not character in
@@ -77,17 +118,20 @@ internal sealed class SyntaxToken : BelteSyntaxNode {
     /// <summary>
     /// Text related to <see cref="SyntaxToken" /> (if applicable).
     /// </summary>
-    internal string text => _text ?? SyntaxFacts.GetText(kind);
+    internal virtual string text => isFabricated ? string.Empty : _text ?? SyntaxFacts.GetText(kind);
 
     /// <summary>
     /// Value related to <see cref="SyntaxToken" /> (if applicable).
     /// </summary>
-    internal object value { get; }
+    internal virtual object value { get; }
 
     /// <summary>
     /// The width of the <see cref="SyntaxToken" />, not including any leading or trailing trivia.
     /// </summary>
     internal override int width => text.Length;
+
+    internal override bool isToken => true;
+
     /// <summary>
     /// <see cref="SyntaxTrivia" /> before <see cref="SyntaxToken" /> (anything).
     /// </summary>
@@ -97,6 +141,14 @@ internal sealed class SyntaxToken : BelteSyntaxNode {
     /// <see cref="SyntaxTrivia" /> after <see cref="SyntaxToken" /> (same line).
     /// </summary>
     internal SyntaxList<BelteSyntaxNode> trailingTrivia => new SyntaxList<BelteSyntaxNode>(GetTrailingTrivia());
+
+    internal static SyntaxToken CreateMissing(SyntaxKind kind, GreenNode leadingTrivia, GreenNode trailingTrivia) {
+        return new MissingToken(kind, leadingTrivia, trailingTrivia);
+    }
+
+    public override string ToString() {
+        return text;
+    }
 
     internal override int GetLeadingTriviaWidth() {
         var leading = GetLeadingTrivia();
