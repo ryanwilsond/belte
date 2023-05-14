@@ -63,7 +63,10 @@ public static class SyntaxTreeExtensions {
                 var token = lexer.LexNext();
 
                 if (token.kind == SyntaxKind.EndOfFileToken)
-                    root = (CompilationUnitSyntax)new InternalSyntax.CompilationUnitSyntax(null, token).CreateRed();
+                    root = (CompilationUnitSyntax)InternalSyntax.SyntaxFactory.CompilationUnit(
+                        InternalSyntax.SyntaxFactory.List<InternalSyntax.MemberSyntax>(),
+                        token
+                    ).CreateRed();
 
                 if (token.kind != SyntaxKind.EndOfFileToken || includeEOF)
                     tokens.Add(token);

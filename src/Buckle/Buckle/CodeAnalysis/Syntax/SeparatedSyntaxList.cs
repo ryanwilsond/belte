@@ -27,6 +27,8 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
     /// </summary>
     public int Count { get; }
 
+    internal SyntaxNode node => _list.node;
+
     internal TextSpan fullSpan => _list.fullSpan;
 
     internal TextSpan span => _list.span;
@@ -94,5 +96,9 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
             return new EnumeratorImpl(this);
 
         return new EmptyEnumerator<T>();
+    }
+
+    public static implicit operator SeparatedSyntaxList<SyntaxNode>(SeparatedSyntaxList<T> nodes) {
+        return new SeparatedSyntaxList<SyntaxNode>(nodes._list);
     }
 }

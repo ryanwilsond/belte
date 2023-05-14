@@ -21,9 +21,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Buckle.Generators\Buckle.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="..\Buckle.Generators\Buckle.Generators.csproj" />
-    <ProjectReference Include="..\Diagnostics\Diagnostics.csproj" />
+    <ProjectReference Include="../Buckle.Generators/Buckle.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Buckle.Generators/Buckle.Generators.csproj" />
+    <ProjectReference Include="../Diagnostics/Diagnostics.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

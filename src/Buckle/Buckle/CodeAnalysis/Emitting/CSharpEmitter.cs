@@ -9,9 +9,8 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
-using Buckle.Generators;
+using Buckle.Generators.Utilities;
 using Buckle.Utilities;
-using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Emitting;
 

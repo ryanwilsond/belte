@@ -1,8 +1,9 @@
+using System;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
-internal sealed partial class SyntaxList<T> where T : GreenNode {
+internal sealed partial class SyntaxList<T> : IEquatable<SyntaxList<T>> where T : GreenNode {
     internal SyntaxList(GreenNode node) {
         this.node = node;
     }
@@ -64,6 +65,26 @@ internal sealed partial class SyntaxList<T> where T : GreenNode {
 
     public Enumerator GetEnumerator() {
         return new Enumerator(this);
+    }
+
+    public static bool operator ==(SyntaxList<T> left, SyntaxList<T> right) {
+        return left.node == right.node;
+    }
+
+    public static bool operator !=(SyntaxList<T> left, SyntaxList<T> right) {
+        return left.node != right.node;
+    }
+
+    public bool Equals(SyntaxList<T> other) {
+        return node == other.node;
+    }
+
+    public override bool Equals(object? obj) {
+        return (obj is SyntaxList<T>) && Equals((SyntaxList<T>)obj);
+    }
+
+    public override int GetHashCode() {
+        return node != null ? node.GetHashCode() : 0;
     }
 
     internal SeparatedSyntaxList<TOther> AsSeparatedList<TOther>() where TOther : GreenNode {

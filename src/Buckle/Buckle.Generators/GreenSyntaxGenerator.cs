@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Xml;
+using Buckle.Generators.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
@@ -32,7 +33,9 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
             GenerateAbstractNodes(indentedTextWriter);
             GenerateNodes(indentedTextWriter);
             GenerateSyntaxVisitorT(indentedTextWriter);
+            indentedTextWriter.WriteLine();
             GenerateSyntaxVisitor(indentedTextWriter);
+            indentedTextWriter.WriteLine();
             GenerateSyntaxRewriter(indentedTextWriter);
 
             indentedTextWriter.Flush();
@@ -62,6 +65,9 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
                 writer.WriteLine($"internal {typeName}(SyntaxKind kind)");
                 writer.WriteLine($"{indentString}: base(kind) {{ }}");
                 writer.WriteLine();
+                writer.WriteLine($"internal {typeName}(SyntaxKind kind, Diagnostic[] diagnostics)");
+                writer.WriteLine($"{indentString}: base(kind, diagnostics) {{ }}");
+                writer.WriteLine();
 
                 var fields = DeserializeFields(abstractNode);
                 GenerateFieldDeclarations(writer, fields, isAbstract: true);
@@ -83,7 +89,7 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
             Debug.Assert(baseName != null);
             Debug.Assert(knownTypes.Contains(baseName));
 
-            baseName = baseName == "SyntaxNode" ? "GreenNode" : baseName;
+            baseName = baseName == "SyntaxNode" ? "BelteSyntaxNode" : baseName;
             var fields = DeserializeFields(node);
 
             using (var classCurly = new CurlyIndenter(writer, $"internal sealed class {typeName} : {baseName}")) {
@@ -116,13 +122,13 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
                 writer.WriteLine();
 
                 writer.WriteLine(
-                    $"internal override void Accept(SyntaxVisitor visitor) => visitor.Visit{typeName}(this);"
+                    $"internal override void Accept(SyntaxVisitor visitor) => visitor.Visit{ShortName(typeName)}(this);"
                 );
                 writer.WriteLine();
 
                 writer.WriteLine(
                     $"internal override TResult Accept<TResult>(SyntaxVisitor<TResult> visitor) => " +
-                    $"visitor.Visit{typeName}(this);"
+                    $"visitor.Visit{ShortName(typeName)}(this);"
                 );
                 writer.WriteLine();
 
@@ -135,6 +141,8 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
 
             using (var classCurly = new CurlyIndenter(writer, $"internal static partial class SyntaxFactory"))
                 GenerateFactoryMethod(writer, fields, typeName);
+
+            writer.WriteLine();
         }
     }
 
@@ -147,7 +155,7 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
         var arguments = GenerateArguments(fields);
 
         writer.WriteLine($"internal {typeName}({arguments})");
-        writer.WriteLine($"{indentString}: base(SyntaxKind.{syntaxKind})");
+        writer.Write($"{indentString}: base(SyntaxKind.{syntaxKind})");
     }
 
     private void GenerateConstructorWithDiagnostics(
@@ -160,7 +168,7 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
         var arguments = GenerateArguments(fields);
 
         writer.WriteLine($"internal {typeName}({arguments}, Diagnostic[] diagnostics)");
-        writer.WriteLine($"{indentString}: base(SyntaxKind.{syntaxKind}, diagnostics)");
+        writer.Write($"{indentString}: base(SyntaxKind.{syntaxKind}, diagnostics)");
     }
 
     private string GenerateArguments(FieldList fields) {
@@ -197,7 +205,7 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
         }
 
         foreach (var field in fields) {
-            if (field.isOptional) {
+            if (field.isOptional || !knownTypes.Contains(field.type)) {
                 using (var ifCurly = new CurlyIndenter(writer, $"if ({field.name} != null)"))
                     GenerateFieldAssignment(field.name);
             } else {
@@ -276,7 +284,7 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
         var parameters = "";
 
         foreach (var field in fields)
-            parameters += $"{field.name}, ";
+            parameters += $"this._{field.name}, ";
 
         writer.WriteLine("internal override GreenNode SetDiagnostics(Diagnostic[] diagnostics)");
         writer.WriteLine($"{indentString}=> new {typeName}({parameters}diagnostics);");
@@ -322,6 +330,7 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
         writer.WriteLine($"{indentString}=> new {typeName}({allParameters});");
 
         if (allArguments != requiredArguments) {
+            writer.WriteLine();
             writer.WriteLine($"internal static {typeName} {ShortName(typeName)}({requiredArguments})");
             writer.WriteLine($"{indentString}=> new {typeName}({requiredParameters});");
         }

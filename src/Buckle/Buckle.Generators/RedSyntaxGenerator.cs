@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using Buckle.Generators.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
@@ -23,6 +24,7 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
 
         using (var stringWriter = new StringWriter())
         using (var indentedTextWriter = new IndentedTextWriter(stringWriter, indentString)) {
+            indentedTextWriter.WriteLine("using Buckle.CodeAnalysis.Syntax.InternalSyntax;");
             indentedTextWriter.WriteLine();
             indentedTextWriter.WriteLine("namespace Buckle.CodeAnalysis.Syntax;");
             indentedTextWriter.WriteLine();
@@ -53,11 +55,6 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
             using (var classCurly = new CurlyIndenter(writer, $"public abstract class {typeName} : {baseName}")) {
                 writer.WriteLine($"internal {typeName}(SyntaxNode parent, GreenNode green, int position)");
                 writer.WriteLine($"{indentString}: base(parent, green, position) {{ }}");
-                writer.WriteLine();
-                writer.WriteLine(
-                    $"internal {typeName}(SyntaxNode parent, GreenNode green, int position, Diagnostic[] diagnostics)"
-                );
-                writer.WriteLine($"{indentString}: base(parent, green, position, diagnostics) {{ }}");
                 writer.WriteLine();
 
                 var fields = DeserializeFields(abstractNode);
@@ -205,23 +202,27 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
 
         string GenerateParameter(string name, string type) {
             if (type.StartsWith("SyntaxList"))
-                return $"{name}.node.ToGreenList<{type.Substring(11, type.Length - 12)}>()";
+                return $"{name}.node.ToGreenList<Syntax.InternalSyntax.{type.Substring(11, type.Length - 12)}>()";
             else if (type.StartsWith("SeparatedSyntaxList"))
-                return $"{name}.node.ToGreenSeparatedList<{type.Substring(19, type.Length - 20)}>()";
+                return $"{name}.node.ToGreenSeparatedList<Syntax.InternalSyntax.{type.Substring(20, type.Length - 21)}>()";
             else if (!knownTypes.Contains(type) || type == "SyntaxToken")
-                return $"({type}){name}.node";
+                return $"(Syntax.InternalSyntax.{type}){name}.node";
             else
-                return $"({type}){name}.green";
+                return $"(Syntax.InternalSyntax.{type}){name}.green";
+        }
+
+        string GenerateArgument(string name, string type) {
+            return $"{type} {name}";
         }
 
         for (int i = 0; i < fields.Count; i++) {
             var field = fields[i];
             allParameters += GenerateParameter(field.name, field.type);
-            allArguments += $"{field.type} {field.name}";
+            allArguments += GenerateArgument(field.name, field.type);
 
             if (!field.isOptional) {
                 requiredParameters += GenerateParameter(field.name, field.type);
-                requiredArguments += $"{field.type} {field.name}";
+                requiredArguments += GenerateArgument(field.name, field.type);
             } else {
                 requiredParameters += "null";
             }
@@ -240,11 +241,18 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
             requiredArguments = requiredArguments.Substring(0, requiredArguments.Length - 2);
 
         writer.WriteLine($"internal static {typeName} {ShortName(typeName)}({allArguments})");
-        writer.WriteLine($"{indentString}=> new {typeName}({allParameters});");
+        writer.WriteLine(
+            $"{indentString}=> ({typeName})Syntax.InternalSyntax.SyntaxFactory." +
+            $"{ShortName(typeName)}({allParameters}).CreateRed();"
+        );
 
         if (allArguments != requiredArguments) {
+            writer.WriteLine();
             writer.WriteLine($"internal static {typeName} {ShortName(typeName)}({requiredArguments})");
-            writer.WriteLine($"{indentString}=> new {typeName}({requiredParameters});");
+            writer.WriteLine(
+                $"{indentString}=> ({typeName})Syntax.InternalSyntax.SyntaxFactory." +
+                $"{ShortName(typeName)}({requiredParameters}).CreateRed();"
+            );
         }
     }
 }

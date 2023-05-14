@@ -1,7 +1,7 @@
 using System;
 using System.CodeDom.Compiler;
 
-namespace Buckle.Generators;
+namespace Buckle.Generators.Utilities;
 
 /// <summary>
 /// Keeps track of a new curly brace enclosed scope.

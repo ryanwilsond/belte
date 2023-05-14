@@ -2,7 +2,7 @@ using System;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
-internal class SyntaxListBuilder {
+internal sealed class SyntaxListBuilder {
     private ArrayElement<GreenNode?>[] _nodes;
 
     internal SyntaxListBuilder(int size) {

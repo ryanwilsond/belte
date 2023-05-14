@@ -1,7 +1,7 @@
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
-internal readonly struct SyntaxListBuilder<T> where T : GreenNode {
+internal sealed class SyntaxListBuilder<T> where T : GreenNode {
     private readonly SyntaxListBuilder _builder;
 
     public SyntaxListBuilder(int size) : this(new SyntaxListBuilder(size)) { }

@@ -47,4 +47,8 @@ internal static partial class SyntaxFactory {
             Token(token.kind, token.fullWidth, token.text, value, token.GetLeadingTrivia(), token.GetTrailingTrivia())
         );
     }
+
+    internal static SyntaxList<T> List<T>() where T : BelteSyntaxNode {
+        return new SyntaxList<T>(null);
+    }
 }

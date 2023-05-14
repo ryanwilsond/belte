@@ -1,7 +1,8 @@
+using System;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
-internal readonly struct SeparatedSyntaxList<T> where T : GreenNode {
+internal sealed class SeparatedSyntaxList<T> : IEquatable<SeparatedSyntaxList<T>> where T : GreenNode {
     private readonly SyntaxList<GreenNode> _list;
 
     internal SeparatedSyntaxList(SyntaxList<GreenNode> list) {
@@ -22,6 +23,26 @@ internal readonly struct SeparatedSyntaxList<T> where T : GreenNode {
 
     public SyntaxList<GreenNode> GetWithSeparators() {
         return _list;
+    }
+
+    public static bool operator ==(in SeparatedSyntaxList<T> left, in SeparatedSyntaxList<T> right) {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(in SeparatedSyntaxList<T> left, in SeparatedSyntaxList<T> right) {
+        return !left.Equals(right);
+    }
+
+    public bool Equals(SeparatedSyntaxList<T> other) {
+        return _list == other._list;
+    }
+
+    public override bool Equals(object? obj) {
+        return (obj is SeparatedSyntaxList<T>) && Equals((SeparatedSyntaxList<T>)obj);
+    }
+
+    public override int GetHashCode() {
+        return _list.GetHashCode();
     }
 
     public static implicit operator SeparatedSyntaxList<GreenNode>(SeparatedSyntaxList<T> list) {

@@ -505,7 +505,7 @@ internal sealed class Parser {
     }
 
     private SyntaxList<MemberSyntax> ParseMembers(bool isGlobal = false) {
-        var members = new SyntaxListBuilder<MemberSyntax>();
+        var members = SyntaxListBuilder<MemberSyntax>.Create();
 
         while (currentToken.kind != SyntaxKind.EndOfFileToken) {
             if (!isGlobal && currentToken.kind == SyntaxKind.CloseBraceToken)
@@ -595,7 +595,7 @@ internal sealed class Parser {
     }
 
     private SeparatedSyntaxList<ParameterSyntax> ParseParameterList() {
-        var nodesAndSeparators = new SyntaxListBuilder<BelteSyntaxNode>();
+        var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
         var parseNextParameter = true;
 
         while (parseNextParameter &&
@@ -631,7 +631,7 @@ internal sealed class Parser {
     }
 
     private SyntaxList<MemberSyntax> ParseFieldList() {
-        var fieldDeclarations = new SyntaxListBuilder<MemberSyntax>();
+        var fieldDeclarations = SyntaxListBuilder<MemberSyntax>.Create();
 
         while (currentToken.kind != SyntaxKind.CloseBraceToken && currentToken.kind != SyntaxKind.EndOfFileToken) {
             var field = ParseFieldDeclaration();
@@ -880,7 +880,7 @@ internal sealed class Parser {
     }
 
     private StatementSyntax ParseBlockStatement() {
-        var statements = new SyntaxListBuilder<StatementSyntax>();
+        var statements = SyntaxListBuilder<StatementSyntax>.Create();
         var openBrace = Match(SyntaxKind.OpenBraceToken);
         var startToken = currentToken;
 
@@ -1084,7 +1084,7 @@ internal sealed class Parser {
 
     private ExpressionSyntax ParseInitializerListExpression() {
         var left = Match(SyntaxKind.OpenBraceToken);
-        var nodesAndSeparators = new SyntaxListBuilder<BelteSyntaxNode>();
+        var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
         var parseNextItem = true;
 
         while (parseNextItem &&
@@ -1170,7 +1170,7 @@ internal sealed class Parser {
     }
 
     private SeparatedSyntaxList<ArgumentSyntax> ParseArguments() {
-        var nodesAndSeparators = new SyntaxListBuilder<BelteSyntaxNode>();
+        var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
         var parseNextArgument = true;
 
         if (currentToken.kind != SyntaxKind.CloseParenToken) {
@@ -1219,7 +1219,7 @@ internal sealed class Parser {
     }
 
     private SyntaxList<AttributeSyntax> ParseAttributes() {
-        var attributes = new SyntaxListBuilder<AttributeSyntax>();
+        var attributes = SyntaxListBuilder<AttributeSyntax>.Create();
 
         while (currentToken.kind == SyntaxKind.OpenBracketToken)
             attributes.Add(ParseAttribute());
@@ -1284,16 +1284,15 @@ internal sealed class Parser {
         if (hasTypeName)
             typeName = Match(SyntaxKind.IdentifierToken);
 
-        var brackets = new SyntaxListBuilder<SyntaxList.WithTwoChildren>();
+        var rankSpecifiers = SyntaxListBuilder<ArrayRankSpecifierSyntax>.Create();
 
         while (currentToken.kind == SyntaxKind.OpenBracketToken) {
-            var openBracket = EatToken();
-            var closeBracket = Match(SyntaxKind.CloseBracketToken);
-            brackets.Add(new SyntaxList.WithTwoChildren(openBracket, closeBracket));
+            var arrayRankSpecifier = ParseArrayRankSpecifierSyntax();
+            rankSpecifiers.Add(arrayRankSpecifier);
         }
 
         return SyntaxFactory.Type(
-            attributes, constRefKeyword, refKeyword, constKeyword, varKeyword, typeName, brackets.ToList()
+            attributes, constRefKeyword, refKeyword, constKeyword, varKeyword, typeName, rankSpecifiers.ToList()
         );
     }
 
@@ -1316,5 +1315,11 @@ internal sealed class Parser {
     private ExpressionSyntax ParseStringLiteral() {
         var stringToken = Match(SyntaxKind.StringLiteralToken);
         return SyntaxFactory.Literal(stringToken);
+    }
+
+    private ArrayRankSpecifierSyntax ParseArrayRankSpecifierSyntax() {
+        var openBracket = Match(SyntaxKind.OpenBracketToken);
+        var closeBracket = Match(SyntaxKind.CloseBracketToken);
+        return SyntaxFactory.ArrayRankSpecifier(openBracket, closeBracket);
     }
 }

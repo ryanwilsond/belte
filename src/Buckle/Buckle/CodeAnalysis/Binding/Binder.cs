@@ -657,7 +657,7 @@ internal sealed class Binder {
         var isConstant = type.constKeyword != null;
         var isVariable = type.varKeyword != null;
         var isImplicit = type.typeName == null;
-        var dimensions = type.brackets.Length;
+        var dimensions = type.brackets.Count;
 
         if (isImplicit && isReference) {
             diagnostics.Push(Error.ImpliedReference(type.refKeyword.location, isConstant));
@@ -666,8 +666,8 @@ internal sealed class Binder {
 
         if (isImplicit && dimensions > 0) {
             var span = TextSpan.FromBounds(
-                type.brackets.First().openBracket.location.span.start,
-                type.brackets.Last().closeBracket.location.span.end
+                type.brackets.First().GetNodeSlot(0).location.span.start,
+                type.brackets.Last().GetNodeSlot(1).location.span.end
             );
 
             var location = new TextLocation(type.location.text, span);

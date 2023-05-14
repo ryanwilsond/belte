@@ -158,6 +158,7 @@ public enum SyntaxKind {
     ClassDeclaration,
     FieldDeclaration,
     Type,
+    ArrayRankSpecifier,
     Parameter,
     MethodDeclaration,
 

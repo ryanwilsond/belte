@@ -18,7 +18,7 @@ FLAGS:=-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p
 
 all: prebuild build postbuild
 portable: prebuild portablebuild postbuild
-debug: prebuild debugbuild postbuild
+debug: prebuild debugbuild postbuilddebug
 
 # Tests the solution
 .PHONY: test
@@ -53,6 +53,10 @@ prebuild:
 
 postbuild:
 	@mv bin/release/Belte.exe bin/release/buckle.exe
+	@echo "    Finished"
+
+postbuilddebug:
+	@mv bin/debug/Belte.exe bin/debug/buckle.exe
 	@echo "    Finished"
 
 build:

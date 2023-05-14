@@ -67,4 +67,12 @@ public sealed partial class SyntaxList<T> : IReadOnlyList<T> where T : SyntaxNod
 
         return new EmptyEnumerator<T>();
     }
+
+    public static implicit operator SyntaxList<SyntaxNode>(SyntaxList<T> nodes) {
+        return new SyntaxList<SyntaxNode>(nodes.node);
+    }
+
+    public static explicit operator SyntaxList<T>(SyntaxList<SyntaxNode> nodes) {
+        return new SyntaxList<T>(nodes.node);
+    }
 }
