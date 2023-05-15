@@ -661,7 +661,7 @@ internal sealed class Binder {
         var isConstant = type.constKeyword != null;
         var isVariable = type.varKeyword != null;
         var isImplicit = type.typeName == null;
-        var dimensions = type.brackets.Count;
+        var dimensions = type.rankSpecifiers.Count;
 
         if (isImplicit && isReference) {
             diagnostics.Push(Error.ImpliedReference(type.refKeyword.location, isConstant));
@@ -670,8 +670,8 @@ internal sealed class Binder {
 
         if (isImplicit && dimensions > 0) {
             var span = TextSpan.FromBounds(
-                type.brackets.First().GetNodeSlot(0).location.span.start,
-                type.brackets.Last().GetNodeSlot(1).location.span.end
+                type.rankSpecifiers.First().openBracket.location.span.start,
+                type.rankSpecifiers.Last().closeBracket.location.span.end
             );
 
             var location = new TextLocation(type.location.text, span);
@@ -947,8 +947,14 @@ internal sealed class Binder {
         foreach (var statementSyntax in statement.statements) {
             if (statementSyntax is LocalFunctionStatementSyntax fd) {
                 var declaration = SyntaxFactory.MethodDeclaration(
-                    fd.returnType, fd.identifier, fd.openParenthesis,
-                    fd.parameters, fd.closeParenthesis, fd.body
+                    fd.returnType,
+                    fd.identifier,
+                    fd.openParenthesis,
+                    fd.parameters,
+                    fd.closeParenthesis,
+                    fd.body,
+                    fd.parent,
+                    fd.position
                 );
 
                 BindAndDeclareMethodDeclaration(declaration);
@@ -1355,7 +1361,7 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindCallExpression(CallExpressionSyntax expression) {
-        var name = expression.identifier.identifier.text;
+        var name = ((NameExpressionSyntax)expression.operand).identifier.text;
         var typeSymbol = _scope.LookupSymbol<TypeSymbol>(name);
 
         if (typeSymbol != null)
@@ -1368,7 +1374,7 @@ internal sealed class Binder {
         var methods = _scope.LookupOverloads<Symbol>(name, innerName);
 
         if (methods == null || methods.Length == 0) {
-            diagnostics.Push(Error.UndefinedMethod(expression.identifier.location, name));
+            diagnostics.Push(Error.UndefinedMethod(((NameExpressionSyntax)expression.operand).location, name));
             return new BoundErrorExpression();
         }
 

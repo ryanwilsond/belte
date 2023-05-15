@@ -66,11 +66,6 @@ internal sealed class Parser {
             if (_currentToken == null)
                 _currentToken = FetchCurrentToken();
 
-            if (_futureDiagnostics.Count > 0) {
-                _currentToken = WithAdditionalDiagnostics(_currentToken, _futureDiagnostics.ToArray());
-                _futureDiagnostics.Clear();
-            }
-
             return _currentToken;
         }
     }
@@ -146,6 +141,19 @@ internal sealed class Parser {
 
     private T AddDiagnostic<T>(T node, Diagnostic diagnostic, int offset, int width) where T : BelteSyntaxNode {
         return WithAdditionalDiagnostics(node, new SyntaxDiagnostic(diagnostic, offset, width));
+    }
+
+    private T WithFutureDiagnostics<T>(T node) where T : BelteSyntaxNode {
+        if (_futureDiagnostics.Count == 0)
+            return node;
+
+        var diagnostics = new SyntaxDiagnostic[_futureDiagnostics.Count];
+
+        for (int i = 0; i < _futureDiagnostics.Count; i++)
+            diagnostics[i] = new SyntaxDiagnostic(_futureDiagnostics[i], node.GetLeadingTriviaWidth(), node.width);
+
+        _futureDiagnostics.Clear();
+        return WithAdditionalDiagnostics(node, diagnostics);
     }
 
     private T WithAdditionalDiagnostics<T>(T node, params Diagnostic[] diagnostics) where T : BelteSyntaxNode {
@@ -287,8 +295,12 @@ internal sealed class Parser {
         return saved;
     }
 
-    private SyntaxToken EatToken() {
+    private SyntaxToken EatToken(bool stallDiagnostics = false) {
         var saved = currentToken;
+
+        if (!stallDiagnostics)
+            saved = WithFutureDiagnostics(saved);
+
         MoveToNextToken();
         return saved;
     }
@@ -359,7 +371,7 @@ internal sealed class Parser {
 
         if (nextWanted != null && currentToken.kind == nextWanted) {
             return AddDiagnostic(
-                SyntaxFactory.Missing(kind),
+                WithFutureDiagnostics(SyntaxFactory.Missing(kind)),
                 Error.ExpectedToken(kind),
                 currentToken.GetLeadingTriviaWidth(),
                 currentToken.width
@@ -367,22 +379,19 @@ internal sealed class Parser {
         }
 
         if (Peek(1).kind != kind) {
-            var token = AddDiagnostic(
-                SyntaxFactory.Missing(kind),
+            return AddDiagnostic(
+                AddLeadingSkippedSyntax(SyntaxFactory.Missing(kind), EatToken()),
                 Error.UnexpectedToken(currentToken.kind, kind),
                 currentToken.GetLeadingTriviaWidth(),
                 currentToken.width
             );
-
-            EatToken();
-            return token;
         }
 
         var currentKind = currentToken.kind;
-        var unexpected = EatToken();
+        var unexpected = EatToken(stallDiagnostics: true);
 
         return AddDiagnostic(
-            AddLeadingSkippedSyntax(EatToken(), unexpected),
+            WithFutureDiagnostics(AddLeadingSkippedSyntax(EatToken(), unexpected)),
             Error.UnexpectedToken(currentKind),
             unexpected.GetLeadingTriviaWidth(),
             unexpected.width
@@ -834,38 +843,39 @@ internal sealed class Parser {
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
         var condition = ParseNonAssignmentExpression();
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
-        var statement = ParseStatement();
+        var then = ParseStatement();
 
         // Not allow nested if statements with else clause without braces; prevents ambiguous else statements
         // * See BU0023
         var nestedIf = false;
-        var inter = statement;
+        var inner = then;
         var offset = 0;
 
-        while (inter.kind == SyntaxKind.IfStatement) {
+        while (inner.kind == SyntaxKind.IfStatement) {
             nestedIf = true;
-            var interIf = (IfStatementSyntax)inter;
+            var innerIf = (IfStatementSyntax)inner;
+            offset += innerIf.GetSlotOffset(4);
 
-            if (interIf.elseClause != null && interIf.then.kind != SyntaxKind.BlockStatement) {
-                keyword = AddDiagnostic(
-                    keyword,
+            if (innerIf.elseClause != null && innerIf.then.kind != SyntaxKind.BlockStatement) {
+                var elseOffset = offset + innerIf.then.fullWidth + innerIf.elseClause.GetLeadingTriviaWidth();
+
+                then = AddDiagnostic(
+                    then,
                     Error.AmbiguousElse(),
-                    interIf.GetSlotOffset(5) + interIf.elseClause.keyword.GetLeadingTriviaWidth(),
-                    interIf.elseClause.keyword.width
+                    elseOffset,
+                    innerIf.elseClause.keyword.width
                 );
             }
 
-            if (interIf.then.kind == SyntaxKind.IfStatement) {
-                offset += interIf.GetSlotOffset(4);
-                inter = interIf.then;
-            } else {
+            if (innerIf.then.kind == SyntaxKind.IfStatement)
+                inner = innerIf.then;
+            else
                 break;
-            }
         }
 
         var elseClause = ParseElseClause();
 
-        if (elseClause != null && statement.kind != SyntaxKind.BlockStatement && nestedIf) {
+        if (elseClause != null && then.kind != SyntaxKind.BlockStatement && nestedIf) {
             elseClause = AddDiagnostic(
                 elseClause,
                 Error.AmbiguousElse(),
@@ -874,7 +884,7 @@ internal sealed class Parser {
             );
         }
 
-        return SyntaxFactory.IfStatement(keyword, openParenthesis, condition, closeParenthesis, statement, elseClause);
+        return SyntaxFactory.IfStatement(keyword, openParenthesis, condition, closeParenthesis, then, elseClause);
     }
 
     private ElseClauseSyntax ParseElseClause() {
@@ -888,10 +898,12 @@ internal sealed class Parser {
     }
 
     private StatementSyntax ParseExpressionStatement() {
+        var diagnosticCount = currentToken.GetDiagnostics().Length;
         var expression = ParseExpression(allowEmpty: true);
+        var nextDiagnosticCount = currentToken.GetDiagnostics().Length;
         var semicolon = Match(SyntaxKind.SemicolonToken);
 
-        if (expression.containsDiagnostics && semicolon.containsDiagnostics) {
+        if (nextDiagnosticCount > diagnosticCount && semicolon.containsDiagnostics) {
             var diagnostics = semicolon.GetDiagnostics();
             semicolon = semicolon.WithDiagnosticsGreen(diagnostics.SkipLast(1).ToArray());
         }
@@ -1062,7 +1074,7 @@ internal sealed class Parser {
             return operand;
         }
 
-        left = left ?? ParsePrimaryExpressionInternal();
+        left ??= ParsePrimaryExpressionInternal();
 
         while (true) {
             var startToken = currentToken;
@@ -1165,29 +1177,26 @@ internal sealed class Parser {
     }
 
     private ExpressionSyntax ParseNameExpression() {
-        // TODO
-        // var identifier = SyntaxFactory.Token(SyntaxKind.IdentifierToken);
+        var identifier = SyntaxFactory.Missing(SyntaxKind.IdentifierToken);
 
-        // if (currentToken.kind == SyntaxKind.IdentifierToken)
-        //     identifier = EatToken();
-        // else
-        //     AddDiagnosticToNextToken(Error.ExpectedToken("expression"));
-        var identifier = Match(SyntaxKind.IdentifierToken);
+        if (currentToken.kind == SyntaxKind.IdentifierToken)
+            identifier = EatToken();
+        else
+            _currentToken = AddDiagnostic(currentToken, Error.ExpectedToken("expression"));
 
         return SyntaxFactory.NameExpression(identifier);
     }
 
     private ExpressionSyntax ParseCallExpression(ExpressionSyntax operand) {
+        // This is a temporary check because currently it is impossible for any other expression to be of type Func<>
         if (operand.kind != SyntaxKind.NameExpression)
-            return AddDiagnostic(operand, Error.ExpectedMethodName());
+            operand = AddDiagnostic(operand, Error.ExpectedMethodName());
 
         var openParenthesis = EatToken();
         var arguments = ParseArguments();
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
 
-        return SyntaxFactory.CallExpression(
-            (NameExpressionSyntax)operand, openParenthesis, arguments, closeParenthesis
-        );
+        return SyntaxFactory.CallExpression(operand, openParenthesis, arguments, closeParenthesis);
     }
 
     private SeparatedSyntaxList<ArgumentSyntax> ParseArguments() {

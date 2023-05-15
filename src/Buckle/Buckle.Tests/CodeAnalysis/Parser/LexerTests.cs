@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
 using Xunit;
 
 namespace Buckle.Tests.CodeAnalysis.Syntax.InternalSyntax;
@@ -13,15 +14,15 @@ public sealed class LexerTests {
     [Fact]
     public void Lexer_Lexes_UnterminatedString() {
         const string text = "\"test";
-        var tokens = SyntaxTreeExtensions.ParseTokens(text, out var diagnostics);
+        var tokens = SyntaxTreeExtensions.ParseTokens(text);
         Assert.Equal(1, tokens.count);
         var token = tokens[0];
         Assert.Equal(SyntaxKind.StringLiteralToken, token.kind);
         Assert.Equal(text, token.text);
-        Assert.Equal(1, diagnostics.count);
-        var diagnostic = diagnostics.Pop();
-        Assert.Equal(0, diagnostic.location.span.start);
-        Assert.Equal(1, diagnostic.location.span.length);
+        Assert.True(token.containsDiagnostics);
+        var diagnostic = (SyntaxDiagnostic)token.GetDiagnostics().First();
+        Assert.Equal(0, diagnostic.offset);
+        Assert.Equal(1, diagnostic.width);
         Assert.Equal("unterminated string literal", diagnostic.message);
     }
 

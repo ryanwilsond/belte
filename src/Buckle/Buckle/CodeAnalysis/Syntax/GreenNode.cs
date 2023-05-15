@@ -26,7 +26,7 @@ internal abstract partial class GreenNode {
     internal GreenNode(SyntaxKind kind, Diagnostic[] diagnostics) {
         this.kind = kind;
 
-        if (diagnostics.Length > 0) {
+        if (diagnostics?.Length > 0) {
             flags |= NodeFlags.ContainsDiagnostics;
             _diagnosticsTable.Add(this, diagnostics);
         }
@@ -44,7 +44,7 @@ internal abstract partial class GreenNode {
         this.kind = kind;
         this.fullWidth = fullWidth;
 
-        if (diagnostics.Length > 0) {
+        if (diagnostics?.Length > 0) {
             flags |= NodeFlags.ContainsDiagnostics;
             _diagnosticsTable.Add(this, diagnostics);
         }
@@ -180,7 +180,7 @@ internal abstract partial class GreenNode {
             var child = GetSlot(i);
 
             if (child != null)
-                offset = child.fullWidth;
+                offset += child.fullWidth;
         }
 
         return offset;

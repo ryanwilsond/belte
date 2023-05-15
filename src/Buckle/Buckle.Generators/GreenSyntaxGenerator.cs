@@ -37,6 +37,8 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
             GenerateSyntaxVisitor(indentedTextWriter);
             indentedTextWriter.WriteLine();
             GenerateSyntaxRewriter(indentedTextWriter);
+            indentedTextWriter.WriteLine();
+            GenerateFactory(indentedTextWriter);
 
             indentedTextWriter.Flush();
             stringWriter.Flush();
@@ -136,11 +138,6 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
                 writer.WriteLine();
                 GenerateSetDiagnosticsMethod(writer, fields, typeName);
             }
-
-            writer.WriteLine();
-
-            using (var classCurly = new CurlyIndenter(writer, $"internal static partial class SyntaxFactory"))
-                GenerateFactoryMethod(writer, fields, typeName);
 
             writer.WriteLine();
         }
@@ -290,52 +287,6 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
         writer.WriteLine($"{indentString}=> new {typeName}({parameters}diagnostics);");
     }
 
-    private void GenerateFactoryMethod(IndentedTextWriter writer, FieldList fields, string typeName) {
-        var allArguments = "";
-        var requiredArguments = "";
-        var allParameters = "";
-        var requiredParameters = "";
-
-        for (int i = 0; i < fields.Count; i++) {
-            var field = fields[i];
-            allParameters += field.name;
-            allArguments += $"{field.type} {field.name}";
-
-            if (!field.isOptional) {
-                requiredParameters += field.name;
-                requiredArguments += $"{field.type} {field.name}";
-            } else {
-                requiredParameters += "null";
-            }
-
-            if (!knownTypes.Contains(field.type)) {
-                allParameters += ".node";
-                requiredParameters += ".node";
-            }
-
-            if (i < fields.Count - 1) {
-                allParameters += ", ";
-                allArguments += ", ";
-                requiredParameters += ", ";
-
-                if (!field.isOptional)
-                    requiredArguments += ", ";
-            }
-        }
-
-        if (requiredArguments.EndsWith(", "))
-            requiredArguments = requiredArguments.Substring(0, requiredArguments.Length - 2);
-
-        writer.WriteLine($"internal static {typeName} {ShortName(typeName)}({allArguments})");
-        writer.WriteLine($"{indentString}=> new {typeName}({allParameters});");
-
-        if (allArguments != requiredArguments) {
-            writer.WriteLine();
-            writer.WriteLine($"internal static {typeName} {ShortName(typeName)}({requiredArguments})");
-            writer.WriteLine($"{indentString}=> new {typeName}({requiredParameters});");
-        }
-    }
-
     private void GenerateSyntaxVisitorT(IndentedTextWriter writer) {
         var nodes = syntax.GetElementsByTagName("Node");
 
@@ -407,5 +358,67 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
         }
 
         writer.WriteLine($"{indentString}=> node.Update({parameters});");
+    }
+
+    private void GenerateFactory(IndentedTextWriter writer) {
+        var nodes = syntax.GetElementsByTagName("Node");
+
+        using (var classCurly = new CurlyIndenter(writer, $"internal static partial class SyntaxFactory")) {
+            for (int i = 0; i < nodes.Count; i++) {
+                var node = nodes.Item(i);
+
+                var typeName = node.Attributes["Name"]?.Value;
+                Debug.Assert(typeName != null);
+                var fields = DeserializeFields(node);
+
+                GenerateFactoryMethods(writer, fields, typeName);
+            }
+        }
+    }
+
+    private void GenerateFactoryMethods(IndentedTextWriter writer, FieldList fields, string typeName) {
+        var allArguments = "";
+        var requiredArguments = "";
+        var allParameters = "";
+        var requiredParameters = "";
+
+        for (int i = 0; i < fields.Count; i++) {
+            var field = fields[i];
+            allParameters += field.name;
+            allArguments += $"{field.type} {field.name}";
+
+            if (!field.isOptional) {
+                requiredParameters += field.name;
+                requiredArguments += $"{field.type} {field.name}";
+            } else {
+                requiredParameters += "null";
+            }
+
+            if (!knownTypes.Contains(field.type)) {
+                allParameters += "?.node";
+                requiredParameters += "?.node";
+            }
+
+            if (i < fields.Count - 1) {
+                allParameters += ", ";
+                allArguments += ", ";
+                requiredParameters += ", ";
+
+                if (!field.isOptional)
+                    requiredArguments += ", ";
+            }
+        }
+
+        if (requiredArguments.EndsWith(", "))
+            requiredArguments = requiredArguments.Substring(0, requiredArguments.Length - 2);
+
+        writer.WriteLine($"internal static {typeName} {ShortName(typeName)}({allArguments})");
+        writer.WriteLine($"{indentString}=> new {typeName}({allParameters});");
+
+        if (allArguments != requiredArguments) {
+            writer.WriteLine();
+            writer.WriteLine($"internal static {typeName} {ShortName(typeName)}({requiredArguments})");
+            writer.WriteLine($"{indentString}=> new {typeName}({requiredParameters});");
+        }
     }
 }

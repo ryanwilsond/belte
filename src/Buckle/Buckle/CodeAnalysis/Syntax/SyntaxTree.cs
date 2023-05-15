@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
-using Buckle.CodeAnalysis.Syntax.InternalSyntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 
@@ -19,11 +18,9 @@ public partial class SyntaxTree {
         return new ParsedSyntaxTree(null, root, false);
     }
 
-    internal static SyntaxTree Create(SourceText text, ParseHandler handler) {
-        return new ParsedSyntaxTree(text, handler);
+    internal static SyntaxTree Create(SourceText text) {
+        return new SyntaxTree(text);
     }
-
-    internal delegate void ParseHandler(SyntaxTree syntaxTree, out CompilationUnitSyntax root);
 
     public virtual BelteSyntaxNode GetRoot() => null;
 
@@ -52,6 +49,10 @@ public partial class SyntaxTree {
         var sourceText = SourceText.From(text);
 
         return Parse(sourceText);
+    }
+
+    public override string ToString() {
+        return text.ToString();
     }
 
     /// <summary>

@@ -1,7 +1,6 @@
 using System;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax;
 

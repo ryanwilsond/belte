@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -35,7 +34,7 @@ internal sealed class OverloadResolution {
         CallExpressionSyntax expression) {
         var minScore = int.MaxValue;
         var possibleOverloads = new List<MethodSymbol>();
-        var name = expression.identifier.identifier.text;
+        var name = ((NameExpressionSyntax)expression.operand).identifier.text;
 
         var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
         var preBoundArgumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
@@ -50,9 +49,11 @@ internal sealed class OverloadResolution {
             var isInner = symbol.name.Contains(">g__");
 
             if (symbol is not MethodSymbol method) {
-                _binder.diagnostics.Push(Error.CannotCallNonMethod(expression.identifier.location, name));
+                _binder.diagnostics.Push(
+                    Error.CannotCallNonMethod(((NameExpressionSyntax)expression.operand).location, name)
+                );
+
                 return OverloadResolutionResult.Failed();
-                ;
             }
 
             var defaultParameterCount = method.parameters.Where(p => p.defaultValue != null).ToArray().Length;
@@ -236,7 +237,7 @@ internal sealed class OverloadResolution {
         }
 
         if (methods.Length > 1 && possibleOverloads.Count == 0) {
-            _binder.diagnostics.Push(Error.NoOverload(expression.identifier.location, name));
+            _binder.diagnostics.Push(Error.NoOverload(((NameExpressionSyntax)expression.operand).location, name));
 
             return OverloadResolutionResult.Failed();
             ;
@@ -250,7 +251,9 @@ internal sealed class OverloadResolution {
                 possibleOverloads.Add(BuiltinMethods.ValueAny);
             } else {
                 _binder.diagnostics.Push(
-                    Error.AmbiguousOverload(expression.identifier.location, possibleOverloads.ToArray())
+                    Error.AmbiguousOverload(
+                        ((NameExpressionSyntax)expression.operand).location, possibleOverloads.ToArray()
+                    )
                 );
 
                 return OverloadResolutionResult.Failed();

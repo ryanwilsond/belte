@@ -11,11 +11,17 @@ internal sealed class SyntaxTrivia : BelteSyntaxNode {
     /// <param name="text">Text associated with the trivia.</param>
     internal SyntaxTrivia(SyntaxKind kind, string text) : base(kind, text.Length) {
         this.text = text;
+
+        if (kind == SyntaxKind.SkippedTokenTrivia)
+            flags |= NodeFlags.ContainsSkippedText;
     }
 
     internal SyntaxTrivia(SyntaxKind kind, string text, Diagnostic[] diagnostics)
         : base(kind, text.Length, diagnostics) {
         this.text = text;
+
+        if (kind == SyntaxKind.SkippedTokenTrivia)
+            flags |= NodeFlags.ContainsSkippedText;
     }
 
     /// <summary>

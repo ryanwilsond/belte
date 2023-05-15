@@ -716,12 +716,14 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_CallExpression_ExpectedMethodName() {
         var text = @"
-            Print(num ** [2] ([]
+            Print(num ** [2] ([][][]
         ";
 
         var diagnostics = @"
             expected method name
             expected ')' at end of input
+            expected ')' at end of input
+            expected ';' at end of input
         ";
 
         AssertDiagnostics(text, diagnostics, writer);

@@ -22,5 +22,13 @@ internal partial class SyntaxToken : BelteSyntaxNode {
         internal override GreenNode SetDiagnostics(Diagnostic[] diagnostics) {
             return new MissingToken(kind, _leading, _trailing, diagnostics);
         }
+
+        internal override SyntaxToken TokenWithLeadingTrivia(GreenNode trivia) {
+            return new MissingToken(kind, GetLeadingTrivia(), trivia, GetDiagnostics());
+        }
+
+        internal override SyntaxToken TokenWithTrailingTrivia(GreenNode trivia) {
+            return new MissingToken(kind, trivia, GetTrailingTrivia(), GetDiagnostics());
+        }
     }
 }

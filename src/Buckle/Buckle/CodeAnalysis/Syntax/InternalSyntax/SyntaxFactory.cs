@@ -8,7 +8,7 @@ internal static partial class SyntaxFactory {
     }
 
     internal static SyntaxTrivia Skipped(SyntaxToken token) {
-        return new SyntaxTrivia(SyntaxKind.SkippedTokenTrivia, token.text);
+        return new SyntaxTrivia(SyntaxKind.SkippedTokenTrivia, token.text, token.GetDiagnostics());
     }
 
     internal static SyntaxToken Token(
@@ -30,6 +30,10 @@ internal static partial class SyntaxFactory {
 
     internal static SyntaxTrivia Trivia(SyntaxKind kind, string text) {
         return new SyntaxTrivia(kind, text);
+    }
+
+    internal static SyntaxTrivia Trivia(SyntaxKind kind, string text, Diagnostic[] diagnostics) {
+        return new SyntaxTrivia(kind, text, diagnostics);
     }
 
     internal static SyntaxToken Token(SyntaxKind kind) {

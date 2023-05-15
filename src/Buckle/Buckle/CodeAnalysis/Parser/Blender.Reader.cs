@@ -106,6 +106,9 @@ internal sealed partial class Blender {
             if (nodeOrToken.fullWidth == 0)
                 return false;
 
+            if (nodeOrToken.kind == SyntaxKind.None || nodeOrToken.kind == SyntaxKind.BadToken)
+                return false;
+
             if (IntersectsNextChange(nodeOrToken))
                 return false;
 

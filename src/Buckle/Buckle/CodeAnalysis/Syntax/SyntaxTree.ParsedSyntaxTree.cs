@@ -10,11 +10,6 @@ public partial class SyntaxTree {
             _root = cloneRoot ? CloneNodeAsRoot(root) : root;
         }
 
-        internal ParsedSyntaxTree(SourceText text, ParseHandler handler) : base(text) {
-            handler(this, out var root);
-            _root = root;
-        }
-
         protected override int length => _root?.fullSpan?.length ?? base.length;
 
         public override BelteSyntaxNode GetRoot() => _root;

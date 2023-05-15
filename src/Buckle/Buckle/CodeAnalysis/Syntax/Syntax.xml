@@ -67,7 +67,7 @@
     <Field Name="constKeyword" Type="SyntaxToken" Optional="True"/>
     <Field Name="varKeyword" Type="SyntaxToken" Optional="True"/>
     <Field Name="typeName" Type="SyntaxToken" Optional="True"/>
-    <Field Name="brackets" Type="SyntaxList&lt;ArrayRankSpecifierSyntax&gt;"/>
+    <Field Name="rankSpecifiers" Type="SyntaxList&lt;ArrayRankSpecifierSyntax&gt;"/>
   </Node>
   <!-- Members -->
   <Node Name="ClassDeclarationSyntax" Base="TypeDeclarationSyntax">
@@ -118,7 +118,7 @@
   </Node>
   <Node Name="CallExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="CallExpression"/>
-    <Field Name="identifier" Type="NameExpressionSyntax"/>
+    <Field Name="operand" Type="ExpressionSyntax"/>
     <Field Name="openParenthesis" Type="SyntaxToken" Optional="True"/>
     <Field Name="arguments" Type="SeparatedSyntaxList&lt;ArgumentSyntax&gt;"/>
     <Field Name="closeParenthesis" Type="SyntaxToken" Optional="True"/>
@@ -266,7 +266,7 @@
   <Node Name="ReturnStatementSyntax" Base="StatementSyntax">
     <Kind Name="ReturnStatement"/>
     <Field Name="keyword" Type="SyntaxToken"/>
-    <Field Name="expression" Type="ExpressionSyntax"/>
+    <Field Name="expression" Type="ExpressionSyntax" Optional="True"/>
     <Field Name="semicolon" Type="SyntaxToken"/>
   </Node>
   <Node Name="TryStatementSyntax" Base="StatementSyntax">

@@ -233,7 +233,7 @@ internal static class Error {
     /// BU0023. Run `buckle --explain BU0023` on the command line for more info.
     /// </summary>
     internal static Diagnostic AmbiguousElse() {
-        var message = "ambiguous what if-statement this else-clause belongs to; use curly braces";
+        var message = "ambiguous which if-statement this else-clause belongs to; use curly braces";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_AmbiguousElse), message);
     }
 

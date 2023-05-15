@@ -200,15 +200,11 @@ internal partial class SyntaxToken : BelteSyntaxNode {
         visitor.VisitToken(this);
     }
 
-    internal SyntaxToken TokenWithLeadingTrivia(GreenNode trivia) {
-        var token = new SyntaxToken(kind, text, value, trivia, GetTrailingTrivia());
-        token.flags |= flags;
-        return token;
+    internal virtual SyntaxToken TokenWithLeadingTrivia(GreenNode trivia) {
+        return new SyntaxToken(kind, text, value, trivia, GetTrailingTrivia(), GetDiagnostics());
     }
 
-    internal SyntaxToken TokenWithTrailingTrivia(GreenNode trivia) {
-        var token = new SyntaxToken(kind, text, value, GetLeadingTrivia(), trivia);
-        token.flags |= flags;
-        return token;
+    internal virtual SyntaxToken TokenWithTrailingTrivia(GreenNode trivia) {
+        return new SyntaxToken(kind, text, value, GetLeadingTrivia(), trivia, GetDiagnostics());
     }
 }

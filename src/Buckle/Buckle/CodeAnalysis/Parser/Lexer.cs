@@ -68,19 +68,14 @@ internal sealed class Lexer {
                 var leadingTrivia = new SyntaxListBuilder(token.leadingTrivia.count + 10);
 
                 foreach (var badToken in badTokens) {
-                    foreach (var lt in badToken.leadingTrivia)
-                        leadingTrivia.Add(lt);
-
-                    var trivia = SyntaxFactory.Skipped(badToken.text);
+                    leadingTrivia.AddRange(badToken.leadingTrivia);
+                    var trivia = SyntaxFactory.Skipped(badToken);
                     leadingTrivia.Add(trivia);
-
-                    foreach (var tt in badToken.trailingTrivia)
-                        leadingTrivia.Add(tt);
+                    leadingTrivia.AddRange(badToken.trailingTrivia);
                 }
 
                 leadingTrivia.AddRange(token.leadingTrivia);
                 token = token.TokenWithLeadingTrivia(leadingTrivia.ToListNode());
-                token.SetFlags(GreenNode.NodeFlags.ContainsSkippedText);
             }
 
             break;
@@ -211,7 +206,7 @@ internal sealed class Lexer {
 
             if (length > 0) {
                 var text = _text.ToString(new TextSpan(_start, length));
-                var trivia = SyntaxFactory.Trivia(_kind, text);
+                var trivia = SyntaxFactory.Trivia(_kind, text, GetDiagnostics(0));
                 triviaList.Add(trivia);
             }
         }

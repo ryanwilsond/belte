@@ -31,6 +31,7 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
 
             GenerateAbstractNodes(indentedTextWriter);
             GenerateNodes(indentedTextWriter);
+            GenerateFactory(indentedTextWriter);
 
             indentedTextWriter.Flush();
             stringWriter.Flush();
@@ -95,11 +96,6 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
                 writer.WriteLine();
                 GenerateGetCachedSlotMethod(writer, fields);
             }
-
-            writer.WriteLine();
-
-            using (var classCurly = new CurlyIndenter(writer, $"internal static partial class SyntaxFactory"))
-                GenerateFactoryMethod(writer, fields, typeName);
 
             writer.WriteLine();
         }
@@ -203,7 +199,24 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
         }
     }
 
-    private void GenerateFactoryMethod(IndentedTextWriter writer, FieldList fields, string typeName) {
+    private void GenerateFactory(IndentedTextWriter writer) {
+        var nodes = syntax.GetElementsByTagName("Node");
+
+        using (var classCurly = new CurlyIndenter(writer, $"internal static partial class SyntaxFactory")) {
+            for (int i = 0; i < nodes.Count; i++) {
+                var node = nodes.Item(i);
+
+                var typeName = node.Attributes["Name"]?.Value;
+                Debug.Assert(typeName != null);
+                var fields = DeserializeFields(node);
+
+                GenerateFactoryMethods(writer, fields, typeName);
+                writer.WriteLine();
+            }
+        }
+    }
+
+    private void GenerateFactoryMethods(IndentedTextWriter writer, FieldList fields, string typeName) {
         var allArguments = "";
         var requiredArguments = "";
         var allParameters = "";
@@ -249,19 +262,37 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
         if (requiredArguments.EndsWith(", "))
             requiredArguments = requiredArguments.Substring(0, requiredArguments.Length - 2);
 
-        writer.WriteLine($"internal static {typeName} {ShortName(typeName)}({allArguments})");
-        writer.WriteLine(
-            $"{indentString}=> ({typeName})Syntax.InternalSyntax.SyntaxFactory." +
-            $"{ShortName(typeName)}({allParameters}).CreateRed();"
-        );
+        var fullDeclaration = $"internal static {typeName} {ShortName(typeName)}({allArguments}";
+        var fullBody = $"{indentString}=> ({typeName})Syntax.InternalSyntax.SyntaxFactory." +
+            $"{ShortName(typeName)}({allParameters}).CreateRed(";
+
+        writer.WriteLine($"{fullDeclaration})");
+        writer.WriteLine($"{fullBody});");
+        writer.WriteLine();
+
+        if (allArguments == "")
+            writer.WriteLine($"{fullDeclaration}SyntaxNode parent, int position)");
+        else
+            writer.WriteLine($"{fullDeclaration}, SyntaxNode parent, int position)");
+
+        writer.WriteLine($"{fullBody}parent, position);");
 
         if (allArguments != requiredArguments) {
+            var requiredDeclaration = $"internal static {typeName} {ShortName(typeName)}({requiredArguments}";
+            var requiredBody = $"{indentString}=> ({typeName})Syntax.InternalSyntax.SyntaxFactory." +
+                $"{ShortName(typeName)}({requiredParameters}).CreateRed(";
+
             writer.WriteLine();
-            writer.WriteLine($"internal static {typeName} {ShortName(typeName)}({requiredArguments})");
-            writer.WriteLine(
-                $"{indentString}=> ({typeName})Syntax.InternalSyntax.SyntaxFactory." +
-                $"{ShortName(typeName)}({requiredParameters}).CreateRed();"
-            );
+            writer.WriteLine($"{requiredDeclaration})");
+            writer.WriteLine($"{requiredBody});");
+            writer.WriteLine();
+
+            if (requiredArguments == "")
+                writer.WriteLine($"{requiredDeclaration}SyntaxNode parent, int position)");
+            else
+                writer.WriteLine($"{requiredDeclaration}, SyntaxNode parent, int position)");
+
+            writer.WriteLine($"{requiredBody}parent, position);");
         }
     }
 }
