@@ -18,9 +18,6 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 /// </code>
 /// </summary>
 internal sealed class Lexer {
-    internal char current => Peek(0);
-    internal char lookahead => Peek(1);
-
     private readonly SourceText _text;
     private readonly List<SyntaxDiagnostic> _diagnostics;
     private readonly SyntaxListBuilder _leadingTriviaCache = new SyntaxListBuilder(10);
@@ -47,6 +44,10 @@ internal sealed class Lexer {
     /// not the most recently lexed character.
     /// </summary>
     internal int position => _position;
+
+    private char current => Peek(0);
+
+    private char lookahead => Peek(1);
 
     /// <summary>
     /// Lexes the next un-lexed text to create a single <see cref="SyntaxToken" />.

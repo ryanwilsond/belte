@@ -15,6 +15,11 @@ internal sealed class LargeText : SourceText {
     private readonly int[] _chunkStartOffsets;
     private readonly int _length;
 
+    /// <summary>
+    /// Creates a <see cref="LargeText" /> provided the file name and contents.
+    /// </summary>
+    /// <param name="fileName">File name of the <see cref="LargeText" /> (where the text came from).</param>
+    /// <param name="text">The contents of the file the <see cref="LargeText" /> comes from.</param>
     internal LargeText(ImmutableArray<char[]> chunks) {
         _chunks = chunks;
         _chunkStartOffsets = new int[chunks.Length];

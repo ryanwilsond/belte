@@ -12,6 +12,12 @@ internal sealed partial class ChangedText : SourceText {
     private readonly SourceText _newText;
     private readonly ChangeInfo _info;
 
+    /// <summary>
+    /// Creates a new <see cref="ChangedText" />.
+    /// </summary>
+    /// <param name="oldText">The old <see cref="SourceText" /> that the changes apply to.</param>
+    /// <param name="newText">The new <see cref="SourceText" /> that reflects the given changes to the old text.</param>
+    /// <param name="changeRanges">The changes from the old text to the new text.</param>
     internal ChangedText(SourceText oldText, SourceText newText, ImmutableArray<TextChangeRange> changeRanges) {
         _newText = newText;
         _info = new ChangeInfo(changeRanges, new WeakReference<SourceText>(oldText), (oldText as ChangedText)?._info);

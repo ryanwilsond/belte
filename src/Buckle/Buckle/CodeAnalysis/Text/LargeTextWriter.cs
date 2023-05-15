@@ -14,6 +14,9 @@ internal sealed class LargeTextWriter : SourceTextWriter {
     private char[]? _buffer;
     private int _currentUsed;
 
+    /// <summary>
+    /// Creates a new <see cref="LargeTextWriter" /> with a starting capacity.
+    /// </summary>
     internal LargeTextWriter(int length) {
         _chunks = ArrayBuilder<char[]>.GetInstance(1 + length / LargeText.ChunkSize);
         _bufferSize = Math.Min(LargeText.ChunkSize, length);
@@ -87,6 +90,9 @@ internal sealed class LargeTextWriter : SourceTextWriter {
         return new LargeText(_chunks.ToImmutableAndFree());
     }
 
+    /// <summary>
+    /// Adds a chunk to the end of the text.
+    /// </summary>
     internal void AppendChunk(char[] chunk) {
         if (CanFitInAllocatedBuffer(chunk.Length)) {
             Write(chunk, 0, chunk.Length);
@@ -96,6 +102,9 @@ internal sealed class LargeTextWriter : SourceTextWriter {
         }
     }
 
+    /// <summary>
+    /// If the buffer has enough room for the given number of chars.
+    /// </summary>
     internal bool CanFitInAllocatedBuffer(int chars) {
         return _buffer != null && chars <= (_buffer.Length - _currentUsed);
     }

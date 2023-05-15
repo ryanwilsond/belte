@@ -3,6 +3,9 @@ using System.Collections.Generic;
 
 namespace Buckle.CodeAnalysis;
 
+/// <summary>
+/// An empty enumerator that cannot move.
+/// </summary>
 public class EmptyEnumerator<T> : IEnumerator<T> {
     public T Current => default(T);
 
