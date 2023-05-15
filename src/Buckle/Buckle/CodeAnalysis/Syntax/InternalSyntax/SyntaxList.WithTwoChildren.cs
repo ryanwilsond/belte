@@ -8,7 +8,6 @@ internal partial class SyntaxList {
         private readonly GreenNode _child1;
 
         internal WithTwoChildren(GreenNode child0, GreenNode child1) {
-            slotCount = 2;
             this.AdjustFlagsAndWidth(child0);
             _child0 = child0;
             this.AdjustFlagsAndWidth(child1);
@@ -16,12 +15,13 @@ internal partial class SyntaxList {
         }
 
         internal WithTwoChildren(GreenNode child0, GreenNode child1, Diagnostic[] diagnostics) : base(diagnostics) {
-            slotCount = 2;
             this.AdjustFlagsAndWidth(child0);
             _child0 = child0;
             this.AdjustFlagsAndWidth(child1);
             _child1 = child1;
         }
+
+        public override int slotCount => 2;
 
         internal override GreenNode GetSlot(int index) {
             switch (index) {

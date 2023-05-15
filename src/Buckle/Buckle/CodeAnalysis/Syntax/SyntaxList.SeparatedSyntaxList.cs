@@ -33,7 +33,7 @@ public partial class SyntaxList {
                 return GetChildPositionFromEnd(index);
             }
 
-            return GetChildPosition(index);
+            return base.GetChildPosition(index);
         }
     }
 }

@@ -379,9 +379,14 @@ internal sealed class Parser {
         }
 
         var currentKind = currentToken.kind;
-        var unexpected = AddDiagnostic(EatToken(), Error.UnexpectedToken(currentKind));
+        var unexpected = EatToken();
 
-        return AddLeadingSkippedSyntax(EatToken(), unexpected);
+        return AddDiagnostic(
+            AddLeadingSkippedSyntax(EatToken(), unexpected),
+            Error.UnexpectedToken(currentKind),
+            unexpected.GetLeadingTriviaWidth(),
+            unexpected.width
+        );
     }
 
     private void MoveToNextToken() {
@@ -1160,6 +1165,7 @@ internal sealed class Parser {
     }
 
     private ExpressionSyntax ParseNameExpression() {
+        // TODO
         // var identifier = SyntaxFactory.Token(SyntaxKind.IdentifierToken);
 
         // if (currentToken.kind == SyntaxKind.IdentifierToken)
