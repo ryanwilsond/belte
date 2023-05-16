@@ -18,9 +18,9 @@ ___
 
 ## Samples
 
-There are multiple code samples to show what the language is capable of in it's current state.
+There are multiple code samples in the `samples/` folder to show what the language is capable of in it's current state.
 
-More information about them [here](samples/README.md).
+More information about the samples [here](samples/README.md).
 
 ___
 
@@ -30,7 +30,8 @@ To know what makes Belte unique from other languages, read [Principles.md](docs/
 
 If you are wanting to look around the repo, consider taking a look at the [directory contents](DIRECTORY_CONTENTS.md).
 
-The docs and full language reference can be found on the [GitHub Pages site](https://ryanwilsond.github.io/belte/). Alternatively, you can directly view the docs [here](docs/index.md).
+The docs and full language reference can be found on the [GitHub Pages site](https://ryanwilsond.github.io/belte/).
+Alternatively, you can directly view the docs [here](docs/index.md).
 
 ___
 
@@ -38,6 +39,9 @@ ___
 
 Immo Landwerth's [Building a Compiler](https://www.youtube.com/playlist?list=PLRAdsfhKI4OWNOSfS7EUu5GRAVmze1t2y)
 series is really good for learning the basics of compiler implementation.
+
+[Roslyn on GitHub](https://github.com/dotnet/roslyn) is another really good place to learn about the implementation of a
+compiler.
 
 ___
 
