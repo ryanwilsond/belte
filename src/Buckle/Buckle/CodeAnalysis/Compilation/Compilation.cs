@@ -142,6 +142,27 @@ public sealed class Compilation {
     }
 
     /// <summary>
+    /// Executes SyntaxTrees by creating an executable and running it.
+    /// </summary>
+    public void Execute() {
+        // ! This is duplicate code
+        if (globalScope.diagnostics.Errors().Any())
+            return;
+
+        var program = GetProgram();
+#if DEBUG
+        if (options.enableOutput)
+            CreateCfg(program);
+#endif
+
+        if (program.diagnostics.Errors().Any())
+            return;
+
+        diagnostics.Move(program.diagnostics);
+        Executor.Execute(program);
+    }
+
+    /// <summary>
     /// Emits the program to a string.
     /// </summary>
     /// <param name="buildMode">Which emitter to use.</param>

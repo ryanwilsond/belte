@@ -61,7 +61,7 @@ public sealed class Compiler {
         if (state.finishStage == CompilerStage.Preprocessed)
             return SuccessExitCode;
 
-        if (state.buildMode == BuildMode.Interpret) {
+        if (state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute) {
             InternalInterpreter();
             return CheckErrors();
         } else {
@@ -99,49 +99,70 @@ public sealed class Compiler {
 
     private void InternalInterpreter() {
         diagnostics.Clear(DiagnosticSeverity.Warning);
-        var syntaxTrees = new List<SyntaxTree>();
+        var textLength = 0;
 
-        for (var i = 0; i < state.tasks.Length; i++) {
-            ref var task = ref state.tasks[i];
+        foreach (var task in state.tasks)
+            textLength += task.fileContent.text?.Length ?? 0;
 
-            if (task.stage == CompilerStage.Preprocessed) {
-                var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text);
-                syntaxTrees.Add(syntaxTree);
-                task.stage = CompilerStage.Compiled;
+        // TODO Hard code these numbers somewhere and think through what they should be
+        var buildMode = state.buildMode == BuildMode.AutoRun ? textLength switch {
+            <= 4000 => BuildMode.Interpret,
+            > 4000 and <= 8000 => BuildMode.Evaluate,
+            > 8000 => BuildMode.Execute
+        } : state.buildMode;
+
+        if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
+            var syntaxTrees = new List<SyntaxTree>();
+
+            for (var i = 0; i < state.tasks.Length; i++) {
+                ref var task = ref state.tasks[i];
+
+                if (task.stage == CompilerStage.Preprocessed) {
+                    var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text);
+                    syntaxTrees.Add(syntaxTree);
+                    task.stage = CompilerStage.Compiled;
+                }
             }
+
+            var compilation = Compilation.Create(_options, syntaxTrees.ToArray());
+            diagnostics.Move(compilation.diagnostics);
+
+            if ((diagnostics.Errors().Any()))
+                return;
+
+            if (state.noOut)
+                return;
+
+            EvaluationResult result = null;
+            var abort = false;
+
+            void Wrapper() {
+                if (state.buildMode == BuildMode.Evaluate)
+                    result = compilation.Evaluate(new Dictionary<IVariableSymbol, IEvaluatorObject>(), ref abort);
+                else
+                    compilation.Execute();
+            }
+
+            void ctrlCHandler(object sender, ConsoleCancelEventArgs args) {
+                if (state.buildMode == BuildMode.Evaluate) {
+                    abort = true;
+                    args.Cancel = true;
+                }
+            }
+
+            Console.CancelKeyPress += new ConsoleCancelEventHandler(ctrlCHandler);
+
+            var evaluateWrapperReference = new ThreadStart(Wrapper);
+            var evaluateWrapperThread = new Thread(evaluateWrapperReference);
+            evaluateWrapperThread.Start();
+
+            while (evaluateWrapperThread.IsAlive)
+                ;
+
+            diagnostics.Move(result?.diagnostics);
+        } else {
+            // TODO Interpreter
         }
-
-        var compilation = Compilation.Create(_options, syntaxTrees.ToArray());
-        diagnostics.Move(compilation.diagnostics);
-
-        if ((diagnostics.Errors().Any()))
-            return;
-
-        if (state.noOut)
-            return;
-
-        EvaluationResult result = null;
-        var abort = false;
-
-        void EvaluateWrapper() {
-            result = compilation.Evaluate(new Dictionary<IVariableSymbol, IEvaluatorObject>(), ref abort);
-        }
-
-        void ctrlCHandler(object sender, ConsoleCancelEventArgs args) {
-            abort = true;
-            args.Cancel = true;
-        }
-
-        Console.CancelKeyPress += new ConsoleCancelEventHandler(ctrlCHandler);
-
-        var evaluateWrapperReference = new ThreadStart(EvaluateWrapper);
-        var evaluateWrapperThread = new Thread(evaluateWrapperReference);
-        evaluateWrapperThread.Start();
-
-        while (evaluateWrapperThread.IsAlive)
-            ;
-
-        diagnostics.Move(result.diagnostics);
     }
 
     private void InternalCompiler() {

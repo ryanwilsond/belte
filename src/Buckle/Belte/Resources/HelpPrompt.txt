@@ -7,16 +7,19 @@ Options:
   --no-out                    Disable any output the compiler would have produced.
   --explain[BU|RE|CL]<code>   Extended information for a specific error.
 
-  -r                          Invoke the Repl.
+  -r|--repl                   Invoke the Repl.
 
   -p                          Preprocess only, compiler preprocesses by default.
   -s                          Compile only; do not assemble or link.
   -c                          Compile and assemble; do not link.
-  -i                          Compile and interpret; do not assemble or link.
-  -t                          Compile and transpile into C#; do not assemble or link.
+  -i                          Compile and run; do not assemble or link.
+  --interpret                 Compile and run explicitly using the interpreter; do not assemble or link.
+  --evaluate                  Compile and run explicitly using the evaluator; do not assemble or link.
+  --execute                   Compile and run explicitly using the emitter; do not assemble or link.
+  -t|--transpile              Compile and transpile into C#; do not assemble or link.
   -o <file>                   Specify output file.
   --severity=<severity>       Specify a reporting severity; defaults to warning.
 
-  -d                          Compile with .NET integration (cannot stop at assembly or linking).
+  -d|--dotnet                 Compile with .NET integration (cannot stop at assembly or linking).
   --modulename=<name>         Specify the module name (used with .NET integration only).
-  --ref=<file>                Specify a reference (used with .NET integration only).
+  --ref=<file>|--reference=<file>     Specify a reference (used with .NET integration only).

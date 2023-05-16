@@ -201,8 +201,11 @@ public static partial class BuckleCommandLine {
     }
 
     private static void ShowVersionDialog() {
-        var versionMessage = "Version: Buckle 0.1";
-        Console.WriteLine(versionMessage);
+        var assembly = Assembly.GetExecutingAssembly();
+
+        using (var stream = assembly.GetManifestResourceStream("Belte.Resources.Version.txt"))
+        using (var reader = new StreamReader(stream))
+            Console.WriteLine($"Version: Buckle {reader.ReadLine()}");
     }
 
     private static void PrettyPrintDiagnostic(BelteDiagnostic diagnostic, ConsoleColor? textColor) {
@@ -532,15 +535,27 @@ public static partial class BuckleCommandLine {
                     state.finishStage = CompilerStage.Assembled;
                     break;
                 case "-r":
+                case "--repl":
                     state.buildMode = BuildMode.Repl;
                     break;
                 case "-i":
+                    state.buildMode = BuildMode.AutoRun;
+                    break;
+                case "--interpret":
                     state.buildMode = BuildMode.Interpret;
                     break;
+                case "--evaluate":
+                    state.buildMode = BuildMode.Evaluate;
+                    break;
+                case "--execute":
+                    state.buildMode = BuildMode.Execute;
+                    break;
                 case "-t":
+                case "--transpile":
                     state.buildMode = BuildMode.CSharpTranspile;
                     break;
                 case "-d":
+                case "--dotnet":
                     state.buildMode = BuildMode.Dotnet;
                     break;
                 case "-h":
@@ -608,8 +623,10 @@ public static partial class BuckleCommandLine {
                     diagnostics.Push(Belte.Diagnostics.Error.MissingModuleName(arg));
                 }
             } else if (arg.StartsWith("--ref")) {
-                if (arg != "--ref" && arg != "--ref=")
+                if (arg != "--ref" && arg != "--ref=" && arg.StartsWith("--ref="))
                     references.Add(arg.Substring(6));
+                else if (arg != "--reference" && arg != "--reference=" && arg.StartsWith("--reference="))
+                    references.Add(arg.Substring(12));
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.MissingReference(arg));
             } else if (arg.StartsWith("--severity")) {
@@ -652,7 +669,8 @@ public static partial class BuckleCommandLine {
         if (specifyOut && specifyStage && state.tasks.Length > 1 && !(state.buildMode == BuildMode.Dotnet))
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithMultipleFiles());
 
-        if ((specifyStage || specifyOut) && state.buildMode == BuildMode.Interpret)
+        if ((specifyStage || specifyOut) &&
+            (state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute))
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithInterpreter());
 
         if (specifyModule && state.buildMode != BuildMode.Dotnet)
