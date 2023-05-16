@@ -4,11 +4,11 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// Type of symbol.
 /// </summary>
-internal enum SymbolKind {
+public enum SymbolKind {
     GlobalVariable,
     LocalVariable,
     Type,
-    Function,
+    Method,
     Parameter,
     Field,
 }

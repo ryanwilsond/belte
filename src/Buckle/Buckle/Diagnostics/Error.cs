@@ -1,4 +1,3 @@
-using System;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -31,9 +30,9 @@ internal static class Error {
         /// <summary>
         /// BU9004. Run `buckle --explain BU9004` on the command line for more info.
         /// </summary>
-        internal static BelteDiagnostic CannotInitialize(TextLocation location) {
+        internal static Diagnostic CannotInitialize() {
             var message = "cannot initialize declared symbol in this context";
-            return new BelteDiagnostic(ErrorInfo(DiagnosticCode.UNS_CannotInitialize), location, message);
+            return new Diagnostic(ErrorInfo(DiagnosticCode.UNS_CannotInitialize), message);
         }
     }
 
@@ -48,24 +47,23 @@ internal static class Error {
     /// <summary>
     /// BU0004. Run `buckle --explain BU0004` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic InvalidType(TextLocation location, string text, TypeSymbol type) {
+    internal static Diagnostic InvalidType(string text, TypeSymbol type) {
         var message = $"'{text}' is not a valid '{type}'";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidType), location, message);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidType), message);
     }
 
     /// <summary>
     /// BU0005. Run `buckle --explain BU0005` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic BadCharacter(TextLocation location, int position, char input) {
-        var message = $"unknown character '{input}'";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_BadCharacter), location, message);
+    internal static Diagnostic BadCharacter(char input) {
+        var message = $"unexpected character '{input}'";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_BadCharacter), message);
     }
 
     /// <summary>
     /// BU0006. Run `buckle --explain BU0006` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic UnexpectedToken(
-        TextLocation location, SyntaxKind unexpected, SyntaxKind? expected = null) {
+    internal static Diagnostic UnexpectedToken(SyntaxKind unexpected, SyntaxKind? expected = null) {
         string message;
 
         if (expected == null)
@@ -75,7 +73,7 @@ internal static class Error {
         else
             message = $"expected {DiagnosticText(expected.Value, false)} at end of input";
 
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnexpectedToken), location, message);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnexpectedToken), message);
     }
 
     /// <summary>
@@ -133,7 +131,7 @@ internal static class Error {
     /// BU0012. Run `buckle --explain BU0012` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic GlobalStatementsInMultipleFiles(TextLocation location) {
-        var message = "multiple files with global statements creates ambigous entry point";
+        var message = "multiple files with global statements creates ambiguous entry point";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_GlobalStatementsInMultipleFiles), location, message);
     }
 
@@ -157,9 +155,9 @@ internal static class Error {
     /// BU0015. Run `buckle --explain BU0015` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic NoSuchParameter(
-        TextLocation location, string functionName, string parameterName, bool hasOverloads) {
-        var functionWord = hasOverloads ? "the best overload for" : "function";
-        var message = $"{functionWord} '{functionName}' does not have a parameter named '{parameterName}'";
+        TextLocation location, string methodName, string parameterName, bool hasOverloads) {
+        var methodWord = hasOverloads ? "the best overload for" : "method";
+        var message = $"{methodWord} '{methodName}' does not have a parameter named '{parameterName}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuchParameter), location, message);
     }
 
@@ -167,7 +165,7 @@ internal static class Error {
     /// BU0016. Run `buckle --explain BU0016` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic MainAndGlobals(TextLocation location) {
-        var message = "declaring a main function and using global statements creates ambigous entry point";
+        var message = "declaring a main method and using global statements creates ambiguous entry point";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MainAndGlobals), location, message);
     }
 
@@ -200,7 +198,7 @@ internal static class Error {
     /// </summary>
     internal static BelteDiagnostic CannotConvert(
         TextLocation location, BoundType from, BoundType to, int argument = 0) {
-        string message = $"cannot convert from type '{from}' to '{to}'";
+        var message = $"cannot convert from type '{from}' to '{to}'";
 
         if (argument > 0)
             message = $"argument {argument}: " + message;
@@ -234,9 +232,9 @@ internal static class Error {
     /// <summary>
     /// BU0023. Run `buckle --explain BU0023` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic AmbiguousElse(TextLocation location) {
-        var message = "ambiguous what if-statement this else-clause belongs to; use curly braces";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AmbiguousElse), location, message);
+    internal static Diagnostic AmbiguousElse() {
+        var message = "ambiguous which if-statement this else-clause belongs to; use curly braces";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_AmbiguousElse), message);
     }
 
     /// <summary>
@@ -258,17 +256,17 @@ internal static class Error {
     /// <summary>
     /// BU0027. Run `buckle --explain BU0027` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic UnterminatedString(TextLocation location) {
+    internal static Diagnostic UnterminatedString() {
         var message = "unterminated string literal";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnterminatedString), location, message);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnterminatedString), message);
     }
 
     /// <summary>
     /// BU0028. Run `buckle --explain BU0028` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic UndefinedFunction(TextLocation location, string name) {
-        var message = $"undefined function '{name}'";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UndefinedFunction), location, message);
+    internal static BelteDiagnostic UndefinedMethod(TextLocation location, string name) {
+        var message = $"undefined method '{name}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UndefinedMethod), location, message);
     }
 
     /// <summary>
@@ -282,7 +280,7 @@ internal static class Error {
             : actual < expected - defaultExpected ? "expects at least" : "expects at most";
 
         var expectedNumber = actual < expected - defaultExpected ? expected - defaultExpected : expected;
-        var message = $"function '{name}' {expectWord} {expectedNumber} {argWord}, got {actual}";
+        var message = $"method '{name}' {expectWord} {expectedNumber} {argWord}, got {actual}";
 
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_IncorrectArgumentCount), location, message);
     }
@@ -290,9 +288,10 @@ internal static class Error {
     /// <summary>
     /// BU0030. Run `buckle --explain BU0030` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic StructAlreadyDeclared(TextLocation location, string name) {
-        var message = $"struct '{name}' has already been declared in this scope";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StructAlreadyDeclared), location, message);
+    internal static BelteDiagnostic TypeAlreadyDeclared(TextLocation location, string name, bool isClass) {
+        var classWord = isClass ? "class" : "struct";
+        var message = $"{classWord} '{name}' has already been declared in this scope";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_TypeAlreadyDeclared), location, message);
     }
 
     /// <summary>
@@ -306,9 +305,9 @@ internal static class Error {
     /// <summary>
     /// BU0032. Run `buckle --explain BU0032` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic CannotCallNonFunction(TextLocation location, string text) {
-        var message = $"called object '{text}' is not a function";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotCallNonFunction), location, message);
+    internal static BelteDiagnostic CannotCallNonMethod(TextLocation location, string text) {
+        var message = $"called object '{text}' is not a method";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotCallNonMethod), location, message);
     }
 
     /// <summary>
@@ -338,16 +337,16 @@ internal static class Error {
     /// <summary>
     /// BU0036. Run `buckle --explain BU0036` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic ReturnOutsideFunction(TextLocation location) {
-        var message = "return statements can only be used within a function";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ReturnOutsideFunction), location, message);
+    internal static BelteDiagnostic ReturnOutsideMethod(TextLocation location) {
+        var message = "return statements can only be used within a method";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ReturnOutsideMethod), location, message);
     }
 
     /// <summary>
     /// BU0037. Run `buckle --explain BU0037` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic UnexpectedReturnValue(TextLocation location) {
-        var message = "cannot return a value in a function returning void";
+        var message = "cannot return a value in a method returning void";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnexpectedReturnValue), location, message);
     }
 
@@ -355,7 +354,7 @@ internal static class Error {
     /// BU0038. Run `buckle --explain BU0038` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic MissingReturnValue(TextLocation location) {
-        var message = "cannot return without a value in a function returning non-void";
+        var message = "cannot return without a value in a method returning non-void";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MissingReturnValue), location, message);
     }
 
@@ -363,7 +362,7 @@ internal static class Error {
     /// BU0039. Run `buckle --explain BU0039` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic NotAVariable(TextLocation location, string name) {
-        var message = $"function '{name}' cannot be used as a variable";
+        var message = $"method '{name}' cannot be used as a variable";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NotAVariable), location, message);
     }
 
@@ -378,9 +377,9 @@ internal static class Error {
     /// <summary>
     /// BU0041. Run `buckle --explain BU0041` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic UnterminatedComment(TextLocation location) {
+    internal static Diagnostic UnterminatedComment() {
         var message = "unterminated multi-line comment";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnterminatedComment), location, message);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnterminatedComment), message);
     }
 
     /// <summary>
@@ -414,25 +413,25 @@ internal static class Error {
     /// <summary>
     /// BU0045. Run `buckle --explain BU0045` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic CannotUseImplicit(TextLocation location) {
+    internal static Diagnostic CannotUseImplicit() {
         var message = "cannot use implicit-typing in this context";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseImplicit), location, message);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseImplicit), message);
     }
 
     /// <summary>
     /// BU0046. Run `buckle --explain BU0046` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic NoCatchOrFinally(TextLocation location) {
+    internal static Diagnostic NoCatchOrFinally() {
         var message = "try statement must have a catch or finally";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoCatchOrFinally), location, message);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_NoCatchOrFinally), message);
     }
 
     /// <summary>
     /// BU0047. Run `buckle --explain BU0047` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic ExpectedMethodName(TextLocation location) {
+    internal static Diagnostic ExpectedMethodName() {
         var message = "expected method name";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedMethodName), location, message);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedMethodName), message);
     }
 
     /// <summary>
@@ -510,30 +509,30 @@ internal static class Error {
     /// <summary>
     /// BU0056. Run `buckle --explain BU0056` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic ExpectedToken(TextLocation location, string name) {
+    internal static Diagnostic ExpectedToken(string name) {
         var message = $"expected {name}";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedToken), location, message);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedToken), message);
     }
 
-    internal static BelteDiagnostic ExpectedToken(TextLocation location, SyntaxKind type) {
-        return ExpectedToken(location, DiagnosticText(type));
+    internal static Diagnostic ExpectedToken(SyntaxKind type) {
+        return ExpectedToken(DiagnosticText(type));
     }
 
     /// <summary>
     /// BU0057. Run `buckle --explain BU0057` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic NoOverload(TextLocation location, string name) {
-        var message = $"no overload for function '{name}' matches parameter list";
+        var message = $"no overload for method '{name}' matches parameter list";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoOverload), location, message);
     }
 
     /// <summary>
     /// BU0058. Run `buckle --explain BU0058` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic AmbiguousOverload(TextLocation location, FunctionSymbol[] symbols) {
-        var message = new StringBuilder($"function call is ambiguous between ");
+    internal static BelteDiagnostic AmbiguousOverload(TextLocation location, MethodSymbol[] symbols) {
+        var message = new StringBuilder($"call is ambiguous between ");
 
-        for (int i=0; i<symbols.Length; i++) {
+        for (var i = 0; i < symbols.Length; i++) {
             if (i == symbols.Length - 1 && i > 1)
                 message.Append(", and ");
             else if (i == symbols.Length - 1)
@@ -679,17 +678,17 @@ internal static class Error {
     /// <summary>
     /// BU0074. Run `buckle --explain BU0074` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic CannotUseConst(TextLocation location) {
+    internal static Diagnostic CannotUseConst() {
         var message = "cannot use a constant in this context";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseConstant), location, message);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseConstant), message);
     }
 
     /// <summary>
     /// BU0075. Run `buckle --explain BU0075` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic CannotUseRef(TextLocation location) {
+    internal static Diagnostic CannotUseRef() {
         var message = "cannot use a reference type in this context";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseRef), location, message);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseRef), message);
     }
 
     /// <summary>
@@ -722,9 +721,17 @@ internal static class Error {
     /// <summary>
     /// BU0079. Run `buckle --explain BU0079` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic UnrecognizedEscapeSequence(TextLocation location, char escapeChar) {
+    internal static Diagnostic UnrecognizedEscapeSequence(char escapeChar) {
         var message = $"unrecognized escape sequence '\\{escapeChar}'";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnrecognizedEscapeSequence), location, message);
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnrecognizedEscapeSequence), message);
+    }
+
+    /// <summary>
+    /// BU0080. Run `buckle --explain BU0080` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic PrimitivesDoNotHaveMembers(TextLocation location) {
+        var message = $"primitive types do not contain any members";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_PrimitivesDoNotHaveMembers), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
@@ -748,7 +755,7 @@ internal static class Error {
         } else if (type.IsToken()) {
             var text = new StringBuilder();
 
-            foreach (var c in type.ToString().Substring(0, type.ToString().Length-5)) {
+            foreach (var c in type.ToString().Substring(0, type.ToString().Length - 5)) {
                 if (char.IsUpper(c))
                     text.Append(' ');
 

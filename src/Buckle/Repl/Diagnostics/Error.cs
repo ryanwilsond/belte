@@ -55,18 +55,18 @@ internal static class Error {
     /// <summary>
     /// RE0006. Run `buckle --explain RE0006` on the command line for more info.
     /// </summary>
-    internal static Diagnostic NoSuchFunction(string name) {
-        var message = $"no such function with the signature '{name}' exists";
-        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuchFunction), message);
+    internal static Diagnostic NoSuchMethod(string name) {
+        var message = $"no such method with the signature '{name}' exists";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuchMethod), message);
     }
 
     /// <summary>
     /// RE0007. Run `buckle --explain RE0007` on the command line for more info.
     /// </summary>
-    internal static Diagnostic AmbiguousSignature(string signature, Symbol[] symbols) {
+    internal static Diagnostic AmbiguousSignature(string signature, ISymbol[] symbols) {
         var message = new StringBuilder($"'{signature}' is ambiguous between ");
 
-        for (int i=0; i<symbols.Length; i++) {
+        for (var i = 0; i < symbols.Length; i++) {
             if (i == symbols.Length - 1 && i > 1)
                 message.Append(", and ");
             else if (i == symbols.Length - 1)
@@ -74,7 +74,7 @@ internal static class Error {
             else if (i > 0)
                 message.Append(", ");
 
-            if (symbols[i] is FunctionSymbol f)
+            if (symbols[i] is IMethodSymbol f)
                 message.Append($"'{f.SignatureNoReturnNoParameterNames()}'");
             else
                 message.Append($"'{symbols[i]}'");

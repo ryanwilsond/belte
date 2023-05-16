@@ -7,5 +7,5 @@
 */
 
 // With no entry point specified, execution starts from the top of the file.
-// The `PrintLine` function is included by default, so no imports are necessary!
+// The `PrintLine` method is included by default, so no imports are necessary!
 PrintLine("Hello, world!");

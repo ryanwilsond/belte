@@ -28,14 +28,16 @@ internal static class ConstantFolding {
         // With and/or operators allow one side to be null
         if (op.opKind == BoundBinaryOperatorKind.ConditionalAnd) {
             if ((leftConstant != null && leftConstant.value != null && !(bool)leftConstant.value) ||
-                (rightConstant != null && rightConstant.value != null && !(bool)rightConstant.value))
+                (rightConstant != null && rightConstant.value != null && !(bool)rightConstant.value)) {
                 return new BoundConstant(false);
+            }
         }
 
         if (op.opKind == BoundBinaryOperatorKind.ConditionalOr) {
             if ((leftConstant != null && leftConstant.value != null && (bool)leftConstant.value) ||
-                (rightConstant != null && rightConstant.value != null && (bool)rightConstant.value))
+                (rightConstant != null && rightConstant.value != null && (bool)rightConstant.value)) {
                 return new BoundConstant(true);
+            }
         }
 
         if (op.opKind == BoundBinaryOperatorKind.NullCoalescing) {
@@ -63,8 +65,9 @@ internal static class ConstantFolding {
         }
 
         if ((BoundConstant.IsNull(leftConstant) || BoundConstant.IsNull(rightConstant)) &&
-            (op.opKind != BoundBinaryOperatorKind.Is && op.opKind != BoundBinaryOperatorKind.Isnt))
+            (op.opKind != BoundBinaryOperatorKind.Is && op.opKind != BoundBinaryOperatorKind.Isnt)) {
             return new BoundConstant(null);
+        }
 
         if (leftConstant == null || rightConstant == null)
             return null;
@@ -221,13 +224,15 @@ internal static class ConstantFolding {
         if (op.opKind == BoundTernaryOperatorKind.Conditional) {
             if (BoundConstant.IsNotNull(left.constantValue) &&
                 (bool)left.constantValue.value &&
-                center.constantValue != null)
+                center.constantValue != null) {
                 return new BoundConstant(center.constantValue.value);
+            }
 
             if (BoundConstant.IsNotNull(left.constantValue) &&
                 !(bool)left.constantValue.value &&
-                right.constantValue != null)
+                right.constantValue != null) {
                 return new BoundConstant(right.constantValue.value);
+            }
         }
 
         return null;

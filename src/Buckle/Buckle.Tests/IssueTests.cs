@@ -288,7 +288,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            function 'myFunc' expects 1 argument, got 0
+            method 'myFunc' expects 1 argument, got 0
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -302,7 +302,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            function 'myFunc' expects 1 argument, got 3
+            method 'myFunc' expects 1 argument, got 3
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -398,7 +398,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_ForStatement_Reports_CannotConvert() {
         var text = @"
-            for (int i=0; [i]; i++) {}
+            for (int i = 0; [i]; i++) {}
         ";
 
         var diagnostics = @"
@@ -465,7 +465,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            function 'PrintLine' cannot be used as a variable
+            method 'PrintLine' cannot be used as a variable
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -506,7 +506,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            undefined function 'foo'
+            undefined method 'foo'
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -520,7 +520,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            called object 'foo' is not a function
+            called object 'foo' is not a method
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -534,7 +534,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            called object 'PrintLine' is not a function
+            called object 'PrintLine' is not a method
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -549,7 +549,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot return a value in a function returning void
+            cannot return a value in a method returning void
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -564,7 +564,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot return without a value in a function returning non-void
+            cannot return without a value in a method returning non-void
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -716,12 +716,14 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_CallExpression_ExpectedMethodName() {
         var text = @"
-            Print(num ** [2] ([]
+            Print(num ** [2] ([][][]
         ";
 
         var diagnostics = @"
             expected method name
             expected ')' at end of input
+            expected ')' at end of input
+            expected ';' at end of input
         ";
 
         AssertDiagnostics(text, diagnostics, writer);

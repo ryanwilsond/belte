@@ -6,7 +6,7 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// <summary>
 /// Encased Object that can also be a reference to a <see cref="VariableSymbol" />.
 /// </summary>
-internal sealed class EvaluatorObject {
+internal sealed class EvaluatorObject : IEvaluatorObject {
     /// <summary>
     /// Creates an <see cref="EvaluatorObject" /> with a null value.
     /// </summary>
@@ -35,7 +35,7 @@ internal sealed class EvaluatorObject {
     /// Creates an <see cref="EvaluatorObject" /> without a value, and instead a list of members.
     /// </summary>
     /// <param name="members">Members to contain by this.</param>
-    internal EvaluatorObject(Dictionary<FieldSymbol, EvaluatorObject> members) {
+    internal EvaluatorObject(Dictionary<Symbol, EvaluatorObject> members) {
         this.value = null;
         this.isReference = false;
         this.reference = null;
@@ -58,7 +58,7 @@ internal sealed class EvaluatorObject {
     /// </param>
     internal EvaluatorObject(
         VariableSymbol reference, bool isExplicitReference = false,
-        Dictionary<VariableSymbol, EvaluatorObject> referenceScope = null) {
+        Dictionary<IVariableSymbol, IEvaluatorObject> referenceScope = null) {
         this.value = null;
         this.isReference = true;
         this.reference = reference;
@@ -67,36 +67,15 @@ internal sealed class EvaluatorObject {
         this.members = null;
     }
 
-    /// <summary>
-    /// Value of object, only applicable if <see cref="isReference" /> is set to false.
-    /// </summary>
-    internal object value { get; set; }
+    public object value { get; set; }
 
-    /// <summary>
-    /// If this is to be treated as a reference. If so, value is set to null but ignored.
-    /// If value is set to null and <see cref="isReference" /> is false,
-    /// Then it treats value as being the value null, not lacking a value.
-    /// </summary>
-    internal bool isReference { get; set; }
+    public bool isReference { get; set; }
 
-    /// <summary>
-    /// The local scope that the reference (if applicable) is referring to.
-    /// </summary>
-    internal Dictionary<VariableSymbol, EvaluatorObject> referenceScope { get; set; }
+    public Dictionary<IVariableSymbol, IEvaluatorObject> referenceScope { get; set; }
 
-    /// <summary>
-    /// If the reference is an explicit reference expression, or if it is just a normal variable.
-    /// </summary>
-    internal bool isExplicitReference { get; set; }
+    public bool isExplicitReference { get; set; }
 
-    /// <summary>
-    /// Reference to a <see cref="VariableSymbol" /> stored in the locals or globals dictionary.
-    /// Not explicitly a reference, but is passed by reference by default.
-    /// </summary>
-    internal VariableSymbol reference { get; set; }
+    public VariableSymbol reference { get; set; }
 
-    /// <summary>
-    /// Members stored by this.
-    /// </summary>
-    internal Dictionary<FieldSymbol, EvaluatorObject> members { get; set; }
+    public Dictionary<Symbol, EvaluatorObject> members { get; set; }
 }

@@ -29,9 +29,10 @@ public static partial class BuckleCommandLine {
     /// <returns>Error code, 0 = success.</returns>
     public static int ProcessArgs(string[] args) {
         int err;
-        var compiler = new Compiler();
-        compiler.me = Process.GetCurrentProcess().ProcessName;
-        compiler.state = DecodeOptions(args, out var diagnostics, out var dialogs, out var multipleExplains);
+        var compiler = new Compiler {
+            me = Process.GetCurrentProcess().ProcessName,
+            state = DecodeOptions(args, out var diagnostics, out var dialogs, out var multipleExplains)
+        };
 
         var hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error != null;
 
@@ -51,7 +52,7 @@ public static partial class BuckleCommandLine {
             ResolveDiagnostics(diagnostics, compiler.me, compiler.state);
 
             if (!compiler.state.noOut) {
-                BelteRepl repl = new BelteRepl(compiler, ResolveDiagnostics);
+                var repl = new BelteRepl(compiler, ResolveDiagnostics);
                 repl.Run();
             }
 
@@ -84,7 +85,7 @@ public static partial class BuckleCommandLine {
     }
 
     private static DiagnosticQueue<Diagnostic> ShowDialogs(ShowDialogs dialogs, bool multipleExplains) {
-        DiagnosticQueue<Diagnostic> diagnostics = new DiagnosticQueue<Diagnostic>();
+        var diagnostics = new DiagnosticQueue<Diagnostic>();
 
         if (dialogs.machine)
             ShowMachineDialog();
@@ -104,7 +105,7 @@ public static partial class BuckleCommandLine {
     private static void ShowErrorHelp(string error, out DiagnosticQueue<Diagnostic> diagnostics) {
         string prefix;
 
-        if (error.Length < 3 || (Char.IsDigit(error[0]) && Char.IsDigit(error[1]))) {
+        if (error.Length < 3 || (char.IsDigit(error[0]) && char.IsDigit(error[1]))) {
             prefix = "BU";
             error = prefix + error;
         } else {
@@ -143,9 +144,9 @@ public static partial class BuckleCommandLine {
 
         var messages = new Dictionary<int, string>();
 
-        foreach (string message in allDescriptions.Split($"${prefix}")) {
+        foreach (var message in allDescriptions.Split($"${prefix}")) {
             try {
-                string code = message.Substring(0, 4);
+                var code = message.Substring(0, 4);
                 messages[Convert.ToInt32(code)] = message.Substring(4);
             } catch (ArgumentOutOfRangeException) { }
         }
@@ -191,7 +192,7 @@ public static partial class BuckleCommandLine {
 
         using (var stream = assembly.GetManifestResourceStream("Belte.Resources.HelpPrompt.txt"))
         using (var reader = new StreamReader(stream))
-            Console.WriteLine(reader.ReadToEnd());
+            Console.WriteLine(reader.ReadToEnd().TrimEnd());
     }
 
     private static void ShowMachineDialog() {
@@ -220,10 +221,10 @@ public static partial class BuckleCommandLine {
         var column = span.start - line.start + 1;
         var lineText = line.ToString();
 
-        var filename = diagnostic.location.fileName;
+        var fileName = diagnostic.location.fileName;
 
-        if (!string.IsNullOrEmpty(filename))
-            Console.Write($"{filename}:");
+        if (!string.IsNullOrEmpty(fileName))
+            Console.Write($"{fileName}:");
 
         Console.Write($"{lineNumber + 1}:{column}:");
 
@@ -401,18 +402,15 @@ public static partial class BuckleCommandLine {
         if (compiler.state.finishStage == CompilerStage.Linked)
             return;
 
-        foreach (FileState file in compiler.state.tasks) {
-            var inter = file.inputFilename.Split('.')[0];
+        foreach (var file in compiler.state.tasks) {
+            var inter = file.inputFileName.Split('.')[0];
 
             switch (compiler.state.finishStage) {
                 case CompilerStage.Preprocessed:
-                    inter += ".pblt";
                     break;
                 case CompilerStage.Compiled:
-                    inter += ".s";
                     break;
                 case CompilerStage.Assembled:
-                    inter += ".o";
                     break;
                 default:
                     break;
@@ -428,7 +426,7 @@ public static partial class BuckleCommandLine {
             return;
         }
 
-        foreach (FileState file in compiler.state.tasks) {
+        foreach (var file in compiler.state.tasks) {
             File.Delete(file.outputFilename);
         }
     }
@@ -441,7 +439,7 @@ public static partial class BuckleCommandLine {
     private static void ReadInputFiles(Compiler compiler, out DiagnosticQueue<Diagnostic> diagnostics) {
         diagnostics = new DiagnosticQueue<Diagnostic>();
 
-        for (int i=0; i<compiler.state.tasks.Length; i++) {
+        for (var i = 0; i < compiler.state.tasks.Length; i++) {
             ref var task = ref compiler.state.tasks[i];
             var opened = false;
 
@@ -449,9 +447,9 @@ public static partial class BuckleCommandLine {
                 case CompilerStage.Raw:
                 case CompilerStage.Preprocessed:
                 case CompilerStage.Compiled:
-                    for (int j=0; j<3; j++) {
+                    for (var j = 0; j < 3; j++) {
                         try {
-                            task.fileContent.text = File.ReadAllText(task.inputFilename);
+                            task.fileContent.text = File.ReadAllText(task.inputFileName);
                             opened = true;
                         } catch (IOException) {
                             Thread.Sleep(100);
@@ -462,13 +460,13 @@ public static partial class BuckleCommandLine {
                     }
 
                     if (!opened)
-                        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(task.inputFilename));
+                        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(task.inputFileName));
 
                     break;
                 case CompilerStage.Assembled:
-                    for (int j=0; j<3; j++) {
+                    for (var j = 0; j < 3; j++) {
                         try {
-                            task.fileContent.bytes = File.ReadAllBytes(task.inputFilename).ToList();
+                            task.fileContent.bytes = File.ReadAllBytes(task.inputFileName).ToList();
                             opened = true;
                         } catch (IOException) {
                             Thread.Sleep(100);
@@ -479,11 +477,11 @@ public static partial class BuckleCommandLine {
                     }
 
                     if (!opened)
-                        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(task.inputFilename));
+                        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(task.inputFileName));
 
                     break;
                 case CompilerStage.Linked:
-                    diagnostics.Push(Belte.Diagnostics.Info.IgnoringCompiledFile(task.inputFilename));
+                    diagnostics.Push(Belte.Diagnostics.Info.IgnoringCompiledFile(task.inputFileName));
                     break;
                 default:
                     break;
@@ -505,12 +503,12 @@ public static partial class BuckleCommandLine {
         var specifyModule = false;
         DiagnosticSeverity? severity = null;
 
-        var tempDialogs = new ShowDialogs();
-
-        tempDialogs.help = false;
-        tempDialogs.machine = false;
-        tempDialogs.version = false;
-        tempDialogs.error = null;
+        var tempDialogs = new ShowDialogs {
+            help = false,
+            machine = false,
+            version = false,
+            error = null
+        };
         multipleExplains = false;
 
         state.buildMode = BuildMode.Independent;
@@ -564,7 +562,7 @@ public static partial class BuckleCommandLine {
             }
         }
 
-        for (int i=0; i<args.Length; i++) {
+        for (var i = 0; i < args.Length; i++) {
             var arg = args[i];
 
             if (!arg.StartsWith('-')) {
@@ -672,23 +670,24 @@ public static partial class BuckleCommandLine {
     }
 
     private static DiagnosticQueue<Diagnostic> ResolveInputFileOrDir(string name, ref List<FileState> tasks) {
-        var filenames = new List<string>();
+        var fileNames = new List<string>();
         var diagnostics = new DiagnosticQueue<Diagnostic>();
 
         if (Directory.Exists(name)) {
-            filenames.AddRange(Directory.GetFiles(name));
+            fileNames.AddRange(Directory.GetFiles(name));
         } else if (File.Exists(name)) {
-            filenames.Add(name);
+            fileNames.Add(name);
         } else {
             diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(name));
             return diagnostics;
         }
 
-        foreach (string filename in filenames) {
-            var task = new FileState();
-            task.inputFilename = filename;
+        foreach (var fileName in fileNames) {
+            var task = new FileState {
+                inputFileName = fileName
+            };
 
-            var parts = task.inputFilename.Split('.');
+            var parts = task.inputFileName.Split('.');
             var type = parts[parts.Length - 1];
 
             switch (type) {
@@ -711,7 +710,7 @@ public static partial class BuckleCommandLine {
                     task.stage = CompilerStage.Linked;
                     break;
                 default:
-                    diagnostics.Push(Belte.Diagnostics.Info.IgnoringUnknownFileType(task.inputFilename));
+                    diagnostics.Push(Belte.Diagnostics.Info.IgnoringUnknownFileType(task.inputFileName));
                     continue;
             }
 

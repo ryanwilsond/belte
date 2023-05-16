@@ -10,28 +10,30 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class BoundGlobalScope {
     /// <param name="previous">Previous <see cref="BoundGlobalScope" /> (if applicable).</param>
     internal BoundGlobalScope(
-        ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)> functionBodies,
-        ImmutableArray<(StructSymbol @struct, ImmutableList<FieldSymbol> members)> structMembers,
-        BoundGlobalScope previous, BelteDiagnosticQueue diagnostics, FunctionSymbol mainFunction,
-        FunctionSymbol scriptFunction, ImmutableArray<FunctionSymbol> functions,
-        ImmutableArray<VariableSymbol> variables, ImmutableArray<TypeSymbol> types,
-        ImmutableArray<BoundStatement> statements) {
-        this.functionBodies = functionBodies;
+        ImmutableArray<(MethodSymbol method, BoundBlockStatement body)> methodBodies,
+        ImmutableArray<(StructSymbol @struct, ImmutableList<Symbol> members)> structMembers,
+        ImmutableArray<(ClassSymbol @class, ImmutableList<Symbol> members)> classMembers,
+        BoundGlobalScope previous, BelteDiagnosticQueue diagnostics, MethodSymbol entryPoint,
+        ImmutableArray<MethodSymbol> methods, ImmutableArray<VariableSymbol> variables,
+        ImmutableArray<TypeSymbol> types, ImmutableArray<BoundStatement> statements) {
+        this.methodBodies = methodBodies;
         this.structMembers = structMembers;
+        this.classMembers = classMembers;
         this.previous = previous;
         this.diagnostics = new BelteDiagnosticQueue();
         this.diagnostics.Move(diagnostics);
-        this.mainFunction = mainFunction;
-        this.scriptFunction = scriptFunction;
-        this.functions = functions;
+        this.entryPoint = entryPoint;
+        this.methods = methods;
         this.variables = variables;
         this.types = types;
         this.statements = statements;
     }
 
-    internal ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)> functionBodies { get; }
+    internal ImmutableArray<(MethodSymbol method, BoundBlockStatement body)> methodBodies { get; }
 
-    internal ImmutableArray<(StructSymbol @struct, ImmutableList<FieldSymbol> members)> structMembers { get; }
+    internal ImmutableArray<(StructSymbol @struct, ImmutableList<Symbol> members)> structMembers { get; }
+
+    internal ImmutableArray<(ClassSymbol @class, ImmutableList<Symbol> members)> classMembers { get; }
 
     /// <summary>
     /// Previous <see cref="BoundGlobalScope" /> (if applicable).
@@ -40,11 +42,9 @@ internal sealed class BoundGlobalScope {
 
     internal BelteDiagnosticQueue diagnostics { get; }
 
-    internal FunctionSymbol mainFunction { get; }
+    internal MethodSymbol entryPoint { get; }
 
-    internal FunctionSymbol scriptFunction { get; }
-
-    internal ImmutableArray<FunctionSymbol> functions { get; }
+    internal ImmutableArray<MethodSymbol> methods { get; }
 
     internal ImmutableArray<VariableSymbol> variables { get; }
 

@@ -4,7 +4,10 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// All types of things to be found in a source file.
 /// </summary>
-internal enum SyntaxKind {
+public enum SyntaxKind {
+    None = 0,
+    List = GreenNode.ListKind,
+
     // Punctuation
     TildeToken,
     ExclamationToken,
@@ -82,6 +85,7 @@ internal enum SyntaxKind {
     IsKeyword,
     IsntKeyword,
     StructKeyword,
+    ClassKeyword,
     VarKeyword,
 
     // Tokens with text
@@ -109,7 +113,7 @@ internal enum SyntaxKind {
     IndexExpression,
     PrefixExpression,
     PostfixExpression,
-    AssignExpression,
+    AssignmentExpression,
     CompoundAssignmentExpression,
 
     // Primary expressions
@@ -117,7 +121,7 @@ internal enum SyntaxKind {
     TypeOfExpression,
     NameExpression,
     CallExpression,
-    RefExpression,
+    ReferenceExpression,
     MemberAccessExpression,
 
     // Statements
@@ -151,8 +155,10 @@ internal enum SyntaxKind {
 
     // Type declarations
     StructDeclaration,
+    ClassDeclaration,
     FieldDeclaration,
     Type,
+    ArrayRankSpecifier,
     Parameter,
     MethodDeclaration,
 

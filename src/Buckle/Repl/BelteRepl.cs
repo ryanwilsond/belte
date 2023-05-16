@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -10,21 +11,26 @@ using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Repl.Themes;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
 namespace Repl;
 
 /// <summary>
-/// Uses framework from <see cref="ReplBase" /> and adds syntax highlighting and evaluation.
+/// Uses framework from <see cref="Repl" /> and adds syntax highlighting and evaluation.
 /// </summary>
-public sealed class BelteRepl : ReplBase {
-    private static readonly Compilation emptyCompilation = Compilation.CreateScript(null);
-    private Dictionary<string, ColorTheme> InUse = new Dictionary<string, ColorTheme>() {
+public sealed partial class BelteRepl : Repl {
+    private static readonly CompilationOptions defaultOptions = new CompilationOptions(BuildMode.Repl, true, false);
+    private static readonly Compilation emptyCompilation = Compilation.CreateScript(defaultOptions, null);
+    private static readonly Dictionary<string, ColorTheme> InUse = new Dictionary<string, ColorTheme>() {
         {"Dark", new DarkTheme()},
         {"Light", new LightTheme()},
         {"Green", new GreenTheme()},
     };
+
+    private List<TextChange> _changes = new List<TextChange>();
 
     /// <summary>
     /// Creates a new instance of a <see cref="BelteRepl" />, can run in parallel with other BelteRepls with
@@ -41,18 +47,10 @@ public sealed class BelteRepl : ReplBase {
         LoadSubmissions();
     }
 
-    /// <summary>
-    /// Indicated to the state what page is being displayed to the user.
-    /// </summary>
-    internal enum Page {
-        Repl,
-        Settings
-    }
-
     internal override object _state { get; set; }
 
     /// <summary>
-    /// Cast of <see cref="ReplBase" /> specific state that has <see cref="BelteRepl" /> related state.
+    /// Cast of <see cref="Repl" /> specific state that has <see cref="BelteRepl" /> related state.
     /// </summary>
     internal BelteReplState state {
         get {
@@ -69,37 +67,32 @@ public sealed class BelteRepl : ReplBase {
         state.showWarnings = false;
         state.showIL = false;
         state.loadingSubmissions = false;
-        state.variables = new Dictionary<VariableSymbol, EvaluatorObject>();
+        state.variables = new Dictionary<IVariableSymbol, IEvaluatorObject>();
         state.previous = null;
         state.currentPage = Page.Repl;
+        _changes.Clear();
+        ClearTree();
         base.ResetState();
     }
 
-    protected override object RenderLine(IReadOnlyList<string> lines, int lineIndex, object rState) {
-        SyntaxTree syntaxTree;
-
-        if (rState == null) {
-            var text = string.Join(Environment.NewLine, lines);
-            syntaxTree = SyntaxTree.Parse(text);
-        } else {
-            syntaxTree = (SyntaxTree)rState;
-        }
+    protected override void RenderLine(IReadOnlyList<string> lines, int lineIndex) {
+        UpdateTree();
 
         var texts = new List<(string text, ConsoleColor color)>();
-        var lineSpan = syntaxTree.text.lines[lineIndex].span;
-        var fullText = syntaxTree.text.ToString(lineSpan);
+        var lineSpan = state.tree.text.lines[lineIndex].span;
+        var fullText = state.tree.text.ToString(lineSpan);
 
-        var classifiedSpans = Classifier.Classify(syntaxTree, lineSpan);
+        var classifiedSpans = Classifier.Classify(state.tree, lineSpan);
 
         foreach (var classifiedSpan in classifiedSpans) {
-            var classifiedText = syntaxTree.text.ToString(classifiedSpan.span);
+            var classifiedText = state.tree.text.ToString(classifiedSpan.span);
             var color = GetColorFromClassification(classifiedSpan.classification);
             texts.Add((classifiedText, color));
         }
 
         var offset = 0;
 
-        for (int i=0; i<texts.Count(); i++) {
+        for (var i = 0; i < texts.Count(); i++) {
             var line = texts[i].text;
 
             if (fullText.Substring(offset, line.Length) == line) {
@@ -133,17 +126,67 @@ public sealed class BelteRepl : ReplBase {
         }
 
         Console.ForegroundColor = state.colorTheme.@default;
-
-        return syntaxTree;
     }
 
     protected override void EvaluateSubmission(string text) {
+        // ONLY use this when evaluating previous submissions, where incremental compilation would do nothing
+        // Otherwise, this is much slower than the 0 arity overload
         var syntaxTree = SyntaxTree.Parse(text);
-        var compilation = Compilation.CreateScript(state.previous, syntaxTree);
+        EvaluateSubmissionInternal(syntaxTree);
+    }
+
+    protected override void EvaluateSubmission() {
+        UpdateTree();
+        EvaluateSubmissionInternal(state.tree);
+        ClearTree();
+    }
+
+    protected override string EditSubmission() {
+        ClearTree();
+        return base.EditSubmission();
+    }
+
+    protected override void AddChange(
+        ObservableCollection<string> document, int lineIndex, int startIndex, int oldLength, string newText) {
+        var position = startIndex;
+
+        for (var i = 0; i < lineIndex; i++)
+            position += document[i].Length + Environment.NewLine.Length;
+
+        _changes.Add(new TextChange(new TextSpan(position, oldLength), newText));
+    }
+
+    protected override void AddClearChange(ObservableCollection<string> document) {
+        ClearTree();
+    }
+
+    protected override void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) {
+        var position = 0;
+
+        for (var i = 0; i < lineIndex; i++) {
+            position += document[i].Length;
+
+            if (i > 0)
+                position += Environment.NewLine.Length;
+        }
+
+        _changes.Add(
+            new TextChange(new TextSpan(position, document[lineIndex].Length + Environment.NewLine.Length), "")
+        );
+    }
+
+    private void ClearTree() {
+        state.tree = SyntaxTree.Parse("");
+        // This should always be empty by now, but just in case there was a race condition
+        _changes.Clear();
+    }
+
+    private void EvaluateSubmissionInternal(SyntaxTree syntaxTree) {
+        var compilation = Compilation.CreateScript(defaultOptions, state.previous, syntaxTree);
         var displayText = new DisplayText();
 
         if (state.showTree) {
-            syntaxTree.root.WriteTo(displayText);
+            syntaxTree.GetRoot().WriteTo(displayText);
             WriteDisplayText(displayText);
         }
 
@@ -157,7 +200,7 @@ public sealed class BelteRepl : ReplBase {
                 var iLCode = compilation.EmitToString(BuildMode.Dotnet, "ReplSubmission");
                 _writer.Write(iLCode);
             } catch (KeyNotFoundException) {
-                handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.FailedILGeneration()));
+                handle.diagnostics.Push(new BelteDiagnostic(global::Repl.Diagnostics.Error.FailedILGeneration()));
             }
         }
 
@@ -187,7 +230,8 @@ public sealed class BelteRepl : ReplBase {
 
         if (handle.diagnostics.Any()) {
             if (diagnosticHandle != null) {
-                handle.diagnostics = BelteDiagnosticQueue.CleanDiagnostics(handle.diagnostics);
+                // ? View the todo marker in BelteDiagnosticQueue.CleanDiagnostics
+                // handle.diagnostics = BelteDiagnosticQueue.CleanDiagnostics(handle.diagnostics);
                 diagnosticHandle(handle, textColor: state.colorTheme.textDefault);
             } else {
                 handle.diagnostics.Clear();
@@ -201,7 +245,7 @@ public sealed class BelteRepl : ReplBase {
             }
 
             state.previous = compilation;
-            SaveSubmission(text);
+            SaveSubmission(syntaxTree.text.ToString());
         }
 
         Console.ForegroundColor = state.colorTheme.@default;
@@ -219,10 +263,10 @@ public sealed class BelteRepl : ReplBase {
         if (twoBlankTines)
             return true;
 
-        var syntaxTree = SyntaxTree.Parse(text);
-        var lastMember = syntaxTree.root.members.LastOrDefault();
+        UpdateTree();
+        var lastMember = state.tree.GetCompilationUnitRoot().members.LastOrDefault();
 
-        if (lastMember == null || lastMember.GetLastToken().isFabricated)
+        if (lastMember == null || lastMember.GetLastToken(includeZeroWidth: true).isFabricated)
             return false;
 
         return true;
@@ -274,6 +318,12 @@ public sealed class BelteRepl : ReplBase {
         }
     }
 
+    private void UpdateTree() {
+        var changes = _changes.ToArray();
+        _changes.Clear();
+        state.tree = state.tree.WithChanges(changes);
+    }
+
     private void RenderResult(object value) {
         Console.ForegroundColor = state.colorTheme.result;
         var displayText = new DisplayText();
@@ -284,7 +334,7 @@ public sealed class BelteRepl : ReplBase {
             _writer.Write("{ ");
             var isFirst = true;
 
-            foreach (object item in (Array)value) {
+            foreach (var item in (Array)value) {
                 if (isFirst)
                     isFirst = false;
                 else
@@ -363,7 +413,7 @@ public sealed class BelteRepl : ReplBase {
             if (segment.classification == Classification.Line)
                 _writer.WriteLine();
             else if (segment.classification == Classification.Indent)
-                _writer.Write(new String(' ', TabWidth));
+                _writer.Write(new string(' ', TabWidth));
             else
                 _writer.Write(segment.text);
         }
@@ -400,7 +450,7 @@ public sealed class BelteRepl : ReplBase {
     [MetaCommand("load", "Load in text from <path>")]
     private void EvaluateLoad(string path) {
         if (!File.Exists(path)) {
-            handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.NoSuchFile(path)));
+            handle.diagnostics.Push(new BelteDiagnostic(global::Repl.Diagnostics.Error.NoSuchFile(path)));
 
             if (diagnosticHandle != null)
                 diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
@@ -434,38 +484,40 @@ public sealed class BelteRepl : ReplBase {
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
         var symbols = (signature == name
             ? compilation.GetSymbols().Where(f => f.name == name)
-            : compilation.GetSymbols<FunctionSymbol>().Where(f => f.SignatureNoReturnNoParameterNames() == signature))
+            : compilation.GetSymbols<IMethodSymbol>().Where(f => f.SignatureNoReturnNoParameterNames() == signature))
                 .ToArray();
 
-        Symbol symbol = null;
+        ISymbol symbol = null;
         var displayText = new DisplayText();
 
         if (symbols.ToArray().Length == 0 && signature.StartsWith('<')) {
-            // This will find hidden function symbols not normally exposed to the user
-            // Generated functions should never have overloads, so only the name is checked
+            // This will find hidden method symbols not normally exposed to the user
+            // Generated methods should never have overloads, so only the name is checked
             // (as apposed to the entire signature)
             try {
                 compilation.EmitTree(name, displayText);
                 WriteDisplayText(displayText);
                 return;
-            } catch (BelteInternalException) { }
+            } catch (BelteException) {
+                // If the generated method does not actually exist, just ignore and continue
+            }
         }
 
         if (symbols.Length == 0) {
             if (signature == name)
-                handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.UndefinedSymbol(name)));
+                handle.diagnostics.Push(new BelteDiagnostic(global::Repl.Diagnostics.Error.UndefinedSymbol(name)));
             else
-                handle.diagnostics.Push(new BelteDiagnostic(Repl.Diagnostics.Error.NoSuchFunction(signature)));
+                handle.diagnostics.Push(new BelteDiagnostic(global::Repl.Diagnostics.Error.NoSuchMethod(signature)));
         } else if (symbols.Length == 1) {
             symbol = symbols.Single();
         } else if (signature == name) {
-            var temp = symbols.Where(s => s is not FunctionSymbol);
+            var temp = symbols.Where(s => s is not IMethodSymbol);
 
             if (temp.Any()) {
                 symbol = temp.First();
             } else {
                 handle.diagnostics.Push(
-                    new BelteDiagnostic(Repl.Diagnostics.Error.AmbiguousSignature(signature, symbols))
+                    new BelteDiagnostic(global::Repl.Diagnostics.Error.AmbiguousSignature(signature, symbols))
                 );
             }
         } else {
@@ -493,9 +545,9 @@ public sealed class BelteRepl : ReplBase {
 
     [MetaCommand("saveToFile", "Save previous <count> submissions to <path>")]
     private void EvaluateSaveToFile(string path, string count = "1") {
-        if (!Int32.TryParse(count, out var countInt)) {
+        if (!int.TryParse(count, out var countInt)) {
             handle.diagnostics.Push(
-                new BelteDiagnostic(Repl.Diagnostics.Error.InvalidArgument(count, typeof(Int32))));
+                new BelteDiagnostic(global::Repl.Diagnostics.Error.InvalidArgument(count, typeof(int))));
 
             if (diagnosticHandle != null)
                 diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
@@ -529,7 +581,7 @@ public sealed class BelteRepl : ReplBase {
 
         var wrote = false;
 
-        for (int i=0; i<3; i++) {
+        for (var i = 0; i < 3; i++) {
             try {
                 File.WriteAllLines(path, subset);
                 wrote = true;
@@ -628,206 +680,5 @@ public sealed class BelteRepl : ReplBase {
     private void EvaluateShowIL() {
         state.showIL = !state.showIL;
         _writer.WriteLine(state.showIL ? "IL visible" : "IL hidden");
-    }
-
-    /// <summary>
-    /// All required fields to implement for a Repl color theme (only supported if using System.Console as out).
-    /// </summary>
-    internal abstract class ColorTheme {
-        /// <summary>
-        /// Default color to result to for unformatted text.
-        /// </summary>
-        internal abstract ConsoleColor @default { get; }
-
-        /// <summary>
-        /// Background color to indicate selected text.
-        /// </summary>
-        internal abstract ConsoleColor selection { get; }
-
-        /// <summary>
-        /// Default color for text with no special color.
-        /// </summary>
-        internal abstract ConsoleColor textDefault { get; }
-
-        /// <summary>
-        /// Color of all results.
-        /// </summary>
-        internal abstract ConsoleColor result { get; }
-
-        /// <summary>
-        /// Background color of terminal.
-        /// </summary>
-        internal abstract ConsoleColor background { get; }
-
-        /// <summary>
-        /// Color of identifer tokens.
-        /// </summary>
-        internal abstract ConsoleColor identifier { get; }
-
-        /// <summary>
-        /// Color of number literals.
-        /// </summary>
-        internal abstract ConsoleColor number { get; }
-
-        /// <summary>
-        /// Color of string literals.
-        /// </summary>
-        internal abstract ConsoleColor @string { get; }
-
-        /// <summary>
-        /// Color of comments (all types).
-        /// </summary>
-        internal abstract ConsoleColor comment { get; }
-
-        /// <summary>
-        /// Color of keywords.
-        /// </summary>
-        internal abstract ConsoleColor keyword { get; }
-
-        /// <summary>
-        /// Color of type names (not full type clauses).
-        /// </summary>
-        internal abstract ConsoleColor typeName { get; }
-
-        /// <summary>
-        /// Color any other code text.
-        /// </summary>
-        internal abstract ConsoleColor text { get; }
-
-        /// <summary>
-        /// Color of a string escape sequence.
-        /// </summary>
-        internal abstract ConsoleColor escape { get; }
-
-        /// <summary>
-        /// Color of code text that could not parse.
-        /// </summary>
-        internal abstract ConsoleColor errorText { get; }
-
-        /// <summary>
-        /// Color of red Nodes.
-        /// </summary>
-        internal abstract ConsoleColor redNode { get; }
-
-        /// <summary>
-        /// Color of green Nodes.
-        /// </summary>
-        internal abstract ConsoleColor greenNode { get; }
-
-        /// <summary>
-        /// Color of blue Nodes.
-        /// </summary>
-        internal abstract ConsoleColor blueNode { get; }
-    }
-
-    /// <summary>
-    /// Dark theme (default). Mostly dark colors and pairs well with dark themed terminals.
-    /// </summary>
-    internal class DarkTheme : ColorTheme {
-        internal override ConsoleColor @default => ConsoleColor.DarkGray;
-        internal override ConsoleColor selection => ConsoleColor.DarkGray;
-        internal override ConsoleColor textDefault => ConsoleColor.White;
-        internal override ConsoleColor result => ConsoleColor.White;
-        internal override ConsoleColor background => ConsoleColor.Black;
-        internal override ConsoleColor identifier => ConsoleColor.White;
-        internal override ConsoleColor number => ConsoleColor.Cyan;
-        internal override ConsoleColor @string => ConsoleColor.Yellow;
-        internal override ConsoleColor comment => ConsoleColor.DarkGray;
-        internal override ConsoleColor keyword => ConsoleColor.Blue;
-        internal override ConsoleColor typeName => ConsoleColor.Blue;
-        internal override ConsoleColor text => ConsoleColor.DarkGray;
-        internal override ConsoleColor escape => ConsoleColor.Cyan;
-        internal override ConsoleColor errorText => ConsoleColor.White;
-        internal override ConsoleColor redNode => ConsoleColor.Red;
-        internal override ConsoleColor greenNode => ConsoleColor.Green;
-        internal override ConsoleColor blueNode => ConsoleColor.Blue;
-    }
-
-    /// <summary>
-    /// Light theme. Mostly bright colors and pairs well with light themed terminals.
-    /// </summary>
-    internal class LightTheme : ColorTheme {
-        internal override ConsoleColor @default => ConsoleColor.DarkGray;
-        internal override ConsoleColor selection => ConsoleColor.DarkGray;
-        internal override ConsoleColor textDefault => ConsoleColor.Black;
-        internal override ConsoleColor result => ConsoleColor.Black;
-        internal override ConsoleColor background => ConsoleColor.White;
-        internal override ConsoleColor identifier => ConsoleColor.Black;
-        internal override ConsoleColor number => ConsoleColor.DarkCyan;
-        internal override ConsoleColor @string => ConsoleColor.DarkYellow;
-        internal override ConsoleColor comment => ConsoleColor.DarkGray;
-        internal override ConsoleColor keyword => ConsoleColor.DarkBlue;
-        internal override ConsoleColor typeName => ConsoleColor.DarkBlue;
-        internal override ConsoleColor text => ConsoleColor.DarkGray;
-        internal override ConsoleColor escape => ConsoleColor.DarkCyan;
-        internal override ConsoleColor errorText => ConsoleColor.Black;
-        internal override ConsoleColor redNode => ConsoleColor.Red;
-        internal override ConsoleColor greenNode => ConsoleColor.Green;
-        internal override ConsoleColor blueNode => ConsoleColor.Blue;
-    }
-
-    /// <summary>
-    /// Green theme. Mostly dark colors with green background.
-    /// </summary>
-    internal sealed class GreenTheme : DarkTheme {
-        internal override ConsoleColor textDefault => ConsoleColor.Black;
-        internal override ConsoleColor result => ConsoleColor.DarkGreen;
-        internal override ConsoleColor background => ConsoleColor.Green;
-        internal override ConsoleColor number => ConsoleColor.DarkCyan;
-        internal override ConsoleColor @string => ConsoleColor.DarkMagenta;
-        internal override ConsoleColor keyword => ConsoleColor.DarkBlue;
-        internal override ConsoleColor typeName => ConsoleColor.Red;
-        internal override ConsoleColor errorText => ConsoleColor.Gray;
-    }
-
-    /// <summary>
-    /// Repl specific state, maintained throughout instance, recreated every instance.
-    /// </summary>
-    internal sealed class BelteReplState {
-        /// <summary>
-        /// Show the parse tree after a submission.
-        /// </summary>
-        internal bool showTree = false;
-
-        /// <summary>
-        /// Show the lowered code after a submission.
-        /// </summary>
-        internal bool showProgram = false;
-
-        /// <summary>
-        /// Show compiler produced warnings.
-        /// </summary>
-        internal bool showWarnings = false;
-
-        /// <summary>
-        /// Show the IL code after a submission.
-        /// </summary>
-        internal bool showIL = false;
-
-        /// <summary>
-        /// If to ignore statements with side effects (Print, PrintLine, etc.).
-        /// </summary>
-        internal bool loadingSubmissions = false;
-
-        /// <summary>
-        /// What color theme to use (can change).
-        /// </summary>
-        internal ColorTheme colorTheme = new DarkTheme();
-
-        /// <summary>
-        /// Current <see cref="Page" /> the user is viewing.
-        /// </summary>
-        internal Page currentPage = Page.Repl;
-
-        /// <summary>
-        /// Previous <see cref="Compilation" /> (used to build of previous).
-        /// </summary>
-        internal Compilation previous;
-
-        /// <summary>
-        /// Current defined variables.
-        /// Not tracked after Repl instance is over, instead previous submissions are reevaluated.
-        /// </summary>
-        internal Dictionary<VariableSymbol, EvaluatorObject> variables;
     }
 }

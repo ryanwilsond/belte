@@ -15,7 +15,7 @@ public sealed class BelteDiagnostic : Diagnostic {
     /// <param name="message">Message/info on the <see cref="BelteDiagnostic" />.</param>
     /// <param name="suggestion">A possible solution to the problem.</param>
     public BelteDiagnostic(DiagnosticInfo info, TextLocation location, string message, string suggestion)
-        : base (info, message, suggestion) {
+        : base(info, message, suggestion) {
         this.location = location;
     }
 

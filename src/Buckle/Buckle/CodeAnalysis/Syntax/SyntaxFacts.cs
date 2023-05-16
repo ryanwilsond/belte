@@ -178,6 +178,8 @@ internal static class SyntaxFacts {
                 return SyntaxKind.TypeOfKeyword;
             case "struct":
                 return SyntaxKind.StructKeyword;
+            case "class":
+                return SyntaxKind.ClassKeyword;
             default:
                 return SyntaxKind.IdentifierToken;
         }
@@ -336,6 +338,8 @@ internal static class SyntaxFacts {
                 return "typeof";
             case SyntaxKind.StructKeyword:
                 return "struct";
+            case SyntaxKind.ClassKeyword:
+                return "class";
             default:
                 return null;
         }

@@ -3,7 +3,7 @@ using Buckle.CodeAnalysis.Binding;
 namespace Buckle.CodeAnalysis.Symbols;
 
 /// <summary>
-/// Parameter symbol (used in a <see cref="FunctionSymbol" />).
+/// Parameter symbol (used in a <see cref="MethodSymbol" />).
 /// </summary>
 internal sealed class ParameterSymbol : LocalVariableSymbol {
     /// <summary>
@@ -22,7 +22,7 @@ internal sealed class ParameterSymbol : LocalVariableSymbol {
         this.defaultValue = defaultValue;
     }
 
-    internal override SymbolKind kind => SymbolKind.Parameter;
+    public override SymbolKind kind => SymbolKind.Parameter;
 
     /// <summary>
     /// Ordinal of this parameter.

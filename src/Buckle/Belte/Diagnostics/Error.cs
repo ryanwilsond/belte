@@ -53,8 +53,8 @@ internal static class Error {
     /// <summary>
     /// CL0006. Run `buckle --explain CL0006` on the command line for more info.
     /// </summary>
-    internal static Diagnostic UnableToOpenFile(string filename) {
-        var message = $"failed to open file '{filename}'; most likely due to the file being used by another process";
+    internal static Diagnostic UnableToOpenFile(string fileName) {
+        var message = $"failed to open file '{fileName}'; most likely due to the file being used by another process";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnableToOpenFile), message);
     }
 

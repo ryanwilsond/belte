@@ -15,4 +15,7 @@
     "omnisharp.defaultLaunchSolution": "src/Buckle/Buckle.sln",
     "omnisharp.disableMSBuildDiagnosticWarning": true,
     "omnisharp.enableEditorConfigSupport": true,
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
+    "editor.formatOnSave": true,
 }

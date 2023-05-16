@@ -50,5 +50,17 @@ public sealed class TextSpan {
         return start < span.end && end > span.start;
     }
 
+    /// <summary>
+    /// Determines whether the position lies within the span.
+    /// </summary>
+    /// <param name="position">Position to check.</param>
+    /// <returns>
+    /// <c>true</c> if the position is greater than or equal to start and strictly less than end,
+    /// otherwise <c>false</c>.
+    /// </returns>
+    internal bool Contains(int position) {
+        return unchecked((uint)(position - start) < (uint)length);
+    }
+
     public override string ToString() => $"{start}..{end}";
 }

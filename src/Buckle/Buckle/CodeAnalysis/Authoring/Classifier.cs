@@ -8,36 +8,35 @@ namespace Buckle.CodeAnalysis.Authoring;
 /// <summary>
 /// Classifies parsed SyntaxNodes.
 /// </summary>
-internal static class Classifier {
+public static class Classifier {
     /// <summary>
     /// Classifies SyntaxNodes in a <see cref="SyntaxTree" /> within a <see cref="TextSpan" />.
     /// </summary>
     /// <param name="syntaxTree"><see cref="SyntaxTree" /> to classify.</param>
     /// <param name="span">What segment of the <see cref="SyntaxTree" /> to classify.</param>
     /// <returns>All Classifications made within the <see cref="TextSpan" /> of the <see cref="SyntaxTree" />.</returns>
-    internal static ImmutableArray<ClassifiedSpan> Classify(SyntaxTree syntaxTree, TextSpan span) {
+    public static ImmutableArray<ClassifiedSpan> Classify(SyntaxTree syntaxTree, TextSpan span) {
         var result = ImmutableArray.CreateBuilder<ClassifiedSpan>();
-        ClassifyNode(syntaxTree.root, span, result);
+        ClassifyNode(syntaxTree.GetRoot(), span, result);
 
         return result.ToImmutable();
     }
 
     private static void ClassifyNode(
-        SyntaxNode node, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result, bool isTypeName = false) {
+        SyntaxNodeOrToken node, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result, bool isTypeName = false) {
         if (node == null)
             return;
 
         if (node.fullSpan != null && !node.fullSpan.OverlapsWith(span))
             return;
 
-        if (node is SyntaxToken token)
-            ClassifyToken(token, span, result, isTypeName);
-
-        if (node is TypeSyntax) {
-            bool inAttribute = false;
+        if (node.isToken) {
+            ClassifyToken(node.AsToken(), span, result, isTypeName);
+        } else if (node.AsNode() is TypeSyntax) {
+            var inAttribute = false;
             isTypeName = false;
 
-            foreach (var child in node.GetChildren()) {
+            foreach (var child in node.ChildNodesAndTokens()) {
                 // Does not matter that it catches on array brackets because they do not contain identifiers
                 if (child.kind == SyntaxKind.OpenBracketToken)
                     inAttribute = true;
@@ -50,7 +49,7 @@ internal static class Classifier {
                 ClassifyNode(child, span, result, isTypeName);
             }
         } else {
-            foreach (var child in node.GetChildren())
+            foreach (var child in node.ChildNodesAndTokens())
                 ClassifyNode(child, span, result);
         }
     }

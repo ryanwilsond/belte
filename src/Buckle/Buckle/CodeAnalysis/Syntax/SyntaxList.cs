@@ -1,42 +1,27 @@
-using System.Collections;
-using System.Collections.Generic;
-using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// A syntax list of SyntaxNodes.
+/// Represents a list of SyntaxNodes.
 /// </summary>
-/// <typeparam name="T">Child type of <see cref="SyntaxNode" />.</typeparam>
-internal sealed class SyntaxList<T> : IEnumerable<T> where T: SyntaxNode {
-    private readonly ImmutableArray<T> _nodes;
+public partial class SyntaxList : SyntaxNode {
+    private readonly ArrayElement<SyntaxNode>[] _children;
 
-    internal SyntaxList(ImmutableArray<T> nodes) {
-        _nodes = nodes;
+    /// <summary>
+    /// Creates a new <see cref="SyntaxList" /> from an <see cref="InternalSyntax.SyntaxList" />.
+    /// </summary>
+    internal SyntaxList(SyntaxNode parent, InternalSyntax.SyntaxList green, int position)
+        : base(parent, green, position) {
+        _children = new ArrayElement<SyntaxNode>[green.slotCount];
     }
 
-    /// <summary>
-    /// Number of SyntaxNodes in collection.
-    /// </summary>
-    /// <returns>Count.</returns>
-    internal int count => _nodes.Length;
+    internal override SyntaxTree syntaxTree => parent.syntaxTree;
 
-    /// <summary>
-    /// Indexes SyntaxNodes in collection.
-    /// </summary>
-    /// <returns><see cref="SyntaxNode" /> at index.</returns>
-    internal T this[int index] => (T)_nodes[index];
-
-    /// <summary>
-    /// Gets enumerator of all SyntaxNodes.
-    /// </summary>
-    /// <returns>Yields all SyntaxNodes.</returns>
-    public IEnumerator<T> GetEnumerator() {
-        for (int i=0; i<count; i++)
-            yield return this[i];
+    internal override SyntaxNode GetNodeSlot(int index) {
+        return GetRedElement(ref _children[index].Value, index);
     }
 
-    IEnumerator IEnumerable.GetEnumerator() {
-        return GetEnumerator();
+    internal override SyntaxNode GetCachedSlot(int index) {
+        return _children[index];
     }
 }

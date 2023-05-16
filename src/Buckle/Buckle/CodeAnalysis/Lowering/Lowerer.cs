@@ -20,16 +20,16 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     /// <summary>
-    /// Lowers a <see cref="FunctionSymbol" />.
+    /// Lowers a <see cref="MethodSymbol" />.
     /// </summary>
-    /// <param name="function">Function to lower.</param>
-    /// <param name="statement">Function body.</param>
+    /// <param name="method">Method to lower.</param>
+    /// <param name="statement">Method body.</param>
     /// <param name="transpilerMode">If the compiler is transpiling, if true skips part of lowering.</param>
-    /// <returns>Lowered function body (same type).</returns>
-    internal static BoundBlockStatement Lower(FunctionSymbol function, BoundStatement statement, bool transpilerMode) {
+    /// <returns>Lowered method body (same type).</returns>
+    internal static BoundBlockStatement Lower(MethodSymbol method, BoundStatement statement, bool transpilerMode) {
         var expandedStatement = Expander.Expand(statement);
         var lowerer = new Lowerer(transpilerMode);
-        var block = Flatten(function, lowerer.RewriteStatement(expandedStatement));
+        var block = Flatten(method, lowerer.RewriteStatement(expandedStatement));
 
         return Optimizer.Optimize(block, transpilerMode) as BoundBlockStatement;
     }
@@ -378,7 +378,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             );
         }
 
-        if (BoundType.Copy(expression.expression.type, isNullable: true).Equals(expression.type))
+        if (BoundType.CopyWith(expression.expression.type, isNullable: true).Equals(expression.type))
             return RewriteExpression(expression.expression);
 
         return base.RewriteCastExpression(expression);
@@ -387,32 +387,32 @@ internal sealed class Lowerer : BoundTreeRewriter {
     protected override BoundExpression RewriteCallExpression(BoundCallExpression expression) {
         /*
 
-        <function>(<parameters>)
+        <method>(<parameters>)
 
         ---->
 
-        (<function>(<parameters>))
+        (<method>(<parameters>))
 
         Now parameters do not have compiler generated '$' symbols in their name
 
-        ----> <function> is 'Value' and <parameter> is not nullable
+        ----> <method> is 'Value' and <parameter> is not nullable
 
         <parameter>
 
-        ----> <function> is 'HasValue' and <parameter> is not nullable
+        ----> <method> is 'HasValue' and <parameter> is not nullable
 
         true
 
         */
-        var function = expression.function;
+        var method = expression.method;
         var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
 
-        if (function.name == "Value" && !expression.arguments[0].type.isNullable)
+        if (method.name == "Value" && !expression.arguments[0].type.isNullable)
             return RewriteExpression(expression.arguments[0]);
-        else if (function.name == "HasValue" && !expression.arguments[0].type.isNullable)
+        else if (method.name == "HasValue" && !expression.arguments[0].type.isNullable)
             return new BoundLiteralExpression(true);
 
-        foreach (var oldParameter in function.parameters) {
+        foreach (var oldParameter in method.parameters) {
             var name = oldParameter.name.StartsWith("$")
                 ? oldParameter.name.Substring(1)
                 : oldParameter.name;
@@ -426,7 +426,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         ImmutableArray<BoundExpression>.Builder builder = null;
 
-        for (int i=0; i<expression.arguments.Length; i++) {
+        for (var i = 0; i < expression.arguments.Length; i++) {
             var oldArgument = expression.arguments[i];
             var newArgument = RewriteExpression(oldArgument);
 
@@ -434,23 +434,22 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 if (builder == null) {
                     builder = ImmutableArray.CreateBuilder<BoundExpression>(expression.arguments.Length);
 
-                    for (int j=0; j<i; j++)
+                    for (var j = 0; j < i; j++)
                         builder.Add(expression.arguments[j]);
                 }
             }
 
-            if (builder != null)
-                builder.Add(newArgument);
+            builder?.Add(newArgument);
         }
 
-        var newFunction = new FunctionSymbol(
-            function.name, parameters.ToImmutable(), function.type, function.declaration
+        var newMethod = new MethodSymbol(
+            method.name, parameters.ToImmutable(), method.type, method.declaration
         );
 
         if (builder == null)
-            return base.RewriteCallExpression(new BoundCallExpression(newFunction, expression.arguments));
+            return base.RewriteCallExpression(new BoundCallExpression(newMethod, expression.arguments));
         else
-            return base.RewriteCallExpression(new BoundCallExpression(newFunction, builder.ToImmutable()));
+            return base.RewriteCallExpression(new BoundCallExpression(newMethod, builder.ToImmutable()));
     }
 
     protected override BoundExpression RewriteCompoundAssignmentExpression(
@@ -604,18 +603,18 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
     private BoundExpression Value(BoundExpression expression) {
         if (expression.type.typeSymbol == TypeSymbol.Bool)
-            return Call(BuiltinFunctions.ValueBool, expression);
+            return Call(BuiltinMethods.ValueBool, expression);
         if (expression.type.typeSymbol == TypeSymbol.Decimal)
-            return Call(BuiltinFunctions.ValueDecimal, expression);
+            return Call(BuiltinMethods.ValueDecimal, expression);
         if (expression.type.typeSymbol == TypeSymbol.Int)
-            return Call(BuiltinFunctions.ValueInt, expression);
+            return Call(BuiltinMethods.ValueInt, expression);
         if (expression.type.typeSymbol == TypeSymbol.String)
-            return Call(BuiltinFunctions.ValueString, expression);
+            return Call(BuiltinMethods.ValueString, expression);
 
         return Cast(
             expression.type,
             Call(
-                BuiltinFunctions.ValueAny,
+                BuiltinMethods.ValueAny,
                 expression
             )
         );
@@ -623,18 +622,18 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
     private BoundExpression HasValue(BoundExpression expression) {
         if (expression.type.typeSymbol == TypeSymbol.Bool)
-            return Call(BuiltinFunctions.HasValueBool, expression);
+            return Call(BuiltinMethods.HasValueBool, expression);
         if (expression.type.typeSymbol == TypeSymbol.Decimal)
-            return Call(BuiltinFunctions.HasValueDecimal, expression);
+            return Call(BuiltinMethods.HasValueDecimal, expression);
         if (expression.type.typeSymbol == TypeSymbol.Int)
-            return Call(BuiltinFunctions.HasValueInt, expression);
+            return Call(BuiltinMethods.HasValueInt, expression);
         if (expression.type.typeSymbol == TypeSymbol.String)
-            return Call(BuiltinFunctions.HasValueString, expression);
+            return Call(BuiltinMethods.HasValueString, expression);
 
-        return Call(BuiltinFunctions.HasValueAny, expression);
+        return Call(BuiltinMethods.HasValueAny, expression);
     }
 
-    private static BoundBlockStatement Flatten(FunctionSymbol function, BoundStatement statement) {
+    private static BoundBlockStatement Flatten(MethodSymbol method, BoundStatement statement) {
         var builder = ImmutableArray.CreateBuilder<BoundStatement>();
         var stack = new Stack<BoundStatement>();
         stack.Push(statement);
@@ -650,7 +649,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             }
         }
 
-        if (function.type.typeSymbol == TypeSymbol.Void) {
+        if (method.type.typeSymbol == TypeSymbol.Void) {
             if (builder.Count == 0 || CanFallThrough(builder.Last()))
                 builder.Add(new BoundReturnStatement(null));
         }

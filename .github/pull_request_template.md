@@ -12,10 +12,11 @@ Please delete options that are not relevant.
 
 - [ ] Bug fix (non-breaking change which fixes an issue)
 - [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality not to work as expected)
 - [ ] This change requires a documentation update
+- [ ] Breaking changes (fix or feature that would cause existing functionality not to work as expected):
+  - List the breaking changes (APIs, language features, etc.)
 
-# Checklist:
+# Checklist
 
 - [ ] My code follows the style guidelines of this project
 - [ ] I have performed a self-review of my code
@@ -30,6 +31,8 @@ Please delete options that are not relevant.
 
 **If no new syntax was added delete this section:**
 
+- [ ] I added my new syntax to the SyntaxTree folder
+- [ ] I updated the SyntaxFactory class (create a partial inside the new syntax source file)
 - [ ] I updated the Lexer class (if applicable)
 - [ ] I updated the Parser class
 - [ ] I updated the Binder class

@@ -7,18 +7,20 @@ namespace Buckle.CodeAnalysis.Binding;
 
 internal static partial class BoundFactory {
     internal static BoundGlobalScope GlobalScope(BoundGlobalScope previous, BelteDiagnosticQueue diagnostics) {
-        return new BoundGlobalScope(ImmutableArray<(FunctionSymbol function, BoundBlockStatement body)>.Empty,
-            ImmutableArray<(StructSymbol function, ImmutableList<FieldSymbol> members)>.Empty, previous,
-            diagnostics, null, null, ImmutableArray<FunctionSymbol>.Empty,
+        return new BoundGlobalScope(ImmutableArray<(MethodSymbol, BoundBlockStatement)>.Empty,
+            ImmutableArray<(StructSymbol, ImmutableList<Symbol>)>.Empty,
+            ImmutableArray<(ClassSymbol, ImmutableList<Symbol>)>.Empty,
+            previous, diagnostics, null, ImmutableArray<MethodSymbol>.Empty,
             ImmutableArray<VariableSymbol>.Empty, ImmutableArray<TypeSymbol>.Empty,
             ImmutableArray<BoundStatement>.Empty
         );
     }
 
     internal static BoundProgram Program(BoundProgram previous, BelteDiagnosticQueue diagnostics) {
-        return new BoundProgram(previous, diagnostics,
-            null, null, ImmutableDictionary<FunctionSymbol, BoundBlockStatement>.Empty,
-            ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>>.Empty
+        return new BoundProgram(previous, diagnostics, null,
+            ImmutableDictionary<MethodSymbol, BoundBlockStatement>.Empty,
+            ImmutableDictionary<StructSymbol, ImmutableList<Symbol>>.Empty,
+            ImmutableDictionary<ClassSymbol, ImmutableList<Symbol>>.Empty
         );
     }
 
@@ -34,7 +36,7 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundBlockStatement Block(params BoundStatement[] statements) {
-        return new BoundBlockStatement(ImmutableArray.Create<BoundStatement>(statements));
+        return new BoundBlockStatement(ImmutableArray.Create(statements));
     }
 
     internal static BoundLabelStatement Label(BoundLabel label) {
@@ -62,8 +64,8 @@ internal static partial class BoundFactory {
         return new BoundWhileStatement(condition, body, breakLabel, continueLabel);
     }
 
-    internal static BoundCallExpression Call(FunctionSymbol function, params BoundExpression[] arguments) {
-        return new BoundCallExpression(function, ImmutableArray.Create<BoundExpression>(arguments));
+    internal static BoundCallExpression Call(MethodSymbol method, params BoundExpression[] arguments) {
+        return new BoundCallExpression(method, ImmutableArray.Create(arguments));
     }
 
     internal static BoundCastExpression Cast(BoundType type, BoundExpression expression) {

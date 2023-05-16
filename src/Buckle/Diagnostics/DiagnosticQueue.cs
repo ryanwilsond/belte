@@ -78,7 +78,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
         if (diagnosticQueue == null)
             return;
 
-        T diagnostic = diagnosticQueue.Pop();
+        var diagnostic = diagnosticQueue.Pop();
 
         while (diagnostic != null) {
             _diagnostics.Add(diagnostic);
@@ -94,7 +94,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
         if (_diagnostics.Count == 0)
             return null;
 
-        T diagnostic = _diagnostics[0];
+        var diagnostic = _diagnostics[0];
         _diagnostics.RemoveAt(0);
 
         return diagnostic;
@@ -108,7 +108,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
         if (_diagnostics.Count == 0)
             return null;
 
-        T diagnostic = _diagnostics[_diagnostics.Count - 1];
+        var diagnostic = _diagnostics[_diagnostics.Count - 1];
         _diagnostics.RemoveAt(_diagnostics.Count - 1);
 
         return diagnostic;
@@ -126,7 +126,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// </summary>
     /// <param name="type">Severity of Diagnostics to remove.</param>
     public void Clear(DiagnosticSeverity type) {
-        for (int i=0; i<_diagnostics.Count; i++) {
+        for (var i = 0; i < _diagnostics.Count; i++) {
             if (_diagnostics[i].info.severity == type)
                 _diagnostics.RemoveAt(i--);
         }

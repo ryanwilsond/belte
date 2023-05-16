@@ -8,6 +8,7 @@
     <LangVersion>preview</LangVersion>
     <Nullable>annotations</Nullable>
     <Features>strict</Features>
+    <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
   </PropertyGroup>
 
 </Project>

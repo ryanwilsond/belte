@@ -4,13 +4,13 @@ using Buckle.CodeAnalysis.Syntax;
 namespace Buckle.CodeAnalysis.Symbols;
 
 /// <summary>
-/// A function symbol.
+/// A struct symbol.
 /// </summary>
-internal sealed class StructSymbol : TypeSymbol {
+internal sealed class StructSymbol : TypeSymbol, ITypeSymbolWithMembers {
     /// <summary>
     /// Creates a <see cref="StructSymbol" />.
     /// </summary>
-    /// <param name="name">Name of struct.</param>
+    /// <param name="name">Name of the struct.</param>
     /// <param name="symbols">Symbols contained in the struct.</param>
     /// <param name="declaration">Declaration of the struct.</param>
     internal StructSymbol(
@@ -20,15 +20,12 @@ internal sealed class StructSymbol : TypeSymbol {
         this.declaration = declaration;
     }
 
-    /// <summary>
-    /// All contained symbols.
-    /// </summary>
-    internal ImmutableArray<Symbol> symbols { get; }
+    public ImmutableArray<Symbol> symbols { get; }
+
+    public override SymbolKind kind => SymbolKind.Type;
 
     /// <summary>
-    /// Declaration of struct (see <see cref="StructDeclarationSyntax">).
+    /// Declaration of the struct (see <see cref="StructDeclarationSyntax">).
     /// </summary>
     internal StructDeclarationSyntax declaration { get; }
-
-    internal override SymbolKind kind => SymbolKind.Type;
 }

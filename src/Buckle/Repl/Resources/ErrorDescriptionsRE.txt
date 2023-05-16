@@ -18,7 +18,7 @@ For example:
 ```
 $RE0002
 The Repl produces this error when a known Repl command is invoked with the
-incorrect number of arguments (similar to a method or function call in Belte).
+incorrect number of arguments (similar to a method or method call in Belte).
 Repl commands vary in how many arguments they have, so the list of all arguments
 for all Repl commands can be viewed by invoking the '#help' command.
 
@@ -30,7 +30,7 @@ For example:
 $RE0003
 When using the '#dump' Repl command, the user must pass in the name of a symbol.
 If the symbol name passed could not be found in the global scope (of any
-submission) then the Repl raises with error. If a full function signature is
+submission) then the Repl raises with error. If a full method signature is
 passed instead of just a symbol name, the error code RE0006 is used instead.
 
 For example:
@@ -63,10 +63,10 @@ For example:
 ```
 $RE0006
 When using the '#dump' Repl command, the user can either pass in just a symbol
-name or a full function signature. If the name of the symbol or function is
+name or a full method signature. If the name of the symbol or method is
 unknown, the Repl raises an error. If just a symbol name is passed, then the
-error code RE0003 is used. If it was a function signature, then this error code
-is used instead. This error is raised even if the function name exists but any
+error code RE0003 is used. If it was a method signature, then this error code
+is used instead. This error is raised even if the method name exists but any
 part of the signature is off.
 
 For example:
@@ -75,14 +75,14 @@ For example:
 loaded 0 submissions
 » void myFunc(int a) { }
 » #dump myFunction(int) // Correct format, but 'myFunction' does not exist in the global scope
-» #dump myFunc(string) // The function name is correct, but the signature is incorrect making this not exist in the global scope
+» #dump myFunc(string) // The method name is correct, but the signature is incorrect making this not exist in the global scope
 » #dump myFunc(int) // Correct
 ```
 $RE0007
 When using the '#dump' Repl command, the user can pass a symbol name. If this
-symbol name refers to an overloaded function and the name is ambiguous between
+symbol name refers to an overloaded method and the name is ambiguous between
 more than one overload, then this error is raised. This makes sure the user is
-seeing the function body they expect and not just the first one the Repl finds.
+seeing the method body they expect and not just the first one the Repl finds.
 
 For example:
 
@@ -93,7 +93,7 @@ loaded 0 submissions
 » #dump myFunc // The Repl cannot tell which overload to show, so it raises this error
 ```
 
-To avoid this error, use a partial function signature instead of just the name.
+To avoid this error, use a partial method signature instead of just the name.
 Note that this signature is picky, so make sure to not include the return type,
 and do not provide parameter names. Putting any whitespace will make the Repl
 think you are providing more than 1 argument, so strip any whitespace:

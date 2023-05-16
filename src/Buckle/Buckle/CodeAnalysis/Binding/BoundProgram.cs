@@ -10,15 +10,16 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class BoundProgram {
     /// <param name="previous">Previous <see cref="BoundProgram" /> (if applicable).</param>
     internal BoundProgram(
-        BoundProgram previous, BelteDiagnosticQueue diagnostics, FunctionSymbol mainFunction,
-        FunctionSymbol scriptFunction, ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies,
-        ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>> structMembers) {
+        BoundProgram previous, BelteDiagnosticQueue diagnostics, MethodSymbol entryPoint,
+        ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies,
+        ImmutableDictionary<StructSymbol, ImmutableList<Symbol>> structMembers,
+        ImmutableDictionary<ClassSymbol, ImmutableList<Symbol>> classMembers) {
         this.previous = previous;
         this.diagnostics = diagnostics;
-        this.mainFunction = mainFunction;
-        this.scriptFunction = scriptFunction;
-        this.functionBodies = functionBodies;
+        this.entryPoint = entryPoint;
+        this.methodBodies = methodBodies;
         this.structMembers = structMembers;
+        this.classMembers = classMembers;
     }
 
     /// <summary>
@@ -28,11 +29,11 @@ internal sealed class BoundProgram {
 
     internal BelteDiagnosticQueue diagnostics { get; }
 
-    internal FunctionSymbol mainFunction { get; }
+    internal MethodSymbol entryPoint { get; }
 
-    internal FunctionSymbol scriptFunction { get; }
+    internal ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies { get; }
 
-    internal ImmutableDictionary<FunctionSymbol, BoundBlockStatement> functionBodies { get; }
+    internal ImmutableDictionary<StructSymbol, ImmutableList<Symbol>> structMembers { get; }
 
-    internal ImmutableDictionary<StructSymbol, ImmutableList<FieldSymbol>> structMembers { get; }
+    internal ImmutableDictionary<ClassSymbol, ImmutableList<Symbol>> classMembers { get; }
 }

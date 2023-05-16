@@ -20,16 +20,16 @@ internal static class Info {
     /// <summary>
     /// CL0018. Run `buckle --explain CL0018` on the command line for more info.
     /// </summary>
-    internal static Diagnostic IgnoringUnknownFileType(string filename) {
-        var message = $"unknown file type of input file '{filename}'; ignoring";
+    internal static Diagnostic IgnoringUnknownFileType(string fileName) {
+        var message = $"unknown file type of input file '{fileName}'; ignoring";
         return new Diagnostic(InfoInfo(DiagnosticCode.INF_IgnoringUnknownFileType), message);
     }
 
     /// <summary>
     /// CL0020. Run `buckle --explain CL0020` on the command line for more info.
     /// </summary>
-    internal static Diagnostic IgnoringCompiledFile(string filename) {
-        var message = $"{filename}: file already compiled; ignoring";
+    internal static Diagnostic IgnoringCompiledFile(string fileName) {
+        var message = $"{fileName}: file already compiled; ignoring";
         return new Diagnostic(InfoInfo(DiagnosticCode.INF_IgnoringCompiledFile), message);
     }
 

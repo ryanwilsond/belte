@@ -7,6 +7,7 @@
             "type": "process",
             "args": [
                 "build",
+                "-t:rebuild",
                 "${workspaceFolder}/src/Buckle/Belte/Belte.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
@@ -19,6 +20,7 @@
             "type": "process",
             "args": [
                 "build",
+                "-t:rebuild",
                 "${workspaceFolder}/src/Buckle/Belte/Belte.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary",
@@ -56,7 +58,8 @@
             "command": "buckle",
             "type": "process",
             "args": [
-                "-i", "${file}"
+                "-i",
+                "${file}"
             ],
             "presentation": {
                 "echo": true,
@@ -68,12 +71,14 @@
             },
             "problemMatcher": {
                 "fileLocation": "absolute",
-                "pattern": [{
-                    "regexp": "^(([^\\\\s].*):\\\\d+:\\\\d+): error:\\\\s*(.*)$",
-                    "file": 2,
-                    "location": 1,
-                    "message": 3
-                }]
+                "pattern": [
+                    {
+                        "regexp": "^(([^\\\\s].*):\\\\d+:\\\\d+): error:\\\\s*(.*)$",
+                        "file": 2,
+                        "location": 1,
+                        "message": 3
+                    }
+                ]
             }
         }
     ]

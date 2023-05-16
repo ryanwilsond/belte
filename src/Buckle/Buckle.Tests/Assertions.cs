@@ -23,10 +23,12 @@ internal static class Assertions {
     /// <param name="expectedValue">Expected result.</param>
     internal static void AssertValue(string text, object expectedValue) {
         var syntaxTree = SyntaxTree.Parse(text);
-        var compilation = Compilation.CreateScript(null, syntaxTree);
-        var variables = new Dictionary<VariableSymbol, EvaluatorObject>();
+        var compilation = Compilation.CreateScript(
+            new CompilationOptions(BuildMode.Independent, true, false), null, syntaxTree
+        );
+
         var _ = false;
-        var result = compilation.Evaluate(variables, ref _);
+        var result = compilation.Evaluate(new Dictionary<IVariableSymbol, IEvaluatorObject>(), ref _);
 
         if (result.value is double && (Convert.ToDouble(expectedValue)).CompareTo(result.value) == 0)
             expectedValue = Convert.ToDouble(expectedValue);
@@ -43,9 +45,12 @@ internal static class Assertions {
     /// <param name="exceptions">Expected exception(s) thrown.</param>
     internal static void AssertExceptions(string text, ITestOutputHelper writer, params Exception[] exceptions) {
         var syntaxTree = SyntaxTree.Parse(text);
-        var compilation = Compilation.CreateScript(null, syntaxTree);
+        var compilation = Compilation.CreateScript(
+            new CompilationOptions(BuildMode.Independent, true, false), null, syntaxTree
+        );
+
         var _ = false;
-        var result = compilation.Evaluate(new Dictionary<VariableSymbol, EvaluatorObject>(), ref _);
+        var result = compilation.Evaluate(new Dictionary<IVariableSymbol, IEvaluatorObject>(), ref _);
 
         if (exceptions.Length != result.exceptions.Count) {
             writer.WriteLine($"Input: {text}");
@@ -56,7 +61,7 @@ internal static class Assertions {
 
         Assert.Equal(exceptions.Length, result.exceptions.Count);
 
-        for (int i=0; i<exceptions.Length; i++)
+        for (var i = 0; i < exceptions.Length; i++)
             Assert.Equal(exceptions[i].GetType(), result.exceptions[i].GetType());
     }
 
@@ -73,13 +78,17 @@ internal static class Assertions {
         var syntaxTree = SyntaxTree.Parse(annotatedText.text);
 
         var tempDiagnostics = new BelteDiagnosticQueue();
+        var treeDiagnostics = syntaxTree.GetDiagnostics();
 
-        if (syntaxTree.diagnostics.Errors().Any()) {
-            tempDiagnostics.Move(syntaxTree.diagnostics);
+        if (treeDiagnostics.Errors().Any()) {
+            tempDiagnostics.Move(treeDiagnostics);
         } else {
-            var compilation = Compilation.CreateScript(null, syntaxTree);
+            var compilation = Compilation.CreateScript(
+                new CompilationOptions(BuildMode.Independent, true, false), null, syntaxTree
+            );
+
             var _ = false;
-            var result = compilation.Evaluate(new Dictionary<VariableSymbol, EvaluatorObject>(), ref _);
+            var result = compilation.Evaluate(new Dictionary<IVariableSymbol, IEvaluatorObject>(), ref _);
             tempDiagnostics = result.diagnostics;
         }
 
@@ -101,7 +110,7 @@ internal static class Assertions {
 
         Assert.Equal(expectedDiagnostics.Length, diagnostics.count);
 
-        for (int i=0; i<expectedDiagnostics.Length; i++) {
+        for (var i = 0; i < expectedDiagnostics.Length; i++) {
             var diagnostic = diagnostics.Pop();
 
             var expectedMessage = expectedDiagnostics[i];
@@ -127,7 +136,7 @@ internal static class Assertions {
     /// <param name="buildMode">Which emitter to use.</param>
     internal static void AssertText(string text, string expectedText, BuildMode buildMode) {
         var syntaxTree = SyntaxTree.Parse(text);
-        var compilation = Compilation.Create(buildMode == BuildMode.CSharpTranspile, syntaxTree);
+        var compilation = Compilation.Create(new CompilationOptions(buildMode, false, false), syntaxTree);
         var result = compilation.EmitToString(buildMode, "EmitterTests");
 
         Assert.Empty(compilation.diagnostics.Errors().ToArray());

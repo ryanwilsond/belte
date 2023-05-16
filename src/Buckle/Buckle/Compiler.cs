@@ -20,6 +20,8 @@ public sealed class Compiler {
     private const int ErrorExitCode = 1;
     private const int FatalExitCode = 2;
 
+    private CompilationOptions _options => new CompilationOptions(state.buildMode, false, !state.noOut);
+
     /// <summary>
     /// Creates a new <see cref="Compiler" />, state needs to be set separately.
     /// </summary>
@@ -71,9 +73,10 @@ public sealed class Compiler {
     private int CheckErrors() {
         var worst = SuccessExitCode;
 
-        foreach (Diagnostic diagnostic in diagnostics)
+        foreach (Diagnostic diagnostic in diagnostics) {
             if (diagnostic.info.severity == DiagnosticSeverity.Error)
                 worst = ErrorExitCode;
+        }
 
         return worst;
     }
@@ -81,11 +84,11 @@ public sealed class Compiler {
     private void InternalPreprocessor() {
         var preprocessor = new Preprocessor();
 
-        for (int i=0; i<state.tasks.Length; i++) {
-            ref FileState task = ref state.tasks[i];
+        for (var i = 0; i < state.tasks.Length; i++) {
+            ref var task = ref state.tasks[i];
 
             if (task.stage == CompilerStage.Raw) {
-                var text = preprocessor.PreprocessText(task.inputFilename, task.fileContent.text);
+                var text = preprocessor.PreprocessText(task.inputFileName, task.fileContent.text);
                 task.fileContent.text = text;
                 task.stage = CompilerStage.Preprocessed;
             }
@@ -98,17 +101,17 @@ public sealed class Compiler {
         diagnostics.Clear(DiagnosticSeverity.Warning);
         var syntaxTrees = new List<SyntaxTree>();
 
-        for (int i=0; i<state.tasks.Length; i++) {
-            ref FileState task = ref state.tasks[i];
+        for (var i = 0; i < state.tasks.Length; i++) {
+            ref var task = ref state.tasks[i];
 
             if (task.stage == CompilerStage.Preprocessed) {
-                var syntaxTree = SyntaxTree.Load(task.inputFilename, task.fileContent.text);
+                var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text);
                 syntaxTrees.Add(syntaxTree);
                 task.stage = CompilerStage.Compiled;
             }
         }
 
-        var compilation = Compilation.Create(false, syntaxTrees.ToArray());
+        var compilation = Compilation.Create(_options, syntaxTrees.ToArray());
         diagnostics.Move(compilation.diagnostics);
 
         if ((diagnostics.Errors().Any()))
@@ -121,7 +124,7 @@ public sealed class Compiler {
         var abort = false;
 
         void EvaluateWrapper() {
-            result = compilation.Evaluate(new Dictionary<VariableSymbol, EvaluatorObject>(), ref abort);
+            result = compilation.Evaluate(new Dictionary<IVariableSymbol, IEvaluatorObject>(), ref abort);
         }
 
         void ctrlCHandler(object sender, ConsoleCancelEventArgs args) {
@@ -135,7 +138,8 @@ public sealed class Compiler {
         var evaluateWrapperThread = new Thread(evaluateWrapperReference);
         evaluateWrapperThread.Start();
 
-        while (evaluateWrapperThread.IsAlive) ;
+        while (evaluateWrapperThread.IsAlive)
+            ;
 
         diagnostics.Move(result.diagnostics);
     }
@@ -143,17 +147,17 @@ public sealed class Compiler {
     private void InternalCompiler() {
         var syntaxTrees = new List<SyntaxTree>();
 
-        for (int i=0; i<state.tasks.Length; i++) {
-            ref FileState task = ref state.tasks[i];
+        for (var i = 0; i < state.tasks.Length; i++) {
+            ref var task = ref state.tasks[i];
 
             if (task.stage == CompilerStage.Preprocessed) {
-                var syntaxTree = SyntaxTree.Load(task.inputFilename, task.fileContent.text);
+                var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text);
                 syntaxTrees.Add(syntaxTree);
                 task.stage = CompilerStage.Compiled;
             }
         }
 
-        var compilation = Compilation.Create(state.buildMode == BuildMode.CSharpTranspile, syntaxTrees.ToArray());
+        var compilation = Compilation.Create(_options, syntaxTrees.ToArray());
 
         if (state.noOut)
             return;

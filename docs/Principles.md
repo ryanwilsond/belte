@@ -244,7 +244,7 @@ algorithm to find them without iterating through every key (hashmap).
 
 ### Structures
 
-The one use of structures specifically over classes is anonymous structures for parameters in functions (usually).
+The one use of structures specifically over classes is anonymous structures for parameters in methods (usually).
 To solve this a C#-style `tuple` will be used instead because they are cleaner and more intuitive, and structures will
 never be added to Belte.
 

@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Display;
 /// <summary>
 /// Prints a <see cref="Symbol" />.
 /// </summary>
-internal static class SymbolDisplay {
+public static class SymbolDisplay {
     /// <summary>
     /// Generates a rich text representation of a single <see cref="Symbol" />.
     /// </summary>
@@ -25,10 +25,10 @@ internal static class SymbolDisplay {
     /// </summary>
     /// <param name="text"><see cref="DisplayText" /> to add to.</param>
     /// <param name="symbol"><see cref="Symbol" /> to add (not modified).</param>
-    internal static void DisplaySymbol(DisplayText text, Symbol symbol) {
+    public static void DisplaySymbol(DisplayText text, ISymbol symbol) {
         switch (symbol.kind) {
-            case SymbolKind.Function:
-                DisplayFunction(text, (FunctionSymbol)symbol);
+            case SymbolKind.Method:
+                DisplayMethod(text, (MethodSymbol)symbol);
                 break;
             case SymbolKind.LocalVariable:
                 DisplayLocalVariable(text, (LocalVariableSymbol)symbol);
@@ -61,6 +61,10 @@ internal static class SymbolDisplay {
             text.Write(CreateKeyword(SyntaxKind.StructKeyword));
             text.Write(CreateSpace());
             text.Write(CreateIdentifier(symbol.name));
+        } else if (symbol is ClassSymbol) {
+            text.Write(CreateKeyword(SyntaxKind.ClassKeyword));
+            text.Write(CreateSpace());
+            text.Write(CreateIdentifier(symbol.name));
         } else {
             text.Write(CreateType(symbol.name));
         }
@@ -84,13 +88,13 @@ internal static class SymbolDisplay {
         text.Write(CreateIdentifier(symbol.name));
     }
 
-    private static void DisplayFunction(DisplayText text, FunctionSymbol symbol) {
+    private static void DisplayMethod(DisplayText text, MethodSymbol symbol) {
         DisplayText.DisplayNode(text, symbol.type);
         text.Write(CreateSpace());
         text.Write(CreateIdentifier(symbol.name));
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
 
-        for (int i=0; i<symbol.parameters.Length; i++) {
+        for (var i = 0; i < symbol.parameters.Length; i++) {
             if (i > 0) {
                 text.Write(CreatePunctuation(SyntaxKind.CommaToken));
                 text.Write(CreateSpace());

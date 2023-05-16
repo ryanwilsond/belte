@@ -8,7 +8,7 @@ error.
 The only hiccup is null, which has some logic to it. Even though there is only one meaning of null, there are different
 ways to handle it in IL, for different circumstances. The differences are subtle (and boring), so the main takeaway is
 to lay out the emitter in a clear way to handle all these differences from the beginning. Otherwise, some spaghetti code
-may be the consequence. Because all errors are checked, the code is flattened, and the functions abstracted, no actual
+may be the consequence. Because all errors are checked, the code is flattened, and the methods abstracted, no actual
 code processing logic happens, just IL-specific changes.
 
 The only exception is try-catch-finally. In IL you can either have a catch or finally block, so some doubling up on

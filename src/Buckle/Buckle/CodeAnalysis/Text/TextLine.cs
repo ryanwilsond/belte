@@ -1,15 +1,18 @@
 
 namespace Buckle.CodeAnalysis.Text;
 
+/// <summary>
+/// A complete line of text.
+/// </summary>
 public sealed class TextLine {
     /// <summary>
-    /// Creates a text line from a <see cref="SourceText" /> and bounds.
+    /// Creates a <see cref="TextLine" /> instance from a <see cref="SourceText" /> and bounds.
     /// </summary>
     /// <param name="text"><see cref="SourceText" /> to reference.</param>
     /// <param name="start">Start index of the line.</param>
     /// <param name="length">Length of the line.</param>
     /// <param name="lengthWithBreak">Length of the line including line break.</param>
-    public TextLine(SourceText text, int start, int length, int lengthWithBreak) {
+    internal TextLine(SourceText text, int start, int length, int lengthWithBreak) {
         this.text = text;
         this.start = start;
         this.length = length;

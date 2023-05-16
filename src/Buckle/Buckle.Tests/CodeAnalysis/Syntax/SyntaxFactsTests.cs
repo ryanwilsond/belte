@@ -16,8 +16,9 @@ public sealed class SyntaxFactTests {
         if (text == null)
             return;
 
-        var tokens = SyntaxTree.ParseTokens(text);
-        var token = Assert.Single(tokens);
+        var tokens = SyntaxTreeExtensions.ParseTokens(text);
+        Assert.Equal(1, tokens.Count);
+        var token = tokens[0];
         Assert.Equal(kind, token.kind);
         Assert.Equal(text, token.text);
     }

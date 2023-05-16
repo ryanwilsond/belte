@@ -27,7 +27,7 @@ public sealed class DiagnosticInfo {
     }
 
     /// <summary>
-    /// Creates am empty <see cref="DiagnosticInfo" /> with a severity.
+    /// Creates an empty <see cref="DiagnosticInfo" /> with a severity.
     /// </summary>
     /// <param name="severity">Severity of <see cref="Diagnostic" /> (see <see cref="DiagnosticSeverity" />).</param>
     public DiagnosticInfo(DiagnosticSeverity severity) {

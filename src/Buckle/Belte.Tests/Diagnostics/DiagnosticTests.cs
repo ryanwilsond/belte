@@ -73,17 +73,17 @@ public sealed class DiagnosticTests {
 
     [Fact]
     public void Reports_Error_CL0006_UnableToOpenFile() {
-        var filename = "BelteTestsAssertDiagnosticCL0006.blt";
-        var args = new string[] { filename };
+        var fileName = "BelteTestsAssertDiagnosticCL0006.blt";
+        var args = new string[] { fileName };
 
         var diagnostics = @"
             failed to open file 'BelteTestsAssertDiagnosticCL0006.blt'; most likely due to the file being used by another process
         ";
 
-        var fileStream = File.Create(filename);
+        var fileStream = File.Create(fileName);
         AssertDiagnostics(args, diagnostics, writer);
         fileStream.Close();
-        File.Delete(filename);
+        File.Delete(fileName);
     }
 
     [Fact]
@@ -143,16 +143,16 @@ public sealed class DiagnosticTests {
 
     [Fact]
     public void Reports_Error_CL0012_CannotSpecifyWithMultipleFiles() {
-        var filename = "BelteTestsAssertDiagnosticCL0012.blt";
+        var fileName = "BelteTestsAssertDiagnosticCL0012.blt";
         var args = new string[] {
-            filename, "-s", "-o", "BelteTestsAssertDiagnosticCL0012.exe"
+            fileName, "-s", "-o", "BelteTestsAssertDiagnosticCL0012.exe"
         };
 
         var diagnostics = @"
             cannot specify output file with '-p', '-s', '-c', or '-t' with multiple files
         ";
 
-        AssertDiagnostics(args, diagnostics, writer, DiagnosticSeverity.Error, false, filename);
+        AssertDiagnostics(args, diagnostics, writer, DiagnosticSeverity.Error, false, fileName);
     }
 
     [Fact]
@@ -212,14 +212,14 @@ public sealed class DiagnosticTests {
 
     [Fact]
     public void Reports_Info_CL0018_IgnoringUnknownFileType() {
-        var filename = "BelteTestsAssertDiagnosticCL0018.ablt";
-        var args = new string[] { filename };
+        var fileName = "BelteTestsAssertDiagnosticCL0018.ablt";
+        var args = new string[] { fileName };
 
         var diagnostics = @"
             unknown file type of input file 'BelteTestsAssertDiagnosticCL0018.ablt'; ignoring
         ";
 
-        AssertDiagnostics(args, diagnostics, writer, DiagnosticSeverity.Info, false, filename);
+        AssertDiagnostics(args, diagnostics, writer, DiagnosticSeverity.Info, false, fileName);
     }
 
     [Fact]
@@ -257,5 +257,4 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(args, diagnostics, writer);
     }
-
 }

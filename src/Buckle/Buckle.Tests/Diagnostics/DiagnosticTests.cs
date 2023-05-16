@@ -66,7 +66,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            unknown character '#'
+            unexpected character '#'
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -170,7 +170,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            function 'Print' does not have a parameter named 'msg'
+            method 'Print' does not have a parameter named 'msg'
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -273,7 +273,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            ambiguous what if-statement this else-clause belongs to; use curly braces
+            ambiguous which if-statement this else-clause belongs to; use curly braces
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -337,13 +337,13 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0028_UndefinedFunction() {
+    public void Reports_Error_BU0028_UndefinedMethod() {
         var text = @"
             string x = [myFunc]();
         ";
 
         var diagnostics = @"
-            undefined function 'myFunc'
+            undefined method 'myFunc'
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -357,14 +357,14 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            function 'myFunc' expects 0 arguments, got 1
+            method 'myFunc' expects 0 arguments, got 1
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
     }
 
     [Fact]
-    public void Reports_Error_BU0030_StructAlreadyDeclared() {
+    public void Reports_Error_BU0030_TypeAlreadyDeclared() {
         var text = @"
             struct A { }
 
@@ -392,14 +392,14 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0032_CannotCallNonFunction() {
+    public void Reports_Error_BU0032_CannotCallNonMethod() {
         var text = @"
             int x = 3;
             int y = [x]();
         ";
 
         var diagnostics = @"
-            called object 'x' is not a function
+            called object 'x' is not a method
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -455,7 +455,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot return a value in a function returning void
+            cannot return a value in a method returning void
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -470,7 +470,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot return without a value in a function returning non-void
+            cannot return without a value in a method returning non-void
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -485,7 +485,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            function 'myFunc' cannot be used as a variable
+            method 'myFunc' cannot be used as a variable
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -729,7 +729,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            no overload for function 'myFunc' matches parameter list
+            no overload for method 'myFunc' matches parameter list
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -746,7 +746,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            function call is ambiguous between 'void myFunc(int a)' and 'void myFunc(string a)'
+            call is ambiguous between 'void myFunc(int a)' and 'void myFunc(string a)'
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -781,12 +781,16 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0061_NoSuchMember() {
         var text = @"
-            int a = 3;
-            a.[Max];
+            class MyClass {
+                int a;
+            }
+
+            var myVar = MyClass();
+            myVar.[b];
         ";
 
         var diagnostics = @"
-            'int' contains no such member 'Max'
+            'MyClass' contains no such member 'b'
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -1006,7 +1010,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0077_NameUsedInEnclosingScope() {
         var text = @"
             void MyFunc() {
-                for (int [i]=0; i<10; i++) ;
+                for (int [i] = 0; i < 10; i++) ;
 
                 int i = 5;
             }
@@ -1040,6 +1044,20 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             unrecognized escape sequence '\g'
+        ";
+
+        AssertDiagnostics(text, diagnostics, writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0080_PrimitivesDoNotHaveMembers() {
+        var text = @"
+            int myInt = 3;
+            myInt[.]b;
+        ";
+
+        var diagnostics = @"
+            primitive types do not contain any members
         ";
 
         AssertDiagnostics(text, diagnostics, writer);

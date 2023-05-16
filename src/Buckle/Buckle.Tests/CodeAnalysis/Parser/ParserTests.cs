@@ -21,7 +21,7 @@ public sealed class ParserTests {
         Debug.Assert(op2Text != null);
 
         var text = $"a {op1Text} b {op2Text} c";
-        ExpressionSyntax expression = ParseExpression(text);
+        var expression = ParseExpression(text);
 
         if (op1Precedence >= op2Precedence) {
             using (var e = new AssertingEnumerator(expression)) {
@@ -67,7 +67,7 @@ public sealed class ParserTests {
         Debug.Assert(binaryText != null);
 
         var text = $"{unaryText} a {binaryText} b";
-        ExpressionSyntax expression = ParseExpression(text);
+        var expression = ParseExpression(text);
 
         if (unaryPrecedence >= binaryPrecedence) {
             using (var e = new AssertingEnumerator(expression)) {
@@ -96,9 +96,12 @@ public sealed class ParserTests {
 
     private static ExpressionSyntax ParseExpression(string text) {
         var syntaxTree = SyntaxTree.Parse(text);
-        var member = Assert.Single(syntaxTree.root.members);
+        var member = Assert.Single(syntaxTree.GetCompilationUnitRoot().members);
         var globalStatement = Assert.IsType<GlobalStatementSyntax>(member);
-        return Assert.IsType<ExpressionStatementSyntax>(globalStatement.statement).expression;
+
+        return Assert.IsType<ExpressionStatementSyntax>(
+            globalStatement.statement
+        ).expression;
     }
 
     public static IEnumerable<object[]> GetBinaryOperatorPairsData() {

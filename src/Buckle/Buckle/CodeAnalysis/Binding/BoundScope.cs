@@ -26,17 +26,18 @@ internal sealed class BoundScope {
     internal BoundScope parent {
         get {
             return _parent;
-        } set {
+        }
+        set {
             _parent = value;
         }
     }
 
     /// <summary>
-    /// Attempts to declare a function.
+    /// Attempts to declare a method.
     /// </summary>
-    /// <param name="symbol"><see cref="FunctionSymbol" /> to declare.</param>
-    /// <returns>If the function was successfully added to the scope.</returns>
-    internal bool TryDeclareFunction(FunctionSymbol symbol) => TryDeclareSymbol(symbol);
+    /// <param name="symbol"><see cref="MethodSymbol" /> to declare.</param>
+    /// <returns>If the method was successfully added to the scope.</returns>
+    internal bool TryDeclareMethod(MethodSymbol symbol) => TryDeclareSymbol(symbol);
 
     /// <summary>
     /// Attempts to declare a variable.
@@ -59,10 +60,10 @@ internal sealed class BoundScope {
     internal ImmutableArray<VariableSymbol> GetDeclaredVariables() => GetDeclaredSymbols<VariableSymbol>();
 
     /// <summary>
-    /// Gets all declared functions in this scope (not any parent scopes).
+    /// Gets all declared methods in this scope (not any parent scopes).
     /// </summary>
-    /// <returns>All declared functions.</returns>
-    internal ImmutableArray<FunctionSymbol> GetDeclaredFunctions() => GetDeclaredSymbols<FunctionSymbol>();
+    /// <returns>All declared methods.</returns>
+    internal ImmutableArray<MethodSymbol> GetDeclaredMethods() => GetDeclaredSymbols<MethodSymbol>();
 
     /// <summary>
     /// Gets all declared types in this scope (not any parent scopes).
@@ -78,7 +79,7 @@ internal sealed class BoundScope {
 
     /// <summary>
     /// Attempts to find a <see cref="Symbol" /> based on the name (including parent scopes).
-    /// Because it only searches for one, use <see cref="BoundScope.LookupOverloads" /> for function symbols.
+    /// Because it only searches for one, use <see cref="BoundScope.LookupOverloads" /> for method symbols.
     /// Can restrict to a specific child class of <see cref="Symbol" />.
     /// </summary>
     /// <param name="name">Name of <see cref="Symbol" /> to search for.</param>
@@ -97,7 +98,7 @@ internal sealed class BoundScope {
 
     /// <summary>
     /// Attempts to find a <see cref="Symbol" /> based on name (including parent scopes).
-    /// Because it only searches for one, use <see cref="BoundScope.LookupOverloads" /> for function symbols.
+    /// Because it only searches for one, use <see cref="BoundScope.LookupOverloads" /> for method symbols.
     /// </summary>
     /// <param name="name">Name of <see cref="Symbol" />.</param>
     /// <returns><see cref="Symbol" /> if found, null otherwise.</returns>
@@ -106,7 +107,7 @@ internal sealed class BoundScope {
     /// <summary>
     /// Attempts to modify an already declared <see cref="Symbol" />.
     /// Does not work with overloads, only modifies the first one. However the order is not constant.
-    /// Thus only use with FunctionSymbols with guaranteed no overloads, or VariableSymbols.
+    /// Thus only use with MethodSymbols with guaranteed no overloads, or VariableSymbols.
     /// </summary>
     /// <param name="name">Name of <see cref="Symbol" />.</param>
     /// <param name="newSymbol">New symbol data to replace old the <see cref="Symbol" />.</param>
@@ -119,12 +120,12 @@ internal sealed class BoundScope {
             return false;
 
         var succeeded = false;
-        ref BoundScope parentRef = ref _parent;
-        ref List<Symbol> symbols = ref _symbols;
+        ref var parentRef = ref _parent;
+        ref var symbols = ref _symbols;
 
         while (true) {
             if (symbols != null) {
-                for (int i=0; i<symbols.Count; i++) {
+                for (var i = 0; i < symbols.Count; i++) {
                     if (symbols[i].name == name) {
                         symbols[i] = newSymbol;
                         succeeded = true;
@@ -146,22 +147,6 @@ internal sealed class BoundScope {
     }
 
     /// <summary>
-    /// Finds all overloads of a <see cref="FunctionSymbol" /> by name.
-    /// Technically searches for all symbols, but this function is intended to be used for functions.
-    /// </summary>
-    /// <param name="name">Name of <see cref="FunctionSymbol" />.</param>
-    /// <param name="strictName">Scope specific name, searches for this first.</param>
-    /// <returns>All found overloads (including from parent scopes).</returns>
-    internal ImmutableArray<Symbol> LookupOverloads(string name, string strictName) {
-        var symbols = LookupOverloadsInternal(strictName, strict: true);
-
-        if (symbols.Length > 0)
-            return symbols;
-
-        return LookupOverloadsInternal(name);
-    }
-
-    /// <summary>
     /// Note the assignment of a <see cref="Symbol" />. This does not actually change anything about the scope, rather
     /// this acts as readonly tracking data for some <see cref="Binder" /> components.
     /// </summary>
@@ -173,20 +158,37 @@ internal sealed class BoundScope {
         _assignedSymbols.Add(symbol);
     }
 
-    private ImmutableArray<Symbol> LookupOverloadsInternal(
-        string name, bool strict = false, ImmutableArray<Symbol>? _current = null) {
-        var overloads = ImmutableArray.CreateBuilder<Symbol>();
+    /// <summary>
+    /// Finds all overloads by name.
+    /// Can technically searches for all symbols, but this method is intended to be used for methods.
+    /// </summary>
+    /// <param name="name">Name of <see cref="Symbol" />.</param>
+    /// <param name="strictName">Scope specific name, searches for this first.</param>
+    /// <typeparam name="T">Type of <see cref="Symbol" /> to look for while searching.</typeparam>
+    /// <returns>All found overloads (including from parent scopes), allows shadowing.</returns>
+    internal ImmutableArray<T> LookupOverloads<T>(string name, string strictName) where T : Symbol {
+        var symbols = LookupOverloadsInternal<T>(strictName, strict: true);
+
+        if (symbols.Length > 0)
+            return symbols;
+
+        return LookupOverloadsInternal<T>(name);
+    }
+
+    private ImmutableArray<T> LookupOverloadsInternal<T>(
+        string name, bool strict = false, ImmutableArray<T>? _current = null) where T : Symbol {
+        var overloads = ImmutableArray.CreateBuilder<T>();
 
         if (_symbols != null) {
             foreach (var symbol in _symbols) {
                 // If it is a nested function, the name will be something like <funcName>g__name
-                if (symbol is Symbol s &&
+                if (symbol is T s &&
                     (symbol.name == name || (!strict && symbol.name.Contains($">g__{name}")))) {
                     if (_current != null) {
                         var skip = false;
 
                         foreach (var cs in _current.Value) {
-                            if (s is FunctionSymbol fs && cs is FunctionSymbol fcs && FunctionsMatch(fs, fcs)) {
+                            if (s is MethodSymbol fs && cs is MethodSymbol fcs && MethodsMatch(fs, fcs)) {
                                 skip = true;
 
                                 break;
@@ -203,7 +205,7 @@ internal sealed class BoundScope {
         }
 
         if (parent != null) {
-            overloads.AddRange(parent?.LookupOverloadsInternal(
+            overloads.AddRange(parent?.LookupOverloadsInternal<T>(
                 name,
                 strict: strict,
                 _current: _current == null
@@ -220,9 +222,9 @@ internal sealed class BoundScope {
             _symbols = new List<Symbol>();
 
         if (Contains(symbol.name)) {
-            if (symbol is FunctionSymbol fs) {
+            if (symbol is MethodSymbol fs) {
                 foreach (var s in _symbols) {
-                    if (FunctionsMatch(s as FunctionSymbol, fs))
+                    if (MethodsMatch(s as MethodSymbol, fs))
                         return false;
                 }
             } else {
@@ -235,14 +237,14 @@ internal sealed class BoundScope {
         return true;
     }
 
-    private bool FunctionsMatch(FunctionSymbol a, FunctionSymbol b) {
+    private bool MethodsMatch(MethodSymbol a, MethodSymbol b) {
         if (a.name != b.name)
             return false;
 
         if (a.parameters.Length != b.parameters.Length)
             return false;
 
-        for (int i=0; i<a.parameters.Length; i++) {
+        for (var i = 0; i < a.parameters.Length; i++) {
             if (!a.parameters[i].type.Equals(b.parameters[i].type))
                 return false;
         }

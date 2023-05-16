@@ -4,7 +4,7 @@ BUCKDIR:=src/Buckle/Buckle
 DIAGDIR:=src/Buckle/Diagnostics
 REPLDIR:=src/Buckle/Repl
 
-NETVER:=net7.0
+NETVER:=net8.0
 SYSTEM:=win-x64
 SLN:=src/Buckle/Buckle.sln
 CP=cp
@@ -18,6 +18,7 @@ FLAGS:=-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p
 
 all: prebuild build postbuild
 portable: prebuild portablebuild postbuild
+debug: prebuild debugbuild postbuilddebug
 
 # Tests the solution
 .PHONY: test
@@ -37,15 +38,25 @@ test:
 # Cleans the solution
 clean:
 	@dotnet clean $(SLN)
-	@echo Hard cleaned the project
+	@echo Hard cleaned the solution
+
+# Formats the solution
+format:
+	@dotnet format $(SLN)
+	@echo Formated the solution
 
 prebuild:
 	@echo "Started building the Buckle solution (release) ..."
 	@mkdir -p bin
 	@mkdir -p bin/release
+	@mkdir -p bin/debug
 
 postbuild:
 	@mv bin/release/Belte.exe bin/release/buckle.exe
+	@echo "    Finished"
+
+postbuilddebug:
+	@mv bin/debug/Belte.exe bin/debug/buckle.exe
 	@echo "    Finished"
 
 build:
@@ -54,3 +65,6 @@ build:
 portablebuild:
 	@dotnet publish $(BELTDIR)/Belte.csproj $(FLAGS) -o bin/release
 
+debugbuild:
+	@rm -rf src/Buckle/Buckle/CodeAnalysis/Generated
+	@dotnet build $(BELTDIR)/Belte.csproj --sc -t:rebuild -r $(SYSTEM) -o bin/debug

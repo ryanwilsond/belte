@@ -26,12 +26,13 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     /// <see cref="BelteDiagnosticQueue" />.</param>
     /// <returns>New cleaned <see cref="BelteDiagnosticQueue" />.</returns>
     public static BelteDiagnosticQueue CleanDiagnostics(BelteDiagnosticQueue diagnostics) {
+        // TODO This needs to be tested with duplicate diagnostics at the end of the input before being used
         var cleanedDiagnostics = new BelteDiagnosticQueue();
         var specialDiagnostics = new BelteDiagnosticQueue();
 
         var diagnosticList = diagnostics.ToList<BelteDiagnostic>();
 
-        for (int i=0; i<diagnosticList.Count; i++) {
+        for (var i = 0; i < diagnosticList.Count; i++) {
             var diagnostic = diagnosticList[i];
 
             if (diagnostic.location == null) {
@@ -58,5 +59,4 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     public BelteDiagnosticQueue Errors() {
         return new BelteDiagnosticQueue(FilterAbove(DiagnosticSeverity.Error).ToList());
     }
-
 }
