@@ -14,7 +14,7 @@ internal sealed partial class SyntaxList<T> where T : GreenNode {
         public bool MoveNext() {
             var newIndex = _index + 1;
 
-            if (newIndex < _list.count) {
+            if (newIndex < _list.Count) {
                 _index = newIndex;
                 return true;
             }

@@ -13,6 +13,10 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
     private readonly SyntaxNodeOrTokenList _list;
     private readonly int _separatorCount;
 
+    /// <summary>
+    /// Creates a new <see cref="SeparatedSyntaxList<T>" /> from an existing list.
+    /// Treats every other node as a separator, starting on the second node from the given list.
+    /// </summary>
     internal SeparatedSyntaxList(SyntaxNodeOrTokenList list) {
         int allCount = list.Count;
         Count = (allCount + 1) >> 1;
@@ -20,18 +24,16 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
         _list = list;
     }
 
-    internal SeparatedSyntaxList(SyntaxNode node, int index) : this(new SyntaxNodeOrTokenList(node, index)) { }
-
     /// <summary>
-    /// Number of non-separator SyntaxNodes in collection.
+    /// Creates a new <see cref="SeparatedSyntaxNode<T>" /> from an existing node.
+    /// Converts the given node into a list before using it.
+    /// The given index represents which child of the given node to treat as the beginning of the created
+    /// <see cref="SeparatedSyntaxList<T>" />.
     /// </summary>
-    public int Count { get; }
-
-    internal SyntaxNode node => _list.node;
-
-    internal TextSpan fullSpan => _list.fullSpan;
-
-    internal TextSpan span => _list.span;
+    /// <param name="node"></param>
+    /// <param name="index"></param>
+    /// <returns></returns>
+    internal SeparatedSyntaxList(SyntaxNode node, int index) : this(new SyntaxNodeOrTokenList(node, index)) { }
 
     /// <summary>
     /// Indexes SyntaxNodes in collection skipping separators.
@@ -55,6 +57,26 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
     }
 
     /// <summary>
+    /// Number of non-separator SyntaxNodes in collection.
+    /// </summary>
+    public int Count { get; }
+
+    /// <summary>
+    /// The underlying node.
+    /// </summary>
+    internal SyntaxNode node => _list.node;
+
+    /// <summary>
+    /// The combined full span of all the contained items.
+    /// </summary>
+    internal TextSpan fullSpan => _list.fullSpan;
+
+    /// <summary>
+    /// The combined span of all the contained items.
+    /// </summary>
+    internal TextSpan span => _list.span;
+
+    /// <summary>
     /// Get a separator at an index. The index itself skips separators.
     /// </summary>
     /// <param name="index">Index of separator.</param>
@@ -74,11 +96,15 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
         throw new ArgumentOutOfRangeException(nameof(index));
     }
 
+    /// <summary>
+    /// Returns the entire underlying list, including separators.
+    /// </summary>
+    /// <returns></returns>
+    internal SyntaxNodeOrTokenList GetWithSeparators() => _list;
+
     internal bool Any() {
         return _list.Any();
     }
-
-    internal SyntaxNodeOrTokenList GetWithSeparators() => _list;
 
     public Enumerator GetEnumerator() {
         return new Enumerator(this);

@@ -2,6 +2,9 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 public partial class SyntaxList : SyntaxNode {
+    /// <summary>
+    /// Represents a <see cref="SyntaxList" /> with exactly two children.
+    /// </summary>
     public sealed class WithTwoChildren : SyntaxList {
         private SyntaxNode _child0;
         private SyntaxNode _child1;

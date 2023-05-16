@@ -372,6 +372,7 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
                 var fields = DeserializeFields(node);
 
                 GenerateFactoryMethods(writer, fields, typeName);
+                writer.WriteLine();
             }
         }
     }

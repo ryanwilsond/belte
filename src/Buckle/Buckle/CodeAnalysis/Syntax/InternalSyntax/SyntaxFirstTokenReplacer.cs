@@ -3,6 +3,9 @@ using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
+/// <summary>
+/// Replaces the first <see cref="SyntaxToken" /> in a node.
+/// </summary>
 internal sealed class SyntaxFirstTokenReplacer : SyntaxRewriter {
     private readonly SyntaxToken _oldToken;
     private readonly SyntaxToken _newToken;
@@ -16,6 +19,9 @@ internal sealed class SyntaxFirstTokenReplacer : SyntaxRewriter {
         _foundOldToken = false;
     }
 
+    /// <summary>
+    /// Replaces the first token contained within <param name="root" />.
+    /// </summary>
     internal static T Replace<T>(T root, SyntaxToken oldToken, SyntaxToken newToken, int diagnosticOffsetDelta)
         where T : BelteSyntaxNode {
         var replacer = new SyntaxFirstTokenReplacer(oldToken, newToken, diagnosticOffsetDelta);

@@ -3,6 +3,10 @@ using Diagnostics;
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
 internal partial class SyntaxToken : BelteSyntaxNode {
+    /// <summary>
+    /// Represents a <see cref="SyntaxToken" /> that was fabricated by the <see cref="Parser" />.
+    /// Because of this, it cannot have text or a value.
+    /// </summary>
     internal class MissingToken : SyntaxToken {
         internal MissingToken(SyntaxKind kind, GreenNode leadingTrivia, GreenNode trailingTrivia)
             : base(kind, leadingTrivia, trailingTrivia) {

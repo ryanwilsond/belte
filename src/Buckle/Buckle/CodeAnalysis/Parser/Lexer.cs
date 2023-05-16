@@ -66,7 +66,7 @@ internal sealed class Lexer {
             }
 
             if (badTokens.Count > 0) {
-                var leadingTrivia = new SyntaxListBuilder(token.leadingTrivia.count + 10);
+                var leadingTrivia = new SyntaxListBuilder(token.leadingTrivia.Count + 10);
 
                 foreach (var badToken in badTokens) {
                     leadingTrivia.AddRange(badToken.leadingTrivia);
@@ -95,7 +95,7 @@ internal sealed class Lexer {
     private static int GetFullWidth(SyntaxListBuilder builder) {
         int width = 0;
 
-        for (int i = 0; i < builder.count; i++)
+        for (int i = 0; i < builder.Count; i++)
             width += builder[i].fullWidth;
 
         return width;

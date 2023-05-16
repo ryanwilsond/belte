@@ -26,7 +26,7 @@ internal partial class SyntaxRewriter : SyntaxVisitor<BelteSyntaxNode> {
     internal SyntaxList<T> VisitList<T>(SyntaxList<T> list) where T : BelteSyntaxNode {
         SyntaxListBuilder alternate = null;
 
-        for (int i = 0, n = list.count; i < n; i++) {
+        for (int i = 0, n = list.Count; i < n; i++) {
             var item = list[i];
             var visited = Visit(item);
 

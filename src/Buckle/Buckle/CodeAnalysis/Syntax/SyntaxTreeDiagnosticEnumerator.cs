@@ -5,7 +5,7 @@ using Buckle.Diagnostics;
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// An enumerator for diagnostic lists.
+/// An enumerator for diagnostics contained in a <see cref="SyntaxTree" />.
 /// </summary>
 internal partial struct SyntaxTreeDiagnosticEnumerator {
     private readonly SyntaxTree _syntaxTree;
@@ -14,6 +14,11 @@ internal partial struct SyntaxTreeDiagnosticEnumerator {
     private int _position;
     private const int DefaultStackCapacity = 8;
 
+    /// <summary>
+    /// Creates a new <see cref="SyntaxTreeDiagnosticEnumerator" /> that will enumerate recursively through the
+    /// given node, starting at the given position.
+    /// </summary>
+    /// <param name="syntaxTree">The <see cref="SyntaxTree" /> to be the source of the produced diagnostics.</param>
     internal SyntaxTreeDiagnosticEnumerator(SyntaxTree syntaxTree, GreenNode node, int position) {
         _syntaxTree = null;
         _current = null;

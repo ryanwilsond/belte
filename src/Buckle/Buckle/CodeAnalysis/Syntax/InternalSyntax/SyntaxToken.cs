@@ -5,17 +5,17 @@ using Diagnostics;
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
 /// <summary>
-/// Token type.
+/// Represents a token in the tree.
 /// </summary>
 internal partial class SyntaxToken : BelteSyntaxNode {
     private string _text;
     private GreenNode _leading;
     private GreenNode _trailing;
 
-    /// <param name="position">
-    /// Position of <see cref="SyntaxToken" /> (indexed by the <see cref="SyntaxNode" />, not character
-    /// in <see cref="SourceText" />).
-    /// </param>
+    /// <summary>
+    /// Creates a new <see cref="SyntaxToken" />.
+    /// </summary>
+    /// <param name="fullWidth">A predefined full width for this token.</param>
     /// <param name="text">Text related to <see cref="SyntaxToken" /> (if applicable).</param>
     /// <param name="value">Value related to <see cref="SyntaxToken" /> (if applicable).</param>
     /// <param name="leadingTrivia"><see cref="SyntaxTrivia" /> before <see cref="SyntaxToken" /> (anything).</param>
@@ -29,6 +29,9 @@ internal partial class SyntaxToken : BelteSyntaxNode {
         this._trailing = trailingTrivia;
     }
 
+    /// <summary>
+    /// Creates a new <see cref="SyntaxToken" /> with a predefined full width, text, a value, trivia, and diagnostics.
+    /// </summary>
     // Because this constructor is called possibly thousands of times, the duplicate code is warranted for efficiency
     internal SyntaxToken(SyntaxKind kind, int fullWidth, string text, object value,
         GreenNode leadingTrivia, GreenNode trailingTrivia, Diagnostic[] diagnostics)
@@ -39,6 +42,9 @@ internal partial class SyntaxToken : BelteSyntaxNode {
         this._trailing = trailingTrivia;
     }
 
+    /// <summary>
+    /// Creates a new <see cref="SyntaxToken" /> with trivia.
+    /// </summary>
     internal SyntaxToken(SyntaxKind kind, GreenNode leadingTrivia, GreenNode trailingTrivia)
         : base(kind) {
         if (leadingTrivia != null) {
@@ -52,6 +58,9 @@ internal partial class SyntaxToken : BelteSyntaxNode {
         }
     }
 
+    /// <summary>
+    /// Creates a new <see cref="SyntaxToken" /> with trivia and diagnostics.
+    /// </summary>
     internal SyntaxToken(SyntaxKind kind, GreenNode leadingTrivia, GreenNode trailingTrivia, Diagnostic[] diagnostics)
         : base(kind, diagnostics) {
         if (leadingTrivia != null) {
@@ -65,6 +74,9 @@ internal partial class SyntaxToken : BelteSyntaxNode {
         }
     }
 
+    /// <summary>
+    /// Creates a new <see cref="SyntaxToken" /> with text, a value, and trivia.
+    /// </summary>
     internal SyntaxToken(SyntaxKind kind, string text, object value, GreenNode leadingTrivia, GreenNode trailingTrivia)
         : base(kind) {
         this.value = value;
@@ -82,6 +94,9 @@ internal partial class SyntaxToken : BelteSyntaxNode {
         }
     }
 
+    /// <summary>
+    /// Creates a new <see cref="SyntaxToken" /> with text, a value, trivia, and diagnostics.
+    /// </summary>
     internal SyntaxToken(
         SyntaxKind kind, string text, object value, GreenNode leadingTrivia,
         GreenNode trailingTrivia, Diagnostic[] diagnostics)
@@ -101,19 +116,21 @@ internal partial class SyntaxToken : BelteSyntaxNode {
         }
     }
 
+    /// <summary>
+    /// Creates a new <see cref="SyntaxToken" /> with text and a value.
+    /// </summary>
     internal SyntaxToken(SyntaxKind kind, string text, object value) : base(kind) {
         _text = text;
         fullWidth = this.text.Length;
         this.value = value;
     }
 
-    private SyntaxToken(SyntaxKind kind) : base(kind) { }
-
     /// <summary>
-    /// Position of <see cref="SyntaxToken" /> (indexed by the <see cref="SyntaxNode" />, not character in
-    /// <see cref="SourceText" />).
+    /// Creates a missing <see cref="SyntaxToken" /> with trivia.
     /// </summary>
-    internal int position { get; }
+    internal static SyntaxToken CreateMissing(SyntaxKind kind, GreenNode leadingTrivia, GreenNode trailingTrivia) {
+        return new MissingToken(kind, leadingTrivia, trailingTrivia);
+    }
 
     /// <summary>
     /// Text related to <see cref="SyntaxToken" /> (if applicable).
@@ -125,9 +142,6 @@ internal partial class SyntaxToken : BelteSyntaxNode {
     /// </summary>
     internal virtual object value { get; }
 
-    /// <summary>
-    /// The width of the <see cref="SyntaxToken" />, not including any leading or trailing trivia.
-    /// </summary>
     internal override int width => text.Length;
 
     internal override bool isToken => true;
@@ -141,10 +155,6 @@ internal partial class SyntaxToken : BelteSyntaxNode {
     /// <see cref="SyntaxTrivia" /> after <see cref="SyntaxToken" /> (same line).
     /// </summary>
     internal SyntaxList<BelteSyntaxNode> trailingTrivia => new SyntaxList<BelteSyntaxNode>(GetTrailingTrivia());
-
-    internal static SyntaxToken CreateMissing(SyntaxKind kind, GreenNode leadingTrivia, GreenNode trailingTrivia) {
-        return new MissingToken(kind, leadingTrivia, trailingTrivia);
-    }
 
     public override string ToString() {
         return text;
@@ -200,10 +210,16 @@ internal partial class SyntaxToken : BelteSyntaxNode {
         visitor.VisitToken(this);
     }
 
+    /// <summary>
+    /// Returns a new <see cref="SyntaxToken" /> identical to this one, with new leading trivia.
+    /// </summary>
     internal virtual SyntaxToken TokenWithLeadingTrivia(GreenNode trivia) {
         return new SyntaxToken(kind, text, value, trivia, GetTrailingTrivia(), GetDiagnostics());
     }
 
+    /// <summary>
+    /// Returns a new <see cref="SyntaxToken" /> identical to this one, with new trailing trivia.
+    /// </summary>
     internal virtual SyntaxToken TokenWithTrailingTrivia(GreenNode trivia) {
         return new SyntaxToken(kind, text, value, GetLeadingTrivia(), trivia, GetDiagnostics());
     }

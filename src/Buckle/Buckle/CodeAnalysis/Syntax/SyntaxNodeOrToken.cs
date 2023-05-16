@@ -4,17 +4,26 @@ using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
+/// <summary>
+/// A wrapper of either a <see cref="SyntaxNode" /> or <see cref="SyntaxToken" />.
+/// </summary>
 public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     private readonly SyntaxNode _nodeOrParent;
     private readonly GreenNode _token;
     private readonly int _tokenIndex;
 
+    /// <summary>
+    /// Creates a new <see cref="SyntaxNodeOrToken" /> wrapping a <see cref="SyntaxNode" />.
+    /// </summary>
     internal SyntaxNodeOrToken(SyntaxNode node) {
         position = node.position;
         _nodeOrParent = node;
         _tokenIndex = -1;
     }
 
+    /// <summary>
+    /// Creates a new <see cref="SyntaxNodeOrToken" /> wrapping a <see cref="SyntaxToken" />.
+    /// </summary>
     internal SyntaxNodeOrToken(SyntaxNode parent, GreenNode token, int position, int index) {
         this.position = position;
         _tokenIndex = index;
@@ -22,6 +31,9 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
         _token = token;
     }
 
+    /// <summary>
+    /// The kind of the underlying token or node.
+    /// </summary>
     internal SyntaxKind kind => _token?.kind ?? _nodeOrParent?.kind ?? SyntaxKind.None;
 
     /// <summary>
@@ -64,59 +76,10 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     /// </summary>
     internal int endPosition => position + fullWidth;
 
+    /// <summary>
+    /// If the underlying token or node contains diagnostics.
+    /// </summary>
     internal bool containsDiagnostics => _token?.containsDiagnostics ?? _nodeOrParent?.containsDiagnostics ?? false;
-
-    /// <summary>
-    /// Returns the underlying <see cref="SyntaxToken" /> if this <see cref="SyntaxNodeOrToken" /> is
-    /// wrapping a <see cref="SyntaxToken" />.
-    /// </summary>
-    internal SyntaxToken AsToken() {
-        if (_token != null)
-            return new SyntaxToken(_nodeOrParent, _token, position, _tokenIndex);
-
-        return null;
-    }
-
-    internal bool AsToken(out SyntaxToken token) {
-        if (isToken) {
-            token = AsToken();
-            return token is object;
-        }
-
-        token = null;
-        return false;
-    }
-
-    /// <summary>
-    /// Returns the underlying <see cref="SyntaxNode" /> if this <see cref="SyntaxNodeOrToken" /> is
-    /// wrapping a <see cref="SyntaxNode" />.
-    /// </summary>
-    internal SyntaxNode AsNode() {
-        if (_token != null)
-            return null;
-
-        return _nodeOrParent;
-    }
-
-    internal bool AsNode(out SyntaxNode node) {
-        if (isNode) {
-            node = _nodeOrParent;
-            return node is object;
-        }
-
-        node = null;
-        return false;
-    }
-
-    /// <summary>
-    /// All child nodes and tokens of this node or token.
-    /// </summary>
-    internal ChildSyntaxList ChildNodesAndTokens() {
-        if (AsNode(out var node))
-            return node.ChildNodesAndTokens();
-
-        return null;
-    }
 
     /// <summary>
     /// The span of the underlying node.
@@ -179,6 +142,74 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
         }
 
         throw ExceptionUtilities.Unreachable();
+    }
+
+    /// <summary>
+    /// Returns the underlying <see cref="SyntaxToken" /> if this <see cref="SyntaxNodeOrToken" /> is
+    /// wrapping a <see cref="SyntaxToken" />.
+    /// </summary>
+    internal SyntaxToken AsToken() {
+        if (_token != null)
+            return new SyntaxToken(_nodeOrParent, _token, position, _tokenIndex);
+
+        return null;
+    }
+
+    /// <summary>
+    /// Outputs the underlying <see cref="SyntaxToken" /> if this <see cref="SyntaxNodeOrToken" /> is
+    /// wrapping a <see cref="SyntaxToken" />.
+    /// </summary>
+    /// <returns>
+    /// <c>true</c> if the wrapped contents were successfully outputted as a <see cref="SyntaxToken" />,
+    /// otherwise <c>false</c>.
+    /// </returns>
+    internal bool AsToken(out SyntaxToken token) {
+        if (isToken) {
+            token = AsToken();
+            return token is object;
+        }
+
+        token = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Returns the underlying <see cref="SyntaxNode" /> if this <see cref="SyntaxNodeOrToken" /> is
+    /// wrapping a <see cref="SyntaxNode" />.
+    /// </summary>
+    internal SyntaxNode AsNode() {
+        if (_token != null)
+            return null;
+
+        return _nodeOrParent;
+    }
+
+    /// <summary>
+    /// Outputs the underlying <see cref="SyntaxNode" /> if this <see cref="SyntaxNodeOrToken" /> is
+    /// wrapping a <see cref="SyntaxNode" />.
+    /// </summary>
+    /// <returns>
+    /// <c>true</c> if the wrapped contents were successfully outputted as a <see cref="SyntaxNode" />,
+    /// otherwise <c>false</c>.
+    /// </returns>
+    internal bool AsNode(out SyntaxNode node) {
+        if (isNode) {
+            node = _nodeOrParent;
+            return node is object;
+        }
+
+        node = null;
+        return false;
+    }
+
+    /// <summary>
+    /// All child nodes and tokens of this node or token.
+    /// </summary>
+    internal ChildSyntaxList ChildNodesAndTokens() {
+        if (AsNode(out var node))
+            return node.ChildNodesAndTokens();
+
+        return null;
     }
 
     public static implicit operator SyntaxNodeOrToken(SyntaxToken token) {

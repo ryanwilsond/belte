@@ -2,6 +2,9 @@
 namespace Buckle.CodeAnalysis.Syntax;
 
 public partial class SyntaxList {
+    /// <summary>
+    /// Represents a <see cref="SyntaxList" /> with separator tokens every other slot, starting on the second slot.
+    /// </summary>
     public sealed class SeparatedSyntaxList : SyntaxList {
         private new readonly ArrayElement<SyntaxNode?>[] _children;
 

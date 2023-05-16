@@ -15,7 +15,7 @@ public sealed class LexerTests {
     public void Lexer_Lexes_UnterminatedString() {
         const string text = "\"test";
         var tokens = SyntaxTreeExtensions.ParseTokens(text);
-        Assert.Equal(1, tokens.count);
+        Assert.Equal(1, tokens.Count);
         var token = tokens[0];
         Assert.Equal(SyntaxKind.StringLiteralToken, token.kind);
         Assert.Equal(text, token.text);
@@ -49,7 +49,7 @@ public sealed class LexerTests {
     internal void Lexer_Lexes_Token(SyntaxKind kind, string text) {
         var tokens = SyntaxTreeExtensions.ParseTokens(text);
 
-        Assert.Equal(1, tokens.count);
+        Assert.Equal(1, tokens.Count);
         var token = tokens[0];
         Assert.Equal(kind, token.kind);
         Assert.Equal(text, token.text);
@@ -60,9 +60,9 @@ public sealed class LexerTests {
     internal void Lexer_Lexes_Separator(SyntaxKind kind, string text) {
         var tokens = SyntaxTreeExtensions.ParseTokens(text, true);
 
-        Assert.Equal(1, tokens.count);
+        Assert.Equal(1, tokens.Count);
         var token = tokens[0];
-        Assert.Equal(1, token.leadingTrivia.count);
+        Assert.Equal(1, token.leadingTrivia.Count);
         var trivia = (Buckle.CodeAnalysis.Syntax.InternalSyntax.SyntaxTrivia)token.leadingTrivia[0];
         Assert.Equal(kind, trivia.kind);
         Assert.Equal(text, trivia.text);
@@ -75,7 +75,7 @@ public sealed class LexerTests {
         var text = t1Text + t2Text;
         var tokens = SyntaxTreeExtensions.ParseTokens(text);
 
-        Assert.Equal(2, tokens.count);
+        Assert.Equal(2, tokens.Count);
         Assert.Equal(tokens[0].kind, t1Kind);
         Assert.Equal(tokens[0].text, t1Text);
         Assert.Equal(tokens[1].kind, t2Kind);
@@ -90,11 +90,11 @@ public sealed class LexerTests {
         var text = t1Text + separatorText + t2Text;
         var tokens = SyntaxTreeExtensions.ParseTokens(text);
 
-        Assert.Equal(2, tokens.count);
+        Assert.Equal(2, tokens.Count);
         Assert.Equal(tokens[0].kind, t1Kind);
         Assert.Equal(tokens[0].text, t1Text);
 
-        Assert.Equal(1, tokens[0].trailingTrivia.count);
+        Assert.Equal(1, tokens[0].trailingTrivia.Count);
         var separator = (Buckle.CodeAnalysis.Syntax.InternalSyntax.SyntaxTrivia)tokens[0].trailingTrivia[0];
         Assert.Equal(separator.text, separatorText);
         Assert.Equal(separator.kind, separatorKind);
@@ -111,7 +111,7 @@ public sealed class LexerTests {
     public void Lexer_Lexes_Identifiers(string name) {
         var tokens = SyntaxTreeExtensions.ParseTokens(name);
 
-        Assert.Equal(1, tokens.count);
+        Assert.Equal(1, tokens.Count);
 
         var token = tokens[0];
         Assert.Equal(SyntaxKind.IdentifierToken, token.kind);

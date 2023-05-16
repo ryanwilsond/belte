@@ -42,7 +42,7 @@ public static class SyntaxTreeExtensions {
             }
         }
 
-        var syntaxTree = SyntaxTree.Create(text);
+        var syntaxTree = new SyntaxTree(text);
         ParseTokens(syntaxTree);
 
         return tokens.ToList();

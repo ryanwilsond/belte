@@ -3,15 +3,31 @@ using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
+/// <summary>
+/// Represents a list of GreenNodes.
+/// </summary>
 internal sealed partial class SyntaxList<T> : IEquatable<SyntaxList<T>> where T : GreenNode {
+    /// <summary>
+    /// Creates a new <see cref="SyntaxList" />
+    /// </summary>
+    /// <param name="node"></param>
     internal SyntaxList(GreenNode node) {
         this.node = node;
     }
 
+    /// <summary>
+    /// The list node.
+    /// </summary>
     internal GreenNode node { get; }
 
-    public int count => node == null ? 0 : (node.isList ? node.slotCount : 1);
+    /// <summary>
+    /// The number of items.
+    /// </summary>
+    public int Count => node == null ? 0 : (node.isList ? node.slotCount : 1);
 
+    /// <summary>
+    /// Gets the item at the given index.
+    /// </summary>
     public T this[int index] {
         get {
             if (node == null)
@@ -25,18 +41,15 @@ internal sealed partial class SyntaxList<T> : IEquatable<SyntaxList<T>> where T 
         }
     }
 
-    internal T GetRequiredItem(int index) {
-        var node = this[index];
-        return node;
-    }
+    public T last {
+        get {
+            var node = this.node;
 
-    internal GreenNode? ItemUntyped(int index) {
-        var node = this.node;
+            if (node.isList)
+                return (T)node.GetSlot(node.slotCount - 1);
 
-        if (node.isList)
-            return node.GetSlot(index);
-
-        return node;
+            return (T)node;
+        }
     }
 
     public bool Any() {
@@ -50,17 +63,6 @@ internal sealed partial class SyntaxList<T> : IEquatable<SyntaxList<T>> where T 
         }
 
         return false;
-    }
-
-    public T last {
-        get {
-            var node = this.node;
-
-            if (node.isList)
-                return (T)node.GetSlot(node.slotCount - 1);
-
-            return (T)node;
-        }
     }
 
     public Enumerator GetEnumerator() {
@@ -87,13 +89,35 @@ internal sealed partial class SyntaxList<T> : IEquatable<SyntaxList<T>> where T 
         return node != null ? node.GetHashCode() : 0;
     }
 
+    internal void CopyTo(int offset, ArrayElement<GreenNode>[] array, int arrayOffset, int count) {
+        for (int i = 0; i < count; i++)
+            array[arrayOffset + i].Value = GetRequiredItem(i + offset);
+    }
+
+    /// <summary>
+    /// Returns this list as a <see cref="SeparatedSyntaxList<TOther>" />.
+    /// </summary>
     internal SeparatedSyntaxList<TOther> AsSeparatedList<TOther>() where TOther : GreenNode {
         return new SeparatedSyntaxList<TOther>(this);
     }
 
-    internal void CopyTo(int offset, ArrayElement<GreenNode>[] array, int arrayOffset, int count) {
-        for (int i = 0; i < count; i++)
-            array[arrayOffset + i].Value = GetRequiredItem(i + offset);
+    /// <summary>
+    /// Gets the item at the given index.
+    /// </summary>
+    internal T GetRequiredItem(int index) {
+        return this[index];
+    }
+
+    /// <summary>
+    /// Gets the item at the given index, or if the list is a single item gets that item.
+    /// </summary>
+    internal GreenNode ItemUntyped(int index) {
+        var node = this.node;
+
+        if (node.isList)
+            return node.GetSlot(index);
+
+        return node;
     }
 
     public static implicit operator SyntaxList<T>(T node) {

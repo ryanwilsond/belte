@@ -1,4 +1,3 @@
-
 using System;
 using Diagnostics;
 
@@ -8,48 +7,63 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 /// Represents a list of GreenNodes.
 /// </summary>
 internal partial class SyntaxList : GreenNode {
+    /// <summary>
+    /// Creates an empty <see cref="SyntaxList" />.
+    /// </summary>
     internal SyntaxList() : base(GreenNode.ListKind) { }
 
+    /// <summary>
+    /// Creates an empty <see cref="SyntaxList" /> with diagnostics.
+    /// </summary>
     internal SyntaxList(Diagnostic[] diagnostics) : base(GreenNode.ListKind, diagnostics) { }
 
+    /// <summary>
+    /// Creates a new <see cref="SyntaxList" /> with children.
+    /// </summary>
     internal SyntaxList(ArrayElement<GreenNode>[] children) : this() {
         this.children = children;
         InitializeChildren();
     }
 
+    /// <summary>
+    /// Creates a new <see cref="SyntaxList" /> with children and diagnostics.
+    /// </summary>
     internal SyntaxList(ArrayElement<GreenNode>[] children, Diagnostic[] diagnostics) : this(diagnostics) {
         this.children = children;
         InitializeChildren();
     }
 
+    /// <summary>
+    /// All items in this list.
+    /// </summary>
     internal ArrayElement<GreenNode>[] children { get; }
 
     public override int slotCount => children.Length;
 
+    /// <summary>
+    /// Converts an array of GreenNodes into a <see cref="SyntaxList" />.
+    /// </summary>
     internal static GreenNode List(GreenNode[] nodes) {
         return List(nodes, nodes.Length);
     }
 
-    internal static GreenNode List(GreenNode[] nodes, int count) {
-        var array = new ArrayElement<GreenNode>[count];
-
-        for (int i = 0; i < count; i++) {
-            var node = nodes[i];
-            array[i].Value = node;
-        }
-
-        return List(array);
-    }
-
+    /// <summary>
+    /// Creates a <see cref="SyntaxList" /> with exactly two children.
+    /// </summary>
     internal static WithTwoChildren List(GreenNode child0, GreenNode child1) {
         return new WithTwoChildren(child0, child1);
     }
 
+    /// <summary>
+    /// Creates a <see cref="SyntaxList" /> with children.
+    /// </summary>
     internal static SyntaxList List(ArrayElement<GreenNode>[] children) {
-        // Can optimize here if needed by adding child classes for different sizes of lists
         return new SyntaxList(children);
     }
 
+    /// <summary>
+    /// Joins together two SyntaxLists.
+    /// </summary>
     internal static GreenNode Concat(GreenNode left, GreenNode right) {
         if (left == null)
             return right;
@@ -85,22 +99,6 @@ internal partial class SyntaxList : GreenNode {
         }
     }
 
-    internal virtual void CopyTo(ArrayElement<GreenNode>[] array, int offset) {
-        Array.Copy(children, 0, array, offset, children.Length);
-    }
-
-    private void InitializeChildren() {
-        int n = children.Length;
-
-        if (n < byte.MaxValue)
-            slotCount = (byte)n;
-        else
-            slotCount = byte.MaxValue;
-
-        for (int i = 0; i < children.Length; i++)
-            AdjustFlagsAndWidth(children[i]);
-    }
-
     internal override GreenNode GetSlot(int index) {
         return children[index];
     }
@@ -115,6 +113,33 @@ internal partial class SyntaxList : GreenNode {
 
     internal override GreenNode SetDiagnostics(Diagnostic[] diagnostics) {
         return new SyntaxList(children, diagnostics);
+    }
+
+    internal virtual void CopyTo(ArrayElement<GreenNode>[] array, int offset) {
+        Array.Copy(children, 0, array, offset, children.Length);
+    }
+
+    private static GreenNode List(GreenNode[] nodes, int count) {
+        var array = new ArrayElement<GreenNode>[count];
+
+        for (int i = 0; i < count; i++) {
+            var node = nodes[i];
+            array[i].Value = node;
+        }
+
+        return List(array);
+    }
+
+    private void InitializeChildren() {
+        int n = children.Length;
+
+        if (n < byte.MaxValue)
+            slotCount = (byte)n;
+        else
+            slotCount = byte.MaxValue;
+
+        for (int i = 0; i < children.Length; i++)
+            AdjustFlagsAndWidth(children[i]);
     }
 
     private bool HasNodeTokenPattern() {

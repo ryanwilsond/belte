@@ -4,7 +4,13 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
+/// <summary>
+/// Represents a <see cref="SyntaxNode" /> that is apart of the language syntax.
+/// </summary>
 public abstract class BelteSyntaxNode : SyntaxNode {
+    /// <summary>
+    /// Creates a <see cref="BelteSyntaxNode" />.
+    /// </summary>
     internal BelteSyntaxNode(SyntaxNode parent, GreenNode green, int position) : base(parent, green, position) { }
 
     internal override SyntaxTree syntaxTree => _syntaxTree ?? ComputeSyntaxTree(this);

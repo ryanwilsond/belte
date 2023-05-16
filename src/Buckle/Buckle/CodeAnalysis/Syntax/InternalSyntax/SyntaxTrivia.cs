@@ -7,7 +7,9 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 /// All trivia: comments and whitespace. Text that does not affect compilation.
 /// </summary>
 internal sealed class SyntaxTrivia : BelteSyntaxNode {
-    /// <param name="position">Position of the trivia (indexed by nodes, not by character).</param>
+    /// <summary>
+    /// Creates a new <see cref="SyntaxTrivia" />.
+    /// </summary>
     /// <param name="text">Text associated with the trivia.</param>
     internal SyntaxTrivia(SyntaxKind kind, string text) : base(kind, text.Length) {
         this.text = text;
@@ -16,6 +18,9 @@ internal sealed class SyntaxTrivia : BelteSyntaxNode {
             flags |= NodeFlags.ContainsSkippedText;
     }
 
+    /// <summary>
+    /// Creates a new <see cref="SyntaxTrivia" /> with text and diagnostics.
+    /// </summary>
     internal SyntaxTrivia(SyntaxKind kind, string text, Diagnostic[] diagnostics)
         : base(kind, text.Length, diagnostics) {
         this.text = text;
@@ -24,14 +29,14 @@ internal sealed class SyntaxTrivia : BelteSyntaxNode {
             flags |= NodeFlags.ContainsSkippedText;
     }
 
+    internal override int width => fullWidth;
+
+    internal override bool isTrivia => true;
+
     /// <summary>
     /// Text associated with the <see cref="SyntaxTrivia" />.
     /// </summary>
     internal string text { get; }
-
-    internal override int width => fullWidth;
-
-    internal override bool isTrivia => true;
 
     public override string ToString() {
         return text;

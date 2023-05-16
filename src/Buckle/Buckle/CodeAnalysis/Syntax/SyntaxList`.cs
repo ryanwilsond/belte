@@ -5,17 +5,25 @@ using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
+/// <summary>
+/// Represents a list of <typeparam name="T" />, and is not itself a <see cref="SyntaxNode" />.
+/// </summary>
 public sealed partial class SyntaxList<T> : IReadOnlyList<T> where T : SyntaxNode {
+    /// <summary>
+    /// Creates a new <see cref="SyntaxList" /> from an underlying list node.
+    /// </summary>
     internal SyntaxList(SyntaxNode node) {
         this.node = node;
     }
 
+    /// <summary>
+    /// Creates a new <see cref="SyntaxList" /> from an underlying list node.
+    /// </summary>
     internal SyntaxList(T node) : this((SyntaxNode)node) { }
 
-    public int Count => node == null ? 0 : (node.isList ? node.slotCount : 1);
-
-    internal SyntaxNode node { get; }
-
+    /// <summary>
+    /// Gets the child node at the given position from the underlying list node.
+    /// </summary>
     public T this[int index] {
         get {
             if (node != null) {
@@ -31,23 +39,42 @@ public sealed partial class SyntaxList<T> : IReadOnlyList<T> where T : SyntaxNod
         }
     }
 
+    /// <summary>
+    /// The number of children in the list.
+    /// </summary>
+    public int Count => node == null ? 0 : (node.isList ? node.slotCount : 1);
+
+    /// <summary>
+    /// The underlying list node.
+    /// </summary>
+    internal SyntaxNode node { get; }
+
+    /// <summary>
+    /// The combined full span of all the children.
+    /// </summary>
     internal TextSpan fullSpan => Count == 0
         ? null
         : TextSpan.FromBounds(this[0].fullSpan.start, this[Count - 1].fullSpan.end);
 
+    /// <summary>
+    /// The combined span of all the children.
+    /// </summary>
     internal TextSpan span => Count == 0
         ? null
         : TextSpan.FromBounds(this[0].span.start, this[Count - 1].span.end);
 
-    internal bool Any() {
-        return node != null;
-    }
-
+    /// <summary>
+    /// Gets the child at the given position.
+    /// </summary>
     internal SyntaxNode ItemInternal(int index) {
         if (node?.isList == true)
             return node.GetNodeSlot(index);
 
         return node;
+    }
+
+    internal bool Any() {
+        return node != null;
     }
 
     public Enumerator GetEnumerator() {

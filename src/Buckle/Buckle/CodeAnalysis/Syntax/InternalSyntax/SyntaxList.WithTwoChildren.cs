@@ -3,6 +3,9 @@ using Diagnostics;
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
 internal partial class SyntaxList {
+    /// <summary>
+    /// A <see cref="SyntaxList" /> with exactly two children.
+    /// </summary>
     internal class WithTwoChildren : SyntaxList {
         private readonly GreenNode _child0;
         private readonly GreenNode _child1;

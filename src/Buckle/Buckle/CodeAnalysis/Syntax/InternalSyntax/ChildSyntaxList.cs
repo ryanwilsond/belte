@@ -8,12 +8,18 @@ internal sealed partial class ChildSyntaxList {
     private readonly GreenNode _node;
     private int _count;
 
+    /// <summary>
+    /// Creates a new <see cref="ChildSyntaxList" /> from an underlying node.
+    /// </summary>
     internal ChildSyntaxList(GreenNode node) {
         _node = node;
         _count = -1;
     }
 
-    internal int count {
+    /// <summary>
+    /// The number of children.
+    /// </summary>
+    internal int Count {
         get {
             if (_count == -1)
                 _count = CountNodes();

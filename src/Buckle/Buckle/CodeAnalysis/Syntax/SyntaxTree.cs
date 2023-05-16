@@ -10,22 +10,19 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// Tree of SyntaxNodes produced from the <see cref="InternalSyntax.Parser" />.
 /// </summary>
 public partial class SyntaxTree {
-    private SyntaxTree(SourceText text) {
+    /// <summary>
+    /// Creates a new <see cref="SyntaxTree" /> with the given <see cref="SourceText" />.
+    /// </summary>
+    internal SyntaxTree(SourceText text) {
         this.text = text;
     }
 
+    /// <summary>
+    /// Creates a new <see cref="SyntaxTree" /> with the given node as the root, but does not assign the
+    /// given node's syntax tree.
+    /// </summary>
     internal static SyntaxTree CreateWithoutClone(BelteSyntaxNode root) {
         return new ParsedSyntaxTree(null, root, false);
-    }
-
-    internal static SyntaxTree Create(SourceText text) {
-        return new SyntaxTree(text);
-    }
-
-    public virtual BelteSyntaxNode GetRoot() => null;
-
-    public CompilationUnitSyntax GetCompilationUnitRoot() {
-        return (CompilationUnitSyntax)GetRoot();
     }
 
     /// <summary>
@@ -34,10 +31,14 @@ public partial class SyntaxTree {
     public SourceText text { get; }
 
     /// <summary>
-    /// EOF <see cref="SyntaxToken" />.
+    /// EOF <see cref="SyntaxToken" />. Marks the end of the <see cref="SourceText" />, and does not map to an actual
+    /// character in the <see cref="SourceText" />.
     /// </summary>
     internal SyntaxToken endOfFile { get; }
 
+    /// <summary>
+    /// The length of the <see cref="SourceText" />.
+    /// </summary>
     protected virtual int length => text.length;
 
     /// <summary>
@@ -53,6 +54,18 @@ public partial class SyntaxTree {
 
     public override string ToString() {
         return text.ToString();
+    }
+
+    /// <summary>
+    /// Gets the root node of the syntax tree.
+    /// </summary>
+    public virtual BelteSyntaxNode GetRoot() => null;
+
+    /// <summary>
+    /// Gets the root node of the syntax tree as a <see cref="CompilationUnitSyntax" />.
+    /// </summary>
+    public CompilationUnitSyntax GetCompilationUnitRoot() {
+        return (CompilationUnitSyntax)GetRoot();
     }
 
     /// <summary>

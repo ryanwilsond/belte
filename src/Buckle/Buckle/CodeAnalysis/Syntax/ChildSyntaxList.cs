@@ -13,8 +13,14 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         Count = CountNodes(node.green);
     }
 
+    /// <summary>
+    /// The number of children.
+    /// </summary>
     public int Count { get; }
 
+    /// <summary>
+    /// Gets the child at the given slot index.
+    /// </summary>
     public SyntaxNodeOrToken this[int index] {
         get {
             if (unchecked((uint)index < (uint)Count))
@@ -24,6 +30,9 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         }
     }
 
+    /// <summary>
+    /// The parent of the child list.
+    /// </summary>
     internal SyntaxNode node { get; }
 
     public Enumerator GetEnumerator() {
@@ -44,56 +53,10 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         return new EnumeratorImpl(node, Count);
     }
 
-    internal static int CountNodes(GreenNode green) {
-        int n = 0;
-
-        for (int i = 0, s = green.slotCount; i < s; i++) {
-            var child = green.GetSlot(i);
-
-            if (child != null) {
-                if (!child.isList)
-                    n++;
-                else
-                    n += child.slotCount;
-            }
-        }
-
-        return n;
-    }
-
-    internal Reversed Reverse() {
-        return new Reversed(node, Count);
-    }
-
-    internal static SyntaxNode? ItemInternalAsNode(SyntaxNode node, int index) {
-        GreenNode? greenChild;
-        var green = node.green;
-        var idx = index;
-        var slotIndex = 0;
-
-        while (true) {
-            greenChild = green.GetSlot(slotIndex);
-
-            if (greenChild != null) {
-                int currentOccupancy = Occupancy(greenChild);
-
-                if (idx < currentOccupancy)
-                    break;
-
-                idx -= currentOccupancy;
-            }
-
-            slotIndex++;
-        }
-
-        var red = node.GetNodeSlot(slotIndex);
-
-        if (greenChild.isList && red != null)
-            return red.GetNodeSlot(idx);
-
-        return red;
-    }
-
+    /// <summary>
+    /// Gets the node or token at the given index from the given node. Unlike <see cref="SyntaxNode.GetNodeSlot" />,
+    /// it uses the underlying node to get tokens as well.
+    /// </summary>
     internal static SyntaxNodeOrToken ItemInternal(SyntaxNode node, int index) {
         GreenNode greenChild;
         var green = node.green;
@@ -138,6 +101,9 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         return new SyntaxNodeOrToken(node, greenChild, position, index);
     }
 
+    /// <summary>
+    /// Returns the child node or token of the given node whose span contains the target position.
+    /// </summary>
     internal static SyntaxNodeOrToken ChildThatContainsPosition(SyntaxNode node, int targetPosition) {
         GreenNode? green = node.green;
         var position = node.position;
@@ -184,6 +150,10 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         return new SyntaxNodeOrToken(node, green, position, index);
     }
 
+    internal Reversed Reverse() {
+        return new Reversed(node, Count);
+    }
+
     internal bool Any() {
         return Count != 0;
     }
@@ -200,6 +170,52 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
             return this[Count - 1];
 
         throw new InvalidOperationException();
+    }
+
+    private static int CountNodes(GreenNode green) {
+        int n = 0;
+
+        for (int i = 0, s = green.slotCount; i < s; i++) {
+            var child = green.GetSlot(i);
+
+            if (child != null) {
+                if (!child.isList)
+                    n++;
+                else
+                    n += child.slotCount;
+            }
+        }
+
+        return n;
+    }
+
+    private static SyntaxNode? ItemInternalAsNode(SyntaxNode node, int index) {
+        GreenNode? greenChild;
+        var green = node.green;
+        var idx = index;
+        var slotIndex = 0;
+
+        while (true) {
+            greenChild = green.GetSlot(slotIndex);
+
+            if (greenChild != null) {
+                int currentOccupancy = Occupancy(greenChild);
+
+                if (idx < currentOccupancy)
+                    break;
+
+                idx -= currentOccupancy;
+            }
+
+            slotIndex++;
+        }
+
+        var red = node.GetNodeSlot(slotIndex);
+
+        if (greenChild.isList && red != null)
+            return red.GetNodeSlot(idx);
+
+        return red;
     }
 
     private static int Occupancy(GreenNode green) {

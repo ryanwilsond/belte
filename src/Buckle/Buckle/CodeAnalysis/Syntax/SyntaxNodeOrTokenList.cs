@@ -5,9 +5,17 @@ using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
+/// <summary>
+/// Represents a list of SyntaxNodeOrTokens.
+/// </summary>
 public sealed partial class SyntaxNodeOrTokenList : IReadOnlyCollection<SyntaxNodeOrToken> {
     internal readonly int index;
 
+    /// <summary>
+    /// Creates a new <see cref="SyntaxNodeOrTokenList" /> from an underlying node.
+    /// The given index represents which child of the given node to treat as the beginning of the created
+    /// <see cref="SyntaxNodeOrTokenList" />.
+    /// </summary>
     internal SyntaxNodeOrTokenList(SyntaxNode node, int index) {
         if (node != null) {
             this.node = node;
@@ -15,11 +23,20 @@ public sealed partial class SyntaxNodeOrTokenList : IReadOnlyCollection<SyntaxNo
         }
     }
 
+    /// <summary>
+    /// Creates a new <see cref="SyntaxNodeOrTokenList" /> from a list of SyntaxNodeOrTokens.
+    /// </summary>
     internal SyntaxNodeOrTokenList(IEnumerable<SyntaxNodeOrToken> nodesAndTokens)
         : this(CreateNode(nodesAndTokens), 0) { }
 
+    /// <summary>
+    /// The number of items in the list.
+    /// </summary>
     public int Count => node == null ? 0 : node.green.isList ? node.slotCount : 1;
 
+    /// <summary>
+    /// Gets the child at the given index.
+    /// </summary>
     public SyntaxNodeOrToken this[int index] {
         get {
             if (node != null) {
@@ -42,14 +59,29 @@ public sealed partial class SyntaxNodeOrTokenList : IReadOnlyCollection<SyntaxNo
         }
     }
 
+    /// <summary>
+    /// The underlying list node.
+    /// </summary>
     internal SyntaxNode node { get; }
 
+    /// <summary>
+    /// The start position of this <see cref="SyntaxNodeOrTokenList" />.
+    /// </summary>
     internal int position => node?.position ?? 0;
 
+    /// <summary>
+    /// The parent of the underlying list node.
+    /// </summary>
     internal SyntaxNode parent => node?.parent;
 
+    /// <summary>
+    /// The combined full span of all the children.
+    /// </summary>
     internal TextSpan fullSpan => node?.fullSpan;
 
+    /// <summary>
+    /// The combined span of all the children.
+    /// </summary>
     internal TextSpan span => node?.span;
 
     internal SyntaxNodeOrToken First() {
@@ -96,7 +128,6 @@ public sealed partial class SyntaxNodeOrTokenList : IReadOnlyCollection<SyntaxNo
             ? new EmptyEnumerator<SyntaxNodeOrToken>()
             : GetEnumerator();
     }
-
 
     private static SyntaxNode CreateNode(IEnumerable<SyntaxNodeOrToken> nodesAndTokens) {
         if (nodesAndTokens == null)

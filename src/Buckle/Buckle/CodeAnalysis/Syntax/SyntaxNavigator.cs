@@ -4,7 +4,13 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
+/// <summary>
+/// Navigates through a <see cref="SyntaxNode" /> recursively to find specific tokens.
+/// </summary>
 internal sealed class SyntaxNavigator {
+    /// <summary>
+    /// The single global instance.
+    /// </summary>
     public static readonly SyntaxNavigator Instance = new SyntaxNavigator();
 
     private static readonly ObjectPool<Stack<ChildSyntaxList.Reversed.Enumerator>> _childReversedEnumeratorStackPool =
@@ -16,15 +22,26 @@ internal sealed class SyntaxNavigator {
 
     private SyntaxNavigator() { }
 
+    /// <summary>
+    /// Gets the first <see cref="SyntaxToken" /> contained within the given node <param name="current" />.
+    /// </summary>
+    /// <param name="includeZeroWidth">If to include tokens with zero width in the search.</param>
+    /// <param name="includeSkipped">If to include tokens marked as containing skipped text in the search.</param>
     internal SyntaxToken GetFirstToken(SyntaxNode current, bool includeZeroWidth, bool includeSkipped) {
         return GetFirstToken(current, GetPredicateFunction(includeZeroWidth), GetStepIntoFunction(includeSkipped));
     }
 
+    /// <summary>
+    /// Gets the last <see cref="SyntaxToken" /> contained within the given node <param name="current" />.
+    /// </summary>
+    /// <param name="includeZeroWidth">If to include tokens with zero width in the search.</param>
+    /// <param name="includeSkipped">If to include tokens marked as containing skipped text in the search.</param>
     internal SyntaxToken GetLastToken(SyntaxNode current, bool includeZeroWidth, bool includeSkipped) {
         return GetLastToken(current, GetPredicateFunction(includeZeroWidth), GetStepIntoFunction(includeSkipped));
     }
 
-    internal SyntaxToken GetFirstToken(SyntaxNode current, Func<SyntaxToken, bool>? predicate, Func<SyntaxTrivia, bool>? stepInto) {
+    private SyntaxToken GetFirstToken(
+        SyntaxNode current, Func<SyntaxToken, bool>? predicate, Func<SyntaxTrivia, bool>? stepInto) {
         var stack = _childEnumeratorStackPool.Allocate();
 
         try {
@@ -57,7 +74,7 @@ internal sealed class SyntaxNavigator {
         }
     }
 
-    internal SyntaxToken GetLastToken(
+    private SyntaxToken GetLastToken(
         SyntaxNode current, Func<SyntaxToken, bool> predicate, Func<SyntaxTrivia, bool> stepInto) {
         var stack = _childReversedEnumeratorStackPool.Allocate();
 

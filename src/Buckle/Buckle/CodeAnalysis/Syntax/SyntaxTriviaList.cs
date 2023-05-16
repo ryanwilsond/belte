@@ -9,6 +9,10 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// Represents list of SyntaxTrivias.
 /// </summary>
 public sealed partial class SyntaxTriviaList : IReadOnlyList<SyntaxTrivia> {
+    /// <summary>
+    /// Creates a new <see cref="SyntaxTriviaList" /> from an existing token, an underlying node, a position,
+    /// and an optional start index.
+    /// </summary>
     internal SyntaxTriviaList(SyntaxToken token, GreenNode node, int position, int index = 0) {
         this.token = token;
         this.node = node;
@@ -16,24 +20,48 @@ public sealed partial class SyntaxTriviaList : IReadOnlyList<SyntaxTrivia> {
         this.index = index;
     }
 
+    /// <summary>
+    /// The number of items in the list.
+    /// </summary>
     public int Count => node == null ? 0 : (node.isList ? node.slotCount : 1);
 
+    /// <summary>
+    /// The token that this list is wrapping.
+    /// </summary>
     internal SyntaxToken token { get; }
 
+    /// <summary>
+    /// The underlying list node.
+    /// </summary>
     internal GreenNode node { get; }
 
+    /// <summary>
+    /// The position of this list.
+    /// </summary>
     internal int position { get; }
 
+    /// <summary>
+    /// What index to start at in relation to the underlying list node.
+    /// </summary>
     internal int index { get; }
 
+    /// <summary>
+    /// The combined full span of all the children. Should be the same as <see cref="span" />.
+    /// </summary>
     internal TextSpan fullSpan => node == null ? null : new TextSpan(position, node.fullWidth);
 
+    /// <summary>
+    /// The combined span of all the children. Should be the same as <see cref="fullSpan" />.
+    /// </summary>
     internal TextSpan span => node == null
         ? null
         : TextSpan.FromBounds(
             position + node.GetLeadingTriviaWidth(), position + node.fullWidth - node.GetTrailingTriviaWidth()
           );
 
+    /// <summary>
+    /// Gets the child trivia at the given index.
+    /// </summary>
     public SyntaxTrivia this[int index] {
         get {
             if (node != null) {
@@ -51,11 +79,6 @@ public sealed partial class SyntaxTriviaList : IReadOnlyList<SyntaxTrivia> {
             throw new ArgumentOutOfRangeException(nameof(index));
         }
     }
-
-    internal SyntaxTrivia ElementAt(int index) {
-        return this[index];
-    }
-
 
     internal SyntaxTrivia First() {
         if (Any())

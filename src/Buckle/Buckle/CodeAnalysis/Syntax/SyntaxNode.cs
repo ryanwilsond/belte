@@ -8,24 +8,23 @@ using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Base building block of all things.
-/// Because of generators, the order of fields in a <see cref="SyntaxNode" /> child class need to correctly reflect the
-/// source file.
-/// <code>
-/// sealed partial class PrefixExpression { // Wrong (would display `--a` as `a--`)
-///     Token identifier { get; }
-///     Token op { get; }
-/// }
-///
-/// sealed partial class PrefixExpression { // Right
-///     Token op { get; }
-///     Token identifier { get; }
-/// }
-/// <code>
+/// Base building block of all things on the syntax trees.
 /// </summary>
 public abstract partial class SyntaxNode {
-    internal SyntaxTree _syntaxTree;
+    protected SyntaxTree _syntaxTree;
 
+    /// <summary>
+    /// Creates a new <see cref="SyntaxNode" /> from an underlying <see cref="GreenNode" />.
+    /// </summary>
+    /// <param name="parent">
+    /// The parent of this node, if any parent exists. Otherwise this node is treated as the root of
+    /// a <see cref="SyntaxTree" />.
+    /// </param>
+    /// <param name="node">The underlying <see cref="GreenNode" />.</param>
+    /// <param name="position">
+    /// The absolute position of this node in relation to the <see cref="SourceText" /> of the
+    /// housing <see cref="SyntaxTree" />.
+    /// </param>
     internal SyntaxNode(SyntaxNode parent, GreenNode node, int position) {
         green = node;
         this.position = position;
@@ -46,6 +45,31 @@ public abstract partial class SyntaxNode {
     /// <see cref="SyntaxTree" /> this <see cref="SyntaxNode" /> resides in.
     /// </summary>
     internal abstract SyntaxTree syntaxTree { get; }
+
+    /// <summary>
+    /// <see cref="TextSpan" /> of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />
+    /// (not including line break).
+    /// </summary>
+    internal virtual TextSpan span {
+        get {
+            var start = position;
+            var width = green.fullWidth;
+
+            var precedingWidth = green.GetLeadingTriviaWidth();
+            start += precedingWidth;
+            width -= precedingWidth;
+
+            width -= green.GetTrailingTriviaWidth();
+
+            return new TextSpan(start, width);
+        }
+    }
+
+    /// <summary>
+    /// <see cref="TextSpan" /> of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />
+    /// (including line break).
+    /// </summary>
+    internal virtual TextSpan fullSpan => new TextSpan(position, green.fullWidth);
 
     /// <summary>
     /// The underlying basic node information.
@@ -76,31 +100,6 @@ public abstract partial class SyntaxNode {
     /// The width of this <see cref="SyntaxNode" /> excluding all trivia.
     /// </summary>
     internal int width => green.width;
-
-    /// <summary>
-    /// <see cref="TextSpan" /> of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />
-    /// (not including line break).
-    /// </summary>
-    internal virtual TextSpan span {
-        get {
-            var start = position;
-            var width = green.fullWidth;
-
-            var precedingWidth = green.GetLeadingTriviaWidth();
-            start += precedingWidth;
-            width -= precedingWidth;
-
-            width -= green.GetTrailingTriviaWidth();
-
-            return new TextSpan(start, width);
-        }
-    }
-
-    /// <summary>
-    /// <see cref="TextSpan" /> of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />
-    /// (including line break).
-    /// </summary>
-    internal virtual TextSpan fullSpan => new TextSpan(position, green.fullWidth);
 
     /// <summary>
     /// Location of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />.
@@ -134,6 +133,38 @@ public abstract partial class SyntaxNode {
     }
 
     /// <summary>
+    /// All child nodes and tokens of this node.
+    /// </summary>
+    public ChildSyntaxList ChildNodesAndTokens() {
+        return new ChildSyntaxList(this);
+    }
+
+    /// <summary>
+    /// Gets the last <see cref="SyntaxToken" /> (of all children, recursive) under this <see cref="SyntaxNode" />.
+    /// </summary>
+    /// <returns>Last <see cref="SyntaxToken" />.</returns>
+    public SyntaxToken GetLastToken(bool includeZeroWidth = false, bool includeSkipped = false) {
+        return SyntaxNavigator.Instance.GetLastToken(this, includeZeroWidth, includeSkipped);
+    }
+
+    /// <summary>
+    /// Gets the first <see cref="SyntaxToken" /> (of all children, recursive) under this <see cref="SyntaxNode" />.
+    /// </summary>
+    /// <returns>Last <see cref="SyntaxToken" />.</returns>
+    public SyntaxToken GetFirstToken(bool includeZeroWidth = false, bool includeSkipped = false) {
+        return SyntaxNavigator.Instance.GetFirstToken(this, includeZeroWidth, includeSkipped);
+    }
+
+    /// <summary>
+    /// Returns a copy of this node with an assigned <see cref="SyntaxTree" />.
+    /// </summary>
+    internal static T CloneNodeAsRoot<T>(T node, SyntaxTree syntaxTree) where T : SyntaxNode {
+        var clone = (T)node.green.CreateRed(null, 0);
+        clone._syntaxTree = syntaxTree;
+        return clone;
+    }
+
+    /// <summary>
     /// Gets the node at the given index, and if no node exists create one.
     /// </summary>
     internal abstract SyntaxNode GetNodeSlot(int index);
@@ -143,37 +174,44 @@ public abstract partial class SyntaxNode {
     /// </summary>
     internal abstract SyntaxNode GetCachedSlot(int index);
 
+    /// <summary>
+    /// Gets the start position of the child at the given index.
+    /// </summary>
+    internal virtual int GetChildPosition(int index) {
+        if (GetCachedSlot(index) is { } node)
+            return node.position;
+
+        int offset = 0;
+        var green = this.green;
+
+        while (index > 0) {
+            index--;
+            var prevSibling = GetCachedSlot(index);
+
+            if (prevSibling != null)
+                return prevSibling.endPosition + offset;
+
+            var greenChild = green.GetSlot(index);
+
+            if (greenChild != null)
+                offset += greenChild.fullWidth;
+        }
+
+        return position + offset;
+    }
+
+    /// <summary>
+    /// Gets the leading trivia of this node, if any exists.
+    /// </summary>
     internal SyntaxTriviaList GetLeadingTrivia() {
         return GetFirstToken(includeZeroWidth: true).leadingTrivia;
     }
 
+    /// <summary>
+    /// Gets the trailing trivia of this node, if any exists.
+    /// </summary>
     internal SyntaxTriviaList GetTrailingTrivia() {
         return GetLastToken(includeZeroWidth: true).trailingTrivia;
-    }
-
-    /// <summary>
-    /// All child nodes and tokens of this node.
-    /// </summary>
-    public ChildSyntaxList ChildNodesAndTokens() {
-        return new ChildSyntaxList(this);
-    }
-
-    /// <summary>
-    /// Gets last <see cref="SyntaxToken" /> (of all children, recursive) under this <see cref="SyntaxNode" />.
-    /// </summary>
-    /// <returns>Last <see cref="SyntaxToken" />.</returns>
-    public SyntaxToken GetLastToken(bool includeZeroWidth = false, bool includeSkipped = false) {
-        return SyntaxNavigator.Instance.GetLastToken(this, includeZeroWidth, includeSkipped);
-    }
-
-    public SyntaxToken GetFirstToken(bool includeZeroWidth = false, bool includeSkipped = false) {
-        return SyntaxNavigator.Instance.GetFirstToken(this, includeZeroWidth, includeSkipped);
-    }
-
-    internal static T CloneNodeAsRoot<T>(T node, SyntaxTree syntaxTree) where T : SyntaxNode {
-        var clone = (T)node.green.CreateRed(null, 0);
-        clone._syntaxTree = syntaxTree;
-        return clone;
     }
 
     /// <summary>
@@ -199,29 +237,9 @@ public abstract partial class SyntaxNode {
         }
     }
 
-    internal virtual int GetChildPosition(int index) {
-        if (GetCachedSlot(index) is { } node)
-            return node.position;
-
-        int offset = 0;
-        var green = this.green;
-
-        while (index > 0) {
-            index--;
-            var prevSibling = GetCachedSlot(index);
-
-            if (prevSibling != null)
-                return prevSibling.endPosition + offset;
-
-            var greenChild = green.GetSlot(index);
-
-            if (greenChild != null)
-                offset += greenChild.fullWidth;
-        }
-
-        return position + offset;
-    }
-
+    /// <summary>
+    /// Gets the start position of the child at the given index, calculated from the end of the node.
+    /// </summary>
     internal int GetChildPositionFromEnd(int index) {
         if (this.GetCachedSlot(index) is { } node)
             return node.position;
@@ -246,6 +264,9 @@ public abstract partial class SyntaxNode {
         return endPosition - offset;
     }
 
+    /// <summary>
+    /// Gets the child index of the given slot, accounting for the slot count of child lists.
+    /// </summary>
     internal int GetChildIndex(int slot) {
         int index = 0;
 
@@ -263,6 +284,10 @@ public abstract partial class SyntaxNode {
         return index;
     }
 
+    /// <summary>
+    /// Gets the red element at the given slot if the passed in element is null, and assigns the passed in reference
+    /// <param name="element" />. Also returns the retrieved element.
+    /// </summary>
     internal SyntaxNode GetRedElement(ref SyntaxNode element, int slot) {
         var result = element;
 
@@ -275,6 +300,10 @@ public abstract partial class SyntaxNode {
         return result;
     }
 
+    /// <summary>
+    /// Gets the red node at slot 1, if it is not a token, and assigns the passed in reference <para name="element" />.
+    /// Also returns the retrieved node.
+    /// </summary>
     internal SyntaxNode GetRedElementIfNotToken(ref SyntaxNode element) {
         var result = element;
 
@@ -290,6 +319,10 @@ public abstract partial class SyntaxNode {
         return result;
     }
 
+    /// <summary>
+    /// Gets the red element at the given slot and assigns the passed in reference <param name="element" />.
+    /// Also returns the retrieved element.
+    /// </summary>
     internal SyntaxNode GetRed(ref SyntaxNode field, int slot) {
         var result = field;
 
@@ -305,6 +338,10 @@ public abstract partial class SyntaxNode {
         return result;
     }
 
+    /// <summary>
+    /// Gets the red element at slot 0 and assigns the passed in reference <param name="element" />.
+    /// Also returns the retrieved element.
+    /// </summary>
     internal SyntaxNode GetRedAtZero(ref SyntaxNode field) {
         // Special case where getting the child position is unnecessary (would always return 0)
         var result = field;

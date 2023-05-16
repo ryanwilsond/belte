@@ -13,16 +13,25 @@ namespace Buckle.CodeAnalysis.Syntax;
 internal abstract partial class GreenNode {
     protected NodeFlags flags;
 
+    /// <summary>
+    /// A <see cref="SyntaxKind" /> that represents any list kind.
+    /// </summary>
     internal const SyntaxKind ListKind = (SyntaxKind)1;
 
     private static readonly ConditionalWeakTable<GreenNode, Diagnostic[]> _diagnosticsTable =
         new ConditionalWeakTable<GreenNode, Diagnostic[]>();
     private static readonly Diagnostic[] _noDiagnostics = Array.Empty<Diagnostic>();
 
+    /// <summary>
+    /// Creates a new <see cref="GreenNode" />.
+    /// </summary>
     internal GreenNode(SyntaxKind kind) {
         this.kind = kind;
     }
 
+    /// <summary>
+    /// Creates a new <see cref="GreenNode" /> that contains diagnostics.
+    /// </summary>
     internal GreenNode(SyntaxKind kind, Diagnostic[] diagnostics) {
         this.kind = kind;
 
@@ -32,13 +41,16 @@ internal abstract partial class GreenNode {
         }
     }
 
+    /// <summary>
+    /// Creates a new <see cref="GreenNode" /> with a preset width.
+    /// </summary>
     internal GreenNode(SyntaxKind kind, int fullWidth) {
         this.kind = kind;
         this.fullWidth = fullWidth;
     }
 
     /// <summary>
-    /// Creates a <see cref="GreenNode" />.
+    /// Creates a new <see cref="GreenNode" /> with a preset width and diagnostics.
     /// </summary>
     internal GreenNode(SyntaxKind kind, int fullWidth, Diagnostic[] diagnostics) {
         this.kind = kind;
@@ -103,6 +115,14 @@ internal abstract partial class GreenNode {
     /// </summary>
     internal bool isList => kind == ListKind;
 
+
+    public override string ToString() {
+        var sb = PooledStringBuilder.GetInstance();
+        var writer = new StringWriter(sb.Builder);
+        WriteTo(writer, leading: false, trailing: false);
+        return sb.ToStringAndFree();
+    }
+
     /// <summary>
     /// Returns a child at slot <param name="index" />.
     /// </summary>
@@ -112,6 +132,61 @@ internal abstract partial class GreenNode {
     /// Creates a "red" tree node.
     /// </summary>
     internal abstract SyntaxNode CreateRed(SyntaxNode parent, int position);
+
+    /// <summary>
+    /// Returns a new node with assigned diagnostics.
+    /// </summary>
+    internal abstract GreenNode SetDiagnostics(Diagnostic[] diagnostics);
+
+    /// <summary>
+    /// Gets the width of the leading trivia.
+    /// </summary>
+    internal virtual int GetLeadingTriviaWidth() {
+        return fullWidth != 0 ? GetFirstTerminal().GetLeadingTriviaWidth() : 0;
+    }
+
+    /// <summary>
+    /// Gets the width of the trailing trivia.
+    /// </summary>
+    /// <returns></returns>
+    internal virtual int GetTrailingTriviaWidth() {
+        return fullWidth != 0 ? GetLastTerminal().GetTrailingTriviaWidth() : 0;
+    }
+
+    /// <summary>
+    /// Gets all leading trivia.
+    /// </summary>
+    internal virtual GreenNode GetLeadingTrivia() {
+        return null;
+    }
+
+    /// <summary>
+    /// Gets all trailing trivia.
+    /// </summary>
+    internal virtual GreenNode GetTrailingTrivia() {
+        return null;
+    }
+
+    /// <summary>
+    /// Gets the stored value, if any.
+    /// </summary>
+    internal virtual object GetValue() {
+        return null;
+    }
+
+    /// <summary>
+    /// Returns a copy of this node with leading trivia.
+    /// </summary>
+    internal virtual GreenNode WithLeadingTrivia(GreenNode trivia) {
+        return this;
+    }
+
+    /// <summary>
+    /// Returns a copy of this node with trailing trivia.
+    /// </summary>
+    internal virtual GreenNode WithTrailingTrivia(GreenNode trivia) {
+        return this;
+    }
 
     /// <summary>
     /// Gets all child <see cref="GreenNodes" />.
@@ -208,63 +283,6 @@ internal abstract partial class GreenNode {
     }
 
     /// <summary>
-    /// Gets the width of the leading trivia.
-    /// </summary>
-    internal virtual int GetLeadingTriviaWidth() {
-        return fullWidth != 0 ? GetFirstTerminal().GetLeadingTriviaWidth() : 0;
-    }
-
-    /// <summary>
-    /// Gets the width of the trailing trivia.
-    /// </summary>
-    /// <returns></returns>
-    internal virtual int GetTrailingTriviaWidth() {
-        return fullWidth != 0 ? GetLastTerminal().GetTrailingTriviaWidth() : 0;
-    }
-
-    /// <summary>
-    /// Gets all leading trivia.
-    /// </summary>
-    internal virtual GreenNode GetLeadingTrivia() {
-        return null;
-    }
-
-    /// <summary>
-    /// Gets all trailing trivia.
-    /// </summary>
-    internal virtual GreenNode GetTrailingTrivia() {
-        return null;
-    }
-
-    /// <summary>
-    /// Gets the stored value, if any.
-    /// </summary>
-    internal virtual object GetValue() {
-        return null;
-    }
-
-    /// <summary>
-    /// Returns a copy of this node with leading trivia.
-    /// </summary>
-    internal virtual GreenNode WithLeadingTrivia(GreenNode trivia) {
-        return this;
-    }
-
-    /// <summary>
-    /// Returns a copy of this node with trailing trivia.
-    /// </summary>
-    internal virtual GreenNode WithTrailingTrivia(GreenNode trivia) {
-        return this;
-    }
-
-    public override string ToString() {
-        var sb = PooledStringBuilder.GetInstance();
-        var writer = new StringWriter(sb.Builder);
-        WriteTo(writer, leading: false, trailing: false);
-        return sb.ToStringAndFree();
-    }
-
-    /// <summary>
     /// Gets the first existing child <see cref="GreenNode" />.
     /// </summary>
     internal GreenNode GetFirstTerminal() {
@@ -326,24 +344,6 @@ internal abstract partial class GreenNode {
         return _noDiagnostics;
     }
 
-    /// <summary>
-    /// Returns a new node with assigned diagnostics.
-    /// </summary>
-    internal abstract GreenNode SetDiagnostics(Diagnostic[] diagnostics);
-
-    protected virtual void WriteTriviaTo(TextWriter writer) {
-        throw new NotImplementedException();
-    }
-
-    protected virtual void WriteTokenTo(TextWriter writer, bool leading, bool trailing) {
-        throw new NotImplementedException();
-    }
-
-    protected void AdjustFlagsAndWidth(GreenNode node) {
-        flags |= node.flags;
-        fullWidth += node.fullWidth;
-    }
-
     protected internal void WriteTo(TextWriter writer, bool leading, bool trailing) {
         var stack = new Stack<(GreenNode node, bool leading, bool trailing)>();
         stack.Push((this, leading, trailing));
@@ -382,6 +382,19 @@ internal abstract partial class GreenNode {
                 }
             }
         }
+    }
+
+    protected virtual void WriteTriviaTo(TextWriter writer) {
+        throw new NotImplementedException();
+    }
+
+    protected virtual void WriteTokenTo(TextWriter writer, bool leading, bool trailing) {
+        throw new NotImplementedException();
+    }
+
+    protected void AdjustFlagsAndWidth(GreenNode node) {
+        flags |= node.flags;
+        fullWidth += node.fullWidth;
     }
 
     private static int GetFirstNonNullChildIndex(GreenNode node) {
