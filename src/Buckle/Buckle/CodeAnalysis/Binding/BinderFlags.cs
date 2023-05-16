@@ -9,6 +9,5 @@ namespace Buckle.CodeAnalysis.Binding;
 internal enum BinderFlags : uint {
     None,
     LocalFunction = 1 << 0,
-    LowLevelRegion = 1 << 1,
-    Method = 1 << 2,
+    Method = 1 << 1,
 }
