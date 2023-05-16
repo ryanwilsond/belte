@@ -186,7 +186,7 @@ public sealed partial class BelteRepl : Repl {
         var displayText = new DisplayText();
 
         if (state.showTree) {
-            syntaxTree.root.WriteTo(displayText);
+            syntaxTree.GetRoot().WriteTo(displayText);
             WriteDisplayText(displayText);
         }
 
@@ -230,7 +230,8 @@ public sealed partial class BelteRepl : Repl {
 
         if (handle.diagnostics.Any()) {
             if (diagnosticHandle != null) {
-                handle.diagnostics = BelteDiagnosticQueue.CleanDiagnostics(handle.diagnostics);
+                // ? View the todo marker in BelteDiagnosticQueue.CleanDiagnostics
+                // handle.diagnostics = BelteDiagnosticQueue.CleanDiagnostics(handle.diagnostics);
                 diagnosticHandle(handle, textColor: state.colorTheme.textDefault);
             } else {
                 handle.diagnostics.Clear();
@@ -263,9 +264,9 @@ public sealed partial class BelteRepl : Repl {
             return true;
 
         UpdateTree();
-        var lastMember = state.tree.root.members.LastOrDefault();
+        var lastMember = state.tree.GetCompilationUnitRoot().members.LastOrDefault();
 
-        if (lastMember == null || lastMember.GetLastToken().isFabricated)
+        if (lastMember == null || lastMember.GetLastToken(includeZeroWidth: true).isFabricated)
             return false;
 
         return true;

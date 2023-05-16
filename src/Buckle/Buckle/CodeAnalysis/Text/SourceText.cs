@@ -11,6 +11,10 @@ namespace Buckle.CodeAnalysis.Text;
 /// A source of text the compiler uses, usually representing a source file.
 /// </summary>
 public abstract class SourceText {
+    /// <summary>
+    /// The max length of a source text before the <see cref="SourceTextWriter.Create" /> starts using a
+    /// <see cref="LargeTextWriter" /> instead of a <see cref="StringTextWriter" />.
+    /// </summary>
     internal const int LargeObjectHeapLimitInChars = 40 * 1024;
 
     private const int CharBufferSize = 32 * 1024;
@@ -21,6 +25,9 @@ public abstract class SourceText {
 
     protected ImmutableArray<TextLine> _lines;
 
+    /// <summary>
+    /// The lines of text from the source file.
+    /// </summary>
     public ImmutableArray<TextLine> lines {
         get {
             EnsureLines();
@@ -28,10 +35,7 @@ public abstract class SourceText {
         }
     }
 
-    /// <summary>
-    /// Number of lines in the <see cref="SourceText" />.
-    /// </summary>
-    public virtual int lineCount => lines.Length;
+    public override string ToString() => ToString(new TextSpan(0, length));
 
     /// <summary>
     /// Indexing the source file contents.
@@ -44,6 +48,11 @@ public abstract class SourceText {
     public abstract int length { get; }
 
     /// <summary>
+    /// Number of lines in the <see cref="SourceText" />.
+    /// </summary>
+    public virtual int lineCount => lines.Length;
+
+    /// <summary>
     /// Creates a <see cref="SourceText" /> from a text, not necessarily relating to a source file.
     /// </summary>
     /// <param name="text">Text.</param>
@@ -54,30 +63,9 @@ public abstract class SourceText {
     }
 
     /// <summary>
-    /// Gets a line index based on an absolute index. Very expensive.
+    /// Copy a range of characters from this to a destination array.
     /// </summary>
-    /// <param name="position">Absolute index.</param>
-    /// <returns>Line index.</returns>
-    public int GetLineIndex(int position) {
-        var lower = 0;
-        var upper = lineCount - 1;
-
-        while (lower <= upper) {
-            var index = lower + (upper - lower) / 2;
-            var start = lines[index].start;
-
-            if (position == start)
-                return index;
-            if (start > position)
-                upper = index - 1;
-            else
-                lower = index + 1;
-        }
-
-        return lower - 1;
-    }
-
-    public override string ToString() => ToString(new TextSpan(0, length));
+    public abstract void CopyTo(int sourceIndex, char[] destination, int destinationIndex, int count);
 
     /// <summary>
     /// String representation of part of the text.
@@ -106,11 +94,6 @@ public abstract class SourceText {
     }
 
     /// <summary>
-    /// Copy a range of characters from this to a destination array.
-    /// </summary>
-    public abstract void CopyTo(int sourceIndex, char[] destination, int destinationIndex, int count);
-
-    /// <summary>
     /// Write this to a text writer.
     /// </summary>
     public virtual void Write(TextWriter writer) {
@@ -129,27 +112,6 @@ public abstract class SourceText {
         } finally {
             _charArrayPool.Free(buffer);
         }
-    }
-
-    /// <summary>
-    /// Checks if the <see cref="TextSpan" /> starts at the end of the text.
-    /// Does not return true if the span reaches the end, only if it starts at the end.
-    /// If the <see cref="TextSpan" /> extends beyond the text, the result will not be different.
-    /// </summary>
-    /// <param name="span"><see cref="TextSpan" /> to check.</param>
-    /// <returns>If the <see cref="TextSpan" /> is at the end of the text.</returns>
-    public bool IsAtEndOfInput(TextSpan span) {
-        if (span.start == length)
-            return true;
-
-        return false;
-    }
-
-    /// <summary>
-    /// Constructs a new <see cref="SourceText" /> from this with the specified changes.
-    /// </summary>
-    public SourceText WithChanges(params TextChange[] changes) {
-        return WithChanges(ImmutableArray.Create(changes));
     }
 
     /// <summary>
@@ -214,6 +176,51 @@ public abstract class SourceText {
             return new ChangedText(this, newText, changeRanges.ToImmutable());
         else
             return this;
+    }
+
+    /// <summary>
+    /// Gets a line index based on an absolute index. Very expensive.
+    /// </summary>
+    /// <param name="position">Absolute index.</param>
+    /// <returns>Line index.</returns>
+    public int GetLineIndex(int position) {
+        var lower = 0;
+        var upper = lineCount - 1;
+
+        while (lower <= upper) {
+            var index = lower + (upper - lower) / 2;
+            var start = lines[index].start;
+
+            if (position == start)
+                return index;
+            if (start > position)
+                upper = index - 1;
+            else
+                lower = index + 1;
+        }
+
+        return lower - 1;
+    }
+
+    /// <summary>
+    /// Checks if the <see cref="TextSpan" /> starts at the end of the text.
+    /// Does not return true if the span reaches the end, only if it starts at the end.
+    /// If the <see cref="TextSpan" /> extends beyond the text, the result will not be different.
+    /// </summary>
+    /// <param name="span"><see cref="TextSpan" /> to check.</param>
+    /// <returns>If the <see cref="TextSpan" /> is at the end of the text.</returns>
+    public bool IsAtEndOfInput(TextSpan span) {
+        if (span.start == length)
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Constructs a new <see cref="SourceText" /> from this with the specified changes.
+    /// </summary>
+    public SourceText WithChanges(params TextChange[] changes) {
+        return WithChanges(ImmutableArray.Create(changes));
     }
 
     /// <summary>

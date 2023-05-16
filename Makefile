@@ -18,6 +18,7 @@ FLAGS:=-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p
 
 all: prebuild build postbuild
 portable: prebuild portablebuild postbuild
+debug: prebuild debugbuild postbuilddebug
 
 # Tests the solution
 .PHONY: test
@@ -48,9 +49,14 @@ prebuild:
 	@echo "Started building the Buckle solution (release) ..."
 	@mkdir -p bin
 	@mkdir -p bin/release
+	@mkdir -p bin/debug
 
 postbuild:
 	@mv bin/release/Belte.exe bin/release/buckle.exe
+	@echo "    Finished"
+
+postbuilddebug:
+	@mv bin/debug/Belte.exe bin/debug/buckle.exe
 	@echo "    Finished"
 
 build:
@@ -58,3 +64,7 @@ build:
 
 portablebuild:
 	@dotnet publish $(BELTDIR)/Belte.csproj $(FLAGS) -o bin/release
+
+debugbuild:
+	@rm -rf src/Buckle/Buckle/CodeAnalysis/Generated
+	@dotnet build $(BELTDIR)/Belte.csproj --sc -t:rebuild -r $(SYSTEM) -o bin/debug

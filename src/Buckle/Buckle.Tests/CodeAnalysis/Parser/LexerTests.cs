@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
 using Xunit;
 
 namespace Buckle.Tests.CodeAnalysis.Syntax.InternalSyntax;
@@ -13,14 +14,15 @@ public sealed class LexerTests {
     [Fact]
     public void Lexer_Lexes_UnterminatedString() {
         const string text = "\"test";
-        var tokens = SyntaxTree.ParseTokens(text, out var diagnostics);
-        var token = Assert.Single(tokens);
+        var tokens = SyntaxTreeExtensions.ParseTokens(text);
+        Assert.Equal(1, tokens.Count);
+        var token = tokens[0];
         Assert.Equal(SyntaxKind.StringLiteralToken, token.kind);
         Assert.Equal(text, token.text);
-        Assert.Equal(1, diagnostics.count);
-        var diagnostic = diagnostics.Pop();
-        Assert.Equal(0, diagnostic.location.span.start);
-        Assert.Equal(1, diagnostic.location.span.length);
+        Assert.True(token.containsDiagnostics);
+        var diagnostic = (SyntaxDiagnostic)token.GetDiagnostics().First();
+        Assert.Equal(0, diagnostic.offset);
+        Assert.Equal(1, diagnostic.width);
         Assert.Equal("unterminated string literal", diagnostic.message);
     }
 
@@ -45,9 +47,10 @@ public sealed class LexerTests {
     [Theory]
     [MemberData(nameof(GetTokensData))]
     internal void Lexer_Lexes_Token(SyntaxKind kind, string text) {
-        var tokens = SyntaxTree.ParseTokens(text);
+        var tokens = SyntaxTreeExtensions.ParseTokens(text);
 
-        var token = Assert.Single(tokens);
+        Assert.Equal(1, tokens.Count);
+        var token = tokens[0];
         Assert.Equal(kind, token.kind);
         Assert.Equal(text, token.text);
     }
@@ -55,10 +58,12 @@ public sealed class LexerTests {
     [Theory]
     [MemberData(nameof(GetSeparatorsData))]
     internal void Lexer_Lexes_Separator(SyntaxKind kind, string text) {
-        var tokens = SyntaxTree.ParseTokens(text, true);
+        var tokens = SyntaxTreeExtensions.ParseTokens(text, true);
 
-        var token = Assert.Single(tokens);
-        var trivia = Assert.Single(token.leadingTrivia);
+        Assert.Equal(1, tokens.Count);
+        var token = tokens[0];
+        Assert.Equal(1, token.leadingTrivia.Count);
+        var trivia = (Buckle.CodeAnalysis.Syntax.InternalSyntax.SyntaxTrivia)token.leadingTrivia[0];
         Assert.Equal(kind, trivia.kind);
         Assert.Equal(text, trivia.text);
     }
@@ -68,9 +73,9 @@ public sealed class LexerTests {
     internal void Lexer_Lexes_TokenPairs(SyntaxKind t1Kind, string t1Text,
                                         SyntaxKind t2Kind, string t2Text) {
         var text = t1Text + t2Text;
-        var tokens = SyntaxTree.ParseTokens(text).ToArray();
+        var tokens = SyntaxTreeExtensions.ParseTokens(text);
 
-        Assert.Equal(2, tokens.Length);
+        Assert.Equal(2, tokens.Count);
         Assert.Equal(tokens[0].kind, t1Kind);
         Assert.Equal(tokens[0].text, t1Text);
         Assert.Equal(tokens[1].kind, t2Kind);
@@ -83,13 +88,14 @@ public sealed class LexerTests {
                                                         SyntaxKind separatorKind, string separatorText,
                                                         SyntaxKind t2Kind, string t2Text) {
         var text = t1Text + separatorText + t2Text;
-        var tokens = SyntaxTree.ParseTokens(text).ToArray();
+        var tokens = SyntaxTreeExtensions.ParseTokens(text);
 
-        Assert.Equal(2, tokens.Length);
+        Assert.Equal(2, tokens.Count);
         Assert.Equal(tokens[0].kind, t1Kind);
         Assert.Equal(tokens[0].text, t1Text);
 
-        var separator = Assert.Single(tokens[0].trailingTrivia);
+        Assert.Equal(1, tokens[0].trailingTrivia.Count);
+        var separator = (Buckle.CodeAnalysis.Syntax.InternalSyntax.SyntaxTrivia)tokens[0].trailingTrivia[0];
         Assert.Equal(separator.text, separatorText);
         Assert.Equal(separator.kind, separatorKind);
 
@@ -103,9 +109,9 @@ public sealed class LexerTests {
     [InlineData("foo_42")]
     [InlineData("_foo")]
     public void Lexer_Lexes_Identifiers(string name) {
-        var tokens = SyntaxTree.ParseTokens(name).ToArray();
+        var tokens = SyntaxTreeExtensions.ParseTokens(name);
 
-        Assert.Single(tokens);
+        Assert.Equal(1, tokens.Count);
 
         var token = tokens[0];
         Assert.Equal(SyntaxKind.IdentifierToken, token.kind);

@@ -25,7 +25,7 @@ public sealed class Compilation {
         diagnostics = new BelteDiagnosticQueue();
 
         foreach (var syntaxTree in syntaxTrees)
-            diagnostics.Move(syntaxTree.diagnostics);
+            diagnostics.Move(syntaxTree.GetDiagnostics());
 
         this.syntaxTrees = syntaxTrees.ToImmutableArray<SyntaxTree>();
     }
@@ -154,9 +154,6 @@ public sealed class Compilation {
     /// </param>
     /// <returns>Emitted program as a string. Diagnostics must be accessed manually off of this.</returns>
     public string EmitToString(BuildMode buildMode, string moduleName, string[] references = null) {
-        foreach (var syntaxTree in syntaxTrees)
-            diagnostics.Move(syntaxTree.diagnostics);
-
         if (diagnostics.Errors().Any())
             return null;
 
@@ -234,9 +231,6 @@ public sealed class Compilation {
     /// <returns>Diagnostics.</returns>
     internal BelteDiagnosticQueue Emit(
         BuildMode buildMode, string moduleName, string[] references, string outputPath, CompilerStage finishStage) {
-        foreach (var syntaxTree in syntaxTrees)
-            diagnostics.Move(syntaxTree.diagnostics);
-
         if (diagnostics.Errors().Any())
             return diagnostics;
 

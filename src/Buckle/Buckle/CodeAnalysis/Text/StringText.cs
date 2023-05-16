@@ -8,10 +8,10 @@ namespace Buckle.CodeAnalysis.Text;
 /// </summary>
 internal sealed class StringText : SourceText {
     /// <summary>
-    /// Creates a <see cref="SourceText" /> provided the file name and contents.
+    /// Creates a <see cref="StringText" /> provided the file name and contents.
     /// </summary>
-    /// <param name="fileName">File name of the <see cref="SourceText" /> (where the text came from).</param>
-    /// <param name="text">The contents of the file the <see cref="SourceText" /> comes from.</param>
+    /// <param name="fileName">File name of the <see cref="StringText" /> (where the text came from).</param>
+    /// <param name="text">The contents of the file the <see cref="StringText" /> comes from.</param>
     internal StringText(string fileName, string source) {
         _lines = ParseLines(this, source);
         this.source = source;
@@ -24,6 +24,9 @@ internal sealed class StringText : SourceText {
 
     public override int length => source.Length;
 
+    /// <summary>
+    /// The text contents of the source file.
+    /// </summary>
     internal string source { get; }
 
     /// <summary>

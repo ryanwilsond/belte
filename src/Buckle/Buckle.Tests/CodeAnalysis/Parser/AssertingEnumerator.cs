@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Buckle.CodeAnalysis.Syntax;
 using Xunit;
 
@@ -10,7 +9,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax.InternalSyntax;
 /// Asserts SyntaxKinds over an enumerable of SyntaxNodes.
 /// </summary>
 internal sealed class AssertingEnumerator : IDisposable {
-    private readonly IEnumerator<SyntaxNode> _enumerator;
+    private readonly IEnumerator<SyntaxNodeOrToken> _enumerator;
     private bool _hasErrors;
 
     internal AssertingEnumerator(SyntaxNode node) {
@@ -48,7 +47,7 @@ internal sealed class AssertingEnumerator : IDisposable {
         try {
             Assert.True(_enumerator.MoveNext());
             Assert.Equal(kind, _enumerator.Current.kind);
-            var token = Assert.IsType<SyntaxToken>(_enumerator.Current);
+            var token = Assert.IsType<SyntaxToken>(_enumerator.Current.AsToken());
             Assert.Equal(text, token.text);
         } catch when (MarkFailed()) {
             throw;
@@ -60,14 +59,18 @@ internal sealed class AssertingEnumerator : IDisposable {
         return false;
     }
 
-    private static IEnumerable<SyntaxNode> Flatten(SyntaxNode node) {
-        var stack = new Stack<SyntaxNode>();
+    private static IEnumerable<SyntaxNodeOrToken> Flatten(SyntaxNode node) {
+        var stack = new Stack<SyntaxNodeOrToken>();
         stack.Push(node);
 
         while (stack.Count > 0) {
             var n = stack.Pop();
             yield return n;
-            var nodeList = n.GetChildren();
+
+            if (n.isToken)
+                continue;
+
+            var nodeList = n.ChildNodesAndTokens();
 
             foreach (var child in nodeList.Reverse())
                 stack.Push(child);

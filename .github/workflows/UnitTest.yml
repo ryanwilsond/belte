@@ -11,6 +11,9 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
+      - uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.100-preview.2.23157.25'
 
       - name: Clean
         run: dotnet clean --configuration Release ./src/Buckle/Buckle.sln

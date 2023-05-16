@@ -273,7 +273,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            ambiguous what if-statement this else-clause belongs to; use curly braces
+            ambiguous which if-statement this else-clause belongs to; use curly braces
         ";
 
         AssertDiagnostics(text, diagnostics, writer);

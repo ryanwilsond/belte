@@ -8,6 +8,9 @@ namespace Buckle.CodeAnalysis.Text;
 internal sealed class StringTextWriter : SourceTextWriter {
     private readonly StringBuilder _builder;
 
+    /// <summary>
+    /// Creates a new <see cref="StringTextWriter" /> with a starting capacity.
+    /// </summary>
     internal StringTextWriter(int capacity) {
         _builder = new StringBuilder(capacity);
     }

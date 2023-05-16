@@ -54,47 +54,52 @@ public abstract partial class Repl {
         }
 
         private void Render() {
-            Console.CursorVisible = false;
-            var lineCount = 0;
+            try {
+                Console.CursorVisible = false;
+                var lineCount = 0;
 
-            foreach (var line in _document) {
-                if (_cursorTop + lineCount >= Console.WindowHeight - 1) {
-                    _writer.SetCursorPosition(0, Console.WindowHeight - 1);
-                    _writer.WriteLine();
+                foreach (var line in _document) {
+                    if (_cursorTop + lineCount >= Console.WindowHeight - 1) {
+                        _writer.SetCursorPosition(0, Console.WindowHeight - 1);
+                        _writer.WriteLine();
 
-                    if (_cursorTop > 0)
-                        _cursorTop--;
+                        if (_cursorTop > 0)
+                            _cursorTop--;
+                    }
+
+                    _writer.SetCursorPosition(0, _cursorTop + lineCount);
+                    var previous = Console.ForegroundColor;
+                    Console.ForegroundColor = ConsoleColor.Green;
+
+                    if (lineCount == 0)
+                        _writer.Write("» ");
+                    else
+                        _writer.Write("· ");
+
+                    Console.ForegroundColor = previous;
+                    _lineRenderer(_document, lineCount);
+                    _writer.Write(new string(' ', Console.WindowWidth - line.Length - 2));
+                    lineCount++;
                 }
 
-                _writer.SetCursorPosition(0, _cursorTop + lineCount);
-                var previous = Console.ForegroundColor;
-                Console.ForegroundColor = ConsoleColor.Green;
+                var blankLineCount = _renderedLineCount - lineCount;
 
-                if (lineCount == 0)
-                    _writer.Write("» ");
-                else
-                    _writer.Write("· ");
+                if (blankLineCount > 0) {
+                    var blankLine = new string(' ', Console.WindowWidth);
 
-                Console.ForegroundColor = previous;
-                _lineRenderer(_document, lineCount);
-                _writer.Write(new string(' ', Console.WindowWidth - line.Length - 2));
-                lineCount++;
-            }
-
-            var blankLineCount = _renderedLineCount - lineCount;
-
-            if (blankLineCount > 0) {
-                var blankLine = new string(' ', Console.WindowWidth);
-
-                for (var i = 0; i < blankLineCount; i++) {
-                    _writer.SetCursorPosition(0, _cursorTop + lineCount + i);
-                    _writer.WriteLine(blankLine);
+                    for (var i = 0; i < blankLineCount; i++) {
+                        _writer.SetCursorPosition(0, _cursorTop + lineCount + i);
+                        _writer.WriteLine(blankLine);
+                    }
                 }
-            }
 
-            _renderedLineCount = lineCount;
-            Console.CursorVisible = true;
-            UpdateCursorPosition();
+                _renderedLineCount = lineCount;
+                UpdateCursorPosition();
+            } finally {
+                // Mostly a quality of life improvement
+                // Makes it so you are not left without a cursor if the program crashes
+                Console.CursorVisible = true;
+            }
         }
 
         private void UpdateCursorPosition() {

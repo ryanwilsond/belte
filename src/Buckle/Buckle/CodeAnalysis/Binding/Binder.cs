@@ -80,23 +80,24 @@ internal sealed class Binder {
         var parentScope = CreateParentScope(previous);
         var binder = new Binder(options, options.topLevelBinderFlags, parentScope, null);
 
-        foreach (var syntaxTree in syntaxTrees)
-            binder.diagnostics.Move(syntaxTree.diagnostics);
-
         if (binder.diagnostics.Errors().Any())
             return GlobalScope(previous, binder.diagnostics);
 
-        var typeDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<TypeDeclarationSyntax>();
+        var typeDeclarations = syntaxTrees.SelectMany(st => st.GetCompilationUnitRoot().members)
+            .OfType<TypeDeclarationSyntax>();
 
         foreach (var @type in typeDeclarations)
             binder.BindAndDeclareTypeDeclaration(@type);
 
-        var methodDeclarations = syntaxTrees.SelectMany(st => st.root.members).OfType<MethodDeclarationSyntax>();
+        var methodDeclarations = syntaxTrees.SelectMany(st => st.GetCompilationUnitRoot().members)
+            .OfType<MethodDeclarationSyntax>();
 
         foreach (var method in methodDeclarations)
             binder.BindAndDeclareMethodDeclaration(method);
 
-        var globalStatements = syntaxTrees.SelectMany(st => st.root.members).OfType<GlobalStatementSyntax>();
+        var globalStatements = syntaxTrees.SelectMany(st => st.GetCompilationUnitRoot().members)
+            .OfType<GlobalStatementSyntax>();
+
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
 
         binder._peekedLocals = PeekLocals(globalStatements.Select(s => s.statement), null);
@@ -105,7 +106,7 @@ internal sealed class Binder {
             statements.Add(binder.BindStatement(globalStatement.statement, true));
 
         var firstGlobalPerTree = syntaxTrees
-            .Select(st => st.root.members.OfType<GlobalStatementSyntax>().FirstOrDefault())
+            .Select(st => st.GetCompilationUnitRoot().members.OfType<GlobalStatementSyntax>().FirstOrDefault())
             .Where(g => g != null).ToArray();
 
         if (firstGlobalPerTree.Length > 1) {
@@ -437,7 +438,7 @@ internal sealed class Binder {
         var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
         var seenParameterNames = new HashSet<string>();
 
-        for (var i = 0; i < method.parameters.count; i++) {
+        for (var i = 0; i < method.parameters.Count; i++) {
             var parameter = method.parameters[i];
             var parameterName = parameter.identifier.text;
             var parameterType = BindType(parameter.type);
@@ -451,7 +452,7 @@ internal sealed class Binder {
             }
 
             if (boundDefault != null &&
-                i < method.parameters.count - 1 &&
+                i < method.parameters.Count - 1 &&
                 method.parameters[i + 1].defaultValue == null) {
                 diagnostics.Push(Error.DefaultBeforeNoDefault(parameter.location));
                 continue;
@@ -660,7 +661,7 @@ internal sealed class Binder {
         var isConstant = type.constKeyword != null;
         var isVariable = type.varKeyword != null;
         var isImplicit = type.typeName == null;
-        var dimensions = type.brackets.Length;
+        var dimensions = type.rankSpecifiers.Count;
 
         if (isImplicit && isReference) {
             diagnostics.Push(Error.ImpliedReference(type.refKeyword.location, isConstant));
@@ -669,8 +670,8 @@ internal sealed class Binder {
 
         if (isImplicit && dimensions > 0) {
             var span = TextSpan.FromBounds(
-                type.brackets.First().openBracket.location.span.start,
-                type.brackets.Last().closeBracket.location.span.end
+                type.rankSpecifiers.First().openBracket.location.span.start,
+                type.rankSpecifiers.Last().closeBracket.location.span.end
             );
 
             var location = new TextLocation(type.location.text, span);
@@ -945,9 +946,15 @@ internal sealed class Binder {
 
         foreach (var statementSyntax in statement.statements) {
             if (statementSyntax is LocalFunctionStatementSyntax fd) {
-                var declaration = new MethodDeclarationSyntax(
-                    fd.syntaxTree, fd.returnType, fd.identifier, fd.openParenthesis,
-                    fd.parameters, fd.closeParenthesis, fd.body
+                var declaration = SyntaxFactory.MethodDeclaration(
+                    fd.returnType,
+                    fd.identifier,
+                    fd.openParenthesis,
+                    fd.parameters,
+                    fd.closeParenthesis,
+                    fd.body,
+                    fd.parent,
+                    fd.position
                 );
 
                 BindAndDeclareMethodDeclaration(declaration);
@@ -996,7 +1003,7 @@ internal sealed class Binder {
             return null;
         }
 
-        if (type.isReference && expression.initializer?.kind != SyntaxKind.RefExpression) {
+        if (type.isReference && expression.initializer?.kind != SyntaxKind.ReferenceExpression) {
             diagnostics.Push(Error.ReferenceWrongInitialization(expression.equals.location, type.isConstant));
             return null;
         }
@@ -1022,7 +1029,7 @@ internal sealed class Binder {
             );
         }
 
-        if (type.isReference || (type.isImplicit && expression.initializer?.kind == SyntaxKind.RefExpression)) {
+        if (type.isReference || (type.isImplicit && expression.initializer?.kind == SyntaxKind.ReferenceExpression)) {
             var initializer = BindReferenceExpression((ReferenceExpressionSyntax)expression.initializer);
 
             if (diagnostics.Errors().count > currentCount)
@@ -1132,7 +1139,7 @@ internal sealed class Binder {
                 return null;
             }
 
-            if (!variableType.isReference && expression.initializer?.kind == SyntaxKind.RefExpression) {
+            if (!variableType.isReference && expression.initializer?.kind == SyntaxKind.ReferenceExpression) {
                 diagnostics.Push(
                     Error.WrongInitializationReference(expression.equals.location, variableType.isConstant)
                 );
@@ -1190,7 +1197,7 @@ internal sealed class Binder {
                 return BindParenExpression((ParenthesisExpressionSyntax)expression);
             case SyntaxKind.NameExpression:
                 return BindNameExpression((NameExpressionSyntax)expression);
-            case SyntaxKind.AssignExpression:
+            case SyntaxKind.AssignmentExpression:
                 return BindAssignmentExpression((AssignmentExpressionSyntax)expression);
             case SyntaxKind.CallExpression:
                 return BindCallExpression((CallExpressionSyntax)expression);
@@ -1202,7 +1209,7 @@ internal sealed class Binder {
                 return BindPostfixExpression((PostfixExpressionSyntax)expression, ownStatement);
             case SyntaxKind.PrefixExpression:
                 return BindPrefixExpression((PrefixExpressionSyntax)expression);
-            case SyntaxKind.RefExpression:
+            case SyntaxKind.ReferenceExpression:
                 return BindReferenceExpression((ReferenceExpressionSyntax)expression);
             case SyntaxKind.CastExpression:
                 return BindCastExpression((CastExpressionSyntax)expression);
@@ -1354,7 +1361,7 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindCallExpression(CallExpressionSyntax expression) {
-        var name = expression.identifier.identifier.text;
+        var name = ((NameExpressionSyntax)expression.operand).identifier.text;
         var typeSymbol = _scope.LookupSymbol<TypeSymbol>(name);
 
         if (typeSymbol != null)
@@ -1367,17 +1374,17 @@ internal sealed class Binder {
         var methods = _scope.LookupOverloads<Symbol>(name, innerName);
 
         if (methods == null || methods.Length == 0) {
-            diagnostics.Push(Error.UndefinedMethod(expression.identifier.location, name));
+            diagnostics.Push(Error.UndefinedMethod(((NameExpressionSyntax)expression.operand).location, name));
             return new BoundErrorExpression();
         }
 
         var argumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
         var seenNames = new HashSet<string>();
 
-        for (var i = 0; i < expression.arguments.count; i++) {
+        for (var i = 0; i < expression.arguments.Count; i++) {
             var argumentName = expression.arguments[i].name;
 
-            if (i < expression.arguments.count - 1 &&
+            if (i < expression.arguments.Count - 1 &&
                 argumentName != null &&
                 expression.arguments[i + 1].name == null) {
                 diagnostics.Push(Error.NamedBeforeUnnamed(argumentName.location));
@@ -1460,8 +1467,7 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindLiteralExpression(LiteralExpressionSyntax expression) {
-        var value = expression.value;
-
+        var value = expression.token.value;
         return new BoundLiteralExpression(value);
     }
 

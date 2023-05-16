@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -35,7 +34,7 @@ internal sealed class OverloadResolution {
         CallExpressionSyntax expression) {
         var minScore = int.MaxValue;
         var possibleOverloads = new List<MethodSymbol>();
-        var name = expression.identifier.identifier.text;
+        var name = ((NameExpressionSyntax)expression.operand).identifier.text;
 
         var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
         var preBoundArgumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
@@ -50,15 +49,17 @@ internal sealed class OverloadResolution {
             var isInner = symbol.name.Contains(">g__");
 
             if (symbol is not MethodSymbol method) {
-                _binder.diagnostics.Push(Error.CannotCallNonMethod(expression.identifier.location, name));
+                _binder.diagnostics.Push(
+                    Error.CannotCallNonMethod(((NameExpressionSyntax)expression.operand).location, name)
+                );
+
                 return OverloadResolutionResult.Failed();
-                ;
             }
 
             var defaultParameterCount = method.parameters.Where(p => p.defaultValue != null).ToArray().Length;
 
-            if (expression.arguments.count < method.parameters.Length - defaultParameterCount ||
-                expression.arguments.count > method.parameters.Length) {
+            if (expression.arguments.Count < method.parameters.Length - defaultParameterCount ||
+                expression.arguments.Count > method.parameters.Length) {
                 var count = 0;
 
                 if (isInner) {
@@ -68,13 +69,13 @@ internal sealed class OverloadResolution {
                     }
                 }
 
-                if (!isInner || expression.arguments.count + count != method.parameters.Length) {
+                if (!isInner || expression.arguments.Count + count != method.parameters.Length) {
                     TextSpan span;
 
-                    if (expression.arguments.count > method.parameters.Length) {
-                        SyntaxNode firstExceedingNode;
+                    if (expression.arguments.Count > method.parameters.Length) {
+                        SyntaxNodeOrToken firstExceedingNode;
 
-                        if (expression.arguments.count > 1) {
+                        if (expression.arguments.Count > 1) {
                             firstExceedingNode = expression.arguments.GetSeparator(method.parameters.Length - 1);
                         } else {
                             firstExceedingNode = expression.arguments[0].kind == SyntaxKind.EmptyExpression
@@ -82,8 +83,8 @@ internal sealed class OverloadResolution {
                                 : expression.arguments[0];
                         }
 
-                        SyntaxNode lastExceedingNode = expression.arguments.Last().kind == SyntaxKind.EmptyExpression
-                            ? expression.arguments.GetSeparator(expression.arguments.count - 2)
+                        SyntaxNodeOrToken lastExceedingNode = expression.arguments.Last().kind == SyntaxKind.EmptyExpression
+                            ? expression.arguments.GetSeparator(expression.arguments.Count - 2)
                             : expression.arguments.Last();
 
                         span = TextSpan.FromBounds(firstExceedingNode.span.start, lastExceedingNode.span.end);
@@ -94,7 +95,7 @@ internal sealed class OverloadResolution {
                     var location = new TextLocation(expression.syntaxTree.text, span);
                     _binder.diagnostics.Push(Error.IncorrectArgumentCount(
                         location, method.name, method.parameters.Length,
-                        defaultParameterCount, expression.arguments.count
+                        defaultParameterCount, expression.arguments.Count
                     ));
 
                     continue;
@@ -105,7 +106,7 @@ internal sealed class OverloadResolution {
             var seenParameterNames = new HashSet<string>();
             var canContinue = true;
 
-            for (var i = 0; i < expression.arguments.count; i++) {
+            for (var i = 0; i < expression.arguments.Count; i++) {
                 var argumentName = preBoundArgumentsBuilder[i].name;
 
                 if (argumentName == null) {
@@ -165,7 +166,7 @@ internal sealed class OverloadResolution {
                     var argument = preBoundArguments[rearrangedArguments[i]];
                     var parameter = method.parameters[i];
                     // If this evaluates to null, it means that there was a default value automatically passed in
-                    var location = i >= expression.arguments.count ? null : expression.arguments[i].location;
+                    var location = i >= expression.arguments.Count ? null : expression.arguments[i].location;
 
                     var argumentExpression = argument.expression;
                     var isImplicitNull = false;
@@ -198,7 +199,7 @@ internal sealed class OverloadResolution {
                         if (!parameter.name.StartsWith('$'))
                             continue;
 
-                        var argument = new SyntaxFactory(null).Reference(parameter.name.Substring(1));
+                        var argument = SyntaxFactory.Reference(parameter.name.Substring(1));
                         var boundArgument = _binder.BindCast(argument, parameter.type, argument: i);
                         currentBoundArguments.Add(boundArgument);
                     }
@@ -236,7 +237,7 @@ internal sealed class OverloadResolution {
         }
 
         if (methods.Length > 1 && possibleOverloads.Count == 0) {
-            _binder.diagnostics.Push(Error.NoOverload(expression.identifier.location, name));
+            _binder.diagnostics.Push(Error.NoOverload(((NameExpressionSyntax)expression.operand).location, name));
 
             return OverloadResolutionResult.Failed();
             ;
@@ -250,7 +251,9 @@ internal sealed class OverloadResolution {
                 possibleOverloads.Add(BuiltinMethods.ValueAny);
             } else {
                 _binder.diagnostics.Push(
-                    Error.AmbiguousOverload(expression.identifier.location, possibleOverloads.ToArray())
+                    Error.AmbiguousOverload(
+                        ((NameExpressionSyntax)expression.operand).location, possibleOverloads.ToArray()
+                    )
                 );
 
                 return OverloadResolutionResult.Failed();
