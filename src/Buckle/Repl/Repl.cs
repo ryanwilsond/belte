@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using Buckle;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 
 namespace Repl;
 
@@ -37,7 +38,7 @@ public abstract partial class Repl {
     private readonly List<string> _submissionHistory = new List<string>();
     private readonly List<MetaCommand> _metaCommands = new List<MetaCommand>();
 
-    protected bool _abortEvaluation;
+    protected ValueWrapper<bool> _abortEvaluation;
     protected bool _showTime;
 
     private int _submissionHistoryIndex;

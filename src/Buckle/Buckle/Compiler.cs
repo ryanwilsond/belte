@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.Preprocessing;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 using Diagnostics;
 
 namespace Buckle;
@@ -19,6 +22,9 @@ public sealed class Compiler {
     private const int SuccessExitCode = 0;
     private const int ErrorExitCode = 1;
     private const int FatalExitCode = 2;
+    // Eventually have these automatically calculated to be optimal
+    private const int InterpreterMaxTextLength = 4096;
+    private const int EvaluatorMaxTextLength = 4096 * 4;
 
     private CompilationOptions _options => new CompilationOptions(state.buildMode, false, !state.noOut);
 
@@ -100,15 +106,19 @@ public sealed class Compiler {
     private void InternalInterpreter() {
         diagnostics.Clear(DiagnosticSeverity.Warning);
         var textLength = 0;
+        var textsCount = 0;
 
-        foreach (var task in state.tasks)
-            textLength += task.fileContent.text?.Length ?? 0;
+        foreach (var task in state.tasks) {
+            if (task.fileContent.text != null) {
+                textLength += task.fileContent.text.Length;
+                textsCount++;
+            }
+        }
 
-        // TODO Hard code these numbers somewhere and think through what they should be
         var buildMode = state.buildMode == BuildMode.AutoRun ? textLength switch {
-            <= 4000 => BuildMode.Interpret,
-            > 4000 and <= 8000 => BuildMode.Evaluate,
-            > 8000 => BuildMode.Execute
+            <= InterpreterMaxTextLength when textsCount == 1 => BuildMode.Interpret,
+            <= EvaluatorMaxTextLength => BuildMode.Evaluate,
+            _ => BuildMode.Execute
         } : state.buildMode;
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
@@ -120,7 +130,7 @@ public sealed class Compiler {
                 if (task.stage == CompilerStage.Preprocessed) {
                     var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text);
                     syntaxTrees.Add(syntaxTree);
-                    task.stage = CompilerStage.Compiled;
+                    task.stage = CompilerStage.Finished;
                 }
             }
 
@@ -134,34 +144,44 @@ public sealed class Compiler {
                 return;
 
             EvaluationResult result = null;
-            var abort = false;
 
-            void Wrapper() {
-                if (state.buildMode == BuildMode.Evaluate)
-                    result = compilation.Evaluate(new Dictionary<IVariableSymbol, IEvaluatorObject>(), ref abort);
-                else
-                    compilation.Execute();
-            }
-
-            void ctrlCHandler(object sender, ConsoleCancelEventArgs args) {
+            void Wrapper(object parameter) {
                 if (state.buildMode == BuildMode.Evaluate) {
-                    abort = true;
-                    args.Cancel = true;
+                    result = compilation.Evaluate(
+                        new Dictionary<IVariableSymbol, IEvaluatorObject>(),
+                        (ValueWrapper<bool>)parameter
+                    );
+                } else {
+                    compilation.Execute();
                 }
             }
 
-            Console.CancelKeyPress += new ConsoleCancelEventHandler(ctrlCHandler);
-
-            var evaluateWrapperReference = new ThreadStart(Wrapper);
-            var evaluateWrapperThread = new Thread(evaluateWrapperReference);
-            evaluateWrapperThread.Start();
-
-            while (evaluateWrapperThread.IsAlive)
-                ;
+            InternalInterpreterStart(Wrapper);
 
             diagnostics.Move(result?.diagnostics);
         } else {
-            // TODO Interpreter
+            Debug.Assert(state.tasks.Length == 1);
+
+            var sourceText = new StringText(state.tasks[0].inputFileName, state.tasks[0].fileContent.text);
+            var syntaxTree = new SyntaxTree(sourceText);
+
+            state.tasks[0].stage = CompilerStage.Finished;
+
+            var options = _options;
+            options.isScript = true;
+            var compilation = Compilation.Create(options, syntaxTree);
+            EvaluationResult result = null;
+
+            void Wrapper(object parameter) {
+                result = compilation.Interpret(
+                    new Dictionary<IVariableSymbol, IEvaluatorObject>(),
+                    (ValueWrapper<bool>)parameter
+                );
+            }
+
+            InternalInterpreterStart(Wrapper);
+
+            diagnostics.Move(result?.diagnostics);
         }
     }
 
@@ -188,5 +208,25 @@ public sealed class Compiler {
         );
 
         diagnostics.Move(result);
+    }
+
+    private void InternalInterpreterStart(Action<object> wrapper) {
+        ValueWrapper<bool> abort = false;
+
+        void ctrlCHandler(object sender, ConsoleCancelEventArgs args) {
+            if (state.buildMode != BuildMode.Execute) {
+                abort.Value = true;
+                args.Cancel = true;
+            }
+        }
+
+        Console.CancelKeyPress += new ConsoleCancelEventHandler(ctrlCHandler);
+
+        var wrapperReference = new ParameterizedThreadStart(wrapper);
+        var wrapperThread = new Thread(wrapperReference);
+        wrapperThread.Start(abort);
+
+        while (wrapperThread.IsAlive)
+            ;
     }
 }

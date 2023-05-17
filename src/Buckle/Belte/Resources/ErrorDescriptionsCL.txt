@@ -297,3 +297,16 @@ buckle --explain BU6307 // Correct format, but the error code 'BU6307' is not cu
 ```
 
 If the error code is in the incorrect format, then error CL0019 is raised.
+$CL0022
+The '--script' command-line option interprets the input file as a script.
+Because the file is not compiled before running, a proper entry point can not be
+deduced before execution. To get around this, execution always starts at the top
+of the input file like a script.
+
+To prevent an ambiguous entry point, only one file can be interpreted at a time,
+so attempting to specify multiple files at once in junction with the '--script'
+option results in this error.
+$CL0023
+The '--script' command-line option interprets the input file as a script. If the
+provided source file is not Belte source code, the interpreter cannot work on
+it, and this error is thrown to tell the user that nothing will be executed.

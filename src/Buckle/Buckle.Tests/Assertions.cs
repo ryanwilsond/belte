@@ -27,8 +27,7 @@ internal static class Assertions {
             new CompilationOptions(BuildMode.Independent, true, false), null, syntaxTree
         );
 
-        var _ = false;
-        var result = compilation.Evaluate(new Dictionary<IVariableSymbol, IEvaluatorObject>(), ref _);
+        var result = compilation.Evaluate(new Dictionary<IVariableSymbol, IEvaluatorObject>(), false);
 
         if (result.value is double && (Convert.ToDouble(expectedValue)).CompareTo(result.value) == 0)
             expectedValue = Convert.ToDouble(expectedValue);
@@ -49,8 +48,7 @@ internal static class Assertions {
             new CompilationOptions(BuildMode.Independent, true, false), null, syntaxTree
         );
 
-        var _ = false;
-        var result = compilation.Evaluate(new Dictionary<IVariableSymbol, IEvaluatorObject>(), ref _);
+        var result = compilation.Evaluate(new Dictionary<IVariableSymbol, IEvaluatorObject>(), false);
 
         if (exceptions.Length != result.exceptions.Count) {
             writer.WriteLine($"Input: {text}");
@@ -87,8 +85,7 @@ internal static class Assertions {
                 new CompilationOptions(BuildMode.Independent, true, false), null, syntaxTree
             );
 
-            var _ = false;
-            var result = compilation.Evaluate(new Dictionary<IVariableSymbol, IEvaluatorObject>(), ref _);
+            var result = compilation.Evaluate(new Dictionary<IVariableSymbol, IEvaluatorObject>(), false);
             tempDiagnostics = result.diagnostics;
         }
 

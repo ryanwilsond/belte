@@ -323,7 +323,7 @@ public static partial class BuckleCommandLine {
         ResetColor();
 
         if ((int)state.severity > (int)severity) {
-            // Ignore
+            // Ignore the diagnostic
         } else if (diagnostic.info.module != "BU" || (diagnostic is BelteDiagnostic bd && bd.location == null)) {
             Console.Write($"{me}: ");
 
@@ -402,7 +402,7 @@ public static partial class BuckleCommandLine {
     }
 
     private static void ProduceOutputFiles(Compiler compiler) {
-        if (compiler.state.finishStage == CompilerStage.Linked)
+        if (compiler.state.finishStage == CompilerStage.Finished)
             return;
 
         foreach (var file in compiler.state.tasks) {
@@ -422,7 +422,7 @@ public static partial class BuckleCommandLine {
     }
 
     private static void CleanOutputFiles(Compiler compiler) {
-        if (compiler.state.finishStage == CompilerStage.Linked) {
+        if (compiler.state.finishStage == CompilerStage.Finished) {
             if (File.Exists(compiler.state.outputFilename))
                 File.Delete(compiler.state.outputFilename);
 
@@ -483,7 +483,7 @@ public static partial class BuckleCommandLine {
                         diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(task.inputFileName));
 
                     break;
-                case CompilerStage.Linked:
+                case CompilerStage.Finished:
                     diagnostics.Push(Belte.Diagnostics.Info.IgnoringCompiledFile(task.inputFileName));
                     break;
                 default:
@@ -515,7 +515,7 @@ public static partial class BuckleCommandLine {
         multipleExplains = false;
 
         state.buildMode = BuildMode.Independent;
-        state.finishStage = CompilerStage.Linked;
+        state.finishStage = CompilerStage.Finished;
         state.outputFilename = "a.exe";
         state.moduleName = "defaultModuleName";
         state.noOut = false;
@@ -541,7 +541,7 @@ public static partial class BuckleCommandLine {
                 case "-i":
                     state.buildMode = BuildMode.AutoRun;
                     break;
-                case "--interpret":
+                case "--script":
                     state.buildMode = BuildMode.Interpret;
                     break;
                 case "--evaluate":
@@ -670,8 +670,14 @@ public static partial class BuckleCommandLine {
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithMultipleFiles());
 
         if ((specifyStage || specifyOut) &&
-            (state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute))
+            state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithInterpreter());
+
+        if (state.tasks.Length > 1 && state.buildMode == BuildMode.Interpret)
+            diagnostics.Push(Belte.Diagnostics.Fatal.CannotInterpretWithMultipleFiles());
+        else if (state.buildMode == BuildMode.Interpret &&
+            state.tasks?[0].stage is not CompilerStage.Raw or CompilerStage.Preprocessed)
+            diagnostics.Push(Belte.Diagnostics.Fatal.CannotInterpretFile());
 
         if (specifyModule && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyModuleNameWithoutDotnet());
@@ -725,7 +731,7 @@ public static partial class BuckleCommandLine {
                     task.stage = CompilerStage.Assembled;
                     break;
                 case "exe":
-                    task.stage = CompilerStage.Linked;
+                    task.stage = CompilerStage.Finished;
                     break;
                 default:
                     diagnostics.Push(Belte.Diagnostics.Info.IgnoringUnknownFileType(task.inputFileName));

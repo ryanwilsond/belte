@@ -10,6 +10,7 @@ using Buckle.CodeAnalysis.FlowAnalysis;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis;
 
@@ -116,7 +117,8 @@ public sealed class Compilation {
     /// <param name="variables">Existing variables to add to the scope.</param>
     /// <param name="abort">External flag used to cancel evaluation.</param>
     /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
-    public EvaluationResult Evaluate(Dictionary<IVariableSymbol, IEvaluatorObject> variables, ref bool abort) {
+    public EvaluationResult Evaluate(
+        Dictionary<IVariableSymbol, IEvaluatorObject> variables, ValueWrapper<bool> abort) {
         if (globalScope.diagnostics.Errors().Any())
             return new EvaluationResult(null, false, globalScope.diagnostics, null);
 
@@ -131,7 +133,7 @@ public sealed class Compilation {
 
         diagnostics.Move(program.diagnostics);
         var eval = new Evaluator(program, variables);
-        var evalResult = eval.Evaluate(ref abort, out var hasValue);
+        var evalResult = eval.Evaluate(abort, out var hasValue);
 
         if (eval.hasPrint)
             Console.WriteLine();
@@ -145,7 +147,6 @@ public sealed class Compilation {
     /// Executes SyntaxTrees by creating an executable and running it.
     /// </summary>
     public void Execute() {
-        // ! This is duplicate code
         if (globalScope.diagnostics.Errors().Any())
             return;
 
@@ -160,6 +161,18 @@ public sealed class Compilation {
 
         diagnostics.Move(program.diagnostics);
         Executor.Execute(program);
+    }
+
+    /// <summary>
+    /// Compiles and evaluates SyntaxTrees chunk by chunk.
+    /// </summary>
+    /// <param name="variables">Existing variables to add to the scope.</param>
+    /// <param name="abort">External flag used to cancel evaluation.</param>
+    /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
+    public EvaluationResult Interpret(
+        Dictionary<IVariableSymbol, IEvaluatorObject> variables, ValueWrapper<bool> abort) {
+        // TODO
+        return null;
     }
 
     /// <summary>

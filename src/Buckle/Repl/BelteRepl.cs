@@ -22,8 +22,8 @@ namespace Repl;
 /// Uses framework from <see cref="Repl" /> and adds syntax highlighting and evaluation.
 /// </summary>
 public sealed partial class BelteRepl : Repl {
-    private static readonly CompilationOptions defaultOptions = new CompilationOptions(BuildMode.Repl, true, false);
-    private static readonly Compilation emptyCompilation = Compilation.CreateScript(defaultOptions, null);
+    private static readonly CompilationOptions DefaultOptions = new CompilationOptions(BuildMode.Repl, true, false);
+    private static readonly Compilation EmptyCompilation = Compilation.CreateScript(DefaultOptions, null);
     private static readonly Dictionary<string, ColorTheme> InUse = new Dictionary<string, ColorTheme>() {
         {"Dark", new DarkTheme()},
         {"Light", new LightTheme()},
@@ -182,7 +182,7 @@ public sealed partial class BelteRepl : Repl {
     }
 
     private void EvaluateSubmissionInternal(SyntaxTree syntaxTree) {
-        var compilation = Compilation.CreateScript(defaultOptions, state.previous, syntaxTree);
+        var compilation = Compilation.CreateScript(DefaultOptions, state.previous, syntaxTree);
         var displayText = new DisplayText();
 
         if (state.showTree) {
@@ -213,7 +213,7 @@ public sealed partial class BelteRepl : Repl {
         Console.ForegroundColor = state.colorTheme.result;
 
         if (!handle.diagnostics.Errors().Any()) {
-            result = compilation.Evaluate(state.variables, ref _abortEvaluation);
+            result = compilation.Evaluate(state.variables, _abortEvaluation);
 
             if (_abortEvaluation) {
                 Console.ForegroundColor = state.colorTheme.@default;
@@ -466,7 +466,7 @@ public sealed partial class BelteRepl : Repl {
 
     [MetaCommand("ls", "List all defined symbols")]
     private void EvaluateLs() {
-        var compilation = state.previous ?? emptyCompilation;
+        var compilation = state.previous ?? EmptyCompilation;
         var symbols = compilation.GetSymbols().OrderBy(s => s.kind).ThenBy(s => s.name);
         var displayText = new DisplayText();
 
@@ -480,7 +480,7 @@ public sealed partial class BelteRepl : Repl {
 
     [MetaCommand("dump", "Show contents of symbol <name>")]
     private void EvaluateDump(string signature) {
-        var compilation = state.previous ?? emptyCompilation;
+        var compilation = state.previous ?? EmptyCompilation;
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
         var symbols = (signature == name
             ? compilation.GetSymbols().Where(f => f.name == name)
@@ -620,11 +620,10 @@ public sealed partial class BelteRepl : Repl {
             foreach (var (Key, Value) in InUse) {
                 _writer.SetCursorPosition(7, index++);
 
-                if (state.colorTheme.GetType() == Value.GetType()) {
+                if (state.colorTheme.GetType() == Value.GetType())
                     Console.BackgroundColor = state.colorTheme.selection;
-                } else {
+                else
                     Console.BackgroundColor = state.colorTheme.background;
-                }
 
                 _writer.Write(Key.PadRight(8));
             }

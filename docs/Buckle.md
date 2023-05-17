@@ -89,7 +89,7 @@ If the input is long, the code is compiled down to IL code, and then into an exe
 ran immediately. The runtime performance is the same as traditional compilation, though there will be a pause before
 the program executes. This pause is the longest of the three methods.
 
-### *--interpret*
+### *--script*
 
 Performs all compilation steps before assembling and linking, and instead of assembling and linking to an executable,
 the program is run immediately. However, unlike the *-i* option, the method of running the program is always
@@ -99,6 +99,9 @@ The interpreter compiles the code chunk by chunk (which is not always equivalent
 interpreters) and evaluates those chunks before moving on to the next chunk. Because of this, runtime performance is
 slow because the compiler is constantly being called after each chunk. There is no pause before the program starts
 executing.
+
+This script mode only supports one file input at a time, and the entry point is always the start of the file (any other
+entry point that would be used in normal compilation, e.g. `Main`, will be ignored).
 
 ### *--evaluate*
 
@@ -129,7 +132,7 @@ features are supported with this option.
 
 Specifies the output path or filename. This option is only valid when using the compiler on a single input, or if the
 all compilation phases are completed. You cannot specify this option in junction with *-p*, *-s*, and *-c* when multiple
-files are inputted. You cannot also never specify this option in junction with *-i*, *--interpret*, *--evaluate*,
+files are inputted. You cannot also never specify this option in junction with *-i*, *--script*, *--evaluate*,
 *--execute*, *-t*, or *--transpile*.
 
 ### *--severity=\<severity>*
@@ -154,7 +157,7 @@ Compile with .NET integration. All language features are enabled with this optio
 can be used in a .NET project. For more information on using this option, read the
 [Building with Dotnet](#building-with-dotnet) section.
 
-Because this specifies an endpoint, the *-p*, *-s*, *-c*, *-i*, *--interpret*, *--evaluate*, *--execute*, *-t*, and
+Because this specifies an endpoint, the *-p*, *-s*, *-c*, *-i*, *--script*, *--evaluate*, *--execute*, *-t*, and
 *--transpile* options are not valid in junction with this option.
 
 ### *--modulename=\<name>*
