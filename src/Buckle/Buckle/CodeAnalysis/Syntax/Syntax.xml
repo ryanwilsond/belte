@@ -9,74 +9,124 @@
   <AbstractNode Name="TypeDeclarationSyntax" Base="MemberSyntax">
     <Kind/>
     <Field Name="keyword" Type="SyntaxToken"/>
-    <Field Name="identifier" Type="SyntaxToken"/>
-    <Field Name="openBrace" Type="SyntaxToken"/>
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="openBrace" Type="SyntaxToken">
+      <Kind Name="OpenBraceToken"/>
+    </Field>
     <Field Name="members" Type="SyntaxList&lt;MemberSyntax&gt;"/>
-    <Field Name="closeBrace" Type="SyntaxToken"/>
+    <Field Name="closeBrace" Type="SyntaxToken">
+      <Kind Name="CloseBraceToken"/>
+    </Field>
   </AbstractNode>
   <!-- Other general nodes -->
   <Node Name="ArgumentSyntax" Base="SyntaxNode">
     <Kind Name="Argument"/>
-    <Field Name="name" Type="SyntaxToken" Optional="True"/>
-    <Field Name="colon" Type="SyntaxToken" Optional="True"/>
+    <Field Name="name" Type="SyntaxToken" Optional="True">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="colon" Type="SyntaxToken" Optional="True">
+      <Kind Name="ColonToken"/>
+    </Field>
     <Field Name="expression" Type="ExpressionSyntax"/>
   </Node>
   <Node Name="ArrayRankSpecifierSyntax" Base="SyntaxNode">
     <Kind Name="ArrayRankSpecifier"/>
-    <Field Name="openBracket" Type="SyntaxToken"/>
-    <Field Name="closeBracket" Type="SyntaxToken"/>
+    <Field Name="openBracket" Type="SyntaxToken">
+      <Kind Name="OpenBracketToken"/>
+    </Field>
+    <Field Name="closeBracket" Type="SyntaxToken">
+      <Kind Name="CloseBracketToken"/>
+    </Field>
   </Node>
   <Node Name="AttributeSyntax" Base="SyntaxNode">
     <Kind Name="Attribute"/>
-    <Field Name="openBracket" Type="SyntaxToken"/>
-    <Field Name="identifier" Type="SyntaxToken"/>
-    <Field Name="closeBracket" Type="SyntaxToken"/>
+    <Field Name="openBracket" Type="SyntaxToken">
+      <Kind Name="OpenBracketToken"/>
+    </Field>
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="closeBracket" Type="SyntaxToken">
+      <Kind Name="CloseBracketToken"/>
+    </Field>
   </Node>
   <Node Name="CatchClauseSyntax" Base="SyntaxNode">
     <Kind Name="CatchClause"/>
-    <Field Name="keyword" Type="SyntaxToken"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="CatchKeyword"/>
+    </Field>
     <Field Name="body" Type="BlockStatementSyntax"/>
   </Node>
   <Node Name="CompilationUnitSyntax" Base="SyntaxNode">
     <Kind Name="CompilationUnit"/>
     <Field Name="members" Type="SyntaxList&lt;MemberSyntax&gt;"/>
-    <Field Name="endOfFile" Type="SyntaxToken"/>
+    <Field Name="endOfFile" Type="SyntaxToken">
+      <Kind Name="EndOfFileToken"/>
+    </Field>
   </Node>
   <Node Name="ElseClauseSyntax" Base="SyntaxNode">
     <Kind Name="ElseClause"/>
-    <Field Name="keyword" Type="SyntaxToken"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="ElseKeyword"/>
+    </Field>
     <Field Name="body" Type="StatementSyntax"/>
   </Node>
   <Node Name="FinallyClauseSyntax" Base="SyntaxNode">
     <Kind Name="FinallyClause"/>
-    <Field Name="keyword" Type="SyntaxToken"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="FinallyKeyword"/>
+    </Field>
     <Field Name="body" Type="BlockStatementSyntax"/>
   </Node>
   <Node Name="ParameterSyntax" Base="SyntaxNode">
     <Kind Name="Parameter"/>
     <Field Name="type" Type="TypeSyntax"/>
-    <Field Name="identifier" Type="SyntaxToken"/>
-    <Field Name="equals" Type="SyntaxToken" Optional="True"/>
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="equals" Type="SyntaxToken" Optional="True">
+      <Kind Name="EqualsToken"/>
+    </Field>
     <Field Name="defaultValue" Type="ExpressionSyntax" Optional="True"/>
   </Node>
   <Node Name="TypeSyntax" Base="SyntaxNode">
     <Kind Name="Type"/>
     <Field Name="attributes" Type="SyntaxList&lt;AttributeSyntax&gt;"/>
-    <Field Name="constRefKeyword" Type="SyntaxToken" Optional="True"/>
-    <Field Name="refKeyword" Type="SyntaxToken" Optional="True"/>
-    <Field Name="constKeyword" Type="SyntaxToken" Optional="True"/>
-    <Field Name="varKeyword" Type="SyntaxToken" Optional="True"/>
-    <Field Name="typeName" Type="SyntaxToken" Optional="True"/>
+    <Field Name="constRefKeyword" Type="SyntaxToken" Optional="True">
+      <Kind Name="ConstKeyword"/>
+    </Field>
+    <Field Name="refKeyword" Type="SyntaxToken" Optional="True">
+      <Kind Name="RefKeyword"/>
+    </Field>
+    <Field Name="constKeyword" Type="SyntaxToken" Optional="True">
+      <Kind Name="ConstKeyword"/>
+    </Field>
+    <Field Name="varKeyword" Type="SyntaxToken" Optional="True">
+      <Kind Name="VarKeyword"/>
+    </Field>
+    <Field Name="typeName" Type="SyntaxToken" Optional="True">
+      <Kind Name="IdentifierToken"/>
+    </Field>
     <Field Name="rankSpecifiers" Type="SyntaxList&lt;ArrayRankSpecifierSyntax&gt;"/>
   </Node>
   <!-- Members -->
   <Node Name="ClassDeclarationSyntax" Base="TypeDeclarationSyntax">
     <Kind Name="ClassDeclaration"/>
-    <Field Name="keyword" Type="SyntaxToken" Override="True"/>
-    <Field Name="identifier" Type="SyntaxToken" Override="True"/>
-    <Field Name="openBrace" Type="SyntaxToken" Override="True"/>
+    <Field Name="keyword" Type="SyntaxToken" Override="True">
+      <Kind Name="ClassKeyword"/>
+    </Field>
+    <Field Name="identifier" Type="SyntaxToken" Override="True">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="openBrace" Type="SyntaxToken" Override="True">
+      <Kind Name="OpenBraceToken"/>
+    </Field>
     <Field Name="members" Type="SyntaxList&lt;MemberSyntax&gt;" Override="True"/>
-    <Field Name="closeBrace" Type="SyntaxToken" Override="True"/>
+    <Field Name="closeBrace" Type="SyntaxToken" Override="True">
+      <Kind Name="CloseBraceToken"/>
+    </Field>
   </Node>
   <Node Name="FieldDeclarationSyntax" Base="MemberSyntax">
     <Kind Name="FieldDeclaration"/>
@@ -89,21 +139,36 @@
   <Node Name="MethodDeclarationSyntax" Base="MemberSyntax">
     <Kind Name="MethodDeclaration"/>
     <Field Name="returnType" Type="TypeSyntax"/>
-    <Field Name="identifier" Type="SyntaxToken"/>
-    <Field Name="openParenthesis" Type="SyntaxToken"/>
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenthesisToken"/>
+    </Field>
     <Field Name="parameters" Type="SeparatedSyntaxList&lt;ParameterSyntax&gt;"/>
-    <Field Name="closeParenthesis" Type="SyntaxToken"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenthesisToken"/>
+    </Field>
     <Field Name="body" Type="BlockStatementSyntax"/>
   </Node>
   <Node Name="StructDeclarationSyntax" Base="TypeDeclarationSyntax">
     <Kind Name="StructDeclaration"/>
-    <Field Name="keyword" Type="SyntaxToken" Override="True"/>
-    <Field Name="identifier" Type="SyntaxToken" Override="True"/>
-    <Field Name="openBrace" Type="SyntaxToken" Override="True"/>
+    <Field Name="keyword" Type="SyntaxToken" Override="True">
+      <Kind Name="StructKeyword"/>
+    </Field>
+    <Field Name="identifier" Type="SyntaxToken" Override="True">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="openBrace" Type="SyntaxToken" Override="True">
+      <Kind Name="OpenBraceToken"/>
+    </Field>
     <Field Name="members" Type="SyntaxList&lt;MemberSyntax&gt;" Override="True"/>
-    <Field Name="closeBrace" Type="SyntaxToken" Override="True"/>
+    <Field Name="closeBrace" Type="SyntaxToken" Override="True">
+      <Kind Name="CloseBraceToken"/>
+    </Field>
   </Node>
   <!-- Expressions -->
+  <!-- TODO finish giving tokens asserted kinds -->
   <Node Name="AssignmentExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="AssignmentExpression"/>
     <Field Name="left" Type="ExpressionSyntax"/>

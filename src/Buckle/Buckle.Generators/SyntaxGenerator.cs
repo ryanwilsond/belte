@@ -10,7 +10,7 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Buckle.Generators;
 
-using FieldList = List<(string name, string type, bool isOptional, bool isOverride)>;
+using FieldList = List<(string name, string type, string kind, bool isOptional, bool isOverride)>;
 
 /// <summary>
 /// Represents a generator that has access to the language syntax.
@@ -36,7 +36,7 @@ public abstract class SyntaxGenerator : ISourceGenerator {
         for (int i = 0; i < allTypes.Count; i++) {
             try {
                 var typeName = allTypes.Item(i).Attributes["Name"]?.Value;
-                Debug.Assert(typeName != null);
+                Debug.Assert(typeName != null, "Name attribute is required");
                 knownTypes.Add(typeName);
             } catch {
                 // If this fails it means the node is a comment, and should be ignored
@@ -44,7 +44,7 @@ public abstract class SyntaxGenerator : ISourceGenerator {
         }
 
         var rootType = syntax.Attributes["Root"]?.Value;
-        Debug.Assert(rootType != null);
+        Debug.Assert(rootType != null, "Root attribute is required");
         knownTypes.Add(rootType);
     }
 
@@ -99,15 +99,24 @@ public abstract class SyntaxGenerator : ISourceGenerator {
 
             try {
                 var name = field.Attributes["Name"]?.Value;
-                Debug.Assert(name != null);
+                Debug.Assert(name != null, "Name attribute is required");
                 var type = field.Attributes["Type"]?.Value;
-                Debug.Assert(type != null);
+                Debug.Assert(type != null, "Type attribute is required");
                 var optional = field.Attributes["Optional"]?.Value;
                 var @override = field.Attributes["Override"]?.Value;
+
+                var hasKind = field.HasChildNodes;
+                var kind = hasKind ? field.FirstChild.Attributes["Name"]?.Value : null;
+
+                if (hasKind) {
+                    Debug.Assert(field.FirstChild.Name == "Kind", "first field child must be a Kind xml node");
+                    Debug.Assert(kind != null, "Name is a required attribute");
+                }
 
                 fields.Add((
                     name,
                     type,
+                    kind,
                     optional == null ? false : optional.ToLower() == "true",
                     @override == null ? false : @override.ToLower() == "true"
                 ));

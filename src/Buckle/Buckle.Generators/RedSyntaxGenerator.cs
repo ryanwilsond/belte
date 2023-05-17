@@ -10,7 +10,7 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Buckle.Generators;
 
-using FieldList = List<(string name, string type, bool isOptional, bool isOverride)>;
+using FieldList = List<(string name, string type, string kind, bool isOptional, bool isOverride)>;
 
 /// <summary>
 /// Generates all of the red syntax.
@@ -48,10 +48,10 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
             var abstractNode = abstractNodes.Item(i);
 
             var typeName = abstractNode.Attributes["Name"]?.Value;
-            Debug.Assert(typeName != null);
+            Debug.Assert(typeName != null, "Name attribute is required");
             var baseName = abstractNode.Attributes["Base"]?.Value;
-            Debug.Assert(baseName != null);
-            Debug.Assert(knownTypes.Contains(baseName));
+            Debug.Assert(baseName != null, "Base attribute is required");
+            Debug.Assert(knownTypes.Contains(baseName), "unknown base type");
 
             baseName = baseName == "SyntaxNode" ? "BelteSyntaxNode" : baseName;
 
@@ -75,10 +75,10 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
             var node = nodes.Item(i);
 
             var typeName = node.Attributes["Name"]?.Value;
-            Debug.Assert(typeName != null);
+            Debug.Assert(typeName != null, "Name attribute is required");
             var baseName = node.Attributes["Base"]?.Value;
-            Debug.Assert(baseName != null);
-            Debug.Assert(knownTypes.Contains(baseName));
+            Debug.Assert(baseName != null, "Base attribute is required");
+            Debug.Assert(knownTypes.Contains(baseName), "unknown base type");
 
             baseName = baseName == "SyntaxNode" ? "BelteSyntaxNode" : baseName;
             var fields = DeserializeFields(node);
@@ -116,7 +116,7 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
     private void GenerateFieldDeclarations(IndentedTextWriter writer, FieldList fields, string typeName, bool isAbstract = false) {
         for (int i = 0; i < fields.Count; i++) {
             var field = fields[i];
-            Debug.Assert(!(field.isOverride & isAbstract));
+            Debug.Assert(!(field.isOverride & isAbstract), "field cannot be an override and abstract");
 
             if (isAbstract) {
                 writer.WriteLine($"public abstract {field.type} {field.name} {{ get; }}");
@@ -207,7 +207,7 @@ public sealed class RedSyntaxGenerator : SyntaxGenerator {
                 var node = nodes.Item(i);
 
                 var typeName = node.Attributes["Name"]?.Value;
-                Debug.Assert(typeName != null);
+                Debug.Assert(typeName != null, "Name attribute is required");
                 var fields = DeserializeFields(node);
 
                 GenerateFactoryMethods(writer, fields, typeName);

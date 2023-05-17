@@ -160,7 +160,7 @@ public sealed class Compiler {
 
             diagnostics.Move(result?.diagnostics);
         } else {
-            Debug.Assert(state.tasks.Length == 1);
+            Debug.Assert(state.tasks.Length == 1, "multiple tasks while in script mode");
 
             var sourceText = new StringText(state.tasks[0].inputFileName, state.tasks[0].fileContent.text);
             var syntaxTree = new SyntaxTree(sourceText);

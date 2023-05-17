@@ -11,7 +11,7 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Buckle.Generators;
 
-using FieldList = List<(string name, string type, bool isOptional, bool isOverride)>;
+using FieldList = List<(string name, string type, string kind, bool isOptional, bool isOverride)>;
 
 /// <summary>
 /// Generates all of the green syntax.
@@ -55,10 +55,10 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
             var abstractNode = abstractNodes.Item(i);
 
             var typeName = abstractNode.Attributes["Name"]?.Value;
-            Debug.Assert(typeName != null);
+            Debug.Assert(typeName != null, "Name attribute is required");
             var baseName = abstractNode.Attributes["Base"]?.Value;
-            Debug.Assert(baseName != null);
-            Debug.Assert(knownTypes.Contains(baseName));
+            Debug.Assert(baseName != null, "Base attribute is required");
+            Debug.Assert(knownTypes.Contains(baseName), "unknown base class");
 
             baseName = baseName == "SyntaxNode" ? "BelteSyntaxNode" : baseName;
 
@@ -86,10 +86,10 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
             var node = nodes.Item(i);
 
             var typeName = node.Attributes["Name"]?.Value;
-            Debug.Assert(typeName != null);
+            Debug.Assert(typeName != null, "Name attribute is required");
             var baseName = node.Attributes["Base"]?.Value;
-            Debug.Assert(baseName != null);
-            Debug.Assert(knownTypes.Contains(baseName));
+            Debug.Assert(baseName != null, "Base attribute is required");
+            Debug.Assert(knownTypes.Contains(baseName), "unknown base type");
 
             baseName = baseName == "SyntaxNode" ? "BelteSyntaxNode" : baseName;
             var fields = DeserializeFields(node);
@@ -145,9 +145,9 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
 
     private void GenerateConstructor(IndentedTextWriter writer, XmlNode node, FieldList fields, string typeName) {
         var kind = node.FirstChild;
-        Debug.Assert(kind.Name == "Kind");
+        Debug.Assert(kind.Name == "Kind", "all nodes need to specify a kind");
         var syntaxKind = kind.Attributes["Name"]?.Value;
-        Debug.Assert(syntaxKind != null);
+        Debug.Assert(syntaxKind != null, "Name attribute is required");
 
         var arguments = GenerateArguments(fields);
 
@@ -158,9 +158,9 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
     private void GenerateConstructorWithDiagnostics(
         IndentedTextWriter writer, XmlNode node, FieldList fields, string typeName) {
         var kind = node.FirstChild;
-        Debug.Assert(kind.Name == "Kind");
+        Debug.Assert(kind.Name == "Kind", "all nodes need to specify a kind");
         var syntaxKind = kind.Attributes["Name"]?.Value;
-        Debug.Assert(syntaxKind != null);
+        Debug.Assert(syntaxKind != null, "Name attribute is required");
 
         var arguments = GenerateArguments(fields);
 
@@ -196,7 +196,10 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
     }
 
     private void GenerateConstructorBody(IndentedTextWriter writer, FieldList fields) {
-        void GenerateFieldAssignment(string fieldName) {
+        void GenerateFieldAssignment(string fieldName, string fieldKind) {
+            if (fieldKind != null)
+                writer.WriteLine($"Debug.Assert({fieldName}.kind == SyntaxKind.{fieldKind}, \"unknown syntax kind\");");
+
             writer.WriteLine($"AdjustFlagsAndWidth({fieldName});");
             writer.WriteLine($"this._{fieldName} = {fieldName};");
         }
@@ -204,16 +207,16 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
         foreach (var field in fields) {
             if (field.isOptional || !knownTypes.Contains(field.type)) {
                 using (var ifCurly = new CurlyIndenter(writer, $"if ({field.name} != null)"))
-                    GenerateFieldAssignment(field.name);
+                    GenerateFieldAssignment(field.name, field.kind);
             } else {
-                GenerateFieldAssignment(field.name);
+                GenerateFieldAssignment(field.name, field.kind);
             }
         }
     }
 
     private void GenerateFieldDeclarations(IndentedTextWriter writer, FieldList fields, bool isAbstract = false) {
         foreach (var field in fields) {
-            Debug.Assert(!(field.isOverride & isAbstract));
+            Debug.Assert(!(field.isOverride & isAbstract), "field cannot be an override and abstract");
             var fieldType = field.type;
             var modifiers = "internal";
 
@@ -295,7 +298,7 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
                 var node = nodes.Item(i);
 
                 var typeName = node.Attributes["Name"]?.Value;
-                Debug.Assert(typeName != null);
+                Debug.Assert(typeName != null, "Name attribute is required");
 
                 writer.WriteLine(
                     $"internal virtual TResult Visit{ShortName(typeName)}({typeName} node) => DefaultVisit(node);"
@@ -312,7 +315,7 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
                 var node = nodes.Item(i);
 
                 var typeName = node.Attributes["Name"]?.Value;
-                Debug.Assert(typeName != null);
+                Debug.Assert(typeName != null, "Name attribute is required");
 
                 writer.WriteLine(
                     $"internal virtual void Visit{ShortName(typeName)}({typeName} node) => DefaultVisit(node);"
@@ -330,7 +333,7 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
                 var node = nodes.Item(i);
 
                 var typeName = node.Attributes["Name"]?.Value;
-                Debug.Assert(typeName != null);
+                Debug.Assert(typeName != null, "Name attribute is required");
 
                 writer.WriteLine($"internal override BelteSyntaxNode Visit{ShortName(typeName)}({typeName} node)");
                 GenerateVisitBody(writer, node);
@@ -368,7 +371,7 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
                 var node = nodes.Item(i);
 
                 var typeName = node.Attributes["Name"]?.Value;
-                Debug.Assert(typeName != null);
+                Debug.Assert(typeName != null, "Name attribute is required");
                 var fields = DeserializeFields(node);
 
                 GenerateFactoryMethods(writer, fields, typeName);

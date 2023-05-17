@@ -431,8 +431,8 @@ public abstract partial class SyntaxNode {
         else
             text.Write(CreateBlueNode(node.AsNode().kind.ToString()));
 
-        if (node.AsToken(out var t) && t.value != null)
-            text.Write(CreatePunctuation($" {t.value}"));
+        if (node.AsToken(out var t) && t.text != null)
+            text.Write(CreatePunctuation($" {t.text}"));
 
         if (node.isToken) {
             text.Write(CreateGreenNode($" [{node.span.start}..{node.span.end})"));
@@ -444,7 +444,7 @@ public abstract partial class SyntaxNode {
 
         if (token != null) {
             foreach (var trivia in token.trailingTrivia) {
-                var isLastTrailingTrivia = trivia == token.trailingTrivia.Last();
+                var isLastTrailingTrivia = trivia.index == token.trailingTrivia.Count - 1;
                 var triviaMarker = isLast && isLastTrailingTrivia ? "└─" : "├─";
 
                 text.Write(CreatePunctuation(indent));
