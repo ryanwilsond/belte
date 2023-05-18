@@ -80,7 +80,7 @@ public sealed partial class BelteRepl : Repl {
     /// <value></value>
     internal Compiler handle {
         get {
-            return handle as Compiler;
+            return _handle as Compiler;
         }
         set {
             _handle = value;
@@ -460,16 +460,16 @@ public sealed partial class BelteRepl : Repl {
         }
     }
 
-    [MetaCommand("showTree", "Toggle to display parse tree of each input")]
+    [MetaCommand("showTree", "Toggle display of the parse tree")]
     private void EvaluateShowTree() {
         state.showTree = !state.showTree;
-        writer.WriteLine(state.showTree ? "Parse-trees visible" : "Parse-trees hidden");
+        writer.WriteLine(state.showTree ? "Parse trees visible" : "Parse trees hidden");
     }
 
-    [MetaCommand("showProgram", "Toggle to display intermediate representation of each input")]
+    [MetaCommand("showProgram", "Toggle display of the intermediate representation")]
     private void EvaluateShowProgram() {
         state.showProgram = !state.showProgram;
-        writer.WriteLine(state.showProgram ? "Bound-trees visible" : "Bound-trees hidden");
+        writer.WriteLine(state.showProgram ? "Bound trees visible" : "Bound trees hidden");
     }
 
     [MetaCommand("clear", "Clear the screen")]
@@ -519,7 +519,7 @@ public sealed partial class BelteRepl : Repl {
         WriteDisplayText(displayText);
     }
 
-    [MetaCommand("dump", "Show contents of symbol <name>")]
+    [MetaCommand("dump", "Show contents of symbol <signature>")]
     private void EvaluateDump(string signature) {
         var compilation = state.previous ?? EmptyCompilation;
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
@@ -634,9 +634,10 @@ public sealed partial class BelteRepl : Repl {
         }
 
         Console.ForegroundColor = state.colorTheme.textDefault;
+        var linesWord = split.Length == 1 ? "line" : "lines";
 
         if (wrote)
-            writer.WriteLine($"Wrote {split.Length} lines");
+            writer.WriteLine($"Wrote {split.Length} {linesWord}");
         else
             writer.WriteLine($"Failed to write to file");
     }
@@ -704,19 +705,19 @@ public sealed partial class BelteRepl : Repl {
         state.currentPage = Page.Repl;
     }
 
-    [MetaCommand("showWarnings", "Toggle to display compiler produced warnings")]
+    [MetaCommand("showWarnings", "Toggle display of warnings")]
     private void EvaluateShowWarnings() {
         state.showWarnings = !state.showWarnings;
         writer.WriteLine(state.showWarnings ? "Warnings shown" : "Warnings ignored");
     }
 
-    [MetaCommand("showTime", "Toggle to display execution time of entries")]
+    [MetaCommand("showTime", "Toggle display of submission execution time")]
     private void EvaluateShowTime() {
         _showTime = !_showTime;
         writer.WriteLine(_showTime ? "Execution time visible" : "Execution time hidden");
     }
 
-    [MetaCommand("showIL", "Toggle to display the IL version of the code")]
+    [MetaCommand("showIL", "Toggle display of IL code")]
     private void EvaluateShowIL() {
         state.showIL = !state.showIL;
         writer.WriteLine(state.showIL ? "IL visible" : "IL hidden");

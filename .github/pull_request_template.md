@@ -27,11 +27,11 @@ Please delete options that are not relevant.
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally with my changes
 - [ ] I updated the error resource docs (e.g. src/Buckle/Buckle/Resources/ErrorDescriptionsBU.txt) if any new errors or warnings were added
-- [ ] I have added a test case to the [diagnostics tests](src/Buckle/Buckle.Tests/CodeAnalysis/DiagnosticTests.cs) if any new errors or warnings were added
+- [ ] I have added a test case to the [diagnostics tests](../src/Buckle/Buckle.Tests/Diagnostics/DiagnosticTests.cs) if any new errors or warnings were added
 
 **If no new syntax was added delete this section:**
 
-- [ ] I added my new syntax to the SyntaxTree folder
+- [ ] I added my new syntax to [Syntax.xml file](../src/Buckle/Buckle/CodeAnalysis/Syntax/Syntax.xml)
 - [ ] I updated the SyntaxFactory class (create a partial inside the new syntax source file)
 - [ ] I updated the Lexer class (if applicable)
 - [ ] I updated the Parser class

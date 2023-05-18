@@ -15,6 +15,7 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using static Buckle.Utilities.MethodUtilities;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Emitting;
 
@@ -45,6 +46,7 @@ internal sealed partial class ILEmitter {
     private Stack<MethodDefinition> _methodStack = new Stack<MethodDefinition>();
     private bool _insideMain;
     private int _ternaryLabelCount;
+    private string _dllPath = null;
 
     private ILEmitter(string moduleName, string[] references) {
         diagnostics = new BelteDiagnosticQueue();
@@ -58,12 +60,10 @@ internal sealed partial class ILEmitter {
         });
 
         references = tempReferences.ToArray();
-        var resolver = new DefaultAssemblyResolver();
-        resolver.AddSearchDirectory(Path.GetDirectoryName(tempReferences.Last()));
 
         foreach (var reference in references) {
             try {
-                var assembly = AssemblyDefinition.ReadAssembly(reference, new ReaderParameters() { AssemblyResolver = resolver });
+                var assembly = AssemblyDefinition.ReadAssembly(reference);
                 _assemblies.Add(assembly);
             } catch (BadImageFormatException) {
                 diagnostics.Push(Error.InvalidReference(reference));
@@ -158,6 +158,15 @@ internal sealed partial class ILEmitter {
     /// </summary>
     internal BelteDiagnosticQueue diagnostics { get; set; }
 
+    private string dllPath {
+        get {
+            if (_dllPath == null)
+                _dllPath = GetDLLPath();
+
+            return _dllPath;
+        }
+    }
+
     /// <summary>
     /// Emits a program to a .NET assembly.
     /// </summary>
@@ -186,24 +195,33 @@ internal sealed partial class ILEmitter {
         return emitter.EmitToString(program, out diagnostics);
     }
 
-    private static string LocateSystemDLL(string dllName) {
-        // ! Not fully tested
-        var basePath = "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref";
+    private static string GetSafeName(string name) {
+        var provider = CodeDomProvider.CreateProvider("C#");
+        return (provider.IsValidIdentifier(name) ? name : "@" + name)
+            .Replace('<', '_').Replace('>', '_').Replace(':', '_');
+    }
+
+    private static string GetDLLPath() {
+        var basePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            "dotnet",
+            "packs",
+            "Microsoft.NETCore.App.Ref"
+        );
+
         var frameworkVersion = RuntimeInformation.FrameworkDescription.Split(' ');
         var fullVersion = frameworkVersion.Contains("Core") || frameworkVersion.Contains("Framework")
             ? frameworkVersion[2]
             : frameworkVersion[1];
 
         var majorMinorVersion = string.Join('.', fullVersion.Split('.').Take(2));
-        var fullPath = Path.Combine(basePath, fullVersion, $"ref/net{majorMinorVersion}", dllName);
+        var fullPath = Path.Combine(basePath, fullVersion, "ref", $"net{majorMinorVersion}");
 
         return fullPath;
     }
 
-    private static string GetSafeName(string name) {
-        var provider = CodeDomProvider.CreateProvider("C#");
-        return (provider.IsValidIdentifier(name) ? name : "@" + name)
-            .Replace('<', '_').Replace('>', '_').Replace(':', '_');
+    private string LocateSystemDLL(string dllName) {
+        return Path.Combine(dllPath, dllName);
     }
 
     private BelteDiagnosticQueue EmitToFile(BoundProgram program, string outputPath) {
@@ -295,8 +313,7 @@ internal sealed partial class ILEmitter {
             ThrowRequiredTypeAmbiguous(buckleName, metadataName, foundTypes);
         }
 
-        // Unreachable
-        return null;
+        throw ExceptionUtilities.Unreachable();
     }
 
     private MethodReference ResolveMethod(
@@ -340,8 +357,7 @@ internal sealed partial class ILEmitter {
             ThrowRequiredTypeAmbiguous(null, typeName, foundTypes);
         }
 
-        // Unreachable
-        return null;
+        throw ExceptionUtilities.Unreachable();
     }
 
     private void ThrowRequiredMethodNotFound(string typeName, object methodName, string[] parameterTypeNames) {
@@ -446,9 +462,9 @@ internal sealed partial class ILEmitter {
         }
 
         var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.typeSymbol]);
-        var typeReference = new GenericInstanceType(_nullableReference);
-        typeReference.GenericArguments.Add(genericArgumentType);
-        var referenceType = new ByReferenceType(typeReference);
+        var typeReference = new GenericInstanceType(_nullableReference.Resolve());
+        typeReference.GenericArguments.Add(genericArgumentType.Resolve());
+        var referenceType = new ByReferenceType(typeReference.Resolve());
 
         if (type.dimensions == 0) {
             if (type.isReference && !ignoreReference) {

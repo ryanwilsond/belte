@@ -173,7 +173,7 @@ public abstract partial class Repl {
     protected virtual void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) { }
 
 
-    [MetaCommand("help", "Shows this document")]
+    [MetaCommand("help", "Show this document")]
     protected void EvaluateHelp() {
         var maxLength = _metaCommands
             .Max(
@@ -203,7 +203,7 @@ public abstract partial class Repl {
         }
     }
 
-    [MetaCommand("state", "Dumps the current state of the Repl")]
+    [MetaCommand("state", "Dump the current state of the Repl")]
     protected void EvaluateState() {
         var fields = _state.GetType()
             .GetFields(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
