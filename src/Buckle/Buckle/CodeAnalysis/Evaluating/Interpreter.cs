@@ -1,3 +1,7 @@
+using System.Collections.Generic;
+using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
+using Shared;
 
 namespace Buckle.CodeAnalysis.Evaluating;
 
@@ -6,5 +10,9 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// separate stages.
 /// </summary>
 internal sealed class Interpreter {
-    // TODO
+    internal static EvaluationResult Interpret(
+        SyntaxTree syntaxTree, Dictionary<IVariableSymbol, IEvaluatorObject> variables, ValueWrapper<bool> abort) {
+        // TODO
+        return null;
+    }
 }

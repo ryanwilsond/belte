@@ -172,8 +172,8 @@ public sealed class Compilation {
     /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
     public EvaluationResult Interpret(
         Dictionary<IVariableSymbol, IEvaluatorObject> variables, ValueWrapper<bool> abort) {
-        // TODO
-        return null;
+        // syntaxTrees.Single() should have already been asserted by this point
+        return Interpreter.Interpret(syntaxTrees[0], variables, abort);
     }
 
     /// <summary>
