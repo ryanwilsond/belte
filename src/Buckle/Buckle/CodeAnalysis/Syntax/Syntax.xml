@@ -219,12 +219,12 @@
   </Node>
   <Node Name="InitializerListExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="LiteralExpression"/>
-    <Field Name="openBracket" Type="SyntaxToken" Optional="True">
-      <Kind Name="OpenBracketToken"/>
+    <Field Name="openBrace" Type="SyntaxToken" Optional="True">
+      <Kind Name="OpenBraceToken"/>
     </Field>
     <Field Name="items" Type="SeparatedSyntaxList&lt;ExpressionSyntax&gt;"/>
-    <Field Name="closeBracket" Type="SyntaxToken" Optional="True">
-      <Kind Name="CloseBracketToken"/>
+    <Field Name="closeBrace" Type="SyntaxToken" Optional="True">
+      <Kind Name="CloseBraceToken"/>
     </Field>
   </Node>
   <Node Name="LiteralExpressionSyntax" Base="ExpressionSyntax">

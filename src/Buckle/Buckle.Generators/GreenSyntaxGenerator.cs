@@ -198,8 +198,12 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
 
     private void GenerateConstructorBody(IndentedTextWriter writer, FieldList fields) {
         void GenerateFieldAssignment(string fieldName, string fieldKind) {
-            if (fieldKind != null)
-                writer.WriteLine($"Debug.Assert({fieldName}.kind == SyntaxKind.{fieldKind}, \"unknown syntax kind\");");
+            if (fieldKind != null) {
+                writer.WriteLine(
+                    $"Debug.Assert({fieldName}.kind == SyntaxKind.{fieldKind}, $\"incorrect syntax kind " +
+                    $"'{{{fieldName}.kind}}', expected '{{SyntaxKind.{fieldKind}}}'\");"
+                );
+            }
 
             writer.WriteLine($"AdjustFlagsAndWidth({fieldName});");
             writer.WriteLine($"this._{fieldName} = {fieldName};");
