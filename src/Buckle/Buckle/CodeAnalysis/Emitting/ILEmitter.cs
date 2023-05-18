@@ -10,12 +10,12 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
-using Buckle.Generators.Utilities;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using static Buckle.Utilities.MethodUtilities;
 using Buckle.Utilities;
+using Shared;
 
 namespace Buckle.CodeAnalysis.Emitting;
 

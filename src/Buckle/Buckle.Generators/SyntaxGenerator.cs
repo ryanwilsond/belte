@@ -5,7 +5,6 @@ using System.Linq;
 using System.Reflection;
 using System.Xml;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
 
 namespace Buckle.Generators;
@@ -15,7 +14,7 @@ using FieldList = List<(string name, string type, string kind, bool isOptional, 
 /// <summary>
 /// Represents a generator that has access to the language syntax.
 /// </summary>
-public abstract class SyntaxGenerator : ISourceGenerator {
+public abstract class SyntaxGenerator : IIncrementalGenerator {
     protected XmlElement syntax;
     protected List<string> knownTypes;
     protected const string indentString = "    ";
@@ -24,7 +23,7 @@ public abstract class SyntaxGenerator : ISourceGenerator {
     /// Initializes generator.
     /// </summary>
     /// <param name="context">Generator context.</param>
-    public void Initialize(GeneratorInitializationContext context) {
+    public void Initialize(IncrementalGeneratorInitializationContext context) {
         var syntaxDocument = new XmlDocument();
         var syntaxResource = ReadResource("Buckle.Generators.Syntax.xml");
         syntaxDocument.LoadXml(syntaxResource);
@@ -66,7 +65,7 @@ public abstract class SyntaxGenerator : ISourceGenerator {
     }
 
     protected string GetGeneratorDirectory(GeneratorExecutionContext context) {
-        var compilation = (CSharpCompilation)context.Compilation;
+        var compilation = context.Compilation;
 
         // Using the SyntaxNode type as an anchor into the Buckle directory
         var nodeType = compilation.GetTypeByMetadataName("Buckle.CodeAnalysis.Syntax.SyntaxNode");

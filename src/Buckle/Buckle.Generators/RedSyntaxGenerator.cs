@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using Buckle.Generators.Utilities;
+using Shared;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
 
 namespace Buckle.Generators;
@@ -15,11 +14,9 @@ using FieldList = List<(string name, string type, string kind, bool isOptional, 
 /// <summary>
 /// Generates all of the red syntax.
 /// </summary>
-[Generator]
+// [Generator]
 public sealed class RedSyntaxGenerator : SyntaxGenerator {
     public override void Execute(GeneratorExecutionContext context) {
-        var compilation = (CSharpCompilation)context.Compilation;
-
         SourceText sourceText;
 
         using (var stringWriter = new StringWriter())
