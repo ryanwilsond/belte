@@ -49,6 +49,7 @@ All Repl commands:
 | [Show IL](#show-il-command) | `#showIL` | Toggle display of IL code |
 | [Show Program](#show-program-command) | `#showProgram` | Toggle display of the intermediate representation |
 | [Show Time](#show-time-command) | `#showTime` | Toggle display of submission execution time |
+| [Show Tokens](#show-tokens-command) | `#showTokens` | Toggle display of syntax tokens |
 | [Show Tree](#show-tree-command) | `#showTree` | Toggle display of the parse tree |
 | [Show Warnings](#show-warnings-command) | `#showWarnings` | Toggle display of warnings |
 | [State](#state-command) | `#state` | Dump the current state of the Repl |
@@ -306,6 +307,22 @@ Execution time visible
 » 5 + 4 * 8;
 37
 Finished after 39 milliseconds
+```
+
+### Show-Tokens Command
+
+Usage: `#showTokens`
+
+The show-tokens command toggles the display of lexer produced syntax token breakdown of each submission before it
+executes.
+
+For example:
+
+```belte
+» #showTokens
+Syntax tokens visible
+» int myInt = 40;
+⟨Identifier, "int"⟩ ⟨Identifier, "myInt"⟩ ⟨Equals, "="⟩ ⟨NumericLiteral, "40"⟩ ⟨Semicolon, ";"⟩ ⟨EndOfFile, ""⟩
 ```
 
 ### Show-Tree Command

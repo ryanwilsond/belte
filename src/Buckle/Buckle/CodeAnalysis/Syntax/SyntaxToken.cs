@@ -1,4 +1,6 @@
 using System;
+using Buckle.CodeAnalysis.Display;
+using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -134,5 +136,22 @@ public sealed class SyntaxToken {
 
     public override string ToString() {
         return node != null ? node.ToString() : string.Empty;
+    }
+
+    /// <summary>
+    /// Write a pretty-print text representation of this <see cref="SyntaxToken" /> to an out.
+    /// </summary>
+    /// <param name="text">Out.</param>
+    public void WriteTo(DisplayText text) {
+        text.Write(CreatePunctuation("⟨"));
+        // All tokens are tokens, so we don't need to display token every time
+        text.Write(CreateIdentifier(kind.ToString().Replace("Token", "")));
+
+        if (this.text != null) {
+            text.Write(CreatePunctuation(", "));
+            text.Write(CreateString($"\"{this.text}\""));
+        }
+
+        text.Write(CreatePunctuation("⟩"));
     }
 }

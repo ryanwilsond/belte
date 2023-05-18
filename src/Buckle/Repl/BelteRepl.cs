@@ -88,6 +88,7 @@ public sealed partial class BelteRepl : Repl {
     }
 
     internal override void ResetState() {
+        state.showTokens = false;
         state.showTree = false;
         state.showProgram = false;
         state.showWarnings = false;
@@ -237,15 +238,50 @@ public sealed partial class BelteRepl : Repl {
             _diagnosticHandle(handle as Compiler, arg1 == null ? null : arg1 as string, (ConsoleColor)arg2);
     }
 
+    private static void ClearSubmissions() {
+        var path = GetSubmissionsDirectory();
+
+        if (Directory.Exists(path))
+            Directory.Delete(GetSubmissionsDirectory(), true);
+    }
+
+    private static string GetSubmissionsDirectory() {
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var submissionsFolder = Path.Combine(localAppData, "Buckle", "Submissions");
+
+        if (!Directory.Exists(submissionsFolder))
+            Directory.CreateDirectory(submissionsFolder);
+
+        return submissionsFolder;
+    }
+
     private void ClearTree() {
         state.tree = SyntaxTree.Parse("");
         // This should always be empty by now, but just in case there was a race condition
         _changes.Clear();
     }
 
+    private void IterateTokens(SyntaxNodeOrToken node, DisplayText text) {
+        if (node.isToken) {
+            node.AsToken().WriteTo(text);
+            text.Write(CreateSpace());
+        }
+
+        if (node.isNode) {
+            foreach (var child in node.ChildNodesAndTokens())
+                IterateTokens(child, text);
+        }
+    }
+
     private void EvaluateSubmissionInternal(SyntaxTree syntaxTree) {
         var compilation = Compilation.CreateScript(DefaultOptions, state.previous, syntaxTree);
         var displayText = new DisplayText();
+
+        if (state.showTokens) {
+            IterateTokens(syntaxTree.GetRoot(), displayText);
+            displayText.Write(CreateLine());
+            WriteDisplayText(displayText);
+        }
 
         if (state.showTree) {
             syntaxTree.GetRoot().WriteTo(displayText);
@@ -311,23 +347,6 @@ public sealed partial class BelteRepl : Repl {
         }
 
         Console.ForegroundColor = state.colorTheme.@default;
-    }
-
-    private static void ClearSubmissions() {
-        var path = GetSubmissionsDirectory();
-
-        if (Directory.Exists(path))
-            Directory.Delete(GetSubmissionsDirectory(), true);
-    }
-
-    private static string GetSubmissionsDirectory() {
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var submissionsFolder = Path.Combine(localAppData, "Buckle", "Submissions");
-
-        if (!Directory.Exists(submissionsFolder))
-            Directory.CreateDirectory(submissionsFolder);
-
-        return submissionsFolder;
     }
 
     private ConsoleColor GetColorFromClassification(Classification classification) {
@@ -464,6 +483,12 @@ public sealed partial class BelteRepl : Repl {
     private void EvaluateShowTree() {
         state.showTree = !state.showTree;
         writer.WriteLine(state.showTree ? "Parse trees visible" : "Parse trees hidden");
+    }
+
+    [MetaCommand("showTokens", "Toggle display of syntax tokens")]
+    private void EvaluateShowTokens() {
+        state.showTokens = !state.showTokens;
+        writer.WriteLine(state.showTokens ? "Syntax tokens visible" : "Syntax tokens hidden");
     }
 
     [MetaCommand("showProgram", "Toggle display of the intermediate representation")]

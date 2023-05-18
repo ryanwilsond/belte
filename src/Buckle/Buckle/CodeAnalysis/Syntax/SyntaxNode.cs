@@ -125,7 +125,7 @@ public abstract partial class SyntaxNode {
     }
 
     /// <summary>
-    /// Write text representation of this <see cref="SyntaxNode" /> to an out.
+    /// Write a pretty-print text representation of this <see cref="SyntaxNode" /> to an out.
     /// </summary>
     /// <param name="text">Out.</param>
     public void WriteTo(DisplayText text) {

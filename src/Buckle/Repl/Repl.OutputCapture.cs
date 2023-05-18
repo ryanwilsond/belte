@@ -13,16 +13,14 @@ public abstract partial class Repl {
         /// Creates an out.
         /// </summary>
         internal OutputCapture() {
-            // captured = new List<List<string>>();
+            Console.OutputEncoding = Encoding;
         }
-
-        // internal List<List<string>> captured { get; private set; }
 
         /// <summary>
         /// Encoding to use, constant.
         /// </summary>
         /// <value>Ascii.</value>
-        public override Encoding Encoding { get { return Encoding.ASCII; } }
+        public override Encoding Encoding { get { return Encoding.UTF8; } }
 
         public override void Write(string output) {
             Console.Write(output);
