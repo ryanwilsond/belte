@@ -209,9 +209,7 @@
   <Node Name="IndexExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="IndexExpression"/>
     <Field Name="operand" Type="ExpressionSyntax"/>
-    <Field Name="openBracket" Type="SyntaxToken" Optional="True">
-      <Kind Name="OpenBracketToken"/>
-    </Field>
+    <Field Name="openBracket" Type="SyntaxToken" Optional="True"/>
     <Field Name="index" Type="ExpressionSyntax"/>
     <Field Name="closeBracket" Type="SyntaxToken" Optional="True">
       <Kind Name="CloseBracketToken"/>

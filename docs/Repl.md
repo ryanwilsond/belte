@@ -351,7 +351,9 @@ For example:
 Warnings shown
 » if (false)
 ·     PrintLine("Hello, world!");
-buckle: warning BU0026: unreachable code
+2:5: warning BU0026: unreachable code
+     PrintLine("Hello, world!");
+     ^~~~~~~~~~~~~~~~~~~~~~~~~~~
 ```
 
 ### State Command
