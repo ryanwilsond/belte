@@ -25,6 +25,7 @@ public sealed class GreenSyntaxGenerator : SyntaxGenerator {
 
         using (var stringWriter = new StringWriter())
         using (var indentedTextWriter = new IndentedTextWriter(stringWriter, indentString)) {
+            indentedTextWriter.WriteLine("using System.Diagnostics;");
             indentedTextWriter.WriteLine("using Diagnostics;");
             indentedTextWriter.WriteLine();
             indentedTextWriter.WriteLine("namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;");

@@ -5,9 +5,8 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading;
-using Buckle;
-using Buckle.Diagnostics;
-using Buckle.Utilities;
+using Diagnostics;
+using Shared;
 
 namespace Repl;
 
@@ -23,50 +22,35 @@ public abstract partial class Repl {
     /// <summary>
     /// Handles outputting <see cref="Repl" /> text to an out.
     /// </summary>
-    internal OutputCapture _writer = new OutputCapture();
-
-    /// <summary>
-    /// <see cref="Compiler" /> object representing entirety of compilation.
-    /// </summary>
-    internal Compiler handle;
-
-    /// <summary>
-    /// Particular <see cref="Repl.DiagnosticHandle" /> used to handle diagnostics in the <see cref="Repl" />.
-    /// </summary>
-    internal DiagnosticHandle diagnosticHandle;
+    internal OutputCapture writer = new OutputCapture();
 
     private readonly List<string> _submissionHistory = new List<string>();
     private readonly List<MetaCommand> _metaCommands = new List<MetaCommand>();
 
     protected ValueWrapper<bool> _abortEvaluation;
     protected bool _showTime;
+    protected bool _hasDiagnosticHandle;
 
     private int _submissionHistoryIndex;
     private bool _done;
     private bool _evaluate;
 
-    protected Repl(Compiler handle, DiagnosticHandle diagnosticHandle) {
-        this.handle = handle;
-        this.diagnosticHandle = diagnosticHandle;
+    protected Repl(object handle) {
+        _handle = handle;
         InitializeMetaCommands();
     }
-
-    /// <summary>
-    /// Callback to handle Diagnostics, be it logging or displaying to the console.
-    /// </summary>
-    /// <param name="compiler"><see cref="Compiler" /> object representing entirety of compilation.</param>
-    /// <param name="me">Display name of the program.</param>
-    /// <param name="textColor">Color to display Diagnostics (if displaying).</param>
-    /// <returns>C-Style error code of most severe Diagnostic.</returns>
-    public delegate int DiagnosticHandle(
-        Compiler compiler, string me = null, ConsoleColor textColor = ConsoleColor.White);
 
     private delegate void LineRenderHandler(IReadOnlyList<string> lines, int lineIndex);
 
     /// <summary>
     /// <see cref="Repl" /> specific state used by child classes.
     /// </summary>
-    internal abstract object _state { get; set; }
+    internal object _state { get; set; }
+
+    /// <summary>
+    /// The callback handle. Usually a compiler object.
+    /// </summary>
+    internal object _handle { get; set; }
 
     /// <summary>
     /// Resets all state.
@@ -129,7 +113,7 @@ public abstract partial class Repl {
 
                         var previous = Console.ForegroundColor;
                         Console.ForegroundColor = ConsoleColor.DarkGray;
-                        _writer.WriteLine($"{finishWord} after {seconds} {secondWord}");
+                        writer.WriteLine($"{finishWord} after {seconds} {secondWord}");
                         Console.ForegroundColor = previous;
                     }
                 }
@@ -167,7 +151,7 @@ public abstract partial class Repl {
     }
 
     protected virtual void RenderLine(IReadOnlyList<string> lines, int lineIndex) {
-        _writer.Write(lines[lineIndex]);
+        writer.Write(lines[lineIndex]);
     }
 
     protected void ClearHistory() {
@@ -177,6 +161,17 @@ public abstract partial class Repl {
     protected abstract bool IsCompleteSubmission(string text);
     protected abstract void EvaluateSubmission(string text);
     protected abstract void EvaluateSubmission();
+    protected abstract void AddDiagnostic(Diagnostic diagnostic);
+    protected abstract void ClearDiagnostics();
+    protected abstract void CallDiagnosticHandle(object handle, object arg1 = null, object arg2 = null);
+
+    protected virtual void AddChange(
+        ObservableCollection<string> document, int lineIndex, int startIndex, int oldLength, string newText) { }
+
+    protected virtual void AddClearChange(ObservableCollection<string> document) { }
+
+    protected virtual void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) { }
+
 
     [MetaCommand("help", "Shows this document")]
     protected void EvaluateHelp() {
@@ -198,13 +193,13 @@ public abstract partial class Repl {
             }
 
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            _writer.Write("#");
+            writer.Write("#");
             Console.ResetColor();
-            _writer.Write(name);
+            writer.Write(name);
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            _writer.Write($"{args.PadRight(maxLength - name.Length)}  {metaCommand.description}");
+            writer.Write($"{args.PadRight(maxLength - name.Length)}  {metaCommand.description}");
             Console.ResetColor();
-            _writer.WriteLine();
+            writer.WriteLine();
         }
     }
 
@@ -219,11 +214,11 @@ public abstract partial class Repl {
         foreach (var field in fields) {
             var paddedName = field.Name.PadRight(maxLength);
             Console.ResetColor();
-            _writer.Write($"{paddedName}  ");
+            writer.Write($"{paddedName}  ");
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            _writer.Write(field.GetValue(_state));
+            writer.Write(field.GetValue(_state));
             Console.ResetColor();
-            _writer.WriteLine();
+            writer.WriteLine();
         }
     }
 
@@ -231,7 +226,7 @@ public abstract partial class Repl {
         _done = false;
 
         var document = new ObservableCollection<string>() { "" };
-        var view = new SubmissionView(RenderLine, document, _writer);
+        var view = new SubmissionView(RenderLine, document, writer);
 
         while (!_done) {
             // Allow ctrl + c to exit at all times except getting user input
@@ -245,7 +240,7 @@ public abstract partial class Repl {
         view.currentLine = document.Count - 1;
         view.currentCharacter = document[view.currentLine].Length;
 
-        _writer.WriteLine();
+        writer.WriteLine();
 
         return string.Join(Environment.NewLine, document);
     }
@@ -964,13 +959,6 @@ public abstract partial class Repl {
         HandleTyping(document, view, new string(' ', whitespace * TabWidth));
     }
 
-    protected virtual void AddChange(
-        ObservableCollection<string> document, int lineIndex, int startIndex, int oldLength, string newText) { }
-
-    protected virtual void AddClearChange(ObservableCollection<string> document) { }
-
-    protected virtual void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) { }
-
     private void EvaluateReplCommand(string line) {
         var position = 1;
         var sb = new StringBuilder();
@@ -1018,12 +1006,12 @@ public abstract partial class Repl {
         var command = _metaCommands.SingleOrDefault(mc => mc.name == commandName);
 
         if (command == null) {
-            handle.diagnostics.Push(new BelteDiagnostic(global::Repl.Diagnostics.Error.UnknownReplCommand(line)));
+            AddDiagnostic(global::Repl.Diagnostics.Error.UnknownReplCommand(line));
 
-            if (diagnosticHandle != null)
-                diagnosticHandle(handle, "repl");
+            if (_hasDiagnosticHandle)
+                CallDiagnosticHandle(_handle, "repl");
             else
-                handle.diagnostics.Clear();
+                ClearDiagnostics();
 
             return;
         }
@@ -1037,14 +1025,12 @@ public abstract partial class Repl {
                     args.Add(parameter.DefaultValue.ToString());
             } else {
                 var parameterNames = string.Join(" ", parameters.Select(p => $"<{p.Name}>"));
-                handle.diagnostics.Push(
-                    new BelteDiagnostic(global::Repl.Diagnostics.Error.WrongArgumentCount(command.name, parameterNames))
-                );
+                AddDiagnostic(global::Repl.Diagnostics.Error.WrongArgumentCount(command.name, parameterNames));
 
-                if (diagnosticHandle != null)
-                    diagnosticHandle(handle, "repl");
+                if (_hasDiagnosticHandle)
+                    CallDiagnosticHandle(_handle, "repl");
                 else
-                    handle.diagnostics.Clear();
+                    ClearDiagnostics();
 
                 return;
             }

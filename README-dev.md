@@ -24,4 +24,4 @@ Visual Studio Code is strongly recommended, but not required.
 Run `$ make` to publish the project, and run `$ make test` to run the project's
 tests.
 
-The final executable is put into `./bin/release/buckle.exe`.
+The final executable is put into `.\bin\release\buckle.exe`.

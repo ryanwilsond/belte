@@ -143,11 +143,11 @@
       <Kind Name="IdentifierToken"/>
     </Field>
     <Field Name="openParenthesis" Type="SyntaxToken">
-      <Kind Name="OpenParenthesisToken"/>
+      <Kind Name="OpenParenToken"/>
     </Field>
     <Field Name="parameters" Type="SeparatedSyntaxList&lt;ParameterSyntax&gt;"/>
     <Field Name="closeParenthesis" Type="SyntaxToken">
-      <Kind Name="CloseParenthesisToken"/>
+      <Kind Name="CloseParenToken"/>
     </Field>
     <Field Name="body" Type="BlockStatementSyntax"/>
   </Node>
@@ -168,7 +168,6 @@
     </Field>
   </Node>
   <!-- Expressions -->
-  <!-- TODO finish giving tokens asserted kinds -->
   <Node Name="AssignmentExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="AssignmentExpression"/>
     <Field Name="left" Type="ExpressionSyntax"/>
@@ -184,15 +183,23 @@
   <Node Name="CallExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="CallExpression"/>
     <Field Name="operand" Type="ExpressionSyntax"/>
-    <Field Name="openParenthesis" Type="SyntaxToken" Optional="True"/>
+    <Field Name="openParenthesis" Type="SyntaxToken" Optional="True">
+      <Kind Name="OpenParenToken"/>
+    </Field>
     <Field Name="arguments" Type="SeparatedSyntaxList&lt;ArgumentSyntax&gt;"/>
-    <Field Name="closeParenthesis" Type="SyntaxToken" Optional="True"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken" Optional="True">
+      <Kind Name="CloseParenToken"/>
+    </Field>
   </Node>
   <Node Name="CastExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="CastExpression"/>
-    <Field Name="openParenthesis" Type="SyntaxToken" Optional="True"/>
+    <Field Name="openParenthesis" Type="SyntaxToken" Optional="True">
+      <Kind Name="OpenParenToken"/>
+    </Field>
     <Field Name="type" Type="TypeSyntax"/>
-    <Field Name="closeParenthesis" Type="SyntaxToken" Optional="True"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken" Optional="True">
+      <Kind Name="CloseParenToken"/>
+    </Field>
     <Field Name="expression" Type="ExpressionSyntax"/>
   </Node>
   <Node Name="EmptyExpressionSyntax" Base="ExpressionSyntax">
@@ -202,15 +209,23 @@
   <Node Name="IndexExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="IndexExpression"/>
     <Field Name="operand" Type="ExpressionSyntax"/>
-    <Field Name="openBracket" Type="SyntaxToken" Optional="True"/>
+    <Field Name="openBracket" Type="SyntaxToken" Optional="True">
+      <Kind Name="OpenBracketToken"/>
+    </Field>
     <Field Name="index" Type="ExpressionSyntax"/>
-    <Field Name="closeBracket" Type="SyntaxToken" Optional="True"/>
+    <Field Name="closeBracket" Type="SyntaxToken" Optional="True">
+      <Kind Name="CloseBracketToken"/>
+    </Field>
   </Node>
   <Node Name="InitializerListExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="LiteralExpression"/>
-    <Field Name="openBracket" Type="SyntaxToken" Optional="True"/>
+    <Field Name="openBracket" Type="SyntaxToken" Optional="True">
+      <Kind Name="OpenBracketToken"/>
+    </Field>
     <Field Name="items" Type="SeparatedSyntaxList&lt;ExpressionSyntax&gt;"/>
-    <Field Name="closeBracket" Type="SyntaxToken" Optional="True"/>
+    <Field Name="closeBracket" Type="SyntaxToken" Optional="True">
+      <Kind Name="CloseBracketToken"/>
+    </Field>
   </Node>
   <Node Name="LiteralExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="LiteralExpression"/>
@@ -220,17 +235,25 @@
     <Kind Name="MemberAccessExpression"/>
     <Field Name="operand" Type="ExpressionSyntax"/>
     <Field Name="op" Type="SyntaxToken"/>
-    <Field Name="identifier" Type="SyntaxToken" Optional="True"/>
+    <Field Name="identifier" Type="SyntaxToken" Optional="True">
+      <Kind Name="IdentifierToken"/>
+    </Field>
   </Node>
   <Node Name="NameExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="NameExpression"/>
-    <Field Name="identifier" Type="SyntaxToken"/>
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
   </Node>
   <Node Name="ParenthesisExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="ParenthesizedExpression"/>
-    <Field Name="openParenthesis" Type="SyntaxToken" Optional="True"/>
+    <Field Name="openParenthesis" Type="SyntaxToken" Optional="True">
+      <Kind Name="OpenParenToken"/>
+    </Field>
     <Field Name="expression" Type="ExpressionSyntax"/>
-    <Field Name="closeParenthesis" Type="SyntaxToken" Optional="True"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken" Optional="True">
+      <Kind Name="CloseParenToken"/>
+    </Field>
   </Node>
   <Node Name="PostfixExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="PostfixExpression"/>
@@ -244,8 +267,12 @@
   </Node>
   <Node Name="ReferenceExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="ReferenceExpression"/>
-    <Field Name="keyword" Type="SyntaxToken"/>
-    <Field Name="identifier" Type="SyntaxToken"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="RefKeyword"/>
+    </Field>
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
   </Node>
   <Node Name="TernaryExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="TernaryExpression"/>
@@ -257,10 +284,16 @@
   </Node>
   <Node Name="TypeOfExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="TypeOfExpression"/>
-    <Field Name="keyword" Type="SyntaxToken"/>
-    <Field Name="openParenthesis" Type="SyntaxToken"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="TypeOfKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
     <Field Name="type" Type="TypeSyntax"/>
-    <Field Name="closeParenthesis" Type="SyntaxToken"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
   </Node>
   <Node Name="UnaryExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="UnaryExpression"/>
@@ -270,73 +303,123 @@
   <!-- Statements -->
   <Node Name="BlockStatementSyntax" Base="StatementSyntax">
     <Kind Name="BlockStatement"/>
-    <Field Name="openBrace" Type="SyntaxToken"/>
+    <Field Name="openBrace" Type="SyntaxToken">
+      <Kind Name="OpenBraceToken"/>
+    </Field>
     <Field Name="statements" Type="SyntaxList&lt;StatementSyntax&gt;"/>
-    <Field Name="closeBrace" Type="SyntaxToken"/>
+    <Field Name="closeBrace" Type="SyntaxToken">
+      <Kind Name="CloseBraceToken"/>
+    </Field>
   </Node>
   <Node Name="BreakStatementSyntax" Base="StatementSyntax">
     <Kind Name="BreakStatement"/>
-    <Field Name="keyword" Type="SyntaxToken"/>
-    <Field Name="semicolon" Type="SyntaxToken"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="BreakKeyword"/>
+    </Field>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
   </Node>
   <Node Name="ContinueStatementSyntax" Base="StatementSyntax">
     <Kind Name="ContinueStatement"/>
-    <Field Name="keyword" Type="SyntaxToken"/>
-    <Field Name="semicolon" Type="SyntaxToken"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="ContinueKeyword"/>
+    </Field>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
   </Node>
   <Node Name="DoWhileStatementSyntax" Base="StatementSyntax">
     <Kind Name="DoWhileStatement"/>
-    <Field Name="doKeyword" Type="SyntaxToken"/>
+    <Field Name="doKeyword" Type="SyntaxToken">
+      <Kind Name="DoKeyword"/>
+    </Field>
     <Field Name="body" Type="StatementSyntax"/>
-    <Field Name="whileKeyword" Type="SyntaxToken"/>
-    <Field Name="openParenthesis" Type="SyntaxToken"/>
+    <Field Name="whileKeyword" Type="SyntaxToken">
+      <Kind Name="WhileKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
     <Field Name="condition" Type="ExpressionSyntax"/>
-    <Field Name="closeParenthesis" Type="SyntaxToken"/>
-    <Field Name="semicolon" Type="SyntaxToken"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
   </Node>
   <Node Name="ExpressionStatementSyntax" Base="StatementSyntax">
     <Kind Name="ExpressionStatement"/>
     <Field Name="expression" Type="ExpressionSyntax" Optional="True"/>
-    <Field Name="semicolon" Type="SyntaxToken"/>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
   </Node>
   <Node Name="ForStatementSyntax" Base="StatementSyntax">
     <Kind Name="ForStatement"/>
-    <Field Name="keyword" Type="SyntaxToken"/>
-    <Field Name="openParenthesis" Type="SyntaxToken"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="ForKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
     <Field Name="initializer" Type="StatementSyntax"/>
     <Field Name="condition" Type="ExpressionSyntax"/>
-    <Field Name="semicolon" Type="SyntaxToken"/>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
     <Field Name="step" Type="ExpressionSyntax"/>
-    <Field Name="closeParenthesis" Type="SyntaxToken"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
     <Field Name="body" Type="StatementSyntax"/>
   </Node>
   <Node Name="IfStatementSyntax" Base="StatementSyntax">
     <Kind Name="IfStatement"/>
-    <Field Name="keyword" Type="SyntaxToken"/>
-    <Field Name="openParenthesis" Type="SyntaxToken"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="IfKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
     <Field Name="condition" Type="ExpressionSyntax"/>
-    <Field Name="closeParenthesis" Type="SyntaxToken"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
     <Field Name="then" Type="StatementSyntax"/>
     <Field Name="elseClause" Type="ElseClauseSyntax" Optional="True"/>
   </Node>
   <Node Name="LocalFunctionStatementSyntax" Base="StatementSyntax">
     <Kind Name="LocalFunctionStatement"/>
     <Field Name="returnType" Type="TypeSyntax"/>
-    <Field Name="identifier" Type="SyntaxToken"/>
-    <Field Name="openParenthesis" Type="SyntaxToken"/>
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
     <Field Name="parameters" Type="SeparatedSyntaxList&lt;ParameterSyntax&gt;"/>
-    <Field Name="closeParenthesis" Type="SyntaxToken"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
     <Field Name="body" Type="BlockStatementSyntax"/>
   </Node>
   <Node Name="ReturnStatementSyntax" Base="StatementSyntax">
     <Kind Name="ReturnStatement"/>
-    <Field Name="keyword" Type="SyntaxToken"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="ReturnKeyword"/>
+    </Field>
     <Field Name="expression" Type="ExpressionSyntax" Optional="True"/>
-    <Field Name="semicolon" Type="SyntaxToken"/>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
   </Node>
   <Node Name="TryStatementSyntax" Base="StatementSyntax">
     <Kind Name="TryStatement"/>
-    <Field Name="keyword" Type="SyntaxToken"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="TryKeyword"/>
+    </Field>
     <Field Name="body" Type="BlockStatementSyntax"/>
     <Field Name="catchClause" Type="CatchClauseSyntax" Optional="True"/>
     <Field Name="finallyClause" Type="FinallyClauseSyntax" Optional="True"/>
@@ -344,17 +427,27 @@
   <Node Name="VariableDeclarationStatementSyntax" Base="StatementSyntax">
     <Kind Name="VariableDeclarationStatement"/>
     <Field Name="type" Type="TypeSyntax"/>
-    <Field Name="identifier" Type="SyntaxToken"/>
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
     <Field Name="equals" Type="SyntaxToken" Optional="True"/>
     <Field Name="initializer" Type="ExpressionSyntax" Optional="True"/>
-    <Field Name="semicolon" Type="SyntaxToken"/>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
   </Node>
   <Node Name="WhileStatementSyntax" Base="StatementSyntax">
     <Kind Name="WhileStatement"/>
-    <Field Name="keyword" Type="SyntaxToken"/>
-    <Field Name="openParenthesis" Type="SyntaxToken"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="WhileKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
     <Field Name="condition" Type="ExpressionSyntax"/>
-    <Field Name="closeParenthesis" Type="SyntaxToken"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
     <Field Name="body" Type="StatementSyntax"/>
   </Node>
 </Tree>

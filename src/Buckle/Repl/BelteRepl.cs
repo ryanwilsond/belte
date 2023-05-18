@@ -13,6 +13,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Diagnostics;
 using Repl.Themes;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
@@ -32,6 +33,8 @@ public sealed partial class BelteRepl : Repl {
 
     private List<TextChange> _changes = new List<TextChange>();
 
+    private DiagnosticHandle _diagnosticHandle;
+
     /// <summary>
     /// Creates a new instance of a <see cref="BelteRepl" />, can run in parallel with other BelteRepls with
     /// unique outs.
@@ -39,25 +42,48 @@ public sealed partial class BelteRepl : Repl {
     /// </summary>
     /// <param name="handle"><see cref="Compiler" /> object that represents entirety of compilation.</param>
     /// <param name="errorHandle">Callback to handle Diagnostics.</param>
-    public BelteRepl(Compiler handle, DiagnosticHandle errorHandle) : base(handle, errorHandle) {
+    public BelteRepl(Compiler handle, DiagnosticHandle errorHandle) : base(handle) {
         state = new BelteReplState();
+        _diagnosticHandle = errorHandle;
+        _hasDiagnosticHandle = true;
         ResetState();
         Console.BackgroundColor = state.colorTheme.background;
         EvaluateClear();
         LoadSubmissions();
     }
 
-    internal override object _state { get; set; }
+    /// <summary>
+    /// Callback to handle Diagnostics, be it logging or displaying to the console.
+    /// </summary>
+    /// <param name="handle">Handle object representing entirety of compilation.</param>
+    /// <param name="me">Display name of the program.</param>
+    /// <param name="textColor">Color to display Diagnostics (if displaying).</param>
+    /// <returns>C-Style error code of most severe Diagnostic.</returns>
+    public delegate int DiagnosticHandle(
+        Compiler handle, string me = null, ConsoleColor textColor = ConsoleColor.White);
 
     /// <summary>
     /// Cast of <see cref="Repl" /> specific state that has <see cref="BelteRepl" /> related state.
     /// </summary>
     internal BelteReplState state {
         get {
-            return (BelteReplState)_state;
+            return _state as BelteReplState;
         }
         set {
             _state = value;
+        }
+    }
+
+    /// <summary>
+    /// Cast of <see cref="Repl._handle" /> that is a <see cref="Compiler" /> object.
+    /// </summary>
+    /// <value></value>
+    internal Compiler handle {
+        get {
+            return handle as Compiler;
+        }
+        set {
+            _handle = value;
         }
     }
 
@@ -122,7 +148,7 @@ public sealed partial class BelteRepl : Repl {
 
         foreach (var text in texts) {
             Console.ForegroundColor = text.color;
-            _writer.Write(text.text);
+            writer.Write(text.text);
         }
 
         Console.ForegroundColor = state.colorTheme.@default;
@@ -175,6 +201,42 @@ public sealed partial class BelteRepl : Repl {
         );
     }
 
+    protected override bool IsCompleteSubmission(string text) {
+        if (string.IsNullOrEmpty(text))
+            return true;
+
+        var twoBlankTines = text.Split(Environment.NewLine).Reverse()
+            .TakeWhile(s => (string.IsNullOrEmpty(s) || string.IsNullOrWhiteSpace(s)))
+            .Take(2)
+            .Count() == 2;
+
+        if (twoBlankTines)
+            return true;
+
+        UpdateTree();
+        var lastMember = state.tree.GetCompilationUnitRoot().members.LastOrDefault();
+
+        if (lastMember == null || lastMember.GetLastToken(includeZeroWidth: true).isFabricated)
+            return false;
+
+        return true;
+    }
+
+    protected override void AddDiagnostic(Diagnostic diagnostic) {
+        handle.diagnostics.Push(diagnostic);
+    }
+
+    protected override void ClearDiagnostics() {
+        handle.diagnostics.Clear();
+    }
+
+    protected override void CallDiagnosticHandle(object handle, object arg1 = null, object arg2 = null) {
+        if (arg2 == null)
+            _diagnosticHandle(handle as Compiler, arg1 == null ? null : arg1 as string);
+        else
+            _diagnosticHandle(handle as Compiler, arg1 == null ? null : arg1 as string, (ConsoleColor)arg2);
+    }
+
     private void ClearTree() {
         state.tree = SyntaxTree.Parse("");
         // This should always be empty by now, but just in case there was a race condition
@@ -198,7 +260,7 @@ public sealed partial class BelteRepl : Repl {
         if (state.showIL) {
             try {
                 var iLCode = compilation.EmitToString(BuildMode.Dotnet, "ReplSubmission");
-                _writer.Write(iLCode);
+                writer.Write(iLCode);
             } catch (KeyNotFoundException) {
                 handle.diagnostics.Push(new BelteDiagnostic(global::Repl.Diagnostics.Error.FailedILGeneration()));
             }
@@ -229,10 +291,10 @@ public sealed partial class BelteRepl : Repl {
         var hasErrors = handle.diagnostics.Errors().Any();
 
         if (handle.diagnostics.Any()) {
-            if (diagnosticHandle != null) {
+            if (_hasDiagnosticHandle) {
                 // ? View the todo marker in BelteDiagnosticQueue.CleanDiagnostics
                 // handle.diagnostics = BelteDiagnosticQueue.CleanDiagnostics(handle.diagnostics);
-                diagnosticHandle(handle, textColor: state.colorTheme.textDefault);
+                _diagnosticHandle(handle, textColor: state.colorTheme.textDefault);
             } else {
                 handle.diagnostics.Clear();
             }
@@ -241,7 +303,7 @@ public sealed partial class BelteRepl : Repl {
         if (!hasErrors) {
             if (result.hasValue && !state.loadingSubmissions) {
                 RenderResult(result.value);
-                _writer.WriteLine();
+                writer.WriteLine();
             }
 
             state.previous = compilation;
@@ -249,27 +311,6 @@ public sealed partial class BelteRepl : Repl {
         }
 
         Console.ForegroundColor = state.colorTheme.@default;
-    }
-
-    protected override bool IsCompleteSubmission(string text) {
-        if (string.IsNullOrEmpty(text))
-            return true;
-
-        var twoBlankTines = text.Split(Environment.NewLine).Reverse()
-            .TakeWhile(s => (string.IsNullOrEmpty(s) || string.IsNullOrWhiteSpace(s)))
-            .Take(2)
-            .Count() == 2;
-
-        if (twoBlankTines)
-            return true;
-
-        UpdateTree();
-        var lastMember = state.tree.GetCompilationUnitRoot().members.LastOrDefault();
-
-        if (lastMember == null || lastMember.GetLastToken(includeZeroWidth: true).isFabricated)
-            return false;
-
-        return true;
     }
 
     private static void ClearSubmissions() {
@@ -331,37 +372,37 @@ public sealed partial class BelteRepl : Repl {
         if (value == null) {
             displayText.Write(CreatePunctuation("null"));
         } else if (value.GetType().IsArray) {
-            _writer.Write("{ ");
+            writer.Write("{ ");
             var isFirst = true;
 
             foreach (var item in (Array)value) {
                 if (isFirst)
                     isFirst = false;
                 else
-                    _writer.Write(", ");
+                    writer.Write(", ");
 
                 RenderResult(item);
             }
 
-            _writer.Write(" }");
+            writer.Write(" }");
         } else if (value is Dictionary<object, object>) {
-            _writer.Write("{ ");
+            writer.Write("{ ");
             var isFirst = true;
 
             foreach (var pair in (Dictionary<object, object>)value) {
                 if (isFirst)
                     isFirst = false;
                 else
-                    _writer.Write(", ");
+                    writer.Write(", ");
 
                 RenderResult(pair.Key);
-                _writer.Write(": ");
+                writer.Write(": ");
                 RenderResult(pair.Value);
             }
 
-            _writer.Write(" }");
+            writer.Write(" }");
         } else {
-            _writer.Write(value);
+            writer.Write(value);
         }
 
         WriteDisplayText(displayText);
@@ -411,24 +452,24 @@ public sealed partial class BelteRepl : Repl {
             Console.ForegroundColor = GetColorFromClassification(segment.classification);
 
             if (segment.classification == Classification.Line)
-                _writer.WriteLine();
+                writer.WriteLine();
             else if (segment.classification == Classification.Indent)
-                _writer.Write(new string(' ', TabWidth));
+                writer.Write(new string(' ', TabWidth));
             else
-                _writer.Write(segment.text);
+                writer.Write(segment.text);
         }
     }
 
     [MetaCommand("showTree", "Toggle to display parse tree of each input")]
     private void EvaluateShowTree() {
         state.showTree = !state.showTree;
-        _writer.WriteLine(state.showTree ? "Parse-trees visible" : "Parse-trees hidden");
+        writer.WriteLine(state.showTree ? "Parse-trees visible" : "Parse-trees hidden");
     }
 
     [MetaCommand("showProgram", "Toggle to display intermediate representation of each input")]
     private void EvaluateShowProgram() {
         state.showProgram = !state.showProgram;
-        _writer.WriteLine(state.showProgram ? "Bound-trees visible" : "Bound-trees hidden");
+        writer.WriteLine(state.showProgram ? "Bound-trees visible" : "Bound-trees hidden");
     }
 
     [MetaCommand("clear", "Clear the screen")]
@@ -452,8 +493,8 @@ public sealed partial class BelteRepl : Repl {
         if (!File.Exists(path)) {
             handle.diagnostics.Push(new BelteDiagnostic(global::Repl.Diagnostics.Error.NoSuchFile(path)));
 
-            if (diagnosticHandle != null)
-                diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
+            if (_hasDiagnosticHandle)
+                _diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
             else
                 handle.diagnostics.Clear();
 
@@ -530,8 +571,8 @@ public sealed partial class BelteRepl : Repl {
             return;
         }
 
-        if (diagnosticHandle != null)
-            diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
+        if (_hasDiagnosticHandle)
+            _diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
         else
             handle.diagnostics.Clear();
 
@@ -549,8 +590,8 @@ public sealed partial class BelteRepl : Repl {
             handle.diagnostics.Push(
                 new BelteDiagnostic(global::Repl.Diagnostics.Error.InvalidArgument(count, typeof(int))));
 
-            if (diagnosticHandle != null)
-                diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
+            if (_hasDiagnosticHandle)
+                CallDiagnosticHandle(handle, "repl", state.colorTheme.textDefault);
             else
                 handle.diagnostics.Clear();
 
@@ -559,12 +600,12 @@ public sealed partial class BelteRepl : Repl {
 
         if (File.Exists(path)) {
             Console.ForegroundColor = state.colorTheme.textDefault;
-            _writer.Write("File already exists, continue? [y/n] ");
+            writer.Write("File already exists, continue? [y/n] ");
             var response = Console.ReadKey().KeyChar;
-            _writer.WriteLine();
+            writer.WriteLine();
 
             if (response != 'y') {
-                _writer.WriteLine("Aborting");
+                writer.WriteLine("Aborting");
                 return;
             }
         }
@@ -595,9 +636,9 @@ public sealed partial class BelteRepl : Repl {
         Console.ForegroundColor = state.colorTheme.textDefault;
 
         if (wrote)
-            _writer.WriteLine($"Wrote {split.Length} lines");
+            writer.WriteLine($"Wrote {split.Length} lines");
         else
-            _writer.WriteLine($"Failed to write to file");
+            writer.WriteLine($"Failed to write to file");
     }
 
     [MetaCommand("settings", "Open settings page")]
@@ -611,24 +652,24 @@ public sealed partial class BelteRepl : Repl {
             Console.BackgroundColor = state.colorTheme.background;
             Console.ForegroundColor = state.colorTheme.textDefault;
             Console.Clear();
-            _writer.WriteLine("Settings");
-            _writer.WriteLine();
-            _writer.Write("Theme: ");
+            writer.WriteLine("Settings");
+            writer.WriteLine();
+            writer.Write("Theme: ");
 
             var index = 2;
 
             foreach (var (Key, Value) in InUse) {
-                _writer.SetCursorPosition(7, index++);
+                writer.SetCursorPosition(7, index++);
 
                 if (state.colorTheme.GetType() == Value.GetType())
                     Console.BackgroundColor = state.colorTheme.selection;
                 else
                     Console.BackgroundColor = state.colorTheme.background;
 
-                _writer.Write(Key.PadRight(8));
+                writer.Write(Key.PadRight(8));
             }
 
-            _writer.SetCursorPosition(7, targetIndex + 2);
+            writer.SetCursorPosition(7, targetIndex + 2);
         }
 
         var targetIndex = 2;
@@ -666,18 +707,18 @@ public sealed partial class BelteRepl : Repl {
     [MetaCommand("showWarnings", "Toggle to display compiler produced warnings")]
     private void EvaluateShowWarnings() {
         state.showWarnings = !state.showWarnings;
-        _writer.WriteLine(state.showWarnings ? "Warnings shown" : "Warnings ignored");
+        writer.WriteLine(state.showWarnings ? "Warnings shown" : "Warnings ignored");
     }
 
     [MetaCommand("showTime", "Toggle to display execution time of entries")]
     private void EvaluateShowTime() {
         _showTime = !_showTime;
-        _writer.WriteLine(_showTime ? "Execution time visible" : "Execution time hidden");
+        writer.WriteLine(_showTime ? "Execution time visible" : "Execution time hidden");
     }
 
     [MetaCommand("showIL", "Toggle to display the IL version of the code")]
     private void EvaluateShowIL() {
         state.showIL = !state.showIL;
-        _writer.WriteLine(state.showIL ? "IL visible" : "IL hidden");
+        writer.WriteLine(state.showIL ? "IL visible" : "IL hidden");
     }
 }

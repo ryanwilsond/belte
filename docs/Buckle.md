@@ -48,7 +48,7 @@ BU module.
 Invokes the Repl, a Read-Eval-Print Loop where the user can enter short code snippets and get the result in realtime.
 The Repl is purely a command-line tool. If the *-r* or *--repl* option is passed, **all** other arguments are ignored.
 
-For more information specifically on the Repl, see the [Repl help doc](./Repl.md).
+For more information specifically on the Repl, see the [Repl help doc](.\Repl.md).
 
 ### *-p*
 

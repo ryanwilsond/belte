@@ -59,4 +59,8 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     public BelteDiagnosticQueue Errors() {
         return new BelteDiagnosticQueue(FilterAbove(DiagnosticSeverity.Error).ToList());
     }
+
+    public void Push<T>(T diagnostic) where T : Diagnostic {
+        base.Push(new BelteDiagnostic(diagnostic));
+    }
 }

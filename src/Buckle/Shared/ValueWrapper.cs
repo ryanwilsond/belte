@@ -1,5 +1,5 @@
 
-namespace Buckle.Utilities;
+namespace Shared;
 
 /// <summary>
 /// Wraps a value-type object so it can be treated as a reference-type object.
@@ -9,18 +9,18 @@ public class ValueWrapper<T> {
     /// <summary>
     /// The value-type object.
     /// </summary>
-    internal T Value { get; set; }
+    public T Value { get; set; }
 
     /// <summary>
     /// Creates an empty <see cref="ValueWrapper<T>" />.
     /// </summary>
-    internal ValueWrapper() { }
+    public ValueWrapper() { }
 
     /// <summary>
     /// Creates a new <see cref="ValueWrapper<T> " /> with a value-type value.
     /// </summary>
     /// <param name="value"></param>
-    internal ValueWrapper(T value) {
+    public ValueWrapper(T value) {
         Value = value;
     }
 

@@ -21,6 +21,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Diagnostics.Tests", "Diagno
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Shared.Tests", "Shared.Tests\Shared.Tests.csproj", "{4C9AECA3-DCD4-4E07-989F-417031723105}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shared", "Shared\Shared.csproj", "{366E7472-577A-4F50-B829-D354E26601C4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -63,6 +65,10 @@ Global
 		{4C9AECA3-DCD4-4E07-989F-417031723105}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4C9AECA3-DCD4-4E07-989F-417031723105}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4C9AECA3-DCD4-4E07-989F-417031723105}.Release|Any CPU.Build.0 = Release|Any CPU
+		{366E7472-577A-4F50-B829-D354E26601C4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{366E7472-577A-4F50-B829-D354E26601C4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{366E7472-577A-4F50-B829-D354E26601C4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{366E7472-577A-4F50-B829-D354E26601C4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -7,11 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Remove="../Buckle/CodeAnalysis/Syntax/Syntax.xml" />
+    <Content Remove="..\Buckle\CodeAnalysis\Syntax\Syntax.xml" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="../Buckle/CodeAnalysis/Syntax/Syntax.xml" />
+    <EmbeddedResource Include="..\Buckle\CodeAnalysis\Syntax\Syntax.xml" />
   </ItemGroup>
 
   <PropertyGroup>
