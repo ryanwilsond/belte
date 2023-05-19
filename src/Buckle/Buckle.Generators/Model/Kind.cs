@@ -3,13 +3,13 @@ using System.Xml.Serialization;
 
 namespace Buckle.Generators;
 
-public class Kind : IEquatable<Kind> {
+public sealed class Kind : IEquatable<Kind> {
     [XmlAttribute]
-    public string name;
+    public string Name;
 
     public override bool Equals(object? obj) => Equals(obj as Kind);
 
-    public bool Equals(Kind? other) => name == other?.name;
+    public bool Equals(Kind? other) => Name == other?.Name;
 
-    public override int GetHashCode() => name == null ? 0 : name.GetHashCode();
+    public override int GetHashCode() => Name == null ? 0 : Name.GetHashCode();
 }

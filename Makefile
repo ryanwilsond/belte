@@ -19,9 +19,9 @@ GENERATED_DIR:=$(BUCKLE_DIR)/CodeAnalysis/Generated
 FLAGS:=-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false \
 	--sc true -c Release -f $(NETVER)
 
-all: prebuild build postbuild
-portable: prebuild portablebuild postbuild
-debug: prebuild debugbuild postbuilddebug
+all: prebuild generate build postbuild
+portable: prebuild generate portablebuild postbuild
+debug: prebuild generate debugbuild postbuilddebug
 
 # Tests the solution
 .PHONY: test
@@ -53,6 +53,7 @@ generate:
 	@mkdir -p $(GENERATED_DIR)
 	@dotnet run --project $(BUCKLE_DIR).Generators/Buckle.Generators.csproj --framework $(NETVER) \
 		$(SYNTAXPATH) $(GENERATED_DIR)
+	@echo Generated compiler source files
 
 prebuild:
 	@echo "Started building the Buckle solution (release) ..."
@@ -75,5 +76,4 @@ portablebuild:
 	@dotnet publish $(BELTE_DIR)/Belte.csproj $(FLAGS) -o bin/release
 
 debugbuild:
-	@rm -rf $(GENERATED_DIR)
-	@dotnet build $(BELTE_DIR)/Belte.csproj --sc -t:rebuild -r $(SYSTEM) -o bin/debug
+	@dotnet build $(BELTE_DIR)/Belte.csproj --sc -r $(SYSTEM) -o bin/debug

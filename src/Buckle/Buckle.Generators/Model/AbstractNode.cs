@@ -2,6 +2,6 @@
 
 namespace Buckle.Generators;
 
-public class AbstractNode : TreeType {
-    public readonly List<Field> fields = new List<Field>();
+public sealed class AbstractNode : TreeType {
+    public readonly List<Field> Fields = new List<Field>();
 }

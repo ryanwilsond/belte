@@ -3,15 +3,12 @@ using System.Xml.Serialization;
 
 namespace Buckle.Generators;
 
-public class Node : TreeType {
+public sealed class Node : TreeType {
     [XmlAttribute]
-    public string root;
-
-    [XmlAttribute]
-    public string errors;
+    public string Root;
 
     [XmlElement(ElementName = "Kind", Type = typeof(Kind))]
-    public List<Kind> kinds = new List<Kind>();
+    public List<Kind> Kinds = new List<Kind>();
 
-    public readonly List<Field> fields = new List<Field>();
+    public readonly List<Field> Fields = new List<Field>();
 }

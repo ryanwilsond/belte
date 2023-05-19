@@ -4,12 +4,12 @@ using System.Xml.Serialization;
 namespace Buckle.Generators;
 
 [XmlRoot]
-public class Tree {
+public sealed class Tree {
     [XmlAttribute]
-    public string root;
+    public string Root;
 
     [XmlElement(ElementName = "Node", Type = typeof(Node))]
     [XmlElement(ElementName = "AbstractNode", Type = typeof(AbstractNode))]
     [XmlElement(ElementName = "PredefinedNode", Type = typeof(PredefinedNode))]
-    public List<TreeType> types;
+    public List<TreeType> Types;
 }

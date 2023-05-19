@@ -7,7 +7,7 @@
   <AbstractNode Name="MemberSyntax" Base="SyntaxNode"/>
   <AbstractNode Name="StatementSyntax" Base="SyntaxNode"/>
   <AbstractNode Name="TypeDeclarationSyntax" Base="MemberSyntax">
-    <Kind/>
+    <Kind Name="Type"/>
     <Field Name="keyword" Type="SyntaxToken"/>
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>

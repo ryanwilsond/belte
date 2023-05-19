@@ -1,4 +1,4 @@
 ﻿
 namespace Buckle.Generators;
 
-public class PredefinedNode : TreeType { }
+public sealed class PredefinedNode : TreeType { }

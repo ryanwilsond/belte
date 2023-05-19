@@ -42,6 +42,7 @@ public static class Program {
 
     private static int WriteSourceFiles(string inputFile, string outputFile) {
         var tree = ReadTree(inputFile);
+        TreeFlattening.FlattenChildren(tree);
 
         var outputPath = outputFile.Trim('"');
         var prefix = Path.GetFileName(inputFile);

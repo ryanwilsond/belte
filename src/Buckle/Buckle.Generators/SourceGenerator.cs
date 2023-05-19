@@ -18,7 +18,7 @@ public sealed class SourceGenerator : IIncrementalGenerator {
     private static readonly DiagnosticDescriptor s_MissingSyntaxXml = new DiagnosticDescriptor(
         "SG1001",
         title: "Syntax.xml is missing",
-        messageFormat: "The Syntax.xml file was not included in the project, so we are not generating source.",
+        messageFormat: "The Syntax.xml file was not included in the project, so we are not generating source",
         category: "SyntaxGenerator",
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
@@ -26,7 +26,7 @@ public sealed class SourceGenerator : IIncrementalGenerator {
     private static readonly DiagnosticDescriptor s_UnableToReadSyntaxXml = new DiagnosticDescriptor(
         "SG1002",
         title: "Syntax.xml could not be read",
-        messageFormat: "The Syntax.xml file could not even be read. Does it exist?",
+        messageFormat: "The Syntax.xml file could not even be read. Ensure it exists.",
         category: "SyntaxGenerator",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -86,6 +86,8 @@ public sealed class SourceGenerator : IIncrementalGenerator {
     }
 
     private static void DoGeneration(Tree tree, SourceProductionContext context) {
+        TreeFlattening.FlattenChildren(tree);
+
         var sourcesBuilder = ImmutableArray.CreateBuilder<(string hintName, SourceText sourceText)>();
         addResult(writer => SourceWriter.WriteInternal(writer, tree), "Syntax.xml.Internal.Generated.cs");
         addResult(writer => SourceWriter.WriteSyntax(writer, tree), "Syntax.xml.Syntax.Generated.cs");
