@@ -8,4 +8,5 @@
 
 ## Reporting a Vulnerability
 
-Currently there is no dedicated location to report vulnerabilities, so anything you think may be a security implication should be reported by opening an issue.
+Currently, there is no dedicated location to report vulnerabilities, so anything you think may be a security implication
+should be reported by opening an issue.

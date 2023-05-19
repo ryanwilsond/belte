@@ -24,7 +24,7 @@ independent emits assembly.
 The compiler hands the files to a syntax tree that handles loading the files and creating a source text from them. This
 allows tracking code down to the line and character, which is helpful in diagnostics as the developer will know exactly
 where the error occurred. The syntax tree then handles calling the Lexer and Parser. After that, the compiler calls the
-Binder (which in turn calls the Lowerer) and then finally, either the Emitter or Evaluator is called.
+Binder (which in turn calls the Lowerer), and then finally, either the Emitter or Evaluator is called.
 
 ### Mentioned Components
 

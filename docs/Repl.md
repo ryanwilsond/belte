@@ -1,9 +1,9 @@
 # Using the Repl
 
 The Repl (Read-Eval-Print Loop) is a command-line tool that provides the user with a simple method for testing short
-code snippets, without having to create any files or setup a project.
+code snippets, without having to create any files or set up a project.
 
-The Repl is maintained alongside with the compiler, so all language features are supported in the Repl, as well as many
+The Repl is maintained alongside the compiler, so all language features are supported in the Repl, as well as many
 tools for debugging.
 
 ## Invoking the Repl
@@ -13,7 +13,7 @@ Repl will start up in the terminal that it was invoked from.
 
 ## Interacting with the Repl
 
-The Repl takes in submissions which are submitted by the enter key if the submission parses correctly, there are two
+The Repl takes in submissions that are submitted by the enter key if the submission parses correctly, there are two
 consecutive empty lines, or Ctrl + Enter is used. If the submission ends with an expression or expression statement, the
 result of that expression or statement is displayed. You can exit the Repl at any time by submitting an empty line, or
 by invoking the `#exit` command.
@@ -30,7 +30,7 @@ The Repl supports standard keyboard input, with some special actions.
 ## Repl Tools and Commands
 
 The Repl provides an immediate evaluation result whenever a submission is completed, and this includes error feedback.
-In addition, the Repl provides many commands for peeking inside of the program to possibly help debugging, especially
+In addition, the Repl provides many commands for peeking inside of the program to possibly help to debug, especially
 for Belte developers.
 
 All Repl commands:
@@ -59,14 +59,14 @@ All Repl commands:
 Usage: `#clear` or `#cls`
 
 The clear command will clear the entire terminal of any past submissions, and then you can continue coding snippets.
-This command does not effect any of the Repl state like the reset command, it only clears the terminal buffer.
+This command does not affect any of the Repl state like the reset command, it only clears the terminal buffer.
 
 ### Dump Command
 
 Usage: `#dump <signature>`
 
 The dump command will display information about any symbol defined in any scope. Currently, this information is only
-declaration information, and not the current state of any symbol (like a variable's value). It will show member
+declaration information and not the current state of any symbol (like a variable's value). It will show member
 declarations and bodies.
 
 Examples:
@@ -115,7 +115,7 @@ void MyMethod(string a, decimal b, int c) {
 }
 ```
 
-It is important to node that the parameter list cannot contain whitespace, as breaking it up would make the Repl think
+It is important to note that the parameter list cannot contain whitespace, as breaking it up would make the Repl think
 you are passing multiple arguments into the dump command, similar to the command line.
 
 ### Exit Command
@@ -189,7 +189,7 @@ int myInt
 Usage: `#reset`
 
 The reset command does just that, resets the Repl. Because submissions are saved across Repl instances, this is the only
-way to truly "reset" the Repl. It will dispose all submissions (including their symbol declarations), and reset all
+way to truly "reset" the Repl. It will dispose of all submissions (including their symbol declarations), and reset all
 Repl state to defaults, like the `#showTree` command.
 
 ### Save-to-File Command
@@ -221,7 +221,7 @@ If the file at the location `path` already exists, it will prompt for confirmati
 file.
 
 Note that the submission count includes all successful submissions, apart from the save-to-file command that is
-executing the file write. This does include Repl command currently, for example:
+executing the file write. This does include previous Repl command submissions currently, for example:
 
 The Repl:
 
@@ -255,7 +255,7 @@ All Repl settings:
 
 Usage: `#showIL`
 
-The show-il command toggles the display of the IL representation of submissions before they are evaluted.
+The show-il command toggles the display of the IL representation of submissions before they are evaluated.
 
 For example:
 
@@ -313,7 +313,7 @@ Finished after 39 milliseconds
 
 Usage: `#showTokens`
 
-The show-tokens command toggles the display of lexer produced syntax token breakdown of each submission before it
+The show-tokens command toggles the display of lexer-produced syntax token breakdown of each submission before it
 executes.
 
 For example:
@@ -377,7 +377,7 @@ Warnings shown
 
 Usage: `#state`
 
-The state command displays the current Repl state. This command is made purely for debugging purposes, and serves little
+The state command displays the current Repl state. This command is made purely for debugging purposes and serves little
 use outside of development.
 
 ```belte

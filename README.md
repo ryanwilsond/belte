@@ -18,9 +18,9 @@ ___
 
 ## Samples
 
-There are multiple code samples in the `samples/` folder to show what the language is capable of in it's current state.
+There are multiple code samples in the `samples/` folder to show what the language is capable of in its current state.
 
-More information about the samples [here](samples/README.md).
+More information about the samples is [here](samples/README.md).
 
 ___
 

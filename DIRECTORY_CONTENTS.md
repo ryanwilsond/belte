@@ -1,6 +1,6 @@
 # Directory Contents
 
-Brief descriptions of all the directories to help browsing the repo.
+Brief descriptions of all the directories to help browse the repo.
 
 | Path | Description |
 |-|-|

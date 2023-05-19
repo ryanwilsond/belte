@@ -25,7 +25,7 @@ All global statements are enclosed in the global scope and bound first.
 
 There are many variations of a base type, like nullable integer vs non-nullable integer. To handle this efficiently,
 the concept of type "clauses" is introduced. These are simple containers that contain all information about a type, and
-this allows casting to work in an intuitive way. This is also where primitive array support happens, as all types have
+this allows casting to work intuitively. This is also where primitive array support happens, as all types have
 a dimensions field (0 for normal variables).
 
 To make sure undefined behavior is avoided, a control flow graph is created to make sure every code path returns. This
@@ -33,13 +33,13 @@ graph is created by connecting statements (nodes) in a graph and tracing them ba
 link in the graph, then an error is raised. Similarly, dead code paths are removed by checking for disconnected nodes
 on the same graph.
 
-Implicitly typing variables is easier than it sounds. Every expression (even ones not tied to a type) has its own
-type clause. This means that if a variable is implicit it just checks the expression type and does an identity cast.
+Implicitly typing variables is easier than it sounds. Every expression (even ones not tied to a type) has its type
+clause. This means that if a variable is implicit it just checks the expression type and does an identity cast.
 This is why implicit variables must be defined when declared.
 
 There are many more small details to talk about in the binder, but the ones listed above are the most important ones
 or the ones with the hardest solution. During and after the binding process, expansion, lowering, and optimization
-occurs.
+occur.
 
 ### Mentioned Components
 
