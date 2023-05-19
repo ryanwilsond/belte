@@ -379,20 +379,21 @@ internal sealed class Parser {
         }
 
         if (Peek(1).kind != kind) {
+            var unexpectedToken = EatToken();
+
             return AddDiagnostic(
-                AddLeadingSkippedSyntax(SyntaxFactory.Missing(kind), EatToken()),
-                Error.UnexpectedToken(currentToken.kind, kind),
-                currentToken.GetLeadingTriviaWidth(),
-                currentToken.width
+                AddLeadingSkippedSyntax(SyntaxFactory.Missing(kind), unexpectedToken),
+                Error.UnexpectedToken(unexpectedToken.kind, kind),
+                unexpectedToken.GetLeadingTriviaWidth(),
+                unexpectedToken.width
             );
         }
 
-        var currentKind = currentToken.kind;
         var unexpected = EatToken(stallDiagnostics: true);
 
         return AddDiagnostic(
             WithFutureDiagnostics(AddLeadingSkippedSyntax(EatToken(), unexpected)),
-            Error.UnexpectedToken(currentKind),
+            Error.UnexpectedToken(unexpected.kind),
             unexpected.GetLeadingTriviaWidth(),
             unexpected.width
         );
