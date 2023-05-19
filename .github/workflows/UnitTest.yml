@@ -5,6 +5,9 @@ on:
   push:
   workflow_dispatch:
 
+env:
+  NET_VER: '8.0.100-preview.2.23157.25'
+
 jobs:
   Test:
     runs-on: windows-latest
@@ -13,13 +16,13 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: '8.0.100-preview.2.23157.25'
+          dotnet-version: $NET_VER
 
       - name: Clean
         run: dotnet clean --configuration Release ./src/Buckle/Buckle.sln
 
       - name: Generate
-        run: mkdir ./src/Buckle/Buckle/CodeAnalysis/Generated | dotnet run --project ./src/Buckle/Buckle.Generators/Buckle.Generators.csproj ./src/Buckle/Buckle/CodeAnalysis/Syntax/Syntax.xml ./src/Buckle/Buckle/CodeAnalysis/Generated
+        run: mkdir ./src/Buckle/Buckle/CodeAnalysis/Generated | dotnet run --project ./src/Buckle/Buckle.enerators/Buckle.Generators.csproj --framework $NET_VER ./src/Buckle/Buckle/CodeAnalysis/Syntax/Syntax.xml ./src/Buckle/Buckle/CodeAnalysis/Generated
 
       - name: Build
         run: dotnet build -t:rebuild --configuration Release ./src/Buckle/Buckle.sln
