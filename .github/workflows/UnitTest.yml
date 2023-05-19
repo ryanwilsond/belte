@@ -16,13 +16,13 @@ jobs:
           global-json-file: global.json
 
       - name: Clean
-        run: dotnet clean --configuration Release ./src/Buckle/Buckle.sln
+        run: make clean
 
       - name: Generate
         run: make generate
 
       - name: Build
-        run: dotnet build -t:rebuild --configuration Release ./src/Buckle/Buckle.sln
+        run: make
 
       - name: Test
-        run: dotnet test --configuration Release ./src/Buckle/Buckle.sln
+        run: make test
