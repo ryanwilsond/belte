@@ -18,6 +18,9 @@ jobs:
       - name: Clean
         run: dotnet clean --configuration Release ./src/Buckle/Buckle.sln
 
+      - name: Generate
+        run: mkdir ./src/Buckle/Buckle/CodeAnalysis/Generated | dotnet run --project ./src/Buckle/Buckle.Generators/Buckle.Generators.csproj ./src/Buckle/Buckle/CodeAnalysis/Syntax/Syntax.xml ./src/Buckle/Buckle/CodeAnalysis/Generated
+
       - name: Build
         run: dotnet build -t:rebuild --configuration Release ./src/Buckle/Buckle.sln
 
