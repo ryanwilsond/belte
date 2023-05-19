@@ -10,6 +10,8 @@ using Buckle.CodeAnalysis.FlowAnalysis;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
+using Shared;
 
 namespace Buckle.CodeAnalysis;
 
@@ -116,7 +118,8 @@ public sealed class Compilation {
     /// <param name="variables">Existing variables to add to the scope.</param>
     /// <param name="abort">External flag used to cancel evaluation.</param>
     /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
-    public EvaluationResult Evaluate(Dictionary<IVariableSymbol, IEvaluatorObject> variables, ref bool abort) {
+    public EvaluationResult Evaluate(
+        Dictionary<IVariableSymbol, IEvaluatorObject> variables, ValueWrapper<bool> abort) {
         if (globalScope.diagnostics.Errors().Any())
             return new EvaluationResult(null, false, globalScope.diagnostics, null);
 
@@ -131,7 +134,7 @@ public sealed class Compilation {
 
         diagnostics.Move(program.diagnostics);
         var eval = new Evaluator(program, variables);
-        var evalResult = eval.Evaluate(ref abort, out var hasValue);
+        var evalResult = eval.Evaluate(abort, out var hasValue);
 
         if (eval.hasPrint)
             Console.WriteLine();
@@ -139,6 +142,38 @@ public sealed class Compilation {
         diagnostics.Move(eval.diagnostics);
         var result = new EvaluationResult(evalResult, hasValue, diagnostics, eval.exceptions);
         return result;
+    }
+
+    /// <summary>
+    /// Executes SyntaxTrees by creating an executable and running it.
+    /// </summary>
+    public void Execute() {
+        if (globalScope.diagnostics.Errors().Any())
+            return;
+
+        var program = GetProgram();
+#if DEBUG
+        if (options.enableOutput)
+            CreateCfg(program);
+#endif
+
+        if (program.diagnostics.Errors().Any())
+            return;
+
+        diagnostics.Move(program.diagnostics);
+        Executor.Execute(program);
+    }
+
+    /// <summary>
+    /// Compiles and evaluates SyntaxTrees chunk by chunk.
+    /// </summary>
+    /// <param name="variables">Existing variables to add to the scope.</param>
+    /// <param name="abort">External flag used to cancel evaluation.</param>
+    /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
+    public EvaluationResult Interpret(
+        Dictionary<IVariableSymbol, IEvaluatorObject> variables, ValueWrapper<bool> abort) {
+        // syntaxTrees.Single() should have already been asserted by this point
+        return Interpreter.Interpret(syntaxTrees[0], variables, abort);
     }
 
     /// <summary>

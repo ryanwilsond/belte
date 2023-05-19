@@ -1,6 +1,6 @@
 # Belte & Buckle Documentation
 
-Belte is an object-oriented programming language aiming to have the same feel and power of C# and C++, while also having
+Belte is an object-oriented programming language aiming to have the same feel and power as C# and C++, while also having
 some simplicity like Python.
 
 Visit my [GitHub page!](https://github.com/ryanwilsond/Belte)

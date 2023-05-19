@@ -9,5 +9,5 @@ public enum CompilerStage {
     Preprocessed,
     Compiled,
     Assembled,
-    Linked,
+    Finished,
 }

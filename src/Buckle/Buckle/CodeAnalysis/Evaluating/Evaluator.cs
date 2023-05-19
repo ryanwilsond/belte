@@ -5,6 +5,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
+using Shared;
 using static Buckle.Utilities.MethodUtilities;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -85,14 +86,14 @@ internal sealed class Evaluator {
     /// <param name="abort">External flag used to cancel evaluation.</param>
     /// <param name="hasValue">If the evaluation had a returned result.</param>
     /// <returns>Result of <see cref="BoundProgram" /> (if applicable).</returns>
-    internal object Evaluate(ref bool abort, out bool hasValue) {
+    internal object Evaluate(ValueWrapper<bool> abort, out bool hasValue) {
         if (_program.entryPoint == null) {
             hasValue = false;
             return null;
         }
 
         var body = LookupMethod(_methods, _program.entryPoint);
-        var result = EvaluateStatement(body, ref abort, out _);
+        var result = EvaluateStatement(body, abort, out _);
         hasValue = _hasValue;
 
         return Value(result, true);
@@ -279,7 +280,7 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateStatement(
-        BoundBlockStatement statement, ref bool abort, out bool hasReturn, bool insideTry = false) {
+        BoundBlockStatement statement, ValueWrapper<bool> abort, out bool hasReturn, bool insideTry = false) {
         _hasValue = false;
         hasReturn = false;
 
@@ -304,11 +305,11 @@ internal sealed class Evaluator {
                         index++;
                         break;
                     case BoundNodeKind.ExpressionStatement:
-                        EvaluateExpressionStatement((BoundExpressionStatement)s, ref abort);
+                        EvaluateExpressionStatement((BoundExpressionStatement)s, abort);
                         index++;
                         break;
                     case BoundNodeKind.VariableDeclarationStatement:
-                        EvaluateVariableDeclarationStatement((BoundVariableDeclarationStatement)s, ref abort);
+                        EvaluateVariableDeclarationStatement((BoundVariableDeclarationStatement)s, abort);
                         index++;
                         break;
                     case BoundNodeKind.GotoStatement:
@@ -317,7 +318,7 @@ internal sealed class Evaluator {
                         break;
                     case BoundNodeKind.ConditionalGotoStatement:
                         var cgs = (BoundConditionalGotoStatement)s;
-                        var condition = (bool)Value(EvaluateExpression(cgs.condition, ref abort));
+                        var condition = (bool)Value(EvaluateExpression(cgs.condition, abort));
 
                         if (condition == cgs.jumpIfTrue)
                             index = labelToIndex[cgs.label];
@@ -329,7 +330,7 @@ internal sealed class Evaluator {
                         index++;
                         break;
                     case BoundNodeKind.TryStatement:
-                        EvaluateTryStatement((BoundTryStatement)s, ref abort, out var returned);
+                        EvaluateTryStatement((BoundTryStatement)s, abort, out var returned);
 
                         if (returned) {
                             hasReturn = true;
@@ -343,7 +344,7 @@ internal sealed class Evaluator {
                         var returnStatement = (BoundReturnStatement)s;
                         _lastValue = returnStatement.expression == null
                             ? new EvaluatorObject()
-                            : Copy(EvaluateExpression(returnStatement.expression, ref abort));
+                            : Copy(EvaluateExpression(returnStatement.expression, abort));
 
                         _hasValue =
                             (returnStatement.expression == null || returnStatement.expression is BoundEmptyExpression)
@@ -386,75 +387,75 @@ internal sealed class Evaluator {
         }
     }
 
-    private void EvaluateExpressionStatement(BoundExpressionStatement statement, ref bool abort) {
-        _lastValue = EvaluateExpression(statement.expression, ref abort);
+    private void EvaluateExpressionStatement(BoundExpressionStatement statement, ValueWrapper<bool> abort) {
+        _lastValue = EvaluateExpression(statement.expression, abort);
     }
 
-    private void EvaluateTryStatement(BoundTryStatement statement, ref bool abort, out bool hasReturn) {
+    private void EvaluateTryStatement(BoundTryStatement statement, ValueWrapper<bool> abort, out bool hasReturn) {
         hasReturn = false;
 
         try {
-            EvaluateStatement(statement.body, ref abort, out hasReturn, true);
+            EvaluateStatement(statement.body, abort, out hasReturn, true);
         } catch (Exception e) when (e is not BelteInternalException) {
             if (statement.catchBody != null && !hasReturn)
-                EvaluateStatement(statement.catchBody, ref abort, out hasReturn);
+                EvaluateStatement(statement.catchBody, abort, out hasReturn);
             else
                 throw;
         } finally {
             if (statement.finallyBody != null && !hasReturn)
-                EvaluateStatement(statement.finallyBody, ref abort, out hasReturn);
+                EvaluateStatement(statement.finallyBody, abort, out hasReturn);
         }
     }
 
-    private void EvaluateVariableDeclarationStatement(BoundVariableDeclarationStatement statement, ref bool abort) {
-        var value = EvaluateExpression(statement.initializer, ref abort);
+    private void EvaluateVariableDeclarationStatement(BoundVariableDeclarationStatement statement, ValueWrapper<bool> abort) {
+        var value = EvaluateExpression(statement.initializer, abort);
         _lastValue = null;
         Create(statement.variable, value);
     }
 
-    private EvaluatorObject EvaluateExpression(BoundExpression node, ref bool abort) {
+    private EvaluatorObject EvaluateExpression(BoundExpression node, ValueWrapper<bool> abort) {
         if (node.constantValue != null)
-            return EvaluateConstantExpression(node, ref abort);
+            return EvaluateConstantExpression(node, abort);
 
         switch (node.kind) {
             case BoundNodeKind.LiteralExpression:
                 if (node is BoundInitializerListExpression il)
-                    return new EvaluatorObject(EvaluateInitializerListExpression(il, ref abort));
+                    return new EvaluatorObject(EvaluateInitializerListExpression(il, abort));
                 else
                     goto default;
             case BoundNodeKind.VariableExpression:
-                return EvaluateVariableExpression((BoundVariableExpression)node, ref abort);
+                return EvaluateVariableExpression((BoundVariableExpression)node, abort);
             case BoundNodeKind.AssignmentExpression:
-                return EvaluateAssignmentExpresion((BoundAssignmentExpression)node, ref abort);
+                return EvaluateAssignmentExpression((BoundAssignmentExpression)node, abort);
             case BoundNodeKind.UnaryExpression:
-                return EvaluateUnaryExpression((BoundUnaryExpression)node, ref abort);
+                return EvaluateUnaryExpression((BoundUnaryExpression)node, abort);
             case BoundNodeKind.BinaryExpression:
-                return EvaluateBinaryExpression((BoundBinaryExpression)node, ref abort);
+                return EvaluateBinaryExpression((BoundBinaryExpression)node, abort);
             case BoundNodeKind.TernaryExpression:
-                return EvaluateTernaryExpression((BoundTernaryExpression)node, ref abort);
+                return EvaluateTernaryExpression((BoundTernaryExpression)node, abort);
             case BoundNodeKind.CallExpression:
-                return EvaluateCallExpression((BoundCallExpression)node, ref abort);
+                return EvaluateCallExpression((BoundCallExpression)node, abort);
             case BoundNodeKind.CastExpression:
-                return EvaluateCastExpression((BoundCastExpression)node, ref abort);
+                return EvaluateCastExpression((BoundCastExpression)node, abort);
             case BoundNodeKind.IndexExpression:
-                return EvaluateIndexExpression((BoundIndexExpression)node, ref abort);
+                return EvaluateIndexExpression((BoundIndexExpression)node, abort);
             case BoundNodeKind.ReferenceExpression:
-                return EvaluateReferenceExpression((BoundReferenceExpression)node, ref abort);
+                return EvaluateReferenceExpression((BoundReferenceExpression)node, abort);
             case BoundNodeKind.TypeOfExpression:
-                return EvaluateTypeOfExpression((BoundTypeOfExpression)node, ref abort);
+                return EvaluateTypeOfExpression((BoundTypeOfExpression)node, abort);
             case BoundNodeKind.EmptyExpression:
                 return new EvaluatorObject();
             case BoundNodeKind.ConstructorExpression:
-                return EvaluateConstructorExpression((BoundConstructorExpression)node, ref abort);
+                return EvaluateConstructorExpression((BoundConstructorExpression)node, abort);
             case BoundNodeKind.MemberAccessExpression:
-                return EvaluateMemberAccessExpression((BoundMemberAccessExpression)node, ref abort);
+                return EvaluateMemberAccessExpression((BoundMemberAccessExpression)node, abort);
             default:
                 throw new BelteInternalException($"EvaluateExpression: unexpected node '{node.kind}'");
         }
     }
 
-    private EvaluatorObject EvaluateMemberAccessExpression(BoundMemberAccessExpression node, ref bool abort) {
-        var operand = EvaluateExpression(node.operand, ref abort);
+    private EvaluatorObject EvaluateMemberAccessExpression(BoundMemberAccessExpression node, ValueWrapper<bool> abort) {
+        var operand = EvaluateExpression(node.operand, abort);
 
         if (operand.isReference) {
             do {
@@ -467,7 +468,7 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject EvaluateConstructorExpression(BoundConstructorExpression node, ref bool abort) {
+    private EvaluatorObject EvaluateConstructorExpression(BoundConstructorExpression node, ValueWrapper<bool> abort) {
         var body = _types[node.symbol];
         var members = new Dictionary<Symbol, EvaluatorObject>();
 
@@ -477,12 +478,12 @@ internal sealed class Evaluator {
         return new EvaluatorObject(members);
     }
 
-    private EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression node, ref bool abort) {
+    private EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression node, ValueWrapper<bool> abort) {
         // TODO Implement typeof and type types
         return new EvaluatorObject();
     }
 
-    private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node, ref bool abort) {
+    private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node, ValueWrapper<bool> abort) {
         Dictionary<IVariableSymbol, IEvaluatorObject> referenceScope;
 
         if (node.variable.kind == SymbolKind.GlobalVariable)
@@ -493,42 +494,42 @@ internal sealed class Evaluator {
         return new EvaluatorObject(node.variable, isExplicitReference: true, referenceScope: referenceScope);
     }
 
-    private EvaluatorObject EvaluateIndexExpression(BoundIndexExpression node, ref bool abort) {
-        var variable = EvaluateExpression(node.operand, ref abort);
-        var index = EvaluateExpression(node.index, ref abort);
+    private EvaluatorObject EvaluateIndexExpression(BoundIndexExpression node, ValueWrapper<bool> abort) {
+        var variable = EvaluateExpression(node.operand, abort);
+        var index = EvaluateExpression(node.index, abort);
 
         return ((EvaluatorObject[])Value(variable))[(int)Value(index)];
     }
 
-    private EvaluatorObject[] EvaluateInitializerListExpression(BoundInitializerListExpression node, ref bool abort) {
+    private EvaluatorObject[] EvaluateInitializerListExpression(BoundInitializerListExpression node, ValueWrapper<bool> abort) {
         var builder = new List<EvaluatorObject>();
 
         foreach (var item in node.items) {
-            var value = EvaluateExpression(item, ref abort);
+            var value = EvaluateExpression(item, abort);
             builder.Add(value);
         }
 
         return builder.ToArray();
     }
 
-    private EvaluatorObject EvaluateCastExpression(BoundCastExpression node, ref bool abort) {
-        var value = EvaluateExpression(node.expression, ref abort);
+    private EvaluatorObject EvaluateCastExpression(BoundCastExpression node, ValueWrapper<bool> abort) {
+        var value = EvaluateExpression(node.expression, abort);
 
         return EvaluateCast(value, node.type);
     }
 
-    private EvaluatorObject EvaluateCallExpression(BoundCallExpression node, ref bool abort) {
+    private EvaluatorObject EvaluateCallExpression(BoundCallExpression node, ValueWrapper<bool> abort) {
         if (node.method.MethodMatches(BuiltinMethods.Input)) {
             return new EvaluatorObject(Console.IsInputRedirected ? null : Console.ReadLine());
         } else if (node.method.MethodMatches(BuiltinMethods.Print)) {
-            var message = EvaluateExpression(node.arguments[0], ref abort);
+            var message = EvaluateExpression(node.arguments[0], abort);
 
             if (!Console.IsOutputRedirected)
                 Console.Write(Value(message));
 
             hasPrint = true;
         } else if (node.method.MethodMatches(BuiltinMethods.PrintLine)) {
-            var message = EvaluateExpression(node.arguments[0], ref abort);
+            var message = EvaluateExpression(node.arguments[0], abort);
 
             if (!Console.IsOutputRedirected)
                 Console.WriteLine(Value(message));
@@ -536,7 +537,7 @@ internal sealed class Evaluator {
             if (!Console.IsOutputRedirected)
                 Console.WriteLine();
         } else if (node.method.MethodMatches(BuiltinMethods.RandInt)) {
-            var max = (int)Value(EvaluateExpression(node.arguments[0], ref abort));
+            var max = (int)Value(EvaluateExpression(node.arguments[0], abort));
 
             if (_random == null)
                 _random = new Random();
@@ -544,7 +545,7 @@ internal sealed class Evaluator {
             return new EvaluatorObject(_random.Next(max));
         } else if (node.method.name == "Value") {
             // TODO This needs to check if the builtin has been shadowed (check for HasValue too)
-            var value = EvaluateExpression(node.arguments[0], ref abort);
+            var value = EvaluateExpression(node.arguments[0], abort);
             var hasNoMembers = value.isReference ? Get(value.reference).members == null : value.members == null;
 
             if (Value(value) == null && hasNoMembers)
@@ -555,7 +556,7 @@ internal sealed class Evaluator {
             else
                 return Copy(value);
         } else if (node.method.name == "HasValue") {
-            var value = EvaluateExpression(node.arguments[0], ref abort);
+            var value = EvaluateExpression(node.arguments[0], abort);
             var hasNoMembers = value.isReference ? Get(value.reference).members == null : value.members == null;
 
             if (Value(value) == null && hasNoMembers)
@@ -567,7 +568,7 @@ internal sealed class Evaluator {
 
             for (var i = 0; i < node.arguments.Length; i++) {
                 var parameter = node.method.parameters[i];
-                var value = EvaluateExpression(node.arguments[i], ref abort);
+                var value = EvaluateExpression(node.arguments[i], abort);
 
                 while (!parameter.type.isReference && value.isReference)
                     value = Get(value.reference);
@@ -577,7 +578,7 @@ internal sealed class Evaluator {
 
             _locals.Push(locals);
             var statement = LookupMethod(_methods, node.method);
-            var result = EvaluateStatement(statement, ref abort, out _);
+            var result = EvaluateStatement(statement, abort, out _);
             _locals.Pop();
 
             return result;
@@ -586,7 +587,7 @@ internal sealed class Evaluator {
         return new EvaluatorObject();
     }
 
-    private EvaluatorObject EvaluateConstantExpression(BoundExpression expression, ref bool abort) {
+    private EvaluatorObject EvaluateConstantExpression(BoundExpression expression, ValueWrapper<bool> abort) {
         return EvaluateCast(EvaluateBoundConstant(expression.constantValue), expression.type);
     }
 
@@ -603,20 +604,21 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject EvaluateVariableExpression(BoundVariableExpression expression, ref bool abort) {
+    private EvaluatorObject EvaluateVariableExpression(BoundVariableExpression expression, ValueWrapper<bool> abort) {
         return new EvaluatorObject(expression.variable);
     }
 
-    private EvaluatorObject EvaluateAssignmentExpresion(BoundAssignmentExpression expression, ref bool abort) {
-        var left = EvaluateExpression(expression.left, ref abort);
-        var right = EvaluateExpression(expression.right, ref abort);
+    private EvaluatorObject EvaluateAssignmentExpression(
+        BoundAssignmentExpression expression, ValueWrapper<bool> abort) {
+        var left = EvaluateExpression(expression.left, abort);
+        var right = EvaluateExpression(expression.right, abort);
         Assign(left, right);
 
         return right;
     }
 
-    private EvaluatorObject EvaluateUnaryExpression(BoundUnaryExpression expression, ref bool abort) {
-        var operand = EvaluateExpression(expression.operand, ref abort);
+    private EvaluatorObject EvaluateUnaryExpression(BoundUnaryExpression expression, ValueWrapper<bool> abort) {
+        var operand = EvaluateExpression(expression.operand, abort);
         var operandValue = Value(operand);
 
         if (operandValue == null)
@@ -644,8 +646,8 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject EvaluateTernaryExpression(BoundTernaryExpression expression, ref bool abort) {
-        var left = EvaluateExpression(expression.left, ref abort);
+    private EvaluatorObject EvaluateTernaryExpression(BoundTernaryExpression expression, ValueWrapper<bool> abort) {
+        var left = EvaluateExpression(expression.left, abort);
         var leftValue = Value(left);
         leftValue = EvaluateValueCast(leftValue, expression.op.leftType);
 
@@ -653,9 +655,9 @@ internal sealed class Evaluator {
             case BoundTernaryOperatorKind.Conditional:
                 // This is so unused sides do not get evaluated (incase they would throw)
                 if ((bool)leftValue)
-                    return EvaluateExpression(expression.center, ref abort);
+                    return EvaluateExpression(expression.center, abort);
                 else
-                    return EvaluateExpression(expression.right, ref abort);
+                    return EvaluateExpression(expression.right, abort);
             default:
                 throw new BelteInternalException(
                     $"EvaluateTernaryExpression: unknown ternary operator '{expression.op}'"
@@ -663,8 +665,8 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject EvaluateBinaryExpression(BoundBinaryExpression expression, ref bool abort) {
-        var left = EvaluateExpression(expression.left, ref abort);
+    private EvaluatorObject EvaluateBinaryExpression(BoundBinaryExpression expression, ValueWrapper<bool> abort) {
+        var left = EvaluateExpression(expression.left, abort);
         var leftValue = Value(left);
 
         // Only evaluates right side if necessary
@@ -672,7 +674,7 @@ internal sealed class Evaluator {
             if (leftValue == null || !(bool)leftValue)
                 return new EvaluatorObject(false);
 
-            var _right = EvaluateExpression(expression.right, ref abort);
+            var _right = EvaluateExpression(expression.right, abort);
             var _rightValue = Value(_right);
 
             if (_rightValue == null || !(bool)_rightValue)
@@ -685,7 +687,7 @@ internal sealed class Evaluator {
             if (leftValue != null && (bool)leftValue)
                 return new EvaluatorObject(true);
 
-            var _right = EvaluateExpression(expression.right, ref abort);
+            var _right = EvaluateExpression(expression.right, abort);
             var _rightValue = Value(_right);
 
             if (_rightValue != null && (bool)_rightValue)
@@ -694,7 +696,7 @@ internal sealed class Evaluator {
             return new EvaluatorObject(false);
         }
 
-        var right = EvaluateExpression(expression.right, ref abort);
+        var right = EvaluateExpression(expression.right, abort);
         var rightValue = Value(right);
 
         if (leftValue == null || rightValue == null)

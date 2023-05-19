@@ -127,10 +127,15 @@ public partial class SyntaxTree {
     }
 
     /// <summary>
-    /// Gets all diagnostics on the tree.
+    /// Gets all diagnostics on the tree, if the tree contains a root.
     /// </summary>
     internal BelteDiagnosticQueue GetDiagnostics() {
-        return GetDiagnostics(GetRoot());
+        var root = GetRoot();
+
+        if (root != null)
+            return GetDiagnostics(root);
+        else
+            return new BelteDiagnosticQueue();
     }
 
     /// <summary>

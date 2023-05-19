@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Buckle\Buckle.csproj" />
     <ProjectReference Include="..\Shared.Tests\Shared.Tests.csproj" />
+    <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>
 
 </Project>

@@ -7,7 +7,7 @@ slower to run. A common example of an interpreted language is Python.
 
 To handle structure and reference types, the objects being passed around the Evaluator are custom objects that have many
 flags indicating if the object is a reference, if it is an explicit reference expression, if it is a constant reference,
-etc. It also has a dictionary of stored members for structures, and finally a single object to store by-value variables
+etc. It also has a dictionary of stored members for structures, and finally, a single object to store by-value variables
 and literals.
 
 ### Mentioned Components

@@ -16,10 +16,10 @@ Belte is a statically and strongly typed language most similar to C# (Belte is o
 Buckle compiler.
 
 This language and compiler are being developed to solve the biggest issue with all modern general-purpose programming
-languages. This is the distinction of **Logical vs Physical**. Low-level implementation details should not be a concern
+languages. This is the **Logical vs Physical** distinction. Low-level implementation details should not be a concern
 to the developer\*.
 
-To better understand this distinction take the code example (in C++):
+To better understand this distinction, take the code example (in C++):
 
 ```cpp
 struct MyStruct {
@@ -71,12 +71,11 @@ and space efficiency) there is a benefit to structures, but the developer should
 these optimizations without the input of the developer.
 
 One design challenge is: should bad statements be added because they are commonly used and people would not appreciate
-if they are gone? This is where the choice can be made to either keep on the path of doing it right or aim to make it
-accepted by the public. One of the biggest examples of this is the `goto` statement. Goto acts as a harder to read
+them if they are gone? This is where the choice can be made to either keep on the path of doing it right or aim to make
+it accepted by the public. One of the biggest examples of this is the `goto` statement. Goto acts as a harder-to-read
 function, or a hack to exit a nested loop.
 
-\* Except low-level tasks that require maximum efficiency or low-level features, e.g. using assembly
-language ever.
+\* Except for low-level tasks that require maximum efficiency or low-level features, e.g. using assembly language ever.
 
 ___
 
@@ -122,7 +121,7 @@ that is all that is needed (-1 being the minimum with 1 the maximum).
 Similar to integers, strings have a minimum and maximum bound for length, as well as an exact length and regex match. An
 example is the `char` type is defined as `class char : string<1>` (constant length 1), and not a unique type.
 
-As mentioned you can enforce a regular expression where the string always needs to comply, else an error is thrown.
+As mentioned you can enforce a regular expression where the string always needs to comply, or else an error is thrown.
 
 ```belte
 string<match="^(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$"> phone_number;
@@ -177,7 +176,7 @@ efficiency. This also allows developers to make code and think about optimizatio
 routines to object definitions without changing any of their original code\*. This will encourage the creation of more
 readable and intuitive code first, and keeping it like that in the future even if it is a little inefficient,
 
-\* Of course in a lot of situations the original approach is inefficient and this does not apply. Mostly just for
+\* Of course, in a lot of situations, the original approach is inefficient and this does not apply. Mostly just for
 custom object implementations.
 
 ___
@@ -258,16 +257,16 @@ List of priorities in order of most important to least important.
 
 Belte focuses on functionality as the first goal. This is one of the reasons that the syntax and design of the language
 were the first todos. Not biased by industry standards, ease of implementation, or something similar. This language aims
-to fix issues with programming languages, and added a unique spin on a c-style language. It aims to be intuitive like
+to fix issues with programming languages and added a unique spin on a C-style language. It aims to be intuitive like
 Python, robust like C#, high-performance like C++, and able to apply to most situations.
 
 ### Consistency
 
 A good way to make a language hard to use is to not keep strict guidelines that hold up the standard of consistency.
-Not only as a style guide, but as the language design itself. Everything in Belte aims to be as consistent as possible,
+Not only as a style guide but as the language design itself. Everything in Belte aims to be as consistent as possible,
 reducing the background knowledge the developer is required to have. A good example to highlight how a language can go
 wrong with consistency is value versus reference types in C#. The developer must know whether the object they are using
-is a value or reference type, while in Belte every type/class is a value type by default. This includes built-ins, and
+is a value or reference type, while in Belte every type/class is a value type by default. This includes built-ins and
 user-defined types. This helps code readability and ease of development.
 
 ### Usability

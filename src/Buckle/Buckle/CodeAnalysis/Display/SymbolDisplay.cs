@@ -46,7 +46,7 @@ public static class SymbolDisplay {
                 DisplayType(text, (TypeSymbol)symbol);
                 break;
             default:
-                throw new BelteInternalException($"WriteTo: unexpected symbol '{symbol.kind}'");
+                throw new BelteInternalException($"DisplaySymbol: unexpected symbol '{symbol.kind}'");
         }
     }
 

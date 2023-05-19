@@ -10,7 +10,7 @@ internal static partial class SyntaxFactory {
     /// </summary>
     internal static ReferenceExpressionSyntax Reference(string name) {
         return (ReferenceExpressionSyntax)new InternalSyntax.ReferenceExpressionSyntax(
-            InternalSyntax.SyntaxFactory.Token(SyntaxKind.ReferenceExpression),
+            InternalSyntax.SyntaxFactory.Token(SyntaxKind.RefKeyword),
             InternalSyntax.SyntaxFactory.Token(SyntaxKind.IdentifierToken, name)
         ).CreateRed();
     }

@@ -3,7 +3,6 @@ using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.CodeAnalysis.Text;
 using Repl.Themes;
 
 namespace Repl;
@@ -13,6 +12,11 @@ public sealed partial class BelteRepl {
     /// Repl specific state, maintained throughout instance, recreated every instance.
     /// </summary>
     internal sealed class BelteReplState {
+        /// <summary>
+        /// Show the lexed syntax tokens after a submission.
+        /// </summary>
+        internal bool showTokens = false;
+
         /// <summary>
         /// Show the parse tree after a submission.
         /// </summary>
@@ -24,14 +28,14 @@ public sealed partial class BelteRepl {
         internal bool showProgram = false;
 
         /// <summary>
-        /// Show compiler produced warnings.
-        /// </summary>
-        internal bool showWarnings = false;
-
-        /// <summary>
         /// Show the IL code after a submission.
         /// </summary>
         internal bool showIL = false;
+
+        /// <summary>
+        /// Show compiler produced warnings.
+        /// </summary>
+        internal bool showWarnings = false;
 
         /// <summary>
         /// If to ignore statements with side effects (Print, PrintLine, etc.).

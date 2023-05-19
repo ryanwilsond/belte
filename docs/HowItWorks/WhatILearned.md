@@ -8,7 +8,7 @@ similar compiler.
 The documents in this folder also serve to elaborate on the summaries given in the Belte Industries OnBoarding
 presentation.
 
-## Why Not to Use C++
+## Why Not Use C++
 
 I stopped using C++ very early because of its limited OOP capabilities. Object-oriented programming works well with
 building a compiler as the grammatical structure has a hierarchy in nature, implemented using inheritance. To start
@@ -19,7 +19,7 @@ dealing with a few too many pointers and segmentation faults, switched to C#.
 
 I do not recommend C++ because of its limited OOP, and how it is needlessly low-level for building a compiler.
 
-## Why to Use C\#
+## Why Use C\#
 
 C# has some of the best OOP capabilities. This makes it very easy to organize the compiler in a way that makes
 sense. For example, it allows a Node base class that all parsed expressions inherit from to allow a more generic

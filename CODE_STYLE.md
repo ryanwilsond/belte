@@ -1,6 +1,6 @@
 # Code Style
 
-Additional code style preferences not listed in the .editorconfig.
+Additional code style preferences are not listed in the .editorconfig.
 
 ## Naming
 
@@ -17,6 +17,7 @@ Additional code style preferences not listed in the .editorconfig.
 
 - All switch statements must implement the default label
 - Prefer diagnostics over exceptions
-- Gotos only allowed inside switch-case unless necessary (which is never)
+- Gotos are only allowed inside a switch-case unless necessary (which is never)
 - Using statements should always be in order
-- Order of members follows [SA1201](https://github.com/DotNetAnalyzers/StyleCopAnalyzers/blob/master/documentation/SA1201.md)
+- The order of members follows
+[SA1201](https://github.com/DotNetAnalyzers/StyleCopAnalyzers/blob/master/documentation/SA1201.md)

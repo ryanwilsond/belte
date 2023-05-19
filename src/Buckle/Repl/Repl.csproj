@@ -11,11 +11,11 @@
   <ItemGroup>
     <ProjectReference Include="..\Buckle\Buckle.csproj" />
     <ProjectReference Include="..\Diagnostics\Diagnostics.csproj" />
+    <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <Nullable>annotations</Nullable>
   </PropertyGroup>
 
 </Project>

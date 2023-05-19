@@ -9,11 +9,13 @@
   <ItemGroup>
     <Content Remove="Resources/ErrorDescriptionsCL.txt" />
     <Content Remove="Resources/HelpPrompt.txt" />
+    <Content Remove="Resources/Version.txt" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Resources/ErrorDescriptionsCL.txt" />
     <EmbeddedResource Include="Resources/HelpPrompt.txt" />
+    <EmbeddedResource Include="Resources/Version.txt" />
     </ItemGroup>
 
   <ItemGroup>

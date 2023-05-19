@@ -58,6 +58,22 @@ internal static class Fatal {
         return new Diagnostic(FatalInfo(DiagnosticCode.FTL_NoInputFiles), message);
     }
 
+    /// <summary>
+    /// CL0022. Run `buckle --explain CL0022` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic CannotInterpretWithMultipleFiles() {
+        var message = "cannot pass multiple files when running as a script";
+        return new Diagnostic(FatalInfo(DiagnosticCode.FTL_CannotInterpretWithMultipleFiles), message);
+    }
+
+    /// <summary>
+    /// CL0023. Run `buckle --explain CL0023` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic CannotInterpretFile() {
+        var message = "cannot interpret file";
+        return new Diagnostic(FatalInfo(DiagnosticCode.FTL_CannotInterpretFile), message);
+    }
+
     private static DiagnosticInfo FatalInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "CL", DiagnosticSeverity.Fatal);
     }

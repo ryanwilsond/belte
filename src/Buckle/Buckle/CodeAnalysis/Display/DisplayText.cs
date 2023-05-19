@@ -187,7 +187,7 @@ public sealed class DisplayText {
                 );
                 break;
             default:
-                throw new BelteInternalException($"WriteTo: unexpected node '{node.kind}'");
+                throw new BelteInternalException($"DispalyNode: unexpected node '{node.kind}'");
         }
     }
 

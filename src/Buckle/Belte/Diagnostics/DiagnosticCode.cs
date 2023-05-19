@@ -30,4 +30,6 @@ internal enum DiagnosticCode : int {
     ERR_InvalidErrorCode = 19,
     INF_IgnoringCompiledFile = 20,
     ERR_UnusedErrorCode = 21,
+    FTL_CannotInterpretWithMultipleFiles = 22,
+    FTL_CannotInterpretFile = 23,
 }
