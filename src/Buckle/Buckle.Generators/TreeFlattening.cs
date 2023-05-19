@@ -3,7 +3,13 @@ using System.Collections.Generic;
 
 namespace Buckle.Generators;
 
+/// <summary>
+/// Flattens the XML tree.
+/// </summary>
 internal static class TreeFlattening {
+    /// <summary>
+    /// Placeholder until the grammar generator is
+    /// </summary>
     internal static void FlattenChildren(Tree tree) {
         foreach (var type in tree.Types) {
             switch (type) {

@@ -13,6 +13,9 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Buckle.Generators;
 
+/// <summary>
+/// Generates all red and green syntax files for the compiler.
+/// </summary>
 [Generator]
 public sealed class SourceGenerator : IIncrementalGenerator {
     private static readonly DiagnosticDescriptor s_MissingSyntaxXml = new DiagnosticDescriptor(
@@ -39,6 +42,9 @@ public sealed class SourceGenerator : IIncrementalGenerator {
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    /// <summary>
+    /// Initializes and invokes the generator, generating the syntax files.
+    /// </summary>
     public void Initialize(IncrementalGeneratorInitializationContext context) {
         var syntaxXmlFiles = context.AdditionalTextsProvider.Where(at => Path.GetFileName(at.Path) == "Syntax.xml").Collect();
 

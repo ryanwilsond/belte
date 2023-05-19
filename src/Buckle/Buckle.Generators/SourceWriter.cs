@@ -5,6 +5,9 @@ using System.Linq;
 
 namespace Buckle.Generators;
 
+/// <summary>
+/// Handles writing the syntax source file.
+/// </summary>
 internal sealed class SourceWriter {
     private readonly TextWriter _writer;
     private readonly Tree _tree;
@@ -18,6 +21,9 @@ internal sealed class SourceWriter {
     private int _indentLevel;
     private bool _needIndent = true;
 
+    /// <summary>
+    /// Creates a new <see cref="SourceWriter" /> with a deserialized XML tree representation of the syntax XML file.
+    /// </summary>
     internal SourceWriter(TextWriter writer, Tree tree) {
         _writer = writer;
         _tree = tree;
@@ -32,10 +38,19 @@ internal sealed class SourceWriter {
     private ILookup<string, string> childMap { get { return _childMap; } }
     private Tree tree { get { return _tree; } }
 
+    /// <summary>
+    /// Writes the green/internal syntax.
+    /// </summary>
     public static void WriteInternal(TextWriter writer, Tree tree) => new SourceWriter(writer, tree).WriteInternal();
 
+    /// <summary>
+    /// Writes the red syntax.
+    /// </summary>
     public static void WriteSyntax(TextWriter writer, Tree tree) => new SourceWriter(writer, tree).WriteSyntax();
 
+    /// <summary>
+    /// If the given type name represents any type of node list.
+    /// </summary>
     internal static bool IsAnyNodeList(string typeName) {
         return IsNodeList(typeName) || IsSeparatedNodeList(typeName);
     }
