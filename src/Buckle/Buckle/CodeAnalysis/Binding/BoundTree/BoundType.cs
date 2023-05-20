@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 
@@ -78,7 +79,7 @@ internal sealed class BoundType : BoundNode {
     internal BoundType(
         TypeSymbol typeSymbol, bool isImplicit = false, bool isConstantReference = false, bool isReference = false,
         bool isExplicitReference = false, bool isConstant = false, bool isNullable = false,
-        bool isLiteral = false, int dimensions = 0) {
+        bool isLiteral = false, int dimensions = 0, ImmutableArray<BoundConstant>? templateArguments = null) {
         this.typeSymbol = typeSymbol;
         this.isImplicit = isImplicit;
         this.isConstantReference = isConstantReference;
@@ -88,6 +89,7 @@ internal sealed class BoundType : BoundNode {
         this.isNullable = isNullable;
         this.isLiteral = isLiteral;
         this.dimensions = dimensions;
+        this.templateArguments = templateArguments ?? ImmutableArray<BoundConstant>.Empty;
     }
 
     /// <summary>
@@ -135,6 +137,8 @@ internal sealed class BoundType : BoundNode {
     /// </summary>
     internal int dimensions { get; }
 
+    internal ImmutableArray<BoundConstant> templateArguments { get; }
+
     internal override BoundNodeKind kind => BoundNodeKind.Type;
 
     public override string ToString() {
@@ -167,7 +171,7 @@ internal sealed class BoundType : BoundNode {
     internal static BoundType CopyWith(
         BoundType type, TypeSymbol typeSymbol = null, bool? isImplicit = null, bool? isConstantReference = null,
         bool? isReference = null, bool? isExplicitReference = null, bool? isConstant = null, bool? isNullable = null,
-        bool? isLiteral = null, int? dimensions = null) {
+        bool? isLiteral = null, int? dimensions = null, ImmutableArray<BoundConstant>? templateArguments = null) {
         return new BoundType(
             typeSymbol ?? type.typeSymbol,
             isImplicit ?? type.isImplicit,
@@ -177,7 +181,8 @@ internal sealed class BoundType : BoundNode {
             isConstant ?? type.isConstant,
             isNullable ?? type.isNullable,
             isLiteral ?? type.isLiteral,
-            dimensions ?? type.dimensions
+            dimensions ?? type.dimensions,
+            templateArguments ?? type.templateArguments
         );
     }
 
@@ -223,6 +228,13 @@ internal sealed class BoundType : BoundNode {
             return false;
         if (dimensions != type.dimensions)
             return false;
+        if (templateArguments.Length != type.templateArguments.Length)
+            return false;
+
+        for (int i = 0; i < templateArguments.Length; i++) {
+            if (templateArguments[i].value != type.templateArguments[i].value)
+                return false;
+        }
 
         return true;
     }

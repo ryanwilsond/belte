@@ -5,7 +5,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// Parameter symbol (used in a <see cref="MethodSymbol" />).
 /// </summary>
-internal sealed class ParameterSymbol : LocalVariableSymbol {
+internal class ParameterSymbol : LocalVariableSymbol {
     /// <summary>
     /// Creates a <see cref="ParameterSymbol" />.
     /// </summary>

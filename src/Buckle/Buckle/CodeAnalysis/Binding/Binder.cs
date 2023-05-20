@@ -21,10 +21,10 @@ internal sealed class Binder {
     private readonly BoundType _enclosingType;
     private readonly List<(MethodSymbol method, BoundBlockStatement body)> _methodBodies =
         new List<(MethodSymbol, BoundBlockStatement)>();
-    private readonly List<(StructSymbol, ImmutableList<Symbol>)> _structMembers =
-        new List<(StructSymbol, ImmutableList<Symbol>)>();
-    private readonly List<(ClassSymbol, ImmutableList<Symbol>)> _classMembers =
-        new List<(ClassSymbol, ImmutableList<Symbol>)>();
+    private readonly List<(StructSymbol, ImmutableList<TemplateParameterSymbol>, ImmutableList<Symbol>)> _structMembers =
+        new List<(StructSymbol, ImmutableList<TemplateParameterSymbol>, ImmutableList<Symbol>)>();
+    private readonly List<(ClassSymbol, ImmutableList<TemplateParameterSymbol>, ImmutableList<Symbol>)> _classMembers =
+        new List<(ClassSymbol, ImmutableList<TemplateParameterSymbol>, ImmutableList<Symbol>)>();
     private readonly CompilationOptions _options;
     private readonly BinderFlags _flags;
 
@@ -409,7 +409,7 @@ internal sealed class Binder {
         return name;
     }
 
-    private TypeSymbol LookupType(string name) {
+    private TypeSymbol LookupType(string name, int arity = 0) {
         switch (name) {
             case "any":
                 return TypeSymbol.Any;
@@ -428,18 +428,25 @@ internal sealed class Binder {
             default:
                 // If no type was found, we want to return null and type will be null if no type was found
                 // So we just return type
-                var type = _scope.LookupSymbol<TypeSymbol>(name);
+                var type = _scope.LookupTypeSymbol(name, arity);
                 return type;
         }
     }
 
     private MethodSymbol BindMethodDeclaration(MethodDeclarationSyntax method) {
         var type = BindType(method.returnType);
-        var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
+        var parameters = BindParameters(method.parameters);
+        var newMethod = new MethodSymbol(method.identifier.text, parameters, type, method);
+
+        return newMethod;
+    }
+
+    private ImmutableArray<ParameterSymbol> BindParameters(SeparatedSyntaxList<ParameterSyntax> parameters) {
+        var parametersBuilder = ImmutableArray.CreateBuilder<ParameterSymbol>();
         var seenParameterNames = new HashSet<string>();
 
-        for (var i = 0; i < method.parameters.Count; i++) {
-            var parameter = method.parameters[i];
+        for (var i = 0; i < parameters.Count; i++) {
+            var parameter = parameters[i];
             var parameterName = parameter.identifier.text;
             var parameterType = BindType(parameter.type);
             var boundDefault = parameter.defaultValue == null
@@ -451,9 +458,7 @@ internal sealed class Binder {
                 continue;
             }
 
-            if (boundDefault != null &&
-                i < method.parameters.Count - 1 &&
-                method.parameters[i + 1].defaultValue == null) {
+            if (boundDefault != null && i < parameters.Count - 1 && parameters[i + 1].defaultValue == null) {
                 diagnostics.Push(Error.DefaultBeforeNoDefault(parameter.location));
                 continue;
             }
@@ -462,13 +467,11 @@ internal sealed class Binder {
                 diagnostics.Push(Error.ParameterAlreadyDeclared(parameter.location, parameter.identifier.text));
             } else {
                 var boundParameter = new ParameterSymbol(parameterName, parameterType, parameters.Count, boundDefault);
-                parameters.Add(boundParameter);
+                parametersBuilder.Add(boundParameter);
             }
         }
 
-        var newMethod = new MethodSymbol(method.identifier.text, parameters.ToImmutable(), type, method);
-
-        return newMethod;
+        return parametersBuilder.ToImmutable();
     }
 
     private BoundStatement BindMethodBody(BlockStatementSyntax syntax, ImmutableArray<ParameterSymbol> parameters) {
@@ -515,8 +518,11 @@ internal sealed class Binder {
         }
 
         _scope = _scope.parent;
-        var newStruct = new StructSymbol(@struct.identifier.text, builder.ToImmutableArray(), @struct);
-        _structMembers.Add((newStruct, builder.ToImmutable()));
+        var newStruct = new StructSymbol(
+            @struct.identifier.text, ImmutableArray<TemplateParameterSymbol>.Empty, builder.ToImmutableArray(), @struct
+        );
+
+        _structMembers.Add((newStruct, ImmutableList<TemplateParameterSymbol>.Empty, builder.ToImmutable()));
 
         return newStruct;
     }
@@ -530,7 +536,17 @@ internal sealed class Binder {
 
     private ClassSymbol BindClassDeclaration(ClassDeclarationSyntax @class) {
         var builder = ImmutableList.CreateBuilder<Symbol>();
+        var templateBuilder = ImmutableList.CreateBuilder<TemplateParameterSymbol>();
         _scope = new BoundScope(_scope);
+
+        if (@class.templateParameterList != null) {
+            var templateParameters = BindTemplateParameters(@class.templateParameterList.templateParameters);
+
+            foreach (var templateParameter in templateParameters) {
+                builder.Add(templateParameter);
+                templateBuilder.Add(templateParameter);
+            }
+        }
 
         foreach (var fieldDeclaration in @class.members.OfType<FieldDeclarationSyntax>()) {
             var field = BindFieldDeclaration(fieldDeclaration);
@@ -548,8 +564,11 @@ internal sealed class Binder {
         }
 
         _scope = _scope.parent;
-        var newClass = new ClassSymbol(@class.identifier.text, builder.ToImmutableArray(), @class);
-        _classMembers.Add((newClass, builder.ToImmutable()));
+        var newClass = new ClassSymbol(
+            @class.identifier.text, templateBuilder.ToImmutableArray(), builder.ToImmutableArray(), @class
+        );
+
+        _classMembers.Add((newClass, templateBuilder.ToImmutable(), builder.ToImmutable()));
 
         return newClass;
     }
@@ -619,6 +638,25 @@ internal sealed class Binder {
         return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
     }
 
+    private ImmutableArray<TemplateParameterSymbol> BindTemplateParameters(
+        SeparatedSyntaxList<ParameterSyntax> parameters) {
+        var templateParameters = BindParameters(parameters);
+        var builder = ImmutableArray.CreateBuilder<TemplateParameterSymbol>();
+
+        foreach (var parameter in templateParameters) {
+            var templateParameter = new TemplateParameterSymbol(
+                parameter.name,
+                parameter.type,
+                parameter.ordinal,
+                parameter.defaultValue
+            );
+
+            builder.Add(templateParameter);
+        }
+
+        return builder.ToImmutable();
+    }
+
     private FieldSymbol BindFieldDeclaration(FieldDeclarationSyntax fieldDeclaration) {
         var type = BindType(fieldDeclaration.declaration.type);
 
@@ -662,6 +700,7 @@ internal sealed class Binder {
         var isVariable = type.varKeyword != null;
         var isImplicit = type.typeName == null;
         var dimensions = type.rankSpecifiers.Count;
+        var arity = type.templateParameterList?.templateParameters?.Count ?? 0;
 
         if (isImplicit && isReference) {
             diagnostics.Push(Error.ImpliedReference(type.refKeyword.location, isConstant));
@@ -692,10 +731,16 @@ internal sealed class Binder {
             return null;
         }
 
-        var foundType = LookupType(type.typeName?.text);
+        var foundType = LookupType(type.typeName?.text, arity);
 
         if (foundType == null && !isImplicit)
             diagnostics.Push(Error.UnknownType(type.location, type.typeName.text));
+
+        var argumentBuilder = ImmutableArray.CreateBuilder<BoundConstant>();
+
+        if (arity > 0) {
+            foreach (var argument in type.templateParameterList.templateParameters)
+        }
 
         return new BoundType(
             foundType, isImplicit, isConstantReference, isReference, false, isConstant, isNullable, false, dimensions

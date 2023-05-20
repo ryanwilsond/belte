@@ -14,15 +14,21 @@ internal sealed class StructSymbol : TypeSymbol, ITypeSymbolWithMembers {
     /// <param name="symbols">Symbols contained in the struct.</param>
     /// <param name="declaration">Declaration of the struct.</param>
     internal StructSymbol(
-        string name, ImmutableArray<Symbol> symbols, StructDeclarationSyntax declaration = null)
+        string name, ImmutableArray<TemplateParameterSymbol> templateParameters,
+        ImmutableArray<Symbol> symbols, StructDeclarationSyntax declaration = null)
         : base(name) {
         this.symbols = symbols;
         this.declaration = declaration;
+        this.templateParameters = templateParameters;
     }
+
+    public override SymbolKind kind => SymbolKind.Type;
 
     public ImmutableArray<Symbol> symbols { get; }
 
-    public override SymbolKind kind => SymbolKind.Type;
+    public ImmutableArray<TemplateParameterSymbol> templateParameters { get; }
+
+    internal override int arity => templateParameters.Length;
 
     /// <summary>
     /// Declaration of the struct (see <see cref="StructDeclarationSyntax">).

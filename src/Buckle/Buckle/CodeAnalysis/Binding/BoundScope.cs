@@ -105,6 +105,20 @@ internal sealed class BoundScope {
     internal Symbol LookupSymbol(string name) => LookupSymbol<Symbol>(name);
 
     /// <summary>
+    /// Attempts to find a <see cref="TypeSymbol" /> with the given name and arity. If none exist, null is returned.
+    /// </summary>
+    internal TypeSymbol LookupTypeSymbol(string name, int arity) {
+        if (_symbols != null) {
+            foreach (var symbol in _symbols) {
+                if (symbol.name == name && symbol is TypeSymbol ts && ts.arity == arity)
+                    return symbol as TypeSymbol;
+            }
+        }
+
+        return parent?.LookupTypeSymbol(name, arity);
+    }
+
+    /// <summary>
     /// Attempts to modify an already declared <see cref="Symbol" />.
     /// Does not work with overloads, only modifies the first one. However the order is not constant.
     /// Thus only use with MethodSymbols with guaranteed no overloads, or VariableSymbols.
@@ -225,6 +239,16 @@ internal sealed class BoundScope {
             if (symbol is MethodSymbol fs) {
                 foreach (var s in _symbols) {
                     if (MethodsMatch(s as MethodSymbol, fs))
+                        return false;
+                }
+            } else if (symbol is ClassSymbol cs) {
+                foreach (var s in _symbols) {
+                    if (s is ClassSymbol scs && scs.name == cs.name && scs.arity == cs.arity)
+                        return false;
+                }
+            } else if (symbol is StructSymbol ss) {
+                foreach (var s in _symbols) {
+                    if (s is StructSymbol sss && sss.name == ss.name && sss.arity == ss.arity)
                         return false;
                 }
             } else {

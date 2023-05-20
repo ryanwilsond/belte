@@ -37,6 +37,7 @@ public static class SymbolDisplay {
                 DisplayGlobalVariable(text, (GlobalVariableSymbol)symbol);
                 break;
             case SymbolKind.Parameter:
+            case SymbolKind.TemplateParameter:
                 DisplayParameter(text, (ParameterSymbol)symbol);
                 break;
             case SymbolKind.Field:
@@ -57,14 +58,46 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayType(DisplayText text, TypeSymbol symbol) {
-        if (symbol is StructSymbol) {
+        if (symbol is StructSymbol ss) {
             text.Write(CreateKeyword(SyntaxKind.StructKeyword));
             text.Write(CreateSpace());
             text.Write(CreateIdentifier(symbol.name));
-        } else if (symbol is ClassSymbol) {
+
+            if (!ss.templateParameters.IsEmpty) {
+                text.Write(CreatePunctuation(SyntaxKind.LessThanToken));
+                var first = true;
+
+                foreach (var templateParameter in ss.templateParameters) {
+                    if (first)
+                        first = false;
+                    else
+                        text.Write(CreatePunctuation(", "));
+
+                    DisplaySymbol(text, templateParameter);
+                }
+
+                text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
+            }
+        } else if (symbol is ClassSymbol cs) {
             text.Write(CreateKeyword(SyntaxKind.ClassKeyword));
             text.Write(CreateSpace());
             text.Write(CreateIdentifier(symbol.name));
+
+            if (!cs.templateParameters.IsEmpty) {
+                text.Write(CreatePunctuation(SyntaxKind.LessThanToken));
+                var first = true;
+
+                foreach (var templateParameter in cs.templateParameters) {
+                    if (first)
+                        first = false;
+                    else
+                        text.Write(CreatePunctuation(", "));
+
+                    DisplaySymbol(text, templateParameter);
+                }
+
+                text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
+            }
         } else {
             text.Write(CreateType(symbol.name));
         }

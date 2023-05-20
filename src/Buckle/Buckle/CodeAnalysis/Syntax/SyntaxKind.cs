@@ -160,6 +160,7 @@ public enum SyntaxKind {
     Type,
     ArrayRankSpecifier,
     Parameter,
+    TemplateParameterList,
     MethodDeclaration,
 
     // Other

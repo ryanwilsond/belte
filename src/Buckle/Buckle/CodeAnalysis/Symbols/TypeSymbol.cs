@@ -53,4 +53,9 @@ internal class TypeSymbol : Symbol, ITypeSymbol {
     internal TypeSymbol(string name) : base(name) { }
 
     public override SymbolKind kind => SymbolKind.Type;
+
+    /// <summary>
+    /// Number of template parameters the type has.
+    /// </summary>
+    internal virtual int arity => 0;
 }

@@ -14,15 +14,21 @@ internal sealed class ClassSymbol : TypeSymbol, ITypeSymbolWithMembers {
     /// <param name="symbols">Symbols contained in the class.</param>
     /// <param name="declaration">Declaration of the class.</param>
     internal ClassSymbol(
-        string name, ImmutableArray<Symbol> symbols, ClassDeclarationSyntax declaration = null)
+        string name, ImmutableArray<TemplateParameterSymbol> templateParameters,
+        ImmutableArray<Symbol> symbols, ClassDeclarationSyntax declaration = null)
         : base(name) {
         this.symbols = symbols;
         this.declaration = declaration;
+        this.templateParameters = templateParameters;
     }
+
+    public override SymbolKind kind => SymbolKind.Type;
 
     public ImmutableArray<Symbol> symbols { get; }
 
-    public override SymbolKind kind => SymbolKind.Type;
+    public ImmutableArray<TemplateParameterSymbol> templateParameters { get; }
+
+    internal override int arity => templateParameters.Length;
 
     /// <summary>
     /// Declaration of the class (see <see cref="ClassDeclarationSyntax">).

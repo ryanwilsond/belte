@@ -12,6 +12,7 @@
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>
+    <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Optional="True"/>
     <Field Name="openBrace" Type="SyntaxToken">
       <Kind Name="OpenBraceToken"/>
     </Field>
@@ -91,6 +92,16 @@
     </Field>
     <Field Name="defaultValue" Type="ExpressionSyntax" Optional="True"/>
   </Node>
+  <Node Name="TemplateParameterListSyntax" Base="SyntaxNode">
+    <Kind Name="TemplateParameterList"/>
+    <Field Name="openAngleBracket" Type="SyntaxToken">
+      <Kind Name="LessThanToken"/>
+    </Field>
+    <Field Name="templateParameters" Type="SeparatedSyntaxList&lt;ParameterSyntax&gt;"/>
+    <Field Name="closeAngleBracket" Type="SyntaxToken">
+      <Kind Name="GreaterThanToken"/>
+    </Field>
+  </Node>
   <Node Name="TypeSyntax" Base="SyntaxNode">
     <Kind Name="Type"/>
     <Field Name="attributes" Type="SyntaxList&lt;AttributeSyntax&gt;"/>
@@ -109,6 +120,7 @@
     <Field Name="typeName" Type="SyntaxToken" Optional="True">
       <Kind Name="IdentifierToken"/>
     </Field>
+    <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Optional="True"/>
     <Field Name="rankSpecifiers" Type="SyntaxList&lt;ArrayRankSpecifierSyntax&gt;"/>
   </Node>
   <!-- Members -->
@@ -120,6 +132,7 @@
     <Field Name="identifier" Type="SyntaxToken" Override="True">
       <Kind Name="IdentifierToken"/>
     </Field>
+    <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="True" Optional="True"/>
     <Field Name="openBrace" Type="SyntaxToken" Override="True">
       <Kind Name="OpenBraceToken"/>
     </Field>
@@ -159,6 +172,7 @@
     <Field Name="identifier" Type="SyntaxToken" Override="True">
       <Kind Name="IdentifierToken"/>
     </Field>
+    <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="True" Optional="True"/>
     <Field Name="openBrace" Type="SyntaxToken" Override="True">
       <Kind Name="OpenBraceToken"/>
     </Field>

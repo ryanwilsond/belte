@@ -580,21 +580,23 @@ internal sealed class Parser {
     private MemberSyntax ParseStructDeclaration() {
         var keyword = EatToken();
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
+        var typeParameterList = ParseTypeParameterList();
         var openBrace = Match(SyntaxKind.OpenBraceToken);
         var members = ParseFieldList();
         var closeBrace = Match(SyntaxKind.CloseBraceToken);
 
-        return SyntaxFactory.StructDeclaration(keyword, identifier, openBrace, members, closeBrace);
+        return SyntaxFactory.StructDeclaration(keyword, identifier, typeParameterList, openBrace, members, closeBrace);
     }
 
     private MemberSyntax ParseClassDeclaration() {
         var keyword = EatToken();
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
+        var typeParameterList = ParseTypeParameterList();
         var openBrace = Match(SyntaxKind.OpenBraceToken);
         var members = ParseMembers();
         var closeBrace = Match(SyntaxKind.CloseBraceToken);
 
-        return SyntaxFactory.ClassDeclaration(keyword, identifier, openBrace, members, closeBrace);
+        return SyntaxFactory.ClassDeclaration(keyword, identifier, typeParameterList, openBrace, members, closeBrace);
     }
 
     private MemberSyntax ParseMethodDeclaration() {
@@ -619,6 +621,17 @@ internal sealed class Parser {
         return SyntaxFactory.LocalFunctionStatement(
             type, identifier, openParenthesis, parameters, closeParenthesis, body
         );
+    }
+
+    private TemplateParameterListSyntax ParseTypeParameterList() {
+        if (currentToken.kind != SyntaxKind.LessThanToken)
+            return null;
+
+        var openAngleBracket = EatToken();
+        var typeParameters = ParseParameterList();
+        var closeAngleBracket = Match(SyntaxKind.GreaterThanToken);
+
+        return SyntaxFactory.TemplateParameterList(openAngleBracket, typeParameters, closeAngleBracket);
     }
 
     private SeparatedSyntaxList<ParameterSyntax> ParseParameterList() {
@@ -1315,6 +1328,7 @@ internal sealed class Parser {
         if (hasTypeName)
             typeName = Match(SyntaxKind.IdentifierToken);
 
+        var typeParameterList = ParseTypeParameterList();
         var rankSpecifiers = SyntaxListBuilder<ArrayRankSpecifierSyntax>.Create();
 
         while (currentToken.kind == SyntaxKind.OpenBracketToken) {
@@ -1323,7 +1337,14 @@ internal sealed class Parser {
         }
 
         return SyntaxFactory.Type(
-            attributes, constRefKeyword, refKeyword, constKeyword, varKeyword, typeName, rankSpecifiers.ToList()
+            attributes,
+            constRefKeyword,
+            refKeyword,
+            constKeyword,
+            varKeyword,
+            typeName,
+            typeParameterList,
+            rankSpecifiers.ToList()
         );
     }
 

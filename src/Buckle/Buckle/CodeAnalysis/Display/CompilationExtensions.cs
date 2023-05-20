@@ -63,24 +63,24 @@ public static class CompilationExtensions {
 
                 text.Write(CreateSpace());
                 text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
-                text.Write(CreateLine());
+                text.Write(CreateSpace());
                 text.indent++;
 
                 foreach (var field in members.OfType<FieldSymbol>()) {
-                    SymbolDisplay.DisplaySymbol(text, field);
                     text.Write(CreateLine());
+                    SymbolDisplay.DisplaySymbol(text, field);
                 }
 
                 text.Write(CreateLine());
 
                 foreach (var method in members.OfType<MethodSymbol>()) {
+                    text.Write(CreateLine());
                     SymbolDisplay.DisplaySymbol(text, method);
                     text.Write(CreateLine());
                 }
 
-                text.Write(CreateLine());
-
                 foreach (var typeMember in members.OfType<TypeSymbol>()) {
+                    text.Write(CreateLine());
                     SymbolDisplay.DisplaySymbol(text, typeMember);
                     text.Write(CreateLine());
                 }
