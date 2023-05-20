@@ -66,6 +66,8 @@ public abstract partial class Repl {
     /// Does not initialize <see cref="Repl" />, only runs it.
     /// </summary>
     public void Run() {
+        Console.Title = "Belte Repl";
+
         string text;
         bool broke;
 
@@ -79,11 +81,13 @@ public abstract partial class Repl {
             broke = true;
         }
 
+        Console.CancelKeyPress += new ConsoleCancelEventHandler(ctrlCHandler);
+
         while (true) {
             text = EditSubmission();
 
             if (string.IsNullOrEmpty(text))
-                return;
+                break;
 
             if (_evaluate) {
                 if (!text.Contains(Environment.NewLine) && text.StartsWith('#')) {
@@ -93,7 +97,6 @@ public abstract partial class Repl {
                     var evaluateSubmissionThread = new Thread(evaluateSubmissionReference);
                     _abortEvaluation = false;
                     broke = false;
-                    Console.CancelKeyPress += new ConsoleCancelEventHandler(ctrlCHandler);
                     var startTime = DateTime.Now;
                     evaluateSubmissionThread.Start();
 
@@ -124,6 +127,8 @@ public abstract partial class Repl {
             _submissionHistory.Add(text);
             _submissionHistoryIndex = 0;
         }
+
+        Console.ResetColor();
     }
 
     /// <summary>

@@ -700,6 +700,7 @@ internal sealed class Binder {
         var isVariable = type.varKeyword != null;
         var isImplicit = type.typeName == null;
         var dimensions = type.rankSpecifiers.Count;
+        // TODO ! This needs to not be a templateParameterList because these are arguments (see CallExpression)
         var arity = type.templateParameterList?.templateParameters?.Count ?? 0;
 
         if (isImplicit && isReference) {
@@ -739,7 +740,9 @@ internal sealed class Binder {
         var argumentBuilder = ImmutableArray.CreateBuilder<BoundConstant>();
 
         if (arity > 0) {
-            foreach (var argument in type.templateParameterList.templateParameters)
+            foreach (var argument in type.templateParameterList.templateParameters) {
+                // var constant = BindExpression(argument);
+            }
         }
 
         return new BoundType(
