@@ -1,37 +1,37 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 /// <summary>
 /// A class symbol.
 /// </summary>
-internal sealed class ClassSymbol : TypeSymbol, ITypeSymbolWithMembers {
+internal sealed class ClassSymbol : NamedTypeSymbol {
     /// <summary>
-    /// Creates a <see cref="ClassSymbol" />.
+    /// Creates a <see cref="ClassSymbol" /> with template parameters and child members.
     /// </summary>
-    /// <param name="name">Name of the class.</param>
-    /// <param name="symbols">Symbols contained in the class.</param>
-    /// <param name="declaration">Declaration of the class.</param>
     internal ClassSymbol(
-        string name, ImmutableArray<TemplateParameterSymbol> templateParameters,
-        ImmutableArray<Symbol> symbols, ClassDeclarationSyntax declaration = null)
-        : base(name) {
-        this.symbols = symbols;
-        this.declaration = declaration;
-        this.templateParameters = templateParameters;
+        ImmutableArray<TemplateParameterSymbol> templateParameters,
+        ImmutableArray<Symbol> symbols, ClassDeclarationSyntax declaration)
+        : base(templateParameters, symbols, declaration) {
     }
 
-    public override SymbolKind kind => SymbolKind.Type;
+    internal ImmutableArray<MethodSymbol> constructors => GetConstructors();
 
-    public ImmutableArray<Symbol> symbols { get; }
+    private ImmutableArray<MethodSymbol> GetConstructors() {
+        var candidates = GetMembers(WellKnownMemberNames.InstanceConstructorName);
 
-    public ImmutableArray<TemplateParameterSymbol> templateParameters { get; }
+        if (candidates.IsEmpty)
+            return ImmutableArray<MethodSymbol>.Empty;
 
-    internal override int arity => templateParameters.Length;
+        ArrayBuilder<MethodSymbol> constructors = ArrayBuilder<MethodSymbol>.GetInstance();
 
-    /// <summary>
-    /// Declaration of the class (see <see cref="ClassDeclarationSyntax">).
-    /// </summary>
-    internal ClassDeclarationSyntax declaration { get; }
+        foreach (var candidate in candidates) {
+            if (candidate is MethodSymbol method)
+                constructors.Add(method);
+        }
+
+        return constructors.ToImmutableAndFree();
+    }
 }

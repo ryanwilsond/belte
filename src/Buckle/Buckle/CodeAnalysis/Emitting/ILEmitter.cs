@@ -280,8 +280,8 @@ internal sealed partial class ILEmitter {
             "", "<Program>$", TypeAttributes.Abstract | TypeAttributes.Sealed, objectType);
         _assemblyDefinition.MainModule.Types.Add(_programTypeDefinition);
 
-        foreach (var structWithBody in program.structMembers)
-            EmitStructDeclaration(structWithBody);
+        foreach (var @struct in program.types.Where(t => t is StructSymbol))
+            EmitStructDeclaration(@struct as StructSymbol);
 
         foreach (var methodWithBody in program.methodBodies) {
             var isMain = program.entryPoint?.MethodMatches(methodWithBody.Key) ?? false;
@@ -546,13 +546,13 @@ internal sealed partial class ILEmitter {
         _methods.Add(method, newMethod);
     }
 
-    private void EmitStructDeclaration(KeyValuePair<StructSymbol, ImmutableList<Symbol>> structWithBody) {
+    private void EmitStructDeclaration(StructSymbol @struct) {
         var objectType = _knownTypes[TypeSymbol.Any];
         var typeDefinition = new TypeDefinition(
-            _namespaceName, GetSafeName(structWithBody.Key.name), TypeAttributes.NestedPublic, objectType
+            _namespaceName, GetSafeName(@struct.name), TypeAttributes.NestedPublic, objectType
         );
 
-        foreach (var field in structWithBody.Value.OfType<FieldSymbol>()) {
+        foreach (var field in @struct.GetMembers().OfType<FieldSymbol>()) {
             var fieldDefinition = new FieldDefinition(
                 GetSafeName(field.name), FieldAttributes.Public, GetType(field.type)
             );
@@ -560,8 +560,8 @@ internal sealed partial class ILEmitter {
             typeDefinition.Fields.Add(fieldDefinition);
         }
 
-        _knownTypes.Add(structWithBody.Key, typeDefinition);
-        _typeDefinitions.Add(structWithBody.Key, typeDefinition);
+        _knownTypes.Add(@struct, typeDefinition);
+        _typeDefinitions.Add(@struct, typeDefinition);
         _assemblyDefinition.MainModule.Types.Add(typeDefinition);
     }
 

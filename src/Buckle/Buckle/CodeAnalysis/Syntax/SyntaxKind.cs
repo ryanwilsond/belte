@@ -119,7 +119,8 @@ public enum SyntaxKind {
     // Primary expressions
     LiteralExpression,
     TypeOfExpression,
-    NameExpression,
+    IdentifierNameExpression,
+    TemplateNameExpression,
     CallExpression,
     ReferenceExpression,
     MemberAccessExpression,
@@ -161,6 +162,7 @@ public enum SyntaxKind {
     ArrayRankSpecifier,
     Parameter,
     TemplateParameterList,
+    TemplateArgumentList,
     MethodDeclaration,
 
     // Other

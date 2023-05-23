@@ -121,7 +121,10 @@ internal sealed class OverloadResolution {
                     if (method.parameters[j].name == argumentName) {
                         if (!seenParameterNames.Add(argumentName)) {
                             _binder.diagnostics.Push(
-                                Error.ParameterAlreadySpecified(expression.arguments[i].name.location, argumentName)
+                                Error.ParameterAlreadySpecified(
+                                    expression.arguments[i].identifier.location,
+                                    argumentName
+                                )
                             );
                             canContinue = false;
                         } else {
@@ -137,8 +140,8 @@ internal sealed class OverloadResolution {
 
                 if (!destinationIndex.HasValue) {
                     _binder.diagnostics.Push(Error.NoSuchParameter(
-                        expression.arguments[i].name.location, name,
-                        expression.arguments[i].name.text, methods.Length > 1
+                        expression.arguments[i].identifier.location, name,
+                        expression.arguments[i].identifier.text, methods.Length > 1
                     ));
 
                     canContinue = false;

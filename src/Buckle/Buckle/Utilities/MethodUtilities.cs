@@ -18,7 +18,9 @@ internal static class MethodUtilities {
     /// <returns>The value of the found pair in the dictionary, throws if the method is not found.</returns>
     internal static T LookupMethod<T>(IDictionary<MethodSymbol, T> methods, MethodSymbol method) {
         foreach (var pair in methods) {
-            if (pair.Key.MethodMatches(method))
+            // if (pair.Key.MethodMatches(method))
+            //     return pair.Value;
+            if (pair.Key == method)
                 return pair.Value;
         }
 

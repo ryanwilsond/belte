@@ -1,5 +1,5 @@
 
-namespace Buckle.Utilities;
+namespace Buckle.CodeAnalysis;
 
 /// <summary>
 /// Extensions on the System.Array class.

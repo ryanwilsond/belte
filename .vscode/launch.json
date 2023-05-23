@@ -9,6 +9,8 @@
             "program": "${workspaceFolder}/src/Buckle/Belte/bin/Debug/net8.0/Belte.dll",
             "args": [
                 "-r"
+                // "guess.blt",
+                // "--evaluate"
             ],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",

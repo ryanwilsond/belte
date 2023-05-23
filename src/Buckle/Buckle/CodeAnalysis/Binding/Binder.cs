@@ -21,10 +21,6 @@ internal sealed class Binder {
     private readonly BoundType _enclosingType;
     private readonly List<(MethodSymbol method, BoundBlockStatement body)> _methodBodies =
         new List<(MethodSymbol, BoundBlockStatement)>();
-    private readonly List<(StructSymbol, ImmutableList<TemplateParameterSymbol>, ImmutableList<Symbol>)> _structMembers =
-        new List<(StructSymbol, ImmutableList<TemplateParameterSymbol>, ImmutableList<Symbol>)>();
-    private readonly List<(ClassSymbol, ImmutableList<TemplateParameterSymbol>, ImmutableList<Symbol>)> _classMembers =
-        new List<(ClassSymbol, ImmutableList<TemplateParameterSymbol>, ImmutableList<Symbol>)>();
     private readonly CompilationOptions _options;
     private readonly BinderFlags _flags;
 
@@ -157,7 +153,7 @@ internal sealed class Binder {
         }
 
         var variables = binder._scope.GetDeclaredVariables();
-        var types = binder._scope.GetDeclaredTypes();
+        var types = binder._scope.GetDeclaredTypes().Select(t => t as NamedTypeSymbol);
 
         if (previous != null)
             binder.diagnostics.CopyToFront(previous.diagnostics);
@@ -166,17 +162,9 @@ internal sealed class Binder {
             ? binder._methodBodies.ToImmutableArray()
             : previous.methodBodies.AddRange(binder._methodBodies);
 
-        var structMembers = previous == null
-            ? binder._structMembers.ToImmutableArray()
-            : previous.structMembers.AddRange(binder._structMembers);
-
-        var classMembers = previous == null
-            ? binder._classMembers.ToImmutableArray()
-            : previous.classMembers.AddRange(binder._classMembers);
-
         return new BoundGlobalScope(
-            methodBodies, structMembers, classMembers, previous, binder.diagnostics,
-            entryPoint, methods, variables, types, statements.ToImmutable()
+            methodBodies, previous, binder.diagnostics,
+            entryPoint, methods, variables, types.ToImmutableArray(), statements.ToImmutable()
         );
     }
 
@@ -198,15 +186,6 @@ internal sealed class Binder {
             return Program(previous, globalScope.diagnostics);
 
         var methodBodies = ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
-        var structMembers = ImmutableDictionary.CreateBuilder<StructSymbol, ImmutableList<Symbol>>();
-        var classMembers = ImmutableDictionary.CreateBuilder<ClassSymbol, ImmutableList<Symbol>>();
-
-        foreach (var @struct in globalScope.structMembers)
-            structMembers.Add(@struct.@struct, @struct.members);
-
-        foreach (var @class in globalScope.classMembers)
-            classMembers.Add(@class.@class, @class.members);
-
         var diagnostics = new BelteDiagnosticQueue();
         diagnostics.Move(globalScope.diagnostics);
 
@@ -267,8 +246,9 @@ internal sealed class Binder {
             if (statements.Length == 1 && statements[0] is BoundExpressionStatement es &&
                 es.expression.type?.typeSymbol != TypeSymbol.Void) {
                 statements = statements.SetItem(0, new BoundReturnStatement(es.expression));
-            } else if (statements.Any() && statements.Last().kind != BoundNodeKind.ReturnStatement)
+            } else if (statements.Any() && statements.Last().kind != BoundNodeKind.ReturnStatement) {
                 statements = statements.Add(new BoundReturnStatement(null));
+            }
 
             var body = Lowerer.Lower(
                 globalScope.entryPoint, new BoundBlockStatement(statements), options.isTranspiling
@@ -278,8 +258,7 @@ internal sealed class Binder {
         }
 
         return new BoundProgram(
-            previous, diagnostics, globalScope.entryPoint, methodBodies.ToImmutable(),
-            structMembers.ToImmutable(), classMembers.ToImmutable()
+            previous, diagnostics, globalScope.entryPoint, methodBodies.ToImmutable(), globalScope.types
         );
     }
 
@@ -518,13 +497,8 @@ internal sealed class Binder {
         }
 
         _scope = _scope.parent;
-        var newStruct = new StructSymbol(
-            @struct.identifier.text, ImmutableArray<TemplateParameterSymbol>.Empty, builder.ToImmutableArray(), @struct
-        );
 
-        _structMembers.Add((newStruct, ImmutableList<TemplateParameterSymbol>.Empty, builder.ToImmutable()));
-
-        return newStruct;
+        return new StructSymbol(ImmutableArray<TemplateParameterSymbol>.Empty, builder.ToImmutableArray(), @struct);
     }
 
     private void BindAndDeclareStructDeclaration(StructDeclarationSyntax @struct) {
@@ -540,7 +514,7 @@ internal sealed class Binder {
         _scope = new BoundScope(_scope);
 
         if (@class.templateParameterList != null) {
-            var templateParameters = BindTemplateParameters(@class.templateParameterList.templateParameters);
+            var templateParameters = BindTemplateParameters(@class.templateParameterList.parameters);
 
             foreach (var templateParameter in templateParameters) {
                 builder.Add(templateParameter);
@@ -556,6 +530,9 @@ internal sealed class Binder {
         foreach (var methodDeclaration in @class.members.OfType<MethodDeclarationSyntax>()) {
             var method = BindMethodDeclaration(methodDeclaration);
             builder.Add(method);
+            _methodBodies.Add(
+                (method, BindMethodBody(methodDeclaration.body, method.parameters) as BoundBlockStatement)
+            );
         }
 
         foreach (var typeDeclaration in @class.members.OfType<TypeDeclarationSyntax>()) {
@@ -564,13 +541,8 @@ internal sealed class Binder {
         }
 
         _scope = _scope.parent;
-        var newClass = new ClassSymbol(
-            @class.identifier.text, templateBuilder.ToImmutableArray(), builder.ToImmutableArray(), @class
-        );
 
-        _classMembers.Add((newClass, templateBuilder.ToImmutable(), builder.ToImmutable()));
-
-        return newClass;
+        return new ClassSymbol(templateBuilder.ToImmutableArray(), builder.ToImmutableArray(), @class);
     }
 
     private void BindAndDeclareClassDeclaration(ClassDeclarationSyntax @class) {
@@ -700,8 +672,8 @@ internal sealed class Binder {
         var isVariable = type.varKeyword != null;
         var isImplicit = type.typeName == null;
         var dimensions = type.rankSpecifiers.Count;
-        // TODO ! This needs to not be a templateParameterList because these are arguments (see CallExpression)
-        var arity = type.templateParameterList?.templateParameters?.Count ?? 0;
+        var arguments = type.templateArgumentList?.arguments;
+        var arity = arguments?.Count ?? 0;
 
         if (isImplicit && isReference) {
             diagnostics.Push(Error.ImpliedReference(type.refKeyword.location, isConstant));
@@ -740,13 +712,29 @@ internal sealed class Binder {
         var argumentBuilder = ImmutableArray.CreateBuilder<BoundConstant>();
 
         if (arity > 0) {
-            foreach (var argument in type.templateParameterList.templateParameters) {
-                // var constant = BindExpression(argument);
+            foreach (var argument in arguments) {
+                // TODO Assign Null on empty, and rearrange named
+                // Should factor out that functionality from CallExpression to avoid duplicate code
+                var constant = BindExpression(argument.expression);
+
+                if (constant.constantValue == null)
+                    diagnostics.Push(Error.NotConstantValue(argument.location));
+                else
+                    argumentBuilder.Add(constant.constantValue);
             }
         }
 
         return new BoundType(
-            foundType, isImplicit, isConstantReference, isReference, false, isConstant, isNullable, false, dimensions
+            foundType,
+            isImplicit,
+            isConstantReference,
+            isReference,
+            false,
+            isConstant,
+            isNullable,
+            false,
+            dimensions,
+            argumentBuilder.ToImmutable()
         );
     }
 
@@ -1243,7 +1231,8 @@ internal sealed class Binder {
                 return BindTernaryExpression((TernaryExpressionSyntax)expression);
             case SyntaxKind.ParenthesizedExpression:
                 return BindParenExpression((ParenthesisExpressionSyntax)expression);
-            case SyntaxKind.NameExpression:
+            case SyntaxKind.TemplateNameExpression:
+            case SyntaxKind.IdentifierNameExpression:
                 return BindNameExpression((NameExpressionSyntax)expression);
             case SyntaxKind.AssignmentExpression:
                 return BindAssignmentExpression((AssignmentExpressionSyntax)expression);
@@ -1288,7 +1277,7 @@ internal sealed class Binder {
 
         FieldSymbol symbol = null;
 
-        foreach (var field in @type.symbols.Where(f => f is FieldSymbol)) {
+        foreach (var field in @type.members.Where(f => f is FieldSymbol)) {
             if (field.name == expression.identifier.text)
                 symbol = field as FieldSymbol;
         }
@@ -1430,11 +1419,11 @@ internal sealed class Binder {
         var seenNames = new HashSet<string>();
 
         for (var i = 0; i < expression.arguments.Count; i++) {
-            var argumentName = expression.arguments[i].name;
+            var argumentName = expression.arguments[i].identifier;
 
             if (i < expression.arguments.Count - 1 &&
                 argumentName != null &&
-                expression.arguments[i + 1].name == null) {
+                expression.arguments[i + 1].identifier == null) {
                 diagnostics.Push(Error.NamedBeforeUnnamed(argumentName.location));
                 return new BoundErrorExpression();
             }

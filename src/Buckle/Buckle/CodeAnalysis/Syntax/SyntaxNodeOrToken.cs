@@ -241,6 +241,6 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     }
 
     public override int GetHashCode() {
-        return HashCode.Combine(_nodeOrParent, HashCode.Combine(_token, _tokenIndex));
+        return Hash.Combine(_nodeOrParent, Hash.Combine(_token, _tokenIndex));
     }
 }

@@ -12,7 +12,9 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 /// Lexes and parses text into a tree of SyntaxNodes, in doing so performing syntax checking.
 /// Can optionally reuse SyntaxNodes from an old tree to speed up the parsing process.
 /// </summary>
-internal sealed class Parser {
+internal sealed partial class Parser {
+    private const int _lastTerminator = (int)TerminatorState.IsEndOfTemplateArgumentList;
+
     private static readonly ObjectPool<BlendedNode[]> _blendedNodesPool =
         new ObjectPool<BlendedNode[]>(() => new BlendedNode[32], 2);
 
@@ -33,6 +35,7 @@ internal sealed class Parser {
     private List<Diagnostic> _futureDiagnostics;
     private int _tokenOffset;
     private int _tokenCount;
+    private TerminatorState _terminatorState;
 
     /// <summary>
     /// Creates a new <see cref="Parser" />, requiring a fully initialized <see cref="SyntaxTree" />.
@@ -531,6 +534,25 @@ internal sealed class Parser {
         return false;
     }
 
+    private bool IsTerminator() {
+        if (currentToken.kind == SyntaxKind.EndOfFileToken)
+            return true;
+
+        for (int i = 0; i < _lastTerminator; i <<= 1) {
+            switch (_terminatorState & (TerminatorState)i) {
+                case TerminatorState.IsEndOfTemplateParameterList when IsEndOfTemplateParameterList():
+                case TerminatorState.IsEndOfTemplateArgumentList when IsEndOfTemplateArgumentList():
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsEndOfTemplateParameterList() => currentToken.kind == SyntaxKind.GreaterThanToken;
+
+    private bool IsEndOfTemplateArgumentList() => currentToken.kind == SyntaxKind.GreaterThanToken;
+
     private SyntaxList<MemberSyntax> ParseMembers(bool isGlobal = false) {
         var members = SyntaxListBuilder<MemberSyntax>.Create();
 
@@ -580,23 +602,45 @@ internal sealed class Parser {
     private MemberSyntax ParseStructDeclaration() {
         var keyword = EatToken();
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
-        var typeParameterList = ParseTypeParameterList();
+        TemplateParameterListSyntax templateParameterList = null;
+
+        if (currentToken.kind == SyntaxKind.LessThanToken)
+            templateParameterList = ParseTemplateParameterList();
+
         var openBrace = Match(SyntaxKind.OpenBraceToken);
         var members = ParseFieldList();
         var closeBrace = Match(SyntaxKind.CloseBraceToken);
 
-        return SyntaxFactory.StructDeclaration(keyword, identifier, typeParameterList, openBrace, members, closeBrace);
+        return SyntaxFactory.StructDeclaration(
+            keyword,
+            identifier,
+            templateParameterList,
+            openBrace,
+            members,
+            closeBrace
+        );
     }
 
     private MemberSyntax ParseClassDeclaration() {
         var keyword = EatToken();
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
-        var typeParameterList = ParseTypeParameterList();
+        TemplateParameterListSyntax templateParameterList = null;
+
+        if (currentToken.kind == SyntaxKind.LessThanToken)
+            templateParameterList = ParseTemplateParameterList();
+
         var openBrace = Match(SyntaxKind.OpenBraceToken);
         var members = ParseMembers();
         var closeBrace = Match(SyntaxKind.CloseBraceToken);
 
-        return SyntaxFactory.ClassDeclaration(keyword, identifier, typeParameterList, openBrace, members, closeBrace);
+        return SyntaxFactory.ClassDeclaration(
+            keyword,
+            identifier,
+            templateParameterList,
+            openBrace,
+            members,
+            closeBrace
+        );
     }
 
     private MemberSyntax ParseMethodDeclaration() {
@@ -623,15 +667,17 @@ internal sealed class Parser {
         );
     }
 
-    private TemplateParameterListSyntax ParseTypeParameterList() {
-        if (currentToken.kind != SyntaxKind.LessThanToken)
-            return null;
-
+    private TemplateParameterListSyntax ParseTemplateParameterList() {
         var openAngleBracket = EatToken();
-        var typeParameters = ParseParameterList();
+
+        var saved = _terminatorState;
+        _terminatorState |= TerminatorState.IsEndOfTemplateParameterList;
+        var parameters = ParseParameterList();
+        _terminatorState = saved;
+
         var closeAngleBracket = Match(SyntaxKind.GreaterThanToken);
 
-        return SyntaxFactory.TemplateParameterList(openAngleBracket, typeParameters, closeAngleBracket);
+        return SyntaxFactory.TemplateParameterList(openAngleBracket, parameters, closeAngleBracket);
     }
 
     private SeparatedSyntaxList<ParameterSyntax> ParseParameterList() {
@@ -987,7 +1033,7 @@ internal sealed class Parser {
     private ExpressionSyntax ParseExpression(bool allowEmpty = false) {
         if (currentToken.kind == SyntaxKind.SemicolonToken) {
             if (!allowEmpty)
-                AddDiagnosticToNextToken(Error.ExpectedToken(SyntaxKind.NameExpression));
+                AddDiagnosticToNextToken(Error.ExpectedToken(SyntaxKind.IdentifierNameExpression));
 
             return ParseEmptyExpression();
         }
@@ -1003,7 +1049,7 @@ internal sealed class Parser {
         ExpressionSyntax left;
         var unaryPrecedence = currentToken.kind.GetUnaryPrecedence();
 
-        if (unaryPrecedence != 0 && unaryPrecedence >= parentPrecedence) {
+        if (unaryPrecedence != 0 && unaryPrecedence >= parentPrecedence && !IsTerminator()) {
             var op = EatToken();
 
             if (op.kind == SyntaxKind.PlusPlusToken || op.kind == SyntaxKind.MinusMinusToken) {
@@ -1020,7 +1066,7 @@ internal sealed class Parser {
         while (true) {
             var precedence = currentToken.kind.GetBinaryPrecedence();
 
-            if (precedence == 0 || precedence <= parentPrecedence)
+            if (precedence == 0 || precedence <= parentPrecedence || IsTerminator())
                 break;
 
             var op = EatToken();
@@ -1031,7 +1077,7 @@ internal sealed class Parser {
         while (true) {
             var precedence = currentToken.kind.GetTernaryPrecedence();
 
-            if (precedence == 0 || precedence < parentPrecedence)
+            if (precedence == 0 || precedence < parentPrecedence || IsTerminator())
                 break;
 
             var leftOp = EatToken();
@@ -1191,19 +1237,23 @@ internal sealed class Parser {
     }
 
     private ExpressionSyntax ParseNameExpression() {
-        var identifier = SyntaxFactory.Missing(SyntaxKind.IdentifierToken);
-
-        if (currentToken.kind == SyntaxKind.IdentifierToken)
-            identifier = EatToken();
-        else
+        if (currentToken.kind != SyntaxKind.IdentifierToken) {
             _currentToken = AddDiagnostic(currentToken, Error.ExpectedToken("expression"));
+            return SyntaxFactory.IdentifierNameExpression(SyntaxFactory.Missing(SyntaxKind.IdentifierToken));
+        }
 
-        return SyntaxFactory.NameExpression(identifier);
+        var identifier = EatToken();
+
+        if (currentToken.kind != SyntaxKind.LessThanToken)
+            return SyntaxFactory.IdentifierNameExpression(identifier);
+
+        var templateArgumentList = ParseTemplateArgumentList();
+        return SyntaxFactory.TemplateNameExpression(identifier, templateArgumentList);
     }
 
     private ExpressionSyntax ParseCallExpression(ExpressionSyntax operand) {
         // This is a temporary check because currently it is impossible for any other expression to be of type Func<>
-        if (operand.kind != SyntaxKind.NameExpression)
+        if (operand.kind is not SyntaxKind.IdentifierNameExpression or SyntaxKind.TemplateNameExpression)
             operand = AddDiagnostic(operand, Error.ExpectedMethodName());
 
         var openParenthesis = EatToken();
@@ -1211,6 +1261,19 @@ internal sealed class Parser {
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
 
         return SyntaxFactory.CallExpression(operand, openParenthesis, arguments, closeParenthesis);
+    }
+
+    private TemplateArgumentListSyntax ParseTemplateArgumentList() {
+        var openAngleBracket = EatToken();
+
+        var saved = _terminatorState;
+        _terminatorState |= TerminatorState.IsEndOfTemplateArgumentList;
+        var arguments = ParseArguments();
+        _terminatorState = saved;
+
+        var closeAngleBracket = Match(SyntaxKind.GreaterThanToken);
+
+        return SyntaxFactory.TemplateArgumentList(openAngleBracket, arguments, closeAngleBracket);
     }
 
     private SeparatedSyntaxList<ArgumentSyntax> ParseArguments() {
@@ -1328,7 +1391,11 @@ internal sealed class Parser {
         if (hasTypeName)
             typeName = Match(SyntaxKind.IdentifierToken);
 
-        var typeParameterList = ParseTypeParameterList();
+        TemplateArgumentListSyntax templateArgumentList = null;
+
+        if (currentToken.kind == SyntaxKind.LessThanToken)
+            templateArgumentList = ParseTemplateArgumentList();
+
         var rankSpecifiers = SyntaxListBuilder<ArrayRankSpecifierSyntax>.Create();
 
         while (currentToken.kind == SyntaxKind.OpenBracketToken) {
@@ -1343,7 +1410,7 @@ internal sealed class Parser {
             constKeyword,
             varKeyword,
             typeName,
-            typeParameterList,
+            templateArgumentList,
             rankSpecifiers.ToList()
         );
     }

@@ -7,7 +7,6 @@
   <AbstractNode Name="MemberSyntax" Base="SyntaxNode"/>
   <AbstractNode Name="StatementSyntax" Base="SyntaxNode"/>
   <AbstractNode Name="TypeDeclarationSyntax" Base="MemberSyntax">
-    <Kind Name="Type"/>
     <Field Name="keyword" Type="SyntaxToken"/>
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
@@ -21,10 +20,15 @@
       <Kind Name="CloseBraceToken"/>
     </Field>
   </AbstractNode>
+  <AbstractNode Name="NameExpressionSyntax" Base="ExpressionSyntax">
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+  </AbstractNode>
   <!-- Other general nodes -->
   <Node Name="ArgumentSyntax" Base="SyntaxNode">
     <Kind Name="Argument"/>
-    <Field Name="name" Type="SyntaxToken" Optional="True">
+    <Field Name="identifier" Type="SyntaxToken" Optional="True">
       <Kind Name="IdentifierToken"/>
     </Field>
     <Field Name="colon" Type="SyntaxToken" Optional="True">
@@ -92,12 +96,22 @@
     </Field>
     <Field Name="defaultValue" Type="ExpressionSyntax" Optional="True"/>
   </Node>
+  <Node Name="TemplateArgumentListSyntax" Base="SyntaxNode">
+    <Kind Name="TemplateArgumentList"/>
+    <Field Name="openAngleBracket" Type="SyntaxToken">
+      <Kind Name="LessThanToken"/>
+    </Field>
+    <Field Name="arguments" Type="SeparatedSyntaxList&lt;ArgumentSyntax&gt;"/>
+    <Field Name="closeAngleBracket" Type="SyntaxToken">
+      <Kind Name="GreaterThanToken"/>
+    </Field>
+  </Node>
   <Node Name="TemplateParameterListSyntax" Base="SyntaxNode">
     <Kind Name="TemplateParameterList"/>
     <Field Name="openAngleBracket" Type="SyntaxToken">
       <Kind Name="LessThanToken"/>
     </Field>
-    <Field Name="templateParameters" Type="SeparatedSyntaxList&lt;ParameterSyntax&gt;"/>
+    <Field Name="parameters" Type="SeparatedSyntaxList&lt;ParameterSyntax&gt;"/>
     <Field Name="closeAngleBracket" Type="SyntaxToken">
       <Kind Name="GreaterThanToken"/>
     </Field>
@@ -120,7 +134,7 @@
     <Field Name="typeName" Type="SyntaxToken" Optional="True">
       <Kind Name="IdentifierToken"/>
     </Field>
-    <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Optional="True"/>
+    <Field Name="templateArgumentList" Type="TemplateArgumentListSyntax" Optional="True"/>
     <Field Name="rankSpecifiers" Type="SyntaxList&lt;ArrayRankSpecifierSyntax&gt;"/>
   </Node>
   <!-- Members -->
@@ -251,11 +265,18 @@
       <Kind Name="IdentifierToken"/>
     </Field>
   </Node>
-  <Node Name="NameExpressionSyntax" Base="ExpressionSyntax">
-    <Kind Name="NameExpression"/>
-    <Field Name="identifier" Type="SyntaxToken">
+  <Node Name="IdentifierNameExpressionSyntax" Base="NameExpressionSyntax">
+    <Kind Name="IdentifierNameExpression"/>
+    <Field Name="identifier" Type="SyntaxToken" Override="true">
       <Kind Name="IdentifierToken"/>
     </Field>
+  </Node>
+  <Node Name="TemplateNameExpressionSyntax" Base="NameExpressionSyntax">
+    <Kind Name="TemplateNameExpression"/>
+    <Field Name="identifier" Type="SyntaxToken" Override="true">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="templateArgumentList" Type="TemplateArgumentListSyntax"/>
   </Node>
   <Node Name="ParenthesisExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="ParenthesizedExpression"/>

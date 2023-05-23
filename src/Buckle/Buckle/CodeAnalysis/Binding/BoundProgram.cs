@@ -11,15 +11,12 @@ internal sealed class BoundProgram {
     /// <param name="previous">Previous <see cref="BoundProgram" /> (if applicable).</param>
     internal BoundProgram(
         BoundProgram previous, BelteDiagnosticQueue diagnostics, MethodSymbol entryPoint,
-        ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies,
-        ImmutableDictionary<StructSymbol, ImmutableList<Symbol>> structMembers,
-        ImmutableDictionary<ClassSymbol, ImmutableList<Symbol>> classMembers) {
+        ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies, ImmutableArray<NamedTypeSymbol> types) {
         this.previous = previous;
         this.diagnostics = diagnostics;
         this.entryPoint = entryPoint;
         this.methodBodies = methodBodies;
-        this.structMembers = structMembers;
-        this.classMembers = classMembers;
+        this.types = types;
     }
 
     /// <summary>
@@ -33,7 +30,5 @@ internal sealed class BoundProgram {
 
     internal ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies { get; }
 
-    internal ImmutableDictionary<StructSymbol, ImmutableList<Symbol>> structMembers { get; }
-
-    internal ImmutableDictionary<ClassSymbol, ImmutableList<Symbol>> classMembers { get; }
+    internal ImmutableArray<NamedTypeSymbol> types { get; }
 }

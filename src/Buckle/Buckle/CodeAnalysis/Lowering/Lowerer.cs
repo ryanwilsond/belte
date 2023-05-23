@@ -412,15 +412,23 @@ internal sealed class Lowerer : BoundTreeRewriter {
         else if (method.name == "HasValue" && !expression.arguments[0].type.isNullable)
             return new BoundLiteralExpression(true);
 
+        var parametersChanged = false;
+
         foreach (var oldParameter in method.parameters) {
             var name = oldParameter.name.StartsWith("$")
                 ? oldParameter.name.Substring(1)
                 : oldParameter.name;
 
+            if (name == oldParameter.name) {
+                parameters.Add(oldParameter);
+                continue;
+            }
+
             var parameter = new ParameterSymbol(
                 name, oldParameter.type, oldParameter.ordinal, oldParameter.defaultValue
             );
 
+            parametersChanged = true;
             parameters.Add(parameter);
         }
 
@@ -442,9 +450,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
             builder?.Add(newArgument);
         }
 
-        var newMethod = new MethodSymbol(
-            method.name, parameters.ToImmutable(), method.type, method.declaration
-        );
+        var newMethod = parametersChanged
+            ? new MethodSymbol(method.name, parameters.ToImmutable(), method.type, method.declaration)
+            : method;
 
         if (builder == null)
             return base.RewriteCallExpression(new BoundCallExpression(newMethod, expression.arguments));

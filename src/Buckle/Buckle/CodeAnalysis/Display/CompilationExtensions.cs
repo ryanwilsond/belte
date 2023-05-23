@@ -54,12 +54,7 @@ public static class CompilationExtensions {
 
         void WriteTypeMembers(ITypeSymbolWithMembers type, bool writeEnding = true) {
             try {
-                var members = ImmutableList<Symbol>.Empty;
-
-                if (type is StructSymbol s)
-                    members = program.structMembers[s];
-                else if (type is ClassSymbol c)
-                    members = program.classMembers[c];
+                var members = type.GetMembers();
 
                 text.Write(CreateSpace());
                 text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
@@ -71,7 +66,8 @@ public static class CompilationExtensions {
                     SymbolDisplay.DisplaySymbol(text, field);
                 }
 
-                text.Write(CreateLine());
+                if (members.OfType<FieldSymbol>().Any())
+                    text.Write(CreateLine());
 
                 foreach (var method in members.OfType<MethodSymbol>()) {
                     text.Write(CreateLine());

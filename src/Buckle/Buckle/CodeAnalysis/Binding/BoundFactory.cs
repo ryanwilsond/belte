@@ -7,20 +7,25 @@ namespace Buckle.CodeAnalysis.Binding;
 
 internal static partial class BoundFactory {
     internal static BoundGlobalScope GlobalScope(BoundGlobalScope previous, BelteDiagnosticQueue diagnostics) {
-        return new BoundGlobalScope(ImmutableArray<(MethodSymbol, BoundBlockStatement)>.Empty,
-            ImmutableArray<(StructSymbol, ImmutableList<TemplateParameterSymbol>, ImmutableList<Symbol>)>.Empty,
-            ImmutableArray<(ClassSymbol, ImmutableList<TemplateParameterSymbol>, ImmutableList<Symbol>)>.Empty,
-            previous, diagnostics, null, ImmutableArray<MethodSymbol>.Empty,
-            ImmutableArray<VariableSymbol>.Empty, ImmutableArray<TypeSymbol>.Empty,
+        return new BoundGlobalScope(
+            ImmutableArray<(MethodSymbol, BoundBlockStatement)>.Empty,
+            previous,
+            diagnostics,
+            null,
+            ImmutableArray<MethodSymbol>.Empty,
+            ImmutableArray<VariableSymbol>.Empty,
+            ImmutableArray<NamedTypeSymbol>.Empty,
             ImmutableArray<BoundStatement>.Empty
         );
     }
 
     internal static BoundProgram Program(BoundProgram previous, BelteDiagnosticQueue diagnostics) {
-        return new BoundProgram(previous, diagnostics, null,
+        return new BoundProgram(
+            previous,
+            diagnostics,
+            null,
             ImmutableDictionary<MethodSymbol, BoundBlockStatement>.Empty,
-            ImmutableDictionary<StructSymbol, ImmutableList<Symbol>>.Empty,
-            ImmutableDictionary<ClassSymbol, ImmutableList<Symbol>>.Empty
+            ImmutableArray<NamedTypeSymbol>.Empty
         );
     }
 

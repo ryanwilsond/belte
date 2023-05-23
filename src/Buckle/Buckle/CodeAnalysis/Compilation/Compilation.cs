@@ -60,7 +60,7 @@ public sealed class Compilation {
     /// <summary>
     /// All TypeSymbols in the global scope
     /// </summary>
-    internal ImmutableArray<TypeSymbol> types => globalScope.types;
+    internal ImmutableArray<NamedTypeSymbol> types => globalScope.types;
 
     /// <summary>
     /// The SyntaxTrees of the parsed source files.

@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -732,6 +733,14 @@ internal static class Error {
     internal static BelteDiagnostic PrimitivesDoNotHaveMembers(TextLocation location) {
         var message = $"primitive types do not contain any members";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_PrimitivesDoNotHaveMembers), location, message);
+    }
+
+    /// <summary>
+    /// BU0081. Run `buckle --explain BU0081` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic NotConstantValue(TextLocation location) {
+        var message = "expression does not result in a constant value";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NotConstantValue), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

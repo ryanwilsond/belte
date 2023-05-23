@@ -89,6 +89,7 @@ internal enum DiagnosticCode : int {
     ERR_NullInitializerListOnImplicit = 78,
     ERR_UnrecognizedEscapeSequence = 79,
     ERR_PrimitivesDoNotHaveMembers = 80,
+    ERR_NotConstantValue = 81,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

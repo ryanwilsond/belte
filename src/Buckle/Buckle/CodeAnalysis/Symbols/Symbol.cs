@@ -20,7 +20,33 @@ internal abstract class Symbol : ISymbol {
     /// </summary>
     public abstract SymbolKind kind { get; }
 
+    public bool Equals(Symbol other) {
+        return (object)this == other;
+    }
+
     public override string ToString() {
         return SymbolDisplay.DisplaySymbol(this).ToString();
+    }
+
+    public override int GetHashCode() {
+        return System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
+    }
+
+    public override bool Equals(object obj) {
+        return Equals(obj as Symbol);
+    }
+
+    public static bool operator ==(Symbol left, Symbol right) {
+        if (right is null)
+            return left is null;
+
+        return (object)left == (object)right || right.Equals(left);
+    }
+
+    public static bool operator !=(Symbol left, Symbol right) {
+        if (right is null)
+            return left is object;
+
+        return (object)left != (object)right && !right.Equals(left);
     }
 }

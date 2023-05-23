@@ -68,8 +68,8 @@ internal sealed class CSharpEmitter {
             using (var programClassCurly = new CurlyIndenter(indentedTextWriter, "public static class Program")) {
                 indentedTextWriter.WriteLine();
 
-                foreach (var structStructure in program.structMembers)
-                    EmitStruct(indentedTextWriter, structStructure);
+                foreach (var @struct in program.types.Where(t => t is StructSymbol))
+                    EmitStruct(indentedTextWriter, @struct as StructSymbol);
 
                 if (program.entryPoint != null) {
                     var mainBody = MethodUtilities.LookupMethod(program.methodBodies, program.entryPoint);
@@ -145,12 +145,11 @@ internal sealed class CSharpEmitter {
             .Replace('<', '_').Replace('>', '_').Replace(':', '_');
     }
 
-    private void EmitStruct(
-        IndentedTextWriter indentedTextWriter, KeyValuePair<StructSymbol, ImmutableList<Symbol>> structure) {
-        var signature = $"public class {GetSafeName(structure.Key.name)}";
+    private void EmitStruct(IndentedTextWriter indentedTextWriter, StructSymbol @struct) {
+        var signature = $"public class {GetSafeName(@struct.name)}";
 
         using (var structCurly = new CurlyIndenter(indentedTextWriter, signature)) {
-            foreach (var field in structure.Value.OfType<FieldSymbol>())
+            foreach (var field in @struct.GetMembers().OfType<FieldSymbol>())
                 EmitField(indentedTextWriter, field);
         }
 

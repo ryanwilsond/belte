@@ -11,14 +11,10 @@ internal sealed class BoundGlobalScope {
     /// <param name="previous">Previous <see cref="BoundGlobalScope" /> (if applicable).</param>
     internal BoundGlobalScope(
         ImmutableArray<(MethodSymbol method, BoundBlockStatement body)> methodBodies,
-        ImmutableArray<(StructSymbol @struct, ImmutableList<TemplateParameterSymbol> templateParameters, ImmutableList<Symbol> members)> structMembers,
-        ImmutableArray<(ClassSymbol @class, ImmutableList<TemplateParameterSymbol> templateParameters, ImmutableList<Symbol> members)> classMembers,
         BoundGlobalScope previous, BelteDiagnosticQueue diagnostics, MethodSymbol entryPoint,
         ImmutableArray<MethodSymbol> methods, ImmutableArray<VariableSymbol> variables,
-        ImmutableArray<TypeSymbol> types, ImmutableArray<BoundStatement> statements) {
+        ImmutableArray<NamedTypeSymbol> types, ImmutableArray<BoundStatement> statements) {
         this.methodBodies = methodBodies;
-        this.structMembers = structMembers;
-        this.classMembers = classMembers;
         this.previous = previous;
         this.diagnostics = new BelteDiagnosticQueue();
         this.diagnostics.Move(diagnostics);
@@ -30,10 +26,6 @@ internal sealed class BoundGlobalScope {
     }
 
     internal ImmutableArray<(MethodSymbol method, BoundBlockStatement body)> methodBodies { get; }
-
-    internal ImmutableArray<(StructSymbol @struct, ImmutableList<TemplateParameterSymbol> templateParameters, ImmutableList<Symbol> members)> structMembers { get; }
-
-    internal ImmutableArray<(ClassSymbol @class, ImmutableList<TemplateParameterSymbol> templateParameters, ImmutableList<Symbol> members)> classMembers { get; }
 
     /// <summary>
     /// Previous <see cref="BoundGlobalScope" /> (if applicable).
@@ -51,7 +43,7 @@ internal sealed class BoundGlobalScope {
     /// <summary>
     /// All types, not including built in types (which are always in scope).
     /// </summary>
-    internal ImmutableArray<TypeSymbol> types { get; }
+    internal ImmutableArray<NamedTypeSymbol> types { get; }
 
     internal ImmutableArray<BoundStatement> statements { get; }
 }

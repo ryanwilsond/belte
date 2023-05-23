@@ -17,8 +17,6 @@ internal sealed class Evaluator {
     private readonly BoundProgram _program;
     private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methods =
         new Dictionary<MethodSymbol, BoundBlockStatement>();
-    private readonly Dictionary<TypeSymbol, ImmutableList<Symbol>> _types =
-        new Dictionary<TypeSymbol, ImmutableList<Symbol>>();
     private readonly Dictionary<IVariableSymbol, IEvaluatorObject> _globals;
     private readonly Stack<Dictionary<IVariableSymbol, IEvaluatorObject>> _locals =
         new Stack<Dictionary<IVariableSymbol, IEvaluatorObject>>();
@@ -40,14 +38,6 @@ internal sealed class Evaluator {
         while (current != null) {
             foreach (var (method, body) in current.methodBodies)
                 _methods.Add(method, body);
-
-            foreach (var (@struct, body) in current.structMembers)
-                // Because structs do not store their declarations, shadowing ones have the same key
-                // As what they are shadowing, so this will just update instead of adding and throwing
-                _types[@struct] = body;
-
-            foreach (var (@class, body) in current.classMembers)
-                _types[@class] = body;
 
             current = current.previous;
         }
@@ -107,7 +97,7 @@ internal sealed class Evaluator {
 
     private IEvaluatorObject GetFrom(Dictionary<IVariableSymbol, IEvaluatorObject> variables, VariableSymbol variable) {
         bool TypesEqual(BoundType left, IVariableSymbol right) {
-            return left.typeSymbol == right.typeSymbol &&
+            return left.typeSymbol == (Symbol)right.typeSymbol &&
                    left.isImplicit == right.isImplicit &&
                    left.isConstantReference == right.isConstantReference &&
                    left.isReference == right.isReference &&
@@ -469,7 +459,7 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateConstructorExpression(BoundConstructorExpression node, ValueWrapper<bool> abort) {
-        var body = _types[node.symbol];
+        var body = ((NamedTypeSymbol)node.symbol).GetMembers();
         var members = new Dictionary<Symbol, EvaluatorObject>();
 
         foreach (var member in body)
@@ -519,31 +509,35 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateCallExpression(BoundCallExpression node, ValueWrapper<bool> abort) {
-        if (node.method.MethodMatches(BuiltinMethods.Input)) {
+        if (node.method == BuiltinMethods.Input) {
             return new EvaluatorObject(Console.IsInputRedirected ? null : Console.ReadLine());
-        } else if (node.method.MethodMatches(BuiltinMethods.Print)) {
+        } else if (node.method == BuiltinMethods.Print) {
             var message = EvaluateExpression(node.arguments[0], abort);
 
             if (!Console.IsOutputRedirected)
                 Console.Write(Value(message));
 
             hasPrint = true;
-        } else if (node.method.MethodMatches(BuiltinMethods.PrintLine)) {
+        } else if (node.method == BuiltinMethods.PrintLine) {
             var message = EvaluateExpression(node.arguments[0], abort);
 
             if (!Console.IsOutputRedirected)
                 Console.WriteLine(Value(message));
-        } else if (node.method.MethodMatches(BuiltinMethods.PrintLineNoValue)) {
+        } else if (node.method == BuiltinMethods.PrintLineNoValue) {
             if (!Console.IsOutputRedirected)
                 Console.WriteLine();
-        } else if (node.method.MethodMatches(BuiltinMethods.RandInt)) {
+        } else if (node.method == BuiltinMethods.RandInt) {
             var max = (int)Value(EvaluateExpression(node.arguments[0], abort));
 
             if (_random == null)
                 _random = new Random();
 
             return new EvaluatorObject(_random.Next(max));
-        } else if (node.method.name == "Value") {
+        } else if (node.method == BuiltinMethods.ValueAny ||
+            node.method == BuiltinMethods.ValueBool ||
+            node.method == BuiltinMethods.ValueDecimal ||
+            node.method == BuiltinMethods.ValueInt ||
+            node.method == BuiltinMethods.ValueString) {
             // TODO This needs to check if the builtin has been shadowed (check for HasValue too)
             var value = EvaluateExpression(node.arguments[0], abort);
             var hasNoMembers = value.isReference ? Get(value.reference).members == null : value.members == null;
@@ -555,7 +549,11 @@ internal sealed class Evaluator {
                 return new EvaluatorObject(Value(value));
             else
                 return Copy(value);
-        } else if (node.method.name == "HasValue") {
+        } else if (node.method == BuiltinMethods.HasValueAny ||
+            node.method == BuiltinMethods.HasValueBool ||
+            node.method == BuiltinMethods.HasValueDecimal ||
+            node.method == BuiltinMethods.HasValueInt ||
+            node.method == BuiltinMethods.HasValueString) {
             var value = EvaluateExpression(node.arguments[0], abort);
             var hasNoMembers = value.isReference ? Get(value.reference).members == null : value.members == null;
 

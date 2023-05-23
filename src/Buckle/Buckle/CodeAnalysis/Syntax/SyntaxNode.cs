@@ -159,7 +159,7 @@ public abstract partial class SyntaxNode {
     /// Returns a copy of this node with an assigned <see cref="SyntaxTree" />.
     /// </summary>
     internal static T CloneNodeAsRoot<T>(T node, SyntaxTree syntaxTree) where T : SyntaxNode {
-        var clone = (T)node.green.CreateRed(null, 0);
+        var clone = (T)node.green.CreateRed();
         clone._syntaxTree = syntaxTree;
         return clone;
     }
