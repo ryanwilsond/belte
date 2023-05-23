@@ -210,11 +210,15 @@ internal sealed class Binder {
 
             foreach (var methodBody in binder._methodBodies) {
                 var newParameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
+                var parametersChanged = false;
 
                 foreach (var parameter in methodBody.method.parameters) {
                     var name = parameter.name.StartsWith("$")
                         ? parameter.name.Substring(1)
                         : parameter.name;
+
+                    if (name != parameter.name)
+                        parametersChanged = true;
 
                     var newParameter = new ParameterSymbol(
                         name, parameter.type, parameter.ordinal, parameter.defaultValue
@@ -223,12 +227,16 @@ internal sealed class Binder {
                     newParameters.Add(newParameter);
                 }
 
-                var newMethod = new MethodSymbol(
-                    methodBody.method.name, newParameters.ToImmutable(), methodBody.method.type,
-                    methodBody.method.declaration
-                );
+                if (parametersChanged) {
+                    var newMethod = new MethodSymbol(
+                        methodBody.method.name, newParameters.ToImmutable(), methodBody.method.type,
+                        methodBody.method.declaration
+                    );
 
-                methodBodies.Add(newMethod, methodBody.body);
+                    methodBodies.Add(newMethod, methodBody.body);
+                } else {
+                    methodBodies.Add(methodBody.method, methodBody.body);
+                }
             }
 
             diagnostics.Move(binder.diagnostics);
