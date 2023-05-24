@@ -42,6 +42,7 @@ test:
 # Cleans the solution
 clean:
 	@dotnet clean $(SLN)
+	@$(RM) -f -r bin
 	@echo Hard cleaned the solution
 
 # Formats the solution
@@ -57,7 +58,6 @@ generate:
 	@echo Generated compiler source files
 
 prebuild:
-	@echo "Started building the Buckle solution (release) ..."
 	@mkdir -p bin
 	@mkdir -p bin/release
 	@mkdir -p bin/debug
@@ -71,10 +71,13 @@ postbuilddebug:
 	@echo "    Finished"
 
 build:
+	@echo "Started building the Buckle solution (release) ..."
 	@dotnet publish $(BELTE_DIR)/Belte.csproj $(FLAGS) -r $(SYSTEM) -o bin/release -p:PublishReadyToRunShowWarnings=true
 
 portablebuild:
+	@echo "Started building the Buckle solution (portable) ..."
 	@dotnet publish $(BELTE_DIR)/Belte.csproj $(FLAGS) -o bin/release
 
 debugbuild:
+	@echo "Started building the Buckle solution (debug) ..."
 	@dotnet build $(BELTE_DIR)/Belte.csproj --sc -r $(SYSTEM) -o bin/debug

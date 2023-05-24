@@ -8,9 +8,9 @@
             "preLaunchTask": "build debug",
             "program": "${workspaceFolder}/src/Buckle/Belte/bin/Debug/net8.0/Belte.dll",
             "args": [
-                "-r"
-                // "guess.blt",
-                // "--evaluate"
+                // "-r"
+                "samples/GuessingGame",
+                "-i"
             ],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",

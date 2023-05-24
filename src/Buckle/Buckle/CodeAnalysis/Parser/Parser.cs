@@ -36,6 +36,7 @@ internal sealed partial class Parser {
     private int _tokenOffset;
     private int _tokenCount;
     private TerminatorState _terminatorState;
+    private NameOptions _nameOptions;
 
     /// <summary>
     /// Creates a new <see cref="Parser" />, requiring a fully initialized <see cref="SyntaxTree" />.
@@ -538,7 +539,7 @@ internal sealed partial class Parser {
         if (currentToken.kind == SyntaxKind.EndOfFileToken)
             return true;
 
-        for (int i = 0; i < _lastTerminator; i <<= 1) {
+        for (int i = 1; i < _lastTerminator; i <<= 1) {
             switch (_terminatorState & (TerminatorState)i) {
                 case TerminatorState.IsEndOfTemplateParameterList when IsEndOfTemplateParameterList():
                 case TerminatorState.IsEndOfTemplateArgumentList when IsEndOfTemplateArgumentList():
@@ -670,10 +671,13 @@ internal sealed partial class Parser {
     private TemplateParameterListSyntax ParseTemplateParameterList() {
         var openAngleBracket = EatToken();
 
-        var saved = _terminatorState;
+        var savedTerminator = _terminatorState;
+        var savedName = _nameOptions;
+        _nameOptions |= NameOptions.InTemplateList;
         _terminatorState |= TerminatorState.IsEndOfTemplateParameterList;
         var parameters = ParseParameterList();
-        _terminatorState = saved;
+        _nameOptions = savedName;
+        _terminatorState = savedTerminator;
 
         var closeAngleBracket = Match(SyntaxKind.GreaterThanToken);
 
@@ -1021,16 +1025,23 @@ internal sealed partial class Parser {
     }
 
     private ExpressionSyntax ParseNonAssignmentExpression() {
+        var saved = _nameOptions;
+        _nameOptions |= NameOptions.InExpression;
+
         if (currentToken.kind == SyntaxKind.SemicolonToken)
             return ParseEmptyExpression();
 
         _expectParenthesis = true;
         var value = ParseOperatorExpression();
         _expectParenthesis = false;
+        _nameOptions = saved;
         return value;
     }
 
     private ExpressionSyntax ParseExpression(bool allowEmpty = false) {
+        var saved = _nameOptions;
+        _nameOptions |= NameOptions.InExpression;
+
         if (currentToken.kind == SyntaxKind.SemicolonToken) {
             if (!allowEmpty)
                 AddDiagnosticToNextToken(Error.ExpectedToken(SyntaxKind.IdentifierNameExpression));
@@ -1038,7 +1049,9 @@ internal sealed partial class Parser {
             return ParseEmptyExpression();
         }
 
-        return ParseAssignmentExpression();
+        var expression = ParseAssignmentExpression();
+        _nameOptions = saved;
+        return expression;
     }
 
     private ExpressionSyntax ParseEmptyExpression() {
@@ -1243,12 +1256,30 @@ internal sealed partial class Parser {
         }
 
         var identifier = EatToken();
+        var kind = ScanTemplateArgumentList();
 
-        if (currentToken.kind != SyntaxKind.LessThanToken)
+        if (kind == ScanTemplateArgumentListKind.NotTemplateArgumentList ||
+            (kind == ScanTemplateArgumentListKind.PossibleTemplateArgumentList &&
+                (_nameOptions & NameOptions.InTemplateList) == 0))
             return SyntaxFactory.IdentifierNameExpression(identifier);
 
         var templateArgumentList = ParseTemplateArgumentList();
         return SyntaxFactory.TemplateNameExpression(identifier, templateArgumentList);
+    }
+
+    private ScanTemplateArgumentListKind ScanTemplateArgumentList() {
+        if (currentToken.kind != SyntaxKind.LessThanToken)
+            return ScanTemplateArgumentListKind.NotTemplateArgumentList;
+
+        if ((_nameOptions & NameOptions.InExpression) == 0)
+            return ScanTemplateArgumentListKind.DefiniteTemplateArgumentList;
+
+        switch (currentToken.kind) {
+            // Could eventually add extra logic here if the grammar becomes too ambiguous
+            case SyntaxKind.EndOfFileToken:
+            default:
+                return ScanTemplateArgumentListKind.PossibleTemplateArgumentList;
+        }
     }
 
     private ExpressionSyntax ParseCallExpression(ExpressionSyntax operand) {
@@ -1266,10 +1297,13 @@ internal sealed partial class Parser {
     private TemplateArgumentListSyntax ParseTemplateArgumentList() {
         var openAngleBracket = EatToken();
 
-        var saved = _terminatorState;
+        var savedTerminator = _terminatorState;
+        var savedName = _nameOptions;
+        _nameOptions |= NameOptions.InTemplateList;
         _terminatorState |= TerminatorState.IsEndOfTemplateArgumentList;
         var arguments = ParseArguments();
-        _terminatorState = saved;
+        _nameOptions = savedName;
+        _terminatorState = savedTerminator;
 
         var closeAngleBracket = Match(SyntaxKind.GreaterThanToken);
 

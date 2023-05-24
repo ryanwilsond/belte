@@ -237,13 +237,12 @@ internal sealed class OverloadResolution {
         } else if (methods.Length == 1) {
             tempDiagnostics.Move(_binder.diagnostics);
             _binder.diagnostics.Move(tempDiagnostics);
+            return OverloadResolutionResult.Failed();
         }
 
         if (methods.Length > 1 && possibleOverloads.Count == 0) {
             _binder.diagnostics.Push(Error.NoOverload(((NameExpressionSyntax)expression.operand).location, name));
-
             return OverloadResolutionResult.Failed();
-            ;
         } else if (methods.Length > 1 && possibleOverloads.Count > 1) {
             // Special case where there are default overloads
             if (possibleOverloads[0].name == "HasValue") {

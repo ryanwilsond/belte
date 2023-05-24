@@ -20,10 +20,6 @@ internal abstract class Symbol : ISymbol {
     /// </summary>
     public abstract SymbolKind kind { get; }
 
-    public bool Equals(Symbol other) {
-        return (object)this == other;
-    }
-
     public override string ToString() {
         return SymbolDisplay.DisplaySymbol(this).ToString();
     }
@@ -34,6 +30,10 @@ internal abstract class Symbol : ISymbol {
 
     public override bool Equals(object obj) {
         return Equals(obj as Symbol);
+    }
+
+    public bool Equals(Symbol other) {
+        return (object)this == other;
     }
 
     public static bool operator ==(Symbol left, Symbol right) {

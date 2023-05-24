@@ -1,10 +1,21 @@
+/*
 
+    Guessing Game
+
+    This program generates a random target number and prompts the user to guess numbers.
+    The game is won when the user guesses the target number.
+
+*/
+
+// In this file, the entry point is `void Main()` because the compler searches
+// for either a `void Main()` or `int Main()` method to treat as the entry point.
 void Main() {
     var max = 100;
     var magicNumber = StartGame(max);
     var hintsWanted = AskForHints();
     var guesses = RunGame(magicNumber, max, hintsWanted);
 
+    // If statements don't require curly braces if they only contain a single statement.
     if (guesses < 0)
         PrintLine("Giving up, are we? The number would have been " + ((string)magicNumber) + ".");
     else
@@ -14,6 +25,7 @@ void Main() {
 }
 
 int StartGame(int max) {
+    // Use the `RandInt` builtin function to generate a random number from 0 to `max`, inclusive.
     var magicNumber = RandInt(max);
     Print("I thought of a number between 1 and " + ((string)max) + ".");
 
@@ -22,6 +34,7 @@ int StartGame(int max) {
 
 bool AskForHints() {
     while (true) {
+        // Use the `Input` builtin function to get input from the user; standard in (the terminal).
         var wantHints = Input("Do you want hints? ");
 
         if (wantsHints == "yes" || wantsHints == "y" || wantsHints == "")
@@ -45,7 +58,7 @@ int RunGame(int magicNumber, int max, bool hintsWanted) {
         if (hintsWanted)
             prompt = prompt + "(ideal: " + ((string)idealGuess) + ") ";
 
-        var guessText = Inpuit(prompt);
+        var guessText = Input(prompt);
 
         if (guessText == "") {
             if (hintsWanted)

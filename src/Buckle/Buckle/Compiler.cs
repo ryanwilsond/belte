@@ -115,11 +115,13 @@ public sealed class Compiler {
             }
         }
 
-        var buildMode = state.buildMode == BuildMode.AutoRun ? textLength switch {
-            <= InterpreterMaxTextLength when textsCount == 1 => BuildMode.Interpret,
-            <= EvaluatorMaxTextLength => BuildMode.Evaluate,
-            _ => BuildMode.Execute
-        } : state.buildMode;
+        // var buildMode = state.buildMode == BuildMode.AutoRun ? textLength switch {
+        //     <= InterpreterMaxTextLength when textsCount == 1 => BuildMode.Interpret,
+        //     <= EvaluatorMaxTextLength => BuildMode.Evaluate,
+        //     _ => BuildMode.Execute
+        // } : state.buildMode;
+        // ! Temporary, `-i` is synonymous with `--evaluate` until `--interpret` and `--execute` are implemented
+        var buildMode = state.buildMode == BuildMode.AutoRun ? BuildMode.Evaluate : state.buildMode;
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
             var syntaxTrees = new List<SyntaxTree>();

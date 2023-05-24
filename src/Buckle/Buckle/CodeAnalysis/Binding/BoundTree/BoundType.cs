@@ -211,8 +211,8 @@ internal sealed class BoundType : BoundNode {
     /// </summary>
     /// <param name="type"><see cref="BoundType" /> to compare this to.</param>
     /// <returns>If all fields match.</returns>
-    internal bool Equals(BoundType type) {
-        if (typeSymbol != type.typeSymbol)
+    internal bool Equals(BoundType type, bool loose = false) {
+        if ((loose ? (typeSymbol is object && type.typeSymbol is object) : true) && typeSymbol != type.typeSymbol)
             return false;
         if (isImplicit != type.isImplicit)
             return false;

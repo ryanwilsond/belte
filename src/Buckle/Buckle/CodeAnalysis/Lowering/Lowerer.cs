@@ -378,7 +378,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             );
         }
 
-        if (BoundType.CopyWith(expression.expression.type, isNullable: true).Equals(expression.type))
+        if (BoundType.CopyWith(expression.expression.type, isNullable: true).Equals(expression.type, true))
             return RewriteExpression(expression.expression);
 
         return base.RewriteCastExpression(expression);
