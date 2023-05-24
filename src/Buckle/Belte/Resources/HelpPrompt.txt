@@ -13,7 +13,7 @@ Options:
   -s                          Compile only; do not assemble or link.
   -c                          Compile and assemble; do not link.
   -i                          Compile and run; do not assemble or link.
-  --interpret                 Compile and run explicitly using the interpreter; do not assemble or link.
+  --script                    Compile and run explicitly using the interpreter; do not assemble or link.
   --evaluate                  Compile and run explicitly using the evaluator; do not assemble or link.
   --execute                   Compile and run explicitly using the emitter; do not assemble or link.
   -t|--transpile              Compile and transpile into C#; do not assemble or link.

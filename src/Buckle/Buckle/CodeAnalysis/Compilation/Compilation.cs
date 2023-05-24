@@ -173,7 +173,7 @@ public sealed class Compilation {
     public EvaluationResult Interpret(
         Dictionary<IVariableSymbol, IEvaluatorObject> variables, ValueWrapper<bool> abort) {
         // syntaxTrees.Single() should have already been asserted by this point
-        return Interpreter.Interpret(syntaxTrees[0], variables, abort);
+        return Interpreter.Interpret(syntaxTrees[0], options, variables, abort);
     }
 
     /// <summary>

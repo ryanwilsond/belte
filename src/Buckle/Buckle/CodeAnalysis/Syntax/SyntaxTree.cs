@@ -18,6 +18,13 @@ public partial class SyntaxTree {
     }
 
     /// <summary>
+    /// Creates a new <see cref="SyntaxTree" /> with the given node as the root.
+    /// </summary>
+    internal static SyntaxTree Create(BelteSyntaxNode root) {
+        return new ParsedSyntaxTree(null, root, true);
+    }
+
+    /// <summary>
     /// Creates a new <see cref="SyntaxTree" /> with the given node as the root, but does not assign the
     /// given node's syntax tree.
     /// </summary>
@@ -34,7 +41,7 @@ public partial class SyntaxTree {
     /// EOF <see cref="SyntaxToken" />. Marks the end of the <see cref="SourceText" />, and does not map to an actual
     /// character in the <see cref="SourceText" />.
     /// </summary>
-    internal SyntaxToken endOfFile { get; }
+    internal virtual SyntaxToken endOfFile => null;
 
     /// <summary>
     /// The length of the <see cref="SourceText" />.
