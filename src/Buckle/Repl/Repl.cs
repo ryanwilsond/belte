@@ -24,7 +24,8 @@ public abstract partial class Repl {
     /// </summary>
     internal OutputCapture writer = new OutputCapture();
 
-    private readonly List<string> _submissionHistory = new List<string>();
+    protected readonly List<string> _submissionHistory = new List<string>();
+
     private readonly List<MetaCommand> _metaCommands = new List<MetaCommand>();
 
     protected ValueWrapper<bool> _abortEvaluation;

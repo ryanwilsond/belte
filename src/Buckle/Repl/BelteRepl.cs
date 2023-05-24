@@ -457,6 +457,7 @@ public sealed partial class BelteRepl : Repl {
         foreach (var file in files) {
             var text = File.ReadAllText(file);
             EvaluateSubmission(text);
+            _submissionHistory.Add(text);
         }
 
         state.loadingSubmissions = false;

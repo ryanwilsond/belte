@@ -19,8 +19,9 @@ GENERATED_DIR:=$(BUCKLE_DIR)/CodeAnalysis/Generated
 FLAGS:=-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false \
 	--sc true -c Release -f $(NETVER)
 
-all: prebuild generate build postbuild
+all: debug
 portable: prebuild generate portablebuild postbuild
+release: prebuild generate build postbuild
 debug: prebuild generate debugbuild postbuilddebug
 
 # Tests the solution
