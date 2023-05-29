@@ -314,6 +314,9 @@ public sealed partial class BelteRepl : Repl {
         if (!handle.diagnostics.Errors().Any()) {
             result = compilation.Evaluate(state.variables, _abortEvaluation);
 
+            if (result.lastOutputWasPrint)
+                writer.WriteLine();
+
             if (_abortEvaluation) {
                 Console.ForegroundColor = state.colorTheme.@default;
                 return;

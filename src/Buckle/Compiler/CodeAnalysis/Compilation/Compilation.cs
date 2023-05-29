@@ -76,11 +76,8 @@ public sealed class Compilation {
     /// </summary>
     internal BoundGlobalScope globalScope {
         get {
-            if (_globalScope is null) {
-                var tempScope = Binder.BindGlobalScope(options, previous?.globalScope, syntaxTrees);
-                // Makes assignment thread-safe, if multiple threads try to initialize they use whoever did it first
-                Interlocked.CompareExchange(ref _globalScope, tempScope, null);
-            }
+            if (_globalScope is null)
+                EnsureGlobalScope();
 
             return _globalScope;
         }
@@ -120,7 +117,7 @@ public sealed class Compilation {
     public EvaluationResult Evaluate(
         Dictionary<IVariableSymbol, IEvaluatorObject> variables, ValueWrapper<bool> abort) {
         if (globalScope.diagnostics.Errors().Any())
-            return new EvaluationResult(null, false, globalScope.diagnostics, null);
+            return EvaluationResult.Failed(globalScope.diagnostics);
 
         var program = GetProgram();
 #if DEBUG
@@ -129,17 +126,14 @@ public sealed class Compilation {
 #endif
 
         if (program.diagnostics.Errors().Any())
-            return new EvaluationResult(null, false, program.diagnostics, null);
+            return EvaluationResult.Failed(program.diagnostics);
 
         diagnostics.Move(program.diagnostics);
         var eval = new Evaluator(program, variables);
         var evalResult = eval.Evaluate(abort, out var hasValue);
 
-        if (eval.hasPrint)
-            Console.WriteLine();
-
         diagnostics.Move(eval.diagnostics);
-        var result = new EvaluationResult(evalResult, hasValue, diagnostics, eval.exceptions);
+        var result = new EvaluationResult(evalResult, hasValue, diagnostics, eval.exceptions, eval.lastOutputWasPrint);
         return result;
     }
 
@@ -291,6 +285,16 @@ public sealed class Compilation {
     internal BoundProgram GetProgram() {
         var _previous = previous?.GetProgram();
         return Binder.BindProgram(options, _previous, globalScope);
+    }
+
+    /// <summary>
+    /// Binds the global scope if it hasn't been bound already. Does not return anything to indicate if the global scope
+    /// was bound or already bound, but after this method is called the global scope is guaranteed to have been bound.
+    /// </summary>
+    internal void EnsureGlobalScope() {
+        var tempScope = Binder.BindGlobalScope(options, previous?.globalScope, syntaxTrees);
+        // Makes assignment thread-safe, if multiple threads try to initialize they use whoever did it first
+        Interlocked.CompareExchange(ref _globalScope, tempScope, null);
     }
 
     private static void CreateCfg(BoundProgram program) {

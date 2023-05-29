@@ -21,6 +21,10 @@ internal sealed class Evaluator {
     private readonly Stack<Dictionary<IVariableSymbol, IEvaluatorObject>> _locals =
         new Stack<Dictionary<IVariableSymbol, IEvaluatorObject>>();
 
+    private EvaluatorObject _lastValue;
+    private Random _random;
+    private bool _hasValue = false;
+
     /// <summary>
     /// Creates an <see cref="Evaluator" /> that can evaluate a <see cref="BoundProgram" /> (provided globals).
     /// </summary>
@@ -44,16 +48,10 @@ internal sealed class Evaluator {
     }
 
     /// <summary>
-    /// If it has a Print statement, adds a line break to avoid formatting issues.
+    /// If the last output to the terminal was a `Print`, and not a `PrintLine`, meaning the caller might want to write
+    /// an extra line to prevent formatting problems.
     /// </summary>
-    internal bool hasPrint {
-        get {
-            return _hasPrint;
-        }
-        set {
-            _hasPrint = value;
-        }
-    }
+    internal bool lastOutputWasPrint { get; private set; }
 
     /// <summary>
     /// All thrown exceptions during evaluation.
@@ -64,11 +62,6 @@ internal sealed class Evaluator {
     /// Diagnostics specific to the <see cref="Evaluator" />.
     /// </summary>
     internal BelteDiagnosticQueue diagnostics { get; set; }
-
-    private EvaluatorObject _lastValue;
-    private Random _random;
-    private bool _hasPrint = false;
-    private bool _hasValue = false;
 
     /// <summary>
     /// Evaluate the provided <see cref="BoundProgram" />.
@@ -357,7 +350,7 @@ internal sealed class Evaluator {
                 throw;
 
             exceptions.Add(e);
-            _hasPrint = false;
+            lastOutputWasPrint = false;
             _hasValue = false;
 
             if (!Console.IsOutputRedirected) {
@@ -514,18 +507,22 @@ internal sealed class Evaluator {
         } else if (node.method == BuiltinMethods.Print) {
             var message = EvaluateExpression(node.arguments[0], abort);
 
-            if (!Console.IsOutputRedirected)
+            if (!Console.IsOutputRedirected) {
                 Console.Write(Value(message));
-
-            hasPrint = true;
+                lastOutputWasPrint = true;
+            }
         } else if (node.method == BuiltinMethods.PrintLine) {
             var message = EvaluateExpression(node.arguments[0], abort);
 
-            if (!Console.IsOutputRedirected)
+            if (!Console.IsOutputRedirected) {
                 Console.WriteLine(Value(message));
+                lastOutputWasPrint = false;
+            }
         } else if (node.method == BuiltinMethods.PrintLineNoValue) {
-            if (!Console.IsOutputRedirected)
+            if (!Console.IsOutputRedirected) {
                 Console.WriteLine();
+                lastOutputWasPrint = false;
+            }
         } else if (node.method == BuiltinMethods.RandInt) {
             var max = (int)Value(EvaluateExpression(node.arguments[0], abort));
 

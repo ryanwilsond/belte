@@ -26,10 +26,17 @@ internal sealed class Interpreter {
     internal static EvaluationResult Interpret(
         SyntaxTree syntaxTree, CompilationOptions options,
         Dictionary<IVariableSymbol, IEvaluatorObject> variables, ValueWrapper<bool> abort) {
+        // This pseudo interpreter parses all of the source files at once, so there is a short delay before running the
+        // code. This is not perfect, as the goal is to be a "true" interpreter, but without doing this at once the
+        // parser would have to be written to support partial parsing. This would be a large undertaking, but maybe
+        // could be done in the future.
         var parsedSyntaxTree = SyntaxTree.Parse(syntaxTree.text);
+        // This represents how much of the text has been evaluated. For diagnostics to have the correct location, each
+        // compilation needs to have a copy of the text starting at this index.
         var textOffset = 0;
-        Compilation previous = null;
+
         EvaluationResult result = null;
+        Compilation previous = null;
 
         foreach (var member in parsedSyntaxTree.GetCompilationUnitRoot().members) {
             textOffset += member.position;
@@ -45,6 +52,7 @@ internal sealed class Interpreter {
             previous = Compilation.CreateScript(options, previous, newSyntaxTree);
             result = previous.Evaluate(variables, abort);
 
+            // ? If any diagnostics are found, we quit early. Is this what we want though?
             if (result.diagnostics.Errors().Any())
                 break;
         }

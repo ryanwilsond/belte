@@ -87,7 +87,8 @@ public sealed class Compiler {
         }
 
         var buildMode = state.buildMode == BuildMode.AutoRun ? textLength switch {
-            <= InterpreterMaxTextLength when textsCount == 1 => BuildMode.Interpret,
+            // ! Temporary, `-i` will not use `--script` until it allows entry points such as `Main`
+            // <= InterpreterMaxTextLength when textsCount == 1 => BuildMode.Interpret,
             <= EvaluatorMaxTextLength => BuildMode.Evaluate,
             // ! Temporary, `-i` will not use `--execute` until it is implemented
             // _ => BuildMode.Execute

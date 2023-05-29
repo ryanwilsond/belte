@@ -68,14 +68,9 @@ Performs all compilation steps before assembling and linking, and instead of ass
 the program is run immediately. There are three different methods in which the program can be run, and the compiler
 automatically picks the most optimal method based on the size of the input.
 
-If the input is short, the code is sent to the interpreter. The interpreter compiles the code chunk by chunk (which is
-not always equivalent to a single line unlike many interpreters) and evaluates those chunks before moving on to the next
-chunk. Because of this, runtime performance is slow because the compiler is constantly being called after each chunk.
-There is no pause before the program starts executing.
-
-If the input is medium in length, the code is compiled and then ran using the evaluator. The runtime performance is
-better than interpreting, but still not as fast as traditional compilation because the code is not sent to an
-independent executable before running. However, unlike interpreting, the compiler compiles the entire input before
+If the input is short to medium in length, the code is compiled and then ran using the evaluator. The runtime
+performance is better than interpreting, but still not as fast as traditional compilation because the code is not sent
+to an independent executable before running. However, unlike interpreting, the compiler compiles the entire input before
 evaluating. This causes the error checking is equivalent to if you were to compile to an executable. Because the
 compiler is ran before evaluating, there is a pause before the program starts executing unlike interpreting.
 
@@ -86,8 +81,8 @@ the program executes. This pause is the longest of the three methods.
 ### *--script*
 
 Performs all compilation steps before assembling and linking, and instead of assembling and linking to an executable,
-the program is run immediately. However, unlike the *-i* option, the method of running the program is always
-interpretation.
+the program is run immediately. However, unlike the *-i* option, this mode is interpreting meaning the entry point has
+to be the root of the file.
 
 The interpreter compiles the code chunk by chunk (which is not always equivalent to a single line unlike many
 interpreters) and evaluates those chunks before moving on to the next chunk. Because of this, runtime performance is

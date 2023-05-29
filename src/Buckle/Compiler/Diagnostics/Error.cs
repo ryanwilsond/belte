@@ -265,8 +265,12 @@ internal static class Error {
     /// <summary>
     /// BU0028. Run `buckle --explain BU0028` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic UndefinedMethod(TextLocation location, string name) {
+    internal static BelteDiagnostic UndefinedMethod(TextLocation location, string name, bool isInterpreter = false) {
         var message = $"undefined method '{name}'";
+
+        if (isInterpreter)
+            message += "; when interpreting all methods must be defined before use";
+
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UndefinedMethod), location, message);
     }
 

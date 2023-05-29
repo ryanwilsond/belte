@@ -1425,7 +1425,12 @@ internal sealed class Binder {
         var methods = _scope.LookupOverloads<Symbol>(name, innerName);
 
         if (methods.Length == 0) {
-            diagnostics.Push(Error.UndefinedMethod(((NameExpressionSyntax)expression.operand).location, name));
+            diagnostics.Push(Error.UndefinedMethod(
+                ((NameExpressionSyntax)expression.operand).location,
+                name,
+                _options.buildMode == BuildMode.Interpret
+            ));
+
             return new BoundErrorExpression();
         }
 

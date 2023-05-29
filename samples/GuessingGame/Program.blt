@@ -27,7 +27,7 @@ void Main() {
 int StartGame(int max) {
     // Use the `RandInt` builtin function to generate a random number from 0 to `max`, inclusive.
     var magicNumber = RandInt(max);
-    Print("I thought of a number between 1 and " + ((string)max) + ".");
+    PrintLine("I thought of a number between 1 and " + ((string)max) + ".");
 
     return magicNumber;
 }
