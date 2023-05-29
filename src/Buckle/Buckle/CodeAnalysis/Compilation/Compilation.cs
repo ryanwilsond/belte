@@ -10,7 +10,6 @@ using Buckle.CodeAnalysis.FlowAnalysis;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
-using Buckle.Utilities;
 using Shared;
 
 namespace Buckle.CodeAnalysis;

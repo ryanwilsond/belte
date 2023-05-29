@@ -29,6 +29,7 @@ public sealed partial class BelteRepl : Repl {
         {"Dark", new DarkTheme()},
         {"Light", new LightTheme()},
         {"Green", new GreenTheme()},
+        {"Blue", new BlueTheme()},
     };
 
     private List<TextChange> _changes = new List<TextChange>();

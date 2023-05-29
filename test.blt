@@ -1,2 +1,2 @@
-Print("Hello, ");
-PrintLine("world!");
+a;
+Print("test" + a);
