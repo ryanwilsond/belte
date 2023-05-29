@@ -5,9 +5,7 @@ Brief descriptions of all the directories to help browse the repo.
 | Path | Description |
 |-|-|
 | docs | [Github pages](https://ryanwilsond.github.io/belte/) wiki documentation |
-| extension | Simple VSCode extension that adds syntax highlighting for Belte source files |
-| lib | Libraries used by the old C++ Buckle implementation |
-| samples | Belte samples used for testing |
+| samples | Belte code examples of the syntax |
 | src | Source files |
 | src/Belte | Belte Standard Libraries |
 | src/Buckle | Belte compiler (Buckle) |
