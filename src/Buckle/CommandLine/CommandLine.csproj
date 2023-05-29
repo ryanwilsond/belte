@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>CommandLine.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="Resources/ErrorDescriptionsCL.txt" />
+    <Content Remove="Resources/HelpPrompt.txt" />
+    <Content Remove="Resources/Version.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources/ErrorDescriptionsCL.txt" />
+    <EmbeddedResource Include="Resources/HelpPrompt.txt" />
+    <EmbeddedResource Include="Resources/Version.txt" />
+    </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Dependencies\Diagnostics\Diagnostics.csproj" />
+    <ProjectReference Include="..\Compiler\Compiler.csproj" />
+    <ProjectReference Include="..\Repl\Repl.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+</Project>

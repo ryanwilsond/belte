@@ -50,12 +50,6 @@ The Repl is purely a command-line tool. If the *-r* or *--repl* option is passed
 
 For more information specifically on the Repl, see the [Repl help doc](.\Repl.md).
 
-### *-p*
-
-Stop compilation after the preprocessing phase. File output options are treated normally, and the outputted preprocessed
-file will be a source code file (ending in *.pblt* by default) with all preprocessing directives evaluated. The
-preprocessing phase is always ran by default with no output modifier options.
-
 ### *-s*
 
 Stop compilation after compiling, resulting in assemble code. File output options are treated normally, and the

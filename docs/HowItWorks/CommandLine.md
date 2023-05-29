@@ -16,10 +16,10 @@ an entry for each file to hold file-specific information, and more. Each file en
 its current stage in the compilation process, and the actual file contents. The compiler stage is how the compiler keeps
 track of all the files because sometimes files in different stages will be inputted.
 
-The compiler first preprocesses the files, then chooses to either interpret the file, compile with .NET compatibility,
-or compile independently. In all these cases the normal Lexer-Parser-Binder trio happens, but how the output is handled
-is where they differ. Interpreting runs the source at that moment, .NET compatibility uses MonoCecil to emit IL, and
-independent emits assembly.
+The compiler chooses to either interpret the file, compile with .NET compatibility, or compile independently. In all
+these cases the normal Lexer-Parser-Binder trio happens, but how the output is handled is where they differ.
+Interpreting runs the source at that moment, .NET compatibility uses MonoCecil to emit IL, and independent emits
+assembly.
 
 The compiler hands the files to a syntax tree that handles loading the files and creating a source text from them. This
 allows tracking code down to the line and character, which is helpful in diagnostics as the developer will know exactly
