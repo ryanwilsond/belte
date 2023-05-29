@@ -21,9 +21,9 @@ FLAGS:=-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p
 	--sc true -c Release -f $(NETVER)
 
 all: debug
-portable: prebuild generate portablebuild postbuild
 release: prebuild generate build postbuild
-debug: prebuild generate debugbuild postbuilddebug
+portable: prebuild generate buildportable postbuildportable
+debug: prebuild generate builddebug postbuilddebug
 
 # Tests the solution
 .PHONY: test
@@ -67,6 +67,10 @@ postbuild:
 	@mv bin/release/CommandLine.exe bin/release/buckle.exe
 	@echo "    Finished"
 
+postbuildportable:
+	@mv bin/release/CommandLine.exe bin/portable/buckle.exe
+	@echo "    Finished"
+
 postbuilddebug:
 	@mv bin/debug/CommandLine.exe bin/debug/buckle.exe
 	@echo "    Finished"
@@ -76,10 +80,10 @@ build:
 	@dotnet publish $(CL_DIR)/CommandLine.csproj $(FLAGS) -o bin/release \
 		-r $(SYSTEM) -p:PublishReadyToRunShowWarnings=true
 
-portablebuild:
+buildportable:
 	@echo "Started building the Buckle project (portable) ..."
 	@dotnet publish $(CL_DIR)/CommandLine.csproj $(FLAGS) -o bin/release
 
-debugbuild:
+builddebug:
 	@echo "Started building the Buckle project (debug) ..."
 	@dotnet build $(CL_DIR)/CommandLine.csproj --sc -r $(SYSTEM) -o bin/debug
