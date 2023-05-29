@@ -96,6 +96,7 @@ public abstract partial class Repl {
                 } else {
                     var evaluateSubmissionReference = new ThreadStart(EvaluateSubmissionWrapper);
                     var evaluateSubmissionThread = new Thread(evaluateSubmissionReference);
+                    evaluateSubmissionThread.Name = "Repl.Run.EvaluateSubmissionWrapper";
                     _abortEvaluation = false;
                     broke = false;
                     var startTime = DateTime.Now;
@@ -260,7 +261,7 @@ public abstract partial class Repl {
         foreach (var method in methods) {
             var attribute = method.GetCustomAttribute<MetaCommandAttribute>();
 
-            if (attribute == null)
+            if (attribute is null)
                 continue;
 
             var metaCommand = new MetaCommand(attribute.name, attribute.description, method);
@@ -1011,7 +1012,7 @@ public abstract partial class Repl {
 
         var command = _metaCommands.SingleOrDefault(mc => mc.name == commandName);
 
-        if (command == null) {
+        if (command is null) {
             AddDiagnostic(global::Repl.Diagnostics.Error.UnknownReplCommand(line));
 
             if (_hasDiagnosticHandle)

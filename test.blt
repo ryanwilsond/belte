@@ -1,2 +1,0 @@
-a;
-Print("test" + a);

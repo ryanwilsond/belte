@@ -82,21 +82,21 @@ internal sealed class BoundTernaryOperator {
     internal static BoundTernaryOperator Bind(SyntaxKind leftOpKind, SyntaxKind rightOpKind,
         BoundType leftType, BoundType centerType, BoundType rightType) {
         foreach (var op in _operators) {
-            var leftIsCorrect = op.leftType == null
+            var leftIsCorrect = op.leftType is null
                 ? true
                 : Cast.Classify(leftType, op.leftType, false).isImplicit;
 
-            var centerIsCorrect = op.centerType == null
+            var centerIsCorrect = op.centerType is null
                 ? true
                 : Cast.Classify(centerType, op.centerType, false).isImplicit;
 
-            var rightIsCorrect = op.rightType == null
+            var rightIsCorrect = op.rightType is null
                 ? true
                 : Cast.Classify(rightType, op.rightType, false).isImplicit;
 
             if (op.leftOpKind == leftOpKind && op.rightOpKind == rightOpKind &&
                 leftIsCorrect && rightIsCorrect && centerIsCorrect) {
-                if (op.leftType == null || op.centerType == null || op.rightType == null) {
+                if (op.leftType is null || op.centerType is null || op.rightType is null) {
                     return new BoundTernaryOperator(
                         leftOpKind,
                         rightOpKind,

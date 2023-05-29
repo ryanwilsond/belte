@@ -76,7 +76,7 @@ public sealed class Compilation {
     /// </summary>
     internal BoundGlobalScope globalScope {
         get {
-            if (_globalScope == null) {
+            if (_globalScope is null) {
                 var tempScope = Binder.BindGlobalScope(options, previous?.globalScope, syntaxTrees);
                 // Makes assignment thread-safe, if multiple threads try to initialize they use whoever did it first
                 Interlocked.CompareExchange(ref _globalScope, tempScope, null);
@@ -297,7 +297,7 @@ public sealed class Compilation {
         var appPath = Environment.GetCommandLineArgs()[0];
         var appDirectory = Path.GetDirectoryName(appPath);
         var cfgPath = Path.Combine(appDirectory, "cfg.dot");
-        var cfgStatement = program.entryPoint == null ? null : program.methodBodies[program.entryPoint];
+        var cfgStatement = program.entryPoint is null ? null : program.methodBodies[program.entryPoint];
 
         if (cfgStatement != null) {
             var cfg = ControlFlowGraph.Create(cfgStatement);

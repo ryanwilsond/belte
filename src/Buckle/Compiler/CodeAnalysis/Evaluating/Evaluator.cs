@@ -77,7 +77,7 @@ internal sealed class Evaluator {
     /// <param name="hasValue">If the evaluation had a returned result.</param>
     /// <returns>Result of <see cref="BoundProgram" /> (if applicable).</returns>
     internal object Evaluate(ValueWrapper<bool> abort, out bool hasValue) {
-        if (_program.entryPoint == null) {
+        if (_program.entryPoint is null) {
             hasValue = false;
             return null;
         }
@@ -158,7 +158,7 @@ internal sealed class Evaluator {
             return Value(value.value as EvaluatorObject, traceCollections);
         else if (value.value is EvaluatorObject[] && traceCollections)
             return CollectionValue(value.value as EvaluatorObject[]);
-        else if (traceCollections && value.value == null && value.members != null)
+        else if (traceCollections && value.value is null && value.members != null)
             return DictionaryValue(value.members);
         else
             return value.value;
@@ -235,10 +235,10 @@ internal sealed class Evaluator {
                 left = Get(left.reference);
         }
 
-        if (right.members == null)
+        if (right.members is null)
             left.members = null;
 
-        if (right.value == null && right.members != null)
+        if (right.value is null && right.members != null)
             left.members = Copy(right.members);
         else
             left.value = Value(right);
@@ -332,12 +332,12 @@ internal sealed class Evaluator {
                         break;
                     case BoundNodeKind.ReturnStatement:
                         var returnStatement = (BoundReturnStatement)s;
-                        _lastValue = returnStatement.expression == null
+                        _lastValue = returnStatement.expression is null
                             ? new EvaluatorObject()
                             : Copy(EvaluateExpression(returnStatement.expression, abort));
 
                         _hasValue =
-                            (returnStatement.expression == null || returnStatement.expression is BoundEmptyExpression)
+                            (returnStatement.expression is null || returnStatement.expression is BoundEmptyExpression)
                                 ? false : true;
 
                         hasReturn = true;
@@ -350,7 +350,7 @@ internal sealed class Evaluator {
 
             return _lastValue;
         } catch (Exception e) when (e is not BelteInternalException) {
-            if (e is BelteThreadException)
+            if (e is BelteThreadException || abort)
                 return new EvaluatorObject();
 
             if (insideTry)
@@ -529,7 +529,7 @@ internal sealed class Evaluator {
         } else if (node.method == BuiltinMethods.RandInt) {
             var max = (int)Value(EvaluateExpression(node.arguments[0], abort));
 
-            if (_random == null)
+            if (_random is null)
                 _random = new Random();
 
             return new EvaluatorObject(_random.Next(max));
@@ -540,9 +540,9 @@ internal sealed class Evaluator {
             node.method == BuiltinMethods.ValueString) {
             // TODO This needs to check if the builtin has been shadowed (check for HasValue too)
             var value = EvaluateExpression(node.arguments[0], abort);
-            var hasNoMembers = value.isReference ? Get(value.reference).members == null : value.members == null;
+            var hasNoMembers = value.isReference ? Get(value.reference).members is null : value.members is null;
 
-            if (Value(value) == null && hasNoMembers)
+            if (Value(value) is null && hasNoMembers)
                 throw new NullReferenceException();
 
             if (hasNoMembers)
@@ -555,9 +555,9 @@ internal sealed class Evaluator {
             node.method == BuiltinMethods.HasValueInt ||
             node.method == BuiltinMethods.HasValueString) {
             var value = EvaluateExpression(node.arguments[0], abort);
-            var hasNoMembers = value.isReference ? Get(value.reference).members == null : value.members == null;
+            var hasNoMembers = value.isReference ? Get(value.reference).members is null : value.members is null;
 
-            if (Value(value) == null && hasNoMembers)
+            if (Value(value) is null && hasNoMembers)
                 return new EvaluatorObject(false);
 
             return new EvaluatorObject(true);
@@ -619,7 +619,7 @@ internal sealed class Evaluator {
         var operand = EvaluateExpression(expression.operand, abort);
         var operandValue = Value(operand);
 
-        if (operandValue == null)
+        if (operandValue is null)
             return new EvaluatorObject();
 
         operandValue = EvaluateValueCast(operandValue, expression.op.operandType);
@@ -669,13 +669,13 @@ internal sealed class Evaluator {
 
         // Only evaluates right side if necessary
         if (expression.op.opKind == BoundBinaryOperatorKind.ConditionalAnd) {
-            if (leftValue == null || !(bool)leftValue)
+            if (leftValue is null || !(bool)leftValue)
                 return new EvaluatorObject(false);
 
             var _right = EvaluateExpression(expression.right, abort);
             var _rightValue = Value(_right);
 
-            if (_rightValue == null || !(bool)_rightValue)
+            if (_rightValue is null || !(bool)_rightValue)
                 return new EvaluatorObject(false);
 
             return new EvaluatorObject(true);
@@ -697,7 +697,7 @@ internal sealed class Evaluator {
         var right = EvaluateExpression(expression.right, abort);
         var rightValue = Value(right);
 
-        if (leftValue == null || rightValue == null)
+        if (leftValue is null || rightValue is null)
             return new EvaluatorObject();
 
         var expressionType = expression.type.typeSymbol;

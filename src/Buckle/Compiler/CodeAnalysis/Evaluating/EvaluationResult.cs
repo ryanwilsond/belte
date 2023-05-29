@@ -19,7 +19,7 @@ public sealed class EvaluationResult {
         this.hasValue = hasValue;
         this.diagnostics = new BelteDiagnosticQueue();
         this.diagnostics.Move(diagnostics);
-        this.exceptions = exceptions == null ? new List<Exception>() : new List<Exception>(exceptions);
+        this.exceptions = exceptions is null ? new List<Exception>() : new List<Exception>(exceptions);
     }
 
     /// <summary>

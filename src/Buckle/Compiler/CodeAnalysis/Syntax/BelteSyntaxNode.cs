@@ -29,7 +29,7 @@ public abstract class BelteSyntaxNode : SyntaxNode {
 
             var parent = node.parent;
 
-            if (parent == null) {
+            if (parent is null) {
                 Interlocked.CompareExchange(ref node._syntaxTree, SyntaxTree.CreateWithoutClone(node), null);
                 tree = node._syntaxTree;
                 break;

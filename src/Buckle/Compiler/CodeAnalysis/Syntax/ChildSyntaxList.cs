@@ -40,14 +40,14 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
     }
 
     IEnumerator<SyntaxNodeOrToken> IEnumerable<SyntaxNodeOrToken>.GetEnumerator() {
-        if (node == null)
+        if (node is null)
             return new EmptyEnumerator<SyntaxNodeOrToken>();
 
         return new EnumeratorImpl(node, Count);
     }
 
     IEnumerator IEnumerable.GetEnumerator() {
-        if (node == null)
+        if (node is null)
             return new EmptyEnumerator<SyntaxNodeOrToken>();
 
         return new EnumeratorImpl(node, Count);

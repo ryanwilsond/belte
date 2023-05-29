@@ -104,7 +104,7 @@ public abstract partial class SyntaxNode {
     /// <summary>
     /// Location of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />.
     /// </summary>
-    internal TextLocation location => syntaxTree == null ? null : new TextLocation(syntaxTree.text, span);
+    internal TextLocation location => syntaxTree is null ? null : new TextLocation(syntaxTree.text, span);
 
     /// <summary>
     /// If any diagnostics have spans that overlap with this node.
@@ -291,7 +291,7 @@ public abstract partial class SyntaxNode {
     internal SyntaxNode GetRedElement(ref SyntaxNode element, int slot) {
         var result = element;
 
-        if (result == null) {
+        if (result is null) {
             var green = this.green.GetSlot(slot);
             Interlocked.CompareExchange(ref element, green.CreateRed(parent, GetChildPosition(slot)), null);
             result = element;
@@ -307,7 +307,7 @@ public abstract partial class SyntaxNode {
     internal SyntaxNode GetRedElementIfNotToken(ref SyntaxNode element) {
         var result = element;
 
-        if (result == null) {
+        if (result is null) {
             var green = this.green.GetSlot(1);
 
             if (!green.isToken) {
@@ -326,7 +326,7 @@ public abstract partial class SyntaxNode {
     internal SyntaxNode GetRed(ref SyntaxNode field, int slot) {
         var result = field;
 
-        if (result == null) {
+        if (result is null) {
             var green = this.green.GetSlot(slot);
 
             if (green != null) {
@@ -346,7 +346,7 @@ public abstract partial class SyntaxNode {
         // Special case where getting the child position is unnecessary (would always return 0)
         var result = field;
 
-        if (result == null) {
+        if (result is null) {
             var green = this.green.GetSlot(0);
 
             if (green != null) {
@@ -361,7 +361,7 @@ public abstract partial class SyntaxNode {
     protected T GetRed<T>(ref T field, int slot) where T : SyntaxNode {
         var result = field;
 
-        if (result == null) {
+        if (result is null) {
             var green = this.green.GetSlot(slot);
 
             if (green != null) {
@@ -377,7 +377,7 @@ public abstract partial class SyntaxNode {
     protected T? GetRedAtZero<T>(ref T? field) where T : SyntaxNode {
         var result = field;
 
-        if (result == null) {
+        if (result is null) {
             var green = this.green.GetSlot(0);
 
             if (green != null) {

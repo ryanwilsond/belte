@@ -12,7 +12,7 @@ internal sealed class BoundConstant {
     internal object value { get; }
 
     internal static bool IsNull(BoundConstant constant) {
-        if (constant != null && constant.value == null)
+        if (constant != null && constant.value is null)
             return true;
 
         return false;

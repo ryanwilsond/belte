@@ -39,7 +39,7 @@ internal static class Warning {
     /// BU0001. Run `buckle --explain BU0001` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic AlwaysValue(TextLocation location, object value) {
-        var valueString = value == null ? "null" : value.ToString();
+        var valueString = value is null ? "null" : value.ToString();
 
         if (value is bool)
             // False -> false

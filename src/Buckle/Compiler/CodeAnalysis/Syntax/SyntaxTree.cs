@@ -20,8 +20,8 @@ public partial class SyntaxTree {
     /// <summary>
     /// Creates a new <see cref="SyntaxTree" /> with the given node as the root.
     /// </summary>
-    internal static SyntaxTree Create(BelteSyntaxNode root) {
-        return new ParsedSyntaxTree(null, root, true);
+    internal static SyntaxTree Create(SourceText text, BelteSyntaxNode root) {
+        return new ParsedSyntaxTree(text, root, true);
     }
 
     /// <summary>

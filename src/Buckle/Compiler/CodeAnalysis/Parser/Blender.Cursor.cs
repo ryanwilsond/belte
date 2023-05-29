@@ -81,7 +81,7 @@ internal sealed partial class Blender {
         }
 
         private static int IndexOfNodeInParent(SyntaxNode node) {
-            if (node.parent == null)
+            if (node.parent is null)
                 return 0;
 
             var children = node.parent.ChildNodesAndTokens();

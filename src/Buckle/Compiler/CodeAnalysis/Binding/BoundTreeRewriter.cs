@@ -61,11 +61,11 @@ internal abstract class BoundTreeRewriter {
 
     protected virtual BoundStatement RewriteTryStatement(BoundTryStatement statement) {
         var body = (BoundBlockStatement)RewriteBlockStatement(statement.body);
-        var catchBody = statement.catchBody == null
+        var catchBody = statement.catchBody is null
             ? null
             : (BoundBlockStatement)RewriteBlockStatement(statement.catchBody);
 
-        var finallyBody = statement.finallyBody == null
+        var finallyBody = statement.finallyBody is null
             ? null
             : (BoundBlockStatement)RewriteBlockStatement(statement.finallyBody);
 
@@ -80,7 +80,7 @@ internal abstract class BoundTreeRewriter {
     }
 
     protected virtual BoundStatement RewriteReturnStatement(BoundReturnStatement statement) {
-        var expression = statement.expression == null ? null : RewriteExpression(statement.expression);
+        var expression = statement.expression is null ? null : RewriteExpression(statement.expression);
 
         if (expression == statement.expression)
             return statement;
@@ -151,7 +151,7 @@ internal abstract class BoundTreeRewriter {
     protected virtual BoundStatement RewriteIfStatement(BoundIfStatement statement) {
         var condition = RewriteExpression(statement.condition);
         var then = RewriteStatement(statement.then);
-        var elseStatement = statement.elseStatement == null ? null : RewriteStatement(statement.elseStatement);
+        var elseStatement = statement.elseStatement is null ? null : RewriteStatement(statement.elseStatement);
 
         if (condition == statement.condition && then == statement.then && elseStatement == statement.elseStatement)
             return statement;
@@ -175,7 +175,7 @@ internal abstract class BoundTreeRewriter {
             var oldStatement = statement.statements[i];
             var newStatement = RewriteStatement(oldStatement);
 
-            if (newStatement != oldStatement && builder == null) {
+            if (newStatement != oldStatement && builder is null) {
                 builder = ImmutableArray.CreateBuilder<BoundStatement>(statement.statements.Length);
 
                 for (var j = 0; j < i; j++)
@@ -185,7 +185,7 @@ internal abstract class BoundTreeRewriter {
             builder?.Add(newStatement);
         }
 
-        if (builder == null)
+        if (builder is null)
             return statement;
 
         return new BoundBlockStatement(builder.MoveToImmutable());
@@ -315,7 +315,7 @@ internal abstract class BoundTreeRewriter {
             var newItem = RewriteExpression(oldItem);
 
             if (newItem != oldItem) {
-                if (builder == null) {
+                if (builder is null) {
                     builder = ImmutableArray.CreateBuilder<BoundExpression>(expression.items.Length);
 
                     for (var j = 0; j < i; j++)
@@ -326,7 +326,7 @@ internal abstract class BoundTreeRewriter {
             builder?.Add(newItem);
         }
 
-        if (builder == null)
+        if (builder is null)
             return expression;
 
         return new BoundInitializerListExpression(builder.MoveToImmutable(), expression.type);
@@ -360,7 +360,7 @@ internal abstract class BoundTreeRewriter {
             var newArgument = RewriteExpression(oldArgument);
 
             if (newArgument != oldArgument) {
-                if (builder == null) {
+                if (builder is null) {
                     builder = ImmutableArray.CreateBuilder<BoundExpression>(expression.arguments.Length);
 
                     for (var j = 0; j < i; j++)
@@ -371,7 +371,7 @@ internal abstract class BoundTreeRewriter {
             builder?.Add(newArgument);
         }
 
-        if (builder == null)
+        if (builder is null)
             return expression;
 
         return new BoundCallExpression(expression.method, builder.MoveToImmutable());

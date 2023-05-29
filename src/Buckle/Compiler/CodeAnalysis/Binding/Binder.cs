@@ -45,7 +45,7 @@ internal sealed class Binder {
         _scope = new BoundScope(parent);
         _enclosingType = method?.type;
         _options = options;
-        _flags = method == null ? flags : flags | BinderFlags.Method;
+        _flags = method is null ? flags : flags | BinderFlags.Method;
         _overloadResolution = new OverloadResolution(this);
 
         if (method != null) {
@@ -158,7 +158,7 @@ internal sealed class Binder {
         if (previous != null)
             binder.diagnostics.CopyToFront(previous.diagnostics);
 
-        var methodBodies = previous == null
+        var methodBodies = previous is null
             ? binder._methodBodies.ToImmutableArray()
             : previous.methodBodies.AddRange(binder._methodBodies);
 
@@ -436,16 +436,16 @@ internal sealed class Binder {
             var parameter = parameters[i];
             var parameterName = parameter.identifier.text;
             var parameterType = BindType(parameter.type);
-            var boundDefault = parameter.defaultValue == null
+            var boundDefault = parameter.defaultValue is null
                 ? null
                 : BindExpression(parameter.defaultValue);
 
-            if (boundDefault != null && boundDefault.constantValue == null) {
+            if (boundDefault != null && boundDefault.constantValue is null) {
                 diagnostics.Push(Error.DefaultMustBeConstant(parameter.defaultValue.location));
                 continue;
             }
 
-            if (boundDefault != null && i < parameters.Count - 1 && parameters[i + 1].defaultValue == null) {
+            if (boundDefault != null && i < parameters.Count - 1 && parameters[i + 1].defaultValue is null) {
                 diagnostics.Push(Error.DefaultBeforeNoDefault(parameter.location));
                 continue;
             }
@@ -678,7 +678,7 @@ internal sealed class Binder {
         var isConstantReference = type.constRefKeyword != null && isReference;
         var isConstant = type.constKeyword != null;
         var isVariable = type.varKeyword != null;
-        var isImplicit = type.typeName == null;
+        var isImplicit = type.typeName is null;
         var dimensions = type.rankSpecifiers.Count;
         var arguments = type.templateArgumentList?.arguments;
         var arity = arguments?.Count ?? 0;
@@ -714,7 +714,7 @@ internal sealed class Binder {
 
         var foundType = LookupType(type.typeName?.text, arity);
 
-        if (foundType == null && !isImplicit)
+        if (foundType is null && !isImplicit)
             diagnostics.Push(Error.UnknownType(type.location, type.typeName.text));
 
         var argumentBuilder = ImmutableArray.CreateBuilder<BoundConstant>();
@@ -725,7 +725,7 @@ internal sealed class Binder {
                 // Should factor out that functionality from CallExpression to avoid duplicate code
                 var constant = BindExpression(argument.expression);
 
-                if (constant.constantValue == null)
+                if (constant.constantValue is null)
                     diagnostics.Push(Error.NotConstantValue(argument.location));
                 else
                     argumentBuilder.Add(constant.constantValue);
@@ -852,11 +852,11 @@ internal sealed class Binder {
 
     private BoundStatement BindTryStatement(TryStatementSyntax expression) {
         var body = (BoundBlockStatement)BindBlockStatement(expression.body);
-        var catchBody = expression.catchClause == null
+        var catchBody = expression.catchClause is null
             ? null
             : (BoundBlockStatement)BindBlockStatement(expression.catchClause.body);
 
-        var finallyBody = expression.finallyClause == null
+        var finallyBody = expression.finallyClause is null
             ? null
             : (BoundBlockStatement)BindBlockStatement(expression.finallyClause.body);
 
@@ -864,14 +864,14 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindReturnStatement(ReturnStatementSyntax expression) {
-        var boundExpression = expression.expression == null ? null : BindExpression(expression.expression);
+        var boundExpression = expression.expression is null ? null : BindExpression(expression.expression);
 
         if (_flags.Includes(BinderFlags.Method)) {
             if (_enclosingType.typeSymbol == TypeSymbol.Void) {
                 if (boundExpression != null)
                     diagnostics.Push(Error.UnexpectedReturnValue(expression.keyword.location));
             } else {
-                if (boundExpression == null)
+                if (boundExpression is null)
                     diagnostics.Push(Error.MissingReturnValue(expression.keyword.location));
                 else
                     boundExpression = BindCast(expression.expression.location, boundExpression, _enclosingType);
@@ -964,7 +964,7 @@ internal sealed class Binder {
         }
 
         var then = BindStatement(statement.then);
-        var elseStatement = statement.elseClause == null
+        var elseStatement = statement.elseClause is null
             ? null
             : BindStatement(statement.elseClause.body);
 
@@ -1037,12 +1037,12 @@ internal sealed class Binder {
         if (diagnostics.Errors().count > currentCount)
             return null;
 
-        if (type.isImplicit && expression.initializer == null) {
+        if (type.isImplicit && expression.initializer is null) {
             diagnostics.Push(Error.NoInitOnImplicit(expression.identifier.location));
             return null;
         }
 
-        if (type.isReference && expression.initializer == null) {
+        if (type.isReference && expression.initializer is null) {
             diagnostics.Push(Error.ReferenceNoInitialization(expression.identifier.location, type.isConstant));
             return null;
         }
@@ -1113,7 +1113,7 @@ internal sealed class Binder {
             return new BoundVariableDeclarationStatement(variable, initializer);
         } else if (type.dimensions > 0 ||
             (type.isImplicit && expression.initializer is InitializerListExpressionSyntax)) {
-            var initializer = (expression.initializer == null ||
+            var initializer = (expression.initializer is null ||
                 (expression.initializer is LiteralExpressionSyntax l && l.token.kind == SyntaxKind.NullKeyword))
                 ? new BoundTypeWrapper(type, new BoundConstant(null))
                 : BindExpression(expression.initializer, initializerListType: type);
@@ -1148,7 +1148,7 @@ internal sealed class Binder {
                 tempType, isConstant: type.isConstant ? true : null, isNullable: isNullable, isLiteral: false
             );
 
-            if (!variableType.isNullable && initializer is BoundLiteralExpression ble && ble.value == null) {
+            if (!variableType.isNullable && initializer is BoundLiteralExpression ble && ble.value is null) {
                 diagnostics.Push(Error.NullAssignOnNotNull(expression.initializer.location, variableType.isConstant));
                 return null;
             }
@@ -1178,7 +1178,13 @@ internal sealed class Binder {
                 tempType, isConstant: type.isConstant ? true : null, isNullable: isNullable, isLiteral: false
             );
 
-            if (!variableType.isNullable && initializer is BoundLiteralExpression ble && ble.value == null) {
+            // If this is null, it means OverloadResolution failed and no method could be assumed, meaning that either a
+            // non-method was called or no overload could be assumed in the initializer. If this is the case, the type
+            // cannot be assumed an there is no easy way to stop cascading errors, so we don't.
+            if (variableType is null)
+                return null;
+
+            if (!variableType.isNullable && initializer is BoundLiteralExpression ble && ble.value is null) {
                 diagnostics.Push(Error.NullAssignOnNotNull(expression.initializer.location, variableType.isConstant));
                 return null;
             }
@@ -1194,7 +1200,7 @@ internal sealed class Binder {
             var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
             var variable = BindVariable(expression.identifier, variableType, castedInitializer.constantValue);
 
-            if (initializer.constantValue == null || initializer.constantValue.value != null)
+            if (initializer.constantValue is null || initializer.constantValue.value != null)
                 _scope.NoteAssignment(variable);
 
             if (diagnostics.Errors().count > currentCount)
@@ -1290,7 +1296,7 @@ internal sealed class Binder {
                 symbol = field as FieldSymbol;
         }
 
-        if (symbol == null) {
+        if (symbol is null) {
             diagnostics.Push(
                 Error.NoSuchMember(expression.identifier.location, operand.type, expression.identifier.text)
             );
@@ -1345,7 +1351,7 @@ internal sealed class Binder {
 
         var boundOp = BoundPostfixOperator.Bind(expression.op.kind, boundOperand.type);
 
-        if (boundOp == null) {
+        if (boundOp is null) {
             diagnostics.Push(Error.InvalidPostfixUse(expression.op.location, expression.op.text, boundOperand.type));
             return new BoundErrorExpression();
         }
@@ -1380,7 +1386,7 @@ internal sealed class Binder {
 
         var boundOp = BoundPrefixOperator.Bind(expression.op.kind, boundOperand.type);
 
-        if (boundOp == null) {
+        if (boundOp is null) {
             diagnostics.Push(Error.InvalidPrefixUse(expression.op.location, expression.op.text, boundOperand.type));
             return new BoundErrorExpression();
         }
@@ -1418,7 +1424,7 @@ internal sealed class Binder {
 
         var methods = _scope.LookupOverloads<Symbol>(name, innerName);
 
-        if (methods == null || methods.Length == 0) {
+        if (methods.Length == 0) {
             diagnostics.Push(Error.UndefinedMethod(((NameExpressionSyntax)expression.operand).location, name));
             return new BoundErrorExpression();
         }
@@ -1431,7 +1437,7 @@ internal sealed class Binder {
 
             if (i < expression.arguments.Count - 1 &&
                 argumentName != null &&
-                expression.arguments[i + 1].identifier == null) {
+                expression.arguments[i + 1].identifier is null) {
                 diagnostics.Push(Error.NamedBeforeUnnamed(argumentName.location));
                 return new BoundErrorExpression();
             }
@@ -1494,7 +1500,7 @@ internal sealed class Binder {
             tempItem = tempItem is BoundEmptyExpression ? new BoundLiteralExpression(null) : tempItem;
 
             // If the type is incomplete in any way, get a new one
-            if (type == null || type.isImplicit || type.typeSymbol == null) {
+            if (type is null || type.isImplicit || type.typeSymbol is null) {
                 var tempType = tempItem.type;
 
                 type = BoundType.CopyWith(
@@ -1524,7 +1530,7 @@ internal sealed class Binder {
 
         var boundOp = BoundUnaryOperator.Bind(expression.op.kind, boundOperand.type);
 
-        if (boundOp == null) {
+        if (boundOp is null) {
             diagnostics.Push(
                 Error.InvalidUnaryOperatorUse(expression.op.location, expression.op.text, boundOperand.type)
             );
@@ -1551,7 +1557,7 @@ internal sealed class Binder {
             boundCenter.type, boundRight.type
         );
 
-        if (boundOp == null) {
+        if (boundOp is null) {
             diagnostics.Push(Error.InvalidTernaryOperatorUse(
                 expression.leftOp.location, $"{expression.leftOp.text}{expression.rightOp.text}",
                 boundLeft.type, boundCenter.type, boundRight.type)
@@ -1572,7 +1578,7 @@ internal sealed class Binder {
 
         var boundOp = BoundBinaryOperator.Bind(expression.op.kind, boundLeft.type, boundRight.type);
 
-        if (boundOp == null) {
+        if (boundOp is null) {
             diagnostics.Push(Error.InvalidBinaryOperatorUse(
                 expression.op.location, expression.op.text, boundLeft.type, boundRight.type, false)
             );
@@ -1605,14 +1611,12 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindNameExpression(NameExpressionSyntax expression) {
-        var name = expression.identifier.text;
-
         if (expression.identifier.isFabricated)
             return new BoundErrorExpression();
 
         var variable = BindVariableReference(expression.identifier);
 
-        if (variable == null)
+        if (variable is null)
             return new BoundErrorExpression();
 
         return new BoundVariableExpression(variable);
@@ -1638,7 +1642,7 @@ internal sealed class Binder {
         var boundExpression = BindExpression(expression.right);
         var type = left.type;
 
-        if (!type.isNullable && boundExpression is BoundLiteralExpression le && le.value == null) {
+        if (!type.isNullable && boundExpression is BoundLiteralExpression le && le.value is null) {
             diagnostics.Push(Error.NullAssignOnNotNull(expression.right.location, false));
             return boundExpression;
         }
@@ -1667,7 +1671,7 @@ internal sealed class Binder {
                 equivalentOperatorTokenKind, type, boundExpression.type
             );
 
-            if (boundOperator == null) {
+            if (boundOperator is null) {
                 diagnostics.Push(Error.InvalidBinaryOperatorUse(
                     expression.assignmentToken.location, expression.assignmentToken.text,
                     type, boundExpression.type, true)
@@ -1683,7 +1687,7 @@ internal sealed class Binder {
             var convertedExpression = BindCast(expression.right.location, boundExpression, type);
 
             if (left is BoundVariableExpression ve) {
-                if (ve.variable.constantValue == null || BoundConstant.IsNotNull(ve.variable.constantValue))
+                if (ve.variable.constantValue is null || BoundConstant.IsNotNull(ve.variable.constantValue))
                     _scope.NoteAssignment(ve.variable);
             }
 

@@ -11,5 +11,5 @@ public sealed class Kind : IEquatable<Kind> {
 
     public bool Equals(Kind other) => Name == other?.Name;
 
-    public override int GetHashCode() => Name == null ? 0 : Name.GetHashCode();
+    public override int GetHashCode() => Name is null ? 0 : Name.GetHashCode();
 }

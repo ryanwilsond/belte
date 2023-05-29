@@ -23,17 +23,7 @@ public abstract class SourceText {
     private static readonly ObjectPool<char[]> _charArrayPool =
         new ObjectPool<char[]>(() => new char[CharBufferSize], CharBufferCount);
 
-    protected ImmutableArray<TextLine> _lines;
-
-    /// <summary>
-    /// The lines of text from the source file.
-    /// </summary>
-    public ImmutableArray<TextLine> lines {
-        get {
-            EnsureLines();
-            return _lines;
-        }
-    }
+    protected ImmutableArray<TextLine>? _lines;
 
     public override string ToString() => ToString(new TextSpan(0, length));
 
@@ -50,7 +40,7 @@ public abstract class SourceText {
     /// <summary>
     /// Number of lines in the <see cref="SourceText" />.
     /// </summary>
-    public virtual int lineCount => lines.Length;
+    public virtual int lineCount => GetLines().Length;
 
     /// <summary>
     /// Creates a <see cref="SourceText" /> from a text, not necessarily relating to a source file.
@@ -66,6 +56,13 @@ public abstract class SourceText {
     /// Copy a range of characters from this to a destination array.
     /// </summary>
     public abstract void CopyTo(int sourceIndex, char[] destination, int destinationIndex, int count);
+
+    /// <summary>
+    /// Gets the line at the given index.
+    /// </summary>
+    public virtual TextLine GetLine(int index) {
+        return GetLines()[index];
+    }
 
     /// <summary>
     /// String representation of part of the text.
@@ -183,13 +180,13 @@ public abstract class SourceText {
     /// </summary>
     /// <param name="position">Absolute index.</param>
     /// <returns>Line index.</returns>
-    public int GetLineIndex(int position) {
+    public virtual int GetLineIndex(int position) {
         var lower = 0;
         var upper = lineCount - 1;
 
         while (lower <= upper) {
             var index = lower + (upper - lower) / 2;
-            var start = lines[index].start;
+            var start = GetLines()[index].start;
 
             if (position == start)
                 return index;
@@ -200,6 +197,14 @@ public abstract class SourceText {
         }
 
         return lower - 1;
+    }
+
+    /// <summary>
+    /// The lines of text from the source file.
+    /// </summary>
+    public ImmutableArray<TextLine> GetLines() {
+        EnsureLines();
+        return _lines.Value;
     }
 
     /// <summary>
@@ -251,7 +256,7 @@ public abstract class SourceText {
     protected static ImmutableArray<TextLine> ParseLines(SourceText pointer, string text) {
         var result = ImmutableArray.CreateBuilder<TextLine>();
 
-        if (text == null)
+        if (text is null)
             return result.ToImmutable();
 
         var position = 0;

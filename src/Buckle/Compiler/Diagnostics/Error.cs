@@ -67,7 +67,7 @@ internal static class Error {
     internal static Diagnostic UnexpectedToken(SyntaxKind unexpected, SyntaxKind? expected = null) {
         string message;
 
-        if (expected == null)
+        if (expected is null)
             message = $"unexpected {DiagnosticText(unexpected)}";
         else if (unexpected != SyntaxKind.EndOfFileToken)
             message = $"unexpected {DiagnosticText(unexpected)}, expected {DiagnosticText(expected.Value, false)}";
@@ -224,7 +224,7 @@ internal static class Error {
         var constantPhrase = isConstantReference ? "with a reference " : "";
         var message = $"'{name}' cannot be assigned to {constantPhrase}as it is a {constantWord}";
 
-        if (name == null)
+        if (name is null)
             message = "cannot assign to a constant";
 
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstantAssignment), location, message);

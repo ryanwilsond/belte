@@ -9,7 +9,7 @@ internal abstract partial class SyntaxVisitor<TResult> {
     /// Visits a <see cref="BelteSyntaxNode" />.
     /// </summary>
     internal virtual TResult Visit(BelteSyntaxNode node) {
-        if (node == null)
+        if (node is null)
             return default(TResult);
 
         return node.Accept(this);

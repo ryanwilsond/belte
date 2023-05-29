@@ -163,7 +163,7 @@ internal sealed class SyntaxNavigator {
     }
 
     private static bool Matches(Func<SyntaxToken, bool>? predicate, SyntaxToken token) {
-        return predicate == null || ReferenceEquals(predicate, SyntaxToken.Any) || predicate(token);
+        return predicate is null || ReferenceEquals(predicate, SyntaxToken.Any) || predicate(token);
     }
 
     private static Func<SyntaxTrivia, bool> GetStepIntoFunction(bool skipped) {

@@ -515,7 +515,7 @@ public sealed class DisplayText {
     }
 
     private static void DisplayLiteralExpression(DisplayText text, BoundLiteralExpression node) {
-        if (node.value == null) {
+        if (node.value is null) {
             text.Write(CreateKeyword(SyntaxKind.NullKeyword));
             return;
         }

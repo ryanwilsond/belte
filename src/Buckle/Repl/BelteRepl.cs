@@ -107,7 +107,7 @@ public sealed partial class BelteRepl : Repl {
         UpdateTree();
 
         var texts = new List<(string text, ConsoleColor color)>();
-        var lineSpan = state.tree.text.lines[lineIndex].span;
+        var lineSpan = state.tree.text.GetLine(lineIndex).span;
         var fullText = state.tree.text.ToString(lineSpan);
 
         var classifiedSpans = Classifier.Classify(state.tree, lineSpan);
@@ -218,7 +218,7 @@ public sealed partial class BelteRepl : Repl {
         UpdateTree();
         var lastMember = state.tree.GetCompilationUnitRoot().members.LastOrDefault();
 
-        if (lastMember == null || lastMember.GetLastToken(includeZeroWidth: true).isFabricated)
+        if (lastMember is null || lastMember.GetLastToken(includeZeroWidth: true).isFabricated)
             return false;
 
         return true;
@@ -233,10 +233,10 @@ public sealed partial class BelteRepl : Repl {
     }
 
     protected override void CallDiagnosticHandle(object handle, object arg1 = null, object arg2 = null) {
-        if (arg2 == null)
-            _diagnosticHandle(handle as Compiler, arg1 == null ? null : arg1 as string);
+        if (arg2 is null)
+            _diagnosticHandle(handle as Compiler, arg1 is null ? null : arg1 as string);
         else
-            _diagnosticHandle(handle as Compiler, arg1 == null ? null : arg1 as string, (ConsoleColor)arg2);
+            _diagnosticHandle(handle as Compiler, arg1 is null ? null : arg1 as string, (ConsoleColor)arg2);
     }
 
     private static void ClearSubmissions() {
@@ -389,7 +389,7 @@ public sealed partial class BelteRepl : Repl {
         Console.ForegroundColor = state.colorTheme.result;
         var displayText = new DisplayText();
 
-        if (value == null) {
+        if (value is null) {
             displayText.Write(CreatePunctuation("null"));
         } else if (value.GetType().IsArray) {
             writer.Write("{ ");

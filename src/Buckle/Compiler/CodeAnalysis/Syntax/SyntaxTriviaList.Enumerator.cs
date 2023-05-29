@@ -75,7 +75,7 @@ public sealed partial class SyntaxTriviaList {
 
         public SyntaxTrivia Current {
             get {
-                if (_current == null)
+                if (_current is null)
                     throw new InvalidOperationException();
 
                 return new SyntaxTrivia(_token, _current, _position, _baseIndex + _index);

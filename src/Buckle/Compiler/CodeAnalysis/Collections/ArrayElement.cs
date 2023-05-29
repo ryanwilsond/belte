@@ -15,7 +15,7 @@ internal struct ArrayElement<T> {
     /// Creates an array of ArrayElements from a basic array.
     /// </summary>
     internal static ArrayElement<T>[] MakeElementArray(T[] items) {
-        if (items == null)
+        if (items is null)
             return null;
 
         var array = new ArrayElement<T>[items.Length];
@@ -32,7 +32,7 @@ internal struct ArrayElement<T> {
     /// <param name="items"></param>
     /// <returns></returns>
     internal static T[] MakeArray(ArrayElement<T>[] items) {
-        if (items == null)
+        if (items is null)
             return null;
 
         var array = new T[items.Length];

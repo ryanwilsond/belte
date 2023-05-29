@@ -34,7 +34,7 @@ internal sealed class LargeTextWriter : SourceTextWriter {
     }
 
     public override void Write(string? value) {
-        if (value == null)
+        if (value is null)
             return;
 
         var count = value.Length;
@@ -110,7 +110,7 @@ internal sealed class LargeTextWriter : SourceTextWriter {
     }
 
     private void EnsureBuffer() {
-        if (_buffer == null)
+        if (_buffer is null)
             _buffer = new char[_bufferSize];
     }
 }

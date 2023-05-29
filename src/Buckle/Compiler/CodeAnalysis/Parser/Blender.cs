@@ -28,7 +28,7 @@ internal sealed partial class Blender {
             _changes = _changes.Push(affectedRange);
         }
 
-        if (oldTree == null) {
+        if (oldTree is null) {
             _oldTreeCursor = new Cursor();
             _newPosition = _lexer.position;
         } else {

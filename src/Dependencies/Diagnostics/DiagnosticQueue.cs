@@ -75,7 +75,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// </summary>
     /// <param name="diagnosticQueue"><see cref="DiagnosticQueue<T>" /> to pop and copy from.</param>
     public void Move(DiagnosticQueue<T> diagnosticQueue) {
-        if (diagnosticQueue == null)
+        if (diagnosticQueue is null)
             return;
 
         var diagnostic = diagnosticQueue.Pop();

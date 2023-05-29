@@ -24,7 +24,7 @@ internal sealed partial class ChildSyntaxList {
 
                     var child = _node.GetSlot(_childIndex);
 
-                    if (child == null)
+                    if (child is null)
                         continue;
 
                     current = child;

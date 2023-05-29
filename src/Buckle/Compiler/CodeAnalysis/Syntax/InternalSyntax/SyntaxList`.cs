@@ -23,14 +23,14 @@ internal sealed partial class SyntaxList<T> : IEquatable<SyntaxList<T>> where T 
     /// <summary>
     /// The number of items.
     /// </summary>
-    public int Count => node == null ? 0 : (node.isList ? node.slotCount : 1);
+    public int Count => node is null ? 0 : (node.isList ? node.slotCount : 1);
 
     /// <summary>
     /// Gets the item at the given index.
     /// </summary>
     public T this[int index] {
         get {
-            if (node == null)
+            if (node is null)
                 return null;
             else if (node.isList)
                 return (T)node.GetSlot(index);

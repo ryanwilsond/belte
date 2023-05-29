@@ -160,7 +160,7 @@ internal sealed partial class ILEmitter {
 
     private string dllPath {
         get {
-            if (_dllPath == null)
+            if (_dllPath is null)
                 _dllPath = GetDLLPath();
 
             return _dllPath;
@@ -328,7 +328,7 @@ internal sealed partial class ILEmitter {
             var foundType = foundTypes[0];
             var methods = foundType.Methods.Where(m => m.Name == methodName);
 
-            if (methods.ToArray().Length == 1 && parameterTypeNames == null)
+            if (methods.ToArray().Length == 1 && parameterTypeNames is null)
                 return _assemblyDefinition.MainModule.ImportReference(methods.Single());
 
             foreach (var method in methods) {
@@ -363,7 +363,7 @@ internal sealed partial class ILEmitter {
     private void ThrowRequiredMethodNotFound(string typeName, object methodName, string[] parameterTypeNames) {
         string message;
 
-        if (parameterTypeNames == null) {
+        if (parameterTypeNames is null) {
             message = $"could not resolve method '{typeName}.{methodName}' with the given references";
         } else {
             var parameterList = string.Join(", ", parameterTypeNames);
@@ -853,9 +853,9 @@ internal sealed partial class ILEmitter {
             method.Body.ExceptionHandlers.Add(handler);
         }
 
-        if (statement.catchBody == null) {
+        if (statement.catchBody is null) {
             EmitTryFinally(statement.body.statements, statement.finallyBody.statements);
-        } else if (statement.finallyBody == null) {
+        } else if (statement.finallyBody is null) {
             EmitTryCatch(statement.body.statements, statement.catchBody.statements);
         } else {
             EmitTryFinally(
@@ -1438,7 +1438,7 @@ internal sealed partial class ILEmitter {
 
         */
         if (expression.method.MethodMatches(BuiltinMethods.RandInt)) {
-            if (_randomFieldDefinition == null)
+            if (_randomFieldDefinition is null)
                 EmitRandomField();
 
             iLProcessor.Emit(OpCodes.Ldsfld, _randomFieldDefinition);

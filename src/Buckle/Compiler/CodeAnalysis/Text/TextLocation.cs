@@ -54,10 +54,10 @@ public sealed class TextLocation {
     /// <summary>
     /// Index of the first character relative to the line (not entire <see cref="SourceText" />).
     /// </summary>
-    public int startCharacter => span.start - text.lines[startLine].start;
+    public int startCharacter => span.start - text.GetLine(startLine).start;
 
     /// <summary>
     /// Index of the last character relative to the line (not entire <see cref="SourceText" />).
     /// </summary>
-    public int endCharacter => span.end - text.lines[startLine].start;
+    public int endCharacter => span.end - text.GetLine(startLine).start;
 }

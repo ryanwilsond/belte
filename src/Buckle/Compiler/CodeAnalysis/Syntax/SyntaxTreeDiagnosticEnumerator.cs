@@ -74,7 +74,7 @@ tryAgain:
             if (slotIndex < node.slotCount - 1) {
                 slotIndex++;
                 var child = node.GetSlot(slotIndex);
-                if (child == null) {
+                if (child is null) {
                     goto tryAgain;
                 }
 

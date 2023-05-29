@@ -156,7 +156,7 @@ internal sealed class Lexer {
 
         var token = SyntaxFactory.Token(kind, text, value, leading, trailing, diagnostics);
 
-        if (text == null)
+        if (text is null)
             token.SetFlags(GreenNode.NodeFlags.IsMissing);
 
         return token;

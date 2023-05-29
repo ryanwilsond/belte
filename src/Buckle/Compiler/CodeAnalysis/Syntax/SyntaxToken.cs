@@ -115,7 +115,7 @@ public sealed class SyntaxToken {
     /// </summary>
     internal SyntaxTriviaList trailingTrivia {
         get {
-            if (node == null)
+            if (node is null)
                 return null;
 
             var leading = node.GetLeadingTrivia();

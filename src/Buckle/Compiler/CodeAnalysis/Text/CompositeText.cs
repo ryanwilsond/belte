@@ -121,7 +121,7 @@ internal sealed class CompositeText : SourceText {
 
         CombineSegments(builder, int.MaxValue);
         var singleText = builder.Single();
-        _lines = singleText.lines;
+        _lines = singleText.GetLines();
     }
 
     private static void ReduceSegmentCountIfNecessary(ImmutableArray<SourceText>.Builder segments) {
@@ -196,7 +196,7 @@ internal sealed class CompositeText : SourceText {
     }
 
     private bool CheckCopyToArguments(int sourceIndex, char[] destination, int destinationIndex, int count) {
-        if (destination == null)
+        if (destination is null)
             throw new BelteInternalException("CheckCopyToArguments", new ArgumentNullException(nameof(destination)));
 
         if (sourceIndex < 0) {

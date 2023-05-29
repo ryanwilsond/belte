@@ -39,7 +39,7 @@ internal sealed partial class ChildSyntaxList {
 
                     while (--_childIndex >= 0) {
                         var child = _node.GetSlot(_childIndex);
-                        if (child == null) {
+                        if (child is null) {
                             continue;
                         }
 

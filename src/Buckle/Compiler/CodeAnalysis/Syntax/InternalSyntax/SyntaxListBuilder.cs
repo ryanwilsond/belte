@@ -50,7 +50,7 @@ internal sealed class SyntaxListBuilder {
     /// Adds a node to the end of the builder.
     /// </summary>
     internal void Add(GreenNode item) {
-        if (item == null) return;
+        if (item is null) return;
 
         if (item.isList) {
             int slotCount = item.slotCount;

@@ -172,6 +172,9 @@ internal sealed class BoundType : BoundNode {
         BoundType type, TypeSymbol typeSymbol = null, bool? isImplicit = null, bool? isConstantReference = null,
         bool? isReference = null, bool? isExplicitReference = null, bool? isConstant = null, bool? isNullable = null,
         bool? isLiteral = null, int? dimensions = null, ImmutableArray<BoundConstant>? templateArguments = null) {
+        if (type is null)
+            return null;
+
         return new BoundType(
             typeSymbol ?? type.typeSymbol,
             isImplicit ?? type.isImplicit,
@@ -200,7 +203,7 @@ internal sealed class BoundType : BoundNode {
             return new BoundType(TypeSymbol.String, isLiteral: true);
         if (value is double)
             return new BoundType(TypeSymbol.Decimal, isLiteral: true);
-        if (value == null)
+        if (value is null)
             return new BoundType(null, isLiteral: true, isNullable: true);
         else
             throw new BelteInternalException($"Assume: unexpected literal '{value}' of type '{value.GetType()}'");

@@ -33,9 +33,18 @@ internal sealed class SubText : SourceText {
         return underlyingText.ToString(GetCompositeSpan(0, length));
     }
 
+    public override TextLine GetLine(int index) {
+        var line = base.GetLine(index);
+        return new TextLine(this, line.start - underlyingSpan.start, line.length, line.lengthWithBreak);
+    }
+
     public override void CopyTo(int sourceIndex, char[] destination, int destinationIndex, int count) {
         var span = GetCompositeSpan(sourceIndex, count);
         underlyingText.CopyTo(span.start, destination, destinationIndex, span.length);
+    }
+
+    public override int GetLineIndex(int position) {
+        return base.GetLineIndex(position + underlyingSpan.start);
     }
 
     internal override SourceText GetSubText(TextSpan span) {
@@ -46,7 +55,7 @@ internal sealed class SubText : SourceText {
         if (_lines != null)
             return;
 
-        var lines = underlyingText.lines;
+        var lines = underlyingText.GetLines();
         var builder = ImmutableArray.CreateBuilder<TextLine>();
 
         foreach (var line in lines) {
@@ -55,7 +64,7 @@ internal sealed class SubText : SourceText {
 
             //       [span]  or  [span]
             // [line]                  [line]
-            if (end < underlyingSpan.start || start > underlyingSpan.end)
+            if (end <= underlyingSpan.start || start >= underlyingSpan.end)
                 continue;
 
             //  [span]

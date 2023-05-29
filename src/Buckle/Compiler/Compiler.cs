@@ -197,6 +197,7 @@ public sealed class Compiler {
 
         var wrapperReference = new ParameterizedThreadStart(wrapper);
         var wrapperThread = new Thread(wrapperReference);
+        wrapperThread.Name = "Compiler.InternalInterpreterStart";
         wrapperThread.Start(abort);
 
         while (wrapperThread.IsAlive)

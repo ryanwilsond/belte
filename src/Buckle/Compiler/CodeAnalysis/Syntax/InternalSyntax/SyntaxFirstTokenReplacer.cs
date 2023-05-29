@@ -48,7 +48,7 @@ internal sealed class SyntaxFirstTokenReplacer : SyntaxRewriter {
     private static T UpdateDiagnosticOffset<T>(T node, int diagnosticOffsetDelta) where T : BelteSyntaxNode {
         var oldDiagnostics = node.GetDiagnostics();
 
-        if (oldDiagnostics == null || oldDiagnostics.Length == 0)
+        if (oldDiagnostics is null || oldDiagnostics.Length == 0)
             return node;
 
         var numDiagnostics = oldDiagnostics.Length;
@@ -58,7 +58,7 @@ internal sealed class SyntaxFirstTokenReplacer : SyntaxRewriter {
             var oldDiagnostic = oldDiagnostics[i];
             var oldSyntaxDiagnostic = oldDiagnostic as SyntaxDiagnostic;
 
-            newDiagnostics[i] = oldSyntaxDiagnostic == null ?
+            newDiagnostics[i] = oldSyntaxDiagnostic is null ?
                 oldDiagnostic :
                 new SyntaxDiagnostic(
                     oldSyntaxDiagnostic,

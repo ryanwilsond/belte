@@ -24,7 +24,7 @@ public static class Classifier {
 
     private static void ClassifyNode(
         SyntaxNodeOrToken node, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result, bool isTypeName = false) {
-        if (node == null)
+        if (node is null)
             return;
 
         if (node.fullSpan != null && !node.fullSpan.OverlapsWith(span))

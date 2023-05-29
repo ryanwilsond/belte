@@ -22,7 +22,7 @@ internal static class ConstantFolding {
         var leftConstant = left.constantValue;
         var rightConstant = right.constantValue;
 
-        if (op == null)
+        if (op is null)
             return null;
 
         // With and/or operators allow one side to be null
@@ -44,7 +44,7 @@ internal static class ConstantFolding {
             if (leftConstant != null && leftConstant.value != null)
                 return new BoundConstant(leftConstant.value);
 
-            if (leftConstant != null && leftConstant.value == null && rightConstant != null)
+            if (leftConstant != null && leftConstant.value is null && rightConstant != null)
                 return new BoundConstant(rightConstant.value);
         }
 
@@ -69,7 +69,7 @@ internal static class ConstantFolding {
             return new BoundConstant(null);
         }
 
-        if (leftConstant == null || rightConstant == null)
+        if (leftConstant is null || rightConstant is null)
             return null;
 
         var leftValue = leftConstant.value;
@@ -181,12 +181,12 @@ internal static class ConstantFolding {
     internal static BoundConstant FoldUnary(BoundUnaryOperator op, BoundExpression operand) {
         var operandType = operand.type.typeSymbol;
 
-        if (operand.constantValue == null || op == null)
+        if (operand.constantValue is null || op is null)
             return null;
 
         var value = operand.constantValue.value;
 
-        if (value == null)
+        if (value is null)
             return new BoundConstant(null);
 
         value = CastUtilities.Cast(value, op.operandType);
@@ -246,7 +246,7 @@ internal static class ConstantFolding {
     /// <returns><see cref="BoundConstant" />, returns null if folding is not possible.</returns>
     internal static BoundConstant FoldCast(BoundExpression expression, BoundType type) {
         if (expression.constantValue != null) {
-            if (expression.constantValue.value == null && !type.isNullable)
+            if (expression.constantValue.value is null && !type.isNullable)
                 return null;
 
             try {

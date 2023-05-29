@@ -65,10 +65,10 @@ internal partial class SyntaxList : GreenNode {
     /// Joins together two SyntaxLists.
     /// </summary>
     internal static GreenNode Concat(GreenNode left, GreenNode right) {
-        if (left == null)
+        if (left is null)
             return right;
 
-        if (right == null)
+        if (right is null)
             return left;
 
         var leftList = left as SyntaxList;

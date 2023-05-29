@@ -162,16 +162,16 @@ internal sealed class BoundBinaryOperator {
     /// <returns><see cref="BoundBinaryOperator" /> if an operator exists, otherwise null.</returns>
     internal static BoundBinaryOperator Bind(SyntaxKind kind, BoundType leftType, BoundType rightType) {
         foreach (var op in _operators) {
-            var leftIsCorrect = op.leftType == null
+            var leftIsCorrect = op.leftType is null
                 ? true
                 : Cast.Classify(leftType, op.leftType, false).isImplicit;
 
-            var rightIsCorrect = op.rightType == null
+            var rightIsCorrect = op.rightType is null
                 ? true
                 : Cast.Classify(rightType, op.rightType, false).isImplicit;
 
             if (op.kind == kind && leftIsCorrect && rightIsCorrect) {
-                if (op.leftType == null || op.rightType == null) {
+                if (op.leftType is null || op.rightType is null) {
                     return new BoundBinaryOperator(
                         op.kind,
                         op.opKind,

@@ -13,7 +13,7 @@ public sealed class SyntaxFactTests {
     [MemberData(nameof(GetSyntaxTypeData))]
     internal void SyntaxFact_GetText_RoundTrips(SyntaxKind kind) {
         var text = SyntaxFacts.GetText(kind);
-        if (text == null)
+        if (text is null)
             return;
 
         var tokens = SyntaxTreeExtensions.ParseTokens(text);

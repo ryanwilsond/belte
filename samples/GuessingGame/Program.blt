@@ -34,8 +34,9 @@ int StartGame(int max) {
 
 bool AskForHints() {
     while (true) {
+        Print("Do you want hints? ");
         // Use the `Input` builtin function to get input from the user; standard in (the terminal).
-        var wantHints = Input("Do you want hints? ");
+        var wantsHints = Input();
 
         if (wantsHints == "yes" || wantsHints == "y" || wantsHints == "")
             return true;
@@ -58,7 +59,8 @@ int RunGame(int magicNumber, int max, bool hintsWanted) {
         if (hintsWanted)
             prompt = prompt + "(ideal: " + ((string)idealGuess) + ") ";
 
-        var guessText = Input(prompt);
+        Print(prompt);
+        var guessText = Input();
 
         if (guessText == "") {
             if (hintsWanted)
@@ -71,7 +73,7 @@ int RunGame(int magicNumber, int max, bool hintsWanted) {
 
         if (guess > magicNumber) {
             PrintLine("The number is lower");
-            uperrBound = idealGuess;
+            upperBound = idealGuess;
             idealGuess -= (upperBound - lowerBound + 1) / 2;
         } else if (guess < magicNumber) {
             PrintLine("The number is higher");

@@ -29,7 +29,7 @@ internal sealed class SyntaxListBuilder<T> where T : GreenNode {
     /// <summary>
     /// If the underlying builder is null.
     /// </summary>
-    public bool isNull => _builder == null;
+    public bool isNull => _builder is null;
 
     /// <summary>
     /// The number if items currently in the builder.

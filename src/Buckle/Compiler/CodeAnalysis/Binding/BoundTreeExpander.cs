@@ -152,7 +152,7 @@ internal abstract class BoundTreeExpander {
     }
 
     protected virtual List<BoundStatement> ExpandReturnStatement(BoundReturnStatement statement) {
-        if (statement.expression == null)
+        if (statement.expression is null)
             return new List<BoundStatement>() { statement };
 
         var statements = ExpandExpression(statement.expression, out var replacement);

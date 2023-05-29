@@ -42,7 +42,7 @@ public sealed partial class SyntaxList<T> : IReadOnlyList<T> where T : SyntaxNod
     /// <summary>
     /// The number of children in the list.
     /// </summary>
-    public int Count => node == null ? 0 : (node.isList ? node.slotCount : 1);
+    public int Count => node is null ? 0 : (node.isList ? node.slotCount : 1);
 
     /// <summary>
     /// The underlying list node.

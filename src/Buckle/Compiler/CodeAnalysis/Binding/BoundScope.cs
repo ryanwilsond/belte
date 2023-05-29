@@ -130,7 +130,7 @@ internal sealed class BoundScope {
         // Does not work with overloads
         var symbol = LookupSymbol(name);
 
-        if (symbol == null)
+        if (symbol is null)
             return false;
 
         var succeeded = false;
@@ -149,7 +149,7 @@ internal sealed class BoundScope {
                 }
             }
 
-            if (parentRef == null || succeeded) {
+            if (parentRef is null || succeeded) {
                 break;
             } else {
                 symbols = ref parentRef._symbols;
@@ -166,7 +166,7 @@ internal sealed class BoundScope {
     /// </summary>
     /// <param name="symbol"><see cref="Symbol" /> that was assigned to.</param>
     internal void NoteAssignment(Symbol symbol) {
-        if (_assignedSymbols == null)
+        if (_assignedSymbols is null)
             _assignedSymbols = new List<Symbol>();
 
         _assignedSymbols.Add(symbol);
@@ -222,7 +222,7 @@ internal sealed class BoundScope {
             overloads.AddRange(parent?.LookupOverloadsInternal<T>(
                 name,
                 strict: strict,
-                _current: _current == null
+                _current: _current is null
                     ? overloads.ToImmutable()
                     : overloads.ToImmutable().AddRange(_current.Value))
             );
@@ -232,7 +232,7 @@ internal sealed class BoundScope {
     }
 
     private bool TryDeclareSymbol<T>(T symbol) where T : Symbol {
-        if (_symbols == null)
+        if (_symbols is null)
             _symbols = new List<Symbol>();
 
         if (Contains(symbol.name)) {
@@ -284,18 +284,18 @@ internal sealed class BoundScope {
             }
         }
 
-        return _isBlock ? (parent == null ? false : parent.Contains(name)) : false;
+        return _isBlock ? (parent is null ? false : parent.Contains(name)) : false;
     }
 
     private ImmutableArray<T> GetDeclaredSymbols<T>() where T : Symbol {
-        if (_symbols == null)
+        if (_symbols is null)
             return ImmutableArray<T>.Empty;
 
         return _symbols.OfType<T>().ToImmutableArray();
     }
 
     private ImmutableArray<T> GetAssignedSymbols<T>() where T : Symbol {
-        if (_assignedSymbols == null)
+        if (_assignedSymbols is null)
             return ImmutableArray<T>.Empty;
 
         return _assignedSymbols.OfType<T>().ToImmutableArray();

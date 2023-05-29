@@ -17,7 +17,7 @@ internal sealed class ControlFlowBranch {
     }
 
     public override string ToString() {
-        if (condition == null)
+        if (condition is null)
             return string.Empty;
 
         return condition.ToString();

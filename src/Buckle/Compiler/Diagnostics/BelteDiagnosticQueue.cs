@@ -35,7 +35,7 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
         for (var i = 0; i < diagnosticList.Count; i++) {
             var diagnostic = diagnosticList[i];
 
-            if (diagnostic.location == null) {
+            if (diagnostic.location is null) {
                 specialDiagnostics.Push(diagnostic);
                 diagnosticList.RemoveAt(i--);
             }

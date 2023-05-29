@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Shared;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -26,11 +27,15 @@ internal sealed class Interpreter {
         SyntaxTree syntaxTree, CompilationOptions options,
         Dictionary<IVariableSymbol, IEvaluatorObject> variables, ValueWrapper<bool> abort) {
         var parsedSyntaxTree = SyntaxTree.Parse(syntaxTree.text);
+        var textOffset = 0;
         Compilation previous = null;
         EvaluationResult result = null;
 
         foreach (var member in parsedSyntaxTree.GetCompilationUnitRoot().members) {
+            textOffset += member.position;
+
             var newSyntaxTree = SyntaxTree.Create(
+                syntaxTree.text.GetSubText(new TextSpan(textOffset, syntaxTree.text.length - textOffset)),
                 SyntaxFactory.CompilationUnit(
                     new SyntaxList<MemberSyntax>(member),
                     parsedSyntaxTree.endOfFile
@@ -39,6 +44,9 @@ internal sealed class Interpreter {
 
             previous = Compilation.CreateScript(options, previous, newSyntaxTree);
             result = previous.Evaluate(variables, abort);
+
+            if (result.diagnostics.Errors().Any())
+                break;
         }
 
         return result;

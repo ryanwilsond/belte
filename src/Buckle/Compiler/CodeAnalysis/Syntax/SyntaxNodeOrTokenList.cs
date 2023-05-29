@@ -32,7 +32,7 @@ public sealed partial class SyntaxNodeOrTokenList : IReadOnlyCollection<SyntaxNo
     /// <summary>
     /// The number of items in the list.
     /// </summary>
-    public int Count => node == null ? 0 : node.green.isList ? node.slotCount : 1;
+    public int Count => node is null ? 0 : node.green.isList ? node.slotCount : 1;
 
     /// <summary>
     /// Gets the child at the given index.
@@ -118,19 +118,19 @@ public sealed partial class SyntaxNodeOrTokenList : IReadOnlyCollection<SyntaxNo
     }
 
     IEnumerator<SyntaxNodeOrToken> IEnumerable<SyntaxNodeOrToken>.GetEnumerator() {
-        return node == null
+        return node is null
             ? new EmptyEnumerator<SyntaxNodeOrToken>()
             : GetEnumerator();
     }
 
     IEnumerator IEnumerable.GetEnumerator() {
-        return node == null
+        return node is null
             ? new EmptyEnumerator<SyntaxNodeOrToken>()
             : GetEnumerator();
     }
 
     private static SyntaxNode CreateNode(IEnumerable<SyntaxNodeOrToken> nodesAndTokens) {
-        if (nodesAndTokens == null)
+        if (nodesAndTokens is null)
             throw new ArgumentNullException(nameof(nodesAndTokens));
 
         var builder = new SyntaxNodeOrTokenListBuilder(8);

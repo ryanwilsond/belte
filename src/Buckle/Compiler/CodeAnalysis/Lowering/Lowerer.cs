@@ -66,7 +66,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (_transpilerMode)
             return base.RewriteIfStatement(statement);
 
-        if (statement.elseStatement == null) {
+        if (statement.elseStatement is null) {
             var endLabel = GenerateLabel();
 
             return RewriteStatement(
@@ -439,7 +439,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             var newArgument = RewriteExpression(oldArgument);
 
             if (newArgument != oldArgument) {
-                if (builder == null) {
+                if (builder is null) {
                     builder = ImmutableArray.CreateBuilder<BoundExpression>(expression.arguments.Length);
 
                     for (var j = 0; j < i; j++)
@@ -454,7 +454,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             ? new MethodSymbol(method.name, parameters.ToImmutable(), method.type, method.declaration)
             : method;
 
-        if (builder == null)
+        if (builder is null)
             return base.RewriteCallExpression(new BoundCallExpression(newMethod, expression.arguments));
         else
             return base.RewriteCallExpression(new BoundCallExpression(newMethod, builder.ToImmutable()));

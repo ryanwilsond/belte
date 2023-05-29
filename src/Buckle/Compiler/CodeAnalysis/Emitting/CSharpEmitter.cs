@@ -313,7 +313,7 @@ internal sealed class CSharpEmitter {
     }
 
     private void EmitReturnStatement(IndentedTextWriter indentedTextWriter, BoundReturnStatement statement) {
-        if (statement.expression == null) {
+        if (statement.expression is null) {
             indentedTextWriter.WriteLine("return;");
         } else {
             indentedTextWriter.Write("return ");

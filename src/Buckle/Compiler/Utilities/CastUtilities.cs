@@ -15,10 +15,10 @@ internal static class CastUtilities {
     /// <param name="type">The target type of the value.</param>
     /// <returns>The casted value, does not wrap conversion exceptions.</returns>
     internal static object Cast(object value, BoundType targetType) {
-        if (value == null && !targetType.isNullable)
+        if (value is null && !targetType.isNullable)
             throw new NullReferenceException();
 
-        if (value == null)
+        if (value is null)
             return null;
 
         var typeSymbol = targetType?.typeSymbol;

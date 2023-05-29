@@ -18,7 +18,7 @@ internal sealed class StringText : SourceText {
         this.fileName = fileName;
     }
 
-    public override int lineCount => _lines.Length;
+    public override int lineCount => _lines.GetValueOrDefault().Length;
 
     public override char this[int index] => source[index];
 
@@ -54,7 +54,7 @@ internal sealed class StringText : SourceText {
     }
 
     protected override void EnsureLines() {
-        if (_lines == null)
+        if (_lines is null)
             _lines = ImmutableArray<TextLine>.Empty;
     }
 }

@@ -18,14 +18,14 @@ public sealed partial class ChildSyntaxList {
         }
 
         IEnumerator<SyntaxNodeOrToken> IEnumerable<SyntaxNodeOrToken>.GetEnumerator() {
-            if (_node == null)
+            if (_node is null)
                 return new EmptyEnumerator<SyntaxNodeOrToken>();
 
             return new EnumeratorImpl(_node, _count);
         }
 
         IEnumerator IEnumerable.GetEnumerator() {
-            if (_node == null)
+            if (_node is null)
                 return new EmptyEnumerator<SyntaxNodeOrToken>();
 
             return new EnumeratorImpl(_node, _count);

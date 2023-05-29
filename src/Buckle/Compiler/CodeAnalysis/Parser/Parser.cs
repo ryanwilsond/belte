@@ -67,7 +67,7 @@ internal sealed partial class Parser {
 
     private SyntaxToken currentToken {
         get {
-            if (_currentToken == null)
+            if (_currentToken is null)
                 _currentToken = FetchCurrentToken();
 
             return _currentToken;
@@ -238,7 +238,7 @@ internal sealed partial class Parser {
 
                 builder.Add(token.GetTrailingTrivia());
                 currentOffset += token.fullWidth;
-            } else if (node.containsDiagnostics && diagnostic == null) {
+            } else if (node.containsDiagnostics && diagnostic is null) {
                 var existing = (SyntaxDiagnostic)node.GetDiagnostics().FirstOrDefault();
 
                 if (existing != null) {
@@ -367,7 +367,7 @@ internal sealed partial class Parser {
     }
 
     private SyntaxToken Match(SyntaxKind kind, SyntaxKind? nextWanted = null) {
-        if (nextWanted == null && _expectParenthesis)
+        if (nextWanted is null && _expectParenthesis)
             nextWanted = SyntaxKind.CloseParenToken;
 
         if (currentToken.kind == kind)
@@ -778,7 +778,7 @@ internal sealed partial class Parser {
         var catchClause = ParseCatchClause();
         var finallyClause = ParseFinallyClause();
 
-        if (catchClause == null && finallyClause == null) {
+        if (catchClause is null && finallyClause is null) {
             body = AddDiagnostic(
                 body,
                 Error.NoCatchOrFinally(),
@@ -1413,9 +1413,9 @@ internal sealed partial class Parser {
                 varKeyword = AddDiagnostic(varKeyword, Error.CannotUseImplicit());
         }
 
-        var hasTypeName = (varKeyword == null &&
+        var hasTypeName = (varKeyword is null &&
             (!allowImplicit ||
-                (constKeyword == null ||
+                (constKeyword is null ||
                  Peek(1).kind == SyntaxKind.IdentifierToken ||
                  Peek(1).kind == SyntaxKind.OpenBracketToken
                 )

@@ -109,7 +109,7 @@ internal sealed class OverloadResolution {
             for (var i = 0; i < expression.arguments.Count; i++) {
                 var argumentName = preBoundArgumentsBuilder[i].name;
 
-                if (argumentName == null) {
+                if (argumentName is null) {
                     seenParameterNames.Add(method.parameters[i].name);
                     rearrangedArguments[i] = i;
                     continue;
@@ -174,7 +174,7 @@ internal sealed class OverloadResolution {
                     var argumentExpression = argument.expression;
                     var isImplicitNull = false;
 
-                    if (argument.expression.type.typeSymbol == null &&
+                    if (argument.expression.type.typeSymbol is null &&
                         argument.expression is BoundLiteralExpression le &&
                         BoundConstant.IsNull(argument.expression.constantValue) &&
                         le.isArtificial) {
@@ -212,9 +212,7 @@ internal sealed class OverloadResolution {
             if (methods.Length == 1 && _binder.diagnostics.Errors().Any()) {
                 tempDiagnostics.Move(_binder.diagnostics);
                 _binder.diagnostics.Move(tempDiagnostics);
-
                 return OverloadResolutionResult.Failed();
-                ;
             }
 
             if (_binder.diagnostics.count == beforeCount) {
@@ -237,7 +235,6 @@ internal sealed class OverloadResolution {
         } else if (methods.Length == 1) {
             tempDiagnostics.Move(_binder.diagnostics);
             _binder.diagnostics.Move(tempDiagnostics);
-            return OverloadResolutionResult.Failed();
         }
 
         if (methods.Length > 1 && possibleOverloads.Count == 0) {
@@ -260,6 +257,8 @@ internal sealed class OverloadResolution {
 
                 return OverloadResolutionResult.Failed();
             }
+        } else if (methods.Length == 1 && methods[0] is MethodSymbol ms && possibleOverloads.Count == 0) {
+            possibleOverloads.Add(ms);
         }
 
         return new OverloadResolutionResult(possibleOverloads.SingleOrDefault(), boundArguments.ToImmutable(), true);

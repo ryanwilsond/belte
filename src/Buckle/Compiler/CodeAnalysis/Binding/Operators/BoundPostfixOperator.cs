@@ -57,12 +57,12 @@ internal sealed class BoundPostfixOperator {
     /// <returns><see cref="BoundPostfixOperator" /> if an operator exists, otherwise null.</returns>
     internal static BoundPostfixOperator Bind(SyntaxKind kind, BoundType operandType) {
         foreach (var op in _operators) {
-            var operandIsCorrect = op.operandType == null
+            var operandIsCorrect = op.operandType is null
                 ? true
                 : Cast.Classify(operandType, op.operandType, false).isImplicit;
 
             if (op.kind == kind && operandIsCorrect) {
-                if (op.operandType == null) {
+                if (op.operandType is null) {
                     return new BoundPostfixOperator(kind, op.opKind, operandType);
                 } else if (operandType.isNullable) {
                     return new BoundPostfixOperator(

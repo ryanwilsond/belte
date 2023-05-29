@@ -33,7 +33,7 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
     }
 
     public ImmutableArray<Symbol> GetMembers(string name) {
-        if (_lazyMembersDictionary == null)
+        if (_lazyMembersDictionary is null)
             ConstructLazyMembersDictionary();
 
         return _lazyMembersDictionary[name];

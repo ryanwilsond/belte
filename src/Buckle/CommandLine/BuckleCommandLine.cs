@@ -137,7 +137,7 @@ public static partial class BuckleCommandLine {
             }
         }
 
-        if (allDescriptions == null) {
+        if (allDescriptions is null) {
             diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
             return;
         }
@@ -220,7 +220,7 @@ public static partial class BuckleCommandLine {
         var text = diagnostic.location.text;
 
         var lineNumber = text.GetLineIndex(span.start);
-        var line = text.lines[lineNumber];
+        var line = text.GetLine(lineNumber);
         var column = span.start - line.start + 1;
         var lineText = line.ToString();
 
@@ -324,7 +324,7 @@ public static partial class BuckleCommandLine {
 
         if ((int)state.severity > (int)severity) {
             // Ignore the diagnostic
-        } else if (diagnostic.info.module != "BU" || (diagnostic is BelteDiagnostic bd && bd.location == null)) {
+        } else if (diagnostic.info.module != "BU" || (diagnostic is BelteDiagnostic bd && bd.location is null)) {
             Console.Write($"{me}: ");
 
             switch (severity) {

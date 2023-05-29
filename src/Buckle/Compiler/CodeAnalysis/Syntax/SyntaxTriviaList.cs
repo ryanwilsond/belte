@@ -23,7 +23,7 @@ public sealed partial class SyntaxTriviaList : IReadOnlyList<SyntaxTrivia> {
     /// <summary>
     /// The number of items in the list.
     /// </summary>
-    public int Count => node == null ? 0 : (node.isList ? node.slotCount : 1);
+    public int Count => node is null ? 0 : (node.isList ? node.slotCount : 1);
 
     /// <summary>
     /// The token that this list is wrapping.
@@ -48,12 +48,12 @@ public sealed partial class SyntaxTriviaList : IReadOnlyList<SyntaxTrivia> {
     /// <summary>
     /// The combined full span of all the children. Should be the same as <see cref="span" />.
     /// </summary>
-    internal TextSpan fullSpan => node == null ? null : new TextSpan(position, node.fullWidth);
+    internal TextSpan fullSpan => node is null ? null : new TextSpan(position, node.fullWidth);
 
     /// <summary>
     /// The combined span of all the children. Should be the same as <see cref="fullSpan" />.
     /// </summary>
-    internal TextSpan span => node == null
+    internal TextSpan span => node is null
         ? null
         : TextSpan.FromBounds(
             position + node.GetLeadingTriviaWidth(), position + node.fullWidth - node.GetTrailingTriviaWidth()
@@ -103,14 +103,14 @@ public sealed partial class SyntaxTriviaList : IReadOnlyList<SyntaxTrivia> {
     }
 
     IEnumerator<SyntaxTrivia> IEnumerable<SyntaxTrivia>.GetEnumerator() {
-        if (node == null)
+        if (node is null)
             return new EmptyEnumerator<SyntaxTrivia>();
 
         return new EnumeratorImpl(this);
     }
 
     IEnumerator IEnumerable.GetEnumerator() {
-        if (node == null)
+        if (node is null)
             return new EmptyEnumerator<SyntaxTrivia>();
 
         return new EnumeratorImpl(this);

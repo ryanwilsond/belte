@@ -51,13 +51,13 @@ public sealed class SourceGenerator : IIncrementalGenerator {
         context.RegisterSourceOutput(syntaxXmlFiles, static (context, syntaxXmlFiles) => {
             var input = syntaxXmlFiles.SingleOrDefault();
 
-            if (input == null) {
+            if (input is null) {
                 context.ReportDiagnostic(Diagnostic.Create(s_MissingSyntaxXml, location: null));
                 return;
             }
 
             var inputText = input.GetText();
-            if (inputText == null) {
+            if (inputText is null) {
                 context.ReportDiagnostic(Diagnostic.Create(s_UnableToReadSyntaxXml, location: null));
                 return;
             }

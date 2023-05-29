@@ -11,7 +11,7 @@ internal abstract partial class SyntaxVisitor {
     /// Visits a <see cref="BelteSyntaxNode" />.
     /// </summary>
     internal virtual void Visit(BelteSyntaxNode node) {
-        if (node == null)
+        if (node is null)
             return;
 
         node.Accept(this);

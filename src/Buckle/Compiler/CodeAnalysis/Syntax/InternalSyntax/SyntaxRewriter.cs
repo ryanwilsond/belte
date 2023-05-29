@@ -30,7 +30,7 @@ internal partial class SyntaxRewriter : SyntaxVisitor<BelteSyntaxNode> {
             var item = list[i];
             var visited = Visit(item);
 
-            if (item != visited && alternate == null) {
+            if (item != visited && alternate is null) {
                 alternate = new SyntaxListBuilder(n);
                 alternate.AddRange(list, 0, i);
             }
