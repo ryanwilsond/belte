@@ -8,8 +8,8 @@ Docs/Pages: [ryanwilsond.github.io/belte](https://ryanwilsond.github.io/belte/)
 
 Trello: [trello.com/belteindustries](https://trello.com/belteindustries)
 
-OnBoarding:
-[Belte Industries OnBoarding Presentation](https://docs.google.com/presentation/d/1OPQQ2u9eYoLJ0EJMaahhTUQPkZ3FQ6KigO9uWFbu9zQ/edit?usp=sharing)
+More onboarding resources and documentation exist on a per-request basis for
+developers or for those who want to contribute.
 
 ## Tools for Building
 
