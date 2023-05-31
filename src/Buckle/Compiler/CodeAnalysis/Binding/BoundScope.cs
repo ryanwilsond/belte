@@ -119,18 +119,13 @@ internal sealed class BoundScope {
     }
 
     /// <summary>
-    /// Attempts to modify an already declared <see cref="Symbol" />.
-    /// Does not work with overloads, only modifies the first one. However the order is not constant.
-    /// Thus only use with MethodSymbols with guaranteed no overloads, or VariableSymbols.
+    /// Attempts to replace an already declared <see cref="Symbol" />.
     /// </summary>
-    /// <param name="name">Name of <see cref="Symbol" />.</param>
-    /// <param name="newSymbol">New symbol data to replace old the <see cref="Symbol" />.</param>
-    /// <returns>If the <see cref="Symbol" /> was found and successfully updated.</returns>
-    internal bool TryModifySymbol(string name, Symbol newSymbol) {
-        // Does not work with overloads
-        var symbol = LookupSymbol(name);
-
-        if (symbol is null)
+    /// <param name="currentSymbol">The <see cref="Symbol" /> currently in the scope to replace.</param>
+    /// <param name="newSymbol">New symbol to replace old the <see cref="Symbol" />.</param>
+    /// <returns>If the <see cref="Symbol" /> was found and successfully replaced.</returns>
+    internal bool TryReplaceSymbol(Symbol currentSymbol, Symbol newSymbol) {
+        if (currentSymbol is null)
             return false;
 
         var succeeded = false;
@@ -140,10 +135,9 @@ internal sealed class BoundScope {
         while (true) {
             if (symbols != null) {
                 for (var i = 0; i < symbols.Count; i++) {
-                    if (symbols[i].name == name) {
+                    if (symbols[i] == currentSymbol) {
                         symbols[i] = newSymbol;
                         succeeded = true;
-
                         break;
                     }
                 }
@@ -204,7 +198,6 @@ internal sealed class BoundScope {
                         foreach (var cs in _current.Value) {
                             if (s is MethodSymbol fs && cs is MethodSymbol fcs && MethodsMatch(fs, fcs)) {
                                 skip = true;
-
                                 break;
                             }
                         }
@@ -238,6 +231,8 @@ internal sealed class BoundScope {
         if (Contains(symbol.name)) {
             if (symbol is MethodSymbol fs) {
                 foreach (var s in _symbols) {
+                    // Doesn't check if they refer to the same thing, but if their signatures are the same
+                    // If so, keeping both would make all calls ambiguous so it is not allowed
                     if (MethodsMatch(s as MethodSymbol, fs))
                         return false;
                 }

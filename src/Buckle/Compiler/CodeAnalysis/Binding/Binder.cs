@@ -228,11 +228,7 @@ internal sealed class Binder {
                 }
 
                 if (parametersChanged) {
-                    var newMethod = new MethodSymbol(
-                        methodBody.method.name, newParameters.ToImmutable(), methodBody.method.type,
-                        methodBody.method.declaration
-                    );
-
+                    var newMethod = methodBody.method.UpdateParameters(newParameters.ToImmutable());
                     methodBodies.Add(newMethod, methodBody.body);
                 } else {
                     methodBodies.Add(methodBody.method, methodBody.body);
@@ -420,10 +416,10 @@ internal sealed class Binder {
         }
     }
 
-    private MethodSymbol BindMethodDeclaration(MethodDeclarationSyntax method) {
+    private MethodSymbol BindMethodDeclaration(MethodDeclarationSyntax method, string name = null) {
         var type = BindType(method.returnType);
         var parameters = BindParameters(method.parameters);
-        var newMethod = new MethodSymbol(method.identifier.text, parameters, type, method);
+        var newMethod = new MethodSymbol(name ?? method.identifier.text, parameters, type, method);
 
         return newMethod;
     }
@@ -467,11 +463,11 @@ internal sealed class Binder {
         return BindStatement(syntax);
     }
 
-    private void BindAndDeclareMethodDeclaration(MethodDeclarationSyntax method) {
-        var newMethod = BindMethodDeclaration(method);
+    private void BindAndDeclareMethodDeclaration(MethodDeclarationSyntax method, string name = null) {
+        var newMethod = BindMethodDeclaration(method, name);
 
         if (newMethod.declaration.identifier.text != null && !_scope.TryDeclareMethod(newMethod))
-            diagnostics.Push(Error.MethodAlreadyDeclared(method.identifier.location, newMethod.name));
+            diagnostics.Push(Error.MethodAlreadyDeclared(method.identifier.location, name ?? newMethod.name));
     }
 
     private TypeSymbol BindTypeDeclaration(TypeDeclarationSyntax @type) {
@@ -561,21 +557,20 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindLocalFunctionDeclaration(LocalFunctionStatementSyntax statement) {
-        var functionSymbol = (MethodSymbol)_scope.LookupSymbol(statement.identifier.text);
+        _innerPrefix.Push(statement.identifier.text);
+        var functionSymbol = (MethodSymbol)_scope.LookupSymbol(ConstructInnerName());
+        _innerPrefix.Pop();
 
         var binder = new Binder(_options, (_flags | BinderFlags.LocalFunction), _scope, functionSymbol) {
             _innerPrefix = new Stack<string>(_innerPrefix.Reverse()),
             _trackedSymbols = _trackedSymbols,
             _trackedDeclarations = _trackedDeclarations
         };
+
         binder._trackedSymbols.Push(new HashSet<VariableSymbol>());
         binder._trackedDeclarations.Push(new HashSet<VariableSymbol>());
-        _innerPrefix.Push(functionSymbol.name);
         binder._innerPrefix.Push(functionSymbol.name);
         var body = binder.BindMethodBody(functionSymbol.declaration.body, functionSymbol.parameters);
-
-        var innerName = ConstructInnerName();
-        _innerPrefix.Pop();
 
         var usedVariables = binder._trackedSymbols.Pop();
         var declaredVariables = binder._trackedDeclarations.Pop();
@@ -585,10 +580,13 @@ internal sealed class Binder {
         foreach (var parameter in functionSymbol.parameters)
             parameters.Add(parameter);
 
+        var parametersChanged = false;
+
         foreach (var variable in usedVariables) {
             if (declaredVariables.Contains(variable) || parameters.Contains(variable))
                 continue;
 
+            parametersChanged = true;
             var parameter = new ParameterSymbol(
                 $"${variable.name}",
                 BoundType.CopyWith(variable.type, isReference: true, isExplicitReference: true),
@@ -599,9 +597,9 @@ internal sealed class Binder {
             parameters.Add(parameter);
         }
 
-        var newFunctionSymbol = new MethodSymbol(
-            innerName, parameters.ToImmutable(), functionSymbol.type, functionSymbol.declaration
-        );
+        var newFunctionSymbol = parametersChanged ?
+            functionSymbol.UpdateParameters(parameters.ToImmutable())
+            : functionSymbol;
 
         var loweredBody = Lowerer.Lower(newFunctionSymbol, body, _options.isTranspiling);
 
@@ -612,7 +610,7 @@ internal sealed class Binder {
         diagnostics.Move(binder.diagnostics);
         _methodBodies.AddRange(binder._methodBodies);
 
-        if (!_scope.TryModifySymbol(functionSymbol.name, newFunctionSymbol))
+        if (!_scope.TryReplaceSymbol(functionSymbol, newFunctionSymbol))
             throw new BelteInternalException($"BindLocalFunction: failed to set function '{functionSymbol.name}'");
 
         return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
@@ -990,6 +988,10 @@ internal sealed class Binder {
 
         foreach (var statementSyntax in statement.statements) {
             if (statementSyntax is LocalFunctionStatementSyntax fd) {
+                frame.Add(fd.identifier.text);
+                _innerPrefix.Push(fd.identifier.text);
+                var innerName = ConstructInnerName();
+
                 var declaration = SyntaxFactory.MethodDeclaration(
                     fd.returnType,
                     fd.identifier,
@@ -1001,9 +1003,7 @@ internal sealed class Binder {
                     fd.position
                 );
 
-                BindAndDeclareMethodDeclaration(declaration);
-                frame.Add(fd.identifier.text);
-                _innerPrefix.Push(fd.identifier.text);
+                BindAndDeclareMethodDeclaration(declaration, innerName);
 
                 if (!_unresolvedLocals.TryAdd(ConstructInnerName(), fd)) {
                     diagnostics.Push(Error.CannotOverloadNested(

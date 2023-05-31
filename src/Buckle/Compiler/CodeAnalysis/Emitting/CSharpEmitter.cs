@@ -79,7 +79,7 @@ internal sealed class CSharpEmitter {
                 }
 
                 foreach (var methodWithBody in program.methodBodies) {
-                    if (!methodWithBody.Key.MethodMatches(program.entryPoint))
+                    if (methodWithBody.Key != program.entryPoint)
                         EmitMethod(indentedTextWriter, methodWithBody);
                 }
             }

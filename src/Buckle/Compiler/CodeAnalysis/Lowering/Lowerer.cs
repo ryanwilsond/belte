@@ -451,7 +451,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         var newMethod = parametersChanged
-            ? new MethodSymbol(method.name, parameters.ToImmutable(), method.type, method.declaration)
+            ? method.UpdateParameters(parameters.ToImmutable())
             : method;
 
         if (builder is null)

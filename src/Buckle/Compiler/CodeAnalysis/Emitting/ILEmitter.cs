@@ -284,12 +284,12 @@ internal sealed partial class ILEmitter {
             EmitStructDeclaration(@struct as StructSymbol);
 
         foreach (var methodWithBody in program.methodBodies) {
-            var isMain = program.entryPoint?.MethodMatches(methodWithBody.Key) ?? false;
+            var isMain = program.entryPoint == methodWithBody.Key;
             EmitMethodDeclaration(methodWithBody.Key, isMain);
         }
 
         foreach (var methodWithBody in program.methodBodies) {
-            _insideMain = program.entryPoint?.MethodMatches(methodWithBody.Key) ?? false;
+            _insideMain = program.entryPoint == methodWithBody.Key;
 
             EmitMethodBody(methodWithBody.Key, methodWithBody.Value);
         }
@@ -1437,7 +1437,7 @@ internal sealed partial class ILEmitter {
         call <method>
 
         */
-        if (expression.method.MethodMatches(BuiltinMethods.RandInt)) {
+        if (expression.method == BuiltinMethods.RandInt) {
             if (_randomFieldDefinition is null)
                 EmitRandomField();
 
@@ -1447,18 +1447,18 @@ internal sealed partial class ILEmitter {
         foreach (var argument in expression.arguments)
             EmitExpression(iLProcessor, argument);
 
-        if (expression.method.MethodMatches(BuiltinMethods.RandInt)) {
+        if (expression.method == BuiltinMethods.RandInt) {
             iLProcessor.Emit(OpCodes.Callvirt, _methodReferences[NetMethodReference.RandomNext]);
             return;
         }
 
-        if (expression.method.MethodMatches(BuiltinMethods.Print)) {
+        if (expression.method == BuiltinMethods.Print) {
             iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleWrite]);
-        } else if (expression.method.MethodMatches(BuiltinMethods.PrintLine)) {
+        } else if (expression.method == BuiltinMethods.PrintLine) {
             iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleWriteLine]);
-        } else if (expression.method.MethodMatches(BuiltinMethods.PrintLineNoValue)) {
+        } else if (expression.method == BuiltinMethods.PrintLineNoValue) {
             iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleWriteLineNoArgs]);
-        } else if (expression.method.MethodMatches(BuiltinMethods.Input)) {
+        } else if (expression.method == BuiltinMethods.Input) {
             iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleReadLine]);
         } else if (expression.method.name == "Value") {
             var typeReference = GetType(expression.arguments[0].type);

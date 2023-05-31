@@ -17,12 +17,13 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
     /// <param name="type"><see cref="BoundType" /> of return type.</param>
     /// <param name="declaration">Declaration of method.</param>
     internal MethodSymbol(
-        string name, ImmutableArray<ParameterSymbol> parameters,
-        BoundType type, MethodDeclarationSyntax declaration = null)
+        string name, ImmutableArray<ParameterSymbol> parameters, BoundType type,
+        MethodDeclarationSyntax declaration = null, MethodSymbol originalDefinition = null)
         : base(name) {
         this.type = type;
         this.parameters = parameters;
         this.declaration = declaration;
+        this.originalDefinition = originalDefinition;
     }
 
     public override SymbolKind kind => SymbolKind.Method;
@@ -41,6 +42,12 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
     /// Declaration of method (see <see cref="MethodDeclarationSyntax">).
     /// </summary>
     internal MethodDeclarationSyntax declaration { get; }
+
+    /// <summary>
+    /// If this symbol is a modification of another symbol, <see cref="originalDefinition" /> is a reference
+    /// to the original symbol.
+    /// </summary>
+    internal MethodSymbol originalDefinition { get; }
 
     public string SignatureNoReturnNoParameterNames() {
         var signature = new StringBuilder($"{name}(");
@@ -61,34 +68,15 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
     }
 
     /// <summary>
-    /// Compares this to <paramref name="right" /> to see if the method signatures match, even if they are not the
-    /// same reference. This is effectively a value compare.
-    /// NOTE: This does not look at bodies, and is only comparing the signature.
+    /// Creates a new method symbol with different parameters, but everything else is identical.
     /// </summary>
-    /// <param name="right">Method to compare this to.</param>
-    /// <returns>If the method signatures match completely.</returns>
-    internal bool MethodMatches(MethodSymbol right) {
-        if (name == right.name && parameters.Length == right.parameters.Length) {
-            var parametersMatch = true;
-
-            for (var i = 0; i < parameters.Length; i++) {
-                var checkParameter = parameters[i];
-                var parameter = right.parameters[i];
-
-                // The Replace call allows rewritten nested functions that prefix parameter names with '$'
-                if (checkParameter.name != parameter.name.Replace("$", "") ||
-                    checkParameter.type != parameter.type) {
-                    parametersMatch = false;
-                }
-            }
-
-            if (parametersMatch)
-                return true;
-        }
-
-        return false;
+    internal MethodSymbol UpdateParameters(ImmutableArray<ParameterSymbol> parameters) {
+        return new MethodSymbol(name, parameters, type, declaration, this);
     }
 
+    /// <summary>
+    /// Gets a string representation of the method signature (declaration only, no definition).
+    /// </summary>
     internal string Signature() {
         var signature = new StringBuilder($"{type} {name}(");
         var isFirst = true;
@@ -105,5 +93,26 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
         signature.Append(')');
 
         return signature.ToString();
+    }
+
+    /// <summary>
+    /// If the given symbol refers to this one.
+    /// </summary>
+    internal bool RefersTo(MethodSymbol symbol) {
+        if (symbol is null)
+            return false;
+
+        return GetRootMethod() == symbol.GetRootMethod();
+    }
+
+    /// <summary>
+    /// Gets the most original definition (recursively) of this method. If no explicit original definition exists,
+    /// returns this.
+    /// </summary>
+    internal MethodSymbol GetRootMethod() {
+        if (originalDefinition == null)
+            return this;
+
+        return originalDefinition.GetRootMethod();
     }
 }
