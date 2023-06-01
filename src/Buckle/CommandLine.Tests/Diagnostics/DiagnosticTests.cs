@@ -131,7 +131,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_CL0011_CannotSpecifyWithDotnet() {
+    public void Reports_Fatal_CL0011_CannotSpecifyWithDotnet() {
         var args = new string[] { "-d", "-s" };
 
         var diagnostics = @"
@@ -142,7 +142,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_CL0012_CannotSpecifyWithMultipleFiles() {
+    public void Reports_Fatal_CL0012_CannotSpecifyWithMultipleFiles() {
         var fileName = "BelteTestsAssertDiagnosticCL0012.blt";
         var args = new string[] {
             fileName, "-s", "-o", "BelteTestsAssertDiagnosticCL0012.exe"
@@ -152,11 +152,11 @@ public sealed class DiagnosticTests {
             cannot specify output file with '-p', '-s', '-c', or '-t' with multiple files
         ";
 
-        AssertDiagnostics(args, diagnostics, writer, DiagnosticSeverity.Error, false, fileName);
+        AssertDiagnostics(args, diagnostics, writer, DiagnosticSeverity.Fatal, false, fileName);
     }
 
     [Fact]
-    public void Reports_Error_CL0013_CannotSpecifyWithInterpreter() {
+    public void Reports_Fatal_CL0013_CannotSpecifyWithInterpreter() {
         var args = new string[] { "-i", "-s" };
 
         var diagnostics = @"
@@ -167,7 +167,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_CL0014_CannotSpecifyModuleNameWithoutDotnet() {
+    public void Reports_Fatal_CL0014_CannotSpecifyModuleNameWithoutDotnet() {
         var args = new string[] { "--modulename=testhost" };
 
         var diagnostics = @"
@@ -178,7 +178,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_CL0015_CannotSpecifyReferencesWithoutDotnet() {
+    public void Reports_Fatal_CL0015_CannotSpecifyReferencesWithoutDotnet() {
         var args = new string[] { "--ref=some/fake/path" };
 
         var diagnostics = @"
@@ -256,5 +256,27 @@ public sealed class DiagnosticTests {
         ";
 
         AssertDiagnostics(args, diagnostics, writer);
+    }
+
+    [Fact]
+    public void Reports_Fatal_CL0022_CannotInterpretWithMultipleFiles() {
+        var args = new string[] { "a.blt", "b.blt", "--script" };
+
+        var diagnostics = @"
+            cannot pass multiple files when running as a script
+        ";
+
+        AssertDiagnostics(args, diagnostics, writer, DiagnosticSeverity.Fatal, false, "a.blt", "b.blt");
+    }
+
+    [Fact]
+    public void Reports_Fatal_CL0023_CannotInterpretFile() {
+        var args = new string[] { "a.o", "--script" };
+
+        var diagnostics = @"
+            cannot interpret file
+        ";
+
+        AssertDiagnostics(args, diagnostics, writer, DiagnosticSeverity.Fatal, true, "a.o");
     }
 }

@@ -1063,6 +1063,23 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, writer);
     }
 
+    // TODO uncomment this once templates work in the parser
+    // [Fact]
+    // public void Reports_Error_BU0081_NotConstantValue() {
+    //     var text = @"
+    //         class MyClass<int T> { }
+
+    //         var myInt = 5;
+    //         var myVar = MyClass<[5]>();
+    //     ";
+
+    //     var diagnostics = @"
+    //         expression does not result in a constant value
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, writer);
+    // }
+
     [Fact]
     public void Reports_Error_Unsupported_BU9004_CannotInitialize() {
         var text = @"

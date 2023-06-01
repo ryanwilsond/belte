@@ -37,6 +37,7 @@ internal sealed partial class Parser {
     private int _tokenCount;
     private TerminatorState _terminatorState;
     private NameOptions _nameOptions;
+    private Stack<SyntaxKind> _bracketStack;
 
     /// <summary>
     /// Creates a new <see cref="Parser" />, requiring a fully initialized <see cref="SyntaxTree" />.
@@ -55,6 +56,8 @@ internal sealed partial class Parser {
         _lexer = new Lexer(_syntaxTree);
         _expectParenthesis = false;
         _isIncremental = oldTree != null;
+        _bracketStack = new Stack<SyntaxKind>();
+        _bracketStack.Push(SyntaxKind.None);
 
         if (_isIncremental) {
             _firstBlender = new Blender(_lexer, oldTree, changes);
@@ -539,6 +542,9 @@ internal sealed partial class Parser {
         if (currentToken.kind == SyntaxKind.EndOfFileToken)
             return true;
 
+        if (currentToken.kind == _bracketStack.Peek())
+            return true;
+
         for (int i = 1; i < _lastTerminator; i <<= 1) {
             switch (_terminatorState & (TerminatorState)i) {
                 case TerminatorState.IsEndOfTemplateParameterList when IsEndOfTemplateParameterList():
@@ -669,15 +675,14 @@ internal sealed partial class Parser {
     }
 
     private TemplateParameterListSyntax ParseTemplateParameterList() {
-        var openAngleBracket = EatToken();
+        var openAngleBracket = Match(SyntaxKind.LessThanToken);
 
-        var savedTerminator = _terminatorState;
-        var savedName = _nameOptions;
-        _nameOptions |= NameOptions.InTemplateList;
+        _bracketStack.Push(SyntaxKind.GreaterThanToken);
+        var saved = _terminatorState;
         _terminatorState |= TerminatorState.IsEndOfTemplateParameterList;
         var parameters = ParseParameterList();
-        _nameOptions = savedName;
-        _terminatorState = savedTerminator;
+        _terminatorState = saved;
+        _bracketStack.Pop();
 
         var closeAngleBracket = Match(SyntaxKind.GreaterThanToken);
 
@@ -1219,8 +1224,11 @@ internal sealed partial class Parser {
 
     private ExpressionSyntax ParseParenthesizedExpression() {
         var left = Match(SyntaxKind.OpenParenToken);
+        _bracketStack.Push(SyntaxKind.CloseParenToken);
         var expression = ParseExpression();
+        _bracketStack.Pop();
         var right = Match(SyntaxKind.CloseParenToken);
+
 
         return SyntaxFactory.ParenthesisExpression(left, expression, right);
     }
@@ -1242,14 +1250,19 @@ internal sealed partial class Parser {
     }
 
     private ExpressionSyntax ParseIndexExpression(ExpressionSyntax operand) {
-        var openBracket = EatToken();
+        var openBracket = Match(SyntaxKind.OpenBracketToken);
+        _bracketStack.Push(SyntaxKind.CloseBracketToken);
         var index = ParseExpression();
+        _bracketStack.Pop();
         var closeBracket = Match(SyntaxKind.CloseBracketToken);
 
         return SyntaxFactory.IndexExpression(operand, openBracket, index, closeBracket);
     }
 
     private ExpressionSyntax ParseNameExpression() {
+        // TODO add param to specify is template names are expected/allowed
+        // TODO (so like only in constructors, member access, etc. but not in normal variable expressions
+        // TODO in variable expressions in binary expressions, etc.)
         if (currentToken.kind != SyntaxKind.IdentifierToken) {
             _currentToken = AddDiagnostic(currentToken, Error.ExpectedToken("expression"));
             return SyntaxFactory.IdentifierNameExpression(SyntaxFactory.Missing(SyntaxKind.IdentifierToken));
@@ -1258,9 +1271,8 @@ internal sealed partial class Parser {
         var identifier = EatToken();
         var kind = ScanTemplateArgumentList();
 
-        if (kind == ScanTemplateArgumentListKind.NotTemplateArgumentList ||
-            (kind == ScanTemplateArgumentListKind.PossibleTemplateArgumentList &&
-                (_nameOptions & NameOptions.InTemplateList) == 0))
+        // ! temp, remove `|| true`
+        if (kind == ScanTemplateArgumentListKind.NotTemplateArgumentList || true)
             return SyntaxFactory.IdentifierNameExpression(identifier);
 
         var templateArgumentList = ParseTemplateArgumentList();
@@ -1274,17 +1286,28 @@ internal sealed partial class Parser {
         if ((_nameOptions & NameOptions.InExpression) == 0)
             return ScanTemplateArgumentListKind.DefiniteTemplateArgumentList;
 
-        switch (currentToken.kind) {
+        var lookahead = 1;
+
+        while (Peek(lookahead).kind is not SyntaxKind.GreaterThanToken and not SyntaxKind.EndOfFileToken)
+            lookahead++;
+
+        switch (Peek(lookahead + 1).kind) {
             // Could eventually add extra logic here if the grammar becomes too ambiguous
+            // TODO Only call this during type resolution and `new` expressions for constructors (need to add that)
+            case SyntaxKind.PeriodToken:
+            case SyntaxKind.GreaterThanToken:
+            case SyntaxKind.CommaToken:
+            case SyntaxKind.OpenParenToken:
             case SyntaxKind.EndOfFileToken:
-            default:
                 return ScanTemplateArgumentListKind.PossibleTemplateArgumentList;
+            default:
+                return ScanTemplateArgumentListKind.NotTemplateArgumentList;
         }
     }
 
     private ExpressionSyntax ParseCallExpression(ExpressionSyntax operand) {
-        // This is a temporary check because currently it is impossible for any other expression to be of type Func<>
-        if (operand.kind is not SyntaxKind.IdentifierNameExpression or SyntaxKind.TemplateNameExpression)
+        // ! This is a temporary check because currently it is impossible for any other expression to be of type Func<>
+        if (operand.kind is not SyntaxKind.IdentifierNameExpression and not SyntaxKind.TemplateNameExpression)
             operand = AddDiagnostic(operand, Error.ExpectedMethodName());
 
         var openParenthesis = EatToken();
@@ -1295,15 +1318,14 @@ internal sealed partial class Parser {
     }
 
     private TemplateArgumentListSyntax ParseTemplateArgumentList() {
-        var openAngleBracket = EatToken();
+        var openAngleBracket = Match(SyntaxKind.LessThanToken);
 
-        var savedTerminator = _terminatorState;
-        var savedName = _nameOptions;
-        _nameOptions |= NameOptions.InTemplateList;
+        _bracketStack.Push(SyntaxKind.GreaterThanToken);
+        var saved = _terminatorState;
         _terminatorState |= TerminatorState.IsEndOfTemplateArgumentList;
         var arguments = ParseArguments();
-        _nameOptions = savedName;
-        _terminatorState = savedTerminator;
+        _terminatorState = saved;
+        _bracketStack.Pop();
 
         var closeAngleBracket = Match(SyntaxKind.GreaterThanToken);
 

@@ -7,6 +7,5 @@ internal sealed partial class Parser {
     private enum NameOptions {
         None = 0,
         InExpression = 1 << 0,
-        InTemplateList = 1 << 1,
     }
 }

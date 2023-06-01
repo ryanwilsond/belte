@@ -1416,7 +1416,7 @@ internal sealed class Binder {
         var typeSymbol = _scope.LookupSymbol<TypeSymbol>(name);
 
         if (typeSymbol != null)
-            return new BoundConstructorExpression(typeSymbol);
+            return BindConstructorExpression(expression.operand as NameExpressionSyntax, typeSymbol);
 
         _innerPrefix.Push(name);
         var innerName = ConstructInnerName();
@@ -1489,6 +1489,25 @@ internal sealed class Binder {
         return new BoundCallExpression(result.bestOverload, result.arguments);
     }
 
+    private BoundExpression BindConstructorExpression(NameExpressionSyntax expression, TypeSymbol @type) {
+        var argumentBuilder = ImmutableArray.CreateBuilder<BoundConstant>();
+
+        if (expression is TemplateNameExpressionSyntax t) {
+            foreach (var argument in t.templateArgumentList.arguments) {
+                // TODO Assign Null on empty, and rearrange named
+                // Should factor out that functionality from CallExpression to avoid duplicate code
+                var constant = BindExpression(argument.expression);
+
+                if (constant.constantValue is null)
+                    diagnostics.Push(Error.NotConstantValue(argument.expression.location));
+                else
+                    argumentBuilder.Add(constant.constantValue);
+            }
+        }
+
+        return new BoundConstructorExpression(@type, argumentBuilder.ToImmutable());
+    }
+
     private BoundExpression BindCastExpression(CastExpressionSyntax expression) {
         var toType = BindType(expression.type);
         var boundExpression = BindExpression(expression.expression);
@@ -1496,8 +1515,7 @@ internal sealed class Binder {
         return BindCast(expression.location, boundExpression, toType, true);
     }
 
-    private BoundExpression BindInitializerListExpression(
-        InitializerListExpressionSyntax expression, BoundType type) {
+    private BoundExpression BindInitializerListExpression(InitializerListExpressionSyntax expression, BoundType type) {
         var boundItems = ImmutableArray.CreateBuilder<BoundExpression>();
 
         foreach (var item in expression.items) {

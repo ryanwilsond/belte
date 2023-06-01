@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -11,13 +12,16 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </code>
 /// </summary>
 internal sealed class BoundConstructorExpression : BoundExpression {
-    internal BoundConstructorExpression(TypeSymbol symbol) {
+    internal BoundConstructorExpression(TypeSymbol symbol, ImmutableArray<BoundConstant> templateArguments) {
         this.symbol = symbol;
+        this.templateArguments = templateArguments;
     }
-
-    internal TypeSymbol symbol { get; }
 
     internal override BoundNodeKind kind => BoundNodeKind.ConstructorExpression;
 
     internal override BoundType type => new BoundType(symbol);
+
+    internal TypeSymbol symbol { get; }
+
+    internal ImmutableArray<BoundConstant> templateArguments { get; }
 }

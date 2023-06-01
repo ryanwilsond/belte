@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
@@ -452,10 +453,17 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateConstructorExpression(BoundConstructorExpression node, ValueWrapper<bool> abort) {
-        var body = ((NamedTypeSymbol)node.symbol).GetMembers();
+        var typeMembers = ((NamedTypeSymbol)node.symbol).GetMembers();
         var members = new Dictionary<Symbol, EvaluatorObject>();
 
-        foreach (var member in body)
+        var templateArgumentIndex = 0;
+
+        foreach (var templateArgument in typeMembers.Where(t => t is TemplateParameterSymbol)) {
+            var value = EvaluateBoundConstant(node.templateArguments[templateArgumentIndex++]);
+            members.Add(templateArgument, new EvaluatorObject(value));
+        }
+
+        foreach (var member in typeMembers.Where(t => t is not TemplateParameterSymbol))
             members.Add(member, new EvaluatorObject());
 
         return new EvaluatorObject(members);
