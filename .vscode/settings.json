@@ -3,8 +3,7 @@
         "*.csproj": "msbuild",
     },
     "files.exclude": {
-        "src/**/bin": true,
-        "samples/**/bin": true,
+        "**/bin": true,
         "**/obj": true,
         "**/.vs": true,
     },
@@ -12,7 +11,7 @@
         80,
         120,
     ],
-    "omnisharp.defaultLaunchSolution": "src/Buckle/Buckle.sln",
+    "omnisharp.defaultLaunchSolution": "Belte.sln",
     "omnisharp.disableMSBuildDiagnosticWarning": true,
     "omnisharp.enableEditorConfigSupport": true,
     "files.insertFinalNewline": true,

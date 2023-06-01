@@ -6,7 +6,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build debug",
-            "program": "${workspaceFolder}/src/Buckle/Belte/bin/Debug/net8.0/Belte.dll",
+            "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net8.0/CommandLine.dll",
             "args": [
                 "-r"
             ],
@@ -19,7 +19,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build release",
-            "program": "${workspaceFolder}/src/Buckle/Belte/bin/Release/net8.0/Belte.dll",
+            "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Release/net8.0/CommandLine.dll",
             "args": [
                 "-r"
             ],

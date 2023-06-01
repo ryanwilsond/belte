@@ -24,7 +24,8 @@ public abstract partial class Repl {
     /// </summary>
     internal OutputCapture writer = new OutputCapture();
 
-    private readonly List<string> _submissionHistory = new List<string>();
+    protected readonly List<string> _submissionHistory = new List<string>();
+
     private readonly List<MetaCommand> _metaCommands = new List<MetaCommand>();
 
     protected ValueWrapper<bool> _abortEvaluation;
@@ -66,6 +67,8 @@ public abstract partial class Repl {
     /// Does not initialize <see cref="Repl" />, only runs it.
     /// </summary>
     public void Run() {
+        Console.Title = "Belte Repl";
+
         string text;
         bool broke;
 
@@ -79,11 +82,13 @@ public abstract partial class Repl {
             broke = true;
         }
 
+        Console.CancelKeyPress += new ConsoleCancelEventHandler(ctrlCHandler);
+
         while (true) {
             text = EditSubmission();
 
             if (string.IsNullOrEmpty(text))
-                return;
+                break;
 
             if (_evaluate) {
                 if (!text.Contains(Environment.NewLine) && text.StartsWith('#')) {
@@ -91,9 +96,9 @@ public abstract partial class Repl {
                 } else {
                     var evaluateSubmissionReference = new ThreadStart(EvaluateSubmissionWrapper);
                     var evaluateSubmissionThread = new Thread(evaluateSubmissionReference);
+                    evaluateSubmissionThread.Name = "Repl.Run.EvaluateSubmissionWrapper";
                     _abortEvaluation = false;
                     broke = false;
-                    Console.CancelKeyPress += new ConsoleCancelEventHandler(ctrlCHandler);
                     var startTime = DateTime.Now;
                     evaluateSubmissionThread.Start();
 
@@ -124,6 +129,8 @@ public abstract partial class Repl {
             _submissionHistory.Add(text);
             _submissionHistoryIndex = 0;
         }
+
+        Console.ResetColor();
     }
 
     /// <summary>
@@ -254,7 +261,7 @@ public abstract partial class Repl {
         foreach (var method in methods) {
             var attribute = method.GetCustomAttribute<MetaCommandAttribute>();
 
-            if (attribute == null)
+            if (attribute is null)
                 continue;
 
             var metaCommand = new MetaCommand(attribute.name, attribute.description, method);
@@ -1005,7 +1012,7 @@ public abstract partial class Repl {
 
         var command = _metaCommands.SingleOrDefault(mc => mc.name == commandName);
 
-        if (command == null) {
+        if (command is null) {
             AddDiagnostic(global::Repl.Diagnostics.Error.UnknownReplCommand(line));
 
             if (_hasDiagnosticHandle)

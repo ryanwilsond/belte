@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/src/Buckle/Belte/Belte.csproj",
+                "${workspaceFolder}/src/Buckle/CommandLine/CommandLine.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -19,7 +19,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/src/Buckle/Belte/Belte.csproj",
+                "${workspaceFolder}/src/Buckle/CommandLine/CommandLine.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary",
                 "-c",
@@ -33,7 +33,7 @@
             "type": "process",
             "args": [
                 "publish",
-                "${workspaceFolder}/src/Buckle/Belte/Belte.csproj",
+                "${workspaceFolder}/src/Buckle/CommandLine/CommandLine.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -47,7 +47,7 @@
                 "watch",
                 "run",
                 "--project",
-                "${workspaceFolder}/src/Buckle/Belte/Belte.csproj"
+                "${workspaceFolder}/src/Buckle/CommandLine/CommandLine.csproj"
             ],
             "problemMatcher": "$msCompile"
         },

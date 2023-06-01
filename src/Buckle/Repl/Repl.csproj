@@ -9,13 +9,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Buckle\Buckle.csproj" />
-    <ProjectReference Include="..\Diagnostics\Diagnostics.csproj" />
+    <ProjectReference Include="..\..\Dependencies\Diagnostics\Diagnostics.csproj" />
+    <ProjectReference Include="..\Compiler\Compiler.csproj" />
     <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>
-
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-  </PropertyGroup>
 
 </Project>

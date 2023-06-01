@@ -1,39 +1,41 @@
 # Works with bash and powershell
-COMPILER_DIR:=src/Buckle
-BELTE_DIR:=$(COMPILER_DIR)/Belte
-BUCKLE_DIR:=$(COMPILER_DIR)/Buckle
-DIAGNOSTICS_DIR:=$(COMPILER_DIR)/Diagnostics
-REPL_DIR:=$(COMPILER_DIR)/Repl
+BUCKLE_DIR:=src/Buckle
+DEPENDENCY_DIR:=src/Dependencies
+CL_DIR:=$(BUCKLE_DIR)/CommandLine
+COMPILER_DIR:=$(BUCKLE_DIR)/Compiler
+REPL_DIR:=$(BUCKLE_DIR)/Repl
+DIAGNOSTICS_DIR:=$(DEPENDENCY_DIR)/Diagnostics
 
 NETVER:=net8.0
 SYSTEM:=win-x64
-SLN:=$(COMPILER_DIR)/Buckle.sln
+SLN:=Belte.sln
 CP=cp
 RM=rm
 
 RESOURCES:=Resources
-TEST_RESOURCES:=$(BELTE_DIR).Tests/bin/Debug/$(NETVER)/$(RESOURCES)
-SYNTAXPATH:=$(BUCKLE_DIR)/CodeAnalysis/Syntax/Syntax.xml
-GENERATED_DIR:=$(BUCKLE_DIR)/CodeAnalysis/Generated
+TEST_RESOURCES:=$(COMPILER_DIR).Tests/bin/Debug/$(NETVER)/$(RESOURCES)
+SYNTAXPATH:=$(COMPILER_DIR)/CodeAnalysis/Syntax/Syntax.xml
+GENERATED_DIR:=$(COMPILER_DIR)/CodeAnalysis/Generated
 
 FLAGS:=-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false \
 	--sc true -c Release -f $(NETVER)
 
-all: prebuild generate build postbuild
-portable: prebuild generate portablebuild postbuild
-debug: prebuild generate debugbuild postbuilddebug
+all: debug
+release: prebuild generate build postbuild
+portable: prebuild generate buildportable postbuildportable
+debug: prebuild generate builddebug postbuilddebug
 
 # Tests the solution
 .PHONY: test
 test:
-	@echo Started testing the Buckle solution ...
-	@dotnet build $(BELTE_DIR).Tests/Belte.Tests.csproj
-	@dotnet build $(BUCKLE_DIR).Tests/Buckle.Tests.csproj
+	@echo Started testing the Belte solution ...
+	@dotnet build $(CL_DIR).Tests/CommandLine.Tests.csproj
+	@dotnet build $(COMPILER_DIR).Tests/Compiler.Tests.csproj
 	@dotnet build $(DIAGNOSTICS_DIR).Tests/Diagnostics.Tests.csproj
 	@$(RM) -f -r $(TEST_RESOURCES)
 	@mkdir $(TEST_RESOURCES)
-	@$(CP) -a $(BELTE_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
-	@$(CP) -a $(BUCKLE_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
+	@$(CP) -a $(COMPILER_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
+	@$(CP) -a $(COMPILER_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
 	@$(CP) -a $(REPL_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
 	@dotnet test $(SLN)
 	@echo "    Finished"
@@ -41,6 +43,7 @@ test:
 # Cleans the solution
 clean:
 	@dotnet clean $(SLN)
+	@$(RM) -f -r bin
 	@echo Hard cleaned the solution
 
 # Formats the solution
@@ -51,29 +54,36 @@ format:
 # Generates syntax
 generate:
 	@mkdir -p $(GENERATED_DIR)
-	@dotnet run --project $(BUCKLE_DIR).Generators/Buckle.Generators.csproj --framework $(NETVER) \
+	@dotnet run --project $(BUCKLE_DIR)/SourceGenerators/SyntaxGenerator/SyntaxGenerator.csproj --framework $(NETVER) \
 		$(SYNTAXPATH) $(GENERATED_DIR)
 	@echo Generated compiler source files
 
 prebuild:
-	@echo "Started building the Buckle solution (release) ..."
 	@mkdir -p bin
 	@mkdir -p bin/release
 	@mkdir -p bin/debug
 
 postbuild:
-	@mv bin/release/Belte.exe bin/release/buckle.exe
+	@mv bin/release/CommandLine.exe bin/release/buckle.exe
+	@echo "    Finished"
+
+postbuildportable:
+	@mv bin/release/CommandLine.exe bin/portable/buckle.exe
 	@echo "    Finished"
 
 postbuilddebug:
-	@mv bin/debug/Belte.exe bin/debug/buckle.exe
+	@mv bin/debug/CommandLine.exe bin/debug/buckle.exe
 	@echo "    Finished"
 
 build:
-	@dotnet publish $(BELTE_DIR)/Belte.csproj $(FLAGS) -r $(SYSTEM) -o bin/release -p:PublishReadyToRunShowWarnings=true
+	@echo "Started building the Buckle project (release) ..."
+	@dotnet publish $(CL_DIR)/CommandLine.csproj $(FLAGS) -o bin/release \
+		-r $(SYSTEM) -p:PublishReadyToRunShowWarnings=true
 
-portablebuild:
-	@dotnet publish $(BELTE_DIR)/Belte.csproj $(FLAGS) -o bin/release
+buildportable:
+	@echo "Started building the Buckle project (portable) ..."
+	@dotnet publish $(CL_DIR)/CommandLine.csproj $(FLAGS) -o bin/release
 
-debugbuild:
-	@dotnet build $(BELTE_DIR)/Belte.csproj --sc -r $(SYSTEM) -o bin/debug
+builddebug:
+	@echo "Started building the Buckle project (debug) ..."
+	@dotnet build $(CL_DIR)/CommandLine.csproj --sc -r $(SYSTEM) -o bin/debug

@@ -7,6 +7,6 @@ public sealed partial class BelteRepl {
     /// </summary>
     internal enum Page {
         Repl,
-        Settings
+        Settings,
     }
 }
