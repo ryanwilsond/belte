@@ -87,6 +87,7 @@ public enum SyntaxKind {
     StructKeyword,
     ClassKeyword,
     VarKeyword,
+    NewKeyword,
 
     // Tokens with text
     BadToken,
@@ -124,6 +125,7 @@ public enum SyntaxKind {
     CallExpression,
     ReferenceExpression,
     MemberAccessExpression,
+    ObjectCreationExpression,
 
     // Statements
     BlockStatement,
@@ -161,11 +163,13 @@ public enum SyntaxKind {
     Type,
     ArrayRankSpecifier,
     Parameter,
+    ParameterList,
     TemplateParameterList,
     TemplateArgumentList,
     MethodDeclaration,
 
     // Other
     Argument,
+    ArgumentList,
     EndOfFileToken,
 }

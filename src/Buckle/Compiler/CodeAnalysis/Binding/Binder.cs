@@ -129,8 +129,8 @@ internal sealed class Binder {
 
                 if (entryPoint.parameters.Any()) {
                     var span = TextSpan.FromBounds(
-                        entryPoint.declaration.openParenthesis.span.start + 1,
-                        entryPoint.declaration.closeParenthesis.span.end - 1
+                        entryPoint.declaration.parameterList.openParenthesis.span.start + 1,
+                        entryPoint.declaration.parameterList.closeParenthesis.span.end - 1
                     );
 
                     var location = new TextLocation(entryPoint.declaration.syntaxTree.text, span);
@@ -418,10 +418,32 @@ internal sealed class Binder {
 
     private MethodSymbol BindMethodDeclaration(MethodDeclarationSyntax method, string name = null) {
         var type = BindType(method.returnType);
-        var parameters = BindParameters(method.parameters);
+        var parameters = BindParameterList(method.parameterList);
         var newMethod = new MethodSymbol(name ?? method.identifier.text, parameters, type, method);
 
         return newMethod;
+    }
+
+    private ImmutableArray<ParameterSymbol> BindParameterList(ParameterListSyntax parameterList) {
+        return BindParameters(parameterList.parameters);
+    }
+
+    private ImmutableArray<TemplateParameterSymbol> BindTemplateParameterList(TemplateParameterListSyntax parameterList) {
+        var templateParameters = BindParameters(parameterList.parameters);
+        var builder = ImmutableArray.CreateBuilder<TemplateParameterSymbol>();
+
+        foreach (var parameter in templateParameters) {
+            var templateParameter = new TemplateParameterSymbol(
+                parameter.name,
+                parameter.type,
+                parameter.ordinal,
+                parameter.defaultValue
+            );
+
+            builder.Add(templateParameter);
+        }
+
+        return builder.ToImmutable();
     }
 
     private ImmutableArray<ParameterSymbol> BindParameters(SeparatedSyntaxList<ParameterSyntax> parameters) {
@@ -518,7 +540,7 @@ internal sealed class Binder {
         _scope = new BoundScope(_scope);
 
         if (@class.templateParameterList != null) {
-            var templateParameters = BindTemplateParameters(@class.templateParameterList.parameters);
+            var templateParameters = BindTemplateParameterList(@class.templateParameterList);
 
             foreach (var templateParameter in templateParameters) {
                 builder.Add(templateParameter);
@@ -614,25 +636,6 @@ internal sealed class Binder {
             throw new BelteInternalException($"BindLocalFunction: failed to set function '{functionSymbol.name}'");
 
         return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
-    }
-
-    private ImmutableArray<TemplateParameterSymbol> BindTemplateParameters(
-        SeparatedSyntaxList<ParameterSyntax> parameters) {
-        var templateParameters = BindParameters(parameters);
-        var builder = ImmutableArray.CreateBuilder<TemplateParameterSymbol>();
-
-        foreach (var parameter in templateParameters) {
-            var templateParameter = new TemplateParameterSymbol(
-                parameter.name,
-                parameter.type,
-                parameter.ordinal,
-                parameter.defaultValue
-            );
-
-            builder.Add(templateParameter);
-        }
-
-        return builder.ToImmutable();
     }
 
     private FieldSymbol BindFieldDeclaration(FieldDeclarationSyntax fieldDeclaration) {
@@ -995,9 +998,7 @@ internal sealed class Binder {
                 var declaration = SyntaxFactory.MethodDeclaration(
                     fd.returnType,
                     fd.identifier,
-                    fd.openParenthesis,
-                    fd.parameters,
-                    fd.closeParenthesis,
+                    fd.parameterList,
                     fd.body,
                     fd.parent,
                     fd.position
@@ -1268,9 +1269,17 @@ internal sealed class Binder {
                 return BindTypeOfExpression((TypeOfExpressionSyntax)expression);
             case SyntaxKind.MemberAccessExpression:
                 return BindMemberAccessExpression((MemberAccessExpressionSyntax)expression);
+            case SyntaxKind.ObjectCreationExpression:
+                return BindObjectCreationExpression((ObjectCreationExpressionSyntax)expression);
             default:
                 throw new BelteInternalException($"BindExpressionInternal: unexpected syntax '{expression.kind}'");
         }
+    }
+
+    private BoundExpression BindObjectCreationExpression(ObjectCreationExpressionSyntax expression) {
+        var type = BindType(expression.type);
+
+        return new BoundObjectCreationExpression(type, ImmutableArray<BoundExpression>.Empty);
     }
 
     private BoundExpression BindMemberAccessExpression(MemberAccessExpressionSyntax expression) {
@@ -1413,10 +1422,6 @@ internal sealed class Binder {
 
     private BoundExpression BindCallExpression(CallExpressionSyntax expression) {
         var name = ((NameExpressionSyntax)expression.operand).identifier.text;
-        var typeSymbol = _scope.LookupSymbol<TypeSymbol>(name);
-
-        if (typeSymbol != null)
-            return BindConstructorExpression(expression.operand as NameExpressionSyntax, typeSymbol);
 
         _innerPrefix.Push(name);
         var innerName = ConstructInnerName();
@@ -1436,13 +1441,14 @@ internal sealed class Binder {
 
         var argumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
         var seenNames = new HashSet<string>();
+        var expressionArguments = expression.argumentList.arguments;
 
-        for (var i = 0; i < expression.arguments.Count; i++) {
-            var argumentName = expression.arguments[i].identifier;
+        for (var i = 0; i < expressionArguments.Count; i++) {
+            var argumentName = expressionArguments[i].identifier;
 
-            if (i < expression.arguments.Count - 1 &&
+            if (i < expressionArguments.Count - 1 &&
                 argumentName != null &&
-                expression.arguments[i + 1].identifier is null) {
+                expressionArguments[i + 1].identifier is null) {
                 diagnostics.Push(Error.NamedBeforeUnnamed(argumentName.location));
                 return new BoundErrorExpression();
             }
@@ -1452,7 +1458,7 @@ internal sealed class Binder {
                 return new BoundErrorExpression();
             }
 
-            var boundExpression = BindExpression(expression.arguments[i].expression);
+            var boundExpression = BindExpression(expressionArguments[i].expression);
 
             if (boundExpression is BoundEmptyExpression)
                 boundExpression = new BoundLiteralExpression(null, true);
@@ -1487,25 +1493,6 @@ internal sealed class Binder {
             return new BoundErrorExpression();
 
         return new BoundCallExpression(result.bestOverload, result.arguments);
-    }
-
-    private BoundExpression BindConstructorExpression(NameExpressionSyntax expression, TypeSymbol @type) {
-        var argumentBuilder = ImmutableArray.CreateBuilder<BoundConstant>();
-
-        if (expression is TemplateNameExpressionSyntax t) {
-            foreach (var argument in t.templateArgumentList.arguments) {
-                // TODO Assign Null on empty, and rearrange named
-                // Should factor out that functionality from CallExpression to avoid duplicate code
-                var constant = BindExpression(argument.expression);
-
-                if (constant.constantValue is null)
-                    diagnostics.Push(Error.NotConstantValue(argument.expression.location));
-                else
-                    argumentBuilder.Add(constant.constantValue);
-            }
-        }
-
-        return new BoundConstructorExpression(@type, argumentBuilder.ToImmutable());
     }
 
     private BoundExpression BindCastExpression(CastExpressionSyntax expression) {

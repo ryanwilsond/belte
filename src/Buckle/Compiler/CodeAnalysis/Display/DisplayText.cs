@@ -175,8 +175,8 @@ public sealed class DisplayText {
             case BoundNodeKind.TypeOfExpression:
                 DisplayTypeOfExpression(text, (BoundTypeOfExpression)node);
                 break;
-            case BoundNodeKind.ConstructorExpression:
-                DisplayConstructorExpression(text, (BoundConstructorExpression)node);
+            case BoundNodeKind.ObjectCreationExpression:
+                DisplayObjectCreationExpression(text, (BoundObjectCreationExpression)node);
                 break;
             case BoundNodeKind.MemberAccessExpression:
                 DisplayMemberAccessExpression(text, (BoundMemberAccessExpression)node);
@@ -396,10 +396,11 @@ public sealed class DisplayText {
         text.Write(CreateIdentifier(node.member.name));
     }
 
-    private static void DisplayConstructorExpression(DisplayText text, BoundConstructorExpression node) {
-        SymbolDisplay.DisplaySymbol(text, node.symbol);
-        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+    private static void DisplayObjectCreationExpression(DisplayText text, BoundObjectCreationExpression node) {
+        text.Write(CreateKeyword(SyntaxKind.NewKeyword));
+        text.Write(CreateSpace());
+        DisplayNode(text, node.type);
+        DisplayArguments(text, node.arguments);
     }
 
     private static void DisplayTernaryExpression(DisplayText text, BoundTernaryExpression node) {
@@ -447,10 +448,14 @@ public sealed class DisplayText {
 
     private static void DisplayCallExpression(DisplayText text, BoundCallExpression node) {
         text.Write(CreateIdentifier(node.method.name));
+        DisplayArguments(text, node.arguments);
+    }
+
+    private static void DisplayArguments(DisplayText text, ImmutableArray<BoundExpression> arguments) {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
 
         var isFirst = true;
-        foreach (var argument in node.arguments) {
+        foreach (var argument in arguments) {
             if (isFirst) {
                 isFirst = false;
             } else {

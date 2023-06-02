@@ -57,9 +57,10 @@ internal sealed class OverloadResolution {
             }
 
             var defaultParameterCount = method.parameters.Where(p => p.defaultValue != null).ToArray().Length;
+            var expressionArguments = expression.argumentList.arguments;
 
-            if (expression.arguments.Count < method.parameters.Length - defaultParameterCount ||
-                expression.arguments.Count > method.parameters.Length) {
+            if (expressionArguments.Count < method.parameters.Length - defaultParameterCount ||
+                expressionArguments.Count > method.parameters.Length) {
                 var count = 0;
 
                 if (isInner) {
@@ -69,33 +70,33 @@ internal sealed class OverloadResolution {
                     }
                 }
 
-                if (!isInner || expression.arguments.Count + count != method.parameters.Length) {
+                if (!isInner || expressionArguments.Count + count != method.parameters.Length) {
                     TextSpan span;
 
-                    if (expression.arguments.Count > method.parameters.Length) {
+                    if (expressionArguments.Count > method.parameters.Length) {
                         SyntaxNodeOrToken firstExceedingNode;
 
-                        if (expression.arguments.Count > 1) {
-                            firstExceedingNode = expression.arguments.GetSeparator(method.parameters.Length - 1);
+                        if (expressionArguments.Count > 1) {
+                            firstExceedingNode = expressionArguments.GetSeparator(method.parameters.Length - 1);
                         } else {
-                            firstExceedingNode = expression.arguments[0].kind == SyntaxKind.EmptyExpression
-                                ? expression.arguments.GetSeparator(0)
-                                : expression.arguments[0];
+                            firstExceedingNode = expressionArguments[0].kind == SyntaxKind.EmptyExpression
+                                ? expressionArguments.GetSeparator(0)
+                                : expressionArguments[0];
                         }
 
-                        SyntaxNodeOrToken lastExceedingNode = expression.arguments.Last().kind == SyntaxKind.EmptyExpression
-                            ? expression.arguments.GetSeparator(expression.arguments.Count - 2)
-                            : expression.arguments.Last();
+                        SyntaxNodeOrToken lastExceedingNode = expressionArguments.Last().kind == SyntaxKind.EmptyExpression
+                            ? expressionArguments.GetSeparator(expressionArguments.Count - 2)
+                            : expressionArguments.Last();
 
                         span = TextSpan.FromBounds(firstExceedingNode.span.start, lastExceedingNode.span.end);
                     } else {
-                        span = expression.closeParenthesis.span;
+                        span = expression.argumentList.closeParenthesis.span;
                     }
 
                     var location = new TextLocation(expression.syntaxTree.text, span);
                     _binder.diagnostics.Push(Error.IncorrectArgumentCount(
                         location, method.name, method.parameters.Length,
-                        defaultParameterCount, expression.arguments.Count
+                        defaultParameterCount, expressionArguments.Count
                     ));
 
                     continue;
@@ -106,7 +107,7 @@ internal sealed class OverloadResolution {
             var seenParameterNames = new HashSet<string>();
             var canContinue = true;
 
-            for (var i = 0; i < expression.arguments.Count; i++) {
+            for (var i = 0; i < expressionArguments.Count; i++) {
                 var argumentName = preBoundArgumentsBuilder[i].name;
 
                 if (argumentName is null) {
@@ -122,7 +123,7 @@ internal sealed class OverloadResolution {
                         if (!seenParameterNames.Add(argumentName)) {
                             _binder.diagnostics.Push(
                                 Error.ParameterAlreadySpecified(
-                                    expression.arguments[i].identifier.location,
+                                    expressionArguments[i].identifier.location,
                                     argumentName
                                 )
                             );
@@ -140,8 +141,8 @@ internal sealed class OverloadResolution {
 
                 if (!destinationIndex.HasValue) {
                     _binder.diagnostics.Push(Error.NoSuchParameter(
-                        expression.arguments[i].identifier.location, name,
-                        expression.arguments[i].identifier.text, methods.Length > 1
+                        expressionArguments[i].identifier.location, name,
+                        expressionArguments[i].identifier.text, methods.Length > 1
                     ));
 
                     canContinue = false;
@@ -169,7 +170,7 @@ internal sealed class OverloadResolution {
                     var argument = preBoundArguments[rearrangedArguments[i]];
                     var parameter = method.parameters[i];
                     // If this evaluates to null, it means that there was a default value automatically passed in
-                    var location = i >= expression.arguments.Count ? null : expression.arguments[i].location;
+                    var location = i >= expressionArguments.Count ? null : expressionArguments[i].location;
 
                     var argumentExpression = argument.expression;
                     var isImplicitNull = false;

@@ -429,8 +429,8 @@ internal sealed class Evaluator {
                 return EvaluateTypeOfExpression((BoundTypeOfExpression)node, abort);
             case BoundNodeKind.EmptyExpression:
                 return new EvaluatorObject();
-            case BoundNodeKind.ConstructorExpression:
-                return EvaluateConstructorExpression((BoundConstructorExpression)node, abort);
+            case BoundNodeKind.ObjectCreationExpression:
+                return EvaluateObjectCreationExpression((BoundObjectCreationExpression)node, abort);
             case BoundNodeKind.MemberAccessExpression:
                 return EvaluateMemberAccessExpression((BoundMemberAccessExpression)node, abort);
             default:
@@ -452,21 +452,23 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject EvaluateConstructorExpression(BoundConstructorExpression node, ValueWrapper<bool> abort) {
-        var typeMembers = ((NamedTypeSymbol)node.symbol).GetMembers();
-        var members = new Dictionary<Symbol, EvaluatorObject>();
+    private EvaluatorObject EvaluateObjectCreationExpression(
+        BoundObjectCreationExpression node, ValueWrapper<bool> abort) {
+        // var typeMembers = ((NamedTypeSymbol)node.symbol).GetMembers();
+        // var members = new Dictionary<Symbol, EvaluatorObject>();
 
-        var templateArgumentIndex = 0;
+        // var templateArgumentIndex = 0;
 
-        foreach (var templateArgument in typeMembers.Where(t => t is TemplateParameterSymbol)) {
-            var value = EvaluateBoundConstant(node.templateArguments[templateArgumentIndex++]);
-            members.Add(templateArgument, new EvaluatorObject(value));
-        }
+        // foreach (var templateArgument in typeMembers.Where(t => t is TemplateParameterSymbol)) {
+        //     var value = EvaluateBoundConstant(node.templateArguments[templateArgumentIndex++]);
+        //     members.Add(templateArgument, new EvaluatorObject(value));
+        // }
 
-        foreach (var member in typeMembers.Where(t => t is not TemplateParameterSymbol))
-            members.Add(member, new EvaluatorObject());
+        // foreach (var member in typeMembers.Where(t => t is not TemplateParameterSymbol))
+        //     members.Add(member, new EvaluatorObject());
 
-        return new EvaluatorObject(members);
+        // return new EvaluatorObject(members);
+        return new EvaluatorObject(null);
     }
 
     private EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression node, ValueWrapper<bool> abort) {

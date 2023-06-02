@@ -468,8 +468,8 @@ internal sealed class CSharpEmitter {
             case BoundNodeKind.ReferenceExpression:
                 EmitReferenceExpression(indentedTextWriter, (BoundReferenceExpression)expression);
                 break;
-            case BoundNodeKind.ConstructorExpression:
-                EmitConstructorExpression(indentedTextWriter, (BoundConstructorExpression)expression);
+            case BoundNodeKind.ObjectCreationExpression:
+                EmitObjectCreationExpression(indentedTextWriter, (BoundObjectCreationExpression)expression);
                 break;
             case BoundNodeKind.MemberAccessExpression:
                 EmitMemberAccessExpression(indentedTextWriter, (BoundMemberAccessExpression)expression);
@@ -604,11 +604,16 @@ internal sealed class CSharpEmitter {
                 return;
         }
 
-        indentedTextWriter.Write($"{methodName ?? GetSafeName(expression.method.name)}(");
+        indentedTextWriter.Write($"{methodName ?? GetSafeName(expression.method.name)}");
+        EmitArguments(indentedTextWriter, expression.arguments);
+    }
+
+    private void EmitArguments(IndentedTextWriter indentedTextWriter, ImmutableArray<BoundExpression> arguments) {
+        indentedTextWriter.Write("(");
 
         var isFirst = true;
 
-        foreach (var argument in expression.arguments) {
+        foreach (var argument in arguments) {
             if (isFirst)
                 isFirst = false;
             else
@@ -708,9 +713,10 @@ internal sealed class CSharpEmitter {
         indentedTextWriter.Write($"ref {GetSafeName(expression.variable.name)}");
     }
 
-    private void EmitConstructorExpression(
-        IndentedTextWriter indentedTextWriter, BoundConstructorExpression expression) {
-        indentedTextWriter.Write($"new {GetSafeName(expression.symbol.name)}()");
+    private void EmitObjectCreationExpression(
+        IndentedTextWriter indentedTextWriter, BoundObjectCreationExpression expression) {
+        indentedTextWriter.Write($"new {GetEquivalentType(expression.type)}");
+        EmitArguments(indentedTextWriter, expression.arguments);
     }
 
     private void EmitMemberAccessExpression(

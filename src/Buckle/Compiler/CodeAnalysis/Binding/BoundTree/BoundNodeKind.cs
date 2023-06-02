@@ -21,7 +21,7 @@ internal enum BoundNodeKind {
     CompoundAssignmentExpression,
     ReferenceExpression,
     TypeOfExpression,
-    ConstructorExpression,
+    ObjectCreationExpression,
     MemberAccessExpression,
     PrefixExpression,
     PostfixExpression,

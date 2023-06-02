@@ -930,8 +930,8 @@ internal sealed partial class ILEmitter {
             case BoundNodeKind.ReferenceExpression:
                 // EmitReferenceExpression(indentedTextWriter, (BoundReferenceExpression)expression);
                 break;
-            case BoundNodeKind.ConstructorExpression:
-                EmitConstructorExpression(iLProcessor, (BoundConstructorExpression)expression);
+            case BoundNodeKind.ObjectCreationExpression:
+                EmitConstructorExpression(iLProcessor, (BoundObjectCreationExpression)expression);
                 break;
             case BoundNodeKind.MemberAccessExpression:
                 // EmitMemberAccessExpression(indentedTextWriter, (BoundMemberAccessExpression)expression);
@@ -1559,7 +1559,7 @@ internal sealed partial class ILEmitter {
         return new BoundLabel(name);
     }
 
-    private void EmitConstructorExpression(ILProcessor iLProcessor, BoundConstructorExpression expression) {
+    private void EmitConstructorExpression(ILProcessor iLProcessor, BoundObjectCreationExpression expression) {
         // iLProcessor.Emit(OpCodes.Newobj, /* TODO */null);
     }
 }
