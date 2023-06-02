@@ -681,8 +681,7 @@ internal sealed class Binder {
         var isVariable = type.varKeyword != null;
         var isImplicit = type.typeName is null;
         var dimensions = type.rankSpecifiers.Count;
-        var arguments = type.templateArgumentList?.arguments;
-        var arity = arguments?.Count ?? 0;
+        var arity = type.templateArgumentList?.arguments?.Count ?? 0;
 
         if (isImplicit && isReference) {
             diagnostics.Push(Error.ImpliedReference(type.refKeyword.location, isConstant));
@@ -718,18 +717,11 @@ internal sealed class Binder {
         if (foundType is null && !isImplicit)
             diagnostics.Push(Error.UnknownType(type.location, type.typeName.text));
 
-        var argumentBuilder = ImmutableArray.CreateBuilder<BoundConstant>();
+        ImmutableArray<BoundExpression>? arguments = null;
 
         if (arity > 0) {
-            foreach (var argument in arguments) {
-                // TODO Assign Null on empty, and rearrange named
-                // Should factor out that functionality from CallExpression to avoid duplicate code
-                var constant = BindExpression(argument.expression);
-
-                if (constant.constantValue is null)
-                    diagnostics.Push(Error.NotConstantValue(argument.location));
-                else
-                    argumentBuilder.Add(constant.constantValue);
+            if (PartiallyBindTemplateArgumentList(type.templateArgumentList, out var boundArguments)) {
+                // TODO
             }
         }
 
@@ -743,7 +735,7 @@ internal sealed class Binder {
             isNullable,
             false,
             dimensions,
-            argumentBuilder.ToImmutable()
+            arguments
         );
     }
 
@@ -1279,6 +1271,11 @@ internal sealed class Binder {
     private BoundExpression BindObjectCreationExpression(ObjectCreationExpressionSyntax expression) {
         var type = BindType(expression.type);
 
+        if (!PartiallyBindArgumentList(expression.argumentList, out var arguments))
+            return new BoundErrorExpression();
+
+        // TODO
+
         return new BoundObjectCreationExpression(type, ImmutableArray<BoundExpression>.Empty);
     }
 
@@ -1439,33 +1436,6 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        var argumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
-        var seenNames = new HashSet<string>();
-        var expressionArguments = expression.argumentList.arguments;
-
-        for (var i = 0; i < expressionArguments.Count; i++) {
-            var argumentName = expressionArguments[i].identifier;
-
-            if (i < expressionArguments.Count - 1 &&
-                argumentName != null &&
-                expressionArguments[i + 1].identifier is null) {
-                diagnostics.Push(Error.NamedBeforeUnnamed(argumentName.location));
-                return new BoundErrorExpression();
-            }
-
-            if (argumentName != null && !seenNames.Add(argumentName.text)) {
-                diagnostics.Push(Error.NamedArgumentTwice(argumentName.location, argumentName.text));
-                return new BoundErrorExpression();
-            }
-
-            var boundExpression = BindExpression(expressionArguments[i].expression);
-
-            if (boundExpression is BoundEmptyExpression)
-                boundExpression = new BoundLiteralExpression(null, true);
-
-            argumentsBuilder.Add((argumentName?.text, boundExpression));
-        }
-
         var isInner = false;
 
         foreach (var symbol in methods) {
@@ -1485,14 +1455,62 @@ internal sealed class Binder {
         if (isInner)
             methods = ImmutableArray.Create(_scope.LookupSymbol<Symbol>(innerName));
 
-        var result = _overloadResolution.MethodInvocationOverloadResolution(
-            methods, argumentsBuilder.ToImmutable(), expression
-        );
+        if (!PartiallyBindArgumentList(expression.argumentList, out var arguments))
+            return new BoundErrorExpression();
+
+        var result = _overloadResolution.MethodInvocationOverloadResolution(methods, arguments, expression);
 
         if (!result.succeeded)
             return new BoundErrorExpression();
 
         return new BoundCallExpression(result.bestOverload, result.arguments);
+    }
+
+    private bool PartiallyBindArgumentList(
+        ArgumentListSyntax argumentList, out ImmutableArray<(string, BoundExpression)> arguments) {
+        return PartiallyBindArguments(argumentList.arguments, out arguments);
+    }
+
+    private bool PartiallyBindTemplateArgumentList(
+        TemplateArgumentListSyntax argumentList, out ImmutableArray<(string, BoundExpression)> arguments) {
+        return PartiallyBindArguments(argumentList.arguments, out arguments);
+    }
+
+    private bool PartiallyBindArguments(
+        SeparatedSyntaxList<ArgumentSyntax> arguments, out ImmutableArray<(string, BoundExpression)> boundArguments) {
+        var argumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
+        var seenNames = new HashSet<string>();
+
+        for (var i = 0; i < arguments.Count; i++) {
+            var argumentName = arguments[i].identifier;
+
+            if (i < arguments.Count - 1 &&
+                argumentName != null &&
+                arguments[i + 1].identifier is null) {
+                diagnostics.Push(Error.NamedBeforeUnnamed(argumentName.location));
+                boundArguments = ImmutableArray<(string, BoundExpression)>.Empty;
+
+                return false;
+            }
+
+            if (argumentName != null && !seenNames.Add(argumentName.text)) {
+                diagnostics.Push(Error.NamedArgumentTwice(argumentName.location, argumentName.text));
+                boundArguments = ImmutableArray<(string, BoundExpression)>.Empty;
+
+                return false;
+            }
+
+            var boundExpression = BindExpression(arguments[i].expression);
+
+            if (boundExpression is BoundEmptyExpression)
+                boundExpression = new BoundLiteralExpression(null, true);
+
+            argumentsBuilder.Add((argumentName?.text, boundExpression));
+        }
+
+        boundArguments = argumentsBuilder.ToImmutable();
+
+        return true;
     }
 
     private BoundExpression BindCastExpression(CastExpressionSyntax expression) {

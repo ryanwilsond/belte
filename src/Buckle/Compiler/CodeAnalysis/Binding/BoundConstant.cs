@@ -24,4 +24,33 @@ internal sealed class BoundConstant {
 
         return false;
     }
+
+    public override int GetHashCode() {
+        return System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
+    }
+
+    public override bool Equals(object obj) {
+        return Equals(obj as BoundConstant);
+    }
+
+    public bool Equals(BoundConstant other) {
+        if (other is null)
+            return false;
+
+        return value == other.value;
+    }
+
+    public static bool operator ==(BoundConstant left, BoundConstant right) {
+        if (right is null)
+            return left is null;
+
+        return (object)left == (object)right || right.Equals(left);
+    }
+
+    public static bool operator !=(BoundConstant left, BoundConstant right) {
+        if (right is null)
+            return left is object;
+
+        return (object)left != (object)right && !right.Equals(left);
+    }
 }
