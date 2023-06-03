@@ -1505,7 +1505,7 @@ internal sealed class Binder {
             ));
 
             return new BoundErrorExpression();
-        } else if (symbols.Where(m => m is MethodSymbol).Count() == 0) {
+        } else if (symbols[0] is not MethodSymbol) {
             diagnostics.Push(Error.CannotCallNonMethod(expression.operand.location, name));
             return new BoundErrorExpression();
         }

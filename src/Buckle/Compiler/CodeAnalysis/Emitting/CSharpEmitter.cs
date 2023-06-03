@@ -19,6 +19,7 @@ namespace Buckle.CodeAnalysis.Emitting;
 /// </summary>
 internal sealed class CSharpEmitter {
     private bool _insideMain;
+    private ImmutableDictionary<MethodSymbol, BoundBlockStatement> _methods;
 
     /// <summary>
     /// Emits a program to a C# source.
@@ -50,11 +51,11 @@ internal sealed class CSharpEmitter {
     internal static string Emit(
         BoundProgram program, string namespaceName, out BelteDiagnosticQueue diagnostics) {
         var emitter = new CSharpEmitter();
-
         return emitter.EmitInternal(program, namespaceName, out diagnostics);
     }
 
     private string EmitInternal(BoundProgram program, string namespaceName, out BelteDiagnosticQueue diagnostics) {
+        _methods = program.methodBodies;
         var stringWriter = new StringWriter();
         var indentString = "    ";
 
@@ -75,13 +76,13 @@ internal sealed class CSharpEmitter {
                     EmitClass(indentedTextWriter, @class as ClassSymbol);
 
                 if (program.entryPoint != null) {
-                    var mainBody = MethodUtilities.LookupMethod(program.methodBodies, program.entryPoint);
+                    var mainBody = MethodUtilities.LookupMethod(_methods, program.entryPoint);
                     EmitMainMethod(indentedTextWriter, KeyValuePair.Create(program.entryPoint, mainBody));
                 } else {
                     EmitEmptyMainMethod(indentedTextWriter);
                 }
 
-                foreach (var methodWithBody in program.methodBodies) {
+                foreach (var methodWithBody in _methods) {
                     if (methodWithBody.Key != program.entryPoint)
                         EmitMethod(indentedTextWriter, methodWithBody);
                 }
@@ -174,6 +175,11 @@ internal sealed class CSharpEmitter {
             foreach (var constructor in @class.constructors)
                 EmitConstructor(indentedTextWriter, @class.name, constructor, @class.templateParameters);
 
+            foreach (var method in @class.members.OfType<MethodSymbol>()
+                .Where(m => m.name != WellKnownMemberNames.InstanceConstructorName)) {
+                EmitMethod(indentedTextWriter, KeyValuePair.Create(method, _methods[method]), false);
+            }
+
             foreach (var type in @class.members.OfType<NamedTypeSymbol>()) {
                 if (type is ClassSymbol c)
                     EmitClass(indentedTextWriter, c);
@@ -220,6 +226,8 @@ internal sealed class CSharpEmitter {
         using (var methodCurly = new CurlyIndenter(indentedTextWriter, signature)) {
             foreach (var parameter in templateParameters)
                 indentedTextWriter.WriteLine($"this.{parameter.name} = {parameter.name};");
+
+            EmitBody(indentedTextWriter, _methods[constructor]);
         }
 
         indentedTextWriter.WriteLine();
@@ -245,8 +253,10 @@ internal sealed class CSharpEmitter {
     }
 
     private void EmitMethod(
-        IndentedTextWriter indentedTextWriter, KeyValuePair<MethodSymbol, BoundBlockStatement> method) {
-        if (method.Key.containingType != null)
+        IndentedTextWriter indentedTextWriter,
+        KeyValuePair<MethodSymbol, BoundBlockStatement> method,
+        bool ignoreContained = true) {
+        if (method.Key.containingType != null && ignoreContained)
             return;
 
         var parameters = new StringBuilder();
@@ -261,8 +271,8 @@ internal sealed class CSharpEmitter {
             parameters.Append($"{GetEquivalentType(parameter.type)} {GetSafeName(parameter.name)}");
         }
 
-        var signature =
-                $"public static {GetEquivalentType(method.Key.type)} {GetSafeName(method.Key.name)}({parameters})";
+        var signature = $"public {(method.Key.containingType is null ? "static " : "")}" +
+            $"{GetEquivalentType(method.Key.type)} {GetSafeName(method.Key.name)}({parameters})";
 
         using (var methodCurly = new CurlyIndenter(indentedTextWriter, signature))
             EmitBody(indentedTextWriter, method.Value);
