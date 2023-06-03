@@ -19,6 +19,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class Binder {
     private readonly BoundType _enclosingType;
+    private readonly NamedTypeSymbol _containingSymbol;
     private readonly List<(MethodSymbol method, BoundBlockStatement body)> _methodBodies =
         new List<(MethodSymbol, BoundBlockStatement)>();
     private readonly CompilationOptions _options;
@@ -44,6 +45,7 @@ internal sealed class Binder {
         diagnostics = new BelteDiagnosticQueue();
         _scope = new BoundScope(parent);
         _enclosingType = method?.type;
+        _containingSymbol = method?.containingType;
         _options = options;
         _flags = method is null ? flags : flags | BinderFlags.Method;
         _overloadResolution = new OverloadResolution(this);
@@ -486,16 +488,14 @@ internal sealed class Binder {
         return BindStatement(syntax);
     }
 
-    private MethodSymbol BindMethodDeclaration(
-        MethodDeclarationSyntax method, string name = null, NamedTypeSymbol containingType = null) {
+    private MethodSymbol BindMethodDeclaration(MethodDeclarationSyntax method, string name = null) {
         var type = BindType(method.returnType);
         var parameters = BindParameterList(method.parameterList);
         var newMethod = new MethodSymbol(
             name ?? method.identifier.text,
             parameters,
             type,
-            method,
-            containingType: containingType
+            method
         );
 
         if (newMethod.declaration.identifier.text != null && !_scope.TryDeclareMethod(newMethod))
@@ -504,16 +504,16 @@ internal sealed class Binder {
         return newMethod;
     }
 
-    private TypeSymbol BindTypeDeclaration(TypeDeclarationSyntax @type, NamedTypeSymbol containingType = null) {
+    private TypeSymbol BindTypeDeclaration(TypeDeclarationSyntax @type) {
         if (@type is StructDeclarationSyntax s)
-            return BindStructDeclaration(s, containingType);
+            return BindStructDeclaration(s);
         else if (@type is ClassDeclarationSyntax c)
-            return BindClassDeclaration(c, containingType);
+            return BindClassDeclaration(c);
         else
             throw new BelteInternalException($"BindTypeDeclaration: unexpected type '{@type.identifier.text}'");
     }
 
-    private StructSymbol BindStructDeclaration(StructDeclarationSyntax @struct, NamedTypeSymbol containingType = null) {
+    private StructSymbol BindStructDeclaration(StructDeclarationSyntax @struct) {
         var builder = ImmutableList.CreateBuilder<Symbol>();
         _scope = new BoundScope(_scope);
 
@@ -527,8 +527,7 @@ internal sealed class Binder {
         var newStruct = new StructSymbol(
             ImmutableArray<ParameterSymbol>.Empty,
             builder.ToImmutableArray(),
-            @struct,
-            containingType
+            @struct
         );
 
         if (!_scope.TryDeclareType(newStruct))
@@ -539,7 +538,7 @@ internal sealed class Binder {
         return newStruct;
     }
 
-    private ClassSymbol BindClassDeclaration(ClassDeclarationSyntax @class, NamedTypeSymbol containingType = null) {
+    private ClassSymbol BindClassDeclaration(ClassDeclarationSyntax @class) {
         var builder = ImmutableList.CreateBuilder<Symbol>();
         var templateBuilder = ImmutableList.CreateBuilder<ParameterSymbol>();
         _scope = new BoundScope(_scope);
@@ -558,20 +557,7 @@ internal sealed class Binder {
             builder.Add(field);
         }
 
-        // ! Temporary
-        var tempContainingType = new ClassSymbol(
-            ImmutableArray<ParameterSymbol>.Empty,
-            ImmutableArray<Symbol>.Empty,
-            @class,
-            containingType
-        );
-
-        var defaultConstructor = new MethodSymbol(
-            ".ctor",
-            ImmutableArray<ParameterSymbol>.Empty,
-            null,
-            containingType: tempContainingType
-        );
+        var defaultConstructor = new MethodSymbol(".ctor", ImmutableArray<ParameterSymbol>.Empty, null);
 
         builder.Add(defaultConstructor);
         _methodBodies.Add((defaultConstructor, new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty)));
@@ -579,15 +565,12 @@ internal sealed class Binder {
         _scope.TryDeclareMethod(defaultConstructor);
 
         foreach (var methodDeclaration in @class.members.OfType<MethodDeclarationSyntax>()) {
-            var method = BindMethodDeclaration(methodDeclaration, containingType: tempContainingType);
+            var method = BindMethodDeclaration(methodDeclaration);
             builder.Add(method);
-            _methodBodies.Add(
-                (method, BindMethodBody(methodDeclaration.body, method.parameters) as BoundBlockStatement)
-            );
         }
 
         foreach (var typeDeclaration in @class.members.OfType<TypeDeclarationSyntax>()) {
-            var type = BindTypeDeclaration(typeDeclaration, containingType);
+            var type = BindTypeDeclaration(typeDeclaration);
             builder.Add(type);
         }
 
@@ -600,8 +583,7 @@ internal sealed class Binder {
         var newClass = new ClassSymbol(
             templateBuilder.ToImmutableArray(),
             builder.ToImmutableArray(),
-            @class,
-            containingType
+            @class
         );
 
         if (!_scope.TryDeclareType(newClass))
@@ -1319,9 +1301,16 @@ internal sealed class Binder {
                 return BindMemberAccessExpression((MemberAccessExpressionSyntax)expression);
             case SyntaxKind.ObjectCreationExpression:
                 return BindObjectCreationExpression((ObjectCreationExpressionSyntax)expression);
+            case SyntaxKind.TypeExpression:
+                return BindTypeExpression((TypeExpressionSyntax)expression);
             default:
                 throw new BelteInternalException($"BindExpressionInternal: unexpected syntax '{expression.kind}'");
         }
+    }
+
+    private BoundExpression BindTypeExpression(TypeExpressionSyntax expression) {
+        var type = BindType(expression.type);
+        return new BoundTypeOfExpression(type); ;
     }
 
     private BoundExpression BindObjectCreationExpression(ObjectCreationExpressionSyntax expression) {
@@ -1368,12 +1357,7 @@ internal sealed class Binder {
 
         var type = operand.type.typeSymbol as ITypeSymbolWithMembers;
 
-        FieldSymbol symbol = null;
-
-        foreach (var field in @type.members.Where(f => f is FieldSymbol)) {
-            if (field.name == expression.identifier.text)
-                symbol = field as FieldSymbol;
-        }
+        var symbol = type.members.Where(m => m.name == expression.identifier.text).SingleOrDefault();
 
         if (symbol is null) {
             diagnostics.Push(
@@ -1388,12 +1372,23 @@ internal sealed class Binder {
             diagnostics.Push(Warning.NullDeference(expression.op.location));
         }
 
-        return new BoundMemberAccessExpression(operand, symbol, expression.op.kind == SyntaxKind.QuestionPeriodToken);
+        BoundType boundType = null;
+
+        if (symbol is FieldSymbol f)
+            boundType = f.type;
+        else if (symbol is MethodSymbol m)
+            boundType = BoundType.CreateFunc(m.parameters, m.type);
+
+        return new BoundMemberAccessExpression(
+            operand,
+            symbol,
+            BoundType.CopyWith(boundType, isConstantReference: false, isReference: true),
+            expression.op.kind == SyntaxKind.QuestionPeriodToken
+        );
     }
 
     private BoundExpression BindTypeOfExpression(TypeOfExpressionSyntax expression) {
         var type = BindType(expression.type);
-
         return new BoundTypeOfExpression(type);
     }
 
@@ -1491,47 +1486,65 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindCallExpression(CallExpressionSyntax expression) {
-        var name = ((NameExpressionSyntax)expression.operand).identifier.text;
+        string name = null;
+        ImmutableArray<MethodSymbol> methods = ImmutableArray<MethodSymbol>.Empty;
 
-        _innerPrefix.Push(name);
-        var innerName = ConstructInnerName();
-        _innerPrefix.Pop();
+        if (expression.operand is NameExpressionSyntax ne) {
+            name = ne.identifier.text;
 
-        var symbols = _scope.LookupOverloads(name, innerName);
+            _innerPrefix.Push(name);
+            var innerName = ConstructInnerName();
+            _innerPrefix.Pop();
 
-        if (symbols.Length == 0) {
-            diagnostics.Push(Error.UndefinedMethod(
-                ((NameExpressionSyntax)expression.operand).location,
-                name,
-                _options.buildMode == BuildMode.Interpret
-            ));
+            var symbols = _scope.LookupOverloads(name, innerName);
 
-            return new BoundErrorExpression();
-        } else if (symbols[0] is not MethodSymbol) {
-            diagnostics.Push(Error.CannotCallNonMethod(expression.operand.location, name));
-            return new BoundErrorExpression();
-        }
+            if (symbols.Length == 0) {
+                diagnostics.Push(Error.UndefinedMethod(
+                    ((NameExpressionSyntax)expression.operand).location,
+                    name,
+                    _options.buildMode == BuildMode.Interpret
+                ));
 
-        var isInner = false;
-
-        if (_unresolvedLocals.ContainsKey(innerName) && !_resolvedLocals.Contains(innerName)) {
-            BindLocalFunctionDeclaration(_unresolvedLocals[innerName]);
-            _resolvedLocals.Add(innerName);
-            isInner = true;
-
-            if (symbols.Length > 1) {
-                throw new BelteInternalException(
-                    "BindCallExpression: overloaded generated function"
-                );
+                return new BoundErrorExpression();
+            } else if (symbols[0] is not MethodSymbol) {
+                diagnostics.Push(Error.CannotCallNonMethod(expression.operand.location, name));
+                return new BoundErrorExpression();
             }
+
+            var isInner = false;
+
+            if (_unresolvedLocals.ContainsKey(innerName) && !_resolvedLocals.Contains(innerName)) {
+                BindLocalFunctionDeclaration(_unresolvedLocals[innerName]);
+                _resolvedLocals.Add(innerName);
+                isInner = true;
+
+                if (symbols.Length > 1) {
+                    throw new BelteInternalException(
+                        "BindCallExpression: overloaded generated function"
+                    );
+                }
+            }
+
+            if (isInner)
+                methods = ImmutableArray.Create(_scope.LookupSymbol<MethodSymbol>(innerName));
+            else
+                methods = symbols.Where(s => s is MethodSymbol).Select(s => s as MethodSymbol).ToImmutableArray();
+
+        } else if (expression.operand is MemberAccessExpressionSyntax) {
+            var operand = BindExpression(expression.operand) as BoundMemberAccessExpression;
+            name = operand.member.name;
+
+            if (operand.type.typeSymbol != TypeSymbol.Func) {
+                diagnostics.Push(Error.CannotCallNonMethod(expression.operand.location, name));
+                return new BoundErrorExpression();
+            }
+
+            methods = (operand.operand.type.typeSymbol as NamedTypeSymbol).GetMembers(name)
+                .Where(s => s is MethodSymbol).Select(s => s as MethodSymbol).ToImmutableArray();
+        } else {
+            diagnostics.Push(Error.ExpectedMethodName(expression.operand.location));
+            return new BoundErrorExpression();
         }
-
-        ImmutableArray<MethodSymbol> methods;
-
-        if (isInner)
-            methods = ImmutableArray.Create(_scope.LookupSymbol<MethodSymbol>(innerName));
-        else
-            methods = symbols.Where(s => s is MethodSymbol).Select(s => s as MethodSymbol).ToImmutableArray();
 
         if (!PartiallyBindArgumentList(expression.argumentList, out var arguments))
             return new BoundErrorExpression();

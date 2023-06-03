@@ -58,6 +58,9 @@ internal sealed class Cast {
     /// </summary>
     /// <param name="fromType">Target <see cref="BoundType" />.</param>
     /// <param name="toType">Existing/current <see cref="BoundType" />.</param>
+    /// <param name="includeNullability">
+    /// If to account for nullability, otherwise both types are treated as non-nullable.
+    /// </param>
     /// <returns>Created <see cref="Cast" />.</returns>
     internal static Cast Classify(BoundType fromType, BoundType toType, bool includeNullability = true) {
         var from = fromType.typeSymbol;

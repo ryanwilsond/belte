@@ -450,7 +450,7 @@ internal sealed partial class ILEmitter {
 
     private FieldReference GetFieldReference(BoundMemberAccessExpression expression) {
         return new FieldReference(
-            GetSafeName(expression.member.name), GetType(expression.member.type), GetType(expression.type)
+            GetSafeName(expression.member.name), GetType(expression.type), GetType(expression.type)
         );
     }
 

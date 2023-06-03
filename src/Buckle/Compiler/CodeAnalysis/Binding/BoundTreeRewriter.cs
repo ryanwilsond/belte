@@ -272,7 +272,12 @@ internal abstract class BoundTreeRewriter {
         if (operand == expression.operand)
             return expression;
 
-        return new BoundMemberAccessExpression(operand, expression.member, expression.isNullConditional);
+        return new BoundMemberAccessExpression(
+            operand,
+            expression.member,
+            expression.type,
+            expression.isNullConditional
+        );
     }
 
     protected virtual BoundExpression RewriteObjectCreationExpression(BoundObjectCreationExpression expression) {

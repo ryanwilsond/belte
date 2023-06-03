@@ -13,18 +13,17 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
     internal NamedTypeSymbol(
         ImmutableArray<ParameterSymbol> templateParameters,
         ImmutableArray<Symbol> symbols,
-        TypeDeclarationSyntax declaration,
-        NamedTypeSymbol containingType = null)
+        TypeDeclarationSyntax declaration)
         : base(declaration.identifier.text) {
         this.members = symbols;
         this.declaration = declaration;
         this.templateParameters = templateParameters;
-        this.containingType = containingType;
+
+        foreach (var member in members)
+            member.SetContainingType(this);
     }
 
     public override SymbolKind kind => SymbolKind.Type;
-
-    public override NamedTypeSymbol containingType { get; }
 
     public ImmutableArray<Symbol> members { get; }
 

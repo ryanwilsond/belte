@@ -21,6 +21,11 @@ Visual Studio Code is strongly recommended, but not required.
 
 ## Build Commands for Belte
 
+Before building Buckle in any way, run `$ make setup` if you haven't already.
+This commend is a one-time setup that ensures the project is ready to be built.
+
+If you have ever ran this command before, you shouldn't need to run it again.
+
 ### Publishing Buckle
 
 Run `$ make` to publish the project in release mode.
@@ -44,9 +49,8 @@ All debug files are put into `.\bin\debug\` and the final executable is put into
 
 Run `$ make generate` to generate source files.
 
-Note that the `$ make`, `$ make portable`, and `$ make debug` commands
-automatically generate source files, so manually calling the generators is
-rarely needed.
+This is only required when changes are made to the source generators themselves,
+or the files the source generators use (currently only [Syntax.xml](src/Buckle/Compiler/CodeAnalysis/Syntax/Syntax.xml)).
 
 ### Testing
 

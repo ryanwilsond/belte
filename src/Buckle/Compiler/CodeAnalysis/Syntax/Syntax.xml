@@ -294,6 +294,10 @@
     </Field>
     <Field Name="templateArgumentList" Type="TemplateArgumentListSyntax"/>
   </Node>
+  <Node Name="TypeExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="TypeExpression"/>
+    <Field Name="type" Type="TypeSyntax"/>
+  </Node>
   <Node Name="ParenthesisExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="ParenthesizedExpression"/>
     <Field Name="openParenthesis" Type="SyntaxToken" Optional="True">
@@ -330,6 +334,12 @@
     <Field Name="center" Type="ExpressionSyntax"/>
     <Field Name="rightOp" Type="SyntaxToken"/>
     <Field Name="right" Type="ExpressionSyntax"/>
+  </Node>
+  <Node Name="ThisExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="ThisExpression"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="ThisKeyword"/>
+    </Field>
   </Node>
   <Node Name="TypeOfExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="TypeOfExpression"/>

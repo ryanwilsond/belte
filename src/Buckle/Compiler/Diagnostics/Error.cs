@@ -439,9 +439,9 @@ internal static class Error {
     /// <summary>
     /// BU0047. Run `buckle --explain BU0047` on the command line for more info.
     /// </summary>
-    internal static Diagnostic ExpectedMethodName() {
+    internal static BelteDiagnostic ExpectedMethodName(TextLocation location) {
         var message = "expected method name";
-        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedMethodName), message);
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedMethodName), location, message);
     }
 
     /// <summary>

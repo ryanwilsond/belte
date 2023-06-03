@@ -18,7 +18,7 @@ internal abstract class Symbol : ISymbol {
     /// <summary>
     /// The type that contains this symbol, or null if nothing is containing this symbol.
     /// </summary>
-    public virtual NamedTypeSymbol containingType { get; }
+    public virtual NamedTypeSymbol containingType { get; private set; }
 
     /// <summary>
     /// The type of symbol this is (see <see cref="SymbolKind" />).
@@ -27,6 +27,10 @@ internal abstract class Symbol : ISymbol {
 
     public override string ToString() {
         return SymbolDisplay.DisplaySymbol(this).ToString();
+    }
+
+    internal void SetContainingType(NamedTypeSymbol symbol) {
+        this.containingType = symbol;
     }
 
     public override int GetHashCode() {

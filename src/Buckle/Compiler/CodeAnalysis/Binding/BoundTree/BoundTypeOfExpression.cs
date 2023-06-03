@@ -13,5 +13,5 @@ internal sealed class BoundTypeOfExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.TypeOfExpression;
 
-    internal override BoundType type => BoundType.Type;
+    internal override BoundType type => BoundType.CopyWith(BoundType.Type, isLiteral: true);
 }

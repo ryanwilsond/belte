@@ -502,7 +502,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
                     @if: HasValue(expression.operand),
                     @then: MemberAccess(
                         expression.operand,
-                        expression.member
+                        expression.member,
+                        expression.type
                     ),
                     @else: Literal(null, expression.type)
                 )

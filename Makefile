@@ -21,9 +21,10 @@ FLAGS:=-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p
 	--sc true -c Release -f $(NETVER)
 
 all: debug
-release: prebuild generate build postbuild
-portable: prebuild generate buildportable postbuildportable
-debug: prebuild generate builddebug postbuilddebug
+release: prebuild build postbuild
+portable: prebuild buildportable postbuildportable
+debug: prebuild builddebug postbuilddebug
+setup: prebuild generate
 
 # Tests the solution
 .PHONY: test

@@ -46,11 +46,17 @@ internal class TypeSymbol : Symbol, ITypeSymbol {
     internal static readonly TypeSymbol Type = new TypeSymbol("type");
 
     /// <summary>
+    /// Type used to represent function (or method) signatures. Purely an implementation detail, cannot be used
+    /// by users.
+    /// </summary>
+    internal static readonly TypeSymbol Func = new TypeSymbol("Func");
+
+    /// <summary>
     /// Creates a new <see cref="TypeSymbol" />.
     /// Use predefined type symbols if possible.
     /// </summary>
     /// <param name="name">Name of type.</param>
-    internal TypeSymbol(string name) : base(name) { }
+    protected TypeSymbol(string name) : base(name) { }
 
     public override SymbolKind kind => SymbolKind.Type;
 

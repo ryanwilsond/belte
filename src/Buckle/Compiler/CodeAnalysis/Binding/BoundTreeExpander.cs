@@ -420,7 +420,7 @@ internal abstract class BoundTreeExpander {
 
         if (statements.Any()) {
             replacement = new BoundMemberAccessExpression(
-                operandReplacement, expression.member, expression.isNullConditional
+                operandReplacement, expression.member, expression.type, expression.isNullConditional
             );
 
             return statements;

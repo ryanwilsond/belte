@@ -207,6 +207,25 @@ internal sealed class BoundType : BoundNode {
     }
 
     /// <summary>
+    /// Creates a Func<> type using the signature of a method to construct a template argument list.
+    /// </summary>
+    internal static BoundType CreateFunc(ImmutableArray<ParameterSymbol> parameters, BoundType returnType) {
+        var builder = ImmutableArray.CreateBuilder<BoundExpression>();
+
+        foreach (var parameter in parameters)
+            builder.Add(new BoundTypeOfExpression(parameter.type));
+
+        builder.Add(new BoundTypeOfExpression(returnType));
+        var templateArguments = builder.ToImmutable();
+
+        return new BoundType(
+            TypeSymbol.Func,
+            templateArguments: templateArguments,
+            arity: templateArguments.Length
+        );
+    }
+
+    /// <summary>
     /// If the given type is the same as this.
     /// </summary>
     /// <param name="type"><see cref="BoundType" /> to compare this to.</param>
