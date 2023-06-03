@@ -29,7 +29,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// <summary>
     /// How many Diagnostics are currently stored in the <see cref="DiagnosticQueue<T>" />.
     /// </summary>
-    public int count => _diagnostics.Count;
+    public int Count => _diagnostics.Count;
 
     /// <summary>
     /// Checks for any Diagnostics in the <see cref="DiagnosticQueue<T>" />.

@@ -16,6 +16,11 @@ internal abstract class Symbol : ISymbol {
     public string name { get; }
 
     /// <summary>
+    /// The type that contains this symbol, or null if nothing is containing this symbol.
+    /// </summary>
+    public virtual NamedTypeSymbol containingType { get; }
+
+    /// <summary>
     /// The type of symbol this is (see <see cref="SymbolKind" />).
     /// </summary>
     public abstract SymbolKind kind { get; }

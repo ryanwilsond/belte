@@ -31,11 +31,11 @@ operator.
 For example:
 
 ```
-struct MyStruct {
+class MyClass {
     int myMember;
 }
 
-void MyFunction(MyStruct myParameter) {
+void MyFunction(MyClass myParameter) {
     myParameter.myMember = 3; // Warning is produced here
     myParameter!.myMember = 3; // But not here
 }
@@ -415,18 +415,18 @@ Add(,2);
 Add(null, 2);
 ```
 $BU0030
-Similar to methods, variables, fields, and constants, structure types
-(structs) cannot have more than one definition in a single scope. This is so
-there is no ambiguity when referencing a structure.
+Similar to methods, variables, fields, and constants, class and structure types
+cannot have more than one definition in a single scope. This is so there is no
+ambiguity when referencing a type.
 
 For example:
 
 ```
-struct MyStruct { // First definition, allowed
+class MyClass { // First definition, allowed
     int myMember;
 }
 
-struct MyStruct { // `MyStruct` was already defined, not allowed
+class MyClass { // `MyClass` was already defined, not allowed
     bool myOtherMember;
 }
 ```
@@ -705,7 +705,7 @@ void MyFunction(var myParameter) { } // The compiler has no information on what 
 Another example:
 
 ```
-struct MyStruct {
+class MyClass {
     var myMember; // The compiler has no information on what the type of `myMember` is, not allowed
 }
 ```
@@ -900,7 +900,7 @@ raised, but if a piece of syntax is purely missing, this error is raised.
 For example:
 
 ```
-struct { // An identifier is expected before the opening curly brace to identify the struct
+class { // An identifier is expected before the opening curly brace to identify the class
     int myMember;
 }
 ```
@@ -987,18 +987,18 @@ class MyClass {
     int a;
 }
 
-MyClass myVar = MyClass();
+MyClass myVar = new MyClass();
 int myInt = myVar.b; // `b` is not a member of the `MyClass` type
 ```
 
 Another example:
 
 ```
-struct MyStruct {
+class MyClass {
     int myMember;
 }
 
-MyStruct myStruct = MyStruct();
+MyClass myClass = MyStruct();
 int myInt = myStruct.myOtherMember; // `myOtherMember` is not a member of the user-defined `MyStruct` type
 ```
 
@@ -1162,10 +1162,10 @@ a type for example.
 For example:
 
 ```
-struct A { }
+class A { }
 
-A A = A(); // Not allowed, variable name `A` will cause confusion
-A a = A(); // Allowed
+A A = new A(); // Not allowed, variable name `A` will cause confusion
+A a = new A(); // Allowed
 ```
 
 This prevents ambiguous statements like:
@@ -1177,7 +1177,7 @@ class A {
     void F() { }
 }
 
-A A = A();
+A A = new A();
 A.F(); // Is this referring to the static method or the instance method?
 ```
 
@@ -1218,7 +1218,7 @@ any constant value.
 For example:
 
 ```
-struct MyStruct {
+class MyClass {
     const int a; // Not allowed, cannot define so using `const` here is not allowed
     int a; // Allowed
 }
@@ -1231,7 +1231,7 @@ a reference.
 For example:
 
 ```
-struct MyStruct {
+class MyClass {
     ref int a; // Not allowed, cannot define so using `ref` here is not allowed
     int a; // Allowed
 }
@@ -1308,17 +1308,45 @@ int myInt = 3;
 string myString = myInt.ToString(); // Not allowed, primitive types have no members
 ```
 $BU0081
-Template classes are evaluated at compile-time, so all template arguments must
-be compile-time constants.
+Primitive types (such as `int`) cannot be created using the `new` keyword,
+because they have not constructors.
 
 For example:
 
 ```
-class MyClass<int num> { }
-
-var myObject = MyClass<RandInt(10)>(); // Not allowed, `RandInt(10)` is not a compile-time constant.
-var myObject = MyClass<10>(); // Allowed
+int myInt = new int(); // Not allowed, `int` is a primitive and thus cannot have any constructors
+int myInt = 3; // All primitives are created through literals, such as `3`
 ```
+$BU0082
+If a template has multiple overloads but the given template arguments do not
+match any of the overloads (even with implicit casting) this error is raised.
+
+For example:
+
+```
+class MyClass<int T> { }
+
+class MyClass<bool T> { }
+
+var myClass = new MyClass<3.5, false>(); // No overload matches this parameter list, incorrect
+```
+$BU0083
+Sometimes a list of template arguments can be ambiguous between multiple
+overloads, especially when the arguments are `null`. If the compiler cannot tell
+which overload to use in an object creation expression, this error is raised.
+
+For example:
+
+```
+class MyClass<int T> { }
+
+class MyClass<bool T> { }
+
+var myClass = new MyClass<null>(); // Ambiguous which overload is being inferred, as `null` could be either an integer or boolean
+```
+$BU0084
+Outside of a low-level context structs are disabled, along with several other
+lower level features.
 $BU9000
 Inside a global scope without a `Main` method, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it
@@ -1351,14 +1379,13 @@ natively, this error is raised.
 Compiling with .NET integration is the priority, so compiling natively will
 likely be unsupported for many versions.
 $BU9004
-Structure fields cannot be initialized when they are declared in the structure
-declaration. This may be changed in a future version, but currently, if it is
-attempted this error is raised.
+Fields cannot be initialized when they are declared. This will be changed in a
+future version but currently an attempt to do this will raise this error.
 
 For example:
 
 ```
-struct MyStruct {
+class MyClass {
     int myMember = 3; // Not allowed currently
 }
 ```

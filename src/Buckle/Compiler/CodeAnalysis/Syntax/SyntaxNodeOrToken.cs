@@ -77,6 +77,11 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     public bool containsDiagnostics => _token?.containsDiagnostics ?? _nodeOrParent?.containsDiagnostics ?? false;
 
     /// <summary>
+    /// The <see cref="SyntaxTree" /> of the underlying node.
+    /// </summary>
+    public SyntaxTree syntaxTree => _nodeOrParent?.syntaxTree;
+
+    /// <summary>
     /// The span of the underlying node.
     /// </summary>
     public TextSpan span {
@@ -103,6 +108,19 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
                 return _nodeOrParent.fullSpan;
 
             return null;
+        }
+    }
+
+    /// <summary>
+    /// The location of the underlying node.
+    /// </summary>
+    /// <value></value>
+    public TextLocation location {
+        get {
+            if (AsToken(out var token))
+                return token.location;
+
+            return _nodeOrParent?.location;
         }
     }
 

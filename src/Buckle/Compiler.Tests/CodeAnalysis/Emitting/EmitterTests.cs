@@ -184,7 +184,7 @@ public static class Program {
     [InlineData(
         /* Belte Code */
         @"
-struct TypeTests {
+class TypeTests {
     int int1;
     [NotNull]int int2;
     int[] int3;
@@ -241,6 +241,10 @@ public static class Program {
         public object any2;
         public List<object> any3;
         public List<object> any4;
+
+        public TypeTests() {
+        }
+
     }
 
     public static void Main() { }
@@ -529,13 +533,13 @@ public static class Program {
     [InlineData(
         /* Belte Code */
         @"
-struct A {
+class A {
     int a;
     bool b;
 }
 
 void Main() {
-    var g = A();
+    var g = new A();
     g.a = 5;
     bool c = g.b;
     bool d = c is null;
@@ -558,6 +562,10 @@ public static class Program {
     public class A {
         public Nullable<int> a;
         public Nullable<bool> b;
+
+        public A() {
+        }
+
     }
 
     public static void Main() {
@@ -604,9 +612,12 @@ public static class Program {
         @"
         "
     )]
+
+#pragma warning disable xUnit1026
     public void Emitter_Emits_CorrectText(string text, string expectedCSharpText, string expectedILText) {
         AssertText(text, expectedCSharpText.Trim() + Environment.NewLine, BuildMode.CSharpTranspile);
         // TODO Fix Mono.Cecil bug that is preventing further IL Emitter development
         // AssertText(text, expectedILText.Trim() + Environment.NewLine, BuildMode.Dotnet);
     }
+#pragma warning restore xUnit1026
 }

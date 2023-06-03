@@ -222,12 +222,12 @@ public sealed class Compilation {
 
         while (submission != null) {
             foreach (var method in submission.methods) {
-                if (seenSymbolNames.Add(method.SignatureNoReturnNoParameterNames()) && method is T t)
+                if (seenSymbolNames.Add(method.Signature()) && method is T t)
                     yield return t;
             }
 
             foreach (var builtin in builtins) {
-                if (seenSymbolNames.Add(builtin.SignatureNoReturnNoParameterNames()) && builtin is T t)
+                if (seenSymbolNames.Add(builtin.Signature()) && builtin is T t)
                     yield return t;
             }
 

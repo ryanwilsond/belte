@@ -40,6 +40,12 @@ internal sealed class BoundScope {
     internal bool TryDeclareMethod(MethodSymbol symbol) => TryDeclareSymbol(symbol);
 
     /// <summary>
+    /// Attempts to declare a method, but doesn't abort if existing methods have the same signature.
+    /// </summary>
+    /// <param name="symbol"><see cref="MethodSymbol" /> to declare.</param>
+    internal void DeclareMethodStrict(MethodSymbol symbol) => TryDeclareSymbol(symbol, strictMethod: true);
+
+    /// <summary>
     /// Attempts to declare a variable.
     /// </summary>
     /// <param name="symbol"><see cref="VariableSymbol" /> to declare.</param>
@@ -105,20 +111,6 @@ internal sealed class BoundScope {
     internal Symbol LookupSymbol(string name) => LookupSymbol<Symbol>(name);
 
     /// <summary>
-    /// Attempts to find a <see cref="TypeSymbol" /> with the given name and arity. If none exist, null is returned.
-    /// </summary>
-    internal TypeSymbol LookupTypeSymbol(string name, int arity) {
-        if (_symbols != null) {
-            foreach (var symbol in _symbols) {
-                if (symbol.name == name && symbol is TypeSymbol ts && ts.arity == arity)
-                    return symbol as TypeSymbol;
-            }
-        }
-
-        return parent?.LookupTypeSymbol(name, arity);
-    }
-
-    /// <summary>
     /// Attempts to replace an already declared <see cref="Symbol" />.
     /// </summary>
     /// <param name="currentSymbol">The <see cref="Symbol" /> currently in the scope to replace.</param>
@@ -167,52 +159,60 @@ internal sealed class BoundScope {
     }
 
     /// <summary>
-    /// Finds all overloads by name.
-    /// Can technically searches for all symbols, but this method is intended to be used for methods.
+    /// Finds all symbols with the given name.
     /// </summary>
     /// <param name="name">Name of <see cref="Symbol" />.</param>
     /// <param name="strictName">Scope specific name, searches for this first.</param>
-    /// <typeparam name="T">Type of <see cref="Symbol" /> to look for while searching.</typeparam>
     /// <returns>All found overloads (including from parent scopes), allows shadowing.</returns>
-    internal ImmutableArray<T> LookupOverloads<T>(string name, string strictName) where T : Symbol {
-        var symbols = LookupOverloadsInternal<T>(strictName, strict: true);
+    internal ImmutableArray<Symbol> LookupOverloads(string name, string strictName) {
+        var symbols = LookupOverloadsInternal(strictName, strict: true);
 
         if (symbols.Length > 0)
             return symbols;
 
-        return LookupOverloadsInternal<T>(name);
+        return LookupOverloadsInternal(name);
     }
 
-    private ImmutableArray<T> LookupOverloadsInternal<T>(
-        string name, bool strict = false, ImmutableArray<T>? _current = null) where T : Symbol {
-        var overloads = ImmutableArray.CreateBuilder<T>();
+    /// <summary>
+    /// Finds all symbols with the given name.
+    /// </summary>
+    /// <param name="name">Name of <see cref="Symbol" />.</param>
+    /// <returns>All found overloads (including from parent scopes), allows shadowing.</returns>
+    internal ImmutableArray<Symbol> LookupOverloads(string name) {
+        return LookupOverloadsInternal(name);
+    }
+
+    private ImmutableArray<Symbol> LookupOverloadsInternal(
+        string name, bool strict = false, ImmutableArray<Symbol>? _current = null) {
+        var overloads = ImmutableArray.CreateBuilder<Symbol>();
 
         if (_symbols != null) {
             foreach (var symbol in _symbols) {
                 // If it is a nested function, the name will be something like <funcName>g__name
-                if (symbol is T s &&
-                    (symbol.name == name || (!strict && symbol.name.Contains($">g__{name}")))) {
-                    if (_current != null) {
-                        var skip = false;
+                if (symbol.name != name && (strict || !symbol.name.Contains($">g__{name}")))
+                    continue;
 
-                        foreach (var cs in _current.Value) {
-                            if (s is MethodSymbol fs && cs is MethodSymbol fcs && MethodsMatch(fs, fcs)) {
-                                skip = true;
-                                break;
-                            }
+                if (_current != null) {
+                    var skip = false;
+
+                    foreach (var cs in _current.Value) {
+                        if ((symbol is MethodSymbol fs && cs is MethodSymbol fcs && MethodsMatch(fs, fcs)) ||
+                            (symbol is NamedTypeSymbol ts && cs is NamedTypeSymbol tcs && NamedTypesMatch(ts, tcs))) {
+                            skip = true;
+                            break;
                         }
-
-                        if (skip)
-                            continue;
                     }
 
-                    overloads.Add(s);
+                    if (skip)
+                        continue;
                 }
+
+                overloads.Add(symbol);
             }
         }
 
         if (parent != null) {
-            overloads.AddRange(parent?.LookupOverloadsInternal<T>(
+            overloads.AddRange(parent?.LookupOverloadsInternal(
                 name,
                 strict: strict,
                 _current: _current is null
@@ -224,7 +224,7 @@ internal sealed class BoundScope {
         return overloads.ToImmutable();
     }
 
-    private bool TryDeclareSymbol<T>(T symbol) where T : Symbol {
+    private bool TryDeclareSymbol<T>(T symbol, bool strictMethod = false) where T : Symbol {
         if (_symbols is null)
             _symbols = new List<Symbol>();
 
@@ -233,17 +233,18 @@ internal sealed class BoundScope {
                 foreach (var s in _symbols) {
                     // Doesn't check if they refer to the same thing, but if their signatures are the same
                     // If so, keeping both would make all calls ambiguous so it is not allowed
-                    if (MethodsMatch(s as MethodSymbol, fs))
+                    if ((strictMethod && (s as MethodSymbol) == fs) ||
+                        (!strictMethod && MethodsMatch(s as MethodSymbol, fs)))
                         return false;
                 }
             } else if (symbol is ClassSymbol cs) {
                 foreach (var s in _symbols) {
-                    if (s is ClassSymbol scs && scs.name == cs.name && scs.arity == cs.arity)
+                    if (s is ClassSymbol scs && NamedTypesMatch(scs, cs))
                         return false;
                 }
             } else if (symbol is StructSymbol ss) {
                 foreach (var s in _symbols) {
-                    if (s is StructSymbol sss && sss.name == ss.name && sss.arity == ss.arity)
+                    if (s is StructSymbol sss && NamedTypesMatch(sss, ss))
                         return false;
                 }
             } else {
@@ -265,6 +266,21 @@ internal sealed class BoundScope {
 
         for (var i = 0; i < a.parameters.Length; i++) {
             if (!a.parameters[i].type.Equals(b.parameters[i].type))
+                return false;
+        }
+
+        return true;
+    }
+
+    private bool NamedTypesMatch(NamedTypeSymbol a, NamedTypeSymbol b) {
+        if (a.name != b.name)
+            return false;
+
+        if (a.templateParameters.Length != b.templateParameters.Length)
+            return false;
+
+        for (var i = 0; i < a.templateParameters.Length; i++) {
+            if (!a.templateParameters[i].type.Equals(b.templateParameters[i].type))
                 return false;
         }
 

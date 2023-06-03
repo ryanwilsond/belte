@@ -65,8 +65,8 @@ internal enum DiagnosticCode : int {
     ERR_ReferenceToConstant = 54,
     ERR_VoidVariable = 55,
     ERR_ExpectedToken = 56,
-    ERR_NoOverload = 57,
-    ERR_AmbiguousOverload = 58,
+    ERR_NoMethodOverload = 57,
+    ERR_AmbiguousMethodOverload = 58,
     ERR_CannotIncrement = 59,
     ERR_InvalidTernaryOperatorUse = 60,
     ERR_NoSuchMember = 61,
@@ -89,7 +89,10 @@ internal enum DiagnosticCode : int {
     ERR_NullInitializerListOnImplicit = 78,
     ERR_UnrecognizedEscapeSequence = 79,
     ERR_PrimitivesDoNotHaveMembers = 80,
-    ERR_NotConstantValue = 81,
+    ERR_CannotConstructPrimitive = 81,
+    ERR_NoTemplateOverload = 82,
+    ERR_AmbiguousTemplateOverload = 83,
+    ERR_CannotUseStruct = 84,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

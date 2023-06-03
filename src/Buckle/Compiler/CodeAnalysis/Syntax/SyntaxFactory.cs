@@ -14,4 +14,8 @@ internal static partial class SyntaxFactory {
             InternalSyntax.SyntaxFactory.Token(SyntaxKind.IdentifierToken, name)
         ).CreateRed();
     }
+
+    internal static SyntaxToken Name(string name) {
+        return new SyntaxToken(null, InternalSyntax.SyntaxFactory.Token(SyntaxKind.IdentifierToken, name), -1, -1);
+    }
 }

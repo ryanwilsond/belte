@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 
@@ -79,7 +80,8 @@ internal sealed class BoundType : BoundNode {
     internal BoundType(
         TypeSymbol typeSymbol, bool isImplicit = false, bool isConstantReference = false, bool isReference = false,
         bool isExplicitReference = false, bool isConstant = false, bool isNullable = false,
-        bool isLiteral = false, int dimensions = 0, ImmutableArray<BoundConstant>? templateArguments = null) {
+        bool isLiteral = false, int dimensions = 0,
+        ImmutableArray<BoundExpression>? templateArguments = null, int arity = 0) {
         this.typeSymbol = typeSymbol;
         this.isImplicit = isImplicit;
         this.isConstantReference = isConstantReference;
@@ -89,7 +91,8 @@ internal sealed class BoundType : BoundNode {
         this.isNullable = isNullable;
         this.isLiteral = isLiteral;
         this.dimensions = dimensions;
-        this.templateArguments = templateArguments ?? ImmutableArray<BoundConstant>.Empty;
+        this.templateArguments = templateArguments ?? ImmutableArray<BoundExpression>.Empty;
+        this.arity = arity;
     }
 
     /// <summary>
@@ -137,29 +140,21 @@ internal sealed class BoundType : BoundNode {
     /// </summary>
     internal int dimensions { get; }
 
-    internal ImmutableArray<BoundConstant> templateArguments { get; }
+    /// <summary>
+    /// The arguments for the class template, if any.
+    /// </summary>
+    /// <value></value>
+    internal ImmutableArray<BoundExpression> templateArguments { get; }
+
+    /// <summary>
+    /// The number of template arguments the type has.
+    /// </summary>
+    internal int arity { get; }
 
     internal override BoundNodeKind kind => BoundNodeKind.Type;
 
     public override string ToString() {
-        var text = "";
-
-        if (!isNullable && !isLiteral)
-            text += "[NotNull]";
-
-        if (isConstantReference && isExplicitReference)
-            text += "const ";
-        if (isExplicitReference)
-            text += "ref ";
-        if (isConstant)
-            text += "const ";
-
-        text += typeSymbol.name;
-
-        for (var i = 0; i < dimensions; i++)
-            text += "[]";
-
-        return text;
+        return DisplayText.DisplayNode(this).ToString();
     }
 
     /// <summary>
@@ -171,7 +166,8 @@ internal sealed class BoundType : BoundNode {
     internal static BoundType CopyWith(
         BoundType type, TypeSymbol typeSymbol = null, bool? isImplicit = null, bool? isConstantReference = null,
         bool? isReference = null, bool? isExplicitReference = null, bool? isConstant = null, bool? isNullable = null,
-        bool? isLiteral = null, int? dimensions = null, ImmutableArray<BoundConstant>? templateArguments = null) {
+        bool? isLiteral = null, int? dimensions = null, ImmutableArray<BoundExpression>? templateArguments = null,
+        int? arity = null) {
         if (type is null)
             return null;
 
@@ -185,7 +181,8 @@ internal sealed class BoundType : BoundNode {
             isNullable ?? type.isNullable,
             isLiteral ?? type.isLiteral,
             dimensions ?? type.dimensions,
-            templateArguments ?? type.templateArguments
+            templateArguments ?? type.templateArguments,
+            arity ?? type.arity
         );
     }
 
@@ -231,11 +228,11 @@ internal sealed class BoundType : BoundNode {
             return false;
         if (dimensions != type.dimensions)
             return false;
-        if (templateArguments.Length != type.templateArguments.Length)
+        if (arity != type.arity)
             return false;
 
         for (int i = 0; i < templateArguments.Length; i++) {
-            if (templateArguments[i].value != type.templateArguments[i].value)
+            if (templateArguments[i].constantValue != type.templateArguments[i].constantValue)
                 return false;
         }
 

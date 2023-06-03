@@ -79,7 +79,7 @@ public sealed class DiagnosticQueueTests {
         diagnosticQueue2.Push(new Diagnostic(DiagnosticSeverity.Error, ""));
         diagnosticQueue1.Move(diagnosticQueue2);
 
-        Assert.Equal(2, diagnosticQueue1.ToArray().Length);
+        Assert.Equal(2, diagnosticQueue1.Count);
         Assert.Empty(diagnosticQueue2.ToArray());
     }
 
@@ -143,7 +143,7 @@ public sealed class DiagnosticQueueTests {
         diagnosticQueue.Push(new Diagnostic(DiagnosticSeverity.Warning, ""));
         var newDiagnosticQueue = diagnosticQueue.Filter(DiagnosticSeverity.Error);
 
-        Assert.Equal(2, newDiagnosticQueue.ToArray().Length);
+        Assert.Equal(2, newDiagnosticQueue.Count);
     }
 
     [Fact]
@@ -155,7 +155,7 @@ public sealed class DiagnosticQueueTests {
         diagnosticQueue.Push(new Diagnostic(DiagnosticSeverity.Warning, ""));
         var newDiagnosticQueue = diagnosticQueue.FilterAbove(DiagnosticSeverity.Error);
 
-        Assert.Equal(3, newDiagnosticQueue.ToArray().Length);
+        Assert.Equal(3, newDiagnosticQueue.Count);
     }
 
     [Fact]

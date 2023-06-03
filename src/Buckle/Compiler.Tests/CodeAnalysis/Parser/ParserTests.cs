@@ -20,7 +20,7 @@ public sealed class ParserTests {
         Debug.Assert(op1Text != null);
         Debug.Assert(op2Text != null);
 
-        var text = $"a {op1Text} b {op2Text} c";
+        var text = $"var v = a {op1Text} b {op2Text} c";
         var expression = ParseExpression(text);
 
         if (op1Precedence >= op2Precedence) {
@@ -66,7 +66,7 @@ public sealed class ParserTests {
         Debug.Assert(unaryText != null);
         Debug.Assert(binaryText != null);
 
-        var text = $"{unaryText} a {binaryText} b";
+        var text = $"var v = {unaryText} a {binaryText} b";
         var expression = ParseExpression(text);
 
         if (unaryPrecedence >= binaryPrecedence) {
@@ -99,9 +99,9 @@ public sealed class ParserTests {
         var member = Assert.Single(syntaxTree.GetCompilationUnitRoot().members);
         var globalStatement = Assert.IsType<GlobalStatementSyntax>(member);
 
-        return Assert.IsType<ExpressionStatementSyntax>(
+        return Assert.IsType<VariableDeclarationStatementSyntax>(
             globalStatement.statement
-        ).expression;
+        ).initializer;
     }
 
     public static IEnumerable<object[]> GetBinaryOperatorPairsData() {

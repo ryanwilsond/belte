@@ -488,6 +488,15 @@ internal sealed partial class Parser {
                 if (Peek(finalOffset).kind is SyntaxKind.IdentifierToken or SyntaxKind.VarKeyword)
                     finalOffset++;
 
+                while (Peek(finalOffset).kind == SyntaxKind.LessThanToken) {
+                    finalOffset++;
+
+                    while (Peek(finalOffset).kind is not SyntaxKind.GreaterThanToken and not SyntaxKind.EndOfFileToken)
+                        finalOffset++;
+
+                    finalOffset++;
+                }
+
                 var hasBrackets = false;
 
                 while (Peek(finalOffset).kind is SyntaxKind.OpenBracketToken or SyntaxKind.CloseBracketToken) {
@@ -647,25 +656,27 @@ internal sealed partial class Parser {
     private MemberSyntax ParseMethodDeclaration() {
         var type = ParseType(false);
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenParenToken);
-        var openParenthesis = Match(SyntaxKind.OpenParenToken);
-        var parameters = ParseParameterList();
-        var closeParenthesis = Match(SyntaxKind.CloseParenToken);
+        var parameterList = ParseParameterList();
         var body = (BlockStatementSyntax)ParseBlockStatement();
 
-        return SyntaxFactory.MethodDeclaration(type, identifier, openParenthesis, parameters, closeParenthesis, body);
+        return SyntaxFactory.MethodDeclaration(type, identifier, parameterList, body);
     }
 
     private StatementSyntax ParseLocalFunctionDeclaration() {
         var type = ParseType(false);
         var identifier = Match(SyntaxKind.IdentifierToken);
-        var openParenthesis = Match(SyntaxKind.OpenParenToken);
         var parameters = ParseParameterList();
-        var closeParenthesis = Match(SyntaxKind.CloseParenToken);
         var body = (BlockStatementSyntax)ParseBlockStatement();
 
-        return SyntaxFactory.LocalFunctionStatement(
-            type, identifier, openParenthesis, parameters, closeParenthesis, body
-        );
+        return SyntaxFactory.LocalFunctionStatement(type, identifier, parameters, body);
+    }
+
+    private ParameterListSyntax ParseParameterList() {
+        var openParenthesis = Match(SyntaxKind.OpenParenToken);
+        var parameters = ParseParameters();
+        var closeParenthesis = Match(SyntaxKind.CloseParenToken);
+
+        return SyntaxFactory.ParameterList(openParenthesis, parameters, closeParenthesis);
     }
 
     private TemplateParameterListSyntax ParseTemplateParameterList() {
@@ -674,7 +685,7 @@ internal sealed partial class Parser {
         _bracketStack.Push(SyntaxKind.GreaterThanToken);
         var saved = _terminatorState;
         _terminatorState |= TerminatorState.IsEndOfTemplateParameterList;
-        var parameters = ParseParameterList();
+        var parameters = ParseParameters();
         _terminatorState = saved;
         _bracketStack.Pop();
 
@@ -683,7 +694,7 @@ internal sealed partial class Parser {
         return SyntaxFactory.TemplateParameterList(openAngleBracket, parameters, closeAngleBracket);
     }
 
-    private SeparatedSyntaxList<ParameterSyntax> ParseParameterList() {
+    private SeparatedSyntaxList<ParameterSyntax> ParseParameters() {
         var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
         var parseNextParameter = true;
 
@@ -1124,6 +1135,8 @@ internal sealed partial class Parser {
                 return ParseReferenceExpression();
             case SyntaxKind.TypeOfKeyword:
                 return ParseTypeOfExpression();
+            case SyntaxKind.NewKeyword:
+                return ParseObjectCreationExpression();
             case SyntaxKind.IdentifierToken:
             default:
                 return ParseNameExpression();
@@ -1230,12 +1243,20 @@ internal sealed partial class Parser {
     }
 
     private ExpressionSyntax ParseTypeOfExpression() {
-        var keyword = EatToken();
+        var keyword = Match(SyntaxKind.TypeOfKeyword);
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
         var type = ParseType(false);
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
 
         return SyntaxFactory.TypeOfExpression(keyword, openParenthesis, type, closeParenthesis);
+    }
+
+    private ExpressionSyntax ParseObjectCreationExpression() {
+        var keyword = Match(SyntaxKind.NewKeyword);
+        var type = ParseType(false);
+        var argumentList = ParseArgumentList();
+
+        return SyntaxFactory.ObjectCreationExpression(keyword, type, argumentList);
     }
 
     private ExpressionSyntax ParseMemberAccessExpression(ExpressionSyntax operand) {
@@ -1256,9 +1277,6 @@ internal sealed partial class Parser {
     }
 
     private ExpressionSyntax ParseNameExpression() {
-        // TODO add param to specify is template names are expected/allowed
-        // TODO (so like only in constructors, member access, etc. but not in normal variable expressions
-        // TODO in variable expressions in binary expressions, etc.)
         if (currentToken.kind != SyntaxKind.IdentifierToken) {
             _currentToken = AddDiagnostic(currentToken, Error.ExpectedToken("expression"));
             return SyntaxFactory.IdentifierNameExpression(SyntaxFactory.Missing(SyntaxKind.IdentifierToken));
@@ -1267,7 +1285,8 @@ internal sealed partial class Parser {
         var identifier = EatToken();
         var kind = ScanTemplateArgumentList();
 
-        // ! temp, remove `|| true`
+        // ! Temporary, template name expressions are not enabled until needed (when template methods get implemented)
+        // Just remove `|| true` when you want to enable template name expressions
         if (kind == ScanTemplateArgumentListKind.NotTemplateArgumentList || true)
             return SyntaxFactory.IdentifierNameExpression(identifier);
 
@@ -1288,11 +1307,6 @@ internal sealed partial class Parser {
             lookahead++;
 
         switch (Peek(lookahead + 1).kind) {
-            // Could eventually add extra logic here if the grammar becomes too ambiguous
-            // TODO Only call this during type resolution and `new` expressions for constructors (need to add that)
-            case SyntaxKind.PeriodToken:
-            case SyntaxKind.GreaterThanToken:
-            case SyntaxKind.CommaToken:
             case SyntaxKind.OpenParenToken:
             case SyntaxKind.EndOfFileToken:
                 return ScanTemplateArgumentListKind.PossibleTemplateArgumentList;
@@ -1306,11 +1320,9 @@ internal sealed partial class Parser {
         if (operand.kind is not SyntaxKind.IdentifierNameExpression and not SyntaxKind.TemplateNameExpression)
             operand = AddDiagnostic(operand, Error.ExpectedMethodName());
 
-        var openParenthesis = EatToken();
-        var arguments = ParseArguments();
-        var closeParenthesis = Match(SyntaxKind.CloseParenToken);
+        var argumentList = ParseArgumentList();
 
-        return SyntaxFactory.CallExpression(operand, openParenthesis, arguments, closeParenthesis);
+        return SyntaxFactory.CallExpression(operand, argumentList);
     }
 
     private TemplateArgumentListSyntax ParseTemplateArgumentList() {
@@ -1326,6 +1338,14 @@ internal sealed partial class Parser {
         var closeAngleBracket = Match(SyntaxKind.GreaterThanToken);
 
         return SyntaxFactory.TemplateArgumentList(openAngleBracket, arguments, closeAngleBracket);
+    }
+
+    private ArgumentListSyntax ParseArgumentList() {
+        var openParenthesis = Match(SyntaxKind.OpenParenToken);
+        var arguments = ParseArguments();
+        var closeParenthesis = Match(SyntaxKind.CloseParenToken);
+
+        return SyntaxFactory.ArgumentList(openParenthesis, arguments, closeParenthesis);
     }
 
     private SeparatedSyntaxList<ArgumentSyntax> ParseArguments() {

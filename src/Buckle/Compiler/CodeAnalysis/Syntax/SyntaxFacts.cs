@@ -72,6 +72,7 @@ internal static class SyntaxFacts {
             case SyntaxKind.PlusPlusToken:
             case SyntaxKind.MinusMinusToken:
             case SyntaxKind.ExclamationToken:
+            case SyntaxKind.NewKeyword:
                 return 18;
             default:
                 return 0;
@@ -180,6 +181,8 @@ internal static class SyntaxFacts {
                 return SyntaxKind.StructKeyword;
             case "class":
                 return SyntaxKind.ClassKeyword;
+            case "new":
+                return SyntaxKind.NewKeyword;
             default:
                 return SyntaxKind.IdentifierToken;
         }
@@ -340,6 +343,8 @@ internal static class SyntaxFacts {
                 return "struct";
             case SyntaxKind.ClassKeyword:
                 return "class";
+            case SyntaxKind.NewKeyword:
+                return "new";
             default:
                 return null;
         }

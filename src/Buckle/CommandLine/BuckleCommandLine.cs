@@ -368,7 +368,7 @@ public static partial class BuckleCommandLine {
     private static int ResolveDiagnostics<Type>(
         DiagnosticQueue<Type> diagnostics, string me, CompilerState state, ConsoleColor? textColor = null)
         where Type : Diagnostic {
-        if (diagnostics.count == 0)
+        if (diagnostics.Count == 0)
             return SuccessExitCode;
 
         var worst = diagnostics.ToList().Select(d => (int)d.info.severity).Max();

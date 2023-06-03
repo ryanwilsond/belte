@@ -278,14 +278,19 @@ internal static class Error {
     /// BU0029. Run `buckle --explain BU0029` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic IncorrectArgumentCount(
-        TextLocation location, string name, int expected, int defaultExpected, int actual) {
+        TextLocation location, string name, int expected, int defaultExpected, int actual, bool isTemplate) {
         var argWord = expected == 1 ? "argument" : "arguments";
+
+        if (isTemplate)
+            argWord = "template " + argWord;
+
         var expectWord = defaultExpected == 0
             ? "expects"
             : actual < expected - defaultExpected ? "expects at least" : "expects at most";
 
         var expectedNumber = actual < expected - defaultExpected ? expected - defaultExpected : expected;
-        var message = $"method '{name}' {expectWord} {expectedNumber} {argWord}, got {actual}";
+        var methodWord = isTemplate ? "template" : "method";
+        var message = $"{methodWord} '{name}' {expectWord} {expectedNumber} {argWord}, got {actual}";
 
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_IncorrectArgumentCount), location, message);
     }
@@ -526,15 +531,15 @@ internal static class Error {
     /// <summary>
     /// BU0057. Run `buckle --explain BU0057` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic NoOverload(TextLocation location, string name) {
+    internal static BelteDiagnostic NoMethodOverload(TextLocation location, string name) {
         var message = $"no overload for method '{name}' matches parameter list";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoOverload), location, message);
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoMethodOverload), location, message);
     }
 
     /// <summary>
     /// BU0058. Run `buckle --explain BU0058` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic AmbiguousOverload(TextLocation location, MethodSymbol[] symbols) {
+    internal static BelteDiagnostic AmbiguousMethodOverload(TextLocation location, MethodSymbol[] symbols) {
         var message = new StringBuilder($"call is ambiguous between ");
 
         for (var i = 0; i < symbols.Length; i++) {
@@ -548,7 +553,7 @@ internal static class Error {
             message.Append($"'{symbols[i].Signature()}'");
         }
 
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AmbiguousOverload), location, message.ToString());
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AmbiguousMethodOverload), location, message.ToString());
     }
 
     /// <summary>
@@ -735,16 +740,53 @@ internal static class Error {
     /// BU0080. Run `buckle --explain BU0080` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic PrimitivesDoNotHaveMembers(TextLocation location) {
-        var message = $"primitive types do not contain any members";
+        var message = "primitive types do not contain any members";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_PrimitivesDoNotHaveMembers), location, message);
     }
 
     /// <summary>
     /// BU0081. Run `buckle --explain BU0081` on the command line for more info.
     /// </summary>
-    internal static Diagnostic NotConstantValue(TextLocation location) {
-        var message = "expression does not result in a constant value";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NotConstantValue), location, message);
+    internal static BelteDiagnostic CannotConstructPrimitive(TextLocation location, string name) {
+        var message = $"type '{name}' is a primitive; primitives cannot be created with constructors";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotConstructPrimitive), location, message);
+    }
+
+    /// <summary>
+    /// BU0082. Run `buckle --explain BU0082` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic NoTemplateOverload(TextLocation location, string name) {
+        var message = $"no overload for template '{name}' matches template argument list";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoTemplateOverload), location, message);
+    }
+
+    /// <summary>
+    /// BU0083. Run `buckle --explain BU0083` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic AmbiguousTemplateOverload(TextLocation location, NamedTypeSymbol[] symbols) {
+        var message = new StringBuilder($"template is ambiguous between ");
+
+        for (var i = 0; i < symbols.Length; i++) {
+            if (i == symbols.Length - 1 && i > 1)
+                message.Append(", and ");
+            else if (i == symbols.Length - 1)
+                message.Append(" and ");
+            else if (i > 0)
+                message.Append(", ");
+
+            message.Append($"'{symbols[i].Signature()}'");
+        }
+
+        return new BelteDiagnostic(
+            ErrorInfo(DiagnosticCode.ERR_AmbiguousTemplateOverload),
+            location,
+            message.ToString()
+        );
+    }
+
+    internal static BelteDiagnostic CannotUseStruct(TextLocation location) {
+        var message = "cannot use structs outside of a low-level context";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseStruct), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

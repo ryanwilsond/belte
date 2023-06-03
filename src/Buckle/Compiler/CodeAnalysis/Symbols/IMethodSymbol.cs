@@ -9,5 +9,5 @@ public interface IMethodSymbol : ISymbol {
     /// Gets the signature of this without the return type or parameter names.
     /// </summary>
     /// <returns>Signature if this <see cref="MethodSymbol" />.</returns>
-    public string SignatureNoReturnNoParameterNames();
+    public string Signature();
 }

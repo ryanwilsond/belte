@@ -98,14 +98,14 @@ internal static class Assertions {
             ? tempDiagnostics
             : tempDiagnostics.Errors();
 
-        if (expectedDiagnostics.Length != diagnostics.count) {
+        if (expectedDiagnostics.Length != diagnostics.Count) {
             writer.WriteLine($"Input: {annotatedText.text}");
 
             foreach (var diagnostic in diagnostics.ToList())
                 writer.WriteLine($"Diagnostic ({diagnostic.info.severity}): {diagnostic.message}");
         }
 
-        Assert.Equal(expectedDiagnostics.Length, diagnostics.count);
+        Assert.Equal(expectedDiagnostics.Length, diagnostics.Count);
 
         for (var i = 0; i < expectedDiagnostics.Length; i++) {
             var diagnostic = diagnostics.Pop();

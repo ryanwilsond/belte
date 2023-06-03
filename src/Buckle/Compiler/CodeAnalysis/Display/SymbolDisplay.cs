@@ -26,6 +26,15 @@ public static class SymbolDisplay {
     /// <param name="text"><see cref="DisplayText" /> to add to.</param>
     /// <param name="symbol"><see cref="Symbol" /> to add (not modified).</param>
     public static void DisplaySymbol(DisplayText text, ISymbol symbol) {
+        var currentSymbol = symbol as Symbol;
+
+        while (currentSymbol.containingType != null) {
+            text.Write(CreateType(currentSymbol.containingType.name));
+            text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
+
+            currentSymbol = currentSymbol.containingType;
+        }
+
         switch (symbol.kind) {
             case SymbolKind.Method:
                 DisplayMethod(text, (MethodSymbol)symbol);
@@ -37,7 +46,6 @@ public static class SymbolDisplay {
                 DisplayGlobalVariable(text, (GlobalVariableSymbol)symbol);
                 break;
             case SymbolKind.Parameter:
-            case SymbolKind.TemplateParameter:
                 DisplayParameter(text, (ParameterSymbol)symbol);
                 break;
             case SymbolKind.Field:
@@ -122,8 +130,11 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayMethod(DisplayText text, MethodSymbol symbol) {
-        DisplayText.DisplayNode(text, symbol.type);
-        text.Write(CreateSpace());
+        if (symbol.type != null) {
+            DisplayText.DisplayNode(text, symbol.type);
+            text.Write(CreateSpace());
+        }
+
         text.Write(CreateIdentifier(symbol.name));
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
 

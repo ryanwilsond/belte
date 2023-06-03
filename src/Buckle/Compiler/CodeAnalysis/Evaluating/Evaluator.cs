@@ -130,8 +130,10 @@ internal sealed class Evaluator {
     private object DictionaryValue(Dictionary<Symbol, EvaluatorObject> value) {
         var dictionary = new Dictionary<object, object>();
 
-        foreach (var pair in value)
-            dictionary.Add(pair.Key.name, Value(pair.Value, true));
+        foreach (var pair in value) {
+            if (pair.Key is FieldSymbol)
+                dictionary.Add(pair.Key.name, Value(pair.Value, true));
+        }
 
         return dictionary;
     }
@@ -429,8 +431,8 @@ internal sealed class Evaluator {
                 return EvaluateTypeOfExpression((BoundTypeOfExpression)node, abort);
             case BoundNodeKind.EmptyExpression:
                 return new EvaluatorObject();
-            case BoundNodeKind.ConstructorExpression:
-                return EvaluateConstructorExpression((BoundConstructorExpression)node, abort);
+            case BoundNodeKind.ObjectCreationExpression:
+                return EvaluateObjectCreationExpression((BoundObjectCreationExpression)node, abort);
             case BoundNodeKind.MemberAccessExpression:
                 return EvaluateMemberAccessExpression((BoundMemberAccessExpression)node, abort);
             default:
@@ -452,19 +454,24 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject EvaluateConstructorExpression(BoundConstructorExpression node, ValueWrapper<bool> abort) {
-        var typeMembers = ((NamedTypeSymbol)node.symbol).GetMembers();
+    private EvaluatorObject EvaluateObjectCreationExpression(
+        BoundObjectCreationExpression node, ValueWrapper<bool> abort) {
+        var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).members;
         var members = new Dictionary<Symbol, EvaluatorObject>();
 
         var templateArgumentIndex = 0;
 
-        foreach (var templateArgument in typeMembers.Where(t => t is TemplateParameterSymbol)) {
-            var value = EvaluateBoundConstant(node.templateArguments[templateArgumentIndex++]);
-            members.Add(templateArgument, new EvaluatorObject(value));
+        foreach (var templateArgument in typeMembers.Where(t => t is ParameterSymbol)) {
+            var value = EvaluateExpression(node.type.templateArguments[templateArgumentIndex++], abort);
+            members.Add(templateArgument, value);
         }
 
-        foreach (var member in typeMembers.Where(t => t is not TemplateParameterSymbol))
+        foreach (var member in typeMembers.Where(t => t is not ParameterSymbol))
             members.Add(member, new EvaluatorObject());
+
+        // structs don't have any methods, so no constructors
+        if (node.type.typeSymbol is ClassSymbol)
+            InvokeMethod(node.constructor, node.arguments, abort);
 
         return new EvaluatorObject(members);
     }
@@ -567,27 +574,32 @@ internal sealed class Evaluator {
 
             return new EvaluatorObject(true);
         } else {
-            var locals = new Dictionary<IVariableSymbol, IEvaluatorObject>();
-
-            for (var i = 0; i < node.arguments.Length; i++) {
-                var parameter = node.method.parameters[i];
-                var value = EvaluateExpression(node.arguments[i], abort);
-
-                while (!parameter.type.isReference && value.isReference)
-                    value = Get(value.reference);
-
-                locals.Add(parameter, Copy(value));
-            }
-
-            _locals.Push(locals);
-            var statement = LookupMethod(_methods, node.method);
-            var result = EvaluateStatement(statement, abort, out _);
-            _locals.Pop();
-
-            return result;
+            return InvokeMethod(node.method, node.arguments, abort);
         }
 
         return new EvaluatorObject();
+    }
+
+    private EvaluatorObject InvokeMethod(
+        MethodSymbol method, ImmutableArray<BoundExpression> arguments, ValueWrapper<bool> abort) {
+        var locals = new Dictionary<IVariableSymbol, IEvaluatorObject>();
+
+        for (var i = 0; i < arguments.Length; i++) {
+            var parameter = method.parameters[i];
+            var value = EvaluateExpression(arguments[i], abort);
+
+            while (!parameter.type.isReference && value.isReference)
+                value = Get(value.reference);
+
+            locals.Add(parameter, Copy(value));
+        }
+
+        _locals.Push(locals);
+        var statement = LookupMethod(_methods, method);
+        var result = EvaluateStatement(statement, abort, out _);
+        _locals.Pop();
+
+        return result;
     }
 
     private EvaluatorObject EvaluateConstantExpression(BoundExpression expression, ValueWrapper<bool> abort) {

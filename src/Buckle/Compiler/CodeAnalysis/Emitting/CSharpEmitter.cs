@@ -19,6 +19,7 @@ namespace Buckle.CodeAnalysis.Emitting;
 /// </summary>
 internal sealed class CSharpEmitter {
     private bool _insideMain;
+    private ImmutableDictionary<MethodSymbol, BoundBlockStatement> _methods;
 
     /// <summary>
     /// Emits a program to a C# source.
@@ -50,11 +51,11 @@ internal sealed class CSharpEmitter {
     internal static string Emit(
         BoundProgram program, string namespaceName, out BelteDiagnosticQueue diagnostics) {
         var emitter = new CSharpEmitter();
-
         return emitter.EmitInternal(program, namespaceName, out diagnostics);
     }
 
     private string EmitInternal(BoundProgram program, string namespaceName, out BelteDiagnosticQueue diagnostics) {
+        _methods = program.methodBodies;
         var stringWriter = new StringWriter();
         var indentString = "    ";
 
@@ -71,14 +72,17 @@ internal sealed class CSharpEmitter {
                 foreach (var @struct in program.types.Where(t => t is StructSymbol))
                     EmitStruct(indentedTextWriter, @struct as StructSymbol);
 
+                foreach (var @class in program.types.Where(t => t is ClassSymbol))
+                    EmitClass(indentedTextWriter, @class as ClassSymbol);
+
                 if (program.entryPoint != null) {
-                    var mainBody = MethodUtilities.LookupMethod(program.methodBodies, program.entryPoint);
+                    var mainBody = MethodUtilities.LookupMethod(_methods, program.entryPoint);
                     EmitMainMethod(indentedTextWriter, KeyValuePair.Create(program.entryPoint, mainBody));
                 } else {
                     EmitEmptyMainMethod(indentedTextWriter);
                 }
 
-                foreach (var methodWithBody in program.methodBodies) {
+                foreach (var methodWithBody in _methods) {
                     if (methodWithBody.Key != program.entryPoint)
                         EmitMethod(indentedTextWriter, methodWithBody);
                 }
@@ -103,7 +107,7 @@ internal sealed class CSharpEmitter {
 
     private string GetEquivalentType(BoundType type, bool makeReferenceExplicit = false) {
         string GetEquivalentTypeName(TypeSymbol typeSymbol) {
-            if (typeSymbol is StructSymbol)
+            if (typeSymbol is NamedTypeSymbol)
                 return GetSafeName(typeSymbol.name);
 
             if (typeSymbol == TypeSymbol.Bool)
@@ -149,8 +153,39 @@ internal sealed class CSharpEmitter {
         var signature = $"public class {GetSafeName(@struct.name)}";
 
         using (var structCurly = new CurlyIndenter(indentedTextWriter, signature)) {
-            foreach (var field in @struct.GetMembers().OfType<FieldSymbol>())
+            foreach (var field in @struct.members.OfType<FieldSymbol>())
                 EmitField(indentedTextWriter, field);
+        }
+
+        indentedTextWriter.WriteLine();
+    }
+
+    private void EmitClass(IndentedTextWriter indentedTextWriter, ClassSymbol @class) {
+        var signature = $"public class {GetSafeName(@class.name)}";
+
+        using (var classCurly = new CurlyIndenter(indentedTextWriter, signature)) {
+            foreach (var parameter in @class.members.OfType<ParameterSymbol>())
+                EmitTemplateParameter(indentedTextWriter, parameter);
+
+            foreach (var field in @class.members.OfType<FieldSymbol>())
+                EmitField(indentedTextWriter, field);
+
+            indentedTextWriter.WriteLine();
+
+            foreach (var constructor in @class.constructors)
+                EmitConstructor(indentedTextWriter, @class.name, constructor, @class.templateParameters);
+
+            foreach (var method in @class.members.OfType<MethodSymbol>()
+                .Where(m => m.name != WellKnownMemberNames.InstanceConstructorName)) {
+                EmitMethod(indentedTextWriter, KeyValuePair.Create(method, _methods[method]), false);
+            }
+
+            foreach (var type in @class.members.OfType<NamedTypeSymbol>()) {
+                if (type is ClassSymbol c)
+                    EmitClass(indentedTextWriter, c);
+                if (type is StructSymbol s)
+                    EmitStruct(indentedTextWriter, s);
+            }
         }
 
         indentedTextWriter.WriteLine();
@@ -158,6 +193,44 @@ internal sealed class CSharpEmitter {
 
     private void EmitField(IndentedTextWriter indentedTextWriter, FieldSymbol field) {
         indentedTextWriter.WriteLine($"public {GetEquivalentType(field.type)} {GetSafeName(field.name)};");
+    }
+
+    private void EmitTemplateParameter(IndentedTextWriter indentedTextWriter, ParameterSymbol parameter) {
+        indentedTextWriter.Write($"private {GetEquivalentType(parameter.type)} {GetSafeName(parameter.name)};");
+    }
+
+    private void EmitConstructor(
+        IndentedTextWriter indentedTextWriter,
+        string name,
+        MethodSymbol constructor,
+        ImmutableArray<ParameterSymbol> templateParameters) {
+        var parametersSignature = new StringBuilder();
+        var isFirst = true;
+
+        void AddParameters(ImmutableArray<ParameterSymbol> parameters) {
+            foreach (var parameter in parameters) {
+                if (isFirst)
+                    isFirst = false;
+                else
+                    parametersSignature.Append(", ");
+
+                parametersSignature.Append($"{GetEquivalentType(parameter.type)} {GetSafeName(parameter.name)}");
+            }
+        }
+
+        AddParameters(templateParameters);
+        AddParameters(constructor.parameters);
+
+        var signature = $"public {GetSafeName(name)}({parametersSignature})";
+
+        using (var methodCurly = new CurlyIndenter(indentedTextWriter, signature)) {
+            foreach (var parameter in templateParameters)
+                indentedTextWriter.WriteLine($"this.{parameter.name} = {parameter.name};");
+
+            EmitBody(indentedTextWriter, _methods[constructor]);
+        }
+
+        indentedTextWriter.WriteLine();
     }
 
     private void EmitMainMethod(
@@ -180,7 +253,12 @@ internal sealed class CSharpEmitter {
     }
 
     private void EmitMethod(
-        IndentedTextWriter indentedTextWriter, KeyValuePair<MethodSymbol, BoundBlockStatement> method) {
+        IndentedTextWriter indentedTextWriter,
+        KeyValuePair<MethodSymbol, BoundBlockStatement> method,
+        bool ignoreContained = true) {
+        if (method.Key.containingType != null && ignoreContained)
+            return;
+
         var parameters = new StringBuilder();
         var isFirst = true;
 
@@ -193,8 +271,8 @@ internal sealed class CSharpEmitter {
             parameters.Append($"{GetEquivalentType(parameter.type)} {GetSafeName(parameter.name)}");
         }
 
-        var signature =
-            $"public static {GetEquivalentType(method.Key.type)} {GetSafeName(method.Key.name)}({parameters})";
+        var signature = $"public {(method.Key.containingType is null ? "static " : "")}" +
+            $"{GetEquivalentType(method.Key.type)} {GetSafeName(method.Key.name)}({parameters})";
 
         using (var methodCurly = new CurlyIndenter(indentedTextWriter, signature))
             EmitBody(indentedTextWriter, method.Value);
@@ -468,8 +546,8 @@ internal sealed class CSharpEmitter {
             case BoundNodeKind.ReferenceExpression:
                 EmitReferenceExpression(indentedTextWriter, (BoundReferenceExpression)expression);
                 break;
-            case BoundNodeKind.ConstructorExpression:
-                EmitConstructorExpression(indentedTextWriter, (BoundConstructorExpression)expression);
+            case BoundNodeKind.ObjectCreationExpression:
+                EmitObjectCreationExpression(indentedTextWriter, (BoundObjectCreationExpression)expression);
                 break;
             case BoundNodeKind.MemberAccessExpression:
                 EmitMemberAccessExpression(indentedTextWriter, (BoundMemberAccessExpression)expression);
@@ -604,11 +682,16 @@ internal sealed class CSharpEmitter {
                 return;
         }
 
-        indentedTextWriter.Write($"{methodName ?? GetSafeName(expression.method.name)}(");
+        indentedTextWriter.Write($"{methodName ?? GetSafeName(expression.method.name)}");
+        EmitArguments(indentedTextWriter, expression.arguments);
+    }
+
+    private void EmitArguments(IndentedTextWriter indentedTextWriter, ImmutableArray<BoundExpression> arguments) {
+        indentedTextWriter.Write("(");
 
         var isFirst = true;
 
-        foreach (var argument in expression.arguments) {
+        foreach (var argument in arguments) {
             if (isFirst)
                 isFirst = false;
             else
@@ -708,9 +791,10 @@ internal sealed class CSharpEmitter {
         indentedTextWriter.Write($"ref {GetSafeName(expression.variable.name)}");
     }
 
-    private void EmitConstructorExpression(
-        IndentedTextWriter indentedTextWriter, BoundConstructorExpression expression) {
-        indentedTextWriter.Write($"new {GetSafeName(expression.symbol.name)}()");
+    private void EmitObjectCreationExpression(
+        IndentedTextWriter indentedTextWriter, BoundObjectCreationExpression expression) {
+        indentedTextWriter.Write($"new {GetEquivalentType(expression.type)}");
+        EmitArguments(indentedTextWriter, expression.type.templateArguments.AddRange(expression.arguments));
     }
 
     private void EmitMemberAccessExpression(

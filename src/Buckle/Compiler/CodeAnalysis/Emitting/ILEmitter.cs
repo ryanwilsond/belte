@@ -328,7 +328,7 @@ internal sealed partial class ILEmitter {
             var foundType = foundTypes[0];
             var methods = foundType.Methods.Where(m => m.Name == methodName);
 
-            if (methods.ToArray().Length == 1 && parameterTypeNames is null)
+            if (methods.Count() == 1 && parameterTypeNames is null)
                 return _assemblyDefinition.MainModule.ImportReference(methods.Single());
 
             foreach (var method in methods) {
@@ -552,7 +552,7 @@ internal sealed partial class ILEmitter {
             _namespaceName, GetSafeName(@struct.name), TypeAttributes.NestedPublic, objectType
         );
 
-        foreach (var field in @struct.GetMembers().OfType<FieldSymbol>()) {
+        foreach (var field in @struct.members.OfType<FieldSymbol>()) {
             var fieldDefinition = new FieldDefinition(
                 GetSafeName(field.name), FieldAttributes.Public, GetType(field.type)
             );
@@ -930,8 +930,8 @@ internal sealed partial class ILEmitter {
             case BoundNodeKind.ReferenceExpression:
                 // EmitReferenceExpression(indentedTextWriter, (BoundReferenceExpression)expression);
                 break;
-            case BoundNodeKind.ConstructorExpression:
-                EmitConstructorExpression(iLProcessor, (BoundConstructorExpression)expression);
+            case BoundNodeKind.ObjectCreationExpression:
+                EmitObjectCreationExpression(iLProcessor, (BoundObjectCreationExpression)expression);
                 break;
             case BoundNodeKind.MemberAccessExpression:
                 // EmitMemberAccessExpression(indentedTextWriter, (BoundMemberAccessExpression)expression);
@@ -1559,7 +1559,7 @@ internal sealed partial class ILEmitter {
         return new BoundLabel(name);
     }
 
-    private void EmitConstructorExpression(ILProcessor iLProcessor, BoundConstructorExpression expression) {
+    private void EmitObjectCreationExpression(ILProcessor iLProcessor, BoundObjectCreationExpression expression) {
         // iLProcessor.Emit(OpCodes.Newobj, /* TODO */null);
     }
 }

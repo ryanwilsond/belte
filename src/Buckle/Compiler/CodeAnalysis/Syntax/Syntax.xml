@@ -36,6 +36,16 @@
     </Field>
     <Field Name="expression" Type="ExpressionSyntax"/>
   </Node>
+  <Node Name="ArgumentListSyntax" Base="SyntaxNode">
+    <Kind Name="ArgumentList"/>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="arguments" Type="SeparatedSyntaxList&lt;ArgumentSyntax&gt;"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+  </Node>
   <Node Name="ArrayRankSpecifierSyntax" Base="SyntaxNode">
     <Kind Name="ArrayRankSpecifier"/>
     <Field Name="openBracket" Type="SyntaxToken">
@@ -95,6 +105,16 @@
       <Kind Name="EqualsToken"/>
     </Field>
     <Field Name="defaultValue" Type="ExpressionSyntax" Optional="True"/>
+  </Node>
+  <Node Name="ParameterListSyntax" Base="SyntaxNode">
+    <Kind Name="ParameterList"/>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="parameters" Type="SeparatedSyntaxList&lt;ParameterSyntax&gt;"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
   </Node>
   <Node Name="TemplateArgumentListSyntax" Base="SyntaxNode">
     <Kind Name="TemplateArgumentList"/>
@@ -169,13 +189,7 @@
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>
-    <Field Name="openParenthesis" Type="SyntaxToken">
-      <Kind Name="OpenParenToken"/>
-    </Field>
-    <Field Name="parameters" Type="SeparatedSyntaxList&lt;ParameterSyntax&gt;"/>
-    <Field Name="closeParenthesis" Type="SyntaxToken">
-      <Kind Name="CloseParenToken"/>
-    </Field>
+    <Field Name="parameterList" Type="ParameterListSyntax"/>
     <Field Name="body" Type="BlockStatementSyntax"/>
   </Node>
   <Node Name="StructDeclarationSyntax" Base="TypeDeclarationSyntax">
@@ -211,13 +225,7 @@
   <Node Name="CallExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="CallExpression"/>
     <Field Name="operand" Type="ExpressionSyntax"/>
-    <Field Name="openParenthesis" Type="SyntaxToken" Optional="True">
-      <Kind Name="OpenParenToken"/>
-    </Field>
-    <Field Name="arguments" Type="SeparatedSyntaxList&lt;ArgumentSyntax&gt;"/>
-    <Field Name="closeParenthesis" Type="SyntaxToken" Optional="True">
-      <Kind Name="CloseParenToken"/>
-    </Field>
+    <Field Name="argumentList" Type="ArgumentListSyntax"/>
   </Node>
   <Node Name="CastExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="CastExpression"/>
@@ -229,6 +237,14 @@
       <Kind Name="CloseParenToken"/>
     </Field>
     <Field Name="expression" Type="ExpressionSyntax"/>
+  </Node>
+  <Node Name="ObjectCreationExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="ObjectCreationExpression"/>
+    <Field Name="newKeyword" Type="SyntaxToken">
+      <Kind Name="NewKeyword"/>
+    </Field>
+    <Field Name="type" Type="TypeSyntax"/>
+    <Field Name="argumentList" Type="ArgumentListSyntax"/>
   </Node>
   <Node Name="EmptyExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="EmptyExpression"/>
@@ -429,13 +445,7 @@
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>
-    <Field Name="openParenthesis" Type="SyntaxToken">
-      <Kind Name="OpenParenToken"/>
-    </Field>
-    <Field Name="parameters" Type="SeparatedSyntaxList&lt;ParameterSyntax&gt;"/>
-    <Field Name="closeParenthesis" Type="SyntaxToken">
-      <Kind Name="CloseParenToken"/>
-    </Field>
+    <Field Name="parameterList" Type="ParameterListSyntax"/>
     <Field Name="body" Type="BlockStatementSyntax"/>
   </Node>
   <Node Name="ReturnStatementSyntax" Base="StatementSyntax">

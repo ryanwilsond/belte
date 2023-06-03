@@ -20,7 +20,7 @@ public sealed class LexerTests {
         Assert.Equal(SyntaxKind.StringLiteralToken, token.kind);
         Assert.Equal(text, token.text);
         Assert.True(token.containsDiagnostics);
-        var diagnostic = (SyntaxDiagnostic)token.GetDiagnostics().First();
+        var diagnostic = (SyntaxDiagnostic)token.GetDiagnostics()[0];
         Assert.Equal(0, diagnostic.offset);
         Assert.Equal(1, diagnostic.width);
         Assert.Equal("unterminated string literal", diagnostic.message);
