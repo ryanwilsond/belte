@@ -24,7 +24,7 @@ internal sealed partial class ControlFlowGraphBuilder {
         if (!blocks.Any())
             Connect(_start, _end);
         else
-            Connect(_start, blocks.First());
+            Connect(_start, blocks[0]);
 
         foreach (var block in blocks) {
             foreach (var statement in block.statements) {

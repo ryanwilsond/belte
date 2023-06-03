@@ -11,5 +11,4 @@ public enum SymbolKind {
     Method,
     Parameter,
     Field,
-    TemplateParameter,
 }

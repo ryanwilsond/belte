@@ -555,13 +555,13 @@ public sealed partial class BelteRepl : Repl {
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
         var symbols = (signature == name
             ? compilation.GetSymbols().Where(f => f.name == name)
-            : compilation.GetSymbols<IMethodSymbol>().Where(f => f.SignatureNoReturnNoParameterNames() == signature))
+            : compilation.GetSymbols<IMethodSymbol>().Where(f => f.Signature() == signature))
                 .ToArray();
 
         ISymbol symbol = null;
         var displayText = new DisplayText();
 
-        if (symbols.ToArray().Length == 0 && signature.StartsWith('<')) {
+        if (symbols.Count() == 0 && signature.StartsWith('<')) {
             // This will find hidden method symbols not normally exposed to the user
             // Generated methods should never have overloads, so only the name is checked
             // (as apposed to the entire signature)
@@ -592,7 +592,7 @@ public sealed partial class BelteRepl : Repl {
                 );
             }
         } else {
-            symbol = symbols.First();
+            symbol = symbols[0];
         }
 
         if (symbol != null) {

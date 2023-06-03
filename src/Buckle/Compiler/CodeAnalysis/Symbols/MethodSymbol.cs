@@ -16,17 +16,24 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
     /// <param name="parameters">Parameters of method.</param>
     /// <param name="type"><see cref="BoundType" /> of return type.</param>
     /// <param name="declaration">Declaration of method.</param>
+    /// <param name="originalDefinition">
+    /// The symbol that has our entry in the global method map. This is used to locate the body of this method.
+    /// </param>
     internal MethodSymbol(
         string name, ImmutableArray<ParameterSymbol> parameters, BoundType type,
-        MethodDeclarationSyntax declaration = null, MethodSymbol originalDefinition = null)
+        MethodDeclarationSyntax declaration = null, MethodSymbol originalDefinition = null,
+        NamedTypeSymbol containingType = null)
         : base(name) {
         this.type = type;
         this.parameters = parameters;
         this.declaration = declaration;
         this.originalDefinition = originalDefinition;
+        this.containingType = containingType;
     }
 
     public override SymbolKind kind => SymbolKind.Method;
+
+    public override NamedTypeSymbol containingType { get; }
 
     /// <summary>
     /// All parameters (see <see cref="ParameterSymbol" />).
@@ -49,7 +56,10 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
     /// </summary>
     internal MethodSymbol originalDefinition { get; }
 
-    public string SignatureNoReturnNoParameterNames() {
+    /// <summary>
+    /// Gets a string representation of the method signature without the return type or parameter names.
+    /// </summary>
+    public string Signature() {
         var signature = new StringBuilder($"{name}(");
         var isFirst = true;
 
@@ -72,27 +82,6 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
     /// </summary>
     internal MethodSymbol UpdateParameters(ImmutableArray<ParameterSymbol> parameters) {
         return new MethodSymbol(name, parameters, type, declaration, this);
-    }
-
-    /// <summary>
-    /// Gets a string representation of the method signature (declaration only, no definition).
-    /// </summary>
-    internal string Signature() {
-        var signature = new StringBuilder($"{type} {name}(");
-        var isFirst = true;
-
-        foreach (var parameter in parameters) {
-            if (isFirst)
-                isFirst = false;
-            else
-                signature.Append(',');
-
-            signature.Append($"{parameter.type} {parameter.name}");
-        }
-
-        signature.Append(')');
-
-        return signature.ToString();
     }
 
     /// <summary>

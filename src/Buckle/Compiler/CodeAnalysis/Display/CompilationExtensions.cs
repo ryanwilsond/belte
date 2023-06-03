@@ -54,7 +54,7 @@ public static class CompilationExtensions {
 
         void WriteTypeMembers(ITypeSymbolWithMembers type, bool writeEnding = true) {
             try {
-                var members = type.GetMembers();
+                var members = type.members;
 
                 text.Write(CreateSpace());
                 text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));

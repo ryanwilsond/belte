@@ -1027,7 +1027,7 @@ public abstract partial class Repl {
 
         if (args.Count != parameters.Length) {
             if (args.Count == command.method.GetParameters()
-                .Where(t => !t.HasDefaultValue).ToArray().Length) {
+                .Where(t => !t.HasDefaultValue).Count()) {
                 foreach (var parameter in command.method.GetParameters().Where(p => p.HasDefaultValue))
                     args.Add(parameter.DefaultValue.ToString());
             } else {

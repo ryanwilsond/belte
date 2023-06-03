@@ -83,13 +83,13 @@ internal sealed class Binder {
             .OfType<TypeDeclarationSyntax>();
 
         foreach (var @type in typeDeclarations)
-            binder.BindAndDeclareTypeDeclaration(@type);
+            binder.BindTypeDeclaration(@type);
 
         var methodDeclarations = syntaxTrees.SelectMany(st => st.GetCompilationUnitRoot().members)
             .OfType<MethodDeclarationSyntax>();
 
         foreach (var method in methodDeclarations)
-            binder.BindAndDeclareMethodDeclaration(method);
+            binder.BindMethodDeclaration(method);
 
         var globalStatements = syntaxTrees.SelectMany(st => st.GetCompilationUnitRoot().members)
             .OfType<GlobalStatementSyntax>();
@@ -190,6 +190,16 @@ internal sealed class Binder {
         diagnostics.Move(globalScope.diagnostics);
 
         foreach (var method in globalScope.methods) {
+            // Some special methods (like default constructors) are bound earlier
+            var existingBodies = globalScope.methodBodies.Where(t => t.method == method);
+
+            if (existingBodies.Count() != 0) {
+                // If there are multiple entries something went wrong
+                var existingBody = existingBodies.ToArray().Single();
+                methodBodies.Add(existingBody.method, existingBody.body);
+                continue;
+            }
+
             var binder = new Binder(options, options.topLevelBinderFlags, parentScope, method) {
                 _innerPrefix = new Stack<string>()
             };
@@ -392,58 +402,49 @@ internal sealed class Binder {
         return name;
     }
 
-    private TypeSymbol LookupType(string name, int arity = 0) {
+    private ImmutableArray<Symbol> LookupTypes(string name, bool strict = false) {
+        var types = _scope.LookupOverloads(name);
+
+        if (strict)
+            types = types.Where(t => t is TypeSymbol).ToImmutableArray();
+
+        TypeSymbol type;
+
         switch (name) {
             case "any":
-                return TypeSymbol.Any;
+                type = TypeSymbol.Any;
+                break;
             case "bool":
-                return TypeSymbol.Bool;
+                type = TypeSymbol.Bool;
+                break;
             case "int":
-                return TypeSymbol.Int;
+                type = TypeSymbol.Int;
+                break;
             case "decimal":
-                return TypeSymbol.Decimal;
+                type = TypeSymbol.Decimal;
+                break;
             case "string":
-                return TypeSymbol.String;
+                type = TypeSymbol.String;
+                break;
             case "void":
-                return TypeSymbol.Void;
+                type = TypeSymbol.Void;
+                break;
             case "type":
-                return TypeSymbol.Type;
+                type = TypeSymbol.Type;
+                break;
             default:
-                // If no type was found, we want to return null and type will be null if no type was found
-                // So we just return type
-                var type = _scope.LookupTypeSymbol(name, arity);
-                return type;
+                type = null;
+                break;
         }
-    }
 
-    private MethodSymbol BindMethodDeclaration(MethodDeclarationSyntax method, string name = null) {
-        var type = BindType(method.returnType);
-        var parameters = BindParameterList(method.parameterList);
-        var newMethod = new MethodSymbol(name ?? method.identifier.text, parameters, type, method);
+        if (types.Where(t => t is TypeSymbol).Count() == 0 && type != null)
+            return ImmutableArray.Create<Symbol>(type);
 
-        return newMethod;
+        return types;
     }
 
     private ImmutableArray<ParameterSymbol> BindParameterList(ParameterListSyntax parameterList) {
         return BindParameters(parameterList.parameters);
-    }
-
-    private ImmutableArray<TemplateParameterSymbol> BindTemplateParameterList(TemplateParameterListSyntax parameterList) {
-        var templateParameters = BindParameters(parameterList.parameters);
-        var builder = ImmutableArray.CreateBuilder<TemplateParameterSymbol>();
-
-        foreach (var parameter in templateParameters) {
-            var templateParameter = new TemplateParameterSymbol(
-                parameter.name,
-                parameter.type,
-                parameter.ordinal,
-                parameter.defaultValue
-            );
-
-            builder.Add(templateParameter);
-        }
-
-        return builder.ToImmutable();
     }
 
     private ImmutableArray<ParameterSymbol> BindParameters(SeparatedSyntaxList<ParameterSyntax> parameters) {
@@ -485,11 +486,15 @@ internal sealed class Binder {
         return BindStatement(syntax);
     }
 
-    private void BindAndDeclareMethodDeclaration(MethodDeclarationSyntax method, string name = null) {
-        var newMethod = BindMethodDeclaration(method, name);
+    private MethodSymbol BindMethodDeclaration(MethodDeclarationSyntax method, string name = null) {
+        var type = BindType(method.returnType);
+        var parameters = BindParameterList(method.parameterList);
+        var newMethod = new MethodSymbol(name ?? method.identifier.text, parameters, type, method);
 
         if (newMethod.declaration.identifier.text != null && !_scope.TryDeclareMethod(newMethod))
             diagnostics.Push(Error.MethodAlreadyDeclared(method.identifier.location, name ?? newMethod.name));
+
+        return newMethod;
     }
 
     private TypeSymbol BindTypeDeclaration(TypeDeclarationSyntax @type) {
@@ -499,18 +504,6 @@ internal sealed class Binder {
             return BindClassDeclaration(c);
         else
             throw new BelteInternalException($"BindTypeDeclaration: unexpected type '{@type.identifier.text}'");
-    }
-
-    private void BindAndDeclareTypeDeclaration(TypeDeclarationSyntax @type) {
-        if (@type is StructDeclarationSyntax s)
-            BindAndDeclareStructDeclaration(s);
-        else if (@type is ClassDeclarationSyntax c)
-            BindAndDeclareClassDeclaration(c);
-        else {
-            throw new BelteInternalException(
-                $"BindAndDeclareTypeDeclaration: unexpected type '{@type.identifier.text}'"
-            );
-        }
     }
 
     private StructSymbol BindStructDeclaration(StructDeclarationSyntax @struct) {
@@ -524,23 +517,23 @@ internal sealed class Binder {
 
         _scope = _scope.parent;
 
-        return new StructSymbol(ImmutableArray<TemplateParameterSymbol>.Empty, builder.ToImmutableArray(), @struct);
-    }
-
-    private void BindAndDeclareStructDeclaration(StructDeclarationSyntax @struct) {
-        var newStruct = BindStructDeclaration(@struct);
+        var newStruct = new StructSymbol(ImmutableArray<ParameterSymbol>.Empty, builder.ToImmutableArray(), @struct);
 
         if (!_scope.TryDeclareType(newStruct))
             diagnostics.Push(Error.TypeAlreadyDeclared(@struct.identifier.location, @struct.identifier.text, false));
+        else
+            diagnostics.Push(Error.CannotUseStruct(@struct.keyword.location));
+
+        return newStruct;
     }
 
     private ClassSymbol BindClassDeclaration(ClassDeclarationSyntax @class) {
         var builder = ImmutableList.CreateBuilder<Symbol>();
-        var templateBuilder = ImmutableList.CreateBuilder<TemplateParameterSymbol>();
+        var templateBuilder = ImmutableList.CreateBuilder<ParameterSymbol>();
         _scope = new BoundScope(_scope);
 
         if (@class.templateParameterList != null) {
-            var templateParameters = BindTemplateParameterList(@class.templateParameterList);
+            var templateParameters = BindParameters(@class.templateParameterList.parameters);
 
             foreach (var templateParameter in templateParameters) {
                 builder.Add(templateParameter);
@@ -552,6 +545,12 @@ internal sealed class Binder {
             var field = BindFieldDeclaration(fieldDeclaration);
             builder.Add(field);
         }
+
+        var defaultConstructor = new MethodSymbol(".ctor", ImmutableArray<ParameterSymbol>.Empty, null);
+        builder.Add(defaultConstructor);
+        _methodBodies.Add((defaultConstructor, new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty)));
+        // This should never fail
+        _scope.TryDeclareMethod(defaultConstructor);
 
         foreach (var methodDeclaration in @class.members.OfType<MethodDeclarationSyntax>()) {
             var method = BindMethodDeclaration(methodDeclaration);
@@ -566,16 +565,18 @@ internal sealed class Binder {
             builder.Add(type);
         }
 
+        // This allows the methods to be seen by the global scope
+        foreach (var method in _scope.GetDeclaredMethods())
+            _scope.parent.DeclareMethodStrict(method);
+
         _scope = _scope.parent;
 
-        return new ClassSymbol(templateBuilder.ToImmutableArray(), builder.ToImmutableArray(), @class);
-    }
-
-    private void BindAndDeclareClassDeclaration(ClassDeclarationSyntax @class) {
-        var newClass = BindClassDeclaration(@class);
+        var newClass = new ClassSymbol(templateBuilder.ToImmutableArray(), builder.ToImmutableArray(), @class);
 
         if (!_scope.TryDeclareType(newClass))
             diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
+
+        return newClass;
     }
 
     private BoundStatement BindLocalFunctionDeclaration(LocalFunctionStatementSyntax statement) {
@@ -675,6 +676,7 @@ internal sealed class Binder {
             }
         }
 
+        var name = type.typeName?.text;
         var isReference = type.refKeyword != null;
         var isConstantReference = type.constRefKeyword != null && isReference;
         var isConstant = type.constKeyword != null;
@@ -712,16 +714,37 @@ internal sealed class Binder {
             return null;
         }
 
-        var foundType = LookupType(type.typeName?.text, arity);
-
-        if (foundType is null && !isImplicit)
-            diagnostics.Push(Error.UnknownType(type.location, type.typeName.text));
-
+        TypeSymbol foundType = TypeSymbol.Error;
         ImmutableArray<BoundExpression>? arguments = null;
 
-        if (arity > 0) {
-            if (PartiallyBindTemplateArgumentList(type.templateArgumentList, out var boundArguments)) {
-                // TODO
+        if (!isImplicit) {
+            var foundTypes = LookupTypes(name);
+            var namedCount = foundTypes.Where(t => t is NamedTypeSymbol).Count();
+
+            if (foundTypes.Length == 0) {
+                diagnostics.Push(Error.UnknownType(type.location, type.typeName.text));
+            } else if (namedCount == 0 &&
+                foundTypes.Where(t => t is TypeSymbol).Count() > 0) {
+                foundType = foundTypes.Where(t => t is TypeSymbol).First() as TypeSymbol;
+            } else if (namedCount == 0) {
+                // ? Maybe add a new diagnostic here like 'cannot use `x` as a type'
+                diagnostics.Push(Error.UnknownType(type.location, type.typeName.text));
+            } else {
+                if (PartiallyBindTemplateArgumentList(type.templateArgumentList, out var boundArguments)) {
+                    var result = _overloadResolution.TemplateOverloadResolution(
+                        foundTypes.Where(t => t is NamedTypeSymbol)
+                            .Select(t => t as NamedTypeSymbol).ToImmutableArray(),
+                        boundArguments,
+                        name,
+                        type.typeName,
+                        type.templateArgumentList
+                    );
+
+                    if (result.succeeded) {
+                        foundType = result.bestOverload;
+                        arguments = result.arguments;
+                    }
+                }
             }
         }
 
@@ -773,7 +796,7 @@ internal sealed class Binder {
                 ? new LocalVariableSymbol(name, type, constant)
                 : (VariableSymbol)new GlobalVariableSymbol(name, type, constant);
 
-        if (LookupType(name) != null) {
+        if (LookupTypes(name, true).Length > 0) {
             diagnostics.Push(Error.VariableUsingTypeName(identifier.location, name, type.isConstant));
             return variable;
         }
@@ -996,7 +1019,7 @@ internal sealed class Binder {
                     fd.position
                 );
 
-                BindAndDeclareMethodDeclaration(declaration, innerName);
+                BindMethodDeclaration(declaration, innerName);
 
                 if (!_unresolvedLocals.TryAdd(ConstructInnerName(), fd)) {
                     diagnostics.Push(Error.CannotOverloadNested(
@@ -1024,10 +1047,10 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatementSyntax expression) {
-        var currentCount = diagnostics.Errors().count;
+        var currentCount = diagnostics.Errors().Count;
         var type = BindType(expression.type);
 
-        if (diagnostics.Errors().count > currentCount)
+        if (diagnostics.Errors().Count > currentCount)
             return null;
 
         if (type.isImplicit && expression.initializer is null) {
@@ -1069,7 +1092,7 @@ internal sealed class Binder {
         if (type.isReference || (type.isImplicit && expression.initializer?.kind == SyntaxKind.ReferenceExpression)) {
             var initializer = BindReferenceExpression((ReferenceExpressionSyntax)expression.initializer);
 
-            if (diagnostics.Errors().count > currentCount)
+            if (diagnostics.Errors().Count > currentCount)
                 return null;
 
             var tempType = type.isImplicit ? initializer.type : type;
@@ -1097,7 +1120,7 @@ internal sealed class Binder {
                 return null;
             }
 
-            if (diagnostics.Errors().count > currentCount)
+            if (diagnostics.Errors().Count > currentCount)
                 return null;
 
             // References cant have implicit casts
@@ -1157,7 +1180,7 @@ internal sealed class Binder {
                 castedInitializer.constantValue
             );
 
-            if (diagnostics.Errors().count > currentCount)
+            if (diagnostics.Errors().Count > currentCount)
                 return null;
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
@@ -1196,7 +1219,7 @@ internal sealed class Binder {
             if (initializer.constantValue is null || initializer.constantValue.value != null)
                 _scope.NoteAssignment(variable);
 
-            if (diagnostics.Errors().count > currentCount)
+            if (diagnostics.Errors().Count > currentCount)
                 return null;
 
             return new BoundVariableDeclarationStatement(variable, castedInitializer);
@@ -1271,12 +1294,29 @@ internal sealed class Binder {
     private BoundExpression BindObjectCreationExpression(ObjectCreationExpressionSyntax expression) {
         var type = BindType(expression.type);
 
+        if (type.typeSymbol == TypeSymbol.Error)
+            return new BoundErrorExpression();
+
+        if (type.typeSymbol is not NamedTypeSymbol) {
+            diagnostics.Push(Error.CannotConstructPrimitive(expression.type.typeName.location, type.typeSymbol.name));
+            return new BoundErrorExpression();
+        }
+
         if (!PartiallyBindArgumentList(expression.argumentList, out var arguments))
             return new BoundErrorExpression();
 
-        // TODO
+        var result = _overloadResolution.MethodOverloadResolution(
+            (type.typeSymbol as NamedTypeSymbol).constructors,
+            arguments,
+            type.typeSymbol.name,
+            expression.type,
+            expression.argumentList
+        );
 
-        return new BoundObjectCreationExpression(type, ImmutableArray<BoundExpression>.Empty);
+        if (!result.succeeded)
+            return new BoundErrorExpression();
+
+        return new BoundObjectCreationExpression(type, result.bestOverload, result.arguments);
     }
 
     private BoundExpression BindMemberAccessExpression(MemberAccessExpressionSyntax expression) {
@@ -1424,9 +1464,9 @@ internal sealed class Binder {
         var innerName = ConstructInnerName();
         _innerPrefix.Pop();
 
-        var methods = _scope.LookupOverloads<Symbol>(name, innerName);
+        var symbols = _scope.LookupOverloads(name, innerName);
 
-        if (methods.Length == 0) {
+        if (symbols.Length == 0) {
             diagnostics.Push(Error.UndefinedMethod(
                 ((NameExpressionSyntax)expression.operand).location,
                 name,
@@ -1434,46 +1474,67 @@ internal sealed class Binder {
             ));
 
             return new BoundErrorExpression();
+        } else if (symbols.Where(m => m is MethodSymbol).Count() == 0) {
+            diagnostics.Push(Error.CannotCallNonMethod(expression.operand.location, name));
+            return new BoundErrorExpression();
         }
 
         var isInner = false;
 
-        foreach (var symbol in methods) {
-            if (_unresolvedLocals.ContainsKey(innerName) && !_resolvedLocals.Contains(innerName)) {
-                BindLocalFunctionDeclaration(_unresolvedLocals[innerName]);
-                _resolvedLocals.Add(innerName);
-                isInner = true;
+        if (_unresolvedLocals.ContainsKey(innerName) && !_resolvedLocals.Contains(innerName)) {
+            BindLocalFunctionDeclaration(_unresolvedLocals[innerName]);
+            _resolvedLocals.Add(innerName);
+            isInner = true;
 
-                if (methods.Length > 1) {
-                    throw new BelteInternalException(
-                        "BindCallExpression: overloaded generated function"
-                    );
-                }
+            if (symbols.Length > 1) {
+                throw new BelteInternalException(
+                    "BindCallExpression: overloaded generated function"
+                );
             }
         }
 
+        ImmutableArray<MethodSymbol> methods;
+
         if (isInner)
-            methods = ImmutableArray.Create(_scope.LookupSymbol<Symbol>(innerName));
+            methods = ImmutableArray.Create(_scope.LookupSymbol<MethodSymbol>(innerName));
+        else
+            methods = symbols.Where(s => s is MethodSymbol).Select(s => s as MethodSymbol).ToImmutableArray();
 
         if (!PartiallyBindArgumentList(expression.argumentList, out var arguments))
             return new BoundErrorExpression();
 
-        var result = _overloadResolution.MethodInvocationOverloadResolution(methods, arguments, expression);
+        var result = _overloadResolution.MethodOverloadResolution(
+            methods,
+            arguments,
+            name,
+            expression.operand,
+            expression.argumentList
+        );
 
         if (!result.succeeded)
             return new BoundErrorExpression();
 
-        return new BoundCallExpression(result.bestOverload, result.arguments);
+        return new BoundCallExpression(result.bestOverload as MethodSymbol, result.arguments);
     }
 
     private bool PartiallyBindArgumentList(
         ArgumentListSyntax argumentList, out ImmutableArray<(string, BoundExpression)> arguments) {
-        return PartiallyBindArguments(argumentList.arguments, out arguments);
+        if (argumentList is null) {
+            arguments = ImmutableArray<(string, BoundExpression)>.Empty;
+            return true;
+        } else {
+            return PartiallyBindArguments(argumentList.arguments, out arguments);
+        }
     }
 
     private bool PartiallyBindTemplateArgumentList(
         TemplateArgumentListSyntax argumentList, out ImmutableArray<(string, BoundExpression)> arguments) {
-        return PartiallyBindArguments(argumentList.arguments, out arguments);
+        if (argumentList is null) {
+            arguments = ImmutableArray<(string, BoundExpression)>.Empty;
+            return true;
+        } else {
+            return PartiallyBindArguments(argumentList.arguments, out arguments);
+        }
     }
 
     private bool PartiallyBindArguments(

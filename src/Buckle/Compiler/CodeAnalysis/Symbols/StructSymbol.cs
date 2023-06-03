@@ -11,7 +11,9 @@ internal sealed class StructSymbol : NamedTypeSymbol {
     /// Creates a <see cref="StructSymbol" /> with template parameters and child members.
     /// </summary>
     internal StructSymbol(
-        ImmutableArray<TemplateParameterSymbol> templateParameters,
-        ImmutableArray<Symbol> symbols, StructDeclarationSyntax declaration)
-        : base(templateParameters, symbols, declaration) { }
+        ImmutableArray<ParameterSymbol> templateParameters,
+        ImmutableArray<Symbol> symbols,
+        StructDeclarationSyntax declaration,
+        NamedTypeSymbol containingType = null)
+        : base(templateParameters, symbols, declaration, containingType) { }
 }

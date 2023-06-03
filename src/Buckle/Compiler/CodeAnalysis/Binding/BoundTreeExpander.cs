@@ -222,7 +222,7 @@ internal abstract class BoundTreeExpander {
             case BoundNodeKind.TernaryExpression:
                 return ExpandTernaryExpression((BoundTernaryExpression)expression, out replacement);
             case BoundNodeKind.ObjectCreationExpression:
-                return ExpandConstructorExpression((BoundObjectCreationExpression)expression, out replacement);
+                return ExpandObjectCreationExpression((BoundObjectCreationExpression)expression, out replacement);
             case BoundNodeKind.MemberAccessExpression:
                 return ExpandMemberAccessExpression((BoundMemberAccessExpression)expression, out replacement);
             case BoundNodeKind.PrefixExpression:
@@ -408,7 +408,7 @@ internal abstract class BoundTreeExpander {
         return new List<BoundStatement>() { };
     }
 
-    protected virtual List<BoundStatement> ExpandConstructorExpression(
+    protected virtual List<BoundStatement> ExpandObjectCreationExpression(
         BoundObjectCreationExpression expression, out BoundExpression replacement) {
         replacement = expression;
         return new List<BoundStatement>() { };

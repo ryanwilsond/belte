@@ -12,11 +12,6 @@ internal interface ITypeSymbolWithMembers : ITypeSymbol {
     public ImmutableArray<Symbol> members { get; }
 
     /// <summary>
-    /// Gets all members.
-    /// </summary>
-    public ImmutableArray<Symbol> GetMembers();
-
-    /// <summary>
     /// Gets all members with the given name.
     /// </summary>
     public ImmutableArray<Symbol> GetMembers(string name);

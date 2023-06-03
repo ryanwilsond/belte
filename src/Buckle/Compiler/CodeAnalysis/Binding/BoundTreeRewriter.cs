@@ -227,7 +227,7 @@ internal abstract class BoundTreeRewriter {
             case BoundNodeKind.TernaryExpression:
                 return RewriteTernaryExpression((BoundTernaryExpression)expression);
             case BoundNodeKind.ObjectCreationExpression:
-                return RewriteConstructorExpression((BoundObjectCreationExpression)expression);
+                return RewriteObjectCreationExpression((BoundObjectCreationExpression)expression);
             case BoundNodeKind.MemberAccessExpression:
                 return RewriteMemberAccessExpression((BoundMemberAccessExpression)expression);
             case BoundNodeKind.PrefixExpression:
@@ -275,7 +275,7 @@ internal abstract class BoundTreeRewriter {
         return new BoundMemberAccessExpression(operand, expression.member, expression.isNullConditional);
     }
 
-    protected virtual BoundExpression RewriteConstructorExpression(BoundObjectCreationExpression expression) {
+    protected virtual BoundExpression RewriteObjectCreationExpression(BoundObjectCreationExpression expression) {
         return expression;
     }
 

@@ -488,6 +488,15 @@ internal sealed partial class Parser {
                 if (Peek(finalOffset).kind is SyntaxKind.IdentifierToken or SyntaxKind.VarKeyword)
                     finalOffset++;
 
+                while (Peek(finalOffset).kind == SyntaxKind.LessThanToken) {
+                    finalOffset++;
+
+                    while (Peek(finalOffset).kind is not SyntaxKind.GreaterThanToken and not SyntaxKind.EndOfFileToken)
+                        finalOffset++;
+
+                    finalOffset++;
+                }
+
                 var hasBrackets = false;
 
                 while (Peek(finalOffset).kind is SyntaxKind.OpenBracketToken or SyntaxKind.CloseBracketToken) {

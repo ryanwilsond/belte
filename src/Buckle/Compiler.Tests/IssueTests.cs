@@ -81,7 +81,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_ReferenceExpression_Reports_CannotConvert() {
         var text = @"
-            struct A {
+            class A {
                 int num;
             }
 
@@ -89,7 +89,7 @@ public sealed class IssueTests {
                 a.num = 5;
             }
 
-            var a = A();
+            var a = new A();
             MyFunction([ref a]);
         ";
 
@@ -130,9 +130,9 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Structs_Reports_NoImplicitTyping() {
+    public void Evaluator_Classes_Reports_NoImplicitTyping() {
         var text = @"
-            struct A {
+            class A {
                 [var] num;
             }
         ";
@@ -145,13 +145,13 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Structs_ReassignNull() {
+    public void Evaluator_Classes_ReassignNull() {
         var text = @"
-            struct A {
+            class A {
                 int num;
             }
 
-            var x = A();
+            var x = new A();
             x.num = 3;
             x = null;
             return x?.num;

@@ -75,7 +75,7 @@ internal static class Error {
                 message.Append(", ");
 
             if (symbols[i] is IMethodSymbol f)
-                message.Append($"'{f.SignatureNoReturnNoParameterNames()}'");
+                message.Append($"'{f.Signature()}'");
             else
                 message.Append($"'{symbols[i]}'");
         }

@@ -149,7 +149,7 @@ internal sealed class CSharpEmitter {
         var signature = $"public class {GetSafeName(@struct.name)}";
 
         using (var structCurly = new CurlyIndenter(indentedTextWriter, signature)) {
-            foreach (var field in @struct.GetMembers().OfType<FieldSymbol>())
+            foreach (var field in @struct.members.OfType<FieldSymbol>())
                 EmitField(indentedTextWriter, field);
         }
 

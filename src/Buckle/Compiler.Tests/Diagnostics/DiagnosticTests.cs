@@ -30,7 +30,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Warning_BU0002_NullDeference() {
         var text = @"
-            struct A {
+            class A {
                 int num;
             }
 
@@ -220,15 +220,15 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0020_CannotConvert() {
         var text = @"
-            struct A {
+            class A {
                 int num;
             }
 
-            bool x = [A()];
+            bool x = [new A()];
         ";
 
         var diagnostics = @"
-            cannot convert from type '[NotNull]A' to 'bool'
+            cannot convert from type 'A' to 'bool'
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -366,13 +366,13 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0030_TypeAlreadyDeclared() {
         var text = @"
-            struct A { }
+            class A { }
 
-            struct [A] { }
+            class [A] { }
         ";
 
         var diagnostics = @"
-            struct 'A' has already been declared in this scope
+            class 'A' has already been declared in this scope
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -706,7 +706,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0056_ExpectedToken() {
         var text = @"
-            struct [{]
+            class [{]
                 int num;
             }
         ";
@@ -719,7 +719,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0057_NoOverload() {
+    public void Reports_Error_BU0057_NoMethodOverload() {
         var text = @"
             void myFunc(int a) { }
 
@@ -736,7 +736,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0058_AmbiguousOverload() {
+    public void Reports_Error_BU0058_AmbiguousMethodOverload() {
         var text = @"
             void myFunc(int a) { }
 
@@ -746,7 +746,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            call is ambiguous between 'void myFunc(int a)' and 'void myFunc(string a)'
+            call is ambiguous between 'myFunc(int)' and 'myFunc(string)'
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -785,7 +785,7 @@ public sealed class DiagnosticTests {
                 int a;
             }
 
-            var myVar = MyClass();
+            var myVar = new MyClass();
             myVar.[b];
         ";
 
@@ -923,9 +923,9 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0071_VariableUsingTypeName() {
         var text = @"
-            struct A { }
+            class A { }
 
-            A [A] = A();
+            A [A] = new A();
         ";
 
         var diagnostics = @"
@@ -966,7 +966,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0074_CannotUseConst() {
         var text = @"
-            struct MyStruct {
+            class MyClass {
                 [const] int myField;
             }
         ";
@@ -981,7 +981,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0075_CannotUseRef() {
         var text = @"
-            struct MyStruct {
+            class MyClass {
                 [ref] int myField;
             }
         ";
@@ -1063,27 +1063,70 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, writer);
     }
 
-    // TODO uncomment this once templates work in the parser
-    // [Fact]
-    // public void Reports_Error_BU0081_NotConstantValue() {
-    //     var text = @"
-    //         class MyClass<int T> { }
+    [Fact]
+    public void Reports_Error_BU0081_CannotConstructPrimitive() {
+        var text = @"
+            var myInt = new [int]();
+        ";
 
-    //         var myInt = 5;
-    //         var myVar = MyClass<[5]>();
-    //     ";
+        var diagnostics = @"
+            type 'int' is a primitive; primitives cannot be created with constructors
+        ";
 
-    //     var diagnostics = @"
-    //         expression does not result in a constant value
-    //     ";
+        AssertDiagnostics(text, diagnostics, writer);
+    }
 
-    //     AssertDiagnostics(text, diagnostics, writer);
-    // }
+    [Fact]
+    public void Reports_Error_BU0082_NoTemplateOverload() {
+        var text = @"
+            class MyClass<int T> { }
+
+            class MyClass<bool T> { }
+
+            var myClass = new [MyClass]<false, false>();
+        ";
+
+        var diagnostics = @"
+            no overload for template 'MyClass' matches template argument list
+        ";
+
+        AssertDiagnostics(text, diagnostics, writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0083_AmbiguousTemplateOverload() {
+        var text = @"
+            class MyClass<int T> { }
+
+            class MyClass<bool T> { }
+
+            var myClass = new [MyClass]<null>();
+        ";
+
+        var diagnostics = @"
+            template is ambiguous between 'MyClass<int>' and 'MyClass<bool>'
+        ";
+
+        AssertDiagnostics(text, diagnostics, writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0084_CannotUseStruct() {
+        var text = @"
+            [struct] MyStruct { }
+        ";
+
+        var diagnostics = @"
+            cannot use structs outside of a low-level context
+        ";
+
+        AssertDiagnostics(text, diagnostics, writer);
+    }
 
     [Fact]
     public void Reports_Error_Unsupported_BU9004_CannotInitialize() {
         var text = @"
-            struct A {
+            class A {
                 int num [=] 3;
             }
         ";
