@@ -774,6 +774,7 @@ internal sealed class Binder {
                     if (result.succeeded) {
                         foundType = result.bestOverload;
                         arguments = result.arguments;
+                        arity = foundType.arity;
                     }
                 }
             }
@@ -789,7 +790,8 @@ internal sealed class Binder {
             isNullable,
             false,
             dimensions,
-            arguments
+            arguments,
+            arity
         );
     }
 

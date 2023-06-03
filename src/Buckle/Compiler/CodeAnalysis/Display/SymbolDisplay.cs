@@ -26,15 +26,6 @@ public static class SymbolDisplay {
     /// <param name="text"><see cref="DisplayText" /> to add to.</param>
     /// <param name="symbol"><see cref="Symbol" /> to add (not modified).</param>
     public static void DisplaySymbol(DisplayText text, ISymbol symbol) {
-        var currentSymbol = symbol as Symbol;
-
-        while (currentSymbol.containingType != null) {
-            text.Write(CreateType(currentSymbol.containingType.name));
-            text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
-
-            currentSymbol = currentSymbol.containingType;
-        }
-
         switch (symbol.kind) {
             case SymbolKind.Method:
                 DisplayMethod(text, (MethodSymbol)symbol);
@@ -59,6 +50,17 @@ public static class SymbolDisplay {
         }
     }
 
+    private static void DisplayContainedNames(DisplayText text, ISymbol symbol) {
+        var currentSymbol = symbol as Symbol;
+
+        while (currentSymbol.containingType != null) {
+            text.Write(CreateType(currentSymbol.containingType.name));
+            text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
+
+            currentSymbol = currentSymbol.containingType;
+        }
+    }
+
     private static void DisplayField(DisplayText text, FieldSymbol symbol) {
         DisplayText.DisplayNode(text, symbol.type);
         text.Write(CreateSpace());
@@ -69,6 +71,8 @@ public static class SymbolDisplay {
         if (symbol is StructSymbol ss) {
             text.Write(CreateKeyword(SyntaxKind.StructKeyword));
             text.Write(CreateSpace());
+
+            DisplayContainedNames(text, symbol);
             text.Write(CreateIdentifier(symbol.name));
 
             if (!ss.templateParameters.IsEmpty) {
@@ -89,6 +93,8 @@ public static class SymbolDisplay {
         } else if (symbol is ClassSymbol cs) {
             text.Write(CreateKeyword(SyntaxKind.ClassKeyword));
             text.Write(CreateSpace());
+
+            DisplayContainedNames(text, symbol);
             text.Write(CreateIdentifier(symbol.name));
 
             if (!cs.templateParameters.IsEmpty) {
@@ -135,6 +141,7 @@ public static class SymbolDisplay {
             text.Write(CreateSpace());
         }
 
+        DisplayContainedNames(text, symbol);
         text.Write(CreateIdentifier(symbol.name));
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
 
