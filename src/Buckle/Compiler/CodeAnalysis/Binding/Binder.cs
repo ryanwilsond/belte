@@ -486,10 +486,17 @@ internal sealed class Binder {
         return BindStatement(syntax);
     }
 
-    private MethodSymbol BindMethodDeclaration(MethodDeclarationSyntax method, string name = null) {
+    private MethodSymbol BindMethodDeclaration(
+        MethodDeclarationSyntax method, string name = null, NamedTypeSymbol containingType = null) {
         var type = BindType(method.returnType);
         var parameters = BindParameterList(method.parameterList);
-        var newMethod = new MethodSymbol(name ?? method.identifier.text, parameters, type, method);
+        var newMethod = new MethodSymbol(
+            name ?? method.identifier.text,
+            parameters,
+            type,
+            method,
+            containingType: containingType
+        );
 
         if (newMethod.declaration.identifier.text != null && !_scope.TryDeclareMethod(newMethod))
             diagnostics.Push(Error.MethodAlreadyDeclared(method.identifier.location, name ?? newMethod.name));
@@ -497,16 +504,16 @@ internal sealed class Binder {
         return newMethod;
     }
 
-    private TypeSymbol BindTypeDeclaration(TypeDeclarationSyntax @type) {
+    private TypeSymbol BindTypeDeclaration(TypeDeclarationSyntax @type, NamedTypeSymbol containingType = null) {
         if (@type is StructDeclarationSyntax s)
-            return BindStructDeclaration(s);
+            return BindStructDeclaration(s, containingType);
         else if (@type is ClassDeclarationSyntax c)
-            return BindClassDeclaration(c);
+            return BindClassDeclaration(c, containingType);
         else
             throw new BelteInternalException($"BindTypeDeclaration: unexpected type '{@type.identifier.text}'");
     }
 
-    private StructSymbol BindStructDeclaration(StructDeclarationSyntax @struct) {
+    private StructSymbol BindStructDeclaration(StructDeclarationSyntax @struct, NamedTypeSymbol containingType = null) {
         var builder = ImmutableList.CreateBuilder<Symbol>();
         _scope = new BoundScope(_scope);
 
@@ -517,7 +524,12 @@ internal sealed class Binder {
 
         _scope = _scope.parent;
 
-        var newStruct = new StructSymbol(ImmutableArray<ParameterSymbol>.Empty, builder.ToImmutableArray(), @struct);
+        var newStruct = new StructSymbol(
+            ImmutableArray<ParameterSymbol>.Empty,
+            builder.ToImmutableArray(),
+            @struct,
+            containingType
+        );
 
         if (!_scope.TryDeclareType(newStruct))
             diagnostics.Push(Error.TypeAlreadyDeclared(@struct.identifier.location, @struct.identifier.text, false));
@@ -527,7 +539,7 @@ internal sealed class Binder {
         return newStruct;
     }
 
-    private ClassSymbol BindClassDeclaration(ClassDeclarationSyntax @class) {
+    private ClassSymbol BindClassDeclaration(ClassDeclarationSyntax @class, NamedTypeSymbol containingType = null) {
         var builder = ImmutableList.CreateBuilder<Symbol>();
         var templateBuilder = ImmutableList.CreateBuilder<ParameterSymbol>();
         _scope = new BoundScope(_scope);
@@ -546,14 +558,28 @@ internal sealed class Binder {
             builder.Add(field);
         }
 
-        var defaultConstructor = new MethodSymbol(".ctor", ImmutableArray<ParameterSymbol>.Empty, null);
+        // ! Temporary
+        var tempContainingType = new ClassSymbol(
+            ImmutableArray<ParameterSymbol>.Empty,
+            ImmutableArray<Symbol>.Empty,
+            @class,
+            containingType
+        );
+
+        var defaultConstructor = new MethodSymbol(
+            ".ctor",
+            ImmutableArray<ParameterSymbol>.Empty,
+            null,
+            containingType: tempContainingType
+        );
+
         builder.Add(defaultConstructor);
         _methodBodies.Add((defaultConstructor, new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty)));
         // This should never fail
         _scope.TryDeclareMethod(defaultConstructor);
 
         foreach (var methodDeclaration in @class.members.OfType<MethodDeclarationSyntax>()) {
-            var method = BindMethodDeclaration(methodDeclaration);
+            var method = BindMethodDeclaration(methodDeclaration, containingType: tempContainingType);
             builder.Add(method);
             _methodBodies.Add(
                 (method, BindMethodBody(methodDeclaration.body, method.parameters) as BoundBlockStatement)
@@ -561,7 +587,7 @@ internal sealed class Binder {
         }
 
         foreach (var typeDeclaration in @class.members.OfType<TypeDeclarationSyntax>()) {
-            var type = BindTypeDeclaration(typeDeclaration);
+            var type = BindTypeDeclaration(typeDeclaration, containingType);
             builder.Add(type);
         }
 
@@ -571,7 +597,12 @@ internal sealed class Binder {
 
         _scope = _scope.parent;
 
-        var newClass = new ClassSymbol(templateBuilder.ToImmutableArray(), builder.ToImmutableArray(), @class);
+        var newClass = new ClassSymbol(
+            templateBuilder.ToImmutableArray(),
+            builder.ToImmutableArray(),
+            @class,
+            containingType
+        );
 
         if (!_scope.TryDeclareType(newClass))
             diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));

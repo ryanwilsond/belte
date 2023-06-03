@@ -747,7 +747,7 @@ internal static class Error {
     /// <summary>
     /// BU0081. Run `buckle --explain BU0081` on the command line for more info.
     /// </summary>
-    internal static Diagnostic CannotConstructPrimitive(TextLocation location, string name) {
+    internal static BelteDiagnostic CannotConstructPrimitive(TextLocation location, string name) {
         var message = $"type '{name}' is a primitive; primitives cannot be created with constructors";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotConstructPrimitive), location, message);
     }
@@ -755,7 +755,7 @@ internal static class Error {
     /// <summary>
     /// BU0082. Run `buckle --explain BU0082` on the command line for more info.
     /// </summary>
-    internal static Diagnostic NoTemplateOverload(TextLocation location, string name) {
+    internal static BelteDiagnostic NoTemplateOverload(TextLocation location, string name) {
         var message = $"no overload for template '{name}' matches template argument list";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoTemplateOverload), location, message);
     }
