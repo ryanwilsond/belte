@@ -784,9 +784,20 @@ internal static class Error {
         );
     }
 
+    /// <summary>
+    /// BU0084. Run `buckle --explain BU0084` on the command line for more info.
+    /// </summary>
     internal static BelteDiagnostic CannotUseStruct(TextLocation location) {
         var message = "cannot use structs outside of a low-level context";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseStruct), location, message);
+    }
+
+    /// <summary>
+    /// BU0085. Run `buckle --explain BU0085` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotUseThis(TextLocation location) {
+        var message = "cannot use the `this` keyword outside of a class";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseThis), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

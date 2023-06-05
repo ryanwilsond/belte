@@ -93,6 +93,7 @@ internal enum DiagnosticCode : int {
     ERR_NoTemplateOverload = 82,
     ERR_AmbiguousTemplateOverload = 83,
     ERR_CannotUseStruct = 84,
+    ERR_CannotUseThis = 85,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

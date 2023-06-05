@@ -21,10 +21,13 @@ internal sealed class Evaluator {
     private readonly Dictionary<IVariableSymbol, IEvaluatorObject> _globals;
     private readonly Stack<Dictionary<IVariableSymbol, IEvaluatorObject>> _locals =
         new Stack<Dictionary<IVariableSymbol, IEvaluatorObject>>();
+    private readonly Dictionary<IVariableSymbol, IEvaluatorObject> _classLocalBuffer =
+        new Dictionary<IVariableSymbol, IEvaluatorObject>();
 
     private EvaluatorObject _lastValue;
     private Random _random;
-    private bool _hasValue = false;
+    private bool _classLocalBufferOnStack;
+    private bool _hasValue;
 
     /// <summary>
     /// Creates an <see cref="Evaluator" /> that can evaluate a <see cref="BoundProgram" /> (provided globals).
@@ -85,29 +88,31 @@ internal sealed class Evaluator {
 
     private object GetVariableValue(VariableSymbol variable, bool traceCollections = false) {
         var value = Get(variable);
-
         return Value(value, traceCollections);
     }
 
     private IEvaluatorObject GetFrom(Dictionary<IVariableSymbol, IEvaluatorObject> variables, VariableSymbol variable) {
-        bool TypesEqual(BoundType left, IVariableSymbol right) {
-            return left.typeSymbol == (Symbol)right.typeSymbol &&
-                   left.isImplicit == right.isImplicit &&
-                   left.isConstantReference == right.isConstantReference &&
-                   left.isReference == right.isReference &&
-                   left.isExplicitReference == right.isExplicitReference &&
-                   left.isConstant == right.isConstant &&
-                   left.isNullable == right.isNullable &&
-                   left.isLiteral == right.isLiteral &&
-                   left.dimensions == right.dimensions;
-        }
+        // bool TypesEqual(BoundType left, IVariableSymbol right) {
+        //     return left.typeSymbol == (Symbol)right.typeSymbol &&
+        //            left.isImplicit == right.isImplicit &&
+        //            left.isConstantReference == right.isConstantReference &&
+        //            left.isReference == right.isReference &&
+        //            left.isExplicitReference == right.isExplicitReference &&
+        //            left.isConstant == right.isConstant &&
+        //            left.isNullable == right.isNullable &&
+        //            left.isLiteral == right.isLiteral &&
+        //            left.dimensions == right.dimensions;
+        // }
 
-        foreach (var pair in variables) {
-            if (variable.name == pair.Key.name && TypesEqual(variable.type, pair.Key))
-                return pair.Value;
+        // foreach (var pair in variables) {
+        //     if (variable.name == pair.Key.name && TypesEqual(variable.type, pair.Key))
+        //         return pair.Value;
+        // }
+        try {
+            return variables[variable];
+        } catch (KeyNotFoundException) {
+            throw new BelteInternalException($"GetFrom: '{variable.name}' was not found in the scope");
         }
-
-        throw new BelteInternalException($"GetFrom: '{variable.name}' was not found in the scope");
     }
 
     private EvaluatorObject Get(VariableSymbol variable, Dictionary<IVariableSymbol, IEvaluatorObject> scope = null) {
@@ -447,11 +452,19 @@ internal sealed class Evaluator {
             do {
                 operand = Get(operand.reference, operand.referenceScope);
             } while (operand.isReference == true);
-
-            return operand.members[node.member];
-        } else {
-            return operand.members[node.member];
         }
+
+        foreach (var member in operand.members) {
+            if (member.Key is FieldSymbol fs)
+                _classLocalBuffer.Add(fs, member.Value);
+        }
+
+        if (node.member is MethodSymbol) {
+            _locals.Push(_classLocalBuffer);
+            _classLocalBufferOnStack = true;
+        }
+
+        return operand.members[node.member];
     }
 
     private EvaluatorObject EvaluateObjectCreationExpression(
@@ -550,7 +563,6 @@ internal sealed class Evaluator {
             node.method == BuiltinMethods.ValueDecimal ||
             node.method == BuiltinMethods.ValueInt ||
             node.method == BuiltinMethods.ValueString) {
-            // TODO This needs to check if the builtin has been shadowed (check for HasValue too)
             var value = EvaluateExpression(node.arguments[0], abort);
             var hasNoMembers = value.isReference ? Get(value.reference).members is null : value.members is null;
 
@@ -574,14 +586,18 @@ internal sealed class Evaluator {
 
             return new EvaluatorObject(true);
         } else {
-            return InvokeMethod(node.method, node.arguments, abort);
+            return InvokeMethod(node.method, node.arguments, abort, node.operand);
         }
 
-        return new EvaluatorObject();
+        // This is reached by void methods, but it isn't used
+        return null;
     }
 
     private EvaluatorObject InvokeMethod(
-        MethodSymbol method, ImmutableArray<BoundExpression> arguments, ValueWrapper<bool> abort) {
+        MethodSymbol method,
+        ImmutableArray<BoundExpression> arguments,
+        ValueWrapper<bool> abort,
+        BoundExpression operand = null) {
         var locals = new Dictionary<IVariableSymbol, IEvaluatorObject>();
 
         for (var i = 0; i < arguments.Length; i++) {
@@ -596,8 +612,15 @@ internal sealed class Evaluator {
 
         _locals.Push(locals);
         var statement = LookupMethod(_methods, method);
+
+        if (operand != null)
+            EvaluateExpression(operand, abort);
+
         var result = EvaluateStatement(statement, abort, out _);
         _locals.Pop();
+
+        if (_classLocalBufferOnStack)
+            _locals.Pop();
 
         return result;
     }

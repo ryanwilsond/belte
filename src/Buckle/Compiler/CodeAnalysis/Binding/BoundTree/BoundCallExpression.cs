@@ -7,10 +7,16 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A bound call expression, bound from a <see cref="Syntax.CallExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundCallExpression : BoundExpression {
-    internal BoundCallExpression(MethodSymbol method, ImmutableArray<BoundExpression> arguments) {
+    internal BoundCallExpression(
+        BoundExpression operand,
+        MethodSymbol method,
+        ImmutableArray<BoundExpression> arguments) {
+        this.operand = operand;
         this.method = method;
         this.arguments = arguments;
     }
+
+    internal BoundExpression operand { get; }
 
     internal MethodSymbol method { get; }
 
@@ -18,5 +24,5 @@ internal sealed class BoundCallExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.CallExpression;
 
-    internal override BoundType type => method?.type;
+    internal override BoundType type => method.type;
 }

@@ -70,7 +70,7 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundCallExpression Call(MethodSymbol method, params BoundExpression[] arguments) {
-        return new BoundCallExpression(method, ImmutableArray.Create(arguments));
+        return new BoundCallExpression(new BoundEmptyExpression(), method, ImmutableArray.Create(arguments));
     }
 
     internal static BoundCastExpression Cast(BoundType type, BoundExpression expression) {

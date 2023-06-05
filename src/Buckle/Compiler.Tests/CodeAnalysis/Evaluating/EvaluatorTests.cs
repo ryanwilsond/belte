@@ -264,6 +264,8 @@ public sealed class EvaluatorTests {
     [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(1, 2);", 3)]
     [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(1,);", 2)]
     [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(,2);", 1)]
+    [InlineData("class A { int a; int M() { if (a is null) a = 3; return a++; } } var myA = new A(); return myA.M();", 3)]
+    [InlineData("class A { int a; int M() { if (a is null) a = 3; return a++; } } var myA = new A(); myA.M(); return myA.M()", 4)]
     // Cast expressions
     [InlineData("(decimal)3;", 3)]
     [InlineData("(int)3.4;", 3)]
@@ -316,6 +318,9 @@ public sealed class EvaluatorTests {
     [InlineData("var cond = false; int res = 3; while (true) { if (cond) continue; res = 4; if (res == 4) break; } return res;", 4)]
     [InlineData("var cond = true; int res = 3; while (true) { if (cond) ; else continue; res = 4; if (res == 4) break; } return res;", 4)]
     [InlineData("var cond = true; int res = 3; while (true) { if (cond) break; else continue; res = 4; } return res;", 3)]
+    // This expression
+    // [InlineData("class A { int a; void SetA(int a) { this.a = 1; this.a = a; } int GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 3)]
+    // [InlineData("class A { int a; void SetA(int a) { this.a = 1; a = a; } int GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 1)]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
         AssertValue(text, expectedValue);
     }

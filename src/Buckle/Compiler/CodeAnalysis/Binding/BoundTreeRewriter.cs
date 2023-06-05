@@ -379,7 +379,7 @@ internal abstract class BoundTreeRewriter {
         if (builder is null)
             return expression;
 
-        return new BoundCallExpression(expression.method, builder.MoveToImmutable());
+        return new BoundCallExpression(expression.operand, expression.method, builder.MoveToImmutable());
     }
 
     protected virtual BoundExpression RewriteErrorExpression(BoundErrorExpression expression) {

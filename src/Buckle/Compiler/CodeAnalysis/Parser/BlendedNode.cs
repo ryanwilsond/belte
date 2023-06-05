@@ -18,7 +18,7 @@ internal sealed class BlendedNode {
     internal readonly SyntaxToken token;
 
     /// <summary>
-    /// A <see cref="Blender" /> whose position starts directly after thjs node.
+    /// A <see cref="Blender" /> whose position starts directly after this node.
     /// </summary>
     internal readonly Blender blender;
 
