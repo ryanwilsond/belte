@@ -25,6 +25,13 @@
       <Kind Name="IdentifierToken"/>
     </Field>
   </AbstractNode>
+  <AbstractNode Name="BaseMethodDeclarationSyntax" Base="MemberSyntax">
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="parameterList" Type="ParameterListSyntax"/>
+    <Field Name="body" Type="BlockStatementSyntax"/>
+  </AbstractNode>
   <!-- Other general nodes -->
   <Node Name="ArgumentSyntax" Base="SyntaxNode">
     <Kind Name="Argument"/>
@@ -175,6 +182,14 @@
       <Kind Name="CloseBraceToken"/>
     </Field>
   </Node>
+  <Node Name="ConstructorDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
+    <Kind Name="ConstructorDeclaration"/>
+    <Field Name="identifier" Type="SyntaxToken" Override="true">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
+    <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
+  </Node>
   <Node Name="FieldDeclarationSyntax" Base="MemberSyntax">
     <Kind Name="FieldDeclaration"/>
     <Field Name="declaration" Type="VariableDeclarationStatementSyntax"/>
@@ -183,14 +198,14 @@
     <Kind Name="GlobalStatement"/>
     <Field Name="statement" Type="StatementSyntax"/>
   </Node>
-  <Node Name="MethodDeclarationSyntax" Base="MemberSyntax">
+  <Node Name="MethodDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
     <Kind Name="MethodDeclaration"/>
     <Field Name="returnType" Type="TypeSyntax"/>
-    <Field Name="identifier" Type="SyntaxToken">
+    <Field Name="identifier" Type="SyntaxToken" Override="true">
       <Kind Name="IdentifierToken"/>
     </Field>
-    <Field Name="parameterList" Type="ParameterListSyntax"/>
-    <Field Name="body" Type="BlockStatementSyntax"/>
+    <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
+    <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
   </Node>
   <Node Name="StructDeclarationSyntax" Base="TypeDeclarationSyntax">
     <Kind Name="StructDeclaration"/>

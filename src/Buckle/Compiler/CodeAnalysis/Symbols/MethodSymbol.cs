@@ -23,7 +23,7 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
         string name,
         ImmutableArray<ParameterSymbol> parameters,
         BoundType type,
-        MethodDeclarationSyntax declaration = null,
+        BaseMethodDeclarationSyntax declaration = null,
         MethodSymbol originalDefinition = null)
         : base(name) {
         this.type = type;
@@ -45,9 +45,9 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
     internal BoundType type { get; }
 
     /// <summary>
-    /// Declaration of method (see <see cref="MethodDeclarationSyntax">).
+    /// Declaration of method (see <see cref="BaseMethodDeclarationSyntax">).
     /// </summary>
-    internal MethodDeclarationSyntax declaration { get; }
+    internal BaseMethodDeclarationSyntax declaration { get; }
 
     /// <summary>
     /// If this symbol is a modification of another symbol, <see cref="originalDefinition" /> is a reference

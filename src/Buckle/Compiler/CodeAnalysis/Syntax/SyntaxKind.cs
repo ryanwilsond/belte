@@ -170,6 +170,7 @@ public enum SyntaxKind {
     TemplateParameterList,
     TemplateArgumentList,
     MethodDeclaration,
+    ConstructorDeclaration,
 
     // Other
     Argument,

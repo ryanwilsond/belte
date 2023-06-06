@@ -69,6 +69,11 @@ internal sealed class BoundType : BoundNode {
     /// </summary>
     internal static readonly BoundType Type = new BoundType(TypeSymbol.Type);
 
+    /// <summary>
+    /// The type representing no type at all, a method that doesn't return.
+    /// </summary>
+    internal static readonly BoundType Void = new BoundType(TypeSymbol.Void);
+
     /// <param name="typeSymbol">The language type, not the <see cref="Syntax.SyntaxNode" /> type.</param>
     /// <param name="isImplicit">If the type was assumed by the var or let keywords.</param>
     /// <param name="isConstantReference">If the type is an unchanging reference type.</param>

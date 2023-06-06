@@ -88,6 +88,11 @@ public sealed class DisplayText {
     /// <param name="text">Existing text.</param>
     /// <param name="node"><see cref="BoundNode" /> to append.</param>
     internal static void DisplayNode(DisplayText text, BoundNode node) {
+        if (node is BoundExpression be && be.constantValue != null) {
+            DisplayConstant(text, be.constantValue);
+            return;
+        }
+
         switch (node.kind) {
             case BoundNodeKind.Type:
                 DisplayType(text, (BoundType)node);
@@ -143,12 +148,8 @@ public sealed class DisplayText {
             case BoundNodeKind.UnaryExpression:
                 DisplayUnaryExpression(text, (BoundUnaryExpression)node);
                 break;
-            case BoundNodeKind.LiteralExpression:
-                if (node is BoundInitializerListExpression il)
-                    DisplayInitializerListExpression(text, il);
-                else
-                    DisplayLiteralExpression(text, (BoundLiteralExpression)node);
-
+            case BoundNodeKind.LiteralExpression when node is BoundInitializerListExpression:
+                DisplayInitializerListExpression(text, node as BoundInitializerListExpression);
                 break;
             case BoundNodeKind.BinaryExpression:
                 DisplayBinaryExpression(text, (BoundBinaryExpression)node);
@@ -180,15 +181,16 @@ public sealed class DisplayText {
             case BoundNodeKind.MemberAccessExpression:
                 DisplayMemberAccessExpression(text, (BoundMemberAccessExpression)node);
                 break;
-            case BoundNodeKind.TypeWrapper:
-                DisplayLiteralExpression(
-                    text, new BoundLiteralExpression(((BoundTypeWrapper)node).constantValue.value)
-                );
-
-                break;
             default:
-                throw new BelteInternalException($"DispalyNode: unexpected node '{node.kind}'");
+                throw new BelteInternalException($"DisplayNode: unexpected node '{node.kind}'");
         }
+    }
+
+    /// <summary>
+    /// Renders a <see cref="BoundConstant" /> and appends it to the given <see cref="DisplayText" />.
+    /// </summary>
+    internal static void DisplayConstant(DisplayText text, BoundConstant constant) {
+        DisplayLiteralExpression(text, new BoundLiteralExpression(constant.value));
     }
 
     private static void DisplayType(DisplayText text, BoundType type) {

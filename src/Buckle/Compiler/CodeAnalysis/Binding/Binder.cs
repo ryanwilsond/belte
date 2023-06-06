@@ -126,8 +126,11 @@ internal sealed class Binder {
             entryPoint = methods.FirstOrDefault(f => f.name.ToLower() == "main");
 
             if (entryPoint != null) {
-                if (entryPoint.type.typeSymbol != TypeSymbol.Void && entryPoint.type.typeSymbol != TypeSymbol.Int)
-                    binder.diagnostics.Push(Error.InvalidMain(entryPoint.declaration.returnType.location));
+                if (entryPoint.type.typeSymbol != TypeSymbol.Void && entryPoint.type.typeSymbol != TypeSymbol.Int) {
+                    binder.diagnostics.Push(
+                        Error.InvalidMain((entryPoint.declaration as MethodDeclarationSyntax).returnType.location)
+                    );
+                }
 
                 if (entryPoint.parameters.Any()) {
                     var span = TextSpan.FromBounds(
@@ -501,6 +504,32 @@ internal sealed class Binder {
         return newMethod;
     }
 
+    private MethodSymbol BindConstructorDeclaration(ConstructorDeclarationSyntax constructor) {
+        var name = constructor.identifier.text;
+        var parameters = BindParameterList(constructor.parameterList);
+        var method = new MethodSymbol(
+            WellKnownMemberNames.InstanceConstructorName,
+            parameters,
+            BoundType.Void,
+            constructor
+        );
+
+        // TODO add these two errors to the BU Error txt file, 86, 87, AND 88 too
+        if (constructor.parent is ClassDeclarationSyntax cds) {
+            var className = cds.identifier.text;
+
+            if (name != className)
+                diagnostics.Push(Error.IncorrectConstructorName(constructor.identifier.location, className));
+
+            if (name == className && !_scope.TryDeclareMethod(method))
+                diagnostics.Push(Error.MethodAlreadyDeclared(constructor.identifier.location, name, className));
+        } else {
+            diagnostics.Push(Error.CannotUseConstructor(constructor.identifier.location));
+        }
+
+        return method;
+    }
+
     private TypeSymbol BindTypeDeclaration(TypeDeclarationSyntax @type) {
         if (@type is StructDeclarationSyntax s)
             return BindStructDeclaration(s);
@@ -554,24 +583,30 @@ internal sealed class Binder {
             builder.Add(field);
         }
 
-        var defaultConstructor = new MethodSymbol(".ctor", ImmutableArray<ParameterSymbol>.Empty, null);
+        var hasConstructor = false;
 
-        builder.Add(defaultConstructor);
-        _methodBodies.Add((defaultConstructor, new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty)));
-        // This should never fail
-        _scope.TryDeclareMethod(defaultConstructor);
+        foreach (var constructorDeclaration in @class.members.OfType<ConstructorDeclarationSyntax>()) {
+            var constructor = BindConstructorDeclaration(constructorDeclaration);
+            BindAndLowerMethodBody(constructor);
+            hasConstructor = true;
+        }
+
+        if (!hasConstructor) {
+            var defaultConstructor = new MethodSymbol(
+                WellKnownMemberNames.InstanceConstructorName,
+                ImmutableArray<ParameterSymbol>.Empty,
+                null
+            );
+
+            builder.Add(defaultConstructor);
+            _methodBodies.Add((defaultConstructor, new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty)));
+            // This should never fail
+            _scope.TryDeclareMethod(defaultConstructor);
+        }
 
         foreach (var methodDeclaration in @class.members.OfType<MethodDeclarationSyntax>()) {
             var method = BindMethodDeclaration(methodDeclaration);
-            builder.Add(method);
-
-            var body = BindMethodBody(method.declaration.body, method.parameters);
-            var loweredBody = Lowerer.Lower(method, body, _options.isTranspiling);
-
-            if (method.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
-                diagnostics.Push(Error.NotAllPathsReturn(method.declaration.identifier.location));
-
-            _methodBodies.Add((method, loweredBody));
+            BindAndLowerMethodBody(method);
         }
 
         foreach (var typeDeclaration in @class.members.OfType<TypeDeclarationSyntax>()) {
@@ -595,6 +630,19 @@ internal sealed class Binder {
             diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
 
         return newClass;
+
+        void BindAndLowerMethodBody(MethodSymbol method) {
+            builder.Add(method);
+
+            // TODO parameters aren't added when binding constructor for some reason
+            var body = BindMethodBody(method.declaration.body, method.parameters);
+            var loweredBody = Lowerer.Lower(method, body, _options.isTranspiling);
+
+            if (method.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
+                diagnostics.Push(Error.NotAllPathsReturn(method.declaration.identifier.location));
+
+            _methodBodies.Add((method, loweredBody));
+        }
     }
 
     private BoundStatement BindLocalFunctionDeclaration(LocalFunctionStatementSyntax statement) {
@@ -1561,7 +1609,6 @@ internal sealed class Binder {
                 methods = ImmutableArray.Create(_scope.LookupSymbol<MethodSymbol>(innerName));
             else
                 methods = symbols.Where(s => s is MethodSymbol).Select(s => s as MethodSymbol).ToImmutableArray();
-
         } else if (expression.operand is MemberAccessExpressionSyntax) {
             operand = BindExpression(expression.operand);
             var accessOperand = operand as BoundMemberAccessExpression;

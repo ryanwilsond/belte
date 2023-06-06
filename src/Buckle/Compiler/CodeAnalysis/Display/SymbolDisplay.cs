@@ -26,6 +26,11 @@ public static class SymbolDisplay {
     /// <param name="text"><see cref="DisplayText" /> to add to.</param>
     /// <param name="symbol"><see cref="Symbol" /> to add (not modified).</param>
     public static void DisplaySymbol(DisplayText text, ISymbol symbol) {
+        if (symbol is VariableSymbol v && v.constantValue != null) {
+            DisplayText.DisplayConstant(text, v.constantValue);
+            return;
+        }
+
         switch (symbol.kind) {
             case SymbolKind.Method:
                 DisplayMethod(text, (MethodSymbol)symbol);

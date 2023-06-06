@@ -593,6 +593,9 @@ internal sealed partial class Parser {
     }
 
     private MemberSyntax ParseMember(bool allowGlobalStatements = false) {
+        if (currentToken.kind == SyntaxKind.IdentifierToken && Peek(1).kind == SyntaxKind.OpenParenToken)
+            return ParseConstructorDeclaration();
+
         if (PeekIsFunctionOrMethodDeclaration())
             return ParseMethodDeclaration();
 
@@ -651,6 +654,14 @@ internal sealed partial class Parser {
             members,
             closeBrace
         );
+    }
+
+    private ConstructorDeclarationSyntax ParseConstructorDeclaration() {
+        var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenParenToken);
+        var parameterList = ParseParameterList();
+        var body = (BlockStatementSyntax)ParseBlockStatement();
+
+        return SyntaxFactory.ConstructorDeclaration(identifier, parameterList, body);
     }
 
     private MemberSyntax ParseMethodDeclaration() {

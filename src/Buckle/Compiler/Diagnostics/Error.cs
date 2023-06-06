@@ -181,8 +181,14 @@ internal static class Error {
     /// <summary>
     /// BU0018. Run `buckle --explain BU0018` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic MethodAlreadyDeclared(TextLocation location, string name) {
-        var message = $"redefinition of method '{name}'";
+    internal static BelteDiagnostic MethodAlreadyDeclared(TextLocation location, string name, string typeName = null) {
+        string message;
+
+        if (typeName is null)
+            message = $"redeclaration of method '{name}'";
+        else
+            message = $"type `{typeName}` already declares a member named `{name}` with the same parameter types";
+
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MethodAlreadyDeclared), location, message);
     }
 
@@ -798,6 +804,32 @@ internal static class Error {
     internal static BelteDiagnostic CannotUseThis(TextLocation location) {
         var message = "cannot use the `this` keyword outside of a class";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseThis), location, message);
+    }
+
+    /// <summary>
+    /// BU0086. Run `buckle --explain BU0086` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic CannotUseConstructor(TextLocation location) {
+        var message = "cannot declare a constructor outside of a class";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseConstructor), location, message);
+    }
+
+    /// <summary>
+    /// BU0087. Run `buckle --explain BU0087` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic IncorrectConstructorName(TextLocation location, string name) {
+        var message =
+            $"constructor name must match the name of the enclosing class; constructor must be named `{name}`";
+
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_IncorrectConstructorName), location, message);
+    }
+
+    /// <summary>
+    /// BU0088. Run `buckle --explain BU0088` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic NoConstructorOverload(TextLocation location, string name) {
+        var message = $"type `{name}` does not contain a constructor that matches the parameter list";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoConstructorOverload), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
