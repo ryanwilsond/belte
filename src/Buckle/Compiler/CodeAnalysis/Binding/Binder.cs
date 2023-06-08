@@ -8,6 +8,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -1621,8 +1622,8 @@ internal sealed class Binder {
             methods = (accessOperand.operand.type.typeSymbol as NamedTypeSymbol).GetMembers(name)
                 .Where(s => s is MethodSymbol).Select(s => s as MethodSymbol).ToImmutableArray();
         } else {
-            diagnostics.Push(Error.ExpectedMethodName(expression.operand.location));
-            return new BoundErrorExpression();
+            // Parser ensures that only member access and name expressions are allowed here
+            throw ExceptionUtilities.Unreachable();
         }
 
         if (!PartiallyBindArgumentList(expression.argumentList, out var arguments))

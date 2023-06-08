@@ -431,9 +431,15 @@ internal sealed partial class Parser {
             return _lexedTokens[index];
     }
 
-    private bool PeekIsFunctionOrMethodDeclaration() {
+    private bool PeekIsFunctionOrMethodDeclaration(bool checkForType = true) {
         // TODO Rewrite this so it does not look at the entire source until an EOF
-        if (PeekIsType(0, out var offset, out var hasName)) {
+        var hasName = false;
+        var offset = 0;
+
+        if (!checkForType || PeekIsType(0, out offset, out hasName)) {
+            if (!checkForType && currentToken.kind == SyntaxKind.IdentifierToken)
+                hasName = true;
+
             if (hasName)
                 offset++;
 
@@ -593,7 +599,7 @@ internal sealed partial class Parser {
     }
 
     private MemberSyntax ParseMember(bool allowGlobalStatements = false) {
-        if (currentToken.kind == SyntaxKind.IdentifierToken && Peek(1).kind == SyntaxKind.OpenParenToken)
+        if (PeekIsFunctionOrMethodDeclaration(checkForType: false))
             return ParseConstructorDeclaration();
 
         if (PeekIsFunctionOrMethodDeclaration())
@@ -1337,6 +1343,9 @@ internal sealed partial class Parser {
     }
 
     private ExpressionSyntax ParseCallExpression(ExpressionSyntax operand) {
+        if (operand is not MemberAccessExpressionSyntax and not NameExpressionSyntax)
+            operand = AddDiagnostic(operand, Error.ExpectedMethodName());
+
         var argumentList = ParseArgumentList();
         return SyntaxFactory.CallExpression(operand, argumentList);
     }

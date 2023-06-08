@@ -456,7 +456,9 @@ internal sealed class Evaluator {
 
         foreach (var member in operand.members) {
             if (member.Key is FieldSymbol fs)
-                _classLocalBuffer.Add(fs, member.Value);
+                // If this fails, it just means the member is being used multiple times in a single expression, so we
+                // don't need to do anything if this fails
+                _classLocalBuffer.TryAdd(fs, member.Value);
         }
 
         if (node.member is MethodSymbol) {

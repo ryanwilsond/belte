@@ -198,7 +198,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            redefinition of method 'myFunc'
+            redeclaration of method 'myFunc'
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
