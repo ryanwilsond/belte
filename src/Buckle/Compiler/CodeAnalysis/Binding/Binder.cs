@@ -514,7 +514,6 @@ internal sealed class Binder {
             constructor
         );
 
-        // TODO add these two errors to the BU Error txt file, 86, 87, AND 88 too
         if (constructor.parent is ClassDeclarationSyntax cds) {
             var className = cds.identifier.text;
 
@@ -634,8 +633,8 @@ internal sealed class Binder {
         void BindAndLowerMethodBody(MethodSymbol method) {
             builder.Add(method);
 
-            // TODO parameters aren't added when binding constructor for some reason
-            var body = BindMethodBody(method.declaration.body, method.parameters);
+            var binder = new Binder(_options, _flags, _scope, method);
+            var body = binder.BindMethodBody(method.declaration.body, method.parameters);
             var loweredBody = Lowerer.Lower(method, body, _options.isTranspiling);
 
             if (method.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
