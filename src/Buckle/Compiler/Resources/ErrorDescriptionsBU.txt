@@ -1368,20 +1368,6 @@ class MyClass {
 }
 ```
 $BU0086
-Constructors are a specific type of method that is run when an object is
-created. They are specific to classes, so using one outside of a class
-definition will raise this error.
-
-For example:
-
-```
-class MyClass {
-    MyClass() { } // Allowed, constructor inside a class
-}
-
-MyConstructor() { } // Not allowed, constructor outside a class
-```
-$BU0087
 Constructors are methods that are run when an object is created, and the name
 of a constructor must match the class name. Otherwise this error is raised.
 
@@ -1393,7 +1379,7 @@ class MyClass {
 
     MyClass() { } // Allowed
 }
-$BU0088
+$BU0087
 If an object is created with an argument list that matches no constructor
 parameter lists, this error is raised. This error is the same as BU0057 but
 applies specifically to constructors.

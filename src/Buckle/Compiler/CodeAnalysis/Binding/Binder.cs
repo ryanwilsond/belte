@@ -515,17 +515,15 @@ internal sealed class Binder {
             constructor
         );
 
-        if (constructor.parent is ClassDeclarationSyntax cds) {
-            var className = cds.identifier.text;
+        // Currently this method is only called while binding a class declaration, so for now this is guaranteed
+        var parent = constructor.parent as ClassDeclarationSyntax;
+        var className = parent.identifier.text;
 
-            if (name != className)
-                diagnostics.Push(Error.IncorrectConstructorName(constructor.identifier.location, className));
+        if (name != className)
+            diagnostics.Push(Error.IncorrectConstructorName(constructor.identifier.location, className));
 
-            if (name == className && !_scope.TryDeclareMethod(method))
-                diagnostics.Push(Error.MethodAlreadyDeclared(constructor.identifier.location, name, className));
-        } else {
-            diagnostics.Push(Error.CannotUseConstructor(constructor.identifier.location));
-        }
+        if (name == className && !_scope.TryDeclareMethod(method))
+            diagnostics.Push(Error.MethodAlreadyDeclared(constructor.identifier.location, name, className));
 
         return method;
     }

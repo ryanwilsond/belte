@@ -599,7 +599,7 @@ internal sealed partial class Parser {
     }
 
     private MemberSyntax ParseMember(bool allowGlobalStatements = false) {
-        if (PeekIsFunctionOrMethodDeclaration(checkForType: false))
+        if ((_context & ParserContext.InClassDefinition) > 0 && PeekIsFunctionOrMethodDeclaration(checkForType: false))
             return ParseConstructorDeclaration();
 
         if (PeekIsFunctionOrMethodDeclaration())
@@ -649,7 +649,10 @@ internal sealed partial class Parser {
             templateParameterList = ParseTemplateParameterList();
 
         var openBrace = Match(SyntaxKind.OpenBraceToken);
+        var saved = _context;
+        _context |= ParserContext.InClassDefinition;
         var members = ParseMembers();
+        _context = saved;
         var closeBrace = Match(SyntaxKind.CloseBraceToken);
 
         return SyntaxFactory.ClassDeclaration(

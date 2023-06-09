@@ -92,22 +92,6 @@ internal sealed class Evaluator {
     }
 
     private IEvaluatorObject GetFrom(Dictionary<IVariableSymbol, IEvaluatorObject> variables, VariableSymbol variable) {
-        // bool TypesEqual(BoundType left, IVariableSymbol right) {
-        //     return left.typeSymbol == (Symbol)right.typeSymbol &&
-        //            left.isImplicit == right.isImplicit &&
-        //            left.isConstantReference == right.isConstantReference &&
-        //            left.isReference == right.isReference &&
-        //            left.isExplicitReference == right.isExplicitReference &&
-        //            left.isConstant == right.isConstant &&
-        //            left.isNullable == right.isNullable &&
-        //            left.isLiteral == right.isLiteral &&
-        //            left.dimensions == right.dimensions;
-        // }
-
-        // foreach (var pair in variables) {
-        //     if (variable.name == pair.Key.name && TypesEqual(variable.type, pair.Key))
-        //         return pair.Value;
-        // }
         try {
             return variables[variable];
         } catch (KeyNotFoundException) {
@@ -243,6 +227,20 @@ internal sealed class Evaluator {
             left.members = Copy(right.members);
         else
             left.value = Value(right);
+    }
+
+    private void EnterClassScope(Dictionary<Symbol, EvaluatorObject> members, bool updateLocals = true) {
+        foreach (var member in members) {
+            if (member.Key is FieldSymbol fs)
+                // If this fails, it just means the member is being used multiple times in a single expression, so we
+                // don't need to do anything if this fails
+                _classLocalBuffer.TryAdd(fs, member.Value);
+        }
+
+        if (updateLocals) {
+            _locals.Push(_classLocalBuffer);
+            _classLocalBufferOnStack = true;
+        }
     }
 
     private EvaluatorObject EvaluateCast(EvaluatorObject value, BoundType type) {
@@ -454,17 +452,7 @@ internal sealed class Evaluator {
             } while (operand.isReference == true);
         }
 
-        foreach (var member in operand.members) {
-            if (member.Key is FieldSymbol fs)
-                // If this fails, it just means the member is being used multiple times in a single expression, so we
-                // don't need to do anything if this fails
-                _classLocalBuffer.TryAdd(fs, member.Value);
-        }
-
-        if (node.member is MethodSymbol) {
-            _locals.Push(_classLocalBuffer);
-            _classLocalBufferOnStack = true;
-        }
+        EnterClassScope(operand.members, node.member is MethodSymbol);
 
         return operand.members[node.member];
     }
@@ -483,6 +471,8 @@ internal sealed class Evaluator {
 
         foreach (var member in typeMembers.Where(t => t is not ParameterSymbol))
             members.Add(member, new EvaluatorObject());
+
+        EnterClassScope(members);
 
         // structs don't have any methods, so no constructors
         if (node.type.typeSymbol is ClassSymbol)

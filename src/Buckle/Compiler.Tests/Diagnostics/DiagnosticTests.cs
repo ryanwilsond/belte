@@ -1137,6 +1137,41 @@ public sealed class DiagnosticTests {
     //     AssertDiagnostics(text, diagnostics, writer);
     // }
 
+
+    [Fact]
+    public void Reports_Error_BU0086_IncorrectConstructorName() {
+        var text = @"
+            class MyClass {
+                [MyConstructor]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            constructor name must match the name of the enclosing class; in this case constructors must be named `MyClass`
+        ";
+
+        AssertDiagnostics(text, diagnostics, writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0087_NoConstructorOverload() {
+        var text = @"
+            class MyClass {
+                MyClass(int a) { }
+
+                MyClass(string a) { }
+            }
+
+            MyClass myClass = new [MyClass](true);
+        ";
+
+        var diagnostics = @"
+            type `MyClass` does not contain a constructor that matches the parameter list
+        ";
+
+        AssertDiagnostics(text, diagnostics, writer);
+    }
+
     [Fact]
     public void Reports_Error_Unsupported_BU9004_CannotInitialize() {
         var text = @"
