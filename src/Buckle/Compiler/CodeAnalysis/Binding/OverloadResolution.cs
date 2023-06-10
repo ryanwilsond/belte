@@ -46,10 +46,14 @@ internal sealed class OverloadResolution {
         var tempDiagnostics = new BelteDiagnosticQueue();
         tempDiagnostics.Move(_binder.diagnostics);
 
+        var isConstructor = false;
+
         foreach (var method in methods) {
             var beforeCount = _binder.diagnostics.Count;
             var score = 0;
             var isInner = method.name.Contains(">g__");
+
+            isConstructor = method.name == WellKnownMemberNames.InstanceConstructorName;
 
             var defaultParameterCount = method.parameters.Where(p => p.defaultValue != null).Count();
             var expressionArguments = argumentList.arguments;
@@ -146,8 +150,13 @@ internal sealed class OverloadResolution {
 
         CleanUpDiagnostics(methods, tempDiagnostics);
 
+        // TODO make sure all error messages make sense with constructors
         if (methods.Length > 1 && possibleOverloads.Count == 0) {
-            _binder.diagnostics.Push(Error.NoMethodOverload(operand.location, name));
+            if (isConstructor)
+                _binder.diagnostics.Push(Error.NoConstructorOverload(operand.location, methods[0].containingType.name));
+            else
+                _binder.diagnostics.Push(Error.NoMethodOverload(operand.location, name));
+
             return OverloadResolutionResult<MethodSymbol>.Failed();
         } else if (methods.Length > 1 && possibleOverloads.Count > 1) {
             // Special case where there are default overloads

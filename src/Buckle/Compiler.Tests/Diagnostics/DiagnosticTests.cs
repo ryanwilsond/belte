@@ -198,7 +198,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            redefinition of method 'myFunc'
+            redeclaration of method 'myFunc'
         ";
 
         AssertDiagnostics(text, diagnostics, writer);
@@ -1118,6 +1118,55 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             cannot use structs outside of a low-level context
+        ";
+
+        AssertDiagnostics(text, diagnostics, writer);
+    }
+
+    // [Fact]
+    // public void Reports_Error_BU0085_CannotUseThis() {
+    //     var text = @"
+    //         int myInt = 3;
+    //         [this].myInt = 5;
+    //     ";
+
+    //     var diagnostics = @"
+    //         cannot use `this` keyword outside of a class
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, writer);
+    // }
+
+
+    [Fact]
+    public void Reports_Error_BU0086_IncorrectConstructorName() {
+        var text = @"
+            class MyClass {
+                [MyConstructor]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            constructor name must match the name of the enclosing class; in this case constructors must be named `MyClass`
+        ";
+
+        AssertDiagnostics(text, diagnostics, writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0087_NoConstructorOverload() {
+        var text = @"
+            class MyClass {
+                MyClass(int a) { }
+
+                MyClass(string a) { }
+            }
+
+            MyClass myClass = new [MyClass](true);
+        ";
+
+        var diagnostics = @"
+            type `MyClass` does not contain a constructor that matches the parameter list
         ";
 
         AssertDiagnostics(text, diagnostics, writer);

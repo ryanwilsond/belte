@@ -1347,6 +1347,53 @@ var myClass = new MyClass<null>(); // Ambiguous which overload is being inferred
 $BU0084
 Outside of a low-level context structs are disabled, along with several other
 lower level features.
+$BU0085
+The `this` keyword is used to access type members, such as fields and methods.
+It searches for members of the currently enclosing type, so if this keyword is
+used outside of a type definition, this error is raised.
+
+For example:
+
+```
+int myInt = 3;
+int myOtherInt = this.myInt; // Not allowed, not inside of a type definition
+
+class MyClass {
+    int myInt;
+
+    void MyMethod() {
+        this.myInt = 3;
+        int myOtherInt = this.myInt; // Allowed
+    }
+}
+```
+$BU0086
+Constructors are methods that are run when an object is created, and the name
+of a constructor must match the class name. Otherwise this error is raised.
+
+For example:
+
+```
+class MyClass {
+    MyConstructor() { } // Not allowed, all constructors must be named the same as the class name, in this case `MyClass`
+
+    MyClass() { } // Allowed
+}
+$BU0087
+If an object is created with an argument list that matches no constructor
+parameter lists, this error is raised. This error is the same as BU0057 but
+applies specifically to constructors.
+
+For example:
+
+```
+class MyClass {
+    MyClass(int myInt) { }
+}
+
+MyClass myClass = new MyClass("test"); // Not allowed, no constructor for `MyClass` takes in a string argument
+MyClass myClass = new MyClass(3); // Allowed
+```
 $BU9000
 Inside a global scope without a `Main` method, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it

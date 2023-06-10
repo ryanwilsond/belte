@@ -231,11 +231,12 @@ internal sealed class BoundScope {
         if (Contains(symbol.name)) {
             if (symbol is MethodSymbol fs) {
                 foreach (var s in _symbols) {
-                    // Doesn't check if they refer to the same thing, but if their signatures are the same
-                    // If so, keeping both would make all calls ambiguous so it is not allowed
-                    if ((strictMethod && (s as MethodSymbol) == fs) ||
-                        (!strictMethod && MethodsMatch(s as MethodSymbol, fs)))
-                        return false;
+                    if (s is MethodSymbol ms) {
+                        // Doesn't check if they refer to the same thing, but if their signatures are the same
+                        // If so, keeping both would make all calls ambiguous so it is not allowed
+                        if ((strictMethod && ms == fs) || (!strictMethod && MethodsMatch(ms, fs)))
+                            return false;
+                    }
                 }
             } else if (symbol is ClassSymbol cs) {
                 foreach (var s in _symbols) {

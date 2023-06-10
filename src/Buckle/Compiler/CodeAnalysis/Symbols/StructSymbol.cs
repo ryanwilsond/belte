@@ -13,7 +13,6 @@ internal sealed class StructSymbol : NamedTypeSymbol {
     internal StructSymbol(
         ImmutableArray<ParameterSymbol> templateParameters,
         ImmutableArray<Symbol> symbols,
-        StructDeclarationSyntax declaration,
-        NamedTypeSymbol containingType = null)
-        : base(templateParameters, symbols, declaration, containingType) { }
+        StructDeclarationSyntax declaration)
+        : base(templateParameters, symbols, declaration) { }
 }

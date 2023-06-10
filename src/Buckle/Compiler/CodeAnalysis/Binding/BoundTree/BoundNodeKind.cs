@@ -25,6 +25,7 @@ internal enum BoundNodeKind {
     MemberAccessExpression,
     PrefixExpression,
     PostfixExpression,
+    ThisExpression,
 
     BlockStatement,
     ExpressionStatement,

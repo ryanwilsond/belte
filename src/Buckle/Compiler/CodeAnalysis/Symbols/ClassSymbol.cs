@@ -14,8 +14,7 @@ internal sealed class ClassSymbol : NamedTypeSymbol {
     internal ClassSymbol(
         ImmutableArray<ParameterSymbol> templateParameters,
         ImmutableArray<Symbol> symbols,
-        ClassDeclarationSyntax declaration,
-        NamedTypeSymbol containingType = null)
-        : base(templateParameters, symbols, declaration, containingType) {
+        ClassDeclarationSyntax declaration)
+        : base(templateParameters, symbols, declaration) {
     }
 }

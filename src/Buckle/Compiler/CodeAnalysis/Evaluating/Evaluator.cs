@@ -21,10 +21,13 @@ internal sealed class Evaluator {
     private readonly Dictionary<IVariableSymbol, IEvaluatorObject> _globals;
     private readonly Stack<Dictionary<IVariableSymbol, IEvaluatorObject>> _locals =
         new Stack<Dictionary<IVariableSymbol, IEvaluatorObject>>();
+    private readonly Dictionary<IVariableSymbol, IEvaluatorObject> _classLocalBuffer =
+        new Dictionary<IVariableSymbol, IEvaluatorObject>();
 
     private EvaluatorObject _lastValue;
     private Random _random;
-    private bool _hasValue = false;
+    private bool _classLocalBufferOnStack;
+    private bool _hasValue;
 
     /// <summary>
     /// Creates an <see cref="Evaluator" /> that can evaluate a <see cref="BoundProgram" /> (provided globals).
@@ -85,29 +88,15 @@ internal sealed class Evaluator {
 
     private object GetVariableValue(VariableSymbol variable, bool traceCollections = false) {
         var value = Get(variable);
-
         return Value(value, traceCollections);
     }
 
     private IEvaluatorObject GetFrom(Dictionary<IVariableSymbol, IEvaluatorObject> variables, VariableSymbol variable) {
-        bool TypesEqual(BoundType left, IVariableSymbol right) {
-            return left.typeSymbol == (Symbol)right.typeSymbol &&
-                   left.isImplicit == right.isImplicit &&
-                   left.isConstantReference == right.isConstantReference &&
-                   left.isReference == right.isReference &&
-                   left.isExplicitReference == right.isExplicitReference &&
-                   left.isConstant == right.isConstant &&
-                   left.isNullable == right.isNullable &&
-                   left.isLiteral == right.isLiteral &&
-                   left.dimensions == right.dimensions;
+        try {
+            return variables[variable];
+        } catch (KeyNotFoundException) {
+            throw new BelteInternalException($"GetFrom: '{variable.name}' was not found in the scope");
         }
-
-        foreach (var pair in variables) {
-            if (variable.name == pair.Key.name && TypesEqual(variable.type, pair.Key))
-                return pair.Value;
-        }
-
-        throw new BelteInternalException($"GetFrom: '{variable.name}' was not found in the scope");
     }
 
     private EvaluatorObject Get(VariableSymbol variable, Dictionary<IVariableSymbol, IEvaluatorObject> scope = null) {
@@ -238,6 +227,20 @@ internal sealed class Evaluator {
             left.members = Copy(right.members);
         else
             left.value = Value(right);
+    }
+
+    private void EnterClassScope(Dictionary<Symbol, EvaluatorObject> members, bool updateLocals = true) {
+        foreach (var member in members) {
+            if (member.Key is FieldSymbol fs)
+                // If this fails, it just means the member is being used multiple times in a single expression, so we
+                // don't need to do anything if this fails
+                _classLocalBuffer.TryAdd(fs, member.Value);
+        }
+
+        if (updateLocals) {
+            _locals.Push(_classLocalBuffer);
+            _classLocalBufferOnStack = true;
+        }
     }
 
     private EvaluatorObject EvaluateCast(EvaluatorObject value, BoundType type) {
@@ -447,11 +450,11 @@ internal sealed class Evaluator {
             do {
                 operand = Get(operand.reference, operand.referenceScope);
             } while (operand.isReference == true);
-
-            return operand.members[node.member];
-        } else {
-            return operand.members[node.member];
         }
+
+        EnterClassScope(operand.members, node.member is MethodSymbol);
+
+        return operand.members[node.member];
     }
 
     private EvaluatorObject EvaluateObjectCreationExpression(
@@ -468,6 +471,8 @@ internal sealed class Evaluator {
 
         foreach (var member in typeMembers.Where(t => t is not ParameterSymbol))
             members.Add(member, new EvaluatorObject());
+
+        EnterClassScope(members);
 
         // structs don't have any methods, so no constructors
         if (node.type.typeSymbol is ClassSymbol)
@@ -550,7 +555,6 @@ internal sealed class Evaluator {
             node.method == BuiltinMethods.ValueDecimal ||
             node.method == BuiltinMethods.ValueInt ||
             node.method == BuiltinMethods.ValueString) {
-            // TODO This needs to check if the builtin has been shadowed (check for HasValue too)
             var value = EvaluateExpression(node.arguments[0], abort);
             var hasNoMembers = value.isReference ? Get(value.reference).members is null : value.members is null;
 
@@ -574,14 +578,18 @@ internal sealed class Evaluator {
 
             return new EvaluatorObject(true);
         } else {
-            return InvokeMethod(node.method, node.arguments, abort);
+            return InvokeMethod(node.method, node.arguments, abort, node.operand);
         }
 
-        return new EvaluatorObject();
+        // This is reached by void methods, but it isn't used
+        return null;
     }
 
     private EvaluatorObject InvokeMethod(
-        MethodSymbol method, ImmutableArray<BoundExpression> arguments, ValueWrapper<bool> abort) {
+        MethodSymbol method,
+        ImmutableArray<BoundExpression> arguments,
+        ValueWrapper<bool> abort,
+        BoundExpression operand = null) {
         var locals = new Dictionary<IVariableSymbol, IEvaluatorObject>();
 
         for (var i = 0; i < arguments.Length; i++) {
@@ -596,8 +604,15 @@ internal sealed class Evaluator {
 
         _locals.Push(locals);
         var statement = LookupMethod(_methods, method);
+
+        if (operand != null)
+            EvaluateExpression(operand, abort);
+
         var result = EvaluateStatement(statement, abort, out _);
         _locals.Pop();
+
+        if (_classLocalBufferOnStack)
+            _locals.Pop();
 
         return result;
     }

@@ -70,15 +70,15 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundCallExpression Call(MethodSymbol method, params BoundExpression[] arguments) {
-        return new BoundCallExpression(method, ImmutableArray.Create(arguments));
+        return new BoundCallExpression(new BoundEmptyExpression(), method, ImmutableArray.Create(arguments));
     }
 
     internal static BoundCastExpression Cast(BoundType type, BoundExpression expression) {
         return new BoundCastExpression(type, expression);
     }
 
-    internal static BoundMemberAccessExpression MemberAccess(BoundExpression operand, FieldSymbol member) {
-        return new BoundMemberAccessExpression(operand, member, false);
+    internal static BoundMemberAccessExpression MemberAccess(BoundExpression operand, Symbol member, BoundType type) {
+        return new BoundMemberAccessExpression(operand, member, type, false);
     }
 
     internal static BoundIndexExpression Index(BoundExpression operand, BoundExpression index) {

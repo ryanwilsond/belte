@@ -20,20 +20,19 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
     /// The symbol that has our entry in the global method map. This is used to locate the body of this method.
     /// </param>
     internal MethodSymbol(
-        string name, ImmutableArray<ParameterSymbol> parameters, BoundType type,
-        MethodDeclarationSyntax declaration = null, MethodSymbol originalDefinition = null,
-        NamedTypeSymbol containingType = null)
+        string name,
+        ImmutableArray<ParameterSymbol> parameters,
+        BoundType type,
+        BaseMethodDeclarationSyntax declaration = null,
+        MethodSymbol originalDefinition = null)
         : base(name) {
         this.type = type;
         this.parameters = parameters;
         this.declaration = declaration;
         this.originalDefinition = originalDefinition;
-        this.containingType = containingType;
     }
 
     public override SymbolKind kind => SymbolKind.Method;
-
-    public override NamedTypeSymbol containingType { get; }
 
     /// <summary>
     /// All parameters (see <see cref="ParameterSymbol" />).
@@ -46,9 +45,9 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
     internal BoundType type { get; }
 
     /// <summary>
-    /// Declaration of method (see <see cref="MethodDeclarationSyntax">).
+    /// Declaration of method (see <see cref="BaseMethodDeclarationSyntax">).
     /// </summary>
-    internal MethodDeclarationSyntax declaration { get; }
+    internal BaseMethodDeclarationSyntax declaration { get; }
 
     /// <summary>
     /// If this symbol is a modification of another symbol, <see cref="originalDefinition" /> is a reference

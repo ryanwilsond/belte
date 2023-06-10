@@ -320,7 +320,9 @@ internal abstract class BoundTreeExpander {
         return new List<BoundStatement>() { };
     }
 
-    protected virtual List<BoundStatement> ExpandCallExpression(BoundCallExpression expression, out BoundExpression replacement) {
+    protected virtual List<BoundStatement> ExpandCallExpression(
+        BoundCallExpression expression,
+        out BoundExpression replacement) {
         var statements = new List<BoundStatement>();
         var replacementArguments = ImmutableArray.CreateBuilder<BoundExpression>();
 
@@ -330,7 +332,12 @@ internal abstract class BoundTreeExpander {
         }
 
         if (statements.Any()) {
-            replacement = new BoundCallExpression(expression.method, replacementArguments.ToImmutable());
+            replacement = new BoundCallExpression(
+                expression.operand,
+                expression.method,
+                replacementArguments.ToImmutable()
+            );
+
             return statements;
         }
 
@@ -420,7 +427,7 @@ internal abstract class BoundTreeExpander {
 
         if (statements.Any()) {
             replacement = new BoundMemberAccessExpression(
-                operandReplacement, expression.member, expression.isNullConditional
+                operandReplacement, expression.member, expression.type, expression.isNullConditional
             );
 
             return statements;

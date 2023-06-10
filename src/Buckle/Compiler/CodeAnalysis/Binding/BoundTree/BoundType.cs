@@ -69,6 +69,11 @@ internal sealed class BoundType : BoundNode {
     /// </summary>
     internal static readonly BoundType Type = new BoundType(TypeSymbol.Type);
 
+    /// <summary>
+    /// The type representing no type at all, a method that doesn't return.
+    /// </summary>
+    internal static readonly BoundType Void = new BoundType(TypeSymbol.Void);
+
     /// <param name="typeSymbol">The language type, not the <see cref="Syntax.SyntaxNode" /> type.</param>
     /// <param name="isImplicit">If the type was assumed by the var or let keywords.</param>
     /// <param name="isConstantReference">If the type is an unchanging reference type.</param>
@@ -204,6 +209,25 @@ internal sealed class BoundType : BoundNode {
             return new BoundType(null, isLiteral: true, isNullable: true);
         else
             throw new BelteInternalException($"Assume: unexpected literal '{value}' of type '{value.GetType()}'");
+    }
+
+    /// <summary>
+    /// Creates a Func<> type using the signature of a method to construct a template argument list.
+    /// </summary>
+    internal static BoundType CreateFunc(ImmutableArray<ParameterSymbol> parameters, BoundType returnType) {
+        var builder = ImmutableArray.CreateBuilder<BoundExpression>();
+
+        foreach (var parameter in parameters)
+            builder.Add(new BoundTypeOfExpression(parameter.type));
+
+        builder.Add(new BoundTypeOfExpression(returnType));
+        var templateArguments = builder.ToImmutable();
+
+        return new BoundType(
+            TypeSymbol.Func,
+            templateArguments: templateArguments,
+            arity: templateArguments.Length
+        );
     }
 
     /// <summary>

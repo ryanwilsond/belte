@@ -88,6 +88,7 @@ public enum SyntaxKind {
     ClassKeyword,
     VarKeyword,
     NewKeyword,
+    ThisKeyword,
 
     // Tokens with text
     BadToken,
@@ -105,6 +106,8 @@ public enum SyntaxKind {
     // Expressions
     ParenthesizedExpression,
     CastExpression,
+    TypeExpression,
+    ThisExpression,
     EmptyExpression,
 
     // Operator expressions
@@ -167,6 +170,7 @@ public enum SyntaxKind {
     TemplateParameterList,
     TemplateArgumentList,
     MethodDeclaration,
+    ConstructorDeclaration,
 
     // Other
     Argument,
