@@ -324,8 +324,10 @@ public sealed class EvaluatorTests {
     [InlineData("class A { int a; A(int b) { a = b; } A(int b, int c) { a = b + c; } } var myVar = new A(6); return myVar.a;", 6)]
     [InlineData("class A { int a; A(int b) { a = b; } A(int b, int c) { a = b + c; } } var myVar = new A(6, 1); return myVar.a;", 7)]
     // This expression
-    // [InlineData("class A { int a; void SetA(int a) { this.a = 1; this.a = a; } int GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 3)]
-    // [InlineData("class A { int a; void SetA(int a) { this.a = 1; a = a; } int GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 1)]
+    [InlineData("class A { int a; void SetA(int a) { this.a = 1; this.a = a; } int GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 3)]
+    [InlineData("class A { int a; void SetA(int a) { this.a = 1; a = a; } int GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 1)]
+    [InlineData("class A { int M() { return 1; } int N() { int M() { return 2; } return M(); } } var myVar = new A(); return myVar.N();", 2)]
+    [InlineData("class A { int M() { return 1; } int N() { int M() { return 2; } return this.M(); } } var myVar = new A(); return myVar.N();", 1)]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
         AssertValue(text, expectedValue);
     }

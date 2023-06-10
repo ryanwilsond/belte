@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using Buckle.Diagnostics;
 
@@ -234,9 +235,15 @@ internal abstract class BoundTreeRewriter {
                 return RewritePrefixExpression((BoundPrefixExpression)expression);
             case BoundNodeKind.PostfixExpression:
                 return RewritePostfixExpression((BoundPostfixExpression)expression);
+            case BoundNodeKind.ThisExpression:
+                return RewriteThisExpression((BoundThisExpression)expression);
             default:
                 throw new BelteInternalException($"RewriteExpression: unexpected expression type '{expression.kind}'");
         }
+    }
+
+    protected virtual BoundExpression RewriteThisExpression(BoundThisExpression expression) {
+        return expression;
     }
 
     protected virtual BoundExpression RewriteConstantExpression(BoundExpression expression) {
@@ -281,7 +288,13 @@ internal abstract class BoundTreeRewriter {
     }
 
     protected virtual BoundExpression RewriteObjectCreationExpression(BoundObjectCreationExpression expression) {
-        return expression;
+        var arguments = RewriteArguments(expression.arguments);
+        // TODO Rewrite template arguments?
+
+        if (!arguments.HasValue)
+            return expression;
+
+        return new BoundObjectCreationExpression(expression.type, expression.constructor, arguments.Value);
     }
 
     protected virtual BoundExpression RewriteTernaryExpression(BoundTernaryExpression expression) {
@@ -358,28 +371,12 @@ internal abstract class BoundTreeRewriter {
     }
 
     protected virtual BoundExpression RewriteCallExpression(BoundCallExpression expression) {
-        ImmutableArray<BoundExpression>.Builder builder = null;
+        var arguments = RewriteArguments(expression.arguments);
 
-        for (var i = 0; i < expression.arguments.Length; i++) {
-            var oldArgument = expression.arguments[i];
-            var newArgument = RewriteExpression(oldArgument);
-
-            if (newArgument != oldArgument) {
-                if (builder is null) {
-                    builder = ImmutableArray.CreateBuilder<BoundExpression>(expression.arguments.Length);
-
-                    for (var j = 0; j < i; j++)
-                        builder.Add(expression.arguments[j]);
-                }
-            }
-
-            builder?.Add(newArgument);
-        }
-
-        if (builder is null)
+        if (!arguments.HasValue)
             return expression;
 
-        return new BoundCallExpression(expression.operand, expression.method, builder.MoveToImmutable());
+        return new BoundCallExpression(expression.operand, expression.method, arguments.Value);
     }
 
     protected virtual BoundExpression RewriteErrorExpression(BoundErrorExpression expression) {
@@ -425,5 +422,27 @@ internal abstract class BoundTreeRewriter {
             return expression;
 
         return new BoundUnaryExpression(expression.op, operand);
+    }
+
+    private ImmutableArray<BoundExpression>? RewriteArguments(ImmutableArray<BoundExpression> arguments) {
+        ImmutableArray<BoundExpression>.Builder builder = null;
+
+        for (var i = 0; i < arguments.Length; i++) {
+            var oldArgument = arguments[i];
+            var newArgument = RewriteExpression(oldArgument);
+
+            if (newArgument != oldArgument) {
+                if (builder is null) {
+                    builder = ImmutableArray.CreateBuilder<BoundExpression>(arguments.Length);
+
+                    for (var j = 0; j < i; j++)
+                        builder.Add(arguments[j]);
+                }
+            }
+
+            builder?.Add(newArgument);
+        }
+
+        return builder?.MoveToImmutable();
     }
 }

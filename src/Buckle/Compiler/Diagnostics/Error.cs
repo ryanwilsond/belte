@@ -802,7 +802,7 @@ internal static class Error {
     /// BU0085. Run `buckle --explain BU0085` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic CannotUseThis(TextLocation location) {
-        var message = "cannot use the `this` keyword outside of a class";
+        var message = "cannot use `this` outside of a class";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseThis), location, message);
     }
 

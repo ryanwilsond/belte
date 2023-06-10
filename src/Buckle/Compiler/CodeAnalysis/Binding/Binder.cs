@@ -48,10 +48,27 @@ internal sealed class Binder {
         _enclosingType = method?.type;
         _containingType = method?.containingType;
         _options = options;
-        _flags = method is null ? flags : flags | BinderFlags.Method;
+        _flags = flags;
         _overloadResolution = new OverloadResolution(this);
 
+        var needsNewScope = false;
+
+        if (_containingType != null) {
+            needsNewScope = true;
+            _flags |= BinderFlags.Class;
+
+            foreach (var member in _containingType.members) {
+                if (member is FieldSymbol fs)
+                    _scope.TryDeclareVariable(fs);
+            }
+        }
+
         if (method != null) {
+            _flags |= BinderFlags.Method;
+
+            if (needsNewScope)
+                _scope = new BoundScope(_scope);
+
             foreach (var parameter in method.parameters)
                 _scope.TryDeclareVariable(parameter);
         }
@@ -82,21 +99,16 @@ internal sealed class Binder {
         if (binder.diagnostics.Errors().Any())
             return GlobalScope(previous, binder.diagnostics);
 
-        var typeDeclarations = syntaxTrees.SelectMany(st => st.GetCompilationUnitRoot().members)
-            .OfType<TypeDeclarationSyntax>();
+        var members = syntaxTrees.SelectMany(st => st.GetCompilationUnitRoot().members);
 
-        foreach (var @type in typeDeclarations)
-            binder.BindTypeDeclaration(@type);
+        foreach (var member in members) {
+            if (member is TypeDeclarationSyntax ts)
+                binder.BindTypeDeclaration(ts);
+            else if (member is MethodDeclarationSyntax ms)
+                binder.BindMethodDeclaration(ms);
+        }
 
-        var methodDeclarations = syntaxTrees.SelectMany(st => st.GetCompilationUnitRoot().members)
-            .OfType<MethodDeclarationSyntax>();
-
-        foreach (var method in methodDeclarations)
-            binder.BindMethodDeclaration(method);
-
-        var globalStatements = syntaxTrees.SelectMany(st => st.GetCompilationUnitRoot().members)
-            .OfType<GlobalStatementSyntax>();
-
+        var globalStatements = members.OfType<GlobalStatementSyntax>();
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
 
         binder._peekedLocals = PeekLocals(globalStatements.Select(s => s.statement), null);
@@ -585,7 +597,7 @@ internal sealed class Binder {
 
         foreach (var constructorDeclaration in @class.members.OfType<ConstructorDeclarationSyntax>()) {
             var constructor = BindConstructorDeclaration(constructorDeclaration);
-            BindAndLowerMethodBody(constructor);
+            builder.Add(constructor);
             hasConstructor = true;
         }
 
@@ -604,7 +616,7 @@ internal sealed class Binder {
 
         foreach (var methodDeclaration in @class.members.OfType<MethodDeclarationSyntax>()) {
             var method = BindMethodDeclaration(methodDeclaration);
-            BindAndLowerMethodBody(method);
+            builder.Add(method);
         }
 
         foreach (var typeDeclaration in @class.members.OfType<TypeDeclarationSyntax>()) {
@@ -628,19 +640,6 @@ internal sealed class Binder {
             diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
 
         return newClass;
-
-        void BindAndLowerMethodBody(MethodSymbol method) {
-            builder.Add(method);
-
-            var binder = new Binder(_options, _flags, _scope, method);
-            var body = binder.BindMethodBody(method.declaration.body, method.parameters);
-            var loweredBody = Lowerer.Lower(method, body, _options.isTranspiling);
-
-            if (method.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
-                diagnostics.Push(Error.NotAllPathsReturn(method.declaration.identifier.location));
-
-            _methodBodies.Add((method, loweredBody));
-        }
     }
 
     private BoundStatement BindLocalFunctionDeclaration(LocalFunctionStatementSyntax statement) {
@@ -1375,7 +1374,7 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindThisExpression(ThisExpressionSyntax expression) {
-        if (_containingType is null) {
+        if (!_flags.Includes(BinderFlags.Class)) {
             diagnostics.Push(Error.CannotUseThis(expression.location));
             return new BoundErrorExpression();
         }
@@ -1424,15 +1423,11 @@ internal sealed class Binder {
             return operand;
 
         if (operand.type.typeSymbol is not ITypeSymbolWithMembers) {
-            diagnostics.Push(
-                Error.PrimitivesDoNotHaveMembers(expression.op.location)
-            );
-
+            diagnostics.Push(Error.PrimitivesDoNotHaveMembers(expression.op.location));
             return new BoundErrorExpression();
         }
 
         var type = operand.type.typeSymbol as ITypeSymbolWithMembers;
-
         var symbol = type.members.Where(m => m.name == expression.identifier.text).SingleOrDefault();
 
         if (symbol is null) {
@@ -1470,7 +1465,6 @@ internal sealed class Binder {
 
     private BoundExpression BindReferenceExpression(ReferenceExpressionSyntax expression) {
         var variable = BindVariableReference(expression.identifier);
-
         return new BoundReferenceExpression(variable);
     }
 

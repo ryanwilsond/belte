@@ -27,6 +27,7 @@ internal sealed class Evaluator {
     private EvaluatorObject _lastValue;
     private Random _random;
     private bool _classLocalBufferOnStack;
+    private EvaluatorObject _enclosingType;
     private bool _hasValue;
 
     /// <summary>
@@ -229,13 +230,15 @@ internal sealed class Evaluator {
             left.value = Value(right);
     }
 
-    private void EnterClassScope(Dictionary<Symbol, EvaluatorObject> members, bool updateLocals = true) {
-        foreach (var member in members) {
+    private void EnterClassScope(EvaluatorObject @class, bool updateLocals = true) {
+        foreach (var member in @class.members) {
             if (member.Key is FieldSymbol fs)
                 // If this fails, it just means the member is being used multiple times in a single expression, so we
                 // don't need to do anything if this fails
                 _classLocalBuffer.TryAdd(fs, member.Value);
         }
+
+        _enclosingType = @class;
 
         if (updateLocals) {
             _locals.Push(_classLocalBuffer);
@@ -438,9 +441,15 @@ internal sealed class Evaluator {
                 return EvaluateObjectCreationExpression((BoundObjectCreationExpression)node, abort);
             case BoundNodeKind.MemberAccessExpression:
                 return EvaluateMemberAccessExpression((BoundMemberAccessExpression)node, abort);
+            case BoundNodeKind.ThisExpression:
+                return EvaluateThisExpression((BoundThisExpression)node, abort);
             default:
                 throw new BelteInternalException($"EvaluateExpression: unexpected node '{node.kind}'");
         }
+    }
+
+    private EvaluatorObject EvaluateThisExpression(BoundThisExpression node, ValueWrapper<bool> abort) {
+        return _enclosingType;
     }
 
     private EvaluatorObject EvaluateMemberAccessExpression(BoundMemberAccessExpression node, ValueWrapper<bool> abort) {
@@ -452,7 +461,7 @@ internal sealed class Evaluator {
             } while (operand.isReference == true);
         }
 
-        EnterClassScope(operand.members, node.member is MethodSymbol);
+        EnterClassScope(operand, node.member is MethodSymbol);
 
         return operand.members[node.member];
     }
@@ -472,13 +481,15 @@ internal sealed class Evaluator {
         foreach (var member in typeMembers.Where(t => t is not ParameterSymbol))
             members.Add(member, new EvaluatorObject());
 
-        EnterClassScope(members);
+        var newObject = new EvaluatorObject(members);
+
+        EnterClassScope(newObject);
 
         // structs don't have any methods, so no constructors
         if (node.type.typeSymbol is ClassSymbol)
             InvokeMethod(node.constructor, node.arguments, abort);
 
-        return new EvaluatorObject(members);
+        return newObject;
     }
 
     private EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression node, ValueWrapper<bool> abort) {

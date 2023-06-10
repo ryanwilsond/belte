@@ -1123,20 +1123,19 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, writer);
     }
 
-    // [Fact]
-    // public void Reports_Error_BU0085_CannotUseThis() {
-    //     var text = @"
-    //         int myInt = 3;
-    //         [this].myInt = 5;
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0085_CannotUseThis() {
+        var text = @"
+            int myInt = 3;
+            [this].myInt = 5;
+        ";
 
-    //     var diagnostics = @"
-    //         cannot use `this` keyword outside of a class
-    //     ";
+        var diagnostics = @"
+            cannot use `this` outside of a class
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, writer);
-    // }
-
+        AssertDiagnostics(text, diagnostics, writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0086_IncorrectConstructorName() {

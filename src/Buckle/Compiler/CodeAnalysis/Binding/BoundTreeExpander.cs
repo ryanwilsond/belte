@@ -231,9 +231,18 @@ internal abstract class BoundTreeExpander {
                 return ExpandPostfixExpression((BoundPostfixExpression)expression, out replacement);
             case BoundNodeKind.TypeWrapper:
                 return ExpandTypeWrapper((BoundTypeWrapper)expression, out replacement);
+            case BoundNodeKind.ThisExpression:
+                return ExpandThisExpression((BoundThisExpression)expression, out replacement);
             default:
                 throw new BelteInternalException($"ExpandExpression: unexpected expression type '{expression.kind}'");
         }
+    }
+
+    protected virtual List<BoundStatement> ExpandThisExpression(
+        BoundThisExpression expression,
+        out BoundExpression replacement) {
+        replacement = expression;
+        return new List<BoundStatement>() { };
     }
 
     protected virtual List<BoundStatement> ExpandBinaryExpression(

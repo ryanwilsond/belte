@@ -30,7 +30,7 @@ internal abstract class Symbol : ISymbol {
     }
 
     internal void SetContainingType(NamedTypeSymbol symbol) {
-        this.containingType = symbol;
+        containingType = symbol;
     }
 
     public override int GetHashCode() {
