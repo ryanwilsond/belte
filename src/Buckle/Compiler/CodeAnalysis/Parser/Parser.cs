@@ -436,7 +436,7 @@ internal sealed partial class Parser {
         var hasName = false;
         var offset = 0;
 
-        if (!checkForType || PeekIsType(0, out offset, out hasName)) {
+        if (!checkForType || PeekIsType(0, out offset, out hasName, out _)) {
             if (!checkForType && currentToken.kind == SyntaxKind.IdentifierToken)
                 hasName = true;
 
@@ -467,9 +467,10 @@ internal sealed partial class Parser {
         return false;
     }
 
-    private bool PeekIsType(int offset, out int finalOffset, out bool hasName) {
+    private bool PeekIsType(int offset, out int finalOffset, out bool hasName, out bool isTemplate) {
         finalOffset = offset;
         hasName = false;
+        isTemplate = false;
 
         if (Peek(finalOffset).kind is SyntaxKind.IdentifierToken or
                                       SyntaxKind.ConstKeyword or
@@ -495,6 +496,7 @@ internal sealed partial class Parser {
                     finalOffset++;
 
                 while (Peek(finalOffset).kind == SyntaxKind.LessThanToken) {
+                    isTemplate = true;
                     finalOffset++;
 
                     while (Peek(finalOffset).kind is not SyntaxKind.GreaterThanToken and not SyntaxKind.EndOfFileToken)
@@ -529,7 +531,7 @@ internal sealed partial class Parser {
 
     private bool PeekIsCastExpression() {
         if (currentToken.kind == SyntaxKind.OpenParenToken &&
-            PeekIsType(1, out var offset, out _) &&
+            PeekIsType(1, out var offset, out _, out _) &&
             Peek(offset).kind == SyntaxKind.CloseParenToken) {
             if (Peek(offset + 1).kind == SyntaxKind.OpenParenToken)
                 return true;
@@ -775,7 +777,7 @@ internal sealed partial class Parser {
         if (PeekIsFunctionOrMethodDeclaration())
             return ParseLocalFunctionDeclaration();
 
-        if (PeekIsType(0, out _, out var hasName) && hasName)
+        if (PeekIsType(0, out _, out var hasName, out _) && hasName)
             return ParseVariableDeclarationStatement();
 
         switch (currentToken.kind) {
@@ -1134,7 +1136,8 @@ internal sealed partial class Parser {
     }
 
     private ExpressionSyntax ParsePrimaryExpressionInternal() {
-        if (PeekIsType(0, out _, out _) && (_context & ParserContext.InTemplateArgumentList) != 0)
+        if (PeekIsType(0, out _, out _, out var isTemplate) && isTemplate &&
+            (_context & ParserContext.InTemplateArgumentList) != 0)
             return ParseTypeExpression();
 
         switch (currentToken.kind) {

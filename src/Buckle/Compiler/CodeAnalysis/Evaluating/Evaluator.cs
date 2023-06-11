@@ -92,29 +92,34 @@ internal sealed class Evaluator {
         return Value(value, traceCollections);
     }
 
-    private IEvaluatorObject GetFrom(Dictionary<IVariableSymbol, IEvaluatorObject> variables, VariableSymbol variable) {
-        try {
-            return variables[variable];
-        } catch (KeyNotFoundException) {
-            throw new BelteInternalException($"GetFrom: '{variable.name}' was not found in the scope");
+    private bool TryGet(
+        Dictionary<IVariableSymbol, IEvaluatorObject> variables,
+        VariableSymbol variable,
+        out EvaluatorObject evaluatorObject) {
+        if (variables.Count > 0 && variables.TryGetValue(variable, out var result)) {
+            evaluatorObject = result as EvaluatorObject;
+            return true;
         }
+
+        evaluatorObject = null;
+        return false;
     }
 
     private EvaluatorObject Get(VariableSymbol variable, Dictionary<IVariableSymbol, IEvaluatorObject> scope = null) {
         if (scope != null) {
-            return GetFrom(scope, variable) as EvaluatorObject;
+            if (TryGet(scope, variable, out var evaluatorObject))
+                return evaluatorObject;
         } else if (variable.kind == SymbolKind.GlobalVariable) {
-            return GetFrom(_globals, variable) as EvaluatorObject;
+            if (TryGet(_globals, variable, out var evaluatorObject))
+                return evaluatorObject;
         } else {
             foreach (var frame in _locals) {
-                try {
-                    return GetFrom(frame, variable) as EvaluatorObject;
-                } catch (BelteInternalException) { }
+                if (TryGet(frame, variable, out var evaluatorObject))
+                    return evaluatorObject;
             }
-
-            // If we get here it means the variable was not found in the local scope, or any direct parent local scopes
-            throw new BelteInternalException($"Get: '{variable.name}' was not found in any accessible local scopes");
         }
+
+        throw new BelteInternalException($"Get: '{variable.name}' was not found in any accessible scopes");
     }
 
     private object DictionaryValue(Dictionary<Symbol, EvaluatorObject> value) {
@@ -232,10 +237,10 @@ internal sealed class Evaluator {
 
     private void EnterClassScope(EvaluatorObject @class, bool updateLocals = true) {
         foreach (var member in @class.members) {
-            if (member.Key is FieldSymbol fs)
+            if (member.Key is FieldSymbol or ParameterSymbol)
                 // If this fails, it just means the member is being used multiple times in a single expression, so we
                 // don't need to do anything if this fails
-                _classLocalBuffer.TryAdd(fs, member.Value);
+                _classLocalBuffer.TryAdd(member.Key as VariableSymbol, member.Value);
         }
 
         _enclosingType = @class;

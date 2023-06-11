@@ -11,4 +11,5 @@ internal enum BinderFlags : uint {
     LocalFunction = 1 << 0,
     Method = 1 << 1,
     Class = 1 << 2,
+    TemplateArgumentList = 1 << 3,
 }

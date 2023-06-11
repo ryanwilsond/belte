@@ -24,8 +24,8 @@ internal sealed class Binder {
     private readonly List<(MethodSymbol method, BoundBlockStatement body)> _methodBodies =
         new List<(MethodSymbol, BoundBlockStatement)>();
     private readonly CompilationOptions _options;
-    private readonly BinderFlags _flags;
 
+    private BinderFlags _flags;
     private OverloadResolution _overloadResolution;
     private BoundScope _scope;
     private Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> _loopStack = new Stack<(BoundLabel, BoundLabel)>();
@@ -58,8 +58,8 @@ internal sealed class Binder {
             _flags |= BinderFlags.Class;
 
             foreach (var member in _containingType.members) {
-                if (member is FieldSymbol fs)
-                    _scope.TryDeclareVariable(fs);
+                if (member is FieldSymbol or ParameterSymbol)
+                    _scope.TryDeclareVariable(member as VariableSymbol);
             }
         }
 
@@ -418,40 +418,34 @@ internal sealed class Binder {
         return name;
     }
 
+    private TypeSymbol LookupPrimitive(string name) {
+        switch (name) {
+            case "any":
+                return TypeSymbol.Any;
+            case "bool":
+                return TypeSymbol.Bool;
+            case "int":
+                return TypeSymbol.Int;
+            case "decimal":
+                return TypeSymbol.Decimal;
+            case "string":
+                return TypeSymbol.String;
+            case "void":
+                return TypeSymbol.Void;
+            case "type":
+                return TypeSymbol.Type;
+            default:
+                return null;
+        }
+    }
+
     private ImmutableArray<Symbol> LookupTypes(string name, bool strict = false) {
         var types = _scope.LookupOverloads(name);
 
         if (strict)
             types = types.Where(t => t is TypeSymbol).ToImmutableArray();
 
-        TypeSymbol type;
-
-        switch (name) {
-            case "any":
-                type = TypeSymbol.Any;
-                break;
-            case "bool":
-                type = TypeSymbol.Bool;
-                break;
-            case "int":
-                type = TypeSymbol.Int;
-                break;
-            case "decimal":
-                type = TypeSymbol.Decimal;
-                break;
-            case "string":
-                type = TypeSymbol.String;
-                break;
-            case "void":
-                type = TypeSymbol.Void;
-                break;
-            case "type":
-                type = TypeSymbol.Type;
-                break;
-            default:
-                type = null;
-                break;
-        }
+        var type = LookupPrimitive(name);
 
         if (types.Where(t => t is TypeSymbol).Count() == 0 && type != null)
             return ImmutableArray.Create<Symbol>(type);
@@ -825,13 +819,21 @@ internal sealed class Binder {
         );
     }
 
-    private VariableSymbol BindVariableReference(SyntaxToken identifier) {
+    private Symbol BindVariableOrTypeReference(SyntaxToken identifier, bool allowTypes = false) {
         var name = identifier.text;
-        VariableSymbol reference = null;
+        Symbol reference = null;
+
+        var primitive = LookupPrimitive(name);
+
+        if (primitive != null)
+            return primitive;
 
         switch (name == _shadowingVariable ? null : _scope.LookupSymbol(name)) {
             case VariableSymbol variable:
                 reference = variable;
+                break;
+            case NamedTypeSymbol type when allowTypes:
+                reference = type;
                 break;
             case null:
                 diagnostics.Push(Error.UndefinedSymbol(identifier.location, name));
@@ -841,12 +843,16 @@ internal sealed class Binder {
                 break;
         }
 
-        if (reference != null && _flags.Includes(BinderFlags.LocalFunction)) {
+        if (reference != null && _flags.Includes(BinderFlags.LocalFunction) && reference is VariableSymbol vs) {
             foreach (var frame in _trackedSymbols)
-                frame.Add(reference);
+                frame.Add(vs);
         }
 
         return reference;
+    }
+
+    private VariableSymbol BindVariableReference(SyntaxToken identifier) {
+        return BindVariableOrTypeReference(identifier, allowTypes: false) as VariableSymbol;
     }
 
     private VariableSymbol BindVariable(SyntaxToken identifier, BoundType type, BoundConstant constant = null) {
@@ -1385,7 +1391,7 @@ internal sealed class Binder {
 
     private BoundExpression BindTypeExpression(TypeExpressionSyntax expression) {
         var type = BindType(expression.type);
-        return new BoundTypeOfExpression(type); ;
+        return new BoundTypeOfExpression(type);
     }
 
     private BoundExpression BindObjectCreationExpression(ObjectCreationExpressionSyntax expression) {
@@ -1428,7 +1434,9 @@ internal sealed class Binder {
         }
 
         var type = operand.type.typeSymbol as ITypeSymbolWithMembers;
-        var symbol = type.members.Where(m => m.name == expression.identifier.text).SingleOrDefault();
+        // If there are multiple members with the name, it means it is an overloaded method
+        // BindCallExpression will resolve the correct one for us so we just get the first one as a placeholder
+        var symbol = type.members.Where(m => m.name == expression.identifier.text).First();
 
         if (symbol is null) {
             diagnostics.Push(
@@ -1604,6 +1612,10 @@ internal sealed class Binder {
         } else if (expression.operand is MemberAccessExpressionSyntax) {
             operand = BindExpression(expression.operand);
             var accessOperand = operand as BoundMemberAccessExpression;
+
+            if (accessOperand is null)
+                return new BoundErrorExpression();
+
             name = accessOperand.member.name;
 
             if (accessOperand.type.typeSymbol != TypeSymbol.Func) {
@@ -1647,12 +1659,20 @@ internal sealed class Binder {
 
     private bool PartiallyBindTemplateArgumentList(
         TemplateArgumentListSyntax argumentList, out ImmutableArray<(string, BoundExpression)> arguments) {
+        var saved = _flags;
+        _flags |= BinderFlags.TemplateArgumentList;
+
+        var result = false;
+
         if (argumentList is null) {
             arguments = ImmutableArray<(string, BoundExpression)>.Empty;
-            return true;
+            result = true;
         } else {
-            return PartiallyBindArguments(argumentList.arguments, out arguments);
+            result = PartiallyBindArguments(argumentList.arguments, out arguments);
         }
+
+        _flags = saved;
+        return result;
     }
 
     private bool PartiallyBindArguments(
@@ -1821,12 +1841,18 @@ internal sealed class Binder {
         if (expression.identifier.isFabricated)
             return new BoundErrorExpression();
 
-        var variable = BindVariableReference(expression.identifier);
+        var symbol = BindVariableOrTypeReference(
+            expression.identifier,
+            _flags.Includes(BinderFlags.TemplateArgumentList)
+        );
 
-        if (variable is null)
+        if (symbol is null)
             return new BoundErrorExpression();
 
-        return new BoundVariableExpression(variable);
+        if (symbol is TypeSymbol ts)
+            return new BoundTypeOfExpression(new BoundType(ts));
+
+        return new BoundVariableExpression(symbol as VariableSymbol);
     }
 
     private BoundExpression BindEmptyExpression(EmptyExpressionSyntax expression) {
