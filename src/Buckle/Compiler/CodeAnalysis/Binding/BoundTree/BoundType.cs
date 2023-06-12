@@ -72,7 +72,9 @@ internal sealed class BoundType : BoundNode {
     /// <summary>
     /// The type representing no type at all, a method that doesn't return.
     /// </summary>
-    internal static readonly BoundType Void = new BoundType(TypeSymbol.Void);
+    // Settings it nullable so it has no attributes when displayed,
+    // just an implementation detail, logically void is not nullable or non-nullable.
+    internal static readonly BoundType Void = new BoundType(TypeSymbol.Void, isNullable: true);
 
     /// <param name="typeSymbol">The language type, not the <see cref="Syntax.SyntaxNode" /> type.</param>
     /// <param name="isImplicit">If the type was assumed by the var or let keywords.</param>

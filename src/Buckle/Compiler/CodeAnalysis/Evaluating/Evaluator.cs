@@ -237,10 +237,14 @@ internal sealed class Evaluator {
 
     private void EnterClassScope(EvaluatorObject @class, bool updateLocals = true) {
         foreach (var member in @class.members) {
-            if (member.Key is FieldSymbol or ParameterSymbol)
-                // If this fails, it just means the member is being used multiple times in a single expression, so we
-                // don't need to do anything if this fails
-                _classLocalBuffer.TryAdd(member.Key as VariableSymbol, member.Value);
+            if (member.Key is FieldSymbol or ParameterSymbol) {
+                var variable = member.Key as VariableSymbol;
+
+                // If the symbol is already present it could be outdated and should be replaced
+                // If it isn't outdated no harm in replacing it
+                _classLocalBuffer.Remove(variable);
+                _classLocalBuffer.Add(variable, member.Value);
+            }
         }
 
         _enclosingType = @class;
@@ -404,7 +408,9 @@ internal sealed class Evaluator {
         }
     }
 
-    private void EvaluateVariableDeclarationStatement(BoundVariableDeclarationStatement statement, ValueWrapper<bool> abort) {
+    private void EvaluateVariableDeclarationStatement(
+        BoundVariableDeclarationStatement statement,
+        ValueWrapper<bool> abort) {
         var value = EvaluateExpression(statement.initializer, abort);
         _lastValue = null;
         Create(statement.variable, value);

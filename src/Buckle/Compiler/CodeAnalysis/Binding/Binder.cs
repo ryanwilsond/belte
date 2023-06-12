@@ -1436,7 +1436,7 @@ internal sealed class Binder {
         var type = operand.type.typeSymbol as ITypeSymbolWithMembers;
         // If there are multiple members with the name, it means it is an overloaded method
         // BindCallExpression will resolve the correct one for us so we just get the first one as a placeholder
-        var symbol = type.members.Where(m => m.name == expression.identifier.text).First();
+        var symbol = type.members.Where(m => m.name == expression.identifier.text).FirstOrDefault();
 
         if (symbol is null) {
             diagnostics.Push(
