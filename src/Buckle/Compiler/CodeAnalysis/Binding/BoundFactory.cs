@@ -53,6 +53,10 @@ internal static partial class BoundFactory {
         return new BoundBlockStatement(builder.ToImmutable());
     }
 
+    internal static BoundBlockStatement Block() {
+        return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
+    }
+
     internal static BoundLabelStatement Label(BoundLabel label) {
         return new BoundLabelStatement(label);
     }

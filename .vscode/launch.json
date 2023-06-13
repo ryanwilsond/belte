@@ -8,7 +8,9 @@
             "preLaunchTask": "build debug",
             "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net8.0/CommandLine.dll",
             "args": [
-                "-r"
+                // "-r"
+                "./.tests/CPUEmulator",
+                "-i",
             ],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",

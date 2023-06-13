@@ -431,7 +431,7 @@ internal sealed partial class Parser {
             return _lexedTokens[index];
     }
 
-    private bool PeekIsFunctionOrMethodDeclaration(bool checkForType = true) {
+    private bool PeekIsFunctionOrMethodDeclaration(bool checkForType = true, bool couldBeInStatement = true) {
         var hasName = false;
         var offset = 0;
 
@@ -447,7 +447,7 @@ internal sealed partial class Parser {
         if (Peek(offset).kind != SyntaxKind.OpenParenToken)
             return false;
 
-        if ((_context & ParserContext.InStatement) == 0)
+        if (!couldBeInStatement)
             return true;
 
         // If we get here it means that we are inside of a statement and if we do decide this is a function or method,
@@ -614,7 +614,7 @@ internal sealed partial class Parser {
         if ((_context & ParserContext.InClassDefinition) != 0 && PeekIsFunctionOrMethodDeclaration(checkForType: false))
             return ParseConstructorDeclaration(modifiers);
 
-        if (PeekIsFunctionOrMethodDeclaration())
+        if (PeekIsFunctionOrMethodDeclaration(couldBeInStatement: allowGlobalStatements))
             return ParseMethodDeclaration(modifiers);
 
         switch (currentToken.kind) {
@@ -798,7 +798,7 @@ internal sealed partial class Parser {
 
     private FieldDeclarationSyntax ParseFieldDeclaration(SyntaxList<SyntaxToken> modifiers) {
         var declaration = (VariableDeclarationStatementSyntax)ParseVariableDeclarationStatement(
-            (_context & ParserContext.InClassDefinition) == 0
+            declarationOnly: (_context & ParserContext.InClassDefinition) == 0, allowImplicit: false
         );
 
         return SyntaxFactory.FieldDeclaration(modifiers, declaration);
@@ -927,8 +927,8 @@ internal sealed partial class Parser {
         );
     }
 
-    private StatementSyntax ParseVariableDeclarationStatement(bool declarationOnly = false) {
-        var type = ParseType(allowImplicit: !declarationOnly, declarationOnly: declarationOnly);
+    private StatementSyntax ParseVariableDeclarationStatement(bool declarationOnly = false, bool allowImplicit = true) {
+        var type = ParseType(allowImplicit: allowImplicit, declarationOnly: declarationOnly);
         var identifier = Match(SyntaxKind.IdentifierToken);
 
         if (currentToken.kind == SyntaxKind.EqualsToken) {

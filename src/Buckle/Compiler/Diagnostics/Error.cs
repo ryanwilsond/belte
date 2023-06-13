@@ -377,8 +377,9 @@ internal static class Error {
     /// <summary>
     /// BU0039. Run `buckle --explain BU0039` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic NotAVariable(TextLocation location, string name) {
-        var message = $"method '{name}' cannot be used as a variable";
+    internal static BelteDiagnostic NotAVariable(TextLocation location, string name, bool isMethod) {
+        var methodWord = isMethod ? "method" : "type";
+        var message = $"{methodWord} '{name}' cannot be used as a variable";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NotAVariable), location, message);
     }
 

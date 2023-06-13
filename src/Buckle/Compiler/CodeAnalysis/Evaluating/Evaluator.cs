@@ -23,11 +23,11 @@ internal sealed class Evaluator {
         new Stack<Dictionary<IVariableSymbol, IEvaluatorObject>>();
     private readonly Dictionary<IVariableSymbol, IEvaluatorObject> _classLocalBuffer =
         new Dictionary<IVariableSymbol, IEvaluatorObject>();
+    private readonly Stack<EvaluatorObject> _enclosingTypes = new Stack<EvaluatorObject>();
 
     private EvaluatorObject _lastValue;
     private Random _random;
     private bool _classLocalBufferOnStack;
-    private EvaluatorObject _enclosingType;
     private bool _hasValue;
 
     /// <summary>
@@ -247,12 +247,16 @@ internal sealed class Evaluator {
             }
         }
 
-        _enclosingType = @class;
+        _enclosingTypes.Push(@class);
 
         if (updateLocals) {
             _locals.Push(_classLocalBuffer);
             _classLocalBufferOnStack = true;
         }
+    }
+
+    private void ExitClassScope() {
+        _enclosingTypes.Pop();
     }
 
     private EvaluatorObject EvaluateCast(EvaluatorObject value, BoundType type) {
@@ -457,7 +461,7 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateThisExpression(BoundThisExpression node, ValueWrapper<bool> abort) {
-        return _enclosingType;
+        return _enclosingTypes.Peek();
     }
 
     private EvaluatorObject EvaluateMemberAccessExpression(BoundMemberAccessExpression node, ValueWrapper<bool> abort) {
@@ -470,8 +474,10 @@ internal sealed class Evaluator {
         }
 
         EnterClassScope(operand, node.member is MethodSymbol);
+        var result = operand.members[node.member];
+        ExitClassScope();
 
-        return operand.members[node.member];
+        return result;
     }
 
     private EvaluatorObject EvaluateObjectCreationExpression(
@@ -496,6 +502,8 @@ internal sealed class Evaluator {
         // structs don't have any methods, so no constructors
         if (node.type.typeSymbol is ClassSymbol)
             InvokeMethod(node.constructor, node.arguments, abort);
+
+        ExitClassScope();
 
         return newObject;
     }

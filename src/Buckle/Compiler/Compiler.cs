@@ -120,7 +120,7 @@ public sealed class Compiler {
             EvaluationResult result = null;
 
             void Wrapper(object parameter) {
-                if (state.buildMode == BuildMode.Evaluate) {
+                if (buildMode == BuildMode.Evaluate) {
                     result = compilation.Evaluate(
                         new Dictionary<IVariableSymbol, IEvaluatorObject>(),
                         (ValueWrapper<bool>)parameter

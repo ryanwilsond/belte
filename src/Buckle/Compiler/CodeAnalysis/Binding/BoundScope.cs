@@ -128,7 +128,16 @@ internal sealed class BoundScope {
             if (symbols != null) {
                 for (var i = 0; i < symbols.Count; i++) {
                     if (symbols[i] == currentSymbol) {
-                        symbols[i] = newSymbol;
+                        if (newSymbol is ClassSymbol cs) {
+                            (symbols[i] as ClassSymbol).UpdateInternals(
+                                cs.templateParameters, cs.members, cs.defaultFieldAssignments
+                            );
+                        } else if (currentSymbol is StructSymbol ss) {
+                            (symbols[i] as StructSymbol).UpdateInternals(ss.templateParameters, ss.members);
+                        } else {
+                            symbols[i] = newSymbol;
+                        }
+
                         succeeded = true;
                         break;
                     }

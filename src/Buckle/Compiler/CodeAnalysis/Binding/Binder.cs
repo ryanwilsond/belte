@@ -103,6 +103,11 @@ internal sealed class Binder {
 
         foreach (var member in members) {
             if (member is TypeDeclarationSyntax ts)
+                binder.PreBindTypeDeclaration(ts);
+        }
+
+        foreach (var member in members) {
+            if (member is TypeDeclarationSyntax ts)
                 binder.BindTypeDeclaration(ts);
             else if (member is MethodDeclarationSyntax ms)
                 binder.BindMethodDeclaration(ms);
@@ -208,20 +213,10 @@ internal sealed class Binder {
         diagnostics.Move(globalScope.diagnostics);
 
         foreach (var method in globalScope.methods) {
-            // Some special methods (like default constructors) are bound earlier
-            var existingBodies = globalScope.methodBodies.Where(t => t.method == method);
-
-            if (existingBodies.Count() != 0) {
-                // If there are multiple entries something went wrong
-                var existingBody = existingBodies.ToArray().Single();
-                methodBodies.Add(existingBody.method, existingBody.body);
-                continue;
-            }
-
             var binder = new Binder(options, options.topLevelBinderFlags, parentScope, method);
 
             binder._innerPrefix.Push(method.name);
-            var body = binder.BindMethodBody(method.declaration.body, method.parameters);
+            var body = binder.BindMethodBody(method.declaration?.body, method.parameters);
             diagnostics.Move(binder.diagnostics);
 
             if (diagnostics.Errors().Any())
@@ -491,15 +486,49 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindMethodBody(BlockStatementSyntax syntax, ImmutableArray<ParameterSymbol> parameters) {
-        _peekedLocals = PeekLocals(syntax.statements, parameters);
-        var body = BindStatement(syntax) as BoundBlockStatement;
+        BoundBlockStatement body;
+
+        if (syntax != null) {
+            _peekedLocals = PeekLocals(syntax.statements, parameters);
+            body = BindStatement(syntax) as BoundBlockStatement;
+        } else {
+            body = BoundFactory.Block();
+        }
 
         if (_containingMethod.name == WellKnownMemberNames.InstanceConstructorName &&
             _containingType is ClassSymbol cs && cs.defaultFieldAssignments.Length > 0) {
-            return BoundFactory.Block(cs.defaultFieldAssignments, body.statements);
+            return BoundFactory.Block(BindDefaultFieldAssignments(cs.defaultFieldAssignments), body.statements);
         } else {
             return body;
         }
+    }
+
+    private ImmutableArray<BoundStatement> BindDefaultFieldAssignments(
+        ImmutableArray<(FieldSymbol, VariableDeclarationStatementSyntax)> defaultFieldAssignments) {
+        var boundAssignmentsBuilder = ImmutableArray.CreateBuilder<BoundStatement>();
+
+        foreach (var (field, fieldAssignment) in defaultFieldAssignments) {
+            var initializer = (BindVariableDeclarationStatement(
+                fieldAssignment, false
+            ) as BoundVariableDeclarationStatement)?.initializer;
+
+            if (initializer != null) {
+                boundAssignmentsBuilder.Add(
+                    BoundFactory.Statement(
+                        BoundFactory.Assignment(
+                            BoundFactory.MemberAccess(
+                                BindThisExpressionInternal(),
+                                field,
+                                field.type
+                            ),
+                            initializer
+                        )
+                    )
+                );
+            }
+        }
+
+        return boundAssignmentsBuilder.ToImmutable();
     }
 
     private MethodSymbol BindMethodDeclaration(MethodDeclarationSyntax method, string name = null) {
@@ -541,6 +570,25 @@ internal sealed class Binder {
         return method;
     }
 
+    private void PreBindTypeDeclaration(TypeDeclarationSyntax @type) {
+        if (@type is StructDeclarationSyntax s) {
+            _scope.TryDeclareType(
+                new StructSymbol(ImmutableArray<ParameterSymbol>.Empty, ImmutableArray<Symbol>.Empty, s)
+            );
+        } else if (@type is ClassDeclarationSyntax c) {
+            _scope.TryDeclareType(
+                new ClassSymbol(
+                    ImmutableArray<ParameterSymbol>.Empty,
+                    ImmutableArray<Symbol>.Empty,
+                    ImmutableArray<(FieldSymbol, VariableDeclarationStatementSyntax)>.Empty,
+                    c
+                )
+            );
+        } else {
+            throw new BelteInternalException($"BindTypeDeclaration: unexpected type '{@type.identifier.text}'");
+        }
+    }
+
     private TypeSymbol BindTypeDeclaration(TypeDeclarationSyntax @type) {
         if (@type is StructDeclarationSyntax s)
             return BindStructDeclaration(s);
@@ -552,6 +600,7 @@ internal sealed class Binder {
 
     private StructSymbol BindStructDeclaration(StructDeclarationSyntax @struct) {
         var builder = ImmutableList.CreateBuilder<Symbol>();
+        var oldStruct = _scope.LookupSymbol<StructSymbol>(@struct.identifier.text);
         _scope = new BoundScope(_scope);
 
         foreach (var fieldDeclaration in @struct.members.OfType<FieldDeclarationSyntax>()) {
@@ -567,7 +616,7 @@ internal sealed class Binder {
             @struct
         );
 
-        if (!_scope.TryDeclareType(newStruct))
+        if (!_scope.TryReplaceSymbol(oldStruct, newStruct))
             diagnostics.Push(Error.TypeAlreadyDeclared(@struct.identifier.location, @struct.identifier.text, false));
         else
             diagnostics.Push(Error.CannotUseStruct(@struct.keyword.location));
@@ -578,6 +627,7 @@ internal sealed class Binder {
     private ClassSymbol BindClassDeclaration(ClassDeclarationSyntax @class) {
         var builder = ImmutableList.CreateBuilder<Symbol>();
         var templateBuilder = ImmutableList.CreateBuilder<ParameterSymbol>();
+        var oldClass = _scope.LookupSymbol<ClassSymbol>(@class.identifier.text);
         _scope = new BoundScope(_scope);
 
         if (@class.templateParameterList != null) {
@@ -589,30 +639,15 @@ internal sealed class Binder {
             }
         }
 
-        var defaultFieldAssignmentsBuilder = ImmutableArray.CreateBuilder<BoundStatement>();
+        var defaultFieldAssignmentsBuilder =
+            ImmutableArray.CreateBuilder<(FieldSymbol, VariableDeclarationStatementSyntax)>();
 
         foreach (var fieldDeclaration in @class.members.OfType<FieldDeclarationSyntax>()) {
             var field = BindFieldDeclaration(fieldDeclaration);
             builder.Add(field);
 
-            var initializer = (BindVariableDeclarationStatement(
-                fieldDeclaration.declaration, false
-            ) as BoundVariableDeclarationStatement)?.initializer;
-
-            if (initializer != null) {
-                defaultFieldAssignmentsBuilder.Add(
-                    BoundFactory.Statement(
-                        BoundFactory.Assignment(
-                            BoundFactory.MemberAccess(
-                                BindThisExpressionInternal(),
-                                field,
-                                field.type
-                            ),
-                            initializer
-                        )
-                    )
-                );
-            }
+            if (fieldDeclaration.declaration.initializer != null)
+                defaultFieldAssignmentsBuilder.Add((field, fieldDeclaration.declaration));
         }
 
         var defaultFieldAssignments = defaultFieldAssignmentsBuilder.ToImmutable();
@@ -632,15 +667,6 @@ internal sealed class Binder {
             );
 
             builder.Add(defaultConstructor);
-            _methodBodies.Add((
-                defaultConstructor,
-                Lowerer.Lower(
-                    defaultConstructor,
-                    new BoundBlockStatement(defaultFieldAssignments),
-                    _options.isTranspiling
-                )
-            ));
-
             // This should never fail
             _scope.TryDeclareMethod(defaultConstructor);
         }
@@ -668,7 +694,7 @@ internal sealed class Binder {
             @class
         );
 
-        if (!_scope.TryDeclareType(newClass))
+        if (!_scope.TryReplaceSymbol(oldClass, newClass))
             diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
 
         return newClass;
@@ -873,11 +899,14 @@ internal sealed class Binder {
             case NamedTypeSymbol type when allowTypes:
                 reference = type;
                 break;
+            case NamedTypeSymbol type when !allowTypes:
+                diagnostics.Push(Error.NotAVariable(identifier.location, name, false));
+                break;
             case null:
                 diagnostics.Push(Error.UndefinedSymbol(identifier.location, name));
                 break;
             default:
-                diagnostics.Push(Error.NotAVariable(identifier.location, name));
+                diagnostics.Push(Error.NotAVariable(identifier.location, name, true));
                 break;
         }
 
@@ -1497,8 +1526,10 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
+        var isNullCondition = expression.op.kind == SyntaxKind.QuestionPeriodToken;
+
         if (operand.type.isNullable && operand is BoundVariableExpression ve &&
-            !_scope.GetAssignedVariables().Contains(ve.variable)) {
+            !_scope.GetAssignedVariables().Contains(ve.variable) && !isNullCondition) {
             diagnostics.Push(Warning.NullDeference(expression.op.location));
         }
 
@@ -1513,7 +1544,7 @@ internal sealed class Binder {
             operand,
             symbol,
             BoundType.CopyWith(boundType, isConstantReference: false, isReference: true),
-            expression.op.kind == SyntaxKind.QuestionPeriodToken
+            isNullCondition
         );
     }
 
@@ -1600,9 +1631,12 @@ internal sealed class Binder {
     private BoundExpression BindIndexExpression(IndexExpressionSyntax expression) {
         var boundExpression = BindExpression(expression.operand);
 
+        if (boundExpression is BoundErrorExpression)
+            return boundExpression;
+
         if (boundExpression.type.dimensions > 0) {
             var index = BindCast(
-                expression.index.location, BindExpression(expression.index), new BoundType(TypeSymbol.Int)
+                expression.index.location, BindExpression(expression.index), BoundType.NullableInt
             );
 
             return new BoundIndexExpression(

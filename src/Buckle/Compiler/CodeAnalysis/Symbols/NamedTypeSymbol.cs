@@ -15,7 +15,7 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
         ImmutableArray<Symbol> symbols,
         TypeDeclarationSyntax declaration)
         : base(declaration.identifier.text) {
-        this.members = symbols;
+        members = symbols;
         this.declaration = declaration;
         this.templateParameters = templateParameters;
 
@@ -25,11 +25,11 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
 
     public override SymbolKind kind => SymbolKind.Type;
 
-    public ImmutableArray<Symbol> members { get; }
+    public ImmutableArray<Symbol> members { get; private set; }
 
     public ImmutableArray<MethodSymbol> constructors => GetConstructors();
 
-    internal ImmutableArray<ParameterSymbol> templateParameters { get; }
+    internal ImmutableArray<ParameterSymbol> templateParameters { get; private set; }
 
     internal override int arity => templateParameters.Length;
 
@@ -61,6 +61,13 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
         signature.Append('>');
 
         return signature.ToString();
+    }
+
+    internal void UpdateInternals(
+        ImmutableArray<ParameterSymbol> templateParameters,
+        ImmutableArray<Symbol> symbols) {
+        this.templateParameters = templateParameters;
+        members = symbols;
     }
 
     private ImmutableArray<MethodSymbol> GetConstructors() {
