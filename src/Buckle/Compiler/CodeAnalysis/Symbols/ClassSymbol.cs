@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
-using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -14,7 +14,14 @@ internal sealed class ClassSymbol : NamedTypeSymbol {
     internal ClassSymbol(
         ImmutableArray<ParameterSymbol> templateParameters,
         ImmutableArray<Symbol> symbols,
+        ImmutableArray<BoundStatement> defaultFieldAssignments,
         ClassDeclarationSyntax declaration)
         : base(templateParameters, symbols, declaration) {
+        this.defaultFieldAssignments = defaultFieldAssignments;
     }
+
+    /// <summary>
+    /// Statements that assigns fields with specified initializers. Used in constructors.
+    /// </summary>
+    internal ImmutableArray<BoundStatement> defaultFieldAssignments { get; }
 }

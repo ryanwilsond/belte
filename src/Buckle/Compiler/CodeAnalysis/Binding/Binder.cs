@@ -19,7 +19,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// And convert control of flow into gotos and labels. Dead code is also removed here, as well as other optimizations.
 /// </summary>
 internal sealed class Binder {
-    private readonly BoundType _enclosingType;
+    private readonly MethodSymbol _containingMethod;
     private readonly NamedTypeSymbol _containingType;
     private readonly List<(MethodSymbol method, BoundBlockStatement body)> _methodBodies =
         new List<(MethodSymbol, BoundBlockStatement)>();
@@ -45,7 +45,7 @@ internal sealed class Binder {
     private Binder(CompilationOptions options, BinderFlags flags, BoundScope parent, MethodSymbol method) {
         diagnostics = new BelteDiagnosticQueue();
         _scope = new BoundScope(parent);
-        _enclosingType = method?.type;
+        _containingMethod = method;
         _containingType = method?.containingType;
         _options = options;
         _flags = flags;
@@ -492,7 +492,14 @@ internal sealed class Binder {
 
     private BoundStatement BindMethodBody(BlockStatementSyntax syntax, ImmutableArray<ParameterSymbol> parameters) {
         _peekedLocals = PeekLocals(syntax.statements, parameters);
-        return BindStatement(syntax);
+        var body = BindStatement(syntax) as BoundBlockStatement;
+
+        if (_containingMethod.name == WellKnownMemberNames.InstanceConstructorName &&
+            _containingType is ClassSymbol cs && cs.defaultFieldAssignments.Length > 0) {
+            return BoundFactory.Block(cs.defaultFieldAssignments, body.statements);
+        } else {
+            return body;
+        }
     }
 
     private MethodSymbol BindMethodDeclaration(MethodDeclarationSyntax method, string name = null) {
@@ -582,11 +589,33 @@ internal sealed class Binder {
             }
         }
 
+        var defaultFieldAssignmentsBuilder = ImmutableArray.CreateBuilder<BoundStatement>();
+
         foreach (var fieldDeclaration in @class.members.OfType<FieldDeclarationSyntax>()) {
             var field = BindFieldDeclaration(fieldDeclaration);
             builder.Add(field);
+
+            var initializer = (BindVariableDeclarationStatement(
+                fieldDeclaration.declaration, false
+            ) as BoundVariableDeclarationStatement)?.initializer;
+
+            if (initializer != null) {
+                defaultFieldAssignmentsBuilder.Add(
+                    BoundFactory.Statement(
+                        BoundFactory.Assignment(
+                            BoundFactory.MemberAccess(
+                                BindThisExpressionInternal(),
+                                field,
+                                field.type
+                            ),
+                            initializer
+                        )
+                    )
+                );
+            }
         }
 
+        var defaultFieldAssignments = defaultFieldAssignmentsBuilder.ToImmutable();
         var hasConstructor = false;
 
         foreach (var constructorDeclaration in @class.members.OfType<ConstructorDeclarationSyntax>()) {
@@ -599,11 +628,19 @@ internal sealed class Binder {
             var defaultConstructor = new MethodSymbol(
                 WellKnownMemberNames.InstanceConstructorName,
                 ImmutableArray<ParameterSymbol>.Empty,
-                null
+                BoundType.Void
             );
 
             builder.Add(defaultConstructor);
-            _methodBodies.Add((defaultConstructor, new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty)));
+            _methodBodies.Add((
+                defaultConstructor,
+                Lowerer.Lower(
+                    defaultConstructor,
+                    new BoundBlockStatement(defaultFieldAssignments),
+                    _options.isTranspiling
+                )
+            ));
+
             // This should never fail
             _scope.TryDeclareMethod(defaultConstructor);
         }
@@ -627,6 +664,7 @@ internal sealed class Binder {
         var newClass = new ClassSymbol(
             templateBuilder.ToImmutableArray(),
             builder.ToImmutableArray(),
+            defaultFieldAssignments,
             @class
         );
 
@@ -964,14 +1002,14 @@ internal sealed class Binder {
         var boundExpression = expression.expression is null ? null : BindExpression(expression.expression);
 
         if (_flags.Includes(BinderFlags.Method)) {
-            if (_enclosingType.typeSymbol == TypeSymbol.Void) {
+            if (_containingMethod.type.typeSymbol == TypeSymbol.Void) {
                 if (boundExpression != null)
                     diagnostics.Push(Error.UnexpectedReturnValue(expression.keyword.location));
             } else {
                 if (boundExpression is null)
                     diagnostics.Push(Error.MissingReturnValue(expression.keyword.location));
                 else
-                    boundExpression = BindCast(expression.expression.location, boundExpression, _enclosingType);
+                    boundExpression = BindCast(expression.expression.location, boundExpression, _containingMethod.type);
             }
         } else {
             if (!_options.isScript && boundExpression != null)
@@ -1128,7 +1166,9 @@ internal sealed class Binder {
         return new BoundBlockStatement(statements.ToImmutable());
     }
 
-    private BoundStatement BindVariableDeclarationStatement(VariableDeclarationStatementSyntax expression) {
+    private BoundStatement BindVariableDeclarationStatement(
+        VariableDeclarationStatementSyntax expression,
+        bool declare = true) {
         var currentCount = diagnostics.Errors().Count;
         var type = BindType(expression.type);
 
@@ -1206,7 +1246,9 @@ internal sealed class Binder {
                 return null;
 
             // References cant have implicit casts
-            var variable = BindVariable(expression.identifier, variableType, initializer.constantValue);
+            var variable = declare
+                ? BindVariable(expression.identifier, variableType, initializer.constantValue)
+                : null;
 
             return new BoundVariableDeclarationStatement(variable, initializer);
         } else if (type.dimensions > 0 ||
@@ -1254,13 +1296,15 @@ internal sealed class Binder {
             var itemType = variableType.BaseType();
 
             var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
-            var variable = BindVariable(expression.identifier,
-                BoundType.CopyWith(
-                    type, typeSymbol: itemType.typeSymbol, isExplicitReference: false,
-                    isLiteral: false, dimensions: variableType.dimensions
-                ),
-                castedInitializer.constantValue
-            );
+            var variable = declare
+                ? BindVariable(expression.identifier,
+                    BoundType.CopyWith(
+                        type, typeSymbol: itemType.typeSymbol, isExplicitReference: false,
+                        isLiteral: false, dimensions: variableType.dimensions
+                    ),
+                    castedInitializer.constantValue
+                  )
+                : null;
 
             if (diagnostics.Errors().Count > currentCount)
                 return null;
@@ -1296,7 +1340,9 @@ internal sealed class Binder {
             }
 
             var castedInitializer = BindCast(expression.initializer?.location, initializer, variableType);
-            var variable = BindVariable(expression.identifier, variableType, castedInitializer.constantValue);
+            var variable = declare
+                ? BindVariable(expression.identifier, variableType, castedInitializer.constantValue)
+                : null;
 
             if (initializer.constantValue is null || initializer.constantValue.value != null)
                 _scope.NoteAssignment(variable);
@@ -1386,6 +1432,10 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
+        return BindThisExpressionInternal();
+    }
+
+    private BoundExpression BindThisExpressionInternal() {
         var type = new BoundType(_containingType, isReference: true);
         return new BoundThisExpression(type);
     }
