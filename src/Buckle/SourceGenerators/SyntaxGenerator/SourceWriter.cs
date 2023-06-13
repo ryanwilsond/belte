@@ -583,8 +583,9 @@ internal sealed class SourceWriter {
             var nodeFields = GetNodeOrNodeListFields(abstractNode);
 
             foreach (var field in nodeFields) {
+                var fieldType = GetRedFieldType(field);
                 WriteLine();
-                WriteLine($"public abstract {field.Type} {field.Name} {{ get; }}");
+                WriteLine($"public abstract {fieldType} {field.Name} {{ get; }}");
             }
 
             CloseBlock();
@@ -611,9 +612,10 @@ internal sealed class SourceWriter {
 
             for (int i = 0, n = nodeFields.Count; i < n; i++) {
                 var field = nodeFields[i];
-                Write($"public {OverrideModifier(field)}{field.Type} {field.Name}");
 
                 if (field.Type == "SyntaxToken") {
+                    Write($"public {OverrideModifier(field)}{GetRedFieldType(field)} {field.Name}");
+
                     if (IsOptional(field)) {
                         OpenBlock();
                         Write("get");
@@ -631,7 +633,21 @@ internal sealed class SourceWriter {
                             $" {GetChildPosition(i)}, {GetChildIndex(i)});"
                         );
                     }
+                } else if (field.Type == "SyntaxList<SyntaxToken>") {
+                    Write($"public {OverrideModifier(field)}SyntaxTokenList {field.Name}");
+                    OpenBlock();
+                    Write("get");
+                    OpenBlock();
+                    WriteLine($"var slot = this.green.GetSlot({i});");
+                    WriteLine(
+                        $"return slot != null ? new SyntaxTokenList(this, slot, {GetChildPosition(i)}, " +
+                        $"{GetChildIndex(i)}) : null;"
+                    );
+                    CloseBlock();
+                    CloseBlock();
                 } else {
+                    Write($"public {OverrideModifier(field)}{GetRedFieldType(field)} {field.Name}");
+
                     if (IsNodeList(field.Type)) {
                         WriteLine($" => new {field.Type}(GetRed(ref this._{field.Name}, {i}));");
                     } else if (IsSeparatedNodeList(field.Type)) {
@@ -719,6 +735,9 @@ internal sealed class SourceWriter {
         }
     }
 
+    private string GetRedFieldType(Field field)
+        => field.Type == "SyntaxList<SyntaxToken>" ? "SyntaxTokenList" : field.Type;
+
     private List<Field> GetNodeOrNodeListFields(TreeType node)
         => node is AbstractNode an
             ? an.Fields.Where(n => IsNodeOrNodeList(n.Type)).ToList()
@@ -748,8 +767,10 @@ internal sealed class SourceWriter {
     }
 
     private void WriteRedFactoryMethods(Node node) {
-        var allArguments = CommaJoin(node.Fields.Select(f => $"{f.Type} {f.Name}"));
-        var requiredArguments = CommaJoin(node.Fields.Where(f => !IsOptional(f)).Select(f => $"{f.Type} {f.Name}"));
+        var allArguments = CommaJoin(node.Fields.Select(f => $"{GetRedFieldType(f)} {f.Name}"));
+        var requiredArguments = CommaJoin(
+            node.Fields.Where(f => !IsOptional(f)).Select(f => $"{GetRedFieldType(f)} {f.Name}")
+        );
         var allParameters = CommaJoin(node.Fields.Select(f =>
             IsNodeList(f.Type)
                 ? $"{f.Name}.node.ToGreenList<Syntax.InternalSyntax.{GetElementType(f.Type)}>()" :

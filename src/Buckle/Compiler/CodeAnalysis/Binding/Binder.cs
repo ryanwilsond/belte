@@ -1092,6 +1092,7 @@ internal sealed class Binder {
                 var innerName = ConstructInnerName();
 
                 var declaration = SyntaxFactory.MethodDeclaration(
+                    SyntaxTokenList.Empty,
                     fd.returnType,
                     fd.identifier,
                     fd.parameterList,

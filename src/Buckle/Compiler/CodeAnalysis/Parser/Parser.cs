@@ -624,18 +624,16 @@ internal sealed partial class Parser {
                 return ParseClassDeclaration(modifiers);
             default:
                 if (allowGlobalStatements) {
-                    var statement = ParseGlobalStatement();
-
                     if (modifiers.Any()) {
                         var builder = new SyntaxListBuilder<SyntaxToken>(modifiers.Count);
 
                         foreach (var modifier in modifiers)
                             builder.Add(AddDiagnostic(modifier, Error.UnexpectedToken(modifier.kind)));
 
-                        statement = AddLeadingSkippedSyntax(statement, builder.ToListNode());
+                        modifiers = builder.ToList();
                     }
 
-                    return statement;
+                    return ParseGlobalStatement(modifiers);
                 } else {
                     return ParseFieldDeclaration(modifiers);
                 }
@@ -803,9 +801,9 @@ internal sealed partial class Parser {
         return SyntaxFactory.FieldDeclaration(modifiers, declaration);
     }
 
-    private MemberSyntax ParseGlobalStatement() {
+    private MemberSyntax ParseGlobalStatement(SyntaxList<SyntaxToken> modifiers) {
         var statement = ParseStatement();
-        return SyntaxFactory.GlobalStatement(statement);
+        return SyntaxFactory.GlobalStatement(modifiers, statement);
     }
 
     private StatementSyntax ParseStatement() {

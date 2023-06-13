@@ -81,7 +81,7 @@ internal class SyntaxTokenListBuilder {
                     return new SyntaxTokenList(null, InternalSyntax.SyntaxList.List(_nodes, _count), 0, 0);
             }
         } else {
-            return null;
+            return default(SyntaxTokenList);
         }
     }
 

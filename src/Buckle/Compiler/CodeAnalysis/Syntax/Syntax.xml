@@ -9,7 +9,6 @@
   </AbstractNode>
   <AbstractNode Name="StatementSyntax" Base="SyntaxNode"/>
   <AbstractNode Name="TypeDeclarationSyntax" Base="MemberSyntax">
-    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="keyword" Type="SyntaxToken"/>
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
@@ -29,7 +28,6 @@
     </Field>
   </AbstractNode>
   <AbstractNode Name="BaseMethodDeclarationSyntax" Base="MemberSyntax">
-    <!-- <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/> -->
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>
@@ -203,6 +201,7 @@
   </Node>
   <Node Name="GlobalStatementSyntax" Base="MemberSyntax">
     <Kind Name="GlobalStatement"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="statement" Type="StatementSyntax"/>
   </Node>
   <Node Name="MethodDeclarationSyntax" Base="BaseMethodDeclarationSyntax">

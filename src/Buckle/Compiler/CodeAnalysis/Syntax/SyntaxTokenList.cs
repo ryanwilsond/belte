@@ -12,6 +12,8 @@ public sealed partial class SyntaxTokenList : IReadOnlyList<SyntaxToken> {
     private readonly SyntaxNode _parent;
     private readonly int _index;
 
+    internal static SyntaxTokenList Empty => new SyntaxTokenListBuilder(0).ToList();
+
     /// <summary>
     /// Creates a <see cref="SyntaxTokenList" /> from an underlying <see cref="GreenNode" />.
     /// </summary>
