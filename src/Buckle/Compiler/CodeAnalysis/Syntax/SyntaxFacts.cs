@@ -185,6 +185,8 @@ internal static class SyntaxFacts {
                 return SyntaxKind.NewKeyword;
             case "this":
                 return SyntaxKind.ThisKeyword;
+            case "static":
+                return SyntaxKind.StaticKeyword;
             default:
                 return SyntaxKind.IdentifierToken;
         }
@@ -349,6 +351,8 @@ internal static class SyntaxFacts {
                 return "new";
             case SyntaxKind.ThisKeyword:
                 return "this";
+            case SyntaxKind.StaticKeyword:
+                return "static";
             default:
                 return null;
         }

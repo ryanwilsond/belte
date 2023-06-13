@@ -347,10 +347,7 @@ internal sealed class Evaluator {
                             ? new EvaluatorObject()
                             : Copy(EvaluateExpression(returnStatement.expression, abort));
 
-                        _hasValue =
-                            (returnStatement.expression is null || returnStatement.expression is BoundEmptyExpression)
-                                ? false : true;
-
+                        _hasValue = (returnStatement.expression is null or BoundEmptyExpression) ? false : true;
                         hasReturn = true;
 
                         return _lastValue;

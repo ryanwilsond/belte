@@ -4,9 +4,12 @@
   <PredefinedNode Name="SyntaxToken"/>
   <PredefinedNode Name="SyntaxTrivia"/>
   <AbstractNode Name="ExpressionSyntax" Base="SyntaxNode"/>
-  <AbstractNode Name="MemberSyntax" Base="SyntaxNode"/>
+  <AbstractNode Name="MemberSyntax" Base="SyntaxNode">
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;"/>
+  </AbstractNode>
   <AbstractNode Name="StatementSyntax" Base="SyntaxNode"/>
   <AbstractNode Name="TypeDeclarationSyntax" Base="MemberSyntax">
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="keyword" Type="SyntaxToken"/>
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
@@ -26,6 +29,7 @@
     </Field>
   </AbstractNode>
   <AbstractNode Name="BaseMethodDeclarationSyntax" Base="MemberSyntax">
+    <!-- <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/> -->
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>
@@ -167,6 +171,7 @@
   <!-- Members -->
   <Node Name="ClassDeclarationSyntax" Base="TypeDeclarationSyntax">
     <Kind Name="ClassDeclaration"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="keyword" Type="SyntaxToken" Override="True">
       <Kind Name="ClassKeyword"/>
     </Field>
@@ -184,6 +189,7 @@
   </Node>
   <Node Name="ConstructorDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
     <Kind Name="ConstructorDeclaration"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="identifier" Type="SyntaxToken" Override="true">
       <Kind Name="IdentifierToken"/>
     </Field>
@@ -192,6 +198,7 @@
   </Node>
   <Node Name="FieldDeclarationSyntax" Base="MemberSyntax">
     <Kind Name="FieldDeclaration"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="declaration" Type="VariableDeclarationStatementSyntax"/>
   </Node>
   <Node Name="GlobalStatementSyntax" Base="MemberSyntax">
@@ -200,6 +207,7 @@
   </Node>
   <Node Name="MethodDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
     <Kind Name="MethodDeclaration"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="returnType" Type="TypeSyntax"/>
     <Field Name="identifier" Type="SyntaxToken" Override="true">
       <Kind Name="IdentifierToken"/>
@@ -209,6 +217,7 @@
   </Node>
   <Node Name="StructDeclarationSyntax" Base="TypeDeclarationSyntax">
     <Kind Name="StructDeclaration"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="keyword" Type="SyntaxToken" Override="True">
       <Kind Name="StructKeyword"/>
     </Field>

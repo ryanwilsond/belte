@@ -48,6 +48,20 @@ internal partial class SyntaxList : GreenNode {
     }
 
     /// <summary>
+    /// Converts an array of GreenNodes into a <see cref="SyntaxList" />.
+    /// </summary>
+    internal static GreenNode List(GreenNode[] nodes, int count) {
+        var array = new ArrayElement<GreenNode>[count];
+
+        for (int i = 0; i < count; i++) {
+            var node = nodes[i];
+            array[i].Value = node;
+        }
+
+        return List(array);
+    }
+
+    /// <summary>
     /// Creates a <see cref="SyntaxList" /> with exactly two children.
     /// </summary>
     internal static WithTwoChildren List(GreenNode child0, GreenNode child1) {
@@ -117,17 +131,6 @@ internal partial class SyntaxList : GreenNode {
 
     internal virtual void CopyTo(ArrayElement<GreenNode>[] array, int offset) {
         Array.Copy(children, 0, array, offset, children.Length);
-    }
-
-    private static GreenNode List(GreenNode[] nodes, int count) {
-        var array = new ArrayElement<GreenNode>[count];
-
-        for (int i = 0; i < count; i++) {
-            var node = nodes[i];
-            array[i].Value = node;
-        }
-
-        return List(array);
     }
 
     private void InitializeChildren() {
