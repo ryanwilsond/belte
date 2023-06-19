@@ -239,7 +239,6 @@ internal sealed class Evaluator {
         foreach (var member in @class.members) {
             if (member.Key is FieldSymbol or ParameterSymbol) {
                 var variable = member.Key as VariableSymbol;
-
                 // If the symbol is already present it could be outdated and should be replaced
                 // If it isn't outdated no harm in replacing it
                 _classLocalBuffer.Remove(variable);
@@ -473,9 +472,13 @@ internal sealed class Evaluator {
             } while (operand.isReference == true);
         }
 
-        EnterClassScope(operand, node.member is MethodSymbol);
+        var enterScope = node.member is MethodSymbol;
+
+        EnterClassScope(operand, enterScope);
         var result = operand.members[node.member];
-        ExitClassScope();
+
+        // if (enterScope)
+        //     ExitClassScope();
 
         return result;
     }
