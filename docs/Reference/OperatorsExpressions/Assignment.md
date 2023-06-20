@@ -1,3 +1,0 @@
-# Assignment Operator
-
-## Assignment
