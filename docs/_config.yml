@@ -1,8 +1,8 @@
 title: Belte
 email: belteindustries@gmail.com
 author: Ryan Wilson
-baseurl: "" # the subpath of your site, e.g. /blog
-url: https://ryanwilsond.github.io/belte # root address of the site
+baseurl: "/belte" # the subpath of your site, e.g. /blog
+url: https://ryanwilsond.github.io # root address of the site
 github_username: ryanwilsond
 description: > # description of the site (multiple lines allowed)
   Belte is an object-oriented programming language aiming to have the same feel and power of C# and C++, while still being very easy to learn and use effectively.
@@ -50,3 +50,4 @@ plugins:
   - jekyll-feed
   - jekyll-remote-theme
   - jekyll-soopr-seo-tag
+  - jekyll-seo-tag
