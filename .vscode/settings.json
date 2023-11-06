@@ -11,10 +11,10 @@
         80,
         120,
     ],
-    "omnisharp.defaultLaunchSolution": "Belte.sln",
     "omnisharp.disableMSBuildDiagnosticWarning": true,
     "omnisharp.enableEditorConfigSupport": true,
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true,
     "editor.formatOnSave": true,
+    "dotnet.defaultSolution": "Belte.sln",
 }
