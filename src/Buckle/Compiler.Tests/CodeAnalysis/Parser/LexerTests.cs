@@ -13,12 +13,12 @@ namespace Buckle.Tests.CodeAnalysis.Syntax.InternalSyntax;
 public sealed class LexerTests {
     [Fact]
     public void Lexer_Lexes_UnterminatedString() {
-        const string text = "\"test";
-        var tokens = SyntaxTreeExtensions.ParseTokens(text);
+        const string Text = "\"test";
+        var tokens = SyntaxTreeExtensions.ParseTokens(Text);
         Assert.Equal(1, tokens.Count);
         var token = tokens[0];
         Assert.Equal(SyntaxKind.StringLiteralToken, token.kind);
-        Assert.Equal(text, token.text);
+        Assert.Equal(Text, token.text);
         Assert.True(token.containsDiagnostics);
         var diagnostic = (SyntaxDiagnostic)token.GetDiagnostics()[0];
         Assert.Equal(0, diagnostic.offset);

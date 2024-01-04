@@ -95,7 +95,7 @@ internal sealed partial class Blender {
 
             blendedNode = CreateBlendedNode(
                 currentNodeOrToken.AsNode(),
-                (InternalSyntax.SyntaxToken)currentNodeOrToken.AsToken().node
+                (SyntaxToken)currentNodeOrToken.AsToken().node
             );
 
             return true;
@@ -115,12 +115,14 @@ internal sealed partial class Blender {
             if (nodeOrToken.containsDiagnostics ||
                 (nodeOrToken.isToken &&
                     nodeOrToken.AsToken().node.containsSkippedText &&
-                    nodeOrToken.parent.containsDiagnostics))
+                    nodeOrToken.parent.containsDiagnostics)) {
                 return false;
+            }
 
             if ((nodeOrToken.isToken && nodeOrToken.AsToken().isFabricated) ||
-                (nodeOrToken.isNode && IsIncomplete(nodeOrToken.AsNode())))
+                (nodeOrToken.isNode && IsIncomplete(nodeOrToken.AsNode()))) {
                 return false;
+            }
 
             return true;
         }

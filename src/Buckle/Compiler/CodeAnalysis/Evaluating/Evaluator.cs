@@ -264,9 +264,9 @@ internal sealed class Evaluator {
         if (value.members != null)
             return value;
 
-        if (valueValue is EvaluatorObject[]) {
+        if (valueValue is EvaluatorObject[] v) {
             var builder = new List<EvaluatorObject>();
-            var castedValue = (EvaluatorObject[])valueValue;
+            var castedValue = v;
 
             foreach (var item in castedValue)
                 builder.Add(EvaluateCast(item, type.ChildType()));
@@ -459,7 +459,7 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject EvaluateThisExpression(BoundThisExpression node, ValueWrapper<bool> abort) {
+    private EvaluatorObject EvaluateThisExpression(BoundThisExpression _, ValueWrapper<bool> _1) {
         return _enclosingTypes.Peek();
     }
 
@@ -511,12 +511,12 @@ internal sealed class Evaluator {
         return newObject;
     }
 
-    private EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression node, ValueWrapper<bool> abort) {
+    private EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression _, ValueWrapper<bool> _1) {
         // TODO Implement typeof and type types
         return new EvaluatorObject();
     }
 
-    private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node, ValueWrapper<bool> abort) {
+    private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node, ValueWrapper<bool> _1) {
         Dictionary<IVariableSymbol, IEvaluatorObject> referenceScope;
 
         if (node.variable.kind == SymbolKind.GlobalVariable)
@@ -647,7 +647,7 @@ internal sealed class Evaluator {
         return result;
     }
 
-    private EvaluatorObject EvaluateConstantExpression(BoundExpression expression, ValueWrapper<bool> abort) {
+    private EvaluatorObject EvaluateConstantExpression(BoundExpression expression, ValueWrapper<bool> _) {
         return EvaluateCast(EvaluateBoundConstant(expression.constantValue), expression.type);
     }
 
@@ -664,7 +664,7 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject EvaluateVariableExpression(BoundVariableExpression expression, ValueWrapper<bool> abort) {
+    private EvaluatorObject EvaluateVariableExpression(BoundVariableExpression expression, ValueWrapper<bool> _) {
         return new EvaluatorObject(expression.variable);
     }
 
@@ -764,7 +764,6 @@ internal sealed class Evaluator {
 
         var expressionType = expression.type.typeSymbol;
         var leftType = expression.left.type.typeSymbol;
-        var rightType = expression.right.type.typeSymbol;
 
         leftValue = EvaluateValueCast(leftValue, expression.left.type);
         rightValue = EvaluateValueCast(rightValue, expression.right.type);

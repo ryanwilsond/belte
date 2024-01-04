@@ -41,7 +41,7 @@ public sealed partial class SyntaxTokenList : IReadOnlyList<SyntaxToken> {
 
         var builder = new SyntaxTokenListBuilder(tokens.Length);
 
-        for (int i = 0; i < tokens.Length; i++) {
+        for (var i = 0; i < tokens.Length; i++) {
             var node = tokens[i].node;
             builder.Add(node);
         }
@@ -110,7 +110,7 @@ public sealed partial class SyntaxTokenList : IReadOnlyList<SyntaxToken> {
     }
 
     internal void CopyTo(int offset, GreenNode[] array, int arrayOffset, int count) {
-        for (int i = 0; i < count; i++)
+        for (var i = 0; i < count; i++)
             array[arrayOffset + i] = GetGreenNodeAt(offset + i);
     }
 

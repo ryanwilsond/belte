@@ -65,7 +65,7 @@ internal static class ConstantFolding {
         }
 
         if ((BoundConstant.IsNull(leftConstant) || BoundConstant.IsNull(rightConstant)) &&
-            (op.opKind != BoundBinaryOperatorKind.Is && op.opKind != BoundBinaryOperatorKind.Isnt)) {
+            op.opKind != BoundBinaryOperatorKind.Is && op.opKind != BoundBinaryOperatorKind.Isnt) {
             return new BoundConstant(null);
         }
 
@@ -75,7 +75,6 @@ internal static class ConstantFolding {
         var leftValue = leftConstant.value;
         var rightValue = rightConstant.value;
         var leftType = op.leftType.typeSymbol;
-        var rightType = op.rightType.typeSymbol;
 
         leftValue = CastUtilities.Cast(leftValue, op.leftType);
         rightValue = CastUtilities.Cast(rightValue, op.rightType);
@@ -188,8 +187,6 @@ internal static class ConstantFolding {
 
         if (value is null)
             return new BoundConstant(null);
-
-        value = CastUtilities.Cast(value, op.operandType);
 
         switch (op.opKind) {
             case BoundUnaryOperatorKind.NumericalIdentity:

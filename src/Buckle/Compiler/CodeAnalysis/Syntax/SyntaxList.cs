@@ -18,7 +18,7 @@ public partial class SyntaxList : SyntaxNode {
     internal override SyntaxTree syntaxTree => parent.syntaxTree;
 
     internal override SyntaxNode GetNodeSlot(int index) {
-        return GetRedElement(ref _children[index].Value, index);
+        return GetRedElement(ref _children[index].value, index);
     }
 
     internal override SyntaxNode GetCachedSlot(int index) {

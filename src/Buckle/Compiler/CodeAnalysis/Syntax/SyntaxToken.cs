@@ -119,13 +119,13 @@ public sealed class SyntaxToken {
                 return null;
 
             var leading = node.GetLeadingTrivia();
-            int index = 0;
+            var index = 0;
 
             if (leading != null)
                 index = leading.isList ? leading.slotCount : 1;
 
             var trailingGreen = node.GetTrailingTrivia();
-            int trailingPosition = position + fullWidth;
+            var trailingPosition = position + fullWidth;
 
             if (trailingGreen != null)
                 trailingPosition -= trailingGreen.fullWidth;

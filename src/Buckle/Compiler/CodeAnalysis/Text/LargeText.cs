@@ -9,7 +9,7 @@ namespace Buckle.CodeAnalysis.Text;
 /// Implementation of <see cref="SourceText" /> that is optimized for large sources.
 /// </summary>
 internal sealed class LargeText : SourceText {
-    internal const int ChunkSize = SourceText.LargeObjectHeapLimitInChars;
+    internal const int ChunkSize = LargeObjectHeapLimitInChars;
 
     private readonly ImmutableArray<char[]> _chunks;
     private readonly int[] _chunkStartOffsets;

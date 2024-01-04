@@ -15,7 +15,8 @@ namespace Buckle.CodeAnalysis.Display;
 /// Can be multiple lines.
 /// </summary>
 public sealed class DisplayText {
-    private List<DisplayTextSegment> _segments;
+    private readonly List<DisplayTextSegment> _segments;
+
     private bool _writeIndent = true;
 
     public DisplayText() {
@@ -61,7 +62,7 @@ public sealed class DisplayText {
             _writeIndent = false;
 
             for (var i = 0; i < indent; i++)
-                _segments.Add(DisplayTextSegment.CreateIndent());
+                _segments.Add(CreateIndent());
         }
 
         _segments.Add(segment);
@@ -244,7 +245,7 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(brackets));
     }
 
-    private static void DisplayNopStatement(DisplayText text, BoundNopStatement node) {
+    private static void DisplayNopStatement(DisplayText text, BoundNopStatement _) {
         text.Write(CreateKeyword("nop"));
         text.Write(CreateLine());
     }
@@ -447,8 +448,6 @@ public sealed class DisplayText {
     }
 
     private static void DisplayTernaryExpression(DisplayText text, BoundTernaryExpression node) {
-        var precedence = SyntaxFacts.GetTernaryPrecedence(node.op.leftOpKind);
-
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         DisplayNode(text, node.left);
         text.Write(CreateSpace());
@@ -531,12 +530,12 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
     }
 
-    private static void DisplayErrorExpression(DisplayText text, BoundErrorExpression node) {
+    private static void DisplayErrorExpression(DisplayText text, BoundErrorExpression _) {
         // This has no connection to SyntaxKind.QuestionToken, so the string literal is used here
         text.Write(CreateKeyword("?"));
     }
 
-    private static void DisplayEmptyExpression(DisplayText text, BoundEmptyExpression node) { }
+    private static void DisplayEmptyExpression(DisplayText _, BoundEmptyExpression _1) { }
 
     private static void DisplayAssignmentExpression(DisplayText text, BoundAssignmentExpression node) {
         DisplayNode(text, node.left);
@@ -551,8 +550,6 @@ public sealed class DisplayText {
     }
 
     private static void DisplayBinaryExpression(DisplayText text, BoundBinaryExpression node) {
-        var precedence = SyntaxFacts.GetBinaryPrecedence(node.op.kind);
-
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         DisplayNode(text, node.left);
         text.Write(CreateSpace());
@@ -644,8 +641,6 @@ public sealed class DisplayText {
     }
 
     private static void DisplayUnaryExpression(DisplayText text, BoundUnaryExpression node) {
-        var precedence = SyntaxFacts.GetUnaryPrecedence(node.op.kind);
-
         text.Write(CreatePunctuation(node.op.kind));
         DisplayNode(text, node.operand);
     }

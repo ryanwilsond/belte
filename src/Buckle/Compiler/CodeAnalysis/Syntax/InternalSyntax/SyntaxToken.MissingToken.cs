@@ -10,13 +10,13 @@ internal partial class SyntaxToken : BelteSyntaxNode {
     internal class MissingToken : SyntaxToken {
         internal MissingToken(SyntaxKind kind, GreenNode leadingTrivia, GreenNode trailingTrivia)
             : base(kind, leadingTrivia, trailingTrivia) {
-            this.flags |= NodeFlags.IsMissing;
+            this._flags |= NodeFlags.IsMissing;
         }
 
         internal MissingToken(
             SyntaxKind kind, GreenNode leadingTrivia, GreenNode trailingTrivia, Diagnostic[] diagnostics)
             : base(kind, leadingTrivia, trailingTrivia, diagnostics) {
-            this.flags |= NodeFlags.IsMissing;
+            this._flags |= NodeFlags.IsMissing;
         }
 
         internal override string text => string.Empty;

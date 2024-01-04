@@ -69,12 +69,12 @@ internal sealed partial class Blender {
 
     private static TextChangeRange ExtendToAffectedRange(SyntaxNode oldTree, TextChangeRange changeRange) {
         // Increase if needed
-        const int maxLookahead = 1;
+        const int MaxLookahead = 1;
 
         var lastCharIndex = oldTree.fullSpan.length - 1;
         var start = Math.Max(Math.Min(changeRange.span.start, lastCharIndex), 0);
 
-        for (var i = 0; start > 0 && i <= maxLookahead;) {
+        for (var i = 0; start > 0 && i <= MaxLookahead;) {
             var token = oldTree.FindToken(start);
             start = Math.Max(0, token.position - 1);
 

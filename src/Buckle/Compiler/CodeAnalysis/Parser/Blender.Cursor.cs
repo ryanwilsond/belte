@@ -10,7 +10,7 @@ internal sealed partial class Blender {
         internal Cursor() { }
 
         private Cursor(SyntaxNodeOrToken node, int indexIntParent) {
-            this.currentNodeOrToken = node;
+            currentNodeOrToken = node;
             _indexInParent = indexIntParent;
         }
 
@@ -18,9 +18,9 @@ internal sealed partial class Blender {
             return new Cursor(node, 0);
         }
 
-        internal bool isFinished =>
-            currentNodeOrToken.kind == SyntaxKind.None ||
-            currentNodeOrToken.kind == SyntaxKind.EndOfFileToken;
+        internal bool isFinished
+            => currentNodeOrToken.kind == SyntaxKind.None ||
+               currentNodeOrToken.kind == SyntaxKind.EndOfFileToken;
 
         internal Cursor MoveToNextSibling() {
             if (currentNodeOrToken.parent != null) {
@@ -64,11 +64,11 @@ internal sealed partial class Blender {
             var cursor = this;
 
             if (!cursor.isFinished) {
-                for (
-                    var node = cursor.currentNodeOrToken;
+                for (var node = cursor.currentNodeOrToken;
                     node.kind != SyntaxKind.None && !SyntaxFacts.IsToken(node.kind);
-                    node = cursor.currentNodeOrToken)
+                    node = cursor.currentNodeOrToken) {
                     cursor = cursor.MoveToFirstChild();
+                }
             }
 
             return cursor;

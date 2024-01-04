@@ -1,4 +1,3 @@
-
 using System.Threading;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -19,7 +18,7 @@ public abstract class BelteSyntaxNode : SyntaxNode {
 
     private static SyntaxTree ComputeSyntaxTree(BelteSyntaxNode node) {
         ArrayBuilder<BelteSyntaxNode> nodes = null;
-        SyntaxTree tree = null;
+        SyntaxTree tree;
 
         while (true) {
             tree = node._syntaxTree;

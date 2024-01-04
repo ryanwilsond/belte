@@ -5,7 +5,6 @@ using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
-using Shared;
 using Shared.Tests;
 using Xunit;
 using Xunit.Abstractions;
@@ -29,7 +28,7 @@ internal static class Assertions {
 
         var result = compilation.Evaluate(new Dictionary<IVariableSymbol, IEvaluatorObject>(), false);
 
-        if (result.value is double && (Convert.ToDouble(expectedValue)).CompareTo(result.value) == 0)
+        if (result.value is double && Convert.ToDouble(expectedValue).CompareTo(result.value) == 0)
             expectedValue = Convert.ToDouble(expectedValue);
 
         Assert.Empty(result.diagnostics.Errors().ToArray());

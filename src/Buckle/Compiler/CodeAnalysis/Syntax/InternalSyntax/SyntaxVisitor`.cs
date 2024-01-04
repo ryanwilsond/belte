@@ -10,7 +10,7 @@ internal abstract partial class SyntaxVisitor<TResult> {
     /// </summary>
     internal virtual TResult Visit(BelteSyntaxNode node) {
         if (node is null)
-            return default(TResult);
+            return default;
 
         return node.Accept(this);
     }
@@ -33,6 +33,6 @@ internal abstract partial class SyntaxVisitor<TResult> {
     /// The default visit method used if no other visit method is specified. Does nothing.
     /// </summary>
     protected virtual TResult DefaultVisit(BelteSyntaxNode node) {
-        return default(TResult);
+        return default;
     }
 }

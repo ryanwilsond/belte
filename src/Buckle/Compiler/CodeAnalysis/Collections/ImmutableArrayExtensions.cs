@@ -11,7 +11,7 @@ internal static class ImmutableArrayExtensions {
         where K : notnull {
         if (items.Length == 1) {
             var dictionary1 = new Dictionary<K, ImmutableArray<T>>(1, comparer);
-            T value = items[0];
+            var value = items[0];
             dictionary1.Add(keySelector(value), ImmutableArray.Create(value));
             return dictionary1;
         }
@@ -21,7 +21,7 @@ internal static class ImmutableArrayExtensions {
 
         var accumulator = new Dictionary<K, ArrayBuilder<T>>(items.Length, comparer);
 
-        for (int i = 0; i < items.Length; i++) {
+        for (var i = 0; i < items.Length; i++) {
             var item = items[i];
             var key = keySelector(item);
 

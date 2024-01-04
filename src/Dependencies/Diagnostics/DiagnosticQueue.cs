@@ -9,7 +9,7 @@ namespace Diagnostics;
 /// </summary>
 /// <typeparam name="T">The type of <see cref="Diagnostic" /> to store.</typeparam>
 public class DiagnosticQueue<T> where T : Diagnostic {
-    private List<T> _diagnostics;
+    private readonly List<T> _diagnostics;
 
     /// <summary>
     /// Creates an empty <see cref="DiagnosticQueue<T>" /> (no Diagnostics)
@@ -108,7 +108,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
         if (_diagnostics.Count == 0)
             return null;
 
-        var diagnostic = _diagnostics[_diagnostics.Count - 1];
+        var diagnostic = _diagnostics[^1];
         _diagnostics.RemoveAt(_diagnostics.Count - 1);
 
         return diagnostic;

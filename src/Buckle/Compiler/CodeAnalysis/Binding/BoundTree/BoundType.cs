@@ -257,7 +257,7 @@ internal sealed class BoundType : BoundNode {
         if (arity != type.arity)
             return false;
 
-        for (int i = 0; i < templateArguments.Length; i++) {
+        for (var i = 0; i < templateArguments.Length; i++) {
             if (templateArguments[i].constantValue != type.templateArguments[i].constantValue)
                 return false;
         }

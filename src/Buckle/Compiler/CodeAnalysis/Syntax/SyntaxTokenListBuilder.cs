@@ -49,7 +49,7 @@ internal class SyntaxTokenListBuilder {
     public void Add(SyntaxToken[] list, int offset, int length) {
         CheckSpace(length);
 
-        for (int i = 0; i < length; i++)
+        for (var i = 0; i < length; i++)
             _nodes[_count + i] = list[offset + i].node;
 
         _count += length;
@@ -81,7 +81,7 @@ internal class SyntaxTokenListBuilder {
                     return new SyntaxTokenList(null, InternalSyntax.SyntaxList.List(_nodes, _count), 0, 0);
             }
         } else {
-            return default(SyntaxTokenList);
+            return default;
         }
     }
 

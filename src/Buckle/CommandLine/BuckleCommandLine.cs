@@ -129,11 +129,10 @@ public static partial class BuckleCommandLine {
                 .Where(r => r.EndsWith($"Resources.ErrorDescriptions{prefix}.txt"));
 
             if (foundDescriptions.Any()) {
-                using (var stream = assembly.GetManifestResourceStream(foundDescriptions.First()))
-                using (var reader = new StreamReader(stream)) {
-                    allDescriptions = reader.ReadToEnd();
-                    break;
-                }
+                using var stream = assembly.GetManifestResourceStream(foundDescriptions.First());
+                using var reader = new StreamReader(stream);
+                allDescriptions = reader.ReadToEnd();
+                break;
             }
         }
 
@@ -190,9 +189,9 @@ public static partial class BuckleCommandLine {
     private static void ShowHelpDialog() {
         var assembly = Assembly.GetExecutingAssembly();
 
-        using (var stream = assembly.GetManifestResourceStream("CommandLine.Resources.HelpPrompt.txt"))
-        using (var reader = new StreamReader(stream))
-            Console.WriteLine(reader.ReadToEnd().TrimEnd());
+        using var stream = assembly.GetManifestResourceStream("CommandLine.Resources.HelpPrompt.txt");
+        using var reader = new StreamReader(stream);
+        Console.WriteLine(reader.ReadToEnd().TrimEnd());
     }
 
     private static void ShowMachineDialog() {
@@ -203,9 +202,9 @@ public static partial class BuckleCommandLine {
     private static void ShowVersionDialog() {
         var assembly = Assembly.GetExecutingAssembly();
 
-        using (var stream = assembly.GetManifestResourceStream("CommandLine.Resources.Version.txt"))
-        using (var reader = new StreamReader(stream))
-            Console.WriteLine($"Version: Buckle {reader.ReadLine()}");
+        using var stream = assembly.GetManifestResourceStream("CommandLine.Resources.Version.txt");
+        using var reader = new StreamReader(stream);
+        Console.WriteLine($"Version: Buckle {reader.ReadLine()}");
     }
 
     private static void PrettyPrintDiagnostic(BelteDiagnostic diagnostic, ConsoleColor? textColor) {
@@ -379,17 +378,11 @@ public static partial class BuckleCommandLine {
             diagnostic = diagnostics.Pop();
         }
 
-        switch ((DiagnosticSeverity)worst) {
-            case DiagnosticSeverity.Fatal:
-                return FatalExitCode;
-            case DiagnosticSeverity.Error:
-                return ErrorExitCode;
-            case DiagnosticSeverity.Warning:
-            case DiagnosticSeverity.Info:
-            case DiagnosticSeverity.Debug:
-            default:
-                return SuccessExitCode;
-        }
+        return (DiagnosticSeverity)worst switch {
+            DiagnosticSeverity.Fatal => FatalExitCode,
+            DiagnosticSeverity.Error => ErrorExitCode,
+            _ => SuccessExitCode,
+        };
     }
 
     private static int ResolveDiagnostics(Compiler compiler) {
@@ -402,6 +395,7 @@ public static partial class BuckleCommandLine {
     }
 
     private static void ProduceOutputFiles(Compiler compiler) {
+        // TODO Figure out what this is supposed to do. Right now it does nothing.
         if (compiler.state.finishStage == CompilerStage.Finished)
             return;
 
@@ -663,8 +657,9 @@ public static partial class BuckleCommandLine {
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithMultipleFiles());
 
         if ((specifyStage || specifyOut) &&
-            state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute)
+            state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute) {
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithInterpreter());
+        }
 
         if (state.tasks.Length > 1 && state.buildMode == BuildMode.Interpret)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotInterpretWithMultipleFiles());

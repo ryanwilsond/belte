@@ -68,54 +68,54 @@ internal sealed class Cast {
 
         if (from is null) {
             if (fromType.isNullable && !toType.isNullable && includeNullability)
-                return Cast.None;
+                return None;
 
-            return Cast.Identity;
+            return Identity;
         }
 
         if (from != TypeSymbol.Void && to == TypeSymbol.Any)
-            return Cast.Implicit;
+            return Implicit;
         if (from == TypeSymbol.Any && to != TypeSymbol.Void)
-            return Cast.Explicit;
+            return Explicit;
 
         Cast InternalClassify() {
             if (from == to)
-                return Cast.Identity;
+                return Identity;
             if (from == TypeSymbol.Bool || from == TypeSymbol.Int || from == TypeSymbol.Decimal) {
                 if (to == TypeSymbol.String)
-                    return Cast.Explicit;
+                    return Explicit;
             }
 
             if (from == TypeSymbol.String) {
                 if (to == TypeSymbol.Bool || to == TypeSymbol.Int || to == TypeSymbol.Decimal)
-                    return Cast.Explicit;
+                    return Explicit;
             }
 
             if (from == TypeSymbol.Int && to == TypeSymbol.Decimal)
-                return Cast.Implicit;
+                return Implicit;
             if (from == TypeSymbol.Decimal && to == TypeSymbol.Int)
-                return Cast.Explicit;
+                return Explicit;
 
-            return Cast.None;
+            return None;
         }
 
         var cast = InternalClassify();
 
-        if (cast != Cast.None && includeNullability) {
+        if (cast != None && includeNullability) {
             // [NotNull]var -> var : implicit
             // var -> [NotNull]var : explicit
-            if (!fromType.isLiteral && !fromType.isNullable && toType.isNullable && cast != Cast.Explicit)
-                cast = Cast.Implicit;
+            if (!fromType.isLiteral && !fromType.isNullable && toType.isNullable && cast != Explicit)
+                cast = Implicit;
 
             if (fromType.isNullable && !toType.isNullable && !toType.isLiteral)
-                cast = Cast.Explicit;
+                cast = Explicit;
         }
 
         // Special cases that are not allowed
         if ((toType.isReference && toType.isExplicitReference && !fromType.isReference) ||
             (fromType.isReference && fromType.isExplicitReference && !toType.isReference) ||
             fromType.dimensions != toType.dimensions) {
-            cast = Cast.None;
+            cast = None;
         }
 
         return cast;

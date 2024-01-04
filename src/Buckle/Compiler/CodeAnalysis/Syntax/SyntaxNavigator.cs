@@ -13,11 +13,11 @@ internal sealed class SyntaxNavigator {
     /// </summary>
     public static readonly SyntaxNavigator Instance = new SyntaxNavigator();
 
-    private static readonly ObjectPool<Stack<ChildSyntaxList.Reversed.Enumerator>> _childReversedEnumeratorStackPool =
+    private static readonly ObjectPool<Stack<ChildSyntaxList.Reversed.Enumerator>> ChildReversedEnumeratorStackPool =
         new ObjectPool<Stack<ChildSyntaxList.Reversed.Enumerator>>(() =>
             new Stack<ChildSyntaxList.Reversed.Enumerator>(), 10);
 
-    private static readonly ObjectPool<Stack<ChildSyntaxList.Enumerator>> _childEnumeratorStackPool
+    private static readonly ObjectPool<Stack<ChildSyntaxList.Enumerator>> ChildEnumeratorStackPool
         = new ObjectPool<Stack<ChildSyntaxList.Enumerator>>(() => new Stack<ChildSyntaxList.Enumerator>(), 10);
 
     private SyntaxNavigator() { }
@@ -42,7 +42,7 @@ internal sealed class SyntaxNavigator {
 
     private SyntaxToken GetFirstToken(
         SyntaxNode current, Func<SyntaxToken, bool>? predicate, Func<SyntaxTrivia, bool>? stepInto) {
-        var stack = _childEnumeratorStackPool.Allocate();
+        var stack = ChildEnumeratorStackPool.Allocate();
 
         try {
             stack.Push(current.ChildNodesAndTokens().GetEnumerator());
@@ -70,13 +70,13 @@ internal sealed class SyntaxNavigator {
             return null;
         } finally {
             stack.Clear();
-            _childEnumeratorStackPool.Free(stack);
+            ChildEnumeratorStackPool.Free(stack);
         }
     }
 
     private SyntaxToken GetLastToken(
         SyntaxNode current, Func<SyntaxToken, bool> predicate, Func<SyntaxTrivia, bool> stepInto) {
-        var stack = _childReversedEnumeratorStackPool.Allocate();
+        var stack = ChildReversedEnumeratorStackPool.Allocate();
 
         try {
             stack.Push(current.ChildNodesAndTokens().Reverse().GetEnumerator());
@@ -104,7 +104,7 @@ internal sealed class SyntaxNavigator {
             return null;
         } finally {
             stack.Clear();
-            _childReversedEnumeratorStackPool.Free(stack);
+            ChildReversedEnumeratorStackPool.Free(stack);
         }
     }
 

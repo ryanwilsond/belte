@@ -109,7 +109,7 @@ public sealed partial class SyntaxNodeOrTokenList : IReadOnlyCollection<SyntaxNo
     }
 
     internal void CopyTo(int offset, GreenNode[] array, int arrayOffset, int count) {
-        for (int i = 0; i < count; i++)
+        for (var i = 0; i < count; i++)
             array[arrayOffset + i] = this[i + offset].underlyingNode;
     }
 

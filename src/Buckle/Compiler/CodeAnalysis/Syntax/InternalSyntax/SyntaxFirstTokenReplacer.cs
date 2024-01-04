@@ -32,8 +32,7 @@ internal sealed class SyntaxFirstTokenReplacer : SyntaxRewriter {
     internal override BelteSyntaxNode Visit(BelteSyntaxNode node) {
         if (node != null) {
             if (!_foundOldToken) {
-                var token = node as SyntaxToken;
-                if (token != null) {
+                if (node is SyntaxToken) {
                     _foundOldToken = true;
                     return _newToken;
                 }
@@ -54,13 +53,12 @@ internal sealed class SyntaxFirstTokenReplacer : SyntaxRewriter {
         var numDiagnostics = oldDiagnostics.Length;
         var newDiagnostics = new Diagnostic[numDiagnostics];
 
-        for (int i = 0; i < numDiagnostics; i++) {
+        for (var i = 0; i < numDiagnostics; i++) {
             var oldDiagnostic = oldDiagnostics[i];
-            var oldSyntaxDiagnostic = oldDiagnostic as SyntaxDiagnostic;
 
-            newDiagnostics[i] = oldSyntaxDiagnostic is null ?
-                oldDiagnostic :
-                new SyntaxDiagnostic(
+            newDiagnostics[i] = oldDiagnostic is not SyntaxDiagnostic oldSyntaxDiagnostic
+                ? oldDiagnostic
+                : new SyntaxDiagnostic(
                     oldSyntaxDiagnostic,
                     oldSyntaxDiagnostic.offset + diagnosticOffsetDelta,
                     oldSyntaxDiagnostic.width

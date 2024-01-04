@@ -76,7 +76,7 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
         if (candidates.IsEmpty)
             return ImmutableArray<MethodSymbol>.Empty;
 
-        ArrayBuilder<MethodSymbol> constructors = ArrayBuilder<MethodSymbol>.GetInstance();
+        var constructors = ArrayBuilder<MethodSymbol>.GetInstance();
 
         foreach (var candidate in candidates) {
             if (candidate is MethodSymbol method)

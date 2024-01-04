@@ -337,7 +337,7 @@ internal sealed class CSharpEmitter {
         }
     }
 
-    private void EmitNopStatement(IndentedTextWriter indentedTextWriter, BoundNopStatement statement) {
+    private void EmitNopStatement(IndentedTextWriter indentedTextWriter, BoundNopStatement _) {
         indentedTextWriter.WriteLine(";");
     }
 
@@ -415,13 +415,13 @@ internal sealed class CSharpEmitter {
             EmitBody(indentedTextWriter, statement.body);
 
         if (statement.catchBody != null) {
-            using (var catchCurly = new CurlyIndenter(indentedTextWriter, "catch"))
-                EmitBody(indentedTextWriter, statement.catchBody);
+            using var catchCurly = new CurlyIndenter(indentedTextWriter, "catch");
+            EmitBody(indentedTextWriter, statement.catchBody);
         }
 
         if (statement.finallyBody != null) {
-            using (var finallyCurly = new CurlyIndenter(indentedTextWriter, "finally"))
-                EmitBody(indentedTextWriter, statement.finallyBody);
+            using var finallyCurly = new CurlyIndenter(indentedTextWriter, "finally");
+            EmitBody(indentedTextWriter, statement.finallyBody);
         }
     }
 
@@ -443,8 +443,8 @@ internal sealed class CSharpEmitter {
             EmitStatement(indentedTextWriter, statement.then);
 
         if (statement.elseStatement != null) {
-            using (var elseCurly = new CurlyIndenter(indentedTextWriter, "else"))
-                EmitStatement(indentedTextWriter, statement.elseStatement);
+            using var elseCurly = new CurlyIndenter(indentedTextWriter, "else");
+            EmitStatement(indentedTextWriter, statement.elseStatement);
         }
 
         indentedTextWriter.WriteLine();
@@ -485,11 +485,11 @@ internal sealed class CSharpEmitter {
         indentedTextWriter.WriteLine();
     }
 
-    private void EmitBreakStatement(IndentedTextWriter indentedTextWriter, BoundBreakStatement statement) {
+    private void EmitBreakStatement(IndentedTextWriter indentedTextWriter, BoundBreakStatement _) {
         indentedTextWriter.WriteLine("break;");
     }
 
-    private void EmitContinueStatement(IndentedTextWriter indentedTextWriter, BoundContinueStatement statement) {
+    private void EmitContinueStatement(IndentedTextWriter indentedTextWriter, BoundContinueStatement _) {
         indentedTextWriter.WriteLine("continue;");
     }
 
@@ -629,7 +629,7 @@ internal sealed class CSharpEmitter {
         EmitExpression(indentedTextWriter, expression.right);
     }
 
-    private void EmitEmptyExpression(IndentedTextWriter indentedTextWriter, BoundEmptyExpression expression) { }
+    private void EmitEmptyExpression(IndentedTextWriter _, BoundEmptyExpression _1) { }
 
     private void EmitCallExpression(IndentedTextWriter indentedTextWriter, BoundCallExpression expression) {
         string methodName = null;

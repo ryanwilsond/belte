@@ -17,7 +17,7 @@ internal sealed class Interpreter {
     /// each member one by one.
     /// </summary>
     /// <param name="syntaxTree">
-    /// The unparsed <see cref="SyntaxTree" /> containing the <see cref="Text.SourceText" />.
+    /// The unparsed <see cref="SyntaxTree" /> containing the <see cref="SourceText" />.
     /// </param>
     /// <param name="options">Compilation options to pass onto the created compilation scripts.</param>
     /// <param name="variables">And predefined variables.</param>

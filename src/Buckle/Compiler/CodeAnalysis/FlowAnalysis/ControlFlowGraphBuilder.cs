@@ -11,12 +11,12 @@ namespace Buckle.CodeAnalysis.FlowAnalysis;
 /// Builds a <see cref="ControlFlowGraph" /> from BasicBlocks and BasicBlockBranches.
 /// </summary>
 internal sealed partial class ControlFlowGraphBuilder {
-    private Dictionary<BoundStatement, BasicBlock> _blockFromStatement =
+    private readonly Dictionary<BoundStatement, BasicBlock> _blockFromStatement =
         new Dictionary<BoundStatement, BasicBlock>();
-    private Dictionary<BoundLabel, BasicBlock> _blockFromLabel = new Dictionary<BoundLabel, BasicBlock>();
-    private List<ControlFlowBranch> _branches = new List<ControlFlowBranch>();
-    private BasicBlock _start = new BasicBlock(true);
-    private BasicBlock _end = new BasicBlock(false);
+    private readonly Dictionary<BoundLabel, BasicBlock> _blockFromLabel = new Dictionary<BoundLabel, BasicBlock>();
+    private readonly List<ControlFlowBranch> _branches = new List<ControlFlowBranch>();
+    private readonly BasicBlock _start = new BasicBlock(true);
+    private readonly BasicBlock _end = new BasicBlock(false);
 
     internal ControlFlowGraph Build(List<BasicBlock> blocks) {
         var basicBlockBuilder = new BasicBlockBuilder();

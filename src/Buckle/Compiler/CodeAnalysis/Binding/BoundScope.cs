@@ -9,18 +9,19 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A scope of code.
 /// </summary>
 internal sealed class BoundScope {
+    private readonly bool _isBlock;
+
     private List<Symbol> _symbols;
     private List<Symbol> _assignedSymbols;
     private BoundScope _parent;
-    private bool _isBlock;
 
     /// <summary>
     /// Creates a new scope with an optional parent.
     /// </summary>
     /// <param name="parent">Enclosing scope.</param>
     internal BoundScope(BoundScope parent, bool isBlock = false) {
-        this._parent = parent;
-        this._isBlock = isBlock;
+        _parent = parent;
+        _isBlock = isBlock;
     }
 
     internal BoundScope parent {
@@ -192,7 +193,7 @@ internal sealed class BoundScope {
     }
 
     private ImmutableArray<Symbol> LookupOverloadsInternal(
-        string name, bool strict = false, ImmutableArray<Symbol>? _current = null) {
+        string name, bool strict = false, ImmutableArray<Symbol>? current = null) {
         var overloads = ImmutableArray.CreateBuilder<Symbol>();
 
         if (_symbols != null) {
@@ -201,10 +202,10 @@ internal sealed class BoundScope {
                 if (symbol.name != name && (strict || !symbol.name.Contains($">g__{name}")))
                     continue;
 
-                if (_current != null) {
+                if (current != null) {
                     var skip = false;
 
-                    foreach (var cs in _current.Value) {
+                    foreach (var cs in current.Value) {
                         if ((symbol is MethodSymbol fs && cs is MethodSymbol fcs && MethodsMatch(fs, fcs)) ||
                             (symbol is NamedTypeSymbol ts && cs is NamedTypeSymbol tcs && NamedTypesMatch(ts, tcs))) {
                             skip = true;
@@ -224,9 +225,9 @@ internal sealed class BoundScope {
             overloads.AddRange(parent?.LookupOverloadsInternal(
                 name,
                 strict: strict,
-                _current: _current is null
+                current: current is null
                     ? overloads.ToImmutable()
-                    : overloads.ToImmutable().AddRange(_current.Value))
+                    : overloads.ToImmutable().AddRange(current.Value))
             );
         }
 

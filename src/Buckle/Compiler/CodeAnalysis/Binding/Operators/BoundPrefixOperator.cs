@@ -20,7 +20,7 @@ internal sealed class BoundPrefixOperator {
     /// <summary>
     /// All defined possible operators, and their operand type.
     /// </summary>
-    internal static BoundPrefixOperator[] _operators = {
+    internal static BoundPrefixOperator[] Operators = {
         // integer
         new BoundPrefixOperator(SyntaxKind.PlusPlusToken, BoundPrefixOperatorKind.Increment,
             BoundType.Int),
@@ -58,7 +58,7 @@ internal sealed class BoundPrefixOperator {
     /// <param name="operandType">Operand <see cref="BoundType" />.</param>
     /// <returns><see cref="BoundPrefixOperator" /> if an operator exists, otherwise null.</returns>
     internal static BoundPrefixOperator Bind(SyntaxKind kind, BoundType operandType) {
-        foreach (var op in _operators) {
+        foreach (var op in Operators) {
             var operandIsCorrect = op.operandType is null
                 ? true
                 : Cast.Classify(operandType, op.operandType, false).isImplicit;

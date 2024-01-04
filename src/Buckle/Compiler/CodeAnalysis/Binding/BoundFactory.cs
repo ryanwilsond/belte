@@ -47,7 +47,7 @@ internal static partial class BoundFactory {
     internal static BoundBlockStatement Block(params ImmutableArray<BoundStatement>[] blocks) {
         var builder = blocks[0].ToBuilder();
 
-        for (int i = 1; i < blocks.Length; i++)
+        for (var i = 1; i < blocks.Length; i++)
             builder.AddRange(blocks[i]);
 
         return new BoundBlockStatement(builder.ToImmutable());

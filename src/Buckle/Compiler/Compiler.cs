@@ -111,7 +111,7 @@ public sealed class Compiler {
             var compilation = Compilation.Create(_options, syntaxTrees.ToArray());
             diagnostics.Move(compilation.diagnostics);
 
-            if ((diagnostics.Errors().Any()))
+            if (diagnostics.Errors().Any())
                 return;
 
             if (state.noOut)
@@ -187,18 +187,20 @@ public sealed class Compiler {
     private void InternalInterpreterStart(Action<object> wrapper) {
         ValueWrapper<bool> abort = false;
 
-        void ctrlCHandler(object sender, ConsoleCancelEventArgs args) {
+        void CtrlCHandler(object sender, ConsoleCancelEventArgs args) {
             if (state.buildMode != BuildMode.Execute) {
                 abort.Value = true;
                 args.Cancel = true;
             }
         }
 
-        Console.CancelKeyPress += new ConsoleCancelEventHandler(ctrlCHandler);
+        Console.CancelKeyPress += new ConsoleCancelEventHandler(CtrlCHandler);
 
         var wrapperReference = new ParameterizedThreadStart(wrapper);
-        var wrapperThread = new Thread(wrapperReference);
-        wrapperThread.Name = "Compiler.InternalInterpreterStart";
+        var wrapperThread = new Thread(wrapperReference) {
+            Name = "Compiler.InternalInterpreterStart"
+        };
+
         wrapperThread.Start(abort);
 
         while (wrapperThread.IsAlive)

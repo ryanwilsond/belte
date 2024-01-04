@@ -24,11 +24,15 @@ internal sealed class Binder {
     private readonly List<(MethodSymbol method, BoundBlockStatement body)> _methodBodies =
         new List<(MethodSymbol, BoundBlockStatement)>();
     private readonly CompilationOptions _options;
+    private readonly OverloadResolution _overloadResolution;
+    private readonly Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> _loopStack = new Stack<(BoundLabel, BoundLabel)>();
+    private readonly Stack<List<string>> _localLocals = new Stack<List<string>>();
+    private readonly List<string> _resolvedLocals = new List<string>();
+    private readonly Dictionary<string, LocalFunctionStatementSyntax> _unresolvedLocals =
+        new Dictionary<string, LocalFunctionStatementSyntax>();
 
     private BinderFlags _flags;
-    private OverloadResolution _overloadResolution;
     private BoundScope _scope;
-    private Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> _loopStack = new Stack<(BoundLabel, BoundLabel)>();
     private int _labelCount;
     private ImmutableArray<string> _peekedLocals = ImmutableArray<string>.Empty;
     private int _checkPeekedLocals = 0;
@@ -36,10 +40,6 @@ internal sealed class Binder {
     private Stack<HashSet<VariableSymbol>> _trackedSymbols = new Stack<HashSet<VariableSymbol>>();
     private Stack<HashSet<VariableSymbol>> _trackedDeclarations = new Stack<HashSet<VariableSymbol>>();
     private Stack<string> _innerPrefix = new Stack<string>();
-    private Stack<List<string>> _localLocals = new Stack<List<string>>();
-    private List<string> _resolvedLocals = new List<string>();
-    private Dictionary<string, LocalFunctionStatementSyntax> _unresolvedLocals =
-        new Dictionary<string, LocalFunctionStatementSyntax>();
     private string _shadowingVariable;
 
     private Binder(CompilationOptions options, BinderFlags flags, BoundScope parent, MethodSymbol method) {
@@ -414,24 +414,16 @@ internal sealed class Binder {
     }
 
     private TypeSymbol LookupPrimitive(string name) {
-        switch (name) {
-            case "any":
-                return TypeSymbol.Any;
-            case "bool":
-                return TypeSymbol.Bool;
-            case "int":
-                return TypeSymbol.Int;
-            case "decimal":
-                return TypeSymbol.Decimal;
-            case "string":
-                return TypeSymbol.String;
-            case "void":
-                return TypeSymbol.Void;
-            case "type":
-                return TypeSymbol.Type;
-            default:
-                return null;
-        }
+        return name switch {
+            "any" => TypeSymbol.Any,
+            "bool" => TypeSymbol.Bool,
+            "int" => TypeSymbol.Int,
+            "decimal" => TypeSymbol.Decimal,
+            "string" => TypeSymbol.String,
+            "void" => TypeSymbol.Void,
+            "type" => TypeSymbol.Type,
+            _ => null,
+        };
     }
 
     private ImmutableArray<Symbol> LookupTypes(string name, bool strict = false) {
@@ -492,12 +484,12 @@ internal sealed class Binder {
             _peekedLocals = PeekLocals(syntax.statements, parameters);
             body = BindStatement(syntax) as BoundBlockStatement;
         } else {
-            body = BoundFactory.Block();
+            body = Block();
         }
 
         if (_containingMethod.name == WellKnownMemberNames.InstanceConstructorName &&
             _containingType is ClassSymbol cs && cs.defaultFieldAssignments.Length > 0) {
-            return BoundFactory.Block(BindDefaultFieldAssignments(cs.defaultFieldAssignments), body.statements);
+            return Block(BindDefaultFieldAssignments(cs.defaultFieldAssignments), body.statements);
         } else {
             return body;
         }
@@ -514,9 +506,9 @@ internal sealed class Binder {
 
             if (initializer != null) {
                 boundAssignmentsBuilder.Add(
-                    BoundFactory.Statement(
-                        BoundFactory.Assignment(
-                            BoundFactory.MemberAccess(
+                    Statement(
+                        Assignment(
+                            MemberAccess(
                                 BindThisExpressionInternal(),
                                 field,
                                 field.type
@@ -705,7 +697,7 @@ internal sealed class Binder {
         var functionSymbol = (MethodSymbol)_scope.LookupSymbol(ConstructInnerName());
         _innerPrefix.Pop();
 
-        var binder = new Binder(_options, (_flags | BinderFlags.LocalFunction), _scope, functionSymbol) {
+        var binder = new Binder(_options, _flags | BinderFlags.LocalFunction, _scope, functionSymbol) {
             _innerPrefix = new Stack<string>(_innerPrefix.Reverse()),
             _trackedSymbols = _trackedSymbols,
             _trackedDeclarations = _trackedDeclarations
@@ -833,7 +825,7 @@ internal sealed class Binder {
             return null;
         }
 
-        TypeSymbol foundType = TypeSymbol.Error;
+        var foundType = TypeSymbol.Error;
         ImmutableArray<BoundExpression>? arguments = null;
 
         if (!isImplicit) {
@@ -899,7 +891,7 @@ internal sealed class Binder {
             case NamedTypeSymbol type when allowTypes:
                 reference = type;
                 break;
-            case NamedTypeSymbol type when !allowTypes:
+            case NamedTypeSymbol when !allowTypes:
                 diagnostics.Push(Error.NotAVariable(identifier.location, name, false));
                 break;
             case null:
@@ -1651,7 +1643,7 @@ internal sealed class Binder {
     private BoundExpression BindCallExpression(CallExpressionSyntax expression) {
         string name = null;
         BoundExpression operand;
-        ImmutableArray<MethodSymbol> methods = ImmutableArray<MethodSymbol>.Empty;
+        var methods = ImmutableArray<MethodSymbol>.Empty;
 
         if (expression.operand is NameExpressionSyntax ne) {
             operand = new BoundEmptyExpression();
@@ -1696,9 +1688,8 @@ internal sealed class Binder {
                 methods = symbols.Where(s => s is MethodSymbol).Select(s => s as MethodSymbol).ToImmutableArray();
         } else if (expression.operand is MemberAccessExpressionSyntax) {
             operand = BindExpression(expression.operand);
-            var accessOperand = operand as BoundMemberAccessExpression;
 
-            if (accessOperand is null)
+            if (operand is not BoundMemberAccessExpression accessOperand)
                 return new BoundErrorExpression();
 
             name = accessOperand.member.name;
@@ -1747,7 +1738,7 @@ internal sealed class Binder {
         var saved = _flags;
         _flags |= BinderFlags.TemplateArgumentList;
 
-        var result = false;
+        bool result;
 
         if (argumentList is null) {
             arguments = ImmutableArray<(string, BoundExpression)>.Empty;
@@ -1940,7 +1931,7 @@ internal sealed class Binder {
         return new BoundVariableExpression(symbol as VariableSymbol);
     }
 
-    private BoundExpression BindEmptyExpression(EmptyExpressionSyntax expression) {
+    private BoundExpression BindEmptyExpression(EmptyExpressionSyntax _) {
         return new BoundEmptyExpression();
     }
 

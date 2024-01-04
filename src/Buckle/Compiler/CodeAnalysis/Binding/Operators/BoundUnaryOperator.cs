@@ -20,7 +20,7 @@ internal sealed class BoundUnaryOperator {
     /// <summary>
     /// All defined possible operators, and their operand type.
     /// </summary>
-    internal static BoundUnaryOperator[] _operators = {
+    internal static BoundUnaryOperator[] Operators = {
         // integer
         new BoundUnaryOperator(SyntaxKind.PlusToken, BoundUnaryOperatorKind.NumericalIdentity,
             BoundType.Int),
@@ -64,7 +64,7 @@ internal sealed class BoundUnaryOperator {
     /// <param name="operandType">Operand <see cref="BoundType" />.</param>
     /// <returns><see cref="BoundUnaryOperator" /> if an operator exists, otherwise null.</returns>
     internal static BoundUnaryOperator Bind(SyntaxKind kind, BoundType operandType) {
-        foreach (var op in _operators) {
+        foreach (var op in Operators) {
             var operandIsCorrect = op.operandType is null
                 ? true
                 : Cast.Classify(operandType, op.operandType, false).isImplicit;

@@ -10,12 +10,12 @@ internal partial class SyntaxList : GreenNode {
     /// <summary>
     /// Creates an empty <see cref="SyntaxList" />.
     /// </summary>
-    internal SyntaxList() : base(GreenNode.ListKind) { }
+    internal SyntaxList() : base(ListKind) { }
 
     /// <summary>
     /// Creates an empty <see cref="SyntaxList" /> with diagnostics.
     /// </summary>
-    internal SyntaxList(Diagnostic[] diagnostics) : base(GreenNode.ListKind, diagnostics) { }
+    internal SyntaxList(Diagnostic[] diagnostics) : base(ListKind, diagnostics) { }
 
     /// <summary>
     /// Creates a new <see cref="SyntaxList" /> with children.
@@ -53,9 +53,9 @@ internal partial class SyntaxList : GreenNode {
     internal static GreenNode List(GreenNode[] nodes, int count) {
         var array = new ArrayElement<GreenNode>[count];
 
-        for (int i = 0; i < count; i++) {
+        for (var i = 0; i < count; i++) {
             var node = nodes[i];
-            array[i].Value = node;
+            array[i].value = node;
         }
 
         return List(array);
@@ -85,10 +85,9 @@ internal partial class SyntaxList : GreenNode {
         if (right is null)
             return left;
 
-        var leftList = left as SyntaxList;
         var rightList = right as SyntaxList;
 
-        if (leftList != null) {
+        if (left is SyntaxList leftList) {
             if (rightList != null) {
                 var tmp = new ArrayElement<GreenNode>[left.slotCount + right.slotCount];
                 leftList.CopyTo(tmp, 0);
@@ -98,13 +97,13 @@ internal partial class SyntaxList : GreenNode {
             } else {
                 var tmp = new ArrayElement<GreenNode>[left.slotCount + 1];
                 leftList.CopyTo(tmp, 0);
-                tmp[left.slotCount].Value = right;
+                tmp[left.slotCount].value = right;
 
                 return List(tmp);
             }
         } else if (rightList != null) {
             var tmp = new ArrayElement<GreenNode>[rightList.slotCount + 1];
-            tmp[0].Value = left;
+            tmp[0].value = left;
             rightList.CopyTo(tmp, 1);
 
             return List(tmp);
@@ -134,19 +133,19 @@ internal partial class SyntaxList : GreenNode {
     }
 
     private void InitializeChildren() {
-        int n = children.Length;
+        var n = children.Length;
 
         if (n < byte.MaxValue)
             slotCount = (byte)n;
         else
             slotCount = byte.MaxValue;
 
-        for (int i = 0; i < children.Length; i++)
+        for (var i = 0; i < children.Length; i++)
             AdjustFlagsAndWidth(children[i]);
     }
 
     private bool HasNodeTokenPattern() {
-        for (int i = 0; i < slotCount; i++) {
+        for (var i = 0; i < slotCount; i++) {
             if (GetSlot(i).isToken == ((i & 1) == 0))
                 return false;
         }

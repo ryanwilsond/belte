@@ -10,10 +10,10 @@ namespace CommandLine.Tests.Diagnostics;
 /// At least one test per diagnostic (any severity) if testable.
 /// </summary>
 public sealed class DiagnosticTests {
-    private readonly ITestOutputHelper writer;
+    private readonly ITestOutputHelper _writer;
 
     public DiagnosticTests(ITestOutputHelper writer) {
-        this.writer = writer;
+        _writer = writer;
     }
 
     [Fact]
@@ -24,7 +24,7 @@ public sealed class DiagnosticTests {
             missing filename after '-o'
         ";
 
-        AssertDiagnostics(args, diagnostics, writer);
+        AssertDiagnostics(args, diagnostics, _writer);
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public sealed class DiagnosticTests {
             cannot specify '--explain' more than once
         ";
 
-        AssertDiagnostics(args, diagnostics, writer);
+        AssertDiagnostics(args, diagnostics, _writer);
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public sealed class DiagnosticTests {
             missing diagnostic code after '--explain'
         ";
 
-        AssertDiagnostics(args, diagnostics, writer);
+        AssertDiagnostics(args, diagnostics, _writer);
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public sealed class DiagnosticTests {
             missing name after '--modulename' (usage: '--modulename=<name>')
         ";
 
-        AssertDiagnostics(args, diagnostics, writer);
+        AssertDiagnostics(args, diagnostics, _writer);
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class DiagnosticTests {
             missing name after '--ref' (usage: '--ref=<name>')
         ";
 
-        AssertDiagnostics(args, diagnostics, writer);
+        AssertDiagnostics(args, diagnostics, _writer);
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public sealed class DiagnosticTests {
         ";
 
         var fileStream = File.Create(fileName);
-        AssertDiagnostics(args, diagnostics, writer);
+        AssertDiagnostics(args, diagnostics, _writer);
         fileStream.Close();
         File.Delete(fileName);
     }
@@ -94,7 +94,7 @@ public sealed class DiagnosticTests {
             missing severity after '--severity' (usage: '--severity=<severity>')
         ";
 
-        AssertDiagnostics(args, diagnostics, writer);
+        AssertDiagnostics(args, diagnostics, _writer);
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public sealed class DiagnosticTests {
             unrecognized severity 'asdf'
         ";
 
-        AssertDiagnostics(args, diagnostics, writer);
+        AssertDiagnostics(args, diagnostics, _writer);
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public sealed class DiagnosticTests {
             unrecognized command line option '-asdf'; see 'buckle --help'
         ";
 
-        AssertDiagnostics(args, diagnostics, writer);
+        AssertDiagnostics(args, diagnostics, _writer);
     }
 
     [Fact]
@@ -127,7 +127,7 @@ public sealed class DiagnosticTests {
             all arguments are ignored when invoking the repl
         ";
 
-        AssertDiagnostics(args, diagnostics, writer, DiagnosticSeverity.Info);
+        AssertDiagnostics(args, diagnostics, _writer, DiagnosticSeverity.Info);
     }
 
     [Fact]
@@ -138,7 +138,7 @@ public sealed class DiagnosticTests {
             cannot specify '-p', '-s', '-c', or '-t' with .NET integration
         ";
 
-        AssertDiagnostics(args, diagnostics, writer);
+        AssertDiagnostics(args, diagnostics, _writer);
     }
 
     [Fact]
@@ -152,7 +152,7 @@ public sealed class DiagnosticTests {
             cannot specify output file with '-p', '-s', '-c', or '-t' with multiple files
         ";
 
-        AssertDiagnostics(args, diagnostics, writer, DiagnosticSeverity.Fatal, false, fileName);
+        AssertDiagnostics(args, diagnostics, _writer, DiagnosticSeverity.Fatal, false, fileName);
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public sealed class DiagnosticTests {
             cannot specify output path or use '-p', '-s', '-c', or '-t' with interpreter
         ";
 
-        AssertDiagnostics(args, diagnostics, writer);
+        AssertDiagnostics(args, diagnostics, _writer);
     }
 
     [Fact]
@@ -174,7 +174,7 @@ public sealed class DiagnosticTests {
             cannot specify module name without .NET integration
         ";
 
-        AssertDiagnostics(args, diagnostics, writer);
+        AssertDiagnostics(args, diagnostics, _writer);
     }
 
     [Fact]
@@ -185,7 +185,7 @@ public sealed class DiagnosticTests {
             cannot specify references without .NET integration
         ";
 
-        AssertDiagnostics(args, diagnostics, writer);
+        AssertDiagnostics(args, diagnostics, _writer);
     }
 
     [Fact]
@@ -196,7 +196,7 @@ public sealed class DiagnosticTests {
             no input files
         ";
 
-        AssertDiagnostics(args, diagnostics, writer, noInputFiles: true);
+        AssertDiagnostics(args, diagnostics, _writer, noInputFiles: true);
     }
 
     [Fact]
@@ -207,7 +207,7 @@ public sealed class DiagnosticTests {
             BelteTestsAssertDiagnosticCL0017.blt: no such file or directory
         ";
 
-        AssertDiagnostics(args, diagnostics, writer);
+        AssertDiagnostics(args, diagnostics, _writer);
     }
 
     [Fact]
@@ -219,7 +219,7 @@ public sealed class DiagnosticTests {
             unknown file type of input file 'BelteTestsAssertDiagnosticCL0018.ablt'; ignoring
         ";
 
-        AssertDiagnostics(args, diagnostics, writer, DiagnosticSeverity.Info, false, fileName);
+        AssertDiagnostics(args, diagnostics, _writer, DiagnosticSeverity.Info, false, fileName);
     }
 
     [Fact]
@@ -231,7 +231,7 @@ public sealed class DiagnosticTests {
             examples: BU0001, CL0001, BU54, CL012, RE0001, RE6
         ";
 
-        AssertDiagnostics(args, diagnostics, writer);
+        AssertDiagnostics(args, diagnostics, _writer);
     }
 
     [Fact]
@@ -243,7 +243,7 @@ public sealed class DiagnosticTests {
         ";
 
         AssertDiagnostics(
-            args, diagnostics, writer, DiagnosticSeverity.Info, false, "BelteTestsAssertDiagnosticCL0020.exe"
+            args, diagnostics, _writer, DiagnosticSeverity.Info, false, "BelteTestsAssertDiagnosticCL0020.exe"
         );
     }
 
@@ -255,7 +255,7 @@ public sealed class DiagnosticTests {
             'BU9999' is not a used error code
         ";
 
-        AssertDiagnostics(args, diagnostics, writer);
+        AssertDiagnostics(args, diagnostics, _writer);
     }
 
     [Fact]
@@ -266,7 +266,7 @@ public sealed class DiagnosticTests {
             cannot pass multiple files when running as a script
         ";
 
-        AssertDiagnostics(args, diagnostics, writer, DiagnosticSeverity.Fatal, false, "a.blt", "b.blt");
+        AssertDiagnostics(args, diagnostics, _writer, DiagnosticSeverity.Fatal, false, "a.blt", "b.blt");
     }
 
     [Fact]
@@ -277,6 +277,6 @@ public sealed class DiagnosticTests {
             cannot interpret file
         ";
 
-        AssertDiagnostics(args, diagnostics, writer, DiagnosticSeverity.Fatal, true, "a.o");
+        AssertDiagnostics(args, diagnostics, _writer, DiagnosticSeverity.Fatal, true, "a.o");
     }
 }

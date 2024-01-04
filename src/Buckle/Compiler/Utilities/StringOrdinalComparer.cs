@@ -8,7 +8,7 @@ internal sealed class StringOrdinalComparer : IEqualityComparer<string> {
     private StringOrdinalComparer() { }
 
     bool IEqualityComparer<string>.Equals(string? a, string? b) {
-        return StringOrdinalComparer.Equals(a, b);
+        return Equals(a, b);
     }
 
     public static bool Equals(string? a, string? b) {

@@ -12,8 +12,9 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Lowers statements to be simpler and use less language features.
 /// </summary>
 internal sealed class Lowerer : BoundTreeRewriter {
+    private readonly bool _transpilerMode;
+
     private int _labelCount;
-    private bool _transpilerMode;
 
     private Lowerer(bool transpilerMode) {
         _transpilerMode = transpilerMode;

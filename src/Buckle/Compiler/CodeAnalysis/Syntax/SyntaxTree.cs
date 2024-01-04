@@ -163,7 +163,7 @@ public partial class SyntaxTree {
     }
 
     protected T CloneNodeAsRoot<T>(T node) where T : BelteSyntaxNode {
-        return BelteSyntaxNode.CloneNodeAsRoot(node, this);
+        return SyntaxNode.CloneNodeAsRoot(node, this);
     }
 
     private IEnumerable<BelteDiagnostic> EnumerateDiagnostics(GreenNode node, int position) {

@@ -13,15 +13,13 @@ internal partial struct SyntaxTreeDiagnosticEnumerator {
         }
 
         internal void PushNodeOrToken(GreenNode node) {
-            var token = node as Syntax.InternalSyntax.SyntaxToken;
-
-            if (token != null)
+            if (node is InternalSyntax.SyntaxToken token)
                 PushToken(token);
             else
                 Push(node);
         }
 
-        private void PushToken(Syntax.InternalSyntax.SyntaxToken token) {
+        private void PushToken(InternalSyntax.SyntaxToken token) {
             var trailing = token.GetTrailingTrivia();
 
             if (trailing != null)

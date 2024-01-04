@@ -42,13 +42,14 @@ public sealed partial class SyntaxTriviaList {
 
         internal void InitializeFromTrailingTrivia(SyntaxToken token) {
             var leading = token.node.GetLeadingTrivia();
-            int index = 0;
+            var index = 0;
+
             if (leading != null) {
                 index = leading.isList ? leading.slotCount : 1;
             }
 
             var trailingGreen = token.node.GetTrailingTrivia();
-            int trailingPosition = token.position + token.fullWidth;
+            var trailingPosition = token.position + token.fullWidth;
 
             if (trailingGreen != null)
                 trailingPosition -= trailingGreen.fullWidth;
@@ -57,7 +58,8 @@ public sealed partial class SyntaxTriviaList {
         }
 
         public bool MoveNext() {
-            int newIndex = _index + 1;
+            var newIndex = _index + 1;
+
             if (newIndex >= _count) {
                 _current = null;
                 return false;

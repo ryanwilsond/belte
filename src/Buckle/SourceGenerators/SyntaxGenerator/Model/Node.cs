@@ -5,10 +5,10 @@ namespace SyntaxGenerator;
 
 public sealed class Node : TreeType {
     [XmlAttribute]
-    public string Root;
+    public string root;
 
     [XmlElement(ElementName = "Kind", Type = typeof(Kind))]
-    public List<Kind> Kinds = new List<Kind>();
+    public List<Kind> kinds = new List<Kind>();
 
-    public readonly List<Field> Fields = new List<Field>();
+    public readonly List<Field> fields = new List<Field>();
 }

@@ -76,13 +76,13 @@ public abstract partial class Repl {
             EvaluateSubmission(text);
         }
 
-        void ctrlCHandler(object sender, ConsoleCancelEventArgs args) {
+        void CtrlCHandler(object sender, ConsoleCancelEventArgs args) {
             _abortEvaluation = true;
             args.Cancel = true;
             broke = true;
         }
 
-        Console.CancelKeyPress += new ConsoleCancelEventHandler(ctrlCHandler);
+        Console.CancelKeyPress += new ConsoleCancelEventHandler(CtrlCHandler);
 
         while (true) {
             text = EditSubmission();
@@ -95,8 +95,10 @@ public abstract partial class Repl {
                     EvaluateReplCommand(text);
                 } else {
                     var evaluateSubmissionReference = new ThreadStart(EvaluateSubmissionWrapper);
-                    var evaluateSubmissionThread = new Thread(evaluateSubmissionReference);
-                    evaluateSubmissionThread.Name = "Repl.Run.EvaluateSubmissionWrapper";
+                    var evaluateSubmissionThread = new Thread(evaluateSubmissionReference) {
+                        Name = "Repl.Run.EvaluateSubmissionWrapper"
+                    };
+
                     _abortEvaluation = false;
                     broke = false;
                     var startTime = DateTime.Now;
@@ -270,7 +272,7 @@ public abstract partial class Repl {
     }
 
     private void HandleKey(ConsoleKeyInfo key, ObservableCollection<string> document, SubmissionView view) {
-        if (key.Modifiers == default(ConsoleModifiers)) {
+        if (key.Modifiers == default) {
             switch (key.Key) {
                 case ConsoleKey.Enter:
                     HandleEnter(document, view);
@@ -394,20 +396,20 @@ public abstract partial class Repl {
             HandleTyping(document, view, key.KeyChar.ToString());
     }
 
-    private void HandleControlShiftEnter(ObservableCollection<string> document, SubmissionView view) {
+    private void HandleControlShiftEnter(ObservableCollection<string> _, SubmissionView _1) {
         SpecialEscapeSequence();
     }
 
-    private void HandleAltEnter(ObservableCollection<string> document, SubmissionView view) {
+    private void HandleAltEnter(ObservableCollection<string> _, SubmissionView _1) {
         SpecialEscapeSequence();
     }
 
-    private void HandleControlC(ObservableCollection<string> document, SubmissionView view) {
+    private void HandleControlC(ObservableCollection<string> _, SubmissionView _1) {
         if (!_done)
             SpecialEscapeSequence();
         else
             // Normal ctrl + c behavior
-            System.Environment.Exit(1);
+            Environment.Exit(1);
     }
 
     private void HandleShiftTab(ObservableCollection<string> document, SubmissionView view) {
@@ -756,7 +758,7 @@ public abstract partial class Repl {
         view.currentTypingTabbing++;
     }
 
-    private void HandleHome(ObservableCollection<string> document, SubmissionView view) {
+    private void HandleHome(ObservableCollection<string> _, SubmissionView view) {
         view.currentCharacter = 0;
     }
 
@@ -855,7 +857,7 @@ public abstract partial class Repl {
         return 1;
     }
 
-    private void HandleControlEnter(ObservableCollection<string> document, SubmissionView view) {
+    private void HandleControlEnter(ObservableCollection<string> _, SubmissionView _1) {
         _done = true;
     }
 
@@ -874,7 +876,7 @@ public abstract partial class Repl {
         if (text == "{" || text == "(" || text == "[")
             view.currentBlockTabbing.Push((pairs[text.Single()], view.currentTypingTabbing));
 
-        if ((text == "}" || text == ")" || text == "]")) {
+        if (text == "}" || text == ")" || text == "]") {
             var foundPair = false;
 
             if (view.currentBlockTabbing.Count > 0) {
@@ -915,7 +917,7 @@ public abstract partial class Repl {
             view.currentLine++;
     }
 
-    private void HandleUpArrow(ObservableCollection<string> document, SubmissionView view) {
+    private void HandleUpArrow(ObservableCollection<string> _, SubmissionView view) {
         if (view.currentLine > 0)
             view.currentLine--;
     }
@@ -927,7 +929,7 @@ public abstract partial class Repl {
             view.currentCharacter++;
     }
 
-    private void HandleLeftArrow(ObservableCollection<string> document, SubmissionView view) {
+    private void HandleLeftArrow(ObservableCollection<string> _, SubmissionView view) {
         if (view.currentCharacter > 0)
             view.currentCharacter--;
     }
@@ -1013,7 +1015,7 @@ public abstract partial class Repl {
         var command = _metaCommands.SingleOrDefault(mc => mc.name == commandName);
 
         if (command is null) {
-            AddDiagnostic(global::Repl.Diagnostics.Error.UnknownReplCommand(line));
+            AddDiagnostic(Diagnostics.Error.UnknownReplCommand(line));
 
             if (_hasDiagnosticHandle)
                 CallDiagnosticHandle(_handle, "repl");
@@ -1032,7 +1034,7 @@ public abstract partial class Repl {
                     args.Add(parameter.DefaultValue.ToString());
             } else {
                 var parameterNames = string.Join(" ", parameters.Select(p => $"<{p.Name}>"));
-                AddDiagnostic(global::Repl.Diagnostics.Error.WrongArgumentCount(command.name, parameterNames));
+                AddDiagnostic(Diagnostics.Error.WrongArgumentCount(command.name, parameterNames));
 
                 if (_hasDiagnosticHandle)
                     CallDiagnosticHandle(_handle, "repl");

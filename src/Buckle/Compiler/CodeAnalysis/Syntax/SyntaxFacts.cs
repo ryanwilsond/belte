@@ -136,60 +136,34 @@ internal static class SyntaxFacts {
     /// <param name="text">Text representation.</param>
     /// <returns>Keyword kind, defaults to identifer if failed.</returns>
     internal static SyntaxKind GetKeywordType(string text) {
-        switch (text) {
-            case "true":
-                return SyntaxKind.TrueKeyword;
-            case "false":
-                return SyntaxKind.FalseKeyword;
-            case "null":
-                return SyntaxKind.NullKeyword;
-            case "var":
-                return SyntaxKind.VarKeyword;
-            case "const":
-                return SyntaxKind.ConstKeyword;
-            case "ref":
-                return SyntaxKind.RefKeyword;
-            case "if":
-                return SyntaxKind.IfKeyword;
-            case "else":
-                return SyntaxKind.ElseKeyword;
-            case "while":
-                return SyntaxKind.WhileKeyword;
-            case "for":
-                return SyntaxKind.ForKeyword;
-            case "do":
-                return SyntaxKind.DoKeyword;
-            case "break":
-                return SyntaxKind.BreakKeyword;
-            case "continue":
-                return SyntaxKind.ContinueKeyword;
-            case "try":
-                return SyntaxKind.TryKeyword;
-            case "catch":
-                return SyntaxKind.CatchKeyword;
-            case "finally":
-                return SyntaxKind.FinallyKeyword;
-            case "return":
-                return SyntaxKind.ReturnKeyword;
-            case "is":
-                return SyntaxKind.IsKeyword;
-            case "isnt":
-                return SyntaxKind.IsntKeyword;
-            case "typeof":
-                return SyntaxKind.TypeOfKeyword;
-            case "struct":
-                return SyntaxKind.StructKeyword;
-            case "class":
-                return SyntaxKind.ClassKeyword;
-            case "new":
-                return SyntaxKind.NewKeyword;
-            case "this":
-                return SyntaxKind.ThisKeyword;
-            case "static":
-                return SyntaxKind.StaticKeyword;
-            default:
-                return SyntaxKind.IdentifierToken;
-        }
+        return text switch {
+            "true" => SyntaxKind.TrueKeyword,
+            "false" => SyntaxKind.FalseKeyword,
+            "null" => SyntaxKind.NullKeyword,
+            "var" => SyntaxKind.VarKeyword,
+            "const" => SyntaxKind.ConstKeyword,
+            "ref" => SyntaxKind.RefKeyword,
+            "if" => SyntaxKind.IfKeyword,
+            "else" => SyntaxKind.ElseKeyword,
+            "while" => SyntaxKind.WhileKeyword,
+            "for" => SyntaxKind.ForKeyword,
+            "do" => SyntaxKind.DoKeyword,
+            "break" => SyntaxKind.BreakKeyword,
+            "continue" => SyntaxKind.ContinueKeyword,
+            "try" => SyntaxKind.TryKeyword,
+            "catch" => SyntaxKind.CatchKeyword,
+            "finally" => SyntaxKind.FinallyKeyword,
+            "return" => SyntaxKind.ReturnKeyword,
+            "is" => SyntaxKind.IsKeyword,
+            "isnt" => SyntaxKind.IsntKeyword,
+            "typeof" => SyntaxKind.TypeOfKeyword,
+            "struct" => SyntaxKind.StructKeyword,
+            "class" => SyntaxKind.ClassKeyword,
+            "new" => SyntaxKind.NewKeyword,
+            "this" => SyntaxKind.ThisKeyword,
+            "static" => SyntaxKind.StaticKeyword,
+            _ => SyntaxKind.IdentifierToken,
+        };
     }
 
     /// <summary>
@@ -198,164 +172,86 @@ internal static class SyntaxFacts {
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>Text representation, default to null if not text representation exists.</returns>
     internal static string GetText(SyntaxKind type) {
-        switch (type) {
-            case SyntaxKind.PeriodToken:
-                return ".";
-            case SyntaxKind.CommaToken:
-                return ",";
-            case SyntaxKind.PlusToken:
-                return "+";
-            case SyntaxKind.MinusToken:
-                return "-";
-            case SyntaxKind.AsteriskToken:
-                return "*";
-            case SyntaxKind.SlashToken:
-                return "/";
-            case SyntaxKind.OpenParenToken:
-                return "(";
-            case SyntaxKind.CloseParenToken:
-                return ")";
-            case SyntaxKind.EqualsToken:
-                return "=";
-            case SyntaxKind.TildeToken:
-                return "~";
-            case SyntaxKind.CaretToken:
-                return "^";
-            case SyntaxKind.AmpersandToken:
-                return "&";
-            case SyntaxKind.PipeToken:
-                return "|";
-            case SyntaxKind.LessThanLessThanToken:
-                return "<<";
-            case SyntaxKind.GreaterThanGreaterThanToken:
-                return ">>";
-            case SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
-                return ">>>";
-            case SyntaxKind.ExclamationToken:
-                return "!";
-            case SyntaxKind.AmpersandAmpersandToken:
-                return "&&";
-            case SyntaxKind.PipePipeToken:
-                return "||";
-            case SyntaxKind.AsteriskAsteriskToken:
-                return "**";
-            case SyntaxKind.PlusPlusToken:
-                return "++";
-            case SyntaxKind.MinusMinusToken:
-                return "--";
-            case SyntaxKind.OpenBraceToken:
-                return "{";
-            case SyntaxKind.CloseBraceToken:
-                return "}";
-            case SyntaxKind.OpenBracketToken:
-                return "[";
-            case SyntaxKind.CloseBracketToken:
-                return "]";
-            case SyntaxKind.SemicolonToken:
-                return ";";
-            case SyntaxKind.ColonToken:
-                return ":";
-            case SyntaxKind.QuestionToken:
-                return "?";
-            case SyntaxKind.EqualsEqualsToken:
-                return "==";
-            case SyntaxKind.ExclamationEqualsToken:
-                return "!=";
-            case SyntaxKind.LessThanToken:
-                return "<";
-            case SyntaxKind.GreaterThanToken:
-                return ">";
-            case SyntaxKind.PercentToken:
-                return "%";
-            case SyntaxKind.QuestionQuestionToken:
-                return "??";
-            case SyntaxKind.LessThanEqualsToken:
-                return "<=";
-            case SyntaxKind.GreaterThanEqualsToken:
-                return ">=";
-            case SyntaxKind.AmpersandEqualsToken:
-                return "&=";
-            case SyntaxKind.PipeEqualsToken:
-                return "|=";
-            case SyntaxKind.CaretEqualsToken:
-                return "^=";
-            case SyntaxKind.PlusEqualsToken:
-                return "+=";
-            case SyntaxKind.MinusEqualsToken:
-                return "-=";
-            case SyntaxKind.SlashEqualsToken:
-                return "/=";
-            case SyntaxKind.AsteriskEqualsToken:
-                return "*=";
-            case SyntaxKind.AsteriskAsteriskEqualsToken:
-                return "**=";
-            case SyntaxKind.GreaterThanGreaterThanEqualsToken:
-                return ">>=";
-            case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
-                return ">>>=";
-            case SyntaxKind.LessThanLessThanEqualsToken:
-                return "<<=";
-            case SyntaxKind.PercentEqualsToken:
-                return "%=";
-            case SyntaxKind.QuestionQuestionEqualsToken:
-                return "??=";
-            case SyntaxKind.QuestionPeriodToken:
-                return "?.";
-            case SyntaxKind.QuestionOpenBracketToken:
-                return "?[";
-            case SyntaxKind.TrueKeyword:
-                return "true";
-            case SyntaxKind.FalseKeyword:
-                return "false";
-            case SyntaxKind.NullKeyword:
-                return "null";
-            case SyntaxKind.VarKeyword:
-                return "var";
-            case SyntaxKind.ConstKeyword:
-                return "const";
-            case SyntaxKind.RefKeyword:
-                return "ref";
-            case SyntaxKind.IfKeyword:
-                return "if";
-            case SyntaxKind.ElseKeyword:
-                return "else";
-            case SyntaxKind.WhileKeyword:
-                return "while";
-            case SyntaxKind.ForKeyword:
-                return "for";
-            case SyntaxKind.DoKeyword:
-                return "do";
-            case SyntaxKind.BreakKeyword:
-                return "break";
-            case SyntaxKind.ContinueKeyword:
-                return "continue";
-            case SyntaxKind.TryKeyword:
-                return "try";
-            case SyntaxKind.CatchKeyword:
-                return "catch";
-            case SyntaxKind.FinallyKeyword:
-                return "finally";
-            case SyntaxKind.ReturnKeyword:
-                return "return";
-            case SyntaxKind.IsKeyword:
-                return "is";
-            case SyntaxKind.IsntKeyword:
-                return "isnt";
-            case SyntaxKind.TypeOfKeyword:
-                return "typeof";
-            case SyntaxKind.StructKeyword:
-                return "struct";
-            case SyntaxKind.ClassKeyword:
-                return "class";
-            case SyntaxKind.NewKeyword:
-                return "new";
-            case SyntaxKind.ThisKeyword:
-                return "this";
-            case SyntaxKind.StaticKeyword:
-                return "static";
-            default:
-                return null;
-        }
+        return type switch {
+            SyntaxKind.PeriodToken => ".",
+            SyntaxKind.CommaToken => ",",
+            SyntaxKind.PlusToken => "+",
+            SyntaxKind.MinusToken => "-",
+            SyntaxKind.AsteriskToken => "*",
+            SyntaxKind.SlashToken => "/",
+            SyntaxKind.OpenParenToken => "(",
+            SyntaxKind.CloseParenToken => ")",
+            SyntaxKind.EqualsToken => "=",
+            SyntaxKind.TildeToken => "~",
+            SyntaxKind.CaretToken => "^",
+            SyntaxKind.AmpersandToken => "&",
+            SyntaxKind.PipeToken => "|",
+            SyntaxKind.LessThanLessThanToken => "<<",
+            SyntaxKind.GreaterThanGreaterThanToken => ">>",
+            SyntaxKind.GreaterThanGreaterThanGreaterThanToken => ">>>",
+            SyntaxKind.ExclamationToken => "!",
+            SyntaxKind.AmpersandAmpersandToken => "&&",
+            SyntaxKind.PipePipeToken => "||",
+            SyntaxKind.AsteriskAsteriskToken => "**",
+            SyntaxKind.PlusPlusToken => "++",
+            SyntaxKind.MinusMinusToken => "--",
+            SyntaxKind.OpenBraceToken => "{",
+            SyntaxKind.CloseBraceToken => "}",
+            SyntaxKind.OpenBracketToken => "[",
+            SyntaxKind.CloseBracketToken => "]",
+            SyntaxKind.SemicolonToken => ";",
+            SyntaxKind.ColonToken => ":",
+            SyntaxKind.QuestionToken => "?",
+            SyntaxKind.EqualsEqualsToken => "==",
+            SyntaxKind.ExclamationEqualsToken => "!=",
+            SyntaxKind.LessThanToken => "<",
+            SyntaxKind.GreaterThanToken => ">",
+            SyntaxKind.PercentToken => "%",
+            SyntaxKind.QuestionQuestionToken => "??",
+            SyntaxKind.LessThanEqualsToken => "<=",
+            SyntaxKind.GreaterThanEqualsToken => ">=",
+            SyntaxKind.AmpersandEqualsToken => "&=",
+            SyntaxKind.PipeEqualsToken => "|=",
+            SyntaxKind.CaretEqualsToken => "^=",
+            SyntaxKind.PlusEqualsToken => "+=",
+            SyntaxKind.MinusEqualsToken => "-=",
+            SyntaxKind.SlashEqualsToken => "/=",
+            SyntaxKind.AsteriskEqualsToken => "*=",
+            SyntaxKind.AsteriskAsteriskEqualsToken => "**=",
+            SyntaxKind.GreaterThanGreaterThanEqualsToken => ">>=",
+            SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken => ">>>=",
+            SyntaxKind.LessThanLessThanEqualsToken => "<<=",
+            SyntaxKind.PercentEqualsToken => "%=",
+            SyntaxKind.QuestionQuestionEqualsToken => "??=",
+            SyntaxKind.QuestionPeriodToken => "?.",
+            SyntaxKind.QuestionOpenBracketToken => "?[",
+            SyntaxKind.TrueKeyword => "true",
+            SyntaxKind.FalseKeyword => "false",
+            SyntaxKind.NullKeyword => "null",
+            SyntaxKind.VarKeyword => "var",
+            SyntaxKind.ConstKeyword => "const",
+            SyntaxKind.RefKeyword => "ref",
+            SyntaxKind.IfKeyword => "if",
+            SyntaxKind.ElseKeyword => "else",
+            SyntaxKind.WhileKeyword => "while",
+            SyntaxKind.ForKeyword => "for",
+            SyntaxKind.DoKeyword => "do",
+            SyntaxKind.BreakKeyword => "break",
+            SyntaxKind.ContinueKeyword => "continue",
+            SyntaxKind.TryKeyword => "try",
+            SyntaxKind.CatchKeyword => "catch",
+            SyntaxKind.FinallyKeyword => "finally",
+            SyntaxKind.ReturnKeyword => "return",
+            SyntaxKind.IsKeyword => "is",
+            SyntaxKind.IsntKeyword => "isnt",
+            SyntaxKind.TypeOfKeyword => "typeof",
+            SyntaxKind.StructKeyword => "struct",
+            SyntaxKind.ClassKeyword => "class",
+            SyntaxKind.NewKeyword => "new",
+            SyntaxKind.ThisKeyword => "this",
+            SyntaxKind.StaticKeyword => "static",
+            _ => null,
+        };
     }
 
     /// <summary>
@@ -364,36 +260,22 @@ internal static class SyntaxFacts {
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>Binary operator type.</returns>
     internal static SyntaxKind GetBinaryOperatorOfAssignmentOperator(SyntaxKind type) {
-        switch (type) {
-            case SyntaxKind.PlusEqualsToken:
-                return SyntaxKind.PlusToken;
-            case SyntaxKind.MinusEqualsToken:
-                return SyntaxKind.MinusToken;
-            case SyntaxKind.AsteriskEqualsToken:
-                return SyntaxKind.AsteriskToken;
-            case SyntaxKind.SlashEqualsToken:
-                return SyntaxKind.SlashToken;
-            case SyntaxKind.AmpersandEqualsToken:
-                return SyntaxKind.AmpersandToken;
-            case SyntaxKind.PipeEqualsToken:
-                return SyntaxKind.PipeToken;
-            case SyntaxKind.CaretEqualsToken:
-                return SyntaxKind.CaretToken;
-            case SyntaxKind.AsteriskAsteriskEqualsToken:
-                return SyntaxKind.AsteriskAsteriskToken;
-            case SyntaxKind.LessThanLessThanEqualsToken:
-                return SyntaxKind.LessThanLessThanToken;
-            case SyntaxKind.GreaterThanGreaterThanEqualsToken:
-                return SyntaxKind.GreaterThanGreaterThanToken;
-            case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
-                return SyntaxKind.GreaterThanGreaterThanGreaterThanToken;
-            case SyntaxKind.PercentEqualsToken:
-                return SyntaxKind.PercentToken;
-            case SyntaxKind.QuestionQuestionEqualsToken:
-                return SyntaxKind.QuestionQuestionToken;
-            default:
-                throw new BelteInternalException($"GetBinaryOperatorOfAssignmentOperator: unexpected syntax '{type}'");
-        }
+        return type switch {
+            SyntaxKind.PlusEqualsToken => SyntaxKind.PlusToken,
+            SyntaxKind.MinusEqualsToken => SyntaxKind.MinusToken,
+            SyntaxKind.AsteriskEqualsToken => SyntaxKind.AsteriskToken,
+            SyntaxKind.SlashEqualsToken => SyntaxKind.SlashToken,
+            SyntaxKind.AmpersandEqualsToken => SyntaxKind.AmpersandToken,
+            SyntaxKind.PipeEqualsToken => SyntaxKind.PipeToken,
+            SyntaxKind.CaretEqualsToken => SyntaxKind.CaretToken,
+            SyntaxKind.AsteriskAsteriskEqualsToken => SyntaxKind.AsteriskAsteriskToken,
+            SyntaxKind.LessThanLessThanEqualsToken => SyntaxKind.LessThanLessThanToken,
+            SyntaxKind.GreaterThanGreaterThanEqualsToken => SyntaxKind.GreaterThanGreaterThanToken,
+            SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken => SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
+            SyntaxKind.PercentEqualsToken => SyntaxKind.PercentToken,
+            SyntaxKind.QuestionQuestionEqualsToken => SyntaxKind.QuestionQuestionToken,
+            _ => throw new BelteInternalException($"GetBinaryOperatorOfAssignmentOperator: unexpected syntax '{type}'"),
+        };
     }
 
     /// <summary>

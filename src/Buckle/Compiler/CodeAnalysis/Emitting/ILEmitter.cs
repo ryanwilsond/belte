@@ -250,10 +250,9 @@ internal sealed partial class ILEmitter {
                 else
                     indentedTextWriter.WriteLine();
 
-                using (var structCurly = new CurlyIndenter(indentedTextWriter, type.Value.ToString())) {
-                    foreach (var field in type.Value.Fields)
-                        indentedTextWriter.WriteLine(field);
-                }
+                using var structCurly = new CurlyIndenter(indentedTextWriter, type.Value.ToString());
+                foreach (var field in type.Value.Fields)
+                    indentedTextWriter.WriteLine(field);
             }
 
             foreach (var method in _methods) {
@@ -262,10 +261,9 @@ internal sealed partial class ILEmitter {
                 else
                     indentedTextWriter.WriteLine();
 
-                using (var methodCurly = new CurlyIndenter(indentedTextWriter, method.Value.ToString())) {
-                    foreach (var instruction in method.Value.Body.Instructions)
-                        indentedTextWriter.WriteLine(instruction);
-                }
+                using var methodCurly = new CurlyIndenter(indentedTextWriter, method.Value.ToString());
+                foreach (var instruction in method.Value.Body.Instructions)
+                    indentedTextWriter.WriteLine(instruction);
             }
 
             stringWriter.Flush();
@@ -688,19 +686,21 @@ internal sealed partial class ILEmitter {
             statement.variable.type.typeSymbol is not StructSymbol &&
             statement.variable.type.dimensions < 1) {
             iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
-        } else
+        } else {
             preset = false;
+        }
 
         EmitExpression(iLProcessor, statement.initializer);
 
-        if (statement.variable.type.typeSymbol is StructSymbol)
+        if (statement.variable.type.typeSymbol is StructSymbol) {
             iLProcessor.Emit(OpCodes.Stloc_S, variableDefinition);
-        else if (statement.variable.type.isNullable &&
+        } else if (statement.variable.type.isNullable &&
             !BoundConstant.IsNull(statement.initializer.constantValue) &&
             statement.variable.type.dimensions < 1) {
             iLProcessor.Emit(OpCodes.Call, GetNullableCtor(statement.initializer.type));
-        } else if (!preset)
+        } else if (!preset) {
             iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
+        }
     }
 
     private void EmitReturnStatement(ILProcessor iLProcessor, BoundReturnStatement statement) {

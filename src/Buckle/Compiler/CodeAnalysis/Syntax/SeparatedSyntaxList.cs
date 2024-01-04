@@ -18,7 +18,7 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
     /// Treats every other node as a separator, starting on the second node from the given list.
     /// </summary>
     internal SeparatedSyntaxList(SyntaxNodeOrTokenList list) {
-        int allCount = list.Count;
+        var allCount = list.Count;
         Count = (allCount + 1) >> 1;
         _separatorCount = allCount >> 1;
         _list = list;
