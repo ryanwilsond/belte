@@ -68,6 +68,7 @@ public abstract partial class Repl {
     /// </summary>
     public void Run() {
         Console.Title = "Belte Repl";
+        var defaultBackgroundColor = Console.BackgroundColor;
 
         string text;
         bool broke;
@@ -132,7 +133,23 @@ public abstract partial class Repl {
             _submissionHistoryIndex = 0;
         }
 
+        var currentBackgroundColor = Console.BackgroundColor;
         Console.ResetColor();
+
+        if (currentBackgroundColor == defaultBackgroundColor)
+            return;
+
+        // Resetting the terminals background color because it is not always automatic
+        // We do lose the top line of the history however because when clearing the last line the cursor automatically
+        // advances the console a line forward, and there is no platform independent way to get around this that I know
+        var startingCursorTop = Console.CursorTop;
+
+        for (var i = Console.CursorTop + 1; i < Console.WindowHeight; i++) {
+            Console.SetCursorPosition(0, i);
+            Console.Write(new string(' ', Console.WindowWidth));
+        }
+
+        Console.SetCursorPosition(0, startingCursorTop);
     }
 
     /// <summary>

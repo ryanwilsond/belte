@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -25,13 +26,13 @@ namespace Repl;
 public sealed partial class BelteRepl : Repl {
     private static readonly CompilationOptions DefaultOptions = new CompilationOptions(BuildMode.Repl, true, false);
     private static readonly Compilation EmptyCompilation = Compilation.CreateScript(DefaultOptions, null);
-    // TODO change this to a HashSet with a contributor field
-    private static readonly Dictionary<string, ColorTheme> InUse = new Dictionary<string, ColorTheme>() {
-        {"Dark", new DarkTheme()},
-        {"Light", new LightTheme()},
-        {"Green", new GreenTheme()},
-        {"Blue", new BlueTheme()},
-    };
+    private static readonly ImmutableArray<(string name, string contributor, ColorTheme theme)> InUse =
+        new List<(string, string, ColorTheme)>() {
+        ("Dark", "", new DarkTheme()),
+        ("Light", "", new LightTheme()),
+        ("Green", "Abiral Shakya", new GreenTheme()),
+        ("Blue", "Logan Kuz", new BlueTheme()),
+    }.ToImmutableArray();
 
     private List<TextChange> _changes = new List<TextChange>();
 
@@ -664,9 +665,14 @@ public sealed partial class BelteRepl : Repl {
     private void EvaluateSettings() {
         state.currentPage = Page.Settings;
 
+        var maxNameLength = 0;
+
+        foreach (var (name, _, _) in InUse)
+            maxNameLength = name.Length > maxNameLength ? name.Length : maxNameLength;
+
         void UpdatePage(int targetIndex) {
             targetIndex -= 2;
-            state.colorTheme = InUse[InUse.Keys.ToArray()[targetIndex]];
+            state.colorTheme = InUse[targetIndex].theme;
 
             Console.BackgroundColor = state.colorTheme.background;
             Console.ForegroundColor = state.colorTheme.textDefault;
@@ -677,15 +683,20 @@ public sealed partial class BelteRepl : Repl {
 
             var index = 2;
 
-            foreach (var (key, value) in InUse) {
+            foreach (var (name, contributor, theme) in InUse) {
                 writer.SetCursorPosition(7, index++);
 
-                if (state.colorTheme.GetType() == value.GetType())
+                if (state.colorTheme.GetType() == theme.GetType())
                     Console.BackgroundColor = state.colorTheme.selection;
                 else
                     Console.BackgroundColor = state.colorTheme.background;
 
-                writer.Write(key.PadRight(8));
+                writer.Write(name.PadRight(maxNameLength + 3)); // Arbitrary padding
+
+                if (contributor.Length > 0) {
+                    Console.BackgroundColor = state.colorTheme.background;
+                    writer.Write($"  Created by contributor {contributor}");
+                }
             }
 
             writer.SetCursorPosition(7, targetIndex + 2);
@@ -694,8 +705,8 @@ public sealed partial class BelteRepl : Repl {
         var targetIndex = 2;
         var index = 2;
 
-        foreach (var (key, value) in InUse) {
-            if (state.colorTheme.GetType() == value.GetType())
+        foreach (var (_, _, theme) in InUse) {
+            if (state.colorTheme.GetType() == theme.GetType())
                 targetIndex = index;
             else
                 index++;
@@ -713,7 +724,7 @@ public sealed partial class BelteRepl : Repl {
                 if (targetIndex - 2 > 0)
                     targetIndex--;
             } else if (key.Key == ConsoleKey.DownArrow) {
-                if (targetIndex - 2 < InUse.Count - 1)
+                if (targetIndex - 2 < InUse.Length - 1)
                     targetIndex++;
             }
         }
