@@ -92,7 +92,7 @@ public abstract partial class Repl {
 
             if (_evaluate) {
                 if (!text.Contains(Environment.NewLine) && text.StartsWith('#')) {
-                    EvaluateReplCommand(text);
+                    EvaluateMetaCommand(text);
                 } else {
                     var evaluateSubmissionReference = new ThreadStart(EvaluateSubmissionWrapper);
                     var evaluateSubmissionThread = new Thread(evaluateSubmissionReference) {
@@ -968,18 +968,26 @@ public abstract partial class Repl {
         HandleTyping(document, view, new string(' ', whitespace * TabWidth));
     }
 
-    private void EvaluateReplCommand(string line) {
+    private void EvaluateMetaCommand(string line) {
         var position = 1;
         var sb = new StringBuilder();
         var inQuotes = false;
         var args = new List<string>();
+        var pastFirstArg = false;
+        string chainedCommand = null;
 
         while (position < line.Length) {
             var c = line[position];
             var l = position + 1 >= line.Length ? '\0' : line[position + 1];
 
+            if (pastFirstArg && c == '#') {
+                chainedCommand = line.Substring(position);
+                break;
+            }
+
             if (char.IsWhiteSpace(c)) {
                 if (!inQuotes) {
+                    pastFirstArg = true;
                     var arg = sb.ToString();
 
                     if (!string.IsNullOrWhiteSpace(arg))
@@ -1005,7 +1013,8 @@ public abstract partial class Repl {
             position++;
         }
 
-        args.Add(sb.ToString());
+        if (chainedCommand is null)
+            args.Add(sb.ToString());
 
         var commandName = args.FirstOrDefault();
 
@@ -1047,5 +1056,8 @@ public abstract partial class Repl {
 
         var instance = command.method.IsStatic ? null : this;
         command.method.Invoke(instance, args.ToArray());
+
+        if (chainedCommand is not null)
+            EvaluateMetaCommand(chainedCommand);
     }
 }
