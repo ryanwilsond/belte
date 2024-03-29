@@ -23,7 +23,7 @@ public sealed class DiagnosticInfo {
     public DiagnosticInfo(int code, string module) {
         this.code = code;
         this.module = module;
-        this.severity = DiagnosticSeverity.Debug;
+        severity = DiagnosticSeverity.Debug;
     }
 
     /// <summary>

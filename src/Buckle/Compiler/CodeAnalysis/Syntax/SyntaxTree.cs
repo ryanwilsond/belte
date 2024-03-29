@@ -46,7 +46,7 @@ public partial class SyntaxTree {
     /// <summary>
     /// The length of the <see cref="SourceText" />.
     /// </summary>
-    protected virtual int length => text.length;
+    protected virtual int _length => text.length;
 
     /// <summary>
     /// Parses text (not necessarily related to a source file).
@@ -178,7 +178,7 @@ public partial class SyntaxTree {
         var oldTree = this;
 
         if (workingChanges?.Length == 1 &&
-            workingChanges?[0].span == new TextSpan(0, length) &&
+            workingChanges?[0].span == new TextSpan(0, _length) &&
             workingChanges?[0].newLength == newText.length) {
             workingChanges = null;
             oldTree = null;

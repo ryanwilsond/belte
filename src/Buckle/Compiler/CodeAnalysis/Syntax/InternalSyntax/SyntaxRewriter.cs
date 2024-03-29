@@ -5,7 +5,7 @@ internal partial class SyntaxRewriter : SyntaxVisitor<BelteSyntaxNode> {
     protected readonly bool _visitIntoTrivia;
 
     internal SyntaxRewriter(bool visitIntoTrivia = false) {
-        this._visitIntoTrivia = visitIntoTrivia;
+        _visitIntoTrivia = visitIntoTrivia;
     }
 
     internal override BelteSyntaxNode VisitToken(SyntaxToken token) {

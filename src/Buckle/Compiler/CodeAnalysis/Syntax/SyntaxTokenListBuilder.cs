@@ -24,7 +24,7 @@ internal class SyntaxTokenListBuilder {
 
     public void Add(SyntaxToken item) {
         Debug.Assert(item.node is object);
-        this.Add(item.node);
+        Add(item.node);
     }
 
     internal void Add(GreenNode item) {
@@ -33,7 +33,7 @@ internal class SyntaxTokenListBuilder {
     }
 
     public void Add(SyntaxTokenList list) {
-        this.Add(list, 0, list.Count);
+        Add(list, 0, list.Count);
     }
 
     public void Add(SyntaxTokenList list, int offset, int length) {
@@ -43,7 +43,7 @@ internal class SyntaxTokenListBuilder {
     }
 
     public void Add(SyntaxToken[] list) {
-        this.Add(list, 0, list.Length);
+        Add(list, 0, list.Length);
     }
 
     public void Add(SyntaxToken[] list, int offset, int length) {
@@ -59,7 +59,7 @@ internal class SyntaxTokenListBuilder {
         var requiredSize = _count + delta;
 
         if (requiredSize > _nodes.Length)
-            this.Grow(requiredSize);
+            Grow(requiredSize);
     }
 
     private void Grow(int newSize) {

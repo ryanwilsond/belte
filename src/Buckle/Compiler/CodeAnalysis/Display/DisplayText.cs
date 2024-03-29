@@ -47,7 +47,7 @@ public sealed class DisplayText {
     /// </summary>
     /// <returns>The contents before clearing.</returns>
     public ImmutableArray<DisplayTextSegment> Flush() {
-        var array = ImmutableArray.CreateRange<DisplayTextSegment>(_segments);
+        var array = ImmutableArray.CreateRange(_segments);
         _segments.Clear();
 
         return array;

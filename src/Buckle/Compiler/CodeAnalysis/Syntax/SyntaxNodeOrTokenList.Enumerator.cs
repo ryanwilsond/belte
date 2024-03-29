@@ -24,7 +24,7 @@ public sealed partial class SyntaxNodeOrTokenList {
 
         public SyntaxNodeOrToken Current => _list[_index];
 
-        object IEnumerator.Current => this.Current;
+        object IEnumerator.Current => Current;
 
         void IEnumerator.Reset() {
             throw new NotSupportedException();

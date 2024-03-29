@@ -734,10 +734,10 @@ internal sealed class Evaluator {
             if (leftValue is null || !(bool)leftValue)
                 return new EvaluatorObject(false);
 
-            var _right = EvaluateExpression(expression.right, abort);
-            var _rightValue = Value(_right);
+            var shortCircuitRight = EvaluateExpression(expression.right, abort);
+            var shortCircuitRightValue = Value(shortCircuitRight);
 
-            if (_rightValue is null || !(bool)_rightValue)
+            if (shortCircuitRightValue is null || !(bool)shortCircuitRightValue)
                 return new EvaluatorObject(false);
 
             return new EvaluatorObject(true);
@@ -747,10 +747,10 @@ internal sealed class Evaluator {
             if (leftValue != null && (bool)leftValue)
                 return new EvaluatorObject(true);
 
-            var _right = EvaluateExpression(expression.right, abort);
-            var _rightValue = Value(_right);
+            var shortCircuitRight = EvaluateExpression(expression.right, abort);
+            var shortCircuitRightValue = Value(shortCircuitRight);
 
-            if (_rightValue != null && (bool)_rightValue)
+            if (shortCircuitRightValue != null && (bool)shortCircuitRightValue)
                 return new EvaluatorObject(true);
 
             return new EvaluatorObject(false);

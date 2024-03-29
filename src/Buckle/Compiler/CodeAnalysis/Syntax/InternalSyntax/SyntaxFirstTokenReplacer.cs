@@ -7,13 +7,11 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 /// Replaces the first <see cref="SyntaxToken" /> in a node.
 /// </summary>
 internal sealed class SyntaxFirstTokenReplacer : SyntaxRewriter {
-    private readonly SyntaxToken _oldToken;
     private readonly SyntaxToken _newToken;
     private readonly int _diagnosticOffsetDelta;
     private bool _foundOldToken;
 
-    private SyntaxFirstTokenReplacer(SyntaxToken oldToken, SyntaxToken newToken, int diagnosticOffsetDelta) {
-        _oldToken = oldToken;
+    private SyntaxFirstTokenReplacer(SyntaxToken newToken, int diagnosticOffsetDelta) {
         _newToken = newToken;
         _diagnosticOffsetDelta = diagnosticOffsetDelta;
         _foundOldToken = false;
@@ -22,9 +20,9 @@ internal sealed class SyntaxFirstTokenReplacer : SyntaxRewriter {
     /// <summary>
     /// Replaces the first token contained within <param name="root" />.
     /// </summary>
-    internal static T Replace<T>(T root, SyntaxToken oldToken, SyntaxToken newToken, int diagnosticOffsetDelta)
+    internal static T Replace<T>(T root, SyntaxToken newToken, int diagnosticOffsetDelta)
         where T : BelteSyntaxNode {
-        var replacer = new SyntaxFirstTokenReplacer(oldToken, newToken, diagnosticOffsetDelta);
+        var replacer = new SyntaxFirstTokenReplacer(newToken, diagnosticOffsetDelta);
         var newRoot = (T)replacer.Visit(root);
         return newRoot;
     }

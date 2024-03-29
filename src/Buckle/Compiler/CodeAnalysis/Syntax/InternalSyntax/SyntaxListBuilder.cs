@@ -134,7 +134,7 @@ internal sealed class SyntaxListBuilder {
     /// Converts the builder into a <see cref="GreenNode[]" />.
     /// </summary>
     internal GreenNode[] ToArray() {
-        var array = new GreenNode[this.Count];
+        var array = new GreenNode[Count];
 
         for (var i = 0; i < array.Length; i++)
             array[i] = _nodes[i];
@@ -146,7 +146,7 @@ internal sealed class SyntaxListBuilder {
     /// Converts the builder into a type of list node depending on the current size.
     /// </summary>
     internal GreenNode ToListNode() {
-        switch (this.Count) {
+        switch (Count) {
             case 0:
                 return null;
             case 1:
@@ -157,8 +157,8 @@ internal sealed class SyntaxListBuilder {
                 // Can optimize and add a three child list if needed later
                 return SyntaxList.List(new[] { _nodes[0], _nodes[1], _nodes[2] });
             default:
-                var tmp = new ArrayElement<GreenNode>[this.Count];
-                Array.Copy(_nodes, tmp, this.Count);
+                var tmp = new ArrayElement<GreenNode>[Count];
+                Array.Copy(_nodes, tmp, Count);
                 return SyntaxList.List(tmp);
         }
     }

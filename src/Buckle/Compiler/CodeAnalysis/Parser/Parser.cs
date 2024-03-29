@@ -198,7 +198,7 @@ internal sealed partial class Parser {
     private T AddLeadingSkippedSyntax<T>(T node, GreenNode skippedSyntax) where T : BelteSyntaxNode {
         var oldToken = (node as SyntaxToken) ?? (SyntaxToken)node.GetFirstTerminal();
         var newToken = AddSkippedSyntax(oldToken, skippedSyntax, isTrailing: false);
-        return SyntaxFirstTokenReplacer.Replace(node, oldToken, newToken, skippedSyntax.fullWidth);
+        return SyntaxFirstTokenReplacer.Replace(node, newToken, skippedSyntax.fullWidth);
     }
 
     private SyntaxToken AddSkippedSyntax(SyntaxToken target, GreenNode skippedSyntax, bool isTrailing) {

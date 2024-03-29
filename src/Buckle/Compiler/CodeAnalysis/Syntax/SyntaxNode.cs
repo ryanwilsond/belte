@@ -250,7 +250,7 @@ public abstract partial class SyntaxNode {
 
         while (index < slotCount - 1) {
             index++;
-            var nextSibling = this.GetCachedSlot(index);
+            var nextSibling = GetCachedSlot(index);
 
             if (nextSibling != null)
                 return nextSibling.position - offset;

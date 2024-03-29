@@ -28,7 +28,7 @@ public sealed class Compilation {
         foreach (var syntaxTree in syntaxTrees)
             diagnostics.Move(syntaxTree.GetDiagnostics());
 
-        this.syntaxTrees = syntaxTrees.ToImmutableArray<SyntaxTree>();
+        this.syntaxTrees = syntaxTrees.ToImmutableArray();
     }
 
     /// <summary>

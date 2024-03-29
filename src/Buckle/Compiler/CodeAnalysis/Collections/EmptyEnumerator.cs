@@ -9,7 +9,7 @@ namespace Buckle.CodeAnalysis;
 public class EmptyEnumerator<T> : IEnumerator<T> {
     public T Current => default;
 
-    object IEnumerator.Current => this.Current;
+    object IEnumerator.Current => Current;
 
     public void Dispose() { }
 
