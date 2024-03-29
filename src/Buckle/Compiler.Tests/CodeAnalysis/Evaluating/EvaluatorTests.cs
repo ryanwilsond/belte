@@ -286,7 +286,7 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 5; { a = 3; } return a;", 3)]
     [InlineData("int a = 5; { int b = 3 + a; return b; } return a;", 8)]
     // Local function statements
-    [InlineData("int A() { int B() { return 2; } return B() + 1; } return A(); ", 3)]
+    [InlineData("int A() { int B() { return 2; } return B() + 1; } return A();", 3)]
     [InlineData("int A() { int B() { int A() { return 2; } return A() + 1; } return B() + 1; } return A();", 4)]
     [InlineData("int A() { int a = 1; int B(int b) { return a + b; } return B(4); } return A(); ", 5)]
     [InlineData("int A() { int a = 5; int B(int b) { return a + b; } return B(1); } return A(); ", 6)]

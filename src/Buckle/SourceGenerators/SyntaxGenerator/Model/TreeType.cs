@@ -5,10 +5,10 @@ namespace SyntaxGenerator;
 
 public abstract class TreeType {
     [XmlAttribute]
-    public string name;
+    public string Name;
 
     [XmlAttribute]
-    public string @base;
+    public string Base;
 
     [XmlElement(ElementName = "Field", Type = typeof(Field))]
     public List<TreeTypeChild> children = new List<TreeTypeChild>();

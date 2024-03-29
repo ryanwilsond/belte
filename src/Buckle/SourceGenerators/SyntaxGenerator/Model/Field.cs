@@ -5,20 +5,20 @@ namespace SyntaxGenerator;
 
 public sealed class Field : TreeTypeChild {
     [XmlAttribute]
-    public string name;
+    public string Name;
 
     [XmlAttribute]
-    public string type;
+    public string Type;
 
     [XmlAttribute]
-    public string optional;
+    public string Optional;
 
     [XmlAttribute]
-    public string @override;
+    public string Override;
 
     [XmlElement(ElementName = "Kind", Type = typeof(Kind))]
     public List<Kind> kinds = new List<Kind>();
 
-    public bool isToken => type == "SyntaxToken";
-    public bool isOptional => optional == "true";
+    public bool isToken => Type == "SyntaxToken";
+    public bool isOptional => Optional == "true";
 }

@@ -5,7 +5,7 @@ namespace SyntaxGenerator;
 
 public sealed class Node : TreeType {
     [XmlAttribute]
-    public string root;
+    public string Root;
 
     [XmlElement(ElementName = "Kind", Type = typeof(Kind))]
     public List<Kind> kinds = new List<Kind>();

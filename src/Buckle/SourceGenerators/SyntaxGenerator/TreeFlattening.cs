@@ -27,8 +27,8 @@ internal static class TreeFlattening {
         foreach (var fieldOrChoice in fieldsAndChoices) {
             switch (fieldOrChoice) {
                 case Field field:
-                    if (makeOptional && !SourceWriter.IsAnyNodeList(field.type))
-                        field.optional = "true";
+                    if (makeOptional && !SourceWriter.IsAnyNodeList(field.Type))
+                        field.Optional = "true";
 
                     fields.Add(field);
                     break;

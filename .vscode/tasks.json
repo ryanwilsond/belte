@@ -2,7 +2,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build debug",
+            "label": "build compiler debug",
             "command": "dotnet",
             "type": "process",
             "args": [
@@ -14,7 +14,7 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "build release",
+            "label": "build compiler release",
             "command": "dotnet",
             "type": "process",
             "args": [
@@ -48,6 +48,18 @@
                 "run",
                 "--project",
                 "${workspaceFolder}/src/Buckle/CommandLine/CommandLine.csproj"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build syntax generator debug",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/src/Buckle/SourceGenerators/SyntaxGenerator/SyntaxGenerator.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
             ],
             "problemMatcher": "$msCompile"
         },

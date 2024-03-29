@@ -6,7 +6,7 @@ namespace SyntaxGenerator;
 [XmlRoot]
 public sealed class Tree {
     [XmlAttribute]
-    public string root;
+    public string Root;
 
     [XmlElement(ElementName = "Node", Type = typeof(Node))]
     [XmlElement(ElementName = "AbstractNode", Type = typeof(AbstractNode))]
