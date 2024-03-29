@@ -686,7 +686,11 @@ internal sealed class Binder {
             @class
         );
 
-        if (!_scope.TryReplaceSymbol(oldClass, newClass))
+        // If no members, the default .ctor has yet to be built by the compiler, meaning this instance is a temporary
+        // symbol that needs to be replaced
+        if (oldClass.members.Length == 0)
+            _scope.TryReplaceSymbol(oldClass, newClass);
+        else if (!_scope.TryDeclareType(newClass))
             diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
 
         return newClass;
@@ -733,8 +737,8 @@ internal sealed class Binder {
             parameters.Add(parameter);
         }
 
-        var newFunctionSymbol = parametersChanged ?
-            functionSymbol.UpdateParameters(parameters.ToImmutable())
+        var newFunctionSymbol = parametersChanged
+            ? functionSymbol.UpdateParameters(parameters.ToImmutable())
             : functionSymbol;
 
         var loweredBody = Lowerer.Lower(newFunctionSymbol, body, _options.isTranspiling);

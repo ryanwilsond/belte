@@ -795,7 +795,7 @@ internal sealed partial class Parser {
 
     private FieldDeclarationSyntax ParseFieldDeclaration(SyntaxList<SyntaxToken> modifiers) {
         var declaration = (VariableDeclarationStatementSyntax)ParseVariableDeclarationStatement(
-            declarationOnly: (_context & ParserContext.InClassDefinition) == 0, allowImplicit: false
+            declarationOnly: (_context & ParserContext.InClassDefinition) != 0, allowImplicit: false
         );
 
         return SyntaxFactory.FieldDeclaration(modifiers, declaration);
