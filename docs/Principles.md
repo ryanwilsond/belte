@@ -1,9 +1,7 @@
 ---
 layout: post
-title: Design_Principles
+title: Belte Design Principles
 ---
-
-# Belte Design Principles
 
 This document covers many concepts and inspirations behind Belte, and also its major design principles.
 

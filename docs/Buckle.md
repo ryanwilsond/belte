@@ -3,8 +3,6 @@ layout: post
 title: Using Buckle
 ---
 
-# Using Buckle
-
 Buckle is the Belte programming language compiler.
 
 ## Options Summary

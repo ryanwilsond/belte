@@ -3,8 +3,6 @@ layout: post
 title: Using the Repl
 ---
 
-# Using the Repl
-
 The Repl (Read-Eval-Print Loop) is a command-line tool that provides the user with a simple method for testing short
 code snippets, without having to create any files or set up a project.
 
