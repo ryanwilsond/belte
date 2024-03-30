@@ -271,7 +271,7 @@ internal sealed class CSharpEmitter {
             parameters.Append($"{GetEquivalentType(parameter.type)} {GetSafeName(parameter.name)}");
         }
 
-        var signature = $"public {(method.Key.containingType is null ? "static " : "")}" +
+        var signature = $"public {(method.Key.containingType is null || method.Key.isStatic ? "static " : "")}" +
             $"{GetEquivalentType(method.Key.type)} {GetSafeName(method.Key.name)}({parameters})";
 
         using (var methodCurly = new CurlyIndenter(indentedTextWriter, signature))

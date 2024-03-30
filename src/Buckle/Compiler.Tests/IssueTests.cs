@@ -730,7 +730,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_MethodInvoke_DontPopLocalsInStatic() {
+    public void Evaluator_MethodInvoke_DoNotPopLocalsInStatic() {
         var text = @"
             class A {
                 static void Util() {
