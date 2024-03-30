@@ -946,7 +946,7 @@ internal sealed class Binder {
         if (primitive != null)
             return primitive;
 
-        switch (name == _shadowingVariable ? null : _scope.LookupSymbol(name)) {
+        switch (name == _shadowingVariable ? null : _scope.LookupSymbol(name, _containingMethod?.isStatic ?? false)) {
             case VariableSymbol variable:
                 reference = variable;
                 break;

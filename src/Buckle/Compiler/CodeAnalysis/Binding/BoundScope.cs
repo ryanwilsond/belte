@@ -92,15 +92,15 @@ internal sealed class BoundScope {
     /// <param name="name">Name of <see cref="Symbol" /> to search for.</param>
     /// <typeparam name="T">Type of <see cref="Symbol" /> to search for.</typeparam>
     /// <returns><see cref="Symbol" /> if found, null otherwise.</returns>
-    internal T LookupSymbol<T>(string name) where T : Symbol {
+    internal T LookupSymbol<T>(string name, bool isStaticLookup = false) where T : Symbol {
         if (_symbols != null) {
             foreach (var symbol in _symbols) {
-                if (symbol.name == name && symbol is T)
+                if (symbol.name == name && symbol is T && (isStaticLookup ? symbol.containingType is null : true))
                     return symbol as T;
             }
         }
 
-        return parent?.LookupSymbol<T>(name);
+        return parent?.LookupSymbol<T>(name, isStaticLookup);
     }
 
     /// <summary>
@@ -109,7 +109,8 @@ internal sealed class BoundScope {
     /// </summary>
     /// <param name="name">Name of <see cref="Symbol" />.</param>
     /// <returns><see cref="Symbol" /> if found, null otherwise.</returns>
-    internal Symbol LookupSymbol(string name) => LookupSymbol<Symbol>(name);
+    internal Symbol LookupSymbol(string name, bool isStaticLookup = false)
+        => LookupSymbol<Symbol>(name, isStaticLookup);
 
     /// <summary>
     /// Attempts to replace an already declared <see cref="Symbol" />.
