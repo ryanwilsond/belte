@@ -10,11 +10,13 @@ internal sealed class BoundMemberAccessExpression : BoundExpression {
         BoundExpression operand,
         Symbol member,
         BoundType type,
-        bool isNullConditional) {
+        bool isNullConditional,
+        bool isStaticAccess) {
         this.operand = operand;
         this.member = member;
         this.isNullConditional = isNullConditional;
         this.type = type;
+        this.isStaticAccess = isStaticAccess;
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.MemberAccessExpression;
@@ -27,4 +29,6 @@ internal sealed class BoundMemberAccessExpression : BoundExpression {
     internal Symbol member { get; }
 
     internal bool isNullConditional { get; }
+
+    internal bool isStaticAccess { get; }
 }

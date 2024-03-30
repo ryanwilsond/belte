@@ -1394,6 +1394,42 @@ class MyClass {
 MyClass myClass = new MyClass("test"); // Not allowed, no constructor for `MyClass` takes in a string argument
 MyClass myClass = new MyClass(3); // Allowed
 ```
+$BU0088
+Modifiers are not always applicable to certain items. Such as a static method
+outside of a class, a static struct in any context, etc. If a modifier is not
+valid to a certain item this error is raised.
+$BU0089
+Static members do not rely on instance information, and for that reason it is
+unnecessary and not allowed to access a static member through an instance.
+
+For example:
+
+```
+class MyClass {
+    static void MyMethod() { }
+}
+
+MyClass myInstance = new MyClass();
+
+myInstance.MyMethod(); // Not allowed, attempting to access static member `MyMethod` through the instance `myInstance`
+MyClass.MyMethod(); // Allowed
+```
+$BU0090
+Non-static members rely on instance information, and for that reason cannot be
+called statically.
+
+For example:
+
+```
+class MyClass {
+    void MyMethod() { }
+}
+
+MyClass.MyMethod(); // Not allowed, attempting to call non-static member `MyMethod` without an object reference
+
+MyClass myInstance = new MyClass();
+myInstance.MyMethod(); // Allowed
+```
 $BU9000
 Inside a global scope without a `Main` method, the compiler will run the
 file top-down instead. Return statements are allowed in this case, however, it

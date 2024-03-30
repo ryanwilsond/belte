@@ -25,6 +25,11 @@ internal abstract class Symbol : ISymbol {
     /// </summary>
     public abstract SymbolKind kind { get; }
 
+    /// <summary>
+    /// If the symbol is "static", i.e. declared with the static modifier.
+    /// </summary>
+    public abstract bool isStatic { get; }
+
     public override string ToString() {
         return SymbolDisplay.DisplaySymbol(this).ToString();
     }

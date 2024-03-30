@@ -4,52 +4,52 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// A type symbol. This is just the base type name, not a full <see cref="Binding.BoundType" />.
 /// </summary>
-internal class TypeSymbol : Symbol, ITypeSymbol {
+internal abstract class TypeSymbol : Symbol, ITypeSymbol {
     /// <summary>
     /// Error type (meaning something went wrong, not an actual type).
     /// </summary>
-    internal static readonly TypeSymbol Error = new TypeSymbol("?");
+    internal static readonly TypeSymbol Error = new PrimitiveTypeSymbol("?");
 
     /// <summary>
     /// Integer type (any whole number, signed).
     /// </summary>
-    internal static readonly TypeSymbol Int = new TypeSymbol("int");
+    internal static readonly TypeSymbol Int = new PrimitiveTypeSymbol("int");
 
     /// <summary>
     /// Decimal type (any floating point number, precision TBD).
     /// </summary>
-    internal static readonly TypeSymbol Decimal = new TypeSymbol("decimal");
+    internal static readonly TypeSymbol Decimal = new PrimitiveTypeSymbol("decimal");
 
     /// <summary>
     /// Boolean type (true/false).
     /// </summary>
-    internal static readonly TypeSymbol Bool = new TypeSymbol("bool");
+    internal static readonly TypeSymbol Bool = new PrimitiveTypeSymbol("bool");
 
     /// <summary>
     /// String type.
     /// </summary>
-    internal static readonly TypeSymbol String = new TypeSymbol("string");
+    internal static readonly TypeSymbol String = new PrimitiveTypeSymbol("string");
 
     /// <summary>
     /// Any type (effectively the object type).
     /// </summary>
-    internal static readonly TypeSymbol Any = new TypeSymbol("any");
+    internal static readonly TypeSymbol Any = new PrimitiveTypeSymbol("any");
 
     /// <summary>
     /// Void type (lack of type, exclusively used in method declarations).
     /// </summary>
-    internal static readonly TypeSymbol Void = new TypeSymbol("void");
+    internal static readonly TypeSymbol Void = new PrimitiveTypeSymbol("void");
 
     /// <summary>
     /// Type type (contains a type, e.g. type myVar = typeof(int) ).
     /// </summary>
-    internal static readonly TypeSymbol Type = new TypeSymbol("type");
+    internal static readonly TypeSymbol Type = new PrimitiveTypeSymbol("type");
 
     /// <summary>
     /// Type used to represent function (or method) signatures. Purely an implementation detail, cannot be used
     /// by users.
     /// </summary>
-    internal static readonly TypeSymbol Func = new TypeSymbol("Func");
+    internal static readonly TypeSymbol Func = new PrimitiveTypeSymbol("Func");
 
     /// <summary>
     /// Creates a new <see cref="TypeSymbol" />.

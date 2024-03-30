@@ -90,8 +90,12 @@ internal static partial class BoundFactory {
         return new BoundCastExpression(type, expression);
     }
 
-    internal static BoundMemberAccessExpression MemberAccess(BoundExpression operand, Symbol member, BoundType type) {
-        return new BoundMemberAccessExpression(operand, member, type, false);
+    internal static BoundMemberAccessExpression MemberAccess(
+        BoundExpression operand,
+        Symbol member,
+        BoundType type,
+        bool isStaticAccess = false) {
+        return new BoundMemberAccessExpression(operand, member, type, false, isStaticAccess);
     }
 
     internal static BoundIndexExpression Index(BoundExpression operand, BoundExpression index) {

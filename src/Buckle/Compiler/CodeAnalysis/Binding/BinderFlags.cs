@@ -6,7 +6,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A specific location for binding.
 /// </summary>
 [Flags]
-internal enum BinderFlags : uint {
+internal enum BinderFlags : byte {
     None,
     LocalFunction = 1 << 0,
     Method = 1 << 1,

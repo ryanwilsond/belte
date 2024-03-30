@@ -266,7 +266,8 @@ internal abstract class BoundTreeRewriter {
             operand,
             expression.member,
             expression.type,
-            expression.isNullConditional
+            expression.isNullConditional,
+            expression.isStaticAccess
         );
     }
 

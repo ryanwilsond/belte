@@ -1053,7 +1053,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0080_PrimitivesDoNotHaveMembers() {
         var text = @"
             int myInt = 3;
-            myInt[.]b;
+            [myInt.b];
         ";
 
         var diagnostics = @"
@@ -1166,6 +1166,54 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             type `MyClass` does not contain a constructor that matches the parameter list
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0088_InvalidModifier() {
+        var text = @"
+            [static] class MyClass { }
+        ";
+
+        var diagnostics = @"
+            modifier `static` is not valid for this item
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0089_InvalidInstanceReference() {
+        var text = @"
+            class MyClass {
+                static void MyMethod() { }
+            }
+
+            var myClass = new MyClass();
+            [myClass.MyMethod]();
+        ";
+
+        var diagnostics = @"
+            member `MyMethod` cannot be accessed with an instance reference; qualify it with the type name instead
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0090_InvalidStaticReference() {
+        var text = @"
+            class MyClass {
+                void MyMethod() { }
+            }
+
+            [MyClass.MyMethod]();
+        ";
+
+        var diagnostics = @"
+            an object reference is required for non-static member `MyMethod`
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

@@ -96,6 +96,9 @@ internal enum DiagnosticCode : int {
     ERR_CannotUseThis = 85,
     ERR_IncorrectConstructorName = 86,
     ERR_NoConstructorOverload = 87,
+    ERR_InvalidModifier = 88,
+    ERR_InvalidInstanceReference = 89,
+    ERR_InvalidStaticReference = 90,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

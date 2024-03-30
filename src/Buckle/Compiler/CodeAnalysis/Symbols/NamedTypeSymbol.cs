@@ -8,22 +8,27 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
+    private readonly DeclarationModifiers _declarationModifiers;
     private Dictionary<string, ImmutableArray<Symbol>> _lazyMembersDictionary;
 
     internal NamedTypeSymbol(
         ImmutableArray<ParameterSymbol> templateParameters,
         ImmutableArray<Symbol> symbols,
-        TypeDeclarationSyntax declaration)
+        TypeDeclarationSyntax declaration,
+        DeclarationModifiers modifiers)
         : base(declaration.identifier.text) {
         members = symbols;
         this.declaration = declaration;
         this.templateParameters = templateParameters;
+        _declarationModifiers = modifiers;
 
         foreach (var member in members)
             member.SetContainingType(this);
     }
 
     public override SymbolKind kind => SymbolKind.Type;
+
+    public override bool isStatic => (_declarationModifiers & DeclarationModifiers.Static) != 0;
 
     public ImmutableArray<Symbol> members { get; private set; }
 

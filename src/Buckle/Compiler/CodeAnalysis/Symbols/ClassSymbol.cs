@@ -14,8 +14,9 @@ internal sealed class ClassSymbol : NamedTypeSymbol {
         ImmutableArray<ParameterSymbol> templateParameters,
         ImmutableArray<Symbol> symbols,
         ImmutableArray<(FieldSymbol, VariableDeclarationStatementSyntax)> defaultFieldAssignments,
-        ClassDeclarationSyntax declaration)
-        : base(templateParameters, symbols, declaration) {
+        ClassDeclarationSyntax declaration,
+        DeclarationModifiers modifiers = DeclarationModifiers.None)
+        : base(templateParameters, symbols, declaration, modifiers) {
         this.defaultFieldAssignments = defaultFieldAssignments;
     }
 

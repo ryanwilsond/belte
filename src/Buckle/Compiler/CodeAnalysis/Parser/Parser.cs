@@ -704,7 +704,6 @@ internal sealed partial class Parser {
     }
 
     private StatementSyntax ParseLocalFunctionDeclaration() {
-        var modifiers = ParseModifiers();
         var type = ParseType(false);
         var identifier = Match(SyntaxKind.IdentifierToken);
         var parameters = ParseParameterList();

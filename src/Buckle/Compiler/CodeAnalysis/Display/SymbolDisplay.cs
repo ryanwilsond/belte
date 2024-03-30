@@ -67,12 +67,16 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayField(DisplayText text, FieldSymbol symbol) {
+        DisplayModifiers(text, symbol);
+
         DisplayText.DisplayNode(text, symbol.type);
         text.Write(CreateSpace());
         text.Write(CreateIdentifier(symbol.name));
     }
 
     private static void DisplayType(DisplayText text, TypeSymbol symbol) {
+        DisplayModifiers(text, symbol);
+
         if (symbol is StructSymbol ss) {
             text.Write(CreateKeyword(SyntaxKind.StructKeyword));
             text.Write(CreateSpace());
@@ -141,6 +145,8 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayMethod(DisplayText text, MethodSymbol symbol) {
+        DisplayModifiers(text, symbol);
+
         if (symbol.type != null) {
             DisplayText.DisplayNode(text, symbol.type);
             text.Write(CreateSpace());
@@ -160,5 +166,12 @@ public static class SymbolDisplay {
         }
 
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+    }
+
+    private static void DisplayModifiers(DisplayText text, Symbol symbol) {
+        if (symbol.isStatic) {
+            text.Write(CreateKeyword(SyntaxKind.StaticKeyword));
+            text.Write(CreateSpace());
+        }
     }
 }
