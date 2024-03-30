@@ -641,7 +641,7 @@ internal sealed class Evaluator {
         var result = EvaluateStatement(statement, abort, out _);
         _locals.Pop();
 
-        if (_classLocalBufferOnStack)
+        if (_classLocalBufferOnStack && !method.isStatic)
             _locals.Pop();
 
         return result;

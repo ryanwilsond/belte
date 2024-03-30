@@ -728,4 +728,25 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Evaluator_MethodInvoke_DontPopLocalsInStatic() {
+        var text = @"
+            class A {
+                static void Util() {
+                    PrintLine(""123"");
+                }
+                void Test() {
+                    Util();
+                    A.Util();
+                }
+            }
+            var a = new A();
+            a.Test();
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }
