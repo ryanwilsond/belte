@@ -26,12 +26,11 @@ ___
 
 ## Documentation
 
+The main documentation, including a full language reference, can be found on the [GitHub Pages site](https://ryanwilsond.github.io/belte/).
+
 To know what makes Belte unique from other languages, read [Principles.md](docs/Principles.md).
 
-If you are wanting to look around the repo, consider taking a look at the [directory contents](DIRECTORY_CONTENTS.md).
-
-The docs and full language reference can be found on the [GitHub Pages site](https://ryanwilsond.github.io/belte/).
-Alternatively, you can directly view the docs [here](docs/index.md).
+If you are just wanting to look around the repo, consider taking a look at the [directory contents](DIRECTORY_CONTENTS.md).
 
 ___
 
