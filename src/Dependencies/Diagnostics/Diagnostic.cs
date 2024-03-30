@@ -12,8 +12,7 @@ public class Diagnostic {
     /// <param name="info">Severity and code of <see cref="Diagnostic" />.</param>
     /// <param name="message">Message/info on the <see cref="Diagnostic" />.</param>
     /// <param name="suggestion">A possible solution to the problem.</param>
-    public Diagnostic(
-        DiagnosticInfo info, string message, string suggestion) {
+    public Diagnostic(DiagnosticInfo info, string message, string suggestion) {
         this.info = info;
         this.message = message;
         this.suggestion = suggestion;

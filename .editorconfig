@@ -56,27 +56,38 @@ dotnet_style_explicit_tuple_names = true:warning
 
 dotnet_style_allow_multiple_blank_lines_experimental = false
 
-# Non-private static fields are PascalCase
-dotnet_naming_rule.non_private_static_fields_should_be_pascal_case.severity = warning
-dotnet_naming_rule.non_private_static_fields_should_be_pascal_case.symbols = non_private_static_fields
-dotnet_naming_rule.non_private_static_fields_should_be_pascal_case.style = non_private_static_field_style
+# Static fields are PascalCase
+dotnet_naming_rule.static_fields_should_be_pascal_case.severity = warning
+dotnet_naming_rule.static_fields_should_be_pascal_case.symbols = static_fields
+dotnet_naming_rule.static_fields_should_be_pascal_case.style = static_field_style
 
-dotnet_naming_symbols.non_private_static_fields.applicable_kinds = field
-dotnet_naming_symbols.non_private_static_fields.applicable_accessibilities = public, protected, internal, protected_internal, private_protected
-dotnet_naming_symbols.non_private_static_fields.required_modifiers = static
+dotnet_naming_symbols.static_fields.applicable_kinds = field
+dotnet_naming_symbols.static_fields.applicable_accessibilities = *
+dotnet_naming_symbols.static_fields.required_modifiers = static
 
-dotnet_naming_style.non_private_static_field_style.capitalization = pascal_case
+dotnet_naming_style.static_field_style.capitalization = pascal_case
 
 # Non-private readonly fields are camelCase
-dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.severity = warning
-dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.symbols = non_private_readonly_fields
-dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.style = non_private_readonly_field_style
+dotnet_naming_rule.non_private_readonly_fields_should_be_camel_case.severity = warning
+dotnet_naming_rule.non_private_readonly_fields_should_be_camel_case.symbols = non_private_readonly_fields
+dotnet_naming_rule.non_private_readonly_fields_should_be_camel_case.style = non_private_readonly_field_style
 
 dotnet_naming_symbols.non_private_readonly_fields.applicable_kinds = field
-dotnet_naming_symbols.non_private_readonly_fields.applicable_accessibilities = public, protected, internal, protected_internal, private_protected
+dotnet_naming_symbols.non_private_readonly_fields.applicable_accessibilities = public, internal
 dotnet_naming_symbols.non_private_readonly_fields.required_modifiers = readonly
 
 dotnet_naming_style.non_private_readonly_field_style.capitalization = camel_case
+
+# Non-private static readonly fields are PascalCase
+dotnet_naming_rule.non_private_static_readonly_fields_should_be_pascal_case.severity = warning
+dotnet_naming_rule.non_private_static_readonly_fields_should_be_pascal_case.symbols = non_private_static_readonly_fields
+dotnet_naming_rule.non_private_static_readonly_fields_should_be_pascal_case.style = non_private_static_readonly_field_style
+
+dotnet_naming_symbols.non_private_static_readonly_fields.applicable_kinds = field
+dotnet_naming_symbols.non_private_static_readonly_fields.applicable_accessibilities = public, internal
+dotnet_naming_symbols.non_private_static_readonly_fields.required_modifiers = readonly, static
+
+dotnet_naming_style.non_private_static_readonly_field_style.capitalization = pascal_case
 
 # Constants are PascalCase
 dotnet_naming_rule.constants_should_be_pascal_case.severity = warning
@@ -88,15 +99,26 @@ dotnet_naming_symbols.constants.required_modifiers = const
 
 dotnet_naming_style.constant_style.capitalization = pascal_case
 
-# Instance fields are camelCase and start with _
-dotnet_naming_rule.instance_fields_should_be_camel_case.severity = warning
-dotnet_naming_rule.instance_fields_should_be_camel_case.symbols = instance_fields
-dotnet_naming_rule.instance_fields_should_be_camel_case.style = instance_field_style
+# Non-private instance fields are camelCase
+dotnet_naming_rule.non_private_instance_fields_should_be_camel_case.severity = warning
+dotnet_naming_rule.non_private_instance_fields_should_be_camel_case.symbols = non_private_instance_fields
+dotnet_naming_rule.non_private_instance_fields_should_be_camel_case.style = non_private_instance_field_style
 
-dotnet_naming_symbols.instance_fields.applicable_kinds = field
+dotnet_naming_symbols.non_private_instance_fields.applicable_kinds = field
+dotnet_naming_symbols.non_private_instance_fields.applicable_accessibilities = public, internal
 
-dotnet_naming_style.instance_field_style.capitalization = camel_case
-dotnet_naming_style.instance_field_style.required_prefix = _
+dotnet_naming_style.non_private_instance_field_style.capitalization = camel_case
+
+# Private instance fields are camelCase and start with _
+dotnet_naming_rule.private_instance_fields_should_be_camel_case.severity = warning
+dotnet_naming_rule.private_instance_fields_should_be_camel_case.symbols = private_instance_fields
+dotnet_naming_rule.private_instance_fields_should_be_camel_case.style = private_instance_field_style
+
+dotnet_naming_symbols.private_instance_fields.applicable_kinds = field
+dotnet_naming_symbols.private_instance_fields.applicable_accessibilities = private, protected, protected_internal, private_protected
+
+dotnet_naming_style.private_instance_field_style.capitalization = camel_case
+dotnet_naming_style.private_instance_field_style.required_prefix = _
 
 # Local and parameters are camelCase
 dotnet_naming_rule.locals_should_be_camel_case.severity = warning
@@ -106,21 +128,44 @@ dotnet_naming_rule.locals_should_be_camel_case.style = camel_case_style
 dotnet_naming_symbols.locals_and_parameters.applicable_kinds = parameter, local
 
 # Local functions are PascalCase
+dotnet_naming_style.local_function_style.capitalization = pascal_case
 dotnet_naming_rule.local_functions_should_be_pascal_case.severity = warning
 dotnet_naming_rule.local_functions_should_be_pascal_case.symbols = local_functions
 dotnet_naming_rule.local_functions_should_be_pascal_case.style = local_function_style
 
 dotnet_naming_symbols.local_functions.applicable_kinds = local_function
 
-dotnet_naming_style.local_function_style.capitalization = pascal_case
-
 # Non-private properties are camelCase
-dotnet_naming_rule.methods_and_properties_must_be_pascal_case.severity = warning
-dotnet_naming_rule.methods_and_properties_must_be_pascal_case.symbols  = method_and_property_symbols
-dotnet_naming_rule.methods_and_properties_must_be_pascal_case.style    = camel_case_style
+dotnet_naming_rule.non_private_properties_must_be_camel_case.severity = warning
+dotnet_naming_rule.non_private_properties_must_be_camel_case.symbols = non_private_properties
+dotnet_naming_rule.non_private_properties_must_be_camel_case.style = non_private_properties_style
 
-dotnet_naming_symbols.method_and_property_symbols.applicable_kinds           = property
-dotnet_naming_symbols.method_and_property_symbols.applicable_accessibilities = *
+dotnet_naming_symbols.non_private_properties.applicable_kinds = property
+dotnet_naming_symbols.non_private_properties.applicable_accessibilities = public, internal
+
+dotnet_naming_style.non_private_properties_style.capitalization = camel_case
+
+# Private properties are camelCase and start with _
+dotnet_naming_rule.private_properties_must_be_camel_case.severity = warning
+dotnet_naming_rule.private_properties_must_be_camel_case.symbols = private_properties
+dotnet_naming_rule.private_properties_must_be_camel_case.style = private_properties_style
+
+dotnet_naming_symbols.private_properties.applicable_kinds = property
+dotnet_naming_symbols.private_properties.applicable_accessibilities = private, protected, protected_internal, private_protected
+
+dotnet_naming_style.private_properties_style.capitalization = camel_case
+dotnet_naming_style.private_properties_style.required_prefix = _
+
+# Static properties are PascalCase
+dotnet_naming_rule.static_properties_must_be_camel_case.severity = warning
+dotnet_naming_rule.static_properties_must_be_camel_case.symbols = static_properties
+dotnet_naming_rule.static_properties_must_be_camel_case.style = static_properties_style
+
+dotnet_naming_symbols.static_properties.applicable_kinds = property
+dotnet_naming_symbols.static_properties.applicable_accessibilities = *
+dotnet_naming_symbols.static_properties.required_modifiers = static
+
+dotnet_naming_style.static_properties_style.capitalization = pascal_case
 
 # By default, name items with PascalCase
 dotnet_naming_rule.members_should_be_pascal_case.severity = warning
@@ -153,7 +198,7 @@ csharp_indent_switch_labels = true
 csharp_indent_labels = flush_left
 
 # Whitespace options
-csharp_style_allow_embedded_statements_on_same_line_experimental = false
+csharp_style_allow_embedded_statements_on_same_line_experimental = true
 dotnet_diagnostic.IDE2001.severity = warning
 csharp_style_allow_blank_lines_between_consecutive_braces_experimental = false
 dotnet_diagnostic.IDE2002.severity = warning
@@ -212,15 +257,36 @@ csharp_prefer_braces = true:silent
 csharp_preserve_single_line_blocks = true
 csharp_preserve_single_line_statements = true
 
-# IDE0060: Remove unused parameter
-dotnet_diagnostic.IDE0060.severity = warning
+# IDE0001: Simplify name
+dotnet_diagnostic.IDE0001.severity = warning
+
+# IDE0002: Simplify name
+dotnet_diagnostic.IDE0002.severity = warning
+
+# IDE0003: Simplify name
+dotnet_diagnostic.IDE0003.severity = warning
+
+# IDE0005: Unnecessary using
+dotnet_diagnostic.IDE0005.severity = warning
 
 # IDE0011: Add braces
 csharp_prefer_braces = when_multiline:warning
 dotnet_diagnostic.IDE0011.severity = warning
 
+# IDE0034: Simplify default
+dotnet_diagnostic.IDE0034.severity = warning
+
 # IDE0040: Add accessibility modifiers
 dotnet_diagnostic.IDE0040.severity = warning
+
+# IDE0044: Make field readonly
+dotnet_diagnostic.IDE0044.severity = warning
+
+# IDE0047: Remove parenthesis
+dotnet_diagnostic.IDE0047.severity = warning
+
+# IDE0051: Unused private member
+dotnet_diagnostic.IDE0051.severity = warning
 
 # IDE0052: Remove unread private member
 dotnet_diagnostic.IDE0052.severity = warning
@@ -228,8 +294,32 @@ dotnet_diagnostic.IDE0052.severity = warning
 # IDE0059: Unnecessary assignment to a value
 dotnet_diagnostic.IDE0059.severity = warning
 
+# IDE0060: Remove unused parameter
+dotnet_diagnostic.IDE0060.severity = warning
+
+# IDE0063: Simplify using
+dotnet_diagnostic.IDE0063.severity = warning
+
+# IDE0066: Use switch expression
+dotnet_diagnostic.IDE0066.severity = warning
+
+# IDE0090: Simplify new expression
+dotnet_diagnostic.IDE0090.severity = none
+
+# IDE0170: Prefer extended property pattern
+dotnet_diagnostic.IDE0170.severity = suggestion
+
+# RS0100: Statements must be placed on their own line
+dotnet_diagnostic.RS0100.severity = none
+
+# RS0102: Braces must not have blank lines between them
+dotnet_diagnostic.RS0102.severity = none
+
 # CA1012: Abstract types should not have public constructors
 dotnet_diagnostic.CA1012.severity = warning
 
 # CA1822: Make member static
 dotnet_diagnostic.CA1822.severity = suggestion
+
+# CA1847: Use char if possible
+dotnet_diagnostic.CA1847.severity = warning

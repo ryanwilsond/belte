@@ -2,10 +2,10 @@
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
 internal partial class SyntaxRewriter : SyntaxVisitor<BelteSyntaxNode> {
-    protected readonly bool visitIntoTrivia;
+    protected readonly bool _visitIntoTrivia;
 
     internal SyntaxRewriter(bool visitIntoTrivia = false) {
-        this.visitIntoTrivia = visitIntoTrivia;
+        _visitIntoTrivia = visitIntoTrivia;
     }
 
     internal override BelteSyntaxNode VisitToken(SyntaxToken token) {
@@ -35,8 +35,7 @@ internal partial class SyntaxRewriter : SyntaxVisitor<BelteSyntaxNode> {
                 alternate.AddRange(list, 0, i);
             }
 
-            if (alternate != null)
-                alternate.Add(visited);
+            alternate?.Add(visited);
         }
 
         if (alternate != null)

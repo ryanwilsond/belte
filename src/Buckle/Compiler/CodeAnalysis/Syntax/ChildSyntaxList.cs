@@ -68,7 +68,7 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
             greenChild = green.GetSlot(slotIndex);
 
             if (greenChild != null) {
-                int currentOccupancy = Occupancy(greenChild);
+                var currentOccupancy = Occupancy(greenChild);
 
                 if (idx < currentOccupancy)
                     break;
@@ -105,14 +105,14 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
     /// Returns the child node or token of the given node whose span contains the target position.
     /// </summary>
     internal static SyntaxNodeOrToken ChildThatContainsPosition(SyntaxNode node, int targetPosition) {
-        GreenNode? green = node.green;
+        var green = node.green;
         var position = node.position;
         var index = 0;
 
         int slot;
 
         for (slot = 0; ; slot++) {
-            GreenNode? greenChild = green.GetSlot(slot);
+            var greenChild = green.GetSlot(slot);
 
             if (greenChild != null) {
                 var endPosition = position + greenChild.fullWidth;
@@ -173,7 +173,7 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
     }
 
     private static int CountNodes(GreenNode green) {
-        int n = 0;
+        var n = 0;
 
         for (int i = 0, s = green.slotCount; i < s; i++) {
             var child = green.GetSlot(i);
@@ -199,7 +199,7 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
             greenChild = green.GetSlot(slotIndex);
 
             if (greenChild != null) {
-                int currentOccupancy = Occupancy(greenChild);
+                var currentOccupancy = Occupancy(greenChild);
 
                 if (idx < currentOccupancy)
                     break;

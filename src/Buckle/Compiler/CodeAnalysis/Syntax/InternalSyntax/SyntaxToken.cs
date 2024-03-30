@@ -1,4 +1,3 @@
-using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 using Diagnostics;
 
@@ -8,9 +7,9 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 /// Represents a token in the tree.
 /// </summary>
 internal partial class SyntaxToken : BelteSyntaxNode {
-    private string _text;
-    private GreenNode _leading;
-    private GreenNode _trailing;
+    private readonly string _text;
+    private readonly GreenNode _leading;
+    private readonly GreenNode _trailing;
 
     /// <summary>
     /// Creates a new <see cref="SyntaxToken" />.
@@ -25,8 +24,8 @@ internal partial class SyntaxToken : BelteSyntaxNode {
         : base(kind, fullWidth) {
         _text = text;
         this.value = value;
-        this._leading = leadingTrivia;
-        this._trailing = trailingTrivia;
+        _leading = leadingTrivia;
+        _trailing = trailingTrivia;
     }
 
     /// <summary>
@@ -38,8 +37,8 @@ internal partial class SyntaxToken : BelteSyntaxNode {
         : base(kind, fullWidth, diagnostics) {
         _text = text;
         this.value = value;
-        this._leading = leadingTrivia;
-        this._trailing = trailingTrivia;
+        _leading = leadingTrivia;
+        _trailing = trailingTrivia;
     }
 
     /// <summary>
@@ -49,12 +48,12 @@ internal partial class SyntaxToken : BelteSyntaxNode {
         : base(kind) {
         if (leadingTrivia != null) {
             AdjustFlagsAndWidth(leadingTrivia);
-            this._leading = leadingTrivia;
+            _leading = leadingTrivia;
         }
 
         if (trailingTrivia != null) {
             AdjustFlagsAndWidth(trailingTrivia);
-            this._trailing = trailingTrivia;
+            _trailing = trailingTrivia;
         }
     }
 
@@ -65,12 +64,12 @@ internal partial class SyntaxToken : BelteSyntaxNode {
         : base(kind, diagnostics) {
         if (leadingTrivia != null) {
             AdjustFlagsAndWidth(leadingTrivia);
-            this._leading = leadingTrivia;
+            _leading = leadingTrivia;
         }
 
         if (trailingTrivia != null) {
             AdjustFlagsAndWidth(trailingTrivia);
-            this._trailing = trailingTrivia;
+            _trailing = trailingTrivia;
         }
     }
 
@@ -85,12 +84,12 @@ internal partial class SyntaxToken : BelteSyntaxNode {
 
         if (leadingTrivia != null) {
             AdjustFlagsAndWidth(leadingTrivia);
-            this._leading = leadingTrivia;
+            _leading = leadingTrivia;
         }
 
         if (trailingTrivia != null) {
             AdjustFlagsAndWidth(trailingTrivia);
-            this._trailing = trailingTrivia;
+            _trailing = trailingTrivia;
         }
     }
 
@@ -107,12 +106,12 @@ internal partial class SyntaxToken : BelteSyntaxNode {
 
         if (leadingTrivia != null) {
             AdjustFlagsAndWidth(leadingTrivia);
-            this._leading = leadingTrivia;
+            _leading = leadingTrivia;
         }
 
         if (trailingTrivia != null) {
             AdjustFlagsAndWidth(trailingTrivia);
-            this._trailing = trailingTrivia;
+            _trailing = trailingTrivia;
         }
     }
 

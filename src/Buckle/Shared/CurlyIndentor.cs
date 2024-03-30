@@ -7,8 +7,8 @@ namespace Shared;
 /// Keeps track of a new curly brace enclosed scope.
 /// </summary>
 public sealed class CurlyIndenter : IDisposable {
-    private IndentedTextWriter _indentedTextWriter;
-    private bool _includeSemicolon;
+    private readonly IndentedTextWriter _indentedTextWriter;
+    private readonly bool _includeSemicolon;
 
     /// <summary>
     /// Creates a new scope using curly braces.

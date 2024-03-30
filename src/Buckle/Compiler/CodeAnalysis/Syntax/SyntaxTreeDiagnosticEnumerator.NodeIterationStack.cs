@@ -13,15 +13,13 @@ internal partial struct SyntaxTreeDiagnosticEnumerator {
         }
 
         internal void PushNodeOrToken(GreenNode node) {
-            var token = node as Syntax.InternalSyntax.SyntaxToken;
-
-            if (token != null)
+            if (node is InternalSyntax.SyntaxToken token)
                 PushToken(token);
             else
                 Push(node);
         }
 
-        private void PushToken(Syntax.InternalSyntax.SyntaxToken token) {
+        private void PushToken(InternalSyntax.SyntaxToken token) {
             var trailing = token.GetTrailingTrivia();
 
             if (trailing != null)
@@ -53,16 +51,16 @@ internal partial struct SyntaxTreeDiagnosticEnumerator {
             return _count > 0;
         }
 
-        internal NodeIteration Top => this[_count - 1];
+        internal NodeIteration top => this[_count - 1];
 
         internal NodeIteration this[int index] => _stack[index];
 
         internal void UpdateSlotIndexForStackTop(int slotIndex) {
-            _stack[_count - 1].SlotIndex = slotIndex;
+            _stack[_count - 1].slotIndex = slotIndex;
         }
 
         internal void UpdateDiagnosticIndexForStackTop(int diagnosticIndex) {
-            _stack[_count - 1].DiagnosticIndex = diagnosticIndex;
+            _stack[_count - 1].diagnosticIndex = diagnosticIndex;
         }
     }
 }

@@ -11,5 +11,5 @@ public sealed class Tree {
     [XmlElement(ElementName = "Node", Type = typeof(Node))]
     [XmlElement(ElementName = "AbstractNode", Type = typeof(AbstractNode))]
     [XmlElement(ElementName = "PredefinedNode", Type = typeof(PredefinedNode))]
-    public List<TreeType> Types;
+    public List<TreeType> types;
 }

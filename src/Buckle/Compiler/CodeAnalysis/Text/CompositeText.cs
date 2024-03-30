@@ -2,7 +2,6 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.Diagnostics;
-using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Text;
 
@@ -102,7 +101,7 @@ internal sealed class CompositeText : SourceText {
         ReduceSegmentCountIfNecessary(segments);
 
         if (segments.Count == 0)
-            return SourceText.From("");
+            return From("");
         else if (segments.Count == 1)
             return segments[0];
         else

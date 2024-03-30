@@ -119,6 +119,6 @@ internal sealed class SyntaxListBuilder<T> where T : GreenNode {
             return builder.ToList();
         }
 
-        return default(SyntaxList<T>);
+        return default;
     }
 }

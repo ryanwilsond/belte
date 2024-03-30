@@ -9,7 +9,7 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class BoundTypeWrapper : BoundExpression {
     internal BoundTypeWrapper(BoundType type, BoundConstant constant) {
         this.type = type;
-        this.constantValue = constant;
+        constantValue = constant;
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.TypeWrapper;

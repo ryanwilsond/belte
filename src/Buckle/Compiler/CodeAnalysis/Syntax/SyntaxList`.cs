@@ -82,14 +82,14 @@ public sealed partial class SyntaxList<T> : IReadOnlyList<T> where T : SyntaxNod
     }
 
     IEnumerator<T> IEnumerable<T>.GetEnumerator() {
-        if (this.Any())
+        if (Any())
             return new EnumeratorImpl(this);
 
         return new EmptyEnumerator<T>();
     }
 
     IEnumerator IEnumerable.GetEnumerator() {
-        if (this.Any())
+        if (Any())
             return new EnumeratorImpl(this);
 
         return new EmptyEnumerator<T>();

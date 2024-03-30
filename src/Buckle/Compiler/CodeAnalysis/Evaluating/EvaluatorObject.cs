@@ -11,11 +11,11 @@ internal sealed class EvaluatorObject : IEvaluatorObject {
     /// Creates an <see cref="EvaluatorObject" /> with a null value.
     /// </summary>
     internal EvaluatorObject() {
-        this.value = null;
-        this.isReference = false;
-        this.reference = null;
-        this.isExplicitReference = false;
-        this.members = null;
+        value = null;
+        isReference = false;
+        reference = null;
+        isExplicitReference = false;
+        members = null;
     }
 
     /// <summary>
@@ -25,10 +25,10 @@ internal sealed class EvaluatorObject : IEvaluatorObject {
     /// <param name="value">Value to store.</param>
     internal EvaluatorObject(object value) {
         this.value = value;
-        this.isReference = false;
-        this.reference = null;
-        this.isExplicitReference = false;
-        this.members = null;
+        isReference = false;
+        reference = null;
+        isExplicitReference = false;
+        members = null;
     }
 
     /// <summary>
@@ -36,10 +36,10 @@ internal sealed class EvaluatorObject : IEvaluatorObject {
     /// </summary>
     /// <param name="members">Members to contain by this.</param>
     internal EvaluatorObject(Dictionary<Symbol, EvaluatorObject> members) {
-        this.value = null;
-        this.isReference = false;
-        this.reference = null;
-        this.isExplicitReference = false;
+        value = null;
+        isReference = false;
+        reference = null;
+        isExplicitReference = false;
         this.members = members;
     }
 
@@ -59,12 +59,12 @@ internal sealed class EvaluatorObject : IEvaluatorObject {
     internal EvaluatorObject(
         VariableSymbol reference, bool isExplicitReference = false,
         Dictionary<IVariableSymbol, IEvaluatorObject> referenceScope = null) {
-        this.value = null;
-        this.isReference = true;
+        value = null;
+        isReference = true;
         this.reference = reference;
         this.referenceScope = referenceScope;
         this.isExplicitReference = isExplicitReference;
-        this.members = null;
+        members = null;
     }
 
     public object value { get; set; }

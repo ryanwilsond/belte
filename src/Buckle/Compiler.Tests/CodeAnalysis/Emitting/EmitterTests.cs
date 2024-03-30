@@ -243,6 +243,7 @@ public static class Program {
         public List<object> any4;
 
         public TypeTests() {
+            return;
         }
 
     }
@@ -564,6 +565,7 @@ public static class Program {
         public Nullable<bool> b;
 
         public A() {
+            return;
         }
 
     }

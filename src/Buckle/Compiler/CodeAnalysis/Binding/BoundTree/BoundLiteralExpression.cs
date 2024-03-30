@@ -1,5 +1,3 @@
-using Buckle.CodeAnalysis.Symbols;
-using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Binding;
 

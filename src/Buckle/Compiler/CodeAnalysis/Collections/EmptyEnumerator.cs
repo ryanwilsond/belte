@@ -7,9 +7,9 @@ namespace Buckle.CodeAnalysis;
 /// An empty enumerator that cannot move.
 /// </summary>
 public class EmptyEnumerator<T> : IEnumerator<T> {
-    public T Current => default(T);
+    public T Current => default;
 
-    object IEnumerator.Current => this.Current;
+    object IEnumerator.Current => Current;
 
     public void Dispose() { }
 

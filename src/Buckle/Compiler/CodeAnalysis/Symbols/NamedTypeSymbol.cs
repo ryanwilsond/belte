@@ -8,16 +8,19 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
+    private readonly DeclarationModifiers _declarationModifiers;
     private Dictionary<string, ImmutableArray<Symbol>> _lazyMembersDictionary;
 
     internal NamedTypeSymbol(
         ImmutableArray<ParameterSymbol> templateParameters,
         ImmutableArray<Symbol> symbols,
-        TypeDeclarationSyntax declaration)
+        TypeDeclarationSyntax declaration,
+        DeclarationModifiers modifiers)
         : base(declaration.identifier.text) {
-        this.members = symbols;
+        members = symbols;
         this.declaration = declaration;
         this.templateParameters = templateParameters;
+        _declarationModifiers = modifiers;
 
         foreach (var member in members)
             member.SetContainingType(this);
@@ -25,11 +28,13 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
 
     public override SymbolKind kind => SymbolKind.Type;
 
-    public ImmutableArray<Symbol> members { get; }
+    public override bool isStatic => (_declarationModifiers & DeclarationModifiers.Static) != 0;
+
+    public ImmutableArray<Symbol> members { get; private set; }
 
     public ImmutableArray<MethodSymbol> constructors => GetConstructors();
 
-    internal ImmutableArray<ParameterSymbol> templateParameters { get; }
+    internal ImmutableArray<ParameterSymbol> templateParameters { get; private set; }
 
     internal override int arity => templateParameters.Length;
 
@@ -63,13 +68,20 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
         return signature.ToString();
     }
 
+    internal void UpdateInternals(
+        ImmutableArray<ParameterSymbol> templateParameters,
+        ImmutableArray<Symbol> symbols) {
+        this.templateParameters = templateParameters;
+        members = symbols;
+    }
+
     private ImmutableArray<MethodSymbol> GetConstructors() {
         var candidates = GetMembers(WellKnownMemberNames.InstanceConstructorName);
 
         if (candidates.IsEmpty)
             return ImmutableArray<MethodSymbol>.Empty;
 
-        ArrayBuilder<MethodSymbol> constructors = ArrayBuilder<MethodSymbol>.GetInstance();
+        var constructors = ArrayBuilder<MethodSymbol>.GetInstance();
 
         foreach (var candidate in candidates) {
             if (candidate is MethodSymbol method)

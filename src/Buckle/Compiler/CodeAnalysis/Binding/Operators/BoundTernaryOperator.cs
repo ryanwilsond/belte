@@ -18,19 +18,10 @@ internal sealed class BoundTernaryOperator {
         type = resultType;
     }
 
-    private BoundTernaryOperator(
-        SyntaxKind leftOpKind, SyntaxKind rightOpKind, BoundTernaryOperatorKind opKind,
-        BoundType operandType, BoundType resultType)
-        : this(leftOpKind, rightOpKind, opKind, operandType, operandType, operandType, resultType) { }
-
-    private BoundTernaryOperator(
-        SyntaxKind leftOpKind, SyntaxKind rightOpKind, BoundTernaryOperatorKind opKind, BoundType type)
-        : this(leftOpKind, rightOpKind, opKind, type, type, type, type) { }
-
     /// <summary>
     /// All defined possible operators, and their operand types.
     /// </summary>
-    internal static BoundTernaryOperator[] _operators = {
+    internal static BoundTernaryOperator[] Operators = {
         new BoundTernaryOperator(SyntaxKind.QuestionToken, SyntaxKind.ColonToken, BoundTernaryOperatorKind.Conditional,
             BoundType.Bool, null, null, null),
     };
@@ -81,7 +72,7 @@ internal sealed class BoundTernaryOperator {
     /// <returns><see cref="BoundTernaryOperator" /> if an operator exists, otherwise null.</returns>
     internal static BoundTernaryOperator Bind(SyntaxKind leftOpKind, SyntaxKind rightOpKind,
         BoundType leftType, BoundType centerType, BoundType rightType) {
-        foreach (var op in _operators) {
+        foreach (var op in Operators) {
             var leftIsCorrect = op.leftType is null
                 ? true
                 : Cast.Classify(leftType, op.leftType, false).isImplicit;

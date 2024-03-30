@@ -20,7 +20,7 @@ internal sealed class BoundPostfixOperator {
     /// <summary>
     /// All defined possible operators, and their operand type.
     /// </summary>
-    internal static BoundPostfixOperator[] _operators = {
+    internal static BoundPostfixOperator[] Operators = {
         // integer
         new BoundPostfixOperator(SyntaxKind.PlusPlusToken, BoundPostfixOperatorKind.Increment, BoundType.Int),
         new BoundPostfixOperator(SyntaxKind.MinusMinusToken, BoundPostfixOperatorKind.Decrement, BoundType.Int),
@@ -56,7 +56,7 @@ internal sealed class BoundPostfixOperator {
     /// <param name="operandType">Operand <see cref="BoundType" />.</param>
     /// <returns><see cref="BoundPostfixOperator" /> if an operator exists, otherwise null.</returns>
     internal static BoundPostfixOperator Bind(SyntaxKind kind, BoundType operandType) {
-        foreach (var op in _operators) {
+        foreach (var op in Operators) {
             var operandIsCorrect = op.operandType is null
                 ? true
                 : Cast.Classify(operandType, op.operandType, false).isImplicit;

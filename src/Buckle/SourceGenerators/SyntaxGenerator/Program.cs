@@ -31,12 +31,14 @@ public static class Program {
         Console.WriteLine("Invalid usage:");
         var programName = "  " + typeof(Program).GetTypeInfo().Assembly.ManifestModule.Name;
         Console.WriteLine(programName + " input-file output-file");
+
         return 1;
     }
 
     private static Tree ReadTree(string inputFile) {
         var reader = XmlReader.Create(inputFile, new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit });
         var serializer = new XmlSerializer(typeof(Tree));
+
         return (Tree)serializer.Deserialize(reader);
     }
 

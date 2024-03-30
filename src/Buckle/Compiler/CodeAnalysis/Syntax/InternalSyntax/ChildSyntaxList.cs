@@ -37,7 +37,7 @@ internal sealed partial class ChildSyntaxList {
     }
 
     private int CountNodes() {
-        int n = 0;
+        var n = 0;
         var enumerator = GetEnumerator();
 
         while (enumerator.MoveNext())

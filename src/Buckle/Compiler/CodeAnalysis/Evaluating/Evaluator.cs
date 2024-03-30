@@ -23,11 +23,11 @@ internal sealed class Evaluator {
         new Stack<Dictionary<IVariableSymbol, IEvaluatorObject>>();
     private readonly Dictionary<IVariableSymbol, IEvaluatorObject> _classLocalBuffer =
         new Dictionary<IVariableSymbol, IEvaluatorObject>();
+    private readonly Stack<EvaluatorObject> _enclosingTypes = new Stack<EvaluatorObject>();
 
     private EvaluatorObject _lastValue;
     private Random _random;
     private bool _classLocalBufferOnStack;
-    private EvaluatorObject _enclosingType;
     private bool _hasValue;
 
     /// <summary>
@@ -239,7 +239,6 @@ internal sealed class Evaluator {
         foreach (var member in @class.members) {
             if (member.Key is FieldSymbol or ParameterSymbol) {
                 var variable = member.Key as VariableSymbol;
-
                 // If the symbol is already present it could be outdated and should be replaced
                 // If it isn't outdated no harm in replacing it
                 _classLocalBuffer.Remove(variable);
@@ -247,12 +246,16 @@ internal sealed class Evaluator {
             }
         }
 
-        _enclosingType = @class;
+        _enclosingTypes.Push(@class);
 
         if (updateLocals) {
             _locals.Push(_classLocalBuffer);
             _classLocalBufferOnStack = true;
         }
+    }
+
+    private void ExitClassScope() {
+        _enclosingTypes.Pop();
     }
 
     private EvaluatorObject EvaluateCast(EvaluatorObject value, BoundType type) {
@@ -261,9 +264,9 @@ internal sealed class Evaluator {
         if (value.members != null)
             return value;
 
-        if (valueValue is EvaluatorObject[]) {
+        if (valueValue is EvaluatorObject[] v) {
             var builder = new List<EvaluatorObject>();
-            var castedValue = (EvaluatorObject[])valueValue;
+            var castedValue = v;
 
             foreach (var item in castedValue)
                 builder.Add(EvaluateCast(item, type.ChildType()));
@@ -347,10 +350,7 @@ internal sealed class Evaluator {
                             ? new EvaluatorObject()
                             : Copy(EvaluateExpression(returnStatement.expression, abort));
 
-                        _hasValue =
-                            (returnStatement.expression is null || returnStatement.expression is BoundEmptyExpression)
-                                ? false : true;
-
+                        _hasValue = (returnStatement.expression is null or BoundEmptyExpression) ? false : true;
                         hasReturn = true;
 
                         return _lastValue;
@@ -459,8 +459,8 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject EvaluateThisExpression(BoundThisExpression node, ValueWrapper<bool> abort) {
-        return _enclosingType;
+    private EvaluatorObject EvaluateThisExpression(BoundThisExpression _, ValueWrapper<bool> _1) {
+        return _enclosingTypes.Peek();
     }
 
     private EvaluatorObject EvaluateMemberAccessExpression(BoundMemberAccessExpression node, ValueWrapper<bool> abort) {
@@ -472,9 +472,15 @@ internal sealed class Evaluator {
             } while (operand.isReference == true);
         }
 
-        EnterClassScope(operand, node.member is MethodSymbol);
+        var enterScope = node.member is MethodSymbol;
 
-        return operand.members[node.member];
+        EnterClassScope(operand, enterScope);
+        var result = operand.members[node.member];
+
+        // if (enterScope)
+        //     ExitClassScope();
+
+        return result;
     }
 
     private EvaluatorObject EvaluateObjectCreationExpression(
@@ -500,15 +506,17 @@ internal sealed class Evaluator {
         if (node.type.typeSymbol is ClassSymbol)
             InvokeMethod(node.constructor, node.arguments, abort);
 
+        ExitClassScope();
+
         return newObject;
     }
 
-    private EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression node, ValueWrapper<bool> abort) {
+    private EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression _, ValueWrapper<bool> _1) {
         // TODO Implement typeof and type types
         return new EvaluatorObject();
     }
 
-    private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node, ValueWrapper<bool> abort) {
+    private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node, ValueWrapper<bool> _1) {
         Dictionary<IVariableSymbol, IEvaluatorObject> referenceScope;
 
         if (node.variable.kind == SymbolKind.GlobalVariable)
@@ -633,13 +641,13 @@ internal sealed class Evaluator {
         var result = EvaluateStatement(statement, abort, out _);
         _locals.Pop();
 
-        if (_classLocalBufferOnStack)
+        if (_classLocalBufferOnStack && !method.isStatic)
             _locals.Pop();
 
         return result;
     }
 
-    private EvaluatorObject EvaluateConstantExpression(BoundExpression expression, ValueWrapper<bool> abort) {
+    private EvaluatorObject EvaluateConstantExpression(BoundExpression expression, ValueWrapper<bool> _) {
         return EvaluateCast(EvaluateBoundConstant(expression.constantValue), expression.type);
     }
 
@@ -656,7 +664,7 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject EvaluateVariableExpression(BoundVariableExpression expression, ValueWrapper<bool> abort) {
+    private EvaluatorObject EvaluateVariableExpression(BoundVariableExpression expression, ValueWrapper<bool> _) {
         return new EvaluatorObject(expression.variable);
     }
 
@@ -726,10 +734,10 @@ internal sealed class Evaluator {
             if (leftValue is null || !(bool)leftValue)
                 return new EvaluatorObject(false);
 
-            var _right = EvaluateExpression(expression.right, abort);
-            var _rightValue = Value(_right);
+            var shortCircuitRight = EvaluateExpression(expression.right, abort);
+            var shortCircuitRightValue = Value(shortCircuitRight);
 
-            if (_rightValue is null || !(bool)_rightValue)
+            if (shortCircuitRightValue is null || !(bool)shortCircuitRightValue)
                 return new EvaluatorObject(false);
 
             return new EvaluatorObject(true);
@@ -739,10 +747,10 @@ internal sealed class Evaluator {
             if (leftValue != null && (bool)leftValue)
                 return new EvaluatorObject(true);
 
-            var _right = EvaluateExpression(expression.right, abort);
-            var _rightValue = Value(_right);
+            var shortCircuitRight = EvaluateExpression(expression.right, abort);
+            var shortCircuitRightValue = Value(shortCircuitRight);
 
-            if (_rightValue != null && (bool)_rightValue)
+            if (shortCircuitRightValue != null && (bool)shortCircuitRightValue)
                 return new EvaluatorObject(true);
 
             return new EvaluatorObject(false);
@@ -756,7 +764,6 @@ internal sealed class Evaluator {
 
         var expressionType = expression.type.typeSymbol;
         var leftType = expression.left.type.typeSymbol;
-        var rightType = expression.right.type.typeSymbol;
 
         leftValue = EvaluateValueCast(leftValue, expression.left.type);
         rightValue = EvaluateValueCast(rightValue, expression.right.type);

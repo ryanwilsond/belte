@@ -9,18 +9,19 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A scope of code.
 /// </summary>
 internal sealed class BoundScope {
+    private readonly bool _isBlock;
+
     private List<Symbol> _symbols;
     private List<Symbol> _assignedSymbols;
     private BoundScope _parent;
-    private bool _isBlock;
 
     /// <summary>
     /// Creates a new scope with an optional parent.
     /// </summary>
     /// <param name="parent">Enclosing scope.</param>
     internal BoundScope(BoundScope parent, bool isBlock = false) {
-        this._parent = parent;
-        this._isBlock = isBlock;
+        _parent = parent;
+        _isBlock = isBlock;
     }
 
     internal BoundScope parent {
@@ -91,15 +92,15 @@ internal sealed class BoundScope {
     /// <param name="name">Name of <see cref="Symbol" /> to search for.</param>
     /// <typeparam name="T">Type of <see cref="Symbol" /> to search for.</typeparam>
     /// <returns><see cref="Symbol" /> if found, null otherwise.</returns>
-    internal T LookupSymbol<T>(string name) where T : Symbol {
+    internal T LookupSymbol<T>(string name, bool isStaticLookup = false) where T : Symbol {
         if (_symbols != null) {
             foreach (var symbol in _symbols) {
-                if (symbol.name == name && symbol is T)
+                if (symbol.name == name && symbol is T && (isStaticLookup ? symbol.containingType is null : true))
                     return symbol as T;
             }
         }
 
-        return parent?.LookupSymbol<T>(name);
+        return parent?.LookupSymbol<T>(name, isStaticLookup);
     }
 
     /// <summary>
@@ -108,7 +109,8 @@ internal sealed class BoundScope {
     /// </summary>
     /// <param name="name">Name of <see cref="Symbol" />.</param>
     /// <returns><see cref="Symbol" /> if found, null otherwise.</returns>
-    internal Symbol LookupSymbol(string name) => LookupSymbol<Symbol>(name);
+    internal Symbol LookupSymbol(string name, bool isStaticLookup = false)
+        => LookupSymbol<Symbol>(name, isStaticLookup);
 
     /// <summary>
     /// Attempts to replace an already declared <see cref="Symbol" />.
@@ -128,7 +130,16 @@ internal sealed class BoundScope {
             if (symbols != null) {
                 for (var i = 0; i < symbols.Count; i++) {
                     if (symbols[i] == currentSymbol) {
-                        symbols[i] = newSymbol;
+                        if (newSymbol is ClassSymbol cs) {
+                            (symbols[i] as ClassSymbol).UpdateInternals(
+                                cs.templateParameters, cs.members, cs.defaultFieldAssignments
+                            );
+                        } else if (currentSymbol is StructSymbol ss) {
+                            (symbols[i] as StructSymbol).UpdateInternals(ss.templateParameters, ss.members);
+                        } else {
+                            symbols[i] = newSymbol;
+                        }
+
                         succeeded = true;
                         break;
                     }
@@ -183,7 +194,7 @@ internal sealed class BoundScope {
     }
 
     private ImmutableArray<Symbol> LookupOverloadsInternal(
-        string name, bool strict = false, ImmutableArray<Symbol>? _current = null) {
+        string name, bool strict = false, ImmutableArray<Symbol>? current = null) {
         var overloads = ImmutableArray.CreateBuilder<Symbol>();
 
         if (_symbols != null) {
@@ -192,10 +203,10 @@ internal sealed class BoundScope {
                 if (symbol.name != name && (strict || !symbol.name.Contains($">g__{name}")))
                     continue;
 
-                if (_current != null) {
+                if (current != null) {
                     var skip = false;
 
-                    foreach (var cs in _current.Value) {
+                    foreach (var cs in current.Value) {
                         if ((symbol is MethodSymbol fs && cs is MethodSymbol fcs && MethodsMatch(fs, fcs)) ||
                             (symbol is NamedTypeSymbol ts && cs is NamedTypeSymbol tcs && NamedTypesMatch(ts, tcs))) {
                             skip = true;
@@ -215,9 +226,9 @@ internal sealed class BoundScope {
             overloads.AddRange(parent?.LookupOverloadsInternal(
                 name,
                 strict: strict,
-                _current: _current is null
+                current: current is null
                     ? overloads.ToImmutable()
-                    : overloads.ToImmutable().AddRange(_current.Value))
+                    : overloads.ToImmutable().AddRange(current.Value))
             );
         }
 

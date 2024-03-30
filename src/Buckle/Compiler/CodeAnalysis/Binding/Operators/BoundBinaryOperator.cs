@@ -26,7 +26,7 @@ internal sealed class BoundBinaryOperator {
     /// <summary>
     /// All defined possible operators, and their operand types.
     /// </summary>
-    internal static BoundBinaryOperator[] _operators = {
+    internal static BoundBinaryOperator[] Operators = {
         // integer
         new BoundBinaryOperator(
             SyntaxKind.PlusToken, BoundBinaryOperatorKind.Addition, BoundType.Int),
@@ -161,7 +161,7 @@ internal sealed class BoundBinaryOperator {
     /// <param name="rightType">Right operand type.</param>
     /// <returns><see cref="BoundBinaryOperator" /> if an operator exists, otherwise null.</returns>
     internal static BoundBinaryOperator Bind(SyntaxKind kind, BoundType leftType, BoundType rightType) {
-        foreach (var op in _operators) {
+        foreach (var op in Operators) {
             var leftIsCorrect = op.leftType is null
                 ? true
                 : Cast.Classify(leftType, op.leftType, false).isImplicit;

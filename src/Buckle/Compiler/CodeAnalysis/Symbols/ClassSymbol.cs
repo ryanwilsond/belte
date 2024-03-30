@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
-using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -14,7 +13,25 @@ internal sealed class ClassSymbol : NamedTypeSymbol {
     internal ClassSymbol(
         ImmutableArray<ParameterSymbol> templateParameters,
         ImmutableArray<Symbol> symbols,
-        ClassDeclarationSyntax declaration)
-        : base(templateParameters, symbols, declaration) {
+        ImmutableArray<(FieldSymbol, VariableDeclarationStatementSyntax)> defaultFieldAssignments,
+        ClassDeclarationSyntax declaration,
+        DeclarationModifiers modifiers = DeclarationModifiers.None)
+        : base(templateParameters, symbols, declaration, modifiers) {
+        this.defaultFieldAssignments = defaultFieldAssignments;
+    }
+
+    /// <summary>
+    /// Statements that assigns fields with specified initializers. Used in constructors.
+    /// </summary>
+    internal ImmutableArray<(FieldSymbol, VariableDeclarationStatementSyntax)> defaultFieldAssignments {
+        get; private set;
+    }
+
+    internal void UpdateInternals(
+        ImmutableArray<ParameterSymbol> templateParameters,
+        ImmutableArray<Symbol> symbols,
+        ImmutableArray<(FieldSymbol, VariableDeclarationStatementSyntax)> defaultFieldAssignments) {
+        UpdateInternals(templateParameters, symbols);
+        this.defaultFieldAssignments = defaultFieldAssignments;
     }
 }

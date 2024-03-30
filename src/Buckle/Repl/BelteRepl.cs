@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -25,12 +26,13 @@ namespace Repl;
 public sealed partial class BelteRepl : Repl {
     private static readonly CompilationOptions DefaultOptions = new CompilationOptions(BuildMode.Repl, true, false);
     private static readonly Compilation EmptyCompilation = Compilation.CreateScript(DefaultOptions, null);
-    private static readonly Dictionary<string, ColorTheme> InUse = new Dictionary<string, ColorTheme>() {
-        {"Dark", new DarkTheme()},
-        {"Light", new LightTheme()},
-        {"Green", new GreenTheme()},
-        {"Blue", new BlueTheme()},
-    };
+    private static readonly ImmutableArray<(string name, string contributor, ColorTheme theme)> InUse =
+        new List<(string, string, ColorTheme)>() {
+        ("Dark", "", new DarkTheme()),
+        ("Light", "", new LightTheme()),
+        ("Green", "Abiral Shakya", new GreenTheme()),
+        ("Blue", "Logan Kuz", new BlueTheme()),
+    }.ToImmutableArray();
 
     private List<TextChange> _changes = new List<TextChange>();
 
@@ -208,7 +210,7 @@ public sealed partial class BelteRepl : Repl {
             return true;
 
         var twoBlankTines = text.Split(Environment.NewLine).Reverse()
-            .TakeWhile(s => (string.IsNullOrEmpty(s) || string.IsNullOrWhiteSpace(s)))
+            .TakeWhile(s => string.IsNullOrEmpty(s) || string.IsNullOrWhiteSpace(s))
             .Take(2)
             .Count() == 2;
 
@@ -299,7 +301,7 @@ public sealed partial class BelteRepl : Repl {
                 var iLCode = compilation.EmitToString(BuildMode.Dotnet, "ReplSubmission");
                 writer.Write(iLCode);
             } catch (KeyNotFoundException) {
-                handle.diagnostics.Push(new BelteDiagnostic(global::Repl.Diagnostics.Error.FailedILGeneration()));
+                handle.diagnostics.Push(new BelteDiagnostic(Diagnostics.Error.FailedILGeneration()));
             }
         }
 
@@ -354,32 +356,20 @@ public sealed partial class BelteRepl : Repl {
     }
 
     private ConsoleColor GetColorFromClassification(Classification classification) {
-        switch (classification) {
-            case Classification.Identifier:
-                return state.colorTheme.identifier;
-            case Classification.Keyword:
-                return state.colorTheme.keyword;
-            case Classification.Type:
-                return state.colorTheme.typeName;
-            case Classification.Number:
-                return state.colorTheme.number;
-            case Classification.String:
-                return state.colorTheme.@string;
-            case Classification.Comment:
-                return state.colorTheme.comment;
-            case Classification.Text:
-                return state.colorTheme.text;
-            case Classification.Escape:
-                return state.colorTheme.escape;
-            case Classification.RedNode:
-                return state.colorTheme.redNode;
-            case Classification.GreenNode:
-                return state.colorTheme.greenNode;
-            case Classification.BlueNode:
-                return state.colorTheme.blueNode;
-            default:
-                return state.colorTheme.@default;
-        }
+        return classification switch {
+            Classification.Identifier => state.colorTheme.identifier,
+            Classification.Keyword => state.colorTheme.keyword,
+            Classification.Type => state.colorTheme.typeName,
+            Classification.Number => state.colorTheme.number,
+            Classification.String => state.colorTheme.@string,
+            Classification.Comment => state.colorTheme.comment,
+            Classification.Text => state.colorTheme.text,
+            Classification.Escape => state.colorTheme.escape,
+            Classification.RedNode => state.colorTheme.redNode,
+            Classification.GreenNode => state.colorTheme.greenNode,
+            Classification.BlueNode => state.colorTheme.blueNode,
+            _ => state.colorTheme.@default,
+        };
     }
 
     private void UpdateTree() {
@@ -408,11 +398,11 @@ public sealed partial class BelteRepl : Repl {
             }
 
             writer.Write(" }");
-        } else if (value is Dictionary<object, object>) {
+        } else if (value is Dictionary<object, object> dictionary) {
             writer.Write("{ ");
             var isFirst = true;
 
-            foreach (var pair in (Dictionary<object, object>)value) {
+            foreach (var pair in dictionary) {
                 if (isFirst)
                     isFirst = false;
                 else
@@ -521,7 +511,7 @@ public sealed partial class BelteRepl : Repl {
     [MetaCommand("load", "Load in text from <path>")]
     private void EvaluateLoad(string path) {
         if (!File.Exists(path)) {
-            handle.diagnostics.Push(new BelteDiagnostic(global::Repl.Diagnostics.Error.NoSuchFile(path)));
+            handle.diagnostics.Push(new BelteDiagnostic(Diagnostics.Error.NoSuchFile(path)));
 
             if (_hasDiagnosticHandle)
                 _diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
@@ -576,9 +566,9 @@ public sealed partial class BelteRepl : Repl {
 
         if (symbols.Length == 0) {
             if (signature == name)
-                handle.diagnostics.Push(new BelteDiagnostic(global::Repl.Diagnostics.Error.UndefinedSymbol(name)));
+                handle.diagnostics.Push(new BelteDiagnostic(Diagnostics.Error.UndefinedSymbol(name)));
             else
-                handle.diagnostics.Push(new BelteDiagnostic(global::Repl.Diagnostics.Error.NoSuchMethod(signature)));
+                handle.diagnostics.Push(new BelteDiagnostic(Diagnostics.Error.NoSuchMethod(signature)));
         } else if (symbols.Length == 1) {
             symbol = symbols.Single();
         } else if (signature == name) {
@@ -588,7 +578,7 @@ public sealed partial class BelteRepl : Repl {
                 symbol = temp.First();
             } else {
                 handle.diagnostics.Push(
-                    new BelteDiagnostic(global::Repl.Diagnostics.Error.AmbiguousSignature(signature, symbols))
+                    new BelteDiagnostic(Diagnostics.Error.AmbiguousSignature(signature, symbols))
                 );
             }
         } else {
@@ -617,8 +607,7 @@ public sealed partial class BelteRepl : Repl {
     [MetaCommand("saveToFile", "Save previous <count> submissions to <path>")]
     private void EvaluateSaveToFile(string path, string count = "1") {
         if (!int.TryParse(count, out var countInt)) {
-            handle.diagnostics.Push(
-                new BelteDiagnostic(global::Repl.Diagnostics.Error.InvalidArgument(count, typeof(int))));
+            handle.diagnostics.Push(new BelteDiagnostic(Diagnostics.Error.InvalidArgument(count, typeof(int))));
 
             if (_hasDiagnosticHandle)
                 CallDiagnosticHandle(handle, "repl", state.colorTheme.textDefault);
@@ -676,9 +665,14 @@ public sealed partial class BelteRepl : Repl {
     private void EvaluateSettings() {
         state.currentPage = Page.Settings;
 
+        var maxNameLength = 0;
+
+        foreach (var (name, _, _) in InUse)
+            maxNameLength = name.Length > maxNameLength ? name.Length : maxNameLength;
+
         void UpdatePage(int targetIndex) {
             targetIndex -= 2;
-            state.colorTheme = InUse[InUse.Keys.ToArray()[targetIndex]];
+            state.colorTheme = InUse[targetIndex].theme;
 
             Console.BackgroundColor = state.colorTheme.background;
             Console.ForegroundColor = state.colorTheme.textDefault;
@@ -689,15 +683,20 @@ public sealed partial class BelteRepl : Repl {
 
             var index = 2;
 
-            foreach (var (Key, Value) in InUse) {
+            foreach (var (name, contributor, theme) in InUse) {
                 writer.SetCursorPosition(7, index++);
 
-                if (state.colorTheme.GetType() == Value.GetType())
+                if (state.colorTheme.GetType() == theme.GetType())
                     Console.BackgroundColor = state.colorTheme.selection;
                 else
                     Console.BackgroundColor = state.colorTheme.background;
 
-                writer.Write(Key.PadRight(8));
+                writer.Write(name.PadRight(maxNameLength + 3)); // Arbitrary padding
+
+                if (contributor.Length > 0) {
+                    Console.BackgroundColor = state.colorTheme.background;
+                    writer.Write($"  Created by contributor {contributor}");
+                }
             }
 
             writer.SetCursorPosition(7, targetIndex + 2);
@@ -706,8 +705,8 @@ public sealed partial class BelteRepl : Repl {
         var targetIndex = 2;
         var index = 2;
 
-        foreach (var (Key, Value) in InUse) {
-            if (state.colorTheme.GetType() == Value.GetType())
+        foreach (var (_, _, theme) in InUse) {
+            if (state.colorTheme.GetType() == theme.GetType())
                 targetIndex = index;
             else
                 index++;
@@ -725,7 +724,7 @@ public sealed partial class BelteRepl : Repl {
                 if (targetIndex - 2 > 0)
                     targetIndex--;
             } else if (key.Key == ConsoleKey.DownArrow) {
-                if (targetIndex - 2 < InUse.Count - 1)
+                if (targetIndex - 2 < InUse.Length - 1)
                     targetIndex++;
             }
         }

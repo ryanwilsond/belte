@@ -181,7 +181,7 @@ public abstract partial class SyntaxNode {
         if (GetCachedSlot(index) is { } node)
             return node.position;
 
-        int offset = 0;
+        var offset = 0;
         var green = this.green;
 
         while (index > 0) {
@@ -241,16 +241,16 @@ public abstract partial class SyntaxNode {
     /// Gets the start position of the child at the given index, calculated from the end of the node.
     /// </summary>
     internal int GetChildPositionFromEnd(int index) {
-        if (this.GetCachedSlot(index) is { } node)
+        if (GetCachedSlot(index) is { } node)
             return node.position;
 
         var green = this.green;
-        int offset = green.GetSlot(index)?.fullWidth ?? 0;
-        int slotCount = green.slotCount;
+        var offset = green.GetSlot(index)?.fullWidth ?? 0;
+        var slotCount = green.slotCount;
 
         while (index < slotCount - 1) {
             index++;
-            var nextSibling = this.GetCachedSlot(index);
+            var nextSibling = GetCachedSlot(index);
 
             if (nextSibling != null)
                 return nextSibling.position - offset;
@@ -268,9 +268,9 @@ public abstract partial class SyntaxNode {
     /// Gets the child index of the given slot, accounting for the slot count of child lists.
     /// </summary>
     internal int GetChildIndex(int slot) {
-        int index = 0;
+        var index = 0;
 
-        for (int i = 0; i < slot; i++) {
+        for (var i = 0; i < slot; i++) {
             var item = green.GetSlot(i);
 
             if (item != null) {
@@ -397,7 +397,7 @@ public abstract partial class SyntaxNode {
         return childNodeOrToken;
     }
 
-    private bool TryGetEndOfFileAt(int position, out SyntaxToken endOfFile) {
+    private bool TryGetEndOfFileAt(int _, out SyntaxToken endOfFile) {
         if (fullSpan.length == 0) {
             if (this is CompilationUnitSyntax compilationUnit) {
                 endOfFile = compilationUnit.endOfFile;

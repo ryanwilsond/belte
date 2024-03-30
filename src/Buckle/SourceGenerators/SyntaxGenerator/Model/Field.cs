@@ -17,7 +17,7 @@ public sealed class Field : TreeTypeChild {
     public string Override;
 
     [XmlElement(ElementName = "Kind", Type = typeof(Kind))]
-    public List<Kind> Kinds = new List<Kind>();
+    public List<Kind> kinds = new List<Kind>();
 
     public bool isToken => Type == "SyntaxToken";
     public bool isOptional => Optional == "true";

@@ -82,7 +82,7 @@ internal sealed partial class SyntaxList<T> : IEquatable<SyntaxList<T>> where T 
     }
 
     public override bool Equals(object? obj) {
-        return (obj is SyntaxList<T>) && Equals((SyntaxList<T>)obj);
+        return (obj is SyntaxList<T> list) && Equals(list);
     }
 
     public override int GetHashCode() {
@@ -90,8 +90,8 @@ internal sealed partial class SyntaxList<T> : IEquatable<SyntaxList<T>> where T 
     }
 
     internal void CopyTo(int offset, ArrayElement<GreenNode>[] array, int arrayOffset, int count) {
-        for (int i = 0; i < count; i++)
-            array[arrayOffset + i].Value = GetRequiredItem(i + offset);
+        for (var i = 0; i < count; i++)
+            array[arrayOffset + i].value = GetRequiredItem(i + offset);
     }
 
     /// <summary>

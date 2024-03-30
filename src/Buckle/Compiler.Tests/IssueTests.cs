@@ -9,10 +9,10 @@ namespace Buckle.Tests;
 /// Tests that were added in result to a bug.
 /// </summary>
 public sealed class IssueTests {
-    private readonly ITestOutputHelper writer;
+    private readonly ITestOutputHelper _writer;
 
     public IssueTests(ITestOutputHelper writer) {
-        this.writer = writer;
+        _writer = writer;
     }
 
     [Fact]
@@ -25,7 +25,7 @@ public sealed class IssueTests {
             undefined symbol 'b'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public sealed class IssueTests {
             cannot convert from type 'int[]' to '[NotNull]int[]'. An explicit conversion exists (are you missing a cast?)
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public sealed class IssueTests {
             null ? 3 : 5;
         ";
 
-        AssertExceptions(text, writer, new NullReferenceException());
+        AssertExceptions(text, _writer, new NullReferenceException());
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public sealed class IssueTests {
             cannot convert 'null' to '[NotNull]int' because it is a non-nullable type
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public sealed class IssueTests {
 
         var diagnostics = @"";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
         AssertValue(text, 4);
     }
 
@@ -97,7 +97,7 @@ public sealed class IssueTests {
             argument 1: cannot convert from type 'ref A' to 'A'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public sealed class IssueTests {
             'y' cannot be assigned to with a reference as it is a constant reference
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public sealed class IssueTests {
             'x' cannot be assigned to as it is a constant
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -141,7 +141,7 @@ public sealed class IssueTests {
             cannot use implicit-typing in this context
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -168,7 +168,7 @@ public sealed class IssueTests {
             }
         ";
 
-        AssertExceptions(text, writer, new NullReferenceException());
+        AssertExceptions(text, _writer, new NullReferenceException());
     }
 
     [Fact]
@@ -188,7 +188,7 @@ public sealed class IssueTests {
             unreachable code
         ";
 
-        AssertDiagnostics(text, diagnostics, writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, true);
     }
 
     [Fact]
@@ -202,7 +202,7 @@ public sealed class IssueTests {
             compound operator '+=' is not defined for types 'int' and 'bool'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -215,7 +215,7 @@ public sealed class IssueTests {
             undefined symbol 'x'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -231,7 +231,7 @@ public sealed class IssueTests {
             'x' cannot be assigned to as it is a constant
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -249,7 +249,7 @@ public sealed class IssueTests {
             unreachable code
         ";
 
-        AssertDiagnostics(text, diagnostics, writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, true);
     }
 
     [Fact]
@@ -266,7 +266,7 @@ public sealed class IssueTests {
             unreachable code
         ";
 
-        AssertDiagnostics(text, diagnostics, writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, true);
     }
 
     [Fact]
@@ -277,7 +277,7 @@ public sealed class IssueTests {
             unexpected token '='
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -291,7 +291,7 @@ public sealed class IssueTests {
             method 'myFunc' expects 1 argument, got 0
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -305,7 +305,7 @@ public sealed class IssueTests {
             method 'myFunc' expects 1 argument, got 3
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -320,7 +320,7 @@ public sealed class IssueTests {
             expected expression
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -334,7 +334,7 @@ public sealed class IssueTests {
             not all code paths return a value
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -349,7 +349,7 @@ public sealed class IssueTests {
             expected '}' at end of input
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -364,7 +364,7 @@ public sealed class IssueTests {
             cannot convert from type 'int' to 'bool'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -378,7 +378,7 @@ public sealed class IssueTests {
             cannot convert from type 'int' to 'bool'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -392,7 +392,7 @@ public sealed class IssueTests {
             cannot convert from type 'int' to 'bool'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -405,7 +405,7 @@ public sealed class IssueTests {
             cannot convert from type 'int' to 'bool'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -424,7 +424,7 @@ public sealed class IssueTests {
             variable 'x' is already declared in this scope
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -437,12 +437,12 @@ public sealed class IssueTests {
             undefined symbol 'x'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
     public void Evaluator_NameExpression_Reports_NoErrorForInsertedToken() {
-        AssertDiagnostics("", "", writer);
+        AssertDiagnostics("", "", _writer);
     }
 
     [Fact]
@@ -455,7 +455,7 @@ public sealed class IssueTests {
             undefined symbol 'x'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -468,7 +468,7 @@ public sealed class IssueTests {
             method 'PrintLine' cannot be used as a variable
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -482,7 +482,7 @@ public sealed class IssueTests {
             'x' cannot be assigned to as it is a constant
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -496,7 +496,7 @@ public sealed class IssueTests {
             cannot convert from type 'bool' to 'int'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -509,7 +509,7 @@ public sealed class IssueTests {
             undefined method 'foo'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -523,7 +523,7 @@ public sealed class IssueTests {
             called object 'foo' is not a method
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -537,7 +537,7 @@ public sealed class IssueTests {
             called object 'PrintLine' is not a method
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -552,7 +552,7 @@ public sealed class IssueTests {
             cannot return a value in a method returning void
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -567,7 +567,7 @@ public sealed class IssueTests {
             cannot return without a value in a method returning non-void
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -590,7 +590,7 @@ public sealed class IssueTests {
             expression must have a value
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -603,7 +603,7 @@ public sealed class IssueTests {
             break statements can only be used within a loop
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -616,7 +616,7 @@ public sealed class IssueTests {
             cannot reuse parameter name 'a'; parameter names must be unique
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -629,7 +629,7 @@ public sealed class IssueTests {
             expected identifier
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -643,7 +643,7 @@ public sealed class IssueTests {
             argument 1: cannot convert from type 'bool' to 'int'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -656,7 +656,7 @@ public sealed class IssueTests {
             unknown type 'invalidType'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -669,7 +669,7 @@ public sealed class IssueTests {
             unary operator '+' is not defined for type 'bool'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -682,7 +682,7 @@ public sealed class IssueTests {
             binary operator '+' is not defined for types 'int' and 'bool'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -696,7 +696,7 @@ public sealed class IssueTests {
 
         var diagnostics = @"";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -710,7 +710,7 @@ public sealed class IssueTests {
 
         var diagnostics = @"";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -726,6 +726,27 @@ public sealed class IssueTests {
             expected ';' at end of input
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_MethodInvoke_DoNotPopLocalsInStatic() {
+        var text = @"
+            class A {
+                static void Util() {
+                    PrintLine(""123"");
+                }
+                void Test() {
+                    Util();
+                    A.Util();
+                }
+            }
+            var a = new A();
+            a.Test();
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 }

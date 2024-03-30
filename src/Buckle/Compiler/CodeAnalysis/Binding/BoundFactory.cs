@@ -44,6 +44,19 @@ internal static partial class BoundFactory {
         return new BoundBlockStatement(ImmutableArray.Create(statements));
     }
 
+    internal static BoundBlockStatement Block(params ImmutableArray<BoundStatement>[] blocks) {
+        var builder = blocks[0].ToBuilder();
+
+        for (var i = 1; i < blocks.Length; i++)
+            builder.AddRange(blocks[i]);
+
+        return new BoundBlockStatement(builder.ToImmutable());
+    }
+
+    internal static BoundBlockStatement Block() {
+        return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
+    }
+
     internal static BoundLabelStatement Label(BoundLabel label) {
         return new BoundLabelStatement(label);
     }
@@ -77,8 +90,12 @@ internal static partial class BoundFactory {
         return new BoundCastExpression(type, expression);
     }
 
-    internal static BoundMemberAccessExpression MemberAccess(BoundExpression operand, Symbol member, BoundType type) {
-        return new BoundMemberAccessExpression(operand, member, type, false);
+    internal static BoundMemberAccessExpression MemberAccess(
+        BoundExpression operand,
+        Symbol member,
+        BoundType type,
+        bool isStaticAccess = false) {
+        return new BoundMemberAccessExpression(operand, member, type, false, isStaticAccess);
     }
 
     internal static BoundIndexExpression Index(BoundExpression operand, BoundExpression index) {

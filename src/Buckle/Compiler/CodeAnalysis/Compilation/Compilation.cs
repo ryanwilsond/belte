@@ -28,7 +28,7 @@ public sealed class Compilation {
         foreach (var syntaxTree in syntaxTrees)
             diagnostics.Move(syntaxTree.GetDiagnostics());
 
-        this.syntaxTrees = syntaxTrees.ToImmutableArray<SyntaxTree>();
+        this.syntaxTrees = syntaxTrees.ToImmutableArray();
     }
 
     /// <summary>
@@ -258,7 +258,7 @@ public sealed class Compilation {
     /// </param>
     /// <returns>Diagnostics.</returns>
     internal BelteDiagnosticQueue Emit(
-        BuildMode buildMode, string moduleName, string[] references, string outputPath, CompilerStage finishStage) {
+        BuildMode buildMode, string moduleName, string[] references, string outputPath, CompilerStage _) {
         if (diagnostics.Errors().Any())
             return diagnostics;
 
@@ -283,8 +283,8 @@ public sealed class Compilation {
     /// </summary>
     /// <returns>Newly bound <see cref="BoundProgram" />.</returns>
     internal BoundProgram GetProgram() {
-        var _previous = previous?.GetProgram();
-        return Binder.BindProgram(options, _previous, globalScope);
+        var previous = this.previous?.GetProgram();
+        return Binder.BindProgram(options, previous, globalScope);
     }
 
     /// <summary>
@@ -306,8 +306,8 @@ public sealed class Compilation {
         if (cfgStatement != null) {
             var cfg = ControlFlowGraph.Create(cfgStatement);
 
-            using (var streamWriter = new StreamWriter(cfgPath))
-                cfg.WriteTo(streamWriter);
+            using var streamWriter = new StreamWriter(cfgPath);
+            cfg.WriteTo(streamWriter);
         }
     }
 }

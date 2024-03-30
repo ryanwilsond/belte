@@ -5,10 +5,10 @@ namespace Buckle.CodeAnalysis;
 /// A better array item as "elements[i].Value = v" is much better than "elements[i] = (ArrayElement<T>)v".
 /// </summary>
 internal struct ArrayElement<T> {
-    internal T Value;
+    internal T value;
 
     public static implicit operator T(ArrayElement<T> element) {
-        return element.Value;
+        return element.value;
     }
 
     /// <summary>
@@ -21,7 +21,7 @@ internal struct ArrayElement<T> {
         var array = new ArrayElement<T>[items.Length];
 
         for (var i = 0; i < items.Length; i++)
-            array[i].Value = items[i];
+            array[i].value = items[i];
 
         return array;
     }
@@ -38,7 +38,7 @@ internal struct ArrayElement<T> {
         var array = new T[items.Length];
 
         for (var i = 0; i < items.Length; i++)
-            array[i] = items[i].Value;
+            array[i] = items[i].value;
 
         return array;
     }

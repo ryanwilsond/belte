@@ -11,13 +11,13 @@ internal static class TreeFlattening {
     /// Placeholder until the grammar generator is
     /// </summary>
     internal static void FlattenChildren(Tree tree) {
-        foreach (var type in tree.Types) {
+        foreach (var type in tree.types) {
             switch (type) {
                 case AbstractNode node:
-                    FlattenChildren(node.Children, node.Fields, makeOptional: false);
+                    FlattenChildren(node.children, node.fields, makeOptional: false);
                     break;
                 case Node node:
-                    FlattenChildren(node.Children, node.Fields, makeOptional: false);
+                    FlattenChildren(node.children, node.fields, makeOptional: false);
                     break;
             }
         }

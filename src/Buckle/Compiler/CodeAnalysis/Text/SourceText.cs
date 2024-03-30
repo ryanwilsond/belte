@@ -20,7 +20,7 @@ public abstract class SourceText {
     private const int CharBufferSize = 32 * 1024;
     private const int CharBufferCount = 5;
 
-    private static readonly ObjectPool<char[]> _charArrayPool =
+    private static readonly ObjectPool<char[]> CharArrayPool =
         new ObjectPool<char[]>(() => new char[CharBufferSize], CharBufferCount);
 
     protected ImmutableArray<TextLine>? _lines;
@@ -71,7 +71,7 @@ public abstract class SourceText {
     /// <returns>Substring of the text.</returns>
     public virtual string ToString(TextSpan span) {
         var builder = PooledStringBuilder.GetInstance();
-        var buffer = _charArrayPool.Allocate();
+        var buffer = CharArrayPool.Allocate();
 
         var position = Math.Max(Math.Min(span.start, length), 0);
         var newLength = Math.Min(span.end, length) - position;
@@ -85,7 +85,7 @@ public abstract class SourceText {
             position += copyLength;
         }
 
-        _charArrayPool.Free(buffer);
+        CharArrayPool.Free(buffer);
 
         return builder.ToStringAndFree();
     }
@@ -94,7 +94,7 @@ public abstract class SourceText {
     /// Write this to a text writer.
     /// </summary>
     public virtual void Write(TextWriter writer) {
-        var buffer = _charArrayPool.Allocate();
+        var buffer = CharArrayPool.Allocate();
 
         try {
             var offset = 0;
@@ -107,7 +107,7 @@ public abstract class SourceText {
                 offset += count;
             }
         } finally {
-            _charArrayPool.Free(buffer);
+            CharArrayPool.Free(buffer);
         }
     }
 
@@ -151,7 +151,7 @@ public abstract class SourceText {
             }
 
             if (newTextLength > 0) {
-                var segment = SourceText.From(change.newText);
+                var segment = From(change.newText);
                 CompositeText.AddSegments(segments, segment);
             }
 
@@ -246,7 +246,7 @@ public abstract class SourceText {
         var spanLength = span.length;
 
         if (spanLength == 0)
-            return SourceText.From("");
+            return From("");
         else if (spanLength == length && span.start == 0)
             return this;
         else

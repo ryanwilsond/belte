@@ -377,8 +377,9 @@ internal static class Error {
     /// <summary>
     /// BU0039. Run `buckle --explain BU0039` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic NotAVariable(TextLocation location, string name) {
-        var message = $"method '{name}' cannot be used as a variable";
+    internal static BelteDiagnostic NotAVariable(TextLocation location, string name, bool isMethod) {
+        var methodWord = isMethod ? "method" : "type";
+        var message = $"{methodWord} '{name}' cannot be used as a variable";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NotAVariable), location, message);
     }
 
@@ -822,6 +823,33 @@ internal static class Error {
     internal static BelteDiagnostic NoConstructorOverload(TextLocation location, string name) {
         var message = $"type `{name}` does not contain a constructor that matches the parameter list";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoConstructorOverload), location, message);
+    }
+
+    /// <summary>
+    /// BU0088. Run `buckle --explain BU0088` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic InvalidModifier(TextLocation location, string name) {
+        var message = $"modifier `{name}` is not valid for this item";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidModifier), location, message);
+    }
+
+    /// <summary>
+    /// BU0089. Run `buckle --explain BU0089` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic InvalidInstanceReference(TextLocation location, string name, string typeName) {
+        var message = $"member `{name}` cannot be accessed with an instance reference; " +
+            "qualify it with the type name instead";
+        var suggestion = $"{typeName}.{name}";
+
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidInstanceReference), location, message, suggestion);
+    }
+
+    /// <summary>
+    /// BU0090. Run `buckle --explain BU0090` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic InvalidStaticReference(TextLocation location, string name) {
+        var message = $"an object reference is required for non-static member `{name}`";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidStaticReference), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

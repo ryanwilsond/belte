@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Immutable;
 using Buckle.Diagnostics;
 
@@ -16,40 +15,24 @@ internal abstract class BoundTreeRewriter {
     /// New <see cref="Syntax.StatementSyntax" /> or input <see cref="Syntax.StatementSyntax" /> if nothing changed.
     /// </returns>
     internal virtual BoundStatement RewriteStatement(BoundStatement statement) {
-        switch (statement.kind) {
-            case BoundNodeKind.NopStatement:
-                return RewriteNopStatement((BoundNopStatement)statement);
-            case BoundNodeKind.BlockStatement:
-                return RewriteBlockStatement((BoundBlockStatement)statement);
-            case BoundNodeKind.VariableDeclarationStatement:
-                return RewriteVariableDeclarationStatement((BoundVariableDeclarationStatement)statement);
-            case BoundNodeKind.IfStatement:
-                return RewriteIfStatement((BoundIfStatement)statement);
-            case BoundNodeKind.WhileStatement:
-                return RewriteWhileStatement((BoundWhileStatement)statement);
-            case BoundNodeKind.ForStatement:
-                return RewriteForStatement((BoundForStatement)statement);
-            case BoundNodeKind.ExpressionStatement:
-                return RewriteExpressionStatement((BoundExpressionStatement)statement);
-            case BoundNodeKind.LabelStatement:
-                return RewriteLabelStatement((BoundLabelStatement)statement);
-            case BoundNodeKind.GotoStatement:
-                return RewriteGotoStatement((BoundGotoStatement)statement);
-            case BoundNodeKind.ConditionalGotoStatement:
-                return RewriteConditionalGotoStatement((BoundConditionalGotoStatement)statement);
-            case BoundNodeKind.DoWhileStatement:
-                return RewriteDoWhileStatement((BoundDoWhileStatement)statement);
-            case BoundNodeKind.ReturnStatement:
-                return RewriteReturnStatement((BoundReturnStatement)statement);
-            case BoundNodeKind.TryStatement:
-                return RewriteTryStatement((BoundTryStatement)statement);
-            case BoundNodeKind.BreakStatement:
-                return RewriteBreakStatement((BoundBreakStatement)statement);
-            case BoundNodeKind.ContinueStatement:
-                return RewriteContinueStatement((BoundContinueStatement)statement);
-            default:
-                throw new BelteInternalException($"RewriteStatement: unexpected expression type '{statement.kind}'");
-        }
+        return statement.kind switch {
+            BoundNodeKind.NopStatement => RewriteNopStatement((BoundNopStatement)statement),
+            BoundNodeKind.BlockStatement => RewriteBlockStatement((BoundBlockStatement)statement),
+            BoundNodeKind.VariableDeclarationStatement => RewriteVariableDeclarationStatement((BoundVariableDeclarationStatement)statement),
+            BoundNodeKind.IfStatement => RewriteIfStatement((BoundIfStatement)statement),
+            BoundNodeKind.WhileStatement => RewriteWhileStatement((BoundWhileStatement)statement),
+            BoundNodeKind.ForStatement => RewriteForStatement((BoundForStatement)statement),
+            BoundNodeKind.ExpressionStatement => RewriteExpressionStatement((BoundExpressionStatement)statement),
+            BoundNodeKind.LabelStatement => RewriteLabelStatement((BoundLabelStatement)statement),
+            BoundNodeKind.GotoStatement => RewriteGotoStatement((BoundGotoStatement)statement),
+            BoundNodeKind.ConditionalGotoStatement => RewriteConditionalGotoStatement((BoundConditionalGotoStatement)statement),
+            BoundNodeKind.DoWhileStatement => RewriteDoWhileStatement((BoundDoWhileStatement)statement),
+            BoundNodeKind.ReturnStatement => RewriteReturnStatement((BoundReturnStatement)statement),
+            BoundNodeKind.TryStatement => RewriteTryStatement((BoundTryStatement)statement),
+            BoundNodeKind.BreakStatement => RewriteBreakStatement((BoundBreakStatement)statement),
+            BoundNodeKind.ContinueStatement => RewriteContinueStatement((BoundContinueStatement)statement),
+            _ => throw new BelteInternalException($"RewriteStatement: unexpected expression type '{statement.kind}'"),
+        };
     }
 
     protected virtual BoundStatement RewriteContinueStatement(BoundContinueStatement statement) {
@@ -283,7 +266,8 @@ internal abstract class BoundTreeRewriter {
             operand,
             expression.member,
             expression.type,
-            expression.isNullConditional
+            expression.isNullConditional,
+            expression.isStaticAccess
         );
     }
 

@@ -9,11 +9,11 @@ public abstract partial class Repl {
     private sealed class SubmissionView {
         private readonly LineRenderHandler _lineRenderer;
         private readonly ObservableCollection<string> _document;
+        private readonly OutputCapture _writer;
         private int _cursorTop;
         private int _renderedLineCount;
         private int _currentLine;
         private int _currentCharacter;
-        private OutputCapture _writer;
 
         internal SubmissionView(
             LineRenderHandler lineRenderer, ObservableCollection<string> document, OutputCapture writer) {

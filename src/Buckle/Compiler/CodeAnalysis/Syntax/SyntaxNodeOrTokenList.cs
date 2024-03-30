@@ -89,18 +89,18 @@ public sealed partial class SyntaxNodeOrTokenList : IReadOnlyCollection<SyntaxNo
     }
 
     internal SyntaxNodeOrToken FirstOrDefault() {
-        return this.Any()
+        return Any()
             ? this[0]
             : null;
     }
 
     internal SyntaxNodeOrToken Last() {
-        return this[this.Count - 1];
+        return this[Count - 1];
     }
 
     internal SyntaxNodeOrToken LastOrDefault() {
-        return this.Any()
-            ? this[this.Count - 1]
+        return Any()
+            ? this[Count - 1]
             : null;
     }
 
@@ -109,7 +109,7 @@ public sealed partial class SyntaxNodeOrTokenList : IReadOnlyCollection<SyntaxNo
     }
 
     internal void CopyTo(int offset, GreenNode[] array, int arrayOffset, int count) {
-        for (int i = 0; i < count; i++)
+        for (var i = 0; i < count; i++)
             array[arrayOffset + i] = this[i + offset].underlyingNode;
     }
 

@@ -57,8 +57,7 @@ internal sealed partial class ChangedText : SourceText {
         if (this == oldText)
             return ImmutableArray<TextChangeRange>.Empty;
 
-        SourceText actualOldText;
-        if (_info.weakOldText.TryGetTarget(out actualOldText) && actualOldText == oldText)
+        if (_info.weakOldText.TryGetTarget(out var actualOldText) && actualOldText == oldText)
             // Checks if the given oldText is what we reference, if so our changes must be accurate
             return _info.changeRanges;
 

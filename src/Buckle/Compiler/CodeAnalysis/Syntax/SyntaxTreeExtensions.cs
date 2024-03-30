@@ -29,7 +29,7 @@ public static class SyntaxTreeExtensions {
         var tokens = new SyntaxListBuilder<InternalSyntax.SyntaxToken>(32);
 
         void ParseTokens(SyntaxTree syntaxTree) {
-            var lexer = new InternalSyntax.Lexer(syntaxTree);
+            var lexer = new Lexer(syntaxTree);
 
             while (true) {
                 var token = lexer.LexNext();

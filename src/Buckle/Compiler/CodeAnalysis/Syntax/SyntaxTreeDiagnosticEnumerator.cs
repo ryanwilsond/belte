@@ -40,8 +40,8 @@ internal partial struct SyntaxTreeDiagnosticEnumerator {
     /// enumerator was at the end of the diagnostic list.</returns>
     public bool MoveNext() {
         while (_stack.Any()) {
-            var diagIndex = _stack.Top.DiagnosticIndex;
-            var node = _stack.Top.Node;
+            var diagIndex = _stack.top.diagnosticIndex;
+            var node = _stack.top.node;
             var diags = node.GetDiagnostics();
 
             if (diagIndex < diags.Length - 1) {
@@ -49,7 +49,7 @@ internal partial struct SyntaxTreeDiagnosticEnumerator {
                 var diagnostic = diags[diagIndex];
 
                 if (diagnostic is SyntaxDiagnostic sd) {
-                    int leadingWidthAlreadyCounted = node.isToken ? node.GetLeadingTriviaWidth() : 0;
+                    var leadingWidthAlreadyCounted = node.isToken ? node.GetLeadingTriviaWidth() : 0;
 
                     var length = _syntaxTree.GetRoot().fullSpan.length;
                     var spanStart = Math.Min(_position - leadingWidthAlreadyCounted + sd.offset, length);
@@ -69,7 +69,7 @@ internal partial struct SyntaxTreeDiagnosticEnumerator {
                 return true;
             }
 
-            var slotIndex = _stack.Top.SlotIndex;
+            var slotIndex = _stack.top.slotIndex;
 tryAgain:
             if (slotIndex < node.slotCount - 1) {
                 slotIndex++;

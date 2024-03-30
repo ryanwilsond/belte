@@ -15,7 +15,7 @@ internal sealed class SyntaxTrivia : BelteSyntaxNode {
         this.text = text;
 
         if (kind == SyntaxKind.SkippedTokenTrivia)
-            flags |= NodeFlags.ContainsSkippedText;
+            _flags |= NodeFlags.ContainsSkippedText;
     }
 
     /// <summary>
@@ -26,7 +26,7 @@ internal sealed class SyntaxTrivia : BelteSyntaxNode {
         this.text = text;
 
         if (kind == SyntaxKind.SkippedTokenTrivia)
-            flags |= NodeFlags.ContainsSkippedText;
+            _flags |= NodeFlags.ContainsSkippedText;
     }
 
     internal override int width => fullWidth;

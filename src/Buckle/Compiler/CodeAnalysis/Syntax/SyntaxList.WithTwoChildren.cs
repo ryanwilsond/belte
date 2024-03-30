@@ -13,25 +13,19 @@ public partial class SyntaxList : SyntaxNode {
             : base(parent, green, position) { }
 
         internal override SyntaxNode GetNodeSlot(int index) {
-            switch (index) {
-                case 0:
-                    return GetRedElement(ref _child0, 0);
-                case 1:
-                    return GetRedElementIfNotToken(ref _child1);
-                default:
-                    return null;
-            }
+            return index switch {
+                0 => GetRedElement(ref _child0, 0),
+                1 => GetRedElementIfNotToken(ref _child1),
+                _ => null,
+            };
         }
 
         internal override SyntaxNode GetCachedSlot(int index) {
-            switch (index) {
-                case 0:
-                    return _child0;
-                case 1:
-                    return _child1;
-                default:
-                    return null;
-            }
+            return index switch {
+                0 => _child0,
+                1 => _child1,
+                _ => null,
+            };
         }
     }
 }

@@ -2,23 +2,39 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug",
+            "name": "Debug Repl",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build debug",
+            "preLaunchTask": "build compiler debug",
             "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net8.0/CommandLine.dll",
             "args": [
                 "-r"
+                // "./.tests/CPUEmulator",
+                // "-i",
             ],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",
             "stopAtEntry": false,
         },
         {
-            "name": "Release",
+            "name": "Debug Syntax Generator",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build release",
+            "preLaunchTask": "build syntax generator debug",
+            "program": "${workspaceFolder}/src/Buckle/SourceGenerators/SyntaxGenerator/bin/Debug/net8.0/SyntaxGenerator.dll",
+            "args": [
+                "${workspaceFolder}/src/Buckle/Compiler/CodeAnalysis/Syntax/Syntax.xml",
+                "${workspaceFolder}/src/Buckle/Compiler/CodeAnalysis/Generated"
+            ],
+            "cwd": "${workspaceFolder}",
+            "console": "externalTerminal",
+            "stopAtEntry": false,
+        },
+        {
+            "name": "Release Repl",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build compiler release",
             "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Release/net8.0/CommandLine.dll",
             "args": [
                 "-r"

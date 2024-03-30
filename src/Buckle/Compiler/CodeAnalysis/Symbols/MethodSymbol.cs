@@ -9,6 +9,8 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// A method symbol.
 /// </summary>
 internal sealed class MethodSymbol : Symbol, IMethodSymbol {
+    private readonly DeclarationModifiers _declarationModifiers;
+
     /// <summary>
     /// Creates a <see cref="MethodSymbol" />.
     /// </summary>
@@ -24,15 +26,19 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
         ImmutableArray<ParameterSymbol> parameters,
         BoundType type,
         BaseMethodDeclarationSyntax declaration = null,
-        MethodSymbol originalDefinition = null)
+        MethodSymbol originalDefinition = null,
+        DeclarationModifiers modifiers = DeclarationModifiers.None)
         : base(name) {
         this.type = type;
         this.parameters = parameters;
         this.declaration = declaration;
         this.originalDefinition = originalDefinition;
+        _declarationModifiers = modifiers;
     }
 
     public override SymbolKind kind => SymbolKind.Method;
+
+    public override bool isStatic => (_declarationModifiers & DeclarationModifiers.Static) != 0;
 
     /// <summary>
     /// All parameters (see <see cref="ParameterSymbol" />).

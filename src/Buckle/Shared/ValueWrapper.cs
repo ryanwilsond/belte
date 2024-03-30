@@ -26,7 +26,7 @@ public class ValueWrapper<T> {
 
     public static implicit operator T(ValueWrapper<T> wrapper) {
         if (wrapper is null)
-            return default(T);
+            return default;
 
         return wrapper.Value;
     }

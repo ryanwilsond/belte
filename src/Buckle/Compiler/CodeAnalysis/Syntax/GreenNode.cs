@@ -11,16 +11,16 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// Houses basic information for both SyntaxNodes and SyntaxTokens.
 /// </summary>
 internal abstract partial class GreenNode {
-    protected NodeFlags flags;
+    protected NodeFlags _flags;
 
     /// <summary>
     /// A <see cref="SyntaxKind" /> that represents any list kind.
     /// </summary>
     internal const SyntaxKind ListKind = (SyntaxKind)1;
 
-    private static readonly ConditionalWeakTable<GreenNode, Diagnostic[]> _diagnosticsTable =
+    private static readonly ConditionalWeakTable<GreenNode, Diagnostic[]> DiagnosticsTable =
         new ConditionalWeakTable<GreenNode, Diagnostic[]>();
-    private static readonly Diagnostic[] _noDiagnostics = Array.Empty<Diagnostic>();
+    private static readonly Diagnostic[] NoDiagnostics = Array.Empty<Diagnostic>();
 
     /// <summary>
     /// Creates a new <see cref="GreenNode" />.
@@ -36,8 +36,8 @@ internal abstract partial class GreenNode {
         this.kind = kind;
 
         if (diagnostics?.Length > 0) {
-            flags |= NodeFlags.ContainsDiagnostics;
-            _diagnosticsTable.Add(this, diagnostics);
+            _flags |= NodeFlags.ContainsDiagnostics;
+            DiagnosticsTable.Add(this, diagnostics);
         }
     }
 
@@ -57,8 +57,8 @@ internal abstract partial class GreenNode {
         this.fullWidth = fullWidth;
 
         if (diagnostics?.Length > 0) {
-            flags |= NodeFlags.ContainsDiagnostics;
-            _diagnosticsTable.Add(this, diagnostics);
+            _flags |= NodeFlags.ContainsDiagnostics;
+            DiagnosticsTable.Add(this, diagnostics);
         }
     }
 
@@ -82,7 +82,7 @@ internal abstract partial class GreenNode {
     /// <summary>
     /// If the node was created by the compiler rather than representing a part of the source text.
     /// </summary>
-    internal bool isFabricated => (flags & NodeFlags.IsMissing) != 0;
+    internal bool isFabricated => (_flags & NodeFlags.IsMissing) != 0;
 
     /// <summary>
     /// Type of <see cref="GreenNode" /> (see <see cref="SyntaxKind" />).
@@ -93,12 +93,12 @@ internal abstract partial class GreenNode {
     /// If any diagnostics have spans that overlap with this node.
     /// Aka this node produced any diagnostics.
     /// </summary>
-    internal bool containsDiagnostics => (flags & NodeFlags.ContainsDiagnostics) != 0;
+    internal bool containsDiagnostics => (_flags & NodeFlags.ContainsDiagnostics) != 0;
 
     /// <summary>
     /// If this node contains any skipped text from the source text in the form of trivia.
     /// </summary>
-    internal bool containsSkippedText => (flags & NodeFlags.ContainsSkippedText) != 0;
+    internal bool containsSkippedText => (_flags & NodeFlags.ContainsSkippedText) != 0;
 
     /// <summary>
     /// If this <see cref="GreenNode" /> is any token type.
@@ -202,8 +202,8 @@ internal abstract partial class GreenNode {
     internal IEnumerable<GreenNode> EnumerateNodes() {
         yield return this;
 
-        var stack = new Stack<Syntax.InternalSyntax.ChildSyntaxList.Enumerator>(24);
-        stack.Push(this.ChildNodesAndTokens().GetEnumerator());
+        var stack = new Stack<InternalSyntax.ChildSyntaxList.Enumerator>(24);
+        stack.Push(ChildNodesAndTokens().GetEnumerator());
 
         while (stack.Count > 0) {
             var en = stack.Pop();
@@ -227,14 +227,14 @@ internal abstract partial class GreenNode {
     /// Enables given flags.
     /// </summary>
     internal void SetFlags(NodeFlags flags) {
-        this.flags |= flags;
+        _flags |= flags;
     }
 
     /// <summary>
     /// Disables given flags.
     /// </summary>
     internal void ClearFlags(NodeFlags flags) {
-        this.flags &= ~flags;
+        _flags &= ~flags;
     }
 
     /// <summary>
@@ -249,9 +249,9 @@ internal abstract partial class GreenNode {
     /// <param name="index" />.
     /// </summary>
     internal int GetSlotOffset(int index) {
-        int offset = 0;
+        var offset = 0;
 
-        for (int i = 0; i < index; i++) {
+        for (var i = 0; i < index; i++) {
             var child = GetSlot(i);
 
             if (child != null)
@@ -266,7 +266,7 @@ internal abstract partial class GreenNode {
     /// </summary>
     internal int FindSlotIndexContainingOffset(int offset) {
         int i;
-        int accumulatedWidth = 0;
+        var accumulatedWidth = 0;
 
         for (i = 0; ; i++) {
             var child = GetSlot(i);
@@ -310,12 +310,12 @@ internal abstract partial class GreenNode {
     /// Gets the last existing child <see cref="GreenNode" />.
     /// </summary>
     internal GreenNode GetLastTerminal() {
-        GreenNode node = this;
+        var node = this;
 
         do {
             GreenNode lastChild = null;
 
-            for (int i = node.slotCount - 1; i >= 0; i--) {
+            for (var i = node.slotCount - 1; i >= 0; i--) {
                 var child = node.GetSlot(i);
 
                 if (child != null) {
@@ -334,24 +334,20 @@ internal abstract partial class GreenNode {
     /// Gets all diagnostics under this node.
     /// </summary>
     internal Diagnostic[] GetDiagnostics() {
-        if (containsDiagnostics) {
-            Diagnostic[] diagnostics;
+        if (containsDiagnostics && DiagnosticsTable.TryGetValue(this, out var diagnostics))
+            return diagnostics;
 
-            if (_diagnosticsTable.TryGetValue(this, out diagnostics))
-                return diagnostics;
-        }
-
-        return _noDiagnostics;
+        return NoDiagnostics;
     }
 
     protected internal void WriteTo(TextWriter writer, bool leading, bool trailing) {
         var stack = new Stack<(GreenNode node, bool leading, bool trailing)>();
         stack.Push((this, leading, trailing));
 
-        processStack(writer, stack);
+        ProcessStack(writer, stack);
         return;
 
-        static void processStack(TextWriter writer, Stack<(GreenNode node, bool leading, bool trailing)> stack) {
+        static void ProcessStack(TextWriter writer, Stack<(GreenNode node, bool leading, bool trailing)> stack) {
             while (stack.Count > 0) {
                 var current = stack.Pop();
                 var currentNode = current.node;
@@ -393,13 +389,13 @@ internal abstract partial class GreenNode {
     }
 
     protected void AdjustFlagsAndWidth(GreenNode node) {
-        flags |= node.flags;
+        _flags |= node._flags;
         fullWidth += node.fullWidth;
     }
 
     private static int GetFirstNonNullChildIndex(GreenNode node) {
-        int n = node.slotCount;
-        int firstIndex = 0;
+        var n = node.slotCount;
+        var firstIndex = 0;
 
         for (; firstIndex < n; firstIndex++) {
             var child = node.GetSlot(firstIndex);
@@ -412,8 +408,8 @@ internal abstract partial class GreenNode {
     }
 
     private static int GetLastNonNullChildIndex(GreenNode node) {
-        int n = node.slotCount;
-        int lastIndex = n - 1;
+        var n = node.slotCount;
+        var lastIndex = n - 1;
 
         for (; lastIndex >= 0; lastIndex--) {
             var child = node.GetSlot(lastIndex);

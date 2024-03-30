@@ -14,7 +14,7 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
         }
 
         public bool MoveNext() {
-            int newIndex = _index + 1;
+            var newIndex = _index + 1;
 
             if (newIndex < _list.Count) {
                 _index = newIndex;

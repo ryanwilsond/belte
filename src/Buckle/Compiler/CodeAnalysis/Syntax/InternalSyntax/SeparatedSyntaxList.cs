@@ -27,7 +27,7 @@ internal sealed class SeparatedSyntaxList<T> : IEquatable<SeparatedSyntaxList<T>
     public int Count => (_list.Count + 1) >> 1;
 
     /// <summary>
-    /// The numner of separators.
+    /// The number of separators.
     /// </summary>
     public int separatorCount => _list.Count >> 1;
 
@@ -63,7 +63,7 @@ internal sealed class SeparatedSyntaxList<T> : IEquatable<SeparatedSyntaxList<T>
     }
 
     public override bool Equals(object? obj) {
-        return (obj is SeparatedSyntaxList<T>) && Equals((SeparatedSyntaxList<T>)obj);
+        return (obj is SeparatedSyntaxList<T> list) && Equals(list);
     }
 
     public override int GetHashCode() {

@@ -89,6 +89,7 @@ public enum SyntaxKind {
     VarKeyword,
     NewKeyword,
     ThisKeyword,
+    StaticKeyword,
 
     // Tokens with text
     BadToken,

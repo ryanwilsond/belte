@@ -14,9 +14,6 @@ internal sealed class SourceWriter {
     private readonly IDictionary<string, string> _parentMap;
     private readonly ILookup<string, string> _childMap;
 
-    private readonly IDictionary<string, Node> _nodeMap;
-    private readonly IDictionary<string, TreeType> _typeMap;
-
     private const int IndentSize = 4;
     private int _indentLevel;
     private bool _needIndent = true;
@@ -27,15 +24,11 @@ internal sealed class SourceWriter {
     internal SourceWriter(TextWriter writer, Tree tree) {
         _writer = writer;
         _tree = tree;
-        _nodeMap = tree.Types.OfType<Node>().ToDictionary(n => n.Name);
-        _typeMap = tree.Types.ToDictionary(n => n.Name);
-        _parentMap = tree.Types.ToDictionary(n => n.Name, n => n.Base);
+        _parentMap = tree.types.ToDictionary(n => n.Name, n => n.Base);
         _parentMap.Add(tree.Root, null);
-        _childMap = tree.Types.ToLookup(n => n.Base, n => n.Name);
+        _childMap = tree.types.ToLookup(n => n.Base, n => n.Name);
     }
 
-    private IDictionary<string, string> parentMap { get { return _parentMap; } }
-    private ILookup<string, string> childMap { get { return _childMap; } }
     private Tree tree { get { return _tree; } }
 
     /// <summary>
@@ -76,13 +69,17 @@ internal sealed class SourceWriter {
     private static string OverrideModifier(Field f) => IsOverride(f) ? "override " : "";
 
     private static string GetElementType(string typeName) {
-        if (!typeName.Contains("<"))
+        if (!typeName.Contains('<'))
             return string.Empty;
-        int iStart = typeName.IndexOf('<');
-        int iEnd = typeName.IndexOf('>', iStart + 1);
+
+        var iStart = typeName.IndexOf('<');
+        var iEnd = typeName.IndexOf('>', iStart + 1);
+
         if (iEnd < iStart)
             return string.Empty;
+
         var sub = typeName.Substring(iStart + 1, iEnd - iStart - 1);
+
         return sub;
     }
 
@@ -214,7 +211,7 @@ internal sealed class SourceWriter {
     }
 
     private void WriteGreenNodes() {
-        var nodes = tree.Types.Where(n => n is not PredefinedNode).ToList();
+        var nodes = tree.types.Where(n => n is not PredefinedNode).ToList();
 
         foreach (var node in nodes) {
             WriteLine();
@@ -246,8 +243,8 @@ internal sealed class SourceWriter {
             Write($"internal sealed class {node.Name} : {@base}");
             OpenBlock();
 
-            var valueFields = nd.Fields.Where(n => !IsNodeOrNodeList(n.Type)).ToList();
-            var nodeFields = nd.Fields.Where(n => IsNodeOrNodeList(n.Type)).ToList();
+            var valueFields = nd.fields.Where(n => !IsNodeOrNodeList(n.Type)).ToList();
+            var nodeFields = nd.fields.Where(n => IsNodeOrNodeList(n.Type)).ToList();
 
             foreach (var field in nodeFields) {
                 var type = GetFieldType(field, green: true);
@@ -261,7 +258,7 @@ internal sealed class SourceWriter {
             Write($"internal {node.Name}(");
             WriteGreenNodeConstructorArgs(nodeFields, valueFields);
             WriteLine(")");
-            Write($"  : base(SyntaxKind.{nd.Kinds.Single().Name})");
+            Write($"  : base(SyntaxKind.{nd.kinds.Single().Name})");
             OpenBlock();
             WriteCtorBody(nodeFields, valueFields);
             CloseBlock();
@@ -270,7 +267,7 @@ internal sealed class SourceWriter {
             Write($"internal {node.Name}(");
             WriteGreenNodeConstructorArgs(nodeFields, valueFields);
             WriteLine(", Diagnostic[] diagnostics)");
-            Write($"  : base(SyntaxKind.{nd.Kinds.Single().Name}, diagnostics)");
+            Write($"  : base(SyntaxKind.{nd.kinds.Single().Name}, diagnostics)");
             OpenBlock();
             WriteCtorBody(nodeFields, valueFields);
             CloseBlock();
@@ -380,10 +377,10 @@ internal sealed class SourceWriter {
                 OpenBlock();
 
                 // TODO Support multiple kinds
-                if (field.Kinds.Count == 1) {
+                if (field.kinds.Count == 1) {
                     WriteLine(
-                        $"Debug.Assert({field.Name}.kind == SyntaxKind.{field.Kinds.Single().Name}, $\"incorrect syn" +
-                        $"tax kind '{{{field.Name}.kind}}', expected '{{SyntaxKind.{field.Kinds.Single().Name}}}'\");"
+                        $"Debug.Assert({field.Name}.kind == SyntaxKind.{field.kinds.Single().Name}, $\"incorrect syn" +
+                        $"tax kind '{{{field.Name}.kind}}', expected '{{SyntaxKind.{field.kinds.Single().Name}}}'\");"
                     );
                 }
 
@@ -391,10 +388,10 @@ internal sealed class SourceWriter {
                 WriteLine($"this._{field.Name} = {field.Name};");
                 CloseBlock();
             } else {
-                if (field.Kinds.Count == 1) {
+                if (field.kinds.Count == 1) {
                     WriteLine(
-                        $"Debug.Assert({field.Name}.kind == SyntaxKind.{field.Kinds.Single().Name}, $\"incorrect syn" +
-                        $"tax kind '{{{field.Name}.kind}}', expected '{{SyntaxKind.{field.Kinds.Single().Name}}}'\");"
+                        $"Debug.Assert({field.Name}.kind == SyntaxKind.{field.kinds.Single().Name}, $\"incorrect syn" +
+                        $"tax kind '{{{field.Name}.kind}}', expected '{{SyntaxKind.{field.kinds.Single().Name}}}'\");"
                     );
                 }
 
@@ -410,7 +407,7 @@ internal sealed class SourceWriter {
     private void WriteGreenUpdateMethod(Node node) {
         WriteLine();
         Write($"internal {node.Name} Update(");
-        Write(CommaJoin(node.Fields.Select(f => {
+        Write(CommaJoin(node.fields.Select(f => {
             var type =
                 f.Type == "SyntaxNodeOrTokenList" ? "InternalSyntax.SyntaxList<BelteSyntaxNode>" :
                 f.Type == "SyntaxTokenList" ? "InternalSyntax.SyntaxList<SyntaxToken>" :
@@ -424,9 +421,9 @@ internal sealed class SourceWriter {
         OpenBlock();
 
         Write("if (");
-        int nCompared = 0;
+        var nCompared = 0;
 
-        foreach (var field in node.Fields) {
+        foreach (var field in node.fields) {
             if (IsDerivedOrListOfDerived("SyntaxNode", field.Type) || IsDerivedOrListOfDerived("SyntaxToken", field.Type) || field.Type == "SyntaxNodeOrTokenList") {
                 if (nCompared > 0)
                     Write(" || ");
@@ -440,7 +437,7 @@ internal sealed class SourceWriter {
             Write(")");
             OpenBlock();
             Write($"var newNode = SyntaxFactory.{StripPost(node.Name, "Syntax")}(");
-            Write(CommaJoin(node.Fields.Select(f => $"_{f.Name}")));
+            Write(CommaJoin(node.fields.Select(f => $"_{f.Name}")));
             WriteLine(");");
             WriteLine("var diags = GetDiagnostics();");
             WriteLine("if (diags?.Length > 0)");
@@ -460,14 +457,14 @@ internal sealed class SourceWriter {
         Indent();
         Write($"=> new {node.Name}(");
         Write(CommaJoin(
-            node.Fields.Select(f => $"this._{f.Name}"),
+            node.fields.Select(f => $"this._{f.Name}"),
             "diagnostics"));
         WriteLine(");");
         Unindent();
     }
 
     private void WriteGreenVisitorT() {
-        var nodes = tree.Types.Where(n => n is Node).ToList();
+        var nodes = tree.types.Where(n => n is Node).ToList();
 
         WriteLine();
         Write("internal partial class SyntaxVisitor<TResult>");
@@ -485,7 +482,7 @@ internal sealed class SourceWriter {
     }
 
     private void WriteGreenVisitor() {
-        var nodes = tree.Types.Where(n => n is Node).ToList();
+        var nodes = tree.types.Where(n => n is Node).ToList();
 
         WriteLine();
         Write("internal partial class SyntaxVisitor");
@@ -502,7 +499,7 @@ internal sealed class SourceWriter {
     }
 
     private void WriteGreenRewriter() {
-        var nodes = tree.Types.Where(n => n is Node).ToList();
+        var nodes = tree.types.Where(n => n is Node).ToList();
 
         WriteLine();
         Write("internal partial class SyntaxRewriter : SyntaxVisitor<BelteSyntaxNode>");
@@ -513,7 +510,7 @@ internal sealed class SourceWriter {
             WriteLine($"internal override BelteSyntaxNode Visit{StripPost(node.Name, "Syntax")}({node.Name} node)");
             Indent();
             Write("=> node.Update(");
-            Write(CommaJoin(nd.Fields.Select(f => IsAnyNodeList(f.Type)
+            Write(CommaJoin(nd.fields.Select(f => IsAnyNodeList(f.Type)
                     ? $"VisitList(node.{f.Name})"
                     : $"({f.Type})Visit(node.{f.Name})"
                 )));
@@ -526,7 +523,7 @@ internal sealed class SourceWriter {
     }
 
     private void WriteGreenFactory() {
-        var nodes = tree.Types.Where(n => n is Node).ToList();
+        var nodes = tree.types.Where(n => n is Node).ToList();
 
         WriteLine();
         Write("internal static partial class SyntaxFactory");
@@ -541,11 +538,11 @@ internal sealed class SourceWriter {
     }
 
     private void WriteGreenFactoryMethods(Node node) {
-        var allArguments = CommaJoin(node.Fields.Select(f => $"{f.Type} {f.Name}"));
-        var requiredArguments = CommaJoin(node.Fields.Where(f => !IsOptional(f)).Select(f => $"{f.Type} {f.Name}"));
-        var allParameters = CommaJoin(node.Fields.Select(f => IsAnyNodeList(f.Type) ? $"{f.Name}?.node" : f.Name));
+        var allArguments = CommaJoin(node.fields.Select(f => $"{f.Type} {f.Name}"));
+        var requiredArguments = CommaJoin(node.fields.Where(f => !IsOptional(f)).Select(f => $"{f.Type} {f.Name}"));
+        var allParameters = CommaJoin(node.fields.Select(f => IsAnyNodeList(f.Type) ? $"{f.Name}?.node" : f.Name));
         var requiredParameters = CommaJoin(
-            node.Fields.Select(f => IsOptional(f) ? "null" : IsAnyNodeList(f.Type) ? $"{f.Name}?.node" : f.Name)
+            node.fields.Select(f => IsOptional(f) ? "null" : IsAnyNodeList(f.Type) ? $"{f.Name}?.node" : f.Name)
         );
 
         WriteLine($"internal static {node.Name} {StripPost(node.Name, "Syntax")}({allArguments})");
@@ -563,7 +560,7 @@ internal sealed class SourceWriter {
     }
 
     private void WriteRedNodes() {
-        var nodes = tree.Types.Where(n => n is not PredefinedNode).ToList();
+        var nodes = tree.types.Where(n => n is not PredefinedNode).ToList();
 
         foreach (var node in nodes) {
             WriteLine();
@@ -583,8 +580,9 @@ internal sealed class SourceWriter {
             var nodeFields = GetNodeOrNodeListFields(abstractNode);
 
             foreach (var field in nodeFields) {
+                var fieldType = GetRedFieldType(field);
                 WriteLine();
-                WriteLine($"public abstract {field.Type} {field.Name} {{ get; }}");
+                WriteLine($"public abstract {fieldType} {field.Name} {{ get; }}");
             }
 
             CloseBlock();
@@ -592,7 +590,7 @@ internal sealed class SourceWriter {
             Write($"public sealed class {node.Name} : {@base}");
             OpenBlock();
 
-            var valueFields = nd.Fields.Where(n => !IsNodeOrNodeList(n.Type)).ToList();
+            var valueFields = nd.fields.Where(n => !IsNodeOrNodeList(n.Type)).ToList();
             var nodeFields = GetNodeOrNodeListFields(nd);
 
             foreach (var field in nodeFields) {
@@ -611,9 +609,10 @@ internal sealed class SourceWriter {
 
             for (int i = 0, n = nodeFields.Count; i < n; i++) {
                 var field = nodeFields[i];
-                Write($"public {OverrideModifier(field)}{field.Type} {field.Name}");
 
                 if (field.Type == "SyntaxToken") {
+                    Write($"public {OverrideModifier(field)}{GetRedFieldType(field)} {field.Name}");
+
                     if (IsOptional(field)) {
                         OpenBlock();
                         Write("get");
@@ -631,7 +630,21 @@ internal sealed class SourceWriter {
                             $" {GetChildPosition(i)}, {GetChildIndex(i)});"
                         );
                     }
+                } else if (field.Type == "SyntaxList<SyntaxToken>") {
+                    Write($"public {OverrideModifier(field)}SyntaxTokenList {field.Name}");
+                    OpenBlock();
+                    Write("get");
+                    OpenBlock();
+                    WriteLine($"var slot = this.green.GetSlot({i});");
+                    WriteLine(
+                        $"return slot != null ? new SyntaxTokenList(this, slot, {GetChildPosition(i)}, " +
+                        $"{GetChildIndex(i)}) : null;"
+                    );
+                    CloseBlock();
+                    CloseBlock();
                 } else {
+                    Write($"public {OverrideModifier(field)}{GetRedFieldType(field)} {field.Name}");
+
                     if (IsNodeList(field.Type)) {
                         WriteLine($" => new {field.Type}(GetRed(ref this._{field.Name}, {i}));");
                     } else if (IsSeparatedNodeList(field.Type)) {
@@ -719,12 +732,15 @@ internal sealed class SourceWriter {
         }
     }
 
+    private string GetRedFieldType(Field field)
+        => field.Type == "SyntaxList<SyntaxToken>" ? "SyntaxTokenList" : field.Type;
+
     private List<Field> GetNodeOrNodeListFields(TreeType node)
         => node is AbstractNode an
-            ? an.Fields.Where(n => IsNodeOrNodeList(n.Type)).ToList()
+            ? an.fields.Where(n => IsNodeOrNodeList(n.Type)).ToList()
 
             : node is Node nd
-                ? nd.Fields.Where(n => IsNodeOrNodeList(n.Type)).ToList()
+                ? nd.fields.Where(n => IsNodeOrNodeList(n.Type)).ToList()
 
                 : new List<Field>();
 
@@ -737,7 +753,7 @@ internal sealed class SourceWriter {
         Write("internal static partial class SyntaxFactory");
         OpenBlock();
 
-        var nodes = tree.Types.Where(n => n is Node).ToList();
+        var nodes = tree.types.Where(n => n is Node).ToList();
 
         foreach (var node in nodes) {
             WriteRedFactoryMethods(node as Node);
@@ -748,20 +764,22 @@ internal sealed class SourceWriter {
     }
 
     private void WriteRedFactoryMethods(Node node) {
-        var allArguments = CommaJoin(node.Fields.Select(f => $"{f.Type} {f.Name}"));
-        var requiredArguments = CommaJoin(node.Fields.Where(f => !IsOptional(f)).Select(f => $"{f.Type} {f.Name}"));
-        var allParameters = CommaJoin(node.Fields.Select(f =>
+        var allArguments = CommaJoin(node.fields.Select(f => $"{GetRedFieldType(f)} {f.Name}"));
+        var requiredArguments = CommaJoin(
+            node.fields.Where(f => !IsOptional(f)).Select(f => $"{GetRedFieldType(f)} {f.Name}")
+        );
+        var allParameters = CommaJoin(node.fields.Select(f =>
             IsNodeList(f.Type)
-                ? $"{f.Name}.node.ToGreenList<Syntax.InternalSyntax.{GetElementType(f.Type)}>()" :
+                ? $"{f.Name}?.node?.ToGreenList<Syntax.InternalSyntax.{GetElementType(f.Type)}>()" :
             IsSeparatedNodeList(f.Type)
                 ? $"{f.Name}.node.ToGreenSeparatedList<Syntax.InternalSyntax.{GetElementType(f.Type)}>()" :
             (!IsNode(f.Type) || f.Type == "SyntaxToken")
                 ? $"(Syntax.InternalSyntax.{f.Type}){f.Name}.node" :
             $"(Syntax.InternalSyntax.{f.Type}){f.Name}.green"
         ));
-        var requiredParameters = CommaJoin(node.Fields.Select(f => IsOptional(f) ? "null" :
+        var requiredParameters = CommaJoin(node.fields.Select(f => IsOptional(f) ? "null" :
             IsNodeList(f.Type)
-                ? $"{f.Name}.node.ToGreenList<Syntax.InternalSyntax.{GetElementType(f.Type)}>()" :
+                ? $"{f.Name}?.node?.ToGreenList<Syntax.InternalSyntax.{GetElementType(f.Type)}>()" :
             IsSeparatedNodeList(f.Type)
                 ? $"{f.Name}.node.ToGreenSeparatedList<Syntax.InternalSyntax.{GetElementType(f.Type)}>()" :
             (!IsNode(f.Type) || f.Type == "SyntaxToken")

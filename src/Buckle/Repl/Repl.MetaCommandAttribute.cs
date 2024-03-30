@@ -4,13 +4,8 @@ namespace Repl;
 
 public abstract partial class Repl {
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
-    protected sealed class MetaCommandAttribute : Attribute {
-        public MetaCommandAttribute(string name, string description) {
-            this.name = name;
-            this.description = description;
-        }
-
-        public string name { get; }
-        public string description { get; }
+    protected sealed class MetaCommandAttribute(string name, string description) : Attribute {
+        public string name { get; } = name;
+        public string description { get; } = description;
     }
 }

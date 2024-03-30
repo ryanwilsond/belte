@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Security.Cryptography;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
@@ -12,8 +13,9 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Lowers statements to be simpler and use less language features.
 /// </summary>
 internal sealed class Lowerer : BoundTreeRewriter {
+    private readonly bool _transpilerMode;
+
     private int _labelCount;
-    private bool _transpilerMode;
 
     private Lowerer(bool transpilerMode) {
         _transpilerMode = transpilerMode;
@@ -403,6 +405,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         true
 
+        ----> is static access
+
+        (<method>(<parameters>))
+
+        Method operand rewritten to exclude TypeOf expression
+
         */
         var method = expression.method;
         var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
@@ -454,15 +462,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
             ? method.UpdateParameters(parameters.ToImmutable())
             : method;
 
-        if (builder is null) {
-            return base.RewriteCallExpression(
-                new BoundCallExpression(expression.operand, newMethod, expression.arguments)
-            );
-        } else {
-            return base.RewriteCallExpression(
-                new BoundCallExpression(expression.operand, newMethod, builder.ToImmutable())
-            );
-        }
+        var arguments = builder is null ? expression.arguments : builder.ToImmutable();
+        var operand = (expression.operand is BoundMemberAccessExpression me && me.isStaticAccess)
+            ? new BoundEmptyExpression()
+            : expression.operand;
+
+        return base.RewriteCallExpression(new BoundCallExpression(operand, newMethod, arguments));
     }
 
     protected override BoundExpression RewriteCompoundAssignmentExpression(
@@ -500,6 +505,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         (HasValue(<operand>) ? <operand>.<member> : null)
 
+        ----> is static access
+
+        <member>
+
         */
         if (expression.isNullConditional) {
             return RewriteExpression(
@@ -508,7 +517,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
                     @then: MemberAccess(
                         expression.operand,
                         expression.member,
-                        expression.type
+                        expression.type,
+                        expression.isStaticAccess
                     ),
                     @else: Literal(null, expression.type)
                 )

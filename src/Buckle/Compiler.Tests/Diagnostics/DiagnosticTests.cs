@@ -8,10 +8,10 @@ namespace Buckle.Tests.Diagnostics;
 /// At least one test per diagnostic (any severity) if testable.
 /// </summary>
 public sealed class DiagnosticTests {
-    private readonly ITestOutputHelper writer;
+    private readonly ITestOutputHelper _writer;
 
     public DiagnosticTests(ITestOutputHelper writer) {
-        this.writer = writer;
+        _writer = writer;
     }
 
     [Fact]
@@ -24,7 +24,7 @@ public sealed class DiagnosticTests {
             expression will always result to 'null'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, true);
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public sealed class DiagnosticTests {
             deference of a possibly null value
         ";
 
-        AssertDiagnostics(text, diagnostics, writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, true);
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class DiagnosticTests {
             '99999999999999999' is not a valid 'int'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public sealed class DiagnosticTests {
             unexpected character '#'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public sealed class DiagnosticTests {
             unexpected token '='
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public sealed class DiagnosticTests {
             cannot convert from type 'int' to 'string'. An explicit conversion exists (are you missing a cast?)
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public sealed class DiagnosticTests {
             unary operator '-' is not defined for type 'bool'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public sealed class DiagnosticTests {
             all named arguments must come after any unnamed arguments
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -134,7 +134,7 @@ public sealed class DiagnosticTests {
             named argument 'x' cannot be specified multiple times
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -147,7 +147,7 @@ public sealed class DiagnosticTests {
             binary operator '+' is not defined for types 'bool' and 'int'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public sealed class DiagnosticTests {
             cannot reuse parameter name 'x'; parameter names must be unique
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -173,7 +173,7 @@ public sealed class DiagnosticTests {
             method 'Print' does not have a parameter named 'msg'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -186,7 +186,7 @@ public sealed class DiagnosticTests {
             undefined symbol 'y'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -201,7 +201,7 @@ public sealed class DiagnosticTests {
             redeclaration of method 'myFunc'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -214,7 +214,7 @@ public sealed class DiagnosticTests {
             not all code paths return a value
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -231,7 +231,7 @@ public sealed class DiagnosticTests {
             cannot convert from type 'A' to 'bool'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -245,7 +245,7 @@ public sealed class DiagnosticTests {
             variable 'x' is already declared in this scope
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -259,7 +259,7 @@ public sealed class DiagnosticTests {
             'x' cannot be assigned to as it is a constant
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -276,7 +276,7 @@ public sealed class DiagnosticTests {
             ambiguous which if-statement this else-clause belongs to; use curly braces
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -289,7 +289,7 @@ public sealed class DiagnosticTests {
             expression must have a value
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -303,7 +303,7 @@ public sealed class DiagnosticTests {
             cannot apply indexing with [] to an expression of type 'int'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -319,7 +319,7 @@ public sealed class DiagnosticTests {
             unreachable code
         ";
 
-        AssertDiagnostics(text, diagnostics, writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, true);
     }
 
     [Fact]
@@ -333,7 +333,7 @@ public sealed class DiagnosticTests {
             expected ';' at end of input
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -346,7 +346,7 @@ public sealed class DiagnosticTests {
             undefined method 'myFunc'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -360,7 +360,7 @@ public sealed class DiagnosticTests {
             method 'myFunc' expects 0 arguments, got 1
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -375,7 +375,7 @@ public sealed class DiagnosticTests {
             class 'A' has already been declared in this scope
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -388,7 +388,7 @@ public sealed class DiagnosticTests {
             attribute 'NotNull' has already been applied
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -402,7 +402,7 @@ public sealed class DiagnosticTests {
             called object 'x' is not a method
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -417,7 +417,7 @@ public sealed class DiagnosticTests {
             only assignment and call expressions can be used as a statement
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -430,7 +430,7 @@ public sealed class DiagnosticTests {
             unknown type 'MyType'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -443,7 +443,7 @@ public sealed class DiagnosticTests {
             break statements can only be used within a loop
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -458,7 +458,7 @@ public sealed class DiagnosticTests {
             cannot return a value in a method returning void
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -473,7 +473,7 @@ public sealed class DiagnosticTests {
             cannot return without a value in a method returning non-void
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -488,7 +488,7 @@ public sealed class DiagnosticTests {
             method 'myFunc' cannot be used as a variable
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -501,7 +501,7 @@ public sealed class DiagnosticTests {
             implicitly-typed variable must have initializer
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -514,7 +514,7 @@ public sealed class DiagnosticTests {
             unterminated multi-line comment
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -527,7 +527,7 @@ public sealed class DiagnosticTests {
             cannot initialize an implicitly-typed variable with 'null'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -540,7 +540,7 @@ public sealed class DiagnosticTests {
             cannot initialize an implicitly-typed variable with an empty initializer list
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -553,7 +553,7 @@ public sealed class DiagnosticTests {
             collection dimensions on implicitly-typed variables are inferred making them not necessary in this context
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -566,7 +566,7 @@ public sealed class DiagnosticTests {
             cannot use implicit-typing in this context
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -579,7 +579,7 @@ public sealed class DiagnosticTests {
             try statement must have a catch or finally
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -592,7 +592,7 @@ public sealed class DiagnosticTests {
             expected method name
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -605,7 +605,7 @@ public sealed class DiagnosticTests {
             a declaration of a by-reference variable must have an initializer
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -619,7 +619,7 @@ public sealed class DiagnosticTests {
             a by-reference variable must be initialized with a reference
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -633,7 +633,7 @@ public sealed class DiagnosticTests {
             cannot initialize a by-value variable with a reference
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -646,7 +646,7 @@ public sealed class DiagnosticTests {
             unknown attribute 'MyAttrib'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -659,7 +659,7 @@ public sealed class DiagnosticTests {
             cannot assign 'null' to a non-nullable variable
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -673,7 +673,7 @@ public sealed class DiagnosticTests {
             implicitly-typed variables infer reference types making the 'ref' keyword not necessary in this context
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -687,7 +687,7 @@ public sealed class DiagnosticTests {
             cannot assign a reference to a constant to a by-reference variable expecting a reference to a variable
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -700,7 +700,7 @@ public sealed class DiagnosticTests {
             cannot use void as a type
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -715,7 +715,7 @@ public sealed class DiagnosticTests {
             expected identifier
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -732,7 +732,7 @@ public sealed class DiagnosticTests {
             no overload for method 'myFunc' matches parameter list
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -749,7 +749,7 @@ public sealed class DiagnosticTests {
             call is ambiguous between 'myFunc(int)' and 'myFunc(string)'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -762,7 +762,7 @@ public sealed class DiagnosticTests {
             the operand of an increment or decrement operator must be a variable, field, or indexer
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -775,7 +775,7 @@ public sealed class DiagnosticTests {
             ternary operator '?:' is not defined for types 'int', 'int', and 'int'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -793,7 +793,7 @@ public sealed class DiagnosticTests {
             'MyClass' contains no such member 'b'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -806,7 +806,7 @@ public sealed class DiagnosticTests {
             left side of assignment operation must be a variable, field, or indexer
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -823,7 +823,7 @@ public sealed class DiagnosticTests {
             cannot overload nested functions; nested function 'myFunc2' has already been defined
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -837,7 +837,7 @@ public sealed class DiagnosticTests {
             cannot assign a reference to a variable to a by-reference variable expecting a reference to a constant
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -851,7 +851,7 @@ public sealed class DiagnosticTests {
             prefix operator '++' is not defined for type 'bool'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -865,7 +865,7 @@ public sealed class DiagnosticTests {
             postfix operator '++' is not defined for type 'bool'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -878,7 +878,7 @@ public sealed class DiagnosticTests {
             named argument 'x' cannot be specified multiple times
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -891,7 +891,7 @@ public sealed class DiagnosticTests {
             default values for parameters must be compile-time constants
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -904,7 +904,7 @@ public sealed class DiagnosticTests {
             all optional parameters must be specified after any required parameters
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -917,7 +917,7 @@ public sealed class DiagnosticTests {
             cannot mark a type as both constant and variable
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -932,7 +932,7 @@ public sealed class DiagnosticTests {
             variable name 'A' is not valid as it is the name of a type in this namespace
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -947,7 +947,7 @@ public sealed class DiagnosticTests {
             cannot implicitly pass null in a non-nullable context
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -960,7 +960,7 @@ public sealed class DiagnosticTests {
             cannot convert 'null' to '[NotNull]int' because it is a non-nullable type
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -975,7 +975,7 @@ public sealed class DiagnosticTests {
             cannot use a constant in this context
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -990,7 +990,7 @@ public sealed class DiagnosticTests {
             cannot use a reference type in this context
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -1003,7 +1003,7 @@ public sealed class DiagnosticTests {
             cannot divide by zero
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -1020,7 +1020,7 @@ public sealed class DiagnosticTests {
             a local named 'i' cannot be declared in this scope because that name is used in an enclosing scope to define a local or parameter
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -1033,7 +1033,7 @@ public sealed class DiagnosticTests {
             cannot initialize an implicitly-typed variable with an initializer list only containing 'null'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -1046,21 +1046,21 @@ public sealed class DiagnosticTests {
             unrecognized escape sequence '\g'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
     public void Reports_Error_BU0080_PrimitivesDoNotHaveMembers() {
         var text = @"
             int myInt = 3;
-            myInt[.]b;
+            [myInt.b];
         ";
 
         var diagnostics = @"
             primitive types do not contain any members
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -1073,7 +1073,7 @@ public sealed class DiagnosticTests {
             type 'int' is a primitive; primitives cannot be created with constructors
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -1090,7 +1090,7 @@ public sealed class DiagnosticTests {
             no overload for template 'MyClass' matches template argument list
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -1107,7 +1107,7 @@ public sealed class DiagnosticTests {
             template is ambiguous between 'MyClass<int>' and 'MyClass<bool>'
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -1120,7 +1120,7 @@ public sealed class DiagnosticTests {
             cannot use structs outside of a low-level context
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -1134,7 +1134,7 @@ public sealed class DiagnosticTests {
             cannot use `this` outside of a class
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -1149,7 +1149,7 @@ public sealed class DiagnosticTests {
             constructor name must match the name of the enclosing class; in this case constructors must be named `MyClass`
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -1168,7 +1168,55 @@ public sealed class DiagnosticTests {
             type `MyClass` does not contain a constructor that matches the parameter list
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0088_InvalidModifier() {
+        var text = @"
+            [static] class MyClass { }
+        ";
+
+        var diagnostics = @"
+            modifier `static` is not valid for this item
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0089_InvalidInstanceReference() {
+        var text = @"
+            class MyClass {
+                static void MyMethod() { }
+            }
+
+            var myClass = new MyClass();
+            [myClass.MyMethod]();
+        ";
+
+        var diagnostics = @"
+            member `MyMethod` cannot be accessed with an instance reference; qualify it with the type name instead
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0090_InvalidStaticReference() {
+        var text = @"
+            class MyClass {
+                void MyMethod() { }
+            }
+
+            [MyClass.MyMethod]();
+        ";
+
+        var diagnostics = @"
+            an object reference is required for non-static member `MyMethod`
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
@@ -1183,6 +1231,6 @@ public sealed class DiagnosticTests {
             cannot initialize declared symbol in this context
         ";
 
-        AssertDiagnostics(text, diagnostics, writer);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 }

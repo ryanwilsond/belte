@@ -17,18 +17,18 @@ public partial class SyntaxList {
             if ((i & 1) != 0)
                 return null;
 
-            return GetRedElement(ref _children[i >> 1].Value, i);
+            return GetRedElement(ref _children[i >> 1].value, i);
         }
 
         internal override SyntaxNode? GetCachedSlot(int i) {
             if ((i & 1) != 0)
                 return null;
 
-            return _children[i >> 1].Value;
+            return _children[i >> 1].value;
         }
 
         internal override int GetChildPosition(int index) {
-            int valueIndex = (index & 1) != 0 ? index - 1 : index;
+            var valueIndex = (index & 1) != 0 ? index - 1 : index;
 
             if (valueIndex > 1
                 && GetCachedSlot(valueIndex - 2) is null

@@ -11,5 +11,5 @@ public abstract class TreeType {
     public string Base;
 
     [XmlElement(ElementName = "Field", Type = typeof(Field))]
-    public List<TreeTypeChild> Children = new List<TreeTypeChild>();
+    public List<TreeTypeChild> children = new List<TreeTypeChild>();
 }

@@ -14,7 +14,7 @@ public sealed partial class SyntaxList<T> : IReadOnlyList<T> where T : SyntaxNod
         }
 
         public bool MoveNext() {
-            int newIndex = _index + 1;
+            var newIndex = _index + 1;
 
             if (newIndex < _list.Count) {
                 _index = newIndex;
@@ -38,5 +38,4 @@ public sealed partial class SyntaxList<T> : IReadOnlyList<T> where T : SyntaxNod
             throw new NotSupportedException();
         }
     }
-
 }

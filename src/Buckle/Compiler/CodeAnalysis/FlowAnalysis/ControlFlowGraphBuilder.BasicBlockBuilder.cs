@@ -10,8 +10,8 @@ internal sealed partial class ControlFlowGraphBuilder {
     /// Builds BasicBlocks from BoundStatements.
     /// </summary>
     internal sealed class BasicBlockBuilder {
-        private List<BasicBlock> _blocks = new List<BasicBlock>();
-        private List<BoundStatement> _statements = new List<BoundStatement>();
+        private readonly List<BasicBlock> _blocks = new List<BasicBlock>();
+        private readonly List<BoundStatement> _statements = new List<BoundStatement>();
 
         internal List<BasicBlock> Build(BoundBlockStatement block) {
             foreach (var statement in block.statements) {

@@ -18,40 +18,24 @@ internal abstract class BoundTreeExpander {
     }
 
     protected virtual List<BoundStatement> ExpandStatement(BoundStatement statement) {
-        switch (statement.kind) {
-            case BoundNodeKind.NopStatement:
-                return ExpandNopStatement((BoundNopStatement)statement);
-            case BoundNodeKind.BlockStatement:
-                return ExpandBlockStatement((BoundBlockStatement)statement);
-            case BoundNodeKind.VariableDeclarationStatement:
-                return ExpandVariableDeclarationStatement((BoundVariableDeclarationStatement)statement);
-            case BoundNodeKind.IfStatement:
-                return ExpandIfStatement((BoundIfStatement)statement);
-            case BoundNodeKind.WhileStatement:
-                return ExpandWhileStatement((BoundWhileStatement)statement);
-            case BoundNodeKind.ForStatement:
-                return ExpandForStatement((BoundForStatement)statement);
-            case BoundNodeKind.ExpressionStatement:
-                return ExpandExpressionStatement((BoundExpressionStatement)statement);
-            case BoundNodeKind.LabelStatement:
-                return ExpandLabelStatement((BoundLabelStatement)statement);
-            case BoundNodeKind.GotoStatement:
-                return ExpandGotoStatement((BoundGotoStatement)statement);
-            case BoundNodeKind.ConditionalGotoStatement:
-                return ExpandConditionalGotoStatement((BoundConditionalGotoStatement)statement);
-            case BoundNodeKind.DoWhileStatement:
-                return ExpandDoWhileStatement((BoundDoWhileStatement)statement);
-            case BoundNodeKind.ReturnStatement:
-                return ExpandReturnStatement((BoundReturnStatement)statement);
-            case BoundNodeKind.TryStatement:
-                return ExpandTryStatement((BoundTryStatement)statement);
-            case BoundNodeKind.BreakStatement:
-                return ExpandBreakStatement((BoundBreakStatement)statement);
-            case BoundNodeKind.ContinueStatement:
-                return ExpandContinueStatement((BoundContinueStatement)statement);
-            default:
-                throw new BelteInternalException($"ExpandStatement: unexpected expression type '{statement.kind}'");
-        }
+        return statement.kind switch {
+            BoundNodeKind.NopStatement => ExpandNopStatement((BoundNopStatement)statement),
+            BoundNodeKind.BlockStatement => ExpandBlockStatement((BoundBlockStatement)statement),
+            BoundNodeKind.VariableDeclarationStatement => ExpandVariableDeclarationStatement((BoundVariableDeclarationStatement)statement),
+            BoundNodeKind.IfStatement => ExpandIfStatement((BoundIfStatement)statement),
+            BoundNodeKind.WhileStatement => ExpandWhileStatement((BoundWhileStatement)statement),
+            BoundNodeKind.ForStatement => ExpandForStatement((BoundForStatement)statement),
+            BoundNodeKind.ExpressionStatement => ExpandExpressionStatement((BoundExpressionStatement)statement),
+            BoundNodeKind.LabelStatement => ExpandLabelStatement((BoundLabelStatement)statement),
+            BoundNodeKind.GotoStatement => ExpandGotoStatement((BoundGotoStatement)statement),
+            BoundNodeKind.ConditionalGotoStatement => ExpandConditionalGotoStatement((BoundConditionalGotoStatement)statement),
+            BoundNodeKind.DoWhileStatement => ExpandDoWhileStatement((BoundDoWhileStatement)statement),
+            BoundNodeKind.ReturnStatement => ExpandReturnStatement((BoundReturnStatement)statement),
+            BoundNodeKind.TryStatement => ExpandTryStatement((BoundTryStatement)statement),
+            BoundNodeKind.BreakStatement => ExpandBreakStatement((BoundBreakStatement)statement),
+            BoundNodeKind.ContinueStatement => ExpandContinueStatement((BoundContinueStatement)statement),
+            _ => throw new BelteInternalException($"ExpandStatement: unexpected expression type '{statement.kind}'"),
+        };
     }
 
     protected virtual List<BoundStatement> ExpandNopStatement(BoundNopStatement statement) {
@@ -436,7 +420,11 @@ internal abstract class BoundTreeExpander {
 
         if (statements.Any()) {
             replacement = new BoundMemberAccessExpression(
-                operandReplacement, expression.member, expression.type, expression.isNullConditional
+                operandReplacement,
+                expression.member,
+                expression.type,
+                expression.isNullConditional,
+                expression.isStaticAccess
             );
 
             return statements;

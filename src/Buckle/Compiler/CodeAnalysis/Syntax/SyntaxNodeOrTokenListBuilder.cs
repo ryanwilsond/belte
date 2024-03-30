@@ -104,8 +104,8 @@ internal class SyntaxNodeOrTokenListBuilder {
                 default:
                     var tmp = new ArrayElement<GreenNode>[count];
 
-                    for (int i = 0; i < count; i++)
-                        tmp[i].Value = _nodes[i]!;
+                    for (var i = 0; i < count; i++)
+                        tmp[i].value = _nodes[i]!;
 
                     return new SyntaxNodeOrTokenList(InternalSyntax.SyntaxList.List(tmp).CreateRed(), index: 0);
             }

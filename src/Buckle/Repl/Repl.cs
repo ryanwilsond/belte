@@ -68,6 +68,7 @@ public abstract partial class Repl {
     /// </summary>
     public void Run() {
         Console.Title = "Belte Repl";
+        var defaultBackgroundColor = Console.BackgroundColor;
 
         string text;
         bool broke;
@@ -76,13 +77,13 @@ public abstract partial class Repl {
             EvaluateSubmission(text);
         }
 
-        void ctrlCHandler(object sender, ConsoleCancelEventArgs args) {
+        void CtrlCHandler(object sender, ConsoleCancelEventArgs args) {
             _abortEvaluation = true;
             args.Cancel = true;
             broke = true;
         }
 
-        Console.CancelKeyPress += new ConsoleCancelEventHandler(ctrlCHandler);
+        Console.CancelKeyPress += new ConsoleCancelEventHandler(CtrlCHandler);
 
         while (true) {
             text = EditSubmission();
@@ -92,11 +93,13 @@ public abstract partial class Repl {
 
             if (_evaluate) {
                 if (!text.Contains(Environment.NewLine) && text.StartsWith('#')) {
-                    EvaluateReplCommand(text);
+                    EvaluateMetaCommand(text);
                 } else {
                     var evaluateSubmissionReference = new ThreadStart(EvaluateSubmissionWrapper);
-                    var evaluateSubmissionThread = new Thread(evaluateSubmissionReference);
-                    evaluateSubmissionThread.Name = "Repl.Run.EvaluateSubmissionWrapper";
+                    var evaluateSubmissionThread = new Thread(evaluateSubmissionReference) {
+                        Name = "Repl.Run.EvaluateSubmissionWrapper"
+                    };
+
                     _abortEvaluation = false;
                     broke = false;
                     var startTime = DateTime.Now;
@@ -130,7 +133,23 @@ public abstract partial class Repl {
             _submissionHistoryIndex = 0;
         }
 
+        var currentBackgroundColor = Console.BackgroundColor;
         Console.ResetColor();
+
+        if (currentBackgroundColor == defaultBackgroundColor)
+            return;
+
+        // Resetting the terminals background color because it is not always automatic
+        // We do lose the top line of the history however because when clearing the last line the cursor automatically
+        // advances the console a line forward, and there is no platform independent way to get around this that I know
+        var startingCursorTop = Console.CursorTop;
+
+        for (var i = Console.CursorTop + 1; i < Console.WindowHeight; i++) {
+            Console.SetCursorPosition(0, i);
+            Console.Write(new string(' ', Console.WindowWidth));
+        }
+
+        Console.SetCursorPosition(0, startingCursorTop);
     }
 
     /// <summary>
@@ -270,7 +289,7 @@ public abstract partial class Repl {
     }
 
     private void HandleKey(ConsoleKeyInfo key, ObservableCollection<string> document, SubmissionView view) {
-        if (key.Modifiers == default(ConsoleModifiers)) {
+        if (key.Modifiers == default) {
             switch (key.Key) {
                 case ConsoleKey.Enter:
                     HandleEnter(document, view);
@@ -394,20 +413,20 @@ public abstract partial class Repl {
             HandleTyping(document, view, key.KeyChar.ToString());
     }
 
-    private void HandleControlShiftEnter(ObservableCollection<string> document, SubmissionView view) {
+    private void HandleControlShiftEnter(ObservableCollection<string> _, SubmissionView _1) {
         SpecialEscapeSequence();
     }
 
-    private void HandleAltEnter(ObservableCollection<string> document, SubmissionView view) {
+    private void HandleAltEnter(ObservableCollection<string> _, SubmissionView _1) {
         SpecialEscapeSequence();
     }
 
-    private void HandleControlC(ObservableCollection<string> document, SubmissionView view) {
+    private void HandleControlC(ObservableCollection<string> _, SubmissionView _1) {
         if (!_done)
             SpecialEscapeSequence();
         else
             // Normal ctrl + c behavior
-            System.Environment.Exit(1);
+            Environment.Exit(1);
     }
 
     private void HandleShiftTab(ObservableCollection<string> document, SubmissionView view) {
@@ -756,7 +775,7 @@ public abstract partial class Repl {
         view.currentTypingTabbing++;
     }
 
-    private void HandleHome(ObservableCollection<string> document, SubmissionView view) {
+    private void HandleHome(ObservableCollection<string> _, SubmissionView view) {
         view.currentCharacter = 0;
     }
 
@@ -855,7 +874,7 @@ public abstract partial class Repl {
         return 1;
     }
 
-    private void HandleControlEnter(ObservableCollection<string> document, SubmissionView view) {
+    private void HandleControlEnter(ObservableCollection<string> _, SubmissionView _1) {
         _done = true;
     }
 
@@ -874,7 +893,7 @@ public abstract partial class Repl {
         if (text == "{" || text == "(" || text == "[")
             view.currentBlockTabbing.Push((pairs[text.Single()], view.currentTypingTabbing));
 
-        if ((text == "}" || text == ")" || text == "]")) {
+        if (text == "}" || text == ")" || text == "]") {
             var foundPair = false;
 
             if (view.currentBlockTabbing.Count > 0) {
@@ -915,7 +934,7 @@ public abstract partial class Repl {
             view.currentLine++;
     }
 
-    private void HandleUpArrow(ObservableCollection<string> document, SubmissionView view) {
+    private void HandleUpArrow(ObservableCollection<string> _, SubmissionView view) {
         if (view.currentLine > 0)
             view.currentLine--;
     }
@@ -927,7 +946,7 @@ public abstract partial class Repl {
             view.currentCharacter++;
     }
 
-    private void HandleLeftArrow(ObservableCollection<string> document, SubmissionView view) {
+    private void HandleLeftArrow(ObservableCollection<string> _, SubmissionView view) {
         if (view.currentCharacter > 0)
             view.currentCharacter--;
     }
@@ -966,18 +985,26 @@ public abstract partial class Repl {
         HandleTyping(document, view, new string(' ', whitespace * TabWidth));
     }
 
-    private void EvaluateReplCommand(string line) {
+    private void EvaluateMetaCommand(string line) {
         var position = 1;
         var sb = new StringBuilder();
         var inQuotes = false;
         var args = new List<string>();
+        var pastFirstArg = false;
+        string chainedCommand = null;
 
         while (position < line.Length) {
             var c = line[position];
             var l = position + 1 >= line.Length ? '\0' : line[position + 1];
 
+            if (pastFirstArg && c == '#') {
+                chainedCommand = line.Substring(position);
+                break;
+            }
+
             if (char.IsWhiteSpace(c)) {
                 if (!inQuotes) {
+                    pastFirstArg = true;
                     var arg = sb.ToString();
 
                     if (!string.IsNullOrWhiteSpace(arg))
@@ -1003,7 +1030,8 @@ public abstract partial class Repl {
             position++;
         }
 
-        args.Add(sb.ToString());
+        if (chainedCommand is null)
+            args.Add(sb.ToString());
 
         var commandName = args.FirstOrDefault();
 
@@ -1013,7 +1041,7 @@ public abstract partial class Repl {
         var command = _metaCommands.SingleOrDefault(mc => mc.name == commandName);
 
         if (command is null) {
-            AddDiagnostic(global::Repl.Diagnostics.Error.UnknownReplCommand(line));
+            AddDiagnostic(Diagnostics.Error.UnknownReplCommand(line));
 
             if (_hasDiagnosticHandle)
                 CallDiagnosticHandle(_handle, "repl");
@@ -1032,7 +1060,7 @@ public abstract partial class Repl {
                     args.Add(parameter.DefaultValue.ToString());
             } else {
                 var parameterNames = string.Join(" ", parameters.Select(p => $"<{p.Name}>"));
-                AddDiagnostic(global::Repl.Diagnostics.Error.WrongArgumentCount(command.name, parameterNames));
+                AddDiagnostic(Diagnostics.Error.WrongArgumentCount(command.name, parameterNames));
 
                 if (_hasDiagnosticHandle)
                     CallDiagnosticHandle(_handle, "repl");
@@ -1045,5 +1073,8 @@ public abstract partial class Repl {
 
         var instance = command.method.IsStatic ? null : this;
         command.method.Invoke(instance, args.ToArray());
+
+        if (chainedCommand is not null)
+            EvaluateMetaCommand(chainedCommand);
     }
 }

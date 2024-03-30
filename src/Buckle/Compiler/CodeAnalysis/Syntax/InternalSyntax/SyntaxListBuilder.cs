@@ -35,7 +35,7 @@ internal sealed class SyntaxListBuilder {
             return _nodes[index];
         }
         set {
-            _nodes[index].Value = value;
+            _nodes[index].value = value;
         }
     }
 
@@ -53,15 +53,15 @@ internal sealed class SyntaxListBuilder {
         if (item is null) return;
 
         if (item.isList) {
-            int slotCount = item.slotCount;
+            var slotCount = item.slotCount;
 
             EnsureAdditionalCapacity(slotCount);
 
-            for (int i = 0; i < slotCount; i++)
+            for (var i = 0; i < slotCount; i++)
                 Add(item.GetSlot(i));
         } else {
             EnsureAdditionalCapacity(1);
-            _nodes[Count++].Value = item;
+            _nodes[Count++].value = item;
         }
     }
 
@@ -78,7 +78,7 @@ internal sealed class SyntaxListBuilder {
     internal void AddRange(GreenNode[] items, int offset, int length) {
         EnsureAdditionalCapacity(length - offset);
 
-        for (int i = offset; i < length; i++)
+        for (var i = offset; i < length; i++)
             Add(items[i]);
     }
 
@@ -95,7 +95,7 @@ internal sealed class SyntaxListBuilder {
     internal void AddRange(SyntaxList<GreenNode> list, int offset, int length) {
         EnsureAdditionalCapacity(length - offset);
 
-        for (int i = offset; i < length; i++)
+        for (var i = offset; i < length; i++)
             Add(list[i]);
     }
 
@@ -118,12 +118,12 @@ internal sealed class SyntaxListBuilder {
     /// </summary>
     internal void RemoveLast() {
         Count--;
-        _nodes[Count].Value = null;
+        _nodes[Count].value = null;
     }
 
     internal bool Any(SyntaxKind kind) {
-        for (int i = 0; i < Count; i++) {
-            if (_nodes[i].Value.kind == kind)
+        for (var i = 0; i < Count; i++) {
+            if (_nodes[i].value.kind == kind)
                 return true;
         }
 
@@ -134,9 +134,9 @@ internal sealed class SyntaxListBuilder {
     /// Converts the builder into a <see cref="GreenNode[]" />.
     /// </summary>
     internal GreenNode[] ToArray() {
-        var array = new GreenNode[this.Count];
+        var array = new GreenNode[Count];
 
-        for (int i = 0; i < array.Length; i++)
+        for (var i = 0; i < array.Length; i++)
             array[i] = _nodes[i];
 
         return array;
@@ -146,7 +146,7 @@ internal sealed class SyntaxListBuilder {
     /// Converts the builder into a type of list node depending on the current size.
     /// </summary>
     internal GreenNode ToListNode() {
-        switch (this.Count) {
+        switch (Count) {
             case 0:
                 return null;
             case 1:
@@ -157,8 +157,8 @@ internal sealed class SyntaxListBuilder {
                 // Can optimize and add a three child list if needed later
                 return SyntaxList.List(new[] { _nodes[0], _nodes[1], _nodes[2] });
             default:
-                var tmp = new ArrayElement<GreenNode>[this.Count];
-                Array.Copy(_nodes, tmp, this.Count);
+                var tmp = new ArrayElement<GreenNode>[Count];
+                Array.Copy(_nodes, tmp, Count);
                 return SyntaxList.List(tmp);
         }
     }
@@ -178,12 +178,12 @@ internal sealed class SyntaxListBuilder {
     }
 
     private void EnsureAdditionalCapacity(int additionalCount) {
-        int currentSize = _nodes.Length;
-        int requiredSize = Count + additionalCount;
+        var currentSize = _nodes.Length;
+        var requiredSize = Count + additionalCount;
 
         if (requiredSize <= currentSize) return;
 
-        int newSize =
+        var newSize =
             requiredSize < 8 ? 8 :
             requiredSize >= (int.MaxValue / 2) ? int.MaxValue :
             Math.Max(requiredSize, currentSize * 2);
