@@ -36,7 +36,6 @@ internal sealed class Expander : BoundTreeExpander {
         return statements;
     }
 
-
     protected override List<BoundStatement> ExpandVariableDeclarationStatement(
         BoundVariableDeclarationStatement statement) {
         _localNames.Add(statement.variable.name);
@@ -64,6 +63,23 @@ internal sealed class Expander : BoundTreeExpander {
 
         var baseStatements = base.ExpandCompoundAssignmentExpression(expression, out replacement);
         _compoundAssignmentDepth--;
+        return baseStatements;
+    }
+
+    protected override List<BoundStatement> ExpandCallExpression(
+        BoundCallExpression expression,
+        out BoundExpression replacement) {
+        if (_operatorDepth > 0) {
+            var statements = base.ExpandCallExpression(expression, out var callReplacement);
+            var tempLocal = GenerateTempLocal(expression.type);
+
+            statements.Add(new BoundVariableDeclarationStatement(tempLocal, callReplacement));
+            replacement = new BoundVariableExpression(tempLocal);
+
+            return statements;
+        }
+
+        var baseStatements = base.ExpandCallExpression(expression, out replacement);
         return baseStatements;
     }
 

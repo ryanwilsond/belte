@@ -99,11 +99,11 @@ internal enum DiagnosticCode : int {
     ERR_InvalidModifier = 88,
     ERR_InvalidInstanceReference = 89,
     ERR_InvalidStaticReference = 90,
+    ERR_CannotInitializeInStructs = 91,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,
     UNS_Assembling = 9001,
     UNS_Linking = 9002,
     UNS_IndependentCompilation = 9003,
-    UNS_CannotInitialize = 9004,
 }

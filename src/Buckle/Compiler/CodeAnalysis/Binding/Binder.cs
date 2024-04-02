@@ -672,7 +672,7 @@ internal sealed class Binder {
             var field = BindFieldDeclaration(fieldDeclaration);
             builder.Add(field);
 
-            if (fieldDeclaration.declaration.initializer != null)
+            if (!field.isConstant && fieldDeclaration.declaration.initializer != null)
                 defaultFieldAssignmentsBuilder.Add((field, fieldDeclaration.declaration));
         }
 
@@ -806,7 +806,7 @@ internal sealed class Binder {
     private FieldSymbol BindFieldDeclaration(FieldDeclarationSyntax fieldDeclaration) {
         var modifiers = BindFieldDeclarationModifiers(fieldDeclaration.modifiers);
         var type = BindType(fieldDeclaration.declaration.type);
-        return BindField(fieldDeclaration.declaration.identifier, type, modifiers);
+        return BindField(fieldDeclaration.declaration, type, modifiers);
     }
 
     private DeclarationModifiers BindFieldDeclarationModifiers(SyntaxTokenList modifiers) {
@@ -999,17 +999,30 @@ internal sealed class Binder {
         return variable;
     }
 
-    private FieldSymbol BindField(SyntaxToken identifier, BoundType type, DeclarationModifiers modifiers) {
-        var name = identifier.text;
-        var field = new FieldSymbol(name, type, null, modifiers);
+    private FieldSymbol BindField(
+        VariableDeclarationStatementSyntax declaration,
+        BoundType type,
+        DeclarationModifiers modifiers) {
+        var name = declaration.identifier.text;
+        BoundConstant constant = null;
+
+        if (type.isConstant) {
+            var initializer = (
+                BindVariableDeclarationStatement(declaration, false) as BoundVariableDeclarationStatement
+            )?.initializer;
+
+            constant = initializer?.constantValue;
+        }
+
+        var field = new FieldSymbol(name, type, constant, modifiers);
 
         if (LookupTypes(name, true).Length > 0) {
-            diagnostics.Push(Error.VariableUsingTypeName(identifier.location, name, type.isConstant));
+            diagnostics.Push(Error.VariableUsingTypeName(declaration.identifier.location, name, type.isConstant));
             return field;
         }
 
         if (!_scope.TryDeclareVariable(field))
-            diagnostics.Push(Error.VariableAlreadyDeclared(identifier.location, name, type.isConstant));
+            diagnostics.Push(Error.VariableAlreadyDeclared(declaration.identifier.location, name, type.isConstant));
 
         return field;
     }
@@ -1598,8 +1611,8 @@ internal sealed class Binder {
         }
 
         var staticAccess = operand is BoundTypeOfExpression;
-        var staticSymbols = symbols.Where(s => s.isStatic);
-        var instanceSymbols = symbols.Where(s => !s.isStatic);
+        var staticSymbols = symbols.Where(s => s.isStatic || (s is FieldSymbol f && f.constantValue is not null));
+        var instanceSymbols = symbols.Where(s => !s.isStatic && (s is not FieldSymbol f || f.constantValue is null));
 
         if (!staticAccess && !instanceSymbols.Any()) {
             diagnostics.Push(Error.InvalidInstanceReference(expression.location, expression.identifier.text, type.name));

@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
 using Buckle.CodeAnalysis.Binding;
+using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -179,6 +180,19 @@ internal static class BuiltinMethods {
             new ParameterSymbol("value", BoundType.NullableString, 0, NoDefault)
         ),
         BoundType.Bool
+    );
+
+    /// <summary>
+    /// Converts an integer into a base 16 representation.
+    /// Optionally adds the '0x' prefix.
+    /// </summary>
+    internal static readonly MethodSymbol Hex = new MethodSymbol(
+        "Hex",
+        ImmutableArray.Create(
+            new ParameterSymbol("value", BoundType.NullableInt, 0, NoDefault),
+            new ParameterSymbol("prefix", BoundType.Bool, 0, Literal(false, BoundType.Bool))
+        ),
+        BoundType.String
     );
 
     private static ImmutableArray<ParameterSymbol> NoParameters {
