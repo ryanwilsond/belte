@@ -27,7 +27,7 @@ internal sealed class Evaluator {
 
     private EvaluatorObject _lastValue;
     private Random _random;
-    private bool _classLocalBufferOnStack;
+    // private bool _classLocalBufferOnStack;
     private bool _hasValue;
 
     /// <summary>
@@ -250,7 +250,7 @@ internal sealed class Evaluator {
 
         if (updateLocals) {
             _locals.Push(_classLocalBuffer);
-            _classLocalBufferOnStack = true;
+            // _classLocalBufferOnStack = true;
         }
     }
 
@@ -477,8 +477,8 @@ internal sealed class Evaluator {
         EnterClassScope(operand, enterScope);
         var result = operand.members[node.member];
 
-        // if (enterScope)
-        //     ExitClassScope();
+        if (node.member is FieldSymbol)
+            ExitClassScope();
 
         return result;
     }
@@ -607,6 +607,12 @@ internal sealed class Evaluator {
                 return new EvaluatorObject(false);
 
             return new EvaluatorObject(true);
+        } else if (node.method == BuiltinMethods.Hex) {
+            var value = (int)Value(EvaluateExpression(node.arguments[0], abort));
+            var addPrefix = (bool)Value(EvaluateExpression(node.arguments[1], abort));
+            var hex = addPrefix ? $"0x{value.ToString("X")}" : value.ToString("X");
+
+            return new EvaluatorObject(hex);
         } else {
             return InvokeMethod(node.method, node.arguments, abort, node.operand);
         }
@@ -641,8 +647,9 @@ internal sealed class Evaluator {
         var result = EvaluateStatement(statement, abort, out _);
         _locals.Pop();
 
-        if (_classLocalBufferOnStack && !method.isStatic)
-            _locals.Pop();
+        // TODO Make sure removing this doesn't lead to an accumulation of unnecessary locals on the stack
+        // if (_classLocalBufferOnStack && !method.isStatic)
+        //     _locals.Pop();
 
         return result;
     }

@@ -9,8 +9,6 @@
             "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net8.0/CommandLine.dll",
             "args": [
                 "-r"
-                // "./.tests/CPUEmulator",
-                // "-i",
             ],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",

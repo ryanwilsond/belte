@@ -646,7 +646,10 @@ internal sealed partial class Parser {
             templateParameterList = ParseTemplateParameterList();
 
         var openBrace = Match(SyntaxKind.OpenBraceToken);
+        var saved = _context;
+        _context |= ParserContext.InStructDefinition;
         var members = ParseFieldList();
+        _context = saved;
         var closeBrace = Match(SyntaxKind.CloseBraceToken);
 
         return SyntaxFactory.StructDeclaration(
@@ -712,11 +715,30 @@ internal sealed partial class Parser {
         return SyntaxFactory.LocalFunctionStatement(type, identifier, parameters, body);
     }
 
+    private DeclarationModifiers GetModifier(SyntaxToken token) {
+        return token.kind switch {
+            SyntaxKind.StaticKeyword => DeclarationModifiers.Static,
+            _ => DeclarationModifiers.None,
+        };
+    }
+
     private SyntaxList<SyntaxToken> ParseModifiers() {
         var modifiers = SyntaxListBuilder<SyntaxToken>.Create();
 
-        if (currentToken.kind == SyntaxKind.StaticKeyword)
-            modifiers.Add(EatToken());
+        while (true) {
+            var modifier = GetModifier(currentToken);
+
+            if (modifier == DeclarationModifiers.None)
+                break;
+
+            switch (modifier) {
+                case DeclarationModifiers.Static:
+                    modifiers.Add(EatToken());
+                    break;
+                default:
+                    break;
+            }
+        }
 
         return modifiers.ToList();
     }
@@ -793,10 +815,7 @@ internal sealed partial class Parser {
     }
 
     private FieldDeclarationSyntax ParseFieldDeclaration(SyntaxList<SyntaxToken> modifiers) {
-        var declaration = (VariableDeclarationStatementSyntax)ParseVariableDeclarationStatement(
-            declarationOnly: (_context & ParserContext.InClassDefinition) != 0, allowImplicit: false
-        );
-
+        var declaration = (VariableDeclarationStatementSyntax)ParseVariableDeclarationStatement(false);
         return SyntaxFactory.FieldDeclaration(modifiers, declaration);
     }
 
@@ -913,8 +932,9 @@ internal sealed partial class Parser {
         );
     }
 
-    private StatementSyntax ParseVariableDeclarationStatement(bool declarationOnly = false, bool allowImplicit = true) {
-        var type = ParseType(allowImplicit: allowImplicit, declarationOnly: declarationOnly);
+    private StatementSyntax ParseVariableDeclarationStatement(bool allowImplicit = true) {
+        var inStruct = (_context & ParserContext.InStructDefinition) != 0;
+        var type = ParseType(allowImplicit: allowImplicit, declarationOnly: inStruct);
         var identifier = Match(SyntaxKind.IdentifierToken);
 
         if (currentToken.kind == SyntaxKind.EqualsToken) {
@@ -922,8 +942,8 @@ internal sealed partial class Parser {
             var initializer = ParseExpression();
             var semicolon = Match(SyntaxKind.SemicolonToken);
 
-            if (declarationOnly)
-                equals = AddDiagnostic(equals, Error.Unsupported.CannotInitialize());
+            if (inStruct)
+                equals = AddDiagnostic(equals, Error.CannotInitializeInStructs());
 
             return SyntaxFactory.VariableDeclarationStatement(type, identifier, equals, initializer, semicolon);
         } else {
@@ -1488,7 +1508,7 @@ internal sealed partial class Parser {
         if (currentToken.kind == SyntaxKind.RefKeyword) {
             refKeyword = EatToken();
 
-            if (declarationOnly)
+            if (declarationOnly || (_context & ParserContext.InClassDefinition) != 0)
                 refKeyword = AddDiagnostic(refKeyword, Error.CannotUseRef());
         }
 

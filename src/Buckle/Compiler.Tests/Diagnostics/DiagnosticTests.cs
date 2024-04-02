@@ -963,20 +963,21 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0074_CannotUseConst() {
-        var text = @"
-            class MyClass {
-                [const] int myField;
-            }
-        ";
+    // TODO See BU0091 todo
+    // [Fact]
+    // public void Reports_Error_BU0074_CannotUseConst() {
+    //     var text = @"
+    //         class MyClass {
+    //             [const] int myField;
+    //         }
+    //     ";
 
-        var diagnostics = @"
-            cannot use a constant in this context
-        ";
+    //     var diagnostics = @"
+    //         cannot use a constant in this context
+    //     ";
 
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 
     [Fact]
     public void Reports_Error_BU0075_CannotUseRef() {
@@ -1219,18 +1220,19 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_Unsupported_BU9004_CannotInitialize() {
-        var text = @"
-            class A {
-                int num [=] 3;
-            }
-        ";
+    // TODO Add a flag to mark 'text' as low-level to allow struct syntax: the only way to produce this diagnostic
+    // [Fact]
+    // public void Reports_Error_Unsupported_BU0091_CannotInitializeInStructs() {
+    //     var text = @"
+    //         struct A {
+    //             int num [=] 3;
+    //         }
+    //     ";
 
-        var diagnostics = @"
-            cannot initialize declared symbol in this context
-        ";
+    //     var diagnostics = @"
+    //         cannot initialize fields in structure definitions
+    //     ";
 
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 }

@@ -474,8 +474,11 @@ namespace EmitterTests;
 public static class Program {
 
     public static void Main() {
-        Nullable<int> temp0 = ((Add(2, 3).HasValue && Add(5, 6).HasValue) ? (Nullable<int>)(Add(2, 3).Value + Add(5, 6).Value) : null);
-        Console.Write((object)((temp0.HasValue && Add(1, 5).HasValue) ? (Nullable<int>)(temp0.Value + Add(1, 5).Value) : null));
+        Nullable<int> temp0 = Add(2, 3);
+        Nullable<int> temp1 = Add(5, 6);
+        Nullable<int> temp2 = ((temp0.HasValue && temp1.HasValue) ? (Nullable<int>)(temp0.Value + temp1.Value) : null);
+        Nullable<int> temp3 = Add(1, 5);
+        Console.Write((object)((temp2.HasValue && temp3.HasValue) ? (Nullable<int>)(temp2.Value + temp3.Value) : null));
         Console.Write((object)Add(null, null));
         Console.Write((object)Add(1, null));
         Console.Write((object)Add(null, 2));

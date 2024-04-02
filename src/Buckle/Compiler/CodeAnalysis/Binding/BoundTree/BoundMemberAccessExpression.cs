@@ -17,12 +17,16 @@ internal sealed class BoundMemberAccessExpression : BoundExpression {
         this.isNullConditional = isNullConditional;
         this.type = type;
         this.isStaticAccess = isStaticAccess;
+
+        if (member is FieldSymbol f && f.isConstant)
+            constantValue = f.constantValue;
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.MemberAccessExpression;
 
-    // internal override BoundType type => BoundType.CopyWith(member.type, isConstantReference: false, isReference: true);
     internal override BoundType type { get; }
+
+    internal override BoundConstant constantValue { get; }
 
     internal BoundExpression operand { get; }
 
