@@ -383,7 +383,6 @@ internal sealed class Evaluator {
                 Console.WriteLine(e.Message);
             }
 
-            abort = true;
             return new EvaluatorObject();
         }
     }
