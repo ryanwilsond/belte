@@ -749,4 +749,18 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Evaluator_ClassDefinition_SeeSubClasses() {
+        var text = @"
+            class A {
+                class B { }
+                B b = new B();
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

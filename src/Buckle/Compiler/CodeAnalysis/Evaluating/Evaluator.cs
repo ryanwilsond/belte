@@ -495,8 +495,18 @@ internal sealed class Evaluator {
             members.Add(templateArgument, value);
         }
 
-        foreach (var member in typeMembers.Where(t => t is not ParameterSymbol))
-            members.Add(member, new EvaluatorObject());
+        foreach (var member in typeMembers.Where(t => t is not ParameterSymbol)) {
+            var value = new EvaluatorObject();
+
+            if (member is FieldSymbol f) {
+                if (f.isReference) {
+                    value.isReference = true;
+                    value.isExplicitReference = true;
+                }
+            }
+
+            members.Add(member, value);
+        }
 
         var newObject = new EvaluatorObject(members);
 

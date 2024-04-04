@@ -979,20 +979,21 @@ public sealed class DiagnosticTests {
     //     AssertDiagnostics(text, diagnostics, _writer);
     // }
 
-    [Fact]
-    public void Reports_Error_BU0075_CannotUseRef() {
-        var text = @"
-            class MyClass {
-                [ref] int myField;
-            }
-        ";
+    // TODO See BU0091 todo
+    // [Fact]
+    // public void Reports_Error_BU0075_CannotUseRef() {
+    //     var text = @"
+    //         class MyClass {
+    //             [ref] int myField;
+    //         }
+    //     ";
 
-        var diagnostics = @"
-            cannot use a reference type in this context
-        ";
+    //     var diagnostics = @"
+    //         cannot use a reference type in this context
+    //     ";
 
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 
     [Fact]
     public void Reports_Error_BU0076_CannotUseRef() {

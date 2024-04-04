@@ -56,11 +56,19 @@ internal sealed class Binder {
         if (_containingType != null) {
             needsNewScope = true;
             _flags |= BinderFlags.Class;
+        }
 
-            foreach (var member in _containingType.members) {
+        var currentContainingType = _containingType;
+
+        while (currentContainingType != null) {
+            foreach (var member in currentContainingType.members) {
                 if (member is FieldSymbol or ParameterSymbol)
                     _scope.TryDeclareVariable(member as VariableSymbol);
+                else if (member is NamedTypeSymbol n)
+                    _scope.TryDeclareType(n);
             }
+
+            currentContainingType = currentContainingType.containingType;
         }
 
         if (method != null) {
@@ -656,6 +664,11 @@ internal sealed class Binder {
         var saved = _flags;
         _flags |= BinderFlags.Class;
 
+        foreach (var member in @class.members) {
+            if (member is TypeDeclarationSyntax ts)
+                PreBindTypeDeclaration(ts);
+        }
+
         if (@class.templateParameterList != null) {
             var templateParameters = BindParameters(@class.templateParameterList.parameters);
 
@@ -948,9 +961,23 @@ internal sealed class Binder {
 
         switch (name == _shadowingVariable ? null : _scope.LookupSymbol(name, _containingMethod?.isStatic ?? false)) {
             case VariableSymbol variable:
+                if (_containingType is not null &&
+                    variable.containingType is not null &&
+                    _containingType != variable.containingType) {
+                    diagnostics.Push(Error.InvalidStaticReference(identifier.location, name));
+                    break;
+                }
+
                 reference = variable;
                 break;
             case NamedTypeSymbol type when allowTypes:
+                if (_containingType is not null &&
+                    type.containingType is not null &&
+                    _containingType != type.containingType) {
+                    diagnostics.Push(Error.InvalidStaticReference(identifier.location, name));
+                    break;
+                }
+
                 reference = type;
                 break;
             case NamedTypeSymbol when !allowTypes:

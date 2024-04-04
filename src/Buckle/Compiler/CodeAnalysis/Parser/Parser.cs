@@ -1508,7 +1508,7 @@ internal sealed partial class Parser {
         if (currentToken.kind == SyntaxKind.RefKeyword) {
             refKeyword = EatToken();
 
-            if (declarationOnly || (_context & ParserContext.InClassDefinition) != 0)
+            if (declarationOnly)
                 refKeyword = AddDiagnostic(refKeyword, Error.CannotUseRef());
         }
 
