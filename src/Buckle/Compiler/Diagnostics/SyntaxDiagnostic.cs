@@ -11,13 +11,13 @@ internal sealed class SyntaxDiagnostic : Diagnostic {
     /// </summary>
     /// <param name="info"><see cref="Diagnostic.info" />.</param>
     /// <param name="message"><see cref="Diagnostic.message" />.</param>
-    /// <param name="suggestion"><see cref="Diagnostic.suggestion" />.</param>
+    /// <param name="suggestions"><see cref="Diagnostic.suggestions" />.</param>
     /// <param name="offset">
     /// Offset of this diagnostic from the beginning of the node that contains this diagnostic.
     /// </param>
     /// <param name="width">The width from the <param name="offset" /> that this diagnostic applies to.</param>
-    internal SyntaxDiagnostic(DiagnosticInfo info, string message, string suggestion, int offset, int width)
-        : base(info, message, suggestion) {
+    internal SyntaxDiagnostic(DiagnosticInfo info, string message, string[] suggestions, int offset, int width)
+        : base(info, message, suggestions) {
         this.offset = offset;
         this.width = width;
     }
@@ -26,7 +26,7 @@ internal sealed class SyntaxDiagnostic : Diagnostic {
     /// Creates a new <see cref="SyntaxDiagnostic" /> using an existing <see cref="Diagnostic" />.
     /// </summary>
     internal SyntaxDiagnostic(Diagnostic diagnostic, int offset, int width)
-        : base(diagnostic.info, diagnostic.message, diagnostic.suggestion) {
+        : base(diagnostic.info, diagnostic.message, diagnostic.suggestions) {
         this.offset = offset;
         this.width = width;
     }
@@ -45,6 +45,6 @@ internal sealed class SyntaxDiagnostic : Diagnostic {
     /// Updates the offset of this diagnostic.
     /// </summary>
     internal SyntaxDiagnostic WithOffset(int offset) {
-        return new SyntaxDiagnostic(info, message, suggestion, offset, width);
+        return new SyntaxDiagnostic(info, message, suggestions, offset, width);
     }
 }

@@ -339,8 +339,18 @@ internal sealed class Binder {
         if (!conversion.exists)
             diagnostics.Push(Error.CannotConvert(diagnosticLocation, expression.type, type, argument));
 
-        if (!allowExplicit && conversion.isExplicit)
-            diagnostics.Push(Error.CannotConvertImplicitly(diagnosticLocation, expression.type, type, argument));
+        if (!allowExplicit && conversion.isExplicit) {
+            var canAssert = false;
+
+            if (expression.type.typeSymbol.kind == type.typeSymbol.kind &&
+                expression.type.isNullable && !type.isNullable) {
+                canAssert = true;
+            }
+
+            diagnostics.Push(
+                Error.CannotConvertImplicitly(diagnosticLocation, expression.type, type, argument, canAssert)
+            );
+        }
 
         if (conversion.isIdentity) {
             if (expression.type.typeSymbol != null)
@@ -1569,7 +1579,7 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindObjectCreationExpression(ObjectCreationExpressionSyntax expression) {
-        var type = BindType(expression.type);
+        var type = BoundType.CopyWith(BindType(expression.type), isLiteral: true, isNullable: false);
 
         if (type.typeSymbol == TypeSymbol.Error)
             return new BoundErrorExpression();
@@ -1682,11 +1692,13 @@ internal sealed class Binder {
     private BoundExpression BindPostfixExpression(PostfixExpressionSyntax expression, bool ownStatement = false) {
         var boundOperand = BindExpression(expression.operand);
 
-        if (boundOperand is not BoundVariableExpression &&
-            boundOperand is not BoundMemberAccessExpression &&
-            boundOperand is not BoundIndexExpression) {
-            diagnostics.Push(Error.CannotIncrement(expression.operand.location));
-            return new BoundErrorExpression();
+        if (expression.op.kind is SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken) {
+            if (boundOperand is not BoundVariableExpression
+                and not BoundMemberAccessExpression
+                and not BoundIndexExpression) {
+                diagnostics.Push(Error.CannotIncrement(expression.operand.location));
+                return new BoundErrorExpression();
+            }
         }
 
         var type = boundOperand.type;

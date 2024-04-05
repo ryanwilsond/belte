@@ -515,13 +515,20 @@ internal sealed partial class Parser {
         }
 
         var hasBrackets = false;
+        var bracketsBeenClosed = true;
 
         while (Peek(finalOffset).kind is SyntaxKind.OpenBracketToken or SyntaxKind.CloseBracketToken) {
             hasBrackets = true;
+
+            if (Peek(finalOffset).kind is SyntaxKind.OpenBracketToken)
+                bracketsBeenClosed = false;
+            if (Peek(finalOffset).kind is SyntaxKind.CloseBracketToken)
+                bracketsBeenClosed = true;
+
             finalOffset++;
         }
 
-        if (Peek(finalOffset).kind == SyntaxKind.IdentifierToken)
+        if (Peek(finalOffset).kind is SyntaxKind.IdentifierToken && bracketsBeenClosed)
             hasName = true;
 
         if (!hasBrackets &&

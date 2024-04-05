@@ -59,7 +59,7 @@ internal partial struct SyntaxTreeDiagnosticEnumerator {
                         sd.info,
                         new TextLocation(_syntaxTree.text, new TextSpan(spanStart, spanWidth)),
                         sd.message,
-                        sd.suggestion
+                        sd.suggestions
                     );
                 } else {
                     _current = new BelteDiagnostic(diagnostic);

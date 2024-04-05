@@ -60,16 +60,21 @@ internal sealed class BoundPostfixOperator {
             var operandIsCorrect = op.operandType is null
                 ? true
                 : Cast.Classify(operandType, op.operandType, false).isImplicit;
+            var nonNullable = op.operandType is null;
 
             if (op.kind == kind && operandIsCorrect) {
                 if (op.operandType is null) {
-                    return new BoundPostfixOperator(kind, op.opKind, operandType);
+                    return new BoundPostfixOperator(
+                        kind,
+                        op.opKind,
+                        nonNullable ? BoundType.CopyWith(operandType, isNullable: false) : operandType
+                    );
                 } else if (operandType.isNullable) {
                     return new BoundPostfixOperator(
                         kind,
                         op.opKind,
-                        BoundType.CopyWith(op.operandType, isNullable: true),
-                        BoundType.CopyWith(op.type, isNullable: true)
+                        BoundType.CopyWith(op.operandType, isNullable: !nonNullable),
+                        BoundType.CopyWith(op.type, isNullable: !nonNullable)
                     );
                 } else {
                     return op;

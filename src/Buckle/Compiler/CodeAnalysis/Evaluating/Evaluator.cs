@@ -89,7 +89,14 @@ internal sealed class Evaluator {
 
     private object GetVariableValue(VariableSymbol variable, bool traceCollections = false) {
         var value = Get(variable);
-        return Value(value, traceCollections);
+
+        try {
+            return Value(value, traceCollections);
+        } catch (BelteInternalException) {
+            throw new BelteEvaluatorException(
+                $"Reference cannot be deferred (what it was referencing was likely redefined)"
+            );
+        }
     }
 
     private bool TryGet(
@@ -109,7 +116,9 @@ internal sealed class Evaluator {
         if (scope != null) {
             if (TryGet(scope, variable, out var evaluatorObject))
                 return evaluatorObject;
-        } else if (variable.kind == SymbolKind.GlobalVariable) {
+        }
+
+        if (variable.kind == SymbolKind.GlobalVariable) {
             if (TryGet(_globals, variable, out var evaluatorObject))
                 return evaluatorObject;
         } else {
@@ -305,6 +314,11 @@ internal sealed class Evaluator {
                 var s = statement.statements[index];
 
                 switch (s.kind) {
+                    case BoundNodeKind.BlockStatement:
+                        // TODO This is a temporary fix to nested blocks existing; SHOULD never occur after lowering
+                        EvaluateStatement((BoundBlockStatement)s, abort, out hasReturn, insideTry: true);
+                        index++;
+                        break;
                     case BoundNodeKind.NopStatement:
                         index++;
                         break;
@@ -396,7 +410,7 @@ internal sealed class Evaluator {
 
         try {
             EvaluateStatement(statement.body, abort, out hasReturn, true);
-        } catch (Exception e) when (e is not BelteInternalException) {
+        } catch (Exception e) when (e is not BelteException) {
             if (statement.catchBody != null && !hasReturn)
                 EvaluateStatement(statement.catchBody, abort, out hasReturn);
             else
@@ -622,6 +636,16 @@ internal sealed class Evaluator {
             var hex = addPrefix ? $"0x{value.ToString("X")}" : value.ToString("X");
 
             return new EvaluatorObject(hex);
+        } else if (node.method == BuiltinMethods.Ascii) {
+            var value = (string)Value(EvaluateExpression(node.arguments[0], abort));
+
+            if (value.Length != 1)
+                throw new ArgumentException("String passed into `Ascii` method must be of length 1");
+
+            return new EvaluatorObject((int)char.Parse(value));
+        } else if (node.method == BuiltinMethods.Char) {
+            var value = (int)Value(EvaluateExpression(node.arguments[0], abort));
+            return new EvaluatorObject(((char)value).ToString());
         } else {
             return InvokeMethod(node.method, node.arguments, abort, node.operand);
         }

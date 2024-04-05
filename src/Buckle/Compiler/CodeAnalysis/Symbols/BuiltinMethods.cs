@@ -189,8 +189,31 @@ internal static class BuiltinMethods {
     internal static readonly MethodSymbol Hex = new MethodSymbol(
         "Hex",
         ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableInt, 0, NoDefault),
+            new ParameterSymbol("value", BoundType.Int, 0, NoDefault),
             new ParameterSymbol("prefix", BoundType.Bool, 0, Literal(false, BoundType.Bool))
+        ),
+        BoundType.String
+    );
+
+    /// <summary>
+    /// Converts a string of length 1 to the appropriate ASCII code of the character.
+    /// </summary>
+    internal static readonly MethodSymbol Ascii = new MethodSymbol(
+        "Ascii",
+        ImmutableArray.Create(
+            new ParameterSymbol("char", BoundType.String, 0, NoDefault)
+        ),
+        BoundType.Int
+    );
+
+    /// <summary>
+    /// Converts an integer to the appropriate character using ASCII codes.
+    /// Opposite of <see cref="Ascii">.
+    /// </summary>
+    internal static readonly MethodSymbol Char = new MethodSymbol(
+        "Char",
+        ImmutableArray.Create(
+            new ParameterSymbol("ascii", BoundType.Int, 0, NoDefault)
         ),
         BoundType.String
     );

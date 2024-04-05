@@ -72,17 +72,23 @@ internal static class Error {
     /// BU0007. Run `buckle --explain BU0007` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic CannotConvertImplicitly(
-        TextLocation location, BoundType from, BoundType to, int argument = 0) {
+        TextLocation location, BoundType from, BoundType to, int argument, bool canAssert) {
         var message =
-            $"cannot convert from type '{from}' to '{to}'. " +
-            "An explicit conversion exists (are you missing a cast?)";
-        var suggestion = $"({to})%"; // % is replaced with all the text at `location`
+            $"cannot convert from type '{from}' to '{to}' implicitly; " +
+            "an explicit conversion exists (are you missing a cast?)";
+        string[] suggestions;
+
+        // % is replaced with all the text at `location`
+        if (canAssert)
+            suggestions = new string[] { $"({to})%", "(%)!" };
+        else
+            suggestions = new string[] { $"({to})%" };
 
         if (argument > 0)
             message = $"argument {argument}: " + message;
 
         return new BelteDiagnostic(
-            ErrorInfo(DiagnosticCode.ERR_CannotConvertImplicitly), location, message, suggestion);
+            ErrorInfo(DiagnosticCode.ERR_CannotConvertImplicitly), location, message, suggestions);
     }
 
     /// <summary>
@@ -832,7 +838,9 @@ internal static class Error {
             "qualify it with the type name instead";
         var suggestion = $"{typeName}.{name}";
 
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidInstanceReference), location, message, suggestion);
+        return new BelteDiagnostic(
+            ErrorInfo(DiagnosticCode.ERR_InvalidInstanceReference), location, message, [suggestion]
+        );
     }
 
     /// <summary>

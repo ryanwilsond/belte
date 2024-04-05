@@ -92,7 +92,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int' to 'string'. An explicit conversion exists (are you missing a cast?)
+            cannot convert from type 'int' to 'string' implicitly; an explicit conversion exists (are you missing a cast?)
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
