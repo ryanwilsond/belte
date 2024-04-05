@@ -5,8 +5,8 @@ title: What I Learned
 
 # What I Learned
 
-The documents in this folder will fully explain how the compiler works, and some interesting things I learned along the
-way. The reason for this is that while developing this compiler, I found it very hard to find in-depth details on a
+The documents in this folder will abstractly explain how the compiler works, and some interesting things I learned along
+the way. The reason for this is that while developing this compiler, I found it very hard to find in-depth details on a
 couple of essential topics making it very hard to develop. This has the goal of helping people who also want to make a
 similar compiler.
 

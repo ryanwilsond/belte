@@ -1,5 +1,5 @@
 <p align="center">
-<img width="300" src="docs/img/BelteCapital.png" alt="Belte Logo">
+<img width="300" src="docs/assets/images/BelteCapital.png" alt="Belte Logo">
 </p>
 
 <h1 align="center">Best Ever Language To Exist</h1>
