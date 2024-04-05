@@ -13,9 +13,9 @@ public sealed class BelteDiagnostic : Diagnostic {
     /// <param name="info">Severity and code of <see cref="BelteDiagnostic" />.</param>
     /// <param name="location">Location of the <see cref="BelteDiagnostic" />.</param>
     /// <param name="message">Message/info on the <see cref="BelteDiagnostic" />.</param>
-    /// <param name="suggestion">A possible solution to the problem.</param>
-    public BelteDiagnostic(DiagnosticInfo info, TextLocation location, string message, string suggestion)
-        : base(info, message, suggestion) {
+    /// <param name="suggestions">Possible solution(s) to the problem.</param>
+    public BelteDiagnostic(DiagnosticInfo info, TextLocation location, string message, string[] suggestions)
+        : base(info, message, suggestions) {
         this.location = location;
     }
 
@@ -26,7 +26,7 @@ public sealed class BelteDiagnostic : Diagnostic {
     /// <param name="location">Location of the <see cref="BelteDiagnostic" />.</param>
     /// <param name="message">Message/info on the <see cref="BelteDiagnostic" />.</param>
     public BelteDiagnostic(DiagnosticInfo info, TextLocation location, string message)
-        : this(info, location, message, null) { }
+        : this(info, location, message, []) { }
 
     /// <summary>
     /// Creates a <see cref="BelteDiagnostic" /> using a severity instead of <see cref="DiagnosticInfo" />,
@@ -36,7 +36,7 @@ public sealed class BelteDiagnostic : Diagnostic {
     /// <param name="location">Location of the <see cref="BelteDiagnostic" />.</param>
     /// <param name="message">Message/info on the <see cref="BelteDiagnostic" />.</param>
     public BelteDiagnostic(DiagnosticSeverity type, TextLocation location, string message)
-        : this(new DiagnosticInfo(type), location, message, null) { }
+        : this(new DiagnosticInfo(type), location, message, []) { }
 
     /// <summary>
     /// Creates a <see cref="BelteDiagnostic" /> using a severity instead of <see cref="DiagnosticInfo" />,
@@ -45,7 +45,7 @@ public sealed class BelteDiagnostic : Diagnostic {
     /// <param name="type">Severity of <see cref="BelteDiagnostic" />.</param>
     /// <param name="message">Message/info on the <see cref="BelteDiagnostic" />.</param>
     public BelteDiagnostic(DiagnosticSeverity type, string message)
-        : this(new DiagnosticInfo(type), null, message, null) { }
+        : this(new DiagnosticInfo(type), null, message, []) { }
 
     /// <summary>
     /// Creates a <see cref="BelteDiagnostic" /> without a location or suggestion.
@@ -60,7 +60,7 @@ public sealed class BelteDiagnostic : Diagnostic {
     /// </summary>
     /// <param name="diagnostic"><see cref="BelteDiagnostic" /> to copy (soft copy).</param>
     public BelteDiagnostic(Diagnostic diagnostic)
-        : this(diagnostic.info, null, diagnostic.message, diagnostic.suggestion) { }
+        : this(diagnostic.info, null, diagnostic.message, diagnostic.suggestions) { }
 
     /// <summary>
     /// Where the <see cref="BelteDiagnostic" /> is in the source code (what code produced the

@@ -1,4 +1,3 @@
-using System;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -26,14 +25,6 @@ internal static class Error {
         internal static BelteDiagnostic GlobalReturnValue(TextLocation location) {
             var message = "unsupported: global return cannot return a value";
             return new BelteDiagnostic(ErrorInfo(DiagnosticCode.UNS_GlobalReturnValue), location, message);
-        }
-
-        /// <summary>
-        /// BU9004. Run `buckle --explain BU9004` on the command line for more info.
-        /// </summary>
-        internal static Diagnostic CannotInitialize() {
-            var message = "cannot initialize declared symbol in this context";
-            return new Diagnostic(ErrorInfo(DiagnosticCode.UNS_CannotInitialize), message);
         }
     }
 
@@ -81,17 +72,23 @@ internal static class Error {
     /// BU0007. Run `buckle --explain BU0007` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic CannotConvertImplicitly(
-        TextLocation location, BoundType from, BoundType to, int argument = 0) {
+        TextLocation location, BoundType from, BoundType to, int argument, bool canAssert) {
         var message =
-            $"cannot convert from type '{from}' to '{to}'. " +
-            "An explicit conversion exists (are you missing a cast?)";
-        var suggestion = $"({to})%"; // % is replaced with all the text at `location`
+            $"cannot convert from type '{from}' to '{to}' implicitly; " +
+            "an explicit conversion exists (are you missing a cast?)";
+        string[] suggestions;
+
+        // % is replaced with all the text at `location`
+        if (canAssert)
+            suggestions = new string[] { $"({to})%", "(%)!" };
+        else
+            suggestions = new string[] { $"({to})%" };
 
         if (argument > 0)
             message = $"argument {argument}: " + message;
 
         return new BelteDiagnostic(
-            ErrorInfo(DiagnosticCode.ERR_CannotConvertImplicitly), location, message, suggestion);
+            ErrorInfo(DiagnosticCode.ERR_CannotConvertImplicitly), location, message, suggestions);
     }
 
     /// <summary>
@@ -841,7 +838,9 @@ internal static class Error {
             "qualify it with the type name instead";
         var suggestion = $"{typeName}.{name}";
 
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidInstanceReference), location, message, suggestion);
+        return new BelteDiagnostic(
+            ErrorInfo(DiagnosticCode.ERR_InvalidInstanceReference), location, message, [suggestion]
+        );
     }
 
     /// <summary>
@@ -850,6 +849,14 @@ internal static class Error {
     internal static BelteDiagnostic InvalidStaticReference(TextLocation location, string name) {
         var message = $"an object reference is required for non-static member `{name}`";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidStaticReference), location, message);
+    }
+
+    /// <summary>
+    /// BU0091. Run `buckle --explain BU0091` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic CannotInitializeInStructs() {
+        var message = "cannot initialize fields in structure definitions";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotInitializeInStructs), message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

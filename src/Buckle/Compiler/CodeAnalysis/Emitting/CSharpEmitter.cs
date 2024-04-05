@@ -167,8 +167,10 @@ internal sealed class CSharpEmitter {
             foreach (var parameter in @class.members.OfType<ParameterSymbol>())
                 EmitTemplateParameter(indentedTextWriter, parameter);
 
-            foreach (var field in @class.members.OfType<FieldSymbol>())
-                EmitField(indentedTextWriter, field);
+            foreach (var field in @class.members.OfType<FieldSymbol>()) {
+                if (!field.isConstant)
+                    EmitField(indentedTextWriter, field);
+            }
 
             indentedTextWriter.WriteLine();
 
@@ -552,6 +554,9 @@ internal sealed class CSharpEmitter {
             case BoundNodeKind.MemberAccessExpression:
                 EmitMemberAccessExpression(indentedTextWriter, (BoundMemberAccessExpression)expression);
                 break;
+            case BoundNodeKind.ThisExpression:
+                EmitThisExpression(indentedTextWriter, (BoundThisExpression)expression);
+                break;
             default:
                 throw new BelteInternalException($"EmitExpression: unexpected node '{expression.kind}'");
         }
@@ -801,5 +806,9 @@ internal sealed class CSharpEmitter {
         IndentedTextWriter indentedTextWriter, BoundMemberAccessExpression expression) {
         EmitExpression(indentedTextWriter, expression.operand);
         indentedTextWriter.Write($".{GetSafeName(expression.member.name)}");
+    }
+
+    private void EmitThisExpression(IndentedTextWriter indentedTextWriter, BoundThisExpression _) {
+        indentedTextWriter.Write("this");
     }
 }

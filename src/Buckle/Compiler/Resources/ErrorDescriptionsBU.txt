@@ -1443,6 +1443,18 @@ if (2 == 2)
 else
     return 3; // This is not allowed
 ```
+$BU0091
+Fields cannot be initialized when they are declared in structures. This is to
+keep structures functionally primitive, as they should only be used in low-level
+contexts when they are necessary anyways.
+
+For example:
+
+```
+struct MyStruct {
+    int myField = 3; // Not allowed
+}
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.
@@ -1461,14 +1473,3 @@ natively, this error is raised.
 
 Compiling with .NET integration is the priority, so compiling natively will
 likely be unsupported for many versions.
-$BU9004
-Fields cannot be initialized when they are declared. This will be changed in a
-future version but currently an attempt to do this will raise this error.
-
-For example:
-
-```
-class MyClass {
-    int myMember = 3; // Not allowed currently
-}
-```

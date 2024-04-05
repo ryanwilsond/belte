@@ -10,5 +10,6 @@ internal sealed partial class Parser {
         InTemplateArgumentList = 1 << 1,
         InClassDefinition = 1 << 2,
         InStatement = 1 << 3,
+        InStructDefinition = 1 << 4,
     }
 }

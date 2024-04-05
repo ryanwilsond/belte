@@ -36,7 +36,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int[]' to '[NotNull]int[]'. An explicit conversion exists (are you missing a cast?)
+            cannot convert from type 'int[]' to '[NotNull]int[]' implicitly; an explicit conversion exists (are you missing a cast?)
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -743,6 +743,33 @@ public sealed class IssueTests {
             }
             var a = new A();
             a.Test();
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_ClassDefinition_SeeSubClasses() {
+        var text = @"
+            class A {
+                class B { }
+                B b = new B();
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_IndexExpression_NotTreatedAsTypeClause() {
+        var text = @"
+            int a = 1;
+            int\[\] b = {1, 2, 3};
+            b\[a\] = 3;
         ";
 
         var diagnostics = @"";

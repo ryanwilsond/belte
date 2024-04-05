@@ -182,6 +182,9 @@ public sealed class DisplayText {
             case BoundNodeKind.MemberAccessExpression:
                 DisplayMemberAccessExpression(text, (BoundMemberAccessExpression)node);
                 break;
+            case BoundNodeKind.ThisExpression:
+                DisplayThisExpression(text, (BoundThisExpression)node);
+                break;
             default:
                 throw new BelteInternalException($"DisplayNode: unexpected node '{node.kind}'");
         }
@@ -445,6 +448,10 @@ public sealed class DisplayText {
         text.Write(CreateSpace());
         DisplayNode(text, node.type);
         DisplayArguments(text, node.arguments);
+    }
+
+    private static void DisplayThisExpression(DisplayText text, BoundThisExpression _) {
+        text.Write(CreateKeyword(SyntaxKind.ThisKeyword));
     }
 
     private static void DisplayTernaryExpression(DisplayText text, BoundTernaryExpression node) {

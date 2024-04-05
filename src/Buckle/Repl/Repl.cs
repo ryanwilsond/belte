@@ -78,7 +78,7 @@ public abstract partial class Repl {
         }
 
         void CtrlCHandler(object sender, ConsoleCancelEventArgs args) {
-            _abortEvaluation = true;
+            _abortEvaluation.Value = true;
             args.Cancel = true;
             broke = true;
         }

@@ -224,6 +224,7 @@ public sealed class EvaluatorTests {
     [InlineData("int x = 4; ref int y = ref x; y++; return x;", 5)]
     [InlineData("int x = 4; int y = 3; ref int z = ref x; z = ref y; z++; return x;", 4)]
     [InlineData("var a = {1, 2, 3}; a[0] = 6; return a[0];", 6)]
+    [InlineData("int a = 3; class A { ref int b = ref a; } var m = new A(); a = 6; return m.b;", 6)]
     // Name expressions
     [InlineData("int a = 3; int b = 6; return a;", 3)]
     [InlineData("int a = 3; int b = 6; return b;", 6)]
@@ -251,11 +252,6 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 12 / (4 * 2); return a;", 1)]
     [InlineData("int a = (12 / 4) * 2; return a;", 6)]
     // Call expressions
-    [InlineData("Value(3);", 3)]
-    [InlineData("HasValue(3);", true)]
-    [InlineData("HasValue(null);", false)]
-    [InlineData("Value(\"test\");", "test")]
-    [InlineData("Print(text: \"test\");", null)]
     [InlineData("int F(int a, int b, int c) { return a + b * c; } return F(b: 3, c: 2, a: 9);", 15)]
     [InlineData("int F(int a = 3) { return a; } return F(5);", 5)]
     [InlineData("int F(int a = 3) { return a; } return F();", 3)]
@@ -266,6 +262,18 @@ public sealed class EvaluatorTests {
     [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(,2);", 1)]
     [InlineData("class A { int a; int M() { if (a is null) a = 3; return a++; } } var myA = new A(); return myA.M();", 3)]
     [InlineData("class A { int a; int M() { if (a is null) a = 3; return a++; } } var myA = new A(); myA.M(); return myA.M();", 4)]
+    [InlineData("int A(int a) { return 1; } int A(int a, int b = 3) { return 2; } return A(9);", 1)]
+    // Builtin Methods
+    [InlineData("Value(3);", 3)]
+    [InlineData("HasValue(3);", true)]
+    [InlineData("HasValue(null);", false)]
+    [InlineData("Value(\"test\");", "test")]
+    [InlineData("Print(text: \"test\");", null)]
+    [InlineData("Hex(13);", "D")]
+    [InlineData("Hex(13, false);", "D")]
+    [InlineData("Hex(1324, true);", "0x52C")]
+    [InlineData("Ascii(\"c\");", 99)]
+    [InlineData("Ascii(\"┼\");", 9532)]
     // Cast expressions
     [InlineData("(decimal)3;", 3)]
     [InlineData("(int)3.4;", 3)]
@@ -328,6 +336,11 @@ public sealed class EvaluatorTests {
     [InlineData("class A { int a; void SetA(int a) { this.a = 1; a = a; } int GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 1)]
     [InlineData("class A { int M() { return 1; } int N() { int M() { return 2; } return M(); } } var myVar = new A(); return myVar.N();", 2)]
     [InlineData("class A { int M() { return 1; } int N() { int M() { return 2; } return this.M(); } } var myVar = new A(); return myVar.N();", 1)]
+    // Static member access
+    [InlineData("class A { const int a = 3; } return A.a;", 3)]
+    [InlineData("class A { const int a; } return A.a;", null)]
+    [InlineData("class A { static int B() { return 0; } } return A.B();", 0)]
+    [InlineData("class A { static int B(int a) { return a + 3; } } return A.B(4);", 7)]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
         AssertValue(text, expectedValue);
     }

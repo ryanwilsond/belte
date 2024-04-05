@@ -297,10 +297,18 @@ public static partial class BuckleCommandLine {
 
         Console.WriteLine(markerPrefix + marker);
 
-        if (diagnostic.suggestion != null) {
+        if (diagnostic.suggestions.Length > 0) {
             Console.ForegroundColor = ConsoleColor.Green;
-            var suggestion = diagnostic.suggestion.Replace("%", focus);
-            Console.WriteLine(markerPrefix + suggestion);
+            var firstSuggestion = diagnostic.suggestions[0].Replace("%", focus);
+            Console.WriteLine(markerPrefix + firstSuggestion);
+
+            for (var i = 1; i < diagnostic.suggestions.Length; i++) {
+                var suggestion = diagnostic.suggestions[i].Replace("%", focus);
+                ResetColor();
+                Console.Write(markerPrefix.Substring(0, markerPrefix.Length - 3) + "or ");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine(suggestion);
+            }
         }
 
         ResetColor();

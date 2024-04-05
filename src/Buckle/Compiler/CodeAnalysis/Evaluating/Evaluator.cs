@@ -27,7 +27,7 @@ internal sealed class Evaluator {
 
     private EvaluatorObject _lastValue;
     private Random _random;
-    private bool _classLocalBufferOnStack;
+    // private bool _classLocalBufferOnStack;
     private bool _hasValue;
 
     /// <summary>
@@ -89,7 +89,14 @@ internal sealed class Evaluator {
 
     private object GetVariableValue(VariableSymbol variable, bool traceCollections = false) {
         var value = Get(variable);
-        return Value(value, traceCollections);
+
+        try {
+            return Value(value, traceCollections);
+        } catch (BelteInternalException) {
+            throw new BelteEvaluatorException(
+                $"Reference cannot be deferred (what it was referencing was likely redefined)"
+            );
+        }
     }
 
     private bool TryGet(
@@ -109,7 +116,9 @@ internal sealed class Evaluator {
         if (scope != null) {
             if (TryGet(scope, variable, out var evaluatorObject))
                 return evaluatorObject;
-        } else if (variable.kind == SymbolKind.GlobalVariable) {
+        }
+
+        if (variable.kind == SymbolKind.GlobalVariable) {
             if (TryGet(_globals, variable, out var evaluatorObject))
                 return evaluatorObject;
         } else {
@@ -250,7 +259,7 @@ internal sealed class Evaluator {
 
         if (updateLocals) {
             _locals.Push(_classLocalBuffer);
-            _classLocalBufferOnStack = true;
+            // _classLocalBufferOnStack = true;
         }
     }
 
@@ -305,6 +314,11 @@ internal sealed class Evaluator {
                 var s = statement.statements[index];
 
                 switch (s.kind) {
+                    case BoundNodeKind.BlockStatement:
+                        // TODO This is a temporary fix to nested blocks existing; SHOULD never occur after lowering
+                        EvaluateStatement((BoundBlockStatement)s, abort, out hasReturn, insideTry: true);
+                        index++;
+                        break;
                     case BoundNodeKind.NopStatement:
                         index++;
                         break;
@@ -383,7 +397,6 @@ internal sealed class Evaluator {
                 Console.WriteLine(e.Message);
             }
 
-            abort = true;
             return new EvaluatorObject();
         }
     }
@@ -397,7 +410,7 @@ internal sealed class Evaluator {
 
         try {
             EvaluateStatement(statement.body, abort, out hasReturn, true);
-        } catch (Exception e) when (e is not BelteInternalException) {
+        } catch (Exception e) when (e is not BelteException) {
             if (statement.catchBody != null && !hasReturn)
                 EvaluateStatement(statement.catchBody, abort, out hasReturn);
             else
@@ -477,8 +490,8 @@ internal sealed class Evaluator {
         EnterClassScope(operand, enterScope);
         var result = operand.members[node.member];
 
-        // if (enterScope)
-        //     ExitClassScope();
+        if (node.member is FieldSymbol)
+            ExitClassScope();
 
         return result;
     }
@@ -495,8 +508,18 @@ internal sealed class Evaluator {
             members.Add(templateArgument, value);
         }
 
-        foreach (var member in typeMembers.Where(t => t is not ParameterSymbol))
-            members.Add(member, new EvaluatorObject());
+        foreach (var member in typeMembers.Where(t => t is not ParameterSymbol)) {
+            var value = new EvaluatorObject();
+
+            if (member is FieldSymbol f) {
+                if (f.isReference) {
+                    value.isReference = true;
+                    value.isExplicitReference = true;
+                }
+            }
+
+            members.Add(member, value);
+        }
 
         var newObject = new EvaluatorObject(members);
 
@@ -607,6 +630,22 @@ internal sealed class Evaluator {
                 return new EvaluatorObject(false);
 
             return new EvaluatorObject(true);
+        } else if (node.method == BuiltinMethods.Hex) {
+            var value = (int)Value(EvaluateExpression(node.arguments[0], abort));
+            var addPrefix = (bool)Value(EvaluateExpression(node.arguments[1], abort));
+            var hex = addPrefix ? $"0x{value.ToString("X")}" : value.ToString("X");
+
+            return new EvaluatorObject(hex);
+        } else if (node.method == BuiltinMethods.Ascii) {
+            var value = (string)Value(EvaluateExpression(node.arguments[0], abort));
+
+            if (value.Length != 1)
+                throw new ArgumentException("String passed into `Ascii` method must be of length 1");
+
+            return new EvaluatorObject((int)char.Parse(value));
+        } else if (node.method == BuiltinMethods.Char) {
+            var value = (int)Value(EvaluateExpression(node.arguments[0], abort));
+            return new EvaluatorObject(((char)value).ToString());
         } else {
             return InvokeMethod(node.method, node.arguments, abort, node.operand);
         }
@@ -641,8 +680,9 @@ internal sealed class Evaluator {
         var result = EvaluateStatement(statement, abort, out _);
         _locals.Pop();
 
-        if (_classLocalBufferOnStack && !method.isStatic)
-            _locals.Pop();
+        // TODO Make sure removing this doesn't lead to an accumulation of unnecessary locals on the stack
+        // if (_classLocalBufferOnStack && !method.isStatic)
+        //     _locals.Pop();
 
         return result;
     }

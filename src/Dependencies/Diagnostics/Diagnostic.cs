@@ -11,11 +11,11 @@ public class Diagnostic {
     /// </summary>
     /// <param name="info">Severity and code of <see cref="Diagnostic" />.</param>
     /// <param name="message">Message/info on the <see cref="Diagnostic" />.</param>
-    /// <param name="suggestion">A possible solution to the problem.</param>
-    public Diagnostic(DiagnosticInfo info, string message, string suggestion) {
+    /// <param name="suggestions">Possible solution(s) to the problem.</param>
+    public Diagnostic(DiagnosticInfo info, string message, string[] suggestions) {
         this.info = info;
         this.message = message;
-        this.suggestion = suggestion;
+        this.suggestions = suggestions;
     }
 
     /// <summary>
@@ -24,7 +24,7 @@ public class Diagnostic {
     /// <param name="info">Severity and code of <see cref="Diagnostic" />.</param>
     /// <param name="message">Message/info on the <see cref="Diagnostic" />.</param>
     public Diagnostic(DiagnosticInfo info, string message)
-        : this(info, message, null) { }
+        : this(info, message, []) { }
 
     /// <summary>
     /// Creates a <see cref="Diagnostic" /> with a <see cref="DiagnosticSeverity" /> instead of
@@ -33,7 +33,7 @@ public class Diagnostic {
     /// <param name="type">Severity of <see cref="Diagnostic" /> (see <see cref="DiagnosticSeverity" />).</param>
     /// <param name="message">Message/info on the <see cref="Diagnostic" />.</param>
     public Diagnostic(DiagnosticSeverity type, string message)
-        : this(new DiagnosticInfo(type), message, null) { }
+        : this(new DiagnosticInfo(type), message, []) { }
 
     /// <summary>
     /// Information about the <see cref="Diagnostic" /> including severity, code, and module.
@@ -47,7 +47,7 @@ public class Diagnostic {
     public string message { get; }
 
     /// <summary>
-    /// A suggestion message to help guide a possible fix to the problem.
+    /// Suggestion message(s) to help guide a possible fix to the problem.
     /// </summary>
-    public string suggestion { get; }
+    public string[] suggestions { get; }
 }

@@ -40,8 +40,6 @@ internal sealed class OverloadResolution {
         var possibleOverloads = new List<MethodSymbol>();
 
         var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
-        var preBoundArgumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
-        preBoundArgumentsBuilder.AddRange(arguments);
 
         var tempDiagnostics = new BelteDiagnosticQueue();
         tempDiagnostics.Move(_binder.diagnostics);
@@ -49,6 +47,9 @@ internal sealed class OverloadResolution {
         var isConstructor = false;
 
         foreach (var method in methods) {
+            var preBoundArgumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
+            preBoundArgumentsBuilder.AddRange(arguments);
+
             var beforeCount = _binder.diagnostics.Count;
             var score = 0;
             var isInner = method.name.Contains(">g__");
@@ -150,7 +151,6 @@ internal sealed class OverloadResolution {
 
         CleanUpDiagnostics(methods, tempDiagnostics);
 
-        // TODO make sure all error messages make sense with constructors
         if (methods.Length > 1 && possibleOverloads.Count == 0) {
             if (isConstructor)
                 _binder.diagnostics.Push(Error.NoConstructorOverload(operand.location, methods[0].containingType.name));
@@ -167,8 +167,25 @@ internal sealed class OverloadResolution {
                 possibleOverloads.Clear();
                 possibleOverloads.Add(BuiltinMethods.ValueAny);
             } else {
-                _binder.diagnostics.Push(Error.AmbiguousMethodOverload(operand.location, possibleOverloads.ToArray()));
-                return OverloadResolutionResult<MethodSymbol>.Failed();
+                var minArguments = int.MaxValue;
+                var tempPossibleOverloads = new List<MethodSymbol>();
+
+                foreach (var overload in possibleOverloads) {
+                    if (overload.parameters.Length < minArguments) {
+                        tempPossibleOverloads.Clear();
+                        minArguments = overload.parameters.Length;
+                    }
+
+                    if (overload.parameters.Length == minArguments)
+                        tempPossibleOverloads.Add(overload);
+                }
+
+                possibleOverloads = tempPossibleOverloads;
+
+                if (possibleOverloads.Count > 1) {
+                    _binder.diagnostics.Push(Error.AmbiguousMethodOverload(operand.location, possibleOverloads.ToArray()));
+                    return OverloadResolutionResult<MethodSymbol>.Failed();
+                }
             }
         } else if (methods.Length == 1 && possibleOverloads.Count == 0) {
             possibleOverloads.Add(methods[0]);
@@ -416,12 +433,12 @@ internal sealed class OverloadResolution {
             var argumentExpression = argument.expression;
             var isImplicitNull = false;
 
-            if (argument.expression.type.typeSymbol is null &&
-                argument.expression is BoundLiteralExpression le &&
-                BoundConstant.IsNull(argument.expression.constantValue) &&
+            if (argumentExpression.type.typeSymbol is null &&
+                argumentExpression is BoundLiteralExpression le &&
+                BoundConstant.IsNull(argumentExpression.constantValue) &&
                 le.isArtificial) {
                 argumentExpression = new BoundLiteralExpression(
-                    null, BoundType.CopyWith(argument.expression.type, typeSymbol: parameter.type.typeSymbol)
+                    null, BoundType.CopyWith(argumentExpression.type, typeSymbol: parameter.type.typeSymbol)
                 );
 
                 isImplicitNull = true;
@@ -455,6 +472,9 @@ internal sealed class OverloadResolution {
                 boundArguments.AddRange(currentBoundArguments);
                 minScore = score;
                 possibleOverloads.Clear();
+            } else if (score == minScore && currentBoundArguments.Count < boundArguments.Count) {
+                boundArguments.Clear();
+                boundArguments.AddRange(currentBoundArguments);
             }
 
             if (score == minScore)
