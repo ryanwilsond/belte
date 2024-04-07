@@ -3,13 +3,10 @@ layout: post
 title: Documentation
 ---
 
-> Don't know where to start? Try [Getting Started](GettingStarted.md).
-> For more info about the language, try [Principles](Principles.md).
-
 - [Principles](Principles.md)
 - [Using Buckle](Buckle.md)
 - [Using the Repl](Repl.md)
-- [Getting Started](GettingStarted.md)
+- [Diagnostic Codes](DiagnosticCodes.md)
 - Tutorials (Under Construction)
   <!-- - [Hello World](Tutorial/HelloWorld.md) -->
   <!-- - [Calculator](Tutorial/Calculator.md) -->

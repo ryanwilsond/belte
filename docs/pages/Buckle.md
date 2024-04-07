@@ -5,67 +5,21 @@ title: Using Buckle
 
 Buckle is the Belte programming language compiler.
 
+Currently there are no releases of Belte, so to use the compiler you will have to clone the
+[GitHub repository](https://github.com/ryanwilsond/belte) and build it locally. Instructions on how to do so can be seen
+[here](./Building.md).
+
+- [Options Summary](#options-summary)
+- [Running Programs](#running-programs)
+- [Building with .NET](#building-with-net)
+
 ## Options Summary
 
 ### *-h*, *--help*
 
 Displays a brief options summary. Does not display any info on use cases or examples of using the compiler.
 
-### *--version*
-
-Displays the compiler version information. The message will be in the form `Version: Buckle [version]`. The compiler
-version will be in the form `MAJOR.MINOR.PATCH`, following [semantic versioning 2.0.0](https://semver.org/).
-
-### *--dumpmachine*
-
-Displays the compiler's target system. The only applies to compiling traditionally into an executable. If invoking the
-Repl, transpiling, interpreting, or using .NET integration, the compiler is portable/cross-platform.
-
-### *--no-out*
-
-Runs the compiler normally, but prevents any file IO to occur. This option does not stop the compiler from printing to
-the standard output however.
-
-This option is mainly used for debugging the functionality of the compiler without having to worry about produced files.
-
-### *--explain*[BU|RE|CL]*\<code>*
-
-Displays extended information on a specific error. This option requires inputting an error code, not an error name. To
-make it more convenient to use this option, whenever the compiler produces an error the error code is part of the error
-message.
-
-Errors are in the format `buckle: [error location]: error [error code]: [error message]`. To get information on an
-error, call the compiler in this format: `buckle --explain [error code]`.
-
-Note: If no error module prefix (BU, RE, etc.) is provided, the `--explain` option will by default get errors from the
-BU module.
-
-| Module Prefix | Description |
-|-|-|
-| BU | Buckle; diagnostics produced during the actual compilation process. |
-| RE | Repl; diagnostics produced that are unique to the Repl. |
-| CL | Command Line; diagnostics produced that are unique to the command-line interface. |
-
-### *-r*, *--repl*
-
-Invokes the Repl, a Read-Eval-Print Loop where the user can enter short code snippets and get the result in realtime.
-The Repl is purely a command-line tool. If the *-r* or *--repl* option is passed, **all** other arguments are ignored.
-
-For more information specifically on the Repl, see the [Repl help doc](.\Repl.md).
-
-### *-s*
-
-Stop compilation after compiling, resulting in assemble code. File output options are treated normally, and the
-outputted compiled file will be an assembly file (ending in *.s* by default). The compiling phase is always ran by
-default with no output modifier options.
-
-### *-c*
-
-Stop compilation after assembling, resulting in an byte code. File output options are treated normally, and the
-outputted compiled file will be an object file (ending in *.o* by default). The assembling phase is always ran by
-default with no output modifier options.
-
-### *-i*
+### *-i* (Default)
 
 Performs all compilation steps before assembling and linking, and instead of assembling and linking to an executable,
 the program is run immediately. There are three different methods in which the program can be run, and the compiler
@@ -80,6 +34,33 @@ compiler is ran before evaluating, there is a pause before the program starts ex
 If the input is long, the code is compiled down to IL code, and then into an executable. This executable is wrapped and
 ran immediately. The runtime performance is the same as traditional compilation, though there will be a pause before
 the program executes. This pause is the longest of the three methods.
+
+### *-r*, *--repl*
+
+Invokes the Repl, a Read-Eval-Print Loop where the user can enter short code snippets and get the result in realtime.
+The Repl is purely a command-line tool. If the *-r* or *--repl* option is passed, **all** other arguments are ignored.
+
+For more information specifically on the Repl, see the [Repl help doc](.\Repl.md).
+
+<!--
+### *-n*
+
+Compile to a native executable (ending in *.exe* by default).
+
+### *-s*
+
+Stop compilation after compiling, resulting in assemble code. File output options are treated normally, and the
+outputted compiled file will be an assembly file (ending in *.s* by default).
+
+This option is only used in junction with the *-n* option.
+
+### *-c*
+
+Stop compilation after assembling, resulting in an byte code. File output options are treated normally, and the
+outputted compiled file will be an object file (ending in *.o* by default).
+
+This option is only used in junction with the *-n* option.
+-->
 
 ### *--script*
 
@@ -127,12 +108,10 @@ all compilation phases are completed. You cannot specify this option in junction
 files are inputted. You cannot also never specify this option in junction with *-i*, *--script*, *--evaluate*,
 *--execute*, *-t*, or *--transpile*.
 
-### *--severity=\<severity>*
+### *--severity=\<severity>* (Default *warning*)
 
 The compiler stores all diagnostics of any severity. However, diagnostics are only logged or displayed if their severity
 is greater than or equal to the given severity level. The default is *warning*.
-
-All severities you can pass into this option:
 
 | Severity | Description |
 |-|-|
@@ -140,8 +119,63 @@ All severities you can pass into this option:
 | *debug* | Verbose information is shown. Used for debugging purposes. |
 | *info* | Any information hidden by default. |
 | *warning* | Information that usually suggests a non-required change. |
-| *error* | Any problem that does not immediately stop execution. |
-| *fatal* | Any problem that immediately stops execution. |
+| *error* | Any problem that prevents full compilation. |
+| *fatal* | Any problem that immediately stops the compiler as it cannot continue. |
+
+### *--warnlevel=\<warning-level>* (Default *1*)
+
+Warnings are grouped into levels based on how "ignorable" they are. If *0* is passed as the
+warning level, warnings are suppressed even if the [severity level](#severityseverity-default-warning) indicates they
+should be logged/displayed. Warnings are logged/displayed if their warning level is less than or equal to the passed
+warning level. The default level is *1*.
+
+A list of what warnings are included on each level can be found [here](./WarningLevels.md).
+
+### *--wignore=<*[BU|RE|CL]*\<code>,...>*
+
+Suppresses specified warnings. Warnings should be comma delimited. Warnings should be specified using their codes, a
+list of which can be found [here](./DiagnosticCodes.md).
+
+### *--winclude=<*[BU|RE|CL]*\<code>,...>*
+
+Specifically avoids suppressing specific warnings, even if the [severity level](#severityseverity-default-warning) or
+[warning level](#warnlevelwarning-level-default-1) would suggest to do so. Warnings should be comma delimited. Warnings
+should be specified using their codes, a list of which can be found [here](./DiagnosticCodes.md).
+
+### *--version*
+
+Displays the compiler version information. The message will be in the form `Version: Buckle [version]`. The compiler
+version will be in the form `MAJOR.MINOR.PATCH`, following [semantic versioning 2.0.0](https://semver.org/).
+
+### *--dumpmachine*
+
+Displays the compiler's target system. The only applies to compiling traditionally into an executable. If invoking the
+Repl, transpiling, interpreting, or using .NET integration, the compiler is portable/cross-platform.
+
+### *--noout*
+
+Runs the compiler normally, but prevents any file IO to occur. This option does not stop the compiler from printing to
+the standard output however.
+
+This option is mainly used for debugging the functionality of the compiler without having to worry about produced files.
+
+### *--explain*[BU|RE|CL]*\<code>*
+
+Displays extended information on a specific error. This option requires inputting an error code, not an error name. To
+make it more convenient to use this option, whenever the compiler produces an error the error code is part of the error
+message.
+
+Errors are in the format `buckle: [error location]: error [error code]: [error message]`. To get information on an
+error, call the compiler in this format: `buckle --explain [error code]`.
+
+Note: If no error module prefix (BU, RE, etc.) is provided, the `--explain` option will by default get errors from the
+BU module.
+
+| Module Prefix | Description |
+|-|-|
+| BU | Buckle; diagnostics produced during the actual compilation process. |
+| RE | Repl; diagnostics produced that are unique to the Repl. |
+| CL | Command Line; diagnostics produced that are unique to the command-line interface. |
 
 ### *-d*, *--dotnet*
 
@@ -164,43 +198,44 @@ Adds a reference when .NET integration is enabled. This reference is a path to a
 and can then be referenced from within the program. This option is only valid in junction with the *-d* or *--dotnet*
 options.
 
-## Running the Interpreter
+## Running Programs
 
-There is no setup required. Just run Buckle with the `-i` (interpret mode) option, and add any files you want to run.
+There is no setup required. Because interpretation is the default behavior, no command-line arguments are needed, only
+the names of the files to run.
 
 Example:
 
-Program.ble
+*Program.blt*
 
 ```belte
-int Main() {
-    PrintLine("Hello, world!");
-
-    return 1;
-}
+PrintLine("Hello, world!");
 ```
 
-Command Line
+*Command Line*
 
 ```bash
-$ buckle -i Program.ble
+buckle Program.blt
+```
+
+*Result (via stdout)*
+
+```
 Hello, world!
 ```
 
-## Building with Dotnet
+## Building with .NET
 
-To start, make a `Directory.Build.props` file with the following contents to tell dotnet to look for belte files:
+A `Directory.Build.props` file with the following contents is necessary to tell dotnet how to find Belte source files:
 
 ```xml
 <Project>
   <PropertyGroup>
-    <DefaultLanguageSourceExtension>.ble</DefaultLanguageSourceExtension>
+    <DefaultLanguageSourceExtension>.blt</DefaultLanguageSourceExtension>
   </PropertyGroup>
 </Project>
 ```
 
-You will also need to create a `Directory.Build.targets` file to tell dotnet how to invoke buckle. Here is a full
-example:
+You will also need a `Directory.Build.targets` file to tell dotnet how to invoke Buckle:
 
 ```xml
 <Project>
@@ -227,7 +262,14 @@ example:
 </Project>
 ```
 
-This first tells dotnet to only reference `System.Runtime`, `System.Console`, and `System.Runtime.Extensions`. This part
-is optional, but referencing all default libraries may slow down compilation. Then it defines how to invoke buckle
-pointing to its project file. Alternatively you can add buckle to environment variables path, and call it directly
-instead of wrapping it inside of `dotnet run`.
+Each project will need an *msproj* file (e.g. *MyProject.msproj*) containing the following:
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk"></Project>
+```
+
+Then you can use a debugger to build and run the project, or run the project via the command line:
+
+```bash
+dotnet run --project path/to/MyProject.msproj
+```
