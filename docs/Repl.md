@@ -44,7 +44,7 @@ The Repl provides many commands usefully for debug snippets or code.
 | [Exit](#exit-command) | `#exit` | Exit the Repl |
 | [Help](#help-command) | `#help` | Show this document |
 | [Load](#load-command) | `#load <path>` | Load in text from \<path> |
-| [LS](#ls-command) | `#ls` | List all defined symbols |
+| [List](#list-command) | `#ls` | List all defined symbols |
 | [Reset](#reset-command) | `#reset` | Clear previous submissions |
 | [Save to File](#save-to-file-command) | `#saveToFile <path> <count=1>` | Save previous \<count> submissions to \<path> |
 | [Settings](#settings-command) | `#settings` | Open settings page |
@@ -157,11 +157,11 @@ The Repl:
 9
 ```
 
-### LS Command
+### List Command
 
 Usage: `#ls`
 
-The LS command lists all currently declared symbols, including built-in ones.
+The list command lists all currently declared symbols, including built-in ones.
 
 For example:
 
