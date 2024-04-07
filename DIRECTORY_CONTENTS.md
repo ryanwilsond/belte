@@ -4,7 +4,7 @@ Brief descriptions of all the directories to help browse the repo.
 
 | Path | Description |
 |-|-|
-| docs | [Github pages](https://ryanwilsond.github.io/belte/) wiki documentation |
+| docs | Documentation on Buckle |
 | samples | Belte code examples of the syntax |
 | src | Source files |
 | src/Belte | Belte Standard Libraries |
