@@ -45,4 +45,9 @@ public struct CompilerState {
     /// Enable to disable any possible output, used for debugging.
     /// </summary>
     public bool noOut;
+
+    /// <summary>
+    /// Provided arguments for the program, such as command-line arguments, that are given to the program.
+    /// </summary>
+    public string[] arguments;
 }

@@ -499,6 +499,7 @@ public static partial class BuckleCommandLine {
         var references = new List<string>();
         var diagnosticsCL = new DiagnosticQueue<Diagnostic>();
         diagnostics = new DiagnosticQueue<Diagnostic>();
+        var arguments = new string[] { };
 
         var specifyStage = false;
         var specifyOut = false;
@@ -511,9 +512,10 @@ public static partial class BuckleCommandLine {
             version = false,
             error = null
         };
+
         multipleExplains = false;
 
-        state.buildMode = BuildMode.Independent;
+        state.buildMode = BuildMode.AutoRun;
         state.finishStage = CompilerStage.Finished;
         state.outputFilename = "a.exe";
         state.moduleName = "defaultModuleName";
@@ -532,6 +534,9 @@ public static partial class BuckleCommandLine {
                 case "-r":
                 case "--repl":
                     state.buildMode = BuildMode.Repl;
+                    break;
+                case "-n":
+                    state.buildMode = BuildMode.Independent;
                     break;
                 case "-i":
                     state.buildMode = BuildMode.AutoRun;
@@ -563,7 +568,7 @@ public static partial class BuckleCommandLine {
                 case "--version":
                     tempDialogs.version = true;
                     break;
-                case "--no-out":
+                case "--noout":
                     state.noOut = true;
                     break;
                 default:
@@ -636,6 +641,11 @@ public static partial class BuckleCommandLine {
                     severity = severityLevel;
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedSeverity(severityString));
+            } else if (arg == "--") {
+                if (args.Length > i + 1)
+                    arguments = args[(i + 1)..];
+
+                break;
             } else {
                 DecodeSimpleOption(arg);
             }
@@ -649,6 +659,7 @@ public static partial class BuckleCommandLine {
 
         state.tasks = tasks.ToArray();
         state.references = references.ToArray();
+        state.arguments = arguments;
         state.severity = severity ??
             (state.buildMode == BuildMode.Independent ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning);
 
@@ -661,7 +672,7 @@ public static partial class BuckleCommandLine {
         if (specifyStage && state.buildMode == BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithDotnet());
 
-        if (specifyOut && specifyStage && state.tasks.Length > 1 && !(state.buildMode == BuildMode.Dotnet))
+        if (specifyOut && specifyStage && state.tasks.Length > 1 && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithMultipleFiles());
 
         if ((specifyStage || specifyOut) &&

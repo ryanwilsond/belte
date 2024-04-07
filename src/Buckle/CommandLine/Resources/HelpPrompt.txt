@@ -4,20 +4,19 @@ Options:
   -h|--help                   Display this information.
   --version                   Display compiler version information.
   --dumpmachine               Display the compiler's target system.
-  --no-out                    Disable any output the compiler would have produced.
+  --noout                     Disable any output the compiler would have produced.
   --explain[BU|RE|CL]<code>   Extended information for a specific error.
 
   -r|--repl                   Invoke the Repl.
 
-  -s                          Compile only; do not assemble or link.
-  -c                          Compile and assemble; do not link.
-  -i                          Compile and run; do not assemble or link.
+  -i                          Compile and run (default).
   --script                    Compile and run explicitly using the interpreter; do not assemble or link.
   --evaluate                  Compile and run explicitly using the evaluator; do not assemble or link.
   --execute                   Compile and run explicitly using the emitter; do not assemble or link.
   -t|--transpile              Compile and transpile into C#; do not assemble or link.
   -o <file>                   Specify output file.
   --severity=<severity>       Specify a reporting severity; defaults to warning.
+  --warnlevel=<warning level> Specify a warning reporting level; defaults to 1.
 
   -d|--dotnet                 Compile with .NET integration (cannot stop at assembly or linking).
   --modulename=<name>         Specify the module name (used with .NET integration only).

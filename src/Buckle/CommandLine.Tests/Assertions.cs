@@ -28,12 +28,12 @@ internal static class Assertions {
 
         var firstArgFilename = "BelteTestsAssertDiagnosticDefaultFile.blt";
 
-        var argsList = args.AsEnumerable<string>();
+        var argsList = args.AsEnumerable();
 
         if (!noInputFiles)
             argsList = argsList.Prepend(firstArgFilename);
 
-        argsList = argsList.Prepend("--no-out");
+        argsList = argsList.Prepend("--noout");
         argsList = argsList.Prepend("--severity=all");
 
         foreach (var file in filesToCreate.ToList().Append(firstArgFilename)) {

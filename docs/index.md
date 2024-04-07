@@ -3,10 +3,6 @@
 Belte is an object-oriented programming language aiming to have the same feel and power as C# and C++, while also having
 some simplicity like Python.
 
-Visit my [GitHub page!](https://github.com/ryanwilsond/Belte)
-
-Also, consider taking [this survey.](https://docs.google.com/forms/d/e/1FAIpQLScaRbb9QuBz_vG_iWGaYjdFWREBwGiYyW0C4x37ereF9Fz2tg/viewform?usp=sf_link)
-
 ## Index
 
 > Don't know where to start? Try [Getting Started](GettingStarted.md).</br>

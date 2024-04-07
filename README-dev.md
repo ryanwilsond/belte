@@ -2,7 +2,7 @@
 
 To view future plans, docs, etc:
 
-Github: [github.com/ryanwilsond/belte](https://github.com/ryanwilsond/belte)
+GitHub Repository: [github.com/ryanwilsond/belte](https://github.com/ryanwilsond/belte)
 
 Docs/Pages: [ryanwilsond.github.io/belte](https://ryanwilsond.github.io/belte/)
 
@@ -13,9 +13,8 @@ developers or for those who want to contribute.
 
 ## Tools Needed for Building
 
-This project uses the .NET SDK (8.0). To run the project, launch a debug or
-release profile (currently only for Visual Studio Code). For publishing the
-project, GNU Make is used.
+- [GNU Make](https://gnuwin32.sourceforge.net/packages/make.htm)
+- [.NET SDK 8.0 and .NET Runtime 8.0](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
 
 Visual Studio Code is strongly recommended, but not required.
 
@@ -28,19 +27,19 @@ If you have ever ran this command before, you shouldn't need to run it again.
 
 ### Publishing Buckle
 
-Run `$ make` to publish the project in release mode.
+Run `$ make release` to publish the project for Windows machines.
 
 The final executable is put into `.\bin\release\buckle.exe`.
 
 ### Publishing a Portable Release of Buckle
 
-Run `$ make portable` to publish the project in portable release mode.
+Run `$ make portable` to publish the project portably.
 
 The final executable is put into `.\bin\portable\buckle.exe`.
 
 ### Building Buckle in Debug Mode
 
-Run `$ make debug` to build the project in debug mode.
+Run `$ make` or `$ make debug` to build the project in debug mode.
 
 All debug files are put into `.\bin\debug\` and the final executable is put into
 `.\bin\debug\buckle.exe`.

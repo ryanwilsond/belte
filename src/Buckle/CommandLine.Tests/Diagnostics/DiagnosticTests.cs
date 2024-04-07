@@ -18,7 +18,7 @@ public sealed class DiagnosticTests {
 
     [Fact]
     public void Reports_Error_CL0001_MissingFilenameO() {
-        var args = new string[] { "-o" };
+        var args = new string[] { "-n", "-o" };
 
         var diagnostics = @"
             missing filename after '-o'
@@ -124,7 +124,7 @@ public sealed class DiagnosticTests {
         var args = new string[] { "-r" };
 
         var diagnostics = @"
-            all arguments are ignored when invoking the repl
+            all arguments are ignored when invoking the Repl
         ";
 
         AssertDiagnostics(args, diagnostics, _writer, DiagnosticSeverity.Info);
@@ -145,7 +145,7 @@ public sealed class DiagnosticTests {
     public void Reports_Fatal_CL0012_CannotSpecifyWithMultipleFiles() {
         var fileName = "BelteTestsAssertDiagnosticCL0012.blt";
         var args = new string[] {
-            fileName, "-s", "-o", "BelteTestsAssertDiagnosticCL0012.exe"
+            fileName, "-n", "-s", "-o", "BelteTestsAssertDiagnosticCL0012.exe"
         };
 
         var diagnostics = @"

@@ -12,7 +12,11 @@ Buckle is the open-source implementation of the Belte compiler.
 Belte is an object-oriented programming language aiming to have the same feel and power of C# and C++, while still being
 very easy to learn and use effectively.
 
-> Consider taking [this survey](https://docs.google.com/forms/d/e/1FAIpQLScaRbb9QuBz_vG_iWGaYjdFWREBwGiYyW0C4x37ereF9Fz2tg/viewform?usp=sf_link)
+___
+
+## Using the Buckle Compiler
+
+Instructions on how to use the Buckle command-line utility to run Belte code can be viewed [here](docs/Buckle.md).
 
 ___
 
@@ -46,6 +50,6 @@ ___
 
 ## Links
 
-Github: [github.com/ryanwilsond](https://github.com/ryanwilsond)
+Belte GitHub: [github.com/ryanwilsond/belte](https://github.com/ryanwilsond/belte)
 
 Belte Docs/Pages: [ryanwilsond.github.io/belte](https://ryanwilsond.github.io/belte/)
