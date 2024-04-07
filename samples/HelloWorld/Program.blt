@@ -2,10 +2,10 @@
 
     Hello, world!
 
-    This program writes "Hello, world!" to standard out (the terminal).
+    This program writes "Hello, world!" to standard out (the console).
 
 */
 
 // With no entry point specified, execution starts from the top of the file.
-// The `PrintLine` method is included by default, so no imports are necessary!
+// The `PrintLine` method is included by default and is used to output text to the console.
 PrintLine("Hello, world!");

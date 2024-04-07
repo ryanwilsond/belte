@@ -17,7 +17,7 @@ namespace CommandLine;
 /// <summary>
 /// Handles all command-line interaction, argument parsing, and <see cref="Compiler" /> invocation.
 /// </summary>
-public static partial class BuckleCommandLine {
+public static class BuckleCommandLine {
     private const int SuccessExitCode = 0;
     private const int ErrorExitCode = 1;
     private const int FatalExitCode = 2;
@@ -65,7 +65,7 @@ public static partial class BuckleCommandLine {
             return err;
 
         if (!compiler.state.noOut)
-            ResolveOutputFiles(compiler);
+            CleanOutputFiles(compiler);
 
         ReadInputFiles(compiler, out diagnostics);
 
@@ -402,25 +402,6 @@ public static partial class BuckleCommandLine {
         return ResolveDiagnostics(compiler.diagnostics, me ?? compiler.me, compiler.state, textColor);
     }
 
-    private static void ProduceOutputFiles(Compiler compiler) {
-        // TODO Figure out what this is supposed to do. Right now it does nothing.
-        if (compiler.state.finishStage == CompilerStage.Finished)
-            return;
-
-        foreach (var file in compiler.state.tasks) {
-            var inter = file.inputFileName.Split('.')[0];
-
-            switch (compiler.state.finishStage) {
-                case CompilerStage.Compiled:
-                    break;
-                case CompilerStage.Assembled:
-                    break;
-                default:
-                    break;
-            }
-        }
-    }
-
     private static void CleanOutputFiles(Compiler compiler) {
         if (compiler.state.finishStage == CompilerStage.Finished) {
             if (File.Exists(compiler.state.outputFilename))
@@ -432,11 +413,6 @@ public static partial class BuckleCommandLine {
         foreach (var file in compiler.state.tasks) {
             File.Delete(file.outputFilename);
         }
-    }
-
-    private static void ResolveOutputFiles(Compiler compiler) {
-        ProduceOutputFiles(compiler);
-        CleanOutputFiles(compiler);
     }
 
     private static void ReadInputFiles(Compiler compiler, out DiagnosticQueue<Diagnostic> diagnostics) {

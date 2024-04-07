@@ -38,7 +38,7 @@ bool AskForHints() {
         // Use the `Input` builtin function to get input from the user; standard in (the terminal).
         var wantsHints = Input();
 
-        if (wantsHints == "yes" || wantsHints == "y" || wantsHints == "")
+        if (wantsHints == "yes" || wantsHints == "y")
             return true;
         if (wantsHints == "no" || wantsHints == "n")
             return false;

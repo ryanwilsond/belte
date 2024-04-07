@@ -222,7 +222,7 @@ Hello, world!
 
 ## Building with .NET
 
-To start, make a `Directory.Build.props` file with the following contents to tell dotnet to look for belte files:
+A `Directory.Build.props` file with the following contents is necessary to tell dotnet how to find Belte source files:
 
 ```xml
 <Project>
@@ -232,8 +232,7 @@ To start, make a `Directory.Build.props` file with the following contents to tel
 </Project>
 ```
 
-You will also need to create a `Directory.Build.targets` file to tell dotnet how to invoke buckle. Here is a full
-example:
+You will also need a `Directory.Build.targets` file to tell dotnet how to invoke Buckle:
 
 ```xml
 <Project>
@@ -260,7 +259,14 @@ example:
 </Project>
 ```
 
-This first tells dotnet to only reference `System.Runtime`, `System.Console`, and `System.Runtime.Extensions`. This part
-is optional, but referencing all default libraries may slow down compilation. Then it defines how to invoke buckle
-pointing to its project file. Alternatively you can add buckle to environment variables path, and call it directly
-instead of wrapping it inside of `dotnet run`.
+Each project will need an *msproj* file (e.g. *MyProject.msproj*) containing the following:
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk"></Project>
+```
+
+Then you can use a debugger to build and run the project, or run the project via the command line:
+
+```bash
+dotnet run --project path/to/MyProject.msproj
+```
