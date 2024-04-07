@@ -43,7 +43,7 @@ public sealed class DiagnosticTests {
         var args = new string[] { "--explain" };
 
         var diagnostics = @"
-            missing diagnostic code after '--explain'
+            missing diagnostic code after '--explain' (usage: '--explain[BU|RE|CL]<code>')
         ";
 
         AssertDiagnostics(args, diagnostics, _writer);
@@ -227,7 +227,7 @@ public sealed class DiagnosticTests {
         var args = new string[] { "--explain0a" };
 
         var diagnostics = @"
-            'BU0a' is not a valid error code; must be in the format: [BU|CL|RE]<code>
+            'BU0a' is not a valid diagnostic code; must be in the format: [BU|CL|RE]<code>
             examples: BU0001, CL0001, BU54, CL012, RE0001, RE6
         ";
 
@@ -252,7 +252,7 @@ public sealed class DiagnosticTests {
         var args = new string[] { "--explain9999" };
 
         var diagnostics = @"
-            'BU9999' is not a used error code
+            'BU9999' is not a used diagnostic code
         ";
 
         AssertDiagnostics(args, diagnostics, _writer);
@@ -278,5 +278,60 @@ public sealed class DiagnosticTests {
         ";
 
         AssertDiagnostics(args, diagnostics, _writer, DiagnosticSeverity.Fatal, true, "a.o");
+    }
+
+    [Fact]
+    public void Reports_Error_CL0024_MissingWarningLevel() {
+        var args = new string[] { "--warnlevel" };
+
+        var diagnostics = @"
+            missing warning level after '--warnlevel' (usage: '--warnlevel=<warning level>')
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_CL0025_InvalidWarningLevel() {
+        var args = new string[] { "--warnlevel=a" };
+
+        var diagnostics = @"
+            invalid warning level 'a'; warning level must be a number between 0 and 2
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_CL0026_MissingWIgnoreCode() {
+        var args = new string[] { "--wignore" };
+
+        var diagnostics = @"
+            missing warning code after '--wignore' (usage: '--wignore=<[BU|RE|CL]<code>,...>')
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_CL0027_MissingWIncludeCode() {
+        var args = new string[] { "--winclude" };
+
+        var diagnostics = @"
+            missing warning code after '--winclude' (usage: '--winclude=<[BU|RE|CL]<code>,...>')
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_CL0028_CodeIsNotWarning() {
+        var args = new string[] { "--winclude=BU0025" };
+
+        var diagnostics = @"
+            'BU0025' is not the code of a warning
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
     }
 }

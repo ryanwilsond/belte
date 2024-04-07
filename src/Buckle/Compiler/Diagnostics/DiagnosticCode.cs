@@ -4,7 +4,7 @@ namespace Buckle.Diagnostics;
 /// <summary>
 /// All codes used to represent each possible error and warning uniquely.
 /// </summary>
-internal enum DiagnosticCode : int {
+public enum DiagnosticCode : int {
     // Never modify these codes after a release, as that would break backwards compatibility.
     // Instead mark unused errors and warnings in the docs, and append new errors and warnings to use new codes.
 

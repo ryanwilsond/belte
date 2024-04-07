@@ -4,7 +4,7 @@ namespace Belte.Diagnostics;
 /// <summary>
 /// All codes used to represent each possible error and warning uniquely.
 /// </summary>
-internal enum DiagnosticCode : int {
+public enum DiagnosticCode : int {
     // Never modify these codes after a release, as that would break backwards compatibility.
     // Instead mark unused errors and warnings in the docs, and append new errors and warnings to use new codes.
 
@@ -34,4 +34,7 @@ internal enum DiagnosticCode : int {
     FTL_CannotInterpretFile = 23,
     ERR_MissingWarningLevel = 24,
     ERR_InvalidWarningLevel = 25,
+    ERR_MissingWIgnoreCode = 26,
+    ERR_MissingWIncludeCode = 27,
+    ERR_CodeIsNotWarning = 28,
 }

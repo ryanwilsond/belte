@@ -109,7 +109,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 |-|-|-|
 | CL0001 | Error | missing filename after '-o' |
 | CL0002 | Error | cannot specify '--explain' more than once |
-| CL0003 | Error | missing diagnostic code after '--explain' |
+| CL0003 | Error | missing diagnostic code after '--explain' (usage: '--explain[BU\|RE\|CL]<code>') |
 | CL0004 | Error | missing name after '{0}' (usage: '--modulename=<name>') |
 | CL0005 | Error | missing name after '{0}' (usage: '--ref=<name>') |
 | CL0006 | Error | failed to open file '{0}'; most likely due to the file being used by another process |
@@ -132,6 +132,9 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | CL0023 | Fatal | cannot interpret file |
 | CL0024 | Error | missing warning level after '{0}' (usage: '--warnlevel=<warning level>') |
 | CL0025 | Error | invalid warning level '{0}'; warning level must be a number between 0 and 2 |
+| CL0026 | Error | missing warning code after '{0}' (usage: '--wignore=<[BU\|RE\|CL]<code>,...>') |
+| CL0027 | Error | missing warning code after '{arg}' (usage: '--winclude=<[BU\|RE\|CL]<code>,...>') |
+| CL0028 | Error | '{0}' is not the code of a warning |
 
 ## Repl Diagnostics
 

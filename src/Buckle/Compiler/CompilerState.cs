@@ -32,6 +32,16 @@ public struct CompilerState {
     public int warningLevel;
 
     /// <summary>
+    /// Warnings to not suppress.
+    /// </summary>
+    public DiagnosticInfo[] includeWarnings;
+
+    /// <summary>
+    /// Warnings to suppress.
+    /// </summary>
+    public DiagnosticInfo[] excludeWarnings;
+
+    /// <summary>
     /// At what point to stop compilation (usually unrestricted).
     /// </summary>
     public CompilerStage finishStage;
