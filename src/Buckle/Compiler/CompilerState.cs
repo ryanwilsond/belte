@@ -27,6 +27,11 @@ public struct CompilerState {
     public DiagnosticSeverity severity;
 
     /// <summary>
+    /// Highest warning level to report.
+    /// </summary>
+    public int warningLevel;
+
+    /// <summary>
     /// At what point to stop compilation (usually unrestricted).
     /// </summary>
     public CompilerStage finishStage;

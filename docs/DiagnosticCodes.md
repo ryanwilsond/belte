@@ -130,6 +130,8 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | CL0021 | Error | '{0}' is not a used error code |
 | CL0022 | Fatal | cannot pass multiple files when running as a script |
 | CL0023 | Fatal | cannot interpret file |
+| CL0024 | Error | missing warning level after '{0}' (usage: '--warnlevel=<warning level>') |
+| CL0025 | Error | invalid warning level '{0}'; warning level must be a number between 0 and 2 |
 
 ## Repl Diagnostics
 

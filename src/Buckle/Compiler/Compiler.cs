@@ -75,7 +75,6 @@ public sealed class Compiler {
     }
 
     private void InternalInterpreter() {
-        diagnostics.Clear(DiagnosticSeverity.Warning);
         var textLength = 0;
         var textsCount = 0;
 

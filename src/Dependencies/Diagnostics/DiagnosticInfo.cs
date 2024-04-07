@@ -61,4 +61,8 @@ public sealed class DiagnosticInfo {
     /// What module of code produced this <see cref="Diagnostic" />.
     /// </summary>
     public string module { get; }
+
+    public override string ToString() {
+        return $"{module}{code.ToString().PadLeft(4, '0')}";
+    }
 }

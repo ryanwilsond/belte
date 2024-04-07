@@ -22,6 +22,9 @@ public static class BuckleCommandLine {
     private const int ErrorExitCode = 1;
     private const int FatalExitCode = 2;
 
+    private static readonly string[] WarningLevel1 = { "BU0001", "BU0026" };
+    private static readonly string[] WarningLevel2 = { "BU0002" };
+
     /// <summary>
     /// Processes/decodes command-line arguments, and invokes <see cref="Compiler" />.
     /// </summary>
@@ -262,12 +265,10 @@ public static class BuckleCommandLine {
                 break;
         }
 
-        if (diagnostic.info.code != null && diagnostic.info.code > 0) {
-            var number = diagnostic.info.code.ToString();
-            Console.Write($" BU{number.PadLeft(4, '0')}: ");
-        } else {
+        if (diagnostic.info.code != null && diagnostic.info.code > 0)
+            Console.Write($" {diagnostic.info}: ");
+        else
             Console.Write(": ");
-        }
 
         ResetColor();
         Console.WriteLine(diagnostic.message);
@@ -329,8 +330,10 @@ public static class BuckleCommandLine {
         var severity = diagnostic.info.severity;
         ResetColor();
 
-        if ((int)state.severity > (int)severity) {
-            // Ignore the diagnostic
+        var ignoreDiagnostic = (int)state.severity > (int)severity;
+        ignoreDiagnostic |= CheckWarningLevel(diagnostic.info, state);
+
+        if (ignoreDiagnostic) {
         } else if (diagnostic.info.module != "BU" || (diagnostic is BelteDiagnostic bd && bd.location is null)) {
             Console.Write($"{me}: ");
 
@@ -357,10 +360,7 @@ public static class BuckleCommandLine {
                     break;
             }
 
-            var errorCode = diagnostic.info.code.Value.ToString();
-            errorCode = errorCode.PadLeft(4, '0');
-            Console.Write($"{diagnostic.info.module}{errorCode}: ");
-
+            Console.Write($"{diagnostic.info}: ");
             ResetColor();
             Console.WriteLine(diagnostic.message);
         } else {
@@ -370,6 +370,17 @@ public static class BuckleCommandLine {
         Console.ForegroundColor = previous;
 
         return severity;
+    }
+
+    private static bool CheckWarningLevel(DiagnosticInfo info, CompilerState state) {
+        if (state.warningLevel == 0)
+            return true;
+        else if (state.warningLevel == 1)
+            return !WarningLevel1.Contains(info.ToString());
+        else if (state.warningLevel == 2)
+            return false;
+
+        throw new UnreachableException();
     }
 
     private static int ResolveDiagnostics<Type>(
@@ -475,12 +486,12 @@ public static class BuckleCommandLine {
         var references = new List<string>();
         var diagnosticsCL = new DiagnosticQueue<Diagnostic>();
         diagnostics = new DiagnosticQueue<Diagnostic>();
-        var arguments = new string[] { };
+        var arguments = Array.Empty<string>();
 
         var specifyStage = false;
         var specifyOut = false;
         var specifyModule = false;
-        DiagnosticSeverity? severity = null;
+        var specifyWarningLevel = false;
 
         var tempDialogs = new ShowDialogs {
             help = false,
@@ -496,6 +507,8 @@ public static class BuckleCommandLine {
         state.outputFilename = "a.exe";
         state.moduleName = "defaultModuleName";
         state.noOut = false;
+        state.warningLevel = 1;
+        state.severity = DiagnosticSeverity.Warning;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -614,9 +627,25 @@ public static class BuckleCommandLine {
                 var severityString = arg.Substring(11);
 
                 if (Enum.TryParse<DiagnosticSeverity>(severityString, true, out var severityLevel))
-                    severity = severityLevel;
+                    state.severity = severityLevel;
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedSeverity(severityString));
+            } else if (arg.StartsWith("--warnlevel")) {
+                if (arg == "--warnlevel" || arg == "--warnlevel=") {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingWarningLevel(arg));
+                    continue;
+                }
+
+                var warningString = arg.Substring(12);
+
+                if (int.TryParse(warningString, out var warningLevel) && 0 <= warningLevel && warningLevel <= 2) {
+                    specifyWarningLevel = true;
+                    state.warningLevel = warningLevel;
+                } else {
+                    diagnostics.Push(Belte.Diagnostics.Error.InvalidWarningLevel(warningString));
+                }
+            } else if (arg.StartsWith("--wignore")) {
+            } else if (arg.StartsWith("--winclude")) {
             } else if (arg == "--") {
                 if (args.Length > i + 1)
                     arguments = args[(i + 1)..];
@@ -636,8 +665,11 @@ public static class BuckleCommandLine {
         state.tasks = tasks.ToArray();
         state.references = references.ToArray();
         state.arguments = arguments;
-        state.severity = severity ??
-            (state.buildMode == BuildMode.Independent ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning);
+
+        if (!specifyWarningLevel &&
+            state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute) {
+            state.warningLevel = 0;
+        }
 
         if (!specifyOut && state.buildMode == BuildMode.CSharpTranspile)
             state.outputFilename = "a.cs";

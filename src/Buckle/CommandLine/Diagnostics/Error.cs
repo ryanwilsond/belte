@@ -107,6 +107,22 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnusedErrorCode), message);
     }
 
+    /// <summary>
+    /// CL0024. Run `buckle --explain CL0024` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic MissingWarningLevel(string arg) {
+        var message = $"missing warning level after '{arg}' (usage: '--warnlevel=<warning level>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingWarningLevel), message);
+    }
+
+    /// <summary>
+    /// CL0025. Run `buckle --explain CL0025` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic InvalidWarningLevel(string warningLevel) {
+        var message = $"invalid warning level '{warningLevel}'; warning level must be a number between 0 and 2";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidWarningLevel), message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "CL", DiagnosticSeverity.Error);
     }

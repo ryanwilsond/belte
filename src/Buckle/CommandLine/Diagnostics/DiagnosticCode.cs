@@ -32,4 +32,6 @@ internal enum DiagnosticCode : int {
     ERR_UnusedErrorCode = 21,
     FTL_CannotInterpretWithMultipleFiles = 22,
     FTL_CannotInterpretFile = 23,
+    ERR_MissingWarningLevel = 24,
+    ERR_InvalidWarningLevel = 25,
 }

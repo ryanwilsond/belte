@@ -17,6 +17,8 @@ Options:
   -o <file>                   Specify output file.
   --severity=<severity>       Specify a reporting severity; defaults to warning.
   --warnlevel=<warning level> Specify a warning reporting level; defaults to 1.
+  --wignore=<[BU|RE|CL]<code>,...>    Specify a specific warning to suppress.
+  --winclude=<[BU|RE|CL]<code>,...>   Specify a specific warning to report.
 
   -d|--dotnet                 Compile with .NET integration (cannot stop at assembly or linking).
   --modulename=<name>         Specify the module name (used with .NET integration only).

@@ -128,12 +128,12 @@ warning level. The default level is *1*.
 
 A list of what warnings are included on each level can be found [here](./WarningLevels.md).
 
-### *--wignore=\<warnings>*
+### *--wignore=<*[BU|RE|CL]*\<code>,...>*
 
 Suppresses specified warnings. Warnings should be comma delimited. Warnings should be specified using their codes, a
 list of which can be found [here](./DiagnosticCodes.md).
 
-### *--winclude=\<warnings>*
+### *--winclude=<*[BU|RE|CL]*\<code>,...>*
 
 Specifically avoids suppressing specific warnings, even if the [severity level](#severityseverity-default-warning) or
 [warning level](#warnlevelwarning-level-default-1) would suggest to do so. Warnings should be comma delimited. Warnings
