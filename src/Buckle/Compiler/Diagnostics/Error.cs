@@ -145,7 +145,8 @@ internal static class Error {
     /// BU0014. Run `buckle --explain BU0014` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic InvalidMain(TextLocation location) {
-        var message = "invalid main signature: must return void or int and take no arguments";
+        var message = "invalid main signature: must return void or int and take in no arguments or " +
+            "'int! argc, string[]! argv'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidMain), location, message);
     }
 

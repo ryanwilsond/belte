@@ -10,13 +10,15 @@ public struct CompilationOptions {
     /// Specifies options and flags to a housing <see cref="Compilation" />.
     /// </summary>
     /// <param name="buildMode">Build mode of the housing <see cref="Compilation" />.</param>
+    /// <param name="arguments">Arguments to be passed to the program at runtime.</param>
     /// <param name="isScript">
     /// If the housing <see cref="Compilation" /> is a partial compilation, that will not be emitted.
     /// </param>
     /// <param name="enableOutput">If output is enabled, otherwise only code checking is performed.</param>
-    public CompilationOptions(BuildMode buildMode, bool isScript, bool enableOutput) {
+    public CompilationOptions(BuildMode buildMode, string[] arguments, bool isScript, bool enableOutput) {
         topLevelBinderFlags = BinderFlags.None;
         this.buildMode = buildMode;
+        this.arguments = arguments;
         this.isScript = isScript;
         isTranspiling = buildMode == BuildMode.CSharpTranspile;
         this.enableOutput = enableOutput;
@@ -27,7 +29,15 @@ public struct CompilationOptions {
     /// </summary>
     internal BinderFlags topLevelBinderFlags { get; }
 
+    /// <summary>
+    /// Build mode of the housing <see cref="Compilation" />.
+    /// </summary>
     internal BuildMode buildMode { get; }
+
+    /// <summary>
+    /// Arguments to be passed to the program at runtime.
+    /// </summary>
+    internal string[] arguments { get; }
 
     /// <summary>
     /// If the compilation is a script instead of a full compilation.

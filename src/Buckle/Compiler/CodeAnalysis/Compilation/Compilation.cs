@@ -86,9 +86,7 @@ public sealed class Compilation {
     /// <summary>
     /// Creates a new <see cref="Compilation" /> with SyntaxTrees.
     /// </summary>
-    /// <param name="transpilerMode">
-    /// If the compiler output mode is a transpiler. Affects certain optimizations.
-    /// </param>
+    /// <param name="options">Additional flags and options for compilation such as context.</param>
     /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
     /// <returns>New <see cref="Compilation" />.</returns>
     public static Compilation Create(CompilationOptions options, params SyntaxTree[] syntaxTrees) {
@@ -98,7 +96,7 @@ public sealed class Compilation {
     /// <summary>
     /// Creates a new script <see cref="Compilation" /> with SyntaxTrees, and the previous <see cref="Compilation" />.
     /// </summary>
-    /// <param name="options">Additional flags and options for compilation.</param>
+    /// <param name="options">Additional flags and options for compilation such as context.</param>
     /// <param name="previous">Previous <see cref="Compilation" />.</param>
     /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
     /// <returns>.</returns>
@@ -129,7 +127,7 @@ public sealed class Compilation {
             return EvaluationResult.Failed(program.diagnostics);
 
         diagnostics.Move(program.diagnostics);
-        var eval = new Evaluator(program, variables);
+        var eval = new Evaluator(program, variables, options.arguments);
         var evalResult = eval.Evaluate(abort, out var hasValue);
 
         diagnostics.Move(eval.diagnostics);
@@ -154,7 +152,7 @@ public sealed class Compilation {
             return;
 
         diagnostics.Move(program.diagnostics);
-        Executor.Execute(program);
+        Executor.Execute(program, options.arguments);
     }
 
     /// <summary>

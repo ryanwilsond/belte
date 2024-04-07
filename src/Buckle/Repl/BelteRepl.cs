@@ -24,7 +24,7 @@ namespace Repl;
 /// Uses framework from <see cref="Repl" /> and adds syntax highlighting and evaluation.
 /// </summary>
 public sealed partial class BelteRepl : Repl {
-    private static readonly CompilationOptions DefaultOptions = new CompilationOptions(BuildMode.Repl, true, false);
+    private static readonly CompilationOptions DefaultOptions = new CompilationOptions(BuildMode.Repl, [], true, false);
     private static readonly Compilation EmptyCompilation = Compilation.CreateScript(DefaultOptions, null);
     private static readonly ImmutableArray<(string name, string contributor, ColorTheme theme)> InUse =
         new List<(string, string, ColorTheme)>() {

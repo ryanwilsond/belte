@@ -16,6 +16,7 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// </summary>
 internal sealed class Evaluator {
     private readonly BoundProgram _program;
+    private readonly string[] _arguments;
     private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methods =
         new Dictionary<MethodSymbol, BoundBlockStatement>();
     private readonly Dictionary<IVariableSymbol, IEvaluatorObject> _globals;
@@ -35,9 +36,12 @@ internal sealed class Evaluator {
     /// </summary>
     /// <param name="program"><see cref="BoundProgram" />.</param>
     /// <param name="globals">Globals.</param>
-    internal Evaluator(BoundProgram program, Dictionary<IVariableSymbol, IEvaluatorObject> globals) {
+    /// <param name="arguments">Runtime arguments.</param>
+    internal Evaluator(
+        BoundProgram program, Dictionary<IVariableSymbol, IEvaluatorObject> globals, string[] arguments) {
         diagnostics = new BelteDiagnosticQueue();
         exceptions = new List<Exception>();
+        _arguments = arguments;
         _program = program;
         _globals = globals;
         _locals.Push(new Dictionary<IVariableSymbol, IEvaluatorObject>());
@@ -81,6 +85,19 @@ internal sealed class Evaluator {
         }
 
         var body = LookupMethod(_methods, _program.entryPoint);
+
+        if (_program.entryPoint.parameters.Length == 2) {
+            var argv = new List<EvaluatorObject>();
+
+            foreach (var arg in _arguments)
+                argv.Add(new EvaluatorObject(arg));
+
+            _locals.Push(new Dictionary<IVariableSymbol, IEvaluatorObject>() {
+                [_program.entryPoint.parameters[0]] = new EvaluatorObject(_arguments.Length),
+                [_program.entryPoint.parameters[1]] = new EvaluatorObject(argv.ToArray())
+            });
+        }
+
         var result = EvaluateStatement(body, abort, out _);
         hasValue = _hasValue;
 
