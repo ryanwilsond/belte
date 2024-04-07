@@ -68,7 +68,7 @@ internal sealed partial class Parser {
         }
     }
 
-    private SyntaxToken currentToken {
+    internal SyntaxToken currentToken {
         get {
             if (_currentToken is null)
                 _currentToken = FetchCurrentToken();
@@ -78,7 +78,7 @@ internal sealed partial class Parser {
     }
 
     // Used for reusing nodes from the old tree. Just validate and call EatNode to reuse an old node.
-    private SyntaxNode currentNode {
+    internal SyntaxNode currentNode {
         get {
             var node = _currentNode.node;
 
@@ -527,6 +527,9 @@ internal sealed partial class Parser {
 
             finalOffset++;
         }
+
+        if (Peek(finalOffset).kind is SyntaxKind.ExclamationToken)
+            finalOffset++;
 
         if (Peek(finalOffset).kind is SyntaxKind.IdentifierToken && bracketsBeenClosed)
             hasName = true;
@@ -1508,6 +1511,7 @@ internal sealed partial class Parser {
         SyntaxToken constKeyword = null;
         SyntaxToken varKeyword = null;
         SyntaxToken typeName = null;
+        SyntaxToken nullAssert = null;
 
         if (currentToken.kind == SyntaxKind.ConstKeyword && Peek(1).kind == SyntaxKind.RefKeyword)
             constRefKeyword = EatToken();
@@ -1558,6 +1562,9 @@ internal sealed partial class Parser {
             rankSpecifiers.Add(arrayRankSpecifier);
         }
 
+        if (currentToken.kind == SyntaxKind.ExclamationToken)
+            nullAssert = EatToken();
+
         return SyntaxFactory.Type(
             attributes,
             constRefKeyword,
@@ -1566,7 +1573,8 @@ internal sealed partial class Parser {
             varKeyword,
             typeName,
             templateArgumentList,
-            rankSpecifiers.ToList()
+            rankSpecifiers.ToList(),
+            nullAssert
         );
     }
 

@@ -953,7 +953,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0073_CannotConvertNull() {
         var text = @"
-            [(\[NotNull\]int)null];
+            [(int!)null];
         ";
 
         var diagnostics = @"

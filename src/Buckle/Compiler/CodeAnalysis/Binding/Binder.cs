@@ -878,6 +878,13 @@ internal sealed class Binder {
             }
         }
 
+        if (type.nullAssert != null) {
+            if (isNullable)
+                isNullable = false;
+            else
+                diagnostics.Push(Error.DuplicateAttribute(type.nullAssert.location, "NotNull"));
+        }
+
         var name = type.typeName?.text;
         var isReference = type.refKeyword != null;
         var isConstantReference = type.constRefKeyword != null && isReference;

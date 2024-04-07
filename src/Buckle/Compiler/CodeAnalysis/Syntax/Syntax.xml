@@ -165,6 +165,9 @@
     </Field>
     <Field Name="templateArgumentList" Type="TemplateArgumentListSyntax" Optional="True"/>
     <Field Name="rankSpecifiers" Type="SyntaxList&lt;ArrayRankSpecifierSyntax&gt;"/>
+    <Field Name="nullAssert" Type="SyntaxToken" Optional="True">
+      <Kind Name="ExclamationToken"/>
+    </Field>
   </Node>
   <!-- Members -->
   <Node Name="ClassDeclarationSyntax" Base="TypeDeclarationSyntax">
