@@ -9,7 +9,7 @@ internal static class Executor {
     /// <summary>
     /// Executes the given <see cref="BoundProgram" />.
     /// </summary>
-    internal static void Execute(BoundProgram program) {
+    internal static void Execute(BoundProgram program, string[] arguments) {
         // TODO
     }
 }

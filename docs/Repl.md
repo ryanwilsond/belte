@@ -6,12 +6,18 @@ code snippets, without having to create any files or set up a project.
 The Repl is maintained alongside the compiler, so all language features are supported in the Repl, as well as many
 tools for debugging.
 
+- [Invoking the Repl]
+- [Interacting with the Repl]
+- [Repl Meta-Commands]
+
 ## Invoking the Repl
 
 To invoke the Repl, simply pass the `--repl` (or the shorthand `-r`) option to the compiler (`buckle --repl`), and the
 Repl will start up in the terminal that it was invoked from.
 
 ## Interacting with the Repl
+
+The Repl provides an immediate evaluation result whenever a submission is completed, and this includes error feedback.
 
 The Repl takes in submissions that are submitted by the enter key if the submission parses correctly, there are two
 consecutive empty lines, or Ctrl + Enter is used. If the submission ends with an expression or expression statement, the
@@ -27,13 +33,9 @@ The Repl supports standard keyboard input, with some special actions.
 | Alt + Enter | Abandons a submission without evaluating it |
 | Ctrl + C | If a submission is evaluating, cancels the evaluation and display how long the evaluation ran before being aborted otherwise exits the Repl |
 
-## Repl Tools and Commands
+## Repl Meta-Commands
 
-The Repl provides an immediate evaluation result whenever a submission is completed, and this includes error feedback.
-In addition, the Repl provides many commands for peeking inside of the program to possibly help to debug, especially
-for Belte developers.
-
-All Repl commands:
+The Repl provides many commands usefully for debug snippets or code.
 
 | Command Name | Usage | Description |
 |-|-|-|

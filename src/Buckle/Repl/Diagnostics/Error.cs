@@ -48,7 +48,7 @@ internal static class Error {
     /// RE0005. Run `buckle --explain RE0005` on the command line for more info.
     /// </summary>
     internal static Diagnostic InvalidArgument(object value, Type expected) {
-        var message = $"Invalid argument '{value}'; expected argument of type {expected}";
+        var message = $"invalid argument '{value}'; expected argument of type '{expected}'";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidArgument), message);
     }
 

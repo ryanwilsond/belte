@@ -62,6 +62,7 @@ generate:
 prebuild:
 	@mkdir -p bin
 	@mkdir -p bin/release
+	@mkdir -p bin/portable
 	@mkdir -p bin/debug
 
 postbuild:

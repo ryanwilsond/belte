@@ -22,6 +22,15 @@ public static partial class BuckleCommandLine {
     private const int ErrorExitCode = 1;
     private const int FatalExitCode = 2;
 
+    private static readonly DiagnosticInfo[] WarningLevel1 = {
+        new DiagnosticInfo(1, "BU"),
+        new DiagnosticInfo(26, "BU"),
+    };
+
+    private static readonly DiagnosticInfo[] WarningLevel2 = {
+        new DiagnosticInfo(2, "BU"),
+    };
+
     /// <summary>
     /// Processes/decodes command-line arguments, and invokes <see cref="Compiler" />.
     /// </summary>
@@ -65,7 +74,7 @@ public static partial class BuckleCommandLine {
             return err;
 
         if (!compiler.state.noOut)
-            ResolveOutputFiles(compiler);
+            CleanOutputFiles(compiler);
 
         ReadInputFiles(compiler, out diagnostics);
 
@@ -262,12 +271,10 @@ public static partial class BuckleCommandLine {
                 break;
         }
 
-        if (diagnostic.info.code != null && diagnostic.info.code > 0) {
-            var number = diagnostic.info.code.ToString();
-            Console.Write($" BU{number.PadLeft(4, '0')}: ");
-        } else {
+        if (diagnostic.info.code != null && diagnostic.info.code > 0)
+            Console.Write($" {diagnostic.info}: ");
+        else
             Console.Write(": ");
-        }
 
         ResetColor();
         Console.WriteLine(diagnostic.message);
@@ -289,7 +296,7 @@ public static partial class BuckleCommandLine {
         Console.WriteLine(suffix);
 
         Console.ForegroundColor = highlightColor;
-        var markerPrefix = " " + Regex.Replace(prefix, @"\S", " ");
+        var markerPrefix = " " + MyRegex().Replace(prefix, " ");
         var marker = "^";
 
         if (span.length > 0 && column != lineText.Length)
@@ -305,7 +312,7 @@ public static partial class BuckleCommandLine {
             for (var i = 1; i < diagnostic.suggestions.Length; i++) {
                 var suggestion = diagnostic.suggestions[i].Replace("%", focus);
                 ResetColor();
-                Console.Write(markerPrefix.Substring(0, markerPrefix.Length - 3) + "or ");
+                Console.Write(string.Concat(markerPrefix.AsSpan(0, markerPrefix.Length - 3), "or "));
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine(suggestion);
             }
@@ -329,8 +336,12 @@ public static partial class BuckleCommandLine {
         var severity = diagnostic.info.severity;
         ResetColor();
 
-        if ((int)state.severity > (int)severity) {
-            // Ignore the diagnostic
+        var ignoreDiagnostic = (int)state.severity > (int)severity;
+        ignoreDiagnostic |= CheckWarningLevel(diagnostic.info, state);
+        ignoreDiagnostic &= !WarningIncluded(diagnostic.info, state);
+        ignoreDiagnostic |= WarningExcluded(diagnostic.info, state);
+
+        if (ignoreDiagnostic) {
         } else if (diagnostic.info.module != "BU" || (diagnostic is BelteDiagnostic bd && bd.location is null)) {
             Console.Write($"{me}: ");
 
@@ -357,10 +368,7 @@ public static partial class BuckleCommandLine {
                     break;
             }
 
-            var errorCode = diagnostic.info.code.Value.ToString();
-            errorCode = errorCode.PadLeft(4, '0');
-            Console.Write($"{diagnostic.info.module}{errorCode}: ");
-
+            Console.Write($"{diagnostic.info}: ");
             ResetColor();
             Console.WriteLine(diagnostic.message);
         } else {
@@ -370,6 +378,43 @@ public static partial class BuckleCommandLine {
         Console.ForegroundColor = previous;
 
         return severity;
+    }
+
+    private static bool CheckWarningLevel(DiagnosticInfo info, CompilerState state) {
+        if (info.severity != DiagnosticSeverity.Warning)
+            return false;
+
+        if (state.warningLevel == 0)
+            return true;
+        else if (state.warningLevel == 1)
+            return !WarningInWarningList(WarningLevel1, info);
+        else if (state.warningLevel == 2)
+            return false;
+
+        throw new UnreachableException();
+    }
+
+    private static bool WarningIncluded(DiagnosticInfo info, CompilerState state) {
+        if (info.severity != DiagnosticSeverity.Warning)
+            return false;
+
+        return WarningInWarningList(state.includeWarnings, info);
+    }
+
+    private static bool WarningExcluded(DiagnosticInfo info, CompilerState state) {
+        if (info.severity != DiagnosticSeverity.Warning)
+            return false;
+
+        return WarningInWarningList(state.excludeWarnings, info);
+    }
+
+    private static bool WarningInWarningList(DiagnosticInfo[] warnings, DiagnosticInfo info) {
+        foreach (var warning in warnings) {
+            if (warning.ToString() == info.ToString())
+                return true;
+        }
+
+        return false;
     }
 
     private static int ResolveDiagnostics<Type>(
@@ -402,25 +447,6 @@ public static partial class BuckleCommandLine {
         return ResolveDiagnostics(compiler.diagnostics, me ?? compiler.me, compiler.state, textColor);
     }
 
-    private static void ProduceOutputFiles(Compiler compiler) {
-        // TODO Figure out what this is supposed to do. Right now it does nothing.
-        if (compiler.state.finishStage == CompilerStage.Finished)
-            return;
-
-        foreach (var file in compiler.state.tasks) {
-            var inter = file.inputFileName.Split('.')[0];
-
-            switch (compiler.state.finishStage) {
-                case CompilerStage.Compiled:
-                    break;
-                case CompilerStage.Assembled:
-                    break;
-                default:
-                    break;
-            }
-        }
-    }
-
     private static void CleanOutputFiles(Compiler compiler) {
         if (compiler.state.finishStage == CompilerStage.Finished) {
             if (File.Exists(compiler.state.outputFilename))
@@ -432,11 +458,6 @@ public static partial class BuckleCommandLine {
         foreach (var file in compiler.state.tasks) {
             File.Delete(file.outputFilename);
         }
-    }
-
-    private static void ResolveOutputFiles(Compiler compiler) {
-        ProduceOutputFiles(compiler);
-        CleanOutputFiles(compiler);
     }
 
     private static void ReadInputFiles(Compiler compiler, out DiagnosticQueue<Diagnostic> diagnostics) {
@@ -499,11 +520,14 @@ public static partial class BuckleCommandLine {
         var references = new List<string>();
         var diagnosticsCL = new DiagnosticQueue<Diagnostic>();
         diagnostics = new DiagnosticQueue<Diagnostic>();
+        var arguments = Array.Empty<string>();
+        var includeWarnings = new List<DiagnosticInfo>();
+        var excludeWarnings = new List<DiagnosticInfo>();
 
         var specifyStage = false;
         var specifyOut = false;
         var specifyModule = false;
-        DiagnosticSeverity? severity = null;
+        var specifyWarningLevel = false;
 
         var tempDialogs = new ShowDialogs {
             help = false,
@@ -511,13 +535,16 @@ public static partial class BuckleCommandLine {
             version = false,
             error = null
         };
+
         multipleExplains = false;
 
-        state.buildMode = BuildMode.Independent;
+        state.buildMode = BuildMode.AutoRun;
         state.finishStage = CompilerStage.Finished;
         state.outputFilename = "a.exe";
         state.moduleName = "defaultModuleName";
         state.noOut = false;
+        state.warningLevel = 1;
+        state.severity = DiagnosticSeverity.Warning;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -532,6 +559,9 @@ public static partial class BuckleCommandLine {
                 case "-r":
                 case "--repl":
                     state.buildMode = BuildMode.Repl;
+                    break;
+                case "-n":
+                    state.buildMode = BuildMode.Independent;
                     break;
                 case "-i":
                     state.buildMode = BuildMode.AutoRun;
@@ -563,7 +593,7 @@ public static partial class BuckleCommandLine {
                 case "--version":
                     tempDialogs.version = true;
                     break;
-                case "--no-out":
+                case "--noout":
                     state.noOut = true;
                     break;
                 default:
@@ -633,9 +663,42 @@ public static partial class BuckleCommandLine {
                 var severityString = arg.Substring(11);
 
                 if (Enum.TryParse<DiagnosticSeverity>(severityString, true, out var severityLevel))
-                    severity = severityLevel;
+                    state.severity = severityLevel;
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedSeverity(severityString));
+            } else if (arg.StartsWith("--warnlevel")) {
+                if (arg == "--warnlevel" || arg == "--warnlevel=") {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingWarningLevel(arg));
+                    continue;
+                }
+
+                var warningString = arg.Substring(12);
+
+                if (int.TryParse(warningString, out var warningLevel) && 0 <= warningLevel && warningLevel <= 2) {
+                    specifyWarningLevel = true;
+                    state.warningLevel = warningLevel;
+                } else {
+                    diagnostics.Push(Belte.Diagnostics.Error.InvalidWarningLevel(warningString));
+                }
+            } else if (arg.StartsWith("--wignore")) {
+                if (arg == "--wignore" || arg == "--wignore=") {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingWIgnoreCode(arg));
+                    continue;
+                }
+
+                excludeWarnings.AddRange(ParseAndVerifyWarningCodes(arg.Substring(10), diagnosticsCL));
+            } else if (arg.StartsWith("--winclude")) {
+                if (arg == "--winclude" || arg == "--winclude=") {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingWIncludeCode(arg));
+                    continue;
+                }
+
+                includeWarnings.AddRange(ParseAndVerifyWarningCodes(arg.Substring(11), diagnosticsCL));
+            } else if (arg == "--") {
+                if (args.Length > i + 1)
+                    arguments = args[(i + 1)..];
+
+                break;
             } else {
                 DecodeSimpleOption(arg);
             }
@@ -649,8 +712,14 @@ public static partial class BuckleCommandLine {
 
         state.tasks = tasks.ToArray();
         state.references = references.ToArray();
-        state.severity = severity ??
-            (state.buildMode == BuildMode.Independent ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning);
+        state.arguments = arguments;
+        state.includeWarnings = includeWarnings.ToArray();
+        state.excludeWarnings = excludeWarnings.ToArray();
+
+        if (!specifyWarningLevel &&
+            state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute) {
+            state.warningLevel = 0;
+        }
 
         if (!specifyOut && state.buildMode == BuildMode.CSharpTranspile)
             state.outputFilename = "a.cs";
@@ -661,7 +730,7 @@ public static partial class BuckleCommandLine {
         if (specifyStage && state.buildMode == BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithDotnet());
 
-        if (specifyOut && specifyStage && state.tasks.Length > 1 && !(state.buildMode == BuildMode.Dotnet))
+        if (specifyOut && specifyStage && state.tasks.Length > 1 && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithMultipleFiles());
 
         if ((specifyStage || specifyOut) &&
@@ -686,6 +755,61 @@ public static partial class BuckleCommandLine {
         state.outputFilename = state.outputFilename.Trim();
 
         return state;
+    }
+
+    private static List<DiagnosticInfo> ParseAndVerifyWarningCodes(
+        string codesString,
+        DiagnosticQueue<Diagnostic> diagnostics) {
+        var codes = codesString.Split(',');
+        var infos = new List<DiagnosticInfo>();
+
+        foreach (var code in codes) {
+            var invalid = false;
+            var prefix = "";
+            var codeNumber = 0;
+
+            if (code.Length < 3) {
+                invalid = true;
+            } else {
+                prefix = code.Substring(0, 2);
+
+                if (prefix != "BU" && prefix != "RE" && prefix != "CL")
+                    invalid = true;
+            }
+
+            if (!invalid) {
+                if (!int.TryParse(code.Substring(2), out codeNumber))
+                    invalid = true;
+            }
+
+            if (invalid) {
+                diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(code));
+                continue;
+            }
+
+            var enumPrefix = "";
+
+            if (prefix == "BU")
+                enumPrefix = Enum.GetName(typeof(DiagnosticCode), codeNumber);
+            else if (prefix == "CL")
+                enumPrefix = Enum.GetName(typeof(Belte.Diagnostics.DiagnosticCode), codeNumber);
+            else if (prefix == "RE")
+                enumPrefix = Enum.GetName(typeof(Repl.Diagnostics.DiagnosticCode), codeNumber);
+
+            if (enumPrefix is null) {
+                diagnostics.Push(Belte.Diagnostics.Error.UnusedErrorCode(code));
+                continue;
+            }
+
+            if (!enumPrefix.StartsWith("WRN")) {
+                diagnostics.Push(Belte.Diagnostics.Error.CodeIsNotWarning(code));
+                continue;
+            }
+
+            infos.Add(new DiagnosticInfo(codeNumber, prefix));
+        }
+
+        return infos;
     }
 
     private static DiagnosticQueue<Diagnostic> ResolveInputFileOrDir(string name, ref List<FileState> tasks) {
@@ -735,4 +859,7 @@ public static partial class BuckleCommandLine {
 
         return diagnostics;
     }
+
+    [GeneratedRegex(@"\S")]
+    private static partial Regex MyRegex();
 }

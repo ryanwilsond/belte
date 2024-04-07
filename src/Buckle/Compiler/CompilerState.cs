@@ -27,6 +27,21 @@ public struct CompilerState {
     public DiagnosticSeverity severity;
 
     /// <summary>
+    /// Highest warning level to report.
+    /// </summary>
+    public int warningLevel;
+
+    /// <summary>
+    /// Warnings to not suppress.
+    /// </summary>
+    public DiagnosticInfo[] includeWarnings;
+
+    /// <summary>
+    /// Warnings to suppress.
+    /// </summary>
+    public DiagnosticInfo[] excludeWarnings;
+
+    /// <summary>
     /// At what point to stop compilation (usually unrestricted).
     /// </summary>
     public CompilerStage finishStage;
@@ -45,4 +60,9 @@ public struct CompilerState {
     /// Enable to disable any possible output, used for debugging.
     /// </summary>
     public bool noOut;
+
+    /// <summary>
+    /// Provided arguments for the program, such as command-line arguments, that are given to the program.
+    /// </summary>
+    public string[] arguments;
 }

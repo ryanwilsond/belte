@@ -159,13 +159,19 @@ internal sealed class Binder {
                 }
 
                 if (entryPoint.parameters.Any()) {
-                    var span = TextSpan.FromBounds(
-                        entryPoint.declaration.parameterList.openParenthesis.span.start + 1,
-                        entryPoint.declaration.parameterList.closeParenthesis.span.end - 1
-                    );
+                    if (entryPoint.parameters.Length != 2 ||
+                        entryPoint.parameters[0].name != "argc" ||
+                        !entryPoint.parameters[0].type.Equals(BoundType.Int) ||
+                        entryPoint.parameters[1].name != "argv" ||
+                        !entryPoint.parameters[1].type.Equals(new BoundType(TypeSymbol.String, dimensions: 1))) {
+                        var span = TextSpan.FromBounds(
+                            entryPoint.declaration.parameterList.openParenthesis.span.start + 1,
+                            entryPoint.declaration.parameterList.closeParenthesis.span.end - 1
+                        );
 
-                    var location = new TextLocation(entryPoint.declaration.syntaxTree.text, span);
-                    binder.diagnostics.Push(Error.InvalidMain(location));
+                        var location = new TextLocation(entryPoint.declaration.syntaxTree.text, span);
+                        binder.diagnostics.Push(Error.InvalidMain(location));
+                    }
                 }
             }
 

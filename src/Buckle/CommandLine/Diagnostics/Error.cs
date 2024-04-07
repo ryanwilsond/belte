@@ -30,7 +30,7 @@ internal static class Error {
     /// CL0003. Run `buckle --explain CL0003` on the command line for more info.
     /// </summary>
     internal static Diagnostic MissingCodeExplain() {
-        var message = "missing diagnostic code after '--explain'";
+        var message = "missing diagnostic code after '--explain' (usage: '--explain[BU|RE|CL]<code>')";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingCodeExplain), message);
     }
 
@@ -94,7 +94,7 @@ internal static class Error {
     /// CL00019. Run `buckle --explain CL00019` on the command line for more info.
     /// </summary>
     internal static Diagnostic InvalidErrorCode(string error) {
-        var message = $"'{error}' is not a valid error code; must be in the format: [BU|CL|RE]<code>" +
+        var message = $"'{error}' is not a valid diagnostic code; must be in the format: [BU|CL|RE]<code>" +
             $"{Environment.NewLine}\texamples: BU0001, CL0001, BU54, CL012, RE0001, RE6";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidErrorCode), message);
     }
@@ -103,8 +103,48 @@ internal static class Error {
     /// CL0021. Run `buckle --explain CL0021` on the command line for more info.
     /// </summary>
     internal static Diagnostic UnusedErrorCode(string error) {
-        var message = $"'{error}' is not a used error code";
+        var message = $"'{error}' is not a used diagnostic code";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnusedErrorCode), message);
+    }
+
+    /// <summary>
+    /// CL0024. Run `buckle --explain CL0024` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic MissingWarningLevel(string arg) {
+        var message = $"missing warning level after '{arg}' (usage: '--warnlevel=<warning level>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingWarningLevel), message);
+    }
+
+    /// <summary>
+    /// CL0025. Run `buckle --explain CL0025` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic InvalidWarningLevel(string warningLevel) {
+        var message = $"invalid warning level '{warningLevel}'; warning level must be a number between 0 and 2";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidWarningLevel), message);
+    }
+
+    /// <summary>
+    /// CL0026. Run `buckle --explain CL0026` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic MissingWIgnoreCode(string arg) {
+        var message = $"missing warning code after '{arg}' (usage: '--wignore=<[BU|RE|CL]<code>,...>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingWIgnoreCode), message);
+    }
+
+    /// <summary>
+    /// CL0027. Run `buckle --explain CL0027` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic MissingWIncludeCode(string arg) {
+        var message = $"missing warning code after '{arg}' (usage: '--winclude=<[BU|RE|CL]<code>,...>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingWIncludeCode), message);
+    }
+
+    /// <summary>
+    /// CL0028. Run `buckle --explain CL0028` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic CodeIsNotWarning(string code) {
+        var message = $"'{code}' is not the code of a warning";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CodeIsNotWarning), message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

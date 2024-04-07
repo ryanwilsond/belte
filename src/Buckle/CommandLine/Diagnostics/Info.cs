@@ -13,7 +13,7 @@ internal static class Info {
     /// CL0010. Run `buckle --explain CL0010` on the command line for more info.
     /// </summary>
     internal static Diagnostic ReplInvokeIgnore() {
-        var message = "all arguments are ignored when invoking the repl";
+        var message = "all arguments are ignored when invoking the Repl";
         return new Diagnostic(InfoInfo(DiagnosticCode.INF_ReplInvokeIgnore), message);
     }
 

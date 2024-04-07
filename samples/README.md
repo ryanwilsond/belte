@@ -1,50 +1,35 @@
-# Belte Samples
+# Belte Code Samples
 
-Reading docs can be daunting, so to help new users this directory has multiple
-samples.
-
-Each sub-directory contains a single sample. In every sample, execution starts
-in `Program.blt`. (Note that this is a convention, and not required.)
-
-To run a sample, read the [Running](#running) section.
-
-> The following only applies if you are running the project using .NET
-
-To replicate these samples somewhere else, you will need to copy both
-[Directory.Build.props](Directory.Build.props) and
-[Directory.Build.targets](Directory.Build.targets) into your project. You will
-also need to copy the *msproj* file from the sample you are using or
-[create](#creating-an-msproj-file) your own](#creating-an-msproj-file).
+- [Samples List](#samples-list)
+- [Running a Sample Using the Interpreter](#running-a-sample-using-the-interpreter)
+- [Running a Sample Using .NET](#running-a-sample-using-net)
 
 ## Samples List
+
+Each sub-directory contains a single sample. In every sample, execution starts in the `Program.blt` file. (Note that
+this is a convention, and not required.)
 
 | Directory | Description |
 |-|-|
 | [samples/HelloWorld](HelloWorld/Program.blt) | Hello, world! program. |
 | [samples/GuessingGame](GuessingGame/Program.blt) | Random number guessing game. |
 
-## Running
+## Running a Sample Using the Interpreter
 
-To run a sample using .NET, run `dotnet run --project <Path/to/sample>` (e.g.
-`dotnet run --project samples/HelloWorld/HelloWorld.msproj`).
+To run a sample directly using the Buckle compiler, run `buckle <Path/to/sample>`.
 
-To run a sample directly using the Buckle compiler, run
-`buckle -i <Path/to/sample>`. When using the Buckle compiler to run the samples,
-specifying each file is unnecessary, instead just specify the directory
-(e.g. `buckle -i samples/HelloWorld`).
+E.g.
 
-## Creating an *.msproj File
-
-Name your file *\<Your project name\>.msproj* (e.g. *HelloWol.msproj*,
-*Belte.msproj*).
-
-Then paste in the following line:
-
-```xml
-<Project Sdk="Microsoft.NET.Sdk"></Project>
+```bash
+buckle samples/HelloWorld
 ```
 
-And you're done!
+## Running a Sample Using .NET
 
-Because the `Directory.Build.props` contains all the required properties, no
-properties are required in the `msproj` files.
+To run a sample using .NET, run `dotnet run --project <Path/to/sample>`.
+
+E.g.
+
+```bash
+dotnet run --project samples/HelloWorld/HelloWorld.msproj
+```

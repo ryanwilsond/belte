@@ -1133,7 +1133,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot use `this` outside of a class
+            cannot use 'this' outside of a class
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1148,7 +1148,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            constructor name must match the name of the enclosing class; in this case constructors must be named `MyClass`
+            constructor name must match the name of the enclosing class; in this case constructors must be named 'MyClass'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1167,7 +1167,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            type `MyClass` does not contain a constructor that matches the parameter list
+            type 'MyClass' does not contain a constructor that matches the parameter list
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1180,7 +1180,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            modifier `static` is not valid for this item
+            modifier 'static' is not valid for this item
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1198,7 +1198,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            member `MyMethod` cannot be accessed with an instance reference; qualify it with the type name instead
+            member 'MyMethod' cannot be accessed with an instance reference; qualify it with the type name instead
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1215,7 +1215,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            an object reference is required for non-static member `MyMethod`
+            an object reference is required for non-static member 'MyMethod'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

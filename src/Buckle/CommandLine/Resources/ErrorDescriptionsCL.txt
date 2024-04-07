@@ -8,8 +8,8 @@ output file (of any file type) instead of having the compiler guess.
 For example:
 
 ```
-buckle -i Program.ble -o // Incorrect, no filename is provided
-buckle -i Program.ble -o Program.exe // Correct
+buckle -i Program.blt -o // Incorrect, no filename is provided
+buckle -i Program.blt -o Program.exe // Correct
 ```
 $CL0002
 The '--explain' command-line option is used to explain errors, and only one
@@ -19,7 +19,7 @@ However, if you are reading this that means you fixed the error so you don't
 really need an example, do you? Here is one anyway:
 
 ```
-buckle --explain CL0002 --explain CL0003 // Incorrect, the '--explain' option is specified twice
+buckle --explain CL0002 --explain CL0003 // Incorrect, the `--explain` option is specified twice
 buckle --explain CL0002 // Correct
 ```
 $CL0003
@@ -43,8 +43,8 @@ error is raised.
 For example:
 
 ```
-buckle -d Program.ble --modulename // Incorrect, no name is provided
-buckle -d Program.ble --modulename=Program // Correct
+buckle -d Program.blt --modulename // Incorrect, no name is provided
+buckle -d Program.blt --modulename=Program // Correct
 ```
 
 It is important to note that almost all of the time compilation can happen
@@ -58,8 +58,8 @@ perform its action, so this error is raised.
 For example:
 
 ```
-buckle -d Program.ble --ref // Incorrect, no path is provided
-buckle -d Program.ble --ref=Path/To/System.Console.dll // Correct
+buckle -d Program.blt --ref // Incorrect, no path is provided
+buckle -d Program.blt --ref=Path/To/System.Console.dll // Correct
 ```
 
 It is important to note that 'System.Console.dll', 'System.Runtime.dll', and
@@ -81,8 +81,8 @@ Because of how this option works, it requires an severity name after the
 For example:
 
 ```
-buckle -i Program.ble --severity // Incorrect, no severity name is provided
-buckle -i Program.ble --severity=all // Correct
+buckle -i Program.blt --severity // Incorrect, no severity name is provided
+buckle -i Program.blt --severity=all // Correct
 ```
 $CL0008
 The '--severity' command-line option has a predefined set of known severities.
@@ -92,7 +92,7 @@ raised.
 For example:
 
 ```
-buckle -i Program.ble --severity=suggestion // Incorrect, 'suggestion' is not a known severity
+buckle -i Program.blt --severity=suggestion // Incorrect, `suggestion` is not a known severity
 ```
 
 Reference the Belte docs to learn more about what severities '--severity'
@@ -105,7 +105,7 @@ of a typo.
 For example:
 
 ```
-buckle -i Program.ble --release // Incorrect, '--release' is not a known option
+buckle -i Program.blt --release // Incorrect, `--release` is not a known option
 ```
 
 For more information on what options are supported, try 'buckle --help' or visit
@@ -118,7 +118,7 @@ valid for logging purposes, but they do not prevent the Repl from being called.
 For example:
 
 ```
-buckle -fakeOption NotAFile.ble -Wfake -r
+buckle -fakeOption NotAFile.blt -Wfake -r
 ```
 
 This would successfully call the Repl, but multiple errors would be logged.
@@ -133,7 +133,7 @@ options are provided, this error is raised.
 For example:
 
 ```
-buckle -d Program.ble -c // Incorrect, cannot specify '-c' while compiling with .NET integration ('-d')
+buckle -d Program.blt -c // Incorrect, cannot specify `-c` while compiling with .NET integration (`-d`)
 ```
 $CL0012
 Command-line options like '-p', '-s', and '-c' tell compilation when to stop.
@@ -145,7 +145,7 @@ tells the compiler to transpile into C#.
 For example:
 
 ```
-buckle Program.ble MyLib.ble -c -o Program.o // Incorrect, '-o' is not allowed with '-c' and multiple input files
+buckle Program.blt MyLib.blt -c -o Program.o // Incorrect, `-o` is not allowed with `-c` and multiple input files
 ```
 
 However, if only one input file is provided this error cannot be raised.
@@ -160,9 +160,9 @@ raised.
 For example:
 
 ```
-buckle -i Program.ble -o Program.exe // Incorrect
-buckle -i Program.ble -c -o Program.exe // Incorrect
-buckle -i Program.ble -s // Incorrect
+buckle -i Program.blt -o Program.exe // Incorrect
+buckle -i Program.blt -c -o Program.exe // Incorrect
+buckle -i Program.blt -s // Incorrect
 ```
 $CL0014
 The '--modulename' command-line option specifies a custom module name to use while emitting
@@ -174,8 +174,8 @@ the '--modulename' option is provided and the compiler is not compiling with
 For example:
 
 ```
-buckle -i Program.ble --modulename=CustomName // Incorrect, not compiling with .NET integration
-buckle -d Program.ble --modulename=CustomName // Correct
+buckle -i Program.blt --modulename=CustomName // Incorrect, not compiling with .NET integration
+buckle -d Program.blt --modulename=CustomName // Correct
 ```
 $CL0015
 The '--ref' command-line option specifies .NET references to include while
@@ -186,8 +186,8 @@ not compiling with .NET integration, this error is raised.
 For example:
 
 ```
-buckle -i Program.ble --ref=Path/To/System.Console.dll // Incorrect, not compiling with .NET integration
-buckle -d Program.ble --ref=Path/To/System.Console.dll // Correct
+buckle -i Program.blt --ref=Path/To/System.Console.dll // Incorrect, not compiling with .NET integration
+buckle -d Program.blt --ref=Path/To/System.Console.dll // Correct
 ```
 
 It is important to note that 'System.Console.dll', 'System.Runtime.dll', and
@@ -206,8 +206,8 @@ For example:
 
 ```
 buckle // Incorrect, no input files
-buckle Program.ble // Correct
-buckle Program.ble MyLib.ble MyOtherFile.ble // Correct
+buckle Program.blt // Correct
+buckle Program.blt MyLib.blt MyOtherFile.blt // Correct
 buckle MyFolder // Correct
 ```
 $CL0017
@@ -217,7 +217,7 @@ If a file or directory provided on the command line to compile cannot be found
 For example:
 
 ```
-buckle ANonExistentFile.ble // Incorrect, assuming that this file does not exist
+buckle ANonExistentFile.blt // Incorrect, assuming that this file does not exist
 ```
 $CL0018
 If a file is provided to the compiler that has an unsupported file extension, it
@@ -231,7 +231,7 @@ For a full list of supported file extensions, visit the Belte docs.
 For example:
 
 ```
-buckle -i Program.ble MyLib.dll // This will compile, but 'MyLib.dll' is ignored for compilation resulting in this warning
+buckle -i Program.blt MyLib.dll // This will compile, but `MyLib.dll` is ignored for compilation resulting in this warning
 ```
 
 If all files provided result in this warning, then the compiler has no input
@@ -250,7 +250,7 @@ it records its error code so the user can then later use the '--explain' option.
 For example:
 
 ```
-Program.ble:1:18: error BU0052: cannot assign 'null' to a non-nullable variable
+Program.blt:1:18: error BU0052: cannot assign `null` to a non-nullable variable
  [NotNull]int a = null;
                   ^~~~
 ```
@@ -280,7 +280,7 @@ to tell the user that that is the case.
 For example:
 
 ```
-buckle -d Program.ble MyLib.exe // This will compile, but 'MyLib.exe' is ignored for compilation resulting in this warning
+buckle -d Program.blt MyLib.exe // This will compile, but `MyLib.exe` is ignored for compilation resulting in this warning
 ```
 
 If all files provided result in this warning, then the compiler has no input
@@ -293,7 +293,7 @@ this error is raised.
 For example:
 
 ```
-buckle --explain BU6307 // Correct format, but the error code 'BU6307' is not currently in use so no information about it exists
+buckle --explain BU6307 // Correct format, but the error code `BU6307` is not currently in use so no information about it exists
 ```
 
 If the error code is in the incorrect format, then error CL0019 is raised.
@@ -310,3 +310,53 @@ $CL0023
 The '--script' command-line option interprets the input file as a script. If the
 provided source file is not Belte source code, the interpreter cannot work on
 it, and this error is thrown to tell the user that nothing will be executed.
+$CL0024
+The '--warnlevel' command-line option requires a warning level 0 through 2.
+
+For example:
+
+```
+buckle --warnlevel // Incorrect, no warning level is given
+buckle --warnlevel=2 // Correct
+```
+$CL0025
+The '--warnlevel' command-line option requires a warning level 0 through 2.
+
+For example:
+
+```
+buckle --warnlevel=asdf // Incorrect
+buckle --warnlevel=2 // Correct
+```
+$CL0026
+The '--wignore' command-line option requires a warning code(s) to use to ignore
+a specific warning(s).
+
+For example:
+
+```
+buckle --wignore // Incorrect, no warning code given
+buckle --wignore=BU0001 // Correct
+buckle --wignore=BU0001,BU0026 // Correct
+```
+$CL0027
+The '--winclude' command-line option requires a warning code(s) to use to
+include a specific warning(s).
+
+For example:
+
+```
+buckle --winclude // Incorrect, no warning code given
+buckle --winclude=BU0001 // Correct
+buckle --winclude=BU0001,BU0026 // Correct
+```
+$CL0028
+The '--wignore' and '--winclude' options take in warning codes. If the passed
+codes are codes of existing diagnostics but not warnings, this error is raised.
+
+For example:
+
+```
+buckle --winclude=BU0005 // Incorrect, `BU0005` is an error not a warning
+buckle --winclude=BU0026 // Correct
+```

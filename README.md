@@ -1,5 +1,5 @@
 <p align="center">
-<img width="300" src="docs/img/BelteCapital.png" alt="Belte Logo">
+<img width="300" src="docs/images/BelteCapital.png" alt="Belte Logo">
 </p>
 
 <h1 align="center">Best Ever Language To Exist</h1>
@@ -10,9 +10,21 @@ Buckle is the open-source implementation of the Belte compiler.
 > Belte does not currently have a stable release, so expect bugs if you clone
 
 Belte is an object-oriented programming language aiming to have the same feel and power of C# and C++, while still being
-very easy to learn and use effectively.
+very easy to learn and use effectively. [Here](docs/Principles.md) you can read about the goals and design principles of
+Belte.
 
-> Consider taking [this survey](https://docs.google.com/forms/d/e/1FAIpQLScaRbb9QuBz_vG_iWGaYjdFWREBwGiYyW0C4x37ereF9Fz2tg/viewform?usp=sf_link)
+___
+
+## Using the Buckle Compiler
+
+Instructions on how to use the Buckle command-line utility to run Belte code can be viewed [here](docs/Buckle.md).
+
+___
+
+## Documentation
+
+The main documentation, including a full language reference, can be found on the
+[GitHub Pages site](https://ryanwilsond.github.io/belte/).
 
 ___
 
@@ -21,16 +33,6 @@ ___
 There are multiple code samples in the `samples/` folder to show what the language is capable of in its current state.
 
 More information about the samples is [here](samples/README.md).
-
-___
-
-## Documentation
-
-The main documentation, including a full language reference, can be found on the [GitHub Pages site](https://ryanwilsond.github.io/belte/).
-
-To know what makes Belte unique from other languages, read [Principles.md](docs/Principles.md).
-
-If you are just wanting to look around the repo, consider taking a look at the [directory contents](DIRECTORY_CONTENTS.md).
 
 ___
 
@@ -46,6 +48,6 @@ ___
 
 ## Links
 
-Github: [github.com/ryanwilsond](https://github.com/ryanwilsond)
+Belte GitHub: [github.com/ryanwilsond/belte](https://github.com/ryanwilsond/belte)
 
 Belte Docs/Pages: [ryanwilsond.github.io/belte](https://ryanwilsond.github.io/belte/)
