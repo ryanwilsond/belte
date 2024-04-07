@@ -1,4 +1,7 @@
-# Belte Design Principles
+---
+layout: post
+title: Belte Design Principles
+---
 
 This document covers many concepts and inspirations behind Belte, and also its major design principles.
 
