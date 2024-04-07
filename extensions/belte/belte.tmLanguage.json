@@ -1,0 +1,182 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "Belte",
+    "patterns": [
+        {
+            "include": "#keywords"
+        },
+        {
+            "include": "#strings"
+        },
+        {
+            "include": "#storage"
+        },
+        {
+            "include": "#constant"
+        },
+        {
+            "include": "#entity"
+        },
+        {
+            "include": "#variable"
+        },
+        {
+            "include": "#comment"
+        }
+    ],
+    "repository": {
+        "keywords": {
+            "patterns": [
+                {
+                    "name": "keyword.control.belte",
+                    "match": "\\b(if|else|while|for|return|break|continue|do|try|catch|finally)\\b"
+                },
+                {
+                    "name": "keyword.other.belte",
+                    "match": "\\b(this|var|const|ref|new)\\b"
+                },
+                {
+                    "name": "keyword.operator.arithmetic.belte",
+                    "match": "\\b(/|\\*|(\\*\\*)|\\+|\\-|\\%)\\b"
+                },
+                {
+                    "name": "keyword.operator.logical.belte",
+                    "match": "(&&|\\|\\||!)(?!\\W)"
+                },
+                {
+                    "name": "keyword.preprocessor.belte",
+                    "match": "^\\s*(\\#\\s*(define|pragma|undef|if|elif|else|end|warning|error|run))\\b"
+                }
+            ]
+        },
+        "strings": {
+            "name": "string.quoted.double.belte",
+            "begin": "(\\\")|(\\$\\\")",
+            "end": "\\\"",
+            "patterns": [
+                {
+                    "name": "constant.character.escape.belte",
+                    "match": "\\\\."
+                },
+                {
+                    "name": "meta.interpolation.belte",
+                    "match": "(?<=\\$\\\".*){[^}]*}(?=.*\\\")"
+                }
+            ]
+        },
+        "storage": {
+            "patterns": [
+                {
+                    "name": "storage.type.built-in.belte",
+                    "match": "\\b(int|decimal|string|void|bool|type)\\b"
+                },
+                {
+                    "name": "storage.type.class.belte",
+                    "match": "\\b(class)\\b"
+                },
+                {
+                    "name": "storage.type.number.belte",
+                    "match": "\\b(0x|0b)"
+                },
+                {
+                    "name": "storage.modifier.belte",
+                    "match": "\\b(static|const)\\b"
+                },
+                {
+                    "name": "storage.type.doxygen.belte",
+                    "match": "(?<=///)\\s+(@param|@par|@parameter|@ret|@return|@summary|@overload|@deprecated)\\b"
+                }
+            ]
+        },
+        "constant": {
+            "patterns": [
+                {
+                    "name": "constant.numeric.belte",
+                    "match": "\\b(\\d+)\\b"
+                },
+                {
+                    "name": "constant.numeric.decimal.belte",
+                    "match": "(\\d)*\\.(\\d)+\\b"
+                },
+                {
+                    "name": "constant.numeric.hex.belte",
+                    "match": "(?<=0x)([\\da-fA-F]+)\\b"
+                },
+                {
+                    "name": "constant.numeric.binary.belte",
+                    "match": "(?<=0b)([0-1]+)\\b"
+                },
+                {
+                    "name": "constant.language.belte",
+                    "match": "\\b(null|true|false)\\b"
+                }
+            ]
+        },
+        "entity": {
+            "patterns": [
+                {
+                    "name": "entity.name.function.belte",
+                    "match": "\\b([a-zA-Z_]+\\w*)(?=\\()\\b"
+                },
+                {
+                    "name": "entity.name.class.belte",
+                    "match": "\\b((?<=class\\s+)|(?<=\\:\\s*))([a-zA-Z_]+\\w*)\\b"
+                },
+                {
+                    "name": "entity.name.operator.belte",
+                    "match": "\\b(?<=operator)((\\=)|(\\=\\=)|(\\<\\=)|(\\>\\=)|(\\<)|(\\>)|(\\!\\=)|(\\[\\])|(\\*\\*)|(\\+)|(\\-)|(\\*)|(\\/)|(\\%)|(\\^)|(\\&)|(\\|)|(\\~)|(\\!)|(\\+\\=)|(\\-\\=)|(\\*\\=)|(\\*\\*\\=)|(\\/\\=)|(\\%\\=)|(\\^\\=)|(\\&\\=)|(\\|\\=)|(\\<\\<)|(\\>\\>)|(\\<\\<\\=)|(\\>\\>\\=)|(\\&\\&)|(\\|\\|)|(\\+\\+)|(\\-\\-)|(\\(\\)))(?=\\()"
+                },
+                {
+                    "name": "entity.name.type.belte",
+                    "match": "\\b([a-zA-Z_]+\\w*)\\s*((?=\\s+[a-zA-Z_]+\\w*)|(?=\\[\\]\\s+[a-zA-Z_]+\\w*))\\b"
+                },
+                {
+                    "name": "entity.name.type.parameter.belte",
+                    "match": "\\b(?<=\\()\\s*([a-zA-Z_]+\\w*)\\s+(?=[a-zA-Z_]+\\w*)\\b"
+                },
+                {
+                    "name": "entity.name.type.specifier.belte",
+                    "match": "\\b(?<=\\<[a-zA-Z_]+[\\w\\,\\s\\=]+)(?<!\\>)\\s+([a-zA-Z_]+\\w*)\\b"
+                },
+                {
+                    "name": "entity.name.function.preprocessor.belte",
+                    "match": "(?<=#define|#undef)\\s+\\S+"
+                },
+                {
+                    "name": "entity.preprocessor.other.belte",
+                    "match": "((?<=#pragma|#if|#elif)\\s+.*)|((?<=#define\\s+.*)\\s+[^\\n]+\\n)"
+                }
+            ]
+        },
+        "variable": {
+            "patterns": [
+                {
+                    "name": "variable.belte",
+                    "match": "\\b([a-zA-Z_]+\\w*)\\b"
+                },
+                {
+                    "name": "variable.parameter.belte",
+                    "match": "\\b(?<=\\(\\s*[a-zA-Z_]+\\w*)\\s+([a-zA-Z_]+\\w*)\\b"
+                }
+            ]
+        },
+        "comment": {
+            "patterns": [
+                {
+                    "name": "comment.line.double-slash",
+                    "match": "//.*"
+                },
+                {
+                    "name": "comment.block",
+                    "begin": "/\\*",
+                    "end": "\\*/"
+                },
+                {
+                    "name": "comment.line.double-slash.documentation",
+                    "match": "///.*"
+                }
+            ]
+        }
+    },
+    "scopeName": "source.belte"
+}

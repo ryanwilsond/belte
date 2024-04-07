@@ -7,7 +7,7 @@
 
 */
 
-// In this file, the entry point is `void Main()` because the compler searches
+// In this file, the entry point is `void Main()` because the compiler searches
 // for either a `void Main()` or `int Main()` method to treat as the entry point.
 void Main() {
     var max = 100;

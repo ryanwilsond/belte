@@ -1,0 +1,45 @@
+{
+    "name": "belte",
+    "displayName": "BELTE",
+    "description": "Language support for Belte",
+    "version": "0.1.0",
+    "publisher": "Ryan Wilson",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/ryanwilsond/belte"
+    },
+    "icon": "./images/belte-icon128x.png",
+    "engines": {
+        "vscode": "^1.46.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "belte",
+                "aliases": [
+                    "Belte",
+                    "belte"
+                ],
+                "extensions": [
+                    ".blt",
+                    ".belte"
+                ],
+                "configuration": "./language-configuration.json",
+                "icon": {
+                    "light": "./images/belte-icon128x.png",
+                    "dark": "./images/belte-icon128x.png"
+                }
+            }
+        ],
+        "grammars": [
+            {
+                "language": "belte",
+                "scopeName": "source.belte",
+                "path": "./belte.tmLanguage.json"
+            }
+        ]
+    }
+}

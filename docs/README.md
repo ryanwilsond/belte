@@ -4,3 +4,4 @@
 - [Using Buckle](Buckle.md)
 - [Using the Repl](Repl.md)
 - [Diagnostic Codes](DiagnosticCodes.md)
+- [Belte Documentation](https://ryanwilsond.github.io/beltedocs/)
