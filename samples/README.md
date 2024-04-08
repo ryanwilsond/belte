@@ -14,6 +14,7 @@ this is a convention, and not required.)
 | Directory | Description |
 |-|-|
 | [samples/HelloWorld](HelloWorld/Program.blt) | Hello, world! program. |
+| [samples/Echo](Echo/Program.blt) | Echo program that prints command-line arguments. |
 | [samples/GuessingGame](GuessingGame/Program.blt) | Random number guessing game. |
 
 ## Running a Sample Using the Interpreter
