@@ -102,6 +102,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0089 | Error | member '{0}' cannot be accessed with an instance reference; qualify it with the type name instead |
 | BU0090 | Error | an object reference is required for non-static member '{0}' |
 | BU0091 | Error | cannot initialize fields in structure definitions |
+| BU0092 | Error | cannot have multiple 'Main' entry points |
 
 ## Command Line Diagnostics
 

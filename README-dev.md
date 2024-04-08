@@ -4,7 +4,7 @@ To view future plans, docs, etc:
 
 GitHub Repository: [github.com/ryanwilsond/belte](https://github.com/ryanwilsond/belte)
 
-Docs/Pages: [ryanwilsond.github.io/beltedocs](https://ryanwilsond.github.io/beltedocs/)
+Docs/Pages: [ryanwilsond.github.io/belte](https://ryanwilsond.github.io/belte/)
 
 Trello: [trello.com/belteindustries](https://trello.com/belteindustries)
 

@@ -17,8 +17,16 @@ internal class Fatal {
         /// BU9003. Run `buckle --explain BU9003` on the command line for more info.
         /// </summary>
         internal static BelteDiagnostic IndependentCompilation() {
-            var message = "unsupported: cannot compile independently; must specify '-i', '-d', or '-r'";
+            var message = "unsupported: cannot compile independently; must specify '-i', '-t', or '-r'";
             return new BelteDiagnostic(FatalInfo(DiagnosticCode.UNS_IndependentCompilation), message);
+        }
+
+        /// <summary>
+        /// BU9004. Run `buckle --explain BU9004` on the command line for more info.
+        /// </summary>
+        internal static BelteDiagnostic DotnetCompilation() {
+            var message = "unsupported: cannot compile with .NET integration; must specify '-i', '-t', or '-r'";
+            return new BelteDiagnostic(FatalInfo(DiagnosticCode.UNS_DotnetCompilation), message);
         }
     }
 

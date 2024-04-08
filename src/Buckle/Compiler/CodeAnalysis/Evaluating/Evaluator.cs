@@ -832,27 +832,30 @@ internal sealed class Evaluator {
                 else if (expressionType == TypeSymbol.String)
                     return new EvaluatorObject((string)leftValue + (string)rightValue);
                 else
-                    return new EvaluatorObject((double)leftValue + (double)rightValue);
+                    return new EvaluatorObject(Convert.ToDouble(leftValue) + Convert.ToDouble(rightValue));
             case BoundBinaryOperatorKind.Subtraction:
                 if (expressionType == TypeSymbol.Int)
                     return new EvaluatorObject((int)leftValue - (int)rightValue);
                 else
-                    return new EvaluatorObject((double)leftValue - (double)rightValue);
+                    return new EvaluatorObject(Convert.ToDouble(leftValue) - Convert.ToDouble(rightValue));
             case BoundBinaryOperatorKind.Multiplication:
                 if (expressionType == TypeSymbol.Int)
                     return new EvaluatorObject((int)leftValue * (int)rightValue);
                 else
-                    return new EvaluatorObject((double)leftValue * (double)rightValue);
+                    return new EvaluatorObject(Convert.ToDouble(leftValue) * Convert.ToDouble(rightValue));
             case BoundBinaryOperatorKind.Division:
                 if (expressionType == TypeSymbol.Int)
                     return new EvaluatorObject((int)leftValue / (int)rightValue);
                 else
-                    return new EvaluatorObject((double)leftValue / (double)rightValue);
+                    return new EvaluatorObject(Convert.ToDouble(leftValue) / Convert.ToDouble(rightValue));
             case BoundBinaryOperatorKind.Power:
-                if (expressionType == TypeSymbol.Int)
+                if (expressionType == TypeSymbol.Int) {
                     return new EvaluatorObject((int)Math.Pow((int)leftValue, (int)rightValue));
-                else
-                    return new EvaluatorObject((double)Math.Pow((double)leftValue, (double)rightValue));
+                } else {
+                    return new EvaluatorObject(
+                        Convert.ToDouble(Math.Pow(Convert.ToDouble(leftValue), Convert.ToDouble(rightValue)))
+                    );
+                }
             case BoundBinaryOperatorKind.ConditionalAnd:
                 return new EvaluatorObject((bool)leftValue && (bool)rightValue);
             case BoundBinaryOperatorKind.ConditionalOr:
@@ -865,22 +868,22 @@ internal sealed class Evaluator {
                 if (leftType == TypeSymbol.Int)
                     return new EvaluatorObject((int)leftValue < (int)rightValue);
                 else
-                    return new EvaluatorObject((double)leftValue < (double)rightValue);
+                    return new EvaluatorObject(Convert.ToDouble(leftValue) < Convert.ToDouble(rightValue));
             case BoundBinaryOperatorKind.GreaterThan:
                 if (leftType == TypeSymbol.Int)
                     return new EvaluatorObject((int)leftValue > (int)rightValue);
                 else
-                    return new EvaluatorObject((double)leftValue > (double)rightValue);
+                    return new EvaluatorObject(Convert.ToDouble(leftValue) > Convert.ToDouble(rightValue));
             case BoundBinaryOperatorKind.LessOrEqual:
                 if (leftType == TypeSymbol.Int)
                     return new EvaluatorObject((int)leftValue <= (int)rightValue);
                 else
-                    return new EvaluatorObject((double)leftValue <= (double)rightValue);
+                    return new EvaluatorObject(Convert.ToDouble(leftValue) <= Convert.ToDouble(rightValue));
             case BoundBinaryOperatorKind.GreatOrEqual:
                 if (leftType == TypeSymbol.Int)
                     return new EvaluatorObject((int)leftValue >= (int)rightValue);
                 else
-                    return new EvaluatorObject((double)leftValue >= (double)rightValue);
+                    return new EvaluatorObject(Convert.ToDouble(leftValue) >= Convert.ToDouble(rightValue));
             case BoundBinaryOperatorKind.LogicalAnd:
                 if (expressionType == TypeSymbol.Int)
                     return new EvaluatorObject((int)leftValue & (int)rightValue);
@@ -906,7 +909,7 @@ internal sealed class Evaluator {
                 if (expressionType == TypeSymbol.Int)
                     return new EvaluatorObject((int)leftValue % (int)rightValue);
                 else
-                    return new EvaluatorObject((double)leftValue % (double)rightValue);
+                    return new EvaluatorObject(Convert.ToDouble(leftValue) % Convert.ToDouble(rightValue));
             default:
                 throw new BelteInternalException(
                     $"EvaluateBinaryExpression: unknown binary operator '{expression.op}'"

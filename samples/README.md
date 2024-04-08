@@ -2,7 +2,9 @@
 
 - [Samples List](#samples-list)
 - [Running a Sample Using the Interpreter](#running-a-sample-using-the-interpreter)
+<!--
 - [Running a Sample Using .NET](#running-a-sample-using-net)
+-->
 
 ## Samples List
 
@@ -12,6 +14,7 @@ this is a convention, and not required.)
 | Directory | Description |
 |-|-|
 | [samples/HelloWorld](HelloWorld/Program.blt) | Hello, world! program. |
+| [samples/Echo](Echo/Program.blt) | Echo program that prints command-line arguments. |
 | [samples/GuessingGame](GuessingGame/Program.blt) | Random number guessing game. |
 
 ## Running a Sample Using the Interpreter
@@ -24,6 +27,7 @@ E.g.
 buckle samples/HelloWorld
 ```
 
+<!--
 ## Running a Sample Using .NET
 
 To run a sample using .NET, run `dotnet run --project <Path/to/sample>`.
@@ -33,3 +37,4 @@ E.g.
 ```bash
 dotnet run --project samples/HelloWorld/HelloWorld.msproj
 ```
+-->

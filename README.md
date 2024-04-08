@@ -23,8 +23,8 @@ ___
 
 ## Documentation
 
-The main documentation, including a full language reference, can be found on the
-[GitHub Pages site](https://ryanwilsond.github.io/beltedocs/).
+The docs can be browsed on the [GitHub Pages site](https://ryanwilsond.github.io/belte/) or
+[locally in the repository](docs/README.md).
 
 ___
 
@@ -50,4 +50,4 @@ ___
 
 Belte GitHub: [github.com/ryanwilsond/belte](https://github.com/ryanwilsond/belte)
 
-Belte Docs/Pages: [ryanwilsond.github.io/beltedocs](https://ryanwilsond.github.io/beltedocs/)
+Belte Docs/Pages: [ryanwilsond.github.io/belte](https://ryanwilsond.github.io/belte/)

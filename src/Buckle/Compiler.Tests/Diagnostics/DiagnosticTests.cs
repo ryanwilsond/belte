@@ -7,15 +7,18 @@ namespace Buckle.Tests.Diagnostics;
 /// <summary>
 /// At least one test per diagnostic (any severity) if testable.
 /// </summary>
-public sealed class DiagnosticTests {
+public sealed class DiagnosticTests
+{
     private readonly ITestOutputHelper _writer;
 
-    public DiagnosticTests(ITestOutputHelper writer) {
+    public DiagnosticTests(ITestOutputHelper writer)
+    {
         _writer = writer;
     }
 
     [Fact]
-    public void Reports_Warning_BU0001_AlwaysValue() {
+    public void Reports_Warning_BU0001_AlwaysValue()
+    {
         var text = @"
             var x = [null > 3];
         ";
@@ -28,7 +31,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Warning_BU0002_NullDeference() {
+    public void Reports_Warning_BU0002_NullDeference()
+    {
         var text = @"
             class A {
                 int num;
@@ -47,7 +51,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0004_InvalidType() {
+    public void Reports_Error_BU0004_InvalidType()
+    {
         var text = @"
             int x = [99999999999999999];
         ";
@@ -60,7 +65,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0005_BadCharacter() {
+    public void Reports_Error_BU0005_BadCharacter()
+    {
         var text = @"
             [#];
         ";
@@ -73,7 +79,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0006_UnexpectedToken() {
+    public void Reports_Error_BU0006_UnexpectedToken()
+    {
         var text = @"
             if [=](true) {}
         ";
@@ -86,7 +93,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0007_CannotConvertImplicitly() {
+    public void Reports_Error_BU0007_CannotConvertImplicitly()
+    {
         var text = @"
             string x = [3];
         ";
@@ -99,7 +107,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0008_InvalidUnaryOperatorUse() {
+    public void Reports_Error_BU0008_InvalidUnaryOperatorUse()
+    {
         var text = @"
             [-]false;
         ";
@@ -112,7 +121,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0009_NamedBeforeUnnamed() {
+    public void Reports_Error_BU0009_NamedBeforeUnnamed()
+    {
         var text = @"
             Print([x]: 1, 3);
         ";
@@ -125,7 +135,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0010_NamedArgumentTwice() {
+    public void Reports_Error_BU0010_NamedArgumentTwice()
+    {
         var text = @"
             Print(x: 1, [x]: 3);
         ";
@@ -138,7 +149,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0011_InvalidBinaryOperatorUse() {
+    public void Reports_Error_BU0011_InvalidBinaryOperatorUse()
+    {
         var text = @"
             false [+] 3;
         ";
@@ -151,7 +163,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0013_ParameterAlreadyDeclared() {
+    public void Reports_Error_BU0013_ParameterAlreadyDeclared()
+    {
         var text = @"
             void myFunc(int x, [int x]) { }
         ";
@@ -164,7 +177,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0015_NoSuchParameter() {
+    public void Reports_Error_BU0015_NoSuchParameter()
+    {
         var text = @"
             Print([msg]: ""test"");
         ";
@@ -177,7 +191,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0017_UndefinedSymbol() {
+    public void Reports_Error_BU0017_UndefinedSymbol()
+    {
         var text = @"
             int x = [y];
         ";
@@ -190,7 +205,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0018_MethodAlreadyDeclared() {
+    public void Reports_Error_BU0018_MethodAlreadyDeclared()
+    {
         var text = @"
             void myFunc() { }
 
@@ -205,7 +221,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0019_NotAllPathsReturn() {
+    public void Reports_Error_BU0019_NotAllPathsReturn()
+    {
         var text = @"
             int [myFunc]() { }
         ";
@@ -218,7 +235,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0020_CannotConvert() {
+    public void Reports_Error_BU0020_CannotConvert()
+    {
         var text = @"
             class A {
                 int num;
@@ -235,7 +253,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0021_VariableAlreadyDeclared() {
+    public void Reports_Error_BU0021_VariableAlreadyDeclared()
+    {
         var text = @"
             var x = 5;
             var [x] = 7;
@@ -249,7 +268,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0022_ConstantAssignment() {
+    public void Reports_Error_BU0022_ConstantAssignment()
+    {
         var text = @"
             const int x = 5;
             x [=] 4;
@@ -263,7 +283,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0023_AmbiguousElse() {
+    public void Reports_Error_BU0023_AmbiguousElse()
+    {
         var text = @"
             if (true)
                 if (true)
@@ -280,7 +301,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0024_NoValue() {
+    public void Reports_Error_BU0024_NoValue()
+    {
         var text = @"
             int x = [PrintLine()];
         ";
@@ -293,7 +315,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0025_CannotApplyIndexing() {
+    public void Reports_Error_BU0025_CannotApplyIndexing()
+    {
         var text = @"
             int x = 3;
             int y = [x\[0\]];
@@ -307,7 +330,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Warning_BU0026_UnreachableCode() {
+    public void Reports_Warning_BU0026_UnreachableCode()
+    {
         var text = @"
             if (false) {
                 [PrintLine();]
@@ -323,7 +347,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0027_UnterminatedString() {
+    public void Reports_Error_BU0027_UnterminatedString()
+    {
         var text = @"
             string x = [""];[]
         ";
@@ -337,7 +362,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0028_UndefinedMethod() {
+    public void Reports_Error_BU0028_UndefinedMethod()
+    {
         var text = @"
             string x = [myFunc]();
         ";
@@ -350,7 +376,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0029_IncorrectArgumentCount() {
+    public void Reports_Error_BU0029_IncorrectArgumentCount()
+    {
         var text = @"
             void myFunc() { }
             myFunc([3]);
@@ -364,7 +391,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0030_TypeAlreadyDeclared() {
+    public void Reports_Error_BU0030_TypeAlreadyDeclared()
+    {
         var text = @"
             class A { }
 
@@ -379,7 +407,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0031_DuplicateAttribute() {
+    public void Reports_Error_BU0031_DuplicateAttribute()
+    {
         var text = @"
             \[NotNull\]\[[NotNull]\]int a = 3;
         ";
@@ -392,7 +421,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0032_CannotCallNonMethod() {
+    public void Reports_Error_BU0032_CannotCallNonMethod()
+    {
         var text = @"
             int x = 3;
             int y = [x]();
@@ -406,7 +436,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0033_InvalidExpressionStatement() {
+    public void Reports_Error_BU0033_InvalidExpressionStatement()
+    {
         var text = @"
             void myFunc() {
                 [5 + 3;]
@@ -421,7 +452,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0034_UnknownType() {
+    public void Reports_Error_BU0034_UnknownType()
+    {
         var text = @"
             [MyType] x;
         ";
@@ -434,7 +466,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0035_InvalidBreakOrContinue() {
+    public void Reports_Error_BU0035_InvalidBreakOrContinue()
+    {
         var text = @"
             [break];
         ";
@@ -447,7 +480,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0037_UnexpectedReturnValue() {
+    public void Reports_Error_BU0037_UnexpectedReturnValue()
+    {
         var text = @"
             void myFunc() {
                 [return] 3;
@@ -462,7 +496,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0038_MissingReturnValue() {
+    public void Reports_Error_BU0038_MissingReturnValue()
+    {
         var text = @"
             int myFunc() {
                 [return];
@@ -477,7 +512,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0039_NotAVariable() {
+    public void Reports_Error_BU0039_NotAVariable()
+    {
         var text = @"
             void myFunc() { }
 
@@ -492,7 +528,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0040_NoInitOnImplicit() {
+    public void Reports_Error_BU0040_NoInitOnImplicit()
+    {
         var text = @"
             var [x];
         ";
@@ -505,7 +542,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0041_UnterminatedComment() {
+    public void Reports_Error_BU0041_UnterminatedComment()
+    {
         var text = @"
             [/*]
         ";
@@ -518,7 +556,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0042_NullAssignOnImplicit() {
+    public void Reports_Error_BU0042_NullAssignOnImplicit()
+    {
         var text = @"
             var x = [null];
         ";
@@ -531,7 +570,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0043_EmptyInitializerListOnImplicit() {
+    public void Reports_Error_BU0043_EmptyInitializerListOnImplicit()
+    {
         var text = @"
             var x = [{}];
         ";
@@ -544,7 +584,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0044_ImpliedDimensions() {
+    public void Reports_Error_BU0044_ImpliedDimensions()
+    {
         var text = @"
             var[\[\]] x = {1, 2, 3};
         ";
@@ -557,7 +598,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0045_CannotUseImplicit() {
+    public void Reports_Error_BU0045_CannotUseImplicit()
+    {
         var text = @"
             [var] myFunc() { }
         ";
@@ -570,7 +612,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0046_NoCatchOrFinally() {
+    public void Reports_Error_BU0046_NoCatchOrFinally()
+    {
         var text = @"
             try { [}]
         ";
@@ -583,7 +626,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0047_ExpectedMethodName() {
+    public void Reports_Error_BU0047_ExpectedMethodName()
+    {
         var text = @"
             [PrintLine()]();
         ";
@@ -596,7 +640,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0048_ReferenceNoInitialization() {
+    public void Reports_Error_BU0048_ReferenceNoInitialization()
+    {
         var text = @"
             ref int [x];
         ";
@@ -609,7 +654,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0049_ReferenceWrongInitialization() {
+    public void Reports_Error_BU0049_ReferenceWrongInitialization()
+    {
         var text = @"
             int x = 3;
             ref int y [=] x;
@@ -623,7 +669,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0050_WrongInitializationReference() {
+    public void Reports_Error_BU0050_WrongInitializationReference()
+    {
         var text = @"
             int x = 3;
             int y [=] ref x;
@@ -637,7 +684,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0051_UnknownAttribute() {
+    public void Reports_Error_BU0051_UnknownAttribute()
+    {
         var text = @"
             \[[MyAttrib]\]int x;
         ";
@@ -650,7 +698,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0052_NullAssignNotNull() {
+    public void Reports_Error_BU0052_NullAssignNotNull()
+    {
         var text = @"
             \[NotNull\]int x = [null];
         ";
@@ -663,7 +712,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0053_ImpliedReference() {
+    public void Reports_Error_BU0053_ImpliedReference()
+    {
         var text = @"
             var x = 3;
             [ref] var y = ref x;
@@ -677,7 +727,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0054_ReferenceToConstant() {
+    public void Reports_Error_BU0054_ReferenceToConstant()
+    {
         var text = @"
             const int x = 3;
             ref int y [=] ref x;
@@ -691,7 +742,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0055_VoidVariable() {
+    public void Reports_Error_BU0055_VoidVariable()
+    {
         var text = @"
             [void] a;
         ";
@@ -704,7 +756,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0056_ExpectedToken() {
+    public void Reports_Error_BU0056_ExpectedToken()
+    {
         var text = @"
             class [{]
                 int num;
@@ -719,7 +772,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0057_NoMethodOverload() {
+    public void Reports_Error_BU0057_NoMethodOverload()
+    {
         var text = @"
             void myFunc(int a) { }
 
@@ -736,7 +790,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0058_AmbiguousMethodOverload() {
+    public void Reports_Error_BU0058_AmbiguousMethodOverload()
+    {
         var text = @"
             void myFunc(int a) { }
 
@@ -753,7 +808,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0059_CannotIncrement() {
+    public void Reports_Error_BU0059_CannotIncrement()
+    {
         var text = @"
             [1]++;
         ";
@@ -766,7 +822,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0060_InvalidTernaryOperatorUse() {
+    public void Reports_Error_BU0060_InvalidTernaryOperatorUse()
+    {
         var text = @"
             3 [?] 4 : 6;
         ";
@@ -779,7 +836,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0061_NoSuchMember() {
+    public void Reports_Error_BU0061_NoSuchMember()
+    {
         var text = @"
             class MyClass {
                 int a;
@@ -797,7 +855,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0062_CannotAssign() {
+    public void Reports_Error_BU0062_CannotAssign()
+    {
         var text = @"
             [3] = 45;
         ";
@@ -810,7 +869,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0063_CannotOverloadNested() {
+    public void Reports_Error_BU0063_CannotOverloadNested()
+    {
         var text = @"
             void myFunc() {
                 void myFunc2(int a) { }
@@ -827,7 +887,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0064_ConstantToNonConstantReference() {
+    public void Reports_Error_BU0064_ConstantToNonConstantReference()
+    {
         var text = @"
             int x = 3;
             ref const int y [=] ref x;
@@ -841,7 +902,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0065_InvalidPrefixUse() {
+    public void Reports_Error_BU0065_InvalidPrefixUse()
+    {
         var text = @"
             bool a = false;
             [++]a;
@@ -855,7 +917,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0066_InvalidPostfixUse() {
+    public void Reports_Error_BU0066_InvalidPostfixUse()
+    {
         var text = @"
             bool a = false;
             a[++];
@@ -869,7 +932,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0067_ParameterAlreadySpecified() {
+    public void Reports_Error_BU0067_ParameterAlreadySpecified()
+    {
         var text = @"
             Print(x: 2, [x]: 2);
         ";
@@ -882,7 +946,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0068_DefaultMustBeConstant() {
+    public void Reports_Error_BU0068_DefaultMustBeConstant()
+    {
         var text = @"
             void MyFunc(int a = [Input()]) { }
         ";
@@ -895,7 +960,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0069_DefaultBeforeNoDefault() {
+    public void Reports_Error_BU0069_DefaultBeforeNoDefault()
+    {
         var text = @"
             void MyFunc([int a = 3], int b) { }
         ";
@@ -908,7 +974,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0070_ConstantAndVariable() {
+    public void Reports_Error_BU0070_ConstantAndVariable()
+    {
         var text = @"
             [const var] x = 3;
         ";
@@ -921,7 +988,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0071_VariableUsingTypeName() {
+    public void Reports_Error_BU0071_VariableUsingTypeName()
+    {
         var text = @"
             class A { }
 
@@ -936,7 +1004,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0072_CannotImplyNull() {
+    public void Reports_Error_BU0072_CannotImplyNull()
+    {
         var text = @"
             void MyFunc(int a, \[NotNull\]int b) { }
 
@@ -951,9 +1020,10 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0073_CannotConvertNull() {
+    public void Reports_Error_BU0073_CannotConvertNull()
+    {
         var text = @"
-            [(\[NotNull\]int)null];
+            [(int!)null];
         ";
 
         var diagnostics = @"
@@ -996,7 +1066,8 @@ public sealed class DiagnosticTests {
     // }
 
     [Fact]
-    public void Reports_Error_BU0076_CannotUseRef() {
+    public void Reports_Error_BU0076_CannotUseRef()
+    {
         var text = @"
             int myInt = [5 / 0];
         ";
@@ -1009,7 +1080,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0077_NameUsedInEnclosingScope() {
+    public void Reports_Error_BU0077_NameUsedInEnclosingScope()
+    {
         var text = @"
             void MyFunc() {
                 for (int [i] = 0; i < 10; i++) ;
@@ -1026,7 +1098,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0078_NullInitializerListOnImplicit() {
+    public void Reports_Error_BU0078_NullInitializerListOnImplicit()
+    {
         var text = @"
             var myArray = [{ null, null }];
         ";
@@ -1039,7 +1112,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0079_UnrecognizedEscapeSequence() {
+    public void Reports_Error_BU0079_UnrecognizedEscapeSequence()
+    {
         var text = @"
             var myString = ""test[\g]"";
         ";
@@ -1052,7 +1126,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0080_PrimitivesDoNotHaveMembers() {
+    public void Reports_Error_BU0080_PrimitivesDoNotHaveMembers()
+    {
         var text = @"
             int myInt = 3;
             [myInt.b];
@@ -1066,7 +1141,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0081_CannotConstructPrimitive() {
+    public void Reports_Error_BU0081_CannotConstructPrimitive()
+    {
         var text = @"
             var myInt = new [int]();
         ";
@@ -1079,7 +1155,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0082_NoTemplateOverload() {
+    public void Reports_Error_BU0082_NoTemplateOverload()
+    {
         var text = @"
             class MyClass<int T> { }
 
@@ -1096,7 +1173,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0083_AmbiguousTemplateOverload() {
+    public void Reports_Error_BU0083_AmbiguousTemplateOverload()
+    {
         var text = @"
             class MyClass<int T> { }
 
@@ -1113,7 +1191,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0084_CannotUseStruct() {
+    public void Reports_Error_BU0084_CannotUseStruct()
+    {
         var text = @"
             [struct] MyStruct { }
         ";
@@ -1126,7 +1205,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0085_CannotUseThis() {
+    public void Reports_Error_BU0085_CannotUseThis()
+    {
         var text = @"
             int myInt = 3;
             [this].myInt = 5;
@@ -1140,7 +1220,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0086_IncorrectConstructorName() {
+    public void Reports_Error_BU0086_IncorrectConstructorName()
+    {
         var text = @"
             class MyClass {
                 [MyConstructor]() { }
@@ -1155,7 +1236,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0087_NoConstructorOverload() {
+    public void Reports_Error_BU0087_NoConstructorOverload()
+    {
         var text = @"
             class MyClass {
                 MyClass(int a) { }
@@ -1174,7 +1256,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0088_InvalidModifier() {
+    public void Reports_Error_BU0088_InvalidModifier()
+    {
         var text = @"
             [static] class MyClass { }
         ";
@@ -1187,7 +1270,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0089_InvalidInstanceReference() {
+    public void Reports_Error_BU0089_InvalidInstanceReference()
+    {
         var text = @"
             class MyClass {
                 static void MyMethod() { }
@@ -1205,7 +1289,8 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0090_InvalidStaticReference() {
+    public void Reports_Error_BU0090_InvalidStaticReference()
+    {
         var text = @"
             class MyClass {
                 void MyMethod() { }
