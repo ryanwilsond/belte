@@ -1,4 +1,8 @@
-# Documentation
+<p align="center">
+<img width="300" src="images/BelteCapital.png" alt="Belte Logo">
+</p>
+
+<h1 align="center">Belte Documentation</h1>
 
 ## Buckle Docs
 
@@ -9,7 +13,6 @@
 
 ## Belte Language Docs
 
-- [Code Samples](../samples/README.md)
 - [1](Belte/Overview.md) Overview
   - [1.1](Belte/Overview.md#11-overview) Supported Features
 - [2](Belte/ControlFlow.md) Control Flow
