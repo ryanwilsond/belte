@@ -8,7 +8,9 @@ Currently there are no releases of Belte, so to use the compiler you will have t
 
 - [Options Summary](#options-summary)
 - [Running Programs](#running-programs)
+<!--
 - [Building with .NET](#building-with-net)
+-->
 
 ## Options Summary
 
@@ -174,6 +176,7 @@ BU module.
 | RE | Repl; diagnostics produced that are unique to the Repl. |
 | CL | Command Line; diagnostics produced that are unique to the command-line interface. |
 
+<!--
 ### *-d*, *--dotnet*
 
 Compile with .NET integration. All language features are enabled with this option. The output will be a .NET DLL that
@@ -194,6 +197,7 @@ and should not need to be used. This option is only valid in junction with the *
 Adds a reference when .NET integration is enabled. This reference is a path to a DLL that will be added to the program
 and can then be referenced from within the program. This option is only valid in junction with the *-d* or *--dotnet*
 options.
+-->
 
 ## Running Programs
 
@@ -220,6 +224,7 @@ buckle Program.blt
 Hello, world!
 ```
 
+<!--
 ## Building with .NET
 
 A `Directory.Build.props` file with the following contents is necessary to tell dotnet how to find Belte source files:
@@ -270,3 +275,4 @@ Then you can use a debugger to build and run the project, or run the project via
 ```bash
 dotnet run --project path/to/MyProject.msproj
 ```
+-->

@@ -149,7 +149,21 @@ internal sealed class Binder {
                 );
             }
         } else {
-            entryPoint = methods.FirstOrDefault(f => f.name.ToLower() == "main");
+            var mains = methods.Where(f => f.name.ToLower() == "main").ToArray();
+
+            if (mains.Length > 1) {
+                foreach (var main in mains) {
+                    var span = TextSpan.FromBounds(
+                        main.declaration.span.start,
+                        main.declaration.parameterList.closeParenthesis.span.end
+                    );
+
+                    var location = new TextLocation(main.declaration.syntaxTree.text, span);
+                    binder.diagnostics.Push(Error.MultipleMains(location));
+                }
+            }
+
+            entryPoint = mains.Length == 0 ? null : mains[0];
 
             if (entryPoint != null) {
                 if (entryPoint.type.typeSymbol != TypeSymbol.Void && entryPoint.type.typeSymbol != TypeSymbol.Int) {

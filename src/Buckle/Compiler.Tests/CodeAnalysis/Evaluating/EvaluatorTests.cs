@@ -6,7 +6,8 @@ namespace Buckle.Tests.CodeAnalysis.Evaluating;
 /// <summary>
 /// Tests on the <see cref="Buckle.CodeAnalysis.Evaluating.Evaluator" /> class.
 /// </summary>
-public sealed class EvaluatorTests {
+public sealed class EvaluatorTests
+{
     [Theory]
     // Empty expressions
     [InlineData(";", null)]
@@ -239,6 +240,8 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 4; int b = a--; return b;", 4)]
     [InlineData("int a = 4; return a!;", 4)]
     [InlineData("[NotNull]int a = 4; return a! + 1;", 5)]
+    [InlineData("decimal a = 3.6; a++; return a;", 4.6)]
+    [InlineData("decimal a = 3.6; a--; return a;", 2.6)]
     // Prefix expressions
     [InlineData("int a = 3; ++a; return a;", 4)]
     [InlineData("int a = 3; --a; return a;", 2)]
@@ -246,6 +249,8 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 1; --a; --a; return a;", -1)]
     [InlineData("int a = 4; int b = ++a; return b;", 5)]
     [InlineData("int a = 4; int b = --a; return b;", 3)]
+    [InlineData("decimal a = 3.6; ++a; return a;", 4.6)]
+    [InlineData("decimal a = 3.6; --a; return a;", 2.6)]
     // Parenthesized expressions
     [InlineData("int a = (3 + 4) * 2; return a;", 14)]
     [InlineData("int a = 3 + (4 * 2); return a;", 11)]
@@ -341,7 +346,8 @@ public sealed class EvaluatorTests {
     [InlineData("class A { const int a; } return A.a;", null)]
     [InlineData("class A { static int B() { return 0; } } return A.B();", 0)]
     [InlineData("class A { static int B(int a) { return a + 3; } } return A.B(4);", 7)]
-    public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
+    public void Evaluator_Computes_CorrectValues(string text, object expectedValue)
+    {
         AssertValue(text, expectedValue);
     }
 }

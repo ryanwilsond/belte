@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -858,6 +859,14 @@ internal static class Error {
     internal static Diagnostic CannotInitializeInStructs() {
         var message = "cannot initialize fields in structure definitions";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotInitializeInStructs), message);
+    }
+
+    /// <summary>
+    /// BU0092. Run `buckle --explain BU0092` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic MultipleMains(TextLocation location) {
+        var message = "cannot have multiple 'Main' entry points";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MultipleMains), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

@@ -100,10 +100,12 @@ public enum DiagnosticCode : int {
     ERR_InvalidInstanceReference = 89,
     ERR_InvalidStaticReference = 90,
     ERR_CannotInitializeInStructs = 91,
+    ERR_MultipleMains = 92,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,
     UNS_Assembling = 9001,
     UNS_Linking = 9002,
     UNS_IndependentCompilation = 9003,
+    UNS_DotnetCompilation = 9004,
 }
