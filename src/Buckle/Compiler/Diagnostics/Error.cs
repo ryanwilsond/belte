@@ -694,9 +694,9 @@ internal static class Error {
     /// <summary>
     /// BU0074. Run `buckle --explain BU0074` on the command line for more info.
     /// </summary>
-    internal static Diagnostic CannotUseConst() {
-        var message = "cannot use a constant in this context";
-        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseConstant), message);
+    internal static BelteDiagnostic ModifierAlreadyApplied(TextLocation location, string name) {
+        var message = $"modifier '{name}' has already been applied to this item";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ModifierAlreadyApplied), location, message);
     }
 
     /// <summary>
@@ -832,6 +832,11 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidModifier), location, message);
     }
 
+    internal static Diagnostic InvalidModifier(string name) {
+        var message = $"modifier '{name}' is not valid for this item";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidModifier), message);
+    }
+
     /// <summary>
     /// BU0089. Run `buckle --explain BU0089` on the command line for more info.
     /// </summary>
@@ -867,6 +872,14 @@ internal static class Error {
     internal static BelteDiagnostic MultipleMains(TextLocation location) {
         var message = "cannot have multiple 'Main' entry points";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MultipleMains), location, message);
+    }
+
+    /// <summary>
+    /// BU0093. Run `buckle --explain BU0093` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic InvalidAttributes() {
+        var message = "attributes are not valid in this context";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidAttributes), message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

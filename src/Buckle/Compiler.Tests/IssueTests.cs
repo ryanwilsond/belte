@@ -31,12 +31,12 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_InitializerList_AllowsNull() {
         var text = @"
-            \[NotNull\]var a = { 1, 2, 3 };
+            var! a = { 1, 2, 3 };
             a = [{null, 2, 3 }];
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int[]' to '[NotNull]int[]' implicitly; an explicit conversion exists (are you missing a cast?)
+            cannot convert from type 'int[]' to 'int[]!' implicitly; an explicit conversion exists (are you missing a cast?)
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -54,11 +54,11 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_CastExpression_NonNullableOnNull() {
         var text = @"
-            [(\[NotNull\]int)null];
+            [(int!)null];
         ";
 
         var diagnostics = @"
-            cannot convert 'null' to '[NotNull]int' because it is a non-nullable type
+            cannot convert 'null' to 'int!' because it is a non-nullable type
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

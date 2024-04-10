@@ -107,8 +107,8 @@ public sealed class DisplayText {
             case BoundNodeKind.ExpressionStatement:
                 DisplayExpressionStatement(text, (BoundExpressionStatement)node);
                 break;
-            case BoundNodeKind.VariableDeclarationStatement:
-                DisplayVariableDeclarationStatement(text, (BoundVariableDeclarationStatement)node);
+            case BoundNodeKind.LocalDeclarationStatement:
+                DisplayVariableDeclarationStatement(text, (BoundLocalDeclarationStatement)node);
                 break;
             case BoundNodeKind.IfStatement:
                 DisplayIfStatement(text, (BoundIfStatement)node);
@@ -418,7 +418,7 @@ public sealed class DisplayText {
         text.Write(CreateLine());
     }
 
-    private static void DisplayVariableDeclarationStatement(DisplayText text, BoundVariableDeclarationStatement node) {
+    private static void DisplayVariableDeclarationStatement(DisplayText text, BoundLocalDeclarationStatement node) {
         DisplayNode(text, node.variable.type);
         text.Write(CreateSpace());
         text.Write(CreateIdentifier(node.variable.name));

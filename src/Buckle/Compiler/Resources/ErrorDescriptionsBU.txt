@@ -440,12 +440,7 @@ though the compiler could figure out the intended meaning, it would be poorly
 written code and possibly a mistake or oversight. Because of this, the compiler
 does not allow duplicate attributes.
 
-For example:
-
-```
-[NotNull]int myVar = 3; // Allowed
-[NotNull, NotNull]int myVar = 3; // `NotNull` was duplicated, not allowed
-```
+Example here will be updated, but currently there are not attributes.
 $BU0032
 Only methods, functions, and constructors are called objects. This is because
 they have a body that can be run. Variables, constants, and other similar
@@ -813,12 +808,7 @@ $BU0051
 Attributes can be applied to types, and users can define their own attributes.
 However, if the compiler is unaware of an attribute, this error is raised.
 
-For example:
-
-```
-[NotNull]var myInt = 3; // Allowed, `NotNull` is a known attribute
-[FakeAttrib]var myInt = 3; // Not allowed, `FakeAttrib` is not a known attribute
-```
+Example here will be updated, but currently there are not attributes.
 $BU0052
 Some types are non-nullable, even though the default is nullable. If a variable
 or constant is non-nullable, it cannot be assigned with `null`. If this is
@@ -827,7 +817,7 @@ attempted, this error is raised.
 For example:
 
 ```
-[NotNull]int myVar = null; // Not allowed, `myVar` is non-nullable, so it cannot be assigned to with `null`
+int! myVar = null; // Not allowed, `myVar` is non-nullable, so it cannot be assigned to with `null`
 ```
 $BU0053
 Unlike C#, in Belte the `var` keyword does not only infer the base type name,
@@ -1194,7 +1184,7 @@ this way when a non-nullable type is expected, this error is raised.
 For example:
 
 ```
-void MyFunction(int a, [NotNull]int b) { }
+void MyFunction(int a, int! b) { }
 
 MyFunction(, 2); // Allowed, the first parameter is nullable
 MyFunction(1,); // Not allowed, the second parameter is non-nullable
@@ -1207,20 +1197,19 @@ to a non-nullable type, this error is raised in place of BU0020.
 For example:
 
 ```
-var myDecimal = ([NotNull]decimal)true; // Not allowed, BU0020 is raised as you cannot convert from bool to decimal
-var myDecimal = ([NotNull]decimal)null; // Not allowed, this error is raised as you cannot `null` to a non-nullable type
+var myDecimal = (decimal!)true; // Not allowed, BU0020 is raised as you cannot convert from bool to decimal
+var myDecimal = (decimal!)null; // Not allowed, this error is raised as you cannot `null` to a non-nullable type
 ```
 $BU0074
-The `const` keyword cannot be used in every context. Types relating to field
-declarations cannot be defined when declaring them, meaning you cannot define
-any constant value.
+Modifiers such as 'const' and 'static' effect the meaning of a member. Each
+modifier can only be applied once per item.
 
 For example:
 
 ```
 class MyClass {
-    const int a; // Not allowed, cannot define so using `const` here is not allowed
-    int a; // Allowed
+    const const int myField = 3; // Not allowed, `const` modifier applied twice
+    const int myField = 3; // Allowed
 }
 ```
 $BU0075
@@ -1471,6 +1460,11 @@ void Main(int! argc, string[]! argv) { } // Not allowed, `Main` entry point alre
 ```
 void Main() { } // Allowed
 ```
+$BU0093
+Attributes are not valid for global statements. If any attributes are attached
+to a global statement this error is raised.
+
+Example here will be updated, but currently there are not attributes.
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.

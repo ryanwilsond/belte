@@ -21,7 +21,7 @@ internal abstract class BoundTreeExpander {
         return statement.kind switch {
             BoundNodeKind.NopStatement => ExpandNopStatement((BoundNopStatement)statement),
             BoundNodeKind.BlockStatement => ExpandBlockStatement((BoundBlockStatement)statement),
-            BoundNodeKind.VariableDeclarationStatement => ExpandVariableDeclarationStatement((BoundVariableDeclarationStatement)statement),
+            BoundNodeKind.LocalDeclarationStatement => ExpandVariableDeclarationStatement((BoundLocalDeclarationStatement)statement),
             BoundNodeKind.IfStatement => ExpandIfStatement((BoundIfStatement)statement),
             BoundNodeKind.WhileStatement => ExpandWhileStatement((BoundWhileStatement)statement),
             BoundNodeKind.ForStatement => ExpandForStatement((BoundForStatement)statement),
@@ -52,11 +52,11 @@ internal abstract class BoundTreeExpander {
     }
 
     protected virtual List<BoundStatement> ExpandVariableDeclarationStatement(
-        BoundVariableDeclarationStatement statement) {
+        BoundLocalDeclarationStatement statement) {
         var statements = ExpandExpression(statement.initializer, out var replacement);
 
         if (statements.Any()) {
-            statements.Add(new BoundVariableDeclarationStatement(statement.variable, replacement));
+            statements.Add(new BoundLocalDeclarationStatement(statement.variable, replacement));
             return statements;
         }
 

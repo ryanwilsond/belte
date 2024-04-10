@@ -67,7 +67,7 @@ internal sealed partial class ControlFlowGraphBuilder {
                         break;
                     case BoundNodeKind.NopStatement:
                     case BoundNodeKind.ExpressionStatement:
-                    case BoundNodeKind.VariableDeclarationStatement:
+                    case BoundNodeKind.LocalDeclarationStatement:
                     case BoundNodeKind.TryStatement:
                     case BoundNodeKind.LabelStatement:
                         if (isLastStatement)

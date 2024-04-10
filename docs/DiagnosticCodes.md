@@ -84,7 +84,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0071 | Error | variable name '{0}' is not valid as it is the name of a type in this namespace |
 | BU0072 | Error | cannot implicitly pass null in a non-nullable context |
 | BU0073 | Error | cannot convert 'null' to '{0}' because it is a non-nullable type |
-| BU0074 | Error | cannot use a constant in this context |
+| BU0074 | Error | modifier '{0}' has already been applied to this item |
 | BU0075 | Error | cannot use a reference type in this context |
 | BU0076 | Error | cannot divide by zero |
 | BU0077 | Error | a local named '{0}' cannot be declared in this scope because that name is used in an enclosing scope to define a local or parameter |
@@ -103,6 +103,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0090 | Error | an object reference is required for non-static member '{0}' |
 | BU0091 | Error | cannot initialize fields in structure definitions |
 | BU0092 | Error | cannot have multiple 'Main' entry points |
+| BU0093 | Error | attributes are not valid in this context |
 
 ## Command Line Diagnostics
 

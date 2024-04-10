@@ -37,7 +37,7 @@ internal sealed class Expander : BoundTreeExpander {
     }
 
     protected override List<BoundStatement> ExpandVariableDeclarationStatement(
-        BoundVariableDeclarationStatement statement) {
+        BoundLocalDeclarationStatement statement) {
         _localNames.Add(statement.variable.name);
         return base.ExpandVariableDeclarationStatement(statement);
     }
@@ -73,7 +73,7 @@ internal sealed class Expander : BoundTreeExpander {
             var statements = base.ExpandCallExpression(expression, out var callReplacement);
             var tempLocal = GenerateTempLocal(expression.type);
 
-            statements.Add(new BoundVariableDeclarationStatement(tempLocal, callReplacement));
+            statements.Add(new BoundLocalDeclarationStatement(tempLocal, callReplacement));
             replacement = new BoundVariableExpression(tempLocal);
 
             return statements;
@@ -94,7 +94,7 @@ internal sealed class Expander : BoundTreeExpander {
             var tempLocal = GenerateTempLocal(expression.type);
 
             statements.Add(
-                new BoundVariableDeclarationStatement(
+                new BoundLocalDeclarationStatement(
                     tempLocal,
                     new BoundBinaryExpression(leftReplacement, expression.op, rightReplacement)
                 )
@@ -122,7 +122,7 @@ internal sealed class Expander : BoundTreeExpander {
             var tempLocal = GenerateTempLocal(expression.type);
 
             statements.Add(
-                new BoundVariableDeclarationStatement(
+                new BoundLocalDeclarationStatement(
                     tempLocal,
                     new BoundTernaryExpression(leftReplacement, expression.op, centerReplacement, rightReplacement)
                 )

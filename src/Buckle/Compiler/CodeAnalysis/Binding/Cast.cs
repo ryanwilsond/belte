@@ -102,8 +102,8 @@ internal sealed class Cast {
         var cast = InternalClassify();
 
         if (cast != None && includeNullability) {
-            // [NotNull]var -> var : implicit
-            // var -> [NotNull]var : explicit
+            // var! -> var : implicit
+            // var -> var! : explicit
             if (!fromType.isLiteral && !fromType.isNullable && toType.isNullable && cast != Explicit)
                 cast = Implicit;
 

@@ -298,8 +298,8 @@ internal sealed class CSharpEmitter {
             case BoundNodeKind.ExpressionStatement:
                 EmitExpressionStatement(indentedTextWriter, (BoundExpressionStatement)statement);
                 break;
-            case BoundNodeKind.VariableDeclarationStatement:
-                EmitVariableDeclarationStatement(indentedTextWriter, (BoundVariableDeclarationStatement)statement);
+            case BoundNodeKind.LocalDeclarationStatement:
+                EmitVariableDeclarationStatement(indentedTextWriter, (BoundLocalDeclarationStatement)statement);
                 break;
             case BoundNodeKind.GotoStatement:
                 EmitGotoStatement(indentedTextWriter, (BoundGotoStatement)statement);
@@ -351,7 +351,7 @@ internal sealed class CSharpEmitter {
     }
 
     private void EmitVariableDeclarationStatement(
-        IndentedTextWriter indentedTextWriter, BoundVariableDeclarationStatement statement) {
+        IndentedTextWriter indentedTextWriter, BoundLocalDeclarationStatement statement) {
         indentedTextWriter.Write(GetEquivalentType(statement.variable.type, true));
         indentedTextWriter.Write($" {GetSafeName(statement.variable.name)}");
 

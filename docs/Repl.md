@@ -82,22 +82,22 @@ int myInt
 ```belte
 » struct MyStruct {
 ·     int field1;
-·     [NotNull]string field2;
+·     string! field2;
 · }
 » #dump MyStruct
 struct MyStruct {
     int field1
-    [NotNull]string field2
+    string! field2
 }
 ```
 
 ```belte
-» [NotNull]int AddAndTruncate([NotNull]decimal a, [NotNull]decimal b) {
-·     return ([NotNull]int)(a + b);
+» int! AddAndTruncate(decimal! a, decimal! b) {
+·     return (int!)(a + b);
 · }
 » #dump AddAndTruncate
-[NotNull]int AddAndTruncate([NotNull]decimal a, [NotNull]decimal b) {
-    return ([NotNull]int)([NotNull]decimal a + [NotNull]decimal b)
+int! AddAndTruncate(decimal! a, decimal! b) {
+    return (int!)(decimal! a + decimal! b)
 }
 ```
 
@@ -169,21 +169,24 @@ For example:
 » int myInt = 3;
 » #ls
 int myInt
-[NotNull]bool HasValue(any value)
-[NotNull]bool HasValue(bool value)
-[NotNull]bool HasValue(decimal value)
-[NotNull]bool HasValue(int value)
-[NotNull]bool HasValue(string value)
-[NotNull]string Input()
-[NotNull]void Print(any text)
-[NotNull]void PrintLine(any text)
-[NotNull]void PrintLine()
-[NotNull]int RandInt(int max)
-[NotNull]any Value(any value)
-[NotNull]bool Value(bool value)
-[NotNull]decimal Value(decimal value)
-[NotNull]int Value(int value)
-[NotNull]string Value(string value)
+int! Ascii(string! char)
+string! Char(int! ascii)
+bool! HasValue(any value)
+bool! HasValue(bool value)
+bool! HasValue(decimal value)
+bool! HasValue(int value)
+bool! HasValue(string value)
+string! Hex(int! value, bool! prefix)
+string! Input()
+void Print(any text)
+void PrintLine(any text)
+void PrintLine()
+int! RandInt(int max)
+any! Value(any value)
+bool! Value(bool value)
+decimal! Value(decimal value)
+int! Value(int value)
+string! Value(string value)
 ```
 
 ### Reset Command

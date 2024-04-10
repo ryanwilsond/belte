@@ -577,8 +577,8 @@ internal sealed partial class ILEmitter {
             case BoundNodeKind.ConditionalGotoStatement:
                 EmitConditionalGotoStatement(iLProcessor, (BoundConditionalGotoStatement)statement);
                 break;
-            case BoundNodeKind.VariableDeclarationStatement:
-                EmitVariableDeclarationStatement(iLProcessor, (BoundVariableDeclarationStatement)statement);
+            case BoundNodeKind.LocalDeclarationStatement:
+                EmitVariableDeclarationStatement(iLProcessor, (BoundLocalDeclarationStatement)statement);
                 break;
             case BoundNodeKind.ReturnStatement:
                 EmitReturnStatement(iLProcessor, (BoundReturnStatement)statement);
@@ -648,7 +648,7 @@ internal sealed partial class ILEmitter {
         iLProcessor.Emit(opcode, Instruction.Create(OpCodes.Nop));
     }
 
-    private void EmitVariableDeclarationStatement(ILProcessor iLProcessor, BoundVariableDeclarationStatement statement) {
+    private void EmitVariableDeclarationStatement(ILProcessor iLProcessor, BoundLocalDeclarationStatement statement) {
         /*
 
         <type> <variable> <initializer>

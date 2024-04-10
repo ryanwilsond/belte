@@ -18,7 +18,7 @@ internal abstract class BoundTreeRewriter {
         return statement.kind switch {
             BoundNodeKind.NopStatement => RewriteNopStatement((BoundNopStatement)statement),
             BoundNodeKind.BlockStatement => RewriteBlockStatement((BoundBlockStatement)statement),
-            BoundNodeKind.VariableDeclarationStatement => RewriteVariableDeclarationStatement((BoundVariableDeclarationStatement)statement),
+            BoundNodeKind.LocalDeclarationStatement => RewriteVariableDeclarationStatement((BoundLocalDeclarationStatement)statement),
             BoundNodeKind.IfStatement => RewriteIfStatement((BoundIfStatement)statement),
             BoundNodeKind.WhileStatement => RewriteWhileStatement((BoundWhileStatement)statement),
             BoundNodeKind.ForStatement => RewriteForStatement((BoundForStatement)statement),
@@ -143,13 +143,13 @@ internal abstract class BoundTreeRewriter {
         return new BoundIfStatement(condition, then, elseStatement);
     }
 
-    protected virtual BoundStatement RewriteVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
+    protected virtual BoundStatement RewriteVariableDeclarationStatement(BoundLocalDeclarationStatement statement) {
         var initializer = RewriteExpression(statement.initializer);
 
         if (initializer == statement.initializer)
             return statement;
 
-        return new BoundVariableDeclarationStatement(statement.variable, initializer);
+        return new BoundLocalDeclarationStatement(statement.variable, initializer);
     }
 
     protected virtual BoundStatement RewriteBlockStatement(BoundBlockStatement statement) {

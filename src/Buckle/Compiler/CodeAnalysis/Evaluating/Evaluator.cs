@@ -343,8 +343,8 @@ internal sealed class Evaluator {
                         EvaluateExpressionStatement((BoundExpressionStatement)s, abort);
                         index++;
                         break;
-                    case BoundNodeKind.VariableDeclarationStatement:
-                        EvaluateVariableDeclarationStatement((BoundVariableDeclarationStatement)s, abort);
+                    case BoundNodeKind.LocalDeclarationStatement:
+                        EvaluateVariableDeclarationStatement((BoundLocalDeclarationStatement)s, abort);
                         index++;
                         break;
                     case BoundNodeKind.GotoStatement:
@@ -439,7 +439,7 @@ internal sealed class Evaluator {
     }
 
     private void EvaluateVariableDeclarationStatement(
-        BoundVariableDeclarationStatement statement,
+        BoundLocalDeclarationStatement statement,
         ValueWrapper<bool> abort) {
         var value = EvaluateExpression(statement.initializer, abort);
         _lastValue = null;
