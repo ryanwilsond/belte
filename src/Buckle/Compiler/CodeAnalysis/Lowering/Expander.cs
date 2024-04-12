@@ -36,10 +36,10 @@ internal sealed class Expander : BoundTreeExpander {
         return statements;
     }
 
-    protected override List<BoundStatement> ExpandVariableDeclarationStatement(
+    protected override List<BoundStatement> ExpandLocalDeclarationStatement(
         BoundLocalDeclarationStatement statement) {
-        _localNames.Add(statement.variable.name);
-        return base.ExpandVariableDeclarationStatement(statement);
+        _localNames.Add(statement.declaration.variable.name);
+        return base.ExpandLocalDeclarationStatement(statement);
     }
 
     protected override List<BoundStatement> ExpandCompoundAssignmentExpression(
@@ -73,7 +73,10 @@ internal sealed class Expander : BoundTreeExpander {
             var statements = base.ExpandCallExpression(expression, out var callReplacement);
             var tempLocal = GenerateTempLocal(expression.type);
 
-            statements.Add(new BoundLocalDeclarationStatement(tempLocal, callReplacement));
+            statements.Add(new BoundLocalDeclarationStatement(
+                new BoundVariableDeclaration(tempLocal, callReplacement)
+            ));
+
             replacement = new BoundVariableExpression(tempLocal);
 
             return statements;
@@ -94,10 +97,10 @@ internal sealed class Expander : BoundTreeExpander {
             var tempLocal = GenerateTempLocal(expression.type);
 
             statements.Add(
-                new BoundLocalDeclarationStatement(
+                new BoundLocalDeclarationStatement(new BoundVariableDeclaration(
                     tempLocal,
                     new BoundBinaryExpression(leftReplacement, expression.op, rightReplacement)
-                )
+                ))
             );
 
             replacement = new BoundVariableExpression(tempLocal);
@@ -122,10 +125,10 @@ internal sealed class Expander : BoundTreeExpander {
             var tempLocal = GenerateTempLocal(expression.type);
 
             statements.Add(
-                new BoundLocalDeclarationStatement(
+                new BoundLocalDeclarationStatement(new BoundVariableDeclaration(
                     tempLocal,
                     new BoundTernaryExpression(leftReplacement, expression.op, centerReplacement, rightReplacement)
-                )
+                ))
             );
 
             replacement = new BoundVariableExpression(tempLocal);

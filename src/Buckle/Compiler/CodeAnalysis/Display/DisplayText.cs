@@ -442,9 +442,9 @@ public sealed class DisplayText {
     }
 
     private static void DisplayMemberAccessExpression(DisplayText text, BoundMemberAccessExpression node) {
-        DisplayNode(text, node.operand);
+        DisplayNode(text, node.left);
         text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
-        text.Write(CreateIdentifier(node.member.name));
+        DisplayNode(text, node.right);
     }
 
     private static void DisplayObjectCreationExpression(DisplayText text, BoundObjectCreationExpression node) {
@@ -489,7 +489,7 @@ public sealed class DisplayText {
     private static void DisplayReferenceExpression(DisplayText text, BoundReferenceExpression node) {
         text.Write(CreateKeyword(SyntaxKind.RefKeyword));
         text.Write(CreateSpace());
-        text.Write(CreateIdentifier(node.variable.name));
+        DisplayNode(node.expression);
     }
 
     private static void DisplayCastExpression(DisplayText text, BoundCastExpression node) {

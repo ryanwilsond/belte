@@ -18,7 +18,7 @@ internal abstract class BoundTreeRewriter {
         return statement.kind switch {
             BoundNodeKind.NopStatement => RewriteNopStatement((BoundNopStatement)statement),
             BoundNodeKind.BlockStatement => RewriteBlockStatement((BoundBlockStatement)statement),
-            BoundNodeKind.LocalDeclarationStatement => RewriteVariableDeclarationStatement((BoundLocalDeclarationStatement)statement),
+            BoundNodeKind.LocalDeclarationStatement => RewriteLocalDeclarationStatement((BoundLocalDeclarationStatement)statement),
             BoundNodeKind.IfStatement => RewriteIfStatement((BoundIfStatement)statement),
             BoundNodeKind.WhileStatement => RewriteWhileStatement((BoundWhileStatement)statement),
             BoundNodeKind.ForStatement => RewriteForStatement((BoundForStatement)statement),
@@ -143,13 +143,15 @@ internal abstract class BoundTreeRewriter {
         return new BoundIfStatement(condition, then, elseStatement);
     }
 
-    protected virtual BoundStatement RewriteVariableDeclarationStatement(BoundLocalDeclarationStatement statement) {
-        var initializer = RewriteExpression(statement.initializer);
+    protected virtual BoundStatement RewriteLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
+        var initializer = RewriteExpression(statement.declaration.initializer);
 
-        if (initializer == statement.initializer)
+        if (initializer == statement.declaration.initializer)
             return statement;
 
-        return new BoundLocalDeclarationStatement(statement.variable, initializer);
+        return new BoundLocalDeclarationStatement(
+            new BoundVariableDeclaration(statement.declaration.variable, initializer)
+        );
     }
 
     protected virtual BoundStatement RewriteBlockStatement(BoundBlockStatement statement) {
@@ -257,15 +259,15 @@ internal abstract class BoundTreeRewriter {
     }
 
     protected virtual BoundExpression RewriteMemberAccessExpression(BoundMemberAccessExpression expression) {
-        var operand = RewriteExpression(expression.operand);
+        var left = RewriteExpression(expression.left);
+        var right = RewriteExpression(expression.right);
 
-        if (operand == expression.operand)
+        if (left == expression.left && right == expression.right)
             return expression;
 
         return new BoundMemberAccessExpression(
-            operand,
-            expression.member,
-            expression.type,
+            left,
+            right,
             expression.isNullConditional,
             expression.isStaticAccess
         );

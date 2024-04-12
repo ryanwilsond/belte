@@ -6,27 +6,25 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundMemberAccessExpression : BoundExpression {
     internal BoundMemberAccessExpression(
-        BoundExpression expression,
-        BoundExpression member,
-        BoundType type,
+        BoundExpression left,
+        BoundExpression right,
         bool isNullConditional,
         bool isStaticAccess) {
-        this.expression = expression;
-        this.member = member;
+        this.left = left;
+        this.right = right;
         this.isNullConditional = isNullConditional;
-        this.type = type;
         this.isStaticAccess = isStaticAccess;
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.MemberAccessExpression;
 
-    internal override BoundType type { get; }
+    internal override BoundType type => right.type;
 
-    internal override BoundConstant constantValue => member.constantValue;
+    internal override BoundConstant constantValue => right.constantValue;
 
-    internal BoundExpression expression { get; }
+    internal BoundExpression left { get; }
 
-    internal BoundExpression member { get; }
+    internal BoundExpression right { get; }
 
     internal bool isNullConditional { get; }
 

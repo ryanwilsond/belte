@@ -122,7 +122,7 @@ public sealed partial class BelteRepl : Repl {
 
         var offset = 0;
 
-        for (var i = 0; i < texts.Count(); i++) {
+        for (var i = 0; i < texts.Count; i++) {
             var line = texts[i].text;
 
             if (fullText.Substring(offset, line.Length) == line) {
@@ -141,7 +141,7 @@ public sealed partial class BelteRepl : Repl {
             }
         }
 
-        if (texts.Count() == 0)
+        if (texts.Count == 0)
             texts.Add((fullText, state.colorTheme.errorText));
 
         var pureTexts = texts.Select(t => t.text).ToList();
@@ -551,7 +551,7 @@ public sealed partial class BelteRepl : Repl {
         ISymbol symbol = null;
         var displayText = new DisplayText();
 
-        if (symbols.Count() == 0 && signature.StartsWith('<')) {
+        if (symbols.Length == 0 && signature.StartsWith('<')) {
             // This will find hidden method symbols not normally exposed to the user
             // Generated methods should never have overloads, so only the name is checked
             // (as apposed to the entire signature)

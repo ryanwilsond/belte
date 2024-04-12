@@ -617,7 +617,45 @@ public static class Program {
         @"
         "
     )]
+    [InlineData(
+        /* Belte Code */
+        @"
+class A {
+    void Test() { }
+}
 
+var myA = new A();
+myA.Test();
+        ",
+        /* C# Code */
+        @"
+using System;
+using System.Collections.Generic;
+
+namespace EmitterTests;
+
+public static class Program {
+
+    public class A {
+
+        public void Test() {
+            return;
+        }
+
+    }
+
+    public static void Main() {
+        A myA = new A();
+        myA.Test();
+        return;
+    }
+
+}
+        ",
+        /* IL Code */
+        @"
+        "
+    )]
 #pragma warning disable xUnit1026
     public void Emitter_Emits_CorrectText(string text, string expectedCSharpText, string expectedILText) {
         AssertText(text, expectedCSharpText.Trim() + Environment.NewLine, BuildMode.CSharpTranspile);

@@ -512,11 +512,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.isNullConditional) {
             return RewriteExpression(
                 NullConditional(
-                    @if: HasValue(expression.operand),
+                    @if: HasValue(expression.left),
                     @then: MemberAccess(
-                        expression.operand,
-                        expression.member,
-                        expression.type,
+                        expression.left,
+                        expression.right,
                         expression.isStaticAccess
                     ),
                     @else: Literal(null, expression.type)

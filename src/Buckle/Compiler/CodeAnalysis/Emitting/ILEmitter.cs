@@ -447,8 +447,9 @@ internal sealed partial class ILEmitter {
     }
 
     private FieldReference GetFieldReference(BoundMemberAccessExpression expression) {
+        var member = (expression.right as BoundVariableExpression).variable;
         return new FieldReference(
-            GetSafeName(expression.member.name), GetType(expression.type), GetType(expression.type)
+            GetSafeName(member.name), GetType(expression.type), GetType(expression.type)
         );
     }
 
@@ -578,7 +579,7 @@ internal sealed partial class ILEmitter {
                 EmitConditionalGotoStatement(iLProcessor, (BoundConditionalGotoStatement)statement);
                 break;
             case BoundNodeKind.LocalDeclarationStatement:
-                EmitVariableDeclarationStatement(iLProcessor, (BoundLocalDeclarationStatement)statement);
+                EmitLocalDeclarationStatement(iLProcessor, (BoundLocalDeclarationStatement)statement);
                 break;
             case BoundNodeKind.ReturnStatement:
                 EmitReturnStatement(iLProcessor, (BoundReturnStatement)statement);
@@ -648,7 +649,7 @@ internal sealed partial class ILEmitter {
         iLProcessor.Emit(opcode, Instruction.Create(OpCodes.Nop));
     }
 
-    private void EmitVariableDeclarationStatement(ILProcessor iLProcessor, BoundLocalDeclarationStatement statement) {
+    private void EmitLocalDeclarationStatement(ILProcessor iLProcessor, BoundLocalDeclarationStatement statement) {
         /*
 
         <type> <variable> <initializer>
@@ -675,29 +676,30 @@ internal sealed partial class ILEmitter {
         stloc.s #
 
         */
-        var typeReference = GetType(statement.variable.type);
+        var variableType = statement.declaration.variable.type;
+        var typeReference = GetType(variableType);
         var variableDefinition = new VariableDefinition(typeReference);
-        _locals.Add(statement.variable, variableDefinition);
+        _locals.Add(statement.declaration.variable, variableDefinition);
         iLProcessor.Body.Variables.Add(variableDefinition);
 
         var preset = true;
 
-        if (statement.variable.type.isNullable &&
-            statement.variable.type.typeSymbol is not StructSymbol &&
-            statement.variable.type.dimensions < 1) {
+        if (variableType.isNullable &&
+            variableType.typeSymbol is not StructSymbol &&
+            variableType.dimensions < 1) {
             iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
         } else {
             preset = false;
         }
 
-        EmitExpression(iLProcessor, statement.initializer);
+        EmitExpression(iLProcessor, statement.declaration.initializer);
 
-        if (statement.variable.type.typeSymbol is StructSymbol) {
+        if (variableType.typeSymbol is StructSymbol) {
             iLProcessor.Emit(OpCodes.Stloc_S, variableDefinition);
-        } else if (statement.variable.type.isNullable &&
-            !BoundConstant.IsNull(statement.initializer.constantValue) &&
-            statement.variable.type.dimensions < 1) {
-            iLProcessor.Emit(OpCodes.Call, GetNullableCtor(statement.initializer.type));
+        } else if (variableType.isNullable &&
+            !BoundConstant.IsNull(statement.declaration.initializer.constantValue) &&
+            variableType.dimensions < 1) {
+            iLProcessor.Emit(OpCodes.Call, GetNullableCtor(statement.declaration.initializer.type));
         } else if (!preset) {
             iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
         }

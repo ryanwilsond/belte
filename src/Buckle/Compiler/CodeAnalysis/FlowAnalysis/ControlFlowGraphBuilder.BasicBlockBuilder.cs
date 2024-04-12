@@ -43,7 +43,7 @@ internal sealed partial class ControlFlowGraphBuilder {
         }
 
         private void EndBlock() {
-            if (_statements.Any()) {
+            if (_statements.Count > 0) {
                 var block = new BasicBlock();
                 block.statements.AddRange(_statements);
                 _blocks.Add(block);

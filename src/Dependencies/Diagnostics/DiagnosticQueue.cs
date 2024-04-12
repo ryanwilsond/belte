@@ -37,7 +37,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// <returns>
     /// True if there are at least 1 <see cref="Diagnostic" /> in the <see cref="DiagnosticQueue<T>" />.
     /// </returns>
-    public bool Any() => _diagnostics.Any();
+    public bool Any() => _diagnostics.Count != 0;
 
     /// <summary>
     /// Gets an enumerator for the <see cref="DiagnosticQueue<T>" /> collection (sidestepping the queue structure).

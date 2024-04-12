@@ -344,7 +344,7 @@ internal sealed class Evaluator {
                         index++;
                         break;
                     case BoundNodeKind.LocalDeclarationStatement:
-                        EvaluateVariableDeclarationStatement((BoundLocalDeclarationStatement)s, abort);
+                        EvaluateLocalDeclarationStatement((BoundLocalDeclarationStatement)s, abort);
                         index++;
                         break;
                     case BoundNodeKind.GotoStatement:
@@ -438,12 +438,12 @@ internal sealed class Evaluator {
         }
     }
 
-    private void EvaluateVariableDeclarationStatement(
+    private void EvaluateLocalDeclarationStatement(
         BoundLocalDeclarationStatement statement,
         ValueWrapper<bool> abort) {
-        var value = EvaluateExpression(statement.initializer, abort);
+        var value = EvaluateExpression(statement.declaration.initializer, abort);
         _lastValue = null;
-        Create(statement.variable, value);
+        Create(statement.declaration.variable, value);
     }
 
     private EvaluatorObject EvaluateExpression(BoundExpression node, ValueWrapper<bool> abort) {
@@ -494,7 +494,7 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateMemberAccessExpression(BoundMemberAccessExpression node, ValueWrapper<bool> abort) {
-        var operand = EvaluateExpression(node.operand, abort);
+        var operand = EvaluateExpression(node.left, abort);
 
         if (operand.isReference) {
             do {
@@ -502,13 +502,19 @@ internal sealed class Evaluator {
             } while (operand.isReference == true);
         }
 
-        var enterScope = node.member is MethodSymbol;
+        var enterScope = node.type == BoundType.MethodGroup;
 
         EnterClassScope(operand, enterScope);
-        var result = operand.members[node.member];
 
-        if (node.member is FieldSymbol)
-            ExitClassScope();
+        if (enterScope)
+            return null;
+
+        if (node.right is BoundType)
+            return operand.members[node.right.type.typeSymbol];
+
+        var member = (node.right as BoundVariableExpression).variable;
+        var result = operand.members[member];
+        ExitClassScope();
 
         return result;
     }
@@ -558,13 +564,14 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node, ValueWrapper<bool> _1) {
         Dictionary<IVariableSymbol, IEvaluatorObject> referenceScope;
+        var variable = (node.expression as BoundVariableExpression).variable;
 
-        if (node.variable.kind == SymbolKind.GlobalVariable)
+        if (variable.kind == SymbolKind.GlobalVariable)
             referenceScope = _globals;
         else
             referenceScope = _locals.Peek();
 
-        return new EvaluatorObject(node.variable, isExplicitReference: true, referenceScope: referenceScope);
+        return new EvaluatorObject(variable, isExplicitReference: true, referenceScope: referenceScope);
     }
 
     private EvaluatorObject EvaluateIndexExpression(BoundIndexExpression node, ValueWrapper<bool> abort) {

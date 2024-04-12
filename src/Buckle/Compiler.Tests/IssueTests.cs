@@ -776,4 +776,22 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Evaluator_MemberAccessExpression_NestedCalls() {
+        var text = @"
+            class A {
+                void Test() { }
+            }
+            class B {
+                A First() { return new A(); }
+            }
+            var myB = new B();
+            myB.First().Test();
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

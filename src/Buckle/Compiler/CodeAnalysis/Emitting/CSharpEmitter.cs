@@ -299,7 +299,7 @@ internal sealed class CSharpEmitter {
                 EmitExpressionStatement(indentedTextWriter, (BoundExpressionStatement)statement);
                 break;
             case BoundNodeKind.LocalDeclarationStatement:
-                EmitVariableDeclarationStatement(indentedTextWriter, (BoundLocalDeclarationStatement)statement);
+                EmitLocalDeclarationStatement(indentedTextWriter, (BoundLocalDeclarationStatement)statement);
                 break;
             case BoundNodeKind.GotoStatement:
                 EmitGotoStatement(indentedTextWriter, (BoundGotoStatement)statement);
@@ -350,14 +350,17 @@ internal sealed class CSharpEmitter {
         }
     }
 
-    private void EmitVariableDeclarationStatement(
+    private void EmitLocalDeclarationStatement(
         IndentedTextWriter indentedTextWriter, BoundLocalDeclarationStatement statement) {
-        indentedTextWriter.Write(GetEquivalentType(statement.variable.type, true));
-        indentedTextWriter.Write($" {GetSafeName(statement.variable.name)}");
+        var variable = statement.declaration.variable;
+        var initializer = statement.declaration.initializer;
 
-        if (statement.initializer != null) {
+        indentedTextWriter.Write(GetEquivalentType(variable.type, true));
+        indentedTextWriter.Write($" {GetSafeName(variable.name)}");
+
+        if (initializer != null) {
             indentedTextWriter.Write(" = ");
-            EmitExpression(indentedTextWriter, statement.initializer);
+            EmitExpression(indentedTextWriter, initializer);
         }
 
         indentedTextWriter.WriteLine(";");
@@ -793,7 +796,8 @@ internal sealed class CSharpEmitter {
     }
 
     private void EmitReferenceExpression(IndentedTextWriter indentedTextWriter, BoundReferenceExpression expression) {
-        indentedTextWriter.Write($"ref {GetSafeName(expression.variable.name)}");
+        var variable = (expression.expression as BoundVariableExpression).variable;
+        indentedTextWriter.Write($"ref {GetSafeName(variable.name)}");
     }
 
     private void EmitObjectCreationExpression(
@@ -804,8 +808,11 @@ internal sealed class CSharpEmitter {
 
     private void EmitMemberAccessExpression(
         IndentedTextWriter indentedTextWriter, BoundMemberAccessExpression expression) {
-        EmitExpression(indentedTextWriter, expression.operand);
-        indentedTextWriter.Write($".{GetSafeName(expression.member.name)}");
+        EmitExpression(indentedTextWriter, expression.left);
+        if (expression.right is BoundVariableExpression v)
+            indentedTextWriter.Write($".{GetSafeName(v.variable.name)}");
+        else if (expression.right is BoundType t)
+            indentedTextWriter.Write($".{GetEquivalentType(t)}");
     }
 
     private void EmitThisExpression(IndentedTextWriter indentedTextWriter, BoundThisExpression _) {
