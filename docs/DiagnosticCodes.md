@@ -42,7 +42,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0029 | Error | method '{0}' expects {1} arguments, got {2} |
 | BU0031 | Error | class '{0}' has already been declared in this scope |
 | BU0031 | Error | attribute '{0}' has already been applied |
-| BU0032 | Error | called object '{0}' is not a method |
+| BU0032 | Error | called object is not a method |
 | BU0033 | Error | only assignment and call expressions can be used as a statement |
 | BU0034 | Error | unknown type '{0}' |
 | BU0035 | Error | {0} statements can only be used within a loop |
@@ -54,7 +54,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0041 | Error | unterminated multi-line comment |
 | BU0042 | Error | cannot initialize an implicitly-typed variable with 'null' |
 | BU0043 | Error | cannot initialize an implicitly-typed variable with an empty initializer list |
-| BU0044 | Error | collection dimensions on implicitly-typed variables are inferred making them not necessary in this context |
+| BU0044 | Error | collection dimensions on implicit types are inferred making them not necessary in this context |
 | BU0045 | Error | cannot use implicit-typing in this context |
 | BU0046 | Error | try statement must have a catch or finally |
 | BU0047 | Error | expected method name |
@@ -63,7 +63,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0051 | Error | cannot initialize a by-value variable with a reference |
 | BU0051 | Error | unknown attribute '{0}' |
 | BU0052 | Error | cannot assign 'null' to a non-nullable variable |
-| BU0053 | Error | implicitly-typed variables infer reference types making the 'ref' keyword not necessary in this context |
+| BU0053 | Error | implicit types infer reference types making the 'ref' keyword not necessary in this context |
 | BU0054 | Error | cannot assign a reference to a constant to a by-reference variable expecting a reference to a variable |
 | BU0055 | Error | cannot use void as a type |
 | BU0056 | Error | expected {0} |
@@ -104,6 +104,9 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0091 | Error | cannot initialize fields in structure definitions |
 | BU0092 | Error | cannot have multiple 'Main' entry points |
 | BU0093 | Error | attributes are not valid in this context |
+| BU0094 | Error | item '{0}' does not expect any template arguments |
+| BU0095 | Error | template argument must be a compile-time constant |
+| BU0096 | Error | cannot reference non-field or non-variable item |
 
 ## Command Line Diagnostics
 

@@ -1242,4 +1242,46 @@ public sealed class DiagnosticTests {
     // public void Reports_Error_BU0093_InvalidAttributes() {
 
     // }
+
+    [Fact]
+    public void Reports_Error_BU0094_TemplateNotExpected() {
+        var text = @"
+            class A {}
+            var a = new A[<3>]();
+        ";
+
+        var diagnostics = @"
+            item 'A' does not expect any template arguments
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0095_TemplateMustBeConstant() {
+        var text = @"
+            class A<int a> {}
+            var b = 3;
+            var a = new A<[b]>();
+        ";
+
+        var diagnostics = @"
+            template argument must be a compile-time constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0096_CannotReferenceNonField() {
+        var text = @"
+            var a = ref [3];
+        ";
+
+        var diagnostics = @"
+            cannot reference non-field or non-variable item
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

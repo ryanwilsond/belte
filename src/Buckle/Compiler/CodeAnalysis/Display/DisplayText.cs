@@ -95,6 +95,9 @@ public sealed class DisplayText {
         }
 
         switch (node.kind) {
+            case BoundNodeKind.VariableDeclaration:
+                DisplayVariableDeclaration(text, (BoundVariableDeclaration)node);
+                break;
             case BoundNodeKind.Type:
                 DisplayType(text, (BoundType)node);
                 break;
@@ -108,7 +111,7 @@ public sealed class DisplayText {
                 DisplayExpressionStatement(text, (BoundExpressionStatement)node);
                 break;
             case BoundNodeKind.LocalDeclarationStatement:
-                DisplayVariableDeclarationStatement(text, (BoundLocalDeclarationStatement)node);
+                DisplayLocalDeclarationStatement(text, (BoundLocalDeclarationStatement)node);
                 break;
             case BoundNodeKind.IfStatement:
                 DisplayIfStatement(text, (BoundIfStatement)node);
@@ -198,13 +201,7 @@ public sealed class DisplayText {
     }
 
     private static void DisplayType(DisplayText text, BoundType type) {
-        if (!type.isNullable && !type.isLiteral) {
-            text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
-            text.Write(CreateIdentifier("NotNull"));
-            text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
-        }
-
-        if (type.isConstantReference) {
+        if (type.isConstant) {
             text.Write(CreateKeyword(SyntaxKind.ConstKeyword));
             text.Write(CreateSpace());
         }
@@ -214,7 +211,7 @@ public sealed class DisplayText {
             text.Write(CreateSpace());
         }
 
-        if (type.isConstant) {
+        if (type.isConstantReference) {
             text.Write(CreateKeyword(SyntaxKind.ConstKeyword));
             text.Write(CreateSpace());
         }
@@ -246,6 +243,9 @@ public sealed class DisplayText {
             brackets += "[]";
 
         text.Write(CreatePunctuation(brackets));
+
+        if (!type.isNullable && !type.isLiteral && type.typeSymbol != TypeSymbol.Void)
+            text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
     }
 
     private static void DisplayNopStatement(DisplayText text, BoundNopStatement _) {
@@ -418,7 +418,11 @@ public sealed class DisplayText {
         text.Write(CreateLine());
     }
 
-    private static void DisplayVariableDeclarationStatement(DisplayText text, BoundLocalDeclarationStatement node) {
+    private static void DisplayLocalDeclarationStatement(DisplayText text, BoundLocalDeclarationStatement node) {
+        DisplayNode(text, node.declaration);
+    }
+
+    private static void DisplayVariableDeclaration(DisplayText text, BoundVariableDeclaration node) {
         DisplayNode(text, node.variable.type);
         text.Write(CreateSpace());
         text.Write(CreateIdentifier(node.variable.name));
@@ -476,7 +480,7 @@ public sealed class DisplayText {
     }
 
     private static void DisplayIndexExpression(DisplayText text, BoundIndexExpression node) {
-        DisplayNode(text, node.operand);
+        DisplayNode(text, node.expression);
         text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
         DisplayNode(text, node.index);
         text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));

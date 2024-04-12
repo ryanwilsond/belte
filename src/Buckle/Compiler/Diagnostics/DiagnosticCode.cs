@@ -102,6 +102,9 @@ public enum DiagnosticCode : int {
     ERR_CannotInitializeInStructs = 91,
     ERR_MultipleMains = 92,
     ERR_InvalidAttributes = 93,
+    ERR_TemplateNotExpected = 94,
+    ERR_TemplateMustBeConstant = 95,
+    ERR_CannotReferenceNonField = 96,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

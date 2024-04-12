@@ -709,7 +709,7 @@ internal sealed class CSharpEmitter {
     }
 
     private void EmitIndexExpression(IndentedTextWriter indentedTextWriter, BoundIndexExpression expression) {
-        EmitExpression(indentedTextWriter, expression.operand);
+        EmitExpression(indentedTextWriter, expression.expression);
         indentedTextWriter.Write("[");
         EmitExpression(indentedTextWriter, expression.index);
         indentedTextWriter.Write("]");

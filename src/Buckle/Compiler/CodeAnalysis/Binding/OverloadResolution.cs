@@ -207,7 +207,7 @@ internal sealed class OverloadResolution {
     /// <param name="argumentList">The original arguments, used for calculations.</param>
     internal OverloadResolutionResult<NamedTypeSymbol> TemplateOverloadResolution(
         ImmutableArray<NamedTypeSymbol> types,
-        ImmutableArray<(string name, BoundExpression expression)> arguments,
+        ImmutableArray<(string name, BoundConstant constant)> arguments,
         string name,
         SyntaxNodeOrToken operand,
         TemplateArgumentListSyntax argumentList) {
@@ -216,7 +216,9 @@ internal sealed class OverloadResolution {
 
         var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
         var preBoundArgumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
-        preBoundArgumentsBuilder.AddRange(arguments);
+
+        foreach (var argument in arguments)
+            preBoundArgumentsBuilder.Add((argument.name, new BoundLiteralExpression(argument.constant.value)));
 
         var tempDiagnostics = new BelteDiagnosticQueue();
         tempDiagnostics.Move(_binder.diagnostics);

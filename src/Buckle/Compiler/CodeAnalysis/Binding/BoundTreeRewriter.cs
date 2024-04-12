@@ -306,7 +306,7 @@ internal abstract class BoundTreeRewriter {
         if (index == expression.index)
             return expression;
 
-        return new BoundIndexExpression(expression.operand, index, expression.isNullConditional);
+        return new BoundIndexExpression(expression.expression, index, expression.isNullConditional);
     }
 
     protected virtual BoundExpression RewriteInitializerListExpression(BoundInitializerListExpression expression) {
@@ -360,7 +360,7 @@ internal abstract class BoundTreeRewriter {
         if (!arguments.HasValue)
             return expression;
 
-        return new BoundCallExpression(expression.operand, expression.method, arguments.Value);
+        return new BoundCallExpression(expression.expression, expression.method, arguments.Value);
     }
 
     protected virtual BoundExpression RewriteErrorExpression(BoundErrorExpression expression) {

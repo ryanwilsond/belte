@@ -47,4 +47,5 @@ internal enum BoundNodeKind {
     Type,
     TypeWrapper,
     VariableDeclaration,
+    MethodGroup,
 }

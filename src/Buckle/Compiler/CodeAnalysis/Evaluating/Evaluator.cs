@@ -568,7 +568,7 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateIndexExpression(BoundIndexExpression node, ValueWrapper<bool> abort) {
-        var variable = EvaluateExpression(node.operand, abort);
+        var variable = EvaluateExpression(node.expression, abort);
         var index = EvaluateExpression(node.index, abort);
 
         return ((EvaluatorObject[])Value(variable))[(int)Value(index)];
@@ -664,7 +664,7 @@ internal sealed class Evaluator {
             var value = (int)Value(EvaluateExpression(node.arguments[0], abort));
             return new EvaluatorObject(((char)value).ToString());
         } else {
-            return InvokeMethod(node.method, node.arguments, abort, node.operand);
+            return InvokeMethod(node.method, node.arguments, abort, node.expression);
         }
 
         // This is reached by void methods, but it isn't used

@@ -326,7 +326,7 @@ internal abstract class BoundTreeExpander {
 
         if (statements.Any()) {
             replacement = new BoundCallExpression(
-                expression.operand,
+                expression.expression,
                 expression.method,
                 replacementArguments.ToImmutable()
             );
@@ -352,7 +352,7 @@ internal abstract class BoundTreeExpander {
 
     protected virtual List<BoundStatement> ExpandIndexExpression(
         BoundIndexExpression expression, out BoundExpression replacement) {
-        var statements = ExpandExpression(expression.operand, out var operandReplacement);
+        var statements = ExpandExpression(expression.expression, out var operandReplacement);
         statements.AddRange(ExpandExpression(expression.index, out var indexReplacement));
 
         if (statements.Any()) {

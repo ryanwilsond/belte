@@ -462,9 +462,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
             : method;
 
         var arguments = builder is null ? expression.arguments : builder.ToImmutable();
-        var operand = (expression.operand is BoundMemberAccessExpression me && me.isStaticAccess)
+        var operand = (expression.expression is BoundMemberAccessExpression me && me.isStaticAccess)
             ? new BoundEmptyExpression()
-            : expression.operand;
+            : expression.expression;
 
         return base.RewriteCallExpression(new BoundCallExpression(operand, newMethod, arguments));
     }
@@ -540,9 +540,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.isNullConditional) {
             return RewriteExpression(
                 NullConditional(
-                    @if: HasValue(expression.operand),
+                    @if: HasValue(expression.expression),
                     @then: Index(
-                        expression.operand,
+                        expression.expression,
                         expression.index
                     ),
                     @else: Literal(null, expression.type)

@@ -484,10 +484,14 @@ internal sealed partial class Parser {
                 offset++;
         }
 
-        if (Peek(offset).kind == SyntaxKind.ConstKeyword)
-            offset++;
+        var hasConstKeyword = false;
 
-        return PeekIsType(offset, out _, out var hasName, out _) && hasName;
+        if (Peek(offset).kind == SyntaxKind.ConstKeyword) {
+            offset++;
+            hasConstKeyword = true;
+        }
+
+        return PeekIsType(offset, out _, out var hasName, out _) && (hasName || hasConstKeyword);
     }
 
     private bool PeekIsType(int offset, out int finalOffset, out bool hasName, out bool isTemplate) {
@@ -495,21 +499,18 @@ internal sealed partial class Parser {
         hasName = false;
         isTemplate = false;
 
-        if (Peek(finalOffset).kind is not SyntaxKind.IdentifierToken and
-                not SyntaxKind.RefKeyword and
-                not SyntaxKind.VarKeyword) {
+        if (Peek(finalOffset).kind is not SyntaxKind.IdentifierToken and not SyntaxKind.RefKeyword)
             return false;
-        }
 
         while (Peek(finalOffset).kind is SyntaxKind.ConstKeyword or SyntaxKind.RefKeyword)
             finalOffset++;
 
-        if (Peek(finalOffset).kind is not SyntaxKind.IdentifierToken and not SyntaxKind.VarKeyword &&
+        if (Peek(finalOffset).kind is not SyntaxKind.IdentifierToken &&
             Peek(finalOffset - 1).kind != SyntaxKind.ConstKeyword) {
             return false;
         }
 
-        if (Peek(finalOffset).kind is SyntaxKind.IdentifierToken or SyntaxKind.VarKeyword)
+        if (Peek(finalOffset).kind is SyntaxKind.IdentifierToken)
             finalOffset++;
 
         while (Peek(finalOffset).kind == SyntaxKind.LessThanToken) {
@@ -881,9 +882,11 @@ internal sealed partial class Parser {
         return SyntaxFactory.GlobalStatement(attributeLists, modifiers, statement);
     }
 
-    private VariableDeclarationSyntax ParseVariableDeclaration(bool allowImplicit = true) {
+    private VariableDeclarationSyntax ParseVariableDeclaration(
+        bool allowImplicit = true,
+        bool hasConstKeyword = false) {
         var inStruct = (_context & ParserContext.InStructDefinition) != 0;
-        var type = ParseType(allowImplicit: allowImplicit, allowRef: !inStruct);
+        var type = ParseType(allowImplicit: allowImplicit, allowRef: !inStruct, hasConstKeyword: hasConstKeyword);
         var identifier = Match(SyntaxKind.IdentifierToken);
         EqualsValueClauseSyntax initializer = null;
 
@@ -944,7 +947,17 @@ internal sealed partial class Parser {
     private StatementSyntax ParseLocalDeclarationStatement() {
         var attributeLists = ParseAttributeLists();
         var modifiers = ParseModifiers();
-        var declaration = ParseVariableDeclaration();
+
+        var hasConstKeyword = false;
+
+        foreach (var modifier in modifiers) {
+            if (modifier.kind == SyntaxKind.ConstKeyword) {
+                hasConstKeyword = true;
+                break;
+            }
+        }
+
+        var declaration = ParseVariableDeclaration(hasConstKeyword: hasConstKeyword);
         var semicolon = Match(SyntaxKind.SemicolonToken);
 
         return SyntaxFactory.LocalDeclarationStatement(attributeLists, modifiers, declaration, semicolon);
@@ -1619,7 +1632,7 @@ internal sealed partial class Parser {
         return SyntaxFactory.IdentifierName(identifier);
     }
 
-    private TypeSyntax ParseType(bool allowImplicit = true, bool allowRef = true) {
+    private TypeSyntax ParseType(bool allowImplicit = true, bool allowRef = true, bool hasConstKeyword = false) {
         if (currentToken.kind == SyntaxKind.RefKeyword) {
             var refKeyword = EatToken();
 
@@ -1629,15 +1642,15 @@ internal sealed partial class Parser {
             return SyntaxFactory.ReferenceType(
                 refKeyword,
                 currentToken.kind == SyntaxKind.ConstKeyword ? EatToken() : null,
-                ParseTypeCore()
+                ParseTypeCore(allowImplicit && hasConstKeyword)
             );
         }
 
-        return ParseTypeCore();
+        return ParseTypeCore(allowImplicit && hasConstKeyword);
     }
 
-    private TypeSyntax ParseTypeCore() {
-        var type = ParseUnderlyingType();
+    private TypeSyntax ParseTypeCore(bool constAsType) {
+        var type = ParseUnderlyingType(constAsType);
         var lastTokenPosition = -1;
 
         while (_tokenOffset > lastTokenPosition) {
@@ -1664,9 +1677,11 @@ done:
         return type;
     }
 
-    private TypeSyntax ParseUnderlyingType() {
+    private TypeSyntax ParseUnderlyingType(bool constAsType) {
         if (currentToken.kind == SyntaxKind.IdentifierToken)
             return ParseQualifiedName();
+        else if (constAsType)
+            return SyntaxFactory.EmptyName();
 
         return AddDiagnostic(
             WithFutureDiagnostics(SyntaxFactory.IdentifierName(SyntaxFactory.Missing(SyntaxKind.IdentifierToken))),

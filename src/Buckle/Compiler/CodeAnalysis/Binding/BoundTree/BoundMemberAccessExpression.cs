@@ -1,4 +1,3 @@
-using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -7,30 +6,27 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundMemberAccessExpression : BoundExpression {
     internal BoundMemberAccessExpression(
-        BoundExpression operand,
-        Symbol member,
+        BoundExpression expression,
+        BoundExpression member,
         BoundType type,
         bool isNullConditional,
         bool isStaticAccess) {
-        this.operand = operand;
+        this.expression = expression;
         this.member = member;
         this.isNullConditional = isNullConditional;
         this.type = type;
         this.isStaticAccess = isStaticAccess;
-
-        if (member is FieldSymbol f && f.isConstant)
-            constantValue = f.constantValue;
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.MemberAccessExpression;
 
     internal override BoundType type { get; }
 
-    internal override BoundConstant constantValue { get; }
+    internal override BoundConstant constantValue => member.constantValue;
 
-    internal BoundExpression operand { get; }
+    internal BoundExpression expression { get; }
 
-    internal Symbol member { get; }
+    internal BoundExpression member { get; }
 
     internal bool isNullConditional { get; }
 

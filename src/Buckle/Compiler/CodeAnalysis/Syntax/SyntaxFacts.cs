@@ -134,13 +134,12 @@ internal static class SyntaxFacts {
     /// Attempts to get a <see cref="SyntaxKind" /> from a text representation of a keyword.
     /// </summary>
     /// <param name="text">Text representation.</param>
-    /// <returns>Keyword kind, defaults to identifer if failed.</returns>
+    /// <returns>Keyword kind, defaults to identifier if failed.</returns>
     internal static SyntaxKind GetKeywordType(string text) {
         return text switch {
             "true" => SyntaxKind.TrueKeyword,
             "false" => SyntaxKind.FalseKeyword,
             "null" => SyntaxKind.NullKeyword,
-            "var" => SyntaxKind.VarKeyword,
             "const" => SyntaxKind.ConstKeyword,
             "ref" => SyntaxKind.RefKeyword,
             "if" => SyntaxKind.IfKeyword,
@@ -228,7 +227,6 @@ internal static class SyntaxFacts {
             SyntaxKind.TrueKeyword => "true",
             SyntaxKind.FalseKeyword => "false",
             SyntaxKind.NullKeyword => "null",
-            SyntaxKind.VarKeyword => "var",
             SyntaxKind.ConstKeyword => "const",
             SyntaxKind.RefKeyword => "ref",
             SyntaxKind.IfKeyword => "if",

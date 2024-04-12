@@ -97,6 +97,9 @@
       <Kind Name="IdentifierToken"/>
     </Field>
   </AbstractNode>
+  <Node Name="EmptyNameSyntax" Base="NameSyntax">
+    <Kind Name="EmptyName"/>
+  </Node>
   <Node Name="IdentifierNameSyntax" Base="SimpleNameSyntax">
     <Kind Name="IdentifierName"/>
     <Field Name="identifier" Type="SyntaxToken" Override="true">
@@ -125,7 +128,7 @@
   </Node>
   <Node Name="NonNullableTypeSyntax" Base="TypeSyntax">
     <Kind Name="NonNullableType"/>
-    <Field Name="elementType" Type="TypeSyntax"/>
+    <Field Name="type" Type="TypeSyntax"/>
     <Field Name="exclamationToken" Type="SyntaxToken">
       <Kind Name="ExclamationToken"/>
     </Field>

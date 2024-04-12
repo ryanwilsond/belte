@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// <summary>
 /// Bound type, partially mutable.
 /// </summary>
-internal sealed class BoundType : BoundNode {
+internal sealed class BoundType : BoundExpression {
     /// <summary>
     /// Decimal type that can be null.
     /// </summary>
@@ -65,6 +65,11 @@ internal sealed class BoundType : BoundNode {
     internal static readonly BoundType Any = new BoundType(TypeSymbol.Any);
 
     /// <summary>
+    /// A type representing a method group.
+    /// </summary>
+    internal static readonly BoundType MethodGroup = new BoundType(TypeSymbol.Func);
+
+    /// <summary>
     /// The type type, value can be a <see cref="BoundType" />, cannot be null.
     /// </summary>
     internal static readonly BoundType Type = new BoundType(TypeSymbol.Type);
@@ -101,6 +106,8 @@ internal sealed class BoundType : BoundNode {
         this.templateArguments = templateArguments ?? ImmutableArray<BoundExpression>.Empty;
         this.arity = arity;
     }
+
+    internal override BoundType type => this;
 
     /// <summary>
     /// The language type, not the <see cref="Syntax.SyntaxNode" /> type.

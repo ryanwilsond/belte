@@ -1465,6 +1465,45 @@ Attributes are not valid for global statements. If any attributes are attached
 to a global statement this error is raised.
 
 Example here will be updated, but currently there are not attributes.
+$BU0094
+Some items require template arguments, while others do not. If an item without
+template arguments is referenced but template arguments are supplied, this error
+is raised.
+
+For example:
+
+```
+class MyClass{ }
+
+var myInstance = new MyClass<3>(); // Not allowed, `MyClass` does not expect the template argument `3`
+var myInstance = new MyClass(); // Allowed
+```
+$BU0095
+Passed template arguments must be compile-time constants because of the nature
+of templates. If a non-constant value is desired to be passed instead, use
+constructor arguments instead.
+
+For example:
+
+```
+class MyClass<int templateParam> { }
+
+var myInt = 3;
+var myInstance = new MyClass<myInt>(); // Not allowed, `myInt` is not a compile-time constant
+var myInstance = new MyClass<3>(); // Allowed
+```
+$BU0096
+References point to other established objects in memory, and hence cannot
+reference expressions that do not represent objects.
+
+For example:
+
+```
+var myRef = ref 3; // Not allowed, `3` is not an object in memory that can be referenced
+
+var myInt = 3;
+var myRef = ref myInt; // Allowed
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.
