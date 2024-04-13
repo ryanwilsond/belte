@@ -902,6 +902,14 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotReferenceNonField), location, message);
     }
 
+    /// <summary>
+    /// BU0097. Run `buckle --explain BU0097` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotUseType(TextLocation location, BoundType type) {
+        var message = $"'{type}' is a type, which is not valid in this context";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseType), location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

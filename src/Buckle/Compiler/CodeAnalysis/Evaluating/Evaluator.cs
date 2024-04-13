@@ -30,6 +30,7 @@ internal sealed class Evaluator {
     private Random _random;
     // private bool _classLocalBufferOnStack;
     private bool _hasValue;
+    private int _templateConstantDepth;
 
     /// <summary>
     /// Creates an <see cref="Evaluator" /> that can evaluate a <see cref="BoundProgram" /> (provided globals).
@@ -45,6 +46,7 @@ internal sealed class Evaluator {
         _program = program;
         _globals = globals;
         _locals.Push(new Dictionary<IVariableSymbol, IEvaluatorObject>());
+        _templateConstantDepth = 0;
 
         var current = program;
 
@@ -484,9 +486,27 @@ internal sealed class Evaluator {
                 return EvaluateMemberAccessExpression((BoundMemberAccessExpression)node, abort);
             case BoundNodeKind.ThisExpression:
                 return EvaluateThisExpression((BoundThisExpression)node, abort);
+            case BoundNodeKind.Type:
+                return EvaluateType((BoundType)node, abort);
             default:
                 throw new BelteInternalException($"EvaluateExpression: unexpected node '{node.kind}'");
         }
+    }
+
+    private EvaluatorObject EvaluateType(BoundType node, ValueWrapper<bool> _) {
+        if (node.arity == 0)
+            return null;
+
+        var locals = new Dictionary<IVariableSymbol, IEvaluatorObject>();
+        var typeSymbol = node.typeSymbol as NamedTypeSymbol;
+
+        for (var i = 0; i < node.templateArguments.Length; i++)
+            locals.Add(typeSymbol.templateParameters[i], new EvaluatorObject(node.templateArguments[i].value));
+
+        _locals.Push(locals);
+        _templateConstantDepth++;
+
+        return null;
     }
 
     private EvaluatorObject EvaluateThisExpression(BoundThisExpression _, ValueWrapper<bool> _1) {
@@ -527,7 +547,7 @@ internal sealed class Evaluator {
         var templateArgumentIndex = 0;
 
         foreach (var templateArgument in typeMembers.Where(t => t is ParameterSymbol)) {
-            var value = EvaluateExpression(node.type.templateArguments[templateArgumentIndex++], abort);
+            var value = new EvaluatorObject(node.type.templateArguments[templateArgumentIndex++].value);
             members.Add(templateArgument, value);
         }
 
@@ -697,11 +717,18 @@ internal sealed class Evaluator {
 
         _locals.Push(locals);
         var statement = LookupMethod(_methods, method);
+        var templateConstantDepth = _templateConstantDepth;
 
-        if (operand != null)
+        if (operand != null /*&& !method.isStatic*/)
             EvaluateExpression(operand, abort);
 
         var result = EvaluateStatement(statement, abort, out _);
+
+        while (_templateConstantDepth > templateConstantDepth) {
+            _templateConstantDepth--;
+            _locals.Pop();
+        }
+
         _locals.Pop();
 
         // TODO Make sure removing this doesn't lead to an accumulation of unnecessary locals on the stack

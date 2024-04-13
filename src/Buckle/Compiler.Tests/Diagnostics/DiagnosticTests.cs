@@ -1284,4 +1284,18 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0097_CannotUseType() {
+        var text = @"
+            class A { }
+            [A];
+        ";
+
+        var diagnostics = @"
+            'A' is a type, which is not valid in this context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

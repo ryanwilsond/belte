@@ -37,9 +37,9 @@ internal abstract class ColorTheme {
     internal abstract ConsoleColor identifier { get; }
 
     /// <summary>
-    /// Color of number literals.
+    /// Color of non-string literals.
     /// </summary>
-    internal abstract ConsoleColor number { get; }
+    internal abstract ConsoleColor literal { get; }
 
     /// <summary>
     /// Color of string literals.

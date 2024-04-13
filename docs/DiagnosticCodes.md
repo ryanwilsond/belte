@@ -107,6 +107,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0094 | Error | item '{0}' does not expect any template arguments |
 | BU0095 | Error | template argument must be a compile-time constant |
 | BU0096 | Error | cannot reference non-field or non-variable item |
+| BU0097 | Error | '{0}' is a type, which is not valid in this context |
 
 ## Command Line Diagnostics
 

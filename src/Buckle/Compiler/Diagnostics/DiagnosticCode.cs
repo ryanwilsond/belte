@@ -105,6 +105,7 @@ public enum DiagnosticCode : int {
     ERR_TemplateNotExpected = 94,
     ERR_TemplateMustBeConstant = 95,
     ERR_CannotReferenceNonField = 96,
+    ERR_CannotUseType = 97,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

@@ -231,7 +231,7 @@ public sealed class DisplayText {
                     text.Write(CreateSpace());
                 }
 
-                DisplayNode(text, argument);
+                DisplayConstant(text, argument);
             }
 
             text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
@@ -500,6 +500,11 @@ public sealed class DisplayText {
     }
 
     private static void DisplayCallExpression(DisplayText text, BoundCallExpression node) {
+        if (node.expression is not BoundEmptyExpression) {
+            DisplayNode(text, node.expression);
+            text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
+        }
+
         text.Write(CreateIdentifier(node.method.name));
         DisplayArguments(text, node.arguments);
     }
@@ -572,23 +577,17 @@ public sealed class DisplayText {
 
     private static void DisplayLiteralExpression(DisplayText text, BoundLiteralExpression node) {
         if (node.value is null) {
-            text.Write(CreateKeyword(SyntaxKind.NullKeyword));
+            text.Write(CreateLiteral("null"));
             return;
         }
 
         var value = node.value.ToString();
         var typeSymbol = BoundType.Assume(node.value).typeSymbol;
 
-        if (typeSymbol == TypeSymbol.Bool)
-            text.Write(CreateKeyword(value.ToLower()));
-        else if (typeSymbol == TypeSymbol.Int)
-            text.Write(CreateNumber(value));
-        else if (typeSymbol == TypeSymbol.String)
+        if (typeSymbol == TypeSymbol.String)
             DisplayStringLiteral(value);
-        else if (typeSymbol == TypeSymbol.Decimal)
-            text.Write(CreateNumber(value));
         else
-            throw new BelteInternalException($"WriteLiteralExpression: unexpected type '{typeSymbol}'");
+            text.Write(CreateLiteral(value.ToLower()));
 
         void DisplayStringLiteral(string value) {
             var stringBuilder = new StringBuilder("\"");

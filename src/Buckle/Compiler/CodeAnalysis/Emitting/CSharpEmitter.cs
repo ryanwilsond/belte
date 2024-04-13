@@ -803,7 +803,11 @@ internal sealed class CSharpEmitter {
     private void EmitObjectCreationExpression(
         IndentedTextWriter indentedTextWriter, BoundObjectCreationExpression expression) {
         indentedTextWriter.Write($"new {GetEquivalentType(expression.type)}");
-        EmitArguments(indentedTextWriter, expression.type.templateArguments.AddRange(expression.arguments));
+        var arguments = expression.arguments.AddRange(
+            expression.type.templateArguments.Select(t => new BoundLiteralExpression(t.value)).Cast<BoundExpression>()
+        );
+
+        EmitArguments(indentedTextWriter, arguments);
     }
 
     private void EmitMemberAccessExpression(

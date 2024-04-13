@@ -1504,6 +1504,16 @@ var myRef = ref 3; // Not allowed, `3` is not an object in memory that can be re
 var myInt = 3;
 var myRef = ref myInt; // Allowed
 ```
+$BU0097
+Some expressions are not allowed as expression statements as they perform no
+action. If a type is used as an expression statement, this error is raised.
+
+For example:
+
+```
+class MyClass { }
+MyClass; // Not allowed, performs no action (dead code)
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.
