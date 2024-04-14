@@ -222,9 +222,15 @@ internal abstract class BoundTreeRewriter {
                 return RewritePostfixExpression((BoundPostfixExpression)expression);
             case BoundNodeKind.ThisExpression:
                 return RewriteThisExpression((BoundThisExpression)expression);
+            case BoundNodeKind.Type:
+                return RewriteType((BoundType)expression);
             default:
                 throw new BelteInternalException($"RewriteExpression: unexpected expression type '{expression.kind}'");
         }
+    }
+
+    protected virtual BoundExpression RewriteType(BoundType expression) {
+        return expression;
     }
 
     protected virtual BoundExpression RewriteThisExpression(BoundThisExpression expression) {
@@ -357,12 +363,13 @@ internal abstract class BoundTreeRewriter {
     }
 
     protected virtual BoundExpression RewriteCallExpression(BoundCallExpression expression) {
+        var rewrote = RewriteExpression(expression.expression);
         var arguments = RewriteArguments(expression.arguments);
 
         if (!arguments.HasValue)
             return expression;
 
-        return new BoundCallExpression(expression.expression, expression.method, arguments.Value);
+        return new BoundCallExpression(rewrote, expression.method, arguments.Value);
     }
 
     protected virtual BoundExpression RewriteErrorExpression(BoundErrorExpression expression) {

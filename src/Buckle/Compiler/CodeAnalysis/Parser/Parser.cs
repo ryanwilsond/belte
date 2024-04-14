@@ -998,6 +998,8 @@ internal sealed partial class Parser {
                 return ParseWhileStatement();
             case SyntaxKind.ForKeyword:
                 return ParseForStatement();
+            case SyntaxKind.DoKeyword:
+                return ParseDoWhileStatement();
             case SyntaxKind.TryKeyword:
                 return ParseTryStatement();
             case SyntaxKind.BreakKeyword:
@@ -1387,7 +1389,7 @@ internal sealed partial class Parser {
                 return ParseThisExpression();
             case SyntaxKind.IdentifierToken:
             default:
-                return ParseSimpleName();
+                return ParseLastCaseName();
         }
     }
 
@@ -1686,6 +1688,15 @@ internal sealed partial class Parser {
         var openBracket = Match(SyntaxKind.OpenBracketToken);
         var closeBracket = Match(SyntaxKind.CloseBracketToken);
         return SyntaxFactory.ArrayRankSpecifier(openBracket, closeBracket);
+    }
+
+    private SimpleNameSyntax ParseLastCaseName() {
+        if (currentToken.kind != SyntaxKind.IdentifierToken) {
+            _currentToken = AddDiagnostic(currentToken, Error.ExpectedToken("expression"));
+            return SyntaxFactory.IdentifierName(SyntaxFactory.Missing(SyntaxKind.IdentifierToken));
+        }
+
+        return ParseSimpleName();
     }
 
     private SimpleNameSyntax ParseSimpleName() {

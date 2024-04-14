@@ -733,20 +733,6 @@ try {
 ```
 
 Note that having both a catch and a finally clause is also allowed.
-$BU0047
-If a call expression does not have an identifier as its operand, this error is
-raised.
-
-For example:
-
-```
-PrintLine(); // Allowed, `PrintLine` is an identifier and a method name
-3(); // Not allowed, `3` is not an identifier
-```
-
-This is because all callable objects have identifiers, so if a call expression
-has something other than an identifier as its operand, the compiler can
-immediately tell it is a syntax error before any symbols are even resolved.
 $BU0048
 By-reference variables always reference other variables. Because of this, they
 themselves cannot be null and require an initializer. If a by-reference

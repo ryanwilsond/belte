@@ -390,7 +390,7 @@ internal sealed class OverloadResolution {
         if (argumentCount > parameters.Length) {
             SyntaxNodeOrToken firstExceedingNode;
 
-            if (parameters.Length > 1) {
+            if (argumentCount > 1 && parameters.Length > 0) {
                 firstExceedingNode = arguments.GetSeparator(parameters.Length - 1);
             } else {
                 firstExceedingNode = arguments[0].kind == SyntaxKind.EmptyExpression

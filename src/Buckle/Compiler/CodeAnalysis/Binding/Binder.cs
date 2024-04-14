@@ -563,7 +563,7 @@ internal sealed class Binder {
         BindAttributeLists(method.attributeLists);
 
         var modifiers = BindMethodDeclarationModifiers(method.modifiers);
-        var type = BindType(method.returnType, modifiers);
+        var type = BindType(method.returnType, modifiers, true);
         var parameters = BindParameterList(method.parameterList);
         var newMethod = new MethodSymbol(
             name ?? method.identifier.text,
@@ -724,6 +724,9 @@ internal sealed class Binder {
     }
 
     private ClassSymbol BindClassDeclaration(ClassDeclarationSyntax @class) {
+        // ? This will return eventually
+        BindAttributeLists(@class.attributeLists);
+
         var modifiers = BindClassDeclarationModifiers(@class.modifiers);
         var builder = ImmutableList.CreateBuilder<Symbol>();
         var templateBuilder = ImmutableList.CreateBuilder<ParameterSymbol>();
@@ -890,7 +893,7 @@ internal sealed class Binder {
         BindAttributeLists(fieldDeclaration.attributeLists);
 
         var modifiers = BindFieldDeclarationModifiers(fieldDeclaration.modifiers);
-        var type = BindType(fieldDeclaration.declaration.type, modifiers);
+        var type = BindType(fieldDeclaration.declaration.type, modifiers, true);
         return BindField(fieldDeclaration.declaration, type, modifiers);
     }
 
@@ -935,9 +938,19 @@ internal sealed class Binder {
         return boundBody;
     }
 
-    private BoundType BindType(TypeSyntax type, DeclarationModifiers modifiers = DeclarationModifiers.None) {
-        if ((modifiers & DeclarationModifiers.Const) != 0)
-            return BoundType.CopyWith(BindType(type), isConstant: true);
+    private BoundType BindType(
+        TypeSyntax type,
+        DeclarationModifiers modifiers = DeclarationModifiers.None,
+        bool explicitly = false) {
+        if ((modifiers & DeclarationModifiers.Const) != 0) {
+            var coreType = BindType(type);
+
+            // Prevent raising this error if we have nested const keywords
+            if (coreType.isImplicit && !coreType.isConstant)
+                diagnostics.Push(Error.ConstantAndVariable(type.location));
+
+            return BoundType.CopyWith(coreType, isConstant: true);
+        }
 
         if (type is ReferenceTypeSyntax rt) {
             var coreType = BindType(rt.type);
@@ -972,7 +985,7 @@ internal sealed class Binder {
             var leftType = BindType(qn.left);
 
             if (leftType.typeSymbol is PrimitiveTypeSymbol) {
-                diagnostics.Push(Error.PrimitivesDoNotHaveMembers(qn.period.location));
+                diagnostics.Push(Error.PrimitivesDoNotHaveMembers(qn.location));
                 return null;
             } else {
                 var namedLeft = leftType.typeSymbol as NamedTypeSymbol;
@@ -998,6 +1011,9 @@ internal sealed class Binder {
 
             if (!symbols.Any()) {
                 if (sn.identifier.text == "var") {
+                    if (explicitly)
+                        diagnostics.Push(Error.CannotUseImplicit(sn.location));
+
                     if (sn is TemplateNameSyntax templateName) {
                         diagnostics.Push(Error.TemplateNotExpected(
                             templateName.templateArgumentList.location,
@@ -1147,18 +1163,19 @@ internal sealed class Binder {
 
         var symbols = _scope.LookupOverloads(name);
 
-        // TODO Necessary?
-        // if (symbols[0] is not MethodSymbol &&
-        //     _containingType is not null &&
-        //     symbols[0].containingType is not null &&
-        //     _containingType != symbols[0].containingType) {
-        //     diagnostics.Push(Error.InvalidStaticReference(syntax.location, name));
-        //     return new BoundErrorExpression();
-        // }
+        if (symbols.Length > 0) {
+            if (symbols[0] is not MethodSymbol &&
+                _containingType is not null &&
+                symbols[0].containingType is not null &&
+                _containingType != symbols[0].containingType) {
+                diagnostics.Push(Error.InvalidStaticReference(syntax.location, name));
+                return new BoundErrorExpression();
+            }
 
-        if (symbols.Any() && symbols[0] is VariableSymbol && name == _shadowingVariable) {
-            diagnostics.Push(Error.UndefinedSymbol(syntax.location, name));
-            return new BoundErrorExpression();
+            if (symbols[0] is VariableSymbol && name == _shadowingVariable) {
+                diagnostics.Push(Error.UndefinedSymbol(syntax.location, name));
+                return new BoundErrorExpression();
+            }
         }
 
         return BindNonCalledIdentifierInScope(syntax, symbols);
@@ -1195,7 +1212,7 @@ internal sealed class Binder {
 
             return new BoundErrorExpression();
         } else if (symbols[0] is not MethodSymbol) {
-            diagnostics.Push(Error.CannotCallNonMethod(syntax.location));
+            diagnostics.Push(Error.CannotCallNonMethod(syntax.location, name));
             return new BoundErrorExpression();
         }
 
@@ -1276,7 +1293,7 @@ internal sealed class Binder {
             furthestRight = m.right;
 
         if (boundLeft.type.typeSymbol is PrimitiveTypeSymbol) {
-            diagnostics.Push(Error.PrimitivesDoNotHaveMembers(left.location));
+            diagnostics.Push(Error.PrimitivesDoNotHaveMembers(node.location));
             return new BoundErrorExpression();
         }
 
@@ -1347,7 +1364,10 @@ internal sealed class Binder {
         BoundConstant constant = null;
 
         if (type.isConstant) {
-            var initializer = BindExpression(declaration.initializer.value);
+            var initializer = declaration.initializer?.value is null
+                ? new BoundTypeWrapper(type, new BoundConstant(null))
+                : BindExpression(declaration.initializer.value);
+
             constant = initializer?.constantValue;
         }
 
@@ -1685,23 +1705,24 @@ internal sealed class Binder {
             var tempType = type.isImplicit ? initializer.type : type;
             var variableType = BoundType.CopyWith(
                 tempType,
-                isConstant: (type.isConstant && !type.isImplicit) ? true : null,
-                isConstantReference: ((type.isConstant && type.isImplicit) || type.isConstantReference) ? true : null,
+                isConstant: type.isConstant ? true : null,
+                isConstantReference: type.isConstantReference ? true : null,
+                isExplicitReference: false,
                 isNullable: isNullable,
                 isLiteral: false
             );
 
-            if (initializer.type.isConstant && !variableType.isConstant) {
+            if (initializer.type.isConstant && !variableType.isConstantReference) {
                 diagnostics.Push(Error.ReferenceToConstant(
-                    declaration.initializer.equalsToken.location, variableType.isConstantReference)
+                    declaration.initializer.equalsToken.location, variableType.isConstant)
                 );
 
                 return null;
             }
 
-            if (!initializer.type.isConstant && variableType.isConstant) {
+            if (!initializer.type.isConstant && variableType.isConstantReference) {
                 diagnostics.Push(Error.ConstantToNonConstantReference(
-                    declaration.initializer.equalsToken.location, variableType.isConstantReference)
+                    declaration.initializer.equalsToken.location, variableType.isConstant)
                 );
 
                 return null;
@@ -1927,9 +1948,10 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindObjectCreationExpression(ObjectCreationExpressionSyntax expression) {
-        var type = BoundType.CopyWith(BindType(expression.type), isLiteral: true, isNullable: false);
+        var type = BindType(expression.type);
+        type = BoundType.CopyWith(type, isLiteral: true, isNullable: false);
 
-        if (type.typeSymbol == TypeSymbol.Error)
+        if (type is null || type.typeSymbol == TypeSymbol.Error)
             return new BoundErrorExpression();
 
         if (type.typeSymbol is not NamedTypeSymbol) {
@@ -1975,7 +1997,9 @@ internal sealed class Binder {
     private BoundExpression BindReferenceExpression(ReferenceExpressionSyntax expression) {
         var boundExpression = BindExpression(expression.expression);
 
-        if (boundExpression is not BoundVariableExpression and not BoundMemberAccessExpression) {
+        if (boundExpression is not BoundVariableExpression and
+            not BoundMemberAccessExpression and
+            not BoundErrorExpression) {
             diagnostics.Push(Error.CannotReferenceNonField(expression.expression.location));
             return new BoundErrorExpression();
         }
@@ -1997,7 +2021,7 @@ internal sealed class Binder {
 
         var type = boundOperand.type;
 
-        if (type.isConstant) {
+        if (type.isReference ? type.isConstantReference : type.isConstant) {
             string name = null;
 
             if (boundOperand is BoundVariableExpression v)
@@ -2036,7 +2060,7 @@ internal sealed class Binder {
 
         var type = boundOperand.type;
 
-        if (type.isConstant) {
+        if (type.isReference ? type.isConstantReference : type.isConstant) {
             string name = null;
 
             if (boundOperand is BoundVariableExpression v)
@@ -2111,7 +2135,7 @@ internal sealed class Binder {
         }
 
         if (boundExpression is not BoundErrorExpression)
-            diagnostics.Push(Error.CannotCallNonMethod(expression.expression.location));
+            diagnostics.Push(Error.CannotCallNonMethod(expression.expression.location, null));
 
         return new BoundErrorExpression();
     }
@@ -2349,7 +2373,7 @@ internal sealed class Binder {
             return boundExpression;
         }
 
-        if ((type.isReference && type.isConstantReference &&
+        if ((type.isReference && type.isConstant &&
             boundExpression.kind == BoundNodeKind.ReferenceExpression) ||
             (type.isConstant && boundExpression.kind != BoundNodeKind.ReferenceExpression)) {
             string name = null;
@@ -2360,7 +2384,7 @@ internal sealed class Binder {
                 name = (m.right as BoundVariableExpression).variable.name;
 
             diagnostics.Push(Error.ConstantAssignment(
-                expression.assignmentToken.location, name, type.isConstantReference && boundExpression.type.isReference
+                expression.assignmentToken.location, name, type.isConstant && boundExpression.type.isReference
             ));
         }
 

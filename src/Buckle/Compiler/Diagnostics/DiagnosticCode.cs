@@ -55,7 +55,7 @@ public enum DiagnosticCode : int {
     ERR_ImpliedDimensions = 44,
     ERR_CannotUseImplicit = 45,
     ERR_NoCatchOrFinally = 46,
-    ERR_ExpectedMethodName = 47,
+    // ! Unused slot 47
     ERR_ReferenceNoInitialization = 48,
     ERR_ReferenceWrongInitialization = 49,
     ERR_WrongInitializationReference = 50,

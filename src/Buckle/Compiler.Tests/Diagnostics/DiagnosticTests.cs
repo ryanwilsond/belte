@@ -551,7 +551,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            collection dimensions on implicitly-typed variables are inferred making them not necessary in this context
+            collection dimensions on implicit types are inferred making them not necessary in this context
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -578,19 +578,6 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             try statement must have a catch or finally
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0047_ExpectedMethodName() {
-        var text = @"
-            [PrintLine()]();
-        ";
-
-        var diagnostics = @"
-            expected method name
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -640,7 +627,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0051_UnknownAttribute() {
         var text = @"
-            \[[MyAttrib]\]int x;
+            \[[MyAttrib]\]class A { }
         ";
 
         var diagnostics = @"
@@ -671,7 +658,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            implicitly-typed variables infer reference types making the 'ref' keyword not necessary in this context
+            implicit types infer reference types making the 'ref' keyword not necessary in this context
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -911,7 +898,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0070_ConstantAndVariable() {
         var text = @"
-            [const var] x = 3;
+            const [var] x = 3;
         ";
 
         var diagnostics = @"
@@ -967,9 +954,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0074_ModifierAlreadyApplied() {
         var text = @"
-            class A {
-                const [const] int a = 3;
-            }
+            const [const] a = 3;
         ";
 
         var diagnostics = @"
@@ -1237,11 +1222,18 @@ public sealed class DiagnosticTests {
     //     AssertDiagnostics(text, diagnostics, _writer);
     // }
 
-    // TODO Cannot test invalid attributes until any attributes exist
-    // [Fact]
-    // public void Reports_Error_BU0093_InvalidAttributes() {
+    [Fact]
+    public void Reports_Error_BU0093_InvalidAttributes() {
+        var text = @"
+            [\[asdf\]]int x = 3;
+        ";
 
-    // }
+        var diagnostics = @"
+            attributes are not valid in this context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0094_TemplateNotExpected() {

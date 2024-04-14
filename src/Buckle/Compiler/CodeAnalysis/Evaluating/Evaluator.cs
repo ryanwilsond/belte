@@ -702,7 +702,7 @@ internal sealed class Evaluator {
         MethodSymbol method,
         ImmutableArray<BoundExpression> arguments,
         ValueWrapper<bool> abort,
-        BoundExpression operand = null) {
+        BoundExpression expression = null) {
         var locals = new Dictionary<IVariableSymbol, IEvaluatorObject>();
 
         for (var i = 0; i < arguments.Length; i++) {
@@ -718,9 +718,25 @@ internal sealed class Evaluator {
         _locals.Push(locals);
         var statement = LookupMethod(_methods, method);
         var templateConstantDepth = _templateConstantDepth;
+        var enteredScope = false;
 
-        if (operand != null /*&& !method.isStatic*/)
-            EvaluateExpression(operand, abort);
+        if (expression != null) {
+            var possibleScope = EvaluateExpression(expression, abort);
+
+            // On an expression such as 'myInstance.Method()', we need to enter the 'myInstance' class scope
+            // in case 'Method' uses 'this'
+            // If what we get here is not a reference, it is a static accession and the needed scoped members have
+            // already been pushed by 'EvaluateType'.
+            if (possibleScope != null && possibleScope.isReference) {
+                while (possibleScope.isReference && !possibleScope.isExplicitReference)
+                    possibleScope = Get(possibleScope.reference);
+
+                if (possibleScope.members.Count > 0) {
+                    EnterClassScope(possibleScope);
+                    enteredScope = true;
+                }
+            }
+        }
 
         var result = EvaluateStatement(statement, abort, out _);
 
@@ -731,8 +747,11 @@ internal sealed class Evaluator {
 
         _locals.Pop();
 
+        if (enteredScope)
+            ExitClassScope();
+
         // TODO Make sure removing this doesn't lead to an accumulation of unnecessary locals on the stack
-        // if (_classLocalBufferOnStack && !method.isStatic)
+        // if (_classLocalBufferOnStack)
         //     _locals.Pop();
 
         return result;

@@ -638,6 +638,10 @@ public static class Program {
 
     public class A {
 
+        public A() {
+            return;
+        }
+
         public void Test() {
             return;
         }

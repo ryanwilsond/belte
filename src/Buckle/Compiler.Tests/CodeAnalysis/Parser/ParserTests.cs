@@ -100,10 +100,18 @@ public sealed class ParserTests {
         ).declaration.initializer.value;
     }
 
+    private static bool AmbiguousOperator(SyntaxKind op1kind, SyntaxKind op2kind) {
+        if (op1kind == SyntaxKind.LessThanToken && op2kind == SyntaxKind.GreaterThanToken)
+            return true;
+
+        return false;
+    }
+
     public static IEnumerable<object[]> GetBinaryOperatorPairsData() {
         foreach (var op1 in SyntaxFacts.GetBinaryOperatorTypes()) {
             foreach (var op2 in SyntaxFacts.GetBinaryOperatorTypes()) {
-                yield return new object[] { op1, op2 };
+                if (!AmbiguousOperator(op1, op2))
+                    yield return new object[] { op1, op2 };
             }
         }
     }

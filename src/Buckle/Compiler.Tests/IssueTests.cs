@@ -714,13 +714,12 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CallExpression_ExpectedMethodName() {
+    public void Evaluator_CallExpression_ExpectedTokens() {
         var text = @"
-            Print(num ** [2] ([][][]
+            Print(num ** 2 ([][][]
         ";
 
         var diagnostics = @"
-            expected method name
             expected ')' at end of input
             expected ')' at end of input
             expected ';' at end of input
@@ -791,6 +790,46 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_CallExpression_ExceedingArgumentsOnZero() {
+        var text = @"
+            void Test() {}
+            Test([,]);
+        ";
+
+        var diagnostics = @"
+            method 'Test' expects 0 arguments, got 2
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_PostfixExpression_AllowedOnRef() {
+        var text = @"
+            int x = 3;
+            var y = ref x;
+            y++;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_CallExpression_CorrectErrorFormattingOnNonMethod() {
+        var text = @"
+            [3]();
+        ";
+
+        var diagnostics = @"
+            called object is not a method
+        ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }

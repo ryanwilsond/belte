@@ -220,9 +220,16 @@ internal abstract class BoundTreeExpander {
                 return ExpandTypeWrapper((BoundTypeWrapper)expression, out replacement);
             case BoundNodeKind.ThisExpression:
                 return ExpandThisExpression((BoundThisExpression)expression, out replacement);
+            case BoundNodeKind.Type:
+                return ExpandType((BoundType)expression, out replacement);
             default:
                 throw new BelteInternalException($"ExpandExpression: unexpected expression type '{expression.kind}'");
         }
+    }
+
+    protected virtual List<BoundStatement> ExpandType(BoundType expression, out BoundExpression replacement) {
+        replacement = expression;
+        return new List<BoundStatement>() { };
     }
 
     protected virtual List<BoundStatement> ExpandThisExpression(
@@ -319,7 +326,7 @@ internal abstract class BoundTreeExpander {
     protected virtual List<BoundStatement> ExpandCallExpression(
         BoundCallExpression expression,
         out BoundExpression replacement) {
-        var statements = new List<BoundStatement>();
+        var statements = ExpandExpression(expression.expression, out var expressionReplacement);
         var replacementArguments = ImmutableArray.CreateBuilder<BoundExpression>();
 
         foreach (var argument in expression.arguments) {
@@ -327,18 +334,13 @@ internal abstract class BoundTreeExpander {
             replacementArguments.Add(argumentReplacement);
         }
 
-        if (statements.Count != 0) {
-            replacement = new BoundCallExpression(
-                expression.expression,
-                expression.method,
-                replacementArguments.ToImmutable()
-            );
+        replacement = new BoundCallExpression(
+            expressionReplacement,
+            expression.method,
+            replacementArguments.ToImmutable()
+        );
 
-            return statements;
-        }
-
-        replacement = expression;
-        return new List<BoundStatement>() { };
+        return statements;
     }
 
     protected virtual List<BoundStatement> ExpandCastExpression(BoundCastExpression expression, out BoundExpression replacement) {

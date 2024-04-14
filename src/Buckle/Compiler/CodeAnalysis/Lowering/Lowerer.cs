@@ -462,11 +462,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
             : method;
 
         var arguments = builder is null ? expression.arguments : builder.ToImmutable();
-        var operand = (expression.expression is BoundMemberAccessExpression me && me.isStaticAccess)
-            ? new BoundEmptyExpression()
-            : expression.expression;
+        // var operand = (expression.expression is BoundMemberAccessExpression me && me.isStaticAccess)
+        //     ? new BoundEmptyExpression()
+        //     : expression.expression;
 
-        return base.RewriteCallExpression(new BoundCallExpression(operand, newMethod, arguments));
+        return base.RewriteCallExpression(new BoundCallExpression(expression.expression, newMethod, arguments));
     }
 
     protected override BoundExpression RewriteCompoundAssignmentExpression(

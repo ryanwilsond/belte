@@ -1,4 +1,3 @@
-using System;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -320,8 +319,8 @@ internal static class Error {
     /// <summary>
     /// BU0032. Run `buckle --explain BU0032` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic CannotCallNonMethod(TextLocation location) {
-        var message = $"called object is not a method";
+    internal static BelteDiagnostic CannotCallNonMethod(TextLocation location, string name) {
+        var message = $"called object {(name is null ? "" : $"'{name}' ")}is not a method";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotCallNonMethod), location, message);
     }
 
@@ -427,9 +426,9 @@ internal static class Error {
     /// <summary>
     /// BU0045. Run `buckle --explain BU0045` on the command line for more info.
     /// </summary>
-    internal static Diagnostic CannotUseImplicit() {
+    internal static BelteDiagnostic CannotUseImplicit(TextLocation location) {
         var message = "cannot use implicit-typing in this context";
-        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseImplicit), message);
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseImplicit), location, message);
     }
 
     /// <summary>
@@ -438,14 +437,6 @@ internal static class Error {
     internal static Diagnostic NoCatchOrFinally() {
         var message = "try statement must have a catch or finally";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_NoCatchOrFinally), message);
-    }
-
-    /// <summary>
-    /// BU0047. Run `buckle --explain BU0047` on the command line for more info.
-    /// </summary>
-    internal static Diagnostic ExpectedMethodName() {
-        var message = "expected method name";
-        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedMethodName), message);
     }
 
     /// <summary>
