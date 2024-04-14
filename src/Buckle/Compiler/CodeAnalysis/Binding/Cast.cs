@@ -112,6 +112,9 @@ internal sealed class Cast {
         }
 
         // Special cases that are not allowed
+        //      var -> ref var
+        //      ref var -> var
+        //      var[] -> var     (any dimension mismatch)
         if ((toType.isReference && toType.isExplicitReference && !fromType.isReference) ||
             (fromType.isReference && fromType.isExplicitReference && !toType.isReference) ||
             fromType.dimensions != toType.dimensions) {

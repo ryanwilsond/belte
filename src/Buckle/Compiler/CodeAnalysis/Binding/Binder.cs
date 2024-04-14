@@ -1274,12 +1274,11 @@ internal sealed class Binder {
 
     private BoundExpression BindQualifiedName(QualifiedNameSyntax syntax, bool called) {
         var boundLeft = BindExpression(syntax.left);
-        return BindMemberAccessWithBoundLeft(syntax, syntax.left, boundLeft, syntax.right, syntax.period, called);
+        return BindMemberAccessWithBoundLeft(syntax, boundLeft, syntax.right, syntax.period, called);
     }
 
     private BoundExpression BindMemberAccessWithBoundLeft(
         ExpressionSyntax node,
-        ExpressionSyntax left,
         BoundExpression boundLeft,
         SimpleNameSyntax right,
         SyntaxToken operatorToken,
@@ -1981,7 +1980,6 @@ internal sealed class Binder {
 
         return BindMemberAccessWithBoundLeft(
             expression,
-            expression.expression,
             boundLeft,
             expression.name,
             expression.operatorToken,

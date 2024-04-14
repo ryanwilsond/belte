@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using Buckle.Diagnostics;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
