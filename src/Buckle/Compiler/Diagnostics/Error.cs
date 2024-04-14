@@ -1,4 +1,3 @@
-using System;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -320,8 +319,8 @@ internal static class Error {
     /// <summary>
     /// BU0032. Run `buckle --explain BU0032` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic CannotCallNonMethod(TextLocation location, string text) {
-        var message = $"called object '{text}' is not a method";
+    internal static BelteDiagnostic CannotCallNonMethod(TextLocation location, string name) {
+        var message = $"called object {(name is null ? "" : $"'{name}' ")}is not a method";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotCallNonMethod), location, message);
     }
 
@@ -419,19 +418,17 @@ internal static class Error {
     /// <summary>
     /// BU0044. Run `buckle --explain BU0044` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic ImpliedDimensions(TextLocation location, bool isConstant) {
-        var variableWord = isConstant ? "constant" : "variable";
-        var message = $"collection dimensions on implicitly-typed {variableWord}s are inferred making them not " +
-            "necessary in this context";
+    internal static BelteDiagnostic ImpliedDimensions(TextLocation location) {
+        var message = $"collection dimensions on implicit types are inferred making them not necessary in this context";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ImpliedDimensions), location, message);
     }
 
     /// <summary>
     /// BU0045. Run `buckle --explain BU0045` on the command line for more info.
     /// </summary>
-    internal static Diagnostic CannotUseImplicit() {
+    internal static BelteDiagnostic CannotUseImplicit(TextLocation location) {
         var message = "cannot use implicit-typing in this context";
-        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseImplicit), message);
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseImplicit), location, message);
     }
 
     /// <summary>
@@ -440,14 +437,6 @@ internal static class Error {
     internal static Diagnostic NoCatchOrFinally() {
         var message = "try statement must have a catch or finally";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_NoCatchOrFinally), message);
-    }
-
-    /// <summary>
-    /// BU0047. Run `buckle --explain BU0047` on the command line for more info.
-    /// </summary>
-    internal static Diagnostic ExpectedMethodName() {
-        var message = "expected method name";
-        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedMethodName), message);
     }
 
     /// <summary>
@@ -497,10 +486,8 @@ internal static class Error {
     /// <summary>
     /// BU0053. Run `buckle --explain BU0053` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic ImpliedReference(TextLocation location, bool isConstant) {
-        var variableWord = isConstant ? "constant" : "variable";
-        var message = $"implicitly-typed {variableWord}s infer reference types making the 'ref' keyword not " +
-            "necessary in this context";
+    internal static BelteDiagnostic ImpliedReference(TextLocation location) {
+        var message = $"implicit types infer reference types making the 'ref' keyword not necessary in this context";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ImpliedReference), location, message);
     }
 
@@ -694,9 +681,9 @@ internal static class Error {
     /// <summary>
     /// BU0074. Run `buckle --explain BU0074` on the command line for more info.
     /// </summary>
-    internal static Diagnostic CannotUseConst() {
-        var message = "cannot use a constant in this context";
-        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseConstant), message);
+    internal static BelteDiagnostic ModifierAlreadyApplied(TextLocation location, string name) {
+        var message = $"modifier '{name}' has already been applied to this item";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ModifierAlreadyApplied), location, message);
     }
 
     /// <summary>
@@ -832,6 +819,11 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidModifier), location, message);
     }
 
+    internal static Diagnostic InvalidModifier(string name) {
+        var message = $"modifier '{name}' is not valid for this item";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidModifier), message);
+    }
+
     /// <summary>
     /// BU0089. Run `buckle --explain BU0089` on the command line for more info.
     /// </summary>
@@ -867,6 +859,46 @@ internal static class Error {
     internal static BelteDiagnostic MultipleMains(TextLocation location) {
         var message = "cannot have multiple 'Main' entry points";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MultipleMains), location, message);
+    }
+
+    /// <summary>
+    /// BU0093. Run `buckle --explain BU0093` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic InvalidAttributes() {
+        var message = "attributes are not valid in this context";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidAttributes), message);
+    }
+
+    /// <summary>
+    /// BU0094. Run `buckle --explain BU0094` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic TemplateNotExpected(TextLocation location, string name) {
+        var message = $"item '{name}' does not expect any template arguments";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_TemplateNotExpected), location, message);
+    }
+
+    /// <summary>
+    /// BU0095. Run `buckle --explain BU0095` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic TemplateMustBeConstant(TextLocation location) {
+        var message = "template argument must be a compile-time constant";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_TemplateMustBeConstant), location, message);
+    }
+
+    /// <summary>
+    /// BU0096. Run `buckle --explain BU0096` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotReferenceNonField(TextLocation location) {
+        var message = "cannot reference non-field or non-variable item";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotReferenceNonField), location, message);
+    }
+
+    /// <summary>
+    /// BU0097. Run `buckle --explain BU0097` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotUseType(TextLocation location, BoundType type) {
+        var message = $"'{type}' is a type, which is not valid in this context";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseType), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

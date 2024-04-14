@@ -30,6 +30,7 @@ internal sealed class Evaluator {
     private Random _random;
     // private bool _classLocalBufferOnStack;
     private bool _hasValue;
+    private int _templateConstantDepth;
 
     /// <summary>
     /// Creates an <see cref="Evaluator" /> that can evaluate a <see cref="BoundProgram" /> (provided globals).
@@ -45,6 +46,7 @@ internal sealed class Evaluator {
         _program = program;
         _globals = globals;
         _locals.Push(new Dictionary<IVariableSymbol, IEvaluatorObject>());
+        _templateConstantDepth = 0;
 
         var current = program;
 
@@ -343,8 +345,8 @@ internal sealed class Evaluator {
                         EvaluateExpressionStatement((BoundExpressionStatement)s, abort);
                         index++;
                         break;
-                    case BoundNodeKind.VariableDeclarationStatement:
-                        EvaluateVariableDeclarationStatement((BoundVariableDeclarationStatement)s, abort);
+                    case BoundNodeKind.LocalDeclarationStatement:
+                        EvaluateLocalDeclarationStatement((BoundLocalDeclarationStatement)s, abort);
                         index++;
                         break;
                     case BoundNodeKind.GotoStatement:
@@ -438,12 +440,12 @@ internal sealed class Evaluator {
         }
     }
 
-    private void EvaluateVariableDeclarationStatement(
-        BoundVariableDeclarationStatement statement,
+    private void EvaluateLocalDeclarationStatement(
+        BoundLocalDeclarationStatement statement,
         ValueWrapper<bool> abort) {
-        var value = EvaluateExpression(statement.initializer, abort);
+        var value = EvaluateExpression(statement.declaration.initializer, abort);
         _lastValue = null;
-        Create(statement.variable, value);
+        Create(statement.declaration.variable, value);
     }
 
     private EvaluatorObject EvaluateExpression(BoundExpression node, ValueWrapper<bool> abort) {
@@ -484,9 +486,27 @@ internal sealed class Evaluator {
                 return EvaluateMemberAccessExpression((BoundMemberAccessExpression)node, abort);
             case BoundNodeKind.ThisExpression:
                 return EvaluateThisExpression((BoundThisExpression)node, abort);
+            case BoundNodeKind.Type:
+                return EvaluateType((BoundType)node, abort);
             default:
                 throw new BelteInternalException($"EvaluateExpression: unexpected node '{node.kind}'");
         }
+    }
+
+    private EvaluatorObject EvaluateType(BoundType node, ValueWrapper<bool> _) {
+        if (node.arity == 0)
+            return null;
+
+        var locals = new Dictionary<IVariableSymbol, IEvaluatorObject>();
+        var typeSymbol = node.typeSymbol as NamedTypeSymbol;
+
+        for (var i = 0; i < node.templateArguments.Length; i++)
+            locals.Add(typeSymbol.templateParameters[i], new EvaluatorObject(node.templateArguments[i].value));
+
+        _locals.Push(locals);
+        _templateConstantDepth++;
+
+        return null;
     }
 
     private EvaluatorObject EvaluateThisExpression(BoundThisExpression _, ValueWrapper<bool> _1) {
@@ -494,7 +514,7 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateMemberAccessExpression(BoundMemberAccessExpression node, ValueWrapper<bool> abort) {
-        var operand = EvaluateExpression(node.operand, abort);
+        var operand = EvaluateExpression(node.left, abort);
 
         if (operand.isReference) {
             do {
@@ -502,13 +522,19 @@ internal sealed class Evaluator {
             } while (operand.isReference == true);
         }
 
-        var enterScope = node.member is MethodSymbol;
+        var enterScope = node.type == BoundType.MethodGroup;
 
         EnterClassScope(operand, enterScope);
-        var result = operand.members[node.member];
 
-        if (node.member is FieldSymbol)
-            ExitClassScope();
+        if (enterScope)
+            return null;
+
+        if (node.right is BoundType)
+            return operand.members[node.right.type.typeSymbol];
+
+        var member = (node.right as BoundVariableExpression).variable;
+        var result = operand.members[member];
+        ExitClassScope();
 
         return result;
     }
@@ -521,7 +547,7 @@ internal sealed class Evaluator {
         var templateArgumentIndex = 0;
 
         foreach (var templateArgument in typeMembers.Where(t => t is ParameterSymbol)) {
-            var value = EvaluateExpression(node.type.templateArguments[templateArgumentIndex++], abort);
+            var value = new EvaluatorObject(node.type.templateArguments[templateArgumentIndex++].value);
             members.Add(templateArgument, value);
         }
 
@@ -553,25 +579,32 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression _, ValueWrapper<bool> _1) {
         // TODO Implement typeof and type types
+        // ? Would just settings EvaluatorObject.value to a BoundType work?
         return new EvaluatorObject();
     }
 
-    private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node, ValueWrapper<bool> _1) {
-        Dictionary<IVariableSymbol, IEvaluatorObject> referenceScope;
+    private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node, ValueWrapper<bool> abort) {
+        if (node.expression is BoundVariableExpression v) {
+            Dictionary<IVariableSymbol, IEvaluatorObject> referenceScope;
 
-        if (node.variable.kind == SymbolKind.GlobalVariable)
-            referenceScope = _globals;
-        else
-            referenceScope = _locals.Peek();
+            if (v.variable.kind == SymbolKind.GlobalVariable)
+                referenceScope = _globals;
+            else
+                referenceScope = _locals.Peek();
 
-        return new EvaluatorObject(node.variable, isExplicitReference: true, referenceScope: referenceScope);
+            return new EvaluatorObject(v.variable, isExplicitReference: true, referenceScope: referenceScope);
+        } else {
+            return EvaluateExpression(node.expression, abort);
+        }
     }
 
     private EvaluatorObject EvaluateIndexExpression(BoundIndexExpression node, ValueWrapper<bool> abort) {
-        var variable = EvaluateExpression(node.operand, abort);
+        var variable = EvaluateExpression(node.expression, abort);
         var index = EvaluateExpression(node.index, abort);
+        var array = (EvaluatorObject[])Value(variable);
+        var indexValue = (int)Value(index);
 
-        return ((EvaluatorObject[])Value(variable))[(int)Value(index)];
+        return array[indexValue];
     }
 
     private EvaluatorObject[] EvaluateInitializerListExpression(BoundInitializerListExpression node, ValueWrapper<bool> abort) {
@@ -664,7 +697,7 @@ internal sealed class Evaluator {
             var value = (int)Value(EvaluateExpression(node.arguments[0], abort));
             return new EvaluatorObject(((char)value).ToString());
         } else {
-            return InvokeMethod(node.method, node.arguments, abort, node.operand);
+            return InvokeMethod(node.method, node.arguments, abort, node.expression);
         }
 
         // This is reached by void methods, but it isn't used
@@ -675,7 +708,7 @@ internal sealed class Evaluator {
         MethodSymbol method,
         ImmutableArray<BoundExpression> arguments,
         ValueWrapper<bool> abort,
-        BoundExpression operand = null) {
+        BoundExpression expression = null) {
         var locals = new Dictionary<IVariableSymbol, IEvaluatorObject>();
 
         for (var i = 0; i < arguments.Length; i++) {
@@ -690,15 +723,41 @@ internal sealed class Evaluator {
 
         _locals.Push(locals);
         var statement = LookupMethod(_methods, method);
+        var templateConstantDepth = _templateConstantDepth;
+        var enteredScope = false;
 
-        if (operand != null)
-            EvaluateExpression(operand, abort);
+        if (expression != null) {
+            var possibleScope = EvaluateExpression(expression, abort);
+
+            // On an expression such as 'myInstance.Method()', we need to enter the 'myInstance' class scope
+            // in case 'Method' uses 'this'
+            // If what we get here is not a reference, it is a static accession and the needed scoped members have
+            // already been pushed by 'EvaluateType'.
+            if (possibleScope != null && possibleScope.isReference) {
+                while (possibleScope.isReference && !possibleScope.isExplicitReference)
+                    possibleScope = Get(possibleScope.reference);
+
+                if (possibleScope.members.Count > 0) {
+                    EnterClassScope(possibleScope);
+                    enteredScope = true;
+                }
+            }
+        }
 
         var result = EvaluateStatement(statement, abort, out _);
+
+        while (_templateConstantDepth > templateConstantDepth) {
+            _templateConstantDepth--;
+            _locals.Pop();
+        }
+
         _locals.Pop();
 
+        if (enteredScope)
+            ExitClassScope();
+
         // TODO Make sure removing this doesn't lead to an accumulation of unnecessary locals on the stack
-        // if (_classLocalBufferOnStack && !method.isStatic)
+        // if (_classLocalBufferOnStack)
         //     _locals.Pop();
 
         return result;

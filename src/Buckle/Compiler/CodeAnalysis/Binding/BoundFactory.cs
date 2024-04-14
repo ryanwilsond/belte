@@ -91,11 +91,10 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundMemberAccessExpression MemberAccess(
-        BoundExpression operand,
-        Symbol member,
-        BoundType type,
+        BoundExpression left,
+        BoundExpression right,
         bool isStaticAccess = false) {
-        return new BoundMemberAccessExpression(operand, member, type, false, isStaticAccess);
+        return new BoundMemberAccessExpression(left, right, false, isStaticAccess);
     }
 
     internal static BoundIndexExpression Index(BoundExpression operand, BoundExpression index) {

@@ -55,7 +55,7 @@ public enum DiagnosticCode : int {
     ERR_ImpliedDimensions = 44,
     ERR_CannotUseImplicit = 45,
     ERR_NoCatchOrFinally = 46,
-    ERR_ExpectedMethodName = 47,
+    // ! Unused slot 47
     ERR_ReferenceNoInitialization = 48,
     ERR_ReferenceWrongInitialization = 49,
     ERR_WrongInitializationReference = 50,
@@ -82,7 +82,7 @@ public enum DiagnosticCode : int {
     ERR_VariableUsingTypeName = 71,
     ERR_CannotImplyNull = 72,
     ERR_CannotConvertNull = 73,
-    ERR_CannotUseConstant = 74,
+    ERR_ModifierAlreadyApplied = 74,
     ERR_CannotUseRef = 75,
     ERR_DivideByZero = 76,
     ERR_NameUsedInEnclosingScope = 77,
@@ -101,6 +101,11 @@ public enum DiagnosticCode : int {
     ERR_InvalidStaticReference = 90,
     ERR_CannotInitializeInStructs = 91,
     ERR_MultipleMains = 92,
+    ERR_InvalidAttributes = 93,
+    ERR_TemplateNotExpected = 94,
+    ERR_TemplateMustBeConstant = 95,
+    ERR_CannotReferenceNonField = 96,
+    ERR_CannotUseType = 97,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

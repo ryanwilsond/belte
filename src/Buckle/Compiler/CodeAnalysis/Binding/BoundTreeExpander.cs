@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using Buckle.Diagnostics;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
@@ -21,7 +20,7 @@ internal abstract class BoundTreeExpander {
         return statement.kind switch {
             BoundNodeKind.NopStatement => ExpandNopStatement((BoundNopStatement)statement),
             BoundNodeKind.BlockStatement => ExpandBlockStatement((BoundBlockStatement)statement),
-            BoundNodeKind.VariableDeclarationStatement => ExpandVariableDeclarationStatement((BoundVariableDeclarationStatement)statement),
+            BoundNodeKind.LocalDeclarationStatement => ExpandLocalDeclarationStatement((BoundLocalDeclarationStatement)statement),
             BoundNodeKind.IfStatement => ExpandIfStatement((BoundIfStatement)statement),
             BoundNodeKind.WhileStatement => ExpandWhileStatement((BoundWhileStatement)statement),
             BoundNodeKind.ForStatement => ExpandForStatement((BoundForStatement)statement),
@@ -51,12 +50,15 @@ internal abstract class BoundTreeExpander {
         return new List<BoundStatement>() { Block(statements.ToArray()) };
     }
 
-    protected virtual List<BoundStatement> ExpandVariableDeclarationStatement(
-        BoundVariableDeclarationStatement statement) {
-        var statements = ExpandExpression(statement.initializer, out var replacement);
+    protected virtual List<BoundStatement> ExpandLocalDeclarationStatement(
+        BoundLocalDeclarationStatement statement) {
+        var statements = ExpandExpression(statement.declaration.initializer, out var replacement);
 
-        if (statements.Any()) {
-            statements.Add(new BoundVariableDeclarationStatement(statement.variable, replacement));
+        if (statements.Count > 0) {
+            statements.Add(new BoundLocalDeclarationStatement(
+                new BoundVariableDeclaration(statement.declaration.variable, replacement)
+            ));
+
             return statements;
         }
 
@@ -100,7 +102,7 @@ internal abstract class BoundTreeExpander {
     protected virtual List<BoundStatement> ExpandExpressionStatement(BoundExpressionStatement statement) {
         var statements = ExpandExpression(statement.expression, out var replacement);
 
-        if (statements.Any()) {
+        if (statements.Count != 0) {
             statements.Add(new BoundExpressionStatement(replacement));
             return statements;
         }
@@ -141,7 +143,7 @@ internal abstract class BoundTreeExpander {
 
         var statements = ExpandExpression(statement.expression, out var replacement);
 
-        if (statements.Any()) {
+        if (statements.Count != 0) {
             statements.Add(new BoundReturnStatement(replacement));
             return statements;
         }
@@ -217,9 +219,16 @@ internal abstract class BoundTreeExpander {
                 return ExpandTypeWrapper((BoundTypeWrapper)expression, out replacement);
             case BoundNodeKind.ThisExpression:
                 return ExpandThisExpression((BoundThisExpression)expression, out replacement);
+            case BoundNodeKind.Type:
+                return ExpandType((BoundType)expression, out replacement);
             default:
                 throw new BelteInternalException($"ExpandExpression: unexpected expression type '{expression.kind}'");
         }
+    }
+
+    protected virtual List<BoundStatement> ExpandType(BoundType expression, out BoundExpression replacement) {
+        replacement = expression;
+        return new List<BoundStatement>() { };
     }
 
     protected virtual List<BoundStatement> ExpandThisExpression(
@@ -234,7 +243,7 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(expression.left, out var leftReplacement);
         statements.AddRange(ExpandExpression(expression.right, out var rightReplacement));
 
-        if (statements.Any()) {
+        if (statements.Count != 0) {
             replacement = new BoundBinaryExpression(leftReplacement, expression.op, rightReplacement);
             return statements;
         }
@@ -253,7 +262,7 @@ internal abstract class BoundTreeExpander {
             replacementItems.Add(itemReplacement);
         }
 
-        if (statements.Any()) {
+        if (statements.Count != 0) {
             replacement = new BoundInitializerListExpression(replacementItems.ToImmutable(), expression.type);
             return statements;
         }
@@ -279,7 +288,7 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(expression.left, out var leftReplacement);
         statements.AddRange(ExpandExpression(expression.right, out var rightReplacement));
 
-        if (statements.Any()) {
+        if (statements.Count != 0) {
             replacement = new BoundAssignmentExpression(leftReplacement, rightReplacement);
             return statements;
         }
@@ -292,7 +301,7 @@ internal abstract class BoundTreeExpander {
         BoundUnaryExpression expression, out BoundExpression replacement) {
         var statements = ExpandExpression(expression.operand, out var operandReplacement);
 
-        if (statements.Any()) {
+        if (statements.Count != 0) {
             replacement = new BoundUnaryExpression(expression.op, operandReplacement);
             return statements;
         }
@@ -316,7 +325,7 @@ internal abstract class BoundTreeExpander {
     protected virtual List<BoundStatement> ExpandCallExpression(
         BoundCallExpression expression,
         out BoundExpression replacement) {
-        var statements = new List<BoundStatement>();
+        var statements = ExpandExpression(expression.expression, out var expressionReplacement);
         var replacementArguments = ImmutableArray.CreateBuilder<BoundExpression>();
 
         foreach (var argument in expression.arguments) {
@@ -324,24 +333,19 @@ internal abstract class BoundTreeExpander {
             replacementArguments.Add(argumentReplacement);
         }
 
-        if (statements.Any()) {
-            replacement = new BoundCallExpression(
-                expression.operand,
-                expression.method,
-                replacementArguments.ToImmutable()
-            );
+        replacement = new BoundCallExpression(
+            expressionReplacement,
+            expression.method,
+            replacementArguments.ToImmutable()
+        );
 
-            return statements;
-        }
-
-        replacement = expression;
-        return new List<BoundStatement>() { };
+        return statements;
     }
 
     protected virtual List<BoundStatement> ExpandCastExpression(BoundCastExpression expression, out BoundExpression replacement) {
         var statements = ExpandExpression(expression.expression, out var expressionReplacement);
 
-        if (statements.Any()) {
+        if (statements.Count != 0) {
             replacement = new BoundCastExpression(expression.type, expressionReplacement);
             return statements;
         }
@@ -352,10 +356,10 @@ internal abstract class BoundTreeExpander {
 
     protected virtual List<BoundStatement> ExpandIndexExpression(
         BoundIndexExpression expression, out BoundExpression replacement) {
-        var statements = ExpandExpression(expression.operand, out var operandReplacement);
+        var statements = ExpandExpression(expression.expression, out var operandReplacement);
         statements.AddRange(ExpandExpression(expression.index, out var indexReplacement));
 
-        if (statements.Any()) {
+        if (statements.Count != 0) {
             replacement = new BoundIndexExpression(operandReplacement, indexReplacement, expression.isNullConditional);
             return statements;
         }
@@ -369,7 +373,7 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(expression.left, out var leftReplacement);
         statements.AddRange(ExpandExpression(expression.right, out var rightReplacement));
 
-        if (statements.Any()) {
+        if (statements.Count != 0) {
             replacement = new BoundCompoundAssignmentExpression(leftReplacement, expression.op, rightReplacement);
             return statements;
         }
@@ -396,7 +400,7 @@ internal abstract class BoundTreeExpander {
         statements.AddRange(ExpandExpression(expression.center, out var centerReplacement));
         statements.AddRange(ExpandExpression(expression.right, out var rightReplacement));
 
-        if (statements.Any()) {
+        if (statements.Count != 0) {
             replacement = new BoundTernaryExpression(
                 leftReplacement, expression.op, centerReplacement, rightReplacement
             );
@@ -416,13 +420,13 @@ internal abstract class BoundTreeExpander {
 
     protected virtual List<BoundStatement> ExpandMemberAccessExpression(
         BoundMemberAccessExpression expression, out BoundExpression replacement) {
-        var statements = ExpandExpression(expression.operand, out var operandReplacement);
+        var statements = ExpandExpression(expression.left, out var leftReplacement);
+        statements.AddRange(ExpandExpression(expression.right, out var rightReplacement));
 
-        if (statements.Any()) {
+        if (statements.Count != 0) {
             replacement = new BoundMemberAccessExpression(
-                operandReplacement,
-                expression.member,
-                expression.type,
+                leftReplacement,
+                rightReplacement,
                 expression.isNullConditional,
                 expression.isStaticAccess
             );
@@ -438,7 +442,7 @@ internal abstract class BoundTreeExpander {
         BoundPrefixExpression expression, out BoundExpression replacement) {
         var statements = ExpandExpression(expression.operand, out var operandReplacement);
 
-        if (statements.Any()) {
+        if (statements.Count != 0) {
             replacement = new BoundPrefixExpression(expression.op, operandReplacement);
             return statements;
         }
@@ -451,7 +455,7 @@ internal abstract class BoundTreeExpander {
         BoundPostfixExpression expression, out BoundExpression replacement) {
         var statements = ExpandExpression(expression.operand, out var operandReplacement);
 
-        if (statements.Any()) {
+        if (statements.Count != 0) {
             replacement = new BoundPostfixExpression(operandReplacement, expression.op, expression.isOwnStatement);
             return statements;
         }

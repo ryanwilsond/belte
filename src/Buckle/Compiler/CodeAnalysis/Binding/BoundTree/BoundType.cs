@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// <summary>
 /// Bound type, partially mutable.
 /// </summary>
-internal sealed class BoundType : BoundNode {
+internal sealed class BoundType : BoundExpression {
     /// <summary>
     /// Decimal type that can be null.
     /// </summary>
@@ -65,6 +65,11 @@ internal sealed class BoundType : BoundNode {
     internal static readonly BoundType Any = new BoundType(TypeSymbol.Any);
 
     /// <summary>
+    /// A type representing a method group.
+    /// </summary>
+    internal static readonly BoundType MethodGroup = new BoundType(TypeSymbol.Func);
+
+    /// <summary>
     /// The type type, value can be a <see cref="BoundType" />, cannot be null.
     /// </summary>
     internal static readonly BoundType Type = new BoundType(TypeSymbol.Type);
@@ -88,7 +93,7 @@ internal sealed class BoundType : BoundNode {
         TypeSymbol typeSymbol, bool isImplicit = false, bool isConstantReference = false, bool isReference = false,
         bool isExplicitReference = false, bool isConstant = false, bool isNullable = false,
         bool isLiteral = false, int dimensions = 0,
-        ImmutableArray<BoundExpression>? templateArguments = null, int arity = 0) {
+        ImmutableArray<BoundConstant>? templateArguments = null, int arity = 0) {
         this.typeSymbol = typeSymbol;
         this.isImplicit = isImplicit;
         this.isConstantReference = isConstantReference;
@@ -98,9 +103,11 @@ internal sealed class BoundType : BoundNode {
         this.isNullable = isNullable;
         this.isLiteral = isLiteral;
         this.dimensions = dimensions;
-        this.templateArguments = templateArguments ?? ImmutableArray<BoundExpression>.Empty;
+        this.templateArguments = templateArguments ?? ImmutableArray<BoundConstant>.Empty;
         this.arity = arity;
     }
+
+    internal override BoundType type => this;
 
     /// <summary>
     /// The language type, not the <see cref="Syntax.SyntaxNode" /> type.
@@ -151,7 +158,7 @@ internal sealed class BoundType : BoundNode {
     /// The arguments for the class template, if any.
     /// </summary>
     /// <value></value>
-    internal ImmutableArray<BoundExpression> templateArguments { get; }
+    internal ImmutableArray<BoundConstant> templateArguments { get; }
 
     /// <summary>
     /// The number of template arguments the type has.
@@ -173,7 +180,7 @@ internal sealed class BoundType : BoundNode {
     internal static BoundType CopyWith(
         BoundType type, TypeSymbol typeSymbol = null, bool? isImplicit = null, bool? isConstantReference = null,
         bool? isReference = null, bool? isExplicitReference = null, bool? isConstant = null, bool? isNullable = null,
-        bool? isLiteral = null, int? dimensions = null, ImmutableArray<BoundExpression>? templateArguments = null,
+        bool? isLiteral = null, int? dimensions = null, ImmutableArray<BoundConstant>? templateArguments = null,
         int? arity = null) {
         if (type is null)
             return null;
@@ -214,25 +221,6 @@ internal sealed class BoundType : BoundNode {
     }
 
     /// <summary>
-    /// Creates a Func<> type using the signature of a method to construct a template argument list.
-    /// </summary>
-    internal static BoundType CreateFunc(ImmutableArray<ParameterSymbol> parameters, BoundType returnType) {
-        var builder = ImmutableArray.CreateBuilder<BoundExpression>();
-
-        foreach (var parameter in parameters)
-            builder.Add(new BoundTypeOfExpression(parameter.type));
-
-        builder.Add(new BoundTypeOfExpression(returnType));
-        var templateArguments = builder.ToImmutable();
-
-        return new BoundType(
-            TypeSymbol.Func,
-            templateArguments: templateArguments,
-            arity: templateArguments.Length
-        );
-    }
-
-    /// <summary>
     /// If the given type is the same as this.
     /// </summary>
     /// <param name="type"><see cref="BoundType" /> to compare this to.</param>
@@ -258,7 +246,7 @@ internal sealed class BoundType : BoundNode {
             return false;
 
         for (var i = 0; i < templateArguments.Length; i++) {
-            if (templateArguments[i].constantValue != type.templateArguments[i].constantValue)
+            if (templateArguments[i] != type.templateArguments[i])
                 return false;
         }
 

@@ -186,29 +186,29 @@ public static class Program {
         @"
 class TypeTests {
     int int1;
-    [NotNull]int int2;
+    int! int2;
     int[] int3;
-    [NotNull]int[] int4;
+    int[]! int4;
 
     bool bool1;
-    [NotNull]bool bool2;
+    bool! bool2;
     bool[] bool3;
-    [NotNull]bool[] bool4;
+    bool[]! bool4;
 
     string string1;
-    [NotNull]string string2;
+    string! string2;
     string[] string3;
-    [NotNull]string[] string4;
+    string[]! string4;
 
     decimal decimal1;
-    [NotNull]decimal decimal2;
+    decimal! decimal2;
     decimal[] decimal3;
-    [NotNull]decimal[] decimal4;
+    decimal[]! decimal4;
 
     any any1;
-    [NotNull]any any2;
+    any! any2;
     any[] any3;
-    [NotNull]any[] any4;
+    any[]! any4;
 }
         ",
         /* C# Code */
@@ -414,7 +414,7 @@ void Main() {
     PrintLine(a[1]);
 
     int z = 3;
-    [NotNull]int g = Value(z);
+    int! g = Value(z);
 }
         ",
         /* C# Code */
@@ -617,7 +617,49 @@ public static class Program {
         @"
         "
     )]
+    [InlineData(
+        /* Belte Code */
+        @"
+class A {
+    void Test() { }
+}
 
+var myA = new A();
+myA.Test();
+        ",
+        /* C# Code */
+        @"
+using System;
+using System.Collections.Generic;
+
+namespace EmitterTests;
+
+public static class Program {
+
+    public class A {
+
+        public A() {
+            return;
+        }
+
+        public void Test() {
+            return;
+        }
+
+    }
+
+    public static void Main() {
+        A myA = new A();
+        myA.Test();
+        return;
+    }
+
+}
+        ",
+        /* IL Code */
+        @"
+        "
+    )]
 #pragma warning disable xUnit1026
     public void Emitter_Emits_CorrectText(string text, string expectedCSharpText, string expectedILText) {
         AssertText(text, expectedCSharpText.Trim() + Environment.NewLine, BuildMode.CSharpTranspile);

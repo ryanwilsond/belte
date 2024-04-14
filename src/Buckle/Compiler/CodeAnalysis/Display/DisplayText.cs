@@ -95,6 +95,9 @@ public sealed class DisplayText {
         }
 
         switch (node.kind) {
+            case BoundNodeKind.VariableDeclaration:
+                DisplayVariableDeclaration(text, (BoundVariableDeclaration)node);
+                break;
             case BoundNodeKind.Type:
                 DisplayType(text, (BoundType)node);
                 break;
@@ -107,8 +110,8 @@ public sealed class DisplayText {
             case BoundNodeKind.ExpressionStatement:
                 DisplayExpressionStatement(text, (BoundExpressionStatement)node);
                 break;
-            case BoundNodeKind.VariableDeclarationStatement:
-                DisplayVariableDeclarationStatement(text, (BoundVariableDeclarationStatement)node);
+            case BoundNodeKind.LocalDeclarationStatement:
+                DisplayLocalDeclarationStatement(text, (BoundLocalDeclarationStatement)node);
                 break;
             case BoundNodeKind.IfStatement:
                 DisplayIfStatement(text, (BoundIfStatement)node);
@@ -198,13 +201,7 @@ public sealed class DisplayText {
     }
 
     private static void DisplayType(DisplayText text, BoundType type) {
-        if (!type.isNullable && !type.isLiteral) {
-            text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
-            text.Write(CreateIdentifier("NotNull"));
-            text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
-        }
-
-        if (type.isConstantReference) {
+        if (type.isConstant) {
             text.Write(CreateKeyword(SyntaxKind.ConstKeyword));
             text.Write(CreateSpace());
         }
@@ -214,7 +211,7 @@ public sealed class DisplayText {
             text.Write(CreateSpace());
         }
 
-        if (type.isConstant) {
+        if (type.isConstantReference) {
             text.Write(CreateKeyword(SyntaxKind.ConstKeyword));
             text.Write(CreateSpace());
         }
@@ -234,7 +231,7 @@ public sealed class DisplayText {
                     text.Write(CreateSpace());
                 }
 
-                DisplayNode(text, argument);
+                DisplayConstant(text, argument);
             }
 
             text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
@@ -246,6 +243,9 @@ public sealed class DisplayText {
             brackets += "[]";
 
         text.Write(CreatePunctuation(brackets));
+
+        if (!type.isNullable && !type.isLiteral && type.typeSymbol != TypeSymbol.Void)
+            text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
     }
 
     private static void DisplayNopStatement(DisplayText text, BoundNopStatement _) {
@@ -418,7 +418,11 @@ public sealed class DisplayText {
         text.Write(CreateLine());
     }
 
-    private static void DisplayVariableDeclarationStatement(DisplayText text, BoundVariableDeclarationStatement node) {
+    private static void DisplayLocalDeclarationStatement(DisplayText text, BoundLocalDeclarationStatement node) {
+        DisplayNode(text, node.declaration);
+    }
+
+    private static void DisplayVariableDeclaration(DisplayText text, BoundVariableDeclaration node) {
         DisplayNode(text, node.variable.type);
         text.Write(CreateSpace());
         text.Write(CreateIdentifier(node.variable.name));
@@ -438,9 +442,9 @@ public sealed class DisplayText {
     }
 
     private static void DisplayMemberAccessExpression(DisplayText text, BoundMemberAccessExpression node) {
-        DisplayNode(text, node.operand);
+        DisplayNode(text, node.left);
         text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
-        text.Write(CreateIdentifier(node.member.name));
+        DisplayNode(text, node.right);
     }
 
     private static void DisplayObjectCreationExpression(DisplayText text, BoundObjectCreationExpression node) {
@@ -476,7 +480,7 @@ public sealed class DisplayText {
     }
 
     private static void DisplayIndexExpression(DisplayText text, BoundIndexExpression node) {
-        DisplayNode(text, node.operand);
+        DisplayNode(text, node.expression);
         text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
         DisplayNode(text, node.index);
         text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
@@ -485,7 +489,7 @@ public sealed class DisplayText {
     private static void DisplayReferenceExpression(DisplayText text, BoundReferenceExpression node) {
         text.Write(CreateKeyword(SyntaxKind.RefKeyword));
         text.Write(CreateSpace());
-        text.Write(CreateIdentifier(node.variable.name));
+        DisplayNode(node.expression);
     }
 
     private static void DisplayCastExpression(DisplayText text, BoundCastExpression node) {
@@ -496,6 +500,11 @@ public sealed class DisplayText {
     }
 
     private static void DisplayCallExpression(DisplayText text, BoundCallExpression node) {
+        if (node.expression is not BoundEmptyExpression) {
+            DisplayNode(text, node.expression);
+            text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
+        }
+
         text.Write(CreateIdentifier(node.method.name));
         DisplayArguments(text, node.arguments);
     }
@@ -568,23 +577,17 @@ public sealed class DisplayText {
 
     private static void DisplayLiteralExpression(DisplayText text, BoundLiteralExpression node) {
         if (node.value is null) {
-            text.Write(CreateKeyword(SyntaxKind.NullKeyword));
+            text.Write(CreateLiteral("null"));
             return;
         }
 
         var value = node.value.ToString();
         var typeSymbol = BoundType.Assume(node.value).typeSymbol;
 
-        if (typeSymbol == TypeSymbol.Bool)
-            text.Write(CreateKeyword(value.ToLower()));
-        else if (typeSymbol == TypeSymbol.Int)
-            text.Write(CreateNumber(value));
-        else if (typeSymbol == TypeSymbol.String)
+        if (typeSymbol == TypeSymbol.String)
             DisplayStringLiteral(value);
-        else if (typeSymbol == TypeSymbol.Decimal)
-            text.Write(CreateNumber(value));
         else
-            throw new BelteInternalException($"WriteLiteralExpression: unexpected type '{typeSymbol}'");
+            text.Write(CreateLiteral(value.ToLower()));
 
         void DisplayStringLiteral(string value) {
             var stringBuilder = new StringBuilder("\"");

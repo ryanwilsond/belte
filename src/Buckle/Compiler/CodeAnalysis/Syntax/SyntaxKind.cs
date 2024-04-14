@@ -86,7 +86,6 @@ public enum SyntaxKind {
     IsntKeyword,
     StructKeyword,
     ClassKeyword,
-    VarKeyword,
     NewKeyword,
     ThisKeyword,
     StaticKeyword,
@@ -107,7 +106,6 @@ public enum SyntaxKind {
     // Expressions
     ParenthesizedExpression,
     CastExpression,
-    TypeExpression,
     ThisExpression,
     EmptyExpression,
 
@@ -124,8 +122,6 @@ public enum SyntaxKind {
     // Primary expressions
     LiteralExpression,
     TypeOfExpression,
-    IdentifierNameExpression,
-    TemplateNameExpression,
     CallExpression,
     ReferenceExpression,
     MemberAccessExpression,
@@ -133,8 +129,8 @@ public enum SyntaxKind {
 
     // Statements
     BlockStatement,
-    VariableDeclarationStatement,
     ExpressionStatement,
+    LocalDeclarationStatement,
     LocalFunctionStatement,
     EmptyStatement,
 
@@ -156,25 +152,34 @@ public enum SyntaxKind {
     // Declarations
     CompilationUnit,
     GlobalStatement,
-
-    // Attributes
-    Attribute,
-
-    // Type declarations
+    VariableDeclaration,
+    EqualsValueClause,
     StructDeclaration,
     ClassDeclaration,
     FieldDeclaration,
-    Type,
-    ArrayRankSpecifier,
-    Parameter,
-    ParameterList,
-    TemplateParameterList,
-    TemplateArgumentList,
     MethodDeclaration,
     ConstructorDeclaration,
 
-    // Other
+    // Names
+    IdentifierName,
+    TemplateName,
+    QualifiedName,
+    EmptyName,
+    ArrayType,
+    NonNullableType,
+    ReferenceType,
+
+    // Lists
     Argument,
     ArgumentList,
+    Parameter,
+    ParameterList,
+    ArrayRankSpecifier,
+    TemplateParameterList,
+    TemplateArgumentList,
+    Attribute,
+    AttributeList,
+
+    // Other
     EndOfFileToken,
 }

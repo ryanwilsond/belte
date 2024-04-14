@@ -298,8 +298,8 @@ internal sealed class CSharpEmitter {
             case BoundNodeKind.ExpressionStatement:
                 EmitExpressionStatement(indentedTextWriter, (BoundExpressionStatement)statement);
                 break;
-            case BoundNodeKind.VariableDeclarationStatement:
-                EmitVariableDeclarationStatement(indentedTextWriter, (BoundVariableDeclarationStatement)statement);
+            case BoundNodeKind.LocalDeclarationStatement:
+                EmitLocalDeclarationStatement(indentedTextWriter, (BoundLocalDeclarationStatement)statement);
                 break;
             case BoundNodeKind.GotoStatement:
                 EmitGotoStatement(indentedTextWriter, (BoundGotoStatement)statement);
@@ -350,14 +350,17 @@ internal sealed class CSharpEmitter {
         }
     }
 
-    private void EmitVariableDeclarationStatement(
-        IndentedTextWriter indentedTextWriter, BoundVariableDeclarationStatement statement) {
-        indentedTextWriter.Write(GetEquivalentType(statement.variable.type, true));
-        indentedTextWriter.Write($" {GetSafeName(statement.variable.name)}");
+    private void EmitLocalDeclarationStatement(
+        IndentedTextWriter indentedTextWriter, BoundLocalDeclarationStatement statement) {
+        var variable = statement.declaration.variable;
+        var initializer = statement.declaration.initializer;
 
-        if (statement.initializer != null) {
+        indentedTextWriter.Write(GetEquivalentType(variable.type, true));
+        indentedTextWriter.Write($" {GetSafeName(variable.name)}");
+
+        if (initializer != null) {
             indentedTextWriter.Write(" = ");
-            EmitExpression(indentedTextWriter, statement.initializer);
+            EmitExpression(indentedTextWriter, initializer);
         }
 
         indentedTextWriter.WriteLine(";");
@@ -639,52 +642,57 @@ internal sealed class CSharpEmitter {
     private void EmitCallExpression(IndentedTextWriter indentedTextWriter, BoundCallExpression expression) {
         string methodName = null;
 
-        switch (expression.method.name) {
-            case "Print":
-                methodName = "Console.Write";
-                break;
-            case "PrintLine":
-                methodName = "Console.WriteLine";
-                break;
-            case "Input":
-                methodName = "Console.ReadLine";
-                break;
-            case "RandInt":
-                var signature = $"Func<{GetEquivalentType(expression.type)}>";
-                indentedTextWriter.Write(
-                    $"(({signature})(() => {{ var random = new System.Random(); var temp = "
-                );
+        if (expression.expression is BoundEmptyExpression) {
+            switch (expression.method.name) {
+                case "Print":
+                    methodName = "Console.Write";
+                    break;
+                case "PrintLine":
+                    methodName = "Console.WriteLine";
+                    break;
+                case "Input":
+                    methodName = "Console.ReadLine";
+                    break;
+                case "RandInt":
+                    var signature = $"Func<{GetEquivalentType(expression.type)}>";
+                    indentedTextWriter.Write(
+                        $"(({signature})(() => {{ var random = new System.Random(); var temp = "
+                    );
 
-                EmitExpression(indentedTextWriter, expression.arguments[0]);
-                indentedTextWriter.Write("; ");
-
-                if (expression.arguments[0].type.isNullable)
-                    indentedTextWriter.Write("return temp.HasValue ? random.Next(temp.Value) : random.Next();");
-                else
-                    indentedTextWriter.Write("return random.Next(temp);");
-
-                indentedTextWriter.Write(" }))()");
-
-                return;
-            case "Value":
-                EmitExpression(indentedTextWriter, expression.arguments[0]);
-
-                if (GetEquivalentType(expression.arguments[0].type).StartsWith("Nullable"))
-                    indentedTextWriter.Write(".Value");
-
-                return;
-            case "HasValue":
-                if (GetEquivalentType(expression.arguments[0].type).StartsWith("Nullable")) {
                     EmitExpression(indentedTextWriter, expression.arguments[0]);
-                    indentedTextWriter.Write(".HasValue");
-                } else if (expression.arguments[0].type.isNullable) {
-                    EmitExpression(indentedTextWriter, expression.arguments[0]);
-                    indentedTextWriter.Write($" is not null");
-                } else {
-                    indentedTextWriter.Write("true");
-                }
+                    indentedTextWriter.Write("; ");
 
-                return;
+                    if (expression.arguments[0].type.isNullable)
+                        indentedTextWriter.Write("return temp.HasValue ? random.Next(temp.Value) : random.Next();");
+                    else
+                        indentedTextWriter.Write("return random.Next(temp);");
+
+                    indentedTextWriter.Write(" }))()");
+
+                    return;
+                case "Value":
+                    EmitExpression(indentedTextWriter, expression.arguments[0]);
+
+                    if (GetEquivalentType(expression.arguments[0].type).StartsWith("Nullable"))
+                        indentedTextWriter.Write(".Value");
+
+                    return;
+                case "HasValue":
+                    if (GetEquivalentType(expression.arguments[0].type).StartsWith("Nullable")) {
+                        EmitExpression(indentedTextWriter, expression.arguments[0]);
+                        indentedTextWriter.Write(".HasValue");
+                    } else if (expression.arguments[0].type.isNullable) {
+                        EmitExpression(indentedTextWriter, expression.arguments[0]);
+                        indentedTextWriter.Write($" is not null");
+                    } else {
+                        indentedTextWriter.Write("true");
+                    }
+
+                    return;
+            }
+        } else {
+            EmitExpression(indentedTextWriter, expression.expression);
+            indentedTextWriter.Write(".");
         }
 
         indentedTextWriter.Write($"{methodName ?? GetSafeName(expression.method.name)}");
@@ -709,7 +717,7 @@ internal sealed class CSharpEmitter {
     }
 
     private void EmitIndexExpression(IndentedTextWriter indentedTextWriter, BoundIndexExpression expression) {
-        EmitExpression(indentedTextWriter, expression.operand);
+        EmitExpression(indentedTextWriter, expression.expression);
         indentedTextWriter.Write("[");
         EmitExpression(indentedTextWriter, expression.index);
         indentedTextWriter.Write("]");
@@ -793,19 +801,27 @@ internal sealed class CSharpEmitter {
     }
 
     private void EmitReferenceExpression(IndentedTextWriter indentedTextWriter, BoundReferenceExpression expression) {
-        indentedTextWriter.Write($"ref {GetSafeName(expression.variable.name)}");
+        var variable = (expression.expression as BoundVariableExpression).variable;
+        indentedTextWriter.Write($"ref {GetSafeName(variable.name)}");
     }
 
     private void EmitObjectCreationExpression(
         IndentedTextWriter indentedTextWriter, BoundObjectCreationExpression expression) {
         indentedTextWriter.Write($"new {GetEquivalentType(expression.type)}");
-        EmitArguments(indentedTextWriter, expression.type.templateArguments.AddRange(expression.arguments));
+        var arguments = expression.arguments.AddRange(
+            expression.type.templateArguments.Select(t => new BoundLiteralExpression(t.value)).Cast<BoundExpression>()
+        );
+
+        EmitArguments(indentedTextWriter, arguments);
     }
 
     private void EmitMemberAccessExpression(
         IndentedTextWriter indentedTextWriter, BoundMemberAccessExpression expression) {
-        EmitExpression(indentedTextWriter, expression.operand);
-        indentedTextWriter.Write($".{GetSafeName(expression.member.name)}");
+        EmitExpression(indentedTextWriter, expression.left);
+        if (expression.right is BoundVariableExpression v)
+            indentedTextWriter.Write($".{GetSafeName(v.variable.name)}");
+        else if (expression.right is BoundType t)
+            indentedTextWriter.Write($".{GetEquivalentType(t)}");
     }
 
     private void EmitThisExpression(IndentedTextWriter indentedTextWriter, BoundThisExpression _) {

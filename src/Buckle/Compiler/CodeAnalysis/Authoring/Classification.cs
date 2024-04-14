@@ -9,7 +9,7 @@ public enum Classification {
     Identifier,
     Keyword,
     Type,
-    Number,
+    Literal,
     String,
     Comment,
     Text,

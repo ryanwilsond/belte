@@ -88,4 +88,4 @@ buildportable:
 
 builddebug:
 	@echo "Started building the Buckle project (debug) ..."
-	@dotnet build $(CL_DIR)/CommandLine.csproj --sc -r $(SYSTEM) -o bin/debug
+	@dotnet build $(CL_DIR)/CommandLine.csproj --sc -r $(SYSTEM) -o bin/debug -p:WarningLevel=4;AnalysisLevel=4

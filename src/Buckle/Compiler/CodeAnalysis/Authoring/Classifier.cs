@@ -86,7 +86,11 @@ public static class Classifier {
 
     private static Classification GetClassification(SyntaxKind kind, bool isTypeName) {
         var isKeyword = kind.IsKeyword();
-        var isNumber = kind == SyntaxKind.NumericLiteralToken;
+        var isLiteral = kind is
+            SyntaxKind.NumericLiteralToken or
+            SyntaxKind.TrueKeyword or
+            SyntaxKind.FalseKeyword or
+            SyntaxKind.NullKeyword;
         var isIdentifier = kind == SyntaxKind.IdentifierToken;
         var isString = kind == SyntaxKind.StringLiteralToken;
         var isComment = kind.IsComment();
@@ -97,8 +101,8 @@ public static class Classifier {
             return Classification.Keyword;
         else if (isIdentifier)
             return Classification.Identifier;
-        else if (isNumber)
-            return Classification.Number;
+        else if (isLiteral)
+            return Classification.Literal;
         else if (isString)
             return Classification.String;
         else if (isComment)

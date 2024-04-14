@@ -14,7 +14,7 @@ internal abstract class VariableSymbol : Symbol, IVariableSymbol {
     /// <param name="constant"><see cref="BoundConstant" /> of the variable.</param>
     internal VariableSymbol(string name, BoundType type, BoundConstant constant) : base(name) {
         this.type = type;
-        constantValue = type.isConstant && !type.isReference ? constant : null;
+        constantValue = (type?.isConstant ?? false) && (!type?.isReference ?? false) ? constant : null;
     }
 
     public ITypeSymbol typeSymbol => type.typeSymbol;
