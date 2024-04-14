@@ -219,6 +219,7 @@ public sealed class EvaluatorTests {
     [InlineData("int x = 4; int y = 3; ref int z = ref x; z = ref y; z++; return x;", 4)]
     [InlineData("var a = {1, 2, 3}; a[0] = 6; return a[0];", 6)]
     [InlineData("int a = 3; class A { ref int b = ref a; } var m = new A(); a = 6; return m.b;", 6)]
+    [InlineData("class A { int[] b = { 1, 2, 3 }; } var a = new A(); var r = ref a.b; r[0]++; return a.b[0];", 2)]
     // Name expressions
     [InlineData("int a = 3; int b = 6; return a;", 3)]
     [InlineData("int a = 3; int b = 6; return b;", 6)]

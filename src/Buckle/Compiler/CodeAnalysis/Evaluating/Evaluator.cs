@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Shared;
@@ -579,26 +580,32 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression _, ValueWrapper<bool> _1) {
         // TODO Implement typeof and type types
+        // ? Would just settings EvaluatorObject.value to a BoundType work?
         return new EvaluatorObject();
     }
 
-    private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node, ValueWrapper<bool> _1) {
-        Dictionary<IVariableSymbol, IEvaluatorObject> referenceScope;
-        var variable = (node.expression as BoundVariableExpression).variable;
+    private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node, ValueWrapper<bool> abort) {
+        if (node.expression is BoundVariableExpression v) {
+            Dictionary<IVariableSymbol, IEvaluatorObject> referenceScope;
 
-        if (variable.kind == SymbolKind.GlobalVariable)
-            referenceScope = _globals;
-        else
-            referenceScope = _locals.Peek();
+            if (v.variable.kind == SymbolKind.GlobalVariable)
+                referenceScope = _globals;
+            else
+                referenceScope = _locals.Peek();
 
-        return new EvaluatorObject(variable, isExplicitReference: true, referenceScope: referenceScope);
+            return new EvaluatorObject(v.variable, isExplicitReference: true, referenceScope: referenceScope);
+        } else {
+            return EvaluateExpression(node.expression, abort);
+        }
     }
 
     private EvaluatorObject EvaluateIndexExpression(BoundIndexExpression node, ValueWrapper<bool> abort) {
         var variable = EvaluateExpression(node.expression, abort);
         var index = EvaluateExpression(node.index, abort);
+        var array = (EvaluatorObject[])Value(variable);
+        var indexValue = (int)Value(index);
 
-        return ((EvaluatorObject[])Value(variable))[(int)Value(index)];
+        return array[indexValue];
     }
 
     private EvaluatorObject[] EvaluateInitializerListExpression(BoundInitializerListExpression node, ValueWrapper<bool> abort) {
