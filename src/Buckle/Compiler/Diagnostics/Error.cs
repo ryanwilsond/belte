@@ -440,6 +440,14 @@ internal static class Error {
     }
 
     /// <summary>
+    /// BU0047. Run `buckle --explain BU0047` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic MemberMustBeStatic(TextLocation location) {
+        var message = "cannot declare instance members in a static class";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MemberMustBeStatic), location, message);
+    }
+
+    /// <summary>
     /// BU0048. Run `buckle --explain BU0048` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic ReferenceNoInitialization(TextLocation location, bool isConstant) {
@@ -899,6 +907,30 @@ internal static class Error {
     internal static BelteDiagnostic CannotUseType(TextLocation location, BoundType type) {
         var message = $"'{type}' is a type, which is not valid in this context";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseType), location, message);
+    }
+
+    /// <summary>
+    /// BU0098. Run `buckle --explain BU0098` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic StaticConstructor(TextLocation location) {
+        var message = $"static classes cannot have constructors";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StaticConstructor), location, message);
+    }
+
+    /// <summary>
+    /// BU0099. Run `buckle --explain BU0099` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic StaticVariable(TextLocation location) {
+        var message = $"cannot declare a variable with a static type";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StaticVariable), location, message);
+    }
+
+    /// <summary>
+    /// BU0100. Run `buckle --explain BU0100` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotConstructStatic(TextLocation location, string name) {
+        var message = $"cannot create an instance of the static class '{name}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotConstructStatic), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

@@ -57,6 +57,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0044 | Error | collection dimensions on implicit types are inferred making them not necessary in this context |
 | BU0045 | Error | cannot use implicit-typing in this context |
 | BU0046 | Error | try statement must have a catch or finally |
+| BU0047 | Error | cannot declare instance members in a static class |
 | BU0048 | Error | a declaration of a by-reference variable must have an initializer|
 | BU0049 | Error | a by-reference variable must be initialized with a reference |
 | BU0051 | Error | cannot initialize a by-value variable with a reference |
@@ -107,6 +108,9 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0095 | Error | template argument must be a compile-time constant |
 | BU0096 | Error | cannot reference non-field or non-variable item |
 | BU0097 | Error | '{0}' is a type, which is not valid in this context |
+| BU0098 | Error | static classes cannot have constructors |
+| BU0099 | Error | cannot declare a variable with a static type |
+| BU0100 | Error | cannot create an instance of the static class '{0}' |
 
 ## Command Line Diagnostics
 

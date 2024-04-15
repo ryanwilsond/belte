@@ -336,8 +336,6 @@ public sealed class EvaluatorTests {
     [InlineData("class A { int M() { return 1; } int N() { int M() { return 2; } return M(); } } var myVar = new A(); return myVar.N();", 2)]
     [InlineData("class A { int M() { return 1; } int N() { int M() { return 2; } return this.M(); } } var myVar = new A(); return myVar.N();", 1)]
     // Static member access
-    [InlineData("class A { const int a = 3; } return A.a;", 3)]
-    [InlineData("class A { const int a; } return A.a;", null)]
     [InlineData("class A { static int B() { return 0; } } return A.B();", 0)]
     [InlineData("class A { static int B(int a) { return a + 3; } } return A.B(4);", 7)]
     // Templates

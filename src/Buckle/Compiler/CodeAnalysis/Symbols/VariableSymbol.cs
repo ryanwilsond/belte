@@ -17,6 +17,8 @@ internal abstract class VariableSymbol : Symbol, IVariableSymbol {
         constantValue = (type?.isConstant ?? false) && (!type?.isReference ?? false) ? constant : null;
     }
 
+    public override bool isStatic => false;
+
     public ITypeSymbol typeSymbol => type.typeSymbol;
 
     public bool isImplicit => type.isImplicit;

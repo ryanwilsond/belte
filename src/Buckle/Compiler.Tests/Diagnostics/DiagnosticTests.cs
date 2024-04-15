@@ -584,6 +584,21 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
+    public void Reports_Error_BU0047_MemberMustBeStatic() {
+        var text = @"
+            static class A {
+                void [Test]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            cannot declare instance members in a static class
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
     public void Reports_Error_BU0048_ReferenceNoInitialization() {
         var text = @"
             ref int [x];
@@ -1053,7 +1068,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0081_CannotConstructPrimitive() {
         var text = @"
-            var myInt = new [int]();
+            var myInt = [new int()];
         ";
 
         var diagnostics = @"
@@ -1161,7 +1176,9 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0088_InvalidModifier() {
         var text = @"
-            [static] class MyClass { }
+            class MyClass {
+                [static] int a;
+            }
         ";
 
         var diagnostics = @"
@@ -1286,6 +1303,49 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             'A' is a type, which is not valid in this context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0098_StaticConstructor() {
+        var text = @"
+            static class A {
+                [A]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            static classes cannot have constructors
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0099_StaticVariable() {
+        var text = @"
+            static class A { }
+            [A] a;
+        ";
+
+        var diagnostics = @"
+            cannot declare a variable with a static type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0100_CannotConstructStatic() {
+        var text = @"
+            static class A { }
+            var a = [new A()];
+        ";
+
+        var diagnostics = @"
+            cannot create an instance of the static class 'A'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

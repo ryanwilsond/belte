@@ -16,6 +16,4 @@ internal class LocalVariableSymbol : VariableSymbol {
         : base(name, type, constant) { }
 
     public override SymbolKind kind => SymbolKind.LocalVariable;
-
-    public override bool isStatic => false;
 }

@@ -733,6 +733,19 @@ try {
 ```
 
 Note that having both a catch and a finally clause is also allowed.
+$BU0047
+Static classes are classes containing only static members. They have no
+constructors because they are never initialized. If an instance member is
+declared in a static class, this error is raised.
+
+For example:
+
+```
+static class MyClass {
+    void MyMethod() { } // Not allowed, `MyMethod` is not static
+    static void MyMethod() { } // Allowed
+}
+```
 $BU0048
 By-reference variables always reference other variables. Because of this, they
 themselves cannot be null and require an initializer. If a by-reference
@@ -1187,7 +1200,7 @@ var myDecimal = (decimal!)true; // Not allowed, BU0020 is raised as you cannot c
 var myDecimal = (decimal!)null; // Not allowed, this error is raised as you cannot `null` to a non-nullable type
 ```
 $BU0074
-Modifiers such as 'const' and 'static' effect the meaning of a member. Each
+Modifiers such as `const` and `static` effect the meaning of a member. Each
 modifier can only be applied once per item.
 
 For example:
@@ -1499,6 +1512,39 @@ For example:
 ```
 class MyClass { }
 MyClass; // Not allowed, performs no action (dead code)
+```
+$BU0098
+Static classes only contain static members. Because of this, you cannot create
+an instance of a static class. And because instances are never created, no
+constructors are ever called, making them dead code.
+
+For example:
+
+```
+static class MyClass {
+    MyClass() { } // Not allowed, constructor within a static class
+}
+```
+$BU0099
+Static classes cannot have instances, so a variable (an instance) cannot be of
+a static type.
+
+For example:
+
+```
+static class MyClass { }
+
+MyClass myVar; // Not allowed, `MyClass` is a static type
+```
+$BU0100
+Static classes cannot have instances.
+
+For example:
+
+```
+static class MyClass { }
+
+var myVar = new MyClass(); // Not allowed, cannot create an instance of static class `MyClass`
 ```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble

@@ -16,6 +16,4 @@ internal sealed class GlobalVariableSymbol : VariableSymbol {
         : base(name, type, constant) { }
 
     public override SymbolKind kind => SymbolKind.GlobalVariable;
-
-    public override bool isStatic => false;
 }
