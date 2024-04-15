@@ -1392,32 +1392,24 @@ internal sealed class Binder {
         return variable;
     }
 
-    // private VariableSymbol BindVariableWithoutDeclaring(
-    //     SyntaxToken identifier,
-    //     BoundType type,
-    //     BoundConstant constant) {
-    //     return _flags.Includes(BinderFlags.Method)
-    //          ? new LocalVariableSymbol(identifier.text, type, constant)
-    //          : new GlobalVariableSymbol(identifier.text, type, constant);
-    // }
-
     private FieldSymbol BindField(
         VariableDeclarationSyntax declaration,
         DeclarationModifiers modifiers) {
         var name = declaration.identifier.text;
         BindAndVerifyType(declaration, modifiers, true, out var type);
-        // var isConstant = type?.isConstant ?? false;
 
         var field = new FieldSymbol(
             name,
             type,
-            // isConstant ? boundDeclaration.initializer.constantValue : null,
             null,
             modifiers
         );
 
         if (LookupTypes(name).Length > 0) {
-            diagnostics.Push(Error.VariableUsingTypeName(declaration.identifier.location, name, type.isConstant));
+            diagnostics.Push(
+                Error.VariableUsingTypeName(declaration.identifier.location, name, type?.isConstant ?? false)
+            );
+
             return field;
         }
 
@@ -1771,7 +1763,7 @@ internal sealed class Binder {
                 isLiteral: false
             );
 
-            if (initializer.type.isConstant && !variableType.isConstantReference) {
+            if (initializer.type.isConstantReference && !variableType.isConstantReference) {
                 diagnostics.Push(Error.ReferenceToConstant(
                     declaration.initializer.equalsToken.location, variableType.isConstant)
                 );
@@ -1792,7 +1784,6 @@ internal sealed class Binder {
 
             // References cant have implicit casts
             var variable = BindVariable(declaration.identifier, variableType, initializer.constantValue);
-            // : BindVariableWithoutDeclaring(declaration.identifier, variableType, initializer.constantValue);
 
             return new BoundVariableDeclaration(variable, initializer);
         } else if (type.dimensions > 0 ||
@@ -1848,7 +1839,6 @@ internal sealed class Binder {
                 ),
                 castedInitializer.constantValue
             );
-            // : BindVariableWithoutDeclaring(declaration.identifier, variableType, initializer.constantValue);
 
             if (diagnostics.Errors().Count > currentCount)
                 return null;
@@ -1888,7 +1878,6 @@ internal sealed class Binder {
 
             var castedInitializer = BindCast(value?.location, initializer, variableType);
             var variable = BindVariable(declaration.identifier, variableType, castedInitializer.constantValue);
-            // : BindVariableWithoutDeclaring(declaration.identifier, variableType, initializer.constantValue);
 
             if (initializer.constantValue is null || initializer.constantValue.value != null)
                 _scope.NoteAssignment(variable);

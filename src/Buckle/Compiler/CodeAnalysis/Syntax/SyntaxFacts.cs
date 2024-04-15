@@ -122,12 +122,10 @@ internal static class SyntaxFacts {
     /// <param name="type">Left operator of the ternary operator.</param>
     /// <returns>Associated right operator, throws if given an unknown right operator.</returns>
     internal static SyntaxKind GetTernaryOperatorPair(this SyntaxKind type) {
-        switch (type) {
-            case SyntaxKind.QuestionToken:
-                return SyntaxKind.ColonToken;
-            default:
-                throw new BelteInternalException($"GetTernaryOperatorPair: unknown right operator '{type}'");
-        }
+        return type switch {
+            SyntaxKind.QuestionToken => SyntaxKind.ColonToken,
+            _ => throw new BelteInternalException($"GetTernaryOperatorPair: unknown right operator '{type}'"),
+        };
     }
 
     /// <summary>
@@ -161,6 +159,7 @@ internal static class SyntaxFacts {
             "new" => SyntaxKind.NewKeyword,
             "this" => SyntaxKind.ThisKeyword,
             "static" => SyntaxKind.StaticKeyword,
+            "constexpr" => SyntaxKind.ConstexprKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -248,6 +247,7 @@ internal static class SyntaxFacts {
             SyntaxKind.NewKeyword => "new",
             SyntaxKind.ThisKeyword => "this",
             SyntaxKind.StaticKeyword => "static",
+            SyntaxKind.ConstexprKeyword => "constexpr",
             _ => null,
         };
     }

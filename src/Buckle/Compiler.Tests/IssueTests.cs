@@ -833,4 +833,34 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Evaluator_FieldDeclaration_CorrectErrorOnInvalidType() {
+        var text = @"
+            class A {
+                [coasdf] G = 4;
+            }
+        ";
+
+        var diagnostics = @"
+            unknown type 'coasdf'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_Cast_CannotConvertConstRefToRef() {
+        var text = @"
+            void Test(ref int a) { a++; }
+            const int a = 3;
+            Test([ref a]);
+        ";
+
+        var diagnostics = @"
+            argument 1: cannot convert from type 'ref const int' to 'ref int'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

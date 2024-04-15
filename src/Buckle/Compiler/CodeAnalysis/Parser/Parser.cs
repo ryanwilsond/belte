@@ -809,6 +809,7 @@ internal sealed partial class Parser {
         return token.kind switch {
             SyntaxKind.StaticKeyword => DeclarationModifiers.Static,
             SyntaxKind.ConstKeyword => DeclarationModifiers.Const,
+            SyntaxKind.ConstexprKeyword => DeclarationModifiers.Constexpr,
             _ => DeclarationModifiers.None,
         };
     }
@@ -822,14 +823,7 @@ internal sealed partial class Parser {
             if (modifier == DeclarationModifiers.None)
                 break;
 
-            switch (modifier) {
-                case DeclarationModifiers.Static:
-                case DeclarationModifiers.Const:
-                    modifiers.Add(EatToken());
-                    break;
-                default:
-                    break;
-            }
+            modifiers.Add(EatToken());
         }
 
         return modifiers.ToList();
