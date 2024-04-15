@@ -512,7 +512,7 @@ internal sealed partial class Parser {
 
         var hasConstKeyword = false;
 
-        if (Peek(offset).kind == SyntaxKind.ConstKeyword) {
+        while (Peek(offset).kind is SyntaxKind.ConstexprKeyword or SyntaxKind.ConstKeyword) {
             offset++;
             hasConstKeyword = true;
         }
@@ -570,6 +570,7 @@ internal sealed partial class Parser {
             hasName = true;
 
         if (!hasBrackets &&
+            Peek(finalOffset).kind != SyntaxKind.IdentifierToken &&
             Peek(finalOffset - 2).kind == SyntaxKind.ConstKeyword &&
             Peek(finalOffset - 1).kind == SyntaxKind.IdentifierToken) {
             hasName = true;

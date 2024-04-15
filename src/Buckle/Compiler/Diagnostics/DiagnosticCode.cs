@@ -109,6 +109,10 @@ public enum DiagnosticCode : int {
     ERR_StaticConstructor = 98,
     ERR_StaticVariable = 99,
     ERR_CannotConstructStatic = 100,
+    ERR_StaticAndConst = 101,
+    ERR_AssignmentInConstMethod = 102,
+    ERR_NonConstantCallInConstant = 103,
+    ERR_NonConstantCallOnConstant = 104,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

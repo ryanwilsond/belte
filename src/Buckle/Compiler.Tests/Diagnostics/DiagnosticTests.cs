@@ -1350,4 +1350,78 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0101_StaticAndConst() {
+        var text = @"
+            class A {
+                static [const] int B() {}
+            }
+        ";
+
+        var diagnostics = @"
+            cannot mark member as both static and constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0102_AssignmentInConstMethod() {
+        var text = @"
+            class A {
+                int a = 3;
+                const void B() {
+                    a[++];
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            cannot assign to an instance member in a method marked as constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0103_NonConstantCallInConstant() {
+        var text = @"
+            class A {
+                int a = 3;
+                void B() {
+                    a++;
+                }
+                const void C() {
+                    [B()];
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            cannot call non-constant method 'B' in a method marked as constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0104_NonConstantCallOnConstant() {
+        var text = @"
+            class A {
+                int a = 3;
+                void B() {
+                    a++;
+                }
+            }
+            const a = new A();
+            [a.B()];
+        ";
+
+        var diagnostics = @"
+            cannot call non-constant method 'B' on constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

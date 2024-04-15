@@ -596,7 +596,28 @@ internal sealed class Binder {
                         break;
                     }
 
+                    if ((declarationModifiers & DeclarationModifiers.Const) != 0) {
+                        diagnostics.Push(Error.StaticAndConst(modifier.location));
+                        break;
+                    }
+
                     declarationModifiers |= DeclarationModifiers.Static;
+                    break;
+                case SyntaxKind.ConstKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if ((declarationModifiers & DeclarationModifiers.Const) != 0) {
+                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                        break;
+                    }
+
+                    if ((declarationModifiers & DeclarationModifiers.Static) != 0) {
+                        diagnostics.Push(Error.StaticAndConst(modifier.location));
+                        break;
+                    }
+
+                    declarationModifiers |= DeclarationModifiers.Const;
                     break;
                 default:
                     diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
@@ -867,6 +888,10 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindLocalFunctionDeclaration(LocalFunctionStatementSyntax statement) {
+        // ? This will return eventually
+        BindAttributeLists(statement.attributeLists);
+        BindLocalFunctionDeclarationModifiers(statement.modifiers);
+
         _innerPrefix.Push(statement.identifier.text);
         var functionSymbol = (MethodSymbol)_scope.LookupSymbol(ConstructInnerName());
         _innerPrefix.Pop();
@@ -924,6 +949,16 @@ internal sealed class Binder {
             throw new BelteInternalException($"BindLocalFunction: failed to set function '{functionSymbol.name}'");
 
         return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
+    }
+
+    private DeclarationModifiers BindLocalFunctionDeclarationModifiers(SyntaxTokenList modifiers) {
+        if (modifiers is null)
+            return DeclarationModifiers.None;
+
+        foreach (var modifier in modifiers)
+            diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
+
+        return DeclarationModifiers.None;
     }
 
     private FieldSymbol BindFieldDeclaration(FieldDeclarationSyntax fieldDeclaration) {
@@ -1205,6 +1240,11 @@ internal sealed class Binder {
                 _containingType is not null &&
                 symbols[0].containingType is not null &&
                 _containingType != symbols[0].containingType) {
+                diagnostics.Push(Error.InvalidStaticReference(syntax.location, name));
+                return new BoundErrorExpression();
+            }
+
+            if (_containingMethod?.isStatic ?? false && !symbols[0].isStatic) {
                 diagnostics.Push(Error.InvalidStaticReference(syntax.location, name));
                 return new BoundErrorExpression();
             }
@@ -2069,9 +2109,14 @@ internal sealed class Binder {
             }
         }
 
-        var type = boundOperand.type;
+        if (_containingMethod?.isConstant ?? false &&
+            GetAssignedVariableSymbol(boundOperand).containingType == _containingMethod.containingType) {
+            diagnostics.Push(Error.AssignmentInConstMethod(expression.operatorToken.location));
+        }
 
-        if (type.isReference ? type.isConstantReference : type.isConstant) {
+        (var isConstant, var isConstantReference) = CheckConstantality(boundOperand);
+
+        if (boundOperand.type.isReference ? isConstantReference : isConstant) {
             string name = null;
 
             if (boundOperand is BoundVariableExpression v)
@@ -2108,9 +2153,14 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        var type = boundOperand.type;
+        if (_containingMethod?.isConstant ?? false &&
+            GetAssignedVariableSymbol(boundOperand).containingType == _containingMethod.containingType) {
+            diagnostics.Push(Error.AssignmentInConstMethod(expression.operatorToken.location));
+        }
 
-        if (type.isReference ? type.isConstantReference : type.isConstant) {
+        (var isConstant, var isConstantReference) = CheckConstantality(boundOperand);
+
+        if (boundOperand.type.isReference ? isConstantReference : isConstant) {
             string name = null;
 
             if (boundOperand is BoundVariableExpression v)
@@ -2180,6 +2230,17 @@ internal sealed class Binder {
 
             if (!result.succeeded)
                 return new BoundErrorExpression();
+
+            if (_containingMethod?.isConstant ?? false &&
+                !result.bestOverload.isConstant &&
+                result.bestOverload.containingType == _containingMethod.containingType) {
+                diagnostics.Push(Error.NonConstantCallInConstant(expression.location, mg.name));
+            }
+
+            if (!result.bestOverload.isConstant &&
+                (receiver.type.isReference ? receiver.type.isConstantReference : receiver.type.isConstant)) {
+                diagnostics.Push(Error.NonConstantCallOnConstant(expression.location, mg.name));
+            }
 
             return new BoundCallExpression(receiver, result.bestOverload, result.arguments);
         }
@@ -2402,6 +2463,36 @@ internal sealed class Binder {
         return new BoundEmptyExpression();
     }
 
+    private (bool, bool) CheckConstantality(BoundExpression expression) {
+        var isConstant = false;
+        var isConstantReference = false;
+
+        while (true) {
+            if (expression.type.isConstant)
+                isConstant = true;
+            if (expression.type.isConstantReference)
+                isConstantReference = true;
+
+            if (expression is BoundMemberAccessExpression m)
+                expression = m.left;
+            else
+                break;
+        }
+
+        return (isConstant, isConstantReference);
+    }
+
+    private VariableSymbol GetAssignedVariableSymbol(BoundExpression expression) {
+        if (expression is BoundVariableExpression v)
+            return v.variable;
+        if (expression is BoundMemberAccessExpression m)
+            return GetAssignedVariableSymbol(m.right);
+        if (expression is BoundIndexExpression i)
+            return GetAssignedVariableSymbol(i.expression);
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
     private BoundExpression BindAssignmentExpression(AssignmentExpressionSyntax expression) {
         var left = BindExpression(expression.left);
 
@@ -2418,14 +2509,21 @@ internal sealed class Binder {
         var boundExpression = BindExpression(expression.right);
         var type = left.type;
 
+        if (_containingMethod?.isConstant ?? false &&
+            GetAssignedVariableSymbol(left).containingType == _containingMethod.containingType) {
+            diagnostics.Push(Error.AssignmentInConstMethod(expression.assignmentToken.location));
+        }
+
         if (!type.isNullable && boundExpression is BoundLiteralExpression le && le.value is null) {
             diagnostics.Push(Error.NullAssignOnNotNull(expression.right.location, false));
             return boundExpression;
         }
 
-        if ((type.isReference && type.isConstant &&
+        (var isConstant, var isConstantReference) = CheckConstantality(left);
+
+        if ((type.isReference && isConstant &&
             boundExpression.kind == BoundNodeKind.ReferenceExpression) ||
-            (type.isConstant && boundExpression.kind != BoundNodeKind.ReferenceExpression)) {
+            (isConstant && boundExpression.kind != BoundNodeKind.ReferenceExpression)) {
             string name = null;
 
             if (left is BoundVariableExpression v)
@@ -2434,7 +2532,7 @@ internal sealed class Binder {
                 name = (m.right as BoundVariableExpression).variable.name;
 
             diagnostics.Push(Error.ConstantAssignment(
-                expression.assignmentToken.location, name, type.isConstant && boundExpression.type.isReference
+                expression.assignmentToken.location, name, isConstantReference
             ));
         }
 

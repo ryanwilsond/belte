@@ -863,4 +863,50 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Evaluator_Assignment_HonorsConstantMemberAccess() {
+        var text = @"
+            class A {
+                int a = 3;
+            }
+            const a = new A();
+            a.a[++];
+        ";
+
+        var diagnostics = @"
+            'a' cannot be assigned to as it is a constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_FunctionDeclaration_ParsesConst() {
+        var text = @"
+            [const] int Test() {}
+        ";
+
+        var diagnostics = @"
+            modifier 'const' is not valid for this item
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_MethodBody_StaticMethodCannotAccessMembers() {
+        var text = @"
+            class A {
+                int a;
+                static int Test() { return [a]; }
+            }
+        ";
+
+        var diagnostics = @"
+            an object reference is required for non-static member 'a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

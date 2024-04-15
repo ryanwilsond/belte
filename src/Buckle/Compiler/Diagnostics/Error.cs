@@ -933,6 +933,38 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotConstructStatic), location, message);
     }
 
+    /// <summary>
+    /// BU0101. Run `buckle --explain BU0101` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic StaticAndConst(TextLocation location) {
+        var message = $"cannot mark member as both static and constant";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StaticAndConst), location, message);
+    }
+
+    /// <summary>
+    /// BU0102. Run `buckle --explain BU0102` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic AssignmentInConstMethod(TextLocation location) {
+        var message = $"cannot assign to an instance member in a method marked as constant";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AssignmentInConstMethod), location, message);
+    }
+
+    /// <summary>
+    /// BU0103. Run `buckle --explain BU0103` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic NonConstantCallInConstant(TextLocation location, string name) {
+        var message = $"cannot call non-constant method '{name}' in a method marked as constant";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NonConstantCallInConstant), location, message);
+    }
+
+    /// <summary>
+    /// BU0104. Run `buckle --explain BU0104` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic NonConstantCallOnConstant(TextLocation location, string name) {
+        var message = $"cannot call non-constant method '{name}' on constant";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NonConstantCallOnConstant), location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

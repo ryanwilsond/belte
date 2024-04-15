@@ -1546,6 +1546,71 @@ static class MyClass { }
 
 var myVar = new MyClass(); // Not allowed, cannot create an instance of static class `MyClass`
 ```
+$BU0101
+Static members are accessed without an instance, while constant members still
+are. Because of this mismatch, a member cannot be marked as both static and
+const.
+
+For example:
+
+```
+class MyClass {
+    static const void MyMethod() { } // Not allowed, marked as both `static` and `const`
+    const void MyMethod() { } // Allowed
+    static void MyMethod() { } // Allowed
+}
+```
+$BU0102
+Marking a method as constant means it cannot modify instance members.
+
+For example:
+
+```
+class MyClass {
+    int myField = 3;
+
+    const void MyMethod() {
+        myField++; // Not allowed, modifying instance member `myField` in method marked `const`
+    }
+}
+```
+$BU0103
+Marking a method as constant means it cannot modify instance members. To ensure
+this, methods marked as constant cannot mark other methods within the same class
+that are not also marked as constant.
+
+For example:
+
+```
+class MyClass {
+    int myField = 3;
+
+    void MyMethod() {
+        myField++;
+    }
+
+    const void MyConstMethod() {
+        MyMethod(); // Not allowed, `MyMethod` is not marked as constant so it cannot be called in this context
+    }
+}
+```
+$BU0104
+A constant cannot call methods on itself that are not marked as constant.
+
+For example:
+
+```
+class MyClass {
+    int myField = 3;
+
+    void MyMethod() {
+        myField++;
+    }
+}
+
+const myConst = new MyClass();
+myConst.MyMethod(); // Not allowed, `MyMethod` is not marked as constant
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.
