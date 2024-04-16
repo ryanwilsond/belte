@@ -109,7 +109,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            'y' cannot be assigned to with a reference as it is a constant reference
+            'y' cannot be assigned to as it is a constant
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -830,6 +830,121 @@ public sealed class IssueTests {
         var diagnostics = @"
             called object is not a method
         ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_FieldDeclaration_CorrectErrorOnInvalidType() {
+        var text = @"
+            class A {
+                [coasdf] G = 4;
+            }
+        ";
+
+        var diagnostics = @"
+            unknown type 'coasdf'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_Cast_CannotConvertConstRefToRef() {
+        var text = @"
+            void Test(ref int a) { a++; }
+            const int a = 3;
+            Test([ref a]);
+        ";
+
+        var diagnostics = @"
+            argument 1: cannot convert from type 'ref const int' to 'ref int'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_Assignment_HonorsConstantMemberAccess() {
+        var text = @"
+            class A {
+                int a = 3;
+            }
+            const a = new A();
+            a.a[++];
+        ";
+
+        var diagnostics = @"
+            'a' cannot be assigned to as it is a constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_FunctionDeclaration_ParsesConst() {
+        var text = @"
+            [const] int Test() {}
+        ";
+
+        var diagnostics = @"
+            modifier 'const' is not valid for this item
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_MethodBody_StaticMethodCannotAccessMembers() {
+        var text = @"
+            class A {
+                int a;
+                static int Test() { return [a]; }
+            }
+        ";
+
+        var diagnostics = @"
+            an object reference is required for non-static member 'a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_MethodBody_StaticMethodCannotAccessMethods() {
+        var text = @"
+            class A {
+                int Test() { return 3; }
+                static int Test1() { return [Test()]; }
+            }
+        ";
+
+        var diagnostics = @"
+            an object reference is required for non-static member 'Test'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_Constexpr_AllowsImplicitTyping() {
+        var text = @"
+            constexpr y = 3;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_ReferenceExpression_NoInfiniteLoop() {
+        var text = @"
+            ref int y;
+            y = ref y;
+        ";
+
+        var diagnostics = @"";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }

@@ -512,7 +512,7 @@ internal sealed partial class Parser {
 
         var hasConstKeyword = false;
 
-        if (Peek(offset).kind == SyntaxKind.ConstKeyword) {
+        while (Peek(offset).kind is SyntaxKind.ConstexprKeyword or SyntaxKind.ConstKeyword) {
             offset++;
             hasConstKeyword = true;
         }
@@ -532,7 +532,7 @@ internal sealed partial class Parser {
             finalOffset++;
 
         if (Peek(finalOffset).kind is not SyntaxKind.IdentifierToken &&
-            Peek(finalOffset - 1).kind != SyntaxKind.ConstKeyword) {
+            Peek(finalOffset - 1).kind is not SyntaxKind.ConstKeyword and not SyntaxKind.ConstexprKeyword) {
             return false;
         }
 
@@ -570,7 +570,8 @@ internal sealed partial class Parser {
             hasName = true;
 
         if (!hasBrackets &&
-            Peek(finalOffset - 2).kind == SyntaxKind.ConstKeyword &&
+            Peek(finalOffset).kind != SyntaxKind.IdentifierToken &&
+            Peek(finalOffset - 2).kind is SyntaxKind.ConstKeyword or SyntaxKind.ConstexprKeyword &&
             Peek(finalOffset - 1).kind == SyntaxKind.IdentifierToken) {
             hasName = true;
             finalOffset--;
@@ -686,7 +687,7 @@ internal sealed partial class Parser {
                         var builder = new SyntaxListBuilder<SyntaxToken>(modifiers.Count);
 
                         foreach (var modifier in modifiers) {
-                            if (modifier.kind == SyntaxKind.ConstKeyword) {
+                            if (modifier.kind is SyntaxKind.ConstKeyword or SyntaxKind.ConstexprKeyword) {
                                 builder.Add(modifier);
                                 continue;
                             }
@@ -809,6 +810,7 @@ internal sealed partial class Parser {
         return token.kind switch {
             SyntaxKind.StaticKeyword => DeclarationModifiers.Static,
             SyntaxKind.ConstKeyword => DeclarationModifiers.Const,
+            SyntaxKind.ConstexprKeyword => DeclarationModifiers.Constexpr,
             _ => DeclarationModifiers.None,
         };
     }
@@ -822,14 +824,7 @@ internal sealed partial class Parser {
             if (modifier == DeclarationModifiers.None)
                 break;
 
-            switch (modifier) {
-                case DeclarationModifiers.Static:
-                case DeclarationModifiers.Const:
-                    modifiers.Add(EatToken());
-                    break;
-                default:
-                    break;
-            }
+            modifiers.Add(EatToken());
         }
 
         return modifiers.ToList();
@@ -1033,7 +1028,7 @@ internal sealed partial class Parser {
         var hasConstKeyword = false;
 
         foreach (var modifier in modifiers) {
-            if (modifier.kind == SyntaxKind.ConstKeyword) {
+            if (modifier.kind is SyntaxKind.ConstKeyword or SyntaxKind.ConstexprKeyword) {
                 hasConstKeyword = true;
                 break;
             }

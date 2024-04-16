@@ -81,6 +81,7 @@ public enum SyntaxKind {
     ContinueKeyword,
     ReturnKeyword,
     ConstKeyword,
+    ConstexprKeyword,
     RefKeyword,
     IsKeyword,
     IsntKeyword,

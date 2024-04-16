@@ -10,4 +10,5 @@ internal enum DeclarationModifiers : byte {
     None = 0,
     Static = 1 << 0,
     Const = 1 << 1,
+    Constexpr = 1 << 2,
 }

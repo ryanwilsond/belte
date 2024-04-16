@@ -85,15 +85,28 @@ internal sealed class BoundType : BoundExpression {
     /// <param name="isImplicit">If the type was assumed by the var or let keywords.</param>
     /// <param name="isConstantReference">If the type is an unchanging reference type.</param>
     /// <param name="isReference">If the type is a reference type.</param>
+    /// <param name="isExplicitReference">
+    /// If the type is an explicit reference expression instead of simply referencing something else.
+    /// </param>
     /// <param name="isConstant">If the value this type is referring to is only defined once.</param>
     /// <param name="isNullable">If the value this type is referring to can be null.</param>
     /// <param name="isLiteral">If the type was assumed from a literal.</param>
     /// <param name="dimensions">Dimensions of the type, 0 if not an array.</param>
+    /// <param name="arity">The number of template arguments on the type.</param>
+    /// <param name="isConstantExpression">If the value this type is referring is a compile-time constant.</param>
     internal BoundType(
-        TypeSymbol typeSymbol, bool isImplicit = false, bool isConstantReference = false, bool isReference = false,
-        bool isExplicitReference = false, bool isConstant = false, bool isNullable = false,
-        bool isLiteral = false, int dimensions = 0,
-        ImmutableArray<BoundConstant>? templateArguments = null, int arity = 0) {
+        TypeSymbol typeSymbol,
+        bool isImplicit = false,
+        bool isConstantReference = false,
+        bool isReference = false,
+        bool isExplicitReference = false,
+        bool isConstant = false,
+        bool isNullable = false,
+        bool isLiteral = false,
+        int dimensions = 0,
+        ImmutableArray<BoundConstant>? templateArguments = null,
+        int arity = 0,
+        bool isConstantExpression = false) {
         this.typeSymbol = typeSymbol;
         this.isImplicit = isImplicit;
         this.isConstantReference = isConstantReference;
@@ -105,6 +118,7 @@ internal sealed class BoundType : BoundExpression {
         this.dimensions = dimensions;
         this.templateArguments = templateArguments ?? ImmutableArray<BoundConstant>.Empty;
         this.arity = arity;
+        this.isConstantExpression = isConstantExpression;
     }
 
     internal override BoundType type => this;
@@ -138,6 +152,12 @@ internal sealed class BoundType : BoundExpression {
     /// If the value this type is referring to is only defined once.
     /// </summary>
     internal bool isConstant { get; }
+
+    /// <summary>
+    /// If the value this type is referring is a compile-time constant.
+    /// </summary>
+    /// <value></value>
+    internal bool isConstantExpression { get; }
 
     /// <summary>
     /// If the value this type is referring to can be null.
@@ -178,10 +198,19 @@ internal sealed class BoundType : BoundExpression {
     /// <param name="type"><see cref="BoundType" /> to copy.</param>
     /// <returns>New copy <see cref="BoundType" />.</returns>
     internal static BoundType CopyWith(
-        BoundType type, TypeSymbol typeSymbol = null, bool? isImplicit = null, bool? isConstantReference = null,
-        bool? isReference = null, bool? isExplicitReference = null, bool? isConstant = null, bool? isNullable = null,
-        bool? isLiteral = null, int? dimensions = null, ImmutableArray<BoundConstant>? templateArguments = null,
-        int? arity = null) {
+        BoundType type,
+        TypeSymbol typeSymbol = null,
+        bool? isImplicit = null,
+        bool? isConstantReference = null,
+        bool? isReference = null,
+        bool? isExplicitReference = null,
+        bool? isConstant = null,
+        bool? isNullable = null,
+        bool? isLiteral = null,
+        int? dimensions = null,
+        ImmutableArray<BoundConstant>? templateArguments = null,
+        int? arity = null,
+        bool? isConstantExpression = null) {
         if (type is null)
             return null;
 
@@ -196,7 +225,8 @@ internal sealed class BoundType : BoundExpression {
             isLiteral ?? type.isLiteral,
             dimensions ?? type.dimensions,
             templateArguments ?? type.templateArguments,
-            arity ?? type.arity
+            arity ?? type.arity,
+            isConstantExpression ?? type.isConstantExpression
         );
     }
 
@@ -226,7 +256,7 @@ internal sealed class BoundType : BoundExpression {
     /// <param name="type"><see cref="BoundType" /> to compare this to.</param>
     /// <returns>If all fields match.</returns>
     internal bool Equals(BoundType type, bool loose = false) {
-        if ((loose ? (typeSymbol is object && type.typeSymbol is object) : true) && typeSymbol != type.typeSymbol)
+        if ((!loose || (typeSymbol is not null && type.typeSymbol is not null)) && typeSymbol != type.typeSymbol)
             return false;
         if (isImplicit != type.isImplicit)
             return false;
@@ -243,6 +273,8 @@ internal sealed class BoundType : BoundExpression {
         if (dimensions != type.dimensions)
             return false;
         if (arity != type.arity)
+            return false;
+        if (isConstantExpression != type.isConstantExpression)
             return false;
 
         for (var i = 0; i < templateArguments.Length; i++) {

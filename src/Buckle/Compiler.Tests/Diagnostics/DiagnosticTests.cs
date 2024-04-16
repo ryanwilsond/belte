@@ -584,13 +584,15 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0048_ReferenceNoInitialization() {
+    public void Reports_Error_BU0047_MemberMustBeStatic() {
         var text = @"
-            ref int [x];
+            static class A {
+                void [Test]() { }
+            }
         ";
 
         var diagnostics = @"
-            a declaration of a by-reference variable must have an initializer
+            cannot declare instance members in a static class
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1053,7 +1055,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0081_CannotConstructPrimitive() {
         var text = @"
-            var myInt = new [int]();
+            var myInt = [new int()];
         ";
 
         var diagnostics = @"
@@ -1161,7 +1163,9 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0088_InvalidModifier() {
         var text = @"
-            [static] class MyClass { }
+            class MyClass {
+                [static] int a;
+            }
         ";
 
         var diagnostics = @"
@@ -1286,6 +1290,151 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             'A' is a type, which is not valid in this context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0098_StaticConstructor() {
+        var text = @"
+            static class A {
+                [A]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            static classes cannot have constructors
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0099_StaticVariable() {
+        var text = @"
+            static class A { }
+            [A] a;
+        ";
+
+        var diagnostics = @"
+            cannot declare a variable with a static type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0100_CannotConstructStatic() {
+        var text = @"
+            static class A { }
+            var a = [new A()];
+        ";
+
+        var diagnostics = @"
+            cannot create an instance of the static class 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0101_ConflictingModifiers() {
+        var text = @"
+            class A {
+                static [const] int B() {}
+            }
+        ";
+
+        var diagnostics = @"
+            cannot mark member as both static and constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0102_AssignmentInConstMethod() {
+        var text = @"
+            class A {
+                int a = 3;
+                const void B() {
+                    a[++];
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            cannot assign to an instance member in a method marked as constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0103_NonConstantCallInConstant() {
+        var text = @"
+            class A {
+                int a = 3;
+                void B() {
+                    a++;
+                }
+                const void C() {
+                    [B()];
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            cannot call non-constant method 'B' in a method marked as constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0104_NonConstantCallOnConstant() {
+        var text = @"
+            class A {
+                int a = 3;
+                void B() {
+                    a++;
+                }
+            }
+            const a = new A();
+            [a.B()];
+        ";
+
+        var diagnostics = @"
+            cannot call non-constant method 'B' on constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0105_CannotBeRefAndConstexpr() {
+        var text = @"
+            int x = 3;
+            constexpr [ref] int y = ref x;
+        ";
+
+        var diagnostics = @"
+            reference type cannot be marked as a constant expression because references are not compile-time constants
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0106_NotConstantExpression() {
+        var text = @"
+            int Test() { return 3; }
+            constexpr int y = [Test()];
+        ";
+
+        var diagnostics = @"
+            expression is not a compile-time constant
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

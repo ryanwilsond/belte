@@ -440,12 +440,11 @@ internal static class Error {
     }
 
     /// <summary>
-    /// BU0048. Run `buckle --explain BU0048` on the command line for more info.
+    /// BU0047. Run `buckle --explain BU0047` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic ReferenceNoInitialization(TextLocation location, bool isConstant) {
-        var variableWord = isConstant ? "constant" : "variable";
-        var message = $"a declaration of a by-reference {variableWord} must have an initializer";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ReferenceNoInitialization), location, message);
+    internal static BelteDiagnostic MemberMustBeStatic(TextLocation location) {
+        var message = "cannot declare instance members in a static class";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MemberMustBeStatic), location, message);
     }
 
     /// <summary>
@@ -899,6 +898,79 @@ internal static class Error {
     internal static BelteDiagnostic CannotUseType(TextLocation location, BoundType type) {
         var message = $"'{type}' is a type, which is not valid in this context";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseType), location, message);
+    }
+
+    /// <summary>
+    /// BU0098. Run `buckle --explain BU0098` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic StaticConstructor(TextLocation location) {
+        var message = $"static classes cannot have constructors";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StaticConstructor), location, message);
+    }
+
+    /// <summary>
+    /// BU0099. Run `buckle --explain BU0099` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic StaticVariable(TextLocation location) {
+        var message = $"cannot declare a variable with a static type";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StaticVariable), location, message);
+    }
+
+    /// <summary>
+    /// BU0100. Run `buckle --explain BU0100` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotConstructStatic(TextLocation location, string name) {
+        var message = $"cannot create an instance of the static class '{name}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotConstructStatic), location, message);
+    }
+
+    /// <summary>
+    /// BU0101. Run `buckle --explain BU0101` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic ConflictingModifiers(TextLocation location, string modifier1, string modifier2) {
+        var message = $"cannot mark member as both {modifier1} and {modifier2}";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConflictingModifiers), location, message);
+    }
+
+    /// <summary>
+    /// BU0102. Run `buckle --explain BU0102` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic AssignmentInConstMethod(TextLocation location) {
+        var message = $"cannot assign to an instance member in a method marked as constant";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AssignmentInConstMethod), location, message);
+    }
+
+    /// <summary>
+    /// BU0103. Run `buckle --explain BU0103` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic NonConstantCallInConstant(TextLocation location, string name) {
+        var message = $"cannot call non-constant method '{name}' in a method marked as constant";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NonConstantCallInConstant), location, message);
+    }
+
+    /// <summary>
+    /// BU0104. Run `buckle --explain BU0104` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic NonConstantCallOnConstant(TextLocation location, string name) {
+        var message = $"cannot call non-constant method '{name}' on constant";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NonConstantCallOnConstant), location, message);
+    }
+
+    /// <summary>
+    /// BU0105. Run `buckle --explain BU0105` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotBeRefAndConstexpr(TextLocation location) {
+        var message = $"reference type cannot be marked as a constant expression" +
+            " because references are not compile-time constants";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotBeRefAndConstexpr), location, message);
+    }
+
+    /// <summary>
+    /// BU0106. Run `buckle --explain BU0106` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic NotConstantExpression(TextLocation location) {
+        var message = $"expression is not a compile-time constant";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NotConstantExpression), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

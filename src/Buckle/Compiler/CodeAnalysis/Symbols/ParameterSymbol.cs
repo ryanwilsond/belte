@@ -6,6 +6,8 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// Parameter symbol (used in a <see cref="MethodSymbol" />).
 /// </summary>
 internal class ParameterSymbol : LocalVariableSymbol {
+    private readonly bool _isTemplate;
+
     /// <summary>
     /// Creates a <see cref="ParameterSymbol" />.
     /// </summary>
@@ -16,13 +18,22 @@ internal class ParameterSymbol : LocalVariableSymbol {
     /// Optional; the default value of a parameter making arguments referencing this parameter optional
     /// in CallExpressions.
     /// </param>
-    internal ParameterSymbol(string name, BoundType type, int ordinal, BoundExpression defaultValue)
-        : base(name, type, null) {
+    internal ParameterSymbol(
+        string name,
+        BoundType type,
+        int ordinal,
+        BoundExpression defaultValue,
+        DeclarationModifiers modifiers = DeclarationModifiers.None,
+        bool isTemplate = false)
+        : base(name, type, null, modifiers) {
         this.ordinal = ordinal;
         this.defaultValue = defaultValue;
+        _isTemplate = isTemplate;
     }
 
     public override SymbolKind kind => SymbolKind.Parameter;
+
+    public override bool isStatic => base.isStatic || _isTemplate;
 
     /// <summary>
     /// Ordinal of this parameter.
@@ -34,4 +45,15 @@ internal class ParameterSymbol : LocalVariableSymbol {
     /// in CallExpressions.
     /// </summary>
     internal BoundExpression defaultValue { get; }
+
+    internal static ParameterSymbol CreateWithNewName(ParameterSymbol old, string name) {
+        return new ParameterSymbol(
+            name,
+            old.type,
+            old.ordinal,
+            old.defaultValue,
+            old._declarationModifiers,
+            old._isTemplate
+        );
+    }
 }
