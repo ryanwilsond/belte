@@ -109,7 +109,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            'y' cannot be assigned to with a reference as it is a constant reference
+            'y' cannot be assigned to as it is a constant
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -905,6 +905,22 @@ public sealed class IssueTests {
 
         var diagnostics = @"
             an object reference is required for non-static member 'a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_MethodBody_StaticMethodCannotAccessMethods() {
+        var text = @"
+            class A {
+                int Test() { return 3; }
+                static int Test1() { return [Test()]; }
+            }
+        ";
+
+        var diagnostics = @"
+            an object reference is required for non-static member 'Test'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

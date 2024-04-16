@@ -150,7 +150,7 @@ internal sealed class Evaluator {
         throw new BelteInternalException($"Get: '{variable.name}' was not found in any accessible scopes");
     }
 
-    private object DictionaryValue(Dictionary<Symbol, EvaluatorObject> value) {
+    private Dictionary<object, object> DictionaryValue(Dictionary<Symbol, EvaluatorObject> value) {
         var dictionary = new Dictionary<object, object>();
 
         foreach (var pair in value) {
@@ -161,7 +161,7 @@ internal sealed class Evaluator {
         return dictionary;
     }
 
-    private object CollectionValue(EvaluatorObject[] value) {
+    private object[] CollectionValue(EvaluatorObject[] value) {
         var builder = new List<object>();
 
         foreach (var item in value)
@@ -383,7 +383,7 @@ internal sealed class Evaluator {
                             ? new EvaluatorObject()
                             : Copy(EvaluateExpression(returnStatement.expression, abort));
 
-                        _hasValue = (returnStatement.expression is null or BoundEmptyExpression) ? false : true;
+                        _hasValue = returnStatement.expression is not null and not BoundEmptyExpression;
                         hasReturn = true;
 
                         return _lastValue;

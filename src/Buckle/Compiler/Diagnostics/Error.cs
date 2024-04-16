@@ -936,9 +936,9 @@ internal static class Error {
     /// <summary>
     /// BU0101. Run `buckle --explain BU0101` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic StaticAndConst(TextLocation location) {
-        var message = $"cannot mark member as both static and constant";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StaticAndConst), location, message);
+    internal static BelteDiagnostic ConflictingModifiers(TextLocation location, string modifier1, string modifier2) {
+        var message = $"cannot mark member as both {modifier1} and {modifier2}";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConflictingModifiers), location, message);
     }
 
     /// <summary>

@@ -271,7 +271,7 @@ internal sealed class Binder {
                         parametersChanged = true;
 
                     var newParameter = new ParameterSymbol(
-                        name, parameter.type, parameter.ordinal, parameter.defaultValue
+                        name, parameter.type, parameter.ordinal, parameter.defaultValue, parameter.isStatic
                     );
 
                     newParameters.Add(newParameter);
@@ -479,10 +479,12 @@ internal sealed class Binder {
     }
 
     private ImmutableArray<ParameterSymbol> BindParameterList(ParameterListSyntax parameterList) {
-        return BindParameters(parameterList.parameters);
+        return BindParameters(parameterList.parameters, false);
     }
 
-    private ImmutableArray<ParameterSymbol> BindParameters(SeparatedSyntaxList<ParameterSyntax> parameters) {
+    private ImmutableArray<ParameterSymbol> BindParameters(
+        SeparatedSyntaxList<ParameterSyntax> parameters,
+        bool isTemplate) {
         var parametersBuilder = ImmutableArray.CreateBuilder<ParameterSymbol>();
         var seenParameterNames = new HashSet<string>();
 
@@ -490,6 +492,10 @@ internal sealed class Binder {
             var parameter = parameters[i];
             var parameterName = parameter.identifier.text;
             var parameterType = BindType(parameter.type);
+
+            if (isTemplate)
+                parameterType = BoundType.CopyWith(parameterType, isConstantExpression: true);
+
             var boundDefault = parameter.defaultValue is null
                 ? null
                 : BindExpression(parameter.defaultValue);
@@ -507,7 +513,14 @@ internal sealed class Binder {
             if (!seenParameterNames.Add(parameterName)) {
                 diagnostics.Push(Error.ParameterAlreadyDeclared(parameter.location, parameter.identifier.text));
             } else {
-                var boundParameter = new ParameterSymbol(parameterName, parameterType, parameters.Count, boundDefault);
+                var boundParameter = new ParameterSymbol(
+                    parameterName,
+                    parameterType,
+                    parameters.Count,
+                    boundDefault,
+                    isTemplate
+                );
+
                 parametersBuilder.Add(boundParameter);
             }
         }
@@ -597,7 +610,7 @@ internal sealed class Binder {
                     }
 
                     if ((declarationModifiers & DeclarationModifiers.Const) != 0) {
-                        diagnostics.Push(Error.StaticAndConst(modifier.location));
+                        diagnostics.Push(Error.ConflictingModifiers(modifier.location, "static", "constant"));
                         break;
                     }
 
@@ -613,7 +626,7 @@ internal sealed class Binder {
                     }
 
                     if ((declarationModifiers & DeclarationModifiers.Static) != 0) {
-                        diagnostics.Push(Error.StaticAndConst(modifier.location));
+                        diagnostics.Push(Error.ConflictingModifiers(modifier.location, "static", "constant"));
                         break;
                     }
 
@@ -772,7 +785,7 @@ internal sealed class Binder {
         }
 
         if (@class.templateParameterList != null) {
-            var templateParameters = BindParameters(@class.templateParameterList.parameters);
+            var templateParameters = BindParameters(@class.templateParameterList.parameters, true);
 
             foreach (var templateParameter in templateParameters) {
                 builder.Add(templateParameter);
@@ -1236,15 +1249,13 @@ internal sealed class Binder {
         var symbols = _scope.LookupOverloads(name);
 
         if (symbols.Length > 0) {
-            if (symbols[0] is not MethodSymbol &&
-                _containingType is not null &&
-                symbols[0].containingType is not null &&
-                _containingType != symbols[0].containingType) {
-                diagnostics.Push(Error.InvalidStaticReference(syntax.location, name));
-                return new BoundErrorExpression();
-            }
+            var containingTypesEqual = (_containingType is not null) &&
+                (symbols[0].containingType is not null) &&
+                (_containingType == symbols[0].containingType);
 
-            if (_containingMethod?.isStatic ?? false && !symbols[0].isStatic) {
+            if ((symbols[0] is not MethodSymbol) &&
+                containingTypesEqual &&
+                (_containingMethod?.isStatic ?? false) && !symbols[0].isStatic) {
                 diagnostics.Push(Error.InvalidStaticReference(syntax.location, name));
                 return new BoundErrorExpression();
             }
@@ -1709,7 +1720,33 @@ internal sealed class Binder {
                         break;
                     }
 
+                    if ((declarationModifiers & DeclarationModifiers.Constexpr) != 0) {
+                        diagnostics.Push(
+                            Error.ConflictingModifiers(modifier.location, "constant", "constant expression")
+                        );
+
+                        break;
+                    }
+
                     declarationModifiers |= DeclarationModifiers.Const;
+                    break;
+                case SyntaxKind.ConstexprKeyword:
+                    if ((declarationModifiers & DeclarationModifiers.Constexpr) != 0) {
+                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                        break;
+                    }
+
+                    if ((declarationModifiers & DeclarationModifiers.Const) != 0) {
+                        diagnostics.Push(
+                            Error.ConflictingModifiers(modifier.location, "constant", "constant expression")
+                        );
+
+                        break;
+                    }
+
+                    if ((declarationModifiers & DeclarationModifiers.Const) != 0) {
+
+                    }
                     break;
                 default:
                     diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
@@ -2237,9 +2274,16 @@ internal sealed class Binder {
                 diagnostics.Push(Error.NonConstantCallInConstant(expression.location, mg.name));
             }
 
-            if (!result.bestOverload.isConstant &&
+            if (receiver is not BoundEmptyExpression &&
+                !result.bestOverload.isConstant &&
                 (receiver.type.isReference ? receiver.type.isConstantReference : receiver.type.isConstant)) {
                 diagnostics.Push(Error.NonConstantCallOnConstant(expression.location, mg.name));
+            }
+
+            if ((_containingMethod?.isStatic ?? false) &&
+                (result.bestOverload.containingType == _containingMethod.containingType) &&
+                (!result.bestOverload.isStatic)) {
+                diagnostics.Push(Error.InvalidStaticReference(expression.location, mg.name));
             }
 
             return new BoundCallExpression(receiver, result.bestOverload, result.arguments);

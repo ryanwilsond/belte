@@ -1547,17 +1547,14 @@ static class MyClass { }
 var myVar = new MyClass(); // Not allowed, cannot create an instance of static class `MyClass`
 ```
 $BU0101
-Static members are accessed without an instance, while constant members still
-are. Because of this mismatch, a member cannot be marked as both static and
-const.
+Some modifiers cannot be used in combination with other modifiers.
 
 For example:
 
 ```
 class MyClass {
-    static const void MyMethod() { } // Not allowed, marked as both `static` and `const`
-    const void MyMethod() { } // Allowed
-    static void MyMethod() { } // Allowed
+    const constexpr int myField = 3; // Not allowed, cannot mark field as both `const` and `constexpr`
+    static const void MyMethod() { } // Not allowed, cannot mark method as both `static` and `const`
 }
 ```
 $BU0102

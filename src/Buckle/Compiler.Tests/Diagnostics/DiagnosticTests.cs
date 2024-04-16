@@ -1352,7 +1352,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0101_StaticAndConst() {
+    public void Reports_Error_BU0101_ConflictingModifiers() {
         var text = @"
             class A {
                 static [const] int B() {}
