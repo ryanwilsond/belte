@@ -38,7 +38,7 @@ internal static partial class StandardLibrary {
             StaticMethod("Print", BoundType.Void, [
                 ("value", BoundType.NullableAny)
             ]),
-            StaticMethod("Input", BoundType.Void, []),
+            StaticMethod("Input", BoundType.String, []),
             StaticMethod("SetForegroundColor", BoundType.Void, [
                 ("color", BoundType.Int)
             ]),

@@ -50,6 +50,8 @@ internal sealed class Evaluator {
         _locals.Push(new Dictionary<IVariableSymbol, IEvaluatorObject>());
         _templateConstantDepth = 0;
 
+        LoadLibraries();
+
         var current = program;
 
         while (current != null) {
@@ -1007,5 +1009,9 @@ internal sealed class Evaluator {
             evaluatedArguments.Add(Value(EvaluateExpression(argument, abort)));
 
         return evaluatedArguments.ToArray();
+    }
+
+    private void LoadLibraries() {
+        
     }
 }

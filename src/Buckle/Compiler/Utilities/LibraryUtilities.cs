@@ -4,6 +4,7 @@ using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using static Buckle.CodeAnalysis.Binding.BoundFactory;
 using static Buckle.CodeAnalysis.Symbols.SymbolUtilities;
 
 namespace Buckle.Utilities;
@@ -35,6 +36,21 @@ internal static class LibraryUtilities {
             CreateParameterList(parameters),
             BoundType.Void,
             modifiers: DeclarationModifiers.None
+        );
+    }
+
+    internal static BoundStatement FieldInitializer(
+        TypeSymbol containing,
+        FieldSymbol field,
+        ParameterSymbol initializer) {
+        return Statement(
+            Assignment(
+                MemberAccess(
+                    new BoundThisExpression(new BoundType(containing, isReference: true)),
+                    new BoundVariableExpression(field)
+                ),
+                new BoundVariableExpression(initializer)
+            )
         );
     }
 
