@@ -353,6 +353,7 @@ public sealed partial class BelteRepl : Repl {
         }
 
         Console.ForegroundColor = state.colorTheme.@default;
+        Console.BackgroundColor = state.colorTheme.background;
     }
 
     private ConsoleColor GetColorFromClassification(Classification classification) {

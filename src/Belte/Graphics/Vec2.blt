@@ -1,0 +1,10 @@
+
+class Vec2 {
+    decimal! x;
+    decimal! y;
+
+    Vec2(decimal! x, decimal! y);
+
+    static Vec2 Lerp(Vec2 start, Vec2 end, decimal rate);
+
+}

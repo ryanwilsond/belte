@@ -1454,15 +1454,15 @@ internal sealed partial class ILEmitter {
             return;
         }
 
-        if (expression.method == BuiltinMethods.Print) {
-            iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleWrite]);
-        } else if (expression.method == BuiltinMethods.PrintLine) {
-            iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleWriteLine]);
-        } else if (expression.method == BuiltinMethods.PrintLineNoValue) {
-            iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleWriteLineNoArgs]);
-        } else if (expression.method == BuiltinMethods.Input) {
-            iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleReadLine]);
-        } else if (expression.method.name == "Value") {
+        // if (expression.method == BuiltinMethods.Print) {
+        //     iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleWrite]);
+        // } else if (expression.method == BuiltinMethods.PrintLine) {
+        //     iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleWriteLine]);
+        // } else if (expression.method == BuiltinMethods.PrintLineNoValue) {
+        //     iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleWriteLineNoArgs]);
+        // } else if (expression.method == BuiltinMethods.Input) {
+        //     iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleReadLine]);
+        if (expression.method.name == "Value") {
             var typeReference = GetType(expression.arguments[0].type);
             var variableDefinition = new VariableDefinition(typeReference);
             iLProcessor.Body.Variables.Add(variableDefinition);

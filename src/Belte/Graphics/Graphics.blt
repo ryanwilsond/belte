@@ -1,0 +1,14 @@
+
+static class Graphics {
+
+    static void Initialize(string title, int screenWidth, int screenHeight);
+
+    static Sprite LoadSprite(string path, Vec2 position, Vec2 scale);
+
+    static Text LoadText(string fontPath, string text, Vec2 position, int fontPt, int r, int g, int b);
+
+    static void DrawSprite(Sprite sprite);
+
+    static void DrawText(Text text);
+
+}

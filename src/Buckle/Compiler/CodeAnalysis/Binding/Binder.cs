@@ -9,6 +9,8 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries.Standard;
+using Buckle.Libraries.Graphics;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
@@ -432,7 +434,21 @@ internal sealed class Binder {
         foreach (var method in BuiltinMethods.GetAll())
             result.TryDeclareMethod(method);
 
+        LoadLibraries(result);
+
         return result;
+    }
+
+    private static void LoadLibraries(BoundScope scope) {
+        // TODO Only want to load in libraries if they are used
+        scope.TryDeclareType(StandardLibrary.Console);
+        scope.TryDeclareType(StandardLibrary.Math);
+
+        scope.TryDeclareType(GraphicsLibrary.Vec2);
+        scope.TryDeclareType(GraphicsLibrary.Sprite);
+        scope.TryDeclareType(GraphicsLibrary.Text);
+        scope.TryDeclareType(GraphicsLibrary.Physics);
+        scope.TryDeclareType(GraphicsLibrary.Graphics);
     }
 
     private string ConstructInnerName() {

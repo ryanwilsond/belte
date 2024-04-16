@@ -5,6 +5,8 @@ using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
+using Buckle.Libraries.Standard;
+using Buckle.Libraries.Graphics;
 using Buckle.Utilities;
 using Shared;
 using static Buckle.Utilities.MethodUtilities;
@@ -516,6 +518,10 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateMemberAccessExpression(BoundMemberAccessExpression node, ValueWrapper<bool> abort) {
         var operand = EvaluateExpression(node.left, abort);
 
+        // TODO make sure this works with nested static accessions
+        // if (operand is null)
+        //     return EvaluateExpression(node.right, abort);
+
         if (operand.isReference) {
             do {
                 operand = Get(operand.reference, operand.referenceScope);
@@ -625,33 +631,9 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateCallExpression(BoundCallExpression node, ValueWrapper<bool> abort) {
-        if (node.method == BuiltinMethods.Input) {
-            return new EvaluatorObject(Console.IsInputRedirected ? null : Console.ReadLine());
-        } else if (node.method == BuiltinMethods.Print) {
-            var message = EvaluateExpression(node.arguments[0], abort);
-
-            if (!Console.IsOutputRedirected) {
-                Console.Write(Value(message));
-                lastOutputWasPrint = true;
-            }
-        } else if (node.method == BuiltinMethods.PrintLine) {
-            var message = EvaluateExpression(node.arguments[0], abort);
-
-            if (!Console.IsOutputRedirected) {
-                Console.WriteLine(Value(message));
-                lastOutputWasPrint = false;
-            }
-        } else if (node.method == BuiltinMethods.PrintLineNoValue) {
-            if (!Console.IsOutputRedirected) {
-                Console.WriteLine();
-                lastOutputWasPrint = false;
-            }
-        } else if (node.method == BuiltinMethods.RandInt) {
+        if (node.method == BuiltinMethods.RandInt) {
             var max = (int)Value(EvaluateExpression(node.arguments[0], abort));
-
-            if (_random is null)
-                _random = new Random();
-
+            _random ??= new Random();
             return new EvaluatorObject(_random.Next(max));
         } else if (node.method == BuiltinMethods.ValueAny ||
             node.method == BuiltinMethods.ValueBool ||
@@ -697,11 +679,16 @@ internal sealed class Evaluator {
             var value = (int)Value(EvaluateExpression(node.arguments[0], abort));
             return new EvaluatorObject(((char)value).ToString());
         } else {
+            if (CheckStandardMap(node.method, node.arguments, abort, out var result, out var printed)) {
+                lastOutputWasPrint = printed;
+                return new EvaluatorObject(result);
+            }
+
+            if (CheckGraphicsMap(node.method, node.arguments, abort, out result))
+                return new EvaluatorObject(result);
+
             return InvokeMethod(node.method, node.arguments, abort, node.expression);
         }
-
-        // This is reached by void methods, but it isn't used
-        return null;
     }
 
     private EvaluatorObject InvokeMethod(
@@ -974,5 +961,51 @@ internal sealed class Evaluator {
                     $"EvaluateBinaryExpression: unknown binary operator '{expression.op}'"
                 );
         }
+    }
+
+    private bool CheckStandardMap(
+        MethodSymbol method,
+        ImmutableArray<BoundExpression> arguments,
+        ValueWrapper<bool> abort,
+        out object result,
+        out bool printed) {
+        result = null;
+        printed = false;
+
+        if (method.containingType == StandardLibrary.Console || method.containingType == StandardLibrary.Math) {
+            if (method == StandardLibrary.Console.members[4] || method == StandardLibrary.Console.members[5])
+                printed = true;
+
+            result = StandardLibrary.EvaluateMethod(method, EvaluateArgumentsForExternalCall(arguments, abort));
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool CheckGraphicsMap(
+        MethodSymbol method,
+        ImmutableArray<BoundExpression> arguments,
+        ValueWrapper<bool> abort,
+        out object result) {
+        result = null;
+
+        if (method.containingType == GraphicsLibrary.Graphics || method.containingType == GraphicsLibrary.Physics) {
+            result = GraphicsLibrary.EvaluateMethod(method, EvaluateArgumentsForExternalCall(arguments, abort));
+            return true;
+        }
+
+        return false;
+    }
+
+    private object[] EvaluateArgumentsForExternalCall(
+        ImmutableArray<BoundExpression> arguments,
+        ValueWrapper<bool> abort) {
+        var evaluatedArguments = new List<object>();
+
+        foreach (var argument in arguments)
+            evaluatedArguments.Add(Value(EvaluateExpression(argument, abort)));
+
+        return evaluatedArguments.ToArray();
     }
 }

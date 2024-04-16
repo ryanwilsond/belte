@@ -1,6 +1,0 @@
-
-namespace Base {
-    public class string<int<0,> MinSize=null, int<MinSize,> MaxSize=null, string Match=null> {
-
-    }
-}

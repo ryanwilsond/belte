@@ -1,0 +1,10 @@
+
+class Text {
+    string fontPath;
+    string text;
+    Vec2 position;
+    int fontpt;
+    int r;
+    int g;
+    int b;
+}
