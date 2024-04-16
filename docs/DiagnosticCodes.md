@@ -58,7 +58,6 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0045 | Error | cannot use implicit-typing in this context |
 | BU0046 | Error | try statement must have a catch or finally |
 | BU0047 | Error | cannot declare instance members in a static class |
-| BU0048 | Error | a declaration of a by-reference variable must have an initializer|
 | BU0049 | Error | a by-reference variable must be initialized with a reference |
 | BU0051 | Error | cannot initialize a by-value variable with a reference |
 | BU0051 | Error | unknown attribute '{0}' |

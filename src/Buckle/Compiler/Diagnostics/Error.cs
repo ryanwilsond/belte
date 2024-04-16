@@ -447,15 +447,6 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MemberMustBeStatic), location, message);
     }
 
-    // /// <summary>
-    // /// BU0048. Run `buckle --explain BU0048` on the command line for more info.
-    // /// </summary>
-    // internal static BelteDiagnostic ReferenceNoInitialization(TextLocation location, bool isConstant) {
-    //     var variableWord = isConstant ? "constant" : "variable";
-    //     var message = $"a declaration of a by-reference {variableWord} must have an initializer";
-    //     return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ReferenceNoInitialization), location, message);
-    // }
-
     /// <summary>
     /// BU0049. Run `buckle --explain BU0049` on the command line for more info.
     /// </summary>

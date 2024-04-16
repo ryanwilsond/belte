@@ -746,19 +746,6 @@ static class MyClass {
     static void MyMethod() { } // Allowed
 }
 ```
-$BU0048
-By-reference variables always reference other variables. Because of this, they
-themselves cannot be null and require an initializer. If a by-reference
-variable is declared with no initializer, this error is raised.
-
-For example:
-
-```
-ref int myRef; // Incorrect, does not reference anything
-
-int myVar = 3;
-ref int myRef = ref myVar; // Correct, references `myVar`
-```
 $BU0049
 By-reference variables can be assigned to with values, which are just passed on
 to what it is referencing. However, the declaration initializer must be a

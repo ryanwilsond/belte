@@ -56,7 +56,7 @@ public enum DiagnosticCode : int {
     ERR_CannotUseImplicit = 45,
     ERR_NoCatchOrFinally = 46,
     ERR_MemberMustBeStatic = 47,
-    ERR_ReferenceNoInitialization = 48,
+    // ! Unused slot 48
     ERR_ReferenceWrongInitialization = 49,
     ERR_WrongInitializationReference = 50,
     ERR_UnknownAttribute = 51,

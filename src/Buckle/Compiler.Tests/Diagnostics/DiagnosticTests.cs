@@ -599,19 +599,6 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0048_ReferenceNoInitialization() {
-        var text = @"
-            ref int [x];
-        ";
-
-        var diagnostics = @"
-            a declaration of a by-reference variable must have an initializer
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
     public void Reports_Error_BU0049_ReferenceWrongInitialization() {
         var text = @"
             int x = 3;

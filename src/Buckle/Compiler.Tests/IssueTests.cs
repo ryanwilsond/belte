@@ -936,4 +936,16 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Evaluator_ReferenceExpression_NoInfiniteLoop() {
+        var text = @"
+            ref int y;
+            y = ref y;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

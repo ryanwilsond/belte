@@ -1821,11 +1821,6 @@ internal sealed class Binder {
             return false;
         }
 
-        // if (type.isReference && value is null) {
-        //     diagnostics.Push(Error.ReferenceNoInitialization(declaration.identifier.location, type.isConstant));
-        //     return false;
-        // }
-
         if (type.isReference && value is not null && value?.kind != SyntaxKind.ReferenceExpression) {
             diagnostics.Push(
                 Error.ReferenceWrongInitialization(declaration.initializer.equalsToken.location, type.isConstant)
@@ -1869,7 +1864,9 @@ internal sealed class Binder {
         }
 
         if (type.isReference || (type.isImplicit && value?.kind == SyntaxKind.ReferenceExpression)) {
-            var initializer = BindReferenceExpression((ReferenceExpressionSyntax)value);
+            var initializer = value != null
+                ? BindReferenceExpression((ReferenceExpressionSyntax)value)
+                : new BoundTypeWrapper(type, new BoundConstant(null));
 
             if (isConstantExpression)
                 diagnostics.Push(Error.CannotBeRefAndConstexpr(value.location));
@@ -2206,7 +2203,8 @@ internal sealed class Binder {
         }
 
         if (_containingMethod?.isConstant ?? false &&
-            GetAssignedVariableSymbol(boundOperand).containingType == _containingMethod.containingType) {
+            BindingUtilities.GetAssignedVariableSymbol(boundOperand).containingType ==
+                _containingMethod.containingType) {
             diagnostics.Push(Error.AssignmentInConstMethod(expression.operatorToken.location));
         }
 
@@ -2250,7 +2248,8 @@ internal sealed class Binder {
         }
 
         if (_containingMethod?.isConstant ?? false &&
-            GetAssignedVariableSymbol(boundOperand).containingType == _containingMethod.containingType) {
+            BindingUtilities.GetAssignedVariableSymbol(boundOperand).containingType
+                == _containingMethod.containingType) {
             diagnostics.Push(Error.AssignmentInConstMethod(expression.operatorToken.location));
         }
 
@@ -2585,17 +2584,6 @@ internal sealed class Binder {
         return (isConstant, isConstantReference);
     }
 
-    private VariableSymbol GetAssignedVariableSymbol(BoundExpression expression) {
-        if (expression is BoundVariableExpression v)
-            return v.variable;
-        if (expression is BoundMemberAccessExpression m)
-            return GetAssignedVariableSymbol(m.right);
-        if (expression is BoundIndexExpression i)
-            return GetAssignedVariableSymbol(i.expression);
-
-        throw ExceptionUtilities.Unreachable();
-    }
-
     private BoundExpression BindAssignmentExpression(AssignmentExpressionSyntax expression) {
         var left = BindExpression(expression.left);
 
@@ -2613,7 +2601,7 @@ internal sealed class Binder {
         var type = left.type;
 
         if (_containingMethod?.isConstant ?? false &&
-            GetAssignedVariableSymbol(left).containingType == _containingMethod.containingType) {
+            BindingUtilities.GetAssignedVariableSymbol(left).containingType == _containingMethod.containingType) {
             diagnostics.Push(Error.AssignmentInConstMethod(expression.assignmentToken.location));
         }
 
