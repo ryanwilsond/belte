@@ -23,8 +23,9 @@ internal class ParameterSymbol : LocalVariableSymbol {
         BoundType type,
         int ordinal,
         BoundExpression defaultValue,
+        DeclarationModifiers modifiers = DeclarationModifiers.None,
         bool isTemplate = false)
-        : base(name, type, null) {
+        : base(name, type, null, modifiers) {
         this.ordinal = ordinal;
         this.defaultValue = defaultValue;
         _isTemplate = isTemplate;
@@ -32,7 +33,7 @@ internal class ParameterSymbol : LocalVariableSymbol {
 
     public override SymbolKind kind => SymbolKind.Parameter;
 
-    public override bool isStatic => _isTemplate;
+    public override bool isStatic => base.isStatic || _isTemplate;
 
     /// <summary>
     /// Ordinal of this parameter.
@@ -44,4 +45,15 @@ internal class ParameterSymbol : LocalVariableSymbol {
     /// in CallExpressions.
     /// </summary>
     internal BoundExpression defaultValue { get; }
+
+    internal static ParameterSymbol CreateWithNewName(ParameterSymbol old, string name) {
+        return new ParameterSymbol(
+            name,
+            old.type,
+            old.ordinal,
+            old.defaultValue,
+            old._declarationModifiers,
+            old._isTemplate
+        );
+    }
 }

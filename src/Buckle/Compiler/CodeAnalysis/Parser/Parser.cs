@@ -532,7 +532,7 @@ internal sealed partial class Parser {
             finalOffset++;
 
         if (Peek(finalOffset).kind is not SyntaxKind.IdentifierToken &&
-            Peek(finalOffset - 1).kind != SyntaxKind.ConstKeyword) {
+            Peek(finalOffset - 1).kind is not SyntaxKind.ConstKeyword and not SyntaxKind.ConstexprKeyword) {
             return false;
         }
 
@@ -571,7 +571,7 @@ internal sealed partial class Parser {
 
         if (!hasBrackets &&
             Peek(finalOffset).kind != SyntaxKind.IdentifierToken &&
-            Peek(finalOffset - 2).kind == SyntaxKind.ConstKeyword &&
+            Peek(finalOffset - 2).kind is SyntaxKind.ConstKeyword or SyntaxKind.ConstexprKeyword &&
             Peek(finalOffset - 1).kind == SyntaxKind.IdentifierToken) {
             hasName = true;
             finalOffset--;
@@ -687,7 +687,7 @@ internal sealed partial class Parser {
                         var builder = new SyntaxListBuilder<SyntaxToken>(modifiers.Count);
 
                         foreach (var modifier in modifiers) {
-                            if (modifier.kind == SyntaxKind.ConstKeyword) {
+                            if (modifier.kind is SyntaxKind.ConstKeyword or SyntaxKind.ConstexprKeyword) {
                                 builder.Add(modifier);
                                 continue;
                             }
@@ -1028,7 +1028,7 @@ internal sealed partial class Parser {
         var hasConstKeyword = false;
 
         foreach (var modifier in modifiers) {
-            if (modifier.kind == SyntaxKind.ConstKeyword) {
+            if (modifier.kind is SyntaxKind.ConstKeyword or SyntaxKind.ConstexprKeyword) {
                 hasConstKeyword = true;
                 break;
             }

@@ -1424,4 +1424,32 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0105_CannotBeRefAndConstexpr() {
+        var text = @"
+            int x = 3;
+            constexpr [ref] int y = ref x;
+        ";
+
+        var diagnostics = @"
+            reference type cannot be marked as a constant expression because references are not compile-time constants
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0106_NotConstantExpression() {
+        var text = @"
+            int Test() { return 3; }
+            constexpr int y = [Test()];
+        ";
+
+        var diagnostics = @"
+            expression is not a compile-time constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

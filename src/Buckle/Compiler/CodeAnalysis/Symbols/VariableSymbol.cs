@@ -6,18 +6,23 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// A variable symbol. This can be any type of variable.
 /// </summary>
 internal abstract class VariableSymbol : Symbol, IVariableSymbol {
+    private protected readonly DeclarationModifiers _declarationModifiers;
+
     /// <summary>
     /// Creates a <see cref="VariableSymbol" />.
     /// </summary>
     /// <param name="name">Name of the variable.</param>
     /// <param name="type"><see cref="BoundType" /> of the variable.</param>
     /// <param name="constant"><see cref="BoundConstant" /> of the variable.</param>
-    internal VariableSymbol(string name, BoundType type, BoundConstant constant) : base(name) {
+    internal VariableSymbol(string name, BoundType type, BoundConstant constant, DeclarationModifiers modifiers)
+        : base(name) {
         this.type = type;
         constantValue = (type?.isConstant ?? false) && (!type?.isReference ?? false) ? constant : null;
+        _declarationModifiers = modifiers;
     }
 
-    public override bool isStatic => false;
+    public override bool isStatic
+        => (_declarationModifiers & (DeclarationModifiers.Static | DeclarationModifiers.Constexpr)) != 0;
 
     public ITypeSymbol typeSymbol => type.typeSymbol;
 

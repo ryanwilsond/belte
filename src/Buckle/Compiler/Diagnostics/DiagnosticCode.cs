@@ -113,6 +113,8 @@ public enum DiagnosticCode : int {
     ERR_AssignmentInConstMethod = 102,
     ERR_NonConstantCallInConstant = 103,
     ERR_NonConstantCallOnConstant = 104,
+    ERR_CannotBeRefAndConstexpr = 105,
+    ERR_NotConstantExpression = 106,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

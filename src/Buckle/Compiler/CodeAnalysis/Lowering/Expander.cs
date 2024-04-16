@@ -147,6 +147,6 @@ internal sealed class Expander : BoundTreeExpander {
             name = $"temp{_tempCount++}";
         } while (_localNames.Contains(name));
 
-        return new LocalVariableSymbol(name, type, null);
+        return new LocalVariableSymbol(name, type, null, DeclarationModifiers.None);
     }
 }

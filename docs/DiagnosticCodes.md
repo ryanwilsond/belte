@@ -115,6 +115,8 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0102 | Error | cannot assign to an instance member in a method marked as constant |
 | BU0103 | Error | cannot call non-constant method '{0}' in a method marked as constant |
 | BU0104 | Error | cannot call non-constant method '{0}' on constant |
+| BU0105 | Error | reference type cannot be marked as a constant expression because references are not compile-time constants |
+| BU0106 | Error | expression is not a compile-time constant |
 
 ## Command Line Diagnostics
 
