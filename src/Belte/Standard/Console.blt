@@ -1,6 +1,5 @@
 
 static class Console {
-    // TODO Add GetKey
 
     static class Color {
         constexpr! Black = 0;

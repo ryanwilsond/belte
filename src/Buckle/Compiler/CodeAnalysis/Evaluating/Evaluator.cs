@@ -6,7 +6,6 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Libraries.Standard;
-using Buckle.Libraries.Graphics;
 using Buckle.Utilities;
 using Shared;
 using static Buckle.Utilities.MethodUtilities;
@@ -49,8 +48,6 @@ internal sealed class Evaluator {
         _globals = globals;
         _locals.Push(new Dictionary<IVariableSymbol, IEvaluatorObject>());
         _templateConstantDepth = 0;
-
-        LoadLibraries();
 
         var current = program;
 
@@ -520,10 +517,6 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateMemberAccessExpression(BoundMemberAccessExpression node, ValueWrapper<bool> abort) {
         var operand = EvaluateExpression(node.left, abort);
 
-        // TODO make sure this works with nested static accessions
-        // if (operand is null)
-        //     return EvaluateExpression(node.right, abort);
-
         if (operand.isReference) {
             do {
                 operand = Get(operand.reference, operand.referenceScope);
@@ -685,9 +678,6 @@ internal sealed class Evaluator {
                 lastOutputWasPrint = printed;
                 return new EvaluatorObject(result);
             }
-
-            if (CheckGraphicsMap(node.method, node.arguments, abort, out result))
-                return new EvaluatorObject(result);
 
             return InvokeMethod(node.method, node.arguments, abort, node.expression);
         }
@@ -985,21 +975,6 @@ internal sealed class Evaluator {
         return false;
     }
 
-    private bool CheckGraphicsMap(
-        MethodSymbol method,
-        ImmutableArray<BoundExpression> arguments,
-        ValueWrapper<bool> abort,
-        out object result) {
-        result = null;
-
-        if (method.containingType == GraphicsLibrary.Graphics || method.containingType == GraphicsLibrary.Physics) {
-            result = GraphicsLibrary.EvaluateMethod(method, EvaluateArgumentsForExternalCall(arguments, abort));
-            return true;
-        }
-
-        return false;
-    }
-
     private object[] EvaluateArgumentsForExternalCall(
         ImmutableArray<BoundExpression> arguments,
         ValueWrapper<bool> abort) {
@@ -1009,9 +984,5 @@ internal sealed class Evaluator {
             evaluatedArguments.Add(Value(EvaluateExpression(argument, abort)));
 
         return evaluatedArguments.ToArray();
-    }
-
-    private void LoadLibraries() {
-        
     }
 }

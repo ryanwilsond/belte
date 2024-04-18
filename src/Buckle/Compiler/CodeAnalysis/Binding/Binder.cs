@@ -10,7 +10,6 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries.Standard;
-using Buckle.Libraries.Graphics;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
@@ -440,15 +439,20 @@ internal sealed class Binder {
     }
 
     private static void LoadLibraries(BoundScope scope) {
-        // TODO Only want to load in libraries if they are used
-        scope.TryDeclareType(StandardLibrary.Console);
-        scope.TryDeclareType(StandardLibrary.Math);
+        void DeclareSymbols(IEnumerable<Symbol> symbols) {
+            foreach (var symbol in symbols) {
+                if (symbol is MethodSymbol m)
+                    scope.TryDeclareMethod(m);
 
-        scope.TryDeclareType(GraphicsLibrary.Vec2);
-        scope.TryDeclareType(GraphicsLibrary.Sprite);
-        scope.TryDeclareType(GraphicsLibrary.Text);
-        scope.TryDeclareType(GraphicsLibrary.Physics);
-        scope.TryDeclareType(GraphicsLibrary.Graphics);
+                if (symbol is NamedTypeSymbol t) {
+                    scope.TryDeclareType(t);
+                    DeclareSymbols(t.members);
+                }
+            }
+        }
+
+        // TODO Only want to load in libraries if they are used
+        DeclareSymbols(StandardLibrary.GetSymbols());
     }
 
     private string ConstructInnerName() {
@@ -1446,8 +1450,8 @@ internal sealed class Binder {
         }
 
         var isStaticAccess = furthestRight is BoundType;
-        var staticSymbols = symbols.Where(s => s.isStatic || (s is FieldSymbol f && f.constantValue is not null));
-        var instanceSymbols = symbols.Where(s => !s.isStatic && (s is not FieldSymbol f || f.constantValue is null));
+        var staticSymbols = symbols.Where(s => s.isStatic);
+        var instanceSymbols = symbols.Where(s => !s.isStatic);
 
         if (!isStaticAccess && !instanceSymbols.Any()) {
             diagnostics.Push(Error.InvalidInstanceReference(node.location, name, boundLeft.type.typeSymbol.name));

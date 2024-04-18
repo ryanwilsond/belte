@@ -114,7 +114,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0009_NamedBeforeUnnamed() {
         var text = @"
-            Print([x]: 1, 3);
+            Console.Print([x]: 1, 3);
         ";
 
         var diagnostics = @"
@@ -127,7 +127,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0010_NamedArgumentTwice() {
         var text = @"
-            Print(x: 1, [x]: 3);
+            Console.Print(x: 1, [x]: 3);
         ";
 
         var diagnostics = @"
@@ -166,7 +166,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0015_NoSuchParameter() {
         var text = @"
-            Print([msg]: ""test"");
+            Console.Print([msg]: ""test"");
         ";
 
         var diagnostics = @"
@@ -267,9 +267,9 @@ public sealed class DiagnosticTests {
         var text = @"
             if (true)
                 if (true)
-                    PrintLine();
+                    Console.PrintLine();
             [else]
-                PrintLine();
+                Console.PrintLine();
         ";
 
         var diagnostics = @"
@@ -282,7 +282,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0024_NoValue() {
         var text = @"
-            int x = [PrintLine()];
+            int x = [Console.PrintLine()];
         ";
 
         var diagnostics = @"
@@ -310,8 +310,8 @@ public sealed class DiagnosticTests {
     public void Reports_Warning_BU0026_UnreachableCode() {
         var text = @"
             if (false) {
-                [PrintLine();]
-                PrintLine();
+                [Console.PrintLine();]
+                Console.PrintLine();
             }
         ";
 
@@ -861,7 +861,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0067_ParameterAlreadySpecified() {
         var text = @"
-            Print(x: 2, [x]: 2);
+            Console.Print(x: 2, [x]: 2);
         ";
 
         var diagnostics = @"

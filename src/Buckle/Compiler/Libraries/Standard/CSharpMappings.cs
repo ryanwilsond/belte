@@ -3,7 +3,13 @@ using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.Libraries.Standard;
 
+/// <summary>
+/// The compiler-used implementation of the Standard Library.
+/// </summary>
 internal static partial class StandardLibrary {
+    /// <summary>
+    /// Method used to evaluate Standard Library methods with no native implementation.
+    /// </summary>
     internal static object EvaluateMethod(MethodSymbol method, object[] arguments) {
         // TODO This could be optimized by using a unique name lookup instead of comparing symbols
         // TODO Could optimize this by inlining Math methods such as Clamp
@@ -120,8 +126,11 @@ internal static partial class StandardLibrary {
         return null;
     }
 
-    internal static string EmitCSharpMethod(MethodSymbol method) {
-        // TODO
-        return null;
+    /// <summary>
+    /// Gets all the symbols defined by the library.
+    /// </summary>
+    /// <returns></returns>
+    internal static Symbol[] GetSymbols() {
+        return [Console, Math];
     }
 }

@@ -1,6 +1,0 @@
-
-static class Physics {
-
-    static bool AxisAlignedCollision(Sprite sprite1, Sprite sprite2);
-
-}

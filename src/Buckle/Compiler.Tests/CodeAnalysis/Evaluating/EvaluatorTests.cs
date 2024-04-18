@@ -267,7 +267,7 @@ public sealed class EvaluatorTests {
     [InlineData("HasValue(3);", true)]
     [InlineData("HasValue(null);", false)]
     [InlineData("Value(\"test\");", "test")]
-    [InlineData("Print(text: \"test\");", null)]
+    [InlineData("Console.Print(text: \"test\");", null)]
     [InlineData("Hex(13);", "D")]
     [InlineData("Hex(13, false);", "D")]
     [InlineData("Hex(1324, true);", "0x52C")]

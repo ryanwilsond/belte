@@ -75,7 +75,7 @@ internal static class LibraryUtilities {
     internal static FieldSymbol Constexpr(string name, BoundType type, object value) {
         return new FieldSymbol(
             name,
-            type,
+            BoundType.CopyWith(type, isConstantExpression: true),
             new BoundConstant(value),
             DeclarationModifiers.Constexpr
         );
