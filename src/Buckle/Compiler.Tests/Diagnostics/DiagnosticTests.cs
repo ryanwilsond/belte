@@ -166,11 +166,12 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0015_NoSuchParameter() {
         var text = @"
-            Console.Print([msg]: ""test"");
+            void Test(string a) { }
+            Test([msg]: ""test"");
         ";
 
         var diagnostics = @"
-            method 'Print' does not have a parameter named 'msg'
+            method 'Test' does not have a parameter named 'msg'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -874,7 +875,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0068_DefaultMustBeConstant() {
         var text = @"
-            void MyFunc(int a = [Input()]) { }
+            void MyFunc(int a = [Console.Input()]) { }
         ";
 
         var diagnostics = @"

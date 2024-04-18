@@ -8,6 +8,14 @@ namespace Buckle.Libraries.Standard;
 /// </summary>
 internal static partial class StandardLibrary {
     /// <summary>
+    /// Gets all the symbols defined by the library.
+    /// </summary>
+    /// <returns></returns>
+    internal static Symbol[] GetSymbols() {
+        return [Console, Math];
+    }
+
+    /// <summary>
     /// Method used to evaluate Standard Library methods with no native implementation.
     /// </summary>
     internal static object EvaluateMethod(MethodSymbol method, object[] arguments) {
@@ -127,10 +135,89 @@ internal static partial class StandardLibrary {
     }
 
     /// <summary>
-    /// Gets all the symbols defined by the library.
+    /// Converts a Standard Library method name into its C# equivalent as a string.
     /// </summary>
-    /// <returns></returns>
-    internal static Symbol[] GetSymbols() {
-        return [Console, Math];
+    internal static string CSharpEmitMethod(MethodSymbol method) {
+        if (method == Console.members[1]) {
+            return "global::System.Console.WriteLine";
+        } else if (method == Console.members[2]) {
+            return "global::System.Console.WriteLine";
+        } else if (method == Console.members[3]) {
+            return "global::System.Console.WriteLine";
+        } else if (method == Console.members[4]) {
+            return "global::System.Console.Write";
+        } else if (method == Console.members[5]) {
+            return "global::System.Console.Write"; ;
+        } else if (method == Console.members[6]) {
+            return "global::System.Console.ReadLine";
+        } else if (method == Console.members[7]) {
+            return "global::System.Console.ForegroundColor = ";
+        } else if (method == Console.members[8]) {
+            return "global::System.Console.BackgroundColor = ";
+        } else if (method == Console.members[9]) {
+            return "global::System.Console.ResetColor";
+        } else if (method == Math.members[2]) {
+            return "global::System.Math.Abs";
+        } else if (method == Math.members[3]) {
+            return "global::System.Math.Abs";
+        } else if (method == Math.members[4]) {
+            return "global::System.Math.Acos";
+        } else if (method == Math.members[5]) {
+            return "global::System.Math.Acosh";
+        } else if (method == Math.members[6]) {
+            return "global::System.Math.Asin";
+        } else if (method == Math.members[7]) {
+            return "global::System.Math.Asinh";
+        } else if (method == Math.members[8]) {
+            return "global::System.Math.Atan";
+        } else if (method == Math.members[9]) {
+            return "global::System.Math.Atanh";
+        } else if (method == Math.members[10]) {
+            return "global::System.Math.Ceiling";
+        } else if (method == Math.members[11]) {
+            return "global::System.Math.Clamp";
+        } else if (method == Math.members[12]) {
+            return "global::System.Math.Clamp";
+        } else if (method == Math.members[13]) {
+            return "global::System.Math.Cos";
+        } else if (method == Math.members[14]) {
+            return "global::System.Math.Cosh";
+        } else if (method == Math.members[15]) {
+            return "global::System.Math.Exp";
+        } else if (method == Math.members[16]) {
+            return "global::System.Math.Floor";
+        } else if (method == Math.members[17]) {
+            return "((Func<double, double, double, double>)((x, y, z) => { return x * (1 - z) + y * z; } ))";
+        } else if (method == Math.members[18]) {
+            return "global::System.Math.Log";
+        } else if (method == Math.members[19]) {
+            return "global::System.Math.Log";
+        } else if (method == Math.members[20]) {
+            return "global::System.Math.Max";
+        } else if (method == Math.members[21]) {
+            return "global::System.Math.Max";
+        } else if (method == Math.members[22]) {
+            return "global::System.Math.Min";
+        } else if (method == Math.members[23]) {
+            return "global::System.Math.Min";
+        } else if (method == Math.members[24]) {
+            return "global::System.Math.Pow";
+        } else if (method == Math.members[25]) {
+            return "global::System.Math.Round";
+        } else if (method == Math.members[26]) {
+            return "global::System.Math.Sin";
+        } else if (method == Math.members[27]) {
+            return "global::System.Math.Sinh";
+        } else if (method == Math.members[28]) {
+            return "global::System.Math.Sqrt";
+        } else if (method == Math.members[29]) {
+            return "global::System.Math.Tan";
+        } else if (method == Math.members[30]) {
+            return "global::System.Math.Tanh";
+        } else if (method == Math.members[31]) {
+            return "global::System.Math.Truncate";
+        }
+
+        return "?";
     }
 }

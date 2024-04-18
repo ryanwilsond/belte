@@ -1070,9 +1070,15 @@ internal sealed class Binder {
     private BoundType BindType(
         TypeSyntax type,
         DeclarationModifiers modifiers = DeclarationModifiers.None,
-        bool explicitly = false) {
-        if ((modifiers & DeclarationModifiers.Const) != 0) {
-            var coreType = BindType(type);
+        bool explicitly = false,
+        DeclarationModifiers handled = DeclarationModifiers.None) {
+        if ((modifiers & DeclarationModifiers.Constexpr) != 0 && (handled & DeclarationModifiers.Constexpr) == 0) {
+            var coreType = BindType(type, modifiers, explicitly, handled | DeclarationModifiers.Constexpr);
+            return BoundType.CopyWith(coreType, isConstantExpression: true);
+        }
+
+        if ((modifiers & DeclarationModifiers.Const) != 0 && (handled & DeclarationModifiers.Const) == 0) {
+            var coreType = BindType(type, modifiers, explicitly, handled | DeclarationModifiers.Const);
 
             // Prevent raising this error if we have nested const keywords
             if (coreType.isImplicit && !coreType.isConstant)
@@ -1888,7 +1894,7 @@ internal sealed class Binder {
                 ? BindReferenceExpression((ReferenceExpressionSyntax)value)
                 : new BoundTypeWrapper(type, new BoundConstant(null));
 
-            if (isConstantExpression)
+            if (isConstantExpression && type.isImplicit)
                 diagnostics.Push(Error.CannotBeRefAndConstexpr(value.location));
 
             if (diagnostics.Errors().Count > currentCount)

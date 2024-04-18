@@ -96,6 +96,7 @@ public sealed partial class BelteRepl : Repl {
         state.showProgram = false;
         state.showWarnings = false;
         state.showIL = false;
+        state.showCS = false;
         state.loadingSubmissions = false;
         state.variables = new Dictionary<IVariableSymbol, IEvaluatorObject>();
         state.previous = null;
@@ -296,10 +297,15 @@ public sealed partial class BelteRepl : Repl {
             WriteDisplayText(displayText);
         }
 
+        if (state.showCS) {
+            var code = compilation.EmitToString(BuildMode.CSharpTranspile, "ReplSubmission");
+            writer.Write(code);
+        }
+
         if (state.showIL) {
             try {
-                var iLCode = compilation.EmitToString(BuildMode.Dotnet, "ReplSubmission");
-                writer.Write(iLCode);
+                var code = compilation.EmitToString(BuildMode.Dotnet, "ReplSubmission");
+                writer.Write(code);
             } catch (KeyNotFoundException) {
                 handle.diagnostics.Push(new BelteDiagnostic(Diagnostics.Error.FailedILGeneration()));
             }
@@ -782,5 +788,11 @@ public sealed partial class BelteRepl : Repl {
     private void EvaluateShowIL() {
         state.showIL = !state.showIL;
         writer.WriteLine(state.showIL ? "IL visible" : "IL hidden");
+    }
+
+    [MetaCommand("showCS", "Toggle display of C# code")]
+    private void EvaluateShowCS() {
+        state.showCS = !state.showCS;
+        writer.WriteLine(state.showCS ? "C# visible" : "C# hidden");
     }
 }
