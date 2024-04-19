@@ -455,7 +455,22 @@ internal sealed partial class Parser {
             return _lexedTokens[index];
     }
 
-    private bool PeekIsFunctionOrMethodDeclaration(bool checkForType = true, bool couldBeInStatement = true) {
+    private bool PeekIsOperatorDeclaration() {
+        return PeekIsFunctionOrMethodOrOperatorDeclarationCore(true, true, true);
+    }
+
+    private bool PeekIsConstructorDeclaration() {
+        return PeekIsFunctionOrMethodOrOperatorDeclarationCore(false, false, true);
+    }
+
+    private bool PeekIsFunctionOrMethodDeclaration(bool couldBeInStatement = true) {
+        return PeekIsFunctionOrMethodOrOperatorDeclarationCore(false, true, couldBeInStatement);
+    }
+
+    private bool PeekIsFunctionOrMethodOrOperatorDeclarationCore(
+        bool checkForOperator,
+        bool checkForType,
+        bool couldBeInStatement) {
         var hasName = false;
         var offset = 0;
 
@@ -655,10 +670,11 @@ internal sealed partial class Parser {
         var attributeLists = ParseAttributeLists();
         var modifiers = ParseModifiers();
 
-        if ((_context & ParserContext.InClassDefinition) != 0 &&
-            PeekIsFunctionOrMethodDeclaration(checkForType: false)) {
+        if ((_context & ParserContext.InClassDefinition) != 0 && PeekIsConstructorDeclaration())
             return ParseConstructorDeclaration(attributeLists, modifiers);
-        }
+
+        if ((_context & ParserContext.InClassDefinition) != 0 && PeekIsOperatorDeclaration())
+            return ParseOperatorDeclaration(attributeLists, modifiers);
 
         if (PeekIsFunctionOrMethodDeclaration(couldBeInStatement: allowGlobalStatements))
             return ParseMethodDeclaration(attributeLists, modifiers);
@@ -784,6 +800,30 @@ internal sealed partial class Parser {
         var body = (BlockStatementSyntax)ParseBlockStatement();
 
         return SyntaxFactory.MethodDeclaration(attributeLists, modifiers, type, identifier, parameterList, body);
+    }
+
+    private OperatorDeclarationSyntax ParseOperatorDeclaration(
+        SyntaxList<AttributeListSyntax> attributeLists,
+        SyntaxList<SyntaxToken> modifiers) {
+        var type = ParseType(false);
+        var operatorKeyword = Match(SyntaxKind.OperatorKeyword);
+        var operatorToken = EatToken();
+
+        if (!operatorToken.kind.IsOverloadableOperator())
+            operatorToken = AddDiagnostic(operatorToken, Error.ExpectedOverloadableOperator());
+
+        var parameterList = ParseParameterList();
+        var body = (BlockStatementSyntax)ParseBlockStatement();
+
+        return SyntaxFactory.OperatorDeclaration(
+            attributeLists,
+            modifiers,
+            type,
+            operatorKeyword,
+            operatorToken,
+            parameterList,
+            body
+        );
     }
 
     private StatementSyntax ParseLocalFunctionDeclaration(
@@ -1217,7 +1257,11 @@ internal sealed partial class Parser {
 
         if (nextDiagnosticCount > diagnosticCount && semicolon.containsDiagnostics) {
             var diagnostics = semicolon.GetDiagnostics();
-            semicolon = semicolon.WithDiagnosticsGreen(diagnostics.SkipLast(1).ToArray());
+
+            if (diagnostics.Length == 1 && diagnostics[0].info.code == (int)DiagnosticCode.ERR_UnexpectedToken)
+                semicolon = semicolon.WithDiagnosticsGreen(diagnostics);
+            else
+                semicolon = semicolon.WithDiagnosticsGreen(diagnostics.SkipLast(1).ToArray());
         }
 
         return SyntaxFactory.ExpressionStatement(expression, semicolon);

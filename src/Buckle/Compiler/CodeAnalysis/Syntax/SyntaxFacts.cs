@@ -160,6 +160,7 @@ internal static class SyntaxFacts {
             "this" => SyntaxKind.ThisKeyword,
             "static" => SyntaxKind.StaticKeyword,
             "constexpr" => SyntaxKind.ConstexprKeyword,
+            "operator" => SyntaxKind.OperatorKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -248,6 +249,7 @@ internal static class SyntaxFacts {
             SyntaxKind.ThisKeyword => "this",
             SyntaxKind.StaticKeyword => "static",
             SyntaxKind.ConstexprKeyword => "constexpr",
+            SyntaxKind.OperatorKeyword => "operator",
             _ => null,
         };
     }
@@ -307,6 +309,33 @@ internal static class SyntaxFacts {
     /// <returns>If the <see cref="SyntaxKind" /> is a keyword.</returns>
     internal static bool IsKeyword(this SyntaxKind type) {
         return type.ToString().EndsWith("Keyword");
+    }
+
+    /// <summary>
+    /// Checks if a <see cref="SyntaxKind" /> is an overloadable unary or binary operator.
+    /// </summary>
+    /// <param name="type"><see cref="SyntaxKind" />.</param>
+    /// <returns>If the <see cref="SyntaxKind" /> is an overloadable operator.</returns>
+    internal static bool IsOverloadableOperator(this SyntaxKind type) {
+        return type switch {
+            SyntaxKind.AsteriskAsteriskToken => true,
+            SyntaxKind.AsteriskToken => true,
+            SyntaxKind.SlashToken => true,
+            SyntaxKind.PercentToken => true,
+            SyntaxKind.PlusToken => true,
+            SyntaxKind.MinusToken => true,
+            SyntaxKind.LessThanLessThanToken => true,
+            SyntaxKind.GreaterThanGreaterThanToken => true,
+            SyntaxKind.GreaterThanGreaterThanGreaterThanToken => true,
+            SyntaxKind.AmpersandToken => true,
+            SyntaxKind.CaretToken => true,
+            SyntaxKind.PipeToken => true,
+            SyntaxKind.PlusPlusToken => true,
+            SyntaxKind.MinusMinusToken => true,
+            SyntaxKind.ExclamationToken => true,
+            SyntaxKind.TildeToken => true,
+            _ => false,
+        };
     }
 
     /// <summary>

@@ -948,4 +948,18 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Evaluator_TypeExpression_NotAllowedInContext() {
+        var text = @"
+            static class A { }
+            return [A];
+        ";
+
+        var diagnostics = @"
+            'A' is a type, which is not valid in this context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

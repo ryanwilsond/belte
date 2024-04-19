@@ -90,6 +90,7 @@ public enum SyntaxKind {
     NewKeyword,
     ThisKeyword,
     StaticKeyword,
+    OperatorKeyword,
 
     // Tokens with text
     BadToken,
@@ -160,6 +161,7 @@ public enum SyntaxKind {
     FieldDeclaration,
     MethodDeclaration,
     ConstructorDeclaration,
+    OperatorDeclaration,
 
     // Names
     IdentifierName,

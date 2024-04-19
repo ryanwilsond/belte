@@ -58,6 +58,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0045 | Error | cannot use implicit-typing in this context |
 | BU0046 | Error | try statement must have a catch or finally |
 | BU0047 | Error | cannot declare instance members in a static class |
+| BU0048 | Error | expected overloadable unary or binary operator |
 | BU0049 | Error | a by-reference variable must be initialized with a reference |
 | BU0051 | Error | cannot initialize a by-value variable with a reference |
 | BU0051 | Error | unknown attribute '{0}' |
@@ -116,6 +117,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0104 | Error | cannot call non-constant method '{0}' on constant |
 | BU0105 | Error | reference type cannot be marked as a constant expression because references are not compile-time constants |
 | BU0106 | Error | expression is not a compile-time constant |
+| BU0107 | Error | static types cannot be used as return types |
 
 ## Command Line Diagnostics
 

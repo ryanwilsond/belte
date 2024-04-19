@@ -193,7 +193,7 @@ internal sealed class Binder {
 
             if (globalStatements.Any()) {
                 if (entryPoint != null) {
-                    binder.diagnostics.Push(Error.MainAndGlobals(entryPoint.declaration.identifier.location));
+                    binder.diagnostics.Push(Error.MainAndGlobals(GetIdentifierLocation(entryPoint.declaration)));
 
                     foreach (var globalStatement in firstGlobalPerTree)
                         binder.diagnostics.Push(Error.MainAndGlobals(globalStatement.location));
@@ -255,7 +255,7 @@ internal sealed class Binder {
             var loweredBody = Lowerer.Lower(method, body, options.isTranspiling);
 
             if (method.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
-                binder.diagnostics.Push(Error.NotAllPathsReturn(method.declaration.identifier.location));
+                binder.diagnostics.Push(Error.NotAllPathsReturn(GetIdentifierLocation(method.declaration)));
 
             binder._methodBodies.Add((method, loweredBody));
 
@@ -379,6 +379,17 @@ internal sealed class Binder {
         }
 
         return new BoundCastExpression(type, expression);
+    }
+
+    private static TextLocation GetIdentifierLocation(BaseMethodDeclarationSyntax syntax) {
+        if (syntax is ConstructorDeclarationSyntax c)
+            return c.identifier.location;
+        if (syntax is MethodDeclarationSyntax m)
+            return m.identifier.location;
+        if (syntax is OperatorDeclarationSyntax o)
+            return o.operatorToken.location;
+
+        throw ExceptionUtilities.Unreachable();
     }
 
     private static ImmutableArray<string> PeekLocals(
@@ -594,6 +605,10 @@ internal sealed class Binder {
 
         var modifiers = BindMethodDeclarationModifiers(method.modifiers);
         var type = BindType(method.returnType, modifiers, true);
+
+        if (type.typeSymbol.isStatic)
+            diagnostics.Push(Error.CannotReturnStatic(method.returnType.location));
+
         var parameters = BindParameterList(method.parameterList);
         var newMethod = new MethodSymbol(
             name ?? method.identifier.text,
@@ -603,7 +618,7 @@ internal sealed class Binder {
             modifiers: modifiers
         );
 
-        if (newMethod.declaration.identifier.text != null && !_scope.TryDeclareMethod(newMethod))
+        if ((newMethod.declaration as MethodDeclarationSyntax).identifier.text != null && !_scope.TryDeclareMethod(newMethod))
             diagnostics.Push(Error.MethodAlreadyDeclared(method.identifier.location, name ?? newMethod.name));
 
         return newMethod;
@@ -969,7 +984,7 @@ internal sealed class Binder {
         var loweredBody = Lowerer.Lower(newFunctionSymbol, body, _options.isTranspiling);
 
         if (newFunctionSymbol.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
-            diagnostics.Push(Error.NotAllPathsReturn(newFunctionSymbol.declaration.identifier.location));
+            diagnostics.Push(Error.NotAllPathsReturn(GetIdentifierLocation(newFunctionSymbol.declaration)));
 
         _methodBodies.Add((newFunctionSymbol, loweredBody));
         diagnostics.Move(binder.diagnostics);
@@ -2061,10 +2076,8 @@ internal sealed class Binder {
     private BoundStatement BindExpressionStatement(ExpressionStatementSyntax statement) {
         var expression = BindExpression(statement.expression, true, true);
 
-        if (expression is BoundType t) {
+        if (expression is BoundType t)
             diagnostics.Push(Error.CannotUseType(statement.expression.location, t));
-            return null;
-        }
 
         return new BoundExpressionStatement(expression);
     }

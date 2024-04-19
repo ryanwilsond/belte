@@ -600,6 +600,21 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
+    public void Reports_Error_BU0048_ExpectedOverloadableOperator() {
+        var text = @"
+            class A {
+                static A operator[==]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            expected overloadable unary or binary operator
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
     public void Reports_Error_BU0049_ReferenceWrongInitialization() {
         var text = @"
             int x = 3;
@@ -1436,6 +1451,20 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             expression is not a compile-time constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0107_CannotReturnStatic() {
+        var text = @"
+            static class A {}
+            [A] Test() { return A; }
+        ";
+
+        var diagnostics = @"
+            static types cannot be used as return types
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

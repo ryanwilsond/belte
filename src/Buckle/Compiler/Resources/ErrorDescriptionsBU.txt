@@ -746,6 +746,20 @@ static class MyClass {
     static void MyMethod() { } // Allowed
 }
 ```
+$BU0048
+Operator overload methods do not use traditional identifier names, but rather
+take in an overloadable operator token instead. If a non-overloadable token is
+provided as the name, this error is raised.
+
+For example:
+
+```
+class MyClass {
+    static MyClass operator==(MyClass left, MyClass right) { // Not allowed, `==` is not an overloadable operator
+        ...
+    }
+}
+```
 $BU0049
 By-reference variables can be assigned to with values, which are just passed on
 to what it is referencing. However, the declaration initializer must be a
@@ -1617,6 +1631,17 @@ int MyMethod() {
 }
 
 constexpr myConstant = MyMethod(); // Not allowed, method calls are not compile-time constants
+```
+$BU0107
+Methods return instances of objects, hence they cannot be declared with a static
+return type.
+
+For example:
+
+```
+static class MyClass { }
+
+MyClass MyMethod() { ... } // Not allowed, return type cannot be static class `MyClass`
 ```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble

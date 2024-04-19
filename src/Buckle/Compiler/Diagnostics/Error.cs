@@ -448,6 +448,14 @@ internal static class Error {
     }
 
     /// <summary>
+    /// BU0048. Run `buckle --explain BU0048` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic ExpectedOverloadableOperator() {
+        var message = $"expected overloadable unary or binary operator";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedOverloadableOperator), message);
+    }
+
+    /// <summary>
     /// BU0049. Run `buckle --explain BU0049` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic ReferenceWrongInitialization(TextLocation location, bool isConstant) {
@@ -971,6 +979,14 @@ internal static class Error {
     internal static BelteDiagnostic NotConstantExpression(TextLocation location) {
         var message = $"expression is not a compile-time constant";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NotConstantExpression), location, message);
+    }
+
+    /// <summary>
+    /// BU0107. Run `buckle --explain BU0107` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotReturnStatic(TextLocation location) {
+        var message = $"static types cannot be used as return types";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotReturnStatic), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

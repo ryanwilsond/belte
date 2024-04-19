@@ -15,6 +15,7 @@ arity
 trivias
 repls
 constexpr
+overloadable
 
 belte
 xunit
