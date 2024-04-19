@@ -70,9 +70,7 @@ internal sealed partial class Parser {
 
     internal SyntaxToken currentToken {
         get {
-            if (_currentToken is null)
-                _currentToken = FetchCurrentToken();
-
+            _currentToken ??= FetchCurrentToken();
             return _currentToken;
         }
     }
@@ -477,8 +475,20 @@ internal sealed partial class Parser {
         if (checkForType && !PeekIsType(0, out offset, out hasName, out _))
             return false;
 
-        if (!checkForType && currentToken.kind == SyntaxKind.IdentifierToken)
+        if (!checkForType && !checkForOperator && Peek(offset).kind == SyntaxKind.IdentifierToken)
             hasName = true;
+
+        if (checkForOperator) {
+            if (Peek(offset).kind == SyntaxKind.OperatorKeyword)
+                offset++;
+            else
+                return false;
+        }
+
+        if (checkForOperator && Peek(offset).kind.IsOverloadableOperator())
+            hasName = true;
+        else if (checkForOperator && Peek(offset).kind != SyntaxKind.OpenParenToken)
+            offset++;
 
         if (hasName)
             offset++;
