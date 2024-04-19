@@ -1268,7 +1268,7 @@ internal sealed partial class Parser {
         if (nextDiagnosticCount > diagnosticCount && semicolon.containsDiagnostics) {
             var diagnostics = semicolon.GetDiagnostics();
 
-            if (diagnostics.Length == 1 && diagnostics[0].info.code == (int)DiagnosticCode.ERR_UnexpectedToken)
+            if (!semicolon.isFabricated)
                 semicolon = semicolon.WithDiagnosticsGreen(diagnostics);
             else
                 semicolon = semicolon.WithDiagnosticsGreen(diagnostics.SkipLast(1).ToArray());

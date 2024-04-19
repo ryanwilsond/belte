@@ -606,7 +606,7 @@ internal sealed class Binder {
         var modifiers = BindMethodDeclarationModifiers(method.modifiers);
         var type = BindType(method.returnType, modifiers, true);
 
-        if (type.typeSymbol.isStatic)
+        if (type?.typeSymbol?.isStatic ?? false)
             diagnostics.Push(Error.CannotReturnStatic(method.returnType.location));
 
         var parameters = BindParameterList(method.parameterList);
@@ -1276,7 +1276,7 @@ internal sealed class Binder {
         return null;
     }
 
-    private BoundExpression BindIdentifier(SimpleNameSyntax syntax, bool called) {
+    private BoundExpression BindIdentifier(SimpleNameSyntax syntax, bool called, bool allowed) {
         var name = syntax.identifier.text;
 
         if (called) {
@@ -1336,7 +1336,12 @@ internal sealed class Binder {
             }
         }
 
-        return BindNonCalledIdentifierInScope(syntax, symbols);
+        var result = BindNonCalledIdentifierInScope(syntax, symbols);
+
+        if (!allowed && result is BoundType t)
+            diagnostics.Push(Error.CannotUseType(syntax.location, t));
+
+        return result;
     }
 
     private BoundExpression BindIdentifierInScope(SimpleNameSyntax syntax, bool called, ImmutableArray<Symbol> symbols) {
@@ -1431,7 +1436,7 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindQualifiedName(QualifiedNameSyntax syntax, bool called) {
-        var boundLeft = BindExpression(syntax.left);
+        var boundLeft = BindExpression(syntax.left, allowTypes: true);
         return BindMemberAccessWithBoundLeft(syntax, boundLeft, syntax.right, syntax.period, called);
     }
 
@@ -2075,10 +2080,6 @@ internal sealed class Binder {
 
     private BoundStatement BindExpressionStatement(ExpressionStatementSyntax statement) {
         var expression = BindExpression(statement.expression, true, true);
-
-        if (expression is BoundType t)
-            diagnostics.Push(Error.CannotUseType(statement.expression.location, t));
-
         return new BoundExpressionStatement(expression);
     }
 
@@ -2087,8 +2088,9 @@ internal sealed class Binder {
         bool canBeVoid = false,
         bool ownStatement = false,
         BoundType initializerListType = null,
-        bool called = false) {
-        var result = BindExpressionInternal(expression, ownStatement, initializerListType, called);
+        bool called = false,
+        bool allowTypes = false) {
+        var result = BindExpressionInternal(expression, ownStatement, initializerListType, called, allowTypes);
 
         if (!canBeVoid && result.type?.typeSymbol == TypeSymbol.Void) {
             diagnostics.Push(Error.NoValue(expression.location));
@@ -2102,7 +2104,8 @@ internal sealed class Binder {
         ExpressionSyntax expression,
         bool ownStatement,
         BoundType initializerListType,
-        bool called) {
+        bool called,
+        bool allowTypes) {
         switch (expression.kind) {
             case SyntaxKind.LiteralExpression:
                 if (expression is InitializerListExpressionSyntax il)
@@ -2141,7 +2144,7 @@ internal sealed class Binder {
                 return BindThisExpression((ThisExpressionSyntax)expression);
             case SyntaxKind.TemplateName:
             case SyntaxKind.IdentifierName:
-                return BindIdentifier((SimpleNameSyntax)expression, called);
+                return BindIdentifier((SimpleNameSyntax)expression, called, allowTypes);
             case SyntaxKind.MemberAccessExpression:
                 return BindMemberAccessExpression((MemberAccessExpressionSyntax)expression, called);
             case SyntaxKind.QualifiedName:
@@ -2200,7 +2203,7 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindMemberAccessExpression(MemberAccessExpressionSyntax expression, bool called) {
-        var boundLeft = BindExpression(expression.expression);
+        var boundLeft = BindExpression(expression.expression, allowTypes: true);
 
         return BindMemberAccessWithBoundLeft(
             expression,
