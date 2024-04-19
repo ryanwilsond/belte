@@ -676,7 +676,7 @@ internal sealed class Binder {
     private MethodSymbol BindConstructorDeclaration(ConstructorDeclarationSyntax constructor) {
         // ? This will return eventually
         BindAttributeLists(constructor.attributeLists);
-        BindConstructorModifiers(constructor.modifiers);
+        BindConstructorDeclarationModifiers(constructor.modifiers);
         var name = constructor.identifier.text;
         var parameters = BindParameterList(constructor.parameterList);
         var method = new MethodSymbol(
@@ -699,7 +699,43 @@ internal sealed class Binder {
         return method;
     }
 
-    private DeclarationModifiers BindConstructorModifiers(SyntaxTokenList modifiers) {
+    private DeclarationModifiers BindConstructorDeclarationModifiers(SyntaxTokenList modifiers) {
+        if (modifiers is null)
+            return DeclarationModifiers.None;
+
+        foreach (var modifier in modifiers)
+            diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
+
+        return DeclarationModifiers.None;
+    }
+
+    private MethodSymbol BindOperatorDeclaration(OperatorDeclarationSyntax @operator) {
+        // ? This will return eventually
+        BindAttributeLists(@operator.attributeLists);
+        var modifiers = BindOperatorDeclarationModifiers(@operator.modifiers);
+        var type = BindType(method.returnType, modifiers, true);
+
+        var parent = constructor.parent as ClassDeclarationSyntax;
+        var className = parent.identifier.text;
+
+        if (type?.typeSymbol.name != className)
+            diagnostics.Push(Error.);
+
+        var parameters = BindParameterList(@operator.parameterList);
+
+        if (!GetOverloadableOperatorMemberName(@operator.operatorToken, parameters, out var name))
+            diagnostics.Push(Error.);
+
+        var method = new MethodSymbol(
+            name,
+            parameters,
+            type,
+            @operator,
+            modifiers: modifiers
+        );
+    }
+
+    private DeclarationModifiers BindOperatorDeclarationModifiers(SyntaxTokenList modifiers) {
         if (modifiers is null)
             return DeclarationModifiers.None;
 
@@ -874,6 +910,11 @@ internal sealed class Binder {
                 diagnostics.Push(Error.MemberMustBeStatic(methodDeclaration.identifier.location));
 
             builder.Add(method);
+        }
+
+        foreach (var operatorDeclaration in @class.members.OfType<OperatorDeclarationSyntax>()) {
+            var @operator = BindOperatorDeclaration(operatorDeclaration);
+            builder.Add(@operator);
         }
 
         foreach (var typeDeclaration in @class.members.OfType<TypeDeclarationSyntax>()) {
