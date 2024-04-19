@@ -16,6 +16,7 @@ this is a convention, and not required.)
 | [samples/HelloWorld](HelloWorld/Program.blt) | Hello, world! program. |
 | [samples/Echo](Echo/Program.blt) | Echo program that prints command-line arguments. |
 | [samples/GuessingGame](GuessingGame/Program.blt) | Random number guessing game. |
+<!-- | [samples/Pong](Pong/Program.blt) | Retro pong clone. | -->
 
 ## Running a Sample Using the Interpreter
 

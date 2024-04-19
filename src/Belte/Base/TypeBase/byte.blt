@@ -1,5 +1,0 @@
-
-namespace Base {
-    public class byte : int<0,0xFF> IComparable, IComparable<byte>, IConvertible {}
-    public class sbyte : int<-0x80,0xFF> IComparable, IComparable<sbyte>, IConvertible {}
-}

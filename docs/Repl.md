@@ -48,6 +48,7 @@ The Repl provides many commands usefully for debug snippets or code.
 | [Reset](#reset-command) | `#reset` | Clear previous submissions |
 | [Save to File](#save-to-file-command) | `#saveToFile <path> <count=1>` | Save previous \<count> submissions to \<path> |
 | [Settings](#settings-command) | `#settings` | Open settings page |
+| [Show C#](#show-c-command) | `#showCS` | Toggle display of C# code |
 | [Show IL](#show-il-command) | `#showIL` | Toggle display of IL code |
 | [Show Program](#show-program-command) | `#showProgram` | Toggle display of the intermediate representation |
 | [Show Time](#show-time-command) | `#showTime` | Toggle display of submission execution time |
@@ -255,6 +256,33 @@ All Repl settings:
 | Setting Name | Options | Default | Description |
 |-|-|-|-|
 | Theme | Dark, Light, Green | Dark | The color theme of the Repl; each contributor gets their own color theme! |
+
+### Show C# Command
+
+Usage: `#showCS`
+
+Toggles the display of transpiled C# code from submissions before they are evaluated.
+
+For example:
+
+```belte
+» #showCS
+IL visible
+» int myInt = 9;
+using System;
+using System.Collections.Generic;
+
+namespace ReplSubmission;
+
+public static class Program {
+
+    public static int Main() {
+        Nullable<int> myInt = 9;
+        return;
+    }
+
+}
+```
 
 ### Show IL Command
 

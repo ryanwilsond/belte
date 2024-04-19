@@ -164,7 +164,7 @@ public sealed class IssueTests {
     public void Evaluator_IfStatement_AllowsNull() {
         var text = @"
             if (null) {
-                PrintLine(3);
+                Console.PrintLine(3);
             }
         ";
 
@@ -177,9 +177,9 @@ public sealed class IssueTests {
             void test() {
                 const int x = 4 * 3;
                 if (x > 12) {
-                    [PrintLine(""x"");]
+                    [Console.PrintLine(""x"");]
                 } else {
-                    PrintLine(""x"");
+                    Console.PrintLine(""x"");
                 }
             }
         ";
@@ -271,7 +271,7 @@ public sealed class IssueTests {
 
     [Fact]
     public void Evaluator_InvokeFunctionArguments_NoInfiniteLoop() {
-        var text = @"PrintLine(""Hi""[=]);";
+        var text = @"Console.PrintLine(""Hi""[=]);";
 
         var diagnostics = @"
             unexpected token '='
@@ -312,7 +312,7 @@ public sealed class IssueTests {
     public void Evaluator_FunctionParameters_NoInfiniteLoop() {
         var text = @"
             void hi(string name=[)] {
-                PrintLine(""Hi "" + name + ""!"");
+                Console.PrintLine(""Hi "" + name + ""!"");
             }
         ";
 
@@ -689,7 +689,7 @@ public sealed class IssueTests {
     public void Evaluator_Function_CanDeclare() {
         var text = @"
             void myFunction(int num1, int num2) {
-                Print(num1 + num2 / 3.14159);
+                Console.Print(num1 + num2 / 3.14159);
             }
             myFunction(1, 2);
         ";
@@ -703,7 +703,7 @@ public sealed class IssueTests {
     public void Evaluator_Function_CanCall() {
         var text = @"
             void myFunction(int num) {
-                Print(num ** 2);
+                Console.Print(num ** 2);
             }
             myFunction(2);
         ";
@@ -716,7 +716,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_CallExpression_ExpectedTokens() {
         var text = @"
-            Print(num ** 2 ([][][]
+            Console.Print(num ** 2 ([][][]
         ";
 
         var diagnostics = @"
@@ -733,7 +733,7 @@ public sealed class IssueTests {
         var text = @"
             class A {
                 static void Util() {
-                    PrintLine(""123"");
+                    Console.PrintLine(""123"");
                 }
                 void Test() {
                     Util();

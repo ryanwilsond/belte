@@ -9,6 +9,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries.Standard;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
@@ -432,7 +433,26 @@ internal sealed class Binder {
         foreach (var method in BuiltinMethods.GetAll())
             result.TryDeclareMethod(method);
 
+        LoadLibraries(result);
+
         return result;
+    }
+
+    private static void LoadLibraries(BoundScope scope) {
+        void DeclareSymbols(IEnumerable<Symbol> symbols) {
+            foreach (var symbol in symbols) {
+                if (symbol is MethodSymbol m)
+                    scope.TryDeclareMethod(m);
+
+                if (symbol is NamedTypeSymbol t) {
+                    scope.TryDeclareType(t);
+                    DeclareSymbols(t.members);
+                }
+            }
+        }
+
+        // TODO Only want to load in libraries if they are used
+        DeclareSymbols(StandardLibrary.GetSymbols());
     }
 
     private string ConstructInnerName() {
@@ -1050,9 +1070,15 @@ internal sealed class Binder {
     private BoundType BindType(
         TypeSyntax type,
         DeclarationModifiers modifiers = DeclarationModifiers.None,
-        bool explicitly = false) {
-        if ((modifiers & DeclarationModifiers.Const) != 0) {
-            var coreType = BindType(type);
+        bool explicitly = false,
+        DeclarationModifiers handled = DeclarationModifiers.None) {
+        if ((modifiers & DeclarationModifiers.Constexpr) != 0 && (handled & DeclarationModifiers.Constexpr) == 0) {
+            var coreType = BindType(type, modifiers, explicitly, handled | DeclarationModifiers.Constexpr);
+            return BoundType.CopyWith(coreType, isConstantExpression: true);
+        }
+
+        if ((modifiers & DeclarationModifiers.Const) != 0 && (handled & DeclarationModifiers.Const) == 0) {
+            var coreType = BindType(type, modifiers, explicitly, handled | DeclarationModifiers.Const);
 
             // Prevent raising this error if we have nested const keywords
             if (coreType.isImplicit && !coreType.isConstant)
@@ -1430,8 +1456,8 @@ internal sealed class Binder {
         }
 
         var isStaticAccess = furthestRight is BoundType;
-        var staticSymbols = symbols.Where(s => s.isStatic || (s is FieldSymbol f && f.constantValue is not null));
-        var instanceSymbols = symbols.Where(s => !s.isStatic && (s is not FieldSymbol f || f.constantValue is null));
+        var staticSymbols = symbols.Where(s => s.isStatic);
+        var instanceSymbols = symbols.Where(s => !s.isStatic);
 
         if (!isStaticAccess && !instanceSymbols.Any()) {
             diagnostics.Push(Error.InvalidInstanceReference(node.location, name, boundLeft.type.typeSymbol.name));
@@ -1868,7 +1894,7 @@ internal sealed class Binder {
                 ? BindReferenceExpression((ReferenceExpressionSyntax)value)
                 : new BoundTypeWrapper(type, new BoundConstant(null));
 
-            if (isConstantExpression)
+            if (isConstantExpression && type.isImplicit)
                 diagnostics.Push(Error.CannotBeRefAndConstexpr(value.location));
 
             if (diagnostics.Errors().Count > currentCount)

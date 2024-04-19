@@ -17,7 +17,8 @@ internal abstract class VariableSymbol : Symbol, IVariableSymbol {
     internal VariableSymbol(string name, BoundType type, BoundConstant constant, DeclarationModifiers modifiers)
         : base(name) {
         this.type = type;
-        constantValue = (type?.isConstant ?? false) && (!type?.isReference ?? false) ? constant : null;
+        constantValue = ((type?.isConstant ?? false) || (type?.isConstantExpression ?? false))
+            && (!type?.isReference ?? false) ? constant : null;
         _declarationModifiers = modifiers;
     }
 
