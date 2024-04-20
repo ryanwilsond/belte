@@ -914,11 +914,6 @@ internal sealed class Binder {
         var saved = _flags;
         _flags |= BinderFlags.Class;
 
-        foreach (var member in @class.members) {
-            if (member is TypeDeclarationSyntax ts)
-                PreBindTypeDeclaration(ts);
-        }
-
         if (@class.templateParameterList != null) {
             var templateParameters = BindParameters(@class.templateParameterList.parameters, true);
 
@@ -926,6 +921,11 @@ internal sealed class Binder {
                 builder.Add(templateParameter);
                 templateBuilder.Add(templateParameter);
             }
+        }
+
+        foreach (var member in @class.members) {
+            if (member is TypeDeclarationSyntax ts)
+                PreBindTypeDeclaration(ts);
         }
 
         var defaultFieldAssignmentsBuilder =
