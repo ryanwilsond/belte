@@ -41,6 +41,11 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
     public override bool isStatic => (_declarationModifiers & DeclarationModifiers.Static) != 0;
 
     /// <summary>
+    /// If the method is constant, i.e. will not modify instance members of the enclosing type.
+    /// </summary>
+    internal bool isConstant => (_declarationModifiers & DeclarationModifiers.Const) != 0;
+
+    /// <summary>
     /// All parameters (see <see cref="ParameterSymbol" />).
     /// </summary>
     internal ImmutableArray<ParameterSymbol> parameters { get; }

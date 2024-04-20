@@ -1,3 +1,6 @@
+using System.Collections.Immutable;
+using System.Linq;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -50,6 +53,38 @@ internal sealed class BoundPrefixOperator {
     /// Result value <see cref="BoundType" />.
     /// </summary>
     internal BoundType type { get; }
+
+    internal static BoundPrefixOperator BindWithOverloading(
+        SyntaxToken operatorToken,
+        SyntaxKind kind,
+        BoundExpression operand,
+        OverloadResolution overloadResolution,
+        out OverloadResolutionResult<MethodSymbol> result) {
+        var name = SyntaxFacts.GetOperatorMemberName(kind, 1);
+
+        if (name is not null) {
+            var symbols = ((operand.type.typeSymbol is NamedTypeSymbol o)
+                ? o.GetMembers(name).Where(m => m is MethodSymbol).Select(m => m as MethodSymbol)
+                : []).ToImmutableArray();
+
+            if (symbols.Length > 0) {
+                result = overloadResolution.SuppressedMethodOverloadResolution(
+                    symbols,
+                    [(null, operand)],
+                    name,
+                    operatorToken,
+                    null
+                );
+
+                if (result.succeeded || result.ambiguous)
+                    return null;
+            }
+        }
+
+        result = OverloadResolutionResult<MethodSymbol>.Failed();
+
+        return Bind(kind, operand.type);
+    }
 
     /// <summary>
     /// Attempts to bind an operator with given operand.

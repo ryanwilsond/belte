@@ -1,4 +1,3 @@
-using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -6,14 +5,18 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A bound reference expression, bound from a <see cref="Syntax.ReferenceExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundReferenceExpression : BoundExpression {
-    internal BoundReferenceExpression(VariableSymbol variable) {
-        this.variable = variable;
+    internal BoundReferenceExpression(BoundExpression expression) {
+        this.expression = expression;
     }
 
-    internal VariableSymbol variable { get; }
+    internal BoundExpression expression { get; }
 
     internal override BoundType type => BoundType.CopyWith(
-        variable.type, isConstantReference: false, isReference: true, isExplicitReference: true
+        expression.type,
+        isConstant: false,
+        isConstantReference: expression.type.isConstant,
+        isReference: true,
+        isExplicitReference: true
     );
 
     internal override BoundNodeKind kind => BoundNodeKind.ReferenceExpression;

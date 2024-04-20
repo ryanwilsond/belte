@@ -1,9 +1,0 @@
-
-namespace Base {
-    public interface IEnumerable {
-
-        iterator Begin();
-        iterator End();
-
-    }
-}

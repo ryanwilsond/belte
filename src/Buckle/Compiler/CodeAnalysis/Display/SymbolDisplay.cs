@@ -25,24 +25,15 @@ public static class SymbolDisplay {
     /// </summary>
     /// <param name="text"><see cref="DisplayText" /> to add to.</param>
     /// <param name="symbol"><see cref="Symbol" /> to add (not modified).</param>
-    public static void DisplaySymbol(DisplayText text, ISymbol symbol) {
-        if (symbol is VariableSymbol v && v.constantValue != null) {
-            DisplayText.DisplayConstant(text, v.constantValue);
-            return;
-        }
-
+    public static void DisplaySymbol(DisplayText text, ISymbol symbol, bool includeVariableTypes = false) {
         switch (symbol.kind) {
             case SymbolKind.Method:
                 DisplayMethod(text, (MethodSymbol)symbol);
                 break;
             case SymbolKind.LocalVariable:
-                DisplayLocalVariable(text, (LocalVariableSymbol)symbol);
-                break;
             case SymbolKind.GlobalVariable:
-                DisplayGlobalVariable(text, (GlobalVariableSymbol)symbol);
-                break;
             case SymbolKind.Parameter:
-                DisplayParameter(text, (ParameterSymbol)symbol);
+                DisplayVariable(text, (VariableSymbol)symbol, includeVariableTypes);
                 break;
             case SymbolKind.Field:
                 DisplayField(text, (FieldSymbol)symbol);
@@ -77,40 +68,18 @@ public static class SymbolDisplay {
     private static void DisplayType(DisplayText text, TypeSymbol symbol) {
         DisplayModifiers(text, symbol);
 
-        if (symbol is StructSymbol ss) {
-            text.Write(CreateKeyword(SyntaxKind.StructKeyword));
+        if (symbol is NamedTypeSymbol n) {
+            text.Write(CreateKeyword(n is ClassSymbol ? SyntaxKind.ClassKeyword : SyntaxKind.StructKeyword));
             text.Write(CreateSpace());
 
             DisplayContainedNames(text, symbol);
             text.Write(CreateIdentifier(symbol.name));
 
-            if (!ss.templateParameters.IsEmpty) {
+            if (!n.templateParameters.IsEmpty) {
                 text.Write(CreatePunctuation(SyntaxKind.LessThanToken));
                 var first = true;
 
-                foreach (var templateParameter in ss.templateParameters) {
-                    if (first)
-                        first = false;
-                    else
-                        text.Write(CreatePunctuation(", "));
-
-                    DisplaySymbol(text, templateParameter);
-                }
-
-                text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
-            }
-        } else if (symbol is ClassSymbol cs) {
-            text.Write(CreateKeyword(SyntaxKind.ClassKeyword));
-            text.Write(CreateSpace());
-
-            DisplayContainedNames(text, symbol);
-            text.Write(CreateIdentifier(symbol.name));
-
-            if (!cs.templateParameters.IsEmpty) {
-                text.Write(CreatePunctuation(SyntaxKind.LessThanToken));
-                var first = true;
-
-                foreach (var templateParameter in cs.templateParameters) {
+                foreach (var templateParameter in n.templateParameters) {
                     if (first)
                         first = false;
                     else
@@ -126,21 +95,12 @@ public static class SymbolDisplay {
         }
     }
 
-    private static void DisplayParameter(DisplayText text, ParameterSymbol symbol) {
-        DisplayText.DisplayNode(text, symbol.type);
-        text.Write(CreateSpace());
-        text.Write(CreateIdentifier(symbol.name));
-    }
+    private static void DisplayVariable(DisplayText text, VariableSymbol symbol, bool includeVariableTypes) {
+        if (includeVariableTypes) {
+            DisplayText.DisplayNode(text, symbol.type);
+            text.Write(CreateSpace());
+        }
 
-    private static void DisplayGlobalVariable(DisplayText text, GlobalVariableSymbol symbol) {
-        DisplayText.DisplayNode(text, symbol.type);
-        text.Write(CreateSpace());
-        text.Write(CreateIdentifier(symbol.name));
-    }
-
-    private static void DisplayLocalVariable(DisplayText text, LocalVariableSymbol symbol) {
-        DisplayText.DisplayNode(text, symbol.type);
-        text.Write(CreateSpace());
         text.Write(CreateIdentifier(symbol.name));
     }
 
@@ -162,6 +122,8 @@ public static class SymbolDisplay {
                 text.Write(CreateSpace());
             }
 
+            DisplayText.DisplayNode(text, symbol.parameters[i].type);
+            text.Write(CreateSpace());
             DisplaySymbol(text, symbol.parameters[i]);
         }
 

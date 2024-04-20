@@ -14,12 +14,35 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class OverloadResolution {
     private readonly Binder _binder;
 
+    private bool _suppressDiagnostics = false;
+
     /// <summary>
     /// Creates an <see cref="OverloadResolution" />, uses a Binders diagnostics.
     /// </summary>
     /// <param name="binder"><see cref="Binder" /> to use diagnostics from.</param>
     internal OverloadResolution(Binder binder) {
         _binder = binder;
+    }
+
+    /// <summary>
+    /// Uses partially bound arguments to find the best method overload and resolves it. Does not log diagnostics.
+    /// </summary>
+    /// <param name="types">Available overloads.</param>
+    /// <param name="arguments">Bound arguments.</param>
+    /// <param name="name">The name of the method.</param>
+    /// <param name="operand">Original expression operand, used for diagnostic locations.</param>
+    /// <param name="argumentList">The original arguments, used for calculations.</param>
+    internal OverloadResolutionResult<MethodSymbol> SuppressedMethodOverloadResolution(
+        ImmutableArray<MethodSymbol> methods,
+        ImmutableArray<(string name, BoundExpression expression)> arguments,
+        string name,
+        SyntaxNodeOrToken operand,
+        ArgumentListSyntax argumentList) {
+        _suppressDiagnostics = true;
+        var result = MethodOverloadResolution(methods, arguments, name, operand, argumentList);
+        _suppressDiagnostics = false;
+
+        return result;
     }
 
     /// <summary>
@@ -57,10 +80,11 @@ internal sealed class OverloadResolution {
             isConstructor = method.name == WellKnownMemberNames.InstanceConstructorName;
 
             var defaultParameterCount = method.parameters.Where(p => p.defaultValue != null).Count();
-            var expressionArguments = argumentList.arguments;
+            var expressionArgumentsCount = argumentList?.arguments?.Count ?? arguments.Length;
+            var expressionArguments = argumentList?.arguments;
 
-            if (expressionArguments.Count < method.parameters.Length - defaultParameterCount ||
-                expressionArguments.Count > method.parameters.Length) {
+            if (expressionArgumentsCount < method.parameters.Length - defaultParameterCount ||
+                expressionArgumentsCount > method.parameters.Length) {
                 var count = 0;
 
                 if (isInner) {
@@ -70,13 +94,14 @@ internal sealed class OverloadResolution {
                     }
                 }
 
-                if (!isInner || expressionArguments.Count + count != method.parameters.Length) {
+                if (!isInner || expressionArgumentsCount + count != method.parameters.Length) {
                     ResolveIncorrectArgumentCount(
                         operand,
-                        argumentList.closeParenthesis.span,
+                        argumentList?.closeParenthesis?.span,
                         method.name,
                         method.parameters,
                         defaultParameterCount,
+                        expressionArgumentsCount,
                         expressionArguments,
                         false
                     );
@@ -90,6 +115,7 @@ internal sealed class OverloadResolution {
                 name,
                 preBoundArgumentsBuilder,
                 method.parameters,
+                expressionArgumentsCount,
                 expressionArguments,
                 out var rearrangedArguments,
                 out var seenParameterNames
@@ -112,6 +138,7 @@ internal sealed class OverloadResolution {
                 score = RearrangeArguments(
                     method.parameters,
                     score,
+                    expressionArgumentsCount,
                     expressionArguments,
                     rearrangedArguments,
                     preBoundArgumentsBuilder.ToImmutable(),
@@ -152,10 +179,13 @@ internal sealed class OverloadResolution {
         CleanUpDiagnostics(methods, tempDiagnostics);
 
         if (methods.Length > 1 && possibleOverloads.Count == 0) {
-            if (isConstructor)
-                _binder.diagnostics.Push(Error.NoConstructorOverload(operand.location, methods[0].containingType.name));
-            else
-                _binder.diagnostics.Push(Error.NoMethodOverload(operand.location, name));
+            if (isConstructor) {
+                if (!_suppressDiagnostics)
+                    _binder.diagnostics.Push(Error.NoConstructorOverload(operand.location, methods[0].containingType.name));
+            } else {
+                if (!_suppressDiagnostics)
+                    _binder.diagnostics.Push(Error.NoMethodOverload(operand.location, name));
+            }
 
             return OverloadResolutionResult<MethodSymbol>.Failed();
         } else if (methods.Length > 1 && possibleOverloads.Count > 1) {
@@ -184,7 +214,7 @@ internal sealed class OverloadResolution {
 
                 if (possibleOverloads.Count > 1) {
                     _binder.diagnostics.Push(Error.AmbiguousMethodOverload(operand.location, possibleOverloads.ToArray()));
-                    return OverloadResolutionResult<MethodSymbol>.Failed();
+                    return OverloadResolutionResult<MethodSymbol>.Ambiguous();
                 }
             }
         } else if (methods.Length == 1 && possibleOverloads.Count == 0) {
@@ -207,7 +237,7 @@ internal sealed class OverloadResolution {
     /// <param name="argumentList">The original arguments, used for calculations.</param>
     internal OverloadResolutionResult<NamedTypeSymbol> TemplateOverloadResolution(
         ImmutableArray<NamedTypeSymbol> types,
-        ImmutableArray<(string name, BoundExpression expression)> arguments,
+        ImmutableArray<(string name, BoundConstant constant)> arguments,
         string name,
         SyntaxNodeOrToken operand,
         TemplateArgumentListSyntax argumentList) {
@@ -216,7 +246,9 @@ internal sealed class OverloadResolution {
 
         var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
         var preBoundArgumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
-        preBoundArgumentsBuilder.AddRange(arguments);
+
+        foreach (var argument in arguments)
+            preBoundArgumentsBuilder.Add((argument.name, new BoundLiteralExpression(argument.constant.value)));
 
         var tempDiagnostics = new BelteDiagnosticQueue();
         tempDiagnostics.Move(_binder.diagnostics);
@@ -238,6 +270,7 @@ internal sealed class OverloadResolution {
                         type.name,
                         type.templateParameters,
                         defaultParameterCount,
+                        expressionArguments?.Count ?? 0,
                         expressionArguments,
                         true
                     );
@@ -251,6 +284,7 @@ internal sealed class OverloadResolution {
                 name,
                 preBoundArgumentsBuilder,
                 type.templateParameters,
+                expressionArguments?.Count ?? 0,
                 expressionArguments,
                 out var rearrangedArguments,
                 out var seenParameterNames
@@ -273,6 +307,7 @@ internal sealed class OverloadResolution {
                 score = RearrangeArguments(
                     type.templateParameters,
                     score,
+                    expressionArguments?.Count ?? 0,
                     expressionArguments,
                     rearrangedArguments,
                     preBoundArgumentsBuilder.ToImmutable(),
@@ -300,11 +335,13 @@ internal sealed class OverloadResolution {
         CleanUpDiagnostics(types, tempDiagnostics);
 
         if (types.Length > 1 && possibleOverloads.Count == 0) {
-            _binder.diagnostics.Push(Error.NoTemplateOverload(operand.location, name));
+            if (!_suppressDiagnostics)
+                _binder.diagnostics.Push(Error.NoTemplateOverload(operand.location, name));
+
             return OverloadResolutionResult<NamedTypeSymbol>.Failed();
         } else if (types.Length > 1 && possibleOverloads.Count > 1) {
             _binder.diagnostics.Push(Error.AmbiguousTemplateOverload(operand.location, possibleOverloads.ToArray()));
-            return OverloadResolutionResult<NamedTypeSymbol>.Failed();
+            return OverloadResolutionResult<NamedTypeSymbol>.Ambiguous();
         } else if (types.Length == 1 && possibleOverloads.Count == 0) {
             possibleOverloads.Add(types[0]);
         }
@@ -320,6 +357,7 @@ internal sealed class OverloadResolution {
         string name,
         ImmutableArray<(string name, BoundExpression expression)>.Builder preBoundArgumentsBuilder,
         ImmutableArray<ParameterSymbol> parameters,
+        int argumentCount,
         SeparatedSyntaxList<ArgumentSyntax> arguments,
         out Dictionary<int, int> rearrangedArguments,
         out HashSet<string> seenParameterNames) {
@@ -327,7 +365,7 @@ internal sealed class OverloadResolution {
         seenParameterNames = new HashSet<string>();
         var canContinue = true;
 
-        for (var i = 0; i < (arguments?.Count ?? 0); i++) {
+        for (var i = 0; i < argumentCount; i++) {
             var argumentName = preBoundArgumentsBuilder[i].name;
 
             if (argumentName is null) {
@@ -341,12 +379,15 @@ internal sealed class OverloadResolution {
             for (var j = 0; j < parameters.Length; j++) {
                 if (parameters[j].name == argumentName) {
                     if (!seenParameterNames.Add(argumentName)) {
-                        _binder.diagnostics.Push(
-                            Error.ParameterAlreadySpecified(
-                                arguments[i].identifier.location,
-                                argumentName
-                            )
-                        );
+                        if (!_suppressDiagnostics) {
+                            _binder.diagnostics.Push(
+                                Error.ParameterAlreadySpecified(
+                                    arguments[i].identifier.location,
+                                    argumentName
+                                )
+                            );
+                        }
+
                         canContinue = false;
                     } else {
                         destinationIndex = j;
@@ -360,10 +401,12 @@ internal sealed class OverloadResolution {
                 break;
 
             if (!destinationIndex.HasValue) {
-                _binder.diagnostics.Push(Error.NoSuchParameter(
-                    arguments[i].identifier.location, name,
-                    arguments[i].identifier.text, overloadCount > 1
-                ));
+                if (!_suppressDiagnostics) {
+                    _binder.diagnostics.Push(Error.NoSuchParameter(
+                        arguments[i].identifier.location, name,
+                        arguments[i].identifier.text, overloadCount > 1
+                    ));
+                }
 
                 canContinue = false;
             } else {
@@ -380,15 +423,14 @@ internal sealed class OverloadResolution {
         string name,
         ImmutableArray<ParameterSymbol> parameters,
         int defaultParameterCount,
+        int argumentCount,
         SeparatedSyntaxList<ArgumentSyntax> arguments,
         bool isTemplate) {
         TextSpan span;
-        var argumentCount = arguments?.Count ?? 0;
-
         if (argumentCount > parameters.Length) {
             SyntaxNodeOrToken firstExceedingNode;
 
-            if (argumentCount > 1) {
+            if (argumentCount > 1 && parameters.Length > 0) {
                 firstExceedingNode = arguments.GetSeparator(parameters.Length - 1);
             } else {
                 firstExceedingNode = arguments[0].kind == SyntaxKind.EmptyExpression
@@ -407,19 +449,22 @@ internal sealed class OverloadResolution {
 
         var location = new TextLocation(operand.syntaxTree.text, span);
 
-        _binder.diagnostics.Push(Error.IncorrectArgumentCount(
-            location,
-            name,
-            parameters.Length,
-            defaultParameterCount,
-            argumentCount,
-            isTemplate
-        ));
+        if (!_suppressDiagnostics) {
+            _binder.diagnostics.Push(Error.IncorrectArgumentCount(
+                location,
+                name,
+                parameters.Length,
+                defaultParameterCount,
+                argumentCount,
+                isTemplate
+            ));
+        }
     }
 
     private int RearrangeArguments(
         ImmutableArray<ParameterSymbol> parameters,
         int score,
+        int argumentCount,
         SeparatedSyntaxList<ArgumentSyntax> expressionArguments,
         Dictionary<int, int> rearrangedArguments,
         ImmutableArray<(string name, BoundExpression expression)> preBoundArguments,
@@ -428,7 +473,7 @@ internal sealed class OverloadResolution {
             var argument = preBoundArguments[rearrangedArguments[i]];
             var parameter = parameters[i];
             // If this evaluates to null, it means that there was a default value automatically passed in
-            var location = i >= expressionArguments.Count ? null : expressionArguments[i].location;
+            var location = i >= argumentCount ? null : expressionArguments?[i]?.location;
 
             var argumentExpression = argument.expression;
             var isImplicitNull = false;

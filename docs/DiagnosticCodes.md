@@ -54,16 +54,16 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0041 | Error | unterminated multi-line comment |
 | BU0042 | Error | cannot initialize an implicitly-typed variable with 'null' |
 | BU0043 | Error | cannot initialize an implicitly-typed variable with an empty initializer list |
-| BU0044 | Error | collection dimensions on implicitly-typed variables are inferred making them not necessary in this context |
+| BU0044 | Error | collection dimensions on implicit types are inferred making them not necessary in this context |
 | BU0045 | Error | cannot use implicit-typing in this context |
 | BU0046 | Error | try statement must have a catch or finally |
-| BU0047 | Error | expected method name |
-| BU0048 | Error | a declaration of a by-reference variable must have an initializer|
+| BU0047 | Error | cannot declare instance members in a static class |
+| BU0048 | Error | expected overloadable unary or binary operator |
 | BU0049 | Error | a by-reference variable must be initialized with a reference |
 | BU0051 | Error | cannot initialize a by-value variable with a reference |
 | BU0051 | Error | unknown attribute '{0}' |
 | BU0052 | Error | cannot assign 'null' to a non-nullable variable |
-| BU0053 | Error | implicitly-typed variables infer reference types making the 'ref' keyword not necessary in this context |
+| BU0053 | Error | implicit types infer reference types making the 'ref' keyword not necessary in this context |
 | BU0054 | Error | cannot assign a reference to a constant to a by-reference variable expecting a reference to a variable |
 | BU0055 | Error | cannot use void as a type |
 | BU0056 | Error | expected {0} |
@@ -84,7 +84,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0071 | Error | variable name '{0}' is not valid as it is the name of a type in this namespace |
 | BU0072 | Error | cannot implicitly pass null in a non-nullable context |
 | BU0073 | Error | cannot convert 'null' to '{0}' because it is a non-nullable type |
-| BU0074 | Error | cannot use a constant in this context |
+| BU0074 | Error | modifier '{0}' has already been applied to this item |
 | BU0075 | Error | cannot use a reference type in this context |
 | BU0076 | Error | cannot divide by zero |
 | BU0077 | Error | a local named '{0}' cannot be declared in this scope because that name is used in an enclosing scope to define a local or parameter |
@@ -103,6 +103,27 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0090 | Error | an object reference is required for non-static member '{0}' |
 | BU0091 | Error | cannot initialize fields in structure definitions |
 | BU0092 | Error | cannot have multiple 'Main' entry points |
+| BU0093 | Error | attributes are not valid in this context |
+| BU0094 | Error | item '{0}' does not expect any template arguments |
+| BU0095 | Error | template argument must be a compile-time constant |
+| BU0096 | Error | cannot reference non-field or non-variable item |
+| BU0097 | Error | '{0}' is a type, which is not valid in this context |
+| BU0098 | Error | static classes cannot have constructors |
+| BU0099 | Error | cannot declare a variable with a static type |
+| BU0100 | Error | cannot create an instance of the static class '{0}' |
+| BU0101 | Error | cannot mark member as both {0} and {1} |
+| BU0102 | Error | cannot assign to an instance member in a method marked as constant |
+| BU0103 | Error | cannot call non-constant method '{0}' in a method marked as constant |
+| BU0104 | Error | cannot call non-constant method '{0}' on constant |
+| BU0105 | Error | reference type cannot be marked as a constant expression because references are not compile-time constants |
+| BU0106 | Error | expression is not a compile-time constant |
+| BU0107 | Error | static types cannot be used as return types |
+| BU0108 | Error | overloaded operator '{0}' takes {1} parameters |
+| BU0109 | Error | overloaded operators must be marked as static |
+| BU0110 | Error | static classes cannot contain operators |
+| BU0111 | Error | at least one of the parameters of an operator must be the containing type |
+| BU0112 | Error | the return type for the '++' or '--' operator must be the containing type |
+| BU0113 | Error | the first parameter for the '[]' operator must be the containing type |
 
 ## Command Line Diagnostics
 

@@ -251,8 +251,8 @@ For example:
 
 ```
 Program.blt:1:18: error BU0052: cannot assign `null` to a non-nullable variable
- [NotNull]int a = null;
-                  ^~~~
+    int! a = null;
+             ^~~~
 ```
 
 In this error message, the code is provided (BU0052). You could then do:

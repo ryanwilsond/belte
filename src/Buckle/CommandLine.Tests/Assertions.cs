@@ -65,7 +65,7 @@ internal static class Assertions {
 
         for (var i = 0; i < expectedDiagnostics.Length; i++) {
             var diagnosticParts = diagnostics[i].Split(": ").Skip(2);
-            var diagnostic = (diagnosticParts.Count() == 0
+            var diagnostic = (!diagnosticParts.Any()
                 ? diagnostics[i]
                 : diagnosticParts.Count() == 1
                     ? diagnosticParts.Single()

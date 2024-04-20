@@ -1,8 +1,0 @@
-
-namespace Base {
-    public interface IEquatable<type T> {
-
-        bool Equals(object obj);
-
-    }
-}

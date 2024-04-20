@@ -78,6 +78,34 @@ internal sealed class Optimizer : BoundTreeRewriter {
         return base.RewriteTernaryExpression(expression);
     }
 
+    protected override BoundExpression RewriteAssignmentExpression(BoundAssignmentExpression expression) {
+        /*
+
+        <left> = <right>
+
+        ----> <right> is ref <left>
+
+        ;
+
+        ----> <right> is the same as <left>
+
+        ;
+
+        */
+
+        var left = expression.left;
+        var right = expression.right is BoundReferenceExpression r ? r.expression : expression.right;
+        // TODO Expand this to cover more cases
+        var canSimplify = left is BoundVariableExpression && right is BoundVariableExpression;
+
+        if (canSimplify &&
+            BindingUtilities.GetAssignedVariableSymbol(left) == BindingUtilities.GetAssignedVariableSymbol(right)) {
+            return new BoundEmptyExpression();
+        }
+
+        return base.RewriteAssignmentExpression(expression);
+    }
+
     private static BoundBlockStatement RemoveDeadCode(BoundBlockStatement statement) {
         var controlFlow = ControlFlowGraph.Create(statement);
         var reachableStatements = new HashSet<BoundStatement>(controlFlow.blocks.SelectMany(b => b.statements));

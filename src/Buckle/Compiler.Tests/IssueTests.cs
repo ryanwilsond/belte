@@ -31,12 +31,12 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_InitializerList_AllowsNull() {
         var text = @"
-            \[NotNull\]var a = { 1, 2, 3 };
+            var! a = { 1, 2, 3 };
             a = [{null, 2, 3 }];
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int[]' to '[NotNull]int[]' implicitly; an explicit conversion exists (are you missing a cast?)
+            cannot convert from type 'int[]' to 'int[]!' implicitly; an explicit conversion exists (are you missing a cast?)
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -54,11 +54,11 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_CastExpression_NonNullableOnNull() {
         var text = @"
-            [(\[NotNull\]int)null];
+            [(int!)null];
         ";
 
         var diagnostics = @"
-            cannot convert 'null' to '[NotNull]int' because it is a non-nullable type
+            cannot convert 'null' to 'int!' because it is a non-nullable type
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -109,7 +109,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            'y' cannot be assigned to with a reference as it is a constant reference
+            'y' cannot be assigned to as it is a constant
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -164,7 +164,7 @@ public sealed class IssueTests {
     public void Evaluator_IfStatement_AllowsNull() {
         var text = @"
             if (null) {
-                PrintLine(3);
+                Console.PrintLine(3);
             }
         ";
 
@@ -177,9 +177,9 @@ public sealed class IssueTests {
             void test() {
                 const int x = 4 * 3;
                 if (x > 12) {
-                    [PrintLine(""x"");]
+                    [Console.PrintLine(""x"");]
                 } else {
-                    PrintLine(""x"");
+                    Console.PrintLine(""x"");
                 }
             }
         ";
@@ -271,7 +271,7 @@ public sealed class IssueTests {
 
     [Fact]
     public void Evaluator_InvokeFunctionArguments_NoInfiniteLoop() {
-        var text = @"PrintLine(""Hi""[=]);";
+        var text = @"Console.PrintLine(""Hi""[=]);";
 
         var diagnostics = @"
             unexpected token '='
@@ -312,7 +312,7 @@ public sealed class IssueTests {
     public void Evaluator_FunctionParameters_NoInfiniteLoop() {
         var text = @"
             void hi(string name=[)] {
-                PrintLine(""Hi "" + name + ""!"");
+                Console.PrintLine(""Hi "" + name + ""!"");
             }
         ";
 
@@ -689,7 +689,7 @@ public sealed class IssueTests {
     public void Evaluator_Function_CanDeclare() {
         var text = @"
             void myFunction(int num1, int num2) {
-                Print(num1 + num2 / 3.14159);
+                Console.Print(num1 + num2 / 3.14159);
             }
             myFunction(1, 2);
         ";
@@ -703,7 +703,7 @@ public sealed class IssueTests {
     public void Evaluator_Function_CanCall() {
         var text = @"
             void myFunction(int num) {
-                Print(num ** 2);
+                Console.Print(num ** 2);
             }
             myFunction(2);
         ";
@@ -714,13 +714,12 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CallExpression_ExpectedMethodName() {
+    public void Evaluator_CallExpression_ExpectedTokens() {
         var text = @"
-            Print(num ** [2] ([][][]
+            Console.Print(num ** 2 ([][][]
         ";
 
         var diagnostics = @"
-            expected method name
             expected ')' at end of input
             expected ')' at end of input
             expected ';' at end of input
@@ -734,7 +733,7 @@ public sealed class IssueTests {
         var text = @"
             class A {
                 static void Util() {
-                    PrintLine(""123"");
+                    Console.PrintLine(""123"");
                 }
                 void Test() {
                     Util();
@@ -773,6 +772,193 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_MemberAccessExpression_NestedCalls() {
+        var text = @"
+            class A {
+                void Test() { }
+            }
+            class B {
+                A First() { return new A(); }
+            }
+            var myB = new B();
+            myB.First().Test();
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_CallExpression_ExceedingArgumentsOnZero() {
+        var text = @"
+            void Test() {}
+            Test([,]);
+        ";
+
+        var diagnostics = @"
+            method 'Test' expects 0 arguments, got 2
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_PostfixExpression_AllowedOnRef() {
+        var text = @"
+            int x = 3;
+            var y = ref x;
+            y++;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_CallExpression_CorrectErrorFormattingOnNonMethod() {
+        var text = @"
+            [3]();
+        ";
+
+        var diagnostics = @"
+            called object is not a method
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_FieldDeclaration_CorrectErrorOnInvalidType() {
+        var text = @"
+            class A {
+                [coasdf] G = 4;
+            }
+        ";
+
+        var diagnostics = @"
+            unknown type 'coasdf'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_Cast_CannotConvertConstRefToRef() {
+        var text = @"
+            void Test(ref int a) { a++; }
+            const int a = 3;
+            Test([ref a]);
+        ";
+
+        var diagnostics = @"
+            argument 1: cannot convert from type 'ref const int' to 'ref int'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_Assignment_HonorsConstantMemberAccess() {
+        var text = @"
+            class A {
+                int a = 3;
+            }
+            const a = new A();
+            a.a[++];
+        ";
+
+        var diagnostics = @"
+            'a' cannot be assigned to as it is a constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_FunctionDeclaration_ParsesConst() {
+        var text = @"
+            [const] int Test() {}
+        ";
+
+        var diagnostics = @"
+            modifier 'const' is not valid for this item
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_MethodBody_StaticMethodCannotAccessMembers() {
+        var text = @"
+            class A {
+                int a;
+                static int Test() { return [a]; }
+            }
+        ";
+
+        var diagnostics = @"
+            an object reference is required for non-static member 'a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_MethodBody_StaticMethodCannotAccessMethods() {
+        var text = @"
+            class A {
+                int Test() { return 3; }
+                static int Test1() { return [Test()]; }
+            }
+        ";
+
+        var diagnostics = @"
+            an object reference is required for non-static member 'Test'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_Constexpr_AllowsImplicitTyping() {
+        var text = @"
+            constexpr y = 3;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_ReferenceExpression_NoInfiniteLoop() {
+        var text = @"
+            ref int y;
+            y = ref y;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_TypeExpression_NotAllowedInContext() {
+        var text = @"
+            static class A { }
+            return [A];
+        ";
+
+        var diagnostics = @"
+            'A' is a type, which is not valid in this context
+        ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }

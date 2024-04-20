@@ -1,6 +1,0 @@
-
-namespace Base {
-    public class collect<type T> {
-
-    }
-}

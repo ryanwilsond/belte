@@ -138,7 +138,7 @@ public static class Program {
         /* Belte Code */
         @"
 int a = 3;
-PrintLine(a);
+Console.PrintLine(a);
         ",
         /* C# Code */
         @"
@@ -151,7 +151,7 @@ public static class Program {
 
     public static void Main() {
         Nullable<int> a = 3;
-        Console.WriteLine((object)a);
+        global::System.Console.WriteLine((object)a);
         return;
     }
 
@@ -186,29 +186,29 @@ public static class Program {
         @"
 class TypeTests {
     int int1;
-    [NotNull]int int2;
+    int! int2;
     int[] int3;
-    [NotNull]int[] int4;
+    int[]! int4;
 
     bool bool1;
-    [NotNull]bool bool2;
+    bool! bool2;
     bool[] bool3;
-    [NotNull]bool[] bool4;
+    bool[]! bool4;
 
     string string1;
-    [NotNull]string string2;
+    string! string2;
     string[] string3;
-    [NotNull]string[] string4;
+    string[]! string4;
 
     decimal decimal1;
-    [NotNull]decimal decimal2;
+    decimal! decimal2;
     decimal[] decimal3;
-    [NotNull]decimal[] decimal4;
+    decimal[]! decimal4;
 
     any any1;
-    [NotNull]any any2;
+    any! any2;
     any[] any3;
-    [NotNull]any[] any4;
+    any[]! any4;
 }
         ",
         /* C# Code */
@@ -268,7 +268,7 @@ int Main() {
     var f = a ?? 3;
     a += (2 + 3);
     var bo = a > 4;
-    PrintLine(bo ? 3 : 65);
+    Console.PrintLine(bo ? 3 : 65);
 
     return a * 10;
 }
@@ -294,7 +294,7 @@ public static class Program {
         Nullable<int> f = (a.HasValue ? a.Value : 3);
         a += 5;
         Nullable<bool> bo = (a.HasValue ? (Nullable<bool>)(a.Value > 4) : null);
-        Console.WriteLine((object)(((bo) ?? throw new NullReferenceException()) ? 3 : 65));
+        global::System.Console.WriteLine((object)(((bo) ?? throw new NullReferenceException()) ? 3 : 65));
         return (a.HasValue ? (Nullable<int>)(a.Value * 10) : null) ?? 0;
     }
 
@@ -323,7 +323,7 @@ void Main() {
         break;
     }
 
-    PrintLine(result + a);
+    Console.PrintLine(result + a);
 
     int x = 0;
 
@@ -368,7 +368,7 @@ public static class Program {
             break;
         }
 
-        Console.WriteLine((object)((result.HasValue && a.HasValue) ? (Nullable<int>)(result.Value + a.Value) : null));
+        global::System.Console.WriteLine((object)((result.HasValue && a.HasValue) ? (Nullable<int>)(result.Value + a.Value) : null));
         Nullable<int> x = 0;
         while (((x.HasValue ? (Nullable<bool>)(x.Value <= 10) : null) ?? throw new NullReferenceException())) {
             x++;
@@ -409,12 +409,12 @@ void Main() {
     int x = 4;
     ref int y = ref x;
     x++;
-    PrintLine(y);
+    Console.PrintLine(y);
     a[1] = 4;
-    PrintLine(a[1]);
+    Console.PrintLine(a[1]);
 
     int z = 3;
-    [NotNull]int g = Value(z);
+    int! g = Value(z);
 }
         ",
         /* C# Code */
@@ -430,15 +430,15 @@ public static class Program {
         List<Nullable<int>> a = new List<Nullable<int>> { 1, 2, 3 };
         Nullable<int> b = a[0];
         List<object> c = new List<object> { 1, 3.3, false };
-        Nullable<int> d = (Nullable<int>)Convert.ToInt32(c[0]);
+        Nullable<int> d = (Nullable<int>)global::System.Convert.ToInt32(c[0]);
         b++;
         --d;
         Nullable<int> x = 4;
         ref Nullable<int> y = ref x;
         x++;
-        Console.WriteLine((object)y);
+        global::System.Console.WriteLine((object)y);
         a[1] = 4;
-        Console.WriteLine((object)a[1]);
+        global::System.Console.WriteLine((object)a[1]);
         Nullable<int> z = 3;
         int g = z.Value;
         return;
@@ -454,10 +454,10 @@ public static class Program {
         /* Belte Code */
         @"
 void Main() {
-    Print(Add(2) + Add(5, 6) + Add(a: 1, b: 5));
-    Print(Add(,));
-    Print(Add(1,));
-    Print(Add(,2));
+    Console.Print(Add(2) + Add(5, 6) + Add(a: 1, b: 5));
+    Console.Print(Add(,));
+    Console.Print(Add(1,));
+    Console.Print(Add(,2));
 }
 
 int Add(int a, int b = 3) {
@@ -478,10 +478,10 @@ public static class Program {
         Nullable<int> temp1 = Add(5, 6);
         Nullable<int> temp2 = ((temp0.HasValue && temp1.HasValue) ? (Nullable<int>)(temp0.Value + temp1.Value) : null);
         Nullable<int> temp3 = Add(1, 5);
-        Console.Write((object)((temp2.HasValue && temp3.HasValue) ? (Nullable<int>)(temp2.Value + temp3.Value) : null));
-        Console.Write((object)Add(null, null));
-        Console.Write((object)Add(1, null));
-        Console.Write((object)Add(null, 2));
+        global::System.Console.Write((object)((temp2.HasValue && temp3.HasValue) ? (Nullable<int>)(temp2.Value + temp3.Value) : null));
+        global::System.Console.Write((object)Add(null, null));
+        global::System.Console.Write((object)Add(1, null));
+        global::System.Console.Write((object)Add(null, 2));
         return;
     }
 
@@ -551,7 +551,7 @@ void Main() {
     A h;
 
     int j = h?.a;
-    PrintLine(j is null);
+    Console.PrintLine(j is null);
 }
         ",
         /* C# Code */
@@ -580,7 +580,7 @@ public static class Program {
         Nullable<bool> d = !c.HasValue;
         A h = null;
         Nullable<int> j = (h is not null ? (Nullable<int>)h.a : null);
-        Console.WriteLine((object)!j.HasValue);
+        global::System.Console.WriteLine((object)!j.HasValue);
         return;
     }
 
@@ -593,7 +593,7 @@ public static class Program {
     [InlineData(
         /* Belte Code */
         @"
-var max = (int)Input();
+var max = (int)Console.Input();
 var randInt = RandInt(max);
         ",
         /* C# Code */
@@ -606,8 +606,8 @@ namespace EmitterTests;
 public static class Program {
 
     public static void Main() {
-        Nullable<int> max = (Nullable<int>)Convert.ToInt32(Console.ReadLine());
-        Nullable<int> randInt = ((Func<int>)(() => { var random = new System.Random(); var temp = max; return temp.HasValue ? random.Next(temp.Value) : random.Next(); }))();
+        Nullable<int> max = (Nullable<int>)global::System.Convert.ToInt32(global::System.Console.ReadLine());
+        Nullable<int> randInt = ((Func<int>)(() => { var random = new global::System.Random(); var temp = max; return temp.HasValue ? random.Next(temp.Value) : random.Next(); }))();
         return;
     }
 
@@ -617,7 +617,49 @@ public static class Program {
         @"
         "
     )]
+    [InlineData(
+        /* Belte Code */
+        @"
+class A {
+    void Test() { }
+}
 
+var myA = new A();
+myA.Test();
+        ",
+        /* C# Code */
+        @"
+using System;
+using System.Collections.Generic;
+
+namespace EmitterTests;
+
+public static class Program {
+
+    public class A {
+
+        public A() {
+            return;
+        }
+
+        public void Test() {
+            return;
+        }
+
+    }
+
+    public static void Main() {
+        A myA = new A();
+        myA.Test();
+        return;
+    }
+
+}
+        ",
+        /* IL Code */
+        @"
+        "
+    )]
 #pragma warning disable xUnit1026
     public void Emitter_Emits_CorrectText(string text, string expectedCSharpText, string expectedILText) {
         AssertText(text, expectedCSharpText.Trim() + Environment.NewLine, BuildMode.CSharpTranspile);

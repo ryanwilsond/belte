@@ -1,6 +1,6 @@
 # 6 Low-Level Features
 
-These features are only enabled in low-level contexts. Currently this only includes Repl submissions.
+These features are only enabled in low-level contexts.
 
 - [6.1](#61-structures) Structures
 

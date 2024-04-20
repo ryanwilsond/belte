@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -122,25 +124,22 @@ internal static class SyntaxFacts {
     /// <param name="type">Left operator of the ternary operator.</param>
     /// <returns>Associated right operator, throws if given an unknown right operator.</returns>
     internal static SyntaxKind GetTernaryOperatorPair(this SyntaxKind type) {
-        switch (type) {
-            case SyntaxKind.QuestionToken:
-                return SyntaxKind.ColonToken;
-            default:
-                throw new BelteInternalException($"GetTernaryOperatorPair: unknown right operator '{type}'");
-        }
+        return type switch {
+            SyntaxKind.QuestionToken => SyntaxKind.ColonToken,
+            _ => throw new BelteInternalException($"GetTernaryOperatorPair: unknown right operator '{type}'"),
+        };
     }
 
     /// <summary>
     /// Attempts to get a <see cref="SyntaxKind" /> from a text representation of a keyword.
     /// </summary>
     /// <param name="text">Text representation.</param>
-    /// <returns>Keyword kind, defaults to identifer if failed.</returns>
+    /// <returns>Keyword kind, defaults to identifier if failed.</returns>
     internal static SyntaxKind GetKeywordType(string text) {
         return text switch {
             "true" => SyntaxKind.TrueKeyword,
             "false" => SyntaxKind.FalseKeyword,
             "null" => SyntaxKind.NullKeyword,
-            "var" => SyntaxKind.VarKeyword,
             "const" => SyntaxKind.ConstKeyword,
             "ref" => SyntaxKind.RefKeyword,
             "if" => SyntaxKind.IfKeyword,
@@ -162,6 +161,8 @@ internal static class SyntaxFacts {
             "new" => SyntaxKind.NewKeyword,
             "this" => SyntaxKind.ThisKeyword,
             "static" => SyntaxKind.StaticKeyword,
+            "constexpr" => SyntaxKind.ConstexprKeyword,
+            "operator" => SyntaxKind.OperatorKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -228,7 +229,6 @@ internal static class SyntaxFacts {
             SyntaxKind.TrueKeyword => "true",
             SyntaxKind.FalseKeyword => "false",
             SyntaxKind.NullKeyword => "null",
-            SyntaxKind.VarKeyword => "var",
             SyntaxKind.ConstKeyword => "const",
             SyntaxKind.RefKeyword => "ref",
             SyntaxKind.IfKeyword => "if",
@@ -250,6 +250,8 @@ internal static class SyntaxFacts {
             SyntaxKind.NewKeyword => "new",
             SyntaxKind.ThisKeyword => "this",
             SyntaxKind.StaticKeyword => "static",
+            SyntaxKind.ConstexprKeyword => "constexpr",
+            SyntaxKind.OperatorKeyword => "operator",
             _ => null,
         };
     }
@@ -275,6 +277,95 @@ internal static class SyntaxFacts {
             SyntaxKind.PercentEqualsToken => SyntaxKind.PercentToken,
             SyntaxKind.QuestionQuestionEqualsToken => SyntaxKind.QuestionQuestionToken,
             _ => throw new BelteInternalException($"GetBinaryOperatorOfAssignmentOperator: unexpected syntax '{type}'"),
+        };
+    }
+
+    /// <summary>
+    /// Checks if a <see cref="SyntaxKind" /> is an overloadable unary or binary operator.
+    /// </summary>
+    /// <param name="type"><see cref="SyntaxKind" />.</param>
+    /// <returns>If the <see cref="SyntaxKind" /> is an overloadable operator.</returns>
+    internal static bool IsOverloadableOperator(this SyntaxKind type) {
+        return type switch {
+            SyntaxKind.AsteriskAsteriskToken => true,
+            SyntaxKind.AsteriskToken => true,
+            SyntaxKind.SlashToken => true,
+            SyntaxKind.PercentToken => true,
+            SyntaxKind.PlusToken => true,
+            SyntaxKind.MinusToken => true,
+            SyntaxKind.LessThanLessThanToken => true,
+            SyntaxKind.GreaterThanGreaterThanToken => true,
+            SyntaxKind.GreaterThanGreaterThanGreaterThanToken => true,
+            SyntaxKind.AmpersandToken => true,
+            SyntaxKind.CaretToken => true,
+            SyntaxKind.PipeToken => true,
+            SyntaxKind.PlusPlusToken => true,
+            SyntaxKind.MinusMinusToken => true,
+            SyntaxKind.ExclamationToken => true,
+            SyntaxKind.TildeToken => true,
+            SyntaxKind.OpenBracketToken => true,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Gets the associations operator name of an operator token.
+    /// </summary>
+    /// <param name="type"><see cref="SyntaxKind" />.</param>
+    /// <returns>The association operator of the token, or null if the token is not an overloadable operator.</returns>
+    internal static string GetOperatorMemberName(SyntaxKind type, int arity) {
+        return type switch {
+            SyntaxKind.AsteriskAsteriskToken => WellKnownMemberNames.PowerOperatorName,
+            SyntaxKind.AsteriskToken => WellKnownMemberNames.MultiplyOperatorName,
+            SyntaxKind.SlashToken => WellKnownMemberNames.DivideOperatorName,
+            SyntaxKind.PercentToken => WellKnownMemberNames.ModulusOperatorName,
+            SyntaxKind.PlusToken when arity == 1 => WellKnownMemberNames.UnaryPlusOperatorName,
+            SyntaxKind.PlusToken when arity != 1 => WellKnownMemberNames.AdditionOperatorName,
+            SyntaxKind.MinusToken when arity == 1 => WellKnownMemberNames.UnaryNegationOperatorName,
+            SyntaxKind.MinusToken when arity != 1 => WellKnownMemberNames.SubtractionOperatorName,
+            SyntaxKind.LessThanLessThanToken => WellKnownMemberNames.LeftShiftOperatorName,
+            SyntaxKind.GreaterThanGreaterThanToken => WellKnownMemberNames.RightShiftOperatorName,
+            SyntaxKind.GreaterThanGreaterThanGreaterThanToken => WellKnownMemberNames.UnsignedRightShiftOperatorName,
+            SyntaxKind.AmpersandToken => WellKnownMemberNames.BitwiseAndOperatorName,
+            SyntaxKind.CaretToken => WellKnownMemberNames.BitwiseExclusiveOrOperatorName,
+            SyntaxKind.PipeToken => WellKnownMemberNames.BitwiseOrOperatorName,
+            SyntaxKind.PlusPlusToken => WellKnownMemberNames.IncrementOperatorName,
+            SyntaxKind.MinusMinusToken => WellKnownMemberNames.DecrementOperatorName,
+            SyntaxKind.ExclamationToken => WellKnownMemberNames.LogicalNotOperatorName,
+            SyntaxKind.TildeToken => WellKnownMemberNames.BitwiseNotOperatorName,
+            SyntaxKind.OpenBracketToken => WellKnownMemberNames.IndexOperatorName,
+            SyntaxKind.QuestionOpenBracketToken => WellKnownMemberNames.IndexOperatorName,
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Gets the arity of an operator.
+    /// </summary>
+    /// <param name="name">The well known operator name.</param>
+    /// <returns>The arity of the operator.</returns>
+    internal static int GetOperatorArity(string name) {
+        return name switch {
+            WellKnownMemberNames.PowerOperatorName => 2,
+            WellKnownMemberNames.MultiplyOperatorName => 2,
+            WellKnownMemberNames.DivideOperatorName => 2,
+            WellKnownMemberNames.ModulusOperatorName => 2,
+            WellKnownMemberNames.UnaryPlusOperatorName => 1,
+            WellKnownMemberNames.AdditionOperatorName => 2,
+            WellKnownMemberNames.UnaryNegationOperatorName => 1,
+            WellKnownMemberNames.SubtractionOperatorName => 2,
+            WellKnownMemberNames.LeftShiftOperatorName => 2,
+            WellKnownMemberNames.RightShiftOperatorName => 2,
+            WellKnownMemberNames.UnsignedRightShiftOperatorName => 2,
+            WellKnownMemberNames.BitwiseAndOperatorName => 2,
+            WellKnownMemberNames.BitwiseExclusiveOrOperatorName => 2,
+            WellKnownMemberNames.BitwiseOrOperatorName => 2,
+            WellKnownMemberNames.IncrementOperatorName => 1,
+            WellKnownMemberNames.DecrementOperatorName => 1,
+            WellKnownMemberNames.LogicalNotOperatorName => 1,
+            WellKnownMemberNames.BitwiseNotOperatorName => 1,
+            WellKnownMemberNames.IndexOperatorName => 2,
+            _ => 0,
         };
     }
 

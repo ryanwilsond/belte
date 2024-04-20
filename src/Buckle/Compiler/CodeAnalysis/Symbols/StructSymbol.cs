@@ -14,6 +14,6 @@ internal sealed class StructSymbol : NamedTypeSymbol {
         ImmutableArray<ParameterSymbol> templateParameters,
         ImmutableArray<Symbol> symbols,
         StructDeclarationSyntax declaration,
-        DeclarationModifiers modifiers = DeclarationModifiers.None)
+        DeclarationModifiers modifiers)
         : base(templateParameters, symbols, declaration, modifiers) { }
 }

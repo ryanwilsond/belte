@@ -92,11 +92,11 @@ public sealed class DisplayTextSegment {
     }
 
     /// <summary>
-    /// Creates a number.
+    /// Creates a non-string literal.
     /// </summary>
     /// <param name="text">Text to be treated as a number.</param>
-    public static DisplayTextSegment CreateNumber(string text) {
-        return new DisplayTextSegment(text, Classification.Number);
+    public static DisplayTextSegment CreateLiteral(string text) {
+        return new DisplayTextSegment(text, Classification.Literal);
     }
 
     /// <summary>

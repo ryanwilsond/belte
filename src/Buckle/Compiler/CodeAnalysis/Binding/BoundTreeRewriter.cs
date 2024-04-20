@@ -18,7 +18,7 @@ internal abstract class BoundTreeRewriter {
         return statement.kind switch {
             BoundNodeKind.NopStatement => RewriteNopStatement((BoundNopStatement)statement),
             BoundNodeKind.BlockStatement => RewriteBlockStatement((BoundBlockStatement)statement),
-            BoundNodeKind.VariableDeclarationStatement => RewriteVariableDeclarationStatement((BoundVariableDeclarationStatement)statement),
+            BoundNodeKind.LocalDeclarationStatement => RewriteLocalDeclarationStatement((BoundLocalDeclarationStatement)statement),
             BoundNodeKind.IfStatement => RewriteIfStatement((BoundIfStatement)statement),
             BoundNodeKind.WhileStatement => RewriteWhileStatement((BoundWhileStatement)statement),
             BoundNodeKind.ForStatement => RewriteForStatement((BoundForStatement)statement),
@@ -143,13 +143,15 @@ internal abstract class BoundTreeRewriter {
         return new BoundIfStatement(condition, then, elseStatement);
     }
 
-    protected virtual BoundStatement RewriteVariableDeclarationStatement(BoundVariableDeclarationStatement statement) {
-        var initializer = RewriteExpression(statement.initializer);
+    protected virtual BoundStatement RewriteLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
+        var initializer = RewriteExpression(statement.declaration.initializer);
 
-        if (initializer == statement.initializer)
+        if (initializer == statement.declaration.initializer)
             return statement;
 
-        return new BoundVariableDeclarationStatement(statement.variable, initializer);
+        return new BoundLocalDeclarationStatement(
+            new BoundVariableDeclaration(statement.declaration.variable, initializer)
+        );
     }
 
     protected virtual BoundStatement RewriteBlockStatement(BoundBlockStatement statement) {
@@ -220,9 +222,15 @@ internal abstract class BoundTreeRewriter {
                 return RewritePostfixExpression((BoundPostfixExpression)expression);
             case BoundNodeKind.ThisExpression:
                 return RewriteThisExpression((BoundThisExpression)expression);
+            case BoundNodeKind.Type:
+                return RewriteType((BoundType)expression);
             default:
                 throw new BelteInternalException($"RewriteExpression: unexpected expression type '{expression.kind}'");
         }
+    }
+
+    protected virtual BoundExpression RewriteType(BoundType expression) {
+        return expression;
     }
 
     protected virtual BoundExpression RewriteThisExpression(BoundThisExpression expression) {
@@ -257,15 +265,15 @@ internal abstract class BoundTreeRewriter {
     }
 
     protected virtual BoundExpression RewriteMemberAccessExpression(BoundMemberAccessExpression expression) {
-        var operand = RewriteExpression(expression.operand);
+        var left = RewriteExpression(expression.left);
+        var right = RewriteExpression(expression.right);
 
-        if (operand == expression.operand)
+        if (left == expression.left && right == expression.right)
             return expression;
 
         return new BoundMemberAccessExpression(
-            operand,
-            expression.member,
-            expression.type,
+            left,
+            right,
             expression.isNullConditional,
             expression.isStaticAccess
         );
@@ -306,7 +314,7 @@ internal abstract class BoundTreeRewriter {
         if (index == expression.index)
             return expression;
 
-        return new BoundIndexExpression(expression.operand, index, expression.isNullConditional);
+        return new BoundIndexExpression(expression.expression, index, expression.isNullConditional);
     }
 
     protected virtual BoundExpression RewriteInitializerListExpression(BoundInitializerListExpression expression) {
@@ -355,12 +363,13 @@ internal abstract class BoundTreeRewriter {
     }
 
     protected virtual BoundExpression RewriteCallExpression(BoundCallExpression expression) {
+        var rewrote = RewriteExpression(expression.expression);
         var arguments = RewriteArguments(expression.arguments);
 
         if (!arguments.HasValue)
             return expression;
 
-        return new BoundCallExpression(expression.operand, expression.method, arguments.Value);
+        return new BoundCallExpression(rewrote, expression.method, arguments.Value);
     }
 
     protected virtual BoundExpression RewriteErrorExpression(BoundErrorExpression expression) {

@@ -21,7 +21,7 @@ internal sealed partial class ControlFlowGraphBuilder {
     internal ControlFlowGraph Build(List<BasicBlock> blocks) {
         var basicBlockBuilder = new BasicBlockBuilder();
 
-        if (!blocks.Any())
+        if (blocks.Count == 0)
             Connect(_start, _end);
         else
             Connect(_start, blocks[0]);
@@ -67,7 +67,7 @@ internal sealed partial class ControlFlowGraphBuilder {
                         break;
                     case BoundNodeKind.NopStatement:
                     case BoundNodeKind.ExpressionStatement:
-                    case BoundNodeKind.VariableDeclarationStatement:
+                    case BoundNodeKind.LocalDeclarationStatement:
                     case BoundNodeKind.TryStatement:
                     case BoundNodeKind.LabelStatement:
                         if (isLastStatement)
@@ -82,7 +82,7 @@ internal sealed partial class ControlFlowGraphBuilder {
 
         void Scan() {
             foreach (var block in blocks) {
-                if (!block.incoming.Any()) {
+                if (block.incoming.Count == 0) {
                     RemoveBlock(blocks, block);
                     Scan();
 

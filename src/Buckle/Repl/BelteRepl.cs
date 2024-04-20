@@ -96,6 +96,7 @@ public sealed partial class BelteRepl : Repl {
         state.showProgram = false;
         state.showWarnings = false;
         state.showIL = false;
+        state.showCS = false;
         state.loadingSubmissions = false;
         state.variables = new Dictionary<IVariableSymbol, IEvaluatorObject>();
         state.previous = null;
@@ -122,7 +123,7 @@ public sealed partial class BelteRepl : Repl {
 
         var offset = 0;
 
-        for (var i = 0; i < texts.Count(); i++) {
+        for (var i = 0; i < texts.Count; i++) {
             var line = texts[i].text;
 
             if (fullText.Substring(offset, line.Length) == line) {
@@ -141,7 +142,7 @@ public sealed partial class BelteRepl : Repl {
             }
         }
 
-        if (texts.Count() == 0)
+        if (texts.Count == 0)
             texts.Add((fullText, state.colorTheme.errorText));
 
         var pureTexts = texts.Select(t => t.text).ToList();
@@ -296,10 +297,15 @@ public sealed partial class BelteRepl : Repl {
             WriteDisplayText(displayText);
         }
 
+        if (state.showCS) {
+            var code = compilation.EmitToString(BuildMode.CSharpTranspile, "ReplSubmission");
+            writer.Write(code);
+        }
+
         if (state.showIL) {
             try {
-                var iLCode = compilation.EmitToString(BuildMode.Dotnet, "ReplSubmission");
-                writer.Write(iLCode);
+                var code = compilation.EmitToString(BuildMode.Dotnet, "ReplSubmission");
+                writer.Write(code);
             } catch (KeyNotFoundException) {
                 handle.diagnostics.Push(new BelteDiagnostic(Diagnostics.Error.FailedILGeneration()));
             }
@@ -353,6 +359,7 @@ public sealed partial class BelteRepl : Repl {
         }
 
         Console.ForegroundColor = state.colorTheme.@default;
+        Console.BackgroundColor = state.colorTheme.background;
     }
 
     private ConsoleColor GetColorFromClassification(Classification classification) {
@@ -360,7 +367,7 @@ public sealed partial class BelteRepl : Repl {
             Classification.Identifier => state.colorTheme.identifier,
             Classification.Keyword => state.colorTheme.keyword,
             Classification.Type => state.colorTheme.typeName,
-            Classification.Number => state.colorTheme.number,
+            Classification.Literal => state.colorTheme.literal,
             Classification.String => state.colorTheme.@string,
             Classification.Comment => state.colorTheme.comment,
             Classification.Text => state.colorTheme.text,
@@ -532,7 +539,7 @@ public sealed partial class BelteRepl : Repl {
         var displayText = new DisplayText();
 
         foreach (var symbol in symbols) {
-            SymbolDisplay.DisplaySymbol(displayText, symbol);
+            SymbolDisplay.DisplaySymbol(displayText, symbol, true);
             displayText.Write(CreateLine());
         }
 
@@ -543,15 +550,46 @@ public sealed partial class BelteRepl : Repl {
     private void EvaluateDump(string signature) {
         var compilation = state.previous ?? EmptyCompilation;
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
-        var symbols = (signature == name
-            ? compilation.GetSymbols().Where(f => f.name == name)
-            : compilation.GetSymbols<IMethodSymbol>().Where(f => f.Signature() == signature))
-                .ToArray();
+        ISymbol[] symbols;
+
+        if (name.Contains('.')) {
+            var failed = false;
+            var parts = name.Split('.');
+            var currentSymbols = compilation.GetSymbols();
+
+            for (var i = 0; i < parts.Length - 1; i++) {
+                var namedTypes = currentSymbols
+                    .Where(s => s.name == parts[i] && s is ITypeSymbolWithMembers)
+                    .Select(s => s as ITypeSymbolWithMembers);
+
+                if (!namedTypes.Any()) {
+                    failed = true;
+                    break;
+                }
+
+                currentSymbols = namedTypes.First().GetMembers();
+            }
+
+            if (failed) {
+                symbols = [];
+            } else {
+                symbols = (signature == name
+                    ? currentSymbols.Where(s => s.name == parts[^1])
+                    : currentSymbols.Where(s => s is IMethodSymbol i &&
+                        i.Signature() == (parts[^1] + string.Join('(', signature.Split('(')[1..]))))
+                    .ToArray();
+            }
+        } else {
+            symbols = (signature == name
+                ? compilation.GetSymbols().Where(f => f.name == name)
+                : compilation.GetSymbols<IMethodSymbol>().Where(f => f.Signature() == signature))
+                    .ToArray();
+        }
 
         ISymbol symbol = null;
         var displayText = new DisplayText();
 
-        if (symbols.Count() == 0 && signature.StartsWith('<')) {
+        if (symbols.Length == 0 && signature.StartsWith('<')) {
             // This will find hidden method symbols not normally exposed to the user
             // Generated methods should never have overloads, so only the name is checked
             // (as apposed to the entire signature)
@@ -750,5 +788,11 @@ public sealed partial class BelteRepl : Repl {
     private void EvaluateShowIL() {
         state.showIL = !state.showIL;
         writer.WriteLine(state.showIL ? "IL visible" : "IL hidden");
+    }
+
+    [MetaCommand("showCS", "Toggle display of C# code")]
+    private void EvaluateShowCS() {
+        state.showCS = !state.showCS;
+        writer.WriteLine(state.showCS ? "C# visible" : "C# hidden");
     }
 }
