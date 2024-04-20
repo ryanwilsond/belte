@@ -5,9 +5,14 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// A type that contains members; all non-primitive types.
 /// </summary>
-public interface ITypeSymbolWithMembers : ITypeSymbol {
+internal interface ITypeSymbolWithMembers : ITypeSymbol {
     /// <summary>
-    /// Gets all members in their public representations.
+    /// All symbols contained within the type and it's scope.
     /// </summary>
-    public ImmutableArray<ISymbol> GetMembers();
+    public ImmutableArray<Symbol> members { get; }
+
+    /// <summary>
+    /// Gets all members with the given name.
+    /// </summary>
+    public ImmutableArray<Symbol> GetMembers(string name);
 }

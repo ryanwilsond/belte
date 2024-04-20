@@ -1,6 +1,3 @@
-using System.Collections.Immutable;
-using System.Linq;
-using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -155,43 +152,6 @@ internal sealed class BoundBinaryOperator {
     /// Result value type.
     /// </summary>
     internal BoundType type { get; }
-
-    internal static BoundBinaryOperator BindWithOverloading(
-        SyntaxToken operatorToken,
-        SyntaxKind kind,
-        BoundExpression left,
-        BoundExpression right,
-        OverloadResolution overloadResolution,
-        out OverloadResolutionResult<MethodSymbol> result) {
-        var name = SyntaxFacts.GetOperatorMemberName(kind, 2);
-
-        if (name is not null) {
-            var symbols = ((left.type.typeSymbol is NamedTypeSymbol l) ? l.GetMembers(name) : [])
-                .AddRange((right.type.typeSymbol is NamedTypeSymbol r && left.type.typeSymbol != right.type.typeSymbol)
-                    ? r.GetMembers(name)
-                    : [])
-                .Where(m => m is MethodSymbol)
-                .Select(m => m as MethodSymbol)
-                .ToImmutableArray();
-
-            if (symbols.Length > 0) {
-                result = overloadResolution.SuppressedMethodOverloadResolution(
-                    symbols,
-                    [(null, left), (null, right)],
-                    name,
-                    operatorToken,
-                    null
-                );
-
-                if (result.succeeded || result.ambiguous)
-                    return null;
-            }
-        }
-
-        result = OverloadResolutionResult<MethodSymbol>.Failed();
-
-        return Bind(kind, left.type, right.type);
-    }
 
     /// <summary>
     /// Attempts to bind an operator with given sides.

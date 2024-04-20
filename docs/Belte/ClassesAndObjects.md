@@ -86,22 +86,6 @@ var myInstance = new MyClass();
 myInstance.MyMethod();
 ```
 
-### 4.2.3 Operators
-
-Operators are similar to methods. They are declared as such:
-
-```belte
-class MyClass {
-  static MyClass operator+(MyClass left, MyClass right) {
-    // Body
-  }
-}
-```
-
-Operator overloading is used to allow custom classes to use syntactical operators. The overloadable operators are:
-
-`**, *, /, %, +, -, <<, >>, >>>, &, ^, |, ++, --, !, ~, []`
-
 ## 4.3 Modifiers
 
 Class members are instance members by default, meaning they require an instance to access. With the `static` and `const`

@@ -64,7 +64,7 @@ public sealed class AnnotatedText {
             }
         }
 
-        if (startStack.Count > 0)
+        if (startStack.Count != 0)
             throw new ArgumentException("'[' without corresponding ']' in text", nameof(text));
 
         return new AnnotatedText(textBuilder.ToString(), spanBuilder.ToImmutable());

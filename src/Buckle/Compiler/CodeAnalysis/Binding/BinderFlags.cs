@@ -12,5 +12,4 @@ internal enum BinderFlags : byte {
     Method = 1 << 1,
     Class = 1 << 2,
     TemplateArgumentList = 1 << 3,
-    Struct = 1 << 4,
 }

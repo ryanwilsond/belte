@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// <summary>
 /// Bound type, partially mutable.
 /// </summary>
-internal sealed class BoundType : BoundExpression {
+internal sealed class BoundType : BoundNode {
     /// <summary>
     /// Decimal type that can be null.
     /// </summary>
@@ -65,11 +65,6 @@ internal sealed class BoundType : BoundExpression {
     internal static readonly BoundType Any = new BoundType(TypeSymbol.Any);
 
     /// <summary>
-    /// A type representing a method group.
-    /// </summary>
-    internal static readonly BoundType MethodGroup = new BoundType(TypeSymbol.Func);
-
-    /// <summary>
     /// The type type, value can be a <see cref="BoundType" />, cannot be null.
     /// </summary>
     internal static readonly BoundType Type = new BoundType(TypeSymbol.Type);
@@ -85,28 +80,15 @@ internal sealed class BoundType : BoundExpression {
     /// <param name="isImplicit">If the type was assumed by the var or let keywords.</param>
     /// <param name="isConstantReference">If the type is an unchanging reference type.</param>
     /// <param name="isReference">If the type is a reference type.</param>
-    /// <param name="isExplicitReference">
-    /// If the type is an explicit reference expression instead of simply referencing something else.
-    /// </param>
     /// <param name="isConstant">If the value this type is referring to is only defined once.</param>
     /// <param name="isNullable">If the value this type is referring to can be null.</param>
     /// <param name="isLiteral">If the type was assumed from a literal.</param>
     /// <param name="dimensions">Dimensions of the type, 0 if not an array.</param>
-    /// <param name="arity">The number of template arguments on the type.</param>
-    /// <param name="isConstantExpression">If the value this type is referring is a compile-time constant.</param>
     internal BoundType(
-        TypeSymbol typeSymbol,
-        bool isImplicit = false,
-        bool isConstantReference = false,
-        bool isReference = false,
-        bool isExplicitReference = false,
-        bool isConstant = false,
-        bool isNullable = false,
-        bool isLiteral = false,
-        int dimensions = 0,
-        ImmutableArray<BoundConstant>? templateArguments = null,
-        int arity = 0,
-        bool isConstantExpression = false) {
+        TypeSymbol typeSymbol, bool isImplicit = false, bool isConstantReference = false, bool isReference = false,
+        bool isExplicitReference = false, bool isConstant = false, bool isNullable = false,
+        bool isLiteral = false, int dimensions = 0,
+        ImmutableArray<BoundExpression>? templateArguments = null, int arity = 0) {
         this.typeSymbol = typeSymbol;
         this.isImplicit = isImplicit;
         this.isConstantReference = isConstantReference;
@@ -116,12 +98,9 @@ internal sealed class BoundType : BoundExpression {
         this.isNullable = isNullable;
         this.isLiteral = isLiteral;
         this.dimensions = dimensions;
-        this.templateArguments = templateArguments ?? ImmutableArray<BoundConstant>.Empty;
+        this.templateArguments = templateArguments ?? ImmutableArray<BoundExpression>.Empty;
         this.arity = arity;
-        this.isConstantExpression = isConstantExpression;
     }
-
-    internal override BoundType type => this;
 
     /// <summary>
     /// The language type, not the <see cref="Syntax.SyntaxNode" /> type.
@@ -154,12 +133,6 @@ internal sealed class BoundType : BoundExpression {
     internal bool isConstant { get; }
 
     /// <summary>
-    /// If the value this type is referring is a compile-time constant.
-    /// </summary>
-    /// <value></value>
-    internal bool isConstantExpression { get; }
-
-    /// <summary>
     /// If the value this type is referring to can be null.
     /// </summary>
     internal bool isNullable { get; }
@@ -178,7 +151,7 @@ internal sealed class BoundType : BoundExpression {
     /// The arguments for the class template, if any.
     /// </summary>
     /// <value></value>
-    internal ImmutableArray<BoundConstant> templateArguments { get; }
+    internal ImmutableArray<BoundExpression> templateArguments { get; }
 
     /// <summary>
     /// The number of template arguments the type has.
@@ -198,19 +171,10 @@ internal sealed class BoundType : BoundExpression {
     /// <param name="type"><see cref="BoundType" /> to copy.</param>
     /// <returns>New copy <see cref="BoundType" />.</returns>
     internal static BoundType CopyWith(
-        BoundType type,
-        TypeSymbol typeSymbol = null,
-        bool? isImplicit = null,
-        bool? isConstantReference = null,
-        bool? isReference = null,
-        bool? isExplicitReference = null,
-        bool? isConstant = null,
-        bool? isNullable = null,
-        bool? isLiteral = null,
-        int? dimensions = null,
-        ImmutableArray<BoundConstant>? templateArguments = null,
-        int? arity = null,
-        bool? isConstantExpression = null) {
+        BoundType type, TypeSymbol typeSymbol = null, bool? isImplicit = null, bool? isConstantReference = null,
+        bool? isReference = null, bool? isExplicitReference = null, bool? isConstant = null, bool? isNullable = null,
+        bool? isLiteral = null, int? dimensions = null, ImmutableArray<BoundExpression>? templateArguments = null,
+        int? arity = null) {
         if (type is null)
             return null;
 
@@ -225,8 +189,7 @@ internal sealed class BoundType : BoundExpression {
             isLiteral ?? type.isLiteral,
             dimensions ?? type.dimensions,
             templateArguments ?? type.templateArguments,
-            arity ?? type.arity,
-            isConstantExpression ?? type.isConstantExpression
+            arity ?? type.arity
         );
     }
 
@@ -251,12 +214,31 @@ internal sealed class BoundType : BoundExpression {
     }
 
     /// <summary>
+    /// Creates a Func<> type using the signature of a method to construct a template argument list.
+    /// </summary>
+    internal static BoundType CreateFunc(ImmutableArray<ParameterSymbol> parameters, BoundType returnType) {
+        var builder = ImmutableArray.CreateBuilder<BoundExpression>();
+
+        foreach (var parameter in parameters)
+            builder.Add(new BoundTypeOfExpression(parameter.type));
+
+        builder.Add(new BoundTypeOfExpression(returnType));
+        var templateArguments = builder.ToImmutable();
+
+        return new BoundType(
+            TypeSymbol.Func,
+            templateArguments: templateArguments,
+            arity: templateArguments.Length
+        );
+    }
+
+    /// <summary>
     /// If the given type is the same as this.
     /// </summary>
     /// <param name="type"><see cref="BoundType" /> to compare this to.</param>
     /// <returns>If all fields match.</returns>
     internal bool Equals(BoundType type, bool loose = false) {
-        if ((!loose || (typeSymbol is not null && type.typeSymbol is not null)) && typeSymbol != type.typeSymbol)
+        if ((loose ? (typeSymbol is object && type.typeSymbol is object) : true) && typeSymbol != type.typeSymbol)
             return false;
         if (isImplicit != type.isImplicit)
             return false;
@@ -274,11 +256,9 @@ internal sealed class BoundType : BoundExpression {
             return false;
         if (arity != type.arity)
             return false;
-        if (isConstantExpression != type.isConstantExpression)
-            return false;
 
         for (var i = 0; i < templateArguments.Length; i++) {
-            if (templateArguments[i] != type.templateArguments[i])
+            if (templateArguments[i].constantValue != type.templateArguments[i].constantValue)
                 return false;
         }
 
@@ -292,8 +272,6 @@ internal sealed class BoundType : BoundExpression {
     internal BoundType ChildType() {
         if (dimensions > 0)
             return CopyWith(this, dimensions: dimensions - 1);
-        else if (typeSymbol == TypeSymbol.Any)
-            return this;
         else
             return null;
     }

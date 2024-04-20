@@ -28,7 +28,7 @@ internal sealed partial class ControlFlowGraphBuilder {
                         break;
                     case BoundNodeKind.NopStatement:
                     case BoundNodeKind.ExpressionStatement:
-                    case BoundNodeKind.LocalDeclarationStatement:
+                    case BoundNodeKind.VariableDeclarationStatement:
                     case BoundNodeKind.TryStatement:
                         _statements.Add(statement);
                         break;
@@ -43,7 +43,7 @@ internal sealed partial class ControlFlowGraphBuilder {
         }
 
         private void EndBlock() {
-            if (_statements.Count > 0) {
+            if (_statements.Any()) {
                 var block = new BasicBlock();
                 block.statements.AddRange(_statements);
                 _blocks.Add(block);

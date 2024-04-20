@@ -1,0 +1,53 @@
+
+namespace Standard {
+    public static class Console {
+
+        enum Color {
+            Black,
+            DarkBlue,
+            DarkGreen,
+            DarkCyan,
+            DarkRed,
+            DarkMagenta,
+            DarkYellow,
+            Gray,
+            DarkGray,
+            Blue,
+            Green,
+            Cyan,
+            Red,
+            Magenta,
+            Yellow,
+            White
+        }
+
+        static void PrintLine(string message);
+        static void PrintLine(object value);
+        static void Print(string message);
+        static void Print(object value);
+        static string Input(string message);
+        static string Input(object value);
+        static void SetForegroundColor(Color color);
+        static void SetBackgroundColor(Color color);
+        static void ResetColor();
+
+    }
+
+    public class File {
+
+        static bool Create(string filename);
+        static bool Exists(string filename);
+        static bool Remove(string filename);
+        static string ReadAllText(string filename);
+        static string[] ReadAllLines(string filename);
+        static byte[] ReadAllBytes(string filename);
+        static void WriteAllText(string filename, string text);
+        static void WriteAllLines(string filename, string[] lines);
+        static void WriteAllBytes(string filename, byte[] bytes);
+        static bool DirectoryExists(string dirname);
+        static void CreateDirectory(string dirname);
+        static bool RemoveDirectory(string dirname);
+        static string GetWorkingDir();
+
+    }
+}

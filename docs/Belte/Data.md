@@ -89,9 +89,11 @@ const b = 3; // Same as 'const int b = 3;'
 
 ## 3.4 Attributes and Modifiers
 
-All data is nullable by default. To disable this, an exclamation mark can be used:
+All data is nullable by default. To disable this, an attribute can be used. An exclamation mark can be used
+as shorthand. The follow examples are functionally the same:
 
 ```belte
+[NotNull]int a = 3;
 int! a = 3;
 ```
 

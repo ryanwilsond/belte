@@ -1,0 +1,9 @@
+
+namespace Base {
+    public class guid : IComparable, IComparable<guid> {
+
+        guid(byte[] bytes);
+        guid(string str);
+
+    }
+}

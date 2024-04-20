@@ -12,6 +12,7 @@ internal sealed class SourceWriter {
     private readonly TextWriter _writer;
     private readonly Tree _tree;
     private readonly IDictionary<string, string> _parentMap;
+    private readonly ILookup<string, string> _childMap;
 
     private const int IndentSize = 4;
     private int _indentLevel;
@@ -25,6 +26,7 @@ internal sealed class SourceWriter {
         _tree = tree;
         _parentMap = tree.types.ToDictionary(n => n.Name, n => n.Base);
         _parentMap.Add(tree.Root, null);
+        _childMap = tree.types.ToLookup(n => n.Base, n => n.Name);
     }
 
     private Tree tree { get { return _tree; } }
@@ -134,6 +136,11 @@ internal sealed class SourceWriter {
         if (msg != "")
             WriteIndentIfNeeded();
 
+        _writer.WriteLine(msg);
+        _needIndent = true;
+    }
+
+    private void WriteLineWithoutIndent(string msg) {
         _writer.WriteLine(msg);
         _needIndent = true;
     }
@@ -259,8 +266,7 @@ internal sealed class SourceWriter {
             WriteLine();
             Write($"internal {node.Name}(");
             WriteGreenNodeConstructorArgs(nodeFields, valueFields);
-            var secondConstructorParameterListPrefix = (nodeFields.Count > 0 || valueFields.Count > 0) ? ", " : "";
-            WriteLine($"{secondConstructorParameterListPrefix}Diagnostic[] diagnostics)");
+            WriteLine(", Diagnostic[] diagnostics)");
             Write($"  : base(SyntaxKind.{nd.kinds.Single().Name}, diagnostics)");
             OpenBlock();
             WriteCtorBody(nodeFields, valueFields);
@@ -414,36 +420,33 @@ internal sealed class SourceWriter {
         Write(")");
         OpenBlock();
 
-        if (node.fields.Count > 0) {
-            Write("if (");
-            var nCompared = 0;
+        Write("if (");
+        var nCompared = 0;
 
-            foreach (var field in node.fields) {
-                if (IsDerivedOrListOfDerived("SyntaxNode", field.Type) || IsDerivedOrListOfDerived("SyntaxToken", field.Type) || field.Type == "SyntaxNodeOrTokenList") {
-                    if (nCompared > 0)
-                        Write(" || ");
+        foreach (var field in node.fields) {
+            if (IsDerivedOrListOfDerived("SyntaxNode", field.Type) || IsDerivedOrListOfDerived("SyntaxToken", field.Type) || field.Type == "SyntaxNodeOrTokenList") {
+                if (nCompared > 0)
+                    Write(" || ");
 
-                    Write($"_{field.Name} != this.{field.Name}");
-                    nCompared++;
-                }
+                Write($"_{field.Name} != this.{field.Name}");
+                nCompared++;
             }
-
-            if (nCompared > 0) {
-                Write(")");
-                OpenBlock();
-                Write($"var newNode = SyntaxFactory.{StripPost(node.Name, "Syntax")}(");
-                Write(CommaJoin(node.fields.Select(f => $"_{f.Name}")));
-                WriteLine(");");
-                WriteLine("var diags = GetDiagnostics();");
-                WriteLine("if (diags?.Length > 0)");
-                WriteLine("    newNode = newNode.WithDiagnosticsGreen(diags);");
-                WriteLine("return newNode;");
-                CloseBlock();
-            }
-
-            WriteLine();
         }
 
+        if (nCompared > 0) {
+            Write(")");
+            OpenBlock();
+            Write($"var newNode = SyntaxFactory.{StripPost(node.Name, "Syntax")}(");
+            Write(CommaJoin(node.fields.Select(f => $"_{f.Name}")));
+            WriteLine(");");
+            WriteLine("var diags = GetDiagnostics();");
+            WriteLine("if (diags?.Length > 0)");
+            WriteLine("    newNode = newNode.WithDiagnosticsGreen(diags);");
+            WriteLine("return newNode;");
+            CloseBlock();
+        }
+
+        WriteLine();
         WriteLine("return this;");
         CloseBlock();
     }

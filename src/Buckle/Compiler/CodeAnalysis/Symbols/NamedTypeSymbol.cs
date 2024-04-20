@@ -30,9 +30,9 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
 
     public override bool isStatic => (_declarationModifiers & DeclarationModifiers.Static) != 0;
 
-    public ImmutableArray<MethodSymbol> constructors => GetConstructors();
+    public ImmutableArray<Symbol> members { get; private set; }
 
-    internal ImmutableArray<Symbol> members { get; private set; }
+    public ImmutableArray<MethodSymbol> constructors => GetConstructors();
 
     internal ImmutableArray<ParameterSymbol> templateParameters { get; private set; }
 
@@ -45,10 +45,6 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
             ConstructLazyMembersDictionary();
 
         return _lazyMembersDictionary[name];
-    }
-
-    public ImmutableArray<ISymbol> GetMembers() {
-        return members.CastArray<ISymbol>();
     }
 
     /// <summary>

@@ -462,11 +462,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
             : method;
 
         var arguments = builder is null ? expression.arguments : builder.ToImmutable();
-        // var operand = (expression.expression is BoundMemberAccessExpression me && me.isStaticAccess)
-        //     ? new BoundEmptyExpression()
-        //     : expression.expression;
+        var operand = (expression.operand is BoundMemberAccessExpression me && me.isStaticAccess)
+            ? new BoundEmptyExpression()
+            : expression.operand;
 
-        return base.RewriteCallExpression(new BoundCallExpression(expression.expression, newMethod, arguments));
+        return base.RewriteCallExpression(new BoundCallExpression(operand, newMethod, arguments));
     }
 
     protected override BoundExpression RewriteCompoundAssignmentExpression(
@@ -512,10 +512,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.isNullConditional) {
             return RewriteExpression(
                 NullConditional(
-                    @if: HasValue(expression.left),
+                    @if: HasValue(expression.operand),
                     @then: MemberAccess(
-                        expression.left,
-                        expression.right,
+                        expression.operand,
+                        expression.member,
+                        expression.type,
                         expression.isStaticAccess
                     ),
                     @else: Literal(null, expression.type)
@@ -539,9 +540,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.isNullConditional) {
             return RewriteExpression(
                 NullConditional(
-                    @if: HasValue(expression.expression),
+                    @if: HasValue(expression.operand),
                     @then: Index(
-                        expression.expression,
+                        expression.operand,
                         expression.index
                     ),
                     @else: Literal(null, expression.type)

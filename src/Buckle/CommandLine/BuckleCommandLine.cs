@@ -746,7 +746,7 @@ public static partial class BuckleCommandLine {
         if (specifyModule && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyModuleNameWithoutDotnet());
 
-        if (references.Count > 0 && state.buildMode != BuildMode.Dotnet)
+        if (references.Count != 0 && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyReferencesWithoutDotnet());
 
         if (state.tasks.Length == 0 && !(state.buildMode == BuildMode.Repl))

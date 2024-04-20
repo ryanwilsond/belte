@@ -70,7 +70,9 @@ internal sealed partial class Parser {
 
     internal SyntaxToken currentToken {
         get {
-            _currentToken ??= FetchCurrentToken();
+            if (_currentToken is null)
+                _currentToken = FetchCurrentToken();
+
             return _currentToken;
         }
     }
@@ -109,33 +111,6 @@ internal sealed partial class Parser {
 
             if (token.kind == SyntaxKind.EndOfFileToken)
                 break;
-        }
-    }
-
-    private ResetPoint GetResetPoint() {
-        return new ResetPoint(_tokenOffset, _prevTokenTrailingTrivia, _terminatorState, _context, _bracketStack);
-    }
-
-    private void Reset(ResetPoint resetPoint) {
-        _terminatorState = resetPoint.terminatorState;
-        _tokenOffset = resetPoint.position;
-        _prevTokenTrailingTrivia = resetPoint.prevTokenTrailingTrivia;
-        _currentToken = null;
-        _currentNode = null;
-        _context = resetPoint.context;
-        _bracketStack = resetPoint.bracketStack;
-
-        if (_blendedTokens != null) {
-            for (var i = _tokenOffset; i < _tokenCount; i++) {
-                if (_blendedTokens[i].token == null) {
-                    _tokenCount = i;
-
-                    if (_tokenCount == _tokenOffset)
-                        FetchCurrentToken();
-
-                    break;
-                }
-            }
         }
     }
 
@@ -453,48 +428,15 @@ internal sealed partial class Parser {
             return _lexedTokens[index];
     }
 
-    private bool PeekIsOperatorDeclaration() {
-        return PeekIsFunctionOrMethodOrOperatorDeclarationCore(true, true, true);
-    }
-
-    private bool PeekIsConstructorDeclaration() {
-        return PeekIsFunctionOrMethodOrOperatorDeclarationCore(false, false, true);
-    }
-
-    private bool PeekIsFunctionOrMethodDeclaration(bool couldBeInStatement = true) {
-        return PeekIsFunctionOrMethodOrOperatorDeclarationCore(false, true, couldBeInStatement);
-    }
-
-    private bool PeekIsFunctionOrMethodOrOperatorDeclarationCore(
-        bool checkForOperator,
-        bool checkForType,
-        bool couldBeInStatement) {
+    private bool PeekIsFunctionOrMethodDeclaration(bool checkForType = true, bool couldBeInStatement = true) {
         var hasName = false;
         var offset = 0;
 
         if (checkForType && !PeekIsType(0, out offset, out hasName, out _))
             return false;
 
-        if (!checkForType && !checkForOperator && Peek(offset).kind == SyntaxKind.IdentifierToken)
+        if (!checkForType && currentToken.kind == SyntaxKind.IdentifierToken)
             hasName = true;
-
-        if (checkForOperator) {
-            if (Peek(offset).kind == SyntaxKind.OperatorKeyword)
-                offset++;
-            else
-                return false;
-        }
-
-        if (checkForOperator && Peek(offset).kind.IsOverloadableOperator()) {
-            if (Peek(offset).kind == SyntaxKind.OpenBracketToken &&
-                Peek(offset + 1).kind == SyntaxKind.CloseBracketToken) {
-                offset++;
-            }
-
-            hasName = true;
-        } else if (checkForOperator && Peek(offset).kind != SyntaxKind.OpenParenToken) {
-            offset++;
-        }
 
         if (hasName)
             offset++;
@@ -528,46 +470,38 @@ internal sealed partial class Parser {
         return false;
     }
 
-    private bool PeekIsLocalDeclaration() {
-        var offset = 0;
-
-        while (Peek(offset).kind == SyntaxKind.OpenBracketToken) {
-            offset++;
-
-            while (Peek(offset).kind is SyntaxKind.IdentifierToken or SyntaxKind.CommaToken)
-                offset++;
-
-            if (Peek(offset).kind == SyntaxKind.CloseBracketToken)
-                offset++;
-        }
-
-        var hasConstKeyword = false;
-
-        while (Peek(offset).kind is SyntaxKind.ConstexprKeyword or SyntaxKind.ConstKeyword) {
-            offset++;
-            hasConstKeyword = true;
-        }
-
-        return PeekIsType(offset, out _, out var hasName, out _) && (hasName || hasConstKeyword);
-    }
-
     private bool PeekIsType(int offset, out int finalOffset, out bool hasName, out bool isTemplate) {
         finalOffset = offset;
         hasName = false;
         isTemplate = false;
 
-        if (Peek(finalOffset).kind is not SyntaxKind.IdentifierToken and not SyntaxKind.RefKeyword)
+        if (Peek(finalOffset).kind is not SyntaxKind.IdentifierToken and
+                not SyntaxKind.ConstKeyword and
+                not SyntaxKind.RefKeyword and
+                not SyntaxKind.VarKeyword and
+                not SyntaxKind.OpenBracketToken) {
             return false;
+        }
+
+        while (Peek(finalOffset).kind == SyntaxKind.OpenBracketToken) {
+            finalOffset++;
+
+            if (Peek(finalOffset).kind == SyntaxKind.IdentifierToken)
+                finalOffset++;
+
+            if (Peek(finalOffset).kind == SyntaxKind.CloseBracketToken)
+                finalOffset++;
+        }
 
         while (Peek(finalOffset).kind is SyntaxKind.ConstKeyword or SyntaxKind.RefKeyword)
             finalOffset++;
 
-        if (Peek(finalOffset).kind is not SyntaxKind.IdentifierToken &&
-            Peek(finalOffset - 1).kind is not SyntaxKind.ConstKeyword and not SyntaxKind.ConstexprKeyword) {
+        if (Peek(finalOffset).kind is not SyntaxKind.IdentifierToken and not SyntaxKind.VarKeyword &&
+            Peek(finalOffset - 1).kind != SyntaxKind.ConstKeyword) {
             return false;
         }
 
-        if (Peek(finalOffset).kind is SyntaxKind.IdentifierToken)
+        if (Peek(finalOffset).kind is SyntaxKind.IdentifierToken or SyntaxKind.VarKeyword)
             finalOffset++;
 
         while (Peek(finalOffset).kind == SyntaxKind.LessThanToken) {
@@ -601,8 +535,7 @@ internal sealed partial class Parser {
             hasName = true;
 
         if (!hasBrackets &&
-            Peek(finalOffset).kind != SyntaxKind.IdentifierToken &&
-            Peek(finalOffset - 2).kind is SyntaxKind.ConstKeyword or SyntaxKind.ConstexprKeyword &&
+            Peek(finalOffset - 2).kind == SyntaxKind.ConstKeyword &&
             Peek(finalOffset - 1).kind == SyntaxKind.IdentifierToken) {
             hasName = true;
             finalOffset--;
@@ -653,8 +586,8 @@ internal sealed partial class Parser {
 
     private bool IsEndOfTemplateArgumentList() => currentToken.kind == SyntaxKind.GreaterThanToken;
 
-    private SyntaxList<MemberDeclarationSyntax> ParseMembers(bool isGlobal = false) {
-        var members = SyntaxListBuilder<MemberDeclarationSyntax>.Create();
+    private SyntaxList<MemberSyntax> ParseMembers(bool isGlobal = false) {
+        var members = SyntaxListBuilder<MemberSyntax>.Create();
 
         while (currentToken.kind != SyntaxKind.EndOfFileToken) {
             if (!isGlobal && currentToken.kind == SyntaxKind.CloseBraceToken)
@@ -672,7 +605,7 @@ internal sealed partial class Parser {
         return members.ToList();
     }
 
-    private bool TryParseMember(bool allowGlobalStatements, out MemberDeclarationSyntax member) {
+    private bool TryParseMember(bool allowGlobalStatements, out MemberSyntax member) {
         if (currentToken.kind == SyntaxKind.BadToken) {
             member = null;
             return false;
@@ -682,66 +615,39 @@ internal sealed partial class Parser {
         return true;
     }
 
-    private MemberDeclarationSyntax ParseMember(bool allowGlobalStatements = false) {
-        var attributeLists = ParseAttributeLists();
+    private MemberSyntax ParseMember(bool allowGlobalStatements = false) {
         var modifiers = ParseModifiers();
 
-        if ((_context & ParserContext.InClassDefinition) != 0 && PeekIsConstructorDeclaration())
-            return ParseConstructorDeclaration(attributeLists, modifiers);
-
-        if ((_context & ParserContext.InClassDefinition) != 0 && PeekIsOperatorDeclaration())
-            return ParseOperatorDeclaration(attributeLists, modifiers);
+        if ((_context & ParserContext.InClassDefinition) != 0 && PeekIsFunctionOrMethodDeclaration(checkForType: false))
+            return ParseConstructorDeclaration(modifiers);
 
         if (PeekIsFunctionOrMethodDeclaration(couldBeInStatement: allowGlobalStatements))
-            return ParseMethodDeclaration(attributeLists, modifiers);
+            return ParseMethodDeclaration(modifiers);
 
         switch (currentToken.kind) {
             case SyntaxKind.StructKeyword:
-                return ParseStructDeclaration(attributeLists, modifiers);
+                return ParseStructDeclaration(modifiers);
             case SyntaxKind.ClassKeyword:
-                return ParseClassDeclaration(attributeLists, modifiers);
+                return ParseClassDeclaration(modifiers);
             default:
                 if (allowGlobalStatements) {
-                    if (attributeLists.Any()) {
-                        var builder = new SyntaxListBuilder<AttributeListSyntax>(attributeLists.Count);
-
-                        for (var i = 0; i < attributeLists.Count; i++) {
-                            if (i == 0)
-                                builder.Add(AddDiagnostic(attributeLists[i], Error.InvalidAttributes()));
-                            else
-                                builder.Add(attributeLists[i]);
-                        }
-
-                        attributeLists = builder.ToList();
-                    }
-
                     if (modifiers.Any()) {
                         var builder = new SyntaxListBuilder<SyntaxToken>(modifiers.Count);
 
-                        foreach (var modifier in modifiers) {
-                            if (modifier.kind is SyntaxKind.ConstKeyword or SyntaxKind.ConstexprKeyword) {
-                                builder.Add(modifier);
-                                continue;
-                            }
-
-                            builder.Add(
-                                AddDiagnostic(modifier, Error.InvalidModifier(SyntaxFacts.GetText(modifier.kind)))
-                            );
-                        }
+                        foreach (var modifier in modifiers)
+                            builder.Add(AddDiagnostic(modifier, Error.UnexpectedToken(modifier.kind)));
 
                         modifiers = builder.ToList();
                     }
 
-                    return ParseGlobalStatement(attributeLists, modifiers);
+                    return ParseGlobalStatement(modifiers);
                 } else {
-                    return ParseFieldDeclaration(attributeLists, modifiers);
+                    return ParseFieldDeclaration(modifiers);
                 }
         }
     }
 
-    private MemberDeclarationSyntax ParseStructDeclaration(
-        SyntaxList<AttributeListSyntax> attributeLists,
-        SyntaxList<SyntaxToken> modifiers) {
+    private MemberSyntax ParseStructDeclaration(SyntaxList<SyntaxToken> modifiers) {
         var keyword = EatToken();
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
         TemplateParameterListSyntax templateParameterList = null;
@@ -757,7 +663,6 @@ internal sealed partial class Parser {
         var closeBrace = Match(SyntaxKind.CloseBraceToken);
 
         return SyntaxFactory.StructDeclaration(
-            attributeLists,
             modifiers,
             keyword,
             identifier,
@@ -768,9 +673,7 @@ internal sealed partial class Parser {
         );
     }
 
-    private MemberDeclarationSyntax ParseClassDeclaration(
-        SyntaxList<AttributeListSyntax> attributeLists,
-        SyntaxList<SyntaxToken> modifiers) {
+    private MemberSyntax ParseClassDeclaration(SyntaxList<SyntaxToken> modifiers) {
         var keyword = EatToken();
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
         TemplateParameterListSyntax templateParameterList = null;
@@ -786,7 +689,6 @@ internal sealed partial class Parser {
         var closeBrace = Match(SyntaxKind.CloseBraceToken);
 
         return SyntaxFactory.ClassDeclaration(
-            attributeLists,
             modifiers,
             keyword,
             identifier,
@@ -797,81 +699,35 @@ internal sealed partial class Parser {
         );
     }
 
-    private ConstructorDeclarationSyntax ParseConstructorDeclaration(
-        SyntaxList<AttributeListSyntax> attributeLists,
-        SyntaxList<SyntaxToken> modifiers) {
+    private ConstructorDeclarationSyntax ParseConstructorDeclaration(SyntaxList<SyntaxToken> modifiers) {
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenParenToken);
         var parameterList = ParseParameterList();
         var body = (BlockStatementSyntax)ParseBlockStatement();
 
-        return SyntaxFactory.ConstructorDeclaration(attributeLists, modifiers, identifier, parameterList, body);
+        return SyntaxFactory.ConstructorDeclaration(modifiers, identifier, parameterList, body);
     }
 
-    private MemberDeclarationSyntax ParseMethodDeclaration(
-        SyntaxList<AttributeListSyntax> attributeLists,
-        SyntaxList<SyntaxToken> modifiers) {
+    private MemberSyntax ParseMethodDeclaration(SyntaxList<SyntaxToken> modifiers) {
         var type = ParseType(false);
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenParenToken);
         var parameterList = ParseParameterList();
         var body = (BlockStatementSyntax)ParseBlockStatement();
 
-        return SyntaxFactory.MethodDeclaration(attributeLists, modifiers, type, identifier, parameterList, body);
+        return SyntaxFactory.MethodDeclaration(modifiers, type, identifier, parameterList, body);
     }
 
-    private OperatorDeclarationSyntax ParseOperatorDeclaration(
-        SyntaxList<AttributeListSyntax> attributeLists,
-        SyntaxList<SyntaxToken> modifiers) {
-        var type = ParseType(false);
-        var operatorKeyword = Match(SyntaxKind.OperatorKeyword);
-        var operatorToken = EatToken();
-        SyntaxToken rightOperatorToken = null;
-
-        if (!operatorToken.kind.IsOverloadableOperator())
-            operatorToken = AddDiagnostic(operatorToken, Error.ExpectedOverloadableOperator());
-
-        if (operatorToken.kind == SyntaxKind.OpenBracketToken)
-            rightOperatorToken = Match(SyntaxKind.CloseBracketToken);
-
-        var parameterList = ParseParameterList();
-        var body = (BlockStatementSyntax)ParseBlockStatement();
-
-        return SyntaxFactory.OperatorDeclaration(
-            attributeLists,
-            modifiers,
-            type,
-            operatorKeyword,
-            operatorToken,
-            rightOperatorToken,
-            parameterList,
-            body
-        );
-    }
-
-    private StatementSyntax ParseLocalFunctionDeclaration(
-        SyntaxList<AttributeListSyntax> attributeLists,
-        SyntaxList<SyntaxToken> modifiers) {
-        attributeLists ??= ParseAttributeLists();
-        modifiers ??= ParseModifiers();
+    private StatementSyntax ParseLocalFunctionDeclaration() {
         var type = ParseType(false);
         var identifier = Match(SyntaxKind.IdentifierToken);
         var parameters = ParseParameterList();
         var body = (BlockStatementSyntax)ParseBlockStatement();
 
-        return SyntaxFactory.LocalFunctionStatement(
-            attributeLists,
-            modifiers,
-            type,
-            identifier,
-            parameters,
-            body
-        );
+        return SyntaxFactory.LocalFunctionStatement(type, identifier, parameters, body);
     }
 
     private DeclarationModifiers GetModifier(SyntaxToken token) {
         return token.kind switch {
             SyntaxKind.StaticKeyword => DeclarationModifiers.Static,
-            SyntaxKind.ConstKeyword => DeclarationModifiers.Const,
-            SyntaxKind.ConstexprKeyword => DeclarationModifiers.Constexpr,
             _ => DeclarationModifiers.None,
         };
     }
@@ -885,7 +741,13 @@ internal sealed partial class Parser {
             if (modifier == DeclarationModifiers.None)
                 break;
 
-            modifiers.Add(EatToken());
+            switch (modifier) {
+                case DeclarationModifiers.Static:
+                    modifiers.Add(EatToken());
+                    break;
+                default:
+                    break;
+            }
         }
 
         return modifiers.ToList();
@@ -950,155 +812,56 @@ internal sealed partial class Parser {
         return SyntaxFactory.Parameter(type, identifier, equals, defaultValue);
     }
 
-    private SyntaxList<MemberDeclarationSyntax> ParseFieldList() {
-        var fieldDeclarations = SyntaxListBuilder<MemberDeclarationSyntax>.Create();
+    private SyntaxList<MemberSyntax> ParseFieldList() {
+        var fieldDeclarations = SyntaxListBuilder<MemberSyntax>.Create();
 
         while (currentToken.kind is not SyntaxKind.CloseBraceToken and not SyntaxKind.EndOfFileToken) {
-            var attributeLists = ParseAttributeLists();
             var modifiers = ParseModifiers();
-            var field = ParseFieldDeclaration(attributeLists, modifiers);
+            var field = ParseFieldDeclaration(modifiers);
             fieldDeclarations.Add(field);
         }
 
         return fieldDeclarations.ToList();
     }
 
-    private FieldDeclarationSyntax ParseFieldDeclaration(
-        SyntaxList<AttributeListSyntax> attributeLists,
-        SyntaxList<SyntaxToken> modifiers) {
-        var declaration = ParseVariableDeclaration(false);
-        var semicolon = Match(SyntaxKind.SemicolonToken);
-        return SyntaxFactory.FieldDeclaration(attributeLists, modifiers, declaration, semicolon);
+    private FieldDeclarationSyntax ParseFieldDeclaration(SyntaxList<SyntaxToken> modifiers) {
+        var declaration = (VariableDeclarationStatementSyntax)ParseVariableDeclarationStatement(false);
+        return SyntaxFactory.FieldDeclaration(modifiers, declaration);
     }
 
-    private MemberDeclarationSyntax ParseGlobalStatement(
-        SyntaxList<AttributeListSyntax> attributeLists,
-        SyntaxList<SyntaxToken> modifiers) {
-        var statement = ParseStatementCore(
-            attributeLists,
-            modifiers,
-            out var consumedAttributeLists,
-            out var consumedModifiers
-        );
-
-        if (consumedAttributeLists)
-            attributeLists = null;
-        if (consumedModifiers)
-            modifiers = null;
-
-        return SyntaxFactory.GlobalStatement(attributeLists, modifiers, statement);
-    }
-
-    private VariableDeclarationSyntax ParseVariableDeclaration(
-        bool allowImplicit = true,
-        bool hasConstKeyword = false) {
-        var inStruct = (_context & ParserContext.InStructDefinition) != 0;
-        var type = ParseType(allowImplicit: allowImplicit, allowRef: !inStruct, hasConstKeyword: hasConstKeyword);
-        var identifier = Match(SyntaxKind.IdentifierToken);
-        EqualsValueClauseSyntax initializer = null;
-
-        if (currentToken.kind == SyntaxKind.EqualsToken)
-            initializer = ParseEqualsValueClause(inStruct);
-
-        return SyntaxFactory.VariableDeclaration(type, identifier, initializer);
-    }
-
-    private EqualsValueClauseSyntax ParseEqualsValueClause(bool inStruct) {
-        var equals = EatToken();
-        var value = ParseExpression();
-
-        if (inStruct)
-            equals = AddDiagnostic(equals, Error.CannotInitializeInStructs());
-
-        return SyntaxFactory.EqualsValueClause(equals, value);
+    private MemberSyntax ParseGlobalStatement(SyntaxList<SyntaxToken> modifiers) {
+        var statement = ParseStatement();
+        return SyntaxFactory.GlobalStatement(modifiers, statement);
     }
 
     private StatementSyntax ParseStatement() {
-        return ParseStatementCore(null, null, out _, out _);
-    }
-
-    private StatementSyntax ParseStatementCore(
-        SyntaxList<AttributeListSyntax> attributeLists,
-        SyntaxList<SyntaxToken> modifiers,
-        out bool consumedAttributeLists,
-        out bool consumedModifiers) {
         var saved = _context;
         _context |= ParserContext.InStatement;
-
-        var statement = ParseStatementInternal(
-            attributeLists,
-            modifiers,
-            out consumedAttributeLists,
-            out consumedModifiers
-        );
-
+        var statement = ParseStatementInternal();
         _context = saved;
 
         return statement;
     }
 
-    private StatementSyntax ParseStatementInternal(
-        SyntaxList<AttributeListSyntax> attributeLists,
-        SyntaxList<SyntaxToken> modifiers,
-        out bool consumedAttributeLists,
-        out bool consumedModifiers) {
-        consumedAttributeLists = false;
-        consumedModifiers = false;
+    private StatementSyntax ParseStatementInternal() {
+        if (PeekIsFunctionOrMethodDeclaration())
+            return ParseLocalFunctionDeclaration();
 
-        switch (currentToken.kind) {
-            case SyntaxKind.OpenBraceToken:
-                return ParseBlockStatement();
-            case SyntaxKind.IfKeyword:
-                return ParseIfStatement();
-            case SyntaxKind.WhileKeyword:
-                return ParseWhileStatement();
-            case SyntaxKind.ForKeyword:
-                return ParseForStatement();
-            case SyntaxKind.DoKeyword:
-                return ParseDoWhileStatement();
-            case SyntaxKind.TryKeyword:
-                return ParseTryStatement();
-            case SyntaxKind.BreakKeyword:
-                return ParseBreakStatement();
-            case SyntaxKind.ContinueKeyword:
-                return ParseContinueStatement();
-            case SyntaxKind.ReturnKeyword:
-                return ParseReturnStatement();
-        }
+        if (PeekIsType(0, out _, out var hasName, out _) && hasName)
+            return ParseVariableDeclarationStatement();
 
-        if (PeekIsFunctionOrMethodDeclaration()) {
-            consumedAttributeLists = true;
-            consumedModifiers = true;
-            return ParseLocalFunctionDeclaration(attributeLists, modifiers);
-        }
-
-        if (PeekIsLocalDeclaration()) {
-            consumedAttributeLists = true;
-            consumedModifiers = true;
-            return ParseLocalDeclarationStatement(attributeLists, modifiers);
-        }
-
-        return ParseExpressionStatement();
-    }
-
-    private StatementSyntax ParseLocalDeclarationStatement(
-        SyntaxList<AttributeListSyntax> attributeLists,
-        SyntaxList<SyntaxToken> modifiers) {
-        attributeLists ??= ParseAttributeLists();
-        modifiers ??= ParseModifiers();
-        var hasConstKeyword = false;
-
-        foreach (var modifier in modifiers) {
-            if (modifier.kind is SyntaxKind.ConstKeyword or SyntaxKind.ConstexprKeyword) {
-                hasConstKeyword = true;
-                break;
-            }
-        }
-
-        var declaration = ParseVariableDeclaration(hasConstKeyword: hasConstKeyword);
-        var semicolon = Match(SyntaxKind.SemicolonToken);
-
-        return SyntaxFactory.LocalDeclarationStatement(attributeLists, modifiers, declaration, semicolon);
+        return currentToken.kind switch {
+            SyntaxKind.OpenBraceToken => ParseBlockStatement(),
+            SyntaxKind.IfKeyword => ParseIfStatement(),
+            SyntaxKind.WhileKeyword => ParseWhileStatement(),
+            SyntaxKind.ForKeyword => ParseForStatement(),
+            SyntaxKind.DoKeyword => ParseDoWhileStatement(),
+            SyntaxKind.TryKeyword => ParseTryStatement(),
+            SyntaxKind.BreakKeyword => ParseBreakStatement(),
+            SyntaxKind.ContinueKeyword => ParseContinueStatement(),
+            SyntaxKind.ReturnKeyword => ParseReturnStatement(),
+            _ => ParseExpressionStatement(),
+        };
     }
 
     private StatementSyntax ParseTryStatement() {
@@ -1177,6 +940,27 @@ internal sealed partial class Parser {
         return SyntaxFactory.DoWhileStatement(
             doKeyword, body, whileKeyword, openParenthesis, condition, closeParenthesis, semicolon
         );
+    }
+
+    private StatementSyntax ParseVariableDeclarationStatement(bool allowImplicit = true) {
+        var inStruct = (_context & ParserContext.InStructDefinition) != 0;
+        var type = ParseType(allowImplicit: allowImplicit, declarationOnly: inStruct);
+        var identifier = Match(SyntaxKind.IdentifierToken);
+
+        if (currentToken.kind == SyntaxKind.EqualsToken) {
+            var equals = EatToken();
+            var initializer = ParseExpression();
+            var semicolon = Match(SyntaxKind.SemicolonToken);
+
+            if (inStruct)
+                equals = AddDiagnostic(equals, Error.CannotInitializeInStructs());
+
+            return SyntaxFactory.VariableDeclarationStatement(type, identifier, equals, initializer, semicolon);
+        } else {
+            var semicolon = Match(SyntaxKind.SemicolonToken);
+
+            return SyntaxFactory.VariableDeclarationStatement(type, identifier, semicolon);
+        }
     }
 
     private StatementSyntax ParseWhileStatement() {
@@ -1278,11 +1062,7 @@ internal sealed partial class Parser {
 
         if (nextDiagnosticCount > diagnosticCount && semicolon.containsDiagnostics) {
             var diagnostics = semicolon.GetDiagnostics();
-
-            if (!semicolon.isFabricated)
-                semicolon = semicolon.WithDiagnosticsGreen(diagnostics);
-            else
-                semicolon = semicolon.WithDiagnosticsGreen(diagnostics.SkipLast(1).ToArray());
+            semicolon = semicolon.WithDiagnosticsGreen(diagnostics.SkipLast(1).ToArray());
         }
 
         return SyntaxFactory.ExpressionStatement(expression, semicolon);
@@ -1357,7 +1137,7 @@ internal sealed partial class Parser {
 
         if (currentToken.kind == SyntaxKind.SemicolonToken) {
             if (!allowEmpty)
-                AddDiagnosticToNextToken(Error.ExpectedToken(SyntaxKind.IdentifierName));
+                AddDiagnosticToNextToken(Error.ExpectedToken(SyntaxKind.IdentifierNameExpression));
 
             return ParseEmptyExpression();
         }
@@ -1376,14 +1156,14 @@ internal sealed partial class Parser {
         var unaryPrecedence = currentToken.kind.GetUnaryPrecedence();
 
         if (unaryPrecedence != 0 && unaryPrecedence >= parentPrecedence && !IsTerminator()) {
-            var operatorToken = EatToken();
+            var op = EatToken();
 
-            if (operatorToken.kind is SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken) {
+            if (op.kind is SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken) {
                 var operand = ParsePrimaryExpression();
-                left = SyntaxFactory.PrefixExpression(operatorToken, operand);
+                left = SyntaxFactory.PrefixExpression(op, operand);
             } else {
                 var operand = ParseOperatorExpression(unaryPrecedence);
-                left = SyntaxFactory.UnaryExpression(operatorToken, operand);
+                left = SyntaxFactory.UnaryExpression(op, operand);
             }
         } else {
             left = ParsePrimaryExpression();
@@ -1395,9 +1175,9 @@ internal sealed partial class Parser {
             if (precedence == 0 || precedence <= parentPrecedence || IsTerminator())
                 break;
 
-            var operatorToken = EatToken();
+            var op = EatToken();
             var right = ParseOperatorExpression(precedence);
-            left = SyntaxFactory.BinaryExpression(left, operatorToken, right);
+            left = SyntaxFactory.BinaryExpression(left, op, right);
         }
 
         while (true) {
@@ -1406,11 +1186,11 @@ internal sealed partial class Parser {
             if (precedence == 0 || precedence < parentPrecedence || IsTerminator())
                 break;
 
-            var leftOperatorToken = EatToken();
+            var leftOp = EatToken();
             var center = ParseOperatorExpression(precedence);
-            var rightOperatorToken = Match(leftOperatorToken.kind.GetTernaryOperatorPair());
+            var rightOp = Match(leftOp.kind.GetTernaryOperatorPair());
             var right = ParseOperatorExpression(precedence);
-            left = SyntaxFactory.TernaryExpression(left, leftOperatorToken, center, rightOperatorToken, right);
+            left = SyntaxFactory.TernaryExpression(left, leftOp, center, rightOp, right);
         }
 
         return left;
@@ -1419,7 +1199,7 @@ internal sealed partial class Parser {
     private ExpressionSyntax ParsePrimaryExpressionInternal() {
         if (PeekIsType(0, out _, out _, out var isTemplate) && isTemplate &&
             (_context & ParserContext.InTemplateArgumentList) != 0) {
-            return ParseQualifiedName();
+            return ParseTypeExpression();
         }
 
         switch (currentToken.kind) {
@@ -1449,18 +1229,18 @@ internal sealed partial class Parser {
                 return ParseThisExpression();
             case SyntaxKind.IdentifierToken:
             default:
-                return ParseLastCaseName();
+                return ParseNameExpression();
         }
     }
 
     private ExpressionSyntax ParsePrimaryExpression(int parentPrecedence = 0, ExpressionSyntax left = null) {
-        ExpressionSyntax ParseCorrectPrimaryOperator(ExpressionSyntax expression) {
+        ExpressionSyntax ParseCorrectPrimaryOperator(ExpressionSyntax operand) {
             return currentToken.kind switch {
-                SyntaxKind.OpenParenToken => ParseCallExpression(expression),
-                SyntaxKind.OpenBracketToken or SyntaxKind.QuestionOpenBracketToken => ParseIndexExpression(expression),
-                SyntaxKind.PeriodToken or SyntaxKind.QuestionPeriodToken => ParseMemberAccessExpression(expression),
-                SyntaxKind.MinusMinusToken or SyntaxKind.PlusPlusToken or SyntaxKind.ExclamationToken => ParsePostfixExpression(expression),
-                _ => expression,
+                SyntaxKind.OpenParenToken => ParseCallExpression(operand),
+                SyntaxKind.OpenBracketToken or SyntaxKind.QuestionOpenBracketToken => ParseIndexExpression(operand),
+                SyntaxKind.PeriodToken or SyntaxKind.QuestionPeriodToken => ParseMemberAccessExpression(operand),
+                SyntaxKind.MinusMinusToken or SyntaxKind.PlusPlusToken or SyntaxKind.ExclamationToken => ParsePostfixExpression(operand),
+                _ => operand,
             };
         }
 
@@ -1485,7 +1265,7 @@ internal sealed partial class Parser {
 
     private ExpressionSyntax ParseCastExpression() {
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
-        var type = ParseType(false, false);
+        var type = ParseType(false, false, true);
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
         var expression = ParseExpression();
 
@@ -1494,14 +1274,14 @@ internal sealed partial class Parser {
 
     private ExpressionSyntax ParseReferenceExpression() {
         var keyword = Match(SyntaxKind.RefKeyword);
-        var expression = ParseExpression();
+        var identifier = Match(SyntaxKind.IdentifierToken);
 
-        return SyntaxFactory.ReferenceExpression(keyword, expression);
+        return SyntaxFactory.ReferenceExpression(keyword, identifier);
     }
 
     private ExpressionSyntax ParsePostfixExpression(ExpressionSyntax operand) {
-        var operatorToken = EatToken();
-        return SyntaxFactory.PostfixExpression(operand, operatorToken);
+        var op = EatToken();
+        return SyntaxFactory.PostfixExpression(operand, op);
     }
 
     private ExpressionSyntax ParseInitializerListExpression() {
@@ -1565,21 +1345,39 @@ internal sealed partial class Parser {
         return SyntaxFactory.ThisExpression(keyword);
     }
 
-    private ExpressionSyntax ParseMemberAccessExpression(ExpressionSyntax expression) {
-        var operatorToken = EatToken();
-        var name = ParseSimpleName();
+    private ExpressionSyntax ParseMemberAccessExpression(ExpressionSyntax operand) {
+        var op = EatToken();
+        var member = Match(SyntaxKind.IdentifierToken);
 
-        return SyntaxFactory.MemberAccessExpression(expression, operatorToken, name);
+        return SyntaxFactory.MemberAccessExpression(operand, op, member);
     }
 
-    private ExpressionSyntax ParseIndexExpression(ExpressionSyntax expression) {
+    private ExpressionSyntax ParseIndexExpression(ExpressionSyntax operand) {
         var openBracket = EatToken();
         _bracketStack.Push(SyntaxKind.CloseBracketToken);
         var index = ParseExpression();
         _bracketStack.Pop();
         var closeBracket = Match(SyntaxKind.CloseBracketToken);
 
-        return SyntaxFactory.IndexExpression(expression, openBracket, index, closeBracket);
+        return SyntaxFactory.IndexExpression(operand, openBracket, index, closeBracket);
+    }
+
+    private ExpressionSyntax ParseNameExpression() {
+        if (currentToken.kind != SyntaxKind.IdentifierToken) {
+            _currentToken = AddDiagnostic(currentToken, Error.ExpectedToken("expression"));
+            return SyntaxFactory.IdentifierNameExpression(SyntaxFactory.Missing(SyntaxKind.IdentifierToken));
+        }
+
+        var identifier = EatToken();
+        var kind = ScanTemplateArgumentList();
+
+        // ! Temporary, template name expressions are not enabled until needed (when template methods get implemented)
+        // Just remove `|| true` when you want to enable template name expressions
+        if (kind == ScanTemplateArgumentListKind.NotTemplateArgumentList || true)
+            return SyntaxFactory.IdentifierNameExpression(identifier);
+
+        var templateArgumentList = ParseTemplateArgumentList();
+        return SyntaxFactory.TemplateNameExpression(identifier, templateArgumentList);
     }
 
     private ScanTemplateArgumentListKind ScanTemplateArgumentList() {
@@ -1600,9 +1398,12 @@ internal sealed partial class Parser {
         };
     }
 
-    private ExpressionSyntax ParseCallExpression(ExpressionSyntax expression) {
+    private ExpressionSyntax ParseCallExpression(ExpressionSyntax operand) {
+        if (operand is not MemberAccessExpressionSyntax and not NameExpressionSyntax)
+            operand = AddDiagnostic(operand, Error.ExpectedMethodName());
+
         var argumentList = ParseArgumentList();
-        return SyntaxFactory.CallExpression(expression, argumentList);
+        return SyntaxFactory.CallExpression(operand, argumentList);
     }
 
     private TemplateArgumentListSyntax ParseTemplateArgumentList() {
@@ -1613,7 +1414,7 @@ internal sealed partial class Parser {
         var savedContext = _context;
         _terminatorState |= TerminatorState.IsEndOfTemplateArgumentList;
         _context |= ParserContext.InTemplateArgumentList;
-        var arguments = ParseArguments(SyntaxKind.GreaterThanToken);
+        var arguments = ParseArguments();
         _terminatorState = savedTerminatorState;
         _context = savedContext;
         _bracketStack.Pop();
@@ -1625,19 +1426,19 @@ internal sealed partial class Parser {
 
     private ArgumentListSyntax ParseArgumentList() {
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
-        var arguments = ParseArguments(SyntaxKind.CloseParenToken);
+        var arguments = ParseArguments();
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
 
         return SyntaxFactory.ArgumentList(openParenthesis, arguments, closeParenthesis);
     }
 
-    private SeparatedSyntaxList<ArgumentSyntax> ParseArguments(SyntaxKind closeBracket) {
+    private SeparatedSyntaxList<ArgumentSyntax> ParseArguments() {
         var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
         var parseNextArgument = true;
 
         if (currentToken.kind != SyntaxKind.CloseParenToken) {
             while (parseNextArgument && currentToken.kind != SyntaxKind.EndOfFileToken) {
-                if (currentToken.kind != SyntaxKind.CommaToken && currentToken.kind != closeBracket) {
+                if (currentToken.kind is not SyntaxKind.CommaToken and not SyntaxKind.CloseParenToken) {
                     var argument = ParseArgument();
                     nodesAndSeparators.Add(argument);
                 } else {
@@ -1680,47 +1481,101 @@ internal sealed partial class Parser {
         return SyntaxFactory.Argument(name, colon, expression);
     }
 
-    private SyntaxList<AttributeListSyntax> ParseAttributeLists() {
-        var attributeLists = SyntaxListBuilder<AttributeListSyntax>.Create();
+    private SyntaxList<AttributeSyntax> ParseAttributes() {
+        var attributes = SyntaxListBuilder<AttributeSyntax>.Create();
 
         while (currentToken.kind == SyntaxKind.OpenBracketToken)
-            attributeLists.Add(ParseAttributeList());
+            attributes.Add(ParseAttribute());
 
-        return attributeLists.ToList();
-    }
-
-    private AttributeListSyntax ParseAttributeList() {
-        var openBracket = EatToken();
-
-        var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
-        var parseNextAttribute = true;
-
-        while (parseNextAttribute &&
-            currentToken.kind != SyntaxKind.CloseBracketToken &&
-            currentToken.kind != SyntaxKind.EndOfFileToken) {
-            var attribute = ParseAttribute();
-            nodesAndSeparators.Add(attribute);
-
-            if (currentToken.kind == SyntaxKind.CommaToken) {
-                var comma = EatToken();
-                nodesAndSeparators.Add(comma);
-            } else {
-                parseNextAttribute = false;
-            }
-        }
-
-        var closeBracket = Match(SyntaxKind.CloseBracketToken);
-
-        return SyntaxFactory.AttributeList(
-            openBracket,
-            new SeparatedSyntaxList<AttributeSyntax>(nodesAndSeparators.ToList()),
-            closeBracket
-        );
+        return attributes.ToList();
     }
 
     private AttributeSyntax ParseAttribute() {
+        var openBracket = EatToken();
         var identifier = Match(SyntaxKind.IdentifierToken);
-        return SyntaxFactory.Attribute(identifier);
+        var closeBracket = Match(SyntaxKind.CloseBracketToken);
+
+        return SyntaxFactory.Attribute(openBracket, identifier, closeBracket);
+    }
+
+    private TypeExpressionSyntax ParseTypeExpression() {
+        var type = ParseType(expectName: false, declarationOnly: true);
+        return SyntaxFactory.TypeExpression(type);
+    }
+
+    private TypeSyntax ParseType(bool allowImplicit = true, bool expectName = true, bool declarationOnly = false) {
+        var attributes = ParseAttributes();
+
+        SyntaxToken constRefKeyword = null;
+        SyntaxToken refKeyword = null;
+        SyntaxToken constKeyword = null;
+        SyntaxToken varKeyword = null;
+        SyntaxToken typeName = null;
+        SyntaxToken nullAssert = null;
+
+        if (currentToken.kind == SyntaxKind.ConstKeyword && Peek(1).kind == SyntaxKind.RefKeyword)
+            constRefKeyword = EatToken();
+
+        if (currentToken.kind == SyntaxKind.RefKeyword) {
+            refKeyword = EatToken();
+
+            if (declarationOnly)
+                refKeyword = AddDiagnostic(refKeyword, Error.CannotUseRef());
+        }
+
+        if (currentToken.kind == SyntaxKind.ConstKeyword) {
+            constKeyword = EatToken();
+
+            if (declarationOnly) {
+                constKeyword = AddDiagnostic(constKeyword, Error.CannotUseConst());
+            } else if (!allowImplicit &&
+                    (Peek(1).kind is not SyntaxKind.IdentifierToken and not SyntaxKind.OpenBracketToken)) {
+                constKeyword = AddDiagnostic(constKeyword, Error.CannotUseImplicit());
+            }
+        }
+
+        if (currentToken.kind == SyntaxKind.VarKeyword) {
+            varKeyword = EatToken();
+
+            if (!allowImplicit)
+                varKeyword = AddDiagnostic(varKeyword, Error.CannotUseImplicit());
+        }
+
+        var hasTypeName = varKeyword is null &&
+            (!allowImplicit ||
+                constKeyword is null || Peek(1).kind is SyntaxKind.IdentifierToken or SyntaxKind.OpenBracketToken
+            )
+        ;
+
+        if (hasTypeName)
+            typeName = Match(SyntaxKind.IdentifierToken);
+
+        TemplateArgumentListSyntax templateArgumentList = null;
+
+        if (currentToken.kind == SyntaxKind.LessThanToken)
+            templateArgumentList = ParseTemplateArgumentList();
+
+        var rankSpecifiers = SyntaxListBuilder<ArrayRankSpecifierSyntax>.Create();
+
+        while (currentToken.kind == SyntaxKind.OpenBracketToken) {
+            var arrayRankSpecifier = ParseArrayRankSpecifierSyntax();
+            rankSpecifiers.Add(arrayRankSpecifier);
+        }
+
+        if (currentToken.kind == SyntaxKind.ExclamationToken)
+            nullAssert = EatToken();
+
+        return SyntaxFactory.Type(
+            attributes,
+            constRefKeyword,
+            refKeyword,
+            constKeyword,
+            varKeyword,
+            typeName,
+            templateArgumentList,
+            rankSpecifiers.ToList(),
+            nullAssert
+        );
     }
 
     private ExpressionSyntax ParseNullLiteral() {
@@ -1744,130 +1599,9 @@ internal sealed partial class Parser {
         return SyntaxFactory.Literal(stringToken);
     }
 
-    private ArrayRankSpecifierSyntax ParseArrayRankSpecifier() {
+    private ArrayRankSpecifierSyntax ParseArrayRankSpecifierSyntax() {
         var openBracket = Match(SyntaxKind.OpenBracketToken);
         var closeBracket = Match(SyntaxKind.CloseBracketToken);
         return SyntaxFactory.ArrayRankSpecifier(openBracket, closeBracket);
-    }
-
-    private SimpleNameSyntax ParseLastCaseName() {
-        if (currentToken.kind != SyntaxKind.IdentifierToken) {
-            _currentToken = AddDiagnostic(currentToken, Error.ExpectedToken("expression"));
-            return SyntaxFactory.IdentifierName(SyntaxFactory.Missing(SyntaxKind.IdentifierToken));
-        }
-
-        return ParseSimpleName();
-    }
-
-    private SimpleNameSyntax ParseSimpleName() {
-        var identifierName = ParseIdentifierName();
-
-        if (identifierName.identifier.isFabricated)
-            return identifierName;
-
-        SimpleNameSyntax name = identifierName;
-
-        if (currentToken.kind == SyntaxKind.LessThanToken) {
-            if ((_context & ParserContext.InExpression) != 0) {
-                // If we are in an expression, check if we are truly a template name.
-                // If any issues while parsing the template name, abort and treat the '<' as a binary operator.
-                var point = GetResetPoint();
-                var templateArgumentList = ParseTemplateArgumentList();
-
-                if (templateArgumentList.containsDiagnostics)
-                    Reset(point);
-                else
-                    name = SyntaxFactory.TemplateName(identifierName.identifier, templateArgumentList);
-            }
-        }
-
-        return name;
-    }
-
-    private IdentifierNameSyntax ParseIdentifierName() {
-        var identifier = Match(SyntaxKind.IdentifierToken);
-        return SyntaxFactory.IdentifierName(identifier);
-    }
-
-    private TypeSyntax ParseType(bool allowImplicit = true, bool allowRef = true, bool hasConstKeyword = false) {
-        if (currentToken.kind == SyntaxKind.RefKeyword) {
-            var refKeyword = EatToken();
-
-            if (!allowRef)
-                refKeyword = AddDiagnostic(refKeyword, Error.CannotUseRef());
-
-            return SyntaxFactory.ReferenceType(
-                refKeyword,
-                currentToken.kind == SyntaxKind.ConstKeyword ? EatToken() : null,
-                ParseTypeCore(allowImplicit && hasConstKeyword)
-            );
-        }
-
-        return ParseTypeCore(allowImplicit && hasConstKeyword);
-    }
-
-    private TypeSyntax ParseTypeCore(bool constAsType) {
-        TypeSyntax type;
-
-        if (currentToken.kind is SyntaxKind.ExclamationToken or SyntaxKind.OpenBracketToken ||
-            (currentToken.kind == SyntaxKind.IdentifierToken &&
-             Peek(1).kind is SyntaxKind.EqualsToken or SyntaxKind.SemicolonToken)) {
-            type = SyntaxFactory.EmptyName();
-        } else {
-            type = ParseUnderlyingType();
-        }
-
-        var lastTokenPosition = -1;
-
-        while (_tokenOffset > lastTokenPosition) {
-            lastTokenPosition = _tokenOffset;
-
-            switch (currentToken.kind) {
-                case SyntaxKind.ExclamationToken:
-                    var exclamationToken = EatToken();
-                    type = SyntaxFactory.NonNullableType(type, exclamationToken);
-                    goto done;
-                case SyntaxKind.OpenBracketToken:
-                    var rankSpecifiers = SyntaxListBuilder<ArrayRankSpecifierSyntax>.Create();
-
-                    do {
-                        rankSpecifiers.Add(ParseArrayRankSpecifier());
-                    } while (currentToken.kind == SyntaxKind.OpenBracketToken);
-
-                    type = SyntaxFactory.ArrayType(type, rankSpecifiers.ToList());
-                    continue;
-            }
-        }
-
-done:
-        return type;
-    }
-
-    private TypeSyntax ParseUnderlyingType() {
-        if (currentToken.kind == SyntaxKind.IdentifierToken)
-            return ParseQualifiedName();
-
-        return AddDiagnostic(
-            WithFutureDiagnostics(SyntaxFactory.IdentifierName(SyntaxFactory.Missing(SyntaxKind.IdentifierToken))),
-            Error.ExpectedToken(SyntaxKind.IdentifierName),
-            currentToken.GetLeadingTriviaWidth(),
-            currentToken.width
-        );
-    }
-
-    private NameSyntax ParseQualifiedName() {
-        NameSyntax name = ParseSimpleName();
-
-        while (currentToken.kind == SyntaxKind.PeriodToken) {
-            var separator = EatToken();
-            name = ParseQualifiedNameRight(name, separator);
-        }
-
-        return name;
-    }
-
-    private NameSyntax ParseQualifiedNameRight(NameSyntax left, SyntaxToken separator) {
-        var right = ParseSimpleName();
-        return SyntaxFactory.QualifiedName(left, separator, right);
     }
 }

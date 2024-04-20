@@ -33,7 +33,7 @@
                 },
                 {
                     "name": "keyword.other.belte",
-                    "match": "\\b(this|var|ref|new)\\b"
+                    "match": "\\b(this|var|const|ref|new)\\b"
                 },
                 {
                     "name": "keyword.operator.arithmetic.belte",
@@ -80,7 +80,7 @@
                 },
                 {
                     "name": "storage.modifier.belte",
-                    "match": "\\b(static|const|constexpr)\\b"
+                    "match": "\\b(static|const)\\b"
                 },
                 {
                     "name": "storage.type.doxygen.belte",

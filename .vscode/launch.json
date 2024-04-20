@@ -15,19 +15,6 @@
             "stopAtEntry": false,
         },
         {
-            "name": "Debug Repl Integrated",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build compiler debug",
-            "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net8.0/CommandLine.dll",
-            "args": [
-                "-r"
-            ],
-            "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
-            "stopAtEntry": false,
-        },
-        {
             "name": "Debug Syntax Generator",
             "type": "coreclr",
             "request": "launch",

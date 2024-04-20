@@ -4,14 +4,53 @@ using System.Linq;
 using System.Reflection;
 using Buckle.CodeAnalysis.Binding;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
-using static Buckle.CodeAnalysis.Symbols.SymbolUtilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 /// <summary>
-/// All builtin methods used by the compiler with no Standard implementation.
+/// All builtin methods (included by default).
 /// </summary>
 internal static class BuiltinMethods {
+    /// <summary>
+    /// Print method, writes text to stdout (no line break).
+    /// </summary>
+    internal static readonly MethodSymbol Print = new MethodSymbol(
+        "Print",
+        ImmutableArray.Create(
+            new ParameterSymbol("text", BoundType.NullableAny, 0, NoDefault)
+        ),
+        NoReturn
+    );
+
+    /// <summary>
+    /// PrintLine method, writes text to stdout (with line break).
+    /// </summary>
+    internal static readonly MethodSymbol PrintLine = new MethodSymbol(
+        "PrintLine",
+        ImmutableArray.Create(
+            new ParameterSymbol("text", BoundType.NullableAny, 0, NoDefault)
+        ),
+        NoReturn
+    );
+
+    /// <summary>
+    /// PrintLine method, writes an empty line to stdout (with line break).
+    /// </summary>
+    internal static readonly MethodSymbol PrintLineNoValue = new MethodSymbol(
+        "PrintLine",
+        NoParameters,
+        NoReturn
+    );
+
+    /// <summary>
+    /// Input method, gets text input from stdin. Waits until enter is pressed.
+    /// </summary>
+    internal static readonly MethodSymbol Input = new MethodSymbol(
+        "Input",
+        NoParameters,
+        BoundType.String
+    );
+
     /// <summary>
     /// RandInt method, gets a random integer with a maximum (minimum is always 0).
     /// </summary>
@@ -179,16 +218,23 @@ internal static class BuiltinMethods {
         BoundType.String
     );
 
-    /// <summary>
-    /// Gets the length of the given array. If given a non-array, returns null.
-    /// </summary>
-    internal static readonly MethodSymbol Length = new MethodSymbol(
-        "Length",
-        ImmutableArray.Create(
-            new ParameterSymbol("array", BoundType.NullableAny, 0, NoDefault)
-        ),
-        BoundType.NullableInt
-    );
+    private static ImmutableArray<ParameterSymbol> NoParameters {
+        get {
+            return ImmutableArray<ParameterSymbol>.Empty;
+        }
+    }
+
+    private static BoundType NoReturn {
+        get {
+            return new BoundType(TypeSymbol.Void);
+        }
+    }
+
+    private static BoundExpression NoDefault {
+        get {
+            return null;
+        }
+    }
 
     /// <summary>
     /// Gets all builtin methods.

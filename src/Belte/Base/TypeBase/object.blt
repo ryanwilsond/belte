@@ -1,0 +1,17 @@
+
+namespace Base {
+    public class object<attribute NotNull>
+        where {
+            !(NotNull && value == null);
+        } {
+
+        object();
+        ~object();
+
+        virtual operator==(object value);
+        type GetType();
+        bool InheritsFrom(type class);
+        virtual string ToString();
+
+    }
+}

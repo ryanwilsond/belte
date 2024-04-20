@@ -44,7 +44,7 @@ internal sealed class Interpreter {
             var newSyntaxTree = SyntaxTree.Create(
                 syntaxTree.text.GetSubText(new TextSpan(textOffset, syntaxTree.text.length - textOffset)),
                 SyntaxFactory.CompilationUnit(
-                    new SyntaxList<MemberDeclarationSyntax>(member),
+                    new SyntaxList<MemberSyntax>(member),
                     parsedSyntaxTree.endOfFile
                 )
             );

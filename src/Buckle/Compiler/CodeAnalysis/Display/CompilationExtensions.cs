@@ -51,10 +51,7 @@ public static class CompilationExtensions {
     public static void EmitTree(this Compilation self, ISymbol symbol, DisplayText text) {
         var program = self.GetProgram();
 
-        if (program.diagnostics.Any())
-            return;
-
-        void WriteTypeMembers(NamedTypeSymbol type, bool writeEnding = true) {
+        void WriteTypeMembers(ITypeSymbolWithMembers type, bool writeEnding = true) {
             try {
                 var members = type.members;
 
@@ -107,13 +104,13 @@ public static class CompilationExtensions {
                 text.Write(CreatePunctuation(SyntaxKind.SemicolonToken));
                 text.Write(CreateLine());
             }
-        } else if (symbol is NamedTypeSymbol t) {
+        } else if (symbol is ITypeSymbolWithMembers t) {
             SymbolDisplay.DisplaySymbol(text, symbol);
             WriteTypeMembers(t);
         } else if (symbol is VariableSymbol v) {
             SymbolDisplay.DisplaySymbol(text, v);
 
-            if (v.type.typeSymbol is NamedTypeSymbol s && v.type.dimensions == 0)
+            if (v.type.typeSymbol is ITypeSymbolWithMembers s && v.type.dimensions == 0)
                 WriteTypeMembers(s);
             else
                 text.Write(CreateLine());

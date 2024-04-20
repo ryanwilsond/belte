@@ -29,7 +29,7 @@ internal enum BoundNodeKind {
 
     BlockStatement,
     ExpressionStatement,
-    LocalDeclarationStatement,
+    VariableDeclarationStatement,
     IfStatement,
     WhileStatement,
     ForStatement,
@@ -46,6 +46,4 @@ internal enum BoundNodeKind {
 
     Type,
     TypeWrapper,
-    VariableDeclaration,
-    MethodGroup,
 }

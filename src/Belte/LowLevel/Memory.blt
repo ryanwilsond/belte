@@ -1,0 +1,12 @@
+
+namespace LowLevel {
+    int<0,null> sizeof(object obj);
+
+    public class Pointer<type T> {
+
+    }
+
+    public static class Memory {
+
+    }
+}

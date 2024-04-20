@@ -1,60 +1,18 @@
 
-static class Math {
-    constexpr PI = 3.1415926535897931;
-    constexpr E = 2.7182818284590451;
+namespace Standard {
+    public static class Math {
 
-    static decimal Abs(decimal value);
-    static int Abs(int value);
+        int Floor(decimal num);
+        int Ceil(decimal num);
+        decimal Sin(decimal num);
+        decimal Tan(decimal num);
+        decimal Cos(decimal num);
+        decimal Asin(decimal num);
+        decimal Acos(decimal num);
+        decimal Atan(decimal num);
+        decimal Log(decimal num, decimal base=10);
+        decimal Sqrt(decimal num);
+        decimal Root(decimal num, decimal root);
 
-    static decimal Acos(decimal d);
-
-    static decimal Acosh(decimal d);
-
-    static decimal Asin(decimal d);
-
-    static decimal Asinh(decimal d);
-
-    static decimal Atan(decimal d);
-
-    static decimal Atanh(decimal d);
-
-    static decimal Ceiling(decimal d);
-
-    static decimal Clamp(decimal value, decimal min, decimal max);
-    static int Clamp(int value, int min, int max);
-
-    static decimal Cos(decimal d);
-
-    static decimal Cosh(decimal d);
-
-    static decimal Exp(decimal d);
-
-    static decimal Floor(decimal d);
-
-    static decimal Lerp(decimal start, decimal end, decimal rate);
-
-    static decimal Log(decimal d, decimal base);
-    static decimal Log(decimal d);
-
-    static decimal Max(decimal val1, decimal val2);
-    static int Max(int val1, int val2);
-
-    static decimal Min(decimal val1, decimal val2);
-    static int Min(int val1, int val2);
-
-    static decimal Pow(decimal x, decimal y);
-
-    static decimal Round(decimal value);
-
-    static decimal Sin(decimal d);
-
-    static decimal Sinh(decimal d);
-
-    static decimal Sqrt(decimal d);
-
-    static decimal Tan(decimal d);
-
-    static decimal Tanh(decimal d);
-
-    static decimal Truncate(decimal value);
+    }
 }

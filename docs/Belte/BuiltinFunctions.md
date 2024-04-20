@@ -1,19 +1,11 @@
-# 5 The Standard Library
-
-The Standard Library is a collection of classes that are implicitly included in all Belte compilations (i.e. they do not
-need importing).
-
-- [5.1](#51-built-in-functions) Built-in Functions
-- [5.2](StandardLibrary/Console.md) Console
-- [5.3](StandardLibrary/Math.md) Math
-
-## 5.1 Built-In Functions
-
-Belte includes functions that are available everywhere that achieve basic functionality. These serve as temporary
-placeholders for eventual Standard Library modules.
+# 5 Built-In Functions
 
 | Signature | Description | Exceptions |
 |-|-|-|
+| `void Print(any msg)` | Displays {msg} to the console | |
+| `void PrintLine(any msg)` | Displays {msg} to the console with an added line ending | |
+| `void PrintLine()` | Displays a line ending to the console | |
+| `string! Input()` | Gets user input from the console | |
 | `int! RandInt(int max)` | Gets a random number from 0 to {max} | |
 | `any! Value(any value)` | Converts {value} to non-nullable any | NullReferenceException |
 | `bool! Value(bool value)` | Converts {value} to non-nullable boolean | NullReferenceException |
@@ -28,4 +20,3 @@ placeholders for eventual Standard Library modules.
 | `string! Hex(int! value, bool! prefix = false)` | Converts {value} to its base16 representation; if {prefix} is `true`, the representation includes the `0x` prefix | |
 | `int! Ascii(string! char)` | Converts {char} its respective ASCII code | ArgumentException |
 | `string! Char(int! ascii)` | Converts {ascii} to its respective character | ArgumentException |
-| `int Length(any array)` | Gets the length of {array}, or null if it has no length | |

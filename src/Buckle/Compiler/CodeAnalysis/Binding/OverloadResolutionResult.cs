@@ -12,7 +12,6 @@ internal sealed class OverloadResolutionResult<T> where T : Symbol {
         this.bestOverload = bestOverload;
         this.arguments = arguments;
         this.succeeded = succeeded;
-        ambiguous = false;
     }
 
     /// <summary>
@@ -20,15 +19,6 @@ internal sealed class OverloadResolutionResult<T> where T : Symbol {
     /// </summary>
     internal static OverloadResolutionResult<T> Failed() {
         return new OverloadResolutionResult<T>(null, ImmutableArray<BoundExpression>.Empty, false);
-    }
-
-    /// <summary>
-    /// Creates a failed result due to an ambiguity error.
-    /// </summary>
-    internal static OverloadResolutionResult<T> Ambiguous() {
-        var result = Failed();
-        result.ambiguous = true;
-        return result;
     }
 
     /// <summary>
@@ -42,12 +32,6 @@ internal sealed class OverloadResolutionResult<T> where T : Symbol {
     /// If the <see cref="OverloadResolution" /> successfully resolved a single overload.
     /// </summary>
     internal bool succeeded { get; }
-
-    /// <summary>
-    /// If the <see cref="OverloadResolution"/> resulted in an ambiguous failure.
-    /// </summary>
-    /// <value></value>
-    internal bool ambiguous { get; private set; }
 
     internal T bestOverload { get; }
 

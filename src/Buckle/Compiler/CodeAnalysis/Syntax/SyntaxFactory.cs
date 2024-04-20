@@ -9,11 +9,9 @@ internal static partial class SyntaxFactory {
     /// Creates a <see cref="ReferenceExpressionSyntax" /> with only a given name.
     /// </summary>
     internal static ReferenceExpressionSyntax Reference(string name) {
-        return (ReferenceExpressionSyntax)InternalSyntax.SyntaxFactory.ReferenceExpression(
+        return (ReferenceExpressionSyntax)new InternalSyntax.ReferenceExpressionSyntax(
             InternalSyntax.SyntaxFactory.Token(SyntaxKind.RefKeyword),
-            InternalSyntax.SyntaxFactory.IdentifierName(
-                InternalSyntax.SyntaxFactory.Token(SyntaxKind.IdentifierToken, name)
-            )
+            InternalSyntax.SyntaxFactory.Token(SyntaxKind.IdentifierToken, name)
         ).CreateRed();
     }
 }

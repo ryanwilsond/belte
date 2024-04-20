@@ -1,0 +1,16 @@
+
+namespace Standard {
+    public static class Random {
+    private:
+
+        bool _first = true;
+
+        void Seed(int<0,null> seed);
+
+    public:
+
+        int Randint(int start, int<start,null> end);
+        decimal Random(decimal start, decimal<start,null> end, decimal step=1);
+
+    }
+}

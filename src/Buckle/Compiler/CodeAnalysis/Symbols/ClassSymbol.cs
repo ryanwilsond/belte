@@ -13,9 +13,9 @@ internal sealed class ClassSymbol : NamedTypeSymbol {
     internal ClassSymbol(
         ImmutableArray<ParameterSymbol> templateParameters,
         ImmutableArray<Symbol> symbols,
-        ImmutableArray<(FieldSymbol, ExpressionSyntax)> defaultFieldAssignments,
+        ImmutableArray<(FieldSymbol, VariableDeclarationStatementSyntax)> defaultFieldAssignments,
         ClassDeclarationSyntax declaration,
-        DeclarationModifiers modifiers)
+        DeclarationModifiers modifiers = DeclarationModifiers.None)
         : base(templateParameters, symbols, declaration, modifiers) {
         this.defaultFieldAssignments = defaultFieldAssignments;
     }
@@ -23,14 +23,14 @@ internal sealed class ClassSymbol : NamedTypeSymbol {
     /// <summary>
     /// Statements that assigns fields with specified initializers. Used in constructors.
     /// </summary>
-    internal ImmutableArray<(FieldSymbol, ExpressionSyntax)> defaultFieldAssignments {
+    internal ImmutableArray<(FieldSymbol, VariableDeclarationStatementSyntax)> defaultFieldAssignments {
         get; private set;
     }
 
     internal void UpdateInternals(
         ImmutableArray<ParameterSymbol> templateParameters,
         ImmutableArray<Symbol> symbols,
-        ImmutableArray<(FieldSymbol, ExpressionSyntax)> defaultFieldAssignments) {
+        ImmutableArray<(FieldSymbol, VariableDeclarationStatementSyntax)> defaultFieldAssignments) {
         UpdateInternals(templateParameters, symbols);
         this.defaultFieldAssignments = defaultFieldAssignments;
     }

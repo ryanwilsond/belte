@@ -6,7 +6,8 @@ namespace Buckle.Tests.CodeAnalysis.Evaluating;
 /// <summary>
 /// Tests on the <see cref="Buckle.CodeAnalysis.Evaluating.Evaluator" /> class.
 /// </summary>
-public sealed class EvaluatorTests {
+public sealed class EvaluatorTests
+{
     [Theory]
     // Empty expressions
     [InlineData(";", null)]
@@ -201,7 +202,13 @@ public sealed class EvaluatorTests {
     [InlineData("int result = 0; do { result++; } while (result < 0); return result;", 1)]
     [InlineData("int result = 10; do { result*=2; } while (result < 30); return result;", 40)]
     // Attributes
-    // TODO Cannot test invalid attributes until any attributes exist
+    [InlineData("[NotNull]int a = 10; return a;", 10)]
+    [InlineData("[NotNull]int a = 10; return a * a;", 100)]
+    [InlineData("[NotNull]int a = 1; return 10 * a;", 10)]
+    [InlineData("[NotNull]int a = 0; if (a == 0) { a = 10; } return a;", 10)]
+    [InlineData("[NotNull]int a = 0; if (a == 4) { a = 10; } return a;", 0)]
+    [InlineData("[NotNull]int a = 0; if (a == 0) { a = 10; } else { a = 5; } return a;", 10)]
+    [InlineData("[NotNull]int a = 0; if (a == 4) { a = 10; } else { a = 5; } return a;", 5)]
     // Initializer list expressions and index expressions
     [InlineData("decimal[] a = {3.1, 2.56, 5.23123}; return a[2];", 5.23123)]
     [InlineData("var a = {3.1, 2.56, 5.23123}; return a[0];", 3.1)]
@@ -219,7 +226,6 @@ public sealed class EvaluatorTests {
     [InlineData("int x = 4; int y = 3; ref int z = ref x; z = ref y; z++; return x;", 4)]
     [InlineData("var a = {1, 2, 3}; a[0] = 6; return a[0];", 6)]
     [InlineData("int a = 3; class A { ref int b = ref a; } var m = new A(); a = 6; return m.b;", 6)]
-    [InlineData("class A { int[] b = { 1, 2, 3 }; } var a = new A(); var r = ref a.b; r[0]++; return a.b[0];", 2)]
     // Name expressions
     [InlineData("int a = 3; int b = 6; return a;", 3)]
     [InlineData("int a = 3; int b = 6; return b;", 6)]
@@ -233,7 +239,7 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 4; int b = a++; return b;", 4)]
     [InlineData("int a = 4; int b = a--; return b;", 4)]
     [InlineData("int a = 4; return a!;", 4)]
-    [InlineData("int! a = 4; return a! + 1;", 5)]
+    [InlineData("[NotNull]int a = 4; return a! + 1;", 5)]
     [InlineData("decimal a = 3.6; a++; return a;", 4.6)]
     [InlineData("decimal a = 3.6; a--; return a;", 2.6)]
     // Prefix expressions
@@ -267,7 +273,7 @@ public sealed class EvaluatorTests {
     [InlineData("HasValue(3);", true)]
     [InlineData("HasValue(null);", false)]
     [InlineData("Value(\"test\");", "test")]
-    [InlineData("Console.Print(message: \"test\");", null)]
+    [InlineData("Print(text: \"test\");", null)]
     [InlineData("Hex(13);", "D")]
     [InlineData("Hex(13, false);", "D")]
     [InlineData("Hex(1324, true);", "0x52C")]
@@ -277,7 +283,7 @@ public sealed class EvaluatorTests {
     [InlineData("(decimal)3;", 3)]
     [InlineData("(int)3.4;", 3)]
     [InlineData("(int)3.6;", 3)]
-    [InlineData("(int!)3;", 3)]
+    [InlineData("([NotNull]int)3;", 3)]
     [InlineData("string a = (string)(int)3.6; return a;", "3")]
     [InlineData("(string)null;", null)]
     [InlineData("(int)null;", null)]
@@ -308,7 +314,7 @@ public sealed class EvaluatorTests {
     // TypeOf expressions
     [InlineData("type a = typeof(int[]);", null)]
     [InlineData("type a = typeof(string);", null)]
-    [InlineData("type a = typeof(decimal!);", null)]
+    [InlineData("type a = typeof([NotNull]decimal);", null)]
     [InlineData("class A { int num; } type a = typeof(A);", null)]
     // Try statements
     [InlineData("try { int x = 0; int a = 56/x; return a; } catch { return 3; }", 3)]
@@ -336,13 +342,12 @@ public sealed class EvaluatorTests {
     [InlineData("class A { int M() { return 1; } int N() { int M() { return 2; } return M(); } } var myVar = new A(); return myVar.N();", 2)]
     [InlineData("class A { int M() { return 1; } int N() { int M() { return 2; } return this.M(); } } var myVar = new A(); return myVar.N();", 1)]
     // Static member access
-    [InlineData("class A { constexpr int a = 3; } return A.a;", 3)]
-    [InlineData("class A { constexpr int a; } return A.a;", null)]
+    [InlineData("class A { const int a = 3; } return A.a;", 3)]
+    [InlineData("class A { const int a; } return A.a;", null)]
     [InlineData("class A { static int B() { return 0; } } return A.B();", 0)]
     [InlineData("class A { static int B(int a) { return a + 3; } } return A.B(4);", 7)]
-    // Templates
-    [InlineData("class A<int a, int b> { static int Test() { return a + b; } } return A<2,3>.Test();", 5)]
-    public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
+    public void Evaluator_Computes_CorrectValues(string text, object expectedValue)
+    {
         AssertValue(text, expectedValue);
     }
 }

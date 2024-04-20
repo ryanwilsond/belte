@@ -5,13 +5,13 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A bound index expression, bound from a <see cref="Syntax.IndexExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundIndexExpression : BoundExpression {
-    internal BoundIndexExpression(BoundExpression expression, BoundExpression index, bool isNullConditional) {
-        this.expression = expression;
+    internal BoundIndexExpression(BoundExpression operand, BoundExpression index, bool isNullConditional) {
+        this.operand = operand;
         this.index = index;
         this.isNullConditional = isNullConditional;
     }
 
-    internal BoundExpression expression { get; }
+    internal BoundExpression operand { get; }
 
     internal BoundExpression index { get; }
 
@@ -19,5 +19,5 @@ internal sealed class BoundIndexExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.IndexExpression;
 
-    internal override BoundType type => expression.type.ChildType();
+    internal override BoundType type => operand.type.ChildType();
 }

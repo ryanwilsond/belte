@@ -32,10 +32,7 @@
   - [4.2](Belte/ClassesAndObjects.md#42-members) Members
   - [4.3](Belte/ClassesAndObjects.md#43-modifiers) Modifiers
   - [4.4](Belte/ClassesAndObjects.md#44-constructors) Constructors
-- [5](Belte/StandardLibrary.md) The Standard Library
-  - [5.1](Belte/StandardLibrary.md#51-built-in-functions) Built-in Functions
-  - [5.2](Belte/StandardLibrary/Console.blt) Console
-  - [5.3](Belte/StandardLibrary/Math.blt) Math
+- [5](Belte/BuiltinFunctions.md) Built-In Functions
 - [6](Belte/LowLevelFeatures.md) Low-Level Features
   - [6.1](Belte/LowLevelFeatures.md#61-structures) Structures
 

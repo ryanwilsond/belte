@@ -33,11 +33,6 @@ public sealed partial class BelteRepl {
         internal bool showIL = false;
 
         /// <summary>
-        /// Show the C# code after a submission.
-        /// </summary>
-        internal bool showCS = false;
-
-        /// <summary>
         /// Show compiler produced warnings.
         /// </summary>
         internal bool showWarnings = false;

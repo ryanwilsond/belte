@@ -1,0 +1,16 @@
+
+namespace Base {
+    public class iterator {
+
+        object current { get; }
+
+        void Reset();
+        bool Next();
+
+        iterator operator+(int index);
+        iterator operator-(int index);
+        void operator+=(int index);
+        void operator-=(int index);
+
+    }
+}
