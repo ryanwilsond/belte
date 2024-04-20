@@ -119,6 +119,8 @@ public enum DiagnosticCode : int {
     ERR_IncorrectOperatorParameterCount = 108,
     ERR_OperatorMustBeStatic = 109,
     ERR_StaticOperator = 110,
+    ERR_OperatorAtLeastOneClassParameter = 111,
+    ERR_OperatorMustReturnClass = 112,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,
@@ -126,4 +128,5 @@ public enum DiagnosticCode : int {
     UNS_Linking = 9002,
     UNS_IndependentCompilation = 9003,
     UNS_DotnetCompilation = 9004,
+    UNS_OverloadedPostfix = 9005,
 }

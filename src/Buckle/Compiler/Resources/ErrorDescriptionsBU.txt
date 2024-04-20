@@ -1683,6 +1683,21 @@ class MyClass {
     static MyClass operator+(MyClass a) { ... } // Allowed
 }
 ```
+$BU0111
+Operators contained in a class must take at least one parameter that is of that
+containing type. Otherwise, a class could overload an operator that affects
+other types operators.
+
+For example:
+
+```
+class MyClass {
+    static int operator+(int a, int b) { ... } // Not allowed, at least one parameter must be of the type `MyClass`
+    static int operator+(MyClass a, int b) { ... } // Allowed
+    static int operator+(int a, MyClass b) { ... } // Allowed
+    static int operator+(MyClass a, MyClass b) { ... } // Allowed
+}
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.
@@ -1703,3 +1718,5 @@ Compiling with .NET integration is the priority, so compiling natively will
 likely be unsupported for many versions.
 $BU9004
 Compiling with .NET integration is currently unsupported.
+$BU9005
+Currently, postfix operators are disabled if overloaded.

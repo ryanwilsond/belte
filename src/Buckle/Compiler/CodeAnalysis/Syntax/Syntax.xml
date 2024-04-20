@@ -465,7 +465,7 @@
   </Node>
   <Node Name="UnaryExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="UnaryExpression"/>
-    <Field Name="op" Type="SyntaxToken"/>
+    <Field Name="operatorToken" Type="SyntaxToken"/>
     <Field Name="operand" Type="ExpressionSyntax"/>
   </Node>
   <Node Name="TernaryExpressionSyntax" Base="ExpressionSyntax">

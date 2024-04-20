@@ -26,6 +26,14 @@ internal static class Error {
             var message = "unsupported: global return cannot return a value";
             return new BelteDiagnostic(ErrorInfo(DiagnosticCode.UNS_GlobalReturnValue), location, message);
         }
+
+        /// <summary>
+        /// BU9005. Run `buckle --explain BU9005` on the command line for more info.
+        /// </summary>
+        internal static BelteDiagnostic OverloadedPostfix(TextLocation location) {
+            var message = "unsupported: overloaded postfix";
+            return new BelteDiagnostic(ErrorInfo(DiagnosticCode.UNS_OverloadedPostfix), location, message);
+        }
     }
 
     /// <summary>
@@ -1015,6 +1023,22 @@ internal static class Error {
     internal static BelteDiagnostic StaticOperator(TextLocation location) {
         var message = $"static classes cannot contain operators";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StaticOperator), location, message);
+    }
+
+    /// <summary>
+    /// BU0111. Run `buckle --explain BU0111` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic OperatorAtLeastOneClassParameter(TextLocation location) {
+        var message = $"at least one of the parameters of an operator must be the containing type";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_OperatorAtLeastOneClassParameter), location, message);
+    }
+
+    /// <summary>
+    /// BU0112. Run `buckle --explain BU0112` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic OperatorMustReturnClass(TextLocation location) {
+        var message = $"the return type for the '++' or '--' operator must be the containing type";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_OperatorMustReturnClass), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

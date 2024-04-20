@@ -618,8 +618,11 @@ internal sealed class Binder {
             modifiers: modifiers
         );
 
+        var parent = method.parent;
+        var className = (parent is ClassDeclarationSyntax c) ? c.identifier.text : null;
+
         if ((newMethod.declaration as MethodDeclarationSyntax).identifier.text != null && !_scope.TryDeclareMethod(newMethod))
-            diagnostics.Push(Error.MethodAlreadyDeclared(method.identifier.location, name ?? newMethod.name));
+            diagnostics.Push(Error.MethodAlreadyDeclared(method.identifier.location, name ?? newMethod.name, className));
 
         return newMethod;
     }
@@ -730,13 +733,42 @@ internal sealed class Binder {
         if ((modifiers & DeclarationModifiers.Static) == 0)
             diagnostics.Push(Error.OperatorMustBeStatic(@operator.operatorToken.location));
 
-        return new MethodSymbol(
+        var parent = @operator.parent as ClassDeclarationSyntax;
+        var className = parent.identifier.text;
+
+        var atLeastOneClassParameter = false;
+
+        foreach (var parameter in parameters) {
+            if (parameter.type.typeSymbol.name == className) {
+                atLeastOneClassParameter = true;
+                break;
+            }
+        }
+
+        if (!atLeastOneClassParameter)
+            diagnostics.Push(Error.OperatorAtLeastOneClassParameter(@operator.operatorToken.location));
+
+        if ((name == WellKnownMemberNames.IncrementOperatorName || name == WellKnownMemberNames.DecrementOperatorName)
+            && type.typeSymbol.name != className) {
+            diagnostics.Push(Error.OperatorMustReturnClass(@operator.operatorToken.location));
+        }
+
+        var method = new MethodSymbol(
             name,
             parameters,
             type,
             @operator,
             modifiers: modifiers
         );
+
+        if ((method.declaration as OperatorDeclarationSyntax).operatorToken.text != null &&
+            !_scope.TryDeclareMethod(method)) {
+            diagnostics.Push(
+                Error.MethodAlreadyDeclared(@operator.operatorToken.location, name, className)
+            );
+        }
+
+        return method;
     }
 
     private DeclarationModifiers BindOperatorDeclarationModifiers(SyntaxTokenList modifiers) {
@@ -2329,7 +2361,20 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        var boundOp = BoundPostfixOperator.Bind(expression.operatorToken.kind, boundOperand.type);
+        var boundOp = BoundPostfixOperator.BindWithOverloading(
+            expression.operatorToken,
+            expression.operatorToken.kind,
+            boundOperand,
+            _overloadResolution,
+            out var result
+        );
+
+        if (result.succeeded || result.ambiguous) {
+            if (ownStatement)
+                return new BoundCallExpression(new BoundEmptyExpression(), result.bestOverload, [boundOperand]);
+            else
+                diagnostics.Push(Error.Unsupported.OverloadedPostfix(expression.operatorToken.location));
+        }
 
         if (boundOp is null) {
             diagnostics.Push(Error.InvalidPostfixUse(
@@ -2374,7 +2419,16 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        var boundOp = BoundPrefixOperator.Bind(expression.operatorToken.kind, boundOperand.type);
+        var boundOp = BoundPrefixOperator.BindWithOverloading(
+            expression.operatorToken,
+            expression.operatorToken.kind,
+            boundOperand,
+            _overloadResolution,
+            out var result
+        );
+
+        if (result.succeeded || result.ambiguous)
+            return new BoundCallExpression(new BoundEmptyExpression(), result.bestOverload, [boundOperand]);
 
         if (boundOp is null) {
             diagnostics.Push(Error.InvalidPrefixUse(
@@ -2578,12 +2632,23 @@ internal sealed class Binder {
         if (boundOperand.type.typeSymbol == TypeSymbol.Error)
             return new BoundErrorExpression();
 
-        var boundOp = BoundUnaryOperator.Bind(expression.op.kind, boundOperand.type);
+        var boundOp = BoundUnaryOperator.BindWithOverloading(
+            expression.operatorToken,
+            expression.operatorToken.kind,
+            boundOperand,
+            _overloadResolution,
+            out var result
+        );
+
+        if (result.succeeded || result.ambiguous)
+            return new BoundCallExpression(new BoundEmptyExpression(), result.bestOverload, [boundOperand]);
 
         if (boundOp is null) {
-            diagnostics.Push(
-                Error.InvalidUnaryOperatorUse(expression.op.location, expression.op.text, boundOperand.type)
-            );
+            diagnostics.Push(Error.InvalidUnaryOperatorUse(
+                expression.operatorToken.location,
+                expression.operatorToken.text,
+                boundOperand.type
+            ));
 
             return new BoundErrorExpression();
         }
@@ -2629,7 +2694,17 @@ internal sealed class Binder {
         if (boundLeft.type.typeSymbol == TypeSymbol.Error || boundRight.type.typeSymbol == TypeSymbol.Error)
             return new BoundErrorExpression();
 
-        var boundOp = BoundBinaryOperator.Bind(expression.operatorToken.kind, boundLeft.type, boundRight.type);
+        var boundOp = BoundBinaryOperator.BindWithOverloading(
+            expression.operatorToken,
+            expression.operatorToken.kind,
+            boundLeft.type,
+            boundRight.type,
+            _overloadResolution,
+            out var result
+        );
+
+        if (result.succeeded || result.ambiguous)
+            return new BoundCallExpression(new BoundEmptyExpression(), result.bestOverload, [boundLeft, boundRight]);
 
         if (boundOp is null) {
             diagnostics.Push(Error.InvalidBinaryOperatorUse(
@@ -2738,9 +2813,25 @@ internal sealed class Binder {
                 expression.assignmentToken.kind
             );
 
-            var boundOperator = BoundBinaryOperator.Bind(
-                equivalentOperatorTokenKind, type, boundExpression.type
+            var boundOperator = BoundBinaryOperator.BindWithOverloading(
+                expression.assignmentToken,
+                equivalentOperatorTokenKind,
+                left,
+                boundExpression,
+                _overloadResolution,
+                out var result
             );
+
+            if (result.succeeded) {
+                var callExpression = new BoundCallExpression(
+                    new BoundEmptyExpression(),
+                    result.bestOverload,
+                    [left, boundExpression]
+                );
+
+                var converted = BindCast(expression.right.location, callExpression, type);
+                return new BoundAssignmentExpression(left, converted);
+            }
 
             if (boundOperator is null) {
                 diagnostics.Push(Error.InvalidBinaryOperatorUse(

@@ -357,10 +357,10 @@ internal static class SyntaxFacts {
             WellKnownMemberNames.BitwiseAndOperatorName => 2,
             WellKnownMemberNames.BitwiseExclusiveOrOperatorName => 2,
             WellKnownMemberNames.BitwiseOrOperatorName => 2,
-            WellKnownMemberNames.IncrementOperatorName => 2,
-            WellKnownMemberNames.DecrementOperatorName => 2,
-            WellKnownMemberNames.LogicalNotName => 2,
-            WellKnownMemberNames.BitwiseNotName => 2,
+            WellKnownMemberNames.IncrementOperatorName => 1,
+            WellKnownMemberNames.DecrementOperatorName => 1,
+            WellKnownMemberNames.LogicalNotName => 1,
+            WellKnownMemberNames.BitwiseNotName => 1,
             _ => 0,
         };
     }

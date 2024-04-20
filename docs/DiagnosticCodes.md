@@ -121,6 +121,8 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0108 | Error | overloaded operator '{0}' takes {1} parameters |
 | BU0109 | Error | overloaded operators must be marked as static |
 | BU0110 | Error | static classes cannot contain operators |
+| BU0111 | Error | at least one of the parameters of an operator must be the containing type |
+| BU0112 | Error | the return type for the '++' or '--' operator must be the containing type |
 
 ## Command Line Diagnostics
 

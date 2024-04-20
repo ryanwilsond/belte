@@ -1514,4 +1514,34 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0111_OperatorAtLeastOneClassParameter() {
+        var text = @"
+            class A {
+                static int operator[+](int a, int b) { return a; }
+            }
+        ";
+
+        var diagnostics = @"
+            at least one of the parameters of an operator must be the containing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0112_OperatorMustReturnClass() {
+        var text = @"
+            class A {
+                static int operator[++](A a) { return 3; }
+            }
+        ";
+
+        var diagnostics = @"
+            the return type for the '++' or '--' operator must be the containing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }
