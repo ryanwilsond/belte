@@ -170,9 +170,6 @@
     </Field>
   </AbstractNode>
   <AbstractNode Name="BaseMethodDeclarationSyntax" Base="MemberDeclarationSyntax">
-    <Field Name="identifier" Type="SyntaxToken">
-      <Kind Name="IdentifierToken"/>
-    </Field>
     <Field Name="parameterList" Type="ParameterListSyntax"/>
     <Field Name="body" Type="BlockStatementSyntax"/>
   </AbstractNode>
@@ -233,7 +230,7 @@
     <Kind Name="ConstructorDeclaration"/>
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
-    <Field Name="identifier" Type="SyntaxToken" Override="true">
+    <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>
     <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
@@ -253,9 +250,22 @@
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="returnType" Type="TypeSyntax"/>
-    <Field Name="identifier" Type="SyntaxToken" Override="true">
+    <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>
+    <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
+    <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
+  </Node>
+  <Node Name="OperatorDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
+    <Kind Name="OperatorDeclaration"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="returnType" Type="TypeSyntax"/>
+    <Field Name="operatorKeyword" Type="SyntaxToken">
+      <Kind Name="OperatorKeyword"/>
+    </Field>
+    <Field Name="operatorToken" Type="SyntaxToken"/>
+    <Field Name="rightOperatorToken" Type="SyntaxToken" Optional="True"/>
     <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
   </Node>
@@ -456,7 +466,7 @@
   </Node>
   <Node Name="UnaryExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="UnaryExpression"/>
-    <Field Name="op" Type="SyntaxToken"/>
+    <Field Name="operatorToken" Type="SyntaxToken"/>
     <Field Name="operand" Type="ExpressionSyntax"/>
   </Node>
   <Node Name="TernaryExpressionSyntax" Base="ExpressionSyntax">

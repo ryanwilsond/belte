@@ -600,6 +600,21 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
+    public void Reports_Error_BU0048_ExpectedOverloadableOperator() {
+        var text = @"
+            class A {
+                static A operator[==]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            expected overloadable unary or binary operator
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
     public void Reports_Error_BU0049_ReferenceWrongInitialization() {
         var text = @"
             int x = 3;
@@ -1436,6 +1451,110 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             expression is not a compile-time constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0107_CannotReturnStatic() {
+        var text = @"
+            static class A {}
+            [A] Test() { return A; }
+        ";
+
+        var diagnostics = @"
+            static types cannot be used as return types
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0108_IncorrectOperatorParameterCount() {
+        var text = @"
+            class A {
+                static A operator[+](A a, A b, A c) { return a; }
+            }
+        ";
+
+        var diagnostics = @"
+            overloaded operator '+' takes 2 parameters
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0109_OperatorMustBeStatic() {
+        var text = @"
+            class A {
+                A operator[+](A a, A b) { return a; }
+            }
+        ";
+
+        var diagnostics = @"
+            overloaded operators must be marked as static
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0110_StaticOperator() {
+        var text = @"
+            static class A {
+                static A operator[+](A a, A b) { return a; }
+            }
+        ";
+
+        var diagnostics = @"
+            static classes cannot contain operators
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0111_OperatorAtLeastOneClassParameter() {
+        var text = @"
+            class A {
+                static int operator[+](int a, int b) { return a; }
+            }
+        ";
+
+        var diagnostics = @"
+            at least one of the parameters of an operator must be the containing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0112_OperatorMustReturnClass() {
+        var text = @"
+            class A {
+                static int operator[++](A a) { return 3; }
+            }
+        ";
+
+        var diagnostics = @"
+            the return type for the '++' or '--' operator must be the containing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0113_IndexOperatorFirstParameter() {
+        var text = @"
+            class A {
+                static int operator[\[\]](int a, A b) { return 3; }
+            }
+        ";
+
+        var diagnostics = @"
+            the first parameter for the '[]' operator must be the containing type
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

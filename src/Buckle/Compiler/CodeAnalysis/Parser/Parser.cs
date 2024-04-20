@@ -70,9 +70,7 @@ internal sealed partial class Parser {
 
     internal SyntaxToken currentToken {
         get {
-            if (_currentToken is null)
-                _currentToken = FetchCurrentToken();
-
+            _currentToken ??= FetchCurrentToken();
             return _currentToken;
         }
     }
@@ -455,15 +453,48 @@ internal sealed partial class Parser {
             return _lexedTokens[index];
     }
 
-    private bool PeekIsFunctionOrMethodDeclaration(bool checkForType = true, bool couldBeInStatement = true) {
+    private bool PeekIsOperatorDeclaration() {
+        return PeekIsFunctionOrMethodOrOperatorDeclarationCore(true, true, true);
+    }
+
+    private bool PeekIsConstructorDeclaration() {
+        return PeekIsFunctionOrMethodOrOperatorDeclarationCore(false, false, true);
+    }
+
+    private bool PeekIsFunctionOrMethodDeclaration(bool couldBeInStatement = true) {
+        return PeekIsFunctionOrMethodOrOperatorDeclarationCore(false, true, couldBeInStatement);
+    }
+
+    private bool PeekIsFunctionOrMethodOrOperatorDeclarationCore(
+        bool checkForOperator,
+        bool checkForType,
+        bool couldBeInStatement) {
         var hasName = false;
         var offset = 0;
 
         if (checkForType && !PeekIsType(0, out offset, out hasName, out _))
             return false;
 
-        if (!checkForType && currentToken.kind == SyntaxKind.IdentifierToken)
+        if (!checkForType && !checkForOperator && Peek(offset).kind == SyntaxKind.IdentifierToken)
             hasName = true;
+
+        if (checkForOperator) {
+            if (Peek(offset).kind == SyntaxKind.OperatorKeyword)
+                offset++;
+            else
+                return false;
+        }
+
+        if (checkForOperator && Peek(offset).kind.IsOverloadableOperator()) {
+            if (Peek(offset).kind == SyntaxKind.OpenBracketToken &&
+                Peek(offset + 1).kind == SyntaxKind.CloseBracketToken) {
+                offset++;
+            }
+
+            hasName = true;
+        } else if (checkForOperator && Peek(offset).kind != SyntaxKind.OpenParenToken) {
+            offset++;
+        }
 
         if (hasName)
             offset++;
@@ -655,10 +686,11 @@ internal sealed partial class Parser {
         var attributeLists = ParseAttributeLists();
         var modifiers = ParseModifiers();
 
-        if ((_context & ParserContext.InClassDefinition) != 0 &&
-            PeekIsFunctionOrMethodDeclaration(checkForType: false)) {
+        if ((_context & ParserContext.InClassDefinition) != 0 && PeekIsConstructorDeclaration())
             return ParseConstructorDeclaration(attributeLists, modifiers);
-        }
+
+        if ((_context & ParserContext.InClassDefinition) != 0 && PeekIsOperatorDeclaration())
+            return ParseOperatorDeclaration(attributeLists, modifiers);
 
         if (PeekIsFunctionOrMethodDeclaration(couldBeInStatement: allowGlobalStatements))
             return ParseMethodDeclaration(attributeLists, modifiers);
@@ -784,6 +816,35 @@ internal sealed partial class Parser {
         var body = (BlockStatementSyntax)ParseBlockStatement();
 
         return SyntaxFactory.MethodDeclaration(attributeLists, modifiers, type, identifier, parameterList, body);
+    }
+
+    private OperatorDeclarationSyntax ParseOperatorDeclaration(
+        SyntaxList<AttributeListSyntax> attributeLists,
+        SyntaxList<SyntaxToken> modifiers) {
+        var type = ParseType(false);
+        var operatorKeyword = Match(SyntaxKind.OperatorKeyword);
+        var operatorToken = EatToken();
+        SyntaxToken rightOperatorToken = null;
+
+        if (!operatorToken.kind.IsOverloadableOperator())
+            operatorToken = AddDiagnostic(operatorToken, Error.ExpectedOverloadableOperator());
+
+        if (operatorToken.kind == SyntaxKind.OpenBracketToken)
+            rightOperatorToken = Match(SyntaxKind.CloseBracketToken);
+
+        var parameterList = ParseParameterList();
+        var body = (BlockStatementSyntax)ParseBlockStatement();
+
+        return SyntaxFactory.OperatorDeclaration(
+            attributeLists,
+            modifiers,
+            type,
+            operatorKeyword,
+            operatorToken,
+            rightOperatorToken,
+            parameterList,
+            body
+        );
     }
 
     private StatementSyntax ParseLocalFunctionDeclaration(
@@ -1217,7 +1278,11 @@ internal sealed partial class Parser {
 
         if (nextDiagnosticCount > diagnosticCount && semicolon.containsDiagnostics) {
             var diagnostics = semicolon.GetDiagnostics();
-            semicolon = semicolon.WithDiagnosticsGreen(diagnostics.SkipLast(1).ToArray());
+
+            if (!semicolon.isFabricated)
+                semicolon = semicolon.WithDiagnosticsGreen(diagnostics);
+            else
+                semicolon = semicolon.WithDiagnosticsGreen(diagnostics.SkipLast(1).ToArray());
         }
 
         return SyntaxFactory.ExpressionStatement(expression, semicolon);

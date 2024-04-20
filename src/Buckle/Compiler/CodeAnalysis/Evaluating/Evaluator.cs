@@ -673,6 +673,13 @@ internal sealed class Evaluator {
         } else if (node.method == BuiltinMethods.Char) {
             var value = (int)Value(EvaluateExpression(node.arguments[0], abort));
             return new EvaluatorObject(((char)value).ToString());
+        } else if (node.method == BuiltinMethods.Length) {
+            var value = Value(EvaluateExpression(node.arguments[0], abort));
+
+            if (value is object[] v)
+                return new EvaluatorObject(v.Length);
+            else
+                return new EvaluatorObject(value: null);
         } else {
             if (CheckStandardMap(node.method, node.arguments, abort, out var result, out var printed)) {
                 lastOutputWasPrint = printed;

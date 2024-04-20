@@ -180,6 +180,17 @@ internal static class BuiltinMethods {
     );
 
     /// <summary>
+    /// Gets the length of the given array. If given a non-array, returns null.
+    /// </summary>
+    internal static readonly MethodSymbol Length = new MethodSymbol(
+        "Length",
+        ImmutableArray.Create(
+            new ParameterSymbol("array", BoundType.NullableAny, 0, NoDefault)
+        ),
+        BoundType.NullableInt
+    );
+
+    /// <summary>
     /// Gets all builtin methods.
     /// </summary>
     /// <returns>All builtins, calling code should not depend on order.</returns>

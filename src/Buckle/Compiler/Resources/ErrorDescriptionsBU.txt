@@ -746,6 +746,20 @@ static class MyClass {
     static void MyMethod() { } // Allowed
 }
 ```
+$BU0048
+Operator overload methods do not use traditional identifier names, but rather
+take in an overloadable operator token instead. If a non-overloadable token is
+provided as the name, this error is raised.
+
+For example:
+
+```
+class MyClass {
+    static MyClass operator==(MyClass left, MyClass right) { // Not allowed, `==` is not an overloadable operator
+        ...
+    }
+}
+```
 $BU0049
 By-reference variables can be assigned to with values, which are just passed on
 to what it is referencing. However, the declaration initializer must be a
@@ -1618,6 +1632,96 @@ int MyMethod() {
 
 constexpr myConstant = MyMethod(); // Not allowed, method calls are not compile-time constants
 ```
+$BU0107
+Methods return instances of objects, hence they cannot be declared with a static
+return type.
+
+For example:
+
+```
+static class MyClass { }
+
+MyClass MyMethod() { ... } // Not allowed, return type cannot be static class `MyClass`
+```
+$BU0108
+Overloadable operators expected a specific number of arguments. When overloading
+an operator, the number of parameters must match this expected argument count.
+
+For example:
+
+```
+class MyClass {
+    static MyClass operator+(MyClass a, MyClass b, MyClass c) { ... } // Not allowed, overloaded operator `+` expects either 1 or 2 arguments, not 3
+    static MyClass operator+(MyClass a, MyClass b) { ... } // Allowed
+    static MyClass operator+(MyClass a) { ... } // Allowed
+}
+```
+$BU0109
+Operators are static because they do not favor a specific instance (left or right). If an operator is overloaded without
+marking it as static, this error is raised.
+
+For example:
+
+```
+class MyClass {
+    MyClass operator+(MyClass a, MyClass b) { ... } // Not allowed, not marked as static
+    static MyClass operator+(MyClass a, MyClass b) { ... } // Allowed
+}
+```
+$BU0110
+Operators act on instances of classes, and hence cannot be used or defined on
+static classes.
+
+For example:
+
+```
+static class MyClass {
+    static MyClass operator+(MyClass a) { ... } // Not allowed, `MyClass` is static
+}
+
+class MyClass {
+    static MyClass operator+(MyClass a) { ... } // Allowed
+}
+```
+$BU0111
+Operators contained in a class must take at least one parameter that is of that
+containing type. Otherwise, a class could overload an operator that affects
+other types operators.
+
+For example:
+
+```
+class MyClass {
+    static int operator+(int a, int b) { ... } // Not allowed, at least one parameter must be of the type `MyClass`
+    static int operator+(MyClass a, int b) { ... } // Allowed
+    static int operator+(int a, MyClass b) { ... } // Allowed
+    static int operator+(MyClass a, MyClass b) { ... } // Allowed
+}
+```
+$BU0112
+The increment and decrement operators assign, so they operators must return the
+containing type to be used in an assignment.
+
+For example:
+
+```
+class MyClass {
+    static int operator++(MyClass a) { ... } // Not allowed, operator `++` must return containing type, in this case `MyClass`
+    static MyClass operator++(MyClass a) { ... } // Allowed
+}
+```
+$BU0113
+The index operator must take in two parameters, the first of which being the
+containing type to index off of.
+
+For example:
+
+```
+class MyClass {
+    static MyClass operator[](int a, int i) { ... } // Not allowed, first parameter must be of the type `MyClass`
+    static MyClass operator[](MyClass a, int i) { ... } // Allowed
+}
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.
@@ -1638,3 +1742,5 @@ Compiling with .NET integration is the priority, so compiling natively will
 likely be unsupported for many versions.
 $BU9004
 Compiling with .NET integration is currently unsupported.
+$BU9005
+Currently, postfix operators are disabled if overloaded.

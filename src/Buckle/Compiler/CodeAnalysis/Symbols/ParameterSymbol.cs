@@ -6,8 +6,6 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// Parameter symbol (used in a <see cref="MethodSymbol" />).
 /// </summary>
 internal class ParameterSymbol : LocalVariableSymbol {
-    private readonly bool _isTemplate;
-
     /// <summary>
     /// Creates a <see cref="ParameterSymbol" />.
     /// </summary>
@@ -28,12 +26,17 @@ internal class ParameterSymbol : LocalVariableSymbol {
         : base(name, type, null, modifiers) {
         this.ordinal = ordinal;
         this.defaultValue = defaultValue;
-        _isTemplate = isTemplate;
+        this.isTemplate = isTemplate;
     }
 
     public override SymbolKind kind => SymbolKind.Parameter;
 
-    public override bool isStatic => base.isStatic || _isTemplate;
+    public override bool isStatic => base.isStatic || isTemplate;
+
+    /// <summary>
+    /// If the parameter is apart of a template parameter list.
+    /// </summary>
+    internal bool isTemplate { get; }
 
     /// <summary>
     /// Ordinal of this parameter.
@@ -53,7 +56,7 @@ internal class ParameterSymbol : LocalVariableSymbol {
             old.ordinal,
             old.defaultValue,
             old._declarationModifiers,
-            old._isTemplate
+            old.isTemplate
         );
     }
 }

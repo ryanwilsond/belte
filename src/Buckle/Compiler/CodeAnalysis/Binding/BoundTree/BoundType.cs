@@ -292,6 +292,8 @@ internal sealed class BoundType : BoundExpression {
     internal BoundType ChildType() {
         if (dimensions > 0)
             return CopyWith(this, dimensions: dimensions - 1);
+        else if (typeSymbol == TypeSymbol.Any)
+            return this;
         else
             return null;
     }

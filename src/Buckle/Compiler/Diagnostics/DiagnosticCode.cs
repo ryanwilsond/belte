@@ -56,7 +56,7 @@ public enum DiagnosticCode : int {
     ERR_CannotUseImplicit = 45,
     ERR_NoCatchOrFinally = 46,
     ERR_MemberMustBeStatic = 47,
-    // ! Unused slot 48
+    ERR_ExpectedOverloadableOperator = 48,
     ERR_ReferenceWrongInitialization = 49,
     ERR_WrongInitializationReference = 50,
     ERR_UnknownAttribute = 51,
@@ -115,6 +115,13 @@ public enum DiagnosticCode : int {
     ERR_NonConstantCallOnConstant = 104,
     ERR_CannotBeRefAndConstexpr = 105,
     ERR_NotConstantExpression = 106,
+    ERR_CannotReturnStatic = 107,
+    ERR_IncorrectOperatorParameterCount = 108,
+    ERR_OperatorMustBeStatic = 109,
+    ERR_StaticOperator = 110,
+    ERR_OperatorAtLeastOneClassParameter = 111,
+    ERR_OperatorMustReturnClass = 112,
+    ERR_IndexOperatorFirstParameter = 113,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,
@@ -122,4 +129,5 @@ public enum DiagnosticCode : int {
     UNS_Linking = 9002,
     UNS_IndependentCompilation = 9003,
     UNS_DotnetCompilation = 9004,
+    UNS_OverloadedPostfix = 9005,
 }

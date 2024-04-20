@@ -687,6 +687,32 @@ internal sealed class CSharpEmitter {
             }
 
             return;
+        } else if (expression.method == BuiltinMethods.Hex) {
+            indentedTextWriter.Write("(");
+            EmitExpression(indentedTextWriter, expression.arguments[1]);
+            indentedTextWriter.Write(" ? \"0x\" + ");
+            EmitExpression(indentedTextWriter, expression.arguments[0]);
+            indentedTextWriter.Write(".ToString(\"X\") : ");
+            EmitExpression(indentedTextWriter, expression.arguments[0]);
+            indentedTextWriter.Write(".ToString(\"X\"))");
+            return;
+        } else if (expression.method == BuiltinMethods.Ascii) {
+            indentedTextWriter.Write("(int)char.Parse(");
+            EmitExpression(indentedTextWriter, expression.arguments[0]);
+            indentedTextWriter.Write(")");
+            return;
+        } else if (expression.method == BuiltinMethods.Char) {
+            EmitExpression(indentedTextWriter, expression.arguments[0]);
+            indentedTextWriter.Write(".ToString()");
+            return;
+        } else if (expression.method == BuiltinMethods.Length) {
+            indentedTextWriter.Write(
+                "((Func<object, int?>)((x) => {{ return x is object[] y ? y.Length : null; }} ))("
+            );
+
+            EmitExpression(indentedTextWriter, expression.arguments[0]);
+            indentedTextWriter.Write(")");
+            return;
         }
 
         if (expression.method.containingType == StandardLibrary.Console ||
