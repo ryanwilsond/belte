@@ -486,7 +486,7 @@ internal sealed partial class Parser {
         }
 
         if (checkForOperator && Peek(offset).kind.IsOverloadableOperator()) {
-            if (Peek(offset).kind is SyntaxKind.OpenBracketToken or SyntaxKind.QuestionOpenBracketToken &&
+            if (Peek(offset).kind == SyntaxKind.OpenBracketToken &&
                 Peek(offset + 1).kind == SyntaxKind.CloseBracketToken) {
                 offset++;
             }
@@ -829,7 +829,7 @@ internal sealed partial class Parser {
         if (!operatorToken.kind.IsOverloadableOperator())
             operatorToken = AddDiagnostic(operatorToken, Error.ExpectedOverloadableOperator());
 
-        if (operatorToken.kind is SyntaxKind.OpenBracketToken or SyntaxKind.QuestionOpenBracketToken)
+        if (operatorToken.kind == SyntaxKind.OpenBracketToken)
             rightOperatorToken = Match(SyntaxKind.CloseBracketToken);
 
         var parameterList = ParseParameterList();

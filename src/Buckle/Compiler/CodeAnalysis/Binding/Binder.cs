@@ -2484,11 +2484,21 @@ internal sealed class Binder {
                 );
 
                 if (result.succeeded || result.ambiguous) {
-                    return new BoundCallExpression(
+                    var call = new BoundCallExpression(
                         new BoundEmptyExpression(),
                         result.bestOverload,
                         [boundExpression, boundIndex]
                     );
+
+                    if (expression.openBracket.kind == SyntaxKind.QuestionOpenBracketToken) {
+                        return NullConditional(
+                            @if: Call(BuiltinMethods.HasValueAny, boundExpression),
+                            @then: call,
+                            @else: Literal(null, result.bestOverload.type)
+                        );
+                    } else {
+                        return call;
+                    }
                 }
             }
         }

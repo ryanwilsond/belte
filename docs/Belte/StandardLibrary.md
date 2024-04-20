@@ -28,3 +28,4 @@ placeholders for eventual Standard Library modules.
 | `string! Hex(int! value, bool! prefix = false)` | Converts {value} to its base16 representation; if {prefix} is `true`, the representation includes the `0x` prefix | |
 | `int! Ascii(string! char)` | Converts {char} its respective ASCII code | ArgumentException |
 | `string! Char(int! ascii)` | Converts {ascii} to its respective character | ArgumentException |
+| `int Length(any array)` | Gets the length of {array}, or null if it has no length | |

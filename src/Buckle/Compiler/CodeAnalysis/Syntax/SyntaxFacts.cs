@@ -304,7 +304,6 @@ internal static class SyntaxFacts {
             SyntaxKind.ExclamationToken => true,
             SyntaxKind.TildeToken => true,
             SyntaxKind.OpenBracketToken => true,
-            SyntaxKind.QuestionOpenBracketToken => true,
             _ => false,
         };
     }
