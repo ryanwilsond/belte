@@ -270,7 +270,7 @@ internal sealed class OverloadResolution {
                         type.name,
                         type.templateParameters,
                         defaultParameterCount,
-                        expressionArguments.Count,
+                        expressionArguments?.Count ?? 0,
                         expressionArguments,
                         true
                     );
@@ -284,7 +284,7 @@ internal sealed class OverloadResolution {
                 name,
                 preBoundArgumentsBuilder,
                 type.templateParameters,
-                expressionArguments.Count,
+                expressionArguments?.Count ?? 0,
                 expressionArguments,
                 out var rearrangedArguments,
                 out var seenParameterNames
@@ -307,7 +307,7 @@ internal sealed class OverloadResolution {
                 score = RearrangeArguments(
                     type.templateParameters,
                     score,
-                    expressionArguments.Count,
+                    expressionArguments?.Count ?? 0,
                     expressionArguments,
                     rearrangedArguments,
                     preBoundArgumentsBuilder.ToImmutable(),

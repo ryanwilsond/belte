@@ -1589,7 +1589,7 @@ internal sealed class Binder {
 
         var isStaticAccess = furthestRight is BoundType;
         var staticSymbols = symbols.Where(s => s.isStatic);
-        var instanceSymbols = symbols.Where(s => !s.isStatic);
+        var instanceSymbols = symbols.Where(s => !s.isStatic || ((s as ParameterSymbol)?.isTemplate ?? false));
 
         if (!isStaticAccess && !instanceSymbols.Any()) {
             diagnostics.Push(Error.InvalidInstanceReference(node.location, name, boundLeft.type.typeSymbol.name));
