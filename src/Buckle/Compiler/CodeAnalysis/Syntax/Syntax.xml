@@ -265,6 +265,7 @@
       <Kind Name="OperatorKeyword"/>
     </Field>
     <Field Name="operatorToken" Type="SyntaxToken"/>
+    <Field Name="rightOperatorToken" Type="SyntaxToken" Optional="True"/>
     <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
   </Node>

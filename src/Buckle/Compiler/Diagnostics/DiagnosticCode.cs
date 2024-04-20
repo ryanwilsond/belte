@@ -121,6 +121,7 @@ public enum DiagnosticCode : int {
     ERR_StaticOperator = 110,
     ERR_OperatorAtLeastOneClassParameter = 111,
     ERR_OperatorMustReturnClass = 112,
+    ERR_IndexOperatorFirstParameter = 113,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

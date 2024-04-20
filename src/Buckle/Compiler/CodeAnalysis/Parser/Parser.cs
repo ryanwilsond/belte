@@ -485,10 +485,16 @@ internal sealed partial class Parser {
                 return false;
         }
 
-        if (checkForOperator && Peek(offset).kind.IsOverloadableOperator())
+        if (checkForOperator && Peek(offset).kind.IsOverloadableOperator()) {
+            if (Peek(offset).kind is SyntaxKind.OpenBracketToken or SyntaxKind.QuestionOpenBracketToken &&
+                Peek(offset + 1).kind == SyntaxKind.CloseBracketToken) {
+                offset++;
+            }
+
             hasName = true;
-        else if (checkForOperator && Peek(offset).kind != SyntaxKind.OpenParenToken)
+        } else if (checkForOperator && Peek(offset).kind != SyntaxKind.OpenParenToken) {
             offset++;
+        }
 
         if (hasName)
             offset++;
@@ -818,9 +824,13 @@ internal sealed partial class Parser {
         var type = ParseType(false);
         var operatorKeyword = Match(SyntaxKind.OperatorKeyword);
         var operatorToken = EatToken();
+        SyntaxToken rightOperatorToken = null;
 
         if (!operatorToken.kind.IsOverloadableOperator())
             operatorToken = AddDiagnostic(operatorToken, Error.ExpectedOverloadableOperator());
+
+        if (operatorToken.kind is SyntaxKind.OpenBracketToken or SyntaxKind.QuestionOpenBracketToken)
+            rightOperatorToken = Match(SyntaxKind.CloseBracketToken);
 
         var parameterList = ParseParameterList();
         var body = (BlockStatementSyntax)ParseBlockStatement();
@@ -831,6 +841,7 @@ internal sealed partial class Parser {
             type,
             operatorKeyword,
             operatorToken,
+            rightOperatorToken,
             parameterList,
             body
         );

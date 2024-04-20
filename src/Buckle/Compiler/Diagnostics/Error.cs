@@ -1041,6 +1041,14 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_OperatorMustReturnClass), location, message);
     }
 
+    /// <summary>
+    /// BU0113. Run `buckle --explain BU0113` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic IndexOperatorFirstParameter(TextLocation location) {
+        var message = $"the first parameter for the '[]' operator must be the containing type";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_IndexOperatorFirstParameter), location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

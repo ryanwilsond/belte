@@ -123,6 +123,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0110 | Error | static classes cannot contain operators |
 | BU0111 | Error | at least one of the parameters of an operator must be the containing type |
 | BU0112 | Error | the return type for the '++' or '--' operator must be the containing type |
+| BU0113 | Error | the first parameter for the '[]' operator must be the containing type |
 
 ## Command Line Diagnostics
 

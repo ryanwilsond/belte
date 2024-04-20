@@ -392,6 +392,14 @@ internal sealed class Binder {
         throw ExceptionUtilities.Unreachable();
     }
 
+    private static TextLocation GetOperatorTokenLocation(OperatorDeclarationSyntax syntax) {
+        if (syntax.rightOperatorToken is null)
+            return syntax.operatorToken.location;
+
+        var span = new TextSpan(syntax.operatorToken.span.start, 2);
+        return new TextLocation(syntax.location.text, span);
+    }
+
     private static ImmutableArray<string> PeekLocals(
         IEnumerable<StatementSyntax> statements, IEnumerable<ParameterSymbol> parameters) {
         var locals = ImmutableArray.CreateBuilder<string>();
@@ -724,14 +732,16 @@ internal sealed class Binder {
 
         if (expectedArity != parameters.Length) {
             diagnostics.Push(Error.IncorrectOperatorParameterCount(
-                @operator.operatorToken.location,
-                @operator.operatorToken.text,
+                GetOperatorTokenLocation(@operator),
+                @operator.rightOperatorToken is null
+                    ? @operator.operatorToken.text
+                    : @operator.operatorToken.text + @operator.rightOperatorToken.text,
                 expectedArity
             ));
         }
 
         if ((modifiers & DeclarationModifiers.Static) == 0)
-            diagnostics.Push(Error.OperatorMustBeStatic(@operator.operatorToken.location));
+            diagnostics.Push(Error.OperatorMustBeStatic(GetOperatorTokenLocation(@operator)));
 
         var parent = @operator.parent as ClassDeclarationSyntax;
         var className = parent.identifier.text;
@@ -746,11 +756,17 @@ internal sealed class Binder {
         }
 
         if (!atLeastOneClassParameter)
-            diagnostics.Push(Error.OperatorAtLeastOneClassParameter(@operator.operatorToken.location));
+            diagnostics.Push(Error.OperatorAtLeastOneClassParameter(GetOperatorTokenLocation(@operator)));
 
         if ((name == WellKnownMemberNames.IncrementOperatorName || name == WellKnownMemberNames.DecrementOperatorName)
             && type.typeSymbol.name != className) {
-            diagnostics.Push(Error.OperatorMustReturnClass(@operator.operatorToken.location));
+            diagnostics.Push(Error.OperatorMustReturnClass(GetOperatorTokenLocation(@operator)));
+        }
+
+        if (name == WellKnownMemberNames.IndexOperatorName &&
+            parameters.Length > 0 &&
+            parameters[0].type.typeSymbol.name != className) {
+            diagnostics.Push(Error.IndexOperatorFirstParameter(GetOperatorTokenLocation(@operator)));
         }
 
         var method = new MethodSymbol(
@@ -764,7 +780,7 @@ internal sealed class Binder {
         if ((method.declaration as OperatorDeclarationSyntax).operatorToken.text != null &&
             !_scope.TryDeclareMethod(method)) {
             diagnostics.Push(
-                Error.MethodAlreadyDeclared(@operator.operatorToken.location, name, className)
+                Error.MethodAlreadyDeclared(GetOperatorTokenLocation(@operator), name, className)
             );
         }
 
@@ -2444,17 +2460,49 @@ internal sealed class Binder {
 
     private BoundExpression BindIndexExpression(IndexExpressionSyntax expression) {
         var boundExpression = BindExpression(expression.expression);
+        var boundIndex = BindExpression(expression.index);
+
+        var name = SyntaxFacts.GetOperatorMemberName(expression.openBracket.kind, 2);
+
+        if (name is not null) {
+            var symbols = ((boundExpression.type.typeSymbol is NamedTypeSymbol l) ? l.GetMembers(name) : [])
+                .AddRange((boundIndex.type.typeSymbol is NamedTypeSymbol r &&
+                    boundExpression.type.typeSymbol != boundIndex.type.typeSymbol)
+                    ? r.GetMembers(name)
+                    : [])
+                .Where(m => m is MethodSymbol)
+                .Select(m => m as MethodSymbol)
+                .ToImmutableArray();
+
+            if (symbols.Length > 0) {
+                var result = _overloadResolution.SuppressedMethodOverloadResolution(
+                    symbols,
+                    [(null, boundExpression), (null, boundIndex)],
+                    name,
+                    expression.openBracket,
+                    null
+                );
+
+                if (result.succeeded || result.ambiguous) {
+                    return new BoundCallExpression(
+                        new BoundEmptyExpression(),
+                        result.bestOverload,
+                        [boundExpression, boundIndex]
+                    );
+                }
+            }
+        }
 
         if (boundExpression is BoundErrorExpression)
             return boundExpression;
 
         if (boundExpression.type.dimensions > 0) {
-            var index = BindCast(
-                expression.index.location, BindExpression(expression.index), BoundType.NullableInt
-            );
+            var index = BindCast(expression.index.location, boundIndex, BoundType.NullableInt);
 
             return new BoundIndexExpression(
-                boundExpression, index, expression.openBracket.kind == SyntaxKind.QuestionOpenBracketToken
+                boundExpression,
+                boundIndex,
+                expression.openBracket.kind == SyntaxKind.QuestionOpenBracketToken
             );
         } else {
             diagnostics.Push(Error.CannotApplyIndexing(expression.location, boundExpression.type));

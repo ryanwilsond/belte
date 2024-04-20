@@ -303,6 +303,8 @@ internal static class SyntaxFacts {
             SyntaxKind.MinusMinusToken => true,
             SyntaxKind.ExclamationToken => true,
             SyntaxKind.TildeToken => true,
+            SyntaxKind.OpenBracketToken => true,
+            SyntaxKind.QuestionOpenBracketToken => true,
             _ => false,
         };
     }
@@ -330,8 +332,10 @@ internal static class SyntaxFacts {
             SyntaxKind.PipeToken => WellKnownMemberNames.BitwiseOrOperatorName,
             SyntaxKind.PlusPlusToken => WellKnownMemberNames.IncrementOperatorName,
             SyntaxKind.MinusMinusToken => WellKnownMemberNames.DecrementOperatorName,
-            SyntaxKind.ExclamationToken => WellKnownMemberNames.LogicalNotName,
-            SyntaxKind.TildeToken => WellKnownMemberNames.BitwiseNotName,
+            SyntaxKind.ExclamationToken => WellKnownMemberNames.LogicalNotOperatorName,
+            SyntaxKind.TildeToken => WellKnownMemberNames.BitwiseNotOperatorName,
+            SyntaxKind.OpenBracketToken => WellKnownMemberNames.IndexOperatorName,
+            SyntaxKind.QuestionOpenBracketToken => WellKnownMemberNames.IndexOperatorName,
             _ => null,
         };
     }
@@ -359,8 +363,9 @@ internal static class SyntaxFacts {
             WellKnownMemberNames.BitwiseOrOperatorName => 2,
             WellKnownMemberNames.IncrementOperatorName => 1,
             WellKnownMemberNames.DecrementOperatorName => 1,
-            WellKnownMemberNames.LogicalNotName => 1,
-            WellKnownMemberNames.BitwiseNotName => 1,
+            WellKnownMemberNames.LogicalNotOperatorName => 1,
+            WellKnownMemberNames.BitwiseNotOperatorName => 1,
+            WellKnownMemberNames.IndexOperatorName => 2,
             _ => 0,
         };
     }

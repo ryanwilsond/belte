@@ -1698,6 +1698,30 @@ class MyClass {
     static int operator+(MyClass a, MyClass b) { ... } // Allowed
 }
 ```
+$BU0112
+The increment and decrement operators assign, so they operators must return the
+containing type to be used in an assignment.
+
+For example:
+
+```
+class MyClass {
+    static int operator++(MyClass a) { ... } // Not allowed, operator `++` must return containing type, in this case `MyClass`
+    static MyClass operator++(MyClass a) { ... } // Allowed
+}
+```
+$BU0113
+The index operator must take in two parameters, the first of which being the
+containing type to index off of.
+
+For example:
+
+```
+class MyClass {
+    static MyClass operator[](int a, int i) { ... } // Not allowed, first parameter must be of the type `MyClass`
+    static MyClass operator[](MyClass a, int i) { ... } // Allowed
+}
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.

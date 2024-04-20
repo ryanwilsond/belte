@@ -1544,4 +1544,19 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0113_IndexOperatorFirstParameter() {
+        var text = @"
+            class A {
+                static int operator[\[\]](int a, A b) { return 3; }
+            }
+        ";
+
+        var diagnostics = @"
+            the first parameter for the '[]' operator must be the containing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

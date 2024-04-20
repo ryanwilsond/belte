@@ -22,6 +22,7 @@ internal static class WellKnownMemberNames {
     internal const string BitwiseOrOperatorName = "op_BitwiseOr";
     internal const string IncrementOperatorName = "op_Increment";
     internal const string DecrementOperatorName = "op_Decrement";
-    internal const string LogicalNotName = "op_LogicalNot";
-    internal const string BitwiseNotName = "op_BitwiseNot";
+    internal const string LogicalNotOperatorName = "op_LogicalNot";
+    internal const string BitwiseNotOperatorName = "op_BitwiseNot";
+    internal const string IndexOperatorName = "op_Index";
 }
