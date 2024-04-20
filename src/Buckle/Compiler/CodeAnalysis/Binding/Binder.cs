@@ -1648,7 +1648,9 @@ internal sealed class Binder {
 
             constant = initializer.constantValue;
 
-            if (type.isImplicit)
+            if (constant is null)
+                diagnostics.Push(Error.NotConstantExpression(declaration.initializer.value.location));
+            else if (type.isImplicit)
                 type = BoundType.CopyWith(type, typeSymbol: BoundType.Assume(constant.value).typeSymbol);
         }
 
