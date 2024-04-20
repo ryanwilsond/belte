@@ -357,7 +357,12 @@ internal sealed class Binder {
         int argument = 0,
         bool isImplicitNull = false,
         bool isTemplate = false) {
-        var conversion = Cast.Classify(expression.type, type);
+        var fromType = expression.type;
+
+        if (expression is BoundType)
+            fromType = BoundType.Type;
+
+        var conversion = Cast.Classify(fromType, type);
         castType = conversion;
 
         if (expression.type.typeSymbol == TypeSymbol.Error || type.typeSymbol == TypeSymbol.Error)
@@ -1467,8 +1472,12 @@ internal sealed class Binder {
 
         var symbols = _scope.LookupOverloads(name);
 
-        if (symbols.Length == 0)
-            symbols = [LookupPrimitive(name)];
+        if (symbols.Length == 0) {
+            var primitive = LookupPrimitive(name);
+
+            if (primitive is not null)
+                symbols = [primitive];
+        }
 
         if (symbols.Length > 0) {
             var containingTypesEqual = (_containingType is not null) &&
@@ -2813,8 +2822,8 @@ internal sealed class Binder {
         var boundOp = BoundBinaryOperator.BindWithOverloading(
             expression.operatorToken,
             expression.operatorToken.kind,
-            boundLeft.type,
-            boundRight.type,
+            boundLeft,
+            boundRight,
             _overloadResolution,
             out var result
         );

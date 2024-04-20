@@ -7,11 +7,13 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class BoundTypeOrConstant {
     internal BoundTypeOrConstant(BoundConstant constant) {
         this.constant = constant;
+        isConstant = true;
         type = null;
     }
 
     internal BoundTypeOrConstant(BoundType type) {
         constant = null;
+        isConstant = false;
         this.type = type;
     }
 
