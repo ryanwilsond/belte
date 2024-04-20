@@ -1643,6 +1643,46 @@ static class MyClass { }
 
 MyClass MyMethod() { ... } // Not allowed, return type cannot be static class `MyClass`
 ```
+$BU0108
+Overloadable operators expected a specific number of arguments. When overloading
+an operator, the number of parameters must match this expected argument count.
+
+For example:
+
+```
+class MyClass {
+    static MyClass operator+(MyClass a, MyClass b, MyClass c) { ... } // Not allowed, overloaded operator `+` expects either 1 or 2 arguments, not 3
+    static MyClass operator+(MyClass a, MyClass b) { ... } // Allowed
+    static MyClass operator+(MyClass a) { ... } // Allowed
+}
+```
+$BU0109
+Operators are static because they do not favor a specific instance (left or right). If an operator is overloaded without
+marking it as static, this error is raised.
+
+For example:
+
+```
+class MyClass {
+    MyClass operator+(MyClass a, MyClass b) { ... } // Not allowed, not marked as static
+    static MyClass operator+(MyClass a, MyClass b) { ... } // Allowed
+}
+```
+$BU0110
+Operators act on instances of classes, and hence cannot be used or defined on
+static classes.
+
+For example:
+
+```
+static class MyClass {
+    static MyClass operator+(MyClass a) { ... } // Not allowed, `MyClass` is static
+}
+
+class MyClass {
+    static MyClass operator+(MyClass a) { ... } // Allowed
+}
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.

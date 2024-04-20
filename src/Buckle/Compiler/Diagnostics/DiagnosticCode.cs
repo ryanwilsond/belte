@@ -116,6 +116,9 @@ public enum DiagnosticCode : int {
     ERR_CannotBeRefAndConstexpr = 105,
     ERR_NotConstantExpression = 106,
     ERR_CannotReturnStatic = 107,
+    ERR_IncorrectOperatorParameterCount = 108,
+    ERR_OperatorMustBeStatic = 109,
+    ERR_StaticOperator = 110,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

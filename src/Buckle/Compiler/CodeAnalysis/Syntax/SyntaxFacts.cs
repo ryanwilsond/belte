@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -279,6 +281,91 @@ internal static class SyntaxFacts {
     }
 
     /// <summary>
+    /// Checks if a <see cref="SyntaxKind" /> is an overloadable unary or binary operator.
+    /// </summary>
+    /// <param name="type"><see cref="SyntaxKind" />.</param>
+    /// <returns>If the <see cref="SyntaxKind" /> is an overloadable operator.</returns>
+    internal static bool IsOverloadableOperator(this SyntaxKind type) {
+        return type switch {
+            SyntaxKind.AsteriskAsteriskToken => true,
+            SyntaxKind.AsteriskToken => true,
+            SyntaxKind.SlashToken => true,
+            SyntaxKind.PercentToken => true,
+            SyntaxKind.PlusToken => true,
+            SyntaxKind.MinusToken => true,
+            SyntaxKind.LessThanLessThanToken => true,
+            SyntaxKind.GreaterThanGreaterThanToken => true,
+            SyntaxKind.GreaterThanGreaterThanGreaterThanToken => true,
+            SyntaxKind.AmpersandToken => true,
+            SyntaxKind.CaretToken => true,
+            SyntaxKind.PipeToken => true,
+            SyntaxKind.PlusPlusToken => true,
+            SyntaxKind.MinusMinusToken => true,
+            SyntaxKind.ExclamationToken => true,
+            SyntaxKind.TildeToken => true,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Gets the associations operator name of an operator token.
+    /// </summary>
+    /// <param name="type"><see cref="SyntaxKind" />.</param>
+    /// <returns>The association operator of the token, or null if the token is not an overloadable operator.</returns>
+    internal static string GetOperatorMemberName(SyntaxKind type, int arity) {
+        return type switch {
+            SyntaxKind.AsteriskAsteriskToken => WellKnownMemberNames.PowerOperatorName,
+            SyntaxKind.AsteriskToken => WellKnownMemberNames.MultiplyOperatorName,
+            SyntaxKind.SlashToken => WellKnownMemberNames.DivideOperatorName,
+            SyntaxKind.PercentToken => WellKnownMemberNames.ModulusOperatorName,
+            SyntaxKind.PlusToken when arity == 1 => WellKnownMemberNames.UnaryPlusOperatorName,
+            SyntaxKind.PlusToken when arity != 1 => WellKnownMemberNames.AdditionOperatorName,
+            SyntaxKind.MinusToken when arity == 1 => WellKnownMemberNames.UnaryNegationOperatorName,
+            SyntaxKind.MinusToken when arity != 1 => WellKnownMemberNames.SubtractionOperatorName,
+            SyntaxKind.LessThanLessThanToken => WellKnownMemberNames.LeftShiftOperatorName,
+            SyntaxKind.GreaterThanGreaterThanToken => WellKnownMemberNames.RightShiftOperatorName,
+            SyntaxKind.GreaterThanGreaterThanGreaterThanToken => WellKnownMemberNames.UnsignedRightShiftOperatorName,
+            SyntaxKind.AmpersandToken => WellKnownMemberNames.BitwiseAndOperatorName,
+            SyntaxKind.CaretToken => WellKnownMemberNames.BitwiseExclusiveOrOperatorName,
+            SyntaxKind.PipeToken => WellKnownMemberNames.BitwiseOrOperatorName,
+            SyntaxKind.PlusPlusToken => WellKnownMemberNames.IncrementOperatorName,
+            SyntaxKind.MinusMinusToken => WellKnownMemberNames.DecrementOperatorName,
+            SyntaxKind.ExclamationToken => WellKnownMemberNames.LogicalNotName,
+            SyntaxKind.TildeToken => WellKnownMemberNames.BitwiseNotName,
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Gets the arity of an operator.
+    /// </summary>
+    /// <param name="name">The well known operator name.</param>
+    /// <returns>The arity of the operator.</returns>
+    internal static int GetOperatorArity(string name) {
+        return name switch {
+            WellKnownMemberNames.PowerOperatorName => 2,
+            WellKnownMemberNames.MultiplyOperatorName => 2,
+            WellKnownMemberNames.DivideOperatorName => 2,
+            WellKnownMemberNames.ModulusOperatorName => 2,
+            WellKnownMemberNames.UnaryPlusOperatorName => 1,
+            WellKnownMemberNames.AdditionOperatorName => 2,
+            WellKnownMemberNames.UnaryNegationOperatorName => 1,
+            WellKnownMemberNames.SubtractionOperatorName => 2,
+            WellKnownMemberNames.LeftShiftOperatorName => 2,
+            WellKnownMemberNames.RightShiftOperatorName => 2,
+            WellKnownMemberNames.UnsignedRightShiftOperatorName => 2,
+            WellKnownMemberNames.BitwiseAndOperatorName => 2,
+            WellKnownMemberNames.BitwiseExclusiveOrOperatorName => 2,
+            WellKnownMemberNames.BitwiseOrOperatorName => 2,
+            WellKnownMemberNames.IncrementOperatorName => 2,
+            WellKnownMemberNames.DecrementOperatorName => 2,
+            WellKnownMemberNames.LogicalNotName => 2,
+            WellKnownMemberNames.BitwiseNotName => 2,
+            _ => 0,
+        };
+    }
+
+    /// <summary>
     /// Gets all unary operator types.
     /// </summary>
     /// <returns>Unary operator types (calling code should not depend on order).</returns>
@@ -309,33 +396,6 @@ internal static class SyntaxFacts {
     /// <returns>If the <see cref="SyntaxKind" /> is a keyword.</returns>
     internal static bool IsKeyword(this SyntaxKind type) {
         return type.ToString().EndsWith("Keyword");
-    }
-
-    /// <summary>
-    /// Checks if a <see cref="SyntaxKind" /> is an overloadable unary or binary operator.
-    /// </summary>
-    /// <param name="type"><see cref="SyntaxKind" />.</param>
-    /// <returns>If the <see cref="SyntaxKind" /> is an overloadable operator.</returns>
-    internal static bool IsOverloadableOperator(this SyntaxKind type) {
-        return type switch {
-            SyntaxKind.AsteriskAsteriskToken => true,
-            SyntaxKind.AsteriskToken => true,
-            SyntaxKind.SlashToken => true,
-            SyntaxKind.PercentToken => true,
-            SyntaxKind.PlusToken => true,
-            SyntaxKind.MinusToken => true,
-            SyntaxKind.LessThanLessThanToken => true,
-            SyntaxKind.GreaterThanGreaterThanToken => true,
-            SyntaxKind.GreaterThanGreaterThanGreaterThanToken => true,
-            SyntaxKind.AmpersandToken => true,
-            SyntaxKind.CaretToken => true,
-            SyntaxKind.PipeToken => true,
-            SyntaxKind.PlusPlusToken => true,
-            SyntaxKind.MinusMinusToken => true,
-            SyntaxKind.ExclamationToken => true,
-            SyntaxKind.TildeToken => true,
-            _ => false,
-        };
     }
 
     /// <summary>

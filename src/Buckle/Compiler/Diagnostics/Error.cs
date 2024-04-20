@@ -989,6 +989,34 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotReturnStatic), location, message);
     }
 
+    /// <summary>
+    /// BU0108. Run `buckle --explain BU0108` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic IncorrectOperatorParameterCount(
+        TextLocation location,
+        string @operator,
+        int expectedArity) {
+        var message = $"overloaded operator '{@operator}' takes {expectedArity} " +
+            $"parameter{(expectedArity == 1 ? "" : "s")}";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_IncorrectOperatorParameterCount), location, message);
+    }
+
+    /// <summary>
+    /// BU0109. Run `buckle --explain BU0109` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic OperatorMustBeStatic(TextLocation location) {
+        var message = $"overloaded operators must be marked as static";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_OperatorMustBeStatic), location, message);
+    }
+
+    /// <summary>
+    /// BU0110. Run `buckle --explain BU0110` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic StaticOperator(TextLocation location) {
+        var message = $"static classes cannot contain operators";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StaticOperator), location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

@@ -1469,4 +1469,49 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0108_IncorrectOperatorParameterCount() {
+        var text = @"
+            class A {
+                static A operator[+](A a, A b, A c) { return a; }
+            }
+        ";
+
+        var diagnostics = @"
+            overloaded operator '+' takes 2 parameters
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0109_OperatorMustBeStatic() {
+        var text = @"
+            class A {
+                A operator[+](A a, A b) { return a; }
+            }
+        ";
+
+        var diagnostics = @"
+            overloaded operators must be marked as static
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0110_StaticOperator() {
+        var text = @"
+            static class A {
+                static A operator[+](A a, A b) { return a; }
+            }
+        ";
+
+        var diagnostics = @"
+            static classes cannot contain operators
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

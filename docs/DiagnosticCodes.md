@@ -118,6 +118,9 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0105 | Error | reference type cannot be marked as a constant expression because references are not compile-time constants |
 | BU0106 | Error | expression is not a compile-time constant |
 | BU0107 | Error | static types cannot be used as return types |
+| BU0108 | Error | overloaded operator '{0}' takes {1} parameters |
+| BU0109 | Error | overloaded operators must be marked as static |
+| BU0110 | Error | static classes cannot contain operators |
 
 ## Command Line Diagnostics
 

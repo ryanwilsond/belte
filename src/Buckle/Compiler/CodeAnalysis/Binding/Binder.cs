@@ -713,20 +713,24 @@ internal sealed class Binder {
         // ? This will return eventually
         BindAttributeLists(@operator.attributeLists);
         var modifiers = BindOperatorDeclarationModifiers(@operator.modifiers);
-        var type = BindType(method.returnType, modifiers, true);
-
-        var parent = constructor.parent as ClassDeclarationSyntax;
-        var className = parent.identifier.text;
-
-        if (type?.typeSymbol.name != className)
-            diagnostics.Push(Error.);
-
+        var type = BindType(@operator.returnType, modifiers, true);
         var parameters = BindParameterList(@operator.parameterList);
+        var name = SyntaxFacts.GetOperatorMemberName(@operator.operatorToken.kind, parameters.Length);
 
-        if (!GetOverloadableOperatorMemberName(@operator.operatorToken, parameters, out var name))
-            diagnostics.Push(Error.);
+        var expectedArity = SyntaxFacts.GetOperatorArity(name);
 
-        var method = new MethodSymbol(
+        if (expectedArity != parameters.Length) {
+            diagnostics.Push(Error.IncorrectOperatorParameterCount(
+                @operator.operatorToken.location,
+                @operator.operatorToken.text,
+                expectedArity
+            ));
+        }
+
+        if ((modifiers & DeclarationModifiers.Static) == 0)
+            diagnostics.Push(Error.OperatorMustBeStatic(@operator.operatorToken.location));
+
+        return new MethodSymbol(
             name,
             parameters,
             type,
@@ -736,13 +740,28 @@ internal sealed class Binder {
     }
 
     private DeclarationModifiers BindOperatorDeclarationModifiers(SyntaxTokenList modifiers) {
+        var declarationModifiers = DeclarationModifiers.None;
+
         if (modifiers is null)
-            return DeclarationModifiers.None;
+            return declarationModifiers;
 
-        foreach (var modifier in modifiers)
-            diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
+        foreach (var modifier in modifiers) {
+            switch (modifier.kind) {
+                case SyntaxKind.StaticKeyword:
+                    if ((declarationModifiers & DeclarationModifiers.Static) != 0) {
+                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                        break;
+                    }
 
-        return DeclarationModifiers.None;
+                    declarationModifiers |= DeclarationModifiers.Static;
+                    break;
+                default:
+                    diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
+                    break;
+            }
+        }
+
+        return declarationModifiers;
     }
 
     private void PreBindTypeDeclaration(TypeDeclarationSyntax @type) {
@@ -914,7 +933,11 @@ internal sealed class Binder {
 
         foreach (var operatorDeclaration in @class.members.OfType<OperatorDeclarationSyntax>()) {
             var @operator = BindOperatorDeclaration(operatorDeclaration);
-            builder.Add(@operator);
+
+            if (isStatic)
+                diagnostics.Push(Error.StaticOperator(operatorDeclaration.operatorToken.location));
+            else
+                builder.Add(@operator);
         }
 
         foreach (var typeDeclaration in @class.members.OfType<TypeDeclarationSyntax>()) {
