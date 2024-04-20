@@ -104,7 +104,7 @@ internal sealed class BoundType : BoundExpression {
         bool isNullable = false,
         bool isLiteral = false,
         int dimensions = 0,
-        ImmutableArray<BoundConstant>? templateArguments = null,
+        ImmutableArray<BoundTypeOrConstant>? templateArguments = null,
         int arity = 0,
         bool isConstantExpression = false) {
         this.typeSymbol = typeSymbol;
@@ -116,7 +116,7 @@ internal sealed class BoundType : BoundExpression {
         this.isNullable = isNullable;
         this.isLiteral = isLiteral;
         this.dimensions = dimensions;
-        this.templateArguments = templateArguments ?? ImmutableArray<BoundConstant>.Empty;
+        this.templateArguments = templateArguments ?? ImmutableArray<BoundTypeOrConstant>.Empty;
         this.arity = arity;
         this.isConstantExpression = isConstantExpression;
     }
@@ -178,7 +178,7 @@ internal sealed class BoundType : BoundExpression {
     /// The arguments for the class template, if any.
     /// </summary>
     /// <value></value>
-    internal ImmutableArray<BoundConstant> templateArguments { get; }
+    internal ImmutableArray<BoundTypeOrConstant> templateArguments { get; }
 
     /// <summary>
     /// The number of template arguments the type has.
@@ -208,7 +208,7 @@ internal sealed class BoundType : BoundExpression {
         bool? isNullable = null,
         bool? isLiteral = null,
         int? dimensions = null,
-        ImmutableArray<BoundConstant>? templateArguments = null,
+        ImmutableArray<BoundTypeOrConstant>? templateArguments = null,
         int? arity = null,
         bool? isConstantExpression = null) {
         if (type is null)

@@ -231,7 +231,10 @@ public sealed class DisplayText {
                     text.Write(CreateSpace());
                 }
 
-                DisplayConstant(text, argument);
+                if (argument.isConstant)
+                    DisplayConstant(text, argument.constant);
+                else
+                    DisplayNode(text, argument.type);
             }
 
             text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));

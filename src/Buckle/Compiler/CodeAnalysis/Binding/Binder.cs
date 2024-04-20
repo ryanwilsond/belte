@@ -102,7 +102,9 @@ internal sealed class Binder {
     /// </param>
     /// <returns>A new <see cref="BoundGlobalScope" />.</returns>
     internal static BoundGlobalScope BindGlobalScope(
-        CompilationOptions options, BoundGlobalScope previous, ImmutableArray<SyntaxTree> syntaxTrees) {
+        CompilationOptions options,
+        BoundGlobalScope previous,
+        ImmutableArray<SyntaxTree> syntaxTrees) {
         var parentScope = CreateParentScope(previous);
         var binder = new Binder(options, options.topLevelBinderFlags, parentScope, null);
 
@@ -232,7 +234,9 @@ internal sealed class Binder {
     /// </param>
     /// <returns>A new <see cref="BoundProgram" /> (then either emitted or evaluated).</returns>
     internal static BoundProgram BindProgram(
-        CompilationOptions options, BoundProgram previous, BoundGlobalScope globalScope) {
+        CompilationOptions options,
+        BoundProgram previous,
+        BoundGlobalScope globalScope) {
         var parentScope = CreateParentScope(globalScope);
 
         if (globalScope.diagnostics.Errors().Any())
@@ -324,22 +328,35 @@ internal sealed class Binder {
     /// <param name="isImplicitNull"></param>
     /// <returns>Created bound cast.</returns>
     internal BoundExpression BindCast(
-        ExpressionSyntax expression, BoundType type, bool allowExplicit = false,
-        int argument = 0, bool isImplicitNull = false) {
+        ExpressionSyntax expression,
+        BoundType type,
+        bool allowExplicit = false,
+        int argument = 0,
+        bool isImplicitNull = false) {
         var boundExpression = BindExpression(expression);
 
         return BindCast(expression.location, boundExpression, type, allowExplicit, argument, isImplicitNull);
     }
 
     internal BoundExpression BindCast(
-        TextLocation diagnosticLocation, BoundExpression expression, BoundType type,
-        bool allowExplicit = false, int argument = 0, bool isImplicitNull = false) {
+        TextLocation diagnosticLocation,
+        BoundExpression expression,
+        BoundType type,
+        bool allowExplicit = false,
+        int argument = 0,
+        bool isImplicitNull = false) {
         return BindCast(diagnosticLocation, expression, type, out _, allowExplicit, argument, isImplicitNull);
     }
 
     internal BoundExpression BindCast(
-        TextLocation diagnosticLocation, BoundExpression expression, BoundType type,
-        out Cast castType, bool allowExplicit = false, int argument = 0, bool isImplicitNull = false) {
+        TextLocation diagnosticLocation,
+        BoundExpression expression,
+        BoundType type,
+        out Cast castType,
+        bool allowExplicit = false,
+        int argument = 0,
+        bool isImplicitNull = false,
+        bool isTemplate = false) {
         var conversion = Cast.Classify(expression.type, type);
         castType = conversion;
 
@@ -353,6 +370,11 @@ internal sealed class Binder {
                 diagnostics.Push(Error.CannotConvertNull(diagnosticLocation, type, argument));
 
             return new BoundErrorExpression();
+        }
+
+        if (isTemplate && expression is BoundType && type.typeSymbol == TypeSymbol.Type) {
+            conversion = Cast.Identity;
+            castType = conversion;
         }
 
         if (!conversion.exists)
@@ -534,7 +556,7 @@ internal sealed class Binder {
 
             var boundDefault = parameter.defaultValue is null
                 ? null
-                : BindExpression(parameter.defaultValue);
+                : BindExpression(parameter.defaultValue, allowTypes: isTemplate);
 
             if (boundDefault != null && boundDefault.constantValue is null) {
                 diagnostics.Push(Error.DefaultMustBeConstant(parameter.defaultValue.location));
@@ -841,6 +863,10 @@ internal sealed class Binder {
         }
     }
 
+    private void PreBindTemplateType(ParameterSymbol template) {
+        _scope.TryDeclareType(new TemplateTypeSymbol(template));
+    }
+
     private TypeSymbol BindTypeDeclaration(TypeDeclarationSyntax @type) {
         if (@type is StructDeclarationSyntax s)
             return BindStructDeclaration(s);
@@ -920,6 +946,9 @@ internal sealed class Binder {
             foreach (var templateParameter in templateParameters) {
                 builder.Add(templateParameter);
                 templateBuilder.Add(templateParameter);
+
+                if (templateParameter.type.typeSymbol == TypeSymbol.Type)
+                    PreBindTemplateType(templateParameter);
             }
         }
 
@@ -1325,16 +1354,20 @@ internal sealed class Binder {
         if (!identifierSymbols.Any()) {
             var result = _overloadResolution.TemplateOverloadResolution(
                 symbols.ToImmutableArray(),
-                ImmutableArray<(string, BoundConstant)>.Empty,
+                ImmutableArray<(string, BoundTypeOrConstant)>.Empty,
                 name.identifier.text,
                 name.identifier,
                 null
             );
 
-            var constantArguments = ImmutableArray.CreateBuilder<BoundConstant>();
+            var constantArguments = ImmutableArray.CreateBuilder<BoundTypeOrConstant>();
 
-            foreach (var argument in result.arguments)
-                constantArguments.Add(argument.constantValue);
+            foreach (var argument in result.arguments) {
+                if (argument is BoundType t)
+                    constantArguments.Add(new BoundTypeOrConstant(t));
+                else
+                    constantArguments.Add(new BoundTypeOrConstant(argument.constantValue));
+            }
 
             if (result.succeeded) {
                 return new BoundType(
@@ -1370,10 +1403,14 @@ internal sealed class Binder {
                 name.templateArgumentList
             );
 
-            var constantArguments = ImmutableArray.CreateBuilder<BoundConstant>();
+            var constantArguments = ImmutableArray.CreateBuilder<BoundTypeOrConstant>();
 
-            foreach (var argument in result.arguments)
-                constantArguments.Add(argument.constantValue);
+            foreach (var argument in result.arguments) {
+                if (argument is BoundType t)
+                    constantArguments.Add(new BoundTypeOrConstant(t));
+                else
+                    constantArguments.Add(new BoundTypeOrConstant(argument.constantValue));
+            }
 
             if (result.succeeded) {
                 return new BoundType(
@@ -1429,6 +1466,9 @@ internal sealed class Binder {
         }
 
         var symbols = _scope.LookupOverloads(name);
+
+        if (symbols.Length == 0)
+            symbols = [LookupPrimitive(name)];
 
         if (symbols.Length > 0) {
             var containingTypesEqual = (_containingType is not null) &&
@@ -1502,7 +1542,7 @@ internal sealed class Binder {
         var name = syntax.identifier.text;
         var arity = 0;
 
-        var templateArguments = ImmutableArray<(string, BoundConstant)>.Empty;
+        var templateArguments = ImmutableArray<(string, BoundTypeOrConstant)>.Empty;
         TextLocation templateLocation = null;
 
         if (syntax is TemplateNameSyntax tn) {
@@ -1536,6 +1576,18 @@ internal sealed class Binder {
 
             return new BoundVariableExpression(v);
         } else if (symbols[0] is TypeSymbol) {
+            if (symbols[0] is PrimitiveTypeSymbol p) {
+                if (syntax is TemplateNameSyntax t) {
+                    diagnostics.Push(
+                        Error.TemplateNotExpected(t.templateArgumentList.location, t.identifier.text)
+                    );
+
+                    return new BoundErrorExpression();
+                }
+
+                return new BoundType(p, isNullable: true);
+            }
+
             var namedSymbols = symbols.Select(s => s as NamedTypeSymbol);
 
             if (syntax is IdentifierNameSyntax i)
@@ -2585,21 +2637,25 @@ internal sealed class Binder {
 
     private bool BindTemplateArgumentList(
         TemplateArgumentListSyntax argumentList,
-        out ImmutableArray<(string, BoundConstant)> templateArguments) {
+        out ImmutableArray<(string, BoundTypeOrConstant)> templateArguments) {
         var saved = _flags;
         _flags |= BinderFlags.TemplateArgumentList;
 
         bool result;
 
         if (argumentList is null) {
-            templateArguments = ImmutableArray<(string, BoundConstant)>.Empty;
+            templateArguments = ImmutableArray<(string, BoundTypeOrConstant)>.Empty;
             result = true;
         } else {
             result = PartiallyBindArguments(argumentList.arguments, out var arguments, true);
-            var builder = ImmutableArray.CreateBuilder<(string, BoundConstant)>();
+            var builder = ImmutableArray.CreateBuilder<(string, BoundTypeOrConstant)>();
 
-            foreach (var argument in arguments)
-                builder.Add((argument.Item1, argument.Item2.constantValue));
+            foreach (var argument in arguments) {
+                if (argument.Item2 is BoundType t)
+                    builder.Add((argument.Item1, new BoundTypeOrConstant(t)));
+                else
+                    builder.Add((argument.Item1, new BoundTypeOrConstant(argument.Item2.constantValue)));
+            }
 
             templateArguments = builder.ToImmutable();
         }
@@ -2611,7 +2667,7 @@ internal sealed class Binder {
     private bool PartiallyBindArguments(
         SeparatedSyntaxList<ArgumentSyntax> arguments,
         out ImmutableArray<(string, BoundExpression)> boundArguments,
-        bool mustBeConstant = false) {
+        bool isTemplate = false) {
         var argumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
         var seenNames = new HashSet<string>();
         var result = true;
@@ -2631,12 +2687,12 @@ internal sealed class Binder {
                 result = false;
             }
 
-            var boundExpression = BindExpression(arguments[i].expression);
+            var boundExpression = BindExpression(arguments[i].expression, allowTypes: isTemplate);
 
             if (boundExpression is BoundEmptyExpression)
                 boundExpression = new BoundLiteralExpression(null, true);
 
-            if (mustBeConstant && boundExpression.constantValue is null) {
+            if (isTemplate && boundExpression.constantValue is null && boundExpression is not BoundType) {
                 diagnostics.Push(Error.TemplateMustBeConstant(arguments[i].location));
                 result = false;
             }

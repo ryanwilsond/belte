@@ -839,11 +839,17 @@ internal sealed class CSharpEmitter {
     private void EmitObjectCreationExpression(
         IndentedTextWriter indentedTextWriter, BoundObjectCreationExpression expression) {
         indentedTextWriter.Write($"new {GetEquivalentType(expression.type)}");
-        var arguments = expression.arguments.AddRange(
-            expression.type.templateArguments.Select(t => new BoundLiteralExpression(t.value)).Cast<BoundExpression>()
-        );
+        var arguments = ImmutableArray.CreateBuilder<BoundExpression>();
+        arguments.AddRange(expression.arguments);
 
-        EmitArguments(indentedTextWriter, arguments);
+        foreach (var templateArgument in expression.type.templateArguments) {
+            if (templateArgument.isConstant)
+                arguments.Add(new BoundLiteralExpression(templateArgument.constant.value));
+            else
+                arguments.Add(templateArgument.type);
+        }
+
+        EmitArguments(indentedTextWriter, arguments.ToImmutable());
     }
 
     private void EmitMemberAccessExpression(

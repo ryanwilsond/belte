@@ -494,20 +494,52 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject EvaluateType(BoundType node, ValueWrapper<bool> _) {
+    private EvaluatorObject EvaluateType(BoundType node, ValueWrapper<bool> abort) {
         if (node.arity == 0)
-            return null;
+            return EvaluateTypeCore(node, abort);
 
         var locals = new Dictionary<IVariableSymbol, IEvaluatorObject>();
         var typeSymbol = node.typeSymbol as NamedTypeSymbol;
 
-        for (var i = 0; i < node.templateArguments.Length; i++)
-            locals.Add(typeSymbol.templateParameters[i], new EvaluatorObject(node.templateArguments[i].value));
+        for (var i = 0; i < node.templateArguments.Length; i++) {
+            EvaluatorObject value;
+
+            if (node.templateArguments[i].isConstant)
+                value = new EvaluatorObject(node.templateArguments[i].constant.value);
+            else
+                value = EvaluateType(node.templateArguments[i].type, abort);
+
+            locals.Add(typeSymbol.templateParameters[i], value);
+        }
 
         _locals.Push(locals);
         _templateConstantDepth++;
 
-        return null;
+        return EvaluateTypeCore(node, abort);
+    }
+
+    private EvaluatorObject EvaluateTypeCore(BoundType node, ValueWrapper<bool> abort) {
+        var members = new Dictionary<Symbol, EvaluatorObject>();
+
+        if (node.typeSymbol is not NamedTypeSymbol)
+            return new EvaluatorObject(members: members);
+
+        var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).members;
+        var templateArgumentIndex = 0;
+
+        foreach (var templateArgument in typeMembers.Where(t => t is ParameterSymbol)) {
+            EvaluatorObject value;
+
+            if (node.type.templateArguments[templateArgumentIndex].isConstant)
+                value = new EvaluatorObject(node.type.templateArguments[templateArgumentIndex].constant.value);
+            else
+                value = EvaluateType(node.type.templateArguments[templateArgumentIndex].type, abort);
+
+            templateArgumentIndex++;
+            members.Add(templateArgument, value);
+        }
+
+        return new EvaluatorObject(members: members);
     }
 
     private EvaluatorObject EvaluateThisExpression(BoundThisExpression _, ValueWrapper<bool> _1) {
@@ -541,16 +573,14 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateObjectCreationExpression(
-        BoundObjectCreationExpression node, ValueWrapper<bool> abort) {
-        var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).members;
+        BoundObjectCreationExpression node,
+        ValueWrapper<bool> abort) {
+        var core = EvaluateTypeCore(node.type, abort);
         var members = new Dictionary<Symbol, EvaluatorObject>();
+        var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).members;
 
-        var templateArgumentIndex = 0;
-
-        foreach (var templateArgument in typeMembers.Where(t => t is ParameterSymbol)) {
-            var value = new EvaluatorObject(node.type.templateArguments[templateArgumentIndex++].value);
-            members.Add(templateArgument, value);
-        }
+        foreach (var member in core.members)
+            members.Add(member.Key, member.Value);
 
         foreach (var member in typeMembers.Where(t => t is not ParameterSymbol)) {
             var value = new EvaluatorObject();

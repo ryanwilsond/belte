@@ -16,7 +16,7 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
         ImmutableArray<Symbol> symbols,
         TypeDeclarationSyntax declaration,
         DeclarationModifiers modifiers)
-        : base(declaration.identifier.text) {
+        : base(declaration?.identifier?.text) {
         members = symbols;
         this.declaration = declaration;
         this.templateParameters = templateParameters;
