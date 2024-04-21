@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -18,7 +19,7 @@ internal sealed class BoundMemberAccessExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.MemberAccessExpression;
 
-    internal override BoundType type => right.type;
+    internal override BoundType type => BoundType.Compound(left.type, right.type);
 
     internal override BoundConstant constantValue => right.constantValue;
 

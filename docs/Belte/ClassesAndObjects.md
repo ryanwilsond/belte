@@ -4,6 +4,7 @@
 - [4.2](#42-members) Members
 - [4.3](#43-modifiers) Modifiers
 - [4.4](#44-constructors) Constructors
+- [4.5](#45-templates) Templates
 
 ## 4.1 Classes
 
@@ -141,4 +142,57 @@ class MyClass {
 }
 
 new MyClass(4);
+```
+
+## 4.5 Templates
+
+Classes can be declared as templates and take in template arguments that change how the class operates at runtime.
+Template arguments can either be compile-time constants or types (similar to C++ templates and C# generics).
+
+To demonstrate this concept, a simplified definition for a List type is shown:
+
+```belte
+class List<type t> {
+  t[] array;
+  int length;
+
+  List(t[] array) {
+    this.array = array;
+    length = Length(array);
+  }
+
+  static t operator[](List list, int index) {
+    return list.array[index];
+  }
+}
+```
+
+This List template can be used to create List objects of different types:
+
+```belte
+var myList = new List<int>(
+  { 1, 2, 3 }
+);
+
+var myList = new List<string>(
+  { "Hello", "world!" }
+);
+
+var myList = new List<bool[]>(
+  {
+    { true, false },
+    { false },
+    { true, true, false }
+  }
+);
+```
+
+These types are not limited to primitives:
+
+```belte
+var myList = new List<List<int>>({
+  new List<int>({ 1, 2, 3 }),
+  new List<int>({ 3 }),
+  new List<int>({ 3, 3, 2, 45 })
+});
 ```

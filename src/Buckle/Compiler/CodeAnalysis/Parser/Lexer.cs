@@ -266,175 +266,111 @@ internal sealed class Lexer {
                 break;
             case '%':
                 _position++;
-                if (_current == '=') {
-                    _kind = SyntaxKind.PercentEqualsToken;
-                    _position++;
-                } else {
-                    _kind = SyntaxKind.PercentToken;
-                }
+                if (AdvanceIfMatches('=')) _kind = SyntaxKind.PercentEqualsToken;
+                else _kind = SyntaxKind.PercentToken;
                 break;
             case '^':
                 _position++;
-                if (_current == '=') {
-                    _kind = SyntaxKind.CaretEqualsToken;
-                    _position++;
-                } else {
-                    _kind = SyntaxKind.CaretToken;
-                }
+                if (AdvanceIfMatches('=')) _kind = SyntaxKind.CaretEqualsToken;
+                else _kind = SyntaxKind.CaretToken;
                 break;
             case '?':
-                if (_lookahead == '?') {
-                    _position += 2;
-                    if (_current == '=') {
-                        _kind = SyntaxKind.QuestionQuestionEqualsToken;
-                        _position++;
-                    } else {
-                        _kind = SyntaxKind.QuestionQuestionToken;
-                    }
-                } else if (_lookahead == '.') {
+                _position++;
+
+                if (AdvanceIfMatches('?')) {
+                    if (AdvanceIfMatches('=')) _kind = SyntaxKind.QuestionQuestionEqualsToken;
+                    else _kind = SyntaxKind.QuestionQuestionToken;
+                } else if (AdvanceIfMatches('.')) {
                     _kind = SyntaxKind.QuestionPeriodToken;
-                    _position += 2;
-                } else if (_lookahead == '[') {
+                } else if (AdvanceIfMatches('[')) {
                     _kind = SyntaxKind.QuestionOpenBracketToken;
-                    _position += 2;
                 } else {
                     _kind = SyntaxKind.QuestionToken;
-                    _position++;
                 }
+
                 break;
             case '+':
                 _position++;
-                if (_current == '=') {
-                    _kind = SyntaxKind.PlusEqualsToken;
-                    _position++;
-                } else if (_current == '+') {
-                    _kind = SyntaxKind.PlusPlusToken;
-                    _position++;
-                } else {
-                    _kind = SyntaxKind.PlusToken;
-                }
+                if (AdvanceIfMatches('=')) _kind = SyntaxKind.PlusEqualsToken;
+                else if (AdvanceIfMatches('+')) _kind = SyntaxKind.PlusPlusToken;
+                else _kind = SyntaxKind.PlusToken;
                 break;
             case '-':
                 _position++;
-                if (_current == '=') {
-                    _kind = SyntaxKind.MinusEqualsToken;
-                    _position++;
-                } else if (_current == '-') {
-                    _kind = SyntaxKind.MinusMinusToken;
-                    _position++;
-                } else {
-                    _kind = SyntaxKind.MinusToken;
-                }
+                if (AdvanceIfMatches('=')) _kind = SyntaxKind.MinusEqualsToken;
+                else if (AdvanceIfMatches('-')) _kind = SyntaxKind.MinusMinusToken;
+                else _kind = SyntaxKind.MinusToken;
                 break;
             case '/':
                 _position++;
-                if (_current == '=') {
-                    _kind = SyntaxKind.SlashEqualsToken;
-                    _position++;
-                } else {
-                    _kind = SyntaxKind.SlashToken;
-                }
+                if (AdvanceIfMatches('=')) _kind = SyntaxKind.SlashEqualsToken;
+                else _kind = SyntaxKind.SlashToken;
                 break;
             case '*':
                 _position++;
-                if (_current == '*') {
-                    if (_lookahead == '=') {
-                        _position++;
-                        _kind = SyntaxKind.AsteriskAsteriskEqualsToken;
-                    } else {
-                        _kind = SyntaxKind.AsteriskAsteriskToken;
-                    }
-                    _position++;
-                } else if (_current == '=') {
+
+                if (AdvanceIfMatches('*')) {
+                    if (AdvanceIfMatches('=')) _kind = SyntaxKind.AsteriskAsteriskEqualsToken;
+                    else _kind = SyntaxKind.AsteriskAsteriskToken;
+                } else if (AdvanceIfMatches('=')) {
                     _kind = SyntaxKind.AsteriskEqualsToken;
-                    _position++;
                 } else {
                     _kind = SyntaxKind.AsteriskToken;
                 }
+
                 break;
             case '&':
                 _position++;
-                if (_current == '&') {
-                    _kind = SyntaxKind.AmpersandAmpersandToken;
-                    _position++;
-                } else if (_current == '=') {
-                    _kind = SyntaxKind.AmpersandEqualsToken;
-                    _position++;
-                } else {
-                    _kind = SyntaxKind.AmpersandToken;
-                }
+                if (AdvanceIfMatches('&')) _kind = SyntaxKind.AmpersandAmpersandToken;
+                else if (AdvanceIfMatches('=')) _kind = SyntaxKind.AmpersandEqualsToken;
+                else _kind = SyntaxKind.AmpersandToken;
                 break;
             case '|':
                 _position++;
-                if (_current == '|') {
-                    _kind = SyntaxKind.PipePipeToken;
-                    _position++;
-                } else if (_current == '=') {
-                    _kind = SyntaxKind.PipeEqualsToken;
-                    _position++;
-                } else {
-                    _kind = SyntaxKind.PipeToken;
-                }
+                if (AdvanceIfMatches('|')) _kind = SyntaxKind.PipePipeToken;
+                else if (AdvanceIfMatches('=')) _kind = SyntaxKind.PipeEqualsToken;
+                else _kind = SyntaxKind.PipeToken;
                 break;
             case '=':
                 _position++;
-                if (_current == '=') {
-                    _kind = SyntaxKind.EqualsEqualsToken;
-                    _position++;
-                } else {
-                    _kind = SyntaxKind.EqualsToken;
-                }
+                if (AdvanceIfMatches('=')) _kind = SyntaxKind.EqualsEqualsToken;
+                else _kind = SyntaxKind.EqualsToken;
                 break;
             case '!':
                 _position++;
-                if (_current == '=') {
-                    _position++;
-                    _kind = SyntaxKind.ExclamationEqualsToken;
-                } else {
-                    _kind = SyntaxKind.ExclamationToken;
-                }
+                if (AdvanceIfMatches('=')) _kind = SyntaxKind.ExclamationEqualsToken;
+                else _kind = SyntaxKind.ExclamationToken;
                 break;
             case '<':
                 _position++;
-                if (_current == '=') {
-                    _position++;
+
+                if (AdvanceIfMatches('<')) {
+                    if (AdvanceIfMatches('=')) _kind = SyntaxKind.LessThanLessThanEqualsToken;
+                    else _kind = SyntaxKind.LessThanLessThanToken;
+                } else if (AdvanceIfMatches('=')) {
                     _kind = SyntaxKind.LessThanEqualsToken;
-                } else if (_current == '<') {
-                    if (_lookahead == '=') {
-                        _position++;
-                        _kind = SyntaxKind.LessThanLessThanEqualsToken;
-                    } else {
-                        _kind = SyntaxKind.LessThanLessThanToken;
-                    }
-                    _position++;
                 } else {
                     _kind = SyntaxKind.LessThanToken;
                 }
+
                 break;
             case '>':
                 _position++;
-                if (_current == '=') {
-                    _position++;
+                _kind = SyntaxKind.GreaterThanToken;
+
+                if (AdvanceIfMatches('=')) {
                     _kind = SyntaxKind.GreaterThanEqualsToken;
-                } else if (_current == '>') {
-                    if (_lookahead == '=') {
-                        _position++;
+                } else if (AdvanceIfMatches('>')) {
+                    if (AdvanceIfMatches('=')) {
                         _kind = SyntaxKind.GreaterThanGreaterThanEqualsToken;
-                    } else if (_lookahead == '>') {
-                        if (Peek(2) == '=') {
-                            _position++;
-                            _kind = SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken;
-                        } else {
-                            _kind = SyntaxKind.GreaterThanGreaterThanGreaterThanToken;
-                        }
-                        _position++;
+                    } else if (AdvanceIfMatches('>')) {
+                        if (AdvanceIfMatches('=')) _kind = SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken;
+                        else _position -= 2;
                     } else {
-                        _kind = SyntaxKind.GreaterThanGreaterThanToken;
+                        _position--;
                     }
-                    _position++;
-                } else {
-                    _kind = SyntaxKind.GreaterThanToken;
                 }
+
                 break;
             case '"':
                 ReadStringLiteral();
@@ -464,6 +400,15 @@ internal sealed class Lexer {
 
                 break;
         }
+    }
+
+    private bool AdvanceIfMatches(char character) {
+        if (_current == character) {
+            _position++;
+            return true;
+        }
+
+        return false;
     }
 
     private void ReadSingeLineComment() {

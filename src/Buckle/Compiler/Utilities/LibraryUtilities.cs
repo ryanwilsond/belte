@@ -85,7 +85,7 @@ internal static class LibraryUtilities {
         return new BoundType(type, isNullable: true);
     }
 
-    private static ClassDeclarationSyntax CreateDeclaration(string name) {
+    internal static ClassDeclarationSyntax CreateDeclaration(string name) {
         return (ClassDeclarationSyntax)CodeAnalysis.Syntax.InternalSyntax.SyntaxFactory.ClassDeclaration(
             null, // Attributes
             null, // Modifiers
@@ -97,7 +97,7 @@ internal static class LibraryUtilities {
         ).CreateRed();
     }
 
-    private static ImmutableArray<ParameterSymbol> CreateParameterList(List<(string, BoundType)> parameters) {
+    internal static ImmutableArray<ParameterSymbol> CreateParameterList(List<(string, BoundType)> parameters) {
         var builder = ImmutableArray.CreateBuilder<ParameterSymbol>(parameters.Count);
 
         for (var i = 0; i < parameters.Count; i++) {
