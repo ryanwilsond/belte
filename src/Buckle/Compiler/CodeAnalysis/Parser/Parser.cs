@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -96,6 +97,10 @@ internal sealed partial class Parser {
         var members = ParseMembers(true);
         var endOfFile = Match(SyntaxKind.EndOfFileToken);
         return SyntaxFactory.CompilationUnit(members, endOfFile);
+    }
+
+    private static bool NoTriviaBetween(SyntaxToken token1, SyntaxToken token2) {
+        return token1.GetTrailingTriviaWidth() == 0 && token2.GetLeadingTriviaWidth() == 0;
     }
 
     private void PreLex() {
@@ -1372,11 +1377,51 @@ internal sealed partial class Parser {
     }
 
     private ExpressionSyntax ParseOperatorExpression(int parentPrecedence = 0) {
+        SyntaxToken ConjoinOperators(int length) {
+            var operatorToken = EatToken();
+
+            if (length == 1) {
+                return operatorToken;
+            } else if (length == 2) {
+                var operatorToken2 = EatToken();
+
+                return SyntaxFactory.Token(
+                    operatorToken.GetLeadingTrivia(),
+                    SyntaxKind.GreaterThanGreaterThanToken,
+                    operatorToken2.GetTrailingTrivia()
+                );
+            } else if (length == 3) {
+                EatToken();
+                var operatorToken2 = EatToken();
+
+                return SyntaxFactory.Token(
+                    operatorToken.GetLeadingTrivia(),
+                    SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
+                    operatorToken2.GetTrailingTrivia()
+                );
+            }
+
+            throw ExceptionUtilities.Unreachable();
+        }
+
         ExpressionSyntax left;
+        var tokensToCombine = 1;
         var unaryPrecedence = currentToken.kind.GetUnaryPrecedence();
 
+        if (currentToken.kind == SyntaxKind.GreaterThanToken &&
+            Peek(1).kind == SyntaxKind.GreaterThanToken &&
+            NoTriviaBetween(currentToken, Peek(1))) {
+            if (Peek(2).kind == SyntaxKind.GreaterThanToken && NoTriviaBetween(Peek(1), Peek(2))) {
+                tokensToCombine = 3;
+                unaryPrecedence = SyntaxKind.GreaterThanGreaterThanGreaterThanToken.GetUnaryPrecedence();
+            } else {
+                tokensToCombine = 2;
+                unaryPrecedence = SyntaxKind.GreaterThanGreaterThanToken.GetUnaryPrecedence();
+            }
+        }
+
         if (unaryPrecedence != 0 && unaryPrecedence >= parentPrecedence && !IsTerminator()) {
-            var operatorToken = EatToken();
+            var operatorToken = ConjoinOperators(tokensToCombine);
 
             if (operatorToken.kind is SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken) {
                 var operand = ParsePrimaryExpression();
@@ -1392,10 +1437,22 @@ internal sealed partial class Parser {
         while (true) {
             var precedence = currentToken.kind.GetBinaryPrecedence();
 
+            if (currentToken.kind == SyntaxKind.GreaterThanToken &&
+                Peek(1).kind == SyntaxKind.GreaterThanToken &&
+                NoTriviaBetween(currentToken, Peek(1))) {
+                if (Peek(2).kind == SyntaxKind.GreaterThanToken && NoTriviaBetween(Peek(1), Peek(2))) {
+                    tokensToCombine = 3;
+                    precedence = SyntaxKind.GreaterThanGreaterThanGreaterThanToken.GetBinaryPrecedence();
+                } else {
+                    tokensToCombine = 2;
+                    precedence = SyntaxKind.GreaterThanGreaterThanToken.GetBinaryPrecedence();
+                }
+            }
+
             if (precedence == 0 || precedence <= parentPrecedence || IsTerminator())
                 break;
 
-            var operatorToken = EatToken();
+            var operatorToken = ConjoinOperators(tokensToCombine);
             var right = ParseOperatorExpression(precedence);
             left = SyntaxFactory.BinaryExpression(left, operatorToken, right);
         }

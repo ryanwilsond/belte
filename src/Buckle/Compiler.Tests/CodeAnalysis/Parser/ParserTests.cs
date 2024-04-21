@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using Buckle.CodeAnalysis.Syntax;
 using Xunit;
 
@@ -107,9 +108,15 @@ public sealed class ParserTests {
         return false;
     }
 
+    private static IEnumerable<SyntaxKind> GetBinaryOperators() {
+        return SyntaxFacts.GetBinaryOperatorTypes()
+            .Where(k => k is not SyntaxKind.GreaterThanGreaterThanToken
+                         and not SyntaxKind.GreaterThanGreaterThanGreaterThanToken);
+    }
+
     public static IEnumerable<object[]> GetBinaryOperatorPairsData() {
-        foreach (var op1 in SyntaxFacts.GetBinaryOperatorTypes()) {
-            foreach (var op2 in SyntaxFacts.GetBinaryOperatorTypes()) {
+        foreach (var op1 in GetBinaryOperators()) {
+            foreach (var op2 in GetBinaryOperators()) {
                 if (!AmbiguousOperator(op1, op2))
                     yield return new object[] { op1, op2 };
             }
@@ -118,7 +125,7 @@ public sealed class ParserTests {
 
     public static IEnumerable<object[]> GetUnaryOperatorPairsData() {
         foreach (var unary in SyntaxFacts.GetUnaryOperatorTypes()) {
-            foreach (var binary in SyntaxFacts.GetBinaryOperatorTypes()) {
+            foreach (var binary in GetBinaryOperators()) {
                 yield return new object[] { unary, binary };
             }
         }

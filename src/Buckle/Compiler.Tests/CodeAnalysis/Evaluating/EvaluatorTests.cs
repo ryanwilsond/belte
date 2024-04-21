@@ -344,6 +344,7 @@ public sealed class EvaluatorTests {
     [InlineData("class A<int a, int b> { static int Test() { return a + b; } } return A<2,3>.Test();", 5)]
     [InlineData("class A<type t> { t a; } var a = new A<string>(); a.a = \"test\"; return a.a;", "test")]
     [InlineData("class A<type t> { t a; } var a = new A<int[]>(); a.a = {1, 2, 3}; return a.a[1];", 2)]
+    [InlineData("class A<type t> { }; var a = new A<A<int>>();", null)]
     // Operators
     [InlineData("class A { int a; A(int a) { this.a = a; } static int operator+(A a) { return a.a; } static int operator+(A a, int b) { return a.a + b; } } var a = new A(3); return a + 5;", 8)]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {

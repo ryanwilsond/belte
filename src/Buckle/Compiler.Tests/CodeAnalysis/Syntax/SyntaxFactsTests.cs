@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Buckle.CodeAnalysis.Syntax;
 using Xunit;
 
@@ -24,7 +25,12 @@ public sealed class SyntaxFactTests {
     }
 
     public static IEnumerable<object[]> GetSyntaxTypeData() {
-        var types = (SyntaxKind[])Enum.GetValues(typeof(SyntaxKind));
+        var types = Enum.GetValues(typeof(SyntaxKind))
+            .Cast<SyntaxKind>()
+            .Where(k => k is not SyntaxKind.GreaterThanGreaterThanToken
+                         and not SyntaxKind.GreaterThanGreaterThanGreaterThanToken)
+            .ToArray();
+
         foreach (var type in types)
             yield return new object[] { type };
     }
