@@ -69,7 +69,13 @@ public static class SymbolDisplay {
         DisplayModifiers(text, symbol);
 
         if (symbol is NamedTypeSymbol n) {
-            text.Write(CreateKeyword(n is ClassSymbol ? SyntaxKind.ClassKeyword : SyntaxKind.StructKeyword));
+            if (n is ClassSymbol)
+                text.Write(CreateKeyword(SyntaxKind.ClassKeyword));
+            else if (n is StructSymbol)
+                text.Write(CreateKeyword(SyntaxKind.StructKeyword));
+            else
+                text.Write(CreateKeyword("type"));
+
             text.Write(CreateSpace());
 
             DisplayContainedNames(text, symbol);

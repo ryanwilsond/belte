@@ -162,11 +162,29 @@ internal sealed class CSharpEmitter {
     }
 
     private void EmitClass(IndentedTextWriter indentedTextWriter, ClassSymbol @class) {
-        var signature = $"public class {GetSafeName(@class.name)}";
+        var signature = new StringBuilder($"public class {GetSafeName(@class.name)}");
+        var firstTemplate = true;
+        var needsCloseBracket = false;
 
-        using (var classCurly = new CurlyIndenter(indentedTextWriter, signature)) {
-            foreach (var parameter in @class.members.OfType<ParameterSymbol>())
-                EmitTemplateParameter(indentedTextWriter, parameter);
+        foreach (var parameter in @class.members.OfType<ParameterSymbol>()) {
+            if (parameter.type.typeSymbol == TypeSymbol.Type) {
+                if (firstTemplate) {
+                    needsCloseBracket = true;
+                    signature.Append($"<{GetSafeName(parameter.name)}");
+                } else {
+                    signature.Append($", {GetSafeName(parameter.name)}");
+                }
+            }
+        }
+
+        if (needsCloseBracket)
+            signature.Append('>');
+
+        using (var classCurly = new CurlyIndenter(indentedTextWriter, signature.ToString())) {
+            foreach (var parameter in @class.members.OfType<ParameterSymbol>()) {
+                if (parameter.type.typeSymbol != TypeSymbol.Type)
+                    EmitTemplateParameter(indentedTextWriter, parameter);
+            }
 
             foreach (var field in @class.members.OfType<FieldSymbol>()) {
                 if (!field.isConstant)
@@ -210,7 +228,7 @@ internal sealed class CSharpEmitter {
         var parametersSignature = new StringBuilder();
         var isFirst = true;
 
-        void AddParameters(ImmutableArray<ParameterSymbol> parameters) {
+        void AddParameters(IEnumerable<ParameterSymbol> parameters) {
             foreach (var parameter in parameters) {
                 if (isFirst)
                     isFirst = false;
@@ -221,14 +239,16 @@ internal sealed class CSharpEmitter {
             }
         }
 
-        AddParameters(templateParameters);
+        AddParameters(templateParameters.Where(p => p.type.typeSymbol != TypeSymbol.Type));
         AddParameters(constructor.parameters);
 
         var signature = $"public {GetSafeName(name)}({parametersSignature})";
 
         using (var methodCurly = new CurlyIndenter(indentedTextWriter, signature)) {
-            foreach (var parameter in templateParameters)
-                indentedTextWriter.WriteLine($"this.{parameter.name} = {parameter.name};");
+            foreach (var parameter in templateParameters) {
+                if (parameter.type.typeSymbol != TypeSymbol.Type)
+                    indentedTextWriter.WriteLine($"this.{parameter.name} = {parameter.name};");
+            }
 
             EmitBody(indentedTextWriter, _methods[constructor]);
         }
@@ -747,6 +767,26 @@ internal sealed class CSharpEmitter {
         indentedTextWriter.Write(")");
     }
 
+    private void EmitTypeArguments(IndentedTextWriter indentedTextWriter, ImmutableArray<BoundType> arguments) {
+        if (arguments.Length == 0)
+            return;
+
+        indentedTextWriter.Write("<");
+
+        var isFirst = true;
+
+        foreach (var argument in arguments) {
+            if (isFirst)
+                isFirst = false;
+            else
+                indentedTextWriter.Write(", ");
+
+            indentedTextWriter.Write(GetEquivalentType(argument, true));
+        }
+
+        indentedTextWriter.Write(">");
+    }
+
     private void EmitIndexExpression(IndentedTextWriter indentedTextWriter, BoundIndexExpression expression) {
         EmitExpression(indentedTextWriter, expression.expression);
         indentedTextWriter.Write("[");
@@ -840,15 +880,17 @@ internal sealed class CSharpEmitter {
         IndentedTextWriter indentedTextWriter, BoundObjectCreationExpression expression) {
         indentedTextWriter.Write($"new {GetEquivalentType(expression.type)}");
         var arguments = ImmutableArray.CreateBuilder<BoundExpression>();
+        var typeArguments = ImmutableArray.CreateBuilder<BoundType>();
         arguments.AddRange(expression.arguments);
 
         foreach (var templateArgument in expression.type.templateArguments) {
             if (templateArgument.isConstant)
                 arguments.Add(new BoundLiteralExpression(templateArgument.constant.value));
             else
-                arguments.Add(templateArgument.type);
+                typeArguments.Add(templateArgument.type);
         }
 
+        EmitTypeArguments(indentedTextWriter, typeArguments.ToImmutable());
         EmitArguments(indentedTextWriter, arguments.ToImmutable());
     }
 

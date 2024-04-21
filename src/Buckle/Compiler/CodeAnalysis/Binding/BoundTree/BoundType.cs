@@ -251,6 +251,32 @@ internal sealed class BoundType : BoundExpression {
     }
 
     /// <summary>
+    /// Checks for template arguments on <param name="receiver"/> that could clarify <param name="type"/>.
+    /// </summary>
+    internal static BoundType Compound(BoundType receiver, BoundType type) {
+        if (type.typeSymbol is TemplateTypeSymbol t && receiver.templateArguments.Length > 0) {
+            var resolvedType = receiver.templateArguments[t.template.ordinal - 1].type;
+
+            return new BoundType(
+                resolvedType.typeSymbol,
+                resolvedType.isImplicit && type.isImplicit,
+                resolvedType.isConstantReference || type.isConstantReference,
+                resolvedType.isReference || type.isReference,
+                resolvedType.isExplicitReference || type.isExplicitReference,
+                resolvedType.isConstant || type.isConstant,
+                !(!resolvedType.isNullable || !type.isNullable),
+                resolvedType.isLiteral && type.isLiteral,
+                resolvedType.dimensions + type.dimensions,
+                resolvedType.templateArguments,
+                resolvedType.arity,
+                resolvedType.isConstantExpression || type.isConstantExpression
+            );
+        } else {
+            return type;
+        }
+    }
+
+    /// <summary>
     /// If the given type is the same as this.
     /// </summary>
     /// <param name="type"><see cref="BoundType" /> to compare this to.</param>

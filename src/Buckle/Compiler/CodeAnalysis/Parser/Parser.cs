@@ -1417,11 +1417,6 @@ internal sealed partial class Parser {
     }
 
     private ExpressionSyntax ParsePrimaryExpressionInternal() {
-        if (PeekIsType(0, out _, out _, out var isTemplate) && isTemplate &&
-            (_context & ParserContext.InTemplateArgumentList) != 0) {
-            return ParseQualifiedName();
-        }
-
         switch (currentToken.kind) {
             case SyntaxKind.OpenParenToken:
                 if (PeekIsCastExpression())
@@ -1674,6 +1669,8 @@ internal sealed partial class Parser {
         ExpressionSyntax expression;
         if (currentToken.kind is SyntaxKind.CommaToken or SyntaxKind.CloseParenToken)
             expression = SyntaxFactory.Empty();
+        else if ((_context & ParserContext.InTemplateArgumentList) != 0 && PeekIsType(0, out _, out _, out _))
+            expression = ParseType(false);
         else
             expression = ParseNonAssignmentExpression();
 

@@ -332,10 +332,19 @@ internal sealed class Binder {
         BoundType type,
         bool allowExplicit = false,
         int argument = 0,
-        bool isImplicitNull = false) {
+        bool isImplicitNull = false,
+        BoundType receiverType = null) {
         var boundExpression = BindExpression(expression);
 
-        return BindCast(expression.location, boundExpression, type, allowExplicit, argument, isImplicitNull);
+        return BindCast(
+            expression.location,
+            boundExpression,
+            type,
+            allowExplicit,
+            argument,
+            isImplicitNull,
+            receiverType: receiverType
+        );
     }
 
     internal BoundExpression BindCast(
@@ -344,8 +353,18 @@ internal sealed class Binder {
         BoundType type,
         bool allowExplicit = false,
         int argument = 0,
-        bool isImplicitNull = false) {
-        return BindCast(diagnosticLocation, expression, type, out _, allowExplicit, argument, isImplicitNull);
+        bool isImplicitNull = false,
+        BoundType receiverType = null) {
+        return BindCast(
+            diagnosticLocation,
+            expression,
+            type,
+            out _,
+            allowExplicit,
+            argument,
+            isImplicitNull,
+            receiverType: receiverType
+        );
     }
 
     internal BoundExpression BindCast(
@@ -356,45 +375,50 @@ internal sealed class Binder {
         bool allowExplicit = false,
         int argument = 0,
         bool isImplicitNull = false,
-        bool isTemplate = false) {
+        bool isTemplate = false,
+        BoundType receiverType = null) {
         var fromType = expression.type;
+        var toType = type;
 
         if (expression is BoundType)
             fromType = BoundType.Type;
 
-        var conversion = Cast.Classify(fromType, type);
+        if (receiverType is not null)
+            toType = BoundType.Compound(receiverType, toType);
+
+        var conversion = Cast.Classify(fromType, toType);
         castType = conversion;
 
-        if (expression.type.typeSymbol == TypeSymbol.Error || type.typeSymbol == TypeSymbol.Error)
+        if (expression.type.typeSymbol == TypeSymbol.Error || toType.typeSymbol == TypeSymbol.Error)
             return new BoundErrorExpression();
 
-        if (BoundConstant.IsNull(expression.constantValue) && !type.isNullable) {
+        if (BoundConstant.IsNull(expression.constantValue) && !toType.isNullable) {
             if (isImplicitNull)
                 diagnostics.Push(Error.CannotImplyNull(diagnosticLocation));
             else
-                diagnostics.Push(Error.CannotConvertNull(diagnosticLocation, type, argument));
+                diagnostics.Push(Error.CannotConvertNull(diagnosticLocation, toType, argument));
 
             return new BoundErrorExpression();
         }
 
-        if (isTemplate && expression is BoundType && type.typeSymbol == TypeSymbol.Type) {
+        if (isTemplate && expression is BoundType && toType.typeSymbol == TypeSymbol.Type) {
             conversion = Cast.Identity;
             castType = conversion;
         }
 
         if (!conversion.exists)
-            diagnostics.Push(Error.CannotConvert(diagnosticLocation, expression.type, type, argument));
+            diagnostics.Push(Error.CannotConvert(diagnosticLocation, expression.type, toType, argument));
 
         if (!allowExplicit && conversion.isExplicit) {
             var canAssert = false;
 
-            if (expression.type.typeSymbol.kind == type.typeSymbol.kind &&
-                expression.type.isNullable && !type.isNullable) {
+            if (expression.type.typeSymbol.kind == toType.typeSymbol.kind &&
+                expression.type.isNullable && !toType.isNullable) {
                 canAssert = true;
             }
 
             diagnostics.Push(
-                Error.CannotConvertImplicitly(diagnosticLocation, expression.type, type, argument, canAssert)
+                Error.CannotConvertImplicitly(diagnosticLocation, expression.type, toType, argument, canAssert)
             );
         }
 
@@ -402,10 +426,10 @@ internal sealed class Binder {
             if (expression.type.typeSymbol != null)
                 return expression;
             else if (expression.constantValue != null)
-                return new BoundTypeWrapper(type, expression.constantValue);
+                return new BoundTypeWrapper(toType, expression.constantValue);
         }
 
-        return new BoundCastExpression(type, expression);
+        return new BoundCastExpression(toType, expression);
     }
 
     private static TextLocation GetIdentifierLocation(BaseMethodDeclarationSyntax syntax) {
@@ -2324,6 +2348,10 @@ internal sealed class Binder {
                 return BindMemberAccessExpression((MemberAccessExpressionSyntax)expression, called);
             case SyntaxKind.QualifiedName:
                 return BindQualifiedName((QualifiedNameSyntax)expression, called);
+            case SyntaxKind.NonNullableType when allowTypes:
+            case SyntaxKind.ReferenceType when allowTypes:
+            case SyntaxKind.ArrayType when allowTypes:
+                return BindType((TypeSyntax)expression, explicitly: true);
             default:
                 throw new BelteInternalException($"BindExpressionInternal: unexpected syntax '{expression.kind}'");
         }
@@ -2368,7 +2396,8 @@ internal sealed class Binder {
             arguments,
             type.typeSymbol.name,
             expression.type,
-            expression.argumentList
+            expression.argumentList,
+            type
         );
 
         if (!result.succeeded)
@@ -2528,10 +2557,12 @@ internal sealed class Binder {
         var name = SyntaxFacts.GetOperatorMemberName(expression.openBracket.kind, 2);
 
         if (name is not null) {
-            var symbols = ((boundExpression.type.typeSymbol is NamedTypeSymbol l) ? l.GetMembers(name) : [])
-                .AddRange((boundIndex.type.typeSymbol is NamedTypeSymbol r &&
+            var symbols = ((boundExpression.type.typeSymbol is NamedTypeSymbol l)
+                    ? l.members.Where(n => n.name == name)
+                    : [])
+                .Concat((boundIndex.type.typeSymbol is NamedTypeSymbol r &&
                     boundExpression.type.typeSymbol != boundIndex.type.typeSymbol)
-                    ? r.GetMembers(name)
+                    ? r.members.Where(n => n.name == name)
                     : [])
                 .Where(m => m is MethodSymbol)
                 .Select(m => m as MethodSymbol)
@@ -2601,7 +2632,8 @@ internal sealed class Binder {
                 arguments,
                 mg.name,
                 expression.expression,
-                expression.argumentList
+                expression.argumentList,
+                boundExpression.type
             );
 
             if (!result.succeeded)

@@ -39,7 +39,7 @@ internal sealed class OverloadResolution {
         SyntaxNodeOrToken operand,
         ArgumentListSyntax argumentList) {
         _suppressDiagnostics = true;
-        var result = MethodOverloadResolution(methods, arguments, name, operand, argumentList);
+        var result = MethodOverloadResolution(methods, arguments, name, operand, argumentList, null);
         _suppressDiagnostics = false;
 
         return result;
@@ -58,7 +58,8 @@ internal sealed class OverloadResolution {
         ImmutableArray<(string name, BoundExpression expression)> arguments,
         string name,
         SyntaxNodeOrToken operand,
-        ArgumentListSyntax argumentList) {
+        ArgumentListSyntax argumentList,
+        BoundType receiverType) {
         var minScore = int.MaxValue;
         var possibleOverloads = new List<MethodSymbol>();
 
@@ -143,7 +144,8 @@ internal sealed class OverloadResolution {
                     rearrangedArguments,
                     preBoundArgumentsBuilder.ToImmutable(),
                     currentBoundArguments,
-                    false
+                    false,
+                    receiverType
                 );
 
                 if (isInner) {
@@ -154,7 +156,13 @@ internal sealed class OverloadResolution {
                             continue;
 
                         var argument = SyntaxFactory.Reference(parameter.name.Substring(1));
-                        var boundArgument = _binder.BindCast(argument, parameter.type, argument: i);
+                        var boundArgument = _binder.BindCast(
+                            argument,
+                            parameter.type,
+                            argument: i,
+                            receiverType: receiverType
+                        );
+
                         currentBoundArguments.Add(boundArgument);
                     }
                 }
@@ -320,7 +328,8 @@ internal sealed class OverloadResolution {
                     rearrangedArguments,
                     preBoundArgumentsBuilder.ToImmutable(),
                     currentBoundArguments,
-                    true
+                    true,
+                    null
                 );
             }
 
@@ -478,7 +487,8 @@ internal sealed class OverloadResolution {
         Dictionary<int, int> rearrangedArguments,
         ImmutableArray<(string name, BoundExpression expression)> preBoundArguments,
         ImmutableArray<BoundExpression>.Builder currentBoundArguments,
-        bool isTemplate) {
+        bool isTemplate,
+        BoundType receiverType) {
         for (var i = 0; i < preBoundArguments.Length; i++) {
             var argument = preBoundArguments[rearrangedArguments[i]];
             var parameter = parameters[i];
@@ -506,7 +516,8 @@ internal sealed class OverloadResolution {
                 out var castType,
                 argument: i + 1,
                 isImplicitNull: isImplicitNull,
-                isTemplate: isTemplate
+                isTemplate: isTemplate,
+                receiverType: receiverType
             );
 
             if (castType.isImplicit && !castType.isIdentity)
