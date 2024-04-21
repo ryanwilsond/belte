@@ -1377,51 +1377,11 @@ internal sealed partial class Parser {
     }
 
     private ExpressionSyntax ParseOperatorExpression(int parentPrecedence = 0) {
-        SyntaxToken ConjoinOperators(int length) {
-            var operatorToken = EatToken();
-
-            if (length == 1) {
-                return operatorToken;
-            } else if (length == 2) {
-                var operatorToken2 = EatToken();
-
-                return SyntaxFactory.Token(
-                    operatorToken.GetLeadingTrivia(),
-                    SyntaxKind.GreaterThanGreaterThanToken,
-                    operatorToken2.GetTrailingTrivia()
-                );
-            } else if (length == 3) {
-                EatToken();
-                var operatorToken2 = EatToken();
-
-                return SyntaxFactory.Token(
-                    operatorToken.GetLeadingTrivia(),
-                    SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
-                    operatorToken2.GetTrailingTrivia()
-                );
-            }
-
-            throw ExceptionUtilities.Unreachable();
-        }
-
         ExpressionSyntax left;
-        var tokensToCombine = 1;
         var unaryPrecedence = currentToken.kind.GetUnaryPrecedence();
 
-        if (currentToken.kind == SyntaxKind.GreaterThanToken &&
-            Peek(1).kind == SyntaxKind.GreaterThanToken &&
-            NoTriviaBetween(currentToken, Peek(1))) {
-            if (Peek(2).kind == SyntaxKind.GreaterThanToken && NoTriviaBetween(Peek(1), Peek(2))) {
-                tokensToCombine = 3;
-                unaryPrecedence = SyntaxKind.GreaterThanGreaterThanGreaterThanToken.GetUnaryPrecedence();
-            } else {
-                tokensToCombine = 2;
-                unaryPrecedence = SyntaxKind.GreaterThanGreaterThanToken.GetUnaryPrecedence();
-            }
-        }
-
         if (unaryPrecedence != 0 && unaryPrecedence >= parentPrecedence && !IsTerminator()) {
-            var operatorToken = ConjoinOperators(tokensToCombine);
+            var operatorToken = EatToken();
 
             if (operatorToken.kind is SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken) {
                 var operand = ParsePrimaryExpression();
@@ -1435,6 +1395,7 @@ internal sealed partial class Parser {
         }
 
         while (true) {
+            var tokensToCombine = 1;
             var precedence = currentToken.kind.GetBinaryPrecedence();
 
             if (currentToken.kind == SyntaxKind.GreaterThanToken &&
@@ -1452,7 +1413,29 @@ internal sealed partial class Parser {
             if (precedence == 0 || precedence <= parentPrecedence || IsTerminator())
                 break;
 
-            var operatorToken = ConjoinOperators(tokensToCombine);
+            var operatorToken = EatToken();
+
+            if (tokensToCombine == 2) {
+                var operatorToken2 = EatToken();
+
+                operatorToken = SyntaxFactory.Token(
+                    operatorToken.GetLeadingTrivia(),
+                    SyntaxKind.GreaterThanGreaterThanToken,
+                    operatorToken2.GetTrailingTrivia()
+                );
+            } else if (tokensToCombine == 3) {
+                EatToken();
+                var operatorToken2 = EatToken();
+
+                operatorToken = SyntaxFactory.Token(
+                    operatorToken.GetLeadingTrivia(),
+                    SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
+                    operatorToken2.GetTrailingTrivia()
+                );
+            } else if (tokensToCombine != 1) {
+                throw ExceptionUtilities.Unreachable();
+            }
+
             var right = ParseOperatorExpression(precedence);
             left = SyntaxFactory.BinaryExpression(left, operatorToken, right);
         }
