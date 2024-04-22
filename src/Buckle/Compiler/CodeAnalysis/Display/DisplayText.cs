@@ -240,12 +240,14 @@ public sealed class DisplayText {
             text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
         }
 
-        var brackets = "";
+        for (var i = 0; i < type.dimensions; i++) {
+            text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
 
-        for (var i = 0; i < type.dimensions; i++)
-            brackets += "[]";
+            if (type.sizes.Length > i)
+                DisplayNode(text, type.sizes[i]);
 
-        text.Write(CreatePunctuation(brackets));
+            text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+        }
 
         if (!type.isNullable && !type.isLiteral && type.typeSymbol != TypeSymbol.Void)
             text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
@@ -454,7 +456,9 @@ public sealed class DisplayText {
         text.Write(CreateKeyword(SyntaxKind.NewKeyword));
         text.Write(CreateSpace());
         DisplayNode(text, node.type);
-        DisplayArguments(text, node.arguments);
+
+        if (node.viaConstructor)
+            DisplayArguments(text, node.arguments);
     }
 
     private static void DisplayThisExpression(DisplayText text, BoundThisExpression _) {
@@ -492,7 +496,7 @@ public sealed class DisplayText {
     private static void DisplayReferenceExpression(DisplayText text, BoundReferenceExpression node) {
         text.Write(CreateKeyword(SyntaxKind.RefKeyword));
         text.Write(CreateSpace());
-        DisplayNode(node.expression);
+        DisplayNode(text, node.expression);
     }
 
     private static void DisplayCastExpression(DisplayText text, BoundCastExpression node) {

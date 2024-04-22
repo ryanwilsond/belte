@@ -8,9 +8,8 @@ namespace Buckle.Libraries.Standard;
 /// </summary>
 internal static partial class StandardLibrary {
     /// <summary>
-    /// Gets all the symbols defined by the library.
+    /// Gets all the pre-compiled symbols defined by the library.
     /// </summary>
-    /// <returns></returns>
     internal static Symbol[] GetSymbols() {
         return [Console, Math];
     }

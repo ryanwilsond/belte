@@ -1507,7 +1507,15 @@ internal sealed class Binder {
             return BindCalledIdentifierInScope(syntax, actualMethods);
         }
 
-        var symbols = _scope.LookupOverloads(name);
+        var symbolsList = _scope.LookupOverloads(name);
+        var symbolsBuilder = ImmutableArray.CreateBuilder<Symbol>();
+
+        foreach (var symbol in symbolsList) {
+            if (!(symbol is ParameterSymbol p && p.isTemplate))
+                symbolsBuilder.Add(symbol);
+        }
+
+        var symbols = symbolsBuilder.ToImmutable();
 
         if (symbols.Length == 0) {
             var primitive = LookupPrimitive(name);
@@ -2639,7 +2647,6 @@ internal sealed class Binder {
 
     private BoundExpression BindCallExpression(CallExpressionSyntax expression) {
         var boundExpression = BindExpression(expression.expression, called: true);
-        var boundType = boundExpression.type;
         BoundExpression receiver = new BoundEmptyExpression();
 
         if (boundExpression is BoundMemberAccessExpression ma) {
@@ -2657,17 +2664,11 @@ internal sealed class Binder {
                 mg.name,
                 expression.expression,
                 expression.argumentList,
-                boundType
+                receiver.type
             );
 
             if (!result.succeeded)
                 return new BoundErrorExpression();
-
-            if ((_containingMethod?.isConstant ?? false) &&
-                !(result.bestOverload.isConstant || result.bestOverload.isStatic) &&
-                (result.bestOverload.containingType == _containingMethod.containingType)) {
-                diagnostics.Push(Error.NonConstantCallInConstant(expression.location, mg.name));
-            }
 
             if (receiver is not BoundEmptyExpression &&
                 !result.bestOverload.isConstant &&
@@ -2675,7 +2676,13 @@ internal sealed class Binder {
                 diagnostics.Push(Error.NonConstantCallOnConstant(expression.location, mg.name));
             }
 
-            if (receiver is BoundEmptyExpression) {
+            if (receiver is BoundEmptyExpression || receiver is BoundThisExpression) {
+                if ((_containingMethod?.isConstant ?? false) &&
+                    !(result.bestOverload.isConstant || result.bestOverload.isStatic) &&
+                    (result.bestOverload.containingType == _containingMethod.containingType)) {
+                    diagnostics.Push(Error.NonConstantCallInConstant(expression.location, mg.name));
+                }
+
                 if ((_containingMethod?.isStatic ?? false) &&
                     (result.bestOverload.containingType == _containingMethod.containingType) &&
                     (!result.bestOverload.isStatic)) {

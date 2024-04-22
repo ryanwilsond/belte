@@ -1829,17 +1829,13 @@ internal sealed partial class Parser {
         SimpleNameSyntax name = identifierName;
 
         if (currentToken.kind == SyntaxKind.LessThanToken) {
-            if ((_context & ParserContext.InExpression) != 0) {
-                // If we are in an expression, check if we are truly a template name.
-                // If any issues while parsing the template name, abort and treat the '<' as a binary operator.
-                var point = GetResetPoint();
-                var templateArgumentList = ParseTemplateArgumentList();
+            var point = GetResetPoint();
+            var templateArgumentList = ParseTemplateArgumentList();
 
-                if (templateArgumentList.containsDiagnostics)
-                    Reset(point);
-                else
-                    name = SyntaxFactory.TemplateName(identifierName.identifier, templateArgumentList);
-            }
+            if (templateArgumentList.containsDiagnostics)
+                Reset(point);
+            else
+                name = SyntaxFactory.TemplateName(identifierName.identifier, templateArgumentList);
         }
 
         return name;
