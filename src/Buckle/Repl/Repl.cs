@@ -201,6 +201,8 @@ public abstract partial class Repl {
 
     [MetaCommand("help", "Show this document")]
     protected void EvaluateHelp() {
+        var previous = Console.BackgroundColor;
+
         var maxLength = _metaCommands
             .Max(
                 mc => mc.name.Length +
@@ -221,10 +223,10 @@ public abstract partial class Repl {
             Console.ForegroundColor = ConsoleColor.DarkGray;
             writer.Write("#");
             Console.ResetColor();
+            Console.BackgroundColor = previous;
             writer.Write(name);
             Console.ForegroundColor = ConsoleColor.DarkGray;
             writer.Write($"{args.PadRight(maxLength - name.Length)}  {metaCommand.description}");
-            Console.ResetColor();
             writer.WriteLine();
         }
     }
@@ -235,15 +237,15 @@ public abstract partial class Repl {
             .GetFields(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
 
         var maxLength = fields.Max(f => f.Name.Length);
-        var previous = Console.ForegroundColor;
+        var previous = Console.BackgroundColor;
 
         foreach (var field in fields) {
             var paddedName = field.Name.PadRight(maxLength);
             Console.ResetColor();
+            Console.BackgroundColor = previous;
             writer.Write($"{paddedName}  ");
             Console.ForegroundColor = ConsoleColor.DarkGray;
             writer.Write(field.GetValue(_state));
-            Console.ResetColor();
             writer.WriteLine();
         }
     }
