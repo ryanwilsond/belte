@@ -3,7 +3,7 @@
     "displayName": "BELTE",
     "description": "Language support for Belte",
     "version": "0.1.0",
-    "publisher": "Ryan Wilson",
+    "publisher": "ryan-wilson",
     "repository": {
         "type": "git",
         "url": "https://github.com/ryanwilsond/belte"
