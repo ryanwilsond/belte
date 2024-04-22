@@ -1,6 +1,8 @@
 {
     "files.associations": {
         "*.csproj": "msbuild",
+        "vector": "c",
+        "xstring": "cpp"
     },
     "files.exclude": {
         "**/bin": true,

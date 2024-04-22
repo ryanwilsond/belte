@@ -1,0 +1,82 @@
+
+class List<type t> {
+    t[] _array;
+    int! _length = 0;
+    int! _res = 10;
+
+    List() { }
+
+    List(t[] array) {
+        _ConstructContents(array, Length(array)!);
+    }
+
+    List(List<t> list) {
+        _ConstructContents(list._array, list._length);
+    }
+
+    void Append(t value) {
+        if (_res > _length) {
+            _array[_length] = value;
+            _length++;
+            return;
+        }
+
+        int! newCapacity = _length + 10;
+        t[] newArray = new t[newCapacity];
+        _CopyInto(ref newArray, ref _array, _length);
+        _array = newArray;
+
+        _length++;
+        _res = newCapacity;
+    }
+
+    void Pop() {
+        if (_length > 0)
+            _length--;
+    }
+
+    const int Length() {
+        return _length;
+    }
+
+    const t[] ToArray() {
+        t[] copy = new t[_length];
+        _CopyInto(ref copy, ref _array, _length);
+        return copy;
+    }
+
+    const t Index(int index) {
+        if (index < 0)
+            index = _length - index;
+
+        if (index < 0 || index >= _length)
+            return null;
+
+        return _array[index];
+    }
+
+    static t operator[](List<t> list, int index) {
+        return list.Index(index);
+    }
+
+    void _ConstructContents(t[] array, int! length) {
+        if (_res > length) {
+            _CopyInto(ref _array, ref array, length);
+            _length = length;
+            return;
+        }
+
+        int! newCapacity = length + 10;
+        _array = new t[newCapacity];
+        _CopyInto(ref _array, ref array, length);
+
+        _length = length;
+        _res = newCapacity;
+    }
+
+    static void _CopyInto(ref t[] to, ref t[] from, int! length) {
+        for (int! i = 0; i < length; i++) {
+            to[i] = from[i];
+        }
+    }
+}

@@ -280,13 +280,16 @@ internal abstract class BoundTreeRewriter {
     }
 
     protected virtual BoundExpression RewriteObjectCreationExpression(BoundObjectCreationExpression expression) {
-        var arguments = RewriteArguments(expression.arguments);
-        // TODO Rewrite template arguments?
+        if (expression.viaConstructor) {
+            var arguments = RewriteArguments(expression.arguments);
 
-        if (!arguments.HasValue)
+            if (!arguments.HasValue)
+                return expression;
+
+            return new BoundObjectCreationExpression(expression.type, expression.constructor, arguments.Value);
+        } else {
             return expression;
-
-        return new BoundObjectCreationExpression(expression.type, expression.constructor, arguments.Value);
+        }
     }
 
     protected virtual BoundExpression RewriteTernaryExpression(BoundTernaryExpression expression) {

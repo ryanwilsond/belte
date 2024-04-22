@@ -575,37 +575,71 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateObjectCreationExpression(
         BoundObjectCreationExpression node,
         ValueWrapper<bool> abort) {
-        var core = EvaluateTypeCore(node.type, abort);
-        var members = new Dictionary<Symbol, EvaluatorObject>();
-        var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).members;
+        if (node.viaConstructor) {
+            var core = EvaluateTypeCore(node.type, abort);
+            var members = new Dictionary<Symbol, EvaluatorObject>();
+            var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).members;
 
-        foreach (var member in core.members)
-            members.Add(member.Key, member.Value);
+            foreach (var member in core.members)
+                members.Add(member.Key, member.Value);
 
-        foreach (var member in typeMembers.Where(t => t is not ParameterSymbol)) {
-            var value = new EvaluatorObject();
+            foreach (var member in typeMembers.Where(t => t is not ParameterSymbol)) {
+                var value = new EvaluatorObject();
 
-            if (member is FieldSymbol f) {
-                if (f.isReference) {
-                    value.isReference = true;
-                    value.isExplicitReference = true;
+                if (member is FieldSymbol f) {
+                    if (f.isReference) {
+                        value.isReference = true;
+                        value.isExplicitReference = true;
+                    }
+                }
+
+                members.Add(member, value);
+            }
+
+            var newObject = new EvaluatorObject(members);
+
+            EnterClassScope(newObject);
+
+            // structs don't have any methods, so no constructors
+            if (node.type.typeSymbol is ClassSymbol)
+                InvokeMethod(node.constructor, node.arguments, abort);
+
+            ExitClassScope();
+
+            return newObject;
+        } else {
+            var array = new EvaluatorObject(value: null);
+            var sizes = new List<int>();
+
+            // TODO There is probably a more efficient algorithm for this
+            foreach (var size in node.type.sizes) {
+                var sizeValue = (int)Value(EvaluateExpression(size, abort));
+
+                foreach (var element in IterateElements(array)) {
+                    var members = new List<EvaluatorObject>();
+
+                    for (var i = 0; i < sizeValue; i++)
+                        members.Add(new EvaluatorObject(value: null));
+
+                    element.value = members.ToArray();
                 }
             }
 
-            members.Add(member, value);
+            return array;
         }
 
-        var newObject = new EvaluatorObject(members);
+        List<EvaluatorObject> IterateElements(EvaluatorObject evaluatorObject) {
+            if (evaluatorObject.value is null) {
+                return [evaluatorObject];
+            } else {
+                var objects = new List<EvaluatorObject>();
 
-        EnterClassScope(newObject);
+                foreach (var subElement in evaluatorObject.value as EvaluatorObject[])
+                    objects.AddRange(IterateElements(subElement));
 
-        // structs don't have any methods, so no constructors
-        if (node.type.typeSymbol is ClassSymbol)
-            InvokeMethod(node.constructor, node.arguments, abort);
-
-        ExitClassScope();
-
-        return newObject;
+                return objects;
+            }
+        }
     }
 
     private EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression _, ValueWrapper<bool> _1) {
@@ -638,7 +672,9 @@ internal sealed class Evaluator {
         return array[indexValue];
     }
 
-    private EvaluatorObject[] EvaluateInitializerListExpression(BoundInitializerListExpression node, ValueWrapper<bool> abort) {
+    private EvaluatorObject[] EvaluateInitializerListExpression(
+        BoundInitializerListExpression node,
+        ValueWrapper<bool> abort) {
         var builder = new List<EvaluatorObject>();
 
         foreach (var item in node.items) {

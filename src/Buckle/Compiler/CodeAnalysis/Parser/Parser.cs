@@ -922,6 +922,8 @@ internal sealed partial class Parser {
     private SeparatedSyntaxList<ParameterSyntax> ParseParameters() {
         var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
         var parseNextParameter = true;
+        var saved = _context;
+        _context |= ParserContext.InExpression;
 
         while (parseNextParameter &&
             currentToken.kind != SyntaxKind.CloseParenToken &&
@@ -936,6 +938,8 @@ internal sealed partial class Parser {
                 parseNextParameter = false;
             }
         }
+
+        _context = saved;
 
         return new SeparatedSyntaxList<ParameterSyntax>(nodesAndSeparators.ToList());
     }
@@ -1589,8 +1593,22 @@ internal sealed partial class Parser {
 
     private ExpressionSyntax ParseObjectCreationExpression() {
         var keyword = Match(SyntaxKind.NewKeyword);
-        var type = ParseType(false);
-        var argumentList = ParseArgumentList();
+        var type = ParseType(allowImplicit: false, allowArraySize: true);
+        ArgumentListSyntax argumentList = null;
+
+        bool IsArrayType(TypeSyntax syntax) {
+            if (syntax is ArrayTypeSyntax)
+                return true;
+            else if (syntax is NonNullableTypeSyntax n)
+                return IsArrayType(n.type);
+            else if (syntax is ReferenceTypeSyntax r)
+                return IsArrayType(r.type);
+            else
+                return false;
+        }
+
+        if (!IsArrayType(type))
+            argumentList = ParseArgumentList();
 
         return SyntaxFactory.ObjectCreationExpression(keyword, type, argumentList);
     }
@@ -1781,10 +1799,16 @@ internal sealed partial class Parser {
         return SyntaxFactory.Literal(stringToken);
     }
 
-    private ArrayRankSpecifierSyntax ParseArrayRankSpecifier() {
+    private ArrayRankSpecifierSyntax ParseArrayRankSpecifier(bool allowSize) {
         var openBracket = Match(SyntaxKind.OpenBracketToken);
+        ExpressionSyntax size = null;
+
+        if (allowSize && currentToken.kind != SyntaxKind.CloseBracketToken)
+            size = ParseExpression();
+
         var closeBracket = Match(SyntaxKind.CloseBracketToken);
-        return SyntaxFactory.ArrayRankSpecifier(openBracket, closeBracket);
+
+        return SyntaxFactory.ArrayRankSpecifier(openBracket, size, closeBracket);
     }
 
     private SimpleNameSyntax ParseLastCaseName() {
@@ -1826,7 +1850,11 @@ internal sealed partial class Parser {
         return SyntaxFactory.IdentifierName(identifier);
     }
 
-    private TypeSyntax ParseType(bool allowImplicit = true, bool allowRef = true, bool hasConstKeyword = false) {
+    private TypeSyntax ParseType(
+        bool allowImplicit = true,
+        bool allowRef = true,
+        bool hasConstKeyword = false,
+        bool allowArraySize = false) {
         if (currentToken.kind == SyntaxKind.RefKeyword) {
             var refKeyword = EatToken();
 
@@ -1836,14 +1864,14 @@ internal sealed partial class Parser {
             return SyntaxFactory.ReferenceType(
                 refKeyword,
                 currentToken.kind == SyntaxKind.ConstKeyword ? EatToken() : null,
-                ParseTypeCore(allowImplicit && hasConstKeyword)
+                ParseTypeCore(allowImplicit && hasConstKeyword, allowArraySize)
             );
         }
 
-        return ParseTypeCore(allowImplicit && hasConstKeyword);
+        return ParseTypeCore(allowImplicit && hasConstKeyword, allowArraySize);
     }
 
-    private TypeSyntax ParseTypeCore(bool constAsType) {
+    private TypeSyntax ParseTypeCore(bool constAsType, bool allowArraySize) {
         TypeSyntax type;
 
         if (currentToken.kind is SyntaxKind.ExclamationToken or SyntaxKind.OpenBracketToken ||
@@ -1868,7 +1896,7 @@ internal sealed partial class Parser {
                     var rankSpecifiers = SyntaxListBuilder<ArrayRankSpecifierSyntax>.Create();
 
                     do {
-                        rankSpecifiers.Add(ParseArrayRankSpecifier());
+                        rankSpecifiers.Add(ParseArrayRankSpecifier(allowArraySize));
                     } while (currentToken.kind == SyntaxKind.OpenBracketToken);
 
                     type = SyntaxFactory.ArrayType(type, rankSpecifiers.ToList());
