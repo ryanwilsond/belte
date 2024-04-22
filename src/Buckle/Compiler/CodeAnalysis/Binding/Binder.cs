@@ -800,7 +800,7 @@ internal sealed class Binder {
         var atLeastOneClassParameter = false;
 
         foreach (var parameter in parameters) {
-            if (parameter.type.typeSymbol.name == className) {
+            if (parameter.type?.typeSymbol?.name == className) {
                 atLeastOneClassParameter = true;
                 break;
             }
