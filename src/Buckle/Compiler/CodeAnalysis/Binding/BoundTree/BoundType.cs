@@ -312,9 +312,11 @@ internal sealed class BoundType : BoundExpression {
             return false;
         if (isConstantExpression != type.isConstantExpression)
             return false;
+        if (sizes.Length != type.sizes.Length)
+            return false;
 
         for (var i = 0; i < templateArguments.Length; i++) {
-            if (templateArguments[i] != type.templateArguments[i])
+            if (!templateArguments[i].Equals(type.templateArguments[i]))
                 return false;
         }
 

@@ -89,15 +89,27 @@ internal sealed class Evaluator {
 
         var body = LookupMethod(_methods, _program.entryPoint);
 
-        if (_program.entryPoint.parameters.Length == 2) {
-            var argv = new List<EvaluatorObject>();
+        if (_program.entryPoint.parameters.Length == 1) {
+            var args = ImmutableArray.CreateBuilder<BoundConstant>();
 
             foreach (var arg in _arguments)
-                argv.Add(new EvaluatorObject(arg));
+                args.Add(new BoundConstant(arg));
+
+            var list = EvaluateObjectCreationExpression(new BoundObjectCreationExpression(
+                _program.entryPoint.parameters[0].type,
+                (_program.entryPoint.parameters[0].type.typeSymbol as NamedTypeSymbol).constructors[2],
+                [new BoundInitializerListExpression(
+                    new BoundConstant(args.ToImmutable()),
+                    new BoundType(
+                        TypeSymbol.String,
+                        dimensions: 1,
+                        sizes: [new BoundLiteralExpression(_arguments.Length)]
+                    )
+                )]
+            ), abort);
 
             _locals.Push(new Dictionary<IVariableSymbol, IEvaluatorObject>() {
-                [_program.entryPoint.parameters[0]] = new EvaluatorObject(_arguments.Length),
-                [_program.entryPoint.parameters[1]] = new EvaluatorObject(argv.ToArray())
+                [_program.entryPoint.parameters[0]] = list
             });
         }
 

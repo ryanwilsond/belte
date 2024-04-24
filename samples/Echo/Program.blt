@@ -11,15 +11,15 @@
 
 */
 
-void Main(int! argc, string[]! argv) {
-    // `argc` is the number of command-line arguments passed
-    PrintLine("Number of arguments: " + (string)argc);
+void Main(List<string!>! args) {
+    // The method `args.Length()` gets the number of command-line arguments passed
+    Console.PrintLine("Number of arguments: " + (string)args.Length());
 
-    if (argc > 0) {
-        PrintLine("Arguments:");
+    if (args.Length() > 0) {
+        Console.PrintLine("Arguments:");
 
-        // `argv` is the actual arguments passed
-        for (int i = 0; i < argc; i++)
-            PrintLine("\t" + argv[i]);
+        for (int i = 0; i < args.Length(); i++)
+            // You can get the nth element of a List by indexing it
+            Console.PrintLine("\t" + args[i]);
     }
 }

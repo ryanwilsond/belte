@@ -176,12 +176,17 @@ internal sealed class Binder {
                     );
                 }
 
+                var argsType = new BoundType(
+                    binder._scope.LookupSymbol<ClassSymbol>("List"),
+                    isNullable: false,
+                    templateArguments: [new BoundTypeOrConstant(BoundType.String)],
+                    arity: 1
+                );
+
                 if (entryPoint.parameters.Any()) {
-                    if (entryPoint.parameters.Length != 2 ||
-                        entryPoint.parameters[0].name != "argc" ||
-                        !entryPoint.parameters[0].type.Equals(BoundType.Int) ||
-                        entryPoint.parameters[1].name != "argv" ||
-                        !entryPoint.parameters[1].type.Equals(new BoundType(TypeSymbol.String, dimensions: 1))) {
+                    if (entryPoint.parameters.Length != 1 ||
+                        entryPoint.parameters[0].name != "args" ||
+                        !entryPoint.parameters[0].type.Equals(argsType)) {
                         var span = TextSpan.FromBounds(
                             entryPoint.declaration.parameterList.openParenthesis.span.start + 1,
                             entryPoint.declaration.parameterList.closeParenthesis.span.end - 1
