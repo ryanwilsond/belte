@@ -973,16 +973,24 @@ internal sealed class Binder {
         // ? This will return eventually
         BindAttributeLists(@class.attributeLists);
 
+        if (_scope.LookupSymbolDirect(@class) is not ClassSymbol oldClass) {
+            diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
+            return new ClassSymbol([], [], [], @class, DeclarationModifiers.None);
+        }
+
         var builder = ImmutableList.CreateBuilder<Symbol>();
-        var oldClass = _scope.LookupSymbol<ClassSymbol>(@class.identifier.text);
         var isStatic = oldClass.isStatic;
         _scope = new BoundScope(_scope);
 
         var saved = _flags;
         _flags |= BinderFlags.Class;
 
-        foreach (var templateParameter in oldClass.templateParameters)
+        foreach (var templateParameter in oldClass.templateParameters) {
             builder.Add(templateParameter);
+
+            if (templateParameter.type.typeSymbol != TypeSymbol.Type)
+                _scope.TryDeclareVariable(templateParameter);
+        }
 
         foreach (var member in @class.members) {
             if (member is TypeDeclarationSyntax ts)
@@ -1408,7 +1416,7 @@ internal sealed class Binder {
                 if (argument is BoundType t)
                     constantArguments.Add(new BoundTypeOrConstant(t));
                 else
-                    constantArguments.Add(new BoundTypeOrConstant(argument.constantValue));
+                    constantArguments.Add(new BoundTypeOrConstant(argument.constantValue, argument.type));
             }
 
             if (result.succeeded) {
@@ -1451,7 +1459,7 @@ internal sealed class Binder {
                 if (argument is BoundType t)
                     constantArguments.Add(new BoundTypeOrConstant(t));
                 else
-                    constantArguments.Add(new BoundTypeOrConstant(argument.constantValue));
+                    constantArguments.Add(new BoundTypeOrConstant(argument.constantValue, argument.type));
             }
 
             if (result.succeeded) {
@@ -1511,7 +1519,7 @@ internal sealed class Binder {
         var symbolsBuilder = ImmutableArray.CreateBuilder<Symbol>();
 
         foreach (var symbol in symbolsList) {
-            if (!(symbol is ParameterSymbol p && p.isTemplate))
+            if (!(symbol is ParameterSymbol p && p.isTemplate && p.type.typeSymbol == TypeSymbol.Type))
                 symbolsBuilder.Add(symbol);
         }
 
@@ -2724,11 +2732,11 @@ internal sealed class Binder {
             result = PartiallyBindArguments(argumentList.arguments, out var arguments, true);
             var builder = ImmutableArray.CreateBuilder<(string, BoundTypeOrConstant)>();
 
-            foreach (var argument in arguments) {
-                if (argument.Item2 is BoundType t)
-                    builder.Add((argument.Item1, new BoundTypeOrConstant(t)));
+            foreach ((var name, var expression) in arguments) {
+                if (expression is BoundType t)
+                    builder.Add((name, new BoundTypeOrConstant(t)));
                 else
-                    builder.Add((argument.Item1, new BoundTypeOrConstant(argument.Item2.constantValue)));
+                    builder.Add((name, new BoundTypeOrConstant(expression.constantValue, expression.type)));
             }
 
             templateArguments = builder.ToImmutable();
@@ -2766,7 +2774,10 @@ internal sealed class Binder {
             if (boundExpression is BoundEmptyExpression)
                 boundExpression = new BoundLiteralExpression(null, true);
 
-            if (isTemplate && boundExpression.constantValue is null && boundExpression is not BoundType) {
+            if (isTemplate &&
+                boundExpression.constantValue is null &&
+                boundExpression is not BoundType &&
+                !boundExpression.type.isConstantExpression) {
                 diagnostics.Push(Error.TemplateMustBeConstant(arguments[i].location));
                 result = false;
             }

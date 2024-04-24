@@ -962,4 +962,19 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Evaluator_ClassDeclaration_StaticCanSeeTemplates() {
+        var text = @"
+            class A<int a> {
+                static A<a> operator~(A<a> a) {
+                    return a;
+                }
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

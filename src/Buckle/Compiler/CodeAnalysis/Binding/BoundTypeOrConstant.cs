@@ -5,10 +5,10 @@ namespace Buckle.CodeAnalysis.Binding;
 /// Template argument value.
 /// </summary>
 internal sealed class BoundTypeOrConstant {
-    internal BoundTypeOrConstant(BoundConstant constant) {
+    internal BoundTypeOrConstant(BoundConstant constant, BoundType type) {
         this.constant = constant;
+        this.type = type;
         isConstant = true;
-        type = null;
     }
 
     internal BoundTypeOrConstant(BoundType type) {

@@ -258,9 +258,11 @@ internal sealed class OverloadResolution {
 
         foreach (var argument in arguments) {
             if (argument.constant.isConstant) {
-                preBoundArgumentsBuilder.Add(
-                    (argument.name, new BoundLiteralExpression(argument.constant.constant.value))
-                );
+                var expression = argument.constant.constant is null
+                    ? (BoundExpression)new BoundTypeWrapper(argument.constant.type, null)
+                    : new BoundLiteralExpression(argument.constant.constant?.value);
+
+                preBoundArgumentsBuilder.Add((argument.name, expression));
             } else {
                 preBoundArgumentsBuilder.Add((argument.name, argument.constant.type));
             }
