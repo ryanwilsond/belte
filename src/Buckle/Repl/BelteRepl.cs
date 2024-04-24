@@ -104,6 +104,9 @@ public sealed partial class BelteRepl : Repl {
         _changes.Clear();
         ClearTree();
         base.ResetState();
+
+        foreach (var syntaxTree in CompilerHelpers.LoadLibrarySyntaxTrees())
+            EvaluateSubmissionInternal(syntaxTree);
     }
 
     protected override void RenderLine(IReadOnlyList<string> lines, int lineIndex) {

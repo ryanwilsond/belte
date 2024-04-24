@@ -17,9 +17,6 @@ void Main() { }
         ",
         /* C# Code */
         @"
-using System;
-using System.Collections.Generic;
-
 namespace EmitterTests;
 
 public static class Program {
@@ -48,9 +45,6 @@ int Main() {
         ",
         /* C# Code */
         @"
-using System;
-using System.Collections.Generic;
-
 namespace EmitterTests;
 
 public static class Program {
@@ -80,9 +74,6 @@ int Main() {
         ",
         /* C# Code */
         @"
-using System;
-using System.Collections.Generic;
-
 namespace EmitterTests;
 
 public static class Program {
@@ -115,15 +106,12 @@ int Main() {
         ",
         /* C# Code */
         @"
-using System;
-using System.Collections.Generic;
-
 namespace EmitterTests;
 
 public static class Program {
 
     public static int Main() {
-        Nullable<int> a = 1;
+        global::System.Nullable<int> a = 1;
         a += 5;
         return a ?? 0;
     }
@@ -142,15 +130,12 @@ Console.PrintLine(a);
         ",
         /* C# Code */
         @"
-using System;
-using System.Collections.Generic;
-
 namespace EmitterTests;
 
 public static class Program {
 
     public static void Main() {
-        Nullable<int> a = 3;
+        global::System.Nullable<int> a = 3;
         global::System.Console.WriteLine((object)a);
         return;
     }
@@ -166,9 +151,6 @@ public static class Program {
         @"",
         /* C# Code */
         @"
-using System;
-using System.Collections.Generic;
-
 namespace EmitterTests;
 
 public static class Program {
@@ -213,34 +195,31 @@ class TypeTests {
         ",
         /* C# Code */
         @"
-using System;
-using System.Collections.Generic;
-
 namespace EmitterTests;
 
 public static class Program {
 
     public class TypeTests {
-        public Nullable<int> int1;
+        public global::System.Nullable<int> int1;
         public int int2;
-        public List<Nullable<int>> int3;
-        public List<int> int4;
-        public Nullable<bool> bool1;
+        public global::System.Collections.Generic.List<global::System.Nullable<int>> int3;
+        public global::System.Collections.Generic.List<int> int4;
+        public global::System.Nullable<bool> bool1;
         public bool bool2;
-        public List<Nullable<bool>> bool3;
-        public List<bool> bool4;
+        public global::System.Collections.Generic.List<global::System.Nullable<bool>> bool3;
+        public global::System.Collections.Generic.List<bool> bool4;
         public string string1;
         public string string2;
-        public List<string> string3;
-        public List<string> string4;
-        public Nullable<double> decimal1;
+        public global::System.Collections.Generic.List<string> string3;
+        public global::System.Collections.Generic.List<string> string4;
+        public global::System.Nullable<double> decimal1;
         public double decimal2;
-        public List<Nullable<double>> decimal3;
-        public List<double> decimal4;
+        public global::System.Collections.Generic.List<global::System.Nullable<double>> decimal3;
+        public global::System.Collections.Generic.List<double> decimal4;
         public object any1;
         public object any2;
-        public List<object> any3;
-        public List<object> any4;
+        public global::System.Collections.Generic.List<object> any3;
+        public global::System.Collections.Generic.List<object> any4;
 
         public TypeTests() {
             return;
@@ -275,27 +254,24 @@ int Main() {
         ",
         /* C# Code */
         @"
-using System;
-using System.Collections.Generic;
-
 namespace EmitterTests;
 
 public static class Program {
 
     public static int Main() {
-        Nullable<int> a = 1;
-        Nullable<int> b = -1;
+        global::System.Nullable<int> a = 1;
+        global::System.Nullable<int> b = -1;
         int temp0 = 5;
-        Nullable<int> c = (a.HasValue ? (Nullable<int>)(temp0 + a.Value) : null);
-        Nullable<int> temp1 = (a.HasValue ? (Nullable<int>)(3 * a.Value) : null);
-        Nullable<int> d = (temp1.HasValue ? (Nullable<int>)(2 + temp1.Value) : null);
+        global::System.Nullable<int> c = (a.HasValue ? (global::System.Nullable<int>)(temp0 + a.Value) : null);
+        global::System.Nullable<int> temp1 = (a.HasValue ? (global::System.Nullable<int>)(3 * a.Value) : null);
+        global::System.Nullable<int> d = (temp1.HasValue ? (global::System.Nullable<int>)(2 + temp1.Value) : null);
         int temp2 = 5;
-        Nullable<int> e = (a.HasValue ? (Nullable<int>)(temp2 * a.Value) : null);
-        Nullable<int> f = (a.HasValue ? a.Value : 3);
+        global::System.Nullable<int> e = (a.HasValue ? (global::System.Nullable<int>)(temp2 * a.Value) : null);
+        global::System.Nullable<int> f = (a.HasValue ? a.Value : 3);
         a += 5;
-        Nullable<bool> bo = (a.HasValue ? (Nullable<bool>)(a.Value > 4) : null);
-        global::System.Console.WriteLine((object)(((bo) ?? throw new NullReferenceException()) ? 3 : 65));
-        return (a.HasValue ? (Nullable<int>)(a.Value * 10) : null) ?? 0;
+        global::System.Nullable<bool> bo = (a.HasValue ? (global::System.Nullable<bool>)(a.Value > 4) : null);
+        global::System.Console.WriteLine((object)(((bo) ?? throw new global::System.NullReferenceException()) ? 3 : 65));
+        return (a.HasValue ? (global::System.Nullable<int>)(a.Value * 10) : null) ?? 0;
     }
 
 }
@@ -345,46 +321,53 @@ void Main() {
         ",
         /* C# Code */
         @"
-using System;
-using System.Collections.Generic;
-
 namespace EmitterTests;
 
 public static class Program {
 
     public static void Main() {
-        Nullable<int> a = 0;
-        if (((a.HasValue ? (Nullable<bool>)(a.Value == 0) : null) ?? throw new NullReferenceException())) {
-            a = 10;
-        }
-        else {
-            a = 5;
-        }
+        global::System.Nullable<int> a = 0;
+        if (!((a.HasValue ? (global::System.Nullable<bool>)(a.Value == 0) : null)) ?? throw new global::System.NullReferenceException())
+            goto Label1;
 
-        Nullable<int> result = 1;
-        for (Nullable<int> i = 0;
-            ((i.HasValue ? (Nullable<bool>)(i.Value <= 10) : null) ?? throw new NullReferenceException()); i++) {
-            result *= 2;
-            break;
-        }
+        a = 10;
+        goto Label2;
+    Label1:
+        a = 5;
+    Label2:
+        global::System.Nullable<int> result = 1;
+        global::System.Nullable<int> i = 0;
+    Label3:
+        if (!((i.HasValue ? (global::System.Nullable<bool>)(i.Value <= 10) : null)) ?? throw new global::System.NullReferenceException())
+            goto Break1;
 
-        global::System.Console.WriteLine((object)((result.HasValue && a.HasValue) ? (Nullable<int>)(result.Value + a.Value) : null));
-        Nullable<int> x = 0;
-        while (((x.HasValue ? (Nullable<bool>)(x.Value <= 10) : null) ?? throw new NullReferenceException())) {
-            x++;
-            continue;
-        }
+        result *= 2;
+        break;
+    Continue1:
+        i++;
+        goto Label3;
+    Break1:
+        global::System.Console.WriteLine((object)((result.HasValue && a.HasValue) ? (global::System.Nullable<int>)(result.Value + a.Value) : null));
+        global::System.Nullable<int> x = 0;
+    Continue2:
+        if (!((x.HasValue ? (global::System.Nullable<bool>)(x.Value <= 10) : null)) ?? throw new global::System.NullReferenceException())
+            goto Break2;
 
-        do {
-            result++;
-        }
-        while (((result.HasValue ? (Nullable<bool>)(result.Value < 20) : null) ?? throw new NullReferenceException()));
+        x++;
+        continue;
+        goto Continue2;
+    Break2:
+    Continue3:
+        result++;
+        if (((result.HasValue ? (global::System.Nullable<bool>)(result.Value < 20) : null)) ?? throw new global::System.NullReferenceException())
+            goto Continue3;
 
+    Break3:
         try {
-            Nullable<int> b = (a.HasValue ? (Nullable<int>)(5 / a.Value) : null);
+            global::System.Nullable<int> b = (a.HasValue ? (global::System.Nullable<int>)(5 / a.Value) : null);
         }
         catch {
-            Nullable<int> b = 6;
+            global::System.Nullable<int> b = 6;
         }
         return;
     }
@@ -419,27 +402,24 @@ void Main() {
         ",
         /* C# Code */
         @"
-using System;
-using System.Collections.Generic;
-
 namespace EmitterTests;
 
 public static class Program {
 
     public static void Main() {
-        List<Nullable<int>> a = new List<Nullable<int>> { 1, 2, 3 };
-        Nullable<int> b = a[0];
-        List<object> c = new List<object> { 1, 3.3, false };
-        Nullable<int> d = (Nullable<int>)global::System.Convert.ToInt32(c[0]);
+        global::System.Collections.Generic.List<global::System.Nullable<int>> a = new global::System.Collections.Generic.List<global::System.Nullable<int>> { 1, 2, 3 };
+        global::System.Nullable<int> b = a[0];
+        global::System.Collections.Generic.List<object> c = new global::System.Collections.Generic.List<object> { 1, 3.3, false };
+        global::System.Nullable<int> d = (global::System.Nullable<int>)global::System.Convert.ToInt32(c[0]);
         b++;
         --d;
-        Nullable<int> x = 4;
-        ref Nullable<int> y = ref x;
+        global::System.Nullable<int> x = 4;
+        ref global::System.Nullable<int> y = ref x;
         x++;
         global::System.Console.WriteLine((object)y);
         a[1] = 4;
         global::System.Console.WriteLine((object)a[1]);
-        Nullable<int> z = 3;
+        global::System.Nullable<int> z = 3;
         int g = z.Value;
         return;
     }
@@ -466,27 +446,24 @@ int Add(int a, int b = 3) {
         ",
         /* C# Code */
         @"
-using System;
-using System.Collections.Generic;
-
 namespace EmitterTests;
 
 public static class Program {
 
     public static void Main() {
-        Nullable<int> temp0 = Add(2, 3);
-        Nullable<int> temp1 = Add(5, 6);
-        Nullable<int> temp2 = ((temp0.HasValue && temp1.HasValue) ? (Nullable<int>)(temp0.Value + temp1.Value) : null);
-        Nullable<int> temp3 = Add(1, 5);
-        global::System.Console.Write((object)((temp2.HasValue && temp3.HasValue) ? (Nullable<int>)(temp2.Value + temp3.Value) : null));
+        global::System.Nullable<int> temp0 = Add(2, 3);
+        global::System.Nullable<int> temp1 = Add(5, 6);
+        global::System.Nullable<int> temp2 = ((temp0.HasValue && temp1.HasValue) ? (global::System.Nullable<int>)(temp0.Value + temp1.Value) : null);
+        global::System.Nullable<int> temp3 = Add(1, 5);
+        global::System.Console.Write((object)((temp2.HasValue && temp3.HasValue) ? (global::System.Nullable<int>)(temp2.Value + temp3.Value) : null));
         global::System.Console.Write((object)Add(null, null));
         global::System.Console.Write((object)Add(1, null));
         global::System.Console.Write((object)Add(null, 2));
         return;
     }
 
-    public static Nullable<int> Add(Nullable<int> a, Nullable<int> b) {
-        return ((a.HasValue && b.HasValue) ? (Nullable<int>)(a.Value + b.Value) : null);
+    public static global::System.Nullable<int> Add(global::System.Nullable<int> a, global::System.Nullable<int> b) {
+        return ((a.HasValue && b.HasValue) ? (global::System.Nullable<int>)(a.Value + b.Value) : null);
     }
 
 }
@@ -510,20 +487,17 @@ void Main() {
         ",
         /* C# Code */
         @"
-using System;
-using System.Collections.Generic;
-
 namespace EmitterTests;
 
 public static class Program {
 
     public static void Main() {
-        Nullable<int> a = 5;
+        global::System.Nullable<int> a = 5;
         @_Main_g__A(5, ref a);
         return;
     }
 
-    public static void @_Main_g__A(Nullable<int> c, ref Nullable<int> a) {
+    public static void @_Main_g__A(global::System.Nullable<int> c, ref global::System.Nullable<int> a) {
         a += c;
         return;
     }
@@ -556,16 +530,13 @@ void Main() {
         ",
         /* C# Code */
         @"
-using System;
-using System.Collections.Generic;
-
 namespace EmitterTests;
 
 public static class Program {
 
     public class A {
-        public Nullable<int> a;
-        public Nullable<bool> b;
+        public global::System.Nullable<int> a;
+        public global::System.Nullable<bool> b;
 
         public A() {
             return;
@@ -576,10 +547,10 @@ public static class Program {
     public static void Main() {
         A g = new A();
         g.a = 5;
-        Nullable<bool> c = g.b;
-        Nullable<bool> d = !c.HasValue;
+        global::System.Nullable<bool> c = g.b;
+        global::System.Nullable<bool> d = !c.HasValue;
         A h = null;
-        Nullable<int> j = (h is not null ? (Nullable<int>)h.a : null);
+        global::System.Nullable<int> j = (h is not null ? (global::System.Nullable<int>)h.a : null);
         global::System.Console.WriteLine((object)!j.HasValue);
         return;
     }
@@ -598,16 +569,13 @@ var randInt = RandInt(max);
         ",
         /* C# Code */
         @"
-using System;
-using System.Collections.Generic;
-
 namespace EmitterTests;
 
 public static class Program {
 
     public static void Main() {
-        Nullable<int> max = (Nullable<int>)global::System.Convert.ToInt32(global::System.Console.ReadLine());
-        Nullable<int> randInt = ((Func<int>)(() => { var random = new global::System.Random(); var temp = max; return temp.HasValue ? random.Next(temp.Value) : random.Next(); }))();
+        global::System.Nullable<int> max = (global::System.Nullable<int>)global::System.Convert.ToInt32(global::System.Console.ReadLine());
+        global::System.Nullable<int> randInt = ((global::System.Func<int>)(() => { var random = new global::System.Random(); var temp = max; return temp.HasValue ? random.Next(temp.Value) : random.Next(); }))();
         return;
     }
 
@@ -629,9 +597,6 @@ myA.Test();
         ",
         /* C# Code */
         @"
-using System;
-using System.Collections.Generic;
-
 namespace EmitterTests;
 
 public static class Program {
@@ -662,7 +627,7 @@ public static class Program {
     )]
 #pragma warning disable xUnit1026
     public void Emitter_Emits_CorrectText(string text, string expectedCSharpText, string expectedILText) {
-        AssertText(text, expectedCSharpText.Trim() + Environment.NewLine, BuildMode.CSharpTranspile);
+        AssertText(text, expectedCSharpText.TrimEnd() + Environment.NewLine, BuildMode.CSharpTranspile);
         // TODO Fix Mono.Cecil bug that is preventing further IL Emitter development
         // AssertText(text, expectedILText.Trim() + Environment.NewLine, BuildMode.Dotnet);
     }

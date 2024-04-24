@@ -869,12 +869,8 @@ internal sealed class Binder {
         if (type.templateParameterList != null) {
             var templateParameters = BindParameters(type.templateParameterList.parameters, true);
 
-            foreach (var templateParameter in templateParameters) {
+            foreach (var templateParameter in templateParameters)
                 templateBuilder.Add(templateParameter);
-
-                if (templateParameter.type.typeSymbol == TypeSymbol.Type)
-                    PreBindTemplateType(templateParameter);
-            }
         }
 
         if (type is StructDeclarationSyntax s) {
@@ -903,10 +899,6 @@ internal sealed class Binder {
         } else {
             throw new BelteInternalException($"BindTypeDeclaration: unexpected type '{type.identifier.text}'");
         }
-    }
-
-    private void PreBindTemplateType(ParameterSymbol template) {
-        _scope.TryDeclareType(new TemplateTypeSymbol(template));
     }
 
     private TypeSymbol BindTypeDeclaration(TypeDeclarationSyntax @type) {
@@ -986,10 +978,14 @@ internal sealed class Binder {
         _flags |= BinderFlags.Class;
 
         foreach (var templateParameter in oldClass.templateParameters) {
-            builder.Add(templateParameter);
-
-            if (templateParameter.type.typeSymbol != TypeSymbol.Type)
+            if (templateParameter.type.typeSymbol == TypeSymbol.Type) {
+                var templateType = new TemplateTypeSymbol(templateParameter);
+                builder.Add(templateType);
+                _scope.TryDeclareType(templateType);
+            } else {
+                builder.Add(templateParameter);
                 _scope.TryDeclareVariable(templateParameter);
+            }
         }
 
         foreach (var member in @class.members) {
@@ -1416,7 +1412,7 @@ internal sealed class Binder {
                 if (argument is BoundType t)
                     constantArguments.Add(new BoundTypeOrConstant(t));
                 else
-                    constantArguments.Add(new BoundTypeOrConstant(argument.constantValue, argument.type));
+                    constantArguments.Add(new BoundTypeOrConstant(argument.constantValue, argument.type, argument));
             }
 
             if (result.succeeded) {
@@ -1459,7 +1455,7 @@ internal sealed class Binder {
                 if (argument is BoundType t)
                     constantArguments.Add(new BoundTypeOrConstant(t));
                 else
-                    constantArguments.Add(new BoundTypeOrConstant(argument.constantValue, argument.type));
+                    constantArguments.Add(new BoundTypeOrConstant(argument.constantValue, argument.type, argument));
             }
 
             if (result.succeeded) {
@@ -2736,7 +2732,7 @@ internal sealed class Binder {
                 if (expression is BoundType t)
                     builder.Add((name, new BoundTypeOrConstant(t)));
                 else
-                    builder.Add((name, new BoundTypeOrConstant(expression.constantValue, expression.type)));
+                    builder.Add((name, new BoundTypeOrConstant(expression.constantValue, expression.type, expression)));
             }
 
             templateArguments = builder.ToImmutable();

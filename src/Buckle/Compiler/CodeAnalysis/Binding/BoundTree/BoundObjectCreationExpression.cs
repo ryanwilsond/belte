@@ -20,6 +20,7 @@ internal sealed class BoundObjectCreationExpression : BoundExpression {
     internal BoundObjectCreationExpression(BoundType type) {
         this.type = type;
         viaConstructor = false;
+        arguments = ImmutableArray<BoundExpression>.Empty;
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.ObjectCreationExpression;

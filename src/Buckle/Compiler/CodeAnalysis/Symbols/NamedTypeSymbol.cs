@@ -44,7 +44,7 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
         if (_lazyMembersDictionary is null)
             ConstructLazyMembersDictionary();
 
-        return _lazyMembersDictionary[name];
+        return _lazyMembersDictionary.TryGetValue(name, out var result) ? result : ImmutableArray<Symbol>.Empty;
     }
 
     public ImmutableArray<ISymbol> GetMembers() {

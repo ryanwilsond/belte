@@ -97,6 +97,7 @@ public sealed class Compiler {
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
             var syntaxTrees = new List<SyntaxTree>();
+            syntaxTrees.AddRange(CompilerHelpers.LoadLibrarySyntaxTrees());
 
             for (var i = 0; i < state.tasks.Length; i++) {
                 ref var task = ref state.tasks[i];
@@ -161,6 +162,7 @@ public sealed class Compiler {
 
     private void InternalCompiler() {
         var syntaxTrees = new List<SyntaxTree>();
+        syntaxTrees.AddRange(CompilerHelpers.LoadLibrarySyntaxTrees());
 
         for (var i = 0; i < state.tasks.Length; i++) {
             ref var task = ref state.tasks[i];

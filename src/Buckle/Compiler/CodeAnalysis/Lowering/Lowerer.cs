@@ -64,8 +64,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
         end:
 
         */
-        if (_transpilerMode)
-            return base.RewriteIfStatement(statement);
+        // if (_transpilerMode)
+        //     return base.RewriteIfStatement(statement);
 
         if (statement.elseStatement is null) {
             var endLabel = GenerateLabel();
@@ -115,8 +115,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
         break:
 
         */
-        if (_transpilerMode)
-            return base.RewriteWhileStatement(statement);
+        // if (_transpilerMode)
+        //     return base.RewriteWhileStatement(statement);
 
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
@@ -150,8 +150,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
         break:
 
         */
-        if (_transpilerMode)
-            return base.RewriteDoWhileStatement(statement);
+        // if (_transpilerMode)
+        //     return base.RewriteDoWhileStatement(statement);
 
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
@@ -187,8 +187,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         */
-        if (_transpilerMode)
-            return base.RewriteForStatement(statement);
+        // if (_transpilerMode)
+        //     return base.RewriteForStatement(statement);
 
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
