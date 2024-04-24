@@ -1,0 +1,181 @@
+
+class CPU {
+    constexpr IntLoc = 0xF0;
+    constexpr COM0 = 0xF1;
+
+    constexpr Reserved      = 0x00;
+    constexpr SingleStep    = 0x01;
+    constexpr BreakPoint    = 0x03;
+    constexpr InvalidOpcode = 0x06;
+    constexpr DoubleFault   = 0x08;
+    constexpr OutOfMemory   = 0x16;
+    constexpr Syscall       = 0x80;
+
+    constexpr Sys_Restart   = 0x00;
+    constexpr Sys_Exit      = 0x01;
+    constexpr Sys_Fork      = 0x02;
+    constexpr Sys_Read      = 0x03;
+    constexpr Sys_Write     = 0x04;
+    constexpr Sys_Open      = 0x05;
+    constexpr Sys_Close     = 0x06;
+    constexpr Sys_Create    = 0x08;
+    constexpr Sys_Time      = 0x0D;
+    constexpr Sys_fTime     = 0x23;
+
+    int! PC = 0;
+    Flags! PS = new Flags();
+
+    int! EAX = 0;
+    int! EBX = 0;
+    int! ECX = 0;
+    int! EDX = 0;
+
+    int! EDI = 0;
+    int! ESI = 0;
+    int! ESP = 0;
+    int! EBP = 0;
+
+    int! AX = 0;
+    int! BX = 0;
+    int! CX = 0;
+    int! DX = 0;
+    int! BAX = 0;
+    int! BBX = 0;
+    int! BCX = 0;
+    int! BDX = 0;
+
+    ref int[] Data;
+    int Buffer;
+    bool Debug = false;
+    int Cycles = 0;
+    bool InInterrupt = false;
+
+    void LoadMemory(Memory memory) {
+        Data = ref memory?.Data;
+        Buffer = Memory.Size;
+    }
+
+    int FetchByte() {
+        var value = Data[PC++];
+        Cycles--;
+        return value;
+    }
+
+    int FetchWord() {
+        return FetchByte() << 8 | FetchByte();
+    }
+
+    void WriteReg(int code, int value) {
+        if (code == Codes.EAX) EAX = value!;
+        else if (code == Codes.EBX) EBX = value!;
+        else if (code == Codes.ECX) ECX = value!;
+        else if (code == Codes.EDX) EDX = value!;
+
+        Cycles--;
+    }
+
+    void HandleSyscall() {
+        if (EAX == Sys_Write) {
+            if (EBX == 1) {
+                var msg = "";
+
+                for (var counter = 0; counter < EDX; counter++) {
+                    msg += Char(Data[ECX + counter]!);
+                    Cycles--;
+                }
+
+                if (Debug)
+                    Console.PrintLine("CPU: Interrupt: Syscall: Write: Stdout: " + msg);
+                else
+                    Console.Print(msg);
+            }
+        }
+    }
+
+    bool HandleInterrupt() {
+        var fatal = false;
+
+        if (Data[IntLoc] == Syscall) {
+            HandleSyscall();
+        } else {
+            RaiseInterrupt(Data[IntLoc]);
+            fatal = true;
+        }
+
+        InInterrupt = true;
+        PS.E = 0;
+
+        return fatal;
+    }
+
+    void RaiseInterrupt(int code, int arg1 = null) {
+        var msg = "CPU: Interrupt: ";
+
+        try {
+            if (code == InvalidOpcode) {
+                msg += "InvalidOpcode: " + Hex(arg1!, true) + " at addr " + Hex(PC!, true);
+            } else if (code == OutOfMemory) {
+                msg += "OutOfMemory: " + Hex(PC!, true);
+            } else if (code == SingleStep) {
+                msg += "SingleStep: " + Hex(PC!, true);
+                Console.Print(msg);
+                Console.Input();
+                return;
+            } else if (code == BreakPoint) {
+                msg += "BreakPoint: " + Hex(PC! - 1, true);
+                Console.Print(msg);
+                Console.Input();
+                return;
+            }
+        } catch {
+            if (Debug)
+                Console.PrintLine("CPU: Interrupt: DoubleFault: Origin: " + Hex(PC!, true));
+        } finally {
+            Console.PrintLine(msg);
+        }
+    }
+
+    any Execute(int cycles) {
+        Cycles = cycles;
+        any ret;
+
+        while (Cycles > 0) {
+            if (PS.T > 0)
+                RaiseInterrupt(SingleStep);
+
+            var ins = FetchByte();
+
+            if (ins == Instruction.NOP) {
+            } else if (ins == 0xCC) {
+                RaiseInterrupt(BreakPoint);
+            } else if (ins == Instruction.HLT) {
+                return ret;
+            } else if (ins == Instruction.MOV) {
+                var mod = FetchByte();
+
+                if (mod == Codes.Addr_RegIm8) {
+                    var reg = FetchByte();
+                    var value = FetchByte();
+                    WriteReg(reg, value);
+                } else if (mod == Codes.Addr_RegIm16) {
+                    var reg = FetchByte();
+                    var value = FetchWord();
+                    WriteReg(reg, value);
+                }
+            } else if (ins == Instruction.INT) {
+                var intCode = FetchByte();
+                Data[IntLoc] = intCode;
+
+                if (HandleInterrupt())
+                    return ret;
+            } else {
+                RaiseInterrupt(InvalidOpcode, ins);
+            }
+        }
+
+        if (Debug)
+            ret = cycles - Cycles;
+
+        return ret;
+    }
+}

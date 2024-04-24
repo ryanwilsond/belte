@@ -1,0 +1,11 @@
+class Int<int min, int max> {
+    int _value;
+
+    Int(int value) {
+        this._value = value;
+    }
+
+    static Int<min,max> operator+(Int<min,max> a, int b) {
+        return new Int<min,max>(a._value + b);
+    }
+}

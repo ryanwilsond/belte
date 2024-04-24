@@ -64,9 +64,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         end:
 
         */
-        // if (_transpilerMode)
-        //     return base.RewriteIfStatement(statement);
-
         if (statement.elseStatement is null) {
             var endLabel = GenerateLabel();
 
@@ -115,9 +112,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         break:
 
         */
-        // if (_transpilerMode)
-        //     return base.RewriteWhileStatement(statement);
-
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
 
@@ -150,9 +144,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         break:
 
         */
-        // if (_transpilerMode)
-        //     return base.RewriteDoWhileStatement(statement);
-
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
 
@@ -187,9 +178,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         */
-        // if (_transpilerMode)
-        //     return base.RewriteForStatement(statement);
-
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
         var condition = statement.condition.kind == BoundNodeKind.EmptyExpression
@@ -276,7 +264,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
             );
         }
 
-        if (expression.left.type.isNullable && expression.right.type.isNullable) {
+        if (expression.left.type.isNullable &&
+            expression.right.type.isNullable &&
+            expression.left.constantValue is null &
+             expression.right.constantValue is null) {
             return RewriteExpression(
                 NullConditional(
                     @if: And(
@@ -293,7 +284,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             );
         }
 
-        if (expression.left.type.isNullable) {
+        if (expression.left.type.isNullable && expression.left.constantValue is null) {
             return RewriteExpression(
                 NullConditional(
                     @if: HasValue(expression.left),
@@ -307,7 +298,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             );
         }
 
-        if (expression.right.type.isNullable) {
+        if (expression.right.type.isNullable && expression.right.constantValue is null) {
             return RewriteExpression(
                 NullConditional(
                     @if: HasValue(expression.right),
@@ -462,9 +453,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
             : method;
 
         var arguments = builder is null ? expression.arguments : builder.ToImmutable();
-        // var operand = (expression.expression is BoundMemberAccessExpression me && me.isStaticAccess)
-        //     ? new BoundEmptyExpression()
-        //     : expression.expression;
 
         return base.RewriteCallExpression(new BoundCallExpression(expression.expression, newMethod, arguments));
     }

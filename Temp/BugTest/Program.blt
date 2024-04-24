@@ -1,0 +1,48 @@
+
+void Main() {
+    var memory = new Memory();
+    var cpu = new CPU();
+    // cpu.Debug = true;
+    // cpu.PS.T = 1;
+
+    // .data
+    memory.Data[0xA0] = Ascii("H");
+    memory.Data[0xA1] = Ascii("e");
+    memory.Data[0xA2] = Ascii("l");
+    memory.Data[0xA3] = Ascii("l");
+    memory.Data[0xA4] = Ascii("o");
+    memory.Data[0xA5] = Ascii(",");
+    memory.Data[0xA6] = Ascii(" ");
+    memory.Data[0xA7] = Ascii("w");
+    memory.Data[0xA8] = Ascii("o");
+    memory.Data[0xA9] = Ascii("r");
+    memory.Data[0xAA] = Ascii("l");
+    memory.Data[0xAB] = Ascii("d");
+    memory.Data[0xAC] = Ascii("!");
+    memory.Data[0xAD] = Ascii("\n");
+
+    // _start
+    memory.Data[0x00] = Instruction.MOV;
+    memory.Data[0x01] = Codes.Addr_RegIm8;
+    memory.Data[0x02] = Codes.EAX;
+    memory.Data[0x03] = 0x4;
+    memory.Data[0x04] = Instruction.MOV;
+    memory.Data[0x05] = Codes.Addr_RegIm8;
+    memory.Data[0x06] = Codes.EBX;
+    memory.Data[0x07] = 0x1;
+    memory.Data[0x08] = Instruction.MOV;
+    memory.Data[0x09] = Codes.Addr_RegIm8;
+    memory.Data[0x0A] = Codes.ECX;
+    memory.Data[0x0B] = 0xA0;
+    memory.Data[0x0C] = Instruction.MOV;
+    memory.Data[0x0D] = Codes.Addr_RegIm8;
+    memory.Data[0x0E] = Codes.EDX;
+    memory.Data[0x0F] = 0xE;
+    memory.Data[0x10] = Instruction.INT;
+    memory.Data[0x11] = 0x80;
+    memory.Data[0x12] = Instruction.HLT;
+
+    cpu.LoadMemory(memory);
+    var cycles = cpu.Execute(99);
+    // Console.PrintLine(cycles);
+}

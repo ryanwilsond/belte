@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -20,7 +21,8 @@ namespace Buckle.CodeAnalysis.Emitting;
 /// Emits a bound program into a C# source.
 /// </summary>
 internal sealed class CSharpEmitter {
-    private const string IndentString = "    ";
+    private static List<string> ValueTypes = new List<string>() { "bool", "double", "int" };
+    private static string IndentString = "    ";
 
     private bool _insideMain;
     private bool _insideReturningT;
@@ -108,6 +110,7 @@ internal sealed class CSharpEmitter {
     }
 
     private string GetEquivalentType(BoundType type, bool makeReferenceExplicit = false) {
+
         string GetEquivalentTypeName(TypeSymbol typeSymbol) {
             if (typeSymbol is NamedTypeSymbol)
                 return GetSafeName(typeSymbol.name);
@@ -162,9 +165,15 @@ internal sealed class CSharpEmitter {
 
         // All logic relating to constants has already been handled by the Binder,
         // so specifying const here would not do anything
-        if (type.isExplicitReference || (type.isReference && makeReferenceExplicit))
+
+        if ((type.isExplicitReference ||
+            type.isReference &&
+            makeReferenceExplicit) &&
+            (ValueTypes.Contains(typeName) || type.typeSymbol is StructSymbol)) {
             equivalentType.Append("ref ");
-        if (type.isNullable && new List<string>() { "bool", "double", "int" }.Contains(typeName))
+        }
+
+        if (type.isNullable && (ValueTypes.Contains(typeName) || type.typeSymbol is StructSymbol))
             typeName = $"global::System.Nullable<{typeName}>";
 
         for (var i = 0; i < type.dimensions; i++)
@@ -194,14 +203,7 @@ internal sealed class CSharpEmitter {
 
             builder.Append(" }");
         } else {
-            if (BoundConstant.IsNull(constant))
-                builder.Append("null");
-            else if (constant.value is bool)
-                builder.Append(constant.value.ToString().ToLower());
-            else if (constant.value is string)
-                builder.Append($"\"{Regex.Escape(constant.value.ToString())}\"");
-            else
-                builder.Append(constant.value);
+            builder.Append(DisplayText.FormatLiteral(constant.value));
         }
 
         return builder.ToString();
@@ -913,7 +915,11 @@ internal sealed class CSharpEmitter {
     }
 
     private void EmitReferenceExpression(IndentedTextWriter indentedTextWriter, BoundReferenceExpression expression) {
-        indentedTextWriter.Write("ref ");
+        if (expression.type.isExplicitReference &&
+            (ValueTypes.Contains(expression.type.typeSymbol.name) || expression.type.typeSymbol is StructSymbol)) {
+            indentedTextWriter.Write("ref ");
+        }
+
         EmitExpression(indentedTextWriter, expression.expression);
     }
 
