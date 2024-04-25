@@ -6,9 +6,9 @@ code snippets, without having to create any files or set up a project.
 The Repl is maintained alongside the compiler, so all language features are supported in the Repl, as well as many
 tools for debugging.
 
-- [Invoking the Repl]
-- [Interacting with the Repl]
-- [Repl Meta-Commands]
+- [Invoking the Repl](#invoking-the-repl)
+- [Interacting with the Repl](#interacting-with-the-repl)
+- [Repl Meta-Commands](#repl-meta-commands)
 
 ## Invoking the Repl
 
@@ -48,7 +48,6 @@ The Repl provides many commands usefully for debug snippets or code.
 | [Reset](#reset-command) | `#reset` | Clear previous submissions |
 | [Save to File](#save-to-file-command) | `#saveToFile <path> <count=1>` | Save previous \<count> submissions to \<path> |
 | [Settings](#settings-command) | `#settings` | Open settings page |
-| [Show C#](#show-c-command) | `#showCS` | Toggle display of C# code |
 | [Show IL](#show-il-command) | `#showIL` | Toggle display of IL code |
 | [Show Program](#show-program-command) | `#showProgram` | Toggle display of the intermediate representation |
 | [Show Time](#show-time-command) | `#showTime` | Toggle display of submission execution time |
@@ -56,6 +55,8 @@ The Repl provides many commands usefully for debug snippets or code.
 | [Show Tree](#show-tree-command) | `#showTree` | Toggle display of the parse tree |
 | [Show Warnings](#show-warnings-command) | `#showWarnings` | Toggle display of warnings |
 | [State](#state-command) | `#state` | Dump the current state of the Repl |
+
+<!-- | [Show C#](#show-c-command) | `#showCS` | Toggle display of C# code | -->
 
 ### Clear Command
 
@@ -257,6 +258,7 @@ All Repl settings:
 |-|-|-|-|
 | Theme | Dark, Light, Green | Dark | The color theme of the Repl; each contributor gets their own color theme! |
 
+<!--
 ### Show C# Command
 
 Usage: `#showCS`
@@ -283,6 +285,7 @@ public static class Program {
 
 }
 ```
+-->
 
 ### Show IL Command
 

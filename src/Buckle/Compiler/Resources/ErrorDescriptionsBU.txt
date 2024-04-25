@@ -1744,3 +1744,5 @@ $BU9004
 Compiling with .NET integration is currently unsupported.
 $BU9005
 Currently, postfix operators are disabled if overloaded.
+$BU9006
+Transpiling to C# is currently unsupported.

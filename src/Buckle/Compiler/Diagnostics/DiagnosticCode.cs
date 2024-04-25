@@ -130,4 +130,5 @@ public enum DiagnosticCode : int {
     UNS_IndependentCompilation = 9003,
     UNS_DotnetCompilation = 9004,
     UNS_OverloadedPostfix = 9005,
+    UNS_CSharpTranspilation = 9006,
 }

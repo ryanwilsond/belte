@@ -12,9 +12,10 @@ the way! You can read more about using the compiler [here](../Buckle.md).
 
 - Multi-file compilations
 - Functions with rich features such as default parameters and overloads
-- Basic datatypes
+- Basic data types including arrays
 - Variables, constants, and references
-- Basic classes with fields and members, including static support
+- Basic classes with fields and members, including static support and operator overloading
 - Control flow such as If, Else, For, and While loops
-- Console IO
-- Command-Line Arguments via `argc` and `argv` (like in C/C++)
+- A simple Console library
+- A simple Math library
+- Passing of command-line arguments
