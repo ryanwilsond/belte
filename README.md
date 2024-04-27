@@ -15,7 +15,7 @@ To give a brief idea: Belte is a programming language that supports both procedu
 aims to match the sleekness of C# and the power of C++ while still being easy to learn and use effectively.
 
 More information about the design principles and language specification for Belte can be read
-[here](#documentation).
+[here](docs/README.md).
 
 Being a lone developer, this project is a massive undertaking! So any contributions or suggestions to the language
 design or compiler itself would be very much appreciated!

@@ -4,12 +4,7 @@
 
 <h1 align="center">Belte Documentation</h1>
 
-For information on what Belte is, when and why it was created, and the working language specification:
-
 - [The Belte Language & Specification](Belte.md)
-
-Additional Resources:
-
 - Buckle Docs
   - [Building Buckle](Building.md)
   - [Using Buckle](Buckle.md)
