@@ -8,8 +8,7 @@
             "preLaunchTask": "build compiler debug",
             "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net8.0/CommandLine.dll",
             "args": [
-                // "-r"
-                "samples/Echo"
+                "-r"
             ],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",
@@ -22,8 +21,7 @@
             "preLaunchTask": "build compiler debug",
             "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net8.0/CommandLine.dll",
             "args": [
-                // "-r"
-                "samples/Echo"
+                "-r"
             ],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",

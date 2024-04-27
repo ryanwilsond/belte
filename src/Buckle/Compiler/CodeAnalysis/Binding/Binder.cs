@@ -186,7 +186,7 @@ internal sealed class Binder {
                 if (entryPoint.parameters.Any()) {
                     if (entryPoint.parameters.Length != 1 ||
                         entryPoint.parameters[0].name != "args" ||
-                        !entryPoint.parameters[0].type.Equals(argsType)) {
+                        !(entryPoint.parameters[0].type?.Equals(argsType) ?? false)) {
                         var span = TextSpan.FromBounds(
                             entryPoint.declaration.parameterList.openParenthesis.span.start + 1,
                             entryPoint.declaration.parameterList.closeParenthesis.span.end - 1
@@ -993,6 +993,35 @@ internal sealed class Binder {
             }
         }
 
+        if (@class.members == null) {
+            var defaultConstructor = new MethodSymbol(
+                WellKnownMemberNames.InstanceConstructorName,
+                ImmutableArray<ParameterSymbol>.Empty,
+                BoundType.Void
+            );
+
+            builder.Add(defaultConstructor);
+            _scope.TryDeclareMethod(defaultConstructor);
+            _scope = _scope.parent;
+            _scope.DeclareMethodStrict(defaultConstructor);
+
+            var emptyClass = new ClassSymbol(
+                oldClass.templateParameters,
+                builder.ToImmutableArray(),
+                [],
+                @class,
+                DeclarationModifiers.None
+            );
+
+            if (oldClass.members.Length == 0)
+                _scope.TryReplaceSymbol(oldClass, emptyClass);
+            else if (!_scope.TryDeclareType(emptyClass))
+                diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
+
+            _flags = saved;
+            return emptyClass;
+        }
+
         foreach (var member in @class.members) {
             if (member is TypeDeclarationSyntax ts)
                 PreBindTypeDeclaration(ts);
@@ -1540,7 +1569,9 @@ internal sealed class Binder {
 
             if ((symbols[0] is not MethodSymbol) &&
                 containingTypesEqual &&
-                (_containingMethod?.isStatic ?? false) && !symbols[0].isStatic) {
+                (_containingMethod?.isStatic ?? false) &&
+                !symbols[0].isStatic &&
+                symbols[0] is not TemplateTypeSymbol) {
                 diagnostics.Push(Error.InvalidStaticReference(syntax.location, name));
                 return new BoundErrorExpression();
             }
@@ -2517,7 +2548,7 @@ internal sealed class Binder {
 
         if (result.succeeded || result.ambiguous) {
             if (ownStatement)
-                return new BoundCallExpression(new BoundEmptyExpression(), result.bestOverload, [boundOperand]);
+                return new BoundCallExpression(boundOperand.type, result.bestOverload, [boundOperand]);
             else
                 diagnostics.Push(Error.Unsupported.OverloadedPostfix(expression.operatorToken.location));
         }
@@ -2576,7 +2607,7 @@ internal sealed class Binder {
         );
 
         if (result.succeeded || result.ambiguous)
-            return new BoundCallExpression(new BoundEmptyExpression(), result.bestOverload, [boundOperand]);
+            return new BoundCallExpression(boundOperand.type, result.bestOverload, [boundOperand]);
 
         if (boundOp is null) {
             diagnostics.Push(Error.InvalidPrefixUse(
@@ -2619,7 +2650,7 @@ internal sealed class Binder {
 
                 if (result.succeeded || result.ambiguous) {
                     var call = new BoundCallExpression(
-                        new BoundEmptyExpression(),
+                        boundExpression.type,
                         result.bestOverload,
                         [boundExpression, boundIndex]
                     );
@@ -2843,7 +2874,7 @@ internal sealed class Binder {
         );
 
         if (result.succeeded || result.ambiguous)
-            return new BoundCallExpression(new BoundEmptyExpression(), result.bestOverload, [boundOperand]);
+            return new BoundCallExpression(boundOperand.type, result.bestOverload, [boundOperand]);
 
         if (boundOp is null) {
             diagnostics.Push(Error.InvalidUnaryOperatorUse(
@@ -2905,8 +2936,13 @@ internal sealed class Binder {
             out var result
         );
 
-        if (result.succeeded || result.ambiguous)
-            return new BoundCallExpression(new BoundEmptyExpression(), result.bestOverload, [boundLeft, boundRight]);
+        if (result.succeeded || result.ambiguous) {
+            var receiver = boundLeft.type.typeSymbol == result.bestOverload.containingType
+                ? boundLeft.type
+                : boundRight.type;
+
+            return new BoundCallExpression(receiver, result.bestOverload, [boundLeft, boundRight]);
+        }
 
         if (boundOp is null) {
             diagnostics.Push(Error.InvalidBinaryOperatorUse(

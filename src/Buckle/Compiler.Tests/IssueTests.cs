@@ -977,4 +977,25 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Evaluator_OperatorOverloading_ReturnsCorrectType() {
+        var text = @"
+            class A<type t> {
+                int v = 3;
+
+                static A<t> operator+(int a, A<t> b) {
+                    b.v = 7;
+                    return b;
+                }
+            }
+
+            var myA = new A<string>();
+            var c = 6 + (3 + myA);
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

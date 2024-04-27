@@ -37,10 +37,9 @@ internal sealed class OverloadResolution {
         ImmutableArray<(string name, BoundExpression expression)> arguments,
         string name,
         SyntaxNodeOrToken operand,
-        ArgumentListSyntax argumentList,
-        BoundType receiverType) {
+        ArgumentListSyntax argumentList) {
         _suppressDiagnostics = true;
-        var result = MethodOverloadResolution(methods, arguments, name, operand, argumentList, receiverType);
+        var result = MethodOverloadResolution(methods, arguments, name, operand, argumentList, null);
         _suppressDiagnostics = false;
 
         return result;
