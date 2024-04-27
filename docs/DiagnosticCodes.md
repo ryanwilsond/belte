@@ -24,7 +24,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0011 | Error | binary operator '{0}' is not defined for types '{1}' and '{2}' |
 | BU0012 | Error | multiple files with global statements creates ambiguous entry point |
 | BU0013 | Error | cannot reuse parameter name '{0}'; parameter names must be unique |
-| BU0014 | Error | invalid main signature: must return void or int and take in no arguments or take in 'int! argc, string[]! argv' |
+| BU0014 | Error | invalid main signature: must return void or int and take in no arguments or take in 'List<string!>! args' |
 | BU0015 | Error | method '{0}' does not have a parameter named '{1}' |
 | BU0016 | Error | declaring a main method and using global statements creates ambiguous entry point |
 | BU0017 | Error | undefined symbol '{0}' |

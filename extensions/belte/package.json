@@ -3,14 +3,14 @@
     "displayName": "BELTE",
     "description": "Language support for Belte",
     "version": "0.1.0",
-    "publisher": "Ryan Wilson",
+    "publisher": "ryan_wilson",
     "repository": {
         "type": "git",
         "url": "https://github.com/ryanwilsond/belte"
     },
-    "icon": "./images/belte-icon128x.png",
+    "icon": "./images/BelteCapital.png",
     "engines": {
-        "vscode": "^1.46.0"
+        "vscode": "^1.54.0"
     },
     "categories": [
         "Programming Languages"

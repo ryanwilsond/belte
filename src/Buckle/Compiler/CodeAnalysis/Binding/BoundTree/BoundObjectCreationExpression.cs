@@ -14,11 +14,20 @@ internal sealed class BoundObjectCreationExpression : BoundExpression {
         this.type = type;
         this.constructor = constructor;
         this.arguments = arguments;
+        viaConstructor = true;
+    }
+
+    internal BoundObjectCreationExpression(BoundType type) {
+        this.type = type;
+        viaConstructor = false;
+        arguments = ImmutableArray<BoundExpression>.Empty;
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.ObjectCreationExpression;
 
     internal override BoundType type { get; }
+
+    internal bool viaConstructor { get; }
 
     internal MethodSymbol constructor { get; }
 

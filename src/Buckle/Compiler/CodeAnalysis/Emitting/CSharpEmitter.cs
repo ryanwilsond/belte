@@ -5,7 +5,9 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -19,7 +21,11 @@ namespace Buckle.CodeAnalysis.Emitting;
 /// Emits a bound program into a C# source.
 /// </summary>
 internal sealed class CSharpEmitter {
+    private static List<string> ValueTypes = new List<string>() { "bool", "double", "int" };
+    private static string IndentString = "    ";
+
     private bool _insideMain;
+    private bool _insideReturningT;
     private ImmutableDictionary<MethodSymbol, BoundBlockStatement> _methods;
 
     /// <summary>
@@ -58,11 +64,8 @@ internal sealed class CSharpEmitter {
     private string EmitInternal(BoundProgram program, string namespaceName, out BelteDiagnosticQueue diagnostics) {
         _methods = program.methodBodies;
         var stringWriter = new StringWriter();
-        var indentString = "    ";
 
-        using (var indentedTextWriter = new IndentedTextWriter(stringWriter, indentString)) {
-            indentedTextWriter.WriteLine("using System;");
-            indentedTextWriter.WriteLine("using System.Collections.Generic;");
+        using (var indentedTextWriter = new IndentedTextWriter(stringWriter, IndentString)) {
             indentedTextWriter.WriteLine();
             indentedTextWriter.WriteLine($"namespace {GetSafeName(namespaceName)};");
             indentedTextWriter.WriteLine();
@@ -107,6 +110,7 @@ internal sealed class CSharpEmitter {
     }
 
     private string GetEquivalentType(BoundType type, bool makeReferenceExplicit = false) {
+
         string GetEquivalentTypeName(TypeSymbol typeSymbol) {
             if (typeSymbol is NamedTypeSymbol)
                 return GetSafeName(typeSymbol.name);
@@ -127,21 +131,82 @@ internal sealed class CSharpEmitter {
             return "void";
 
         var equivalentType = new StringBuilder();
-        var typeName = GetEquivalentTypeName(type.typeSymbol);
+        var typeNameBuilder = new StringBuilder(GetEquivalentTypeName(type.typeSymbol));
+        var isFirst = true;
+
+        foreach (var templateParameter in type.templateArguments) {
+            if (isFirst) {
+                typeNameBuilder.Append('<');
+                isFirst = false;
+            } else {
+                typeNameBuilder.Append(", ");
+            }
+
+            if (templateParameter.isConstant) {
+                if (templateParameter.constant == null) {
+                    var stringWriter = new StringWriter();
+                    var indentedWriter = new IndentedTextWriter(stringWriter, IndentString);
+                    EmitExpression(indentedWriter, templateParameter.expression);
+                    indentedWriter.Flush();
+                    stringWriter.Flush();
+                    typeNameBuilder.Append(stringWriter.ToString());
+                } else {
+                    typeNameBuilder.Append(GetEquivalentConstant(templateParameter.constant, templateParameter.type));
+                }
+            } else {
+                typeNameBuilder.Append(GetEquivalentType(templateParameter.type));
+            }
+        }
+
+        if (!isFirst)
+            typeNameBuilder.Append('>');
+
+        var typeName = typeNameBuilder.ToString();
 
         // All logic relating to constants has already been handled by the Binder,
         // so specifying const here would not do anything
-        if (type.isExplicitReference || (type.isReference && makeReferenceExplicit))
+
+        if ((type.isExplicitReference ||
+            type.isReference &&
+            makeReferenceExplicit) &&
+            (ValueTypes.Contains(typeName) || type.typeSymbol is StructSymbol)) {
             equivalentType.Append("ref ");
-        if (type.isNullable && new List<string>() { "bool", "double", "int" }.Contains(typeName))
-            typeName = $"Nullable<{typeName}>";
+        }
+
+        if (type.isNullable && (ValueTypes.Contains(typeName) || type.typeSymbol is StructSymbol))
+            typeName = $"global::System.Nullable<{typeName}>";
 
         for (var i = 0; i < type.dimensions; i++)
-            typeName = $"List<{typeName}>";
+            typeName = $"global::System.Collections.Generic.List<{typeName}>";
 
         equivalentType.Append(typeName);
 
         return equivalentType.ToString();
+    }
+
+    private string GetEquivalentConstant(BoundConstant constant, BoundType type) {
+        var builder = new StringBuilder();
+
+        if (constant.value is ImmutableArray<BoundConstant> ia) {
+            builder.Append($"new {GetEquivalentType(type)} {{ ");
+
+            var isFirst = true;
+
+            foreach (var item in ia) {
+                if (isFirst)
+                    isFirst = false;
+                else
+                    builder.Append(", ");
+
+                builder.Append(GetEquivalentConstant(item, type.ChildType()));
+            }
+
+            builder.Append(" }");
+        } else {
+            builder.Append(DisplayText.FormatLiteral(constant.value));
+        }
+
+        return builder.ToString();
     }
 
     private string GetSafeName(string name) {
@@ -166,14 +231,12 @@ internal sealed class CSharpEmitter {
         var firstTemplate = true;
         var needsCloseBracket = false;
 
-        foreach (var parameter in @class.members.OfType<ParameterSymbol>()) {
-            if (parameter.type.typeSymbol == TypeSymbol.Type) {
-                if (firstTemplate) {
-                    needsCloseBracket = true;
-                    signature.Append($"<{GetSafeName(parameter.name)}");
-                } else {
-                    signature.Append($", {GetSafeName(parameter.name)}");
-                }
+        foreach (var templateType in @class.members.OfType<TemplateTypeSymbol>()) {
+            if (firstTemplate) {
+                needsCloseBracket = true;
+                signature.Append($"<{GetSafeName(templateType.name)}");
+            } else {
+                signature.Append($", {GetSafeName(templateType.name)}");
             }
         }
 
@@ -297,9 +360,13 @@ internal sealed class CSharpEmitter {
         var signature = $"public {(method.Key.containingType is null || method.Key.isStatic ? "static " : "")}" +
             $"{GetEquivalentType(method.Key.type)} {GetSafeName(method.Key.name)}({parameters})";
 
+        if (method.Key.type.typeSymbol is TemplateTypeSymbol)
+            _insideReturningT = true;
+
         using (var methodCurly = new CurlyIndenter(indentedTextWriter, signature))
             EmitBody(indentedTextWriter, method.Value);
 
+        _insideReturningT = false;
         indentedTextWriter.WriteLine();
     }
 
@@ -400,7 +467,7 @@ internal sealed class CSharpEmitter {
 
     private void EmitConditionalGotoStatement(
         IndentedTextWriter indentedTextWriter, BoundConditionalGotoStatement statement) {
-        indentedTextWriter.Write($"if ((");
+        indentedTextWriter.Write($"if (");
 
         if (statement.jumpIfTrue)
             indentedTextWriter.Write("(");
@@ -409,7 +476,11 @@ internal sealed class CSharpEmitter {
 
         EmitExpression(indentedTextWriter, statement.condition);
 
-        indentedTextWriter.WriteLine(")) ?? throw new NullReferenceException())");
+        if (statement.condition.type.isNullable)
+            indentedTextWriter.WriteLine(") ?? throw new global::System.NullReferenceException())");
+        else
+            indentedTextWriter.WriteLine("))");
+
         indentedTextWriter.Indent++;
         indentedTextWriter.WriteLine($"goto {statement.label.name};");
         indentedTextWriter.Indent--;
@@ -422,8 +493,13 @@ internal sealed class CSharpEmitter {
         } else {
             indentedTextWriter.Write("return ");
 
-            if (BoundConstant.IsNull(statement.expression.constantValue)) {
+            if (_insideMain && BoundConstant.IsNull(statement.expression.constantValue)) {
                 indentedTextWriter.WriteLine("0;");
+                return;
+            }
+
+            if (_insideReturningT && BoundConstant.IsNull(statement.expression.constantValue)) {
+                indentedTextWriter.WriteLine($"default({GetEquivalentType(statement.expression.type)});");
                 return;
             }
 
@@ -431,6 +507,8 @@ internal sealed class CSharpEmitter {
 
             if (_insideMain && statement.expression.type.isNullable)
                 indentedTextWriter.WriteLine(" ?? 0;");
+            else if (_insideReturningT && statement.expression.type.isNullable)
+                indentedTextWriter.WriteLine($" ?? default({GetEquivalentType(statement.expression.type)});");
             else
                 indentedTextWriter.WriteLine(";");
         }
@@ -458,7 +536,7 @@ internal sealed class CSharpEmitter {
         EmitExpression(indentedTextWriter, expression);
 
         if (expression.type.isNullable)
-            indentedTextWriter.Write(" ?? throw new NullReferenceException())");
+            indentedTextWriter.Write(" ?? throw new global::System.NullReferenceException())");
     }
 
     private void EmitIfStatement(IndentedTextWriter indentedTextWriter, BoundIfStatement statement) {
@@ -591,31 +669,7 @@ internal sealed class CSharpEmitter {
     }
 
     private void EmitBoundConstant(IndentedTextWriter indentedTextWriter, BoundConstant constant, BoundType type) {
-        if (constant.value is ImmutableArray<BoundConstant> ia) {
-            indentedTextWriter.Write($"new {GetEquivalentType(type)} {{ ");
-
-            var isFirst = true;
-
-            foreach (var item in ia) {
-                if (isFirst)
-                    isFirst = false;
-                else
-                    indentedTextWriter.Write(", ");
-
-                EmitBoundConstant(indentedTextWriter, item, type.ChildType());
-            }
-
-            indentedTextWriter.Write(" }");
-        } else {
-            if (BoundConstant.IsNull(constant))
-                indentedTextWriter.Write("null");
-            else if (constant.value is bool)
-                indentedTextWriter.Write(constant.value.ToString().ToLower());
-            else if (constant.value is string)
-                indentedTextWriter.Write($"\"{constant.value}\"");
-            else
-                indentedTextWriter.Write(constant.value);
-        }
+        indentedTextWriter.Write(GetEquivalentConstant(constant, type));
     }
 
     private void EmitInitializerListExpression(
@@ -664,7 +718,7 @@ internal sealed class CSharpEmitter {
 
     private void EmitCallExpression(IndentedTextWriter indentedTextWriter, BoundCallExpression expression) {
         if (expression.method == BuiltinMethods.RandInt) {
-            var signature = $"Func<{GetEquivalentType(expression.type)}>";
+            var signature = $"global::System.Func<{GetEquivalentType(expression.type)}>";
             indentedTextWriter.Write(
                 $"(({signature})(() => {{ var random = new global::System.Random(); var temp = "
             );
@@ -687,7 +741,7 @@ internal sealed class CSharpEmitter {
                    expression.method == BuiltinMethods.ValueInt) {
             EmitExpression(indentedTextWriter, expression.arguments[0]);
 
-            if (GetEquivalentType(expression.arguments[0].type).StartsWith("Nullable"))
+            if (GetEquivalentType(expression.arguments[0].type).StartsWith("global::System.Nullable"))
                 indentedTextWriter.Write(".Value");
 
             return;
@@ -696,7 +750,7 @@ internal sealed class CSharpEmitter {
                    expression.method == BuiltinMethods.HasValueDecimal ||
                    expression.method == BuiltinMethods.HasValueInt ||
                    expression.method == BuiltinMethods.HasValueString) {
-            if (GetEquivalentType(expression.arguments[0].type).StartsWith("Nullable")) {
+            if (GetEquivalentType(expression.arguments[0].type).StartsWith("global::System.Nullable")) {
                 EmitExpression(indentedTextWriter, expression.arguments[0]);
                 indentedTextWriter.Write(".HasValue");
             } else if (expression.arguments[0].type.isNullable) {
@@ -727,7 +781,7 @@ internal sealed class CSharpEmitter {
             return;
         } else if (expression.method == BuiltinMethods.Length) {
             indentedTextWriter.Write(
-                "((Func<object, int?>)((x) => {{ return x is object[] y ? y.Length : null; }} ))("
+                "((global::System.Func<object, int?>)((x) => {{ return x is object[] y ? y.Length : null; }} ))("
             );
 
             EmitExpression(indentedTextWriter, expression.arguments[0]);
@@ -747,44 +801,33 @@ internal sealed class CSharpEmitter {
             indentedTextWriter.Write(GetSafeName(expression.method.name));
         }
 
-        EmitArguments(indentedTextWriter, expression.arguments);
+        EmitArguments(indentedTextWriter, expression.arguments, expression.method.parameters);
     }
 
-    private void EmitArguments(IndentedTextWriter indentedTextWriter, ImmutableArray<BoundExpression> arguments) {
+    private void EmitArguments(
+        IndentedTextWriter indentedTextWriter,
+        ImmutableArray<BoundExpression> arguments,
+        ImmutableArray<ParameterSymbol> parameters) {
         indentedTextWriter.Write("(");
 
         var isFirst = true;
 
-        foreach (var argument in arguments) {
+        for (var i = 0; i < arguments.Length; i++) {
             if (isFirst)
                 isFirst = false;
             else
                 indentedTextWriter.Write(", ");
 
-            EmitExpression(indentedTextWriter, argument);
+            var argument = arguments[i];
+            var type = parameters.Length > i ? parameters[i].type : null;
+
+            if (type is not null && !type.isExplicitReference && argument is BoundReferenceExpression r)
+                EmitExpression(indentedTextWriter, r.expression);
+            else
+                EmitExpression(indentedTextWriter, argument);
         }
 
         indentedTextWriter.Write(")");
-    }
-
-    private void EmitTypeArguments(IndentedTextWriter indentedTextWriter, ImmutableArray<BoundType> arguments) {
-        if (arguments.Length == 0)
-            return;
-
-        indentedTextWriter.Write("<");
-
-        var isFirst = true;
-
-        foreach (var argument in arguments) {
-            if (isFirst)
-                isFirst = false;
-            else
-                indentedTextWriter.Write(", ");
-
-            indentedTextWriter.Write(GetEquivalentType(argument, true));
-        }
-
-        indentedTextWriter.Write(">");
     }
 
     private void EmitIndexExpression(IndentedTextWriter indentedTextWriter, BoundIndexExpression expression) {
@@ -831,7 +874,7 @@ internal sealed class CSharpEmitter {
         EmitExpression(indentedTextWriter, expression.left);
 
         if (expression.left.type.isNullable)
-            indentedTextWriter.Write(") ?? throw new NullReferenceException())");
+            indentedTextWriter.Write(") ?? throw new global::System.NullReferenceException())");
 
         indentedTextWriter.Write($" {SyntaxFacts.GetText(expression.op.leftOpKind)} ");
 
@@ -872,26 +915,34 @@ internal sealed class CSharpEmitter {
     }
 
     private void EmitReferenceExpression(IndentedTextWriter indentedTextWriter, BoundReferenceExpression expression) {
-        var variable = (expression.expression as BoundVariableExpression).variable;
-        indentedTextWriter.Write($"ref {GetSafeName(variable.name)}");
+        if (expression.type.isExplicitReference &&
+            (ValueTypes.Contains(expression.type.typeSymbol.name) || expression.type.typeSymbol is StructSymbol)) {
+            indentedTextWriter.Write("ref ");
+        }
+
+        EmitExpression(indentedTextWriter, expression.expression);
     }
 
     private void EmitObjectCreationExpression(
         IndentedTextWriter indentedTextWriter, BoundObjectCreationExpression expression) {
         indentedTextWriter.Write($"new {GetEquivalentType(expression.type)}");
         var arguments = ImmutableArray.CreateBuilder<BoundExpression>();
-        var typeArguments = ImmutableArray.CreateBuilder<BoundType>();
         arguments.AddRange(expression.arguments);
 
         foreach (var templateArgument in expression.type.templateArguments) {
-            if (templateArgument.isConstant)
-                arguments.Add(new BoundLiteralExpression(templateArgument.constant.value));
-            else
-                typeArguments.Add(templateArgument.type);
+            if (templateArgument.isConstant) {
+                if (templateArgument.constant == null)
+                    arguments.Add(templateArgument.expression);
+                else
+                    arguments.Add(new BoundLiteralExpression(templateArgument.constant.value));
+            }
         }
 
-        EmitTypeArguments(indentedTextWriter, typeArguments.ToImmutable());
-        EmitArguments(indentedTextWriter, arguments.ToImmutable());
+        EmitArguments(
+            indentedTextWriter,
+            arguments.ToImmutable(),
+            expression.constructor?.parameters ?? ImmutableArray<ParameterSymbol>.Empty
+        );
     }
 
     private void EmitMemberAccessExpression(

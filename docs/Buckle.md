@@ -59,7 +59,6 @@ Stop compilation after assembling, resulting in an byte code. File output option
 outputted compiled file will be an object file (ending in *.o* by default).
 
 This option is only used in junction with the *-n* option.
--->
 
 ### *--script*
 
@@ -106,6 +105,7 @@ Specifies the output path or filename. This option is only valid when using the 
 all compilation phases are completed. You cannot specify this option in junction with *-p*, *-s*, and *-c* when multiple
 files are inputted. You cannot also never specify this option in junction with *-i*, *--script*, *--evaluate*,
 *--execute*, *-t*, or *--transpile*.
+-->
 
 ### *--severity=\<severity>* (Default *warning*)
 

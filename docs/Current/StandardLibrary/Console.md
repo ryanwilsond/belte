@@ -1,4 +1,4 @@
-# 5.2 Console
+# 5.2 Console (Included By Default)
 
 The Console class provides a way to interact with the console/terminal via IO.
 

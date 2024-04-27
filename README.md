@@ -1,21 +1,32 @@
+## Belte is under development! Any language design suggestions or compiler improvements are welcome
+
 <p align="center">
 <img width="300" src="docs/images/BelteCapital.png" alt="Belte Logo">
 </p>
 
 <h1 align="center">Best Ever Language To Exist</h1>
 
-Buckle is the open-source implementation of the Belte compiler.
+## Belte?
 
-> **Belte is under development** and does not support many features (yet) \
-> Belte does not currently have a stable release, so expect bugs if you clone
+Belte is the **idea of a better language**, so while the Buckle compiler is being developed in hopes of bringing
+some of Belte's features to fruition, it is unlikely that Belte will ever be implemented in its totality.
 
-Belte is an object-oriented programming language aiming to have the same feel and power of C# and C++, while still being
-very easy to learn and use effectively. [Here](docs/Principles.md) you can read about the goals and design principles of
-Belte.
+To give a brief idea: Belte is a programming language that supports both procedural and object-oriented paradigms that
+aims to match the sleekness of C# and the power of C++ while still being easy to learn and use effectively.
+
+More information about the design principles and language specification for Belte can be read
+[here](#documentation).
+
+Being a lone developer, this project is a massive undertaking! So any contributions or suggestions to the language
+design or compiler itself would be very much appreciated!
 
 ___
 
 ## Using the Buckle Compiler
+
+Buckle is the open-source implementation of the Belte compiler.
+
+> Belte does not currently have a stable release, so expect bugs if you clone
 
 Instructions on how to use the Buckle command-line utility to run Belte code can be viewed [here](docs/Buckle.md).
 

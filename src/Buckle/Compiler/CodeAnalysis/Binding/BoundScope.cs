@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -101,6 +102,25 @@ internal sealed class BoundScope {
         }
 
         return parent?.LookupSymbol<T>(name, isStaticLookup);
+    }
+
+    /// <summary>
+    /// Attempts to find a <see cref="Symbol"/> using a syntax declaration.
+    /// If this fails, the <see cref="Symbol" /> has not been declared.
+    /// </summary>
+    /// <param name="declaration">The declaration used to previously declare the <see cref="Symbol" />.</param>
+    /// <returns><see cref="Symbol" /> if found, null otherwise.</returns>
+    internal Symbol LookupSymbolDirect(SyntaxNode declaration) {
+        if (_symbols != null) {
+            foreach (var symbol in _symbols) {
+                if (symbol is NamedTypeSymbol n && n.declaration == declaration)
+                    return symbol;
+                if (symbol is MethodSymbol m && m.declaration == declaration)
+                    return symbol;
+            }
+        }
+
+        return parent?.LookupSymbolDirect(declaration);
     }
 
     /// <summary>

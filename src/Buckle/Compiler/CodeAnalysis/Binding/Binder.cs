@@ -176,12 +176,17 @@ internal sealed class Binder {
                     );
                 }
 
+                var argsType = new BoundType(
+                    binder._scope.LookupSymbol<ClassSymbol>("List"),
+                    isNullable: false,
+                    templateArguments: [new BoundTypeOrConstant(BoundType.String)],
+                    arity: 1
+                );
+
                 if (entryPoint.parameters.Any()) {
-                    if (entryPoint.parameters.Length != 2 ||
-                        entryPoint.parameters[0].name != "argc" ||
-                        !entryPoint.parameters[0].type.Equals(BoundType.Int) ||
-                        entryPoint.parameters[1].name != "argv" ||
-                        !entryPoint.parameters[1].type.Equals(new BoundType(TypeSymbol.String, dimensions: 1))) {
+                    if (entryPoint.parameters.Length != 1 ||
+                        entryPoint.parameters[0].name != "args" ||
+                        !(entryPoint.parameters[0].type?.Equals(argsType) ?? false)) {
                         var span = TextSpan.FromBounds(
                             entryPoint.declaration.parameterList.openParenthesis.span.start + 1,
                             entryPoint.declaration.parameterList.closeParenthesis.span.end - 1
@@ -800,7 +805,7 @@ internal sealed class Binder {
         var atLeastOneClassParameter = false;
 
         foreach (var parameter in parameters) {
-            if (parameter.type.typeSymbol.name == className) {
+            if (parameter.type?.typeSymbol?.name == className) {
                 atLeastOneClassParameter = true;
                 break;
             }
@@ -863,24 +868,33 @@ internal sealed class Binder {
         return declarationModifiers;
     }
 
-    private void PreBindTypeDeclaration(TypeDeclarationSyntax @type) {
-        if (@type is StructDeclarationSyntax s) {
+    private void PreBindTypeDeclaration(TypeDeclarationSyntax type) {
+        var templateBuilder = ImmutableList.CreateBuilder<ParameterSymbol>();
+
+        if (type.templateParameterList != null) {
+            var templateParameters = BindParameters(type.templateParameterList.parameters, true);
+
+            foreach (var templateParameter in templateParameters)
+                templateBuilder.Add(templateParameter);
+        }
+
+        if (type is StructDeclarationSyntax s) {
             var modifiers = BindStructDeclarationModifiers(s.modifiers);
 
             _scope.TryDeclareType(
                 new StructSymbol(
-                    ImmutableArray<ParameterSymbol>.Empty,
+                    templateBuilder.ToImmutableArray(),
                     ImmutableArray<Symbol>.Empty,
                     s,
                     modifiers
                 )
             );
-        } else if (@type is ClassDeclarationSyntax c) {
+        } else if (type is ClassDeclarationSyntax c) {
             var modifiers = BindClassDeclarationModifiers(c.modifiers);
 
             _scope.TryDeclareType(
                 new ClassSymbol(
-                    ImmutableArray<ParameterSymbol>.Empty,
+                    templateBuilder.ToImmutableArray(),
                     ImmutableArray<Symbol>.Empty,
                     ImmutableArray<(FieldSymbol, ExpressionSyntax)>.Empty,
                     c,
@@ -888,12 +902,8 @@ internal sealed class Binder {
                 )
             );
         } else {
-            throw new BelteInternalException($"BindTypeDeclaration: unexpected type '{@type.identifier.text}'");
+            throw new BelteInternalException($"BindTypeDeclaration: unexpected type '{type.identifier.text}'");
         }
-    }
-
-    private void PreBindTemplateType(ParameterSymbol template) {
-        _scope.TryDeclareType(new TemplateTypeSymbol(template));
     }
 
     private TypeSymbol BindTypeDeclaration(TypeDeclarationSyntax @type) {
@@ -960,25 +970,56 @@ internal sealed class Binder {
         // ? This will return eventually
         BindAttributeLists(@class.attributeLists);
 
+        if (_scope.LookupSymbolDirect(@class) is not ClassSymbol oldClass) {
+            diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
+            return new ClassSymbol([], [], [], @class, DeclarationModifiers.None);
+        }
+
         var builder = ImmutableList.CreateBuilder<Symbol>();
-        var templateBuilder = ImmutableList.CreateBuilder<ParameterSymbol>();
-        var oldClass = _scope.LookupSymbol<ClassSymbol>(@class.identifier.text);
         var isStatic = oldClass.isStatic;
         _scope = new BoundScope(_scope);
 
         var saved = _flags;
         _flags |= BinderFlags.Class;
 
-        if (@class.templateParameterList != null) {
-            var templateParameters = BindParameters(@class.templateParameterList.parameters, true);
-
-            foreach (var templateParameter in templateParameters) {
+        foreach (var templateParameter in oldClass.templateParameters) {
+            if (templateParameter.type.typeSymbol == TypeSymbol.Type) {
+                var templateType = new TemplateTypeSymbol(templateParameter);
+                builder.Add(templateType);
+                _scope.TryDeclareType(templateType);
+            } else {
                 builder.Add(templateParameter);
-                templateBuilder.Add(templateParameter);
-
-                if (templateParameter.type.typeSymbol == TypeSymbol.Type)
-                    PreBindTemplateType(templateParameter);
+                _scope.TryDeclareVariable(templateParameter);
             }
+        }
+
+        if (@class.members == null) {
+            var defaultConstructor = new MethodSymbol(
+                WellKnownMemberNames.InstanceConstructorName,
+                ImmutableArray<ParameterSymbol>.Empty,
+                BoundType.Void
+            );
+
+            builder.Add(defaultConstructor);
+            _scope.TryDeclareMethod(defaultConstructor);
+            _scope = _scope.parent;
+            _scope.DeclareMethodStrict(defaultConstructor);
+
+            var emptyClass = new ClassSymbol(
+                oldClass.templateParameters,
+                builder.ToImmutableArray(),
+                [],
+                @class,
+                DeclarationModifiers.None
+            );
+
+            if (oldClass.members.Length == 0)
+                _scope.TryReplaceSymbol(oldClass, emptyClass);
+            else if (!_scope.TryDeclareType(emptyClass))
+                diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
+
+            _flags = saved;
+            return emptyClass;
         }
 
         foreach (var member in @class.members) {
@@ -1058,7 +1099,7 @@ internal sealed class Binder {
         _scope = _scope.parent;
 
         var newClass = new ClassSymbol(
-            templateBuilder.ToImmutableArray(),
+            oldClass.templateParameters,
             builder.ToImmutableArray(),
             defaultFieldAssignments,
             @class,
@@ -1289,6 +1330,7 @@ internal sealed class Binder {
             return BoundType.CopyWith(coreType, isNullable: false);
         } else if (type is ArrayTypeSyntax at) {
             var coreType = BindType(at.elementType);
+            var builder = ImmutableArray.CreateBuilder<BoundExpression>();
 
             if (coreType.isImplicit) {
                 var span = TextSpan.FromBounds(
@@ -1300,7 +1342,16 @@ internal sealed class Binder {
                 diagnostics.Push(Error.ImpliedDimensions(location));
             }
 
-            return BoundType.CopyWith(coreType, dimensions: at.rankSpecifiers.Count);
+            foreach (var rankSpecifier in at.rankSpecifiers) {
+                if (rankSpecifier.size is null) {
+                    builder.Add(new BoundLiteralExpression(0));
+                } else {
+                    var casted = BindCast(rankSpecifier.size, BoundType.Int);
+                    builder.Add(casted);
+                }
+            }
+
+            return BoundType.CopyWith(coreType, dimensions: at.rankSpecifiers.Count, sizes: builder.ToImmutable());
         }
 
         var name = type as NameSyntax;
@@ -1395,7 +1446,7 @@ internal sealed class Binder {
                 if (argument is BoundType t)
                     constantArguments.Add(new BoundTypeOrConstant(t));
                 else
-                    constantArguments.Add(new BoundTypeOrConstant(argument.constantValue));
+                    constantArguments.Add(new BoundTypeOrConstant(argument.constantValue, argument.type, argument));
             }
 
             if (result.succeeded) {
@@ -1438,7 +1489,7 @@ internal sealed class Binder {
                 if (argument is BoundType t)
                     constantArguments.Add(new BoundTypeOrConstant(t));
                 else
-                    constantArguments.Add(new BoundTypeOrConstant(argument.constantValue));
+                    constantArguments.Add(new BoundTypeOrConstant(argument.constantValue, argument.type, argument));
             }
 
             if (result.succeeded) {
@@ -1494,7 +1545,15 @@ internal sealed class Binder {
             return BindCalledIdentifierInScope(syntax, actualMethods);
         }
 
-        var symbols = _scope.LookupOverloads(name);
+        var symbolsList = _scope.LookupOverloads(name);
+        var symbolsBuilder = ImmutableArray.CreateBuilder<Symbol>();
+
+        foreach (var symbol in symbolsList) {
+            if (!(symbol is ParameterSymbol p && p.isTemplate && p.type.typeSymbol == TypeSymbol.Type))
+                symbolsBuilder.Add(symbol);
+        }
+
+        var symbols = symbolsBuilder.ToImmutable();
 
         if (symbols.Length == 0) {
             var primitive = LookupPrimitive(name);
@@ -1510,7 +1569,9 @@ internal sealed class Binder {
 
             if ((symbols[0] is not MethodSymbol) &&
                 containingTypesEqual &&
-                (_containingMethod?.isStatic ?? false) && !symbols[0].isStatic) {
+                (_containingMethod?.isStatic ?? false) &&
+                !symbols[0].isStatic &&
+                symbols[0] is not TemplateTypeSymbol) {
                 diagnostics.Push(Error.InvalidStaticReference(syntax.location, name));
                 return new BoundErrorExpression();
             }
@@ -2378,32 +2439,36 @@ internal sealed class Binder {
         if (type is null || type.typeSymbol == TypeSymbol.Error)
             return new BoundErrorExpression();
 
-        if (type.typeSymbol is not NamedTypeSymbol) {
-            diagnostics.Push(Error.CannotConstructPrimitive(expression.location, type.typeSymbol.name));
-            return new BoundErrorExpression();
-        }
-
         if (type.typeSymbol.isStatic) {
             diagnostics.Push(Error.CannotConstructStatic(expression.location, type.ToString()));
             return new BoundErrorExpression();
         }
 
-        if (!PartiallyBindArgumentList(expression.argumentList, out var arguments))
-            return new BoundErrorExpression();
+        if (type.dimensions > 0) {
+            return new BoundObjectCreationExpression(type);
+        } else {
+            if (type.typeSymbol is not NamedTypeSymbol) {
+                diagnostics.Push(Error.CannotConstructPrimitive(expression.location, type.typeSymbol.name));
+                return new BoundErrorExpression();
+            }
 
-        var result = _overloadResolution.MethodOverloadResolution(
-            (type.typeSymbol as NamedTypeSymbol).constructors,
-            arguments,
-            type.typeSymbol.name,
-            expression.type,
-            expression.argumentList,
-            type
-        );
+            if (!PartiallyBindArgumentList(expression.argumentList, out var arguments))
+                return new BoundErrorExpression();
 
-        if (!result.succeeded)
-            return new BoundErrorExpression();
+            var result = _overloadResolution.MethodOverloadResolution(
+                (type.typeSymbol as NamedTypeSymbol).constructors,
+                arguments,
+                type.typeSymbol.name,
+                expression.type,
+                expression.argumentList,
+                type
+            );
 
-        return new BoundObjectCreationExpression(type, result.bestOverload, result.arguments);
+            if (!result.succeeded)
+                return new BoundErrorExpression();
+
+            return new BoundObjectCreationExpression(type, result.bestOverload, result.arguments);
+        }
     }
 
     private BoundExpression BindMemberAccessExpression(MemberAccessExpressionSyntax expression, bool called) {
@@ -2448,10 +2513,14 @@ internal sealed class Binder {
             }
         }
 
-        if (_containingMethod?.isConstant ?? false &&
-            BindingUtilities.GetAssignedVariableSymbol(boundOperand).containingType ==
-                _containingMethod.containingType) {
-            diagnostics.Push(Error.AssignmentInConstMethod(expression.operatorToken.location));
+        if (expression.operatorToken.kind is SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken) {
+            var assignedVariable = BindingUtilities.GetAssignedVariableSymbol(boundOperand);
+
+            if ((_containingMethod?.isConstant ?? false) &&
+                assignedVariable.containingType == _containingMethod.containingType &&
+                assignedVariable is not ParameterSymbol) {
+                diagnostics.Push(Error.AssignmentInConstMethod(expression.operatorToken.location));
+            }
         }
 
         (var isConstant, var isConstantReference) = CheckConstantality(boundOperand);
@@ -2479,7 +2548,7 @@ internal sealed class Binder {
 
         if (result.succeeded || result.ambiguous) {
             if (ownStatement)
-                return new BoundCallExpression(new BoundEmptyExpression(), result.bestOverload, [boundOperand]);
+                return new BoundCallExpression(boundOperand.type, result.bestOverload, [boundOperand]);
             else
                 diagnostics.Push(Error.Unsupported.OverloadedPostfix(expression.operatorToken.location));
         }
@@ -2506,9 +2575,11 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        if (_containingMethod?.isConstant ?? false &&
-            BindingUtilities.GetAssignedVariableSymbol(boundOperand).containingType
-                == _containingMethod.containingType) {
+        var assignedVariable = BindingUtilities.GetAssignedVariableSymbol(boundOperand);
+
+        if ((_containingMethod?.isConstant ?? false) &&
+            assignedVariable.containingType == _containingMethod.containingType &&
+            assignedVariable is not ParameterSymbol) {
             diagnostics.Push(Error.AssignmentInConstMethod(expression.operatorToken.location));
         }
 
@@ -2536,7 +2607,7 @@ internal sealed class Binder {
         );
 
         if (result.succeeded || result.ambiguous)
-            return new BoundCallExpression(new BoundEmptyExpression(), result.bestOverload, [boundOperand]);
+            return new BoundCallExpression(boundOperand.type, result.bestOverload, [boundOperand]);
 
         if (boundOp is null) {
             diagnostics.Push(Error.InvalidPrefixUse(
@@ -2579,7 +2650,7 @@ internal sealed class Binder {
 
                 if (result.succeeded || result.ambiguous) {
                     var call = new BoundCallExpression(
-                        new BoundEmptyExpression(),
+                        boundExpression.type,
                         result.bestOverload,
                         [boundExpression, boundIndex]
                     );
@@ -2633,17 +2704,11 @@ internal sealed class Binder {
                 mg.name,
                 expression.expression,
                 expression.argumentList,
-                boundExpression.type
+                receiver.type
             );
 
             if (!result.succeeded)
                 return new BoundErrorExpression();
-
-            if (_containingMethod?.isConstant ?? false &&
-                !result.bestOverload.isConstant &&
-                result.bestOverload.containingType == _containingMethod.containingType) {
-                diagnostics.Push(Error.NonConstantCallInConstant(expression.location, mg.name));
-            }
 
             if (receiver is not BoundEmptyExpression &&
                 !result.bestOverload.isConstant &&
@@ -2651,10 +2716,18 @@ internal sealed class Binder {
                 diagnostics.Push(Error.NonConstantCallOnConstant(expression.location, mg.name));
             }
 
-            if ((_containingMethod?.isStatic ?? false) &&
-                (result.bestOverload.containingType == _containingMethod.containingType) &&
-                (!result.bestOverload.isStatic)) {
-                diagnostics.Push(Error.InvalidStaticReference(expression.location, mg.name));
+            if (receiver is BoundEmptyExpression || receiver is BoundThisExpression) {
+                if ((_containingMethod?.isConstant ?? false) &&
+                    !(result.bestOverload.isConstant || result.bestOverload.isStatic) &&
+                    (result.bestOverload.containingType == _containingMethod.containingType)) {
+                    diagnostics.Push(Error.NonConstantCallInConstant(expression.location, mg.name));
+                }
+
+                if ((_containingMethod?.isStatic ?? false) &&
+                    (result.bestOverload.containingType == _containingMethod.containingType) &&
+                    (!result.bestOverload.isStatic)) {
+                    diagnostics.Push(Error.InvalidStaticReference(expression.location, mg.name));
+                }
             }
 
             return new BoundCallExpression(receiver, result.bestOverload, result.arguments);
@@ -2691,11 +2764,11 @@ internal sealed class Binder {
             result = PartiallyBindArguments(argumentList.arguments, out var arguments, true);
             var builder = ImmutableArray.CreateBuilder<(string, BoundTypeOrConstant)>();
 
-            foreach (var argument in arguments) {
-                if (argument.Item2 is BoundType t)
-                    builder.Add((argument.Item1, new BoundTypeOrConstant(t)));
+            foreach ((var name, var expression) in arguments) {
+                if (expression is BoundType t)
+                    builder.Add((name, new BoundTypeOrConstant(t)));
                 else
-                    builder.Add((argument.Item1, new BoundTypeOrConstant(argument.Item2.constantValue)));
+                    builder.Add((name, new BoundTypeOrConstant(expression.constantValue, expression.type, expression)));
             }
 
             templateArguments = builder.ToImmutable();
@@ -2733,7 +2806,10 @@ internal sealed class Binder {
             if (boundExpression is BoundEmptyExpression)
                 boundExpression = new BoundLiteralExpression(null, true);
 
-            if (isTemplate && boundExpression.constantValue is null && boundExpression is not BoundType) {
+            if (isTemplate &&
+                boundExpression.constantValue is null &&
+                boundExpression is not BoundType &&
+                !boundExpression.type.isConstantExpression) {
                 diagnostics.Push(Error.TemplateMustBeConstant(arguments[i].location));
                 result = false;
             }
@@ -2798,7 +2874,7 @@ internal sealed class Binder {
         );
 
         if (result.succeeded || result.ambiguous)
-            return new BoundCallExpression(new BoundEmptyExpression(), result.bestOverload, [boundOperand]);
+            return new BoundCallExpression(boundOperand.type, result.bestOverload, [boundOperand]);
 
         if (boundOp is null) {
             diagnostics.Push(Error.InvalidUnaryOperatorUse(
@@ -2860,8 +2936,13 @@ internal sealed class Binder {
             out var result
         );
 
-        if (result.succeeded || result.ambiguous)
-            return new BoundCallExpression(new BoundEmptyExpression(), result.bestOverload, [boundLeft, boundRight]);
+        if (result.succeeded || result.ambiguous) {
+            var receiver = boundLeft.type.typeSymbol == result.bestOverload.containingType
+                ? boundLeft.type
+                : boundRight.type;
+
+            return new BoundCallExpression(receiver, result.bestOverload, [boundLeft, boundRight]);
+        }
 
         if (boundOp is null) {
             diagnostics.Push(Error.InvalidBinaryOperatorUse(
@@ -2937,9 +3018,11 @@ internal sealed class Binder {
 
         var boundExpression = BindExpression(expression.right);
         var type = left.type;
+        var assignedVariable = BindingUtilities.GetAssignedVariableSymbol(left);
 
-        if (_containingMethod?.isConstant ?? false &&
-            BindingUtilities.GetAssignedVariableSymbol(left).containingType == _containingMethod.containingType) {
+        if ((_containingMethod?.isConstant ?? false) &&
+            assignedVariable.containingType == _containingMethod.containingType &&
+            assignedVariable is not ParameterSymbol) {
             diagnostics.Push(Error.AssignmentInConstMethod(expression.assignmentToken.location));
         }
 

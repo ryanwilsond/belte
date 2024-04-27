@@ -91,9 +91,11 @@ internal static class LibraryUtilities {
             null, // Modifiers
             CodeAnalysis.Syntax.InternalSyntax.SyntaxFactory.Token(SyntaxKind.ClassKeyword),
             CodeAnalysis.Syntax.InternalSyntax.SyntaxFactory.Token(SyntaxKind.IdentifierToken, name),
-            CodeAnalysis.Syntax.InternalSyntax.SyntaxFactory.Token(SyntaxKind.OpenBraceToken),
+            null, // Template parameters
+            null, // Open brace
             null, // Members
-            CodeAnalysis.Syntax.InternalSyntax.SyntaxFactory.Token(SyntaxKind.CloseBraceToken)
+            null, // Close Brace
+            CodeAnalysis.Syntax.InternalSyntax.SyntaxFactory.Token(SyntaxKind.SemicolonToken)
         ).CreateRed();
     }
 

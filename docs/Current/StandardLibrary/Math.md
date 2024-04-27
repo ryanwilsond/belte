@@ -1,6 +1,8 @@
-# 5.3 Math
+# 5.3 Math (Included By Default)
 
 The Math class provides an interface for common math values and functions.
+
+The Belte public interface for the Math class can be found [here](../../../src/Belte/Standard/Math.blt).
 
 Most are simply the names of the math functions, so only a brief description is provided here.
 

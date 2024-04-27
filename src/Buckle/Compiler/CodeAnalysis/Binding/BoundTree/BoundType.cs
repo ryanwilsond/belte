@@ -106,7 +106,8 @@ internal sealed class BoundType : BoundExpression {
         int dimensions = 0,
         ImmutableArray<BoundTypeOrConstant>? templateArguments = null,
         int arity = 0,
-        bool isConstantExpression = false) {
+        bool isConstantExpression = false,
+        ImmutableArray<BoundExpression>? sizes = null) {
         this.typeSymbol = typeSymbol;
         this.isImplicit = isImplicit;
         this.isConstantReference = isConstantReference;
@@ -119,6 +120,7 @@ internal sealed class BoundType : BoundExpression {
         this.templateArguments = templateArguments ?? ImmutableArray<BoundTypeOrConstant>.Empty;
         this.arity = arity;
         this.isConstantExpression = isConstantExpression;
+        this.sizes = sizes ?? ImmutableArray<BoundExpression>.Empty;
     }
 
     internal override BoundType type => this;
@@ -185,6 +187,11 @@ internal sealed class BoundType : BoundExpression {
     /// </summary>
     internal int arity { get; }
 
+    /// <summary>
+    /// The array size specifications (only used with <see cref="BoundObjectCreationExpression"/>).
+    /// </summary>
+    internal ImmutableArray<BoundExpression> sizes { get; }
+
     internal override BoundNodeKind kind => BoundNodeKind.Type;
 
     public override string ToString() {
@@ -210,7 +217,8 @@ internal sealed class BoundType : BoundExpression {
         int? dimensions = null,
         ImmutableArray<BoundTypeOrConstant>? templateArguments = null,
         int? arity = null,
-        bool? isConstantExpression = null) {
+        bool? isConstantExpression = null,
+        ImmutableArray<BoundExpression>? sizes = null) {
         if (type is null)
             return null;
 
@@ -226,7 +234,8 @@ internal sealed class BoundType : BoundExpression {
             dimensions ?? type.dimensions,
             templateArguments ?? type.templateArguments,
             arity ?? type.arity,
-            isConstantExpression ?? type.isConstantExpression
+            isConstantExpression ?? type.isConstantExpression,
+            sizes ?? type.sizes
         );
     }
 
@@ -269,7 +278,8 @@ internal sealed class BoundType : BoundExpression {
                 resolvedType.dimensions + type.dimensions,
                 resolvedType.templateArguments,
                 resolvedType.arity,
-                resolvedType.isConstantExpression || type.isConstantExpression
+                resolvedType.isConstantExpression || type.isConstantExpression,
+                type.sizes.Length > 0 ? type.sizes : resolvedType.sizes
             );
         } else {
             return type;
@@ -282,7 +292,7 @@ internal sealed class BoundType : BoundExpression {
     /// <param name="type"><see cref="BoundType" /> to compare this to.</param>
     /// <returns>If all fields match.</returns>
     internal bool Equals(BoundType type, bool loose = false) {
-        if ((!loose || (typeSymbol is not null && type.typeSymbol is not null)) && typeSymbol != type.typeSymbol)
+        if ((!loose || (typeSymbol is not null && type?.typeSymbol is not null)) && typeSymbol != type?.typeSymbol)
             return false;
         if (isImplicit != type.isImplicit)
             return false;
@@ -302,9 +312,16 @@ internal sealed class BoundType : BoundExpression {
             return false;
         if (isConstantExpression != type.isConstantExpression)
             return false;
+        if (sizes.Length != type.sizes.Length)
+            return false;
 
         for (var i = 0; i < templateArguments.Length; i++) {
-            if (templateArguments[i] != type.templateArguments[i])
+            if (!templateArguments[i].Equals(type.templateArguments[i]))
+                return false;
+        }
+
+        for (var i = 0; i < sizes.Length; i++) {
+            if (sizes[i] != type.sizes[i])
                 return false;
         }
 

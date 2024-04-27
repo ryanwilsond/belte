@@ -1,11 +1,11 @@
 <p align="center">
-<img width="300" src="images/BelteCapital.png" alt="Belte Logo">
+<img width="300" src="./images/BelteCapital.png" alt="Belte Logo">
 </p>
 
-Language "support" for the Belte programming language.
+Syntax highlighting for the Belte programming language.
 
-Read more about Belte at [ryanwilsond.github.io/belte](https://ryanwilsond.github.io/belte/).
+---
 
-## Features
+[Belte GitHub Repository](https://github.com/ryanwilsond/belte)
 
-Only basic syntax highlighting.
+[Belte Docs](https://ryanwilsond.github.io/belte/)

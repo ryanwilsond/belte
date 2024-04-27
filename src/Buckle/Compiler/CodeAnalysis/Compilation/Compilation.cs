@@ -256,7 +256,11 @@ public sealed class Compilation {
     /// </param>
     /// <returns>Diagnostics.</returns>
     internal BelteDiagnosticQueue Emit(
-        BuildMode buildMode, string moduleName, string[] references, string outputPath, CompilerStage _) {
+        BuildMode buildMode,
+        string moduleName,
+        string[] references,
+        string outputPath,
+        CompilerStage _) {
         if (diagnostics.Errors().Any())
             return diagnostics;
 
@@ -267,10 +271,12 @@ public sealed class Compilation {
             return program.diagnostics;
 
         if (buildMode == BuildMode.Dotnet)
-            return ILEmitter.Emit(program, moduleName, references, outputPath);
+            // return ILEmitter.Emit(program, moduleName, references, outputPath);
+            diagnostics.Push(Fatal.Unsupported.DotnetCompilation());
         else if (buildMode == BuildMode.CSharpTranspile)
-            return CSharpEmitter.Emit(program, outputPath);
-        else
+            // return CSharpEmitter.Emit(program, outputPath);
+            diagnostics.Push(Fatal.Unsupported.CSharpTranspilation());
+        else if (buildMode == BuildMode.Independent)
             diagnostics.Push(Fatal.Unsupported.IndependentCompilation());
 
         return diagnostics;

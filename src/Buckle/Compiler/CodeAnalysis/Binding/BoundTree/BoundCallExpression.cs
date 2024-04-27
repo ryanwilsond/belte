@@ -24,5 +24,6 @@ internal sealed class BoundCallExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.CallExpression;
 
-    internal override BoundType type => method.type;
+    internal override BoundType type
+        => expression.type is null ? method.type : BoundType.Compound(expression.type, method.type);
 }

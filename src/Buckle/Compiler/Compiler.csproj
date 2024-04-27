@@ -8,10 +8,12 @@
 
   <ItemGroup>
     <Content Remove="Resources/ErrorDescriptionsBU.txt" />
+    <Content Remove="../../Belte/Standard/List.blt" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Resources/ErrorDescriptionsBU.txt" />
+    <EmbeddedResource Include="../../Belte/Standard/List.blt" />
   </ItemGroup>
 
   <ItemGroup>

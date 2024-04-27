@@ -1,0 +1,143 @@
+
+class List<type T> {
+    T[] _array;
+    int! _length;
+    int! _res;
+
+    List() {
+        _TidyInit();
+    }
+
+    List(int! length) {
+        _array = new T[length];
+        _length = 0;
+        _res = length;
+    }
+
+    List(T[] array) {
+        _TidyInit();
+        _ConstructContents(array, Length(array)!);
+    }
+
+    List(List<T> list) {
+        _TidyInit();
+        _ConstructContents(list._array, list._length);
+    }
+
+    void Append(T value) {
+        if (_res > _length) {
+            _array[_length] = value;
+            _length++;
+            return;
+        }
+
+        int! newCapacity = _length + 10;
+        T[] newArray = new T[newCapacity];
+        _CopyInto(ref newArray, ref _array, _length);
+        _array = newArray;
+
+        _length++;
+        _res = newCapacity;
+    }
+
+    void Pop() {
+        if (_length > 0)
+            _length--;
+    }
+
+    void Clear() {
+        _length = 0;
+    }
+
+    void Assign(int! index, T value) {
+        index = _PosIndex(index);
+
+        if (index == _length) {
+            Append(value);
+            return;
+        } else if (index > _length) {
+            return;
+        }
+
+        _array[index] = value;
+    }
+
+    const int Length() {
+        return _length;
+    }
+
+    const T[] ToArray() {
+        T[] copy = new T[_length];
+        _CopyInto(ref copy, ref _array, _length);
+        return copy;
+    }
+
+    const T Index(int! index) {
+        index = _PosIndex(index);
+
+        if (index < 0 || index >= _length) {
+            return null;
+        }
+
+        return _array[index];
+    }
+
+    const List<T> Subset(int! start, int! end = -1) {
+        start = _PosIndex(start);
+        end = _PosIndex(end);
+
+        if (end <= start) {
+            return new List<T>();
+        }
+
+        List<T> subset = new List<T>(end - start);
+
+        for (int! i = start; i < end; i++) {
+            subset.Append(_array[i]);
+        }
+
+        return subset;
+    }
+
+    static T operator[](List<T> list, int index) {
+        if (index is null)
+            return null;
+
+        return list.Index(index!);
+    }
+
+    void _TidyInit() {
+        _array = new T[10];
+        _length = 0;
+        _res = 10;
+    }
+
+    void _ConstructContents(T[] array, int! length) {
+        if (_res > length) {
+            _CopyInto(ref _array, ref array, length);
+            _length = length;
+            return;
+        }
+
+        int! newCapacity = length + 10;
+        _array = new T[newCapacity];
+        _CopyInto(ref _array, ref array, length);
+
+        _length = length;
+        _res = newCapacity;
+    }
+
+    const int! _PosIndex(int! index) {
+        if (index < 0) {
+            index += _length;
+        }
+
+        return index;
+    }
+
+    static void _CopyInto(ref T[] to, ref T[] from, int! length) {
+        for (int! i = 0; i < length; i++) {
+            to[i] = from[i];
+        }
+    }
+}

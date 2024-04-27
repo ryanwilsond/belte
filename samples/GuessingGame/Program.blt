@@ -20,9 +20,9 @@ void Main() {
 
     // If statements don't require curly braces if they only contain a single statement.
     if (guesses < 0)
-        PrintLine("Giving up, are we? The number would have been " + ((string)magicNumber) + ".");
+        Console.PrintLine("Giving up, are we? The number would have been " + ((string)magicNumber) + ".");
     else
-        PrintLine("Congrats, you guessed correctly in " + ((string)guesses) + " guesses!");
+        Console.PrintLine("Congrats, you guessed correctly in " + ((string)guesses) + " guesses!");
 
-    PrintLine("Bye.");
+    Console.PrintLine("Bye.");
 }

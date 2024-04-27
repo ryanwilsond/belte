@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Security;
 using System.Text;
 using Buckle.CodeAnalysis.Authoring;
 using Buckle.CodeAnalysis.Binding;
@@ -200,6 +201,64 @@ public sealed class DisplayText {
         DisplayLiteralExpression(text, new BoundLiteralExpression(constant.value));
     }
 
+    /// <summary>
+    /// Formats a literal into a string representation.
+    /// </summary>
+    internal static string FormatLiteral(object value) {
+        if (value is null)
+            return "null";
+
+        var valueText = value.ToString();
+        var typeSymbol = BoundType.Assume(value).typeSymbol;
+
+        if (typeSymbol == TypeSymbol.String)
+            return FormatStringLiteral(valueText);
+        else
+            return valueText.ToLower();
+
+        string FormatStringLiteral(string stringText) {
+            var stringBuilder = new StringBuilder("\"");
+
+            foreach (var c in stringText) {
+                switch (c) {
+                    case '\a':
+                        stringBuilder.Append("\\a");
+                        break;
+                    case '\b':
+                        stringBuilder.Append("\\b");
+                        break;
+                    case '\f':
+                        stringBuilder.Append("\\f");
+                        break;
+                    case '\n':
+                        stringBuilder.Append("\\n");
+                        break;
+                    case '\r':
+                        stringBuilder.Append("\\r");
+                        break;
+                    case '\t':
+                        stringBuilder.Append("\\t");
+                        break;
+                    case '\v':
+                        stringBuilder.Append("\\v");
+                        break;
+                    case '\"':
+                        stringBuilder.Append("\\\"");
+                        break;
+                    case '\\':
+                        stringBuilder.Append("\\\\");
+                        break;
+                    default:
+                        stringBuilder.Append(c);
+                        break;
+                }
+            }
+
+            stringBuilder.Append("\"");
+            return stringBuilder.ToString();
+        }
+    }
+
     private static void DisplayType(DisplayText text, BoundType type) {
         if (type.isConstant) {
             text.Write(CreateKeyword(SyntaxKind.ConstKeyword));
@@ -240,12 +299,14 @@ public sealed class DisplayText {
             text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
         }
 
-        var brackets = "";
+        for (var i = 0; i < type.dimensions; i++) {
+            text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
 
-        for (var i = 0; i < type.dimensions; i++)
-            brackets += "[]";
+            if (type.sizes.Length > i)
+                DisplayNode(text, type.sizes[i]);
 
-        text.Write(CreatePunctuation(brackets));
+            text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+        }
 
         if (!type.isNullable && !type.isLiteral && type.typeSymbol != TypeSymbol.Void)
             text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
@@ -454,7 +515,9 @@ public sealed class DisplayText {
         text.Write(CreateKeyword(SyntaxKind.NewKeyword));
         text.Write(CreateSpace());
         DisplayNode(text, node.type);
-        DisplayArguments(text, node.arguments);
+
+        if (node.viaConstructor)
+            DisplayArguments(text, node.arguments);
     }
 
     private static void DisplayThisExpression(DisplayText text, BoundThisExpression _) {
@@ -492,7 +555,7 @@ public sealed class DisplayText {
     private static void DisplayReferenceExpression(DisplayText text, BoundReferenceExpression node) {
         text.Write(CreateKeyword(SyntaxKind.RefKeyword));
         text.Write(CreateSpace());
-        DisplayNode(node.expression);
+        DisplayNode(text, node.expression);
     }
 
     private static void DisplayCastExpression(DisplayText text, BoundCastExpression node) {

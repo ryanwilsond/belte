@@ -3,9 +3,13 @@
 The Standard Library is a collection of classes that are implicitly included in all Belte compilations (i.e. they do not
 need importing).
 
+Some Standard Library classes are included by default (i.e. need no import and are automatically declared), while others
+require an explicit import.
+
 - [5.1](#51-built-in-functions) Built-in Functions
-- [5.2](StandardLibrary/Console.md) Console
-- [5.3](StandardLibrary/Math.md) Math
+- [5.2](StandardLibrary/Console.md) Console (Included By Default)
+- [5.3](StandardLibrary/Math.md) Math (Included By Default)
+- [5.4](StandardLibrary/List.md) List
 
 ## 5.1 Built-In Functions
 

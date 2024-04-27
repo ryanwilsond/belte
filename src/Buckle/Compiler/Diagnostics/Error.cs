@@ -154,7 +154,7 @@ internal static class Error {
     /// </summary>
     internal static BelteDiagnostic InvalidMain(TextLocation location) {
         var message = "invalid main signature: must return void or int and take in no arguments or take in " +
-            "'int! argc, string[]! argv'";
+            "'List<string!>! args'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidMain), location, message);
     }
 
