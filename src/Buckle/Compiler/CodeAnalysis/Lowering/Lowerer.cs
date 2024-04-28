@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Libraries.Standard;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -250,8 +251,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return RewriteExpression(HasValue(expression.left));
 
         if (expression.op.opKind == BoundBinaryOperatorKind.Power) {
-            // TODO
-            return base.RewriteBinaryExpression(expression);
+            return RewriteExpression(
+                Call(StandardLibrary.Math.GetMembers()[24] as MethodSymbol, [expression.left, expression.right])
+            );
         }
 
         if (expression.op.opKind == BoundBinaryOperatorKind.NullCoalescing) {

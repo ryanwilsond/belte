@@ -967,14 +967,6 @@ internal sealed class Evaluator {
                     return new EvaluatorObject((int)leftValue / (int)rightValue);
                 else
                     return new EvaluatorObject(Convert.ToDouble(leftValue) / Convert.ToDouble(rightValue));
-            case BoundBinaryOperatorKind.Power:
-                if (expressionType == TypeSymbol.Int) {
-                    return new EvaluatorObject((int)Math.Pow((int)leftValue, (int)rightValue));
-                } else {
-                    return new EvaluatorObject(
-                        Convert.ToDouble(Math.Pow(Convert.ToDouble(leftValue), Convert.ToDouble(rightValue)))
-                    );
-                }
             case BoundBinaryOperatorKind.ConditionalAnd:
                 return new EvaluatorObject((bool)leftValue && (bool)rightValue);
             case BoundBinaryOperatorKind.ConditionalOr:
