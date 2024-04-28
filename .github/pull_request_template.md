@@ -43,5 +43,5 @@ Make sure to update each of the following places to support your new syntax. Ple
 - [ ] I updated the Expander class
 - [ ] I updated the DisplayText class
 - [ ] I updated the Evaluator class
-- [ ] I updated the CSharpEmitter class
+~~I updated the CSharpEmitter class~~ (Temporarily not required)
 ~~I updated the ILEmitter class~~ (Temporarily not required)
