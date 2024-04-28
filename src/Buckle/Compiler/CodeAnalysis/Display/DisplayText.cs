@@ -198,7 +198,25 @@ public sealed class DisplayText {
     /// Renders a <see cref="BoundConstant" /> and appends it to the given <see cref="DisplayText" />.
     /// </summary>
     internal static void DisplayConstant(DisplayText text, BoundConstant constant) {
-        DisplayLiteralExpression(text, new BoundLiteralExpression(constant.value));
+        if (constant.value is ImmutableArray<BoundConstant> il) {
+            text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+            var isFirst = true;
+
+            foreach (var item in il) {
+                if (isFirst) {
+                    isFirst = false;
+                } else {
+                    text.Write(CreatePunctuation(SyntaxKind.CommaToken));
+                    text.Write(CreateSpace());
+                }
+
+                DisplayConstant(text, item);
+            }
+
+            text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
+        } else {
+            DisplayLiteralExpression(text, new BoundLiteralExpression(constant.value));
+        }
     }
 
     /// <summary>
