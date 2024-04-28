@@ -13,7 +13,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax.InternalSyntax;
 public sealed class LexerTests {
     [Fact]
     public void Lexer_Lexes_UnterminatedString() {
-        const string text = "\"test";
+        var text = "\"test";
         var tokens = SyntaxTreeExtensions.ParseTokens(text);
         Assert.Equal(1, tokens.Count);
         var token = tokens[0];
@@ -41,6 +41,7 @@ public sealed class LexerTests {
         untestedTokenTypes.Remove(SyntaxKind.MultiLineCommentTrivia);
         untestedTokenTypes.Remove(SyntaxKind.GreaterThanGreaterThanToken);
         untestedTokenTypes.Remove(SyntaxKind.GreaterThanGreaterThanGreaterThanToken);
+        untestedTokenTypes.Remove(SyntaxKind.HashToken);
         untestedTokenTypes.ExceptWith(testedTokenTypes);
 
         Assert.Empty(untestedTokenTypes);
@@ -144,7 +145,8 @@ public sealed class LexerTests {
         var fixedTokens = Enum.GetValues(typeof(SyntaxKind))
             .Cast<SyntaxKind>()
             .Where(k => k is not SyntaxKind.GreaterThanGreaterThanToken
-                         and not SyntaxKind.GreaterThanGreaterThanGreaterThanToken)
+                         and not SyntaxKind.GreaterThanGreaterThanGreaterThanToken
+                         and not SyntaxKind.HashToken)
             .Select(k => (kind: k, text: SyntaxFacts.GetText(k)))
             .Where(t => t.text != null);
 

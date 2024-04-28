@@ -55,6 +55,11 @@ internal sealed class Lexer {
     /// </summary>
     internal int position => _position;
 
+    /// <summary>
+    /// All lexed preprocessor directives so far.
+    /// </summary>
+    internal DirectiveStack directives => _directives;
+
     private char _current => Peek(0);
 
     private char _lookahead => Peek(1);
@@ -146,8 +151,7 @@ internal sealed class Lexer {
     }
 
     private SyntaxToken LexDirectiveToken() {
-        _leadingTriviaCache.Clear();
-
+        _start = _position;
         var tokenPosition = _position;
         ReadDirectiveToken();
 
@@ -769,6 +773,10 @@ internal sealed class Lexer {
         var saveMode = _mode;
         var directiveParser = new DirectiveParser(this, _directives);
         var directive = directiveParser.ParseDirective(afterFirstToken, afterNonWhitespaceOnLine);
+
+        var triviaList = afterNonWhitespaceOnLine ? _trailingTriviaCache : _leadingTriviaCache;
+        triviaList.Add(directive);
+
         _directives = directive.ApplyDirectives(_directives);
         _mode = saveMode;
     }

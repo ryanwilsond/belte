@@ -57,7 +57,7 @@ public partial class SyntaxTree {
     /// </summary>
     /// <param name="text">Text to generate <see cref="SyntaxTree" /> from.</param>
     /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
-    public static SyntaxTree Parse(string text, SourceCodeKind kind) {
+    public static SyntaxTree Parse(string text, SourceCodeKind kind = SourceCodeKind.Regular) {
         var sourceText = SourceText.From(text);
         return Parse(sourceText, kind);
     }

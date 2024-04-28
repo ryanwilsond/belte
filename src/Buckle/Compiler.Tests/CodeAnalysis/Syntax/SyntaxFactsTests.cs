@@ -28,7 +28,8 @@ public sealed class SyntaxFactTests {
         var types = Enum.GetValues(typeof(SyntaxKind))
             .Cast<SyntaxKind>()
             .Where(k => k is not SyntaxKind.GreaterThanGreaterThanToken
-                         and not SyntaxKind.GreaterThanGreaterThanGreaterThanToken)
+                         and not SyntaxKind.GreaterThanGreaterThanGreaterThanToken
+                         and not SyntaxKind.HashToken)
             .ToArray();
 
         foreach (var type in types)

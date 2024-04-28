@@ -14,14 +14,15 @@ internal sealed class DirectiveParser : SyntaxParser {
         var position = _lexer.position;
         var hash = Match(SyntaxKind.HashToken);
 
-        if (isAfterNonWhitespaceOnLine)
-            ; // hash = AddDiagnostic(hash, Error.InvalidDirectivePlacement());
+        if (isAfterNonWhitespaceOnLine) {
+            // hash = AddDiagnostic(hash, Error.InvalidDirectivePlacement());
+        }
 
         BelteSyntaxNode result;
         switch (currentToken.kind) {
             default:
-                var identifier = Match(SyntaxKind.IdentifierName, report: false);
-                var end = ParseEndOfDirective(true);
+                var identifier = Match(SyntaxKind.IdentifierToken);
+                var end = ParseEndOfDirective();
                 result = SyntaxFactory.BadDirectiveTrivia(hash, identifier, end);
                 break;
         }
@@ -29,7 +30,7 @@ internal sealed class DirectiveParser : SyntaxParser {
         return result;
     }
 
-    private SyntaxToken ParseEndOfDirective(bool ignoreErrors) {
+    private SyntaxToken ParseEndOfDirective() {
         var skippedTokens = new SyntaxListBuilder<SyntaxToken>();
 
         if (currentToken.kind != SyntaxKind.EndOfDirectiveToken &&

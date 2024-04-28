@@ -55,7 +55,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         Reset(resetPoint.baseResetPoint);
     }
 
-    private new SyntaxToken Match(SyntaxKind kind, SyntaxKind? nextWanted = null) {
+    private SyntaxToken Match(SyntaxKind kind, SyntaxKind? nextWanted = null) {
         if (nextWanted is null && _expectParenthesis)
             nextWanted = SyntaxKind.CloseParenToken;
 

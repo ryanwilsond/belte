@@ -209,6 +209,22 @@ internal partial class SyntaxToken : BelteSyntaxNode {
         visitor.VisitToken(this);
     }
 
+    internal override DirectiveStack ApplyDirectives(DirectiveStack stack) {
+        if (containsDirectives) {
+            stack = ApplyDirectivesToTrivia(GetLeadingTrivia(), stack);
+            stack = ApplyDirectivesToTrivia(GetTrailingTrivia(), stack);
+        }
+
+        return stack;
+    }
+
+    internal static DirectiveStack ApplyDirectivesToTrivia(GreenNode triviaList, DirectiveStack stack) {
+        if (triviaList != null && triviaList.containsDirectives)
+            return ApplyDirectivesToListOrNode(triviaList, stack);
+
+        return stack;
+    }
+
     /// <summary>
     /// Returns a new <see cref="SyntaxToken" /> identical to this one, with new leading trivia.
     /// </summary>

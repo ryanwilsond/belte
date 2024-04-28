@@ -71,6 +71,8 @@ internal abstract partial class SyntaxParser {
         }
     }
 
+    internal DirectiveStack directives => _lexer.directives;
+
     private void PreLex() {
         var size = Math.Min(4096, Math.Max(32, _syntaxTree.text.length / 2));
         _lexedTokens = new ArrayElement<SyntaxToken>[size];

@@ -219,10 +219,22 @@ internal sealed class SourceWriter {
             Write($"internal abstract partial class {node.Name} : {@base}");
             OpenBlock();
             WriteLine($"internal {node.Name}(SyntaxKind kind)");
-            WriteLine("  : base(kind) { }");
+            WriteLine("  : base(kind)");
+            OpenBlock();
+
+            if (node.Name == "DirectiveTriviaSyntax")
+                WriteLine("this._flags |= NodeFlags.ContainsDirectives;");
+
+            CloseBlock();
             WriteLine();
             WriteLine($"internal {node.Name}(SyntaxKind kind, Diagnostic[] diagnostics)");
-            WriteLine("  : base(kind, diagnostics) { }");
+            WriteLine("  : base(kind, diagnostics)");
+            OpenBlock();
+
+            if (node.Name == "DirectiveTriviaSyntax")
+                WriteLine("this._flags |= NodeFlags.ContainsDirectives;");
+
+            CloseBlock();
 
             var nodeFields = GetNodeOrNodeListFields(abstractNode);
 
