@@ -12,6 +12,9 @@ public abstract class BelteSyntaxNode : SyntaxNode {
     /// </summary>
     internal BelteSyntaxNode(SyntaxNode parent, GreenNode green, int position) : base(parent, green, position) { }
 
+    internal BelteSyntaxNode(GreenNode green, int position, SyntaxTree syntaxTree)
+        : base(green, position, syntaxTree) { }
+
     internal override SyntaxTree syntaxTree => _syntaxTree ?? ComputeSyntaxTree(this);
 
     internal new BelteSyntaxNode parent => (BelteSyntaxNode)base.parent;

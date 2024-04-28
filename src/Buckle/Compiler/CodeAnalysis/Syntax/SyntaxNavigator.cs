@@ -167,7 +167,7 @@ internal sealed class SyntaxNavigator {
     }
 
     private static Func<SyntaxTrivia, bool> GetStepIntoFunction(bool skipped) {
-        return skipped ? (t => t.kind == SyntaxKind.SkippedTokenTrivia) : null;
+        return skipped ? (t => t.kind == SyntaxKind.SkippedTokensTrivia) : null;
     }
 
     private static Func<SyntaxToken, bool> GetPredicateFunction(bool includeZeroWidth) {

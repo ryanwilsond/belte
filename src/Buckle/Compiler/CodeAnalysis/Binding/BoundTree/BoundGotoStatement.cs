@@ -3,7 +3,7 @@ namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
 /// A bound goto statement, produced by the <see cref="Lowering.Lowerer" />. No
-/// <see cref="Syntax.InternalSyntax.Parser" /> equivalent.<br/>
+/// <see cref="Syntax.InternalSyntax.LanguageParser" /> equivalent.<br/>
 /// E.g.
 /// <code>
 /// goto label

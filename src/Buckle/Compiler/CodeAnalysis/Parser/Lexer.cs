@@ -4,6 +4,7 @@ using System.Text;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
@@ -22,7 +23,10 @@ internal sealed class Lexer {
     private readonly List<SyntaxDiagnostic> _diagnostics;
     private readonly SyntaxListBuilder _leadingTriviaCache = new SyntaxListBuilder(10);
     private readonly SyntaxListBuilder _trailingTriviaCache = new SyntaxListBuilder(10);
+    private readonly bool _allowPreprocessorDirectives;
 
+    private LexerMode _mode;
+    private DirectiveStack _directives;
     private int _position;
     private int _start;
     private SyntaxKind _kind;
@@ -32,10 +36,18 @@ internal sealed class Lexer {
     /// Creates a new <see cref="Lexer" />, requires a fully initialized <see cref="SyntaxTree" />.
     /// </summary>
     /// <param name="syntaxTree"><see cref="SyntaxTree" /> to lex from.</param>
-    internal Lexer(SyntaxTree syntaxTree) {
+    internal Lexer(SyntaxTree syntaxTree, bool allowPreprocessorDirectives) {
+        this.syntaxTree = syntaxTree;
         _text = syntaxTree.text;
+        _allowPreprocessorDirectives = allowPreprocessorDirectives;
         _diagnostics = new List<SyntaxDiagnostic>();
+        _directives = DirectiveStack.Empty;
     }
+
+    /// <summary>
+    /// The <see cref="SyntaxTree"/> that is being lexed.
+    /// </summary>
+    internal SyntaxTree syntaxTree { get; }
 
     /// <summary>
     /// Current position of the lexer. This represents the next character that has not yet been lexed,
@@ -51,12 +63,17 @@ internal sealed class Lexer {
     /// Lexes the next un-lexed text to create a single <see cref="SyntaxToken" />.
     /// </summary>
     /// <returns>A new <see cref="SyntaxToken" />.</returns>
-    internal SyntaxToken LexNext() {
+    internal SyntaxToken LexNext(LexerMode mode) {
+        _mode = mode;
         var badTokens = new List<SyntaxToken>();
         SyntaxToken token;
 
         while (true) {
-            token = LexNextInternal();
+            token = _mode switch {
+                LexerMode.Syntax => LexNextInternal(),
+                LexerMode.Directive => LexDirectiveToken(),
+                _ => throw ExceptionUtilities.Unreachable(),
+            };
 
             if (token.kind == SyntaxKind.BadToken) {
                 badTokens.Add(token);
@@ -68,7 +85,7 @@ internal sealed class Lexer {
 
                 foreach (var badToken in badTokens) {
                     leadingTrivia.AddRange(badToken.leadingTrivia);
-                    var trivia = SyntaxFactory.Skipped(badToken);
+                    var trivia = SyntaxFactory.SkippedTokensTrivia(badToken);
                     leadingTrivia.Add(trivia);
                     leadingTrivia.AddRange(badToken.trailingTrivia);
                 }
@@ -110,7 +127,7 @@ internal sealed class Lexer {
 
     private SyntaxToken LexNextInternal() {
         _leadingTriviaCache.Clear();
-        ReadTrivia(isTrailing: false);
+        ReadTrivia(_position > 0, false);
 
         var tokenPosition = _position;
         ReadToken();
@@ -121,11 +138,29 @@ internal sealed class Lexer {
         var diagnostics = GetDiagnostics(GetFullWidth(_leadingTriviaCache));
 
         _trailingTriviaCache.Clear();
-        ReadTrivia(isTrailing: true);
+        ReadTrivia(true, true);
 
         var tokenText = SyntaxFacts.GetText(tokenKind) ?? _text.ToString(new TextSpan(tokenPosition, tokenWidth));
 
         return Create(tokenKind, tokenText, tokenValue, diagnostics);
+    }
+
+    private SyntaxToken LexDirectiveToken() {
+        _leadingTriviaCache.Clear();
+
+        var tokenPosition = _position;
+        ReadDirectiveToken();
+
+        var tokenKind = _kind;
+        var tokenWidth = _position - _start;
+        var diagnostics = GetDiagnostics(0);
+
+        _trailingTriviaCache.Clear();
+        ReadDirectiveTrailingTrivia(tokenKind == SyntaxKind.EndOfDirectiveToken);
+
+        var tokenText = _text.ToString(new TextSpan(tokenPosition, tokenWidth));
+
+        return Create(tokenKind, tokenText, null, diagnostics);
     }
 
     private SyntaxDiagnostic[] GetDiagnostics(int leadingTriviaWidth) {
@@ -160,7 +195,7 @@ internal sealed class Lexer {
         return token;
     }
 
-    private void ReadTrivia(bool isTrailing) {
+    private void ReadTrivia(bool afterFirstToken, bool isTrailing) {
         var triviaList = isTrailing ? ref _trailingTriviaCache : ref _leadingTriviaCache;
         var done = false;
 
@@ -180,6 +215,7 @@ internal sealed class Lexer {
                         ReadMultiLineComment();
                     else
                         done = true;
+
                     break;
                 case '\r':
                 case '\n':
@@ -187,6 +223,13 @@ internal sealed class Lexer {
                         done = true;
 
                     ReadLineBreak();
+                    break;
+                case '#':
+                    if (_allowPreprocessorDirectives)
+                        ReadDirective(afterFirstToken, isTrailing);
+                    else
+                        done = true;
+
                     break;
                 case ' ':
                 case '\t':
@@ -198,6 +241,7 @@ internal sealed class Lexer {
                         ReadWhitespace();
                     else
                         done = true;
+
                     break;
             }
 
@@ -208,6 +252,69 @@ internal sealed class Lexer {
                 var trivia = SyntaxFactory.Trivia(_kind, text, GetDiagnostics(0));
                 triviaList.Add(trivia);
             }
+        }
+    }
+
+    private void ReadDirectiveTrivia(bool isTrailing) {
+        var triviaList = isTrailing ? ref _trailingTriviaCache : ref _leadingTriviaCache; ;
+
+        _start = _position;
+        _kind = SyntaxKind.BadToken;
+        _value = null;
+
+        switch (_current) {
+            case '/':
+                if (_lookahead == '/')
+                    ReadSingeLineComment();
+                else if (_lookahead == '*')
+                    ReadMultiLineComment();
+
+                break;
+            case '\r':
+            case '\n':
+                ReadLineBreak();
+                break;
+            case ' ':
+            case '\t':
+                ReadWhitespace();
+                break;
+            default:
+                if (char.IsWhiteSpace(_current))
+                    ReadWhitespace();
+
+                break;
+        }
+
+        var length = _position - _start;
+
+        if (length > 0) {
+            var text = _text.ToString(new TextSpan(_start, length));
+            var trivia = SyntaxFactory.Trivia(_kind, text, GetDiagnostics(0));
+            triviaList.Add(trivia);
+        }
+    }
+
+    private void ReadDirectiveToken() {
+        switch (_current) {
+            case '\0':
+            case '\r':
+            case '\n':
+                _kind = SyntaxKind.EndOfDirectiveToken;
+                break;
+            case '#':
+                _position++;
+                _kind = SyntaxKind.HashToken;
+                break;
+            default:
+                if (char.IsLetter(_current)) {
+                    ReadIdentifierOrKeyword();
+                } else {
+                    AddDiagnostic(Error.BadCharacter(_current), _position, 1);
+                    _kind = SyntaxKind.None;
+                    _position++;
+                }
+
+                break;
         }
     }
 
@@ -656,6 +763,32 @@ internal sealed class Lexer {
             _position++;
 
         _kind = SyntaxKind.EndOfLineTrivia;
+    }
+
+    private void ReadDirective(bool afterFirstToken, bool afterNonWhitespaceOnLine) {
+        var saveMode = _mode;
+        var directiveParser = new DirectiveParser(this, _directives);
+        var directive = directiveParser.ParseDirective(afterFirstToken, afterNonWhitespaceOnLine);
+        _directives = directive.ApplyDirectives(_directives);
+        _mode = saveMode;
+    }
+
+    private void ReadDirectiveTrailingTrivia(bool includeEndOfLine) {
+        while (true) {
+            var position = _position;
+            ReadDirectiveTrivia(true);
+
+            if (_position == position) {
+                break;
+            } else if (_kind == SyntaxKind.EndOfLineTrivia) {
+                if (!includeEndOfLine) {
+                    _trailingTriviaCache.RemoveLast();
+                    _position = position;
+                }
+
+                break;
+            }
+        }
     }
 
     private void ReadIdentifierOrKeyword() {

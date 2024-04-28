@@ -2,7 +2,7 @@
     "name": "belte",
     "displayName": "BELTE",
     "description": "Language support for Belte",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "publisher": "ryan_wilson",
     "repository": {
         "type": "git",
@@ -10,7 +10,7 @@
     },
     "icon": "./images/BelteCapital.png",
     "engines": {
-        "vscode": "^1.54.0"
+        "vscode": "^1.88.0"
     },
     "categories": [
         "Programming Languages"

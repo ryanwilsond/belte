@@ -5,7 +5,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// All trivia: comments and whitespace. Text that does not affect compilation.
 /// </summary>
-public sealed class SyntaxTrivia {
+public class SyntaxTrivia {
     /// <summary>
     /// Creates a new <see cref="SyntaxTrivia" /> with an existing token, underlying trivia, and position.
     /// Also contains the index of this trivia in relation to other trivias in the trivia list that contains

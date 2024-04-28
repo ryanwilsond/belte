@@ -33,6 +33,7 @@ public enum SyntaxKind {
     QuestionToken,
     ColonToken,
     PeriodToken,
+    HashToken,
 
     // Compound punctuation
     PipePipeToken,
@@ -103,7 +104,8 @@ public enum SyntaxKind {
     WhitespaceTrivia,
     SingleLineCommentTrivia,
     MultiLineCommentTrivia,
-    SkippedTokenTrivia,
+    SkippedTokensTrivia,
+    BadDirectiveTrivia,
 
     // Expressions
     ParenthesizedExpression,
@@ -185,4 +187,5 @@ public enum SyntaxKind {
 
     // Other
     EndOfFileToken,
+    EndOfDirectiveToken,
 }

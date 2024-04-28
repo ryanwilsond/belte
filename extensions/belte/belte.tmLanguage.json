@@ -46,6 +46,10 @@
                 {
                     "name": "keyword.preprocessor.belte",
                     "match": "^\\s*(\\#\\s*(define|pragma|undef|if|elif|else|end|warning|error|run))\\b"
+                },
+                {
+                    "name": "keyword.preprocessor.other.belte",
+                    "match": "^\\s*#\\w+\\b"
                 }
             ]
         },

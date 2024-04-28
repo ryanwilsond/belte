@@ -7,7 +7,7 @@ using Buckle.Diagnostics;
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Basic syntax facts references by the <see cref="InternalSyntax.Parser" /> and the
+/// Basic syntax facts references by the <see cref="InternalSyntax.LanguageParser" /> and the
 /// <see cref="InternalSyntax.Lexer" />.
 /// </summary>
 internal static class SyntaxFacts {
@@ -226,6 +226,7 @@ internal static class SyntaxFacts {
             SyntaxKind.QuestionQuestionEqualsToken => "??=",
             SyntaxKind.QuestionPeriodToken => "?.",
             SyntaxKind.QuestionOpenBracketToken => "?[",
+            SyntaxKind.HashToken => "#",
             SyntaxKind.TrueKeyword => "true",
             SyntaxKind.FalseKeyword => "false",
             SyntaxKind.NullKeyword => "null",

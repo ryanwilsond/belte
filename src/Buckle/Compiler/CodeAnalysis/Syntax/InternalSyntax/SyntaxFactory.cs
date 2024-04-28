@@ -52,13 +52,6 @@ internal static partial class SyntaxFactory {
     }
 
     /// <summary>
-    /// Creates a skipped token trivia.
-    /// </summary>
-    internal static SyntaxTrivia Skipped(SyntaxToken token) {
-        return new SyntaxTrivia(SyntaxKind.SkippedTokenTrivia, token.text, token.GetDiagnostics());
-    }
-
-    /// <summary>
     /// Creates a missing <see cref="SyntaxToken" />.
     /// </summary>
     internal static SyntaxToken Missing(SyntaxKind kind) {

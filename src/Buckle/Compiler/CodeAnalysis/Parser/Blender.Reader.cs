@@ -75,7 +75,7 @@ internal sealed partial class Blender {
             if (_lexer.position != _newPosition)
                 _lexer.Move(_newPosition);
 
-            var token = _lexer.LexNext();
+            var token = _lexer.LexNext(LexerMode.Syntax);
             return token;
         }
 

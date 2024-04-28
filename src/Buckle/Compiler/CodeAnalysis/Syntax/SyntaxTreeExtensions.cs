@@ -29,10 +29,10 @@ public static class SyntaxTreeExtensions {
         var tokens = new SyntaxListBuilder<InternalSyntax.SyntaxToken>(32);
 
         void ParseTokens(SyntaxTree syntaxTree) {
-            var lexer = new Lexer(syntaxTree);
+            var lexer = new Lexer(syntaxTree, true);
 
             while (true) {
-                var token = lexer.LexNext();
+                var token = lexer.LexNext(LexerMode.Syntax);
 
                 if (token.kind != SyntaxKind.EndOfFileToken || includeEOF)
                     tokens.Add(token);
@@ -42,7 +42,7 @@ public static class SyntaxTreeExtensions {
             }
         }
 
-        var syntaxTree = new SyntaxTree(text);
+        var syntaxTree = new SyntaxTree(text, SourceCodeKind.Regular);
         ParseTokens(syntaxTree);
 
         return tokens.ToList();

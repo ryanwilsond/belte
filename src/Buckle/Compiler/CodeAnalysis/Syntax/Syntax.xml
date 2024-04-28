@@ -2,6 +2,11 @@
 <Tree Root="SyntaxNode">
   <PredefinedNode Name="SyntaxToken"/>
   <PredefinedNode Name="SyntaxTrivia"/>
+  <PredefinedNode Name="StructuredTriviaSyntax"/>
+  <Node Name="SkippedTokensTriviaSyntax" Base="StructuredTriviaSyntax">
+    <Kind Name="SkippedTokensTrivia"/>
+    <Field Name="tokens" Type="SyntaxList&lt;SyntaxToken&gt;"/>
+  </Node>
   <!-- Lists -->
   <Node Name="AttributeListSyntax" Base="SyntaxNode">
     <Kind Name="AttributeList"/>
@@ -88,6 +93,26 @@
     <Field Name="size" Type="ExpressionSyntax" Optional="true"/>
     <Field Name="closeBracket" Type="SyntaxToken">
       <Kind Name="CloseBracketToken"/>
+    </Field>
+  </Node>
+  <!-- Directives -->
+  <AbstractNode Name="DirectiveTriviaSyntax" Base="StructuredTriviaSyntax">
+    <Field Name="isActive" Type="bool"/>
+    <Field Name="hash" Type="SyntaxToken">
+      <Kind Name="HashToken" />
+    </Field>
+    <Field Name="endOfDirective" Type="SyntaxToken">
+      <Kind Name="EndOfDirectiveToken" />
+    </Field>
+  </AbstractNode>
+  <Node Name="BadDirectiveTriviaSyntax" Base="DirectiveTriviaSyntax">
+    <Kind Name="BadDirectiveTrivia"/>
+    <Field Name="hash" Type="SyntaxToken" Override="true">
+      <Kind Name="HashToken" />
+    </Field>
+    <Field Name="identifier" Type="SyntaxToken"/>
+    <Field Name="endOfDirective" Type="SyntaxToken" Override="true">
+      <Kind Name="EndOfDirectiveToken" />
     </Field>
   </Node>
   <!-- Names -->
