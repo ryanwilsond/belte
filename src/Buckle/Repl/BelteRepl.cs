@@ -104,9 +104,7 @@ public sealed partial class BelteRepl : Repl {
         _changes.Clear();
         ClearTree();
         base.ResetState();
-
-        foreach (var syntaxTree in CompilerHelpers.LoadLibrarySyntaxTrees())
-            EvaluateSubmissionInternal(syntaxTree);
+        LoadLibraries();
     }
 
     protected override void RenderLine(IReadOnlyList<string> lines, int lineIndex) {
@@ -161,7 +159,6 @@ public sealed partial class BelteRepl : Repl {
 
         Console.ForegroundColor = state.colorTheme.@default;
     }
-
     protected override void EvaluateSubmission(string text) {
         // ONLY use this when evaluating previous submissions, where incremental compilation would do nothing
         // Otherwise, this is much slower than the 0 arity overload
@@ -278,6 +275,12 @@ public sealed partial class BelteRepl : Repl {
             foreach (var child in node.ChildNodesAndTokens())
                 IterateTokens(child, text);
         }
+    }
+
+    private void LoadLibraries() {
+        var compilation = CompilerHelpers.LoadLibraries(DefaultOptions);
+        state.previous = compilation;
+        compilation.Evaluate(new Dictionary<IVariableSymbol, IEvaluatorObject>(), _abortEvaluation);
     }
 
     private void EvaluateSubmissionInternal(SyntaxTree syntaxTree) {
@@ -542,8 +545,10 @@ public sealed partial class BelteRepl : Repl {
         var displayText = new DisplayText();
 
         foreach (var symbol in symbols) {
-            SymbolDisplay.DisplaySymbol(displayText, symbol, true);
-            displayText.Write(CreateLine());
+            if (symbol.parent == null) {
+                SymbolDisplay.DisplaySymbol(displayText, symbol, true);
+                displayText.Write(CreateLine());
+            }
         }
 
         WriteDisplayText(displayText);

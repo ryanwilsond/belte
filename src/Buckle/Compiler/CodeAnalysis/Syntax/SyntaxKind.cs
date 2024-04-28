@@ -92,6 +92,7 @@ public enum SyntaxKind {
     ThisKeyword,
     StaticKeyword,
     OperatorKeyword,
+    LowlevelKeyword,
 
     // Tokens with text
     BadToken,

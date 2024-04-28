@@ -14,4 +14,9 @@ public interface ISymbol {
     /// The type of symbol this is (see <see cref="SymbolKind" />).
     /// </summary>
     public abstract SymbolKind kind { get; }
+
+    /// <summary>
+    /// The symbol that this symbol is a member of, if applicable.
+    /// </summary>
+    public abstract ITypeSymbolWithMembers parent { get; }
 }

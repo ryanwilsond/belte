@@ -1,5 +1,5 @@
 
-class List<type T> {
+lowlevel class List<type T> {
     T[] _array;
     int! _length;
     int! _res;
@@ -121,6 +121,14 @@ class List<type T> {
             return null;
 
         return list.Index(index!);
+    }
+
+    static T operator[](List<T> list, int index, T value) {
+        if (index is null)
+            return null;
+
+        list.Assign(index, value);
+        return list.Index(index);
     }
 
     void _TidyInit() {

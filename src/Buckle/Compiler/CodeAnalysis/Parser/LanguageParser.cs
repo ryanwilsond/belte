@@ -492,7 +492,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return token.kind switch {
             SyntaxKind.StaticKeyword => DeclarationModifiers.Static,
             SyntaxKind.ConstKeyword => DeclarationModifiers.Const,
-            SyntaxKind.ConstexprKeyword => DeclarationModifiers.Constexpr,
+            SyntaxKind.ConstexprKeyword => DeclarationModifiers.ConstExpr,
+            SyntaxKind.LowlevelKeyword => DeclarationModifiers.LowLevel,
             _ => DeclarationModifiers.None,
         };
     }

@@ -796,7 +796,7 @@ internal static class Error {
     /// BU0084. Run `buckle --explain BU0084` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic CannotUseStruct(TextLocation location) {
-        var message = "cannot use structs outside of a low-level context";
+        var message = "cannot use structs outside of low-level contexts";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseStruct), location, message);
     }
 
@@ -1047,6 +1047,14 @@ internal static class Error {
     internal static BelteDiagnostic IndexOperatorFirstParameter(TextLocation location) {
         var message = $"the first parameter for the '[]' operator must be the containing type";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_IndexOperatorFirstParameter), location, message);
+    }
+
+    /// <summary>
+    /// BU0114. Run `buckle --explain BU0114` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic ArrayOutsideOfLowLevelContext(TextLocation location) {
+        var message = $"cannot use arrays outside of low-level contexts";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ArrayOutsideOfLowLevelContext), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

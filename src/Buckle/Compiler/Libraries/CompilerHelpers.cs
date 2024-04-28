@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle;
@@ -13,7 +14,7 @@ public static class CompilerHelpers {
     /// <summary>
     /// Creates and returns the SyntaxTrees for loaded libraries.
     /// </summary>
-    public static SyntaxTree[] LoadLibrarySyntaxTrees() {
+    public static Compilation LoadLibraries(CompilationOptions options) {
         var assembly = Assembly.GetExecutingAssembly();
         var syntaxTrees = new List<SyntaxTree>();
 
@@ -29,6 +30,14 @@ public static class CompilerHelpers {
             syntaxTrees.Add(syntaxTree);
         }
 
-        return syntaxTrees.ToArray();
+        var newOptions = new CompilationOptions(
+            options.buildMode,
+            options.arguments,
+            options.isScript,
+            options.enableOutput,
+            true
+        );
+
+        return Compilation.Create(newOptions, syntaxTrees.ToArray());
     }
 }

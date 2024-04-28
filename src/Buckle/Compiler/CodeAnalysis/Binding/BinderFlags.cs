@@ -13,4 +13,5 @@ internal enum BinderFlags : byte {
     Class = 1 << 2,
     TemplateArgumentList = 1 << 3,
     Struct = 1 << 4,
+    LowLevelContext = 1 << 5,
 }

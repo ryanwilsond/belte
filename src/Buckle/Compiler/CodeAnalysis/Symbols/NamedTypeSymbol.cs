@@ -38,6 +38,8 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
 
     internal override int arity => templateParameters.Length;
 
+    internal bool isLowLevel => (_declarationModifiers & DeclarationModifiers.LowLevel) != 0;
+
     internal TypeDeclarationSyntax declaration { get; }
 
     public ImmutableArray<Symbol> GetMembers(string name) {

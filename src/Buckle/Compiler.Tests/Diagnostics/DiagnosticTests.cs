@@ -1122,7 +1122,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot use structs outside of a low-level context
+            cannot use structs outside of low-level contexts
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1555,6 +1555,19 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             the first parameter for the '[]' operator must be the containing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0114_ArrayOutsideOfLowLevelContext() {
+        var text = @"
+            [int\[\]] a;
+        ";
+
+        var diagnostics = @"
+            cannot use arrays outside of low-level contexts
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
