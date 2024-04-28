@@ -127,8 +127,8 @@ lowlevel class List<type T> {
         if (index is null)
             return null;
 
-        list.Assign(index, value);
-        return list.Index(index);
+        list.Assign(index!, value);
+        return list.Index(index!);
     }
 
     void _TidyInit() {

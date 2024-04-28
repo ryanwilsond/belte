@@ -834,7 +834,7 @@ internal sealed class Binder {
             }
         }
 
-        return DeclarationModifiers.None;
+        return declarationModifiers;
     }
 
     private MethodSymbol BindOperatorDeclaration(
@@ -1002,6 +1002,11 @@ internal sealed class Binder {
         }
 
         _scope = _scope.parent;
+        var saved = _flags;
+        _flags |= BinderFlags.Struct;
+
+        if (oldStruct.isLowLevel)
+            _flags |= BinderFlags.LowLevelContext;
 
         var newStruct = new StructSymbol(
             ImmutableArray<ParameterSymbol>.Empty,
@@ -1018,17 +1023,33 @@ internal sealed class Binder {
         if (!_flags.Includes(BinderFlags.LowLevelContext))
             diagnostics.Push(Error.CannotUseStruct(@struct.keyword.location));
 
+        _flags = saved;
         return newStruct;
     }
 
     private DeclarationModifiers BindStructDeclarationModifiers(SyntaxTokenList modifiers) {
+        var declarationModifiers = DeclarationModifiers.None;
+
         if (modifiers is null)
-            return DeclarationModifiers.None;
+            return declarationModifiers;
 
-        foreach (var modifier in modifiers)
-            diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
+        foreach (var modifier in modifiers) {
+            switch (modifier.kind) {
+                case SyntaxKind.LowlevelKeyword:
+                    if ((declarationModifiers & DeclarationModifiers.LowLevel) != 0) {
+                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                        break;
+                    }
 
-        return DeclarationModifiers.None;
+                    declarationModifiers |= DeclarationModifiers.LowLevel;
+                    break;
+                default:
+                    diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
+                    break;
+            }
+        }
+
+        return declarationModifiers;
     }
 
     private void BindAttributeLists(SyntaxList<AttributeListSyntax> attributeLists) {
@@ -1105,10 +1126,8 @@ internal sealed class Binder {
             return emptyClass;
         }
 
-        foreach (var member in @class.members) {
-            if (member is TypeDeclarationSyntax ts)
-                PreBindTypeDeclaration(ts, inheritModifiers);
-        }
+        foreach (var member in @class.members.OfType<TypeDeclarationSyntax>())
+            PreBindTypeDeclaration(member, inheritModifiers);
 
         var defaultFieldAssignmentsBuilder =
             ImmutableArray.CreateBuilder<(FieldSymbol, ExpressionSyntax)>();
@@ -1144,7 +1163,8 @@ internal sealed class Binder {
             var defaultConstructor = new MethodSymbol(
                 WellKnownMemberNames.InstanceConstructorName,
                 ImmutableArray<ParameterSymbol>.Empty,
-                BoundType.Void
+                BoundType.Void,
+                modifiers: inheritModifiers
             );
 
             builder.Add(defaultConstructor);
@@ -2094,10 +2114,15 @@ internal sealed class Binder {
     }
 
     private BoundStatement BindBlockStatement(BlockStatementSyntax statement) {
+        var inheritModifiers = BindBlockStatementModifiers(statement.modifiers);
         _checkPeekedLocals++;
 
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
         _scope = new BoundScope(_scope, true);
+        var saved = _flags;
+
+        if ((inheritModifiers & DeclarationModifiers.LowLevel) != 0)
+            _flags |= BinderFlags.LowLevelContext;
 
         var frame = new List<string>();
 
@@ -2128,7 +2153,7 @@ internal sealed class Binder {
                     ? DeclarationModifiers.LowLevel
                     : DeclarationModifiers.None;
 
-                BindMethodDeclaration(declaration, modifiers, innerName);
+                BindMethodDeclaration(declaration, modifiers | inheritModifiers, innerName);
 
                 if (!_unresolvedLocals.TryAdd(ConstructInnerName(), fd)) {
                     diagnostics.Push(Error.CannotOverloadNested(
@@ -2149,10 +2174,35 @@ internal sealed class Binder {
 
         _localLocals.Pop();
         _scope = _scope.parent;
-
+        _flags = saved;
         _checkPeekedLocals--;
 
         return new BoundBlockStatement(statements.ToImmutable());
+    }
+
+    private DeclarationModifiers BindBlockStatementModifiers(SyntaxTokenList modifiers) {
+        var declarationModifiers = DeclarationModifiers.None;
+
+        if (modifiers is null)
+            return declarationModifiers;
+
+        foreach (var modifier in modifiers) {
+            switch (modifier.kind) {
+                case SyntaxKind.LowlevelKeyword:
+                    if ((declarationModifiers & DeclarationModifiers.LowLevel) != 0) {
+                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                        break;
+                    }
+
+                    declarationModifiers |= DeclarationModifiers.LowLevel;
+                    break;
+                default:
+                    diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
+                    break;
+            }
+        }
+
+        return declarationModifiers;
     }
 
     private DeclarationModifiers BindLocalDeclarationModifiers(SyntaxTokenList modifiers) {
@@ -2755,7 +2805,8 @@ internal sealed class Binder {
                     [(null, boundExpression), (null, boundIndex)],
                     name,
                     expression.openBracket,
-                    null
+                    null,
+                    boundExpression.type
                 );
 
                 if (result.succeeded || result.ambiguous) {
@@ -3150,7 +3201,8 @@ internal sealed class Binder {
                     [(null, boundLeft), (null, boundIndex), (null, right)],
                     name,
                     expression.assignmentToken,
-                    null
+                    null,
+                    boundLeft.type
                 );
 
                 if (result.succeeded || result.ambiguous) {

@@ -31,8 +31,10 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_InitializerList_AllowsNull() {
         var text = @"
-            var! a = { 1, 2, 3 };
-            a = [{null, 2, 3 }];
+            lowlevel {
+                var! a = { 1, 2, 3 };
+                a = [{null, 2, 3 }];
+            }
         ";
 
         var diagnostics = @"
@@ -766,9 +768,11 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_IndexExpression_NotTreatedAsTypeClause() {
         var text = @"
-            int a = 1;
-            int\[\] b = {1, 2, 3};
-            b\[a\] = 3;
+            lowlevel {
+                int a = 1;
+                int\[\] b = {1, 2, 3};
+                b\[a\] = 3;
+            }
         ";
 
         var diagnostics = @"";

@@ -328,7 +328,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
                         var builder = new SyntaxListBuilder<SyntaxToken>(modifiers.Count);
 
                         foreach (var modifier in modifiers) {
-                            if (modifier.kind is SyntaxKind.ConstKeyword or SyntaxKind.ConstexprKeyword) {
+                            if (currentToken.kind == SyntaxKind.OpenBraceToken
+                                ? modifier.kind is SyntaxKind.LowlevelKeyword
+                                : modifier.kind is SyntaxKind.ConstKeyword or SyntaxKind.ConstexprKeyword) {
                                 builder.Add(modifier);
                                 continue;
                             }
@@ -673,7 +675,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         switch (currentToken.kind) {
             case SyntaxKind.OpenBraceToken:
-                return ParseBlockStatement();
+                consumedModifiers = true;
+                return ParseBlockStatement(modifiers);
             case SyntaxKind.IfKeyword:
                 return ParseIfStatement();
             case SyntaxKind.WhileKeyword:
@@ -914,7 +917,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.ExpressionStatement(expression, semicolon);
     }
 
-    private StatementSyntax ParseBlockStatement() {
+    private StatementSyntax ParseBlockStatement(SyntaxList<SyntaxToken> modifiers = null) {
         var statements = SyntaxListBuilder<StatementSyntax>.Create();
         var openBrace = Match(SyntaxKind.OpenBraceToken);
         var startToken = currentToken;
@@ -931,7 +934,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         var closeBrace = Match(SyntaxKind.CloseBraceToken);
 
-        return SyntaxFactory.BlockStatement(openBrace, statements.ToList(), closeBrace);
+        return SyntaxFactory.BlockStatement(modifiers, openBrace, statements.ToList(), closeBrace);
     }
 
     private ExpressionSyntax ParseAssignmentExpression() {

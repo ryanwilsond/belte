@@ -535,7 +535,9 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0043_EmptyInitializerListOnImplicit() {
         var text = @"
-            var x = [{}];
+            lowlevel {
+                var x = [{}];
+            }
         ";
 
         var diagnostics = @"
@@ -548,7 +550,9 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0044_ImpliedDimensions() {
         var text = @"
-            var[\[\]] x = {1, 2, 3};
+            lowlevel {
+                var[\[\]] x = {1, 2, 3};
+            }
         ";
 
         var diagnostics = @"
@@ -1031,7 +1035,9 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0078_NullInitializerListOnImplicit() {
         var text = @"
-            var myArray = [{ null, null }];
+            lowlevel {
+                var myArray = [{ null, null }];
+            }
         ";
 
         var diagnostics = @"
