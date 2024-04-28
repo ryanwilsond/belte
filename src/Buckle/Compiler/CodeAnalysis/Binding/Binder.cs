@@ -704,6 +704,11 @@ internal sealed class Binder {
         var modifiers = BindMethodDeclarationModifiers(method.modifiers);
         var type = BindType(method.returnType, modifiers, true);
 
+        var saved = _flags;
+
+        if ((modifiers & DeclarationModifiers.LowLevel) != 0)
+            _flags |= BinderFlags.LowLevelContext;
+
         if (type?.typeSymbol?.isStatic ?? false)
             diagnostics.Push(Error.CannotReturnStatic(method.returnType.location));
 
@@ -722,6 +727,7 @@ internal sealed class Binder {
         if ((newMethod.declaration as MethodDeclarationSyntax).identifier.text != null && !_scope.TryDeclareMethod(newMethod))
             diagnostics.Push(Error.MethodAlreadyDeclared(method.identifier.location, name ?? newMethod.name, className));
 
+        _flags = saved;
         return newMethod;
     }
 
