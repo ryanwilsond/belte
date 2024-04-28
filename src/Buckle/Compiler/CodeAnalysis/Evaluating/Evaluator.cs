@@ -32,7 +32,6 @@ internal sealed class Evaluator {
     // private bool _classLocalBufferOnStack;
     private bool _hasValue;
     private int _templateConstantDepth;
-    private bool _inParameterList;
 
     /// <summary>
     /// Creates an <see cref="Evaluator" /> that can evaluate a <see cref="BoundProgram" /> (provided globals).
@@ -49,7 +48,6 @@ internal sealed class Evaluator {
         _globals = globals;
         _locals.Push(new Dictionary<IVariableSymbol, IEvaluatorObject>());
         _templateConstantDepth = 0;
-        _inParameterList = false;
 
         var current = program;
 
@@ -771,8 +769,6 @@ internal sealed class Evaluator {
         ValueWrapper<bool> abort,
         BoundExpression expression = null) {
         var locals = new Dictionary<IVariableSymbol, IEvaluatorObject>();
-        var previous = _inParameterList;
-        _inParameterList = true;
 
         for (var i = 0; i < arguments.Length; i++) {
             var parameter = method.parameters[i];
@@ -784,7 +780,6 @@ internal sealed class Evaluator {
             locals.Add(parameter, Copy(value));
         }
 
-        _inParameterList = previous;
         _locals.Push(locals);
 
         var statement = LookupMethod(_methods, method);
