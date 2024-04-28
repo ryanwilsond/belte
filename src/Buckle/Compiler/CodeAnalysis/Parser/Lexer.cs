@@ -314,7 +314,6 @@ internal sealed class Lexer {
                     ReadIdentifierOrKeyword();
                 } else {
                     AddDiagnostic(Error.BadCharacter(_current), _position, 1);
-                    _kind = SyntaxKind.None;
                     _position++;
                 }
 

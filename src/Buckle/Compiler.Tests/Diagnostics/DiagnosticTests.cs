@@ -62,11 +62,11 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0005_BadCharacter() {
         var text = @"
-            [#];
+            [@];
         ";
 
         var diagnostics = @"
-            unexpected character '#'
+            unexpected character '@'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
