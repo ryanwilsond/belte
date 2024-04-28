@@ -33,10 +33,27 @@ class List<type T> {
 
         int! newCapacity = _length + 10;
         T[] newArray = new T[newCapacity];
-        _CopyInto(ref newArray, ref _array, _length);
+        _CopyInto(ref newArray, ref _array, 0, _length);
         _array = newArray;
 
         _length++;
+        _res = newCapacity;
+    }
+
+    void AppendRange(List<T> list) {
+        if (_res > _length + list._length) {
+            _CopyInto(ref _array, ref list._array, _length, list._length);
+            _length += list._length;
+            return;
+        }
+
+        int! newCapacity = _length + list._length + 10;
+        T[] newArray = new T[newCapacity];
+        _CopyInto(ref newArray, ref _array, 0, _length);
+        _CopyInto(ref newArray, ref list._array, _length, list._length);
+        _array = newArray;
+
+        _length += list._length;
         _res = newCapacity;
     }
 
@@ -68,7 +85,7 @@ class List<type T> {
 
     const T[] ToArray() {
         T[] copy = new T[_length];
-        _CopyInto(ref copy, ref _array, _length);
+        _CopyInto(ref copy, ref _array, 0, _length);
         return copy;
     }
 
@@ -114,14 +131,14 @@ class List<type T> {
 
     void _ConstructContents(T[] array, int! length) {
         if (_res > length) {
-            _CopyInto(ref _array, ref array, length);
+            _CopyInto(ref _array, ref array, 0, length);
             _length = length;
             return;
         }
 
         int! newCapacity = length + 10;
         _array = new T[newCapacity];
-        _CopyInto(ref _array, ref array, length);
+        _CopyInto(ref _array, ref array, 0, length);
 
         _length = length;
         _res = newCapacity;
@@ -135,9 +152,9 @@ class List<type T> {
         return index;
     }
 
-    static void _CopyInto(ref T[] to, ref T[] from, int! length) {
+    static void _CopyInto(ref T[] to, ref T[] from, int! start, int! length) {
         for (int! i = 0; i < length; i++) {
-            to[i] = from[i];
+            to[i + start] = from[i];
         }
     }
 }

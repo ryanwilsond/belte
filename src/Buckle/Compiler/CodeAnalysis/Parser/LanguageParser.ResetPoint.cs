@@ -1,25 +1,20 @@
-
-using System.Collections;
 using System.Collections.Generic;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
-internal sealed partial class Parser {
-    private readonly struct ResetPoint {
-        internal readonly int position;
-        internal readonly GreenNode prevTokenTrailingTrivia;
+internal sealed partial class LanguageParser {
+    private new readonly struct ResetPoint {
+        internal readonly SyntaxParser.ResetPoint baseResetPoint;
         internal readonly TerminatorState terminatorState;
         internal readonly ParserContext context;
         internal readonly Stack<SyntaxKind> bracketStack;
 
         internal ResetPoint(
-            int position,
-            GreenNode prevTokenTrailingTrivia,
+            SyntaxParser.ResetPoint baseResetPoint,
             TerminatorState terminatorState,
             ParserContext context,
             Stack<SyntaxKind> bracketStack) {
-            this.position = position;
-            this.prevTokenTrailingTrivia = prevTokenTrailingTrivia;
+            this.baseResetPoint = baseResetPoint;
             this.terminatorState = terminatorState;
             this.context = context;
             this.bracketStack = bracketStack;

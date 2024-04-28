@@ -2,7 +2,7 @@ using System;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
-internal sealed partial class Parser {
+internal sealed partial class LanguageParser {
     [Flags]
     private enum ParserContext : byte {
         None = 0,

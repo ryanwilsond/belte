@@ -31,6 +31,10 @@ public abstract partial class SyntaxNode {
         this.parent = parent;
     }
 
+    internal SyntaxNode(GreenNode node, int position, SyntaxTree syntaxTree) : this(null, node, position) {
+        _syntaxTree = syntaxTree;
+    }
+
     /// <summary>
     /// Type of <see cref="SyntaxNode" /> (see <see cref="SyntaxKind" />).
     /// </summary>

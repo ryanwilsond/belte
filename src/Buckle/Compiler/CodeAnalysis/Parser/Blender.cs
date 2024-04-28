@@ -40,7 +40,11 @@ internal sealed partial class Blender {
     }
 
     private Blender(
-        Lexer lexer, Cursor oldTreeCursor, ImmutableStack<TextChangeRange> changes, int newPosition, int changeDelta) {
+        Lexer lexer,
+        Cursor oldTreeCursor,
+        ImmutableStack<TextChangeRange> changes,
+        int newPosition,
+        int changeDelta) {
         _lexer = lexer;
         _oldTreeCursor = oldTreeCursor;
         _changes = changes;

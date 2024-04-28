@@ -96,6 +96,11 @@ internal abstract partial class GreenNode {
     internal bool containsDiagnostics => (_flags & NodeFlags.ContainsDiagnostics) != 0;
 
     /// <summary>
+    /// If this node contains any preprocessor directives.
+    /// </summary>
+    internal bool containsDirectives => (_flags & NodeFlags.ContainsDirectives) != 0;
+
+    /// <summary>
     /// If this node contains any skipped text from the source text in the form of trivia.
     /// </summary>
     internal bool containsSkippedText => (_flags & NodeFlags.ContainsSkippedText) != 0;

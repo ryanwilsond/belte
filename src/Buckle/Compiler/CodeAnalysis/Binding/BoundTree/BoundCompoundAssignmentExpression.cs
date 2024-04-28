@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound compound assignment expression. No direct <see cref="Syntax.InternalSyntax.Parser" /> equivalent.
+/// A bound compound assignment expression. No direct <see cref="Syntax.InternalSyntax.LanguageParser" /> equivalent.
 /// Is bound from a parser <see cref="Syntax.AssignmentExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundCompoundAssignmentExpression : BoundExpression {

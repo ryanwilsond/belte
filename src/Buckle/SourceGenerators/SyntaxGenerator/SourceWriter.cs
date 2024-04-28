@@ -216,13 +216,25 @@ internal sealed class SourceWriter {
         var @base = node.Base == "SyntaxNode" ? "BelteSyntaxNode" : node.Base;
 
         if (node is AbstractNode abstractNode) {
-            Write($"internal abstract class {node.Name} : {@base}");
+            Write($"internal abstract partial class {node.Name} : {@base}");
             OpenBlock();
             WriteLine($"internal {node.Name}(SyntaxKind kind)");
-            WriteLine("  : base(kind) { }");
+            WriteLine("  : base(kind)");
+            OpenBlock();
+
+            if (node.Name == "DirectiveTriviaSyntax")
+                WriteLine("this._flags |= NodeFlags.ContainsDirectives;");
+
+            CloseBlock();
             WriteLine();
             WriteLine($"internal {node.Name}(SyntaxKind kind, Diagnostic[] diagnostics)");
-            WriteLine("  : base(kind, diagnostics) { }");
+            WriteLine("  : base(kind, diagnostics)");
+            OpenBlock();
+
+            if (node.Name == "DirectiveTriviaSyntax")
+                WriteLine("this._flags |= NodeFlags.ContainsDirectives;");
+
+            CloseBlock();
 
             var nodeFields = GetNodeOrNodeListFields(abstractNode);
 
@@ -233,7 +245,7 @@ internal sealed class SourceWriter {
 
             CloseBlock();
         } else if (node is Node nd) {
-            Write($"internal sealed class {node.Name} : {@base}");
+            Write($"internal sealed partial class {node.Name} : {@base}");
             OpenBlock();
 
             var valueFields = nd.fields.Where(n => !IsNodeOrNodeList(n.Type)).ToList();
@@ -569,7 +581,7 @@ internal sealed class SourceWriter {
         var @base = node.Base == "SyntaxNode" ? "BelteSyntaxNode" : node.Base;
 
         if (node is AbstractNode abstractNode) {
-            Write($"public abstract class {node.Name} : {@base}");
+            Write($"public abstract partial class {node.Name} : {@base}");
             OpenBlock();
             WriteLine($"internal {node.Name}(SyntaxNode parent, GreenNode green, int position)");
             WriteLine("  : base(parent, green, position) { }");
@@ -584,7 +596,7 @@ internal sealed class SourceWriter {
 
             CloseBlock();
         } else if (node is Node nd) {
-            Write($"public sealed class {node.Name} : {@base}");
+            Write($"public sealed partial class {node.Name} : {@base}");
             OpenBlock();
 
             var valueFields = nd.fields.Where(n => !IsNodeOrNodeList(n.Type)).ToList();

@@ -50,4 +50,28 @@ internal abstract class BelteSyntaxNode : GreenNode {
     /// Accepts a <see cref="SyntaxVisitor" />.
     /// </summary>
     internal abstract void Accept(SyntaxVisitor visitor);
+
+    internal virtual DirectiveStack ApplyDirectives(DirectiveStack stack) {
+        return ApplyDirectives(this, stack);
+    }
+
+    internal static DirectiveStack ApplyDirectives(GreenNode node, DirectiveStack stack) {
+        if (node.containsDirectives) {
+            for (int i = 0, n = node.slotCount; i < n; i++) {
+                var child = node.GetSlot(i);
+
+                if (child != null)
+                    stack = ApplyDirectivesToListOrNode(child, stack);
+            }
+        }
+
+        return stack;
+    }
+
+    internal static DirectiveStack ApplyDirectivesToListOrNode(GreenNode listOrNode, DirectiveStack stack) {
+        if (listOrNode.kind == ListKind)
+            return ApplyDirectives(listOrNode, stack);
+
+        return ((BelteSyntaxNode)listOrNode).ApplyDirectives(stack);
+    }
 }

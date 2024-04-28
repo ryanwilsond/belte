@@ -138,7 +138,7 @@ public sealed class Compiler {
             Debug.Assert(state.tasks.Length == 1, "multiple tasks while in script mode");
 
             var sourceText = new StringText(state.tasks[0].inputFileName, state.tasks[0].fileContent.text);
-            var syntaxTree = new SyntaxTree(sourceText);
+            var syntaxTree = new SyntaxTree(sourceText, SourceCodeKind.Regular);
 
             state.tasks[0].stage = CompilerStage.Finished;
 

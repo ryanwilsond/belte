@@ -567,21 +567,16 @@ internal sealed class Evaluator {
             } while (operand.isReference == true);
         }
 
-        var enterScope = node.type == BoundType.MethodGroup;
-
-        EnterClassScope(operand, enterScope);
-
-        if (enterScope)
+        if (node.type == BoundType.MethodGroup) {
+            EnterClassScope(operand, true);
             return null;
+        }
 
         if (node.right is BoundType)
             return operand.members[node.right.type.typeSymbol];
 
         var member = (node.right as BoundVariableExpression).variable;
-        var result = operand.members[member];
-        ExitClassScope();
-
-        return result;
+        return operand.members[member];
     }
 
     private EvaluatorObject EvaluateObjectCreationExpression(
@@ -786,6 +781,7 @@ internal sealed class Evaluator {
         }
 
         _locals.Push(locals);
+
         var statement = LookupMethod(_methods, method);
         var templateConstantDepth = _templateConstantDepth;
         var enteredScope = false;

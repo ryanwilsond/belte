@@ -16,7 +16,7 @@ using static Buckle.CodeAnalysis.Binding.BoundFactory;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Binds a <see cref="Syntax.InternalSyntax.Parser" /> output into a immutable "bound" tree. This is where most error
+/// Binds a <see cref="Syntax.InternalSyntax.LanguageParser" /> output into a immutable "bound" tree. This is where most error
 /// checking happens. The <see cref="Lowerer" /> is also called here to simplify the code,
 /// And convert control of flow into gotos and labels. Dead code is also removed here, as well as other optimizations.
 /// </summary>

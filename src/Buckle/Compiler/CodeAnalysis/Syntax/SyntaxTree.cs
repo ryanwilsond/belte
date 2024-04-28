@@ -1,19 +1,18 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
+using Buckle.CodeAnalysis.Syntax.InternalSyntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Tree of SyntaxNodes produced from the <see cref="InternalSyntax.Parser" />.
+/// Tree of SyntaxNodes produced from the <see cref="LanguageParser" />.
 /// </summary>
 public partial class SyntaxTree {
-    /// <summary>
-    /// Creates a new <see cref="SyntaxTree" /> with the given <see cref="SourceText" />.
-    /// </summary>
-    internal SyntaxTree(SourceText text) {
+    internal SyntaxTree(SourceText text, SourceCodeKind kind) {
+        this.kind = kind;
         this.text = text;
     }
 
@@ -21,7 +20,7 @@ public partial class SyntaxTree {
     /// Creates a new <see cref="SyntaxTree" /> with the given node as the root.
     /// </summary>
     internal static SyntaxTree Create(SourceText text, BelteSyntaxNode root) {
-        return new ParsedSyntaxTree(text, root, true);
+        return new ParsedSyntaxTree(text, root, true, SourceCodeKind.Regular);
     }
 
     /// <summary>
@@ -29,13 +28,18 @@ public partial class SyntaxTree {
     /// given node's syntax tree.
     /// </summary>
     internal static SyntaxTree CreateWithoutClone(BelteSyntaxNode root) {
-        return new ParsedSyntaxTree(null, root, false);
+        return new ParsedSyntaxTree(null, root, false, SourceCodeKind.Regular);
     }
 
     /// <summary>
     /// <see cref="SourceText" /> the <see cref="SyntaxTree" /> was created from.
     /// </summary>
     public SourceText text { get; }
+
+    /// <summary>
+    /// The type of source.
+    /// </summary>
+    public SourceCodeKind kind { get; }
 
     /// <summary>
     /// EOF <see cref="SyntaxToken" />. Marks the end of the <see cref="SourceText" />, and does not map to an actual
@@ -53,10 +57,9 @@ public partial class SyntaxTree {
     /// </summary>
     /// <param name="text">Text to generate <see cref="SyntaxTree" /> from.</param>
     /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
-    public static SyntaxTree Parse(string text) {
+    public static SyntaxTree Parse(string text, SourceCodeKind kind = SourceCodeKind.Regular) {
         var sourceText = SourceText.From(text);
-
-        return Parse(sourceText);
+        return Parse(sourceText, kind);
     }
 
     public override string ToString() {
@@ -112,11 +115,12 @@ public partial class SyntaxTree {
     /// </summary>
     /// <param name="text">Text to generate <see cref="SyntaxTree" /> from.</param>
     /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
-    internal static SyntaxTree Parse(SourceText text) {
-        var tree = new SyntaxTree(text);
-        var parser = new InternalSyntax.Parser(tree);
+    internal static SyntaxTree Parse(SourceText text, SourceCodeKind kind = SourceCodeKind.Regular) {
+        var tree = new SyntaxTree(text, kind);
+        var lexer = new Lexer(tree, kind == SourceCodeKind.Regular);
+        var parser = new LanguageParser(lexer);
         var compilationUnit = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();
-        var parsedTree = new ParsedSyntaxTree(tree.text, compilationUnit, true);
+        var parsedTree = new ParsedSyntaxTree(tree.text, compilationUnit, true, kind);
 
         return parsedTree;
     }
@@ -184,11 +188,12 @@ public partial class SyntaxTree {
             oldTree = null;
         }
 
-        var tree = new SyntaxTree(newText);
-        var parser = new InternalSyntax.Parser(tree, oldTree?.GetRoot(), workingChanges);
+        var tree = new SyntaxTree(newText, kind);
+        var lexer = new Lexer(tree, kind == SourceCodeKind.Regular);
+        var parser = new LanguageParser(lexer, oldTree?.GetRoot(), workingChanges);
 
         var compilationUnit = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();
-        var parsedTree = new ParsedSyntaxTree(newText, compilationUnit, true);
+        var parsedTree = new ParsedSyntaxTree(newText, compilationUnit, true, kind);
         return parsedTree;
     }
 }

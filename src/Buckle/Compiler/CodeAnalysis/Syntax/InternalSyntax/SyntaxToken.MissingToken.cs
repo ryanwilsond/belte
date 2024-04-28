@@ -4,7 +4,7 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
 internal partial class SyntaxToken : BelteSyntaxNode {
     /// <summary>
-    /// Represents a <see cref="SyntaxToken" /> that was fabricated by the <see cref="Parser" />.
+    /// Represents a <see cref="SyntaxToken" /> that was fabricated by the <see cref="LanguageParser" />.
     /// Because of this, it cannot have text or a value.
     /// </summary>
     internal class MissingToken : SyntaxToken {
