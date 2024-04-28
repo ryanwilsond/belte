@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Security;
 using System.Text;
 using Buckle.CodeAnalysis.Authoring;
 using Buckle.CodeAnalysis.Binding;
