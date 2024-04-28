@@ -535,7 +535,9 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0043_EmptyInitializerListOnImplicit() {
         var text = @"
-            var x = [{}];
+            lowlevel {
+                var x = [{}];
+            }
         ";
 
         var diagnostics = @"
@@ -548,7 +550,9 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0044_ImpliedDimensions() {
         var text = @"
-            var[\[\]] x = {1, 2, 3};
+            lowlevel {
+                var[\[\]] x = {1, 2, 3};
+            }
         ";
 
         var diagnostics = @"
@@ -1031,7 +1035,9 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0078_NullInitializerListOnImplicit() {
         var text = @"
-            var myArray = [{ null, null }];
+            lowlevel {
+                var myArray = [{ null, null }];
+            }
         ";
 
         var diagnostics = @"
@@ -1122,7 +1128,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot use structs outside of a low-level context
+            cannot use structs outside of low-level contexts
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1555,6 +1561,19 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             the first parameter for the '[]' operator must be the containing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0114_ArrayOutsideOfLowLevelContext() {
+        var text = @"
+            [int\[\]] a;
+        ";
+
+        var diagnostics = @"
+            cannot use arrays outside of low-level contexts
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

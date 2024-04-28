@@ -71,7 +71,8 @@ internal sealed class BoundPostfixOperator {
                     [(null, operand)],
                     name,
                     operatorToken,
-                    null
+                    null,
+                    operand.type
                 );
 
                 if (result.succeeded || result.ambiguous)

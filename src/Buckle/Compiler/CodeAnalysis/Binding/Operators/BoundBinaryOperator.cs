@@ -180,7 +180,8 @@ internal sealed class BoundBinaryOperator {
                     [(null, left), (null, right)],
                     name,
                     operatorToken,
-                    null
+                    null,
+                    left.type.typeSymbol == symbols[0].containingType ? left.type : right.type
                 );
 
                 if (result.succeeded || result.ambiguous)

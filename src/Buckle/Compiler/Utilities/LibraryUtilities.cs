@@ -77,7 +77,7 @@ internal static class LibraryUtilities {
             name,
             BoundType.CopyWith(type, isConstantExpression: true),
             new BoundConstant(value),
-            DeclarationModifiers.Constexpr
+            DeclarationModifiers.ConstExpr
         );
     }
 

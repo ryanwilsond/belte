@@ -79,7 +79,8 @@ internal sealed class BoundUnaryOperator {
                     [(null, operand)],
                     name,
                     operatorToken,
-                    null
+                    null,
+                    operand.type
                 );
 
                 if (result.succeeded || result.ambiguous)

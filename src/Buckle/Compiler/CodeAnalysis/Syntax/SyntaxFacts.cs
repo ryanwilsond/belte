@@ -163,6 +163,7 @@ internal static class SyntaxFacts {
             "static" => SyntaxKind.StaticKeyword,
             "constexpr" => SyntaxKind.ConstexprKeyword,
             "operator" => SyntaxKind.OperatorKeyword,
+            "lowlevel" => SyntaxKind.LowlevelKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -253,6 +254,7 @@ internal static class SyntaxFacts {
             SyntaxKind.StaticKeyword => "static",
             SyntaxKind.ConstexprKeyword => "constexpr",
             SyntaxKind.OperatorKeyword => "operator",
+            SyntaxKind.LowlevelKeyword => "lowlevel",
             _ => null,
         };
     }
@@ -334,8 +336,10 @@ internal static class SyntaxFacts {
             SyntaxKind.MinusMinusToken => WellKnownMemberNames.DecrementOperatorName,
             SyntaxKind.ExclamationToken => WellKnownMemberNames.LogicalNotOperatorName,
             SyntaxKind.TildeToken => WellKnownMemberNames.BitwiseNotOperatorName,
-            SyntaxKind.OpenBracketToken => WellKnownMemberNames.IndexOperatorName,
-            SyntaxKind.QuestionOpenBracketToken => WellKnownMemberNames.IndexOperatorName,
+            SyntaxKind.OpenBracketToken when arity != 3 => WellKnownMemberNames.IndexOperatorName,
+            SyntaxKind.OpenBracketToken when arity == 3 => WellKnownMemberNames.IndexAssignName,
+            SyntaxKind.QuestionOpenBracketToken when arity != 3 => WellKnownMemberNames.IndexOperatorName,
+            SyntaxKind.QuestionOpenBracketToken when arity == 3 => WellKnownMemberNames.IndexAssignName,
             _ => null,
         };
     }
@@ -366,6 +370,7 @@ internal static class SyntaxFacts {
             WellKnownMemberNames.LogicalNotOperatorName => 1,
             WellKnownMemberNames.BitwiseNotOperatorName => 1,
             WellKnownMemberNames.IndexOperatorName => 2,
+            WellKnownMemberNames.IndexAssignName => 3,
             _ => 0,
         };
     }

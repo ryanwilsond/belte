@@ -23,7 +23,7 @@ internal abstract class VariableSymbol : Symbol, IVariableSymbol {
     }
 
     public override bool isStatic
-        => (_declarationModifiers & (DeclarationModifiers.Static | DeclarationModifiers.Constexpr)) != 0;
+        => (_declarationModifiers & (DeclarationModifiers.Static | DeclarationModifiers.ConstExpr)) != 0;
 
     public ITypeSymbol typeSymbol => type.typeSymbol;
 

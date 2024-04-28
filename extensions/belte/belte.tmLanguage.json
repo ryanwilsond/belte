@@ -33,7 +33,7 @@
                 },
                 {
                     "name": "keyword.other.belte",
-                    "match": "\\b(this|var|ref|new|operator)\\b"
+                    "match": "\\b(this|var|ref|new|operator|lowlevel)\\b"
                 },
                 {
                     "name": "keyword.operator.arithmetic.belte",

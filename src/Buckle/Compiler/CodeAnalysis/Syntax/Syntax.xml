@@ -328,6 +328,7 @@
   </Node>
   <Node Name="BlockStatementSyntax" Base="StatementSyntax">
     <Kind Name="BlockStatement"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Optional="true"/>
     <Field Name="openBrace" Type="SyntaxToken">
       <Kind Name="OpenBraceToken"/>
     </Field>

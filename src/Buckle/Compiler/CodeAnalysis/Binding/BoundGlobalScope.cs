@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 
@@ -11,9 +13,14 @@ internal sealed class BoundGlobalScope {
     /// <param name="previous">Previous <see cref="BoundGlobalScope" /> (if applicable).</param>
     internal BoundGlobalScope(
         ImmutableArray<(MethodSymbol method, BoundBlockStatement body)> methodBodies,
-        BoundGlobalScope previous, BelteDiagnosticQueue diagnostics, MethodSymbol entryPoint,
-        ImmutableArray<MethodSymbol> methods, ImmutableArray<VariableSymbol> variables,
-        ImmutableArray<NamedTypeSymbol> types, ImmutableArray<BoundStatement> statements) {
+        BoundGlobalScope previous,
+        BelteDiagnosticQueue diagnostics,
+        MethodSymbol entryPoint,
+        ImmutableArray<MethodSymbol> methods,
+        ImmutableArray<VariableSymbol> variables,
+        ImmutableArray<NamedTypeSymbol> types,
+        ImmutableArray<BoundStatement> statements,
+        Dictionary<string, NamedTypeSymbol> libraryTypes) {
         this.methodBodies = methodBodies;
         this.previous = previous;
         this.diagnostics = new BelteDiagnosticQueue();
@@ -23,6 +30,7 @@ internal sealed class BoundGlobalScope {
         this.variables = variables;
         this.types = types;
         this.statements = statements;
+        this.libraryTypes = libraryTypes;
     }
 
     internal ImmutableArray<(MethodSymbol method, BoundBlockStatement body)> methodBodies { get; }
@@ -46,4 +54,6 @@ internal sealed class BoundGlobalScope {
     internal ImmutableArray<NamedTypeSymbol> types { get; }
 
     internal ImmutableArray<BoundStatement> statements { get; }
+
+    internal Dictionary<string, NamedTypeSymbol> libraryTypes { get; }
 }

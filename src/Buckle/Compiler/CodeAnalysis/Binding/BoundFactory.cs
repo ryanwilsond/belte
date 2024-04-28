@@ -15,7 +15,8 @@ internal static partial class BoundFactory {
             ImmutableArray<MethodSymbol>.Empty,
             ImmutableArray<VariableSymbol>.Empty,
             ImmutableArray<NamedTypeSymbol>.Empty,
-            ImmutableArray<BoundStatement>.Empty
+            ImmutableArray<BoundStatement>.Empty,
+            previous.libraryTypes
         );
     }
 

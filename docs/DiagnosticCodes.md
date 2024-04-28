@@ -94,7 +94,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0081 | Error | type '{0}' is a primitive; primitives cannot be created with constructors |
 | BU0082 | Error | no overload for template '{0}' matches template argument list |
 | BU0083 | Error | template is ambiguous between |
-| BU0084 | Error | cannot use structs outside of a low-level context |
+| BU0084 | Error | cannot use structs outside of low-level contexts |
 | BU0085 | Error | cannot use 'this' outside of a class |
 | BU0086 | Error | constructor name must match the name of the enclosing class; in this case constructors must be named '{0}' |
 | BU0087 | Error | type '{0}' does not contain a constructor that matches the parameter list |
@@ -124,6 +124,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0111 | Error | at least one of the parameters of an operator must be the containing type |
 | BU0112 | Error | the return type for the '++' or '--' operator must be the containing type |
 | BU0113 | Error | the first parameter for the '[]' operator must be the containing type |
+| BU0114 | Error | cannot use arrays outside of low-level contexts |
 
 ## Command Line Diagnostics
 

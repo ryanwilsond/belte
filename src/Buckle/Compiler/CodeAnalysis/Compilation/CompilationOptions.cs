@@ -15,13 +15,19 @@ public struct CompilationOptions {
     /// If the housing <see cref="Compilation" /> is a partial compilation, that will not be emitted.
     /// </param>
     /// <param name="enableOutput">If output is enabled, otherwise only code checking is performed.</param>
-    public CompilationOptions(BuildMode buildMode, string[] arguments, bool isScript, bool enableOutput) {
+    public CompilationOptions(
+        BuildMode buildMode,
+        string[] arguments,
+        bool isScript,
+        bool enableOutput,
+        bool isLibrary = false) {
         topLevelBinderFlags = BinderFlags.None;
         this.buildMode = buildMode;
         this.arguments = arguments;
         this.isScript = isScript;
         isTranspiling = buildMode == BuildMode.CSharpTranspile;
         this.enableOutput = enableOutput;
+        this.isLibrary = isLibrary;
     }
 
     /// <summary>
@@ -48,6 +54,11 @@ public struct CompilationOptions {
     /// If the <see cref="buildMode" /> is a transpiler.
     /// </summary>
     internal bool isTranspiling { get; }
+
+    /// <summary>
+    /// If this <see cref="Compilation"/> is apart of the STL.
+    /// </summary>
+    internal bool isLibrary { get; }
 
     /// <summary>
     /// If output should be produced.

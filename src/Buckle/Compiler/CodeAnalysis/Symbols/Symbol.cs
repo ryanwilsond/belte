@@ -20,6 +20,8 @@ internal abstract class Symbol : ISymbol {
     /// </summary>
     public virtual NamedTypeSymbol containingType { get; private set; }
 
+    public ITypeSymbolWithMembers parent => containingType;
+
     /// <summary>
     /// The type of symbol this is (see <see cref="SymbolKind" />).
     /// </summary>

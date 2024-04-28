@@ -94,14 +94,28 @@ public sealed class Compilation {
     }
 
     /// <summary>
+    /// Creates a new <see cref="Compilation" /> with SyntaxTrees from a previous <see cref="Compilation"/>.
+    /// </summary>
+    /// <param name="options">Additional flags and options for compilation such as context.</param>
+    /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
+    /// <returns>New <see cref="Compilation" />.</returns>
+    public static Compilation CreateWithPrevious(
+        CompilationOptions options,
+        Compilation previous,
+        params SyntaxTree[] syntaxTrees) {
+        return new Compilation(options, previous, syntaxTrees);
+    }
+
+    /// <summary>
     /// Creates a new script <see cref="Compilation" /> with SyntaxTrees, and the previous <see cref="Compilation" />.
     /// </summary>
     /// <param name="options">Additional flags and options for compilation such as context.</param>
     /// <param name="previous">Previous <see cref="Compilation" />.</param>
     /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
-    /// <returns>.</returns>
     public static Compilation CreateScript(
-        CompilationOptions options, Compilation previous, params SyntaxTree[] syntaxTrees) {
+        CompilationOptions options,
+        Compilation previous,
+        params SyntaxTree[] syntaxTrees) {
         options.isScript = true;
         return new Compilation(options, previous, syntaxTrees);
     }

@@ -97,7 +97,6 @@ public sealed class Compiler {
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
             var syntaxTrees = new List<SyntaxTree>();
-            syntaxTrees.AddRange(CompilerHelpers.LoadLibrarySyntaxTrees());
 
             for (var i = 0; i < state.tasks.Length; i++) {
                 ref var task = ref state.tasks[i];
@@ -109,7 +108,12 @@ public sealed class Compiler {
                 }
             }
 
-            var compilation = Compilation.Create(_options, syntaxTrees.ToArray());
+            var compilation = Compilation.CreateWithPrevious(
+                _options,
+                CompilerHelpers.LoadLibraries(_options),
+                syntaxTrees.ToArray()
+            );
+
             diagnostics.Move(compilation.diagnostics);
 
             if (diagnostics.Errors().Any())
@@ -162,7 +166,6 @@ public sealed class Compiler {
 
     private void InternalCompiler() {
         var syntaxTrees = new List<SyntaxTree>();
-        syntaxTrees.AddRange(CompilerHelpers.LoadLibrarySyntaxTrees());
 
         for (var i = 0; i < state.tasks.Length; i++) {
             ref var task = ref state.tasks[i];
@@ -174,7 +177,11 @@ public sealed class Compiler {
             }
         }
 
-        var compilation = Compilation.Create(_options, syntaxTrees.ToArray());
+        var compilation = Compilation.CreateWithPrevious(
+            _options,
+            CompilerHelpers.LoadLibraries(_options),
+            syntaxTrees.ToArray()
+        );
 
         if (state.noOut)
             return;
