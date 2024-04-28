@@ -17,9 +17,6 @@ aims to match the sleekness of C# and the power of C++ while still being easy to
 More information about the design principles and language specification for Belte can be read
 [here](docs/README.md).
 
-Being a lone developer, this project is a massive undertaking! So any contributions or suggestions to the language
-design or compiler itself would be very much appreciated!
-
 ___
 
 ## Using the Buckle Compiler

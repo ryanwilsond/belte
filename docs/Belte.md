@@ -17,15 +17,9 @@ specification for Belte
 Belte (pronounced /belt/) is the acronym for Best Ever Language To Exist. As the humorous title suggests, the Belte
 project was started to create a theoretical best language for modern programming.
 
-The first idea of Belte was made in 2021 in response to the problem of logical vs physical: logical programming having
-residuals from physical implementation, such as indexing starting at 0 and different integer sizes existing. Later in
-2022, the idea was revisited and the Belte project officially started. C# and the .NET Framework as highlighted in
-*Framework Design Guidelines: Conventions, Idioms, and Patterns for Reuseable .NET Libraries*
-is very well-thought, and C# certainly earns its place among the greatest programming language designs. Because of such,
-Belte started with C# and modified all aspects of the language to be improved.
-
-During the past couple years of Belte development the C# language has added a few of the features after Belte added them
-as improvement to C#, such as simplified collection initialization and global statements. Coincidence? Probably.
+The Belte project was started in 2022 and is licensed by Ryan Wilson. Belte is the response to the problem of logical vs
+physical, i.e. logical programming being impacted by physical implementation. The simplest example of this is array
+indexing starting at 0 in most contemporary languages.
 
 ## Design Principles
 
@@ -33,10 +27,10 @@ The Belte project identifies the following six broad categories in order of prio
 
 ### 1 Functionality
 
-Belte focuses on functionality as the first goal. This is one of the reasons that the syntax and design of the language
-were the first todos. Not biased by industry standards, ease of implementation, or something similar. This language aims
-to fix issues with programming languages and added a unique spin on a C-style language. It aims to be intuitive like
-Python, robust like C#, high-performance like C++, and be able to be applied in most situations.
+Belte focuses on functionality as the first goal. Not biased by industry standards, ease of implementation, or something
+similar. This language aims to fix issues with programming languages and added a unique spin on a C-style language. It
+aims to be intuitive like Python, robust like C#, high-performance like C++, and be able to be applied in most
+situations.
 
 ### 2 Consistency
 
