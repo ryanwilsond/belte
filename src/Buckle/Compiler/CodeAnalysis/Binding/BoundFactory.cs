@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -11,7 +12,11 @@ internal static partial class BoundFactory {
             ImmutableArray<(MethodSymbol, BoundBlockStatement)>.Empty,
             previous,
             diagnostics,
-            null,
+            new Dictionary<string, MethodSymbol> {
+                { WellKnownMethodNames.EntryPoint, null },
+                { WellKnownMethodNames.GraphicsStart, null },
+                { WellKnownMethodNames.GraphicsUpdate, null }
+            },
             ImmutableArray<MethodSymbol>.Empty,
             ImmutableArray<VariableSymbol>.Empty,
             ImmutableArray<NamedTypeSymbol>.Empty,
@@ -24,7 +29,11 @@ internal static partial class BoundFactory {
         return new BoundProgram(
             previous,
             diagnostics,
-            null,
+            new Dictionary<string, MethodSymbol> {
+                { WellKnownMethodNames.EntryPoint, null },
+                { WellKnownMethodNames.GraphicsStart, null },
+                { WellKnownMethodNames.GraphicsUpdate, null }
+            },
             ImmutableDictionary<MethodSymbol, BoundBlockStatement>.Empty,
             ImmutableArray<NamedTypeSymbol>.Empty
         );

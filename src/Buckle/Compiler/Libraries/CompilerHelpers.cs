@@ -22,6 +22,13 @@ public static class CompilerHelpers {
             if (libraryName.StartsWith("Compiler.Resources"))
                 continue;
 
+            if (options.projectType != ProjectType.Graphics &&
+                (libraryName == "Compiler.Text.blt" ||
+                libraryName == "Compiler.Sprite.blt" ||
+                libraryName == "Compiler.Vec2.blt")) {
+                continue;
+            }
+
             using var stream = assembly.GetManifestResourceStream(libraryName);
             using var reader = new StreamReader(stream);
             var text = reader.ReadToEnd().TrimEnd();

@@ -1,0 +1,10 @@
+
+class Vec2 {
+    decimal! x;
+    decimal! y;
+
+    Vec2(decimal! x, decimal! y) {
+        this.x = x;
+        this.y = y;
+    }
+}

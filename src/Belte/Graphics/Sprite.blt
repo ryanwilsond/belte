@@ -1,0 +1,6 @@
+
+class Sprite {
+    string path;
+    Vec2 position;
+    Vec2 scale;
+}

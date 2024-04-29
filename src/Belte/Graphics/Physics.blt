@@ -1,0 +1,6 @@
+
+static class Physics {
+
+    static bool AxisAlignedCollision(ref Sprite sprite1, ref Sprite sprite2);
+
+}

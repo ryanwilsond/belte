@@ -1,0 +1,12 @@
+
+void Main() {
+    // Graphics.Initialize("Pong", Settings.ScreenWidth, Settings.ScreenHeight);
+}
+
+void Start() {
+
+}
+
+void Update(decimal deltaTime) {
+
+}
