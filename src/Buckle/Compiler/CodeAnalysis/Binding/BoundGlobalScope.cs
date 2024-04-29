@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 
@@ -15,7 +14,7 @@ internal sealed class BoundGlobalScope {
         ImmutableArray<(MethodSymbol method, BoundBlockStatement body)> methodBodies,
         BoundGlobalScope previous,
         BelteDiagnosticQueue diagnostics,
-        MethodSymbol entryPoint,
+        Dictionary<string, MethodSymbol> wellKnownMethods,
         ImmutableArray<MethodSymbol> methods,
         ImmutableArray<VariableSymbol> variables,
         ImmutableArray<NamedTypeSymbol> types,
@@ -25,7 +24,7 @@ internal sealed class BoundGlobalScope {
         this.previous = previous;
         this.diagnostics = new BelteDiagnosticQueue();
         this.diagnostics.Move(diagnostics);
-        this.entryPoint = entryPoint;
+        this.wellKnownMethods = wellKnownMethods;
         this.methods = methods;
         this.variables = variables;
         this.types = types;
@@ -42,7 +41,7 @@ internal sealed class BoundGlobalScope {
 
     internal BelteDiagnosticQueue diagnostics { get; }
 
-    internal MethodSymbol entryPoint { get; }
+    internal Dictionary<string, MethodSymbol> wellKnownMethods { get; }
 
     internal ImmutableArray<MethodSymbol> methods { get; }
 

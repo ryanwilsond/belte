@@ -65,4 +65,9 @@ public struct CompilerState {
     /// Provided arguments for the program, such as command-line arguments, that are given to the program.
     /// </summary>
     public string[] arguments;
+
+    /// <summary>
+    /// The type of Belte project.
+    /// </summary>
+    public ProjectType projectType;
 }

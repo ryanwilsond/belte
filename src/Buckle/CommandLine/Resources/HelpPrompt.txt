@@ -10,6 +10,8 @@ Options:
   -r|--repl                   Invoke the Repl.
   -i                          Compile and run (default).
 
+  --type=[console|graphics|...]       Specify the type of Belte project (default console).
+
   --severity=<severity>       Specify a reporting severity; defaults to warning.
   --warnlevel=<warning level> Specify a warning reporting level; defaults to 1.
   --wignore=<[BU|RE|CL]<code>,...>    Specify a specific warning to suppress.

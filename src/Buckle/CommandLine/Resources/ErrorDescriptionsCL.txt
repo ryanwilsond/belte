@@ -360,3 +360,25 @@ For example:
 buckle --winclude=BU0005 // Incorrect, `BU0005` is an error not a warning
 buckle --winclude=BU0026 // Correct
 ```
+$CL0029
+The '--type' command-line option is used to tell the compiler what the project
+type is for the given source. It must take in a project type.
+
+For example:
+
+```
+buckle Program.blt --type // Incorrect, no project type name is provided
+buckle Program.blt --type=console // Correct
+buckle Program.blt --type=graphics // Correct
+```
+$CL0030
+A passed project type with the '--type' option must be a recognized project
+type.
+
+For example:
+
+```
+buckle Program.blt --type=someOtherName // Incorrect, `someOtherName` is not a recognized project type
+buckle Program.blt --type=console // Correct
+buckle Program.blt --type=graphics // Correct
+```

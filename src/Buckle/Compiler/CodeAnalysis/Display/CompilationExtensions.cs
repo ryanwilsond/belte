@@ -16,8 +16,10 @@ public static class CompilationExtensions {
     /// </summary>
     /// <param name="text">Out.</param>
     public static void EmitTree(this Compilation self, DisplayText text) {
-        if (self.globalScope.entryPoint != null) {
-            EmitTree(self, self.globalScope.entryPoint, text);
+        var entryPoint = self.globalScope.wellKnownMethods[WellKnownMethodNames.EntryPoint];
+
+        if (entryPoint != null) {
+            EmitTree(self, entryPoint, text);
         } else {
             var program = self.GetProgram();
 

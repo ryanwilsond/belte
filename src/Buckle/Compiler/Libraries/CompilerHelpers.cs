@@ -32,6 +32,7 @@ public static class CompilerHelpers {
 
         var newOptions = new CompilationOptions(
             options.buildMode,
+            options.projectType,
             options.arguments,
             options.isScript,
             options.enableOutput,

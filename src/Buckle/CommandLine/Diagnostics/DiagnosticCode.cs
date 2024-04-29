@@ -37,4 +37,6 @@ public enum DiagnosticCode : int {
     ERR_MissingWIgnoreCode = 26,
     ERR_MissingWIncludeCode = 27,
     ERR_CodeIsNotWarning = 28,
+    ERR_MissingType = 29,
+    ERR_UnrecognizedType = 30,
 }

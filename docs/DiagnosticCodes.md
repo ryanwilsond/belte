@@ -158,6 +158,8 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | CL0026 | Error | missing warning code after '{0}' (usage: '--wignore=<[BU\|RE\|CL]<code>,...>') |
 | CL0027 | Error | missing warning code after '{arg}' (usage: '--winclude=<[BU\|RE\|CL]<code>,...>') |
 | CL0028 | Error | '{0}' is not the code of a warning |
+| CL0029 | Error | missing project type after '{0}' (usage: '--type=[console\|graphics\|...]') |
+| CL0030 | Error | unrecognized project type '{0}' |
 
 ## Repl Diagnostics
 

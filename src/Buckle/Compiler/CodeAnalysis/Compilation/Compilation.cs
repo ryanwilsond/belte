@@ -44,7 +44,17 @@ public sealed class Compilation {
     /// <summary>
     /// The entry point of the program.
     /// </summary>
-    internal MethodSymbol entryPoint => globalScope.entryPoint;
+    internal MethodSymbol entryPoint => globalScope.wellKnownMethods[WellKnownMethodNames.EntryPoint];
+
+    /// <summary>
+    /// The graphics entry point (if applicable).
+    /// </summary>
+    internal MethodSymbol graphicsStart => globalScope.wellKnownMethods[WellKnownMethodNames.GraphicsStart];
+
+    /// <summary>
+    /// The graphics update routine (if applicable).
+    /// </summary>
+    internal MethodSymbol graphicsUpdate => globalScope.wellKnownMethods[WellKnownMethodNames.GraphicsUpdate];
 
     /// <summary>
     /// All MethodSymbols in the global scope.
@@ -319,7 +329,8 @@ public sealed class Compilation {
         var appPath = Environment.GetCommandLineArgs()[0];
         var appDirectory = Path.GetDirectoryName(appPath);
         var cfgPath = Path.Combine(appDirectory, "cfg.dot");
-        var cfgStatement = program.entryPoint is null ? null : program.methodBodies[program.entryPoint];
+        var entryPoint = program.wellKnownMethods[WellKnownMethodNames.EntryPoint];
+        var cfgStatement = entryPoint is null ? null : program.methodBodies[entryPoint];
 
         if (cfgStatement != null) {
             var cfg = ControlFlowGraph.Create(cfgStatement);

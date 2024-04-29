@@ -26,7 +26,7 @@ public sealed class Compiler {
     private const int EvaluatorMaxTextLength = 4096 * 4;
 
     private CompilationOptions _options
-        => new CompilationOptions(state.buildMode, state.arguments, false, !state.noOut);
+        => new CompilationOptions(state.buildMode, state.projectType, state.arguments, false, !state.noOut);
 
     /// <summary>
     /// Creates a new <see cref="Compiler" />, state needs to be set separately.

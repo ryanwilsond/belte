@@ -41,6 +41,15 @@ The Repl is purely a command-line tool. If the *-r* or *--repl* option is passed
 
 For more information specifically on the Repl, see the [Repl help doc](.\Repl.md).
 
+### *--type=*[console|graphics|...] (Default *console*)
+
+Specifies the project type.
+
+|||
+|-|-|
+| `console` (Default) | An application that interfaces purely with the console. |
+| `graphics` | An application that creates a window. |
+
 <!--
 ### *-n*
 

@@ -9,7 +9,6 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Libraries.Standard;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
@@ -163,6 +162,8 @@ internal sealed class Binder {
         var methods = binder._scope.GetDeclaredMethods();
 
         MethodSymbol entryPoint = null;
+        MethodSymbol graphicsStart = null;
+        MethodSymbol graphicsUpdate = null;
 
         if (binder._options.isScript) {
             if (globalStatements.Any()) {
@@ -240,11 +241,17 @@ internal sealed class Binder {
             ? binder._methodBodies.ToImmutableArray()
             : previous.methodBodies.AddRange(binder._methodBodies);
 
+        var wellKnownMethods = new Dictionary<string, MethodSymbol> {
+            { WellKnownMethodNames.EntryPoint, entryPoint },
+            { WellKnownMethodNames.GraphicsStart, graphicsStart },
+            { WellKnownMethodNames.GraphicsUpdate, graphicsUpdate }
+        };
+
         return new BoundGlobalScope(
             methodBodies,
             previous,
             binder.diagnostics,
-            entryPoint,
+            wellKnownMethods,
             methods,
             variables,
             types.ToImmutableArray(),
@@ -326,13 +333,17 @@ internal sealed class Binder {
             diagnostics.Move(binder.diagnostics);
         }
 
-        if (globalScope.entryPoint != null && globalScope.statements.Any() && !options.isScript) {
+        var entryPoint = globalScope.wellKnownMethods[WellKnownMethodNames.EntryPoint];
+
+        if (entryPoint != null && globalScope.statements.Any() && !options.isScript) {
             var body = Lowerer.Lower(
-                globalScope.entryPoint, new BoundBlockStatement(globalScope.statements), options.isTranspiling
+                entryPoint,
+                new BoundBlockStatement(globalScope.statements),
+                options.isTranspiling
             );
 
-            methodBodies.Add(globalScope.entryPoint, body);
-        } else if (globalScope.entryPoint != null && options.isScript) {
+            methodBodies.Add(entryPoint, body);
+        } else if (entryPoint != null && options.isScript) {
             var statements = globalScope.statements;
 
             if (statements.Length == 1 && statements[0] is BoundExpressionStatement es &&
@@ -343,14 +354,20 @@ internal sealed class Binder {
             }
 
             var body = Lowerer.Lower(
-                globalScope.entryPoint, new BoundBlockStatement(statements), options.isTranspiling
+                entryPoint,
+                new BoundBlockStatement(statements),
+                options.isTranspiling
             );
 
-            methodBodies.Add(globalScope.entryPoint, body);
+            methodBodies.Add(entryPoint, body);
         }
 
         return new BoundProgram(
-            previous, diagnostics, globalScope.entryPoint, methodBodies.ToImmutable(), globalScope.types
+            previous,
+            diagnostics,
+            globalScope.wellKnownMethods,
+            methodBodies.ToImmutable(),
+            globalScope.types
         );
     }
 

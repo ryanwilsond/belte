@@ -545,6 +545,7 @@ public static partial class BuckleCommandLine {
         state.noOut = false;
         state.warningLevel = 1;
         state.severity = DiagnosticSeverity.Warning;
+        state.projectType = ProjectType.Console;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -694,6 +695,20 @@ public static partial class BuckleCommandLine {
                 }
 
                 includeWarnings.AddRange(ParseAndVerifyWarningCodes(arg.Substring(11), diagnosticsCL));
+            } else if (arg.StartsWith("--type")) {
+                if (arg == "--type" || arg == "--type=") {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingType(arg));
+                    continue;
+                }
+
+                var type = arg.Substring(7).ToLower();
+
+                if (type == "console")
+                    state.projectType = ProjectType.Console;
+                else if (type == "graphics")
+                    state.projectType = ProjectType.Graphics;
+                else
+                    diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedType(type));
             } else if (arg == "--") {
                 if (args.Length > i + 1)
                     arguments = args[(i + 1)..];
