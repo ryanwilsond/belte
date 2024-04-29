@@ -9,6 +9,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries.Graphics;
 using Buckle.Libraries.Standard;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
@@ -118,7 +119,7 @@ internal sealed class Binder {
         CompilationOptions options,
         BoundGlobalScope previous,
         ImmutableArray<SyntaxTree> syntaxTrees) {
-        var parentScope = CreateParentScope(previous);
+        var parentScope = CreateParentScope(previous, options.projectType);
         var binder = new Binder(options, options.topLevelBinderFlags, parentScope, null, previous?.libraryTypes);
 
         if (binder.diagnostics.Errors().Any())
@@ -227,7 +228,7 @@ internal sealed class Binder {
         CompilationOptions options,
         BoundProgram previous,
         BoundGlobalScope globalScope) {
-        var parentScope = CreateParentScope(globalScope);
+        var parentScope = CreateParentScope(globalScope, options.projectType);
 
         if (globalScope.diagnostics.Errors().Any())
             return Program(previous, globalScope.diagnostics);
@@ -541,7 +542,7 @@ internal sealed class Binder {
         return locals.ToImmutable();
     }
 
-    private static BoundScope CreateParentScope(BoundGlobalScope previous) {
+    private static BoundScope CreateParentScope(BoundGlobalScope previous, ProjectType projectType) {
         var stack = new Stack<BoundGlobalScope>();
 
         while (previous != null) {
@@ -549,7 +550,7 @@ internal sealed class Binder {
             previous = previous.previous;
         }
 
-        var parent = CreateRootScope();
+        var parent = CreateRootScope(projectType);
 
         while (stack.Count > 0) {
             previous = stack.Pop();
@@ -570,18 +571,18 @@ internal sealed class Binder {
         return parent;
     }
 
-    private static BoundScope CreateRootScope() {
+    private static BoundScope CreateRootScope(ProjectType projectType) {
         var result = new BoundScope(null);
 
         foreach (var method in BuiltinMethods.GetAll())
             result.TryDeclareMethod(method);
 
-        LoadLibraries(result);
+        LoadLibraries(result, projectType);
 
         return result;
     }
 
-    private static void LoadLibraries(BoundScope scope) {
+    private static void LoadLibraries(BoundScope scope, ProjectType projectType) {
         void DeclareSymbols(IEnumerable<Symbol> symbols) {
             foreach (var symbol in symbols) {
                 if (symbol is MethodSymbol m)
@@ -594,8 +595,10 @@ internal sealed class Binder {
             }
         }
 
-        // TODO Only want to load in libraries if they are used
         DeclareSymbols(StandardLibrary.GetSymbols());
+
+        if (projectType == ProjectType.Graphics)
+            DeclareSymbols(GraphicsLibrary.GetSymbols());
     }
 
     private string ConstructInnerName() {

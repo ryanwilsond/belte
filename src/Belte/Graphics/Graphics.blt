@@ -1,14 +1,45 @@
 
 static class Graphics {
+    static void Initialize(string title, int screenWidth, int screenHeight) {
+        InternalGraphics.Initialize(title, screenWidth, screenHeight);
+    }
 
-    static void Initialize(string title, int screenWidth, int screenHeight);
+    static Sprite LoadSprite(string path, Vec2 position, Vec2 scale) {
+        var spriteInternals = InternalGraphics.LoadSprite(path, position.x, position.y, scale.x, scale.y);
+        Sprite sprite = new Sprite();
+        sprite.path = (string)spriteInternals[0];
+        sprite.position = new Vec2((decimal)spriteInternals[1], (decimal)spriteInteranls[2]);
+        sprite.scale = new Vec2((decimal)spriteInternals[3], (decimal)spriteInteranls[4]);
+        return sprite;
+    }
 
-    static Sprite LoadSprite(string path, Vec2 position, Vec2 scale);
+    static Text LoadText(string fontPath, string text, Vec2 position, int fontPt, int r, int g, int b) {
+        var textInternals = InternalGraphics.LoadText(fontPath, text, position.x, position.y, fontPt, r, g, b);
+        var text = new Text();
+        text.fontPath =
+        return text;
+    }
 
-    static Text LoadText(string fontPath, string text, Vec2 position, int fontPt, int r, int g, int b);
+    static void DrawSprite(ref Sprite sprite) {
+        InternalGraphics.DrawSprite(
+            sprite.path,
+            sprite.position.x,
+            sprite.position.y,
+            sprite.scale.x,
+            sprite.scale.y
+        );
+    }
 
-    static void DrawSprite(ref Sprite sprite);
-
-    static void DrawText(ref Text text);
-
+    static void DrawText(ref Text text) {
+        InternalGraphics.DrawText(
+            text.fontPath,
+            text.text,
+            text.position.x,
+            text.position.y,
+            text.fontPt,
+            text.r,
+            text.g,
+            text.b
+        );
+    }
 }

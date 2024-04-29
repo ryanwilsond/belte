@@ -26,10 +26,10 @@ internal static partial class GraphicsLibrary {
             ("b", BoundType.NullableInt)
         ]),
         StaticMethod("DrawSprite", BoundType.Void, [
-            ("sprite", Nullable(Sprite))
+            ("sprite", NullableRef(Sprite))
         ]),
         StaticMethod("DrawText", BoundType.Void, [
-            ("text", Nullable(Text))
+            ("text", NullableRef(Text))
         ]),
     ]);
 }

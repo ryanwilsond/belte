@@ -3,7 +3,7 @@ class Text {
     string fontPath;
     string text;
     Vec2 position;
-    int fontpt;
+    int fontPt;
     int r;
     int g;
     int b;

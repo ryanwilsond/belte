@@ -9,7 +9,8 @@
             "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net8.0/CommandLine.dll",
             "args": [
                 // "-r"
-                "samples/Pong"
+                "samples/Pong",
+                "--type=graphics"
             ],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",

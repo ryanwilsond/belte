@@ -7,8 +7,8 @@ namespace Buckle.Libraries.Graphics;
 internal static partial class GraphicsLibrary {
     internal static ClassSymbol Physics = StaticClass("Physics", [
         StaticMethod("AxisAlignedCollision", BoundType.Bool, [
-            ("sprite1", Nullable(Sprite)),
-            ("sprite2", Nullable(Sprite))
+            ("sprite1", NullableRef(Sprite)),
+            ("sprite2", NullableRef(Sprite))
         ])
     ]);
 }
