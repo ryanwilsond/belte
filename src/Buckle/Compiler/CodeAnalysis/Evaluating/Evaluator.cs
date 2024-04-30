@@ -5,7 +5,6 @@ using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
-using Buckle.Libraries.Graphics;
 using Buckle.Libraries.Standard;
 using Buckle.Utilities;
 using Shared;
@@ -1043,21 +1042,6 @@ internal sealed class Evaluator {
                 printed = true;
 
             result = StandardLibrary.EvaluateMethod(method, EvaluateArgumentsForExternalCall(arguments, abort));
-            return true;
-        }
-
-        return false;
-    }
-
-    private bool CheckGraphicsMap(
-        MethodSymbol method,
-        ImmutableArray<BoundExpression> arguments,
-        ValueWrapper<bool> abort,
-        out object result) {
-        result = null;
-
-        if (method.containingType == GraphicsLibrary.Graphics || method.containingType == GraphicsLibrary.Physics) {
-            result = GraphicsLibrary.EvaluateMethod(method, EvaluateArgumentsForExternalCall(arguments, abort));
             return true;
         }
 

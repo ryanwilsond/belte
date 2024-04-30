@@ -16,7 +16,7 @@ this is a convention, and not required.)
 | [samples/HelloWorld](HelloWorld/Program.blt) | `buckle samples/HelloWorld` | Hello, world! program. |
 | [samples/Echo](Echo/Program.blt) | `buckle samples/Echo -- arg1 arg2` | Echo program that prints command-line arguments. |
 | [samples/GuessingGame](GuessingGame/Program.blt) | `buckle samples/GuessingGame` | Random number guessing game. |
-| [samples/Pong](Pong/Program.blt) | `buckle samples/Pong --type=graphics` | Retro pong clone. |
+<!-- | [samples/Pong](Pong/Program.blt) | `buckle samples/Pong --type=graphics` | Retro pong clone. | -->
 
 ## Running a Sample Using the Interpreter
 
@@ -28,11 +28,13 @@ E.g.
 buckle samples/HelloWorld
 ```
 
+<!--
 Some samples require an additional flag, `--type=graphics`. Currently, only the Pong sample requires this:
 
 ```bash
 buckle samples/Pong --type=graphics
 ```
+-->
 
 <!--
 ## Running a Sample Using .NET

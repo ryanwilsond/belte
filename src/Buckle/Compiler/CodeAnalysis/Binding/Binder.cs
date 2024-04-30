@@ -9,7 +9,6 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries.Graphics;
 using Buckle.Libraries.Standard;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
@@ -596,9 +595,6 @@ internal sealed class Binder {
         }
 
         DeclareSymbols(StandardLibrary.GetSymbols());
-
-        if (projectType == ProjectType.Graphics)
-            DeclareSymbols(GraphicsLibrary.GetSymbols());
     }
 
     private string ConstructInnerName() {
