@@ -1,0 +1,105 @@
+/*
+
+    Spinning Donut/Torus
+
+    This program generates a spinning ASCII torus in the console using the method described in the following article:
+
+        https://www.a1k0n.net/2011/07/20/donut-math.html
+
+*/
+const int! ScreenWidth = Console.GetWidth();
+const int! ScreenHeight = Console.GetHeight();
+
+constexpr decimal! ThetaSpacing = 0.07;
+constexpr decimal! PhiSpacing = 0.02;
+constexpr decimal! R1 = 1;
+constexpr decimal! R2 = 2;
+constexpr decimal! K2 = 5;
+const decimal! K1 = ScreenWidth * K2 * 3 / (8 * (R1 + R2));
+
+lowlevel void RenderFrame(decimal a, decimal b) {
+    var cosA = Math.Cos(a);
+    var sinA = Math.Sin(a);
+    var cosB = Math.Cos(b);
+    var sinB = Math.Sin(b);
+
+    var output = new string[ScreenWidth][ScreenHeight];
+    var zbuffer = new decimal[ScreenWidth][ScreenHeight];
+
+    for (int i = 0; i < ScreenWidth; i++) {
+        for (int j = 0; j < ScreenHeight; j++) {
+            output[i][j] = " ";
+            zbuffer[i][j] = 0;
+        }
+    }
+
+    for (decimal theta = 0; theta < 2 * Math.PI; theta += ThetaSpacing) {
+        var cosTheta = Math.Cos(theta);
+        var sinTheta = Math.Sin(theta);
+
+        for (decimal phi = 0; phi < 2 * Math.PI; phi += PhiSpacing) {
+            var cosPhi = Math.Cos(phi);
+            var sinPhi = Math.Sin(phi);
+
+            var circleX = R2 + R1 * cosTheta;
+            var circleY = R1 * sinTheta;
+
+            var x = circleX * (cosB * cosPhi + sinA * sinB * sinPhi);
+            var y = circleX * (sinB * cosPhi - sinA * cosB * sinPhi);
+            var z = K2 + cosA * circleX * sinPhi + circleY * sinA;
+            var ooz = 1 / z;
+
+            var xp = (int)(ScreenWidth / 2 + K1 * ooz * x);
+            var yp = (int)(ScreenHeight / 2 - K1 * ooz * y);
+
+            var L = cosPhi * cosTheta * sinB - cosA * cosTheta * sinPhi -
+                sinA * sinTheta + cosB * (cosA * sinTheta - cosTheta * sinA * sinPhi);
+
+            if (L > 0) {
+                if (ooz > zbuffer[xp][yp]) {
+                    zbuffer[xp][yp] = ooz;
+                    var luminance = (int)L*8;
+                    output[xp][yp] = GetOpacityChar(luminance);
+                }
+            }
+        }
+    }
+
+    Console.SetCursorPosition(0, 0);
+
+    for (int j = 0; j < ScreenHeight; j++) {
+        for (int i = 0; i < ScreenWidth; i++)
+            Console.Print(output[i][j]);
+
+        Console.Print("\n");
+    }
+}
+
+string GetOpacityChar(int luminance) {
+    if (luminance == 0)
+        return ".";
+    else if (luminance == 1)
+        return ",";
+    else if (luminance == 2)
+        return "-";
+    else if (luminance == 3)
+        return "~";
+    else if (luminance == 4)
+        return ":";
+    else if (luminance == 5)
+        return ";";
+    else if (luminance == 6)
+        return "=";
+    else if (luminance == 7)
+        return "!";
+    else if (luminance == 8)
+        return "*";
+    else if (luminance == 9)
+        return "#";
+    else if (luminance == 10)
+        return "$";
+    else
+        return "@";
+}
+
+RenderFrame(0, 0);

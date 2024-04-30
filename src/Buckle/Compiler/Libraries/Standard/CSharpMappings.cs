@@ -48,6 +48,18 @@ internal static partial class StandardLibrary {
         } else if (method == Console.members[9]) {
             if (!System.Console.IsOutputRedirected)
                 System.Console.ResetColor();
+        } else if (method == Console.members[10]) {
+            if (!System.Console.IsOutputRedirected)
+                return System.Console.WindowWidth;
+        } else if (method == Console.members[11]) {
+            if (!System.Console.IsOutputRedirected)
+                return System.Console.WindowHeight;
+        } else if (method == Console.members[12]) {
+            if (!System.Console.IsOutputRedirected) {
+                var left = (int?)arguments[0] ?? System.Console.CursorLeft;
+                var top = (int?)arguments[1] ?? System.Console.CursorTop;
+                System.Console.SetCursorPosition(left, top);
+            }
         } else if (method == Math.members[2]) {
             return arguments[0] is null ? null : System.Math.Abs(Convert.ToDouble(arguments[0]));
         } else if (method == Math.members[3]) {

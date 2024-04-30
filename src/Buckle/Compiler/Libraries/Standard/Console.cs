@@ -26,7 +26,7 @@ internal static partial class StandardLibrary {
                 Constexpr("White", BoundType.Int, 15)
             ]),
             StaticMethod("PrintLine", BoundType.Void, [
-                ("message", BoundType.NullableString)
+                        ("message", BoundType.NullableString)
             ]),
             StaticMethod("PrintLine", BoundType.Void, [
                 ("value", BoundType.NullableAny)
@@ -46,6 +46,12 @@ internal static partial class StandardLibrary {
                 ("color", BoundType.Int)
             ]),
             StaticMethod("ResetColor", BoundType.Void, []),
+            StaticMethod("GetWidth", BoundType.Int, []),
+            StaticMethod("GetHeight", BoundType.Int, []),
+            StaticMethod("SetCursorPosition", BoundType.Void, [
+                ("left", BoundType.NullableInt),
+                ("top", BoundType.NullableInt)
+            ]),
         ]
     );
 }

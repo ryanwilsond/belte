@@ -368,9 +368,10 @@ internal sealed class Evaluator {
                         break;
                     case BoundNodeKind.ConditionalGotoStatement:
                         var cgs = (BoundConditionalGotoStatement)s;
-                        var condition = (bool)Value(EvaluateExpression(cgs.condition, abort));
+                        var condition = EvaluateExpression(cgs.condition, abort);
+                        var conditionValue = (bool)Value(condition);
 
-                        if (condition == cgs.jumpIfTrue)
+                        if (conditionValue == cgs.jumpIfTrue)
                             index = labelToIndex[cgs.label];
                         else
                             index++;

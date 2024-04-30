@@ -1,0 +1,126 @@
+
+lowlevel void Main() {
+    int[]! b = new int[1760];
+    int[]! z = new int[1760];
+
+    int! sA = 1024;
+    int! cA = 0;
+    int! sB = 1024;
+    int! cB = 0;
+
+    /*
+    ! Bugged
+    for (;;) {
+    */
+    while (true) {
+        for (int! i=0; i<1760; i++) {
+            b[i] = 32;
+            z[i] = 127;
+        }
+
+        int! sJ = 0;
+        int! cJ = 2014;
+
+        for (int! j = 0; j < 90; j++) {
+            int! sI = 0;
+            int! cI = 1024;
+
+            for (int! i = 0; i< 324; i++) {
+                int! R1 = 1;
+                int! R2 = 2048;
+                int! K2 = 5120 * 1024;
+
+                int! x0 = R1 * cJ + R2;
+                int! x1 = cI * x0 >> 10;
+                int! x2 = cA * sJ >> 10;
+                int! x3 = sI * x0 >> 10;
+                int! x4 = R1 * x2 - (sA * x3 >> 10);
+                int! x5 = sA * sJ >> 10;
+                int! x6 = K2 * R1 * 1024 * x5 + cA * x3;
+                int! x7 = cJ * sI >> 10;
+                int! x = 40;
+                if (x6 != 0)
+                    x = 40 + 30 * (cB * x1 - sB * x4) / x6;
+                int! y = 12;
+                if (x6 != 0)
+                    y = 12 + 15 * (cB * x4 + sB * x1) / x6;
+                int! N = (-cA * x7 - cB * ((-sA * x7 >> 10) + x2) - cI * (cJ * sB >> 10) >> 10) - x5 >> 7;
+                // Console.PrintLine(R1);
+                // Console.PrintLine(R2);
+                // Console.PrintLine(K2);
+                // Console.PrintLine(x0);
+                // Console.PrintLine(x1);
+                // Console.PrintLine(x2);
+                // Console.PrintLine(x3);
+                // Console.PrintLine(x4);
+                // Console.PrintLine(x5);
+                // Console.PrintLine(x6);
+                // Console.PrintLine(x7);
+                // Console.PrintLine(x);
+                // Console.PrintLine(y);
+                // Console.PrintLine(N);
+
+                int! o = x + 80 * y;
+                int! zz = (x6 - K2) >> 15;
+
+                if (22 > y && y > 0 && x > 0 && 80 > x && zz < z[o]) {
+                    z[o] = zz;
+                    // ! The following line is bugged. the latter N and 0 have null typeSymbols for some reason
+                    // But no diagnostics are on the stack when they are assigned null
+                    b[o] = Ascii(GetOpacityChar(N > 0 ? N : 0));
+                }
+
+                R(5, 8, ref cI, ref sI);
+            }
+
+            R(9, 7, ref cJ, ref sJ);
+        }
+
+        for (int! k = 0; 1761 > k; k++)
+            /*
+            ! k % 80 cast to bool is bugged
+            Console.Print(k % 80 ? Char(b[k]) : Char(10));
+            */
+            Console.Print(k % 80 == 0 ? Char(10) : Char(b[k]));
+
+        R(5, 7, ref cA, ref sA);
+        R(5, 8, ref cB, ref sB);
+        Console.SetCursorPosition(0, 0);
+    }
+}
+
+string! GetOpacityChar(int luminance) {
+    if (luminance == 0)
+        return ".";
+    else if (luminance == 1)
+        return ",";
+    else if (luminance == 2)
+        return "-";
+    else if (luminance == 3)
+        return "~";
+    else if (luminance == 4)
+        return ":";
+    else if (luminance == 5)
+        return ";";
+    else if (luminance == 6)
+        return "=";
+    else if (luminance == 7)
+        return "!";
+    else if (luminance == 8)
+        return "*";
+    else if (luminance == 9)
+        return "#";
+    else if (luminance == 10)
+        return "$";
+    else
+        return "@";
+}
+
+void R(int! mul, int! shift, ref int! x, ref int! y) {
+    int! t = x;
+    x -= mul * y >> shift;
+    y += mul * t >> shift;
+    t = 3145728 - x * x - y * y >> 11;
+    x = x * t >> 10;
+    y = y * t >> 10;
+}
