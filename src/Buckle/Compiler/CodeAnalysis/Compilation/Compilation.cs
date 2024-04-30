@@ -329,8 +329,7 @@ public sealed class Compilation {
         var appPath = Environment.GetCommandLineArgs()[0];
         var appDirectory = Path.GetDirectoryName(appPath);
         var cfgPath = Path.Combine(appDirectory, "cfg.dot");
-        var entryPoint = program.wellKnownMethods[WellKnownMethodNames.EntryPoint];
-        var cfgStatement = entryPoint is null ? null : program.methodBodies[entryPoint];
+        var cfgStatement = program.entryPoint is null ? null : program.methodBodies[program.entryPoint];
 
         if (cfgStatement != null) {
             var cfg = ControlFlowGraph.Create(cfgStatement);

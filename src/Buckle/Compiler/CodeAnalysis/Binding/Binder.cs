@@ -118,7 +118,7 @@ internal sealed class Binder {
         CompilationOptions options,
         BoundGlobalScope previous,
         ImmutableArray<SyntaxTree> syntaxTrees) {
-        var parentScope = CreateParentScope(previous);
+        var parentScope = CreateParentScope(previous, options.projectType);
         var binder = new Binder(options, options.topLevelBinderFlags, parentScope, null, previous?.libraryTypes);
 
         if (binder.diagnostics.Errors().Any())
@@ -166,68 +166,21 @@ internal sealed class Binder {
         MethodSymbol graphicsUpdate = null;
 
         if (binder._options.isScript) {
-            if (globalStatements.Any()) {
-                entryPoint = new MethodSymbol(
-                    "<Eval>$", ImmutableArray<ParameterSymbol>.Empty, BoundType.NullableAny
-                );
-            }
+            if (globalStatements.Any())
+                entryPoint = new MethodSymbol("<Eval>$", ImmutableArray<ParameterSymbol>.Empty, BoundType.NullableAny);
         } else {
-            var mains = methods.Where(f => f.name.ToLower() == "main").ToArray();
+            entryPoint = ResolveEntryPoint(methods, binder, globalStatements, firstGlobalPerTree);
 
-            if (mains.Length > 1) {
-                foreach (var main in mains) {
-                    var span = TextSpan.FromBounds(
-                        main.declaration.span.start,
-                        main.declaration.parameterList.closeParenthesis.span.end
-                    );
-
-                    var location = new TextLocation(main.declaration.syntaxTree.text, span);
-                    binder.diagnostics.Push(Error.MultipleMains(location));
-                }
-            }
-
-            entryPoint = mains.Length == 0 ? null : mains[0];
-
-            if (entryPoint != null) {
-                if (entryPoint.type.typeSymbol != TypeSymbol.Void && entryPoint.type.typeSymbol != TypeSymbol.Int) {
-                    binder.diagnostics.Push(
-                        Error.InvalidMain((entryPoint.declaration as MethodDeclarationSyntax).returnType.location)
-                    );
-                }
-
-                var argsType = new BoundType(
-                    binder._scope.LookupSymbol<ClassSymbol>("List"),
-                    isNullable: false,
-                    templateArguments: [new BoundTypeOrConstant(BoundType.String)],
-                    arity: 1
-                );
-
-                if (entryPoint.parameters.Any()) {
-                    if (entryPoint.parameters.Length != 1 ||
-                        entryPoint.parameters[0].name != "args" ||
-                        !(entryPoint.parameters[0].type?.Equals(argsType) ?? false)) {
-                        var span = TextSpan.FromBounds(
-                            entryPoint.declaration.parameterList.openParenthesis.span.start + 1,
-                            entryPoint.declaration.parameterList.closeParenthesis.span.end - 1
-                        );
-
-                        var location = new TextLocation(entryPoint.declaration.syntaxTree.text, span);
-                        binder.diagnostics.Push(Error.InvalidMain(location));
-                    }
-                }
-            }
-
-            if (globalStatements.Any()) {
-                if (entryPoint != null) {
-                    binder.diagnostics.Push(Error.MainAndGlobals(GetIdentifierLocation(entryPoint.declaration)));
-
-                    foreach (var globalStatement in firstGlobalPerTree)
-                        binder.diagnostics.Push(Error.MainAndGlobals(globalStatement.location));
-                } else {
-                    entryPoint = new MethodSymbol(
-                        "<Main>$", ImmutableArray<ParameterSymbol>.Empty, new BoundType(TypeSymbol.Void)
-                    );
-                }
+            if (options.projectType == ProjectType.Graphics) {
+                graphicsStart = methods
+                    .Where(f => f.name.ToLower() == WellKnownMethodNames.GraphicsStart && f.parameters.Length == 0)
+                    .FirstOrDefault();
+                graphicsUpdate = methods
+                    .Where(f => f.name.ToLower() == WellKnownMethodNames.GraphicsUpdate &&
+                                f.parameters.Length == 1 &&
+                                (f.parameters[0].type == BoundType.Decimal ||
+                                f.parameters[0].type == BoundType.NullableDecimal))
+                    .FirstOrDefault();
             }
         }
 
@@ -274,7 +227,7 @@ internal sealed class Binder {
         CompilationOptions options,
         BoundProgram previous,
         BoundGlobalScope globalScope) {
-        var parentScope = CreateParentScope(globalScope);
+        var parentScope = CreateParentScope(globalScope, options.projectType);
 
         if (globalScope.diagnostics.Errors().Any())
             return Program(previous, globalScope.diagnostics);
@@ -485,6 +438,73 @@ internal sealed class Binder {
         return new BoundCastExpression(toType, expression);
     }
 
+    private static MethodSymbol ResolveEntryPoint(
+        ImmutableArray<MethodSymbol> methods,
+        Binder binder,
+        IEnumerable<GlobalStatementSyntax> globalStatements,
+        GlobalStatementSyntax[] firstGlobalPerTree) {
+        MethodSymbol entryPoint = null;
+        var mains = methods.Where(f => f.name.ToLower() == WellKnownMethodNames.EntryPoint).ToArray();
+
+        if (mains.Length > 1) {
+            foreach (var main in mains) {
+                var span = TextSpan.FromBounds(
+                    main.declaration.span.start,
+                    main.declaration.parameterList.closeParenthesis.span.end
+                );
+
+                var location = new TextLocation(main.declaration.syntaxTree.text, span);
+                binder.diagnostics.Push(Error.MultipleMains(location));
+            }
+        }
+
+        entryPoint = mains.Length == 0 ? null : mains[0];
+
+        if (entryPoint != null) {
+            if (entryPoint.type.typeSymbol != TypeSymbol.Void && entryPoint.type.typeSymbol != TypeSymbol.Int) {
+                binder.diagnostics.Push(
+                    Error.InvalidMain((entryPoint.declaration as MethodDeclarationSyntax).returnType.location)
+                );
+            }
+
+            var argsType = new BoundType(
+                binder._scope.LookupSymbol<ClassSymbol>(WellKnownTypeNames.List),
+                isNullable: false,
+                templateArguments: [new BoundTypeOrConstant(BoundType.String)],
+                arity: 1
+            );
+
+            if (entryPoint.parameters.Any()) {
+                if (entryPoint.parameters.Length != 1 ||
+                    entryPoint.parameters[0].name != "args" ||
+                    !(entryPoint.parameters[0].type?.Equals(argsType) ?? false)) {
+                    var span = TextSpan.FromBounds(
+                        entryPoint.declaration.parameterList.openParenthesis.span.start + 1,
+                        entryPoint.declaration.parameterList.closeParenthesis.span.end - 1
+                    );
+
+                    var location = new TextLocation(entryPoint.declaration.syntaxTree.text, span);
+                    binder.diagnostics.Push(Error.InvalidMain(location));
+                }
+            }
+        }
+
+        if (globalStatements.Any()) {
+            if (entryPoint != null) {
+                binder.diagnostics.Push(Error.MainAndGlobals(GetIdentifierLocation(entryPoint.declaration)));
+
+                foreach (var globalStatement in firstGlobalPerTree)
+                    binder.diagnostics.Push(Error.MainAndGlobals(globalStatement.location));
+            } else {
+                entryPoint = new MethodSymbol(
+                    "<Main>$", ImmutableArray<ParameterSymbol>.Empty, new BoundType(TypeSymbol.Void)
+                );
+            }
+        }
+
+        return entryPoint;
+    }
+
     private static TextLocation GetIdentifierLocation(BaseMethodDeclarationSyntax syntax) {
         if (syntax is ConstructorDeclarationSyntax c)
             return c.identifier.location;
@@ -521,7 +541,7 @@ internal sealed class Binder {
         return locals.ToImmutable();
     }
 
-    private static BoundScope CreateParentScope(BoundGlobalScope previous) {
+    private static BoundScope CreateParentScope(BoundGlobalScope previous, ProjectType projectType) {
         var stack = new Stack<BoundGlobalScope>();
 
         while (previous != null) {
@@ -529,7 +549,7 @@ internal sealed class Binder {
             previous = previous.previous;
         }
 
-        var parent = CreateRootScope();
+        var parent = CreateRootScope(projectType);
 
         while (stack.Count > 0) {
             previous = stack.Pop();
@@ -550,18 +570,18 @@ internal sealed class Binder {
         return parent;
     }
 
-    private static BoundScope CreateRootScope() {
+    private static BoundScope CreateRootScope(ProjectType projectType) {
         var result = new BoundScope(null);
 
         foreach (var method in BuiltinMethods.GetAll())
             result.TryDeclareMethod(method);
 
-        LoadLibraries(result);
+        LoadLibraries(result, projectType);
 
         return result;
     }
 
-    private static void LoadLibraries(BoundScope scope) {
+    private static void LoadLibraries(BoundScope scope, ProjectType projectType) {
         void DeclareSymbols(IEnumerable<Symbol> symbols) {
             foreach (var symbol in symbols) {
                 if (symbol is MethodSymbol m)
@@ -574,7 +594,6 @@ internal sealed class Binder {
             }
         }
 
-        // TODO Only want to load in libraries if they are used
         DeclareSymbols(StandardLibrary.GetSymbols());
     }
 

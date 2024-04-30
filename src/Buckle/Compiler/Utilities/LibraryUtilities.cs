@@ -85,6 +85,10 @@ internal static class LibraryUtilities {
         return new BoundType(type, isNullable: true);
     }
 
+    internal static BoundType NullableRef(TypeSymbol type) {
+        return new BoundType(type, isNullable: true, isReference: true);
+    }
+
     internal static ClassDeclarationSyntax CreateDeclaration(string name) {
         return (ClassDeclarationSyntax)CodeAnalysis.Syntax.InternalSyntax.SyntaxFactory.ClassDeclaration(
             null, // Attributes
