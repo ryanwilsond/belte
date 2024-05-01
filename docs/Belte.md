@@ -76,12 +76,12 @@ The Belte RunTime is a background application that monitors Belte projects and e
 data to inform automatic optimizations. Optimization Routines are snippets of code that use the data collected by the
 RunTime to modify programs during compile-time and run-time to increase performance.
 
-It is encourage to **not** create Optimization Routines while initially implementing a feature or project. The purpose
-of Optimization Routines are to enable the developer to not having to think about performance while focusing on the
-logical implementation of code, and also to boost performance of types in a way that no other contemporary programming
-language is.
+It is encouraged to **not** create Optimization Routines while initially implementing a feature or entire project.
+Optimization Routines have two purposes. 1) To give the developer the ability to ignore performance while focusing on
+the logical implementation of a feature, as Optimization Routines can be added later without modifying existing logic.
+And 2) to boost the performance of complex types in a way that no other contemporary programming language is.
 
-The `RunTime` class interfaces with the RunTime program to either update/retrieve data from the database or to modify
+The `RunTime` class interfaces with the RunTime program to update or retrieve data from the database or to modify
 components of the program. Take the following simplified List definition as an example:
 
 ```belte
@@ -108,44 +108,44 @@ public class List<type T> {
 }
 ```
 
-In the example a theoretical `List<T>` type is being defined. This List implementation contains an internal collection
-that starts as a dynamic array. It defines two data fields for the RunTime to collection, a probability
+In the example, a theoretical `List<T>` type is being defined. This List implementation contains an internal collection
+that starts as a dynamic array. It defines two data fields for the RunTime to collect: a probability
 `ProbabilityOfMidInsert` and a size `AverageElementSize`. It is also marked as dynamic telling the RunTime and
-compiler that the true type of the variable may change. However, it is a requirement that all types must behave the
-same to enforce a pseudo static typing.
+compiler that the true type of the variable may change. However, it is a requirement that all types must provide the
+same public interface (in the form of public properties and methods) so a pseudo-statically typed system can be
+enforced.
 
 A single Optimization Routine is declared on the field `_collection`, meaning the RunTime and Compiler will only check
-the conditions for the routine when changed to the `_collection` field are made to prevent slowed performance. The
+the conditions for the routine when changes to the `_collection` field are made, to prevent slowed performance. The
 compiler may check any Optimization Routine once to solidify starting types, and the RunTime may check any Optimization
 Routines any number of times while the program is running.
 
 In the `Insert` method, two database calls are being made.
 
-The first updates the `ProbabilityOfMidInsert` data field which is a percentage. The way percentage fields work is they
-track the probability of an action being performed at least once during a specified time span. In this case, the
-`ProbabilityOfMidInsert` data field was set to track per `runtime`, so the probability measures the likelihood of at
-least one middle insertion being performed each run of the program. For more precision, a mean average could be measured
-instead. `Add 1` serves to tell the database that the action was performed. The `when` clause states to only `Add 1` if
+- The first updates the `ProbabilityOfMidInsert` data field which is a percentage. Percentage fields track the
+probability of an action being performed at least once during a specified time span. In this case, the
+`ProbabilityOfMidInsert` data field was set to track per `runtime`, so the data field measures the likelihood of at
+least one middle insertion being performed each run of the program. (For more precision, a mean average could be measured
+instead.) `Add 1` serves to tell the database that the action was performed. The `when` clause states to only `Add 1` if
 the condition is met.
+- The second updates the `AverageElementSize` data field with the size of a value. The database then uses this size as a
+data point to calculate the mean average over the specified time, in this case `alltime`, so it tracks across all runs
+of the program. Each data point is weighed equally in this example. The `Size(value)` expression serves to get the size
+of `value` in memory (in bytes).
 
-The second updates the `AverageElementSize` with the size of a value. The database then uses this size as a data point
-to calculate the mean average over the specified time, in this case `alltime`, so it tracks across all runs of the
-program. Each data point is weighed equally in this example. The `Size(value)` expression serves to get the size of
-`value` in memory (in bytes).
+With data tracking and collection defined, all that is left is the Optimization Routine itself. (Any number of
+Optimization Routines may be defined for any symbol or combination of symbols.) In the example, the routine checks if
+the tracked `ProbabilityOfMidInsert` is greater than thirty percent or if the `AverageElementSize` is greater than four
+kilobytes. If so, the RunTime is instructed to change the type of `_collection` to a linked list to accommodate the use
+case, if it is not already a linked list.
 
-With data tracking and collection defined, all that is left is the Optimization Routine. One is specified, but any
-number of optimization routines can be defined for any symbol or combination of symbols. In the defined example, the
-routine checks if the tracked `ProbabilityOfMidInsert` is greater than 0.30 or 30%, or if the `AverageElementSize` is
-greater than four KB or kilobytes. If so, the RunTime is instructed to dynamically change the type of `_collection` to
-a linked list to accommodate the use case, if it is not already one.
+The second condition checks if the `ProbabilityOfMidInsert` is less then twenty percent or if the `AverageElementSize`
+is less than one kilobyte. If so, the RunTime is instructed to change the type of `_collection` to a dynamic array, if
+not one already.
 
-The second condition checks if the `ProbabilityOfMidInsert` is less then 20 percent or if the `AverageElementSize` is
-less than one kilobyte. If so, the RunTime is instructed to dynamically change the type of `_collection` to a dynamic
-array if not already.
-
-Notice that there are cases where both checks fall through. This is intentional, and in this case signifies that the
-difference is not extreme enough to warrant changing the type of `_collection` during runtime, because that is an
-expensive operation.
+Notice that there are cases where both checks fall through. This is intentional, and in this case that would signify a
+case where the predicted boost in performance is not substantial enough to warrant changing the type of `_collection`
+during runtime, because changing the type of a field can be an expensive operation.
 
 ## 5 Types
 
