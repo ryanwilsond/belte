@@ -1,18 +1,14 @@
 # The Belte Language & Specification
 
-**Note:** This document will be revised to go further in depth on the topics covered and to include a complete language
-specification for Belte
+> Note: This document is incomplete
 
-- [Introduction](#introduction)
-- [Design Principles](#design-principles)
-- [Logical vs. Physical](#logical-vs-physical)
-- [Design by Contract](#design-by-contract)
-- [First Class Nullability](#first-class-nullability)
-- [Optimization Routines & Cast Validations](#optimization-routines-and-cast-validations)
-- [Object Consistency](#object-consistency)
-- [Data](#data)
+- [1](#1-introduction) Introduction
+- [2](#2-scope) Scope
+- [3](#3-design-principles) Design Principles
+- [4](#4-the-runtime-and-optimization-routines) The RunTime and Optimization Routines
+- [5](#5-types) Types
 
-## Introduction
+## 1 Introduction
 
 Belte (pronounced /belt/) is the acronym for Best Ever Language To Exist. As the humorous title suggests, the Belte
 project was started to create a theoretical best language for modern programming.
@@ -21,18 +17,27 @@ The Belte project was started in 2022 and is licensed by Ryan Wilson. Belte is t
 physical, i.e. logical programming being impacted by physical implementation. The simplest example of this is array
 indexing starting at 0 in most contemporary languages.
 
-## Design Principles
+Belte is an open-source statically typed programming language that supports both the object-oriented and procedural
+programming paradigms. Part of the open-source Buckle compiler is to be cross-platform and support integration with
+Microsoft's .NET Framework to bolster flexibility. Belte is syntactically a C-style language, most similar to C#.
+
+## 2 Scope
+
+This document will **briefly** outline the syntax and semantics of Belte, stopping to elaborate on the concepts and
+structures that are unique or foundational to the programming language.
+
+## 3 Design Principles
 
 The Belte project identifies the following six broad categories in order of priority to guide design:
 
-### 1 Functionality
+### 3.1 Functionality
 
 Belte focuses on functionality as the first goal. Not biased by industry standards, ease of implementation, or something
 similar. This language aims to fix issues with programming languages and added a unique spin on a C-style language. It
 aims to be intuitive like Python, robust like C#, high-performance like C++, and be able to be applied in most
 situations.
 
-### 2 Consistency
+### 3.2 Consistency
 
 A good way to make a language hard to use is to not keep strict guidelines that hold up the standard of consistency.
 Not only as a style guide but as the language design itself. Everything in Belte aims to be as consistent as possible,
@@ -41,30 +46,158 @@ wrong with consistency is value versus reference types in C#. The developer must
 is a value or reference type, while in Belte every type/class is a value type by default. This includes built-ins and
 user-defined types. This helps code readability and ease of development.
 
-### 3 Usability
+### 3.3 Usability
 
 After the core functionality is there, the language also aims to be easy to use. Good for beginners, while also having
 the power of C++. This hopefully makes it very accessible and popular. Python got a lot of its popularity from its
 simplicity, and Belte aims to do the same.
 
-### 4 Performance
+### 3.4 Performance
 
 While having the appeal of Python, it also aims to have high performance to make it more applicable to production
 software. C/C++ are the current leaders in speed, but they are harder to use. Performance is not the top priority,
 but the language aims to be as performant as possible as to not limit the applicability of the language.
 
-### 5 Portability
+### 3.5 Portability
 
 One goal was to allow immediate running (to appeal to beginners), compiling to an executable, transpiling to C#, and to
 build with .NET integration/compatibility. Achieving this goal would make Belte accessible and usably at all levels,
 such as allowing it to easily be used in projects that have been established for decades without redesigning to
 accommodate Belte. This increases Belte's overall appeal.
 
-### 6 Likability
+### 3.6 Likability
 
 The last priority is likeability. While it is still on the minds of the developers, functionality comes first. Belte was
 not created to appeal to the largest crowd, but instead to create an idea of a better language.
 
+### 4 The RunTime and Optimization Routines
+
+The Belte RunTime is a background application that monitors Belte projects and executables to profile them and collect
+data to inform automatic optimizations. Optimization Routines are snippets of code that use the data collected by the
+RunTime to modify programs during compile-time and run-time to increase performance.
+
+It is encourage to **not** create Optimization Routines while initially implementing a feature or project. The purpose
+of Optimization Routines are to enable the developer to not having to think about performance while focusing on the
+logical implementation of code, and also to boost performance of types in a way that no other contemporary programming
+language is.
+
+The `RunTime` class interfaces with the RunTime program to either update/retrieve data from the database or to modify
+components of the program. Take the following simplified List definition as an example:
+
+```belte
+using RunTime;
+
+public class List<type T> {
+  $Tracked (% ProbabilityOfMidInsert runtime, avg AverageElementSize alltime)
+  $Dynamic
+  private DynamicArray<T> _collection;
+
+  public static void Insert(Int index, T value) {
+    $Data (ProbabilityOfMidInsert) Add 1 when (index > 0 && index < _collection.Length)
+    $Data (AverageElementSize) Add Size(value)
+
+    _collection.Insert(index, value);
+  }
+
+  $OptimizationRoutine (_collection) {
+    if (symbolData.ProbabilityOfMidInsert > 30% || symbolData.AverageElementSize > 4kb)
+      RunTime.ChangeType(_collection, LinkedList<T>);
+    else if (symbolData.ProbabilityOfMidInsert < 20% || symbolData.AverageElementSize < 1kb)
+      RunTime.ChangeType(_collection, DynamicArray<T>);
+  }
+}
+```
+
+In the example a theoretical `List<T>` type is being defined. This List implementation contains an internal collection
+that starts as a dynamic array. It defines two data fields for the RunTime to collection, a probability
+`ProbabilityOfMidInsert` and a size `AverageElementSize`. It is also marked as dynamic telling the RunTime and
+compiler that the true type of the variable may change. However, it is a requirement that all types must behave the
+same to enforce a pseudo static typing.
+
+A single Optimization Routine is declared on the field `_collection`, meaning the RunTime and Compiler will only check
+the conditions for the routine when changed to the `_collection` field are made to prevent slowed performance. The
+compiler may check any Optimization Routine once to solidify starting types, and the RunTime may check any Optimization
+Routines any number of times while the program is running.
+
+In the `Insert` method, two database calls are being made.
+
+The first updates the `ProbabilityOfMidInsert` data field which is a percentage. The way percentage fields work is they
+track the probability of an action being performed at least once during a specified time span. In this case, the
+`ProbabilityOfMidInsert` data field was set to track per `runtime`, so the probability measures the likelihood of at
+least one middle insertion being performed each run of the program. For more precision, a mean average could be measured
+instead. `Add 1` serves to tell the database that the action was performed. The `when` clause states to only `Add 1` if
+the condition is met.
+
+The second updates the `AverageElementSize` with the size of a value. The database then uses this size as a data point
+to calculate the mean average over the specified time, in this case `alltime`, so it tracks across all runs of the
+program. Each data point is weighed equally in this example. The `Size(value)` expression serves to get the size of
+`value` in memory (in bytes).
+
+With data tracking and collection defined, all that is left is the Optimization Routine. One is specified, but any
+number of optimization routines can be defined for any symbol or combination of symbols. In the defined example, the
+routine checks if the tracked `ProbabilityOfMidInsert` is greater than 0.30 or 30%, or if the `AverageElementSize` is
+greater than four KB or kilobytes. If so, the RunTime is instructed to dynamically change the type of `_collection` to
+a linked list to accommodate the use case, if it is not already one.
+
+The second condition checks if the `ProbabilityOfMidInsert` is less then 20 percent or if the `AverageElementSize` is
+less than one kilobyte. If so, the RunTime is instructed to dynamically change the type of `_collection` to a dynamic
+array if not already.
+
+Notice that there are cases where both checks fall through. This is intentional, and in this case signifies that the
+difference is not extreme enough to warrant changing the type of `_collection` during runtime, because that is an
+expensive operation.
+
+## 5 Types
+
+The biggest way the Belte language tackles the logical versus physical problem is through an improved standard type
+library that takes advantage of Optimization Routines. By using Optimization Routines, the Standard Type Library and
+Standard Library as a whole are able to afford rethinking fundamental data types focusing on logic and not physical
+implementation.
+
+### 5.1 Numeric Types
+
+`Num`s are any number (no minimum or maximum, no precision requirements). `Int`s are a subset of `Num`s that
+are restrained to whole numbers.
+
+```belte
+class Num<Num min = null, Num max = null>;
+class Int<Int min = null, Int max = null> : Num<min, max> where { Num.IsWholeNumber(value); };
+```
+
+### 5.2 Strings
+
+`String`s are as they are in any other similar language. The `Char` type is a subset of `String`s with a restricted
+length.
+
+```belte
+class String<Int minLength = null, Int maxLength = null, Regex pattern = null>;
+class Char : String<1, 1>;
+```
+
+### 5.3 Collections
+
+`Map<TKey, TValue>`s are a mutable collection type that map keys to values. `List`s are a subset of `Map`s where the key
+is always an integer and does not contain gaps in keys. `Set`s are a subset of `List`s that cannot contain duplicate
+values and does not ensure order.
+
+```belte
+class Map<type TKey, type TValue, bool AllowGaps = true, bool AllowDuplicates = true>;
+class List<type T> : Map<Int, T, false>;
+class Set<type T> : Map<Int, T, true, false>;
+```
+
+Note that C-style arrays are only allowed in `lowlevel` contexts.
+
+### 5.4 Nullability
+
+All data is nullable by default. Nullability can be disallowed with the null-assert operator character.
+
+```belte
+Int // Nullable
+Int! // Not nullable
+```
+
+<!--
 ## Logical vs. Physical
 
 As mentioned prior, the main issue that Belte aimed to address was an assortment of issues found in every programming
@@ -348,3 +481,4 @@ Low-level contexts add support for the following features:
 - Primitive types
 - Fixed size buffers
 - Function pointers
+-->
