@@ -7,6 +7,10 @@
 - [3](#3-design-principles) Design Principles
 - [4](#4-the-belte-engine-and-optimization-routines) The Belte Engine and Optimization Routines
 - [5](#5-types) Types
+- [6](#6-named-data-items) Named Data Items
+- [7](#functions) Functions
+- [8](#classes) Classes
+- [9](#structures) Structures
 
 ## 1 Introduction
 
@@ -228,6 +232,177 @@ All data is nullable by default. Nullability can be disallowed with the null-ass
 ```belte
 Int // Nullable
 Int! // Not nullable
+```
+
+## 6 Named Data Items
+
+Named data items store data. Belte is statically typed, meaning that each named data item has a type associated with it
+that determines what kind of data can be stored, and that type cannot change after the named data item is created. Belte
+is a type-safe language, meaning that the kind of data stored is ensured to match with the named data item's type.
+
+### 6.1 Implicit Typing
+
+Whenever possible, the compiler can "figure out" the type of a named data item, so specifying the type explicitly is
+often not required. In this case, a keyword can be used instead that specifies the category of the named data item.
+
+For example:
+
+```belte
+var a = 3;
+const b = true;
+constexpr C = "Hello, world!"
+```
+
+### 6.2 Categories of Named Data Items
+
+#### 6.2.1 Variables
+
+Variables are named data items where the data it stores can be modified or reassigned after the variable is initialized.
+
+#### 6.2.2 Constants
+
+Constants are named data items where the data it stores cannot be modified or reassigned after the constant is
+initialized.
+
+#### 6.2.4 Constant Expressions
+
+Constant expressions are named data items where the data it stores cannot be modified or reassigned after the constant
+expression is initialized, and the data the constant expression stores is a compile-time constant.
+
+Valid compile-time constants are numeric literals (e.g. `1`, `0xFF`, `34.677`), string literals (e.g.
+`"Hello, world!"`), boolean literals (e.g. `true`, `false`), and initializer list literals where each contained item is
+also a compile-time constant (e.g. `{ 1, 2, 3 }`, `{ true, false, false }`, `{ { 1, 2 }, { 3, 48 } }`).
+
+Invalid compile-time constants are non-literal values from variables or constants and not constant expressions, return
+values from invocations, any complex type, or references.
+
+Like variables, constants, constant expressions support implicit typing.
+
+Examples of valid constant expressions:
+
+```belte
+constexpr SPEED = 3;
+constexpr ENABLED = true;
+constexpr MESSAGE = "An error has occured."
+```
+
+Examples of invalid constant expressions:
+
+```belte
+constexpr SPEED = SomeMethodCall();
+constexpr ENABLED = enabled ?? true;
+constexpr MESSAGE = ref message;
+```
+
+### 6.3 Scopes of Named Data Items
+
+#### 6.3.3 Locals
+
+Whenever inside a block of code, created named data items are locals. Their lifetime ends at the end of the enclosing
+block.
+
+```belte
+{
+  var a = 3;
+  var b = a + 88;
+}
+// Outside of the block, `a` does not exist
+var c = a; // Not allowed, `a` does not exist anymore
+```
+
+#### 6.3.1 Parameters
+
+Parameters are named data items associated with a function or method. Their lifetime ends at the end of the function's
+or method's body block.
+
+```belte
+void F(int a) {
+  var b = a; // Creating a local `b` with parameter `a`
+}
+
+var c = a; // Not allowed, parameter `a` does not exist outside of the `F` function definition
+```
+
+#### 6.3.2 Fields
+
+Fields are named data items associated with a class or structure. Their lifetime ends at the end of the classes's or
+structure's body block.
+
+```belte
+class C {
+  int a = 3;
+
+  int F() {
+    return a + 7;
+  }
+}
+
+var b = a + 3; // Not allowed, field `a` does not exist outside of `C` class definition
+```
+
+### 6.4 Data Types
+
+By default, named data items store values, but modifiers can be specified to instead store references or arrays.
+
+#### 6.4.1 Values
+
+Values are "raw data," data that can be used in computations. This is the default for all named data items.
+
+#### 6.4.2 References
+
+References are pointers to other data. These pointers can be read only or read and write. They are read and write by
+default.
+
+```belte
+var x = 34;
+var y = ref x;
+y += 3;
+// `x` is now 37
+```
+
+To make reference read only, it can be marked as a constant.
+
+```belte
+var x = 34;
+const y = ref x;
+y += 3; // Not allowed
+```
+
+References can also point to constants while not being constants themselves. If this is the case, the data at the
+pointer location cannot be changed, but the reference can be changed to point to somewhere else.
+
+```belte
+const x = 34;
+const y = 66;
+ref const z = ref x;
+z += 3; // Not allowed
+z = ref y; // Allowed
+```
+
+#### 6.4.3 Arrays
+
+> Note: Low-level context exclusive feature
+
+Arrays store back-to-back collections of data. Their dimensionality is specified by square bracket pairs.
+
+```belte
+int[] // 1-dimensional integer array
+int[][] // 2-dimensional integer array
+```
+
+Their size is set when initialized and cannot change, so to buffer extra size without needing to set it immediately a
+special array initialization syntax can be used:
+
+```belte
+int[] a = new int[300]; // Creates an 1-dimensional integer array with 300 elements
+```
+
+Arrays are mutable, as their elements can be modified. A specific element can be accessed through indexing.
+
+```belte
+int[] a = { 1, 2, 3, 4 };
+a[2] = 7;
+// `a` is now { 1, 2, 7, 4 }
 ```
 
 <!--
