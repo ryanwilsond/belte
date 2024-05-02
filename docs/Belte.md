@@ -5,7 +5,7 @@
 - [1](#1-introduction) Introduction
 - [2](#2-scope) Scope
 - [3](#3-design-principles) Design Principles
-- [4](#4-the-runtime-and-optimization-routines) The RunTime and Optimization Routines
+- [4](#4-the-belte-engine-and-optimization-routines) The Belte Engine and Optimization Routines
 - [5](#5-types) Types
 
 ## 1 Introduction
@@ -70,22 +70,49 @@ accommodate Belte. This increases Belte's overall appeal.
 The last priority is likeability. While it is still on the minds of the developers, functionality comes first. Belte was
 not created to appeal to the largest crowd, but instead to create an idea of a better language.
 
-### 4 The RunTime and Optimization Routines
+## 4 The Belte Engine and Optimization Routines
 
-The Belte RunTime is a background application that monitors Belte projects and executables to profile them and collect
-data to inform automatic optimizations. Optimization Routines are snippets of code that use the data collected by the
-RunTime to modify programs during compile-time and run-time to increase performance.
+### 4.1 The Engine
+
+The Belte Engine is a background application that monitors Belte projects and executables to profile them and collect
+data to inform automatic optimizations. It is recommended to always have the Engine active to take advantage of the
+performance implications, but it is not required for programs to run properly. The Engine can be interacted with in
+Belte code through the Engine API.
+
+The `Engine` class interfaces with the Engine program to update or retrieve data from the database or to modify
+components of the program.
+
+### 4.2 Optimization Routines
+
+Optimization Routines are snippets of code that use the data collected by the Engine to modify programs during
+compile-time and run-time to increase performance.
 
 It is encouraged to **not** create Optimization Routines while initially implementing a feature or entire project.
 Optimization Routines have two purposes. 1) To give the developer the ability to ignore performance while focusing on
 the logical implementation of a feature, as Optimization Routines can be added later without modifying existing logic.
-And 2) to boost the performance of complex types in a way that no other contemporary programming language is.
+And 2) to boost the performance of complex types in a way that no other contemporary programming language are.
 
-The `RunTime` class interfaces with the RunTime program to update or retrieve data from the database or to modify
-components of the program. Take the following simplified List definition as an example:
+Take the following simplified List definition:
 
 ```belte
-using RunTime;
+public class List<type T> {
+  private DynamicArray<T> _collection;
+
+  public static void Insert(Int index, T value) {
+    _collection.Insert(index, value);
+  }
+}
+```
+
+In this example, a theoretical `List<T>` type is being defined. It is nothing more than a wrapper class for a dynamic
+array. This List implementation contains an internal collection that is a dynamic array and a public method used to
+insert elements into the dynamic array.
+
+In the following example, the logical behavior of the List implementation is unchanged from the previous, but it adds an
+Optimization Routine:
+
+```belte
+using Engine;
 
 public class List<type T> {
   $Tracked (% ProbabilityOfMidInsert runtime, avg AverageElementSize alltime)
@@ -101,23 +128,22 @@ public class List<type T> {
 
   $OptimizationRoutine (_collection) {
     if (symbolData.ProbabilityOfMidInsert > 30% || symbolData.AverageElementSize > 4kb)
-      RunTime.ChangeType(_collection, LinkedList<T>);
+      Engine.ChangeType(_collection, LinkedList<T>);
     else if (symbolData.ProbabilityOfMidInsert < 20% || symbolData.AverageElementSize < 1kb)
-      RunTime.ChangeType(_collection, DynamicArray<T>);
+      Engine.ChangeType(_collection, DynamicArray<T>);
   }
 }
 ```
 
-In the example, a theoretical `List<T>` type is being defined. This List implementation contains an internal collection
-that starts as a dynamic array. It defines two data fields for the RunTime to collect: a probability
-`ProbabilityOfMidInsert` and a size `AverageElementSize`. It is also marked as dynamic telling the RunTime and
-compiler that the true type of the variable may change. However, it is a requirement that all types must provide the
-same public interface (in the form of public properties and methods) so a pseudo-statically typed system can be
-enforced.
+This List implementation contains an internal collection that starts as a dynamic array. It defines two data fields for
+the Engine to collect: a probability `ProbabilityOfMidInsert` and a size `AverageElementSize`. It is also marked as
+dynamic telling the Engine and compiler that the true type of the variable may change. However, it is a requirement that
+all types must provide the same public interface (in the form of public properties and methods) so a pseudo-statically
+typed system can be enforced.
 
-A single Optimization Routine is declared on the field `_collection`, meaning the RunTime and Compiler will only check
+A single Optimization Routine is declared on the field `_collection`, meaning the Engine and Compiler will only check
 the conditions for the routine when changes to the `_collection` field are made, to prevent slowed performance. The
-compiler may check any Optimization Routine once to solidify starting types, and the RunTime may check any Optimization
+compiler may check any Optimization Routine once to solidify starting types, and the Engine may check any Optimization
 Routines any number of times while the program is running.
 
 In the `Insert` method, two database calls are being made.
@@ -136,16 +162,23 @@ of `value` in memory (in bytes).
 With data tracking and collection defined, all that is left is the Optimization Routine itself. (Any number of
 Optimization Routines may be defined for any symbol or combination of symbols.) In the example, the routine checks if
 the tracked `ProbabilityOfMidInsert` is greater than thirty percent or if the `AverageElementSize` is greater than four
-kilobytes. If so, the RunTime is instructed to change the type of `_collection` to a linked list to accommodate the use
+kilobytes. If so, the Engine is instructed to change the type of `_collection` to a linked list to accommodate the use
 case, if it is not already a linked list.
 
 The second condition checks if the `ProbabilityOfMidInsert` is less then twenty percent or if the `AverageElementSize`
-is less than one kilobyte. If so, the RunTime is instructed to change the type of `_collection` to a dynamic array, if
+is less than one kilobyte. If so, the Engine is instructed to change the type of `_collection` to a dynamic array, if
 not one already.
 
 Notice that there are cases where both checks fall through. This is intentional, and in this case that would signify a
 case where the predicted boost in performance is not substantial enough to warrant changing the type of `_collection`
 during runtime, because changing the type of a field can be an expensive operation.
+
+#### Takeaway
+
+The first List definition represents an initial implementation where the logic is set in place. The second definition
+represents a revisit to the code to increase performance without changing the external behavior of the type at all. This
+system allows for users of the List type to not need to know of any optimizations taking place, separating the logical
+from the physical.
 
 ## 5 Types
 
