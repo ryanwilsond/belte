@@ -8,9 +8,9 @@
 - [4](#4-the-belte-engine-and-optimization-routines) The Belte Engine and Optimization Routines
 - [5](#5-types) Types
 - [6](#6-named-data-items) Named Data Items
-- [7](#functions) Functions
-- [8](#classes) Classes
-- [9](#structures) Structures
+- [7](#7-functions) Functions
+- [8](#8-classes) Classes
+- [9](#9-low-level-contexts) Low-Level Contexts
 
 ## 1 Introduction
 
@@ -217,6 +217,8 @@ class Char : String<1, 1>;
 is always an integer and does not contain gaps in keys. `Set`s are a subset of `List`s that cannot contain duplicate
 values and does not ensure order.
 
+Collection indexing **starts at 1**, not 0.
+
 ```belte
 class Map<type TKey, type TValue, bool AllowGaps = true, bool AllowDuplicates = true>;
 class List<type T> : Map<Int, T, false>;
@@ -316,7 +318,7 @@ Parameters are named data items associated with a function or method. Their life
 or method's body block.
 
 ```belte
-void F(int a) {
+void F(Int a) {
   var b = a; // Creating a local `b` with parameter `a`
 }
 
@@ -330,9 +332,9 @@ structure's body block.
 
 ```belte
 class C {
-  int a = 3;
+  Int a = 3;
 
-  int F() {
+  Int F() {
     return a + 7;
   }
 }
@@ -342,7 +344,8 @@ var b = a + 3; // Not allowed, field `a` does not exist outside of `C` class def
 
 ### 6.4 Data Types
 
-By default, named data items store values, but modifiers can be specified to instead store references or arrays.
+By default, named data items store values, but modifiers can be specified to instead store references or
+[arrays](#92-arrays).
 
 #### 6.4.1 Values
 
@@ -383,7 +386,83 @@ z = ref y; // Allowed
 
 > Note: Low-level context exclusive feature
 
+## 7 Functions
+
+While global statements are allowed, most code is within functions. Functions take the standard C form.
+
+```belte
+<type> <name>(<parameter list>) { <body> }
+```
+
+Instead of a type a function can use the `void` keyword in its place to signify that the function is a procedure and
+will not return any value.
+
+### 7.1 Entry Point
+
+The entry point for Belte programs is Main. Valid Main signatures are as follows (case insensitive):
+
+```belte
+void Main()
+void Main(List<String!>!)
+Int Main()
+Int Main(List<String!>!)
+```
+
+The optional parameter taken by Main stores all passed command-line arguments.
+
+## 8 Classes
+
+## 9 Low-Level Contexts
+
+Low-level contexts enable the following features:
+
+- Structures
+- Arrays
+- Pointers and Function Pointers
+- Direct heap allocation
+- Primitive types
+- Inline Assembly
+
+Any type definition, method definition, function definition, or block can be marked with the `lowlevel` keyword to mark
+the scope as low-level:
+
+```belte
+lowlevel class C {
+  ...
+}
+
+lowlevel void F() {
+  ...
+}
+
+lowlevel {
+  ...
+}
+```
+
+### 9.1 Structures
+
+Structures are essentially simplified classes. They cannot contain methods, only fields. Fields cannot have an initial
+value. Structures **can** be templated.
+
+```belte
+struct S {
+  Int f1;
+  String f2;
+}
+```
+
+```belte
+struct S<type T> {
+  List<T> f1;
+  T f2;
+}
+```
+
+### 9.2 Arrays
+
 Arrays store back-to-back collections of data. Their dimensionality is specified by square bracket pairs.
+Contrary to the collection types provided by the Standard Library, array indexing **starts at 0** instead of 1.
 
 ```belte
 int[] // 1-dimensional integer array
@@ -404,6 +483,52 @@ int[] a = { 1, 2, 3, 4 };
 a[2] = 7;
 // `a` is now { 1, 2, 7, 4 }
 ```
+
+Helper
+
+### 9.3 Pointers and Function Pointers
+
+C-style pointers are alternatives to references that are not memory safe. They follow all the syntax and semantics as
+C pointers.
+
+### 9.4 Direct Heap Allocation
+
+C-esc functions are enabled in low-level contexts to allow direction heap allocation. All memory allocation functions
+resemble their C-counterpart's names.
+
+```belte
+void *Malloc(int! size);                        // Memory allocation
+void *Calloc(int! count, int! size);            // Contiguous Allocation
+void *Realloc(void *pointer, int! newSize);     // Reallocation
+void *AlignedAlloc(int! alignment, int! size);  // Aligned Allocation
+void Free(void *pointer);
+```
+
+### 9.5 Primitive Types
+
+Primitive value-types are not objects, but rather simple data that resembles assembly or C data types.
+
+| Type | Size (bits) |
+|-|-|
+| bool | 8 |
+| byte | 8 |
+| unsigned byte | 8 |
+| char | 16 |
+| short | 16 |
+| unsigned short | 16 |
+| int | 32 |
+| unsigned int | 32 |
+| long | 64 |
+| unsigned long | 64 |
+| float | 32 |
+| double | 64 |
+| long double | 128 |
+
+These types are always non-nullable.
+
+### 9.6 Inline Assembly
+
+Same syntax and semantics as GNU C inline assembly.
 
 <!--
 ## Logical vs. Physical
