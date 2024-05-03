@@ -1,4 +1,5 @@
 using System.Linq;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -52,7 +53,10 @@ public static class CompilationExtensions {
     /// <param name="text">Out.</param>
     public static void EmitTree(this Compilation self, ISymbol symbol, DisplayText text) {
         var program = self.GetProgram();
+        EmitTree(symbol, text, program);
+    }
 
+    internal static void EmitTree(ISymbol symbol, DisplayText text, BoundProgram program) {
         if (program.diagnostics.Errors().Any())
             return;
 

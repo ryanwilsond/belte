@@ -14,8 +14,8 @@ The Belte public interface for the Console class can be found [here](../../../sr
 
 ## 5.2.1 Color
 
-The Color class contains all available console colors that can be used via static, constant-expression fields. These values are passed into [SetForegroundColor](#525-setforegroundcolor) and
-[SetBackgroundColor](#526-setbackgroundcolor).
+The Color class contains all available console colors that can be used via static, constant-expression fields. These
+values are passed into [SetForegroundColor](#525-setforegroundcolor) and [SetBackgroundColor](#526-setbackgroundcolor).
 
 | Field Name | Value |
 |-|-|

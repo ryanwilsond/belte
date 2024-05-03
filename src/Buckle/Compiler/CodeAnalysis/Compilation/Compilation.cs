@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Threading;
+using Buckle.CodeAnalysis.Authoring;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Emitting;
 using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.FlowAnalysis;
@@ -142,9 +144,12 @@ public sealed class Compilation {
             return EvaluationResult.Failed(globalScope.diagnostics);
 
         var program = GetProgram();
+
 #if DEBUG
-        if (options.enableOutput)
+        if (options.enableOutput) {
             CreateCfg(program);
+            CreateBoundProgram(program);
+        }
 #endif
 
         if (program.diagnostics.Errors().Any())
@@ -167,9 +172,12 @@ public sealed class Compilation {
             return;
 
         var program = GetProgram();
+
 #if DEBUG
-        if (options.enableOutput)
+        if (options.enableOutput) {
             CreateCfg(program);
+            CreateBoundProgram(program);
+        }
 #endif
 
         if (program.diagnostics.Errors().Any())
@@ -326,9 +334,7 @@ public sealed class Compilation {
     }
 
     private static void CreateCfg(BoundProgram program) {
-        var appPath = Environment.GetCommandLineArgs()[0];
-        var appDirectory = Path.GetDirectoryName(appPath);
-        var cfgPath = Path.Combine(appDirectory, "cfg.dot");
+        var cfgPath = GetProjectPath("cfg.dot");
         var cfgStatement = program.entryPoint is null ? null : program.methodBodies[program.entryPoint];
 
         if (cfgStatement != null) {
@@ -337,5 +343,31 @@ public sealed class Compilation {
             using var streamWriter = new StreamWriter(cfgPath);
             cfg.WriteTo(streamWriter);
         }
+    }
+
+    private static void CreateBoundProgram(BoundProgram program) {
+        var programPath = GetProjectPath("program.blt");
+        var displayText = new DisplayText();
+
+        foreach (var pair in program.methodBodies)
+            CompilationExtensions.EmitTree(pair.Key, displayText, program);
+
+        using var streamWriter = new StreamWriter(programPath);
+        var segments = displayText.Flush();
+
+        foreach (var segment in segments) {
+            if (segment.classification == Classification.Line)
+                streamWriter.WriteLine();
+            else if (segment.classification == Classification.Indent)
+                streamWriter.Write(new string(' ', 4));
+            else
+                streamWriter.Write(segment.text);
+        }
+    }
+
+    private static string GetProjectPath(string fileName) {
+        var appPath = Environment.GetCommandLineArgs()[0];
+        var appDirectory = Path.GetDirectoryName(appPath);
+        return Path.Combine(appDirectory, fileName);
     }
 }

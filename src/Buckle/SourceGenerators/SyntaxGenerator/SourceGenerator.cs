@@ -46,7 +46,9 @@ public sealed class SourceGenerator : IIncrementalGenerator {
     /// Initializes and invokes the generator, generating the syntax files.
     /// </summary>
     public void Initialize(IncrementalGeneratorInitializationContext context) {
-        var syntaxXmlFiles = context.AdditionalTextsProvider.Where(at => Path.GetFileName(at.Path) == "Syntax.xml").Collect();
+        var syntaxXmlFiles = context.AdditionalTextsProvider
+            .Where(at => Path.GetFileName(at.Path) == "Syntax.xml")
+            .Collect();
 
         context.RegisterSourceOutput(syntaxXmlFiles, static (context, syntaxXmlFiles) => {
             var input = syntaxXmlFiles.SingleOrDefault();
@@ -65,7 +67,11 @@ public sealed class SourceGenerator : IIncrementalGenerator {
             Tree tree;
 
             try {
-                var reader = XmlReader.Create(new SourceTextReader(inputText), new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit });
+                var reader = XmlReader.Create(
+                    new SourceTextReader(inputText),
+                    new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit }
+                );
+
                 var serializer = new XmlSerializer(typeof(Tree));
                 tree = (Tree)serializer.Deserialize(reader);
             } catch (InvalidOperationException ex) when (ex.InnerException is XmlException) {

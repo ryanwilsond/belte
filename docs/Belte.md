@@ -1,18 +1,20 @@
 # The Belte Language & Specification
 
-**Note:** This document will be revised to go further in depth on the topics covered and to include a complete language
-specification for Belte
+> Note: This document is still being built \
+> Note: This document represents Belte in its finished state. For documentation on Belte in its **current** state, see
+> [here](README.md#belte-language-docs-in-its-current-state)
 
-- [Introduction](#introduction)
-- [Design Principles](#design-principles)
-- [Logical vs. Physical](#logical-vs-physical)
-- [Design by Contract](#design-by-contract)
-- [First Class Nullability](#first-class-nullability)
-- [Optimization Routines & Cast Validations](#optimization-routines-and-cast-validations)
-- [Object Consistency](#object-consistency)
-- [Data](#data)
+- [1](#1-introduction) Introduction
+- [2](#2-scope) Scope
+- [3](#3-design-principles) Design Principles
+- **[4](#4-the-belte-engine-and-optimization-routines) The Belte Engine and Optimization Routines**
+- [5](#5-types) Types
+- [6](#6-named-data-items) Named Data Items
+- [7](#7-functions) Functions
+- [8](#8-classes) Classes
+- [9](#9-low-level-contexts) Low-Level Contexts
 
-## Introduction
+## 1 Introduction
 
 Belte (pronounced /belt/) is the acronym for Best Ever Language To Exist. As the humorous title suggests, the Belte
 project was started to create a theoretical best language for modern programming.
@@ -21,18 +23,27 @@ The Belte project was started in 2022 and is licensed by Ryan Wilson. Belte is t
 physical, i.e. logical programming being impacted by physical implementation. The simplest example of this is array
 indexing starting at 0 in most contemporary languages.
 
-## Design Principles
+Belte is an open-source statically typed programming language that supports both the object-oriented and procedural
+programming paradigms. Part of the open-source Buckle compiler is to be cross-platform and support integration with
+Microsoft's .NET Framework to bolster flexibility. Belte is syntactically a C-style language, most similar to C#.
+
+## 2 Scope
+
+This document will **briefly** outline the syntax and semantics of Belte, stopping to elaborate on the concepts and
+structures that are unique or foundational to the programming language.
+
+## 3 Design Principles
 
 The Belte project identifies the following six broad categories in order of priority to guide design:
 
-### 1 Functionality
+### 3.1 Functionality
 
 Belte focuses on functionality as the first goal. Not biased by industry standards, ease of implementation, or something
 similar. This language aims to fix issues with programming languages and added a unique spin on a C-style language. It
 aims to be intuitive like Python, robust like C#, high-performance like C++, and be able to be applied in most
 situations.
 
-### 2 Consistency
+### 3.2 Consistency
 
 A good way to make a language hard to use is to not keep strict guidelines that hold up the standard of consistency.
 Not only as a style guide but as the language design itself. Everything in Belte aims to be as consistent as possible,
@@ -41,30 +52,546 @@ wrong with consistency is value versus reference types in C#. The developer must
 is a value or reference type, while in Belte every type/class is a value type by default. This includes built-ins and
 user-defined types. This helps code readability and ease of development.
 
-### 3 Usability
+### 3.3 Usability
 
 After the core functionality is there, the language also aims to be easy to use. Good for beginners, while also having
 the power of C++. This hopefully makes it very accessible and popular. Python got a lot of its popularity from its
 simplicity, and Belte aims to do the same.
 
-### 4 Performance
+### 3.4 Performance
 
 While having the appeal of Python, it also aims to have high performance to make it more applicable to production
 software. C/C++ are the current leaders in speed, but they are harder to use. Performance is not the top priority,
 but the language aims to be as performant as possible as to not limit the applicability of the language.
 
-### 5 Portability
+### 3.5 Portability
 
 One goal was to allow immediate running (to appeal to beginners), compiling to an executable, transpiling to C#, and to
 build with .NET integration/compatibility. Achieving this goal would make Belte accessible and usably at all levels,
 such as allowing it to easily be used in projects that have been established for decades without redesigning to
 accommodate Belte. This increases Belte's overall appeal.
 
-### 6 Likability
+### 3.6 Likability
 
 The last priority is likeability. While it is still on the minds of the developers, functionality comes first. Belte was
 not created to appeal to the largest crowd, but instead to create an idea of a better language.
 
+## 4 The Belte Engine and Optimization Routines
+
+### 4.1 The Engine
+
+The Belte Engine is a background application that monitors Belte projects and executables to profile them and collect
+data to inform automatic optimizations. It is recommended to always have the Engine active to take advantage of the
+performance implications, but it is not required for programs to run properly. The Engine can be interacted with in
+Belte code through the Engine API.
+
+The `Engine` class interfaces with the Engine program to update or retrieve data from the database or to modify
+components of the program.
+
+### 4.2 Optimization Routines
+
+Optimization Routines are snippets of code that use the data collected by the Engine to modify programs during
+compile-time and run-time to increase performance.
+
+It is encouraged to **not** create Optimization Routines while initially implementing a feature or entire project.
+Optimization Routines have two purposes. 1) To give the developer the ability to ignore performance while focusing on
+the logical implementation of a feature, as Optimization Routines can be added later without modifying existing logic.
+And 2) to boost the performance of complex types in a way that no other contemporary programming language are.
+
+Take the following simplified List definition:
+
+```belte
+public class List<type T> {
+  private DynamicArray<T> _collection;
+
+  public static void Insert(Int index, T value) {
+    _collection.Insert(index, value);
+  }
+}
+```
+
+In this example, a theoretical `List<T>` type is being defined. It is nothing more than a wrapper class for a dynamic
+array. This List implementation contains an internal collection that is a dynamic array and a public method used to
+insert elements into the dynamic array.
+
+In the following example, the logical behavior of the List implementation is unchanged from the previous, but it adds an
+Optimization Routine:
+
+```belte
+using Engine;
+
+public class List<type T> {
+  $Tracked (% ProbabilityOfMidInsert runtime, avg AverageElementSize alltime)
+  $Dynamic
+  private DynamicArray<T> _collection;
+
+  public static void Insert(Int index, T value) {
+    $Data (ProbabilityOfMidInsert) Add 1 when (index > 0 && index < _collection.Length)
+    $Data (AverageElementSize) Add Size(value)
+
+    _collection.Insert(index, value);
+  }
+
+  $OptimizationRoutine (_collection) {
+    if (symbolData.ProbabilityOfMidInsert > 30% || symbolData.AverageElementSize > 4kb)
+      Engine.ChangeType(_collection, LinkedList<T>);
+    else if (symbolData.ProbabilityOfMidInsert < 20% || symbolData.AverageElementSize < 1kb)
+      Engine.ChangeType(_collection, DynamicArray<T>);
+  }
+}
+```
+
+This List implementation contains an internal collection that starts as a dynamic array. It defines two data fields for
+the Engine to collect: a probability `ProbabilityOfMidInsert` and a size `AverageElementSize`. It is also marked as
+dynamic telling the Engine and compiler that the true type of the variable may change. However, it is a requirement that
+all types must provide the same public interface (in the form of public properties and methods) so a pseudo-statically
+typed system can be enforced.
+
+A single Optimization Routine is declared on the field `_collection`, meaning the Engine and Compiler will only check
+the conditions for the routine when changes to the `_collection` field are made, to prevent slowed performance. The
+compiler may check any Optimization Routine once to solidify starting types, and the Engine may check any Optimization
+Routines any number of times while the program is running.
+
+In the `Insert` method, two database calls are being made.
+
+- The first updates the `ProbabilityOfMidInsert` data field which is a percentage. Percentage fields track the
+probability of an action being performed at least once during a specified time span. In this case, the
+`ProbabilityOfMidInsert` data field was set to track per `runtime`, so the data field measures the likelihood of at
+least one middle insertion being performed each run of the program. (For more precision, a mean average could be
+measured instead.) `Add 1` serves to tell the database that the action was performed. The `when` clause states to only
+`Add 1` if the condition is met.
+- The second updates the `AverageElementSize` data field with the size of a value. The database then uses this size as a
+data point to calculate the mean average over the specified time, in this case `alltime`, so it tracks across all runs
+of the program. Each data point is weighed equally in this example. The `Size(value)` expression serves to get the size
+of `value` in memory (in bytes).
+
+With data tracking and collection defined, all that is left is the Optimization Routine itself. (Any number of
+Optimization Routines may be defined for any symbol or combination of symbols.) In the example, the routine checks if
+the tracked `ProbabilityOfMidInsert` is greater than thirty percent or if the `AverageElementSize` is greater than four
+kilobytes. If so, the Engine is instructed to change the type of `_collection` to a linked list to accommodate the use
+case, if it is not already a linked list.
+
+The second condition checks if the `ProbabilityOfMidInsert` is less then twenty percent or if the `AverageElementSize`
+is less than one kilobyte. If so, the Engine is instructed to change the type of `_collection` to a dynamic array, if
+not one already.
+
+Notice that there are cases where both checks fall through. This is intentional, and in this case that would signify a
+case where the predicted boost in performance is not substantial enough to warrant changing the type of `_collection`
+during runtime, because changing the type of a field can be an expensive operation.
+
+#### Takeaway
+
+The first List definition represents an initial implementation where the logic is set in place. The second definition
+represents a revisit to the code to increase performance without changing the external behavior of the type at all. This
+system allows for users of the List type to not need to know of any optimizations taking place, separating the logical
+from the physical.
+
+## 5 Types
+
+The biggest way the Belte language tackles the logical versus physical problem is through an improved standard type
+library that takes advantage of Optimization Routines. By using Optimization Routines, the Standard Type Library and
+Standard Library as a whole are able to afford rethinking fundamental data types focusing on logic and not physical
+implementation.
+
+### 5.1 Numeric Types
+
+`Num`s are any number (no minimum or maximum, no precision requirements). `Int`s are a subset of `Num`s that
+are restrained to whole numbers.
+
+```belte
+class Num<Num min = null, Num max = null>;
+class Int<Int min = null, Int max = null> extends Num<min, max> where { Num.IsWholeNumber(value); };
+```
+
+### 5.2 Strings
+
+`String`s are as they are in any other similar language. The `Char` type is a subset of `String`s with a restricted
+length.
+
+```belte
+class String<Int minLength = null, Int maxLength = null, Regex pattern = null>;
+class Char extends String<1, 1>;
+```
+
+### 5.3 Collections
+
+`Map<TKey, TValue>`s are a mutable collection type that map keys to values. `List`s are a subset of `Map`s where the key
+is always an integer and does not contain gaps in keys. `Set`s are a subset of `List`s that cannot contain duplicate
+values and does not ensure order.
+
+Collection indexing **starts at 1**, not 0.
+
+```belte
+class Map<type TKey, type TValue, bool AllowGaps = true, bool AllowDuplicates = true>;
+class List<type T> extends Map<Int, T, false>;
+class Set<type T> extends Map<Int, T, true, false>;
+```
+
+Note that C-style arrays are only allowed in `lowlevel` contexts.
+
+### 5.4 Nullability
+
+All data is nullable by default. Nullability can be disallowed with the null-assert operator character.
+
+```belte
+Int // Nullable
+Int! // Not nullable
+```
+
+## 6 Named Data Items
+
+Named data items store data. Belte is statically typed, meaning that each named data item has a type associated with it
+that determines what kind of data can be stored, and that type cannot change after the named data item is created. Belte
+is a type-safe language, meaning that the kind of data stored is ensured to match with the named data item's type.
+
+### 6.1 Implicit Typing
+
+Whenever possible, the compiler can "figure out" the type of a named data item, so specifying the type explicitly is
+often not required. In this case, a keyword can be used instead that specifies the category of the named data item.
+
+For example:
+
+```belte
+var a = 3;
+const b = true;
+constexpr C = "Hello, world!"
+```
+
+### 6.2 Categories of Named Data Items
+
+#### 6.2.1 Variables
+
+Variables are named data items where the data it stores can be modified or reassigned after the variable is initialized.
+
+#### 6.2.2 Constants
+
+Constants are named data items where the data it stores cannot be modified or reassigned after the constant is
+initialized.
+
+#### 6.2.4 Constant Expressions
+
+Constant expressions are named data items where the data it stores cannot be modified or reassigned after the constant
+expression is initialized, and the data the constant expression stores is a compile-time constant.
+
+Valid compile-time constants are numeric literals (e.g. `1`, `0xFF`, `34.677`), string literals (e.g.
+`"Hello, world!"`), boolean literals (e.g. `true`, `false`), and initializer list literals where each contained item is
+also a compile-time constant (e.g. `{ 1, 2, 3 }`, `{ true, false, false }`, `{ { 1, 2 }, { 3, 48 } }`).
+
+Invalid compile-time constants are non-literal values from variables or constants and not constant expressions, return
+values from invocations, any complex type, or references.
+
+Like variables, constants, constant expressions support implicit typing.
+
+Examples of valid constant expressions:
+
+```belte
+constexpr SPEED = 3;
+constexpr ENABLED = true;
+constexpr MESSAGE = "An error has occured."
+```
+
+Examples of invalid constant expressions:
+
+```belte
+constexpr SPEED = SomeMethodCall();
+constexpr ENABLED = enabled ?? true;
+constexpr MESSAGE = ref message;
+```
+
+### 6.3 Scopes of Named Data Items
+
+#### 6.3.3 Locals
+
+Whenever inside a block of code, created named data items are locals. Their lifetime ends at the end of the enclosing
+block.
+
+```belte
+{
+  var a = 3;
+  var b = a + 88;
+}
+// Outside of the block, `a` does not exist
+var c = a; // Not allowed, `a` does not exist anymore
+```
+
+#### 6.3.1 Parameters
+
+Parameters are named data items associated with a function or method. Their lifetime ends at the end of the function's
+or method's body block.
+
+```belte
+void F(Int a) {
+  var b = a; // Creating a local `b` with parameter `a`
+}
+
+var c = a; // Not allowed, parameter `a` does not exist outside of the `F` function definition
+```
+
+#### 6.3.2 Fields
+
+Fields are named data items associated with a class or structure. Their lifetime ends at the end of the classes's or
+structure's body block.
+
+```belte
+class C {
+  Int a = 3;
+
+  Int F() {
+    return a + 7;
+  }
+}
+
+var b = a + 3; // Not allowed, field `a` does not exist outside of `C` class definition
+```
+
+### 6.4 Data Types
+
+By default, named data items store values, but modifiers can be specified to instead store references or
+[arrays](#92-arrays).
+
+#### 6.4.1 Values
+
+Values are "raw data," data that can be used in computations. This is the default for all named data items.
+
+#### 6.4.2 References
+
+References are pointers to other data. These pointers can be read only or read and write. They are read and write by
+default.
+
+```belte
+var x = 34;
+var y = ref x;
+y += 3;
+// `x` is now 37
+```
+
+To make reference read only, it can be marked as a constant.
+
+```belte
+var x = 34;
+const y = ref x;
+y += 3; // Not allowed
+```
+
+References can also point to constants while not being constants themselves. If this is the case, the data at the
+pointer location cannot be changed, but the reference can be changed to point to somewhere else.
+
+```belte
+const x = 34;
+const y = 66;
+ref const z = ref x;
+z += 3; // Not allowed
+z = ref y; // Allowed
+```
+
+#### 6.4.3 Arrays
+
+> Note: Low-level context exclusive feature
+
+## 7 Functions
+
+While global statements are allowed, most code is within functions. Functions take the standard C form.
+
+```belte
+<type> <name>(<parameter list>) { <body> }
+```
+
+Instead of a type a function can use the `void` keyword in its place to signify that the function is a procedure and
+will not return any value.
+
+### 7.1 Entry Point
+
+The entry point for Belte programs is Main. Valid Main signatures are as follows (case insensitive):
+
+```belte
+void Main()
+void Main(List<String!>!)
+Int Main()
+Int Main(List<String!>!)
+```
+
+The optional parameter taken by Main stores all passed command-line arguments.
+
+## 8 Classes
+
+Same functionality, syntax, and semantics as C# classes with a few differences.
+
+### 8.1 Templates
+
+Instead of generics, classes can be templated (as in C++). Templates are essentially generics, except not limited to
+types. The Standard Library uses this feature often, for example in the definition of the `Int` type.
+
+```belte
+class Int<Int min = null, Int max = null> where { value >= min; value <= max; } { }
+
+Int<0, 10> m = 3;
+Int<0, 10> n = 11; // Not allowed
+```
+
+### 8.2 Value Verifications
+
+A class definition can attach a `where` clause that validates all values assigned to any instance of that type.
+
+```belte
+class C extends Int where { value != 4; } { }
+
+C m = 3;
+m++; // Runtime exception as attempted to increment `m` to 4, making the `where` clause on C fail
+```
+
+### 8.3 Constructors
+
+Belte adopts the `constructor` keyword to mark constructors, as apposed to the class name being used.
+
+C++/C#:
+
+```cpp
+class C {
+  C() { ... }
+}
+```
+
+Belte:
+
+```belte
+class C {
+  constructor() { ... }
+}
+```
+
+This syntax is more clear.
+
+### 8.4 Inheriting
+
+While inheriting mechanics remain the same, the syntax has been changed to be more clear. When inheriting from another
+class, the colon has been replaced with the `extends` keyword. When implementing an interface, the `implements` keyword
+is used.
+
+For example:
+
+```belte
+class C extends A implements I { }
+```
+
+## 9 Low-Level Contexts
+
+Low-level contexts enable the following features:
+
+- Structures
+- Arrays
+- Pointers and Function Pointers
+- Direct heap allocation
+- Primitive types
+- Inline Assembly
+
+Any type definition, method definition, function definition, or block can be marked with the `lowlevel` keyword to mark
+the scope as low-level:
+
+```belte
+lowlevel class C {
+  ...
+}
+
+lowlevel void F() {
+  ...
+}
+
+lowlevel {
+  ...
+}
+```
+
+### 9.1 Structures
+
+Structures are essentially simplified classes. They cannot contain methods, only fields. Fields cannot have an initial
+value. Structures **can** be templated.
+
+```belte
+struct S {
+  Int f1;
+  String f2;
+}
+```
+
+```belte
+struct S<type T> {
+  List<T> f1;
+  T f2;
+}
+```
+
+### 9.2 Arrays
+
+Arrays store back-to-back collections of data. Their dimensionality is specified by square bracket pairs.
+Contrary to the collection types provided by the Standard Library, array indexing **starts at 0** instead of 1.
+
+```belte
+int[] // 1-dimensional integer array
+int[][] // 2-dimensional integer array
+```
+
+Their size is set when initialized and cannot change, so to buffer extra size without needing to set it immediately a
+special array initialization syntax can be used:
+
+```belte
+int[] a = new int[300]; // Creates an 1-dimensional integer array with 300 elements
+```
+
+Arrays are mutable, as their elements can be modified. A specific element can be accessed through indexing.
+
+```belte
+int[] a = { 1, 2, 3, 4 };
+a[2] = 7;
+// `a` is now { 1, 2, 7, 4 }
+```
+
+Helper
+
+### 9.3 Pointers and Function Pointers
+
+C-style pointers are alternatives to references that are not memory safe. They follow all the syntax and semantics as
+C pointers.
+
+### 9.4 Direct Heap Allocation
+
+C-esc functions are enabled in low-level contexts to allow direction heap allocation. All memory allocation functions
+resemble their C-counterpart's names.
+
+```belte
+void *Malloc(int! size);                        // Memory allocation
+void *Calloc(int! count, int! size);            // Contiguous Allocation
+void *Realloc(void *pointer, int! newSize);     // Reallocation
+void *AlignedAlloc(int! alignment, int! size);  // Aligned Allocation
+void Free(void *pointer);
+```
+
+### 9.5 Primitive Types
+
+Primitive value-types are not objects, but rather simple data that resembles assembly or C data types.
+
+| Type | Size (bits) |
+|-|-|
+| bool | 8 |
+| byte | 8 |
+| unsigned byte | 8 |
+| char | 16 |
+| short | 16 |
+| unsigned short | 16 |
+| int | 32 |
+| unsigned int | 32 |
+| long | 64 |
+| unsigned long | 64 |
+| float | 32 |
+| double | 64 |
+| long double | 128 |
+
+These types are always non-nullable.
+
+### 9.6 Inline Assembly
+
+Same syntax and semantics as GNU C inline assembly.
+
+<!--
 ## Logical vs. Physical
 
 As mentioned prior, the main issue that Belte aimed to address was an assortment of issues found in every programming
@@ -348,3 +875,4 @@ Low-level contexts add support for the following features:
 - Primitive types
 - Fixed size buffers
 - Function pointers
+-->

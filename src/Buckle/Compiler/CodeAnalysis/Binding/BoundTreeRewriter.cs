@@ -18,14 +18,16 @@ internal abstract class BoundTreeRewriter {
         return statement.kind switch {
             BoundNodeKind.NopStatement => RewriteNopStatement((BoundNopStatement)statement),
             BoundNodeKind.BlockStatement => RewriteBlockStatement((BoundBlockStatement)statement),
-            BoundNodeKind.LocalDeclarationStatement => RewriteLocalDeclarationStatement((BoundLocalDeclarationStatement)statement),
+            BoundNodeKind.LocalDeclarationStatement
+                => RewriteLocalDeclarationStatement((BoundLocalDeclarationStatement)statement),
             BoundNodeKind.IfStatement => RewriteIfStatement((BoundIfStatement)statement),
             BoundNodeKind.WhileStatement => RewriteWhileStatement((BoundWhileStatement)statement),
             BoundNodeKind.ForStatement => RewriteForStatement((BoundForStatement)statement),
             BoundNodeKind.ExpressionStatement => RewriteExpressionStatement((BoundExpressionStatement)statement),
             BoundNodeKind.LabelStatement => RewriteLabelStatement((BoundLabelStatement)statement),
             BoundNodeKind.GotoStatement => RewriteGotoStatement((BoundGotoStatement)statement),
-            BoundNodeKind.ConditionalGotoStatement => RewriteConditionalGotoStatement((BoundConditionalGotoStatement)statement),
+            BoundNodeKind.ConditionalGotoStatement
+                => RewriteConditionalGotoStatement((BoundConditionalGotoStatement)statement),
             BoundNodeKind.DoWhileStatement => RewriteDoWhileStatement((BoundDoWhileStatement)statement),
             BoundNodeKind.ReturnStatement => RewriteReturnStatement((BoundReturnStatement)statement),
             BoundNodeKind.TryStatement => RewriteTryStatement((BoundTryStatement)statement),

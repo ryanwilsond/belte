@@ -13,7 +13,9 @@ public static class SyntaxTreeExtensions {
     /// <param name="text">Text to parse.</param>
     /// <param name="includeEOF">If to include the EOF <see cref="SyntaxToken" /> at the end.</param>
     /// <returns>SyntaxTokens in order.</returns>
-    internal static InternalSyntax.SyntaxList<InternalSyntax.SyntaxToken> ParseTokens(string text, bool includeEOF = false) {
+    internal static InternalSyntax.SyntaxList<InternalSyntax.SyntaxToken> ParseTokens(
+        string text,
+        bool includeEOF = false) {
         var sourceText = SourceText.From(text);
 
         return ParseTokens(sourceText, includeEOF);
@@ -25,7 +27,9 @@ public static class SyntaxTreeExtensions {
     /// <param name="text">Text to parse.</param>
     /// <param name="includeEOF">If to include the EOF <see cref="SyntaxToken" /> at the end.</param>
     /// <returns>SyntaxTokens in order.</returns>
-    internal static InternalSyntax.SyntaxList<InternalSyntax.SyntaxToken> ParseTokens(SourceText text, bool includeEOF = false) {
+    internal static InternalSyntax.SyntaxList<InternalSyntax.SyntaxToken> ParseTokens(
+        SourceText text,
+        bool includeEOF = false) {
         var tokens = new SyntaxListBuilder<InternalSyntax.SyntaxToken>(32);
 
         void ParseTokens(SyntaxTree syntaxTree) {
