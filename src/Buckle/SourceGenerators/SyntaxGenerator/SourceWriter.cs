@@ -431,7 +431,9 @@ internal sealed class SourceWriter {
             var nCompared = 0;
 
             foreach (var field in node.fields) {
-                if (IsDerivedOrListOfDerived("SyntaxNode", field.Type) || IsDerivedOrListOfDerived("SyntaxToken", field.Type) || field.Type == "SyntaxNodeOrTokenList") {
+                if (IsDerivedOrListOfDerived("SyntaxNode", field.Type) ||
+                    IsDerivedOrListOfDerived("SyntaxToken", field.Type) ||
+                    field.Type == "SyntaxNodeOrTokenList") {
                     if (nCompared > 0)
                         Write(" || ");
 
@@ -635,8 +637,8 @@ internal sealed class SourceWriter {
                         CloseBlock();
                     } else {
                         WriteLine(
-                            $" => new SyntaxToken(this, ((Syntax.InternalSyntax.{node.Name})this.green)._{field.Name}," +
-                            $" {GetChildPosition(i)}, {GetChildIndex(i)});"
+                            $" => new SyntaxToken(this, ((Syntax.InternalSyntax.{node.Name})this.green)._{field.Name}" +
+                            $", {GetChildPosition(i)}, {GetChildIndex(i)});"
                         );
                     }
                 } else if (field.Type == "SyntaxList<SyntaxToken>") {

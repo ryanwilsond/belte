@@ -190,8 +190,11 @@ internal sealed class OverloadResolution {
 
         if (methods.Length > 1 && possibleOverloads.Count == 0) {
             if (isConstructor) {
-                if (!_suppressDiagnostics)
-                    _binder.diagnostics.Push(Error.NoConstructorOverload(operand.location, methods[0].containingType.name));
+                if (!_suppressDiagnostics) {
+                    _binder.diagnostics.Push(
+                        Error.NoConstructorOverload(operand.location, methods[0].containingType.name)
+                    );
+                }
             } else {
                 if (!_suppressDiagnostics)
                     _binder.diagnostics.Push(Error.NoMethodOverload(operand.location, name));
@@ -223,7 +226,10 @@ internal sealed class OverloadResolution {
                 possibleOverloads = tempPossibleOverloads;
 
                 if (possibleOverloads.Count > 1) {
-                    _binder.diagnostics.Push(Error.AmbiguousMethodOverload(operand.location, possibleOverloads.ToArray()));
+                    _binder.diagnostics.Push(
+                        Error.AmbiguousMethodOverload(operand.location, possibleOverloads.ToArray())
+                    );
+
                     return OverloadResolutionResult<MethodSymbol>.Ambiguous();
                 }
             }

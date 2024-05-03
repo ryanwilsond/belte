@@ -155,9 +155,9 @@ In the `Insert` method, two database calls are being made.
 - The first updates the `ProbabilityOfMidInsert` data field which is a percentage. Percentage fields track the
 probability of an action being performed at least once during a specified time span. In this case, the
 `ProbabilityOfMidInsert` data field was set to track per `runtime`, so the data field measures the likelihood of at
-least one middle insertion being performed each run of the program. (For more precision, a mean average could be measured
-instead.) `Add 1` serves to tell the database that the action was performed. The `when` clause states to only `Add 1` if
-the condition is met.
+least one middle insertion being performed each run of the program. (For more precision, a mean average could be
+measured instead.) `Add 1` serves to tell the database that the action was performed. The `when` clause states to only
+`Add 1` if the condition is met.
 - The second updates the `AverageElementSize` data field with the size of a value. The database then uses this size as a
 data point to calculate the mean average over the specified time, in this case `alltime`, so it tracks across all runs
 of the program. Each data point is weighed equally in this example. The `Size(value)` expression serves to get the size
