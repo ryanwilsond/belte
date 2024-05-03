@@ -49,7 +49,8 @@ All debug files are put into `.\bin\debug\` and the final executable is put into
 Run `$ make generate` to generate source files.
 
 This is only required when changes are made to the source generators themselves,
-or the files the source generators use (currently only [Syntax.xml](src/Buckle/Compiler/CodeAnalysis/Syntax/Syntax.xml)).
+or the files the source generators use (currently only
+[Syntax.xml](src/Buckle/Compiler/CodeAnalysis/Syntax/Syntax.xml)).
 
 ### Testing
 

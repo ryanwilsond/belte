@@ -20,14 +20,16 @@ internal abstract class BoundTreeExpander {
         return statement.kind switch {
             BoundNodeKind.NopStatement => ExpandNopStatement((BoundNopStatement)statement),
             BoundNodeKind.BlockStatement => ExpandBlockStatement((BoundBlockStatement)statement),
-            BoundNodeKind.LocalDeclarationStatement => ExpandLocalDeclarationStatement((BoundLocalDeclarationStatement)statement),
+            BoundNodeKind.LocalDeclarationStatement
+                => ExpandLocalDeclarationStatement((BoundLocalDeclarationStatement)statement),
             BoundNodeKind.IfStatement => ExpandIfStatement((BoundIfStatement)statement),
             BoundNodeKind.WhileStatement => ExpandWhileStatement((BoundWhileStatement)statement),
             BoundNodeKind.ForStatement => ExpandForStatement((BoundForStatement)statement),
             BoundNodeKind.ExpressionStatement => ExpandExpressionStatement((BoundExpressionStatement)statement),
             BoundNodeKind.LabelStatement => ExpandLabelStatement((BoundLabelStatement)statement),
             BoundNodeKind.GotoStatement => ExpandGotoStatement((BoundGotoStatement)statement),
-            BoundNodeKind.ConditionalGotoStatement => ExpandConditionalGotoStatement((BoundConditionalGotoStatement)statement),
+            BoundNodeKind.ConditionalGotoStatement
+                => ExpandConditionalGotoStatement((BoundConditionalGotoStatement)statement),
             BoundNodeKind.DoWhileStatement => ExpandDoWhileStatement((BoundDoWhileStatement)statement),
             BoundNodeKind.ReturnStatement => ExpandReturnStatement((BoundReturnStatement)statement),
             BoundNodeKind.TryStatement => ExpandTryStatement((BoundTryStatement)statement),
@@ -173,7 +175,9 @@ internal abstract class BoundTreeExpander {
         return new List<BoundStatement>() { statement };
     }
 
-    protected virtual List<BoundStatement> ExpandExpression(BoundExpression expression, out BoundExpression replacement) {
+    protected virtual List<BoundStatement> ExpandExpression(
+        BoundExpression expression,
+        out BoundExpression replacement) {
         switch (expression.kind) {
             case BoundNodeKind.BinaryExpression:
                 return ExpandBinaryExpression((BoundBinaryExpression)expression, out replacement);
@@ -342,7 +346,9 @@ internal abstract class BoundTreeExpander {
         return statements;
     }
 
-    protected virtual List<BoundStatement> ExpandCastExpression(BoundCastExpression expression, out BoundExpression replacement) {
+    protected virtual List<BoundStatement> ExpandCastExpression(
+        BoundCastExpression expression,
+        out BoundExpression replacement) {
         var statements = ExpandExpression(expression.expression, out var expressionReplacement);
 
         if (statements.Count != 0) {
@@ -464,7 +470,9 @@ internal abstract class BoundTreeExpander {
         return new List<BoundStatement>() { };
     }
 
-    protected virtual List<BoundStatement> ExpandTypeWrapper(BoundTypeWrapper expression, out BoundExpression replacement) {
+    protected virtual List<BoundStatement> ExpandTypeWrapper(
+        BoundTypeWrapper expression,
+        out BoundExpression replacement) {
         replacement = expression;
         return new List<BoundStatement>() { };
     }

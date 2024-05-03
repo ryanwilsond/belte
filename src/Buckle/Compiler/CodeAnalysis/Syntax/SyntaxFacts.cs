@@ -276,7 +276,8 @@ internal static class SyntaxFacts {
             SyntaxKind.AsteriskAsteriskEqualsToken => SyntaxKind.AsteriskAsteriskToken,
             SyntaxKind.LessThanLessThanEqualsToken => SyntaxKind.LessThanLessThanToken,
             SyntaxKind.GreaterThanGreaterThanEqualsToken => SyntaxKind.GreaterThanGreaterThanToken,
-            SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken => SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
+            SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken
+                => SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
             SyntaxKind.PercentEqualsToken => SyntaxKind.PercentToken,
             SyntaxKind.QuestionQuestionEqualsToken => SyntaxKind.QuestionQuestionToken,
             _ => throw new BelteInternalException($"GetBinaryOperatorOfAssignmentOperator: unexpected syntax '{type}'"),

@@ -4,13 +4,17 @@
 
 <h1 align="center">Belte Documentation</h1>
 
-- [The Belte Language & Specification](Belte.md)
-- Buckle Docs
+- #### [The Belte Language & Specification](Belte.md)
+
+- #### Buckle Docs
+
   - [Building Buckle](Building.md)
   - [Using Buckle](Buckle.md)
   - [Using the Repl](Repl.md)
   - [Diagnostic Codes](DiagnosticCodes.md)
-- Belte Language Docs in Its Current State
+
+- #### Belte Language Docs in Its Current State
+
   - [1](Current/Overview.md) Overview
     - [1.1](Current/Overview.md#11-overview) Supported Features
   - [2](Current/ControlFlow.md) Control Flow

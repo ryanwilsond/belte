@@ -16,9 +16,9 @@ using static Buckle.CodeAnalysis.Binding.BoundFactory;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// Binds a <see cref="Syntax.InternalSyntax.LanguageParser" /> output into a immutable "bound" tree. This is where most error
-/// checking happens. The <see cref="Lowerer" /> is also called here to simplify the code,
-/// And convert control of flow into gotos and labels. Dead code is also removed here, as well as other optimizations.
+/// Binds a <see cref="Syntax.InternalSyntax.LanguageParser" /> output into a immutable "bound" tree. This is where most
+/// error checking happens. The <see cref="Lowerer" /> is also called here to simplify the code and convert control of
+/// flow into gotos and labels. Dead code is also removed here, as well as other optimizations.
 /// </summary>
 internal sealed class Binder {
     private readonly MethodSymbol _containingMethod;
@@ -27,7 +27,8 @@ internal sealed class Binder {
         new List<(MethodSymbol, BoundBlockStatement)>();
     private readonly CompilationOptions _options;
     private readonly OverloadResolution _overloadResolution;
-    private readonly Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> _loopStack = new Stack<(BoundLabel, BoundLabel)>();
+    private readonly Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> _loopStack =
+        new Stack<(BoundLabel, BoundLabel)>();
     private readonly Stack<List<string>> _localLocals = new Stack<List<string>>();
     private readonly List<string> _resolvedLocals = new List<string>();
     private readonly Dictionary<string, LocalFunctionStatementSyntax> _unresolvedLocals =
@@ -687,7 +688,9 @@ internal sealed class Binder {
         return parametersBuilder.ToImmutable();
     }
 
-    private BoundBlockStatement BindMethodBody(BlockStatementSyntax syntax, ImmutableArray<ParameterSymbol> parameters) {
+    private BoundBlockStatement BindMethodBody(
+        BlockStatementSyntax syntax,
+        ImmutableArray<ParameterSymbol> parameters) {
         BoundBlockStatement body;
 
         if (syntax != null) {
@@ -760,8 +763,12 @@ internal sealed class Binder {
         var parent = method.parent;
         var className = (parent is ClassDeclarationSyntax c) ? c.identifier.text : null;
 
-        if ((newMethod.declaration as MethodDeclarationSyntax).identifier.text != null && !_scope.TryDeclareMethod(newMethod))
-            diagnostics.Push(Error.MethodAlreadyDeclared(method.identifier.location, name ?? newMethod.name, className));
+        if ((newMethod.declaration as MethodDeclarationSyntax).identifier.text != null &&
+            !_scope.TryDeclareMethod(newMethod)) {
+            diagnostics.Push(
+                Error.MethodAlreadyDeclared(method.identifier.location, name ?? newMethod.name, className)
+            );
+        }
 
         _flags = saved;
         return newMethod;
@@ -1746,7 +1753,9 @@ internal sealed class Binder {
         return result;
     }
 
-    private BoundExpression BindIdentifierInScope(SimpleNameSyntax syntax, bool called, ImmutableArray<Symbol> symbols) {
+    private BoundExpression BindIdentifierInScope(
+        SimpleNameSyntax syntax,
+        bool called, ImmutableArray<Symbol> symbols) {
         if (called)
             return BindCalledIdentifierInScope(syntax, symbols);
 

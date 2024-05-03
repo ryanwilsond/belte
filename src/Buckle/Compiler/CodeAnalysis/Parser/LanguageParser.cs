@@ -1118,7 +1118,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 SyntaxKind.OpenParenToken => ParseCallExpression(expression),
                 SyntaxKind.OpenBracketToken or SyntaxKind.QuestionOpenBracketToken => ParseIndexExpression(expression),
                 SyntaxKind.PeriodToken or SyntaxKind.QuestionPeriodToken => ParseMemberAccessExpression(expression),
-                SyntaxKind.MinusMinusToken or SyntaxKind.PlusPlusToken or SyntaxKind.ExclamationToken => ParsePostfixExpression(expression),
+                SyntaxKind.MinusMinusToken or SyntaxKind.PlusPlusToken or SyntaxKind.ExclamationToken
+                    => ParsePostfixExpression(expression),
                 _ => expression,
             };
         }
@@ -1268,7 +1269,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
             lookahead++;
 
         return Peek(lookahead + 1).kind switch {
-            SyntaxKind.OpenParenToken or SyntaxKind.EndOfFileToken => ScanTemplateArgumentListKind.PossibleTemplateArgumentList,
+            SyntaxKind.OpenParenToken or SyntaxKind.EndOfFileToken
+                => ScanTemplateArgumentListKind.PossibleTemplateArgumentList,
             _ => ScanTemplateArgumentListKind.NotTemplateArgumentList,
         };
     }
