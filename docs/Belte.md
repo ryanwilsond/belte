@@ -96,7 +96,7 @@ compile-time and run-time to increase performance.
 It is encouraged to **not** create Optimization Routines while initially implementing a feature or entire project.
 Optimization Routines have two purposes. 1) To give the developer the ability to ignore performance while focusing on
 the logical implementation of a feature, as Optimization Routines can be added later without modifying existing logic.
-And 2) to boost the performance of complex types in a way that no other contemporary programming language are.
+And 2) to boost the performance of complex types in a way that no other contemporary programming languages are.
 
 Take the following simplified List definition:
 
