@@ -5,7 +5,7 @@
 - [1](#1-introduction) Introduction
 - [2](#2-scope) Scope
 - [3](#3-design-principles) Design Principles
-- [4](#4-the-belte-engine-and-optimization-routines) The Belte Engine and Optimization Routines
+- **[4](#4-the-belte-engine-and-optimization-routines) The Belte Engine and Optimization Routines**
 - [5](#5-types) Types
 - [6](#6-named-data-items) Named Data Items
 - [7](#7-functions) Functions
@@ -198,7 +198,7 @@ are restrained to whole numbers.
 
 ```belte
 class Num<Num min = null, Num max = null>;
-class Int<Int min = null, Int max = null> : Num<min, max> where { Num.IsWholeNumber(value); };
+class Int<Int min = null, Int max = null> extends Num<min, max> where { Num.IsWholeNumber(value); };
 ```
 
 ### 5.2 Strings
@@ -208,7 +208,7 @@ length.
 
 ```belte
 class String<Int minLength = null, Int maxLength = null, Regex pattern = null>;
-class Char : String<1, 1>;
+class Char extends String<1, 1>;
 ```
 
 ### 5.3 Collections
@@ -221,8 +221,8 @@ Collection indexing **starts at 1**, not 0.
 
 ```belte
 class Map<type TKey, type TValue, bool AllowGaps = true, bool AllowDuplicates = true>;
-class List<type T> : Map<Int, T, false>;
-class Set<type T> : Map<Int, T, true, false>;
+class List<type T> extends Map<Int, T, false>;
+class Set<type T> extends Map<Int, T, true, false>;
 ```
 
 Note that C-style arrays are only allowed in `lowlevel` contexts.
@@ -411,6 +411,65 @@ Int Main(List<String!>!)
 The optional parameter taken by Main stores all passed command-line arguments.
 
 ## 8 Classes
+
+Same functionality, syntax, and semantics as C# classes with a few differences.
+
+### 8.1 Templates
+
+Instead of generics, classes can be templated (as in C++). Templates are essentially generics, except not limited to
+types. The Standard Library uses this feature often, for example in the definition of the `Int` type.
+
+```belte
+class Int<Int min = null, Int max = null> where { value >= min; value <= max; } { }
+
+Int<0, 10> m = 3;
+Int<0, 10> n = 11; // Not allowed
+```
+
+### 8.2 Value Verifications
+
+A class definition can attach a `where` clause that validates all values assigned to any instance of that type.
+
+```belte
+class C extends Int where { value != 4; } { }
+
+C m = 3;
+m++; // Runtime exception as attempted to increment `m` to 4, making the `where` clause on C fail
+```
+
+### 8.3 Constructors
+
+Belte adopts the `constructor` keyword to mark constructors, as apposed to the class name being used.
+
+C++/C#:
+
+```cpp
+class C {
+  C() { ... }
+}
+```
+
+Belte:
+
+```belte
+class C {
+  constructor() { ... }
+}
+```
+
+This syntax is more clear.
+
+### 8.4 Inheriting
+
+While inheriting mechanics remain the same, the syntax has been changed to be more clear. When inheriting from another
+class, the colon has been replaced with the `extends` keyword. When implementing an interface, the `implements` keyword
+is used.
+
+For example:
+
+```belte
+class C extends A implements I { }
+```
 
 ## 9 Low-Level Contexts
 
