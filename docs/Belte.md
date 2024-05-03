@@ -1,6 +1,8 @@
 # The Belte Language & Specification
 
-> Note: This document is incomplete
+> Note: This document is still being built \
+> Note: This document represents Belte in its finished state. For documentation on Belte in its **current** state, see
+> [here](README.md#belte-language-docs-in-its-current-state)
 
 - [1](#1-introduction) Introduction
 - [2](#2-scope) Scope
