@@ -9,7 +9,7 @@
             "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net8.0/CommandLine.dll",
             "args": [
                 // "-r"
-                "samples/Donut/Program.blt"
+                "samples/Donut/ProgramBugged.blt"
             ],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",

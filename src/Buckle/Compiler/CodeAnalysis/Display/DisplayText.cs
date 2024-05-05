@@ -277,6 +277,11 @@ public sealed class DisplayText {
     }
 
     private static void DisplayType(DisplayText text, BoundType type) {
+        if (type.isConstantExpression) {
+            text.Write(CreateKeyword(SyntaxKind.ConstexprKeyword));
+            text.Write(CreateSpace());
+        }
+
         if (type.isConstant) {
             text.Write(CreateKeyword(SyntaxKind.ConstKeyword));
             text.Write(CreateSpace());

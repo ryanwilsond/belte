@@ -2130,7 +2130,7 @@ internal sealed class Binder {
 
         var initializer = BindStatement(statement.initializer);
         var condition = BindCast(statement.condition, BoundType.NullableBool);
-        var step = BindExpression(statement.step);
+        var step = BindExpression(statement.step, ownStatement: true);
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
 
         _scope = _scope.parent;
