@@ -483,7 +483,10 @@ internal sealed class Lexer {
 
                 break;
             case '"':
-                ReadStringLiteral();
+                ReadStringLiteral(false);
+                break;
+            case '\'':
+                ReadStringLiteral(true);
                 break;
             case '0':
             case '1':
@@ -568,7 +571,8 @@ internal sealed class Lexer {
         _kind = SyntaxKind.MultiLineCommentTrivia;
     }
 
-    private void ReadStringLiteral() {
+    private void ReadStringLiteral(bool isCharacter) {
+        var saved = _position;
         _position++;
         var sb = new StringBuilder();
         var done = false;
@@ -581,7 +585,7 @@ internal sealed class Lexer {
                     AddDiagnostic(Error.UnterminatedString(), _start, 1);
                     done = true;
                     break;
-                case '"':
+                case '"' when !isCharacter:
                     if (_lookahead == '"') {
                         sb.Append(_current);
                         _position += 2;
@@ -589,6 +593,10 @@ internal sealed class Lexer {
                         _position++;
                         done = true;
                     }
+                    break;
+                case '\'' when isCharacter:
+                    _position++;
+                    done = true;
                     break;
                 case '\\':
                     _position++;
@@ -648,8 +656,22 @@ internal sealed class Lexer {
             }
         }
 
-        _kind = SyntaxKind.StringLiteralToken;
-        _value = sb.ToString();
+        _kind = isCharacter ? SyntaxKind.CharacterLiteralToken : SyntaxKind.StringLiteralToken;
+
+        if (isCharacter) {
+            if (isCharacter && sb.Length == 0) {
+                AddDiagnostic(Error.EmptyCharacterLiteral(), saved, 2);
+                _value = null;
+            } else if (isCharacter && sb.Length > 1) {
+                AddDiagnostic(Error.CharacterLiteralTooLong(), saved, sb.Length + 2);
+                _value = sb[0];
+            } else {
+                _value = sb[0];
+            }
+        } else {
+            _value = sb.ToString();
+        }
+
     }
 
     private void ReadNumericLiteral() {

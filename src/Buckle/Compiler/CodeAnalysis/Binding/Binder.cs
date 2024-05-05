@@ -619,6 +619,7 @@ internal sealed class Binder {
             "int" => TypeSymbol.Int,
             "decimal" => TypeSymbol.Decimal,
             "string" => TypeSymbol.String,
+            "char" => TypeSymbol.Char,
             "void" => TypeSymbol.Void,
             "type" => TypeSymbol.Type,
             _ => null,

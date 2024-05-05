@@ -1094,6 +1094,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseNumericLiteral();
             case SyntaxKind.StringLiteralToken:
                 return ParseStringLiteral();
+            case SyntaxKind.CharacterLiteralToken:
+                return ParseCharacterLiteral();
             case SyntaxKind.NullKeyword:
                 return ParseNullLiteral();
             case SyntaxKind.OpenBraceToken:
@@ -1419,6 +1421,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private ExpressionSyntax ParseStringLiteral() {
         var stringToken = Match(SyntaxKind.StringLiteralToken);
         return SyntaxFactory.Literal(stringToken);
+    }
+
+    private ExpressionSyntax ParseCharacterLiteral() {
+        var characterToken = Match(SyntaxKind.CharacterLiteralToken);
+        return SyntaxFactory.Literal(characterToken);
     }
 
     private ArrayRankSpecifierSyntax ParseArrayRankSpecifier(bool allowSize) {

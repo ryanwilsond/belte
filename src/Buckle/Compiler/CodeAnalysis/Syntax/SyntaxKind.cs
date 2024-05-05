@@ -99,6 +99,7 @@ public enum SyntaxKind {
     IdentifierToken,
     NumericLiteralToken,
     StringLiteralToken,
+    CharacterLiteralToken,
 
     // Trivia
     EndOfLineTrivia,
