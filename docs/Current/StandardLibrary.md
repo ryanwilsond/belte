@@ -24,11 +24,13 @@ placeholders for eventual Standard Library modules.
 | `decimal! Value(decimal value)` | Converts {value} to non-nullable decimal | NullReferenceException |
 | `string! Value(string value)` | Converts {value} to non-nullable string | NullReferenceException |
 | `int! Value(int value)` | Converts {value} to non-nullable integer | NullReferenceException |
+| `char! Value(char value)` | Converts {value} to non-nullable character | NullReferenceException |
 | `bool! HasValue(any value)` | Returns `true` is {value} is not null, `false` otherwise | |
 | `bool! HasValue(bool value)` | Returns `true` is {value} is not null, `false` otherwise | |
 | `bool! HasValue(string value)` | Returns `true` is {value} is not null, `false` otherwise | |
 | `bool! HasValue(decimal value)` | Returns `true` is {value} is not null, `false` otherwise | |
 | `bool! HasValue(int value)` | Returns `true` is {value} is not null, `false` otherwise | |
+| `bool! HasValue(char value)` | Returns `true` is {value} is not null, `false` otherwise | |
 | `string! Hex(int! value, bool! prefix = false)` | Converts {value} to its base16 representation; if {prefix} is `true`, the representation includes the `0x` prefix | |
 | `int! Ascii(string! char)` | Converts {char} its respective ASCII code | ArgumentException |
 | `string! Char(int! ascii)` | Converts {ascii} to its respective character | ArgumentException |

@@ -97,6 +97,12 @@ internal sealed class BoundBinaryOperator {
         new BoundBinaryOperator(SyntaxKind.QuestionQuestionToken, BoundBinaryOperatorKind.NullCoalescing,
             BoundType.NullableString),
 
+        // char
+        new BoundBinaryOperator(SyntaxKind.EqualsEqualsToken, BoundBinaryOperatorKind.EqualityEquals,
+            BoundType.Char, BoundType.Bool),
+        new BoundBinaryOperator(SyntaxKind.ExclamationEqualsToken, BoundBinaryOperatorKind.EqualityNotEquals,
+            BoundType.Char, BoundType.Bool),
+
         // decimal
         new BoundBinaryOperator(SyntaxKind.PlusToken, BoundBinaryOperatorKind.Addition,
             BoundType.Decimal),

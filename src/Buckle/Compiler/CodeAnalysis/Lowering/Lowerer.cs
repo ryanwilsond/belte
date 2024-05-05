@@ -622,6 +622,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return Call(BuiltinMethods.ValueInt, expression);
         if (expression.type.typeSymbol == TypeSymbol.String)
             return Call(BuiltinMethods.ValueString, expression);
+        if (expression.type.typeSymbol == TypeSymbol.Char)
+            return Call(BuiltinMethods.ValueChar, expression);
 
         return Cast(
             expression.type,
@@ -641,6 +643,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return Call(BuiltinMethods.HasValueInt, expression);
         if (expression.type.typeSymbol == TypeSymbol.String)
             return Call(BuiltinMethods.HasValueString, expression);
+        if (expression.type.typeSymbol == TypeSymbol.Char)
+            return Call(BuiltinMethods.HasValueChar, expression);
 
         return Call(BuiltinMethods.HasValueAny, expression);
     }

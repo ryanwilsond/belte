@@ -84,6 +84,18 @@ internal static class BuiltinMethods {
     );
 
     /// <summary>
+    /// Value method, gets non nullable value from nullable item (throws if item is null).
+    /// Char type overload.
+    /// </summary>
+    internal static readonly MethodSymbol ValueChar = new MethodSymbol(
+        "Value",
+        ImmutableArray.Create(
+            new ParameterSymbol("value", BoundType.NullableChar, 0, NoDefault)
+        ),
+        BoundType.Char
+    );
+
+    /// <summary>
     /// Checks if nullable item has a value (otherwise it is null).
     /// Any type overload.
     /// </summary>
@@ -139,6 +151,18 @@ internal static class BuiltinMethods {
         "HasValue",
         ImmutableArray.Create(
             new ParameterSymbol("value", BoundType.NullableString, 0, NoDefault)
+        ),
+        BoundType.Bool
+    );
+
+    /// <summary>
+    /// Checks if nullable item has a value (otherwise it is null).
+    /// Char type overload.
+    /// </summary>
+    internal static readonly MethodSymbol HasValueChar = new MethodSymbol(
+        "HasValue",
+        ImmutableArray.Create(
+            new ParameterSymbol("value", BoundType.NullableChar, 0, NoDefault)
         ),
         BoundType.Bool
     );

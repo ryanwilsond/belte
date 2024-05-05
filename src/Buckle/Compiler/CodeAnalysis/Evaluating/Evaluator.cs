@@ -708,7 +708,8 @@ internal sealed class Evaluator {
             node.method == BuiltinMethods.ValueBool ||
             node.method == BuiltinMethods.ValueDecimal ||
             node.method == BuiltinMethods.ValueInt ||
-            node.method == BuiltinMethods.ValueString) {
+            node.method == BuiltinMethods.ValueString ||
+            node.method == BuiltinMethods.ValueChar) {
             var value = EvaluateExpression(node.arguments[0], abort);
             var hasNoMembers = value.isReference ? Get(value.reference).members is null : value.members is null;
 
@@ -723,7 +724,8 @@ internal sealed class Evaluator {
             node.method == BuiltinMethods.HasValueBool ||
             node.method == BuiltinMethods.HasValueDecimal ||
             node.method == BuiltinMethods.HasValueInt ||
-            node.method == BuiltinMethods.HasValueString) {
+            node.method == BuiltinMethods.HasValueString ||
+            node.method == BuiltinMethods.HasValueChar) {
             var value = EvaluateExpression(node.arguments[0], abort);
             var hasNoMembers = value.isReference ? Get(value.reference).members is null : value.members is null;
 

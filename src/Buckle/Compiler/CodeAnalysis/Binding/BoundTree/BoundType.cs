@@ -25,6 +25,11 @@ internal sealed class BoundType : BoundExpression {
     internal static readonly BoundType NullableString = new BoundType(TypeSymbol.String, isNullable: true);
 
     /// <summary>
+    /// Character type that can be null.
+    /// </summary>
+    internal static readonly BoundType NullableChar = new BoundType(TypeSymbol.Char, isNullable: true);
+
+    /// <summary>
     /// Boolean type that can be null.
     /// </summary>
     internal static readonly BoundType NullableBool = new BoundType(TypeSymbol.Bool, isNullable: true);
@@ -53,6 +58,11 @@ internal sealed class BoundType : BoundExpression {
     /// String type that cannot be null.
     /// </summary>
     internal static readonly BoundType String = new BoundType(TypeSymbol.String);
+
+    /// <summary>
+    /// Character type that cannot be null.
+    /// </summary>
+    internal static readonly BoundType Char = new BoundType(TypeSymbol.Char);
 
     /// <summary>
     /// Boolean type that cannot be null.
