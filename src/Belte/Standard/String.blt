@@ -1,0 +1,101 @@
+
+lowlevel class String {
+    char[] _array;
+    int! _length;
+
+    String() {
+        _length = 0;
+    }
+
+    String(char[] array) {
+        _array = array;
+        _length = Length(array);
+    }
+
+    String(String string) {
+        _array = string._array;
+        _length = string._length;
+    }
+
+    const String Append(char value) {
+        String string = new String();
+        string._length = _length + 1;
+        string._array = new char[string._length];
+        _CopyInto(ref string._array, ref _array, 0, _length);
+        string._array[_length] = value;
+        return string;
+    }
+
+    const String Append(String value) {
+        String string = new String();
+        string._length = _length + value._length;
+        string._array = new char[string._length];
+        _CopyInto(ref string._array, ref _array, 0, _length);
+        _CopyInto(ref string._array, ref value._array, _length, value._length);
+        return string;
+    }
+
+    const int Length() {
+        return _length;
+    }
+
+    const char[] ToArray() {
+        char[] copy = new char[_length];
+        _CopyInto(ref copy, ref _array, 0, _length);
+        return copy;
+    }
+
+    const StringBuilder ToBuilder() {
+        StringBuilder builder = new StringBuilder(this);
+        return builder;
+    }
+
+    const char Index(int! index) {
+        index = _PosIndex(index);
+
+        if (index < 0 || index >= _length) {
+            return null;
+        }
+
+        return _array[index];
+    }
+
+    const String Substring(int! start, int! end = -1) {
+        start = _PosIndex(start);
+        end = _PosIndex(end);
+
+        if (end <= start) {
+            return new String();
+        }
+
+        String substring = new String();
+        substring._array = new char[end - start];
+
+        for (int! i = 0; i < end - start; i++) {
+            substring._array[i] = _array[i + start];
+        }
+
+        return substring;
+    }
+
+    static char operator[](String string, int index) {
+        if (index is null)
+            return null;
+
+        return string.Index(index!);
+    }
+
+    const int! _PosIndex(int! index) {
+        if (index < 0) {
+            index += _length;
+        }
+
+        return index;
+    }
+
+    static void _CopyInto(ref char[] to, ref char[] from, int! start, int! length) {
+        for (int! i = 0; i < length; i++) {
+            to[i + start] = from[i];
+        }
+    }
+}

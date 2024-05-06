@@ -131,8 +131,12 @@ internal sealed class Binder {
             if (member is TypeDeclarationSyntax ts) {
                 var symbol = binder.PreBindTypeDeclaration(ts, DeclarationModifiers.None);
 
-                if (options.isLibrary && symbol.name == WellKnownTypeNames.List)
-                    binder._wellKnownTypes.Add(WellKnownTypeNames.List, symbol);
+                if (options.isLibrary) {
+                    if (symbol.name == WellKnownTypeNames.List)
+                        binder._wellKnownTypes.Add(WellKnownTypeNames.List, symbol);
+                    else if (symbol.name == WellKnownTypeNames.String)
+                        binder._wellKnownTypes.Add(WellKnownTypeNames.String, symbol);
+                }
             }
         }
 
