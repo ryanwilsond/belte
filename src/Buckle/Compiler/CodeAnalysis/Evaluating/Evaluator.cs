@@ -794,10 +794,10 @@ internal sealed class Evaluator {
             // If what we get here is not a reference, it is a static accession and the needed scoped members have
             // already been pushed by 'EvaluateType'.
             if (possibleScope != null && possibleScope.isReference) {
-                while (possibleScope.isReference && !possibleScope.isExplicitReference)
+                while (possibleScope.isReference /*&& !possibleScope.isExplicitReference*/)
                     possibleScope = Get(possibleScope.reference);
 
-                if (possibleScope.members.Count > 0) {
+                if (possibleScope.members is not null && possibleScope.members.Count > 0) {
                     EnterClassScope(possibleScope);
                     enteredScope = true;
                 }
