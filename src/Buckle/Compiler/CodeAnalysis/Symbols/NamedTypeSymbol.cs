@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
-    private readonly DeclarationModifiers _declarationModifiers;
+    protected readonly DeclarationModifiers _declarationModifiers;
     private Dictionary<string, ImmutableArray<Symbol>> _lazyMembersDictionary;
 
     internal NamedTypeSymbol(

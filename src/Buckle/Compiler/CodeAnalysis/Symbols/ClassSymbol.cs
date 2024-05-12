@@ -34,4 +34,26 @@ internal sealed class ClassSymbol : NamedTypeSymbol {
         UpdateInternals(templateParameters, symbols);
         this.defaultFieldAssignments = defaultFieldAssignments;
     }
+
+    public bool Equals(ClassSymbol other) {
+        if ((object)this == other)
+            return true;
+
+        if (name != other.name)
+            return false;
+        if (containingType != other.containingType)
+            return false;
+        if (_declarationModifiers != other._declarationModifiers)
+            return false;
+        if (templateParameters != other.templateParameters)
+            return false;
+        if (members != other.members)
+            return false;
+        if (defaultFieldAssignments != other.defaultFieldAssignments)
+            return false;
+        if (declaration != other.declaration)
+            return false;
+
+        return true;
+    }
 }

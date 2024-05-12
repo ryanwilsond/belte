@@ -14,14 +14,14 @@ lowlevel class StringBuilder {
         _res = length;
     }
 
-    StringBuilder(char[] string) {
+    StringBuilder(char[] string_) {
         _TidyInit();
-        _ConstructContents(string, Length(string)!);
+        _ConstructContents(string_, Length(string_)!);
     }
 
-    StringBuilder(String string) {
+    StringBuilder(String string_) {
         _TidyInit();
-        _ConstructContents(string._array, string._length);
+        _ConstructContents(string_._array, string_._length);
     }
 
     void Append(char value) {
@@ -103,7 +103,7 @@ lowlevel class StringBuilder {
         return _array[index];
     }
 
-    const StringBuilder Substring(int! start, int! end = -1) {
+    const StringBuilder Substring_(int! start, int! end = -1) {
         start = _PosIndex(start);
         end = _PosIndex(end);
 

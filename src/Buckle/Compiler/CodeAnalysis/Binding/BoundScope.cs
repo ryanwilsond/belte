@@ -293,6 +293,9 @@ internal sealed class BoundScope {
         if (a.name != b.name)
             return false;
 
+        if (a.containingType != b.containingType)
+            return false;
+
         if (a.parameters.Length != b.parameters.Length)
             return false;
 
@@ -306,6 +309,9 @@ internal sealed class BoundScope {
 
     private bool NamedTypesMatch(NamedTypeSymbol a, NamedTypeSymbol b) {
         if (a.name != b.name)
+            return false;
+
+        if (a.containingType != b.containingType)
             return false;
 
         if (a.templateParameters.Length != b.templateParameters.Length)

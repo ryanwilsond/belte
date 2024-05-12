@@ -9,30 +9,30 @@ lowlevel class String {
 
     String(char[] array) {
         _array = array;
-        _length = Length(array);
+        _length = Length(array)!;
     }
 
-    String(String string) {
-        _array = string._array;
-        _length = string._length;
+    String(String string_) {
+        _array = string_._array;
+        _length = string_._length;
     }
 
     const String Append(char value) {
-        String string = new String();
-        string._length = _length + 1;
-        string._array = new char[string._length];
-        _CopyInto(ref string._array, ref _array, 0, _length);
-        string._array[_length] = value;
-        return string;
+        String string_ = new String();
+        string_._length = _length + 1;
+        string_._array = new char[string_._length];
+        _CopyInto(ref string_._array, ref _array, 0, _length);
+        string_._array[_length] = value;
+        return string_;
     }
 
     const String Append(String value) {
-        String string = new String();
-        string._length = _length + value._length;
-        string._array = new char[string._length];
-        _CopyInto(ref string._array, ref _array, 0, _length);
-        _CopyInto(ref string._array, ref value._array, _length, value._length);
-        return string;
+        String string_ = new String();
+        string_._length = _length + value._length;
+        string_._array = new char[string_._length];
+        _CopyInto(ref string_._array, ref _array, 0, _length);
+        _CopyInto(ref string_._array, ref value._array, _length, value._length);
+        return string_;
     }
 
     const int Length() {
@@ -60,7 +60,7 @@ lowlevel class String {
         return _array[index];
     }
 
-    const String Substring(int! start, int! end = -1) {
+    const String Substring_(int! start, int! end = -1) {
         start = _PosIndex(start);
         end = _PosIndex(end);
 
@@ -68,21 +68,21 @@ lowlevel class String {
             return new String();
         }
 
-        String substring = new String();
-        substring._array = new char[end - start];
+        String substring_ = new String();
+        substring_._array = new char[end - start];
 
         for (int! i = 0; i < end - start; i++) {
-            substring._array[i] = _array[i + start];
+            substring_._array[i] = _array[i + start];
         }
 
-        return substring;
+        return substring_;
     }
 
-    static char operator[](String string, int index) {
+    static char operator[](String string_, int index) {
         if (index is null)
             return null;
 
-        return string.Index(index!);
+        return string_.Index(index!);
     }
 
     const int! _PosIndex(int! index) {
