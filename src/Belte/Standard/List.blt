@@ -10,7 +10,7 @@ lowlevel class List<type T> {
 
     List(int! length) {
         _array = new T[length];
-        _length = 0;
+        _length = length;
         _res = length;
     }
 
@@ -77,6 +77,12 @@ lowlevel class List<type T> {
         }
 
         _array[index] = value;
+    }
+
+    void Fill(T value) {
+        for (int! i = 0; i < _length; i++) {
+            _array[i] = value;
+        }
     }
 
     const int Length() {

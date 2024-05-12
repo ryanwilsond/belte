@@ -3378,7 +3378,10 @@ internal sealed class Binder {
 
         bool CheckIsPartOfThis(BoundExpression current) {
             if (current is BoundVariableExpression v) {
-                return CheckForField(v);
+                if (current == left)
+                    return CheckForField(v);
+                else if (v.variable is ParameterSymbol || v.variable.containingType != _containingMethod.containingType)
+                    return false;
             } else if (current is BoundMemberAccessExpression m) {
                 if (m.left is BoundThisExpression)
                     return true;

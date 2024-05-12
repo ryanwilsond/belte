@@ -4,57 +4,87 @@ static class Math {
     constexpr E = 2.7182818284590451;
 
     static decimal Abs(decimal value);
+    static decimal! Abs(decimal! value);
     static int Abs(int value);
+    static int! Abs(int! value);
 
     static decimal Acos(decimal d);
+    static decimal! Acos(decimal! d);
 
     static decimal Acosh(decimal d);
+    static decimal! Acosh(decimal! d);
 
     static decimal Asin(decimal d);
+    static decimal! Asin(decimal! d);
 
     static decimal Asinh(decimal d);
+    static decimal! Asinh(decimal! d);
 
     static decimal Atan(decimal d);
+    static decimal! Atan(decimal! d);
 
     static decimal Atanh(decimal d);
+    static decimal! Atanh(decimal! d);
 
     static decimal Ceiling(decimal d);
+    static decimal! Ceiling(decimal! d);
 
     static decimal Clamp(decimal value, decimal min, decimal max);
+    static decimal! Clamp(decimal! value, decimal! min, decimal! max);
     static int Clamp(int value, int min, int max);
+    static int! Clamp(int! value, int! min, int! max);
 
     static decimal Cos(decimal d);
+    static decimal! Cos(decimal! d);
 
     static decimal Cosh(decimal d);
+    static decimal! Cosh(decimal! d);
 
     static decimal Exp(decimal d);
+    static decimal! Exp(decimal! d);
 
     static decimal Floor(decimal d);
+    static decimal! Floor(decimal! d);
 
     static decimal Lerp(decimal start, decimal end, decimal rate);
+    static decimal! Lerp(decimal! start, decimal! end, decimal! rate);
 
     static decimal Log(decimal d, decimal base);
+    static decimal! Log(decimal! d, decimal! base);
     static decimal Log(decimal d);
+    static decimal! Log(decimal! d);
 
     static decimal Max(decimal val1, decimal val2);
+    static decimal! Max(decimal! val1, decimal! val2);
     static int Max(int val1, int val2);
+    static int! Max(int! val1, int! val2);
 
     static decimal Min(decimal val1, decimal val2);
+    static decimal! Min(decimal! val1, decimal! val2);
     static int Min(int val1, int val2);
+    static int! Min(int! val1, int! val2);
 
     static decimal Pow(decimal x, decimal y);
+    static decimal! Pow(decimal! x, decimal! y);
 
     static decimal Round(decimal value);
+    static decimal! Round(decimal! value);
 
     static decimal Sin(decimal d);
+    static decimal! Sin(decimal! d);
 
     static decimal Sinh(decimal d);
+    static decimal! Sinh(decimal! d);
 
     static decimal Sqrt(decimal d);
+    static decimal! Sqrt(decimal! d);
 
     static decimal Tan(decimal d);
+    static decimal! Tan(decimal! d);
 
     static decimal Tanh(decimal d);
+    static decimal! Tanh(decimal! d);
 
     static decimal Truncate(decimal value);
+    static decimal! Truncate(decimal! value);
 }
