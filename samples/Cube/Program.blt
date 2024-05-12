@@ -1,0 +1,28 @@
+
+decimal A;
+decimal B;
+decimal C;
+
+constexpr CubeWidth = 10;
+constexpr Width = 160;
+constexpr Height = 44;
+constexpr BackgroundASCIICode = ' ';
+
+decimal CalculateX(int i, int j, int k) {
+    return j * Math.Sin(A) * Math.Sin(B) * Math.Cos(C) - k * Math.Cos(A) * Math.Sin(B) * Math.Cos(C) +
+           j * Math.Cos(A) * Math.Sin(C) + k * Math.Sin(A) * Math.Sin(C) + i * Math.Cos(B) * Math.Cos(C);
+}
+
+decimal CalculateY(int i, int j, int k) {
+    return j * Math.Cos(A) * Math.Cos(C) + k * Math.Sin(A) * Math.Cos(C) -
+           j * Math.Sin(A) * Math.Sin(B) * Math.Sin(C) + k * Math.Cos(A) * Math.Sin(B) * Math.Sin(C) -
+           i * Math.Cos(B) * Math.Sin(C);
+}
+
+decimal CalculateZ(int i, int j, int k) {
+    return k * Math.Cos(A) * Math.Cos(B) - j * Math.Sin(A) * Math.Cos(B) + i * Math.Sin(B);
+}
+
+Console.SetCursorPosition(0, 0);
+List<decimal> zBuffer = new List<decimal>(160 * 44);
+List<char> buffer = new List<char>(160 * 44);
