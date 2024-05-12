@@ -1754,6 +1754,16 @@ For example:
 char myChar = 'Hello'; // Not allowed, more than one character in character literal
 char myChar = 'H'; // Allowed
 ```
+$BU0117
+Because there are no implicit default values, non-nullable locals cannot be
+declared without an explicit initializer.
+
+For example:
+
+```
+int! myInt; // Not allowed, no initializer
+int! myInt = 3; // Allowed
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.

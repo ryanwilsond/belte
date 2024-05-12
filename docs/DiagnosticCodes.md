@@ -127,6 +127,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0114 | Error | cannot use arrays outside of low-level contexts |
 | BU0115 | Error | character literal cannot be empty |
 | BU0116 | Error | character literal cannot be more than one character |
+| BU0117 | Error | non-nullable locals must have an initializer |
 
 ## Command Line Diagnostics
 

@@ -1604,4 +1604,17 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0117_NoInitOnNonNullable() {
+        var text = @"
+            int! [a];
+        ";
+
+        var diagnostics = @"
+            non-nullable locals must have an initializer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

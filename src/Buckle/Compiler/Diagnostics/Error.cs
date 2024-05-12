@@ -1073,6 +1073,14 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CharacterLiteralTooLong), message);
     }
 
+    /// <summary>
+    /// BU0117. Run `buckle --explain BU0117` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic NoInitOnNonNullable(TextLocation location) {
+        var message = $"non-nullable locals must have an initializer";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoInitOnNonNullable), location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

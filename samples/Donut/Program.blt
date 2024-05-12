@@ -81,7 +81,7 @@ lowlevel void Main() {
             ! k % 80 cast to bool is bugged
             Console.Print(k % 80 ? Char(b[k]) : Char(10));
             */
-            Console.Print(k % 80 == 0 ? Char(10) : Char(b[k]));
+            Console.Print(k % 80 == 0 ? (any)Char(10) : Char(b[k]));
 
         R(5, 7, ref cA, ref sA);
         R(5, 8, ref cB, ref sB);

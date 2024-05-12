@@ -12,14 +12,19 @@ decimal! z = 0;
 decimal! ooz = 0;
 int! xp = 0;
 int! yp = 0;
-int! idx;
+int! idx = 0;
 
-constexpr int! CubeWidth = 10;
+decimal! horizontalOffset = 0;
+int! cubeWidth = 20;
+
 constexpr int! Width = 160;
 constexpr int! Height = 44;
 constexpr char! BackgroundASCIICode = ' ';
 constexpr decimal! IncrementSpeed = 0.6;
 constexpr int! DistanceFromCam = 60;
+
+List<char!> buffer = new List<char!>(160 * 44);
+List<decimal!> zBuffer = new List<decimal!>(160 * 44);
 
 decimal! CalculateX(int! i, int! j, int! k) {
     return j * Math.Sin(A) * Math.Sin(B) * Math.Cos(C) - k * Math.Cos(A) * Math.Sin(B) * Math.Cos(C) +
@@ -42,7 +47,7 @@ void CalculateForSurface(decimal! cubeX, decimal! cubeY, decimal! cubeZ, char! c
     z = CalculateX((int!)cubeX, (int!)cubeY, (int!)cubeZ) + DistanceFromCam;
 
     ooz = 1 / z!;
-    xp = (int!)(Width / 2 + K1 * ooz * x * 2);
+    xp = (int!)(Width / 2 + horizontalOffset + K1 * ooz * x * 2);
     yp = (int!)(Height / 2 + K1 * ooz * y);
 
     idx = xp + yp * Width;
@@ -55,16 +60,21 @@ void CalculateForSurface(decimal! cubeX, decimal! cubeY, decimal! cubeZ, char! c
     }
 }
 
-List<char!> buffer = new List<char!>(160 * 44);
-List<decimal!> zBuffer = new List<decimal!>(160 * 44);
-
 while (true) {
     buffer.Fill(BackgroundASCIICode);
     zBuffer.Fill(0);
 
-    for (decimal! cubeX = -CubeWidth; cubeX < CubeWidth; cubeX += IncrementSpeed) {
-        for (decimal! cubeY = -CubeWidth; cubeY < CubeWidth; cubeY += IncrementSpeed) {
-            CalculateForSurface(cubeX, cubeY, -CubeWidth, '#');
+    cubeWidth = 20;
+    horizontalOffset = -2 * cubeWidth;
+
+    for (decimal! cubeX = -cubeWidth; cubeX < cubeWidth; cubeX += IncrementSpeed) {
+        for (decimal! cubeY = -cubeWidth; cubeY < cubeWidth; cubeY += IncrementSpeed) {
+            CalculateForSurface(cubeX, cubeY, -cubeWidth, '@');
+            CalculateForSurface(cubeWidth, cubeY, cubeX, '$');
+            CalculateForSurface(-cubeWidth, cubeY, -cubeX, '~');
+            CalculateForSurface(-cubeX, cubeY, cubeWidth, '#');
+            CalculateForSurface(cubeX, -cubeWidth, -cubeY, ';');
+            CalculateForSurface(cubeX, cubeWidth, cubeY, '+');
         }
     }
 

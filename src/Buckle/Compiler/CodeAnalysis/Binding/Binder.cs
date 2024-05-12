@@ -2313,10 +2313,10 @@ internal sealed class Binder {
     private bool BindAndVerifyType(
         VariableDeclarationSyntax declaration,
         DeclarationModifiers modifiers,
-        bool explicitly,
+        bool isField,
         out BoundType type) {
         var currentCount = diagnostics.Errors().Count;
-        type = BindType(declaration.type, modifiers, explicitly);
+        type = BindType(declaration.type, modifiers, isField);
 
         if (type?.typeSymbol?.isStatic ?? false)
             diagnostics.Push(Error.StaticVariable(declaration.type.location));
@@ -2348,6 +2348,11 @@ internal sealed class Binder {
 
         if (type.typeSymbol == TypeSymbol.Void) {
             diagnostics.Push(Error.VoidVariable(declaration.type.location));
+            return false;
+        }
+
+        if (!isField && !type.isNullable && declaration.initializer is null) {
+            diagnostics.Push(Error.NoInitOnNonNullable(declaration.identifier.location));
             return false;
         }
 
