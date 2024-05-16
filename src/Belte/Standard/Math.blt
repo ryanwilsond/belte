@@ -1,90 +1,90 @@
 
 static class Math {
-    constexpr PI = 3.1415926535897931;
-    constexpr E = 2.7182818284590451;
+    public constexpr PI = 3.1415926535897931;
+    public constexpr E = 2.7182818284590451;
 
-    static decimal Abs(decimal value);
-    static decimal! Abs(decimal! value);
-    static int Abs(int value);
-    static int! Abs(int! value);
+    public static decimal Abs(decimal value);
+    public static decimal! Abs(decimal! value);
+    public static int Abs(int value);
+    public static int! Abs(int! value);
 
-    static decimal Acos(decimal d);
-    static decimal! Acos(decimal! d);
+    public static decimal Acos(decimal d);
+    public static decimal! Acos(decimal! d);
 
-    static decimal Acosh(decimal d);
-    static decimal! Acosh(decimal! d);
+    public static decimal Acosh(decimal d);
+    public static decimal! Acosh(decimal! d);
 
-    static decimal Asin(decimal d);
-    static decimal! Asin(decimal! d);
+    public static decimal Asin(decimal d);
+    public static decimal! Asin(decimal! d);
 
-    static decimal Asinh(decimal d);
-    static decimal! Asinh(decimal! d);
+    public static decimal Asinh(decimal d);
+    public static decimal! Asinh(decimal! d);
 
-    static decimal Atan(decimal d);
-    static decimal! Atan(decimal! d);
+    public static decimal Atan(decimal d);
+    public static decimal! Atan(decimal! d);
 
-    static decimal Atanh(decimal d);
-    static decimal! Atanh(decimal! d);
+    public static decimal Atanh(decimal d);
+    public static decimal! Atanh(decimal! d);
 
-    static decimal Ceiling(decimal d);
-    static decimal! Ceiling(decimal! d);
+    public static decimal Ceiling(decimal d);
+    public static decimal! Ceiling(decimal! d);
 
-    static decimal Clamp(decimal value, decimal min, decimal max);
-    static decimal! Clamp(decimal! value, decimal! min, decimal! max);
-    static int Clamp(int value, int min, int max);
-    static int! Clamp(int! value, int! min, int! max);
+    public static decimal Clamp(decimal value, decimal min, decimal max);
+    public static decimal! Clamp(decimal! value, decimal! min, decimal! max);
+    public static int Clamp(int value, int min, int max);
+    public static int! Clamp(int! value, int! min, int! max);
 
-    static decimal Cos(decimal d);
-    static decimal! Cos(decimal! d);
+    public static decimal Cos(decimal d);
+    public static decimal! Cos(decimal! d);
 
-    static decimal Cosh(decimal d);
-    static decimal! Cosh(decimal! d);
+    public static decimal Cosh(decimal d);
+    public static decimal! Cosh(decimal! d);
 
-    static decimal Exp(decimal d);
-    static decimal! Exp(decimal! d);
+    public static decimal Exp(decimal d);
+    public static decimal! Exp(decimal! d);
 
-    static decimal Floor(decimal d);
-    static decimal! Floor(decimal! d);
+    public static decimal Floor(decimal d);
+    public static decimal! Floor(decimal! d);
 
-    static decimal Lerp(decimal start, decimal end, decimal rate);
-    static decimal! Lerp(decimal! start, decimal! end, decimal! rate);
+    public static decimal Lerp(decimal start, decimal end, decimal rate);
+    public static decimal! Lerp(decimal! start, decimal! end, decimal! rate);
 
-    static decimal Log(decimal d, decimal base);
-    static decimal! Log(decimal! d, decimal! base);
-    static decimal Log(decimal d);
-    static decimal! Log(decimal! d);
+    public static decimal Log(decimal d, decimal base);
+    public static decimal! Log(decimal! d, decimal! base);
+    public static decimal Log(decimal d);
+    public static decimal! Log(decimal! d);
 
-    static decimal Max(decimal val1, decimal val2);
-    static decimal! Max(decimal! val1, decimal! val2);
-    static int Max(int val1, int val2);
-    static int! Max(int! val1, int! val2);
+    public static decimal Max(decimal val1, decimal val2);
+    public static decimal! Max(decimal! val1, decimal! val2);
+    public static int Max(int val1, int val2);
+    public static int! Max(int! val1, int! val2);
 
-    static decimal Min(decimal val1, decimal val2);
-    static decimal! Min(decimal! val1, decimal! val2);
-    static int Min(int val1, int val2);
-    static int! Min(int! val1, int! val2);
+    public static decimal Min(decimal val1, decimal val2);
+    public static decimal! Min(decimal! val1, decimal! val2);
+    public static int Min(int val1, int val2);
+    public static int! Min(int! val1, int! val2);
 
-    static decimal Pow(decimal x, decimal y);
-    static decimal! Pow(decimal! x, decimal! y);
+    public static decimal Pow(decimal x, decimal y);
+    public static decimal! Pow(decimal! x, decimal! y);
 
-    static decimal Round(decimal value);
-    static decimal! Round(decimal! value);
+    public static decimal Round(decimal value);
+    public static decimal! Round(decimal! value);
 
-    static decimal Sin(decimal d);
-    static decimal! Sin(decimal! d);
+    public static decimal Sin(decimal d);
+    public static decimal! Sin(decimal! d);
 
-    static decimal Sinh(decimal d);
-    static decimal! Sinh(decimal! d);
+    public static decimal Sinh(decimal d);
+    public static decimal! Sinh(decimal! d);
 
-    static decimal Sqrt(decimal d);
-    static decimal! Sqrt(decimal! d);
+    public static decimal Sqrt(decimal d);
+    public static decimal! Sqrt(decimal! d);
 
-    static decimal Tan(decimal d);
-    static decimal! Tan(decimal! d);
+    public static decimal Tan(decimal d);
+    public static decimal! Tan(decimal! d);
 
-    static decimal Tanh(decimal d);
-    static decimal! Tanh(decimal! d);
+    public static decimal Tanh(decimal d);
+    public static decimal! Tanh(decimal! d);
 
-    static decimal Truncate(decimal value);
-    static decimal! Truncate(decimal! value);
+    public static decimal Truncate(decimal value);
+    public static decimal! Truncate(decimal! value);
 }

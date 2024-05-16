@@ -6,8 +6,13 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// A type wrapper of a template parameter replaced after the template is created.
 /// </summary>
 internal sealed class TemplateTypeSymbol : NamedTypeSymbol {
-    internal TemplateTypeSymbol(ParameterSymbol template)
-        : base([], [], LibraryUtilities.CreateDeclaration(template.name), DeclarationModifiers.None) {
+    internal TemplateTypeSymbol(ParameterSymbol template) : base(
+            [],
+            [],
+            LibraryUtilities.CreateDeclaration(template.name),
+            DeclarationModifiers.None,
+            Accessibility.Public
+        ) {
         this.template = template;
     }
 

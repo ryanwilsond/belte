@@ -16,8 +16,9 @@ internal sealed class FieldSymbol : VariableSymbol {
         string name,
         BoundType type,
         BoundConstant constant,
-        DeclarationModifiers modifiers = DeclarationModifiers.None)
-        : base(name, type, constant, modifiers) {
+        DeclarationModifiers modifiers,
+        Accessibility accessibility)
+        : base(name, type, constant, modifiers, accessibility) {
     }
 
     public override SymbolKind kind => SymbolKind.Field;

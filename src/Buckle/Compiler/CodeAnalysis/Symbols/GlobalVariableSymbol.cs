@@ -13,7 +13,7 @@ internal sealed class GlobalVariableSymbol : VariableSymbol {
     /// <param name="type"><see cref="BoundType" /> of the variable.</param>
     /// <param name="constant"><see cref="BoundConstant" /> of the variable.</param>
     internal GlobalVariableSymbol(string name, BoundType type, BoundConstant constant, DeclarationModifiers modifiers)
-        : base(name, type, constant, modifiers) { }
+        : base(name, type, constant, modifiers, Accessibility.NotApplicable) { }
 
     public override SymbolKind kind => SymbolKind.GlobalVariable;
 }

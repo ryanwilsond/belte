@@ -94,7 +94,7 @@ public enum DiagnosticCode : int {
     ERR_AmbiguousTemplateOverload = 83,
     ERR_CannotUseStruct = 84,
     ERR_CannotUseThis = 85,
-    // ! Unused slot 86
+    ERR_MemberIsInaccessible = 86,
     ERR_NoConstructorOverload = 87,
     ERR_InvalidModifier = 88,
     ERR_InvalidInstanceReference = 89,
@@ -117,7 +117,7 @@ public enum DiagnosticCode : int {
     ERR_NotConstantExpression = 106,
     ERR_CannotReturnStatic = 107,
     ERR_IncorrectOperatorParameterCount = 108,
-    ERR_OperatorMustBeStatic = 109,
+    ERR_OperatorMustBePublicAndStatic = 109,
     ERR_StaticOperator = 110,
     ERR_OperatorAtLeastOneClassParameter = 111,
     ERR_OperatorMustReturnClass = 112,

@@ -137,6 +137,14 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayModifiers(DisplayText text, Symbol symbol) {
+        if (symbol.accessibility == Accessibility.Public) {
+            text.Write(CreateKeyword(SyntaxKind.PublicKeyword));
+            text.Write(CreateSpace());
+        } else if (symbol.accessibility == Accessibility.Private) {
+            text.Write(CreateKeyword(SyntaxKind.PrivateKeyword));
+            text.Write(CreateSpace());
+        }
+
         if (symbol.isStatic) {
             text.Write(CreateKeyword(SyntaxKind.StaticKeyword));
             text.Write(CreateSpace());

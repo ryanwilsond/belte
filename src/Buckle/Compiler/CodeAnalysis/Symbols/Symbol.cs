@@ -8,12 +8,23 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal abstract class Symbol : ISymbol {
     private protected Symbol(string name) {
         this.name = name;
+        accessibility = Accessibility.NotApplicable;
+    }
+
+    private protected Symbol(string name, Accessibility accessibility) {
+        this.name = name;
+        this.accessibility = accessibility;
     }
 
     /// <summary>
     /// Name of the symbol.
     /// </summary>
     public string name { get; }
+
+    /// <summary>
+    /// The accessibility/protection level of the symbol.
+    /// </summary> <summary>
+    public Accessibility accessibility { get; }
 
     /// <summary>
     /// The type that contains this symbol, or null if nothing is containing this symbol.

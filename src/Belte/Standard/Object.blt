@@ -1,4 +1,4 @@
 
 class Object {
-    virtual string ToString();
+    public virtual string ToString();
 }

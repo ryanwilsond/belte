@@ -31,7 +31,7 @@ public sealed class DiagnosticTests {
     public void Reports_Warning_BU0002_NullDeference() {
         var text = @"
             class A {
-                int num;
+                public int num;
             }
 
             void MyFunc(A a) {
@@ -1149,12 +1149,28 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
+    public void Reports_Error_BU0086_MemberIsInaccessible() {
+        var text = @"
+            class A {
+                private static void M() { }
+            }
+            A.[M]();
+        ";
+
+        var diagnostics = @"
+            'A.M()' is inaccessible due to its protection level
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
     public void Reports_Error_BU0087_NoConstructorOverload() {
         var text = @"
             class MyClass {
-                constructor(int a) { }
+                public constructor(int a) { }
 
-                constructor(string a) { }
+                public constructor(string a) { }
             }
 
             MyClass myClass = new [MyClass](true);
@@ -1186,7 +1202,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0089_InvalidInstanceReference() {
         var text = @"
             class MyClass {
-                static void MyMethod() { }
+                public static void MyMethod() { }
             }
 
             var myClass = new MyClass();
@@ -1204,7 +1220,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0090_InvalidStaticReference() {
         var text = @"
             class MyClass {
-                void MyMethod() { }
+                public void MyMethod() { }
             }
 
             [MyClass.MyMethod]();
@@ -1404,7 +1420,7 @@ public sealed class DiagnosticTests {
         var text = @"
             class A {
                 int a = 3;
-                void B() {
+                public void B() {
                     a++;
                 }
             }
@@ -1465,7 +1481,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0108_IncorrectOperatorParameterCount() {
         var text = @"
             class A {
-                static A operator[+](A a, A b, A c) { return a; }
+                public static A operator[+](A a, A b, A c) { return a; }
             }
         ";
 
@@ -1477,7 +1493,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0109_OperatorMustBeStatic() {
+    public void Reports_Error_BU0109_OperatorMustBePublicAndStatic() {
         var text = @"
             class A {
                 A operator[+](A a, A b) { return a; }
@@ -1485,7 +1501,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            overloaded operators must be marked as static
+            overloaded operators must be marked as public and static
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1495,7 +1511,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0110_StaticOperator() {
         var text = @"
             static class A {
-                static A operator[+](A a, A b) { return a; }
+                public static A operator[+](A a, A b) { return a; }
             }
         ";
 
@@ -1510,7 +1526,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0111_OperatorAtLeastOneClassParameter() {
         var text = @"
             class A {
-                static int operator[+](int a, int b) { return a; }
+                public static int operator[+](int a, int b) { return a; }
             }
         ";
 
@@ -1525,7 +1541,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0112_OperatorMustReturnClass() {
         var text = @"
             class A {
-                static int operator[++](A a) { return 3; }
+                public static int operator[++](A a) { return 3; }
             }
         ";
 
@@ -1540,7 +1556,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0113_IndexOperatorFirstParameter() {
         var text = @"
             class A {
-                static int operator[\[\]](int a, A b) { return 3; }
+                public static int operator[\[\]](int a, A b) { return 3; }
             }
         ";
 

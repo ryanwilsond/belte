@@ -96,6 +96,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0083 | Error | template is ambiguous between |
 | BU0084 | Error | cannot use structs outside of low-level contexts |
 | BU0085 | Error | cannot use 'this' outside of a class |
+| BU0086 | Error | '{0}.{1}' is inaccessible due to its protection level |
 | BU0087 | Error | type '{0}' does not contain a constructor that matches the parameter list |
 | BU0088 | Error | modifier '{0}' is not valid for this item |
 | BU0089 | Error | member '{0}' cannot be accessed with an instance reference; qualify it with the type name instead |
@@ -118,7 +119,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0106 | Error | expression is not a compile-time constant |
 | BU0107 | Error | static types cannot be used as return types |
 | BU0108 | Error | overloaded operator '{0}' takes {1} parameters |
-| BU0109 | Error | overloaded operators must be marked as static |
+| BU0109 | Error | overloaded operators must be marked as public and static |
 | BU0110 | Error | static classes cannot contain operators |
 | BU0111 | Error | at least one of the parameters of an operator must be the containing type |
 | BU0112 | Error | the return type for the '++' or '--' operator must be the containing type |

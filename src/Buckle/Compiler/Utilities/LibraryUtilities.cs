@@ -16,7 +16,8 @@ internal static class LibraryUtilities {
             members,
             [],
             CreateDeclaration(name),
-            DeclarationModifiers.Static
+            DeclarationModifiers.Static,
+            Accessibility.Public
         );
     }
 
@@ -26,7 +27,8 @@ internal static class LibraryUtilities {
             members,
             [],
             CreateDeclaration(name),
-            DeclarationModifiers.None
+            DeclarationModifiers.None,
+            Accessibility.Public
         );
     }
 
@@ -68,7 +70,8 @@ internal static class LibraryUtilities {
             name,
             type,
             null,
-            DeclarationModifiers.None
+            DeclarationModifiers.None,
+            Accessibility.Public
         );
     }
 
@@ -77,7 +80,8 @@ internal static class LibraryUtilities {
             name,
             BoundType.CopyWith(type, isConstantExpression: true),
             new BoundConstant(value),
-            DeclarationModifiers.ConstExpr
+            DeclarationModifiers.ConstExpr,
+            Accessibility.Public
         );
     }
 

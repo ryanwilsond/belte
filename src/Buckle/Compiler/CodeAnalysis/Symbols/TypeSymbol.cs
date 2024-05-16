@@ -63,6 +63,8 @@ internal abstract class TypeSymbol : Symbol, ITypeSymbol {
     /// <param name="name">Name of type.</param>
     protected TypeSymbol(string name) : base(name) { }
 
+    protected TypeSymbol(string name, Accessibility accessibility) : base(name, accessibility) { }
+
     public override SymbolKind kind => SymbolKind.Type;
 
     /// <summary>

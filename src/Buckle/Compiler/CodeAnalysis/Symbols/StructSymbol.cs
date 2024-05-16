@@ -14,6 +14,7 @@ internal sealed class StructSymbol : NamedTypeSymbol {
         ImmutableArray<ParameterSymbol> templateParameters,
         ImmutableArray<Symbol> symbols,
         StructDeclarationSyntax declaration,
-        DeclarationModifiers modifiers)
-        : base(templateParameters, symbols, declaration, modifiers) { }
+        DeclarationModifiers modifiers,
+        Accessibility accessibility)
+        : base(templateParameters, symbols, declaration, modifiers, accessibility) { }
 }

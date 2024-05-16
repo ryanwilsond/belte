@@ -1356,6 +1356,20 @@ class MyClass {
     }
 }
 ```
+$BU0086
+Members marked as private can only be accessed within their containing type's declaration.
+
+For example:
+
+```
+class MyClass {
+    private static void M1() { ... }
+    public static void M2() { ... }
+}
+
+MyClass.M1(); // Not allowed, `MyClass.M1()` is inaccessible outside of the `MyClass` declaration because `M1()` is marked as private
+MyClass.M2(); // Allowed, `M2()` is marked as public
+```
 $BU0087
 If an object is created with an argument list that matches no constructor
 parameter lists, this error is raised. This error is the same as BU0057 but
@@ -1648,12 +1662,17 @@ $BU0109
 Operators are static because they do not favor a specific instance (left or right). If an operator is overloaded without
 marking it as static, this error is raised.
 
+Operators must always be public. If an operator is overloaded without marking it as public, this error is raised as
+well.
+
 For example:
 
 ```
 class MyClass {
-    MyClass operator+(MyClass a, MyClass b) { ... } // Not allowed, not marked as static
-    static MyClass operator+(MyClass a, MyClass b) { ... } // Allowed
+    MyClass operator+(MyClass a, MyClass b) { ... } // Not allowed, not marked as public and static
+    public MyClass operator+(MyClass a, MyClass b) { ... } // Not allowed, not marked as static
+    static MyClass operator+(MyClass a, MyClass b) { ... } // Not allowed, not marked as public
+    public static MyClass operator+(MyClass a, MyClass b) { ... } // Allowed
 }
 ```
 $BU0110

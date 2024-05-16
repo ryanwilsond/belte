@@ -809,6 +809,14 @@ internal static class Error {
     }
 
     /// <summary>
+    /// BU0086. Run `buckle --explain BU0086` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic MemberIsInaccessible(TextLocation location, string memberName, string typeName) {
+        var message = $"'{typeName}.{memberName}' is inaccessible due to its protection level";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MemberIsInaccessible), location, message);
+    }
+
+    /// <summary>
     /// BU0087. Run `buckle --explain BU0087` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic NoConstructorOverload(TextLocation location, string name) {
@@ -1002,9 +1010,9 @@ internal static class Error {
     /// <summary>
     /// BU0109. Run `buckle --explain BU0109` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic OperatorMustBeStatic(TextLocation location) {
-        var message = $"overloaded operators must be marked as static";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_OperatorMustBeStatic), location, message);
+    internal static BelteDiagnostic OperatorMustBePublicAndStatic(TextLocation location) {
+        var message = $"overloaded operators must be marked as public and static";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_OperatorMustBePublicAndStatic), location, message);
     }
 
     /// <summary>

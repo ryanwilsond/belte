@@ -27,8 +27,9 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
         BoundType type,
         BaseMethodDeclarationSyntax declaration = null,
         MethodSymbol originalDefinition = null,
-        DeclarationModifiers modifiers = DeclarationModifiers.None)
-        : base(name) {
+        DeclarationModifiers modifiers = DeclarationModifiers.None,
+        Accessibility accessibility = Accessibility.NotApplicable)
+        : base(name, accessibility) {
         this.type = type;
         this.parameters = parameters;
         this.declaration = declaration;
