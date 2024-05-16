@@ -242,11 +242,19 @@ internal sealed class Lowerer : BoundTreeRewriter {
         (<right> isnt null ? <left> <op> Value(<right>) : null)
 
         */
-        if (expression.op.opKind == BoundBinaryOperatorKind.Is)
-            return RewriteExpression(Not(HasValue(expression.left)));
+        if (expression.op.opKind == BoundBinaryOperatorKind.Is) {
+            if (BoundConstant.IsNull(expression.right.constantValue))
+                return RewriteExpression(Not(HasValue(expression.left)));
+            else
+                return base.RewriteBinaryExpression(expression);
+        }
 
-        if (expression.op.opKind == BoundBinaryOperatorKind.Isnt)
-            return RewriteExpression(HasValue(expression.left));
+        if (expression.op.opKind == BoundBinaryOperatorKind.Isnt) {
+            if (BoundConstant.IsNull(expression.right.constantValue))
+                return RewriteExpression(HasValue(expression.left));
+            else
+                return base.RewriteBinaryExpression(expression);
+        }
 
         if (expression.op.opKind == BoundBinaryOperatorKind.Power) {
             var powMethod = expression.left.type.isNullable || expression.right.type.isNullable

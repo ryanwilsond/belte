@@ -1030,10 +1030,30 @@ internal sealed class Evaluator {
                     return new EvaluatorObject((int)leftValue % (int)rightValue);
                 else
                     return new EvaluatorObject(Convert.ToDouble(leftValue) % Convert.ToDouble(rightValue));
+            case BoundBinaryOperatorKind.Is:
+                if (TypeInheritsFrom(expression.left.type, expression.right.type))
+                    return new EvaluatorObject(true);
+                else
+                    return new EvaluatorObject(false);
+            case BoundBinaryOperatorKind.Isnt:
+                if (TypeInheritsFrom(expression.left.type, expression.right.type))
+                    return new EvaluatorObject(false);
+                else
+                    return new EvaluatorObject(true);
             default:
                 throw new BelteInternalException(
                     $"EvaluateBinaryExpression: unknown binary operator '{expression.op}'"
                 );
+        }
+
+        bool TypeInheritsFrom(BoundType left, BoundType right) {
+            if (left.typeSymbol == right.typeSymbol)
+                return true;
+
+            if (left.typeSymbol is not ClassSymbol || right.typeSymbol is not ClassSymbol)
+                return false;
+
+            return TypeInheritsFrom((left.typeSymbol as ClassSymbol).baseType, right);
         }
     }
 

@@ -3421,7 +3421,7 @@ internal sealed class Binder {
 
     private BoundExpression BindBinaryExpression(BinaryExpressionSyntax expression) {
         var boundLeft = BindExpression(expression.left);
-        var boundRight = BindExpression(expression.right);
+        var boundRight = BindExpression(expression.right, allowTypes: true);
 
         if (boundLeft.type.typeSymbol == TypeSymbol.Error || boundRight.type.typeSymbol == TypeSymbol.Error)
             return new BoundErrorExpression();
@@ -3463,6 +3463,14 @@ internal sealed class Binder {
             if (BoundConstant.IsNull(boundLeft.constantValue) || BoundConstant.IsNull(boundRight.constantValue)) {
                 diagnostics.Push(Warning.AlwaysValue(expression.location, null));
                 return new BoundTypeWrapper(boundOp.type, new BoundConstant(null));
+            }
+        }
+
+        if (boundOp.opKind is BoundBinaryOperatorKind.Is or BoundBinaryOperatorKind.Isnt) {
+            if (BoundConstant.IsNull(boundLeft.constantValue) && BoundConstant.IsNull(boundRight.constantValue)) {
+                var constant = boundOp.opKind == BoundBinaryOperatorKind.Is ? true : false;
+                diagnostics.Push(Warning.AlwaysValue(expression.location, constant));
+                return new BoundTypeWrapper(boundOp.type, new BoundConstant(constant));
             }
         }
 
