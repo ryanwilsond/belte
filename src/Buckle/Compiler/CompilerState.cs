@@ -70,4 +70,10 @@ public struct CompilerState {
     /// The type of Belte project.
     /// </summary>
     public ProjectType projectType;
+
+    /// <summary>
+    /// Whether or not the compilation is in "verbose" mode, meaning it will log additional information about the
+    /// compilation process.
+    /// </summary>
+    public bool verboseMode;
 }

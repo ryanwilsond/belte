@@ -208,6 +208,16 @@ and can then be referenced from within the program. This option is only valid in
 options.
 -->
 
+### *--verbose*
+
+Displays additional information about the compilation process, such as file targets, compilation time, compiler version,
+etc. The user of the compiler does **not** need to know this information to properly use the compiler. This option is
+typically used for compiler development purposes.
+
+The *--noout* option overrides *--verbose*, meaning that no information will be logged if both options are used. The
+*--verbose* option will automatically set the diagnostic reporting [severity level](#severityseverity-default-warning)
+to *all*.
+
 ## Running Programs
 
 There is no setup required. Because interpretation is the default behavior, no command-line arguments are needed, only

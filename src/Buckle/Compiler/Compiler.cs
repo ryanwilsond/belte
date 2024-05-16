@@ -76,6 +76,7 @@ public sealed class Compiler {
     }
 
     private void InternalInterpreter() {
+        var timer = state.verboseMode ? Stopwatch.StartNew() : null;
         var textLength = 0;
         var textsCount = 0;
 
@@ -124,11 +125,21 @@ public sealed class Compiler {
 
             EvaluationResult result = null;
 
+            if (state.verboseMode) {
+                timer.Stop();
+                diagnostics.Push(new BelteDiagnostic(
+                    DiagnosticSeverity.Debug,
+                    $"Loaded {syntaxTrees.Count} syntax trees in {timer.ElapsedMilliseconds} ms"
+                ));
+                timer.Start();
+            }
+
             void Wrapper(object parameter) {
                 if (buildMode == BuildMode.Evaluate) {
                     result = compilation.Evaluate(
                         new Dictionary<IVariableSymbol, IEvaluatorObject>(),
-                        (ValueWrapper<bool>)parameter
+                        (ValueWrapper<bool>)parameter,
+                        state.verboseMode
                     );
                 } else {
                     compilation.Execute();
@@ -151,6 +162,15 @@ public sealed class Compiler {
             var compilation = Compilation.Create(options, syntaxTree);
             EvaluationResult result = null;
 
+            if (state.verboseMode && !state.noOut) {
+                timer.Stop();
+                diagnostics.Push(new BelteDiagnostic(
+                    DiagnosticSeverity.Debug,
+                    $"Loaded 1 syntax tree in {timer.ElapsedMilliseconds} ms"
+                ));
+                timer.Start();
+            }
+
             void Wrapper(object parameter) {
                 result = compilation.Interpret(
                     new Dictionary<IVariableSymbol, IEvaluatorObject>(),
@@ -162,9 +182,18 @@ public sealed class Compiler {
 
             diagnostics.Move(result?.diagnostics);
         }
+
+        if (state.verboseMode && !state.noOut) {
+            timer.Stop();
+            diagnostics.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"Total compilation time: {timer.ElapsedMilliseconds} ms"
+            ));
+        }
     }
 
     private void InternalCompiler() {
+        var timer = state.verboseMode ? Stopwatch.StartNew() : null;
         var syntaxTrees = new List<SyntaxTree>();
 
         for (var i = 0; i < state.tasks.Length; i++) {
@@ -186,11 +215,33 @@ public sealed class Compiler {
         if (state.noOut)
             return;
 
+        if (state.verboseMode) {
+            timer.Stop();
+            diagnostics.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"Loaded {syntaxTrees.Count} syntax trees in {timer.ElapsedMilliseconds} ms"
+            ));
+            timer.Start();
+        }
+
         var result = compilation.Emit(
-            state.buildMode, state.moduleName, state.references, state.outputFilename, state.finishStage
+            state.buildMode,
+            state.moduleName,
+            state.references,
+            state.outputFilename,
+            state.finishStage,
+            state.verboseMode
         );
 
         diagnostics.Move(result);
+
+        if (state.verboseMode) {
+            timer.Stop();
+            diagnostics.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"Total compilation time: {timer.ElapsedMilliseconds} ms"
+            ));
+        }
     }
 
     private void InternalInterpreterStart(Action<object> wrapper) {

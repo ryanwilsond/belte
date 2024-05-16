@@ -56,6 +56,9 @@ public static partial class BuckleCommandLine {
             return SuccessExitCode;
         }
 
+        if (compiler.state.verboseMode && !compiler.state.noOut)
+            ShowDialogs(new ShowDialogs() { machine = true, version = true }, false);
+
         // Only mode that does not go through one-time compilation
         if (compiler.state.buildMode == BuildMode.Repl) {
             ResolveDiagnostics(diagnostics, compiler.me, compiler.state);
@@ -82,6 +85,9 @@ public static partial class BuckleCommandLine {
 
         if (err > 0)
             return err;
+
+        if (compiler.state.verboseMode && !compiler.state.noOut)
+            LogTasks(compiler.state.tasks);
 
         compiler.Compile();
 
@@ -347,28 +353,31 @@ public static partial class BuckleCommandLine {
 
             switch (severity) {
                 case DiagnosticSeverity.Debug:
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                    Console.Write("debug ");
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.Write("debug");
                     break;
                 case DiagnosticSeverity.Info:
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.Write("info ");
+                    Console.Write("info");
                     break;
                 case DiagnosticSeverity.Warning:
                     Console.ForegroundColor = ConsoleColor.Magenta;
-                    Console.Write("warning ");
+                    Console.Write("warning");
                     break;
                 case DiagnosticSeverity.Error:
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("error ");
+                    Console.Write("error");
                     break;
                 case DiagnosticSeverity.Fatal:
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("fatal ");
+                    Console.Write("fatal");
                     break;
             }
 
-            Console.Write($"{diagnostic.info}: ");
+            Console.Write(
+                $"{(diagnostic.info.code is null && diagnostic.info.module is null ? "" : $" {diagnostic.info}")}: "
+            );
+
             ResetColor();
             Console.WriteLine(diagnostic.message);
         } else {
@@ -512,6 +521,19 @@ public static partial class BuckleCommandLine {
         }
     }
 
+    private static void LogTasks(FileState[] tasks) {
+        Console.WriteLine($"File Tasks ({tasks.Length}):");
+
+        foreach (var task in tasks) {
+            Console.Write("    ");
+            Console.WriteLine(
+                $"{task.inputFileName}{(task.outputFilename is null ? "" : $" -> {task.outputFilename}")}: {task.stage}"
+            );
+        }
+
+        Console.WriteLine();
+    }
+
     private static CompilerState DecodeOptions(
         string[] args, out DiagnosticQueue<Diagnostic> diagnostics,
         out ShowDialogs dialogs, out bool multipleExplains) {
@@ -546,6 +568,7 @@ public static partial class BuckleCommandLine {
         state.warningLevel = 1;
         state.severity = DiagnosticSeverity.Warning;
         state.projectType = ProjectType.Console;
+        state.verboseMode = false;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -596,6 +619,9 @@ public static partial class BuckleCommandLine {
                     break;
                 case "--noout":
                     state.noOut = true;
+                    break;
+                case "--verbose":
+                    state.verboseMode = true;
                     break;
                 default:
                     diagnosticsCL.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
@@ -768,6 +794,9 @@ public static partial class BuckleCommandLine {
             diagnostics.Push(Belte.Diagnostics.Fatal.NoInputFiles());
 
         state.outputFilename = state.outputFilename.Trim();
+
+        if (state.verboseMode)
+            state.severity = DiagnosticSeverity.All;
 
         return state;
     }
