@@ -96,7 +96,6 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0083 | Error | template is ambiguous between |
 | BU0084 | Error | cannot use structs outside of low-level contexts |
 | BU0085 | Error | cannot use 'this' outside of a class |
-| BU0086 | Error | constructor name must match the name of the enclosing class; in this case constructors must be named '{0}' |
 | BU0087 | Error | type '{0}' does not contain a constructor that matches the parameter list |
 | BU0088 | Error | modifier '{0}' is not valid for this item |
 | BU0089 | Error | member '{0}' cannot be accessed with an instance reference; qualify it with the type name instead |

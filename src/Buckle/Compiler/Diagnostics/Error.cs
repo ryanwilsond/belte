@@ -809,16 +809,6 @@ internal static class Error {
     }
 
     /// <summary>
-    /// BU0086. Run `buckle --explain BU0086` on the command line for more info.
-    /// </summary>
-    internal static BelteDiagnostic IncorrectConstructorName(TextLocation location, string name) {
-        var message = "constructor name must match the name of the enclosing class; " +
-            $"in this case constructors must be named '{name}'";
-
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_IncorrectConstructorName), location, message);
-    }
-
-    /// <summary>
     /// BU0087. Run `buckle --explain BU0087` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic NoConstructorOverload(TextLocation location, string name) {

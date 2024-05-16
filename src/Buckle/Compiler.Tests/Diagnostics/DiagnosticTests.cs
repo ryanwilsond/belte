@@ -1149,27 +1149,12 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0086_IncorrectConstructorName() {
-        var text = @"
-            class MyClass {
-                [MyConstructor]() { }
-            }
-        ";
-
-        var diagnostics = @"
-            constructor name must match the name of the enclosing class; in this case constructors must be named 'MyClass'
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
     public void Reports_Error_BU0087_NoConstructorOverload() {
         var text = @"
             class MyClass {
-                MyClass(int a) { }
+                constructor(int a) { }
 
-                MyClass(string a) { }
+                constructor(string a) { }
             }
 
             MyClass myClass = new [MyClass](true);
@@ -1321,7 +1306,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0098_StaticConstructor() {
         var text = @"
             static class A {
-                [A]() { }
+                [constructor]() { }
             }
         ";
 

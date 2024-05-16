@@ -94,7 +94,7 @@ public enum DiagnosticCode : int {
     ERR_AmbiguousTemplateOverload = 83,
     ERR_CannotUseStruct = 84,
     ERR_CannotUseThis = 85,
-    ERR_IncorrectConstructorName = 86,
+    // ! Unused slot 86
     ERR_NoConstructorOverload = 87,
     ERR_InvalidModifier = 88,
     ERR_InvalidInstanceReference = 89,

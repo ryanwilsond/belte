@@ -326,10 +326,10 @@ public sealed class EvaluatorTests {
     [InlineData("var cond = true; int res = 3; while (true) { if (cond) ; else continue; res = 4; if (res == 4) break; } return res;", 4)]
     [InlineData("var cond = true; int res = 3; while (true) { if (cond) break; else continue; res = 4; } return res;", 3)]
     // Constructors
-    [InlineData("class A { A() { } }", null)]
-    [InlineData("class A { int a; A(int b) { a = b; } } var myVar = new A(6); return myVar.a;", 6)]
-    [InlineData("class A { int a; A(int b) { a = b; } A(int b, int c) { a = b + c; } } var myVar = new A(6); return myVar.a;", 6)]
-    [InlineData("class A { int a; A(int b) { a = b; } A(int b, int c) { a = b + c; } } var myVar = new A(6, 1); return myVar.a;", 7)]
+    [InlineData("class A { constructor() { } }", null)]
+    [InlineData("class A { int a; constructor(int b) { a = b; } } var myVar = new A(6); return myVar.a;", 6)]
+    [InlineData("class A { int a; constructor(int b) { a = b; } constructor(int b, int c) { a = b + c; } } var myVar = new A(6); return myVar.a;", 6)]
+    [InlineData("class A { int a; constructor(int b) { a = b; } constructor(int b, int c) { a = b + c; } } var myVar = new A(6, 1); return myVar.a;", 7)]
     // This expression
     [InlineData("class A { int a; void SetA(int a) { this.a = 1; this.a = a; } int GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 3)]
     [InlineData("class A { int a; void SetA(int a) { this.a = 1; a = a; } int GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 1)]
@@ -346,7 +346,7 @@ public sealed class EvaluatorTests {
     [InlineData("class A<type t> { t a; } lowlevel { var a = new A<int[]>(); a.a = {1, 2, 3}; return a.a[1]; }", 2)]
     [InlineData("class A<type t> { }; var a = new A<A<int>>();", null)]
     // Operators
-    [InlineData("class A { int a; A(int a) { this.a = a; } static int operator+(A a) { return a.a; } static int operator+(A a, int b) { return a.a + b; } } var a = new A(3); return a + 5;", 8)]
+    [InlineData("class A { int a; constructor(int a) { this.a = a; } static int operator+(A a) { return a.a; } static int operator+(A a, int b) { return a.a + b; } } var a = new A(3); return a + 5;", 8)]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
         AssertValue(text, expectedValue);
     }

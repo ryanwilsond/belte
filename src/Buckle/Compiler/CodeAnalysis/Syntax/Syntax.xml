@@ -95,6 +95,13 @@
       <Kind Name="CloseBracketToken"/>
     </Field>
   </Node>
+  <Node Name="BaseListSyntax" Base="SyntaxNode">
+    <Kind Name="BaseList"/>
+    <Field Name="extendsKeyword" Type="SyntaxToken">
+      <Kind Name="ExtendsKeyword"/>
+    </Field>
+    <Field Name="types" Type="SeparatedSyntaxList&lt;TypeSyntax&gt;"/>
+  </Node>
   <!-- Directives -->
   <AbstractNode Name="DirectiveTriviaSyntax" Base="StructuredTriviaSyntax">
     <Field Name="isActive" Type="bool"/>
@@ -225,6 +232,7 @@
       <Kind Name="IdentifierToken"/>
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="true" Optional="true"/>
+    <Field Name="baseList" Type="BaseListSyntax" Optional="true"/>
     <Field Name="openBrace" Type="SyntaxToken" Override="true">
       <Kind Name="OpenBraceToken"/>
     </Field>
@@ -256,8 +264,8 @@
     <Kind Name="ConstructorDeclaration"/>
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
-    <Field Name="identifier" Type="SyntaxToken">
-      <Kind Name="IdentifierToken"/>
+    <Field Name="constructorKeyword" Type="SyntaxToken">
+      <Kind Name="ConstructorKeyword"/>
     </Field>
     <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true"/>

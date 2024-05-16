@@ -1356,18 +1356,6 @@ class MyClass {
     }
 }
 ```
-$BU0086
-Constructors are methods that are run when an object is created, and the name
-of a constructor must match the class name. Otherwise this error is raised.
-
-For example:
-
-```
-class MyClass {
-    MyConstructor() { } // Not allowed, all constructors must be named the same as the class name, in this case `MyClass`
-
-    MyClass() { } // Allowed
-}
 $BU0087
 If an object is created with an argument list that matches no constructor
 parameter lists, this error is raised. This error is the same as BU0057 but

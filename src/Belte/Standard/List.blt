@@ -4,22 +4,22 @@ lowlevel class List<type T> {
     int! _length;
     int! _res;
 
-    List() {
+    constructor() {
         _TidyInit();
     }
 
-    List(int! length) {
+    constructor(int! length) {
         _array = new T[length];
         _length = length;
         _res = length;
     }
 
-    List(T[] array) {
+    constructor(T[] array) {
         _TidyInit();
         _ConstructContents(array, Length(array)!);
     }
 
-    List(List<T> list) {
+    constructor(List<T> list) {
         _TidyInit();
         _ConstructContents(list._array, list._length);
     }

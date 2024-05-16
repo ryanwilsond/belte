@@ -93,6 +93,14 @@ public enum SyntaxKind {
     StaticKeyword,
     OperatorKeyword,
     LowlevelKeyword,
+    ExtendsKeyword,
+    PublicKeyword,
+    PrivateKeyword,
+    SealedKeyword,
+    AbstractKeyword,
+    VirtualKeyword,
+    OverrideKeyword,
+    ConstructorKeyword,
 
     // Tokens with text
     BadToken,
@@ -186,6 +194,7 @@ public enum SyntaxKind {
     TemplateArgumentList,
     Attribute,
     AttributeList,
+    BaseList,
 
     // Other
     EndOfFileToken,

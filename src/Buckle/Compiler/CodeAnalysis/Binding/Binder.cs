@@ -512,7 +512,7 @@ internal sealed class Binder {
 
     private static TextLocation GetIdentifierLocation(BaseMethodDeclarationSyntax syntax) {
         if (syntax is ConstructorDeclarationSyntax c)
-            return c.identifier.location;
+            return c.constructorKeyword.location;
         if (syntax is MethodDeclarationSyntax m)
             return m.identifier.location;
         if (syntax is OperatorDeclarationSyntax o)
@@ -843,7 +843,6 @@ internal sealed class Binder {
         BindAttributeLists(constructor.attributeLists);
 
         var modifiers = BindConstructorDeclarationModifiers(constructor.modifiers);
-        var name = constructor.identifier.text;
         var parameters = BindParameterList(constructor.parameterList);
         var method = new MethodSymbol(
             WellKnownMemberNames.InstanceConstructorName,
@@ -853,15 +852,16 @@ internal sealed class Binder {
             modifiers: modifiers | inheritedModifiers
         );
 
-        // Currently this method is only called while binding a class declaration, so for now this is guaranteed
         var parent = constructor.parent as ClassDeclarationSyntax;
         var className = parent.identifier.text;
 
-        if (name != className)
-            diagnostics.Push(Error.IncorrectConstructorName(constructor.identifier.location, className));
-
-        if (name == className && !_scope.TryDeclareMethod(method))
-            diagnostics.Push(Error.MethodAlreadyDeclared(constructor.identifier.location, name, className));
+        if (!_scope.TryDeclareMethod(method)) {
+            diagnostics.Push(Error.MethodAlreadyDeclared(
+                constructor.constructorKeyword.location,
+                WellKnownMemberNames.InstanceConstructorName,
+                className
+            ));
+        }
 
         return method;
     }
@@ -1206,7 +1206,7 @@ internal sealed class Binder {
             var constructor = BindConstructorDeclaration(constructorDeclaration, inheritModifiers);
 
             if (isStatic) {
-                diagnostics.Push(Error.StaticConstructor(constructorDeclaration.identifier.location));
+                diagnostics.Push(Error.StaticConstructor(constructorDeclaration.constructorKeyword.location));
             } else {
                 builder.Add(constructor);
                 hasConstructor = true;

@@ -95,7 +95,7 @@
                 },
                 {
                     "name": "storage.type.class.belte",
-                    "match": "\\b(class)\\b"
+                    "match": "\\b(class|constructor)\\b"
                 },
                 {
                     "name": "storage.type.number.belte",
@@ -103,7 +103,7 @@
                 },
                 {
                     "name": "storage.modifier.belte",
-                    "match": "\\b(static|const|constexpr)\\b"
+                    "match": "\\b(public|private|abstract|virtual|override|sealed|static|const|constexpr)\\b"
                 },
                 {
                     "name": "storage.type.doxygen.belte",

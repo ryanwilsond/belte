@@ -164,6 +164,14 @@ internal static class SyntaxFacts {
             "constexpr" => SyntaxKind.ConstexprKeyword,
             "operator" => SyntaxKind.OperatorKeyword,
             "lowlevel" => SyntaxKind.LowlevelKeyword,
+            "extends" => SyntaxKind.ExtendsKeyword,
+            "public" => SyntaxKind.PublicKeyword,
+            "private" => SyntaxKind.PrivateKeyword,
+            "sealed" => SyntaxKind.SealedKeyword,
+            "abstract" => SyntaxKind.AbstractKeyword,
+            "virtual" => SyntaxKind.VirtualKeyword,
+            "override" => SyntaxKind.OverrideKeyword,
+            "constructor" => SyntaxKind.ConstructorKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -255,6 +263,14 @@ internal static class SyntaxFacts {
             SyntaxKind.ConstexprKeyword => "constexpr",
             SyntaxKind.OperatorKeyword => "operator",
             SyntaxKind.LowlevelKeyword => "lowlevel",
+            SyntaxKind.ExtendsKeyword => "extends",
+            SyntaxKind.PublicKeyword => "public",
+            SyntaxKind.PrivateKeyword => "private",
+            SyntaxKind.SealedKeyword => "sealed",
+            SyntaxKind.AbstractKeyword => "abstract",
+            SyntaxKind.VirtualKeyword => "virtual",
+            SyntaxKind.OverrideKeyword => "override",
+            SyntaxKind.ConstructorKeyword => "constructor",
             _ => null,
         };
     }

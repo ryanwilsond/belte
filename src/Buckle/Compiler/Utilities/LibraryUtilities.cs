@@ -96,6 +96,7 @@ internal static class LibraryUtilities {
             CodeAnalysis.Syntax.InternalSyntax.SyntaxFactory.Token(SyntaxKind.ClassKeyword),
             CodeAnalysis.Syntax.InternalSyntax.SyntaxFactory.Token(SyntaxKind.IdentifierToken, name),
             null, // Template parameters
+            null, // Base type list
             CodeAnalysis.Syntax.InternalSyntax.SyntaxFactory.Token(SyntaxKind.OpenBraceToken),
             null, // Members
             CodeAnalysis.Syntax.InternalSyntax.SyntaxFactory.Token(SyntaxKind.CloseBraceToken)
