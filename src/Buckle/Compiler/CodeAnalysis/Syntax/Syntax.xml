@@ -225,15 +225,12 @@
       <Kind Name="IdentifierToken"/>
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="true" Optional="true"/>
-    <Field Name="openBrace" Type="SyntaxToken" Override="true" Optional="true">
+    <Field Name="openBrace" Type="SyntaxToken" Override="true">
       <Kind Name="OpenBraceToken"/>
     </Field>
     <Field Name="members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;" Override="true" Optional="true"/>
-    <Field Name="closeBrace" Type="SyntaxToken" Override="true" Optional="true">
+    <Field Name="closeBrace" Type="SyntaxToken" Override="true">
       <Kind Name="CloseBraceToken"/>
-    </Field>
-    <Field Name="semicolon" Type="SyntaxToken" Optional="true">
-      <Kind Name="SemicolonToken"/>
     </Field>
   </Node>
   <Node Name="StructDeclarationSyntax" Base="TypeDeclarationSyntax">

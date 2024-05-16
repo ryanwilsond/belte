@@ -385,27 +385,16 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var keyword = EatToken();
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
         TemplateParameterListSyntax templateParameterList = null;
-        SyntaxToken openBrace = null;
-        SyntaxList<MemberDeclarationSyntax> members = null;
-        SyntaxToken closeBrace = null;
-        SyntaxToken semicolon = null;
-        var containsBody = false;
 
         if (currentToken.kind == SyntaxKind.LessThanToken)
             templateParameterList = ParseTemplateParameterList();
 
-        if (currentToken.kind == SyntaxKind.OpenBraceToken) {
-            openBrace = Match(SyntaxKind.OpenBraceToken);
-            var saved = _context;
-            _context |= ParserContext.InClassDefinition;
-            members = ParseMembers();
-            _context = saved;
-            closeBrace = Match(SyntaxKind.CloseBraceToken);
-            containsBody = true;
-        }
-
-        if (currentToken.kind == SyntaxKind.SemicolonToken || !containsBody)
-            semicolon = Match(SyntaxKind.SemicolonToken);
+        var openBrace = Match(SyntaxKind.OpenBraceToken);
+        var saved = _context;
+        _context |= ParserContext.InClassDefinition;
+        var members = ParseMembers();
+        _context = saved;
+        var closeBrace = Match(SyntaxKind.CloseBraceToken);
 
         return SyntaxFactory.ClassDeclaration(
             attributeLists,
@@ -415,8 +404,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             templateParameterList,
             openBrace,
             members,
-            closeBrace,
-            semicolon
+            closeBrace
         );
     }
 

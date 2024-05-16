@@ -1150,7 +1150,7 @@ internal sealed class Binder {
             }
         }
 
-        if (@class.members == null) {
+        if (@class.members.Count == 0) {
             var defaultConstructor = new MethodSymbol(
                 WellKnownMemberNames.InstanceConstructorName,
                 ImmutableArray<ParameterSymbol>.Empty,
