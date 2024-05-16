@@ -530,7 +530,7 @@ internal sealed class OverloadResolution {
             );
 
             if (castType.isImplicit && !castType.isIdentity)
-                score++;
+                score += 2;
             if (castType.isNullAdding)
                 score++;
 

@@ -21,19 +21,8 @@ internal sealed class Expander : BoundTreeExpander {
     /// </summary>
     /// <param name="statement"><see cref="BoundStatement" /> to expand expressions in.</param>
     /// <returns>Expanded <param name="statement" />.</returns>
-    internal static BoundStatement Expand(BoundStatement statement) {
-        return Simplify(ExpandAsList(statement));
-    }
-
-    /// <summary>
-    /// Expands all expression in a <see cref="BoundStatement" />.
-    /// </summary>
-    /// <param name="statement"><see cref="BoundStatement" /> to expand expressions in.</param>
-    /// <returns>List of expanded statements.</returns>
-    internal static List<BoundStatement> ExpandAsList(BoundStatement statement) {
-        var expander = new Expander();
-        var statements = expander.ExpandStatement(statement);
-        return statements;
+    internal BoundStatement Expand(BoundStatement statement) {
+        return Simplify(ExpandStatement(statement));
     }
 
     protected override List<BoundStatement> ExpandLocalDeclarationStatement(

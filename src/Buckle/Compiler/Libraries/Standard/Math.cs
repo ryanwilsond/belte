@@ -7,210 +7,210 @@ namespace Buckle.Libraries.Standard;
 internal static partial class StandardLibrary {
     internal static ClassSymbol Math = StaticClass("Math",
         [
-            Constexpr("PI", BoundType.Decimal, 3.1415926535897931),
-            Constexpr("E", BoundType.Decimal, 2.7182818284590451),
-            StaticMethod("Abs", BoundType.NullableDecimal, [
+    /* 0 */ Constexpr("PI", BoundType.Decimal, 3.1415926535897931),
+    /* 1 */ Constexpr("E", BoundType.Decimal, 2.7182818284590451),
+    /* 2 */ StaticMethod("Abs", BoundType.NullableDecimal, [
                 ("value", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Abs", BoundType.Decimal, [
+    /* 3 */ StaticMethod("Abs", BoundType.Decimal, [
                 ("value", BoundType.Decimal)
             ]),
-            StaticMethod("Abs", BoundType.NullableInt, [
+    /* 4 */ StaticMethod("Abs", BoundType.NullableInt, [
                 ("value", BoundType.NullableInt)
             ]),
-            StaticMethod("Abs", BoundType.Int, [
+    /* 5 */ StaticMethod("Abs", BoundType.Int, [
                 ("value", BoundType.Int)
             ]),
-            StaticMethod("Acos", BoundType.NullableDecimal, [
+    /* 6 */ StaticMethod("Acos", BoundType.NullableDecimal, [
                 ("d", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Acos", BoundType.Decimal, [
+    /* 7 */ StaticMethod("Acos", BoundType.Decimal, [
                 ("d", BoundType.Decimal)
             ]),
-            StaticMethod("Acosh", BoundType.NullableDecimal, [
+    /* 8 */ StaticMethod("Acosh", BoundType.NullableDecimal, [
                 ("d", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Acosh", BoundType.Decimal, [
+    /* 9 */ StaticMethod("Acosh", BoundType.Decimal, [
                 ("d", BoundType.Decimal)
             ]),
-            StaticMethod("Asin", BoundType.NullableDecimal, [
+   /* 10 */ StaticMethod("Asin", BoundType.NullableDecimal, [
                 ("d", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Asin", BoundType.Decimal, [
+   /* 11 */ StaticMethod("Asin", BoundType.Decimal, [
                 ("d", BoundType.Decimal)
             ]),
-            StaticMethod("Asinh", BoundType.NullableDecimal, [
+   /* 12 */ StaticMethod("Asinh", BoundType.NullableDecimal, [
                 ("d", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Asinh", BoundType.Decimal, [
+   /* 13 */ StaticMethod("Asinh", BoundType.Decimal, [
                 ("d", BoundType.Decimal)
             ]),
-            StaticMethod("Atan", BoundType.NullableDecimal, [
+   /* 14 */ StaticMethod("Atan", BoundType.NullableDecimal, [
                 ("d", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Atan", BoundType.Decimal, [
+   /* 15 */ StaticMethod("Atan", BoundType.Decimal, [
                 ("d", BoundType.Decimal)
             ]),
-            StaticMethod("Atanh", BoundType.NullableDecimal, [
+   /* 16 */ StaticMethod("Atanh", BoundType.NullableDecimal, [
                 ("d", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Atanh", BoundType.Decimal, [
+   /* 17 */ StaticMethod("Atanh", BoundType.Decimal, [
                 ("d", BoundType.Decimal)
             ]),
-            StaticMethod("Ceiling", BoundType.NullableDecimal, [
+   /* 18 */ StaticMethod("Ceiling", BoundType.NullableDecimal, [
                 ("d", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Ceiling", BoundType.Decimal, [
+   /* 19 */ StaticMethod("Ceiling", BoundType.Decimal, [
                 ("d", BoundType.Decimal)
             ]),
-            StaticMethod("Clamp", BoundType.NullableDecimal, [
+   /* 20 */ StaticMethod("Clamp", BoundType.NullableDecimal, [
                 ("value", BoundType.NullableDecimal),
                 ("min", BoundType.NullableDecimal),
                 ("max", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Clamp", BoundType.Decimal, [
+   /* 21 */ StaticMethod("Clamp", BoundType.Decimal, [
                 ("value", BoundType.Decimal),
                 ("min", BoundType.Decimal),
                 ("max", BoundType.Decimal)
             ]),
-            StaticMethod("Clamp", BoundType.NullableInt, [
+   /* 22 */ StaticMethod("Clamp", BoundType.NullableInt, [
                 ("value", BoundType.NullableInt),
                 ("min", BoundType.NullableInt),
                 ("max", BoundType.NullableInt)
             ]),
-            StaticMethod("Clamp", BoundType.Int, [
+   /* 23 */ StaticMethod("Clamp", BoundType.Int, [
                 ("value", BoundType.Int),
                 ("min", BoundType.Int),
                 ("max", BoundType.Int)
             ]),
-            StaticMethod("Cos", BoundType.NullableDecimal, [
+   /* 24 */ StaticMethod("Cos", BoundType.NullableDecimal, [
                 ("d", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Cos", BoundType.Decimal, [
+   /* 25 */ StaticMethod("Cos", BoundType.Decimal, [
                 ("d", BoundType.Decimal)
             ]),
-            StaticMethod("Cosh", BoundType.NullableDecimal, [
+   /* 26 */ StaticMethod("Cosh", BoundType.NullableDecimal, [
                 ("d", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Cosh", BoundType.Decimal, [
+   /* 27 */ StaticMethod("Cosh", BoundType.Decimal, [
                 ("d", BoundType.Decimal)
             ]),
-            StaticMethod("Exp", BoundType.NullableDecimal, [
+   /* 28 */ StaticMethod("Exp", BoundType.NullableDecimal, [
                 ("d", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Exp", BoundType.Decimal, [
+   /* 29 */ StaticMethod("Exp", BoundType.Decimal, [
                 ("d", BoundType.Decimal)
             ]),
-            StaticMethod("Floor", BoundType.NullableDecimal, [
+   /* 30 */ StaticMethod("Floor", BoundType.NullableDecimal, [
                 ("d", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Floor", BoundType.Decimal, [
+   /* 31 */ StaticMethod("Floor", BoundType.Decimal, [
                 ("d", BoundType.Decimal)
             ]),
-            StaticMethod("Lerp", BoundType.NullableDecimal, [
+   /* 32 */ StaticMethod("Lerp", BoundType.NullableDecimal, [
                 ("start", BoundType.NullableDecimal),
                 ("end", BoundType.NullableDecimal),
                 ("rate", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Lerp", BoundType.Decimal, [
+   /* 33 */ StaticMethod("Lerp", BoundType.Decimal, [
                 ("start", BoundType.Decimal),
                 ("end", BoundType.Decimal),
                 ("rate", BoundType.Decimal)
             ]),
-            StaticMethod("Log", BoundType.NullableDecimal, [
+   /* 34 */ StaticMethod("Log", BoundType.NullableDecimal, [
                 ("d", BoundType.NullableDecimal),
                 ("base", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Log", BoundType.Decimal, [
+   /* 35 */ StaticMethod("Log", BoundType.Decimal, [
                 ("d", BoundType.Decimal),
                 ("base", BoundType.Decimal)
             ]),
-            StaticMethod("Log", BoundType.NullableDecimal, [
+   /* 36 */ StaticMethod("Log", BoundType.NullableDecimal, [
                 ("d", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Log", BoundType.Decimal, [
+   /* 37 */ StaticMethod("Log", BoundType.Decimal, [
                 ("d", BoundType.Decimal)
             ]),
-            StaticMethod("Max", BoundType.NullableDecimal, [
+   /* 38 */ StaticMethod("Max", BoundType.NullableDecimal, [
                 ("val1", BoundType.NullableDecimal),
                 ("val2", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Max", BoundType.Decimal, [
+   /* 39 */ StaticMethod("Max", BoundType.Decimal, [
                 ("val1", BoundType.Decimal),
                 ("val2", BoundType.Decimal)
             ]),
-            StaticMethod("Max", BoundType.NullableInt, [
+   /* 40 */ StaticMethod("Max", BoundType.NullableInt, [
                 ("val1", BoundType.NullableInt),
                 ("val2", BoundType.NullableInt)
             ]),
-            StaticMethod("Max", BoundType.Int, [
+   /* 41 */ StaticMethod("Max", BoundType.Int, [
                 ("val1", BoundType.Int),
                 ("val2", BoundType.Int)
             ]),
-            StaticMethod("Min", BoundType.NullableDecimal, [
+   /* 42 */ StaticMethod("Min", BoundType.NullableDecimal, [
                 ("val1", BoundType.NullableDecimal),
                 ("val2", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Min", BoundType.Decimal, [
+   /* 43 */ StaticMethod("Min", BoundType.Decimal, [
                 ("val1", BoundType.Decimal),
                 ("val2", BoundType.Decimal)
             ]),
-            StaticMethod("Min", BoundType.NullableInt, [
+   /* 44 */ StaticMethod("Min", BoundType.NullableInt, [
                 ("val1", BoundType.NullableInt),
                 ("val2", BoundType.NullableInt)
             ]),
-            StaticMethod("Min", BoundType.Int, [
+   /* 45 */ StaticMethod("Min", BoundType.Int, [
                 ("val1", BoundType.Int),
                 ("val2", BoundType.Int)
             ]),
-            StaticMethod("Pow", BoundType.NullableDecimal, [
+   /* 46 */ StaticMethod("Pow", BoundType.NullableDecimal, [
                 ("x", BoundType.NullableDecimal),
                 ("y", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Pow", BoundType.Decimal, [
+   /* 47 */ StaticMethod("Pow", BoundType.Decimal, [
                 ("x", BoundType.Decimal),
                 ("y", BoundType.Decimal)
             ]),
-            StaticMethod("Round", BoundType.NullableDecimal, [
+   /* 48 */ StaticMethod("Round", BoundType.NullableDecimal, [
                 ("value", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Round", BoundType.Decimal, [
+   /* 49 */ StaticMethod("Round", BoundType.Decimal, [
                 ("value", BoundType.Decimal)
             ]),
-            StaticMethod("Sin", BoundType.NullableDecimal, [
+   /* 50 */ StaticMethod("Sin", BoundType.NullableDecimal, [
                 ("d", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Sin", BoundType.Decimal, [
+   /* 51 */ StaticMethod("Sin", BoundType.Decimal, [
                 ("d", BoundType.Decimal)
             ]),
-            StaticMethod("Sinh", BoundType.NullableDecimal, [
+   /* 52 */ StaticMethod("Sinh", BoundType.NullableDecimal, [
                 ("d", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Sinh", BoundType.Decimal, [
+   /* 53 */ StaticMethod("Sinh", BoundType.Decimal, [
                 ("d", BoundType.Decimal)
             ]),
-            StaticMethod("Sqrt", BoundType.NullableDecimal, [
+   /* 54 */ StaticMethod("Sqrt", BoundType.NullableDecimal, [
                 ("d", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Sqrt", BoundType.Decimal, [
+   /* 55 */ StaticMethod("Sqrt", BoundType.Decimal, [
                 ("d", BoundType.Decimal)
             ]),
-            StaticMethod("Tan", BoundType.NullableDecimal, [
+   /* 56 */ StaticMethod("Tan", BoundType.NullableDecimal, [
                 ("d", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Tan", BoundType.Decimal, [
+   /* 57 */ StaticMethod("Tan", BoundType.Decimal, [
                 ("d", BoundType.Decimal)
             ]),
-            StaticMethod("Tanh", BoundType.NullableDecimal, [
+   /* 58 */ StaticMethod("Tanh", BoundType.NullableDecimal, [
                 ("d", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Tanh", BoundType.Decimal, [
+   /* 59 */ StaticMethod("Tanh", BoundType.Decimal, [
                 ("d", BoundType.Decimal)
             ]),
-            StaticMethod("Truncate", BoundType.NullableDecimal, [
+   /* 60 */ StaticMethod("Truncate", BoundType.NullableDecimal, [
                 ("value", BoundType.NullableDecimal)
             ]),
-            StaticMethod("Truncate", BoundType.Decimal, [
+   /* 61 */ StaticMethod("Truncate", BoundType.Decimal, [
                 ("value", BoundType.Decimal)
             ]),
         ]
