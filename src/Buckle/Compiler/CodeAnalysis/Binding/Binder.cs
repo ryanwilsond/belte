@@ -122,6 +122,9 @@ internal sealed class Binder {
         var parentScope = CreateParentScope(previous, options.projectType);
         var binder = new Binder(options, options.topLevelBinderFlags, parentScope, null, previous?.libraryTypes);
 
+        if (!binder._wellKnownTypes.ContainsKey(WellKnownTypeNames.Object))
+            binder._wellKnownTypes.Add(WellKnownTypeNames.Object, StandardLibrary.Object);
+
         if (binder.diagnostics.Errors().Any())
             return GlobalScope(previous, binder.diagnostics);
 
@@ -1125,6 +1128,9 @@ internal sealed class Binder {
         } else if (type is ClassDeclarationSyntax c) {
             var modifiers = BindClassDeclarationModifiers(c.modifiers);
             var accessibility = BindAccessibilityFromModifiers(modifiers);
+            var baseType = c.baseType is null
+                ? new BoundType(_wellKnownTypes[WellKnownTypeNames.Object])
+                : BindBaseType(c.baseType);
 
             symbol = new ClassSymbol(
                     templateBuilder.ToImmutableArray(),
@@ -1132,7 +1138,8 @@ internal sealed class Binder {
                     ImmutableArray<(FieldSymbol, ExpressionSyntax)>.Empty,
                     c,
                     modifiers | inheritedModifiers,
-                    accessibility
+                    accessibility,
+                    baseType
                 );
         } else {
             throw new BelteInternalException($"BindTypeDeclaration: unexpected type '{type.identifier.text}'");
@@ -1159,6 +1166,10 @@ internal sealed class Binder {
             return Accessibility.Public;
 
         return Accessibility.Private;
+    }
+
+    private BoundType BindBaseType(BaseTypeSyntax syntax) {
+        return BindType(syntax.type);
     }
 
     private StructSymbol BindStructDeclaration(StructDeclarationSyntax @struct) {
@@ -1275,7 +1286,7 @@ internal sealed class Binder {
 
         if (_scope.LookupSymbolDirect(@class) is not ClassSymbol oldClass) {
             diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
-            return new ClassSymbol([], [], [], @class, DeclarationModifiers.None, Accessibility.NotApplicable);
+            return new ClassSymbol([], [], [], @class, DeclarationModifiers.None, Accessibility.NotApplicable, null);
         }
 
         var builder = ImmutableList.CreateBuilder<Symbol>();
@@ -1322,7 +1333,8 @@ internal sealed class Binder {
                 [],
                 @class,
                 inheritModifiers,
-                oldClass.accessibility
+                oldClass.accessibility,
+                oldClass.baseType
             );
 
             if (oldClass.members.Length == 0)
@@ -1410,7 +1422,8 @@ internal sealed class Binder {
             defaultFieldAssignments,
             @class,
             inheritModifiers,
-            oldClass.accessibility
+            oldClass.accessibility,
+            oldClass.baseType
         );
 
         // This allows the methods to be seen by the global scope

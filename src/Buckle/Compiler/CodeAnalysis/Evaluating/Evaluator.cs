@@ -771,6 +771,14 @@ internal sealed class Evaluator {
         ImmutableArray<BoundExpression> arguments,
         ValueWrapper<bool> abort,
         BoundExpression expression = null) {
+        EvaluatorObject receiver = null;
+        if (expression != null) {
+            receiver = EvaluateExpression(expression, abort);
+
+            if (receiver.members is null)
+                throw new NullReferenceException();
+        }
+
         var locals = new Dictionary<IVariableSymbol, IEvaluatorObject>();
 
         for (var i = 0; i < arguments.Length; i++) {
@@ -789,19 +797,17 @@ internal sealed class Evaluator {
         var templateConstantDepth = _templateConstantDepth;
         var enteredScope = false;
 
-        if (expression != null) {
-            var possibleScope = EvaluateExpression(expression, abort);
-
+        if (receiver != null) {
             // On an expression such as 'myInstance.Method()', we need to enter the 'myInstance' class scope
             // in case 'Method' uses 'this'
             // If what we get here is not a reference, it is a static accession and the needed scoped members have
             // already been pushed by 'EvaluateType'.
-            if (possibleScope != null && possibleScope.isReference) {
-                while (possibleScope.isReference)
-                    possibleScope = Get(possibleScope.reference);
+            if (receiver != null && receiver.isReference) {
+                while (receiver.isReference)
+                    receiver = Get(receiver.reference);
 
-                if (possibleScope.members is not null && possibleScope.members.Count > 0) {
-                    EnterClassScope(possibleScope);
+                if (receiver.members is not null && receiver.members.Count > 0) {
+                    EnterClassScope(receiver);
                     enteredScope = true;
                 }
             }

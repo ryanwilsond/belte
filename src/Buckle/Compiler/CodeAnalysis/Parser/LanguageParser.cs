@@ -372,13 +372,13 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var keyword = EatToken();
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
         TemplateParameterListSyntax templateParameterList = null;
-        BaseListSyntax baseList = null;
+        BaseTypeSyntax baseType = null;
 
         if (currentToken.kind == SyntaxKind.LessThanToken)
             templateParameterList = ParseTemplateParameterList();
 
         if (currentToken.kind == SyntaxKind.ExtendsKeyword)
-            baseList = ParseBaseList();
+            baseType = ParseBaseType();
 
         var openBrace = Match(SyntaxKind.OpenBraceToken);
         var saved = _context;
@@ -393,33 +393,17 @@ internal sealed partial class LanguageParser : SyntaxParser {
             keyword,
             identifier,
             templateParameterList,
-            baseList,
+            baseType,
             openBrace,
             members,
             closeBrace
         );
     }
 
-    private BaseListSyntax ParseBaseList() {
+    private BaseTypeSyntax ParseBaseType() {
         var extendsKeyword = Match(SyntaxKind.ExtendsKeyword);
-        var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
-
-        while (currentToken.kind != SyntaxKind.EndOfFileToken) {
-            var baseType = ParseSimpleName();
-            nodesAndSeparators.Add(baseType);
-
-            if (currentToken.kind == SyntaxKind.CommaToken) {
-                var comma = EatToken();
-                nodesAndSeparators.Add(comma);
-            } else {
-                break;
-            }
-        }
-
-        return SyntaxFactory.BaseList(
-            extendsKeyword,
-            new SeparatedSyntaxList<TypeSyntax>(nodesAndSeparators.ToList())
-        );
+        var baseType = ParseSimpleName();
+        return SyntaxFactory.BaseType(extendsKeyword, baseType);
     }
 
     private ConstructorDeclarationSyntax ParseConstructorDeclaration(

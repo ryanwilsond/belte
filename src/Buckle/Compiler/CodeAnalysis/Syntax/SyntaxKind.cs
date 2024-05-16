@@ -183,6 +183,7 @@ public enum SyntaxKind {
     ArrayType,
     NonNullableType,
     ReferenceType,
+    BaseType,
 
     // Lists
     Argument,
@@ -194,7 +195,6 @@ public enum SyntaxKind {
     TemplateArgumentList,
     Attribute,
     AttributeList,
-    BaseList,
 
     // Other
     EndOfFileToken,

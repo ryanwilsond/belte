@@ -11,7 +11,7 @@ internal static partial class StandardLibrary {
     /// Gets all the pre-compiled symbols defined by the library.
     /// </summary>
     internal static Symbol[] GetSymbols() {
-        return [Console, Math];
+        return [Object, Console, Math];
     }
 
     /// <summary>

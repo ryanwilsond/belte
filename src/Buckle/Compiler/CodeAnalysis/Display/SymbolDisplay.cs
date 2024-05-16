@@ -96,6 +96,13 @@ public static class SymbolDisplay {
 
                 text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
             }
+
+            if (n is ClassSymbol c) {
+                text.Write(CreateSpace());
+                text.Write(CreateKeyword(SyntaxKind.ExtendsKeyword));
+                text.Write(CreateSpace());
+                DisplayText.DisplayNode(text, c.baseType);
+            }
         } else {
             text.Write(CreateType(symbol.name));
         }

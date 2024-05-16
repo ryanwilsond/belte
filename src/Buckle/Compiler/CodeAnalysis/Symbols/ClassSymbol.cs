@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -16,9 +17,11 @@ internal sealed class ClassSymbol : NamedTypeSymbol {
         ImmutableArray<(FieldSymbol, ExpressionSyntax)> defaultFieldAssignments,
         ClassDeclarationSyntax declaration,
         DeclarationModifiers modifiers,
-        Accessibility accessibility)
+        Accessibility accessibility,
+        BoundType baseType)
         : base(templateParameters, symbols, declaration, modifiers, accessibility) {
         this.defaultFieldAssignments = defaultFieldAssignments;
+        this.baseType = baseType;
     }
 
     /// <summary>
@@ -27,6 +30,11 @@ internal sealed class ClassSymbol : NamedTypeSymbol {
     internal ImmutableArray<(FieldSymbol, ExpressionSyntax)> defaultFieldAssignments {
         get; private set;
     }
+
+    /// <summary>
+    /// The type this symbol inherits from; Object if not explicitly specified.
+    /// </summary>
+    internal BoundType baseType { get; }
 
     internal void UpdateInternals(
         ImmutableArray<ParameterSymbol> templateParameters,

@@ -17,7 +17,8 @@ internal static class LibraryUtilities {
             [],
             CreateDeclaration(name),
             DeclarationModifiers.Static,
-            Accessibility.Public
+            Accessibility.Public,
+            null
         );
     }
 
@@ -28,7 +29,8 @@ internal static class LibraryUtilities {
             [],
             CreateDeclaration(name),
             DeclarationModifiers.None,
-            Accessibility.Public
+            Accessibility.Public,
+            null
         );
     }
 
@@ -37,7 +39,8 @@ internal static class LibraryUtilities {
             WellKnownMemberNames.InstanceConstructorName,
             CreateParameterList(parameters),
             BoundType.Void,
-            modifiers: DeclarationModifiers.None
+            modifiers: DeclarationModifiers.None,
+            accessibility: Accessibility.Public
         );
     }
 
@@ -61,7 +64,18 @@ internal static class LibraryUtilities {
             name,
             CreateParameterList(parameters),
             type,
-            modifiers: DeclarationModifiers.Static
+            modifiers: DeclarationModifiers.Static,
+            accessibility: Accessibility.Public
+        );
+    }
+
+    internal static MethodSymbol Method(string name, BoundType type, List<(string, BoundType)> parameters) {
+        return new MethodSymbol(
+            name,
+            CreateParameterList(parameters),
+            type,
+            modifiers: DeclarationModifiers.None,
+            accessibility: Accessibility.Public
         );
     }
 
