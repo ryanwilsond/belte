@@ -2936,6 +2936,17 @@ internal sealed class Binder {
             if (!result.succeeded)
                 return new BoundErrorExpression();
 
+            if (result.bestOverload.accessibility == Accessibility.Private) {
+                if (_containingType is null ||
+                    !(_containingType as ClassSymbol).Equals(result.bestOverload.containingType as ClassSymbol)) {
+                    diagnostics.Push(Error.MemberIsInaccessible(
+                        expression.type.location,
+                        $"{result.bestOverload.name}()",
+                        result.bestOverload.containingType.name
+                    ));
+                }
+            }
+
             return new BoundObjectCreationExpression(type, result.bestOverload, result.arguments);
         }
     }

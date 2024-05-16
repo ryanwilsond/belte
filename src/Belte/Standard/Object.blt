@@ -1,4 +1,6 @@
 
 class Object {
-    public virtual string ToString();
+    private constructor();
+
+    public string ToString();
 }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Security.AccessControl;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -34,13 +35,15 @@ internal static class LibraryUtilities {
         );
     }
 
-    internal static MethodSymbol Constructor(List<(string, BoundType)> parameters) {
+    internal static MethodSymbol Constructor(
+        List<(string, BoundType)> parameters,
+        Accessibility accessibility = Accessibility.Public) {
         return new MethodSymbol(
             WellKnownMemberNames.InstanceConstructorName,
             CreateParameterList(parameters),
             BoundType.Void,
             modifiers: DeclarationModifiers.None,
-            accessibility: Accessibility.Public
+            accessibility: accessibility
         );
     }
 
