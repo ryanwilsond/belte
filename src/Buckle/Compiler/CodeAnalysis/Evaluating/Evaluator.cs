@@ -942,10 +942,10 @@ internal sealed class Evaluator {
             return new EvaluatorObject();
 
         var expressionType = expression.type.typeSymbol;
-        var leftType = expression.left.type.typeSymbol;
+        var leftType = expression.op.leftType.typeSymbol;
 
-        leftValue = EvaluateValueCast(leftValue, expression.left.type);
-        rightValue = EvaluateValueCast(rightValue, expression.right.type);
+        leftValue = EvaluateValueCast(leftValue, expression.op.leftType);
+        rightValue = EvaluateValueCast(rightValue, expression.op.rightType);
 
         switch (expression.op.opKind) {
             case BoundBinaryOperatorKind.Addition:
