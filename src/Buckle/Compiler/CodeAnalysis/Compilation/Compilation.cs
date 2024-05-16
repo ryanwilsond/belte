@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using Buckle.CodeAnalysis.Authoring;
@@ -12,6 +13,7 @@ using Buckle.CodeAnalysis.FlowAnalysis;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Diagnostics;
 using Shared;
 
 namespace Buckle.CodeAnalysis;
@@ -139,10 +141,11 @@ public sealed class Compilation {
     /// <param name="abort">External flag used to cancel evaluation.</param>
     /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
     public EvaluationResult Evaluate(
-        Dictionary<IVariableSymbol, IEvaluatorObject> variables, ValueWrapper<bool> abort) {
+        Dictionary<IVariableSymbol, IEvaluatorObject> variables, ValueWrapper<bool> abort, bool logTime = false) {
         if (globalScope.diagnostics.Errors().Any())
             return EvaluationResult.Failed(globalScope.diagnostics);
 
+        var timer = logTime ? Stopwatch.StartNew() : null;
         var program = GetProgram();
 
 #if DEBUG
@@ -152,12 +155,29 @@ public sealed class Compilation {
         }
 #endif
 
+        if (logTime) {
+            timer.Stop();
+            diagnostics.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"Bound the program in {timer.ElapsedMilliseconds} ms"
+            ));
+            timer.Restart();
+        }
+
         if (program.diagnostics.Errors().Any())
             return EvaluationResult.Failed(program.diagnostics);
 
         diagnostics.Move(program.diagnostics);
         var eval = new Evaluator(program, variables, options.arguments);
         var evalResult = eval.Evaluate(abort, out var hasValue);
+
+        if (logTime) {
+            timer.Stop();
+            diagnostics.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"Evaluated the program in {timer.ElapsedMilliseconds} ms"
+            ));
+        }
 
         diagnostics.Move(eval.diagnostics);
         var result = new EvaluationResult(evalResult, hasValue, diagnostics, eval.exceptions, eval.lastOutputWasPrint);
@@ -292,24 +312,47 @@ public sealed class Compilation {
         string moduleName,
         string[] references,
         string outputPath,
-        CompilerStage _) {
+        CompilerStage _,
+        bool logTime = false) {
         if (diagnostics.Errors().Any())
             return diagnostics;
 
+        var timer = logTime ? Stopwatch.StartNew() : null;
         var program = GetProgram();
         program.diagnostics.Move(diagnostics);
+
+        if (logTime) {
+            timer.Stop();
+            diagnostics.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"Bound the program in {timer.ElapsedMilliseconds} ms"
+            ));
+            timer.Restart();
+        }
 
         if (program.diagnostics.Errors().Any())
             return program.diagnostics;
 
+        var emitted = false;
+
         if (buildMode == BuildMode.Dotnet)
+            // emitted = true;
             // return ILEmitter.Emit(program, moduleName, references, outputPath);
             diagnostics.Push(Fatal.Unsupported.DotnetCompilation());
         else if (buildMode == BuildMode.CSharpTranspile)
+            // emitted = true;
             // return CSharpEmitter.Emit(program, outputPath);
             diagnostics.Push(Fatal.Unsupported.CSharpTranspilation());
         else if (buildMode == BuildMode.Independent)
             diagnostics.Push(Fatal.Unsupported.IndependentCompilation());
+
+        if (logTime && emitted) {
+            timer.Stop();
+            diagnostics.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"Emitted the program in {timer.ElapsedMilliseconds} ms"
+            ));
+        }
 
         return diagnostics;
     }

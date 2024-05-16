@@ -54,17 +54,36 @@
             ]
         },
         "strings": {
-            "name": "string.quoted.double.belte",
-            "begin": "(\\\")|(\\$\\\")",
-            "end": "\\\"",
             "patterns": [
                 {
-                    "name": "constant.character.escape.belte",
-                    "match": "\\\\."
+                    "name": "string.quoted.double.belte",
+                    "begin": "(\\\")|(\\$\\\")",
+                    "end": "\\\"",
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.belte",
+                            "match": "\\\\."
+                        },
+                        {
+                            "name": "meta.interpolation.belte",
+                            "match": "(?<=\\$\\\".*){[^}]*}(?=.*\\\")"
+                        }
+                    ]
                 },
                 {
-                    "name": "meta.interpolation.belte",
-                    "match": "(?<=\\$\\\".*){[^}]*}(?=.*\\\")"
+                    "name": "string.quoted.single.belte",
+                    "begin": "(\\')|(\\$\\')",
+                    "end": "\\'",
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.belte",
+                            "match": "\\\\."
+                        },
+                        {
+                            "name": "meta.interpolation.belte",
+                            "match": "(?<=\\$\\\".*){[^}]*}(?=.*\\\")"
+                        }
+                    ]
                 }
             ]
         },
@@ -72,7 +91,7 @@
             "patterns": [
                 {
                     "name": "storage.type.built-in.belte",
-                    "match": "\\b(int|decimal|string|void|bool|type)\\b"
+                    "match": "\\b(int|decimal|string|void|bool|type|char|any)\\b"
                 },
                 {
                     "name": "storage.type.class.belte",

@@ -97,5 +97,5 @@ builddebug:
 	@dotnet build $(CL_DIR)/CommandLine.csproj --sc -r $(SYSTEM) -o bin/debug
 
 buildlinux:
-	@echo "Started building the Buckle project (portable) ..."
-	@dotnet build $(CL_DIR)/CommandLine.csproj $(FLAGS) --sc -o bin/linux
+	@echo "Started building the Buckle project (linux) ..."
+	@dotnet build $(CL_DIR)/CommandLine.csproj --sc -o bin/linux

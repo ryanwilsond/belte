@@ -17,6 +17,8 @@ Options:
   --wignore=<[BU|RE|CL]<code>,...>    Specify a specific warning to suppress.
   --winclude=<[BU|RE|CL]<code>,...>   Specify a specific warning to report.
 
+  --verbose                   Display additional information about the compilation process.
+
 Additional Resources:
   GitHub Repository: https://github.com/ryanwilsond/belte/
   Documentation: https://ryanwilsond.github.io/belte/

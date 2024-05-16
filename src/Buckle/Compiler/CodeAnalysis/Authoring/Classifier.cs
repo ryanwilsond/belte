@@ -92,7 +92,7 @@ public static class Classifier {
             SyntaxKind.FalseKeyword or
             SyntaxKind.NullKeyword;
         var isIdentifier = kind == SyntaxKind.IdentifierToken;
-        var isString = kind == SyntaxKind.StringLiteralToken;
+        var isString = kind is SyntaxKind.StringLiteralToken or SyntaxKind.CharacterLiteralToken;
         var isComment = kind.IsComment();
 
         if (isTypeName)

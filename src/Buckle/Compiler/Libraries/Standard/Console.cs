@@ -7,7 +7,7 @@ namespace Buckle.Libraries.Standard;
 internal static partial class StandardLibrary {
     internal static ClassSymbol Console = StaticClass("Console",
         [
-            StaticClass("Color", [
+    /* 0 */ StaticClass("Color", [
                 Constexpr("Black", BoundType.Int, 0),
                 Constexpr("DarkBlue", BoundType.Int, 1),
                 Constexpr("DarkGreen", BoundType.Int, 2),
@@ -25,27 +25,33 @@ internal static partial class StandardLibrary {
                 Constexpr("Yellow", BoundType.Int, 14),
                 Constexpr("White", BoundType.Int, 15)
             ]),
-            StaticMethod("PrintLine", BoundType.Void, [
-                ("message", BoundType.NullableString)
+    /* 1 */ StaticMethod("PrintLine", BoundType.Void, [
+                        ("message", BoundType.NullableString)
             ]),
-            StaticMethod("PrintLine", BoundType.Void, [
+    /* 2 */ StaticMethod("PrintLine", BoundType.Void, [
                 ("value", BoundType.NullableAny)
             ]),
-            StaticMethod("PrintLine", BoundType.Void, []),
-            StaticMethod("Print", BoundType.Void, [
+    /* 3 */ StaticMethod("PrintLine", BoundType.Void, []),
+    /* 4 */ StaticMethod("Print", BoundType.Void, [
                 ("message", BoundType.NullableString)
             ]),
-            StaticMethod("Print", BoundType.Void, [
+    /* 5 */ StaticMethod("Print", BoundType.Void, [
                 ("value", BoundType.NullableAny)
             ]),
-            StaticMethod("Input", BoundType.String, []),
-            StaticMethod("SetForegroundColor", BoundType.Void, [
+    /* 6 */ StaticMethod("Input", BoundType.String, []),
+    /* 7 */ StaticMethod("SetForegroundColor", BoundType.Void, [
                 ("color", BoundType.Int)
             ]),
-            StaticMethod("SetBackgroundColor", BoundType.Void, [
+    /* 8 */ StaticMethod("SetBackgroundColor", BoundType.Void, [
                 ("color", BoundType.Int)
             ]),
-            StaticMethod("ResetColor", BoundType.Void, []),
+    /* 9 */ StaticMethod("ResetColor", BoundType.Void, []),
+   /* 10 */ StaticMethod("GetWidth", BoundType.Int, []),
+   /* 11 */ StaticMethod("GetHeight", BoundType.Int, []),
+   /* 12 */ StaticMethod("SetCursorPosition", BoundType.Void, [
+                ("left", BoundType.NullableInt),
+                ("top", BoundType.NullableInt)
+            ]),
         ]
     );
 }

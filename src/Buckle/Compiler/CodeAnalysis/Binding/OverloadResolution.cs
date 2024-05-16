@@ -530,6 +530,8 @@ internal sealed class OverloadResolution {
             );
 
             if (castType.isImplicit && !castType.isIdentity)
+                score += 2;
+            if (castType.isNullAdding)
                 score++;
 
             currentBoundArguments.Add(boundArgument);

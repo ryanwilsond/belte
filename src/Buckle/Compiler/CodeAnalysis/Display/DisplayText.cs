@@ -668,12 +668,14 @@ public sealed class DisplayText {
         var typeSymbol = BoundType.Assume(node.value).typeSymbol;
 
         if (typeSymbol == TypeSymbol.String)
-            DisplayStringLiteral(value);
+            DisplayStringLiteral(value, false);
+        else if (typeSymbol == TypeSymbol.Char)
+            DisplayStringLiteral(value, true);
         else
             text.Write(CreateLiteral(value.ToLower()));
 
-        void DisplayStringLiteral(string value) {
-            var stringBuilder = new StringBuilder("\"");
+        void DisplayStringLiteral(string value, bool isCharacter) {
+            var stringBuilder = new StringBuilder(isCharacter ? "'" : "\"");
 
             foreach (var c in value) {
                 switch (c) {
@@ -728,7 +730,7 @@ public sealed class DisplayText {
                 }
             }
 
-            stringBuilder.Append("\"");
+            stringBuilder.Append(isCharacter ? '\'' : '"');
             text.Write(CreateString(stringBuilder.ToString()));
         }
     }

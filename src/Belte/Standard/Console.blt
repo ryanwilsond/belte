@@ -34,4 +34,10 @@ static class Console {
     static void SetBackgroundColor(int! color);
 
     static void ResetColor();
+
+    static int GetWidth();
+
+    static int GetHeight();
+
+    static void SetCursorPosition(int left, int top);
 }

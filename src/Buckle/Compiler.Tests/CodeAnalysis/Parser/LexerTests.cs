@@ -158,6 +158,7 @@ public sealed class LexerTests {
             (SyntaxKind.IdentifierToken, "abc"),
             (SyntaxKind.StringLiteralToken, "\"Test\""),
             (SyntaxKind.StringLiteralToken, "\"Te\"\"st\""),
+            (SyntaxKind.CharacterLiteralToken, "\'H\'")
         };
 
         return fixedTokens.Concat(dynamicTokens);

@@ -557,6 +557,7 @@ public sealed partial class BelteRepl : Repl {
 
     [MetaCommand("dump", "Show contents of symbol <signature>")]
     private void EvaluateDump(string signature) {
+        // TODO Let this work with template overloads
         var compilation = state.previous ?? EmptyCompilation;
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
         ISymbol[] symbols;

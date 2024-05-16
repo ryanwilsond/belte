@@ -31,6 +31,11 @@ internal abstract class TypeSymbol : Symbol, ITypeSymbol {
     internal static readonly TypeSymbol String = new PrimitiveTypeSymbol("string");
 
     /// <summary>
+    /// Character type.
+    /// </summary>
+    internal static readonly TypeSymbol Char = new PrimitiveTypeSymbol("char");
+
+    /// <summary>
     /// Any type (effectively the object type).
     /// </summary>
     internal static readonly TypeSymbol Any = new PrimitiveTypeSymbol("any");

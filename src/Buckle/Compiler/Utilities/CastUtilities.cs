@@ -35,6 +35,8 @@ internal static class CastUtilities {
             return Convert.ToDouble(value);
         } else if (typeSymbol == TypeSymbol.String) {
             return Convert.ToString(value);
+        } else if (typeSymbol == TypeSymbol.Char) {
+            return Convert.ToChar(value);
         } else {
             return value;
         }

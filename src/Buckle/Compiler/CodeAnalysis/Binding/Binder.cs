@@ -131,8 +131,12 @@ internal sealed class Binder {
             if (member is TypeDeclarationSyntax ts) {
                 var symbol = binder.PreBindTypeDeclaration(ts, DeclarationModifiers.None);
 
-                if (options.isLibrary && symbol.name == WellKnownTypeNames.List)
-                    binder._wellKnownTypes.Add(WellKnownTypeNames.List, symbol);
+                if (options.isLibrary) {
+                    if (symbol.name == WellKnownTypeNames.List)
+                        binder._wellKnownTypes.Add(WellKnownTypeNames.List, symbol);
+                    else if (symbol.name == WellKnownTypeNames.String)
+                        binder._wellKnownTypes.Add(WellKnownTypeNames.String, symbol);
+                }
             }
         }
 
@@ -619,6 +623,7 @@ internal sealed class Binder {
             "int" => TypeSymbol.Int,
             "decimal" => TypeSymbol.Decimal,
             "string" => TypeSymbol.String,
+            "char" => TypeSymbol.Char,
             "void" => TypeSymbol.Void,
             "type" => TypeSymbol.Type,
             _ => null,
@@ -1061,7 +1066,7 @@ internal sealed class Binder {
             ImmutableArray<ParameterSymbol>.Empty,
             builder.ToImmutableArray(),
             @struct,
-            DeclarationModifiers.None
+            oldStruct.isLowLevel ? DeclarationModifiers.LowLevel : DeclarationModifiers.None
         );
 
         if (oldStruct.members.Length == 0)
@@ -1163,7 +1168,7 @@ internal sealed class Binder {
                 builder.ToImmutableArray(),
                 [],
                 @class,
-                DeclarationModifiers.None
+                inheritModifiers
             );
 
             if (oldClass.members.Length == 0)
@@ -1244,19 +1249,19 @@ internal sealed class Binder {
             builder.Add(type);
         }
 
-        // This allows the methods to be seen by the global scope
-        foreach (var method in _scope.GetDeclaredMethods())
-            _scope.parent.DeclareMethodStrict(method);
-
-        _scope = _scope.parent;
-
         var newClass = new ClassSymbol(
             oldClass.templateParameters,
             builder.ToImmutableArray(),
             defaultFieldAssignments,
             @class,
-            DeclarationModifiers.None
+            inheritModifiers
         );
+
+        // This allows the methods to be seen by the global scope
+        foreach (var method in _scope.GetDeclaredMethods())
+            _scope.parent.DeclareMethodStrict(method);
+
+        _scope = _scope.parent;
 
         // If no members, the default .ctor has yet to be built by the compiler, meaning this instance is a temporary
         // symbol that needs to be replaced
@@ -2130,7 +2135,7 @@ internal sealed class Binder {
 
         var initializer = BindStatement(statement.initializer);
         var condition = BindCast(statement.condition, BoundType.NullableBool);
-        var step = BindExpression(statement.step);
+        var step = BindExpression(statement.step, ownStatement: true);
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
 
         _scope = _scope.parent;
@@ -2308,10 +2313,10 @@ internal sealed class Binder {
     private bool BindAndVerifyType(
         VariableDeclarationSyntax declaration,
         DeclarationModifiers modifiers,
-        bool explicitly,
+        bool isField,
         out BoundType type) {
         var currentCount = diagnostics.Errors().Count;
-        type = BindType(declaration.type, modifiers, explicitly);
+        type = BindType(declaration.type, modifiers, isField);
 
         if (type?.typeSymbol?.isStatic ?? false)
             diagnostics.Push(Error.StaticVariable(declaration.type.location));
@@ -2343,6 +2348,11 @@ internal sealed class Binder {
 
         if (type.typeSymbol == TypeSymbol.Void) {
             diagnostics.Push(Error.VoidVariable(declaration.type.location));
+            return false;
+        }
+
+        if (!isField && !type.isNullable && declaration.initializer is null) {
+            diagnostics.Push(Error.NoInitOnNonNullable(declaration.identifier.location));
             return false;
         }
 
@@ -2718,15 +2728,8 @@ internal sealed class Binder {
             }
         }
 
-        if (expression.operatorToken.kind is SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken) {
-            var assignedVariable = BindingUtilities.GetAssignedVariableSymbol(boundOperand);
-
-            if ((_containingMethod?.isConstant ?? false) &&
-                assignedVariable.containingType == _containingMethod.containingType &&
-                assignedVariable is not ParameterSymbol) {
-                diagnostics.Push(Error.AssignmentInConstMethod(expression.operatorToken.location));
-            }
-        }
+        if (expression.operatorToken.kind is SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken)
+            CheckForAssignmentInConstMethod(boundOperand, expression.operatorToken.location);
 
         (var isConstant, var isConstantReference) = CheckConstantality(boundOperand);
 
@@ -2780,13 +2783,7 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        var assignedVariable = BindingUtilities.GetAssignedVariableSymbol(boundOperand);
-
-        if ((_containingMethod?.isConstant ?? false) &&
-            assignedVariable.containingType == _containingMethod.containingType &&
-            assignedVariable is not ParameterSymbol) {
-            diagnostics.Push(Error.AssignmentInConstMethod(expression.operatorToken.location));
-        }
+        CheckForAssignmentInConstMethod(boundOperand, expression.operatorToken.location);
 
         (var isConstant, var isConstantReference) = CheckConstantality(boundOperand);
 
@@ -3282,13 +3279,8 @@ internal sealed class Binder {
 
         var boundExpression = right ?? BindExpression(expression.right);
         var type = left.type;
-        var assignedVariable = BindingUtilities.GetAssignedVariableSymbol(left);
 
-        if ((_containingMethod?.isConstant ?? false) &&
-            assignedVariable.containingType == _containingMethod.containingType &&
-            assignedVariable is not ParameterSymbol) {
-            diagnostics.Push(Error.AssignmentInConstMethod(expression.assignmentToken.location));
-        }
+        CheckForAssignmentInConstMethod(left, expression.assignmentToken.location);
 
         if (!type.isNullable && boundExpression is BoundLiteralExpression le && le.value is null) {
             diagnostics.Push(Error.NullAssignOnNotNull(expression.right.location, false));
@@ -3359,5 +3351,61 @@ internal sealed class Binder {
 
             return new BoundAssignmentExpression(left, convertedExpression);
         }
+    }
+
+    private void CheckForAssignmentInConstMethod(BoundExpression left, TextLocation assignmentLocation) {
+        // Checks if `left` is apart of the current instance
+        // Starts by returning if inside a constant method
+        // Recursively checks the right most node of `left` to get to a variable expression, and aborting if
+        // it is a parameter or of another containing type (as that does not break the rules of constant methods)
+        // Otherwise, checks the left most node of `left` to check if it roots in a field on this instance
+        // If so, raises an error
+        if (_containingMethod is null || !_containingMethod.isConstant)
+            return;
+
+        bool CheckForField(BoundExpression current) {
+            if (current is BoundVariableExpression v) {
+                if (v.variable is ParameterSymbol ||
+                    v.variable.containingType != _containingMethod.containingType ||
+                    v.variable is LocalVariableSymbol) {
+                    return false;
+                } else {
+                    return true;
+                }
+            } else if (current is BoundMemberAccessExpression m) {
+                return CheckForField(m.left);
+            } else if (current is BoundIndexExpression i) {
+                return CheckForField(i.expression);
+            } else {
+                return false;
+            }
+        }
+
+        bool CheckIsPartOfThis(BoundExpression current) {
+            if (current is BoundVariableExpression v) {
+                if (current == left)
+                    return CheckForField(v);
+                else if (v.variable is ParameterSymbol || v.variable.containingType != _containingMethod.containingType)
+                    return false;
+            } else if (current is BoundMemberAccessExpression m) {
+                if (m.left is BoundThisExpression)
+                    return true;
+
+                if (CheckForField(m.left))
+                    return true;
+
+                return CheckIsPartOfThis(m.right);
+            } else if (current is BoundIndexExpression i) {
+                if (i.expression is BoundThisExpression)
+                    return true;
+
+                return CheckIsPartOfThis(i.expression);
+            }
+
+            return false;
+        }
+
+        if (CheckIsPartOfThis(left))
+            diagnostics.Push(Error.AssignmentInConstMethod(assignmentLocation));
     }
 }

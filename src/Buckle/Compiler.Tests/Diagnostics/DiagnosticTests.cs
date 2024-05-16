@@ -1578,4 +1578,43 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0115_EmptyCharacterLiteral() {
+        var text = @"
+            char a = [''];
+        ";
+
+        var diagnostics = @"
+            character literal cannot be empty
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0116_CharacterLiteralTooLong() {
+        var text = @"
+            char a = ['asdf'];
+        ";
+
+        var diagnostics = @"
+            character literal cannot be more than one character
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0117_NoInitOnNonNullable() {
+        var text = @"
+            int! [a];
+        ";
+
+        var diagnostics = @"
+            non-nullable locals must have an initializer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

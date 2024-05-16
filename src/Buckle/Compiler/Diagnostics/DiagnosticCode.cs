@@ -123,6 +123,9 @@ public enum DiagnosticCode : int {
     ERR_OperatorMustReturnClass = 112,
     ERR_IndexOperatorFirstParameter = 113,
     ERR_ArrayOutsideOfLowLevelContext = 114,
+    ERR_EmptyCharacterLiteral = 115,
+    ERR_CharacterLiteralTooLong = 116,
+    ERR_NoInitOnNonNullable = 117,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

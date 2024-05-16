@@ -1057,6 +1057,30 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ArrayOutsideOfLowLevelContext), location, message);
     }
 
+    /// <summary>
+    /// BU0115. Run `buckle --explain BU0115` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic EmptyCharacterLiteral() {
+        var message = $"character literal cannot be empty";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_EmptyCharacterLiteral), message);
+    }
+
+    /// <summary>
+    /// BU0116. Run `buckle --explain BU0116` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic CharacterLiteralTooLong() {
+        var message = $"character literal cannot be more than one character";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CharacterLiteralTooLong), message);
+    }
+
+    /// <summary>
+    /// BU0117. Run `buckle --explain BU0117` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic NoInitOnNonNullable(TextLocation location) {
+        var message = $"non-nullable locals must have an initializer";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoInitOnNonNullable), location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

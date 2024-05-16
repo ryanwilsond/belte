@@ -368,9 +368,10 @@ internal sealed class Evaluator {
                         break;
                     case BoundNodeKind.ConditionalGotoStatement:
                         var cgs = (BoundConditionalGotoStatement)s;
-                        var condition = (bool)Value(EvaluateExpression(cgs.condition, abort));
+                        var condition = EvaluateExpression(cgs.condition, abort);
+                        var conditionValue = (bool)Value(condition);
 
-                        if (condition == cgs.jumpIfTrue)
+                        if (conditionValue == cgs.jumpIfTrue)
                             index = labelToIndex[cgs.label];
                         else
                             index++;
@@ -707,7 +708,8 @@ internal sealed class Evaluator {
             node.method == BuiltinMethods.ValueBool ||
             node.method == BuiltinMethods.ValueDecimal ||
             node.method == BuiltinMethods.ValueInt ||
-            node.method == BuiltinMethods.ValueString) {
+            node.method == BuiltinMethods.ValueString ||
+            node.method == BuiltinMethods.ValueChar) {
             var value = EvaluateExpression(node.arguments[0], abort);
             var hasNoMembers = value.isReference ? Get(value.reference).members is null : value.members is null;
 
@@ -722,7 +724,8 @@ internal sealed class Evaluator {
             node.method == BuiltinMethods.HasValueBool ||
             node.method == BuiltinMethods.HasValueDecimal ||
             node.method == BuiltinMethods.HasValueInt ||
-            node.method == BuiltinMethods.HasValueString) {
+            node.method == BuiltinMethods.HasValueString ||
+            node.method == BuiltinMethods.HasValueChar) {
             var value = EvaluateExpression(node.arguments[0], abort);
             var hasNoMembers = value.isReference ? Get(value.reference).members is null : value.members is null;
 
@@ -939,10 +942,10 @@ internal sealed class Evaluator {
             return new EvaluatorObject();
 
         var expressionType = expression.type.typeSymbol;
-        var leftType = expression.left.type.typeSymbol;
+        var leftType = expression.op.leftType.typeSymbol;
 
-        leftValue = EvaluateValueCast(leftValue, expression.left.type);
-        rightValue = EvaluateValueCast(rightValue, expression.right.type);
+        leftValue = EvaluateValueCast(leftValue, expression.op.leftType);
+        rightValue = EvaluateValueCast(rightValue, expression.op.rightType);
 
         switch (expression.op.opKind) {
             case BoundBinaryOperatorKind.Addition:

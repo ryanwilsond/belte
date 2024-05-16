@@ -9,27 +9,33 @@ internal sealed class Cast {
     /// <summary>
     /// No cast.
     /// </summary>
-    internal static readonly Cast None = new Cast(false, false, false);
+    internal static readonly Cast None = new Cast(false, false, false, false);
 
     /// <summary>
     /// <see cref="Cast" /> where both types are the same.
     /// </summary>
-    internal static readonly Cast Identity = new Cast(true, true, true);
+    internal static readonly Cast Identity = new Cast(true, true, true, false);
 
     /// <summary>
     /// Lossless cast, can be done automatically.
     /// </summary>
-    internal static readonly Cast Implicit = new Cast(true, false, true);
+    internal static readonly Cast Implicit = new Cast(true, false, true, false);
+
+    /// <summary>
+    /// Lossless cast where nullability is being added.
+    /// </summary>
+    internal static readonly Cast NullAdding = new Cast(true, true, true, true);
 
     /// <summary>
     /// Lossy cast, cannot be done implicitly.
     /// </summary>
-    internal static readonly Cast Explicit = new Cast(true, false, false);
+    internal static readonly Cast Explicit = new Cast(true, false, false, false);
 
-    private Cast(bool exists, bool isIdentity, bool isImplicit) {
+    private Cast(bool exists, bool isIdentity, bool isImplicit, bool isNullAdding) {
         this.exists = exists;
         this.isIdentity = isIdentity;
         this.isImplicit = isImplicit;
+        this.isNullAdding = isNullAdding;
     }
 
     /// <summary>
@@ -46,6 +52,11 @@ internal sealed class Cast {
     /// If the <see cref="Cast" /> is an implicit cast.
     /// </summary>
     internal bool isImplicit { get; }
+
+    /// <summary>
+    /// If the <see cref="Cast"/> is a nullable cast.
+    /// </summary>
+    internal bool isNullAdding { get; }
 
     /// <summary>
     /// If the <see cref="Cast" /> is an explicit cast.
@@ -79,6 +90,14 @@ internal sealed class Cast {
             return Explicit;
 
         Cast InternalClassify() {
+            // TODO This should not need to be here, but for some reason the String used in String itself and
+            // StringBuilder contain identical data (fields point to same objects) but the Strings themselves are
+            // not the same object
+            if (from is ClassSymbol f && to is ClassSymbol t) {
+                if (f.Equals(t))
+                    return Identity;
+            }
+
             if (from == to)
                 return Identity;
             if (from == TypeSymbol.Bool || from == TypeSymbol.Int || from == TypeSymbol.Decimal) {
@@ -105,7 +124,7 @@ internal sealed class Cast {
             // var! -> var : identity
             // var -> var! : explicit
             if (!fromType.isLiteral && !fromType.isNullable && toType.isNullable && cast != Explicit)
-                cast = Identity;
+                cast = NullAdding;
 
             if (fromType.isNullable && !toType.isNullable && !toType.isLiteral)
                 cast = Explicit;

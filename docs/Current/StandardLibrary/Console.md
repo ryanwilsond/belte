@@ -11,6 +11,9 @@ The Belte public interface for the Console class can be found [here](../../../sr
 - [5.2.5](#525-setforegroundcolor) SetForegroundColor
 - [5.2.6](#526-setbackgroundcolor) SetBackgroundColor
 - [5.2.7](#527-resetcolor) ResetColor
+- [5.2.8](#528-getwidth) GetWidth
+- [5.2.9](#529-getheight) GetHeight
+- [5.2.10](#5210-setcursorposition) SetCursorPosition
 
 ## 5.2.1 Color
 
@@ -82,3 +85,21 @@ Sets the background color of the console using a color code from [Color](#521-co
 Resets the foreground and background color of the console to default.
 
 `ResetColor()`
+
+### 5.2.8 GetWidth
+
+Returns the window width of the console in number of columns or characters.
+
+`int! GetWidth()`
+
+### 5.2.9 GetHeight
+
+Returns the window height of the console in number of columns or characters.
+
+`int! GetHeight()`
+
+### 5.2.10 SetCursorPosition
+
+Sets the console cursor position to the specified character grid point.
+
+`void SetCursorPosition(int left, int top)`

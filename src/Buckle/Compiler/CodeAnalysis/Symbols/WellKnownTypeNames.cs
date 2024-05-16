@@ -6,4 +6,5 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// </summary>
 internal static class WellKnownTypeNames {
     internal const string List = "List";
+    internal const string String = "String";
 }
