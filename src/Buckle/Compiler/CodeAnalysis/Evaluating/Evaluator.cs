@@ -944,6 +944,17 @@ internal sealed class Evaluator {
         var right = EvaluateExpression(expression.right, abort);
         var rightValue = Value(right);
 
+
+        if (expression.op.opKind is BoundBinaryOperatorKind.Is or BoundBinaryOperatorKind.Isnt) {
+            if (leftValue is null && left.members is null)
+                return new EvaluatorObject(false);
+
+            if (TypeInheritsFrom(expression.left.type, expression.right.type))
+                return new EvaluatorObject(expression.op.opKind is BoundBinaryOperatorKind.Is);
+            else
+                return new EvaluatorObject(expression.op.opKind is BoundBinaryOperatorKind.Isnt);
+        }
+
         if (leftValue is null || rightValue is null)
             return new EvaluatorObject();
 
@@ -1030,16 +1041,6 @@ internal sealed class Evaluator {
                     return new EvaluatorObject((int)leftValue % (int)rightValue);
                 else
                     return new EvaluatorObject(Convert.ToDouble(leftValue) % Convert.ToDouble(rightValue));
-            case BoundBinaryOperatorKind.Is:
-                if (TypeInheritsFrom(expression.left.type, expression.right.type))
-                    return new EvaluatorObject(true);
-                else
-                    return new EvaluatorObject(false);
-            case BoundBinaryOperatorKind.Isnt:
-                if (TypeInheritsFrom(expression.left.type, expression.right.type))
-                    return new EvaluatorObject(false);
-                else
-                    return new EvaluatorObject(true);
             default:
                 throw new BelteInternalException(
                     $"EvaluateBinaryExpression: unknown binary operator '{expression.op}'"
