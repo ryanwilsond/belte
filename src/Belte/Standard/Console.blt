@@ -1,6 +1,5 @@
 
 static class Console {
-
     public static class Color {
         public constexpr! Black = 0;
         public constexpr! DarkBlue = 1;

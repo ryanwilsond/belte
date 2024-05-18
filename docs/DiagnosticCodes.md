@@ -128,6 +128,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0115 | Error | character literal cannot be empty |
 | BU0116 | Error | character literal cannot be more than one character |
 | BU0117 | Error | non-nullable locals must have an initializer |
+| BU0118 | Error | virtual or abstract methods cannot be private |
 
 ## Command Line Diagnostics
 

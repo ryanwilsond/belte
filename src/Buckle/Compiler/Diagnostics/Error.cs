@@ -1079,6 +1079,14 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoInitOnNonNullable), location, message);
     }
 
+    /// <summary>
+    /// BU0118. Run `buckle --explain BU0118` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotBePrivateAndVirtualOrAbstract(TextLocation location) {
+        var message = $"virtual or abstract methods cannot be private";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotBePrivateAndVirtualOrAbstract), location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

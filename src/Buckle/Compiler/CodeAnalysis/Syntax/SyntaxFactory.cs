@@ -148,4 +148,18 @@ public static partial class SyntaxFactory {
 
         return builder.ToList();
     }
+
+    /// <summary>
+    /// Creates a syntax token list.
+    /// </summary>
+    public static SyntaxTokenList TokenList(params SyntaxToken[] tokens) {
+        return new SyntaxTokenList(tokens);
+    }
+
+    /// <summary>
+    /// Creates a syntax token list.
+    /// </summary>
+    public static SyntaxTokenList TokenList(IEnumerable<SyntaxToken> tokens) {
+        return new SyntaxTokenList(tokens);
+    }
 }

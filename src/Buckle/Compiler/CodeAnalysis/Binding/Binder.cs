@@ -749,6 +749,15 @@ internal sealed class Binder {
         BindAttributeLists(method.attributeLists);
 
         var modifiers = BindMethodDeclarationModifiers(method.modifiers);
+        // If name is not null that means we are binding a local function
+        // in which case accessibility is not applicable
+        var accessibility = name is null ? BindAccessibilityFromModifiers(modifiers) : Accessibility.NotApplicable;
+
+        if ((modifiers & (DeclarationModifiers.Virtual | DeclarationModifiers.Abstract)) != 0 &&
+            accessibility == Accessibility.Private) {
+            diagnostics.Push(Error.CannotBePrivateAndVirtualOrAbstract(method.identifier.location));
+        }
+
         var type = BindType(method.returnType, modifiers, true);
 
         var saved = _flags;
@@ -766,9 +775,7 @@ internal sealed class Binder {
             type,
             method,
             modifiers: modifiers | inheritedModifiers,
-            // If name is not null that means we are binding a local function
-            // in which case accessibility is not applicable
-            accessibility: name is null ? BindAccessibilityFromModifiers(modifiers) : Accessibility.NotApplicable
+            accessibility: accessibility
         );
 
         var parent = method.parent;
@@ -864,6 +871,17 @@ internal sealed class Binder {
                     }
 
                     declarationModifiers |= DeclarationModifiers.Private;
+                    break;
+                case SyntaxKind.VirtualKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if ((declarationModifiers & DeclarationModifiers.Virtual) != 0) {
+                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                        break;
+                    }
+
+                    declarationModifiers |= DeclarationModifiers.Virtual;
                     break;
                 default:
                     diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
@@ -1313,6 +1331,24 @@ internal sealed class Binder {
             }
         }
 
+        foreach (var member in (oldClass.baseType.typeSymbol as ClassSymbol).members) {
+            switch (member.kind) {
+                case SymbolKind.Field:
+                    _scope.TryDeclareVariable(member.CreateCopy() as FieldSymbol);
+                    break;
+                case SymbolKind.Type:
+                    _scope.TryDeclareType(member.CreateCopy() as NamedTypeSymbol);
+                    break;
+                case SymbolKind.Method when member.name != WellKnownMemberNames.InstanceConstructorName:
+                    _scope.TryDeclareMethod(member.CreateCopy() as MethodSymbol);
+                    break;
+                default:
+                    continue;
+            }
+
+            builder.Add(member);
+        }
+
         if (@class.members.Count == 0) {
             var defaultConstructor = new MethodSymbol(
                 WellKnownMemberNames.InstanceConstructorName,
@@ -1344,24 +1380,6 @@ internal sealed class Binder {
 
             _flags = saved;
             return emptyClass;
-        }
-
-        foreach (var member in (oldClass.baseType.typeSymbol as ClassSymbol).members) {
-            switch (member.kind) {
-                case SymbolKind.Field:
-                    _scope.TryDeclareVariable(member as FieldSymbol);
-                    break;
-                case SymbolKind.Type:
-                    _scope.TryDeclareType(member as TypeSymbol);
-                    break;
-                case SymbolKind.Method when member.name != WellKnownMemberNames.InstanceConstructorName:
-                    _scope.TryDeclareMethod(member as MethodSymbol);
-                    break;
-                default:
-                    continue;
-            }
-
-            builder.Add(member);
         }
 
         foreach (var member in @class.members.OfType<TypeDeclarationSyntax>())

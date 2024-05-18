@@ -2,5 +2,7 @@
 class Object {
     private constructor();
 
-    public string ToString();
+    public virtual string ToString() {
+        return "";
+    }
 }

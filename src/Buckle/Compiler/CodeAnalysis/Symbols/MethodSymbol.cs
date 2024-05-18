@@ -87,6 +87,18 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
         return signature.ToString();
     }
 
+    internal override Symbol CreateCopy() {
+        return new MethodSymbol(
+            name,
+            parameters,
+            type,
+            declaration,
+            this,
+            _declarationModifiers,
+            accessibility
+        );
+    }
+
     /// <summary>
     /// Creates a new method symbol with different parameters, but everything else is identical.
     /// </summary>

@@ -1618,4 +1618,19 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0118_CannotBePrivateAndVirtualOrAbstract() {
+        var text = @"
+            class A {
+                virtual void [M]() {}
+            }
+        ";
+
+        var diagnostics = @"
+            virtual or abstract methods cannot be private
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

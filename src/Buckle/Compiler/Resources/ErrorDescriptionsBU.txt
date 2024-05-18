@@ -1771,6 +1771,18 @@ For example:
 int! myInt; // Not allowed, no initializer
 int! myInt = 3; // Allowed
 ```
+$BU0118
+Virtual and abstract methods indicate they can be overridden by child class
+declarations, and because child classes can only see public members, a method
+cannot be marked virtual or abstract while also marked private.
+
+For example:
+
+```
+class A {
+    private virtual void M() { ... } // Not allowed, method `M` marked both private and virtual
+}
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.

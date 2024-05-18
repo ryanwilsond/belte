@@ -47,6 +47,8 @@ internal abstract class Symbol : ISymbol {
         return SymbolDisplay.DisplaySymbol(this).ToString();
     }
 
+    internal virtual Symbol CreateCopy() => (Symbol)MemberwiseClone();
+
     internal void SetContainingType(NamedTypeSymbol symbol) {
         containingType = symbol;
     }
