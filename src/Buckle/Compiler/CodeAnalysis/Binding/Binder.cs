@@ -1346,6 +1346,22 @@ internal sealed class Binder {
             return emptyClass;
         }
 
+        foreach (var member in (oldClass.baseType.typeSymbol as ClassSymbol).members) {
+            switch (member.kind) {
+                case SymbolKind.Field:
+                    _scope.TryDeclareVariable(member as FieldSymbol);
+                    break;
+                case SymbolKind.Type:
+                    _scope.TryDeclareType(member as TypeSymbol);
+                    break;
+                case SymbolKind.Method:
+                    _scope.TryDeclareMethod(member as MethodSymbol);
+                    break;
+            }
+
+            builder.Add(member);
+        }
+
         foreach (var member in @class.members.OfType<TypeDeclarationSyntax>())
             PreBindTypeDeclaration(member, inheritModifiers);
 

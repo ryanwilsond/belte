@@ -944,7 +944,6 @@ internal sealed class Evaluator {
         var right = EvaluateExpression(expression.right, abort);
         var rightValue = Value(right);
 
-
         if (expression.op.opKind is BoundBinaryOperatorKind.Is or BoundBinaryOperatorKind.Isnt) {
             if (leftValue is null && left.members is null)
                 return new EvaluatorObject(false);

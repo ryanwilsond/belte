@@ -72,11 +72,16 @@ internal static class LibraryUtilities {
         );
     }
 
-    internal static MethodSymbol Method(string name, BoundType type, List<(string, BoundType)> parameters) {
+    internal static MethodSymbol Method(
+        string name,
+        BoundType type,
+        List<(string, BoundType)> parameters,
+        MethodDeclarationSyntax declaration = null) {
         return new MethodSymbol(
             name,
             CreateParameterList(parameters),
             type,
+            declaration: declaration,
             modifiers: DeclarationModifiers.None,
             accessibility: Accessibility.Public
         );
