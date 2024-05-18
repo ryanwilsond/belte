@@ -303,10 +303,10 @@ internal sealed class BoundType : BoundExpression {
     /// </summary>
     /// <param name="type"><see cref="BoundType" /> to compare this to.</param>
     /// <returns>If all fields match.</returns>
-    internal bool Equals(BoundType type, bool loose = false) {
+    internal bool Equals(BoundType type, bool loose = false, bool isTypeCheck = false) {
         if ((!loose || (typeSymbol is not null && type?.typeSymbol is not null)) && typeSymbol != type?.typeSymbol)
             return false;
-        if (isImplicit != type.isImplicit)
+        if (!isTypeCheck && isImplicit != type.isImplicit)
             return false;
         if (isConstantReference != type.isConstantReference)
             return false;
@@ -314,9 +314,9 @@ internal sealed class BoundType : BoundExpression {
             return false;
         if (isConstant != type.isConstant)
             return false;
-        if (isNullable != type.isNullable)
+        if (!isTypeCheck && isNullable != type.isNullable)
             return false;
-        if (isLiteral != type.isLiteral)
+        if (!isTypeCheck && isLiteral != type.isLiteral)
             return false;
         if (dimensions != type.dimensions)
             return false;
@@ -328,7 +328,7 @@ internal sealed class BoundType : BoundExpression {
             return false;
 
         for (var i = 0; i < templateArguments.Length; i++) {
-            if (!templateArguments[i].Equals(type.templateArguments[i]))
+            if (!templateArguments[i].Equals(type.templateArguments[i], isTypeCheck))
                 return false;
         }
 

@@ -27,10 +27,10 @@ internal sealed class BoundTypeOrConstant {
 
     internal BoundExpression expression { get; }
 
-    internal bool Equals(BoundTypeOrConstant typeOrConstant) {
+    internal bool Equals(BoundTypeOrConstant typeOrConstant, bool isTypeCheck = false) {
         if (isConstant)
             return constant?.value == typeOrConstant.constant?.value;
         else
-            return type.Equals(typeOrConstant.type);
+            return type.Equals(typeOrConstant.type, isTypeCheck: isTypeCheck);
     }
 }

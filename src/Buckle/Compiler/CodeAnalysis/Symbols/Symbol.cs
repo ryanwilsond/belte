@@ -94,7 +94,7 @@ internal abstract class Symbol : ISymbol {
 
     public static bool operator !=(Symbol left, Symbol right) {
         if (right is null)
-            return left is object;
+            return left is not null;
 
         return (object)left != (object)right && !right.Equals(left);
     }

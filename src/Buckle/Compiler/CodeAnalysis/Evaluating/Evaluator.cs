@@ -951,7 +951,7 @@ internal sealed class Evaluator {
         var rightValue = Value(right);
 
         if (expression.op.opKind is BoundBinaryOperatorKind.Is or BoundBinaryOperatorKind.Isnt) {
-            if (leftValue is null && left.members is null)
+            if (leftValue is null && Dereference(left).members is null)
                 return new EvaluatorObject(false);
 
             if (TypeInheritsFrom(expression.left.type, expression.right.type))
@@ -1053,11 +1053,14 @@ internal sealed class Evaluator {
         }
 
         bool TypeInheritsFrom(BoundType left, BoundType right) {
-            if (left.typeSymbol == right.typeSymbol)
+            if (left.Equals(right, isTypeCheck: true))
                 return true;
 
-            if (left.typeSymbol is not ClassSymbol || right.typeSymbol is not ClassSymbol)
+            if (left.typeSymbol is not ClassSymbol ||
+                right.typeSymbol is not ClassSymbol ||
+                (left.typeSymbol as ClassSymbol).baseType is null) {
                 return false;
+            }
 
             return TypeInheritsFrom((left.typeSymbol as ClassSymbol).baseType, right);
         }

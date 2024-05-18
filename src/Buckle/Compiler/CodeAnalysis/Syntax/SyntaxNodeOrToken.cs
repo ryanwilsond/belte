@@ -151,7 +151,7 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     public bool AsToken(out SyntaxToken token) {
         if (isToken) {
             token = AsToken();
-            return token is object;
+            return token is not null;
         }
 
         token = null;
@@ -180,7 +180,7 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     public bool AsNode(out SyntaxNode node) {
         if (isNode) {
             node = _nodeOrParent;
-            return node is object;
+            return node is not null;
         }
 
         node = null;
@@ -235,7 +235,7 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     }
 
     public static implicit operator SyntaxNodeOrToken(SyntaxNode node) {
-        return node is object
+        return node is not null
             ? new SyntaxNodeOrToken(node)
             : null;
     }
