@@ -19,4 +19,8 @@ internal sealed class TemplateTypeSymbol : NamedTypeSymbol {
     public override bool isStatic => false;
 
     internal ParameterSymbol template { get; }
+
+    public override bool isAbstract => false;
+
+    public override bool isSealed => false;
 }

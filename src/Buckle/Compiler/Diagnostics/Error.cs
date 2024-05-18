@@ -1087,6 +1087,34 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotBePrivateAndVirtualOrAbstract), location, message);
     }
 
+    /// <summary>
+    /// BU0119. Run `buckle --explain BU0119` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic NoSuitableOverrideTarget(TextLocation location) {
+        var message = $"no suitable method found to override";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuitableOverrideTarget), location, message);
+    }
+
+    /// <summary>
+    /// BU0120. Run `buckle --explain BU0120` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic OverrideCannotChangeAccessibility(
+        TextLocation location,
+        string oldAccessibility,
+        string newAccessibility) {
+        var message = $"cannot change access modifier of inherited member from '{oldAccessibility}' " +
+            $"to '{newAccessibility}'; cannot change access modifiers when overriding inherited members";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_OverrideCannotChangeAccessibility), location, message);
+    }
+
+    /// <summary>
+    /// BU0121. Run `buckle --explain BU0121` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotDerivePrimitive(TextLocation location, string typeName) {
+        var message = $"cannot derive from primitive type '{typeName}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotDerivePrimitive), location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

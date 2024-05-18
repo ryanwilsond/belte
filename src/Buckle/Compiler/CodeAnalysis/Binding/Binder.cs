@@ -744,7 +744,8 @@ internal sealed class Binder {
     private MethodSymbol BindMethodDeclaration(
         MethodDeclarationSyntax method,
         DeclarationModifiers inheritedModifiers,
-        string name = null) {
+        string name = null,
+        ImmutableList<Symbol>.Builder overridableMethods = null) {
         // ? This will return eventually
         BindAttributeLists(method.attributeLists);
 
@@ -781,11 +782,38 @@ internal sealed class Binder {
         var parent = method.parent;
         var className = (parent is ClassDeclarationSyntax c) ? c.identifier.text : null;
 
-        if ((newMethod.declaration as MethodDeclarationSyntax).identifier.text != null &&
-            !_scope.TryDeclareMethod(newMethod)) {
-            diagnostics.Push(
-                Error.MethodAlreadyDeclared(method.identifier.location, name ?? newMethod.name, className)
-            );
+        if ((newMethod.declaration as MethodDeclarationSyntax).identifier.text != null) {
+            if ((modifiers & DeclarationModifiers.Override) != 0) {
+                MethodSymbol overrideTarget = null;
+
+                if (overridableMethods is not null) {
+                    foreach (var target in overridableMethods) {
+                        if (target is MethodSymbol m) {
+                            if (MethodUtilities.MethodsMatch(newMethod, m)) {
+                                overrideTarget = m;
+                                overridableMethods.Remove(target);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (overrideTarget is null || !_scope.TryReplaceSymbol(overrideTarget, newMethod)) {
+                    diagnostics.Push(Error.NoSuitableOverrideTarget(method.identifier.location));
+                } else if (overrideTarget.accessibility != newMethod.accessibility) {
+                    diagnostics.Push(Error.OverrideCannotChangeAccessibility(
+                        method.identifier.location,
+                        overrideTarget.accessibility.ToString().ToLower(),
+                        accessibility.ToString().ToLower()
+                    ));
+                }
+            } else {
+                if (!_scope.TryDeclareMethod(newMethod)) {
+                    diagnostics.Push(
+                        Error.MethodAlreadyDeclared(method.identifier.location, name ?? newMethod.name, className)
+                    );
+                }
+            }
         }
 
         _flags = saved;
@@ -882,6 +910,22 @@ internal sealed class Binder {
                     }
 
                     declarationModifiers |= DeclarationModifiers.Virtual;
+                    break;
+                case SyntaxKind.OverrideKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if ((declarationModifiers & DeclarationModifiers.Override) != 0) {
+                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                        break;
+                    }
+
+                    if ((declarationModifiers & DeclarationModifiers.Virtual) != 0) {
+                        diagnostics.Push(Error.ConflictingModifiers(modifier.location, "virtual", "override"));
+                        break;
+                    }
+
+                    declarationModifiers |= DeclarationModifiers.Override;
                     break;
                 default:
                     diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
@@ -1187,7 +1231,14 @@ internal sealed class Binder {
     }
 
     private BoundType BindBaseType(BaseTypeSyntax syntax) {
-        return BindType(syntax.type);
+        var type = BindType(syntax.type);
+
+        if (type.typeSymbol is PrimitiveTypeSymbol) {
+            diagnostics.Push(Error.CannotDerivePrimitive(syntax.type.location, type.typeSymbol.ToString()));
+            return new BoundType(_wellKnownTypes[WellKnownTypeNames.Object]);
+        }
+
+        return type;
     }
 
     private StructSymbol BindStructDeclaration(StructDeclarationSyntax @struct) {
@@ -1308,6 +1359,7 @@ internal sealed class Binder {
         }
 
         var builder = ImmutableList.CreateBuilder<Symbol>();
+        var inheritedBuilder = ImmutableList.CreateBuilder<Symbol>();
         var isStatic = oldClass.isStatic;
         _scope = new BoundScope(_scope);
 
@@ -1334,19 +1386,23 @@ internal sealed class Binder {
         foreach (var member in (oldClass.baseType.typeSymbol as ClassSymbol).members) {
             switch (member.kind) {
                 case SymbolKind.Field:
-                    _scope.TryDeclareVariable(member.CreateCopy() as FieldSymbol);
+                    var fieldCopy = member.CreateCopy() as FieldSymbol;
+                    _scope.TryDeclareVariable(fieldCopy);
+                    inheritedBuilder.Add(fieldCopy);
                     break;
                 case SymbolKind.Type:
-                    _scope.TryDeclareType(member.CreateCopy() as NamedTypeSymbol);
+                    var typeCopy = member.CreateCopy() as NamedTypeSymbol;
+                    _scope.TryDeclareType(typeCopy);
+                    inheritedBuilder.Add(typeCopy);
                     break;
                 case SymbolKind.Method when member.name != WellKnownMemberNames.InstanceConstructorName:
-                    _scope.TryDeclareMethod(member.CreateCopy() as MethodSymbol);
+                    var methodCopy = member.CreateCopy() as MethodSymbol;
+                    _scope.TryDeclareMethod(methodCopy);
+                    inheritedBuilder.Add(methodCopy);
                     break;
                 default:
                     continue;
             }
-
-            builder.Add(member);
         }
 
         if (@class.members.Count == 0) {
@@ -1359,6 +1415,7 @@ internal sealed class Binder {
             );
 
             builder.Add(defaultConstructor);
+            builder.AddRange(inheritedBuilder);
             _scope.TryDeclareMethod(defaultConstructor);
             _scope = _scope.parent;
             _scope.DeclareMethodStrict(defaultConstructor);
@@ -1430,7 +1487,11 @@ internal sealed class Binder {
         }
 
         foreach (var methodDeclaration in @class.members.OfType<MethodDeclarationSyntax>()) {
-            var method = BindMethodDeclaration(methodDeclaration, inheritModifiers);
+            var method = BindMethodDeclaration(
+                methodDeclaration,
+                inheritModifiers,
+                overridableMethods: inheritedBuilder
+            );
 
             if (isStatic && !method.isStatic)
                 diagnostics.Push(Error.MemberMustBeStatic(methodDeclaration.identifier.location));
@@ -1451,6 +1512,8 @@ internal sealed class Binder {
             var type = BindTypeDeclaration(typeDeclaration);
             builder.Add(type);
         }
+
+        builder.AddRange(inheritedBuilder);
 
         var newClass = new ClassSymbol(
             oldClass.templateParameters,

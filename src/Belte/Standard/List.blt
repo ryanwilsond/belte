@@ -123,18 +123,24 @@ lowlevel class List<type T> {
     }
 
     public static T operator[](List<T> list, int index) {
-        if (index is null)
+        if (index is null) {
             return null;
+        }
 
         return list.Index(index!);
     }
 
     public static T operator[](List<T> list, int index, T value) {
-        if (index is null)
+        if (index is null) {
             return null;
+        }
 
         list.Assign(index!, value);
         return list.Index(index!);
+    }
+
+    public override string ToString() {
+        return "{ }";
     }
 
     private void TidyInit() {

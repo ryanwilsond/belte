@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -227,8 +228,12 @@ internal sealed class BoundScope {
                     var skip = false;
 
                     foreach (var cs in current.Value) {
-                        if ((symbol is MethodSymbol fs && cs is MethodSymbol fcs && MethodsMatch(fs, fcs)) ||
-                            (symbol is NamedTypeSymbol ts && cs is NamedTypeSymbol tcs && NamedTypesMatch(ts, tcs))) {
+                        if ((symbol is MethodSymbol fs &&
+                                cs is MethodSymbol fcs &&
+                                MethodUtilities.MethodsMatch(fs, fcs)) ||
+                            (symbol is NamedTypeSymbol ts &&
+                                cs is NamedTypeSymbol tcs &&
+                                NamedTypesMatch(ts, tcs))) {
                             skip = true;
                             break;
                         }
@@ -265,7 +270,7 @@ internal sealed class BoundScope {
                     if (s is MethodSymbol ms) {
                         // Doesn't check if they refer to the same thing, but if their signatures are the same
                         // If so, keeping both would make all calls ambiguous so it is not allowed
-                        if ((strictMethod && ms == fs) || (!strictMethod && MethodsMatch(ms, fs)))
+                        if ((strictMethod && ms == fs) || (!strictMethod && MethodUtilities.MethodsMatch(ms, fs)))
                             return false;
                     }
                 }
@@ -285,21 +290,6 @@ internal sealed class BoundScope {
         }
 
         _symbols.Add(symbol);
-
-        return true;
-    }
-
-    private bool MethodsMatch(MethodSymbol a, MethodSymbol b) {
-        if (a.name != b.name)
-            return false;
-
-        if (a.parameters.Length != b.parameters.Length)
-            return false;
-
-        for (var i = 0; i < a.parameters.Length; i++) {
-            if (!a.parameters[i].type.Equals(b.parameters[i].type))
-                return false;
-        }
 
         return true;
     }

@@ -129,6 +129,9 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0116 | Error | character literal cannot be more than one character |
 | BU0117 | Error | non-nullable locals must have an initializer |
 | BU0118 | Error | virtual or abstract methods cannot be private |
+| BU0119 | Error | no suitable method found to override |
+| BU0120 | Error | cannot change access modifier of inherited member from '{0}' to '{1}'; cannot change access modifiers when overriding inherited members |
+| BU0121 | Error | cannot derive from primitive type '{0}' |
 
 ## Command Line Diagnostics
 

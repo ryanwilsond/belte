@@ -43,6 +43,26 @@ internal abstract class Symbol : ISymbol {
     /// </summary>
     public abstract bool isStatic { get; }
 
+    /// <summary>
+    /// If the symbol is "virtual", i.e. is defined but can be overridden
+    /// </summary>
+    public abstract bool isVirtual { get; }
+
+    /// <summary>
+    /// If the symbol is "abstract", i.e. must be overridden or cannot be constructed directly.
+    /// </summary>
+    public abstract bool isAbstract { get; }
+
+    /// <summary>
+    /// If the symbol is "override", i.e. overriding a virtual or abstract symbol.
+    /// </summary>
+    public abstract bool isOverride { get; }
+
+    /// <summary>
+    /// If the symbol is "sealed", i.e. cannot have child classes.
+    /// </summary>
+    public abstract bool isSealed { get; }
+
     public override string ToString() {
         return SymbolDisplay.DisplaySymbol(this).ToString();
     }

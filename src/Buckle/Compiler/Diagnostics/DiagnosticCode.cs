@@ -127,6 +127,9 @@ public enum DiagnosticCode : int {
     ERR_CharacterLiteralTooLong = 116,
     ERR_NoInitOnNonNullable = 117,
     ERR_CannotBePrivateAndVirtualOrAbstract = 118,
+    ERR_NoSuitableOverrideTarget = 119,
+    ERR_OverrideCannotChangeAccessibility = 120,
+    ERR_CannotDerivePrimitive = 121,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

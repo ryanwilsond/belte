@@ -30,6 +30,14 @@ internal abstract class VariableSymbol : Symbol, IVariableSymbol {
     public override bool isStatic
         => (_declarationModifiers & (DeclarationModifiers.Static | DeclarationModifiers.ConstExpr)) != 0;
 
+    public override bool isVirtual => false;
+
+    public override bool isAbstract => false;
+
+    public override bool isSealed => false;
+
+    public override bool isOverride => false;
+
     public ITypeSymbol typeSymbol => type.typeSymbol;
 
     public bool isImplicit => type.isImplicit;

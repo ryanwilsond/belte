@@ -41,6 +41,14 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
 
     public override bool isStatic => (_declarationModifiers & DeclarationModifiers.Static) != 0;
 
+    public override bool isAbstract => (_declarationModifiers & DeclarationModifiers.Abstract) != 0;
+
+    public override bool isVirtual => (_declarationModifiers & DeclarationModifiers.Virtual) != 0;
+
+    public override bool isOverride => (_declarationModifiers & DeclarationModifiers.Override) != 0;
+
+    public override bool isSealed => false;
+
     internal bool isConstant => (_declarationModifiers & DeclarationModifiers.Const) != 0;
 
     internal bool isLowLevel => (_declarationModifiers & DeclarationModifiers.LowLevel) != 0;

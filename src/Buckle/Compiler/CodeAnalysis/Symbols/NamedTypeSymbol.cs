@@ -31,6 +31,14 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
 
     public override bool isStatic => (_declarationModifiers & DeclarationModifiers.Static) != 0;
 
+    public override bool isAbstract => (_declarationModifiers & DeclarationModifiers.Abstract) != 0;
+
+    public override bool isSealed => (_declarationModifiers & DeclarationModifiers.Sealed) != 0;
+
+    public override bool isVirtual => false;
+
+    public override bool isOverride => false;
+
     public ImmutableArray<MethodSymbol> constructors => GetConstructors();
 
     internal ImmutableArray<Symbol> members { get; private set; }

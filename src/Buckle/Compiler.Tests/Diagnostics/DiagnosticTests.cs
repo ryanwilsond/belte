@@ -1633,4 +1633,50 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0119_NoSuitableOverrideTarget() {
+        var text = @"
+            class A {
+                public override void [M]() {}
+            }
+        ";
+
+        var diagnostics = @"
+            no suitable method found to override
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0120_OverrideCannotChangeAccessibility() {
+        var text = @"
+            class A {
+                public virtual void M() {}
+            }
+            class B extends A {
+                private override void [M]() {}
+            }
+        ";
+
+        var diagnostics = @"
+            cannot change access modifier of inherited member from 'public' to 'private'; cannot change access modifiers when overriding inherited members
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0121_CannotDerivePrimitive() {
+        var text = @"
+            class A extends [int] { }
+        ";
+
+        var diagnostics = @"
+            cannot derive from primitive type 'int'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

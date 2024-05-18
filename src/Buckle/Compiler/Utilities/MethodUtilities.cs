@@ -70,6 +70,24 @@ internal static class MethodUtilities {
         throw new BelteInternalException($"LookupMethodFromParents: could not find method '{name}'");
     }
 
+    /// <summary>
+    /// Checks if the methods match based on a shallow comparison.
+    /// </summary>
+    internal static bool MethodsMatch(MethodSymbol a, MethodSymbol b) {
+        if (a.name != b.name)
+            return false;
+
+        if (a.parameters.Length != b.parameters.Length)
+            return false;
+
+        for (var i = 0; i < a.parameters.Length; i++) {
+            if (!a.parameters[i].type.Equals(b.parameters[i].type))
+                return false;
+        }
+
+        return true;
+    }
+
     private static (MethodSymbol, T) LookupMethod<T>(IDictionary<MethodSymbol, T> methods, string name) {
         foreach (var pair in methods) {
             if (pair.Key.name == name)

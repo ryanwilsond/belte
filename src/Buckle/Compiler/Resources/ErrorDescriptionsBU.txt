@@ -1783,6 +1783,47 @@ class A {
     private virtual void M() { ... } // Not allowed, method `M` marked both private and virtual
 }
 ```
+$BU0119
+Override methods replace method definitions from base classes. If the base class
+did not declare a method matching the override signature, this error is raised
+as there is no suitable target for the override method.
+
+For example:
+
+```
+class A {
+    public virtual void M(int a) { }
+}
+
+class B extends A {
+    public override void J(int a) { } // Not allowed, no method `J` to override
+    public override void M(int a) { } // Allowed
+}
+```
+$BU0120
+Overridden members must only differ in definition, not declaration. As such,
+the access modifier of an overridden members cannot differ from the inherited
+member.
+
+For example:
+
+```
+class A {
+    public virtual void M() { }
+}
+
+class B extends A {
+    private override void M() { } // Not allowed, changing access modifier of `M` from public to private
+}
+```
+$BU0121
+Primitive types are not objects, so they cannot be inherited from/derived from.
+
+For example:
+
+```
+class A extends int { } // Not allowed, derives from non-object primitive type `int`
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.
