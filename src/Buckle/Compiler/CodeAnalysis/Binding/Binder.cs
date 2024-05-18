@@ -1354,9 +1354,11 @@ internal sealed class Binder {
                 case SymbolKind.Type:
                     _scope.TryDeclareType(member as TypeSymbol);
                     break;
-                case SymbolKind.Method:
+                case SymbolKind.Method when member.name != WellKnownMemberNames.InstanceConstructorName:
                     _scope.TryDeclareMethod(member as MethodSymbol);
                     break;
+                default:
+                    continue;
             }
 
             builder.Add(member);

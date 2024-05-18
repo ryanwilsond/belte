@@ -761,7 +761,7 @@ internal sealed class SourceWriter {
 
     private void WriteRedFactory() {
         WriteLine();
-        Write("internal static partial class SyntaxFactory");
+        Write("public static partial class SyntaxFactory");
         OpenBlock();
 
         var nodes = tree.types.Where(n => n is Node).ToList();
@@ -798,7 +798,7 @@ internal sealed class SourceWriter {
             $"(Syntax.InternalSyntax.{f.Type}){f.Name}.green"
         ));
 
-        var fullDeclaration = $"internal static {node.Name} {StripPost(node.Name, "Syntax")}({allArguments}";
+        var fullDeclaration = $"public static {node.Name} {StripPost(node.Name, "Syntax")}({allArguments}";
         var fullBody = $"=> ({node.Name})Syntax.InternalSyntax.SyntaxFactory." +
             $"{StripPost(node.Name, "Syntax")}({allParameters}).CreateRed(";
 
@@ -819,7 +819,7 @@ internal sealed class SourceWriter {
 
         if (allArguments != requiredArguments) {
             var requiredDeclaration =
-                $"internal static {node.Name} {StripPost(node.Name, "Syntax")}({requiredArguments}";
+                $"public static {node.Name} {StripPost(node.Name, "Syntax")}({requiredArguments}";
             var requiredBody = $"=> ({node.Name})Syntax.InternalSyntax.SyntaxFactory." +
                 $"{StripPost(node.Name, "Syntax")}({requiredParameters}).CreateRed(";
 

@@ -163,6 +163,17 @@ internal sealed class Evaluator {
         throw new BelteInternalException($"Get: '{variable.name}' was not found in any accessible scopes");
     }
 
+    private EvaluatorObject Dereference(EvaluatorObject reference, bool dereferenceOnExplicit = true) {
+        while (reference.isReference) {
+            if (!dereferenceOnExplicit && reference.isExplicitReference)
+                break;
+
+            reference = Get(reference.reference);
+        }
+
+        return reference;
+    }
+
     private Dictionary<object, object> DictionaryValue(Dictionary<Symbol, EvaluatorObject> value) {
         var dictionary = new Dictionary<object, object>();
 
@@ -252,19 +263,14 @@ internal sealed class Evaluator {
     }
 
     private void Assign(EvaluatorObject left, EvaluatorObject right) {
-        while (right.isReference && !right.isExplicitReference)
-            right = Get(right.reference);
-
-        while (left.isReference && !left.isExplicitReference)
-            left = Get(left.reference);
+        right = Dereference(right, false);
+        left = Dereference(left, false);
 
         if (right.isExplicitReference) {
             left.reference = right.reference;
-
             return;
         } else if (left.isExplicitReference) {
-            while (left.isReference)
-                left = Get(left.reference);
+            left = Dereference(left);
         }
 
         if (right.members is null)
@@ -565,7 +571,7 @@ internal sealed class Evaluator {
         if (operand.isReference) {
             do {
                 operand = Get(operand.reference, operand.referenceScope);
-            } while (operand.isReference == true);
+            } while (operand.isReference);
         }
 
         if (node.type == BoundType.MethodGroup) {
@@ -772,10 +778,11 @@ internal sealed class Evaluator {
         ValueWrapper<bool> abort,
         BoundExpression expression = null) {
         EvaluatorObject receiver = null;
-        if (expression != null) {
+        if (expression is not null && expression is not BoundEmptyExpression) {
             receiver = EvaluateExpression(expression, abort);
+            var dereferencedReceiver = Dereference(receiver);
 
-            if (receiver.members is null)
+            if (dereferencedReceiver.members is null)
                 throw new NullReferenceException();
         }
 
@@ -803,8 +810,7 @@ internal sealed class Evaluator {
             // If what we get here is not a reference, it is a static accession and the needed scoped members have
             // already been pushed by 'EvaluateType'.
             if (receiver != null && receiver.isReference) {
-                while (receiver.isReference)
-                    receiver = Get(receiver.reference);
+                receiver = Dereference(receiver);
 
                 if (receiver.members is not null && receiver.members.Count > 0) {
                     EnterClassScope(receiver);

@@ -21,6 +21,13 @@ internal static partial class SyntaxFactory {
     }
 
     /// <summary>
+    /// Creates a <see cref="SyntaxToken" /> with text and value.
+    /// </summary>
+    internal static SyntaxToken Token(SyntaxKind kind, string text, object value) {
+        return new SyntaxToken(kind, text, value);
+    }
+
+    /// <summary>
     /// Creates a <see cref="SyntaxKind"/> with trivia.
     /// </summary>
     internal static SyntaxToken Token(GreenNode leadingTrivia, SyntaxKind kind, GreenNode trailingTrivia) {

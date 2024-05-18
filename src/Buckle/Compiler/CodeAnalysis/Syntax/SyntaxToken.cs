@@ -30,6 +30,13 @@ public sealed class SyntaxToken {
     }
 
     /// <summary>
+    /// Creates a new <see cref="SyntaxToken"/> from an underlying token.
+    /// </summary>
+    internal SyntaxToken(GreenNode token) {
+        node = token;
+    }
+
+    /// <summary>
     /// If the token has been fabricated by the compiler.
     /// </summary>
     public bool isFabricated => node?.isFabricated ?? false;

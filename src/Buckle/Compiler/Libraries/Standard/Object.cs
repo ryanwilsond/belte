@@ -12,7 +12,14 @@ internal static partial class StandardLibrary {
     /* 1 */ Method("ToString", BoundType.NullableString, [], SyntaxFactory.MethodDeclaration(
                 null,
                 null,
-                SyntaxFactory.IdentifierName()
+                SyntaxFactory.IdentifierName("string"),
+                SyntaxFactory.Identifier("ToString"),
+                SyntaxFactory.ParameterList(
+                    SyntaxFactory.Token(SyntaxKind.OpenParenToken),
+                    SyntaxFactory.SeparatedList<ParameterSyntax>(),
+                    SyntaxFactory.Token(SyntaxKind.CloseParenToken)
+                ),
+                SyntaxFactory.Block(SyntaxFactory.Return(SyntaxFactory.Literal("")))
             )),
         ]
     );
