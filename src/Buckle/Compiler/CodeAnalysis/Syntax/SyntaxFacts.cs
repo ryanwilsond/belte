@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 
@@ -33,6 +32,7 @@ internal static class SyntaxFacts {
                 return 11;
             case SyntaxKind.IsKeyword:
             case SyntaxKind.IsntKeyword:
+            case SyntaxKind.AsKeyword:
             case SyntaxKind.LessThanToken:
             case SyntaxKind.GreaterThanToken:
             case SyntaxKind.LessThanEqualsToken:
@@ -172,6 +172,8 @@ internal static class SyntaxFacts {
             "virtual" => SyntaxKind.VirtualKeyword,
             "override" => SyntaxKind.OverrideKeyword,
             "constructor" => SyntaxKind.ConstructorKeyword,
+            "as" => SyntaxKind.AsKeyword,
+            "where" => SyntaxKind.WhereKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -271,6 +273,8 @@ internal static class SyntaxFacts {
             SyntaxKind.VirtualKeyword => "virtual",
             SyntaxKind.OverrideKeyword => "override",
             SyntaxKind.ConstructorKeyword => "constructor",
+            SyntaxKind.AsKeyword => "as",
+            SyntaxKind.WhereKeyword => "where",
             _ => null,
         };
     }

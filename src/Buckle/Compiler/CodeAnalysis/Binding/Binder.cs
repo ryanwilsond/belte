@@ -2996,7 +2996,7 @@ internal sealed class Binder {
     }
 
     private BoundThisExpression BindThisExpressionInternal() {
-        var type = new BoundType(_containingType, isReference: true);
+        var type = new BoundType(_containingType, isReference: true, arity: _containingType.arity);
         return new BoundThisExpression(type);
     }
 

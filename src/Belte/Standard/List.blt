@@ -139,9 +139,33 @@ lowlevel class List<type T> {
         return list.Index(index!);
     }
 
-    public override string ToString() {
-        return "{ }";
-    }
+    // public override string ToString() {
+    //     if (_length == 0) {
+    //         return "{ }";
+    //     }
+
+    //     string representation = "{ ";
+
+    //     if (this is List<int> ||
+    //         this is List<string> ||
+    //         this is List<decimal> ||
+    //         this is List<bool> ||
+    //         this is List<char> ||
+    //         this is List<type> ||
+    //         this is List<any>) {
+    //         for (int i = 0; i < _length - 1; i++) {
+    //             representation += ((string)(_array[i] as any)) + ", ";
+    //         }
+
+    //         return representation + " }";
+    //     }
+
+    //     for (int i = 0; i < _length - 1; i++) {
+    //         representation += (_array[i] as Object).ToString() + ", ";
+    //     }
+
+    //     return representation + " }";
+    // }
 
     private void TidyInit() {
         _array = new T[10];

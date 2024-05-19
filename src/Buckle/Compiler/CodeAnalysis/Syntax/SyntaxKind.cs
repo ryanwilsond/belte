@@ -101,6 +101,8 @@ public enum SyntaxKind {
     VirtualKeyword,
     OverrideKeyword,
     ConstructorKeyword,
+    AsKeyword,
+    WhereKeyword,
 
     // Tokens with text
     BadToken,

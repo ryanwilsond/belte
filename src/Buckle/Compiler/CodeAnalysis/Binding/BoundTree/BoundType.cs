@@ -304,15 +304,19 @@ internal sealed class BoundType : BoundExpression {
     /// <param name="type"><see cref="BoundType" /> to compare this to.</param>
     /// <returns>If all fields match.</returns>
     internal bool Equals(BoundType type, bool loose = false, bool isTypeCheck = false) {
-        if ((!loose || (typeSymbol is not null && type?.typeSymbol is not null)) && typeSymbol != type?.typeSymbol)
+        var typesEqual = (typeSymbol is ClassSymbol l && type?.typeSymbol is ClassSymbol r)
+            ? l.Equals(r)
+            : typeSymbol == type?.typeSymbol;
+
+        if ((!loose || (typeSymbol is not null && type?.typeSymbol is not null)) && !typesEqual)
             return false;
         if (!isTypeCheck && isImplicit != type.isImplicit)
             return false;
-        if (isConstantReference != type.isConstantReference)
+        if (!isTypeCheck && isConstantReference != type.isConstantReference)
             return false;
-        if (isReference != type.isReference)
+        if (!isTypeCheck && isReference != type.isReference)
             return false;
-        if (isConstant != type.isConstant)
+        if (!isTypeCheck && isConstant != type.isConstant)
             return false;
         if (!isTypeCheck && isNullable != type.isNullable)
             return false;
@@ -322,7 +326,7 @@ internal sealed class BoundType : BoundExpression {
             return false;
         if (arity != type.arity)
             return false;
-        if (isConstantExpression != type.isConstantExpression)
+        if (!isTypeCheck && isConstantExpression != type.isConstantExpression)
             return false;
         if (sizes.Length != type.sizes.Length)
             return false;
