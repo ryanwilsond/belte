@@ -197,6 +197,8 @@ public enum SyntaxKind {
     TemplateArgumentList,
     Attribute,
     AttributeList,
+    TemplateParameterConstraintClause,
+    TemplateParameterConstraintClauseList,
 
     // Other
     EndOfFileToken,

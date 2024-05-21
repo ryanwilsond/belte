@@ -102,6 +102,33 @@
     </Field>
     <Field Name="type" Type="SimpleNameSyntax"/>
   </Node>
+  <Node Name="TemplateParameterConstraintClauseListSyntax" Base="SyntaxNode">
+    <Kind Name="TemplateParameterConstraintClauseList"/>
+    <Field Name="whereKeyword" Type="SyntaxToken">
+      <Kind Name="WhereKeyword"/>
+    </Field>
+    <Field Name="openBrace" Type="SyntaxToken">
+      <Kind Name="OpenBraceToken"/>
+    </Field>
+    <Field Name="constraintClauses" Type="SyntaxList&lt;TemplateParameterConstraintClauseSyntax&gt;"/>
+    <Field Name="closeBrace" Type="SyntaxToken">
+      <Kind Name="CloseBraceToken"/>
+    </Field>
+  </Node>
+  <Node Name="TemplateParameterConstraintClauseSyntax" Base="SyntaxNode">
+    <Kind Name="TemplateParameterConstraintClause"/>
+    <Field Name="name" Type="IdentifierNameSyntax" Optional="true">
+      <Kind Name="IdentifierName"/>
+    </Field>
+    <Field Name="extendsKeyword" Type="SyntaxToken" Optional="true">
+      <Kind Name="ExtendsKeyword"/>
+    </Field>
+    <Field Name="type" Type="SimpleNameSyntax" Optional="true"/>
+    <Field Name="semicolon" Type="SyntaxToken" Optional="true">
+      <Kind Name="SemicolonToken"/>
+    </Field>
+    <Field Name="expressionStatement" Type="ExpressionStatementSyntax" Optional="true"/>
+  </Node>
   <!-- Directives -->
   <AbstractNode Name="DirectiveTriviaSyntax" Base="StructuredTriviaSyntax">
     <Field Name="isActive" Type="bool"/>
@@ -233,6 +260,7 @@
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="true" Optional="true"/>
     <Field Name="baseType" Type="BaseTypeSyntax" Optional="true"/>
+    <Field Name="constraintClauseList" Type="TemplateParameterConstraintClauseListSyntax" Optional="true"/>
     <Field Name="openBrace" Type="SyntaxToken" Override="true">
       <Kind Name="OpenBraceToken"/>
     </Field>

@@ -95,7 +95,7 @@
                 },
                 {
                     "name": "storage.type.class.belte",
-                    "match": "\\b(class|constructor)\\b"
+                    "match": "\\b(class|constructor|extends|where)\\b"
                 },
                 {
                     "name": "storage.type.number.belte",

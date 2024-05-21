@@ -1182,7 +1182,8 @@ internal sealed class Binder {
 
             symbol = new StructSymbol(
                     templateBuilder.ToImmutableArray(),
-                    ImmutableArray<Symbol>.Empty,
+                    [], // TODO
+                    [],
                     s,
                     modifiers | inheritedModifiers,
                     accessibility
@@ -1196,8 +1197,9 @@ internal sealed class Binder {
 
             symbol = new ClassSymbol(
                     templateBuilder.ToImmutableArray(),
-                    ImmutableArray<Symbol>.Empty,
-                    ImmutableArray<(FieldSymbol, ExpressionSyntax)>.Empty,
+                    [], // TODO
+                    [],
+                    [],
                     c,
                     modifiers | inheritedModifiers,
                     accessibility,
@@ -1262,7 +1264,8 @@ internal sealed class Binder {
             _flags |= BinderFlags.LowLevelContext;
 
         var newStruct = new StructSymbol(
-            ImmutableArray<ParameterSymbol>.Empty,
+            [],
+            [],
             builder.ToImmutableArray(),
             @struct,
             oldStruct.isLowLevel ? DeclarationModifiers.LowLevel : DeclarationModifiers.None,
@@ -1355,7 +1358,17 @@ internal sealed class Binder {
 
         if (_scope.LookupSymbolDirect(@class) is not ClassSymbol oldClass) {
             diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
-            return new ClassSymbol([], [], [], @class, DeclarationModifiers.None, Accessibility.NotApplicable, null);
+
+            return new ClassSymbol(
+                [],
+                [],
+                [],
+                [],
+                @class,
+                DeclarationModifiers.None,
+                Accessibility.NotApplicable,
+                null
+            );
         }
 
         var builder = ImmutableList.CreateBuilder<Symbol>();
@@ -1422,6 +1435,7 @@ internal sealed class Binder {
 
             var emptyClass = new ClassSymbol(
                 oldClass.templateParameters,
+                oldClass.templateConstraints,
                 builder.ToImmutableArray(),
                 [],
                 @class,
@@ -1517,6 +1531,7 @@ internal sealed class Binder {
 
         var newClass = new ClassSymbol(
             oldClass.templateParameters,
+            oldClass.templateConstraints,
             builder.ToImmutableArray(),
             defaultFieldAssignments,
             @class,

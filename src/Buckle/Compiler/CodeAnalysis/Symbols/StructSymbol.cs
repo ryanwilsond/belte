@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -12,9 +13,10 @@ internal sealed class StructSymbol : NamedTypeSymbol {
     /// </summary>
     internal StructSymbol(
         ImmutableArray<ParameterSymbol> templateParameters,
+        ImmutableArray<BoundExpression> templateConstraints,
         ImmutableArray<Symbol> symbols,
         StructDeclarationSyntax declaration,
         DeclarationModifiers modifiers,
         Accessibility accessibility)
-        : base(templateParameters, symbols, declaration, modifiers, accessibility) { }
+        : base(templateParameters, templateConstraints, symbols, declaration, modifiers, accessibility) { }
 }

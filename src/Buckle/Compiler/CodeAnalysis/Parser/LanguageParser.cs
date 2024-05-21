@@ -373,12 +373,16 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
         TemplateParameterListSyntax templateParameterList = null;
         BaseTypeSyntax baseType = null;
+        TemplateParameterConstraintClauseListSyntax constraintClauseList = null;
 
         if (currentToken.kind == SyntaxKind.LessThanToken)
             templateParameterList = ParseTemplateParameterList();
 
         if (currentToken.kind == SyntaxKind.ExtendsKeyword)
             baseType = ParseBaseType();
+
+        if (currentToken.kind == SyntaxKind.WhereKeyword)
+            constraintClauseList = ParseTemplateParameterConstraintClauseList();
 
         var openBrace = Match(SyntaxKind.OpenBraceToken);
         var saved = _context;
@@ -394,6 +398,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             identifier,
             templateParameterList,
             baseType,
+            constraintClauseList,
             openBrace,
             members,
             closeBrace
@@ -404,6 +409,55 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var extendsKeyword = Match(SyntaxKind.ExtendsKeyword);
         var baseType = ParseSimpleName();
         return SyntaxFactory.BaseType(extendsKeyword, baseType);
+    }
+
+    private TemplateParameterConstraintClauseListSyntax ParseTemplateParameterConstraintClauseList() {
+        var whereKeyword = Match(SyntaxKind.WhereKeyword);
+        var openBrace = Match(SyntaxKind.OpenBraceToken);
+        var constraintClauses = SyntaxListBuilder<TemplateParameterConstraintClauseSyntax>.Create();
+
+        var lastTokenPosition = -1;
+
+        while (IsMakingProgress(ref lastTokenPosition)) {
+            if (currentToken.kind is not SyntaxKind.CloseBraceToken and not SyntaxKind.EndOfFileToken) {
+                var constraintClause = ParseTemplateParameterConstraintClause();
+                constraintClauses.Add(constraintClause);
+            }
+        }
+
+        var closeBrace = Match(SyntaxKind.CloseBraceToken);
+
+        return SyntaxFactory.TemplateParameterConstraintClauseList(
+            whereKeyword,
+            openBrace,
+            constraintClauses.ToList(),
+            closeBrace
+        );
+    }
+
+    private TemplateParameterConstraintClauseSyntax ParseTemplateParameterConstraintClause() {
+        IdentifierNameSyntax name = null;
+        SyntaxToken extendsKeyword = null;
+        SimpleNameSyntax type = null;
+        SyntaxToken semicolon = null;
+        ExpressionStatementSyntax expressionStatement = null;
+
+        if (Peek(1).kind == SyntaxKind.ExtendsKeyword) {
+            name = ParseIdentifierName();
+            extendsKeyword = Match(SyntaxKind.ExtendsKeyword);
+            type = ParseSimpleName();
+            semicolon = Match(SyntaxKind.SemicolonToken);
+        } else {
+            expressionStatement = (ExpressionStatementSyntax)ParseExpressionStatement();
+        }
+
+        return SyntaxFactory.TemplateParameterConstraintClause(
+            name,
+            extendsKeyword,
+            type,
+            semicolon,
+            expressionStatement
+        );
     }
 
     private ConstructorDeclarationSyntax ParseConstructorDeclaration(

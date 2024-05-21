@@ -13,13 +13,14 @@ internal sealed class ClassSymbol : NamedTypeSymbol {
     /// </summary>
     internal ClassSymbol(
         ImmutableArray<ParameterSymbol> templateParameters,
+        ImmutableArray<BoundExpression> templateConstraints,
         ImmutableArray<Symbol> symbols,
         ImmutableArray<(FieldSymbol, ExpressionSyntax)> defaultFieldAssignments,
         ClassDeclarationSyntax declaration,
         DeclarationModifiers modifiers,
         Accessibility accessibility,
         BoundType baseType)
-        : base(templateParameters, symbols, declaration, modifiers, accessibility) {
+        : base(templateParameters, templateConstraints, symbols, declaration, modifiers, accessibility) {
         this.defaultFieldAssignments = defaultFieldAssignments;
         this.baseType = baseType;
     }
@@ -38,9 +39,10 @@ internal sealed class ClassSymbol : NamedTypeSymbol {
 
     internal void UpdateInternals(
         ImmutableArray<ParameterSymbol> templateParameters,
+        ImmutableArray<BoundExpression> templateConstraints,
         ImmutableArray<Symbol> symbols,
         ImmutableArray<(FieldSymbol, ExpressionSyntax)> defaultFieldAssignments) {
-        UpdateInternals(templateParameters, symbols);
+        UpdateInternals(templateParameters, templateConstraints, symbols);
         this.defaultFieldAssignments = defaultFieldAssignments;
     }
 

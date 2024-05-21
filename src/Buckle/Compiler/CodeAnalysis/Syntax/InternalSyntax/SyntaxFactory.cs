@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
@@ -83,4 +84,18 @@ internal static partial class SyntaxFactory {
     /// Creates a <see cref="EmptyExpressionSyntax" />.
     /// </summary>
     internal static EmptyExpressionSyntax Empty() => EmptyExpression();
+
+    /// <summary>
+    /// Creates an empty syntax list.
+    /// </summary>
+    public static SyntaxList<T> List<T>() where T : GreenNode {
+        return new SyntaxList<T>(null);
+    }
+
+    /// <summary>
+    /// Creates a syntax list.
+    /// </summary>
+    public static SyntaxList<T> List<T>(params T[] nodes) where T : GreenNode {
+        return new SyntaxList<T>(SyntaxList.List(nodes));
+    }
 }

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Text;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -13,6 +14,7 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
 
     internal NamedTypeSymbol(
         ImmutableArray<ParameterSymbol> templateParameters,
+        ImmutableArray<BoundExpression> templateConstraints,
         ImmutableArray<Symbol> symbols,
         TypeDeclarationSyntax declaration,
         DeclarationModifiers modifiers,
@@ -21,6 +23,7 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
         members = symbols;
         this.declaration = declaration;
         this.templateParameters = templateParameters;
+        this.templateConstraints = templateConstraints;
         _declarationModifiers = modifiers;
 
         foreach (var member in members)
@@ -44,6 +47,8 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
     internal ImmutableArray<Symbol> members { get; private set; }
 
     internal ImmutableArray<ParameterSymbol> templateParameters { get; private set; }
+
+    internal ImmutableArray<BoundExpression> templateConstraints { get; private set; }
 
     internal override int arity => templateParameters.Length;
 
@@ -85,8 +90,10 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
 
     internal void UpdateInternals(
         ImmutableArray<ParameterSymbol> templateParameters,
+        ImmutableArray<BoundExpression> templateConstraints,
         ImmutableArray<Symbol> symbols) {
         this.templateParameters = templateParameters;
+        this.templateConstraints = templateConstraints;
         members = symbols;
     }
 
