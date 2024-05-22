@@ -1166,12 +1166,34 @@ internal sealed class Binder {
         TypeDeclarationSyntax type,
         DeclarationModifiers inheritedModifiers) {
         var templateBuilder = ImmutableList.CreateBuilder<ParameterSymbol>();
+        var constraintsBuilder = ImmutableList.CreateBuilder<BoundExpression>();
 
         if (type.templateParameterList != null) {
             var templateParameters = BindParameters(type.templateParameterList.parameters, true);
 
             foreach (var templateParameter in templateParameters)
                 templateBuilder.Add(templateParameter);
+        }
+
+        if (type.constraintClauseList != null) {
+            foreach (var constraintClause in type.constraintClauseList.constraintClauses) {
+                if (constraintClause.expressionStatement is null) {
+                    var template = BindIdentifier(constraintClause.name, false, true);
+                    var extension = BindType(constraintClause.type);
+                    var constraint = new BoundExtendExpression(template, extension);
+                    constraintsBuilder.Add(constraint);
+                } else {
+                    var expressionStatement =
+                        (BoundExpressionStatement)BindExpressionStatement(constraintClause.expressionStatement);
+
+                    var expression = expressionStatement.expression;
+
+                    if (!IsConstantExpression(expression))
+                        diagnostics.Push(Error.e);
+
+                    constraintsBuilder.Add(expression);
+                }
+            }
         }
 
         NamedTypeSymbol symbol;
@@ -1182,7 +1204,7 @@ internal sealed class Binder {
 
             symbol = new StructSymbol(
                     templateBuilder.ToImmutableArray(),
-                    [], // TODO
+                    constraintsBuilder.ToImmutableArray(),
                     [],
                     s,
                     modifiers | inheritedModifiers,
@@ -1197,7 +1219,7 @@ internal sealed class Binder {
 
             symbol = new ClassSymbol(
                     templateBuilder.ToImmutableArray(),
-                    [], // TODO
+                    constraintsBuilder.ToImmutableArray(),
                     [],
                     [],
                     c,
