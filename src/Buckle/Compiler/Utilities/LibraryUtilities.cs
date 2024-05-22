@@ -13,6 +13,7 @@ internal static class LibraryUtilities {
     internal static ClassSymbol StaticClass(string name, ImmutableArray<Symbol> members) {
         return new ClassSymbol(
             [],
+            [],
             members,
             [],
             CreateDeclaration(name),
@@ -24,6 +25,7 @@ internal static class LibraryUtilities {
 
     internal static ClassSymbol Class(string name, ImmutableArray<Symbol> members) {
         return new ClassSymbol(
+            [],
             [],
             members,
             [],

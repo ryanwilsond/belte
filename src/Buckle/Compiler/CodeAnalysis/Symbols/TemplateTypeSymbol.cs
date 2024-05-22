@@ -9,6 +9,7 @@ internal sealed class TemplateTypeSymbol : NamedTypeSymbol {
     internal TemplateTypeSymbol(ParameterSymbol template) : base(
             [],
             [],
+            [],
             LibraryUtilities.CreateDeclaration(template.name),
             DeclarationModifiers.None,
             Accessibility.Public
