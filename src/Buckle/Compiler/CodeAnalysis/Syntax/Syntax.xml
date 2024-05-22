@@ -221,6 +221,7 @@
       <Kind Name="IdentifierToken"/>
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Optional="true"/>
+    <Field Name="constraintClauseList" Type="TemplateParameterConstraintClauseListSyntax" Optional="true"/>
     <Field Name="openBrace" Type="SyntaxToken">
       <Kind Name="OpenBraceToken"/>
     </Field>
@@ -260,7 +261,7 @@
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="true" Optional="true"/>
     <Field Name="baseType" Type="BaseTypeSyntax" Optional="true"/>
-    <Field Name="constraintClauseList" Type="TemplateParameterConstraintClauseListSyntax" Optional="true"/>
+    <Field Name="constraintClauseList" Type="TemplateParameterConstraintClauseListSyntax" Override="true" Optional="true"/>
     <Field Name="openBrace" Type="SyntaxToken" Override="true">
       <Kind Name="OpenBraceToken"/>
     </Field>
@@ -280,6 +281,7 @@
       <Kind Name="IdentifierToken"/>
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="true" Optional="true"/>
+    <Field Name="constraintClauseList" Type="TemplateParameterConstraintClauseListSyntax" Override="true" Optional="true"/>
     <Field Name="openBrace" Type="SyntaxToken" Override="true">
       <Kind Name="OpenBraceToken"/>
     </Field>

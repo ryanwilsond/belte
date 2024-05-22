@@ -343,9 +343,13 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var keyword = EatToken();
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
         TemplateParameterListSyntax templateParameterList = null;
+        TemplateParameterConstraintClauseListSyntax constraintClauseList = null;
 
         if (currentToken.kind == SyntaxKind.LessThanToken)
             templateParameterList = ParseTemplateParameterList();
+
+        if (currentToken.kind == SyntaxKind.WhereKeyword)
+            constraintClauseList = ParseTemplateParameterConstraintClauseList();
 
         var openBrace = Match(SyntaxKind.OpenBraceToken);
         var saved = _context;
@@ -360,6 +364,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             keyword,
             identifier,
             templateParameterList,
+            constraintClauseList,
             openBrace,
             members,
             closeBrace
