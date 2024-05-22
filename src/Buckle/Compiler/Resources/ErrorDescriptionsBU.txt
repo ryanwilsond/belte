@@ -1824,6 +1824,17 @@ For example:
 ```
 class A extends int { } // Not allowed, derives from non-object primitive type `int`
 ```
+$BU0122
+Template parameter constraint clauses constraint the template parameters of the
+currently declaring type only.
+
+For example:
+
+```
+class A<type T> where { T extends Object; } { } // Allowed
+
+class B extends A where { T extends List<int>; } { } // Not allowed, `T` is not a template of `B` but of `A`
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.

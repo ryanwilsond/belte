@@ -1115,6 +1115,14 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotDerivePrimitive), location, message);
     }
 
+    /// <summary>
+    /// BU0122. Run `buckle --explain BU0122` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic UnknownTemplate(TextLocation location, string typeName, string templateName) {
+        var message = $"type '{typeName}' has no such template parameter '{templateName}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnknownTemplate), location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

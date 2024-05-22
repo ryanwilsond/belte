@@ -1679,4 +1679,17 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0122_UnknownTemplate() {
+        var text = @"
+            class A where { [T] extends Object; } { }
+        ";
+
+        var diagnostics = @"
+            type 'A' has no such template parameter 'T'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

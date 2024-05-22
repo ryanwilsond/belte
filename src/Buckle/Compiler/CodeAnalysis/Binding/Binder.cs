@@ -1175,10 +1175,62 @@ internal sealed class Binder {
                 templateBuilder.Add(templateParameter);
         }
 
+        var templates = templateBuilder.ToImmutableArray();
+
+        bool IsCompilerComputable(BoundExpression expression) {
+            if (expression.constantValue is not null)
+                return true;
+
+            switch (expression.kind) {
+                case BoundNodeKind.BinaryExpression:
+                    var binaryExpression = (BoundBinaryExpression)expression;
+                    return IsCompilerComputable(binaryExpression.left) && IsCompilerComputable(binaryExpression.right);
+                case BoundNodeKind.CastExpression:
+                    return IsCompilerComputable(((BoundCastExpression)expression).expression);
+                case BoundNodeKind.IndexExpression:
+                    // TODO add constantValue to index expresssion
+                    var indexExpression = (BoundIndexExpression)expression;
+                    return IsCompilerComputable(indexExpression.expression) &&
+                        IsCompilerComputable(indexExpression.index);
+                case BoundNodeKind.TernaryExpression:
+                    var ternaryExpression = (BoundTernaryExpression)expression;
+                    return IsCompilerComputable(ternaryExpression.left) &&
+                        IsCompilerComputable(ternaryExpression.center) &&
+                        IsCompilerComputable(ternaryExpression.right);
+                case BoundNodeKind.UnaryExpression:
+                    return IsCompilerComputable(((BoundUnaryExpression)expression).operand);
+                case BoundNodeKind.VariableExpression:
+                    // TODO
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         if (type.constraintClauseList != null) {
             foreach (var constraintClause in type.constraintClauseList.constraintClauses) {
                 if (constraintClause.expressionStatement is null) {
-                    var template = BindIdentifier(constraintClause.name, false, true);
+                    var name = constraintClause.name.identifier.text;
+                    var possibleTemplate = templates
+                        .Where(t => t.name == name)
+                        .ToArray();
+
+                    if (possibleTemplate.Length != 1) {
+                        diagnostics.Push(
+                            Error.UnknownTemplate(constraintClause.name.location, type.identifier.text, name)
+                        );
+
+                        continue;
+                    }
+
+                    var template = possibleTemplate[0];
+
+                    if (template.type.typeSymbol != TypeSymbol.Type) {
+                        diagnostics.Push(Error.CannotExtendCheckNonType(constraintClause.location, template.name));
+                        // TODO add error, diag doc, test, and resource doc
+                        continue;
+                    }
+
                     var extension = BindType(constraintClause.type);
                     var constraint = new BoundExtendExpression(template, extension);
                     constraintsBuilder.Add(constraint);
@@ -1188,8 +1240,11 @@ internal sealed class Binder {
 
                     var expression = expressionStatement.expression;
 
-                    if (!IsConstantExpression(expression))
+                    if (!IsCompilerComputable(expression)) {
                         diagnostics.Push(Error.e);
+                        // TODO add error, diag doc, test, and resource doc
+                        continue;
+                    }
 
                     constraintsBuilder.Add(expression);
                 }
@@ -1203,7 +1258,7 @@ internal sealed class Binder {
             var accessibility = BindAccessibilityFromModifiers(modifiers);
 
             symbol = new StructSymbol(
-                    templateBuilder.ToImmutableArray(),
+                    templates,
                     constraintsBuilder.ToImmutableArray(),
                     [],
                     s,
@@ -1218,7 +1273,7 @@ internal sealed class Binder {
                 : BindBaseType(c.baseType);
 
             symbol = new ClassSymbol(
-                    templateBuilder.ToImmutableArray(),
+                    templates,
                     constraintsBuilder.ToImmutableArray(),
                     [],
                     [],

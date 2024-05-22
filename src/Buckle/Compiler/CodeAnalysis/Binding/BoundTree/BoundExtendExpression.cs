@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A bound type extend clause, bound from a <see cref="Syntax.TemplateParameterConstraintClauseSyntax" />.
 /// </summary>
 internal sealed class BoundExtendExpression : BoundExpression {
-    internal BoundExtendExpression(TemplateTypeSymbol template, BoundType extension) {
+    internal BoundExtendExpression(ParameterSymbol template, BoundType extension) {
         this.template = template;
         this.extension = extension;
     }
@@ -16,7 +16,7 @@ internal sealed class BoundExtendExpression : BoundExpression {
 
     internal override BoundType type => BoundType.Bool;
 
-    internal TemplateTypeSymbol template { get; }
+    internal ParameterSymbol template { get; }
 
     internal BoundType extension { get; }
 }

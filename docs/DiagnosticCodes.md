@@ -132,6 +132,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0119 | Error | no suitable method found to override |
 | BU0120 | Error | cannot change access modifier of inherited member from '{0}' to '{1}'; cannot change access modifiers when overriding inherited members |
 | BU0121 | Error | cannot derive from primitive type '{0}' |
+| BU0122 | Error | type '{0}' has no such template parameter '{1}' |
 
 ## Command Line Diagnostics
 

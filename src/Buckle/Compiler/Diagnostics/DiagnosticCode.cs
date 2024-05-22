@@ -130,6 +130,7 @@ public enum DiagnosticCode : int {
     ERR_NoSuitableOverrideTarget = 119,
     ERR_OverrideCannotChangeAccessibility = 120,
     ERR_CannotDerivePrimitive = 121,
+    ERR_UnknownTemplate = 122,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,
