@@ -1123,6 +1123,23 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnknownTemplate), location, message);
     }
 
+    /// <summary>
+    /// BU0123. Run `buckle --explain BU0123` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotExtendCheckNonType(TextLocation location, string name) {
+        var message = $"template '{name}' is not a type; cannot extension check a non-type";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotExtendCheckNonType), location, message);
+    }
+
+    /// <summary>
+    /// BU0124. Run `buckle --explain BU0124` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic ConstraintIsNotConstant(TextLocation location) {
+        var message = $"template constraint is not a compile-time constant";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstraintIsNotConstant), location, message);
+    }
+
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

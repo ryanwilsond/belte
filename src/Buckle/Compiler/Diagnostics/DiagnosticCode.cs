@@ -131,6 +131,8 @@ public enum DiagnosticCode : int {
     ERR_OverrideCannotChangeAccessibility = 120,
     ERR_CannotDerivePrimitive = 121,
     ERR_UnknownTemplate = 122,
+    ERR_CannotExtendCheckNonType = 123,
+    ERR_ConstraintIsNotConstant = 124,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

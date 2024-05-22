@@ -1692,4 +1692,17 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0123_CannotExtendCheckNonType() {
+        var text = @"
+            class A<int T> where { [T extends Object;] } { }
+        ";
+
+        var diagnostics = @"
+            template 'T' is not a type; cannot extension check a non-type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

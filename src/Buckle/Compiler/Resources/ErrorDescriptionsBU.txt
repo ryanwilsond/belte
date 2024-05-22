@@ -1835,6 +1835,30 @@ class A<type T> where { T extends Object; } { } // Allowed
 
 class B extends A where { T extends List<int>; } { } // Not allowed, `T` is not a template of `B` but of `A`
 ```
+$BU0123
+Extension constraints ensure that a type template argument is or is a child
+class of the specified constraint type.
+
+For example:
+
+```
+class A<type T> where { T extends List<int>; } // Allowed
+
+class A<int T> where { T extends List<int>; } // Not allowed, `T` is not a type template parameter
+```
+$BU0124
+Template parameter constraint clauses must be computable at compile time because
+they are checked when compiling object creation expressions.
+
+For example:
+
+```
+int v = 3;
+
+class A<int T> where { T < v; } // Not allowed, referencing variable `v` is not compile-time computable
+
+class A<int T> where { T < 10; } // Allowed
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.

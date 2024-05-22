@@ -1227,7 +1227,6 @@ internal sealed class Binder {
 
                     if (template.type.typeSymbol != TypeSymbol.Type) {
                         diagnostics.Push(Error.CannotExtendCheckNonType(constraintClause.location, template.name));
-                        // TODO add error, diag doc, test, and resource doc
                         continue;
                     }
 
@@ -1241,8 +1240,9 @@ internal sealed class Binder {
                     var expression = expressionStatement.expression;
 
                     if (!IsCompilerComputable(expression)) {
-                        diagnostics.Push(Error.e);
+                        diagnostics.Push(Error.ConstraintIsNotConstant(constraintClause.location));
                         // TODO add error, diag doc, test, and resource doc
+                        // TODO add doc that explains exactly what is allowed here
                         continue;
                     }
 
