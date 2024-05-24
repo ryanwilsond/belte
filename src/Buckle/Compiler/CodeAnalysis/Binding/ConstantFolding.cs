@@ -273,4 +273,20 @@ internal static class ConstantFolding {
 
         return new BoundConstant(foldedItems.ToImmutable());
     }
+
+    /// <summary>
+    /// Folds a <see cref="BoundIndexExpression"/> (if possible).
+    /// </summary>
+    /// <param name="expression">The expression being indexed.</param>
+    /// <param name="index">The index.</param>
+    /// <returns>The constant item at the index, if constant.</returns>
+    internal static BoundConstant FoldIndex(BoundExpression expression, BoundExpression index) {
+        if (expression.constantValue is null || index.constantValue is null)
+            return null;
+
+        var array = (ImmutableArray<BoundConstant>)expression.constantValue.value;
+        var item = array[(int)index.constantValue.value];
+
+        return new BoundConstant(item.value);
+    }
 }

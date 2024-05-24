@@ -260,7 +260,11 @@ internal sealed class Binder {
             if (diagnostics.Errors().Any())
                 return Program(previous, diagnostics);
 
-            var loweredBody = Lowerer.Lower(method, body, options.isTranspiling);
+            var loweredBody = Lowerer.Lower(
+                method,
+                body,
+                options.isTranspiling
+            );
 
             if (method.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
                 binder.diagnostics.Push(Error.NotAllPathsReturn(GetIdentifierLocation(method.declaration)));
@@ -1188,7 +1192,6 @@ internal sealed class Binder {
                 case BoundNodeKind.CastExpression:
                     return IsCompilerComputable(((BoundCastExpression)expression).expression);
                 case BoundNodeKind.IndexExpression:
-                    // TODO add constantValue to index expresssion
                     var indexExpression = (BoundIndexExpression)expression;
                     return IsCompilerComputable(indexExpression.expression) &&
                         IsCompilerComputable(indexExpression.index);
@@ -1241,8 +1244,6 @@ internal sealed class Binder {
 
                     if (!IsCompilerComputable(expression)) {
                         diagnostics.Push(Error.ConstraintIsNotConstant(constraintClause.location));
-                        // TODO add error, diag doc, test, and resource doc
-                        // TODO add doc that explains exactly what is allowed here
                         continue;
                     }
 
@@ -1749,7 +1750,11 @@ internal sealed class Binder {
             ? functionSymbol.UpdateParameters(parameters.ToImmutable())
             : functionSymbol;
 
-        var loweredBody = Lowerer.Lower(newFunctionSymbol, body, _options.isTranspiling);
+        var loweredBody = Lowerer.Lower(
+            newFunctionSymbol,
+            body,
+            _options.isTranspiling
+        );
 
         if (newFunctionSymbol.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
             diagnostics.Push(Error.NotAllPathsReturn(GetIdentifierLocation(newFunctionSymbol.declaration)));
@@ -3280,8 +3285,23 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindIndexExpression(IndexExpressionSyntax expression) {
-        var boundExpression = BindExpression(expression.expression);
         var boundIndex = BindExpression(expression.index);
+
+        // TODO why does `{1, 2, 3}["string"]` prompt error BU0025?
+        if (BoundConstant.IsNotNull(boundIndex.constantValue) &&
+            boundIndex.constantValue.value is int v &&
+            expression.expression is InitializerListExpressionSyntax i) {
+            // Optimizes inline list indexes working around the List rewrite that initializer lists perform
+            var saved = _flags;
+            _flags |= BinderFlags.LowLevelContext;
+            var list = BindInitializerListExpression(i, null) as BoundInitializerListExpression;
+            _flags = saved;
+
+            return list.items[v];
+        }
+
+        var boundExpression = BindExpression(expression.expression);
+
         return BindIndexWithBoundSides(expression, boundExpression, boundIndex);
     }
 

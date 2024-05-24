@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.FlowAnalysis;
+using Buckle.CodeAnalysis.Symbols;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -92,7 +93,6 @@ internal sealed class Optimizer : BoundTreeRewriter {
         ;
 
         */
-
         var left = expression.left;
         var right = expression.right is BoundReferenceExpression r ? r.expression : expression.right;
         // TODO Expand this to cover more cases
@@ -104,6 +104,23 @@ internal sealed class Optimizer : BoundTreeRewriter {
         }
 
         return base.RewriteAssignmentExpression(expression);
+    }
+
+    protected override BoundExpression RewriteIndexExpression(BoundIndexExpression expression) {
+        /*
+
+        <expression>[<index>]
+
+        ----> <index> is constant, return item directly
+
+        (<expression>[<index>])
+
+        */
+        if (expression.index.constantValue is null || expression.expression is not BoundInitializerListExpression i)
+            return base.RewriteIndexExpression(expression);
+
+        var index = (int)expression.index.constantValue.value;
+        return RewriteExpression(i.items[index]);
     }
 
     private static BoundBlockStatement RemoveDeadCode(BoundBlockStatement statement) {

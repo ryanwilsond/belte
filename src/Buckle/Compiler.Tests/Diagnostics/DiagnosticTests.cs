@@ -1705,4 +1705,18 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0124_ConstraintIsNotConstant() {
+        var text = @"
+            int min = 3;
+            class A<int T> where { [T < min;] } { }
+        ";
+
+        var diagnostics = @"
+            template constraint is not a compile-time constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }
