@@ -1169,7 +1169,7 @@ internal sealed class Binder {
     private NamedTypeSymbol PreBindTypeDeclaration(
         TypeDeclarationSyntax type,
         DeclarationModifiers inheritedModifiers) {
-        // Binds everything about the type except the members
+        // Binds everything about the type except the members and the constraints
         var templateBuilder = ImmutableList.CreateBuilder<ParameterSymbol>();
 
         if (type.templateParameterList != null) {
@@ -1186,11 +1186,9 @@ internal sealed class Binder {
         if (type is StructDeclarationSyntax s) {
             var modifiers = BindStructDeclarationModifiers(s.modifiers);
             var accessibility = BindAccessibilityFromModifiers(modifiers);
-            // var constraints = BindConstraintClauseList(s, BinderFlags.Struct, modifiers, templates);
 
             symbol = new StructSymbol(
                     templates,
-                    // constraints,
                     [],
                     [],
                     s,
@@ -1200,14 +1198,12 @@ internal sealed class Binder {
         } else if (type is ClassDeclarationSyntax c) {
             var modifiers = BindClassDeclarationModifiers(c.modifiers);
             var accessibility = BindAccessibilityFromModifiers(modifiers);
-            // var constraints = BindConstraintClauseList(c, BinderFlags.Class, modifiers, templates);
             var baseType = c.baseType is null
                 ? new BoundType(_wellKnownTypes[WellKnownTypeNames.Object])
                 : BindBaseType(c.baseType);
 
             symbol = new ClassSymbol(
                     templates,
-                    // constraints,
                     [],
                     [],
                     [],
@@ -1224,28 +1220,40 @@ internal sealed class Binder {
         return symbol;
     }
 
+    private TypeSymbol BindTypeDeclaration(TypeDeclarationSyntax @type) {
+        if (@type is StructDeclarationSyntax s)
+            return BindStructDeclaration(s);
+        else if (@type is ClassDeclarationSyntax c)
+            return BindClassDeclaration(c);
+        else
+            throw new BelteInternalException($"BindTypeDeclaration: unexpected type '{@type.identifier.text}'");
+    }
+
+    private Accessibility BindAccessibilityFromModifiers(DeclarationModifiers modifiers) {
+        if (!_flags.Includes(BinderFlags.Class))
+            return Accessibility.NotApplicable;
+
+        if ((modifiers & DeclarationModifiers.Public) != 0)
+            return Accessibility.Public;
+
+        return Accessibility.Private;
+    }
+
+    private BoundType BindBaseType(BaseTypeSyntax syntax) {
+        var type = BindType(syntax.type);
+
+        if (type.typeSymbol is PrimitiveTypeSymbol) {
+            diagnostics.Push(Error.CannotDerivePrimitive(syntax.type.location, type.typeSymbol.ToString()));
+            return new BoundType(_wellKnownTypes[WellKnownTypeNames.Object]);
+        }
+
+        return type;
+    }
+
     private ImmutableArray<BoundExpression> BindConstraintClauseList(
         TypeDeclarationSyntax type,
-        BinderFlags context,
-        DeclarationModifiers modifiers,
         ImmutableArray<ParameterSymbol> templates) {
         var constraintsBuilder = ImmutableList.CreateBuilder<BoundExpression>();
-
-        _scope = new BoundScope(_scope);
-        var saved = _flags;
-        _flags |= context;
-
-        if ((modifiers & DeclarationModifiers.LowLevel) != 0)
-            _flags |= BinderFlags.LowLevelContext;
-
-        foreach (var template in templates) {
-            if (template.type.typeSymbol == TypeSymbol.Type) {
-                var templateType = new TemplateTypeSymbol(template);
-                _scope.TryDeclareType(templateType);
-            } else {
-                _scope.TryDeclareVariable(template);
-            }
-        }
 
         if (type.constraintClauseList != null) {
             foreach (var constraintClause in type.constraintClauseList.constraintClauses) {
@@ -1293,70 +1301,67 @@ internal sealed class Binder {
             }
         }
 
-        _flags = saved;
-        _scope = _scope.parent;
-
         return constraintsBuilder.ToImmutableArray();
-    }
-
-    private TypeSymbol BindTypeDeclaration(TypeDeclarationSyntax @type) {
-        if (@type is StructDeclarationSyntax s)
-            return BindStructDeclaration(s);
-        else if (@type is ClassDeclarationSyntax c)
-            return BindClassDeclaration(c);
-        else
-            throw new BelteInternalException($"BindTypeDeclaration: unexpected type '{@type.identifier.text}'");
-    }
-
-    private Accessibility BindAccessibilityFromModifiers(DeclarationModifiers modifiers) {
-        if (!_flags.Includes(BinderFlags.Class))
-            return Accessibility.NotApplicable;
-
-        if ((modifiers & DeclarationModifiers.Public) != 0)
-            return Accessibility.Public;
-
-        return Accessibility.Private;
-    }
-
-    private BoundType BindBaseType(BaseTypeSyntax syntax) {
-        var type = BindType(syntax.type);
-
-        if (type.typeSymbol is PrimitiveTypeSymbol) {
-            diagnostics.Push(Error.CannotDerivePrimitive(syntax.type.location, type.typeSymbol.ToString()));
-            return new BoundType(_wellKnownTypes[WellKnownTypeNames.Object]);
-        }
-
-        return type;
     }
 
     private StructSymbol BindStructDeclaration(StructDeclarationSyntax @struct) {
         // ? This will return eventually
         BindAttributeLists(@struct.attributeLists);
 
-        var builder = ImmutableList.CreateBuilder<Symbol>();
-        var oldStruct = _scope.LookupSymbol<StructSymbol>(@struct.identifier.text);
-        _scope = new BoundScope(_scope);
+        if (_scope.LookupSymbolDirect(@struct) is not StructSymbol oldStruct) {
+            diagnostics.Push(Error.TypeAlreadyDeclared(@struct.identifier.location, @struct.identifier.text, false));
 
-        foreach (var fieldDeclaration in @struct.members.OfType<FieldDeclarationSyntax>()) {
-            var field = BindFieldDeclaration(fieldDeclaration);
-            builder.Add(field);
+            return new StructSymbol(
+                [],
+                [],
+                [],
+                @struct,
+                DeclarationModifiers.None,
+                Accessibility.NotApplicable
+            );
         }
 
-        _scope = _scope.parent;
+        var builder = ImmutableList.CreateBuilder<Symbol>();
+        _scope = new BoundScope(_scope);
+
         var saved = _flags;
         _flags |= BinderFlags.Struct;
 
         if (oldStruct.isLowLevel)
             _flags |= BinderFlags.LowLevelContext;
 
+        var templates = ImmutableArray.CreateBuilder<ParameterSymbol>();
+
+        foreach (var templateParameter in oldStruct.templateParameters) {
+            if (templateParameter.type.typeSymbol == TypeSymbol.Type) {
+                var templateType = new TemplateTypeSymbol(templateParameter);
+                builder.Add(templateType);
+                _scope.TryDeclareType(templateType);
+            } else {
+                builder.Add(templateParameter);
+                _scope.TryDeclareVariable(templateParameter);
+            }
+
+            templates.Add(templateParameter);
+        }
+
+        var constraints = BindConstraintClauseList(@struct, templates.ToImmutable());
+
+        foreach (var fieldDeclaration in @struct.members.OfType<FieldDeclarationSyntax>()) {
+            var field = BindFieldDeclaration(fieldDeclaration, true);
+            builder.Add(field);
+        }
+
         var newStruct = new StructSymbol(
-            [],
-            [],
+            oldStruct.templateParameters,
+            constraints,
             builder.ToImmutableArray(),
             @struct,
             oldStruct.isLowLevel ? DeclarationModifiers.LowLevel : DeclarationModifiers.None,
             oldStruct.accessibility
         );
+
+        _scope = _scope.parent;
 
         if (oldStruct.members.Length == 0)
             _scope.TryReplaceSymbol(oldStruct, newStruct);
@@ -1486,7 +1491,7 @@ internal sealed class Binder {
             templates.Add(templateParameter);
         }
 
-        var constraints = BindConstraintClauseList(@class, BinderFlags.Class, DeclarationModifiers.None, templates.ToImmutable());
+        var constraints = BindConstraintClauseList(@class, templates.ToImmutable());
 
         foreach (var member in (oldClass.baseType.typeSymbol as ClassSymbol).members) {
             switch (member.kind) {
@@ -1548,11 +1553,10 @@ internal sealed class Binder {
         foreach (var member in @class.members.OfType<TypeDeclarationSyntax>())
             PreBindTypeDeclaration(member, inheritModifiers);
 
-        var defaultFieldAssignmentsBuilder =
-            ImmutableArray.CreateBuilder<(FieldSymbol, ExpressionSyntax)>();
+        var defaultFieldAssignmentsBuilder = ImmutableArray.CreateBuilder<(FieldSymbol, ExpressionSyntax)>();
 
         foreach (var fieldDeclaration in @class.members.OfType<FieldDeclarationSyntax>()) {
-            var field = BindFieldDeclaration(fieldDeclaration);
+            var field = BindFieldDeclaration(fieldDeclaration, false);
 
             if (isStatic && !field.isStatic) {
                 diagnostics.Push(Error.MemberMustBeStatic(fieldDeclaration.declaration.identifier.location));
@@ -1793,12 +1797,12 @@ internal sealed class Binder {
         return DeclarationModifiers.None;
     }
 
-    private FieldSymbol BindFieldDeclaration(FieldDeclarationSyntax fieldDeclaration) {
+    private FieldSymbol BindFieldDeclaration(FieldDeclarationSyntax fieldDeclaration, bool isStructField) {
         // ? This will return eventually
         BindAttributeLists(fieldDeclaration.attributeLists);
 
         var modifiers = BindFieldDeclarationModifiers(fieldDeclaration.modifiers);
-        return BindField(fieldDeclaration.declaration, modifiers);
+        return BindField(fieldDeclaration.declaration, modifiers, isStructField);
     }
 
     private DeclarationModifiers BindFieldDeclarationModifiers(SyntaxTokenList modifiers) {
@@ -2413,9 +2417,10 @@ internal sealed class Binder {
 
     private FieldSymbol BindField(
         VariableDeclarationSyntax declaration,
-        DeclarationModifiers modifiers) {
+        DeclarationModifiers modifiers,
+        bool isStructField) {
         var name = declaration.identifier.text;
-        BindAndVerifyType(declaration, modifiers, true, out var type);
+        BindAndVerifyType(declaration, modifiers, true, isStructField, out var type);
         BoundConstant constant = null;
 
         if ((modifiers & DeclarationModifiers.ConstExpr) != 0) {
@@ -2778,6 +2783,7 @@ internal sealed class Binder {
         VariableDeclarationSyntax declaration,
         DeclarationModifiers modifiers,
         bool isField,
+        bool isStructField,
         out BoundType type) {
         var currentCount = diagnostics.Errors().Count;
         type = BindType(declaration.type, modifiers, isField);
@@ -2815,7 +2821,7 @@ internal sealed class Binder {
             return false;
         }
 
-        if (!isField && !type.isNullable && declaration.initializer is null) {
+        if (!type.isNullable && declaration.initializer is null && !isStructField) {
             diagnostics.Push(Error.NoInitOnNonNullable(declaration.identifier.location));
             return false;
         }
@@ -2828,7 +2834,7 @@ internal sealed class Binder {
         DeclarationModifiers modifiers) {
         var currentCount = diagnostics.Errors().Count;
 
-        if (!BindAndVerifyType(declaration, modifiers, false, out var type))
+        if (!BindAndVerifyType(declaration, modifiers, false, false, out var type))
             return null;
 
         if (type.typeSymbol is NamedTypeSymbol n)
@@ -3127,6 +3133,14 @@ internal sealed class Binder {
         }
 
         if (type.dimensions > 0) {
+            return new BoundObjectCreationExpression(type);
+        } else if (type.typeSymbol is StructSymbol) {
+            if (!PartiallyBindArgumentList(expression.argumentList, out var arguments))
+                return new BoundErrorExpression();
+
+            if (arguments.Length > 0)
+                diagnostics.Push(Error.StructTakesNoArguments(expression.argumentList.location));
+
             return new BoundObjectCreationExpression(type);
         } else {
             if (type.typeSymbol is not NamedTypeSymbol) {

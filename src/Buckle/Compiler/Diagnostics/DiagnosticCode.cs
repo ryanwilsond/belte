@@ -133,6 +133,7 @@ public enum DiagnosticCode : int {
     ERR_UnknownTemplate = 122,
     ERR_CannotExtendCheckNonType = 123,
     ERR_ConstraintIsNotConstant = 124,
+    ERR_StructTakesNoArguments = 125,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

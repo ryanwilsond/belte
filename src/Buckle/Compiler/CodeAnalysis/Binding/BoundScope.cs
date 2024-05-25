@@ -158,7 +158,7 @@ internal sealed class BoundScope {
                                 cs.members,
                                 cs.defaultFieldAssignments
                             );
-                        } else if (currentSymbol is StructSymbol ss) {
+                        } else if (newSymbol is StructSymbol ss) {
                             (symbols[i] as StructSymbol).UpdateInternals(
                                 ss.templateParameters,
                                 ss.templateConstraints,

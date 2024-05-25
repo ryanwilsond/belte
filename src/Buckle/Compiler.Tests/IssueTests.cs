@@ -1002,4 +1002,20 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Evaluator_Structs_InitializesProperly() {
+        var text = @"
+            lowlevel struct A<type T> {
+                T a;
+            }
+
+            var a = new A<int>();
+            a.a = 3;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

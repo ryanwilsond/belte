@@ -1613,7 +1613,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            non-nullable locals must have an initializer
+            non-nullable locals and class fields must have an initializer
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1715,6 +1715,20 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             template constraint is not a compile-time constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0125_StructTakesNoArguments() {
+        var text = @"
+            lowlevel struct A {}
+            var a = new A([3]);
+        ";
+
+        var diagnostics = @"
+            struct constructors take no arguments
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

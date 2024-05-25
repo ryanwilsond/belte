@@ -1075,7 +1075,7 @@ internal static class Error {
     /// BU0117. Run `buckle --explain BU0117` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic NoInitOnNonNullable(TextLocation location) {
-        var message = $"non-nullable locals must have an initializer";
+        var message = $"non-nullable locals and class fields must have an initializer";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoInitOnNonNullable), location, message);
     }
 
@@ -1139,6 +1139,13 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstraintIsNotConstant), location, message);
     }
 
+    /// <summary>
+    /// BU0125. Run `buckle --explain BU0125` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic StructTakesNoArguments(TextLocation location) {
+        var message = $"struct constructors take no arguments";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StructTakesNoArguments), location, message);
+    }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);

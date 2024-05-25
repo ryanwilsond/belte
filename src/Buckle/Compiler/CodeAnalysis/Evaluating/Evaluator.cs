@@ -589,7 +589,7 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateObjectCreationExpression(
         BoundObjectCreationExpression node,
         ValueWrapper<bool> abort) {
-        if (node.viaConstructor) {
+        if (node.viaConstructor || (node.type.sizes.Length == 0 && node.type.typeSymbol is StructSymbol)) {
             var core = EvaluateTypeCore(node.type, abort);
             var members = new Dictionary<Symbol, EvaluatorObject>();
             var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).members;

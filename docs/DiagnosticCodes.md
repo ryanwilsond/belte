@@ -127,7 +127,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0114 | Error | cannot use arrays outside of low-level contexts |
 | BU0115 | Error | character literal cannot be empty |
 | BU0116 | Error | character literal cannot be more than one character |
-| BU0117 | Error | non-nullable locals must have an initializer |
+| BU0117 | Error | non-nullable locals and class fields must have an initializer |
 | BU0118 | Error | virtual or abstract methods cannot be private |
 | BU0119 | Error | no suitable method found to override |
 | BU0120 | Error | cannot change access modifier of inherited member from '{0}' to '{1}'; cannot change access modifiers when overriding inherited members |
@@ -135,6 +135,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0122 | Error | type '{0}' has no such template parameter '{1}' |
 | BU0123 | Error | template '{0}' is not a type; cannot extension check a non-type |
 | BU0124 | Error | template constraint is not a compile-time constant |
+| BU0125 | Error | struct constructors take no arguments |
 
 ## Command Line Diagnostics
 
