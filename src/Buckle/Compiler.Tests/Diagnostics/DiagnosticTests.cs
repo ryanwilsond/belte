@@ -1709,8 +1709,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0124_ConstraintIsNotConstant() {
         var text = @"
-            int min = 3;
-            class A<int T> where { [T < min;] } { }
+            class A<int T> where { [HasValue(T) ? true : false;] } { }
         ";
 
         var diagnostics = @"

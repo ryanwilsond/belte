@@ -2363,8 +2363,8 @@ internal sealed class Binder {
         SimpleNameSyntax right,
         SyntaxToken operatorToken,
         bool called) {
-        if (boundLeft is BoundErrorExpression)
-            return boundLeft;
+        if (boundLeft is BoundErrorExpression || boundLeft.type.typeSymbol is null)
+            return new BoundErrorExpression();
 
         var furthestRight = boundLeft;
 
