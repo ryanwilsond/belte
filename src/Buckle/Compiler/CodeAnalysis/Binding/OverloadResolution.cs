@@ -170,8 +170,7 @@ internal sealed class OverloadResolution {
             }
 
             if (methods.Length == 1 && _binder.diagnostics.Errors().Any()) {
-                tempDiagnostics.Move(_binder.diagnostics);
-                _binder.diagnostics.Move(tempDiagnostics);
+                CleanUpDiagnostics(methods, tempDiagnostics);
                 return OverloadResolutionResult<MethodSymbol>.Failed();
             }
 
@@ -568,7 +567,7 @@ internal sealed class OverloadResolution {
 
     private void CleanUpDiagnostics<T>(ImmutableArray<T> overloads, BelteDiagnosticQueue tempDiagnostics)
         where T : Symbol {
-        if (overloads.Length > 1) {
+        if (overloads.Length > 1 || _suppressDiagnostics) {
             _binder.diagnostics.Clear();
             _binder.diagnostics.Move(tempDiagnostics);
         } else if (overloads.Length == 1) {

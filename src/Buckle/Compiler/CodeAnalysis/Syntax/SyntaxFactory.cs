@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -120,7 +121,7 @@ public static partial class SyntaxFactory {
     /// Creates a separated syntax list.
     /// </summary>
     public static SeparatedSyntaxList<T> SeparatedList<T>(params T[] nodes) where T : SyntaxNode {
-        return SeparatedList(nodes);
+        return SeparatedList(nodes as IEnumerable<T>);
     }
 
     /// <summary>
@@ -128,9 +129,13 @@ public static partial class SyntaxFactory {
     /// </summary>
     public static SeparatedSyntaxList<T> SeparatedList<T>(IEnumerable<T> nodes) where T : SyntaxNode {
         if (nodes is not ICollection<T> collection || collection.Count == 0)
-            return new SeparatedSyntaxList<T>(null);
+            return new SeparatedSyntaxList<T>(new SyntaxNodeOrTokenList(null, 0));
 
         using var enumerator = nodes.GetEnumerator();
+
+        if (!enumerator.MoveNext())
+            return new SeparatedSyntaxList<T>(new SyntaxNodeOrTokenList(null, 0));
+
         var firstNode = enumerator.Current;
 
         if (!enumerator.MoveNext())
