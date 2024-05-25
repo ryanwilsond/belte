@@ -1733,4 +1733,46 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0126_ExtendConstraintFailed() {
+        var text = @"
+            class A<type T> where { T extends Object; } { }
+            var myA = new A[<int>]();
+        ";
+
+        var diagnostics = @"
+            template constraint 1 fails ('T extends Object'); 'T' must be or inherit from 'Object'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0127_ConstraintWasNull() {
+        var text = @"
+            class A<int a, int b> where { a < b; } { }
+            var myA = new A[<, >]();
+        ";
+
+        var diagnostics = @"
+            template constraint 1 fails ('(a < b)'); constraint results in null
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0128_ConstraintFailed() {
+        var text = @"
+            class A<int a, int b> where { a < b; } { }
+            var myA = new A[<3, 2>]();
+        ";
+
+        var diagnostics = @"
+            template constraint 1 fails ('(a < b)')
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

@@ -136,6 +136,9 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0123 | Error | template '{0}' is not a type; cannot extension check a non-type |
 | BU0124 | Error | template constraint is not a compile-time constant |
 | BU0125 | Error | struct constructors take no arguments |
+| BU0126 | Error | template constraint {0} fails ('{1}'); '{2}' must be or inherit from '{3}' |
+| BU0127 | Error | template constraint {0} fails ('{1}'); constraint results in null |
+| BU0128 | Error | template constraint {0} fails ('{1}') |
 
 ## Command Line Diagnostics
 

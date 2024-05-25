@@ -954,7 +954,7 @@ internal sealed class Evaluator {
             if (leftValue is null && Dereference(left).members is null)
                 return new EvaluatorObject(false);
 
-            if (TypeInheritsFrom(expression.left.type, expression.right.type))
+            if (TypeUtilities.TypeInheritsFrom(expression.left.type, expression.right.type))
                 return new EvaluatorObject(expression.op.opKind is BoundBinaryOperatorKind.Is);
             else
                 return new EvaluatorObject(expression.op.opKind is BoundBinaryOperatorKind.Isnt);
@@ -1050,19 +1050,6 @@ internal sealed class Evaluator {
                 throw new BelteInternalException(
                     $"EvaluateBinaryExpression: unknown binary operator '{expression.op}'"
                 );
-        }
-
-        bool TypeInheritsFrom(BoundType left, BoundType right) {
-            if (left.Equals(right, isTypeCheck: true))
-                return true;
-
-            if (left.typeSymbol is not ClassSymbol ||
-                right.typeSymbol is not ClassSymbol ||
-                (left.typeSymbol as ClassSymbol).baseType is null) {
-                return false;
-            }
-
-            return TypeInheritsFrom((left.typeSymbol as ClassSymbol).baseType, right);
         }
     }
 

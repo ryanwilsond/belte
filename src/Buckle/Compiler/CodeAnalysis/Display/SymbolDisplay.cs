@@ -103,6 +103,22 @@ public static class SymbolDisplay {
                 text.Write(CreateSpace());
                 DisplayText.DisplayNode(text, c.baseType);
             }
+
+            if (!n.templateConstraints.IsEmpty) {
+                text.Write(CreateSpace());
+                text.Write(CreateKeyword(SyntaxKind.WhereKeyword));
+                text.Write(CreateSpace());
+                text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+                text.Write(CreateSpace());
+
+                foreach (var constraint in n.templateConstraints) {
+                    DisplayText.DisplayNode(text, constraint);
+                    text.Write(CreatePunctuation(SyntaxKind.SemicolonToken));
+                    text.Write(CreateSpace());
+                }
+
+                text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
+            }
         } else {
             text.Write(CreateType(symbol.name));
         }

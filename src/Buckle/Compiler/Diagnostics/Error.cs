@@ -1147,6 +1147,35 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StructTakesNoArguments), location, message);
     }
 
+    /// <summary>
+    /// BU0126. Run `buckle --explain BU0126` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic ExtendConstraintFailed(
+        TextLocation location,
+        string constraint,
+        int ordinal,
+        string templateName,
+        string extensionName) {
+        var message = $"template constraint {ordinal} fails ('{constraint}'); '{templateName}' must be or inherit from '{extensionName}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ExtendConstraintFailed), location, message);
+    }
+
+    /// <summary>
+    /// BU0127. Run `buckle --explain BU0127` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic ConstraintWasNull(TextLocation location, string constraint, int ordinal) {
+        var message = $"template constraint {ordinal} fails ('{constraint}'); constraint results in null";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstraintWasNull), location, message);
+    }
+
+    /// <summary>
+    /// BU0128. Run `buckle --explain BU0128` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic ConstraintFailed(TextLocation location, string constraint, int ordinal) {
+        var message = $"template constraint {ordinal} fails ('{constraint}')";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstraintFailed), location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

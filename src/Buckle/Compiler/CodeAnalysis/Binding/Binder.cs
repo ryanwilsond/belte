@@ -688,7 +688,7 @@ internal sealed class Binder {
                 var boundParameter = new ParameterSymbol(
                     parameterName,
                     parameterType,
-                    parameters.Count,
+                    parametersBuilder.Count + 1,
                     boundDefault,
                     isTemplate: isTemplate
                 );
@@ -1253,6 +1253,7 @@ internal sealed class Binder {
     private ImmutableArray<BoundExpression> BindConstraintClauseList(
         TypeDeclarationSyntax type,
         ImmutableArray<ParameterSymbol> templates) {
+        // TODO Should the clauses be able to see globals? e.g. constexpr GlobalMin
         var constraintsBuilder = ImmutableList.CreateBuilder<BoundExpression>();
 
         if (type.constraintClauseList != null) {
@@ -1289,7 +1290,11 @@ internal sealed class Binder {
 
                     _scope = _scope.parent;
 
-                    var expression = expressionStatement.expression;
+                    var expression = BindCast(
+                        constraintClause.expressionStatement.expression.location,
+                        expressionStatement.expression,
+                        BoundType.NullableBool
+                    );
 
                     if (!IsCompilerComputable(expression, templates)) {
                         diagnostics.Push(Error.ConstraintIsNotConstant(constraintClause.location));
@@ -2098,23 +2103,60 @@ internal sealed class Binder {
                 name.templateArgumentList
             );
 
-            var constantArguments = ImmutableArray.CreateBuilder<BoundTypeOrConstant>();
+            var constantArgumentsBuilder = ImmutableArray.CreateBuilder<BoundTypeOrConstant>();
 
             foreach (var argument in result.arguments) {
                 if (argument is BoundType t)
-                    constantArguments.Add(new BoundTypeOrConstant(t));
+                    constantArgumentsBuilder.Add(new BoundTypeOrConstant(t));
                 else
-                    constantArguments.Add(new BoundTypeOrConstant(argument.constantValue, argument.type, argument));
+                    constantArgumentsBuilder.Add(new BoundTypeOrConstant(argument.constantValue, argument.type, argument));
             }
 
-            if (result.succeeded) {
-                return new BoundType(
-                    result.bestOverload,
-                    templateArguments: constantArguments.ToImmutable(),
-                    arity: result.bestOverload.arity,
-                    isNullable: true
-                );
+            if (!result.succeeded)
+                return null;
+
+            var constantArguments = constantArgumentsBuilder.ToImmutable();
+
+            for (var i = 0; i < result.bestOverload.templateConstraints.Length; i++) {
+                var constraint = result.bestOverload.templateConstraints[i];
+
+                if (constraint is BoundExtendExpression e) {
+                    var replacement = constantArgumentsBuilder[e.template.ordinal - 1];
+
+                    if (!TypeUtilities.TypeInheritsFrom(replacement.type, e.extension)) {
+                        diagnostics.Push(Error.ExtendConstraintFailed(
+                            name.templateArgumentList.location,
+                            constraint.ToString(),
+                            i + 1,
+                            e.template.name,
+                            e.extension.ToString()
+                        ));
+                    }
+                } else {
+                    var constraintResult = EvaluateConstraint(constraint, constantArguments);
+
+                    if (constraintResult is null) {
+                        diagnostics.Push(Error.ConstraintWasNull(
+                            name.templateArgumentList.location,
+                            constraint.ToString(),
+                            i + 1
+                        ));
+                    } else if (!constraintResult.Value) {
+                        diagnostics.Push(Error.ConstraintFailed(
+                            name.templateArgumentList.location,
+                            constraint.ToString(),
+                            i + 1
+                        ));
+                    }
+                }
             }
+
+            return new BoundType(
+                result.bestOverload,
+                templateArguments: constantArguments,
+                arity: result.bestOverload.arity,
+                isNullable: true
+            );
         }
 
         return null;
@@ -2837,9 +2879,6 @@ internal sealed class Binder {
         if (!BindAndVerifyType(declaration, modifiers, false, false, out var type))
             return null;
 
-        if (type.typeSymbol is NamedTypeSymbol n)
-            Console.WriteLine($"{n.name} has {n.templateConstraints.Length} constraints");
-
         var value = declaration.initializer?.value;
         var isNullable = type.isNullable;
         var isConstantExpression = (modifiers & DeclarationModifiers.ConstExpr) != 0;
@@ -3138,8 +3177,15 @@ internal sealed class Binder {
             if (!PartiallyBindArgumentList(expression.argumentList, out var arguments))
                 return new BoundErrorExpression();
 
-            if (arguments.Length > 0)
-                diagnostics.Push(Error.StructTakesNoArguments(expression.argumentList.location));
+            if (arguments.Length > 0) {
+                var span = TextSpan.FromBounds(
+                    expression.argumentList.arguments[0].span.start,
+                    expression.argumentList.arguments[^1].span.end
+                );
+
+                var location = new TextLocation(expression.syntaxTree.text, span);
+                diagnostics.Push(Error.StructTakesNoArguments(location));
+            }
 
             return new BoundObjectCreationExpression(type);
         } else {
@@ -3941,23 +3987,23 @@ internal sealed class Binder {
             return true;
 
         switch (expression.kind) {
+            case BoundNodeKind.UnaryExpression:
+                return IsCompilerComputable(((BoundUnaryExpression)expression).operand, allowedVariables);
             case BoundNodeKind.BinaryExpression:
                 var binaryExpression = (BoundBinaryExpression)expression;
                 return IsCompilerComputable(binaryExpression.left, allowedVariables) &&
                     IsCompilerComputable(binaryExpression.right, allowedVariables);
+            case BoundNodeKind.TernaryExpression:
+                var ternaryExpression = (BoundTernaryExpression)expression;
+                return IsCompilerComputable(ternaryExpression.left, allowedVariables) &&
+                    IsCompilerComputable(ternaryExpression.center, allowedVariables) &&
+                    IsCompilerComputable(ternaryExpression.right, allowedVariables);
             case BoundNodeKind.CastExpression:
                 return IsCompilerComputable(((BoundCastExpression)expression).expression, allowedVariables);
             case BoundNodeKind.IndexExpression:
                 var indexExpression = (BoundIndexExpression)expression;
                 return IsCompilerComputable(indexExpression.expression, allowedVariables) &&
                     IsCompilerComputable(indexExpression.index, allowedVariables);
-            case BoundNodeKind.TernaryExpression:
-                var ternaryExpression = (BoundTernaryExpression)expression;
-                return IsCompilerComputable(ternaryExpression.left, allowedVariables) &&
-                    IsCompilerComputable(ternaryExpression.center, allowedVariables) &&
-                    IsCompilerComputable(ternaryExpression.right, allowedVariables);
-            case BoundNodeKind.UnaryExpression:
-                return IsCompilerComputable(((BoundUnaryExpression)expression).operand, allowedVariables);
             case BoundNodeKind.VariableExpression:
                 var variableExpression = (BoundVariableExpression)expression;
 
@@ -3967,6 +4013,73 @@ internal sealed class Binder {
                     return false;
             default:
                 return false;
+        }
+    }
+
+    private bool? EvaluateConstraint(BoundExpression expression, ImmutableArray<BoundTypeOrConstant> templates) {
+        return (bool?)EvaluateExpression(expression);
+
+        object EvaluateExpression(BoundExpression expression) {
+            if (expression.constantValue is not null)
+                return expression.constantValue.value;
+
+            switch (expression.kind) {
+                case BoundNodeKind.UnaryExpression:
+                    var unaryExpression = (BoundUnaryExpression)expression;
+                    var unaryOperand = EvaluateExpression(unaryExpression.operand);
+
+                    return ConstantFolding.FoldUnary(
+                        unaryExpression.op,
+                        new BoundLiteralExpression(unaryOperand)
+                    ).value;
+                case BoundNodeKind.BinaryExpression:
+                    var binaryExpression = (BoundBinaryExpression)expression;
+                    var binaryLeft = EvaluateExpression(binaryExpression.left);
+                    var binaryRight = EvaluateExpression(binaryExpression.right);
+
+                    return ConstantFolding.FoldBinary(
+                        new BoundLiteralExpression(binaryLeft),
+                        binaryExpression.op,
+                        new BoundLiteralExpression(binaryRight)
+                    ).value;
+                case BoundNodeKind.TernaryExpression:
+                    var ternaryExpression = (BoundTernaryExpression)expression;
+                    var ternaryLeft = EvaluateExpression(ternaryExpression.left);
+                    var ternaryCenter = EvaluateExpression(ternaryExpression.center);
+                    var ternaryRight = EvaluateExpression(ternaryExpression.right);
+
+                    return ConstantFolding.FoldTernary(
+                        new BoundLiteralExpression(ternaryLeft),
+                        ternaryExpression.op,
+                        new BoundLiteralExpression(ternaryCenter),
+                        new BoundLiteralExpression(ternaryRight)
+                    ).value;
+                case BoundNodeKind.CastExpression:
+                    var castExpression = (BoundCastExpression)expression;
+                    var castOperand = EvaluateExpression(castExpression.expression);
+
+                    return ConstantFolding.FoldCast(
+                        new BoundLiteralExpression(castOperand),
+                        castExpression.type
+                    ).value;
+                case BoundNodeKind.IndexExpression:
+                    var indexExpression = (BoundIndexExpression)expression;
+                    var indexOperand = EvaluateExpression(indexExpression.expression);
+                    var indexIndex = EvaluateExpression(indexExpression.index);
+
+                    return ConstantFolding.FoldIndex(
+                        new BoundLiteralExpression(indexOperand),
+                        new BoundLiteralExpression(indexIndex)
+                    ).value;
+                case BoundNodeKind.VariableExpression:
+                    var variableExpression = (BoundVariableExpression)expression;
+                    var index = (variableExpression.variable as ParameterSymbol).ordinal - 1;
+                    var replacement = templates[index];
+
+                    return replacement.constant.value;
+                default:
+                    throw ExceptionUtilities.Unreachable();
+            }
         }
     }
 }

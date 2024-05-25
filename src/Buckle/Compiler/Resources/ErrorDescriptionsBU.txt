@@ -1874,6 +1874,42 @@ struct A {
 var s = new A(a: 3, b: 6); // Not allowed
 var s = new A(); // Allowed
 ```
+$BU0126
+An extension template parameter constraint clause ensures the passed type
+template is or inherits from the specified type.
+
+For example:
+
+```
+class A<type T> where { T extends Object; } { }
+
+var a = new A<int>(); // Not allowed, `int` does not inherit from `Object`
+var a = new A<Object>(); // Allowed
+```
+$BU0127
+While template parameter constraint clauses themselves allow nullability, them
+resulting in null is treated as a constraint failure.
+
+For example:
+
+```
+class A<int a> where { a < 10; } { }
+
+var a = new A<null>(); // Not allowed, `null` makes the constraint result in null, failing
+var a = new A<5>(); // Allowed
+```
+$BU0128
+All template parameter constraint clauses must evaluate to true when
+instantiating a template.
+
+For example:
+
+```
+class A<int a> where { a < 10; } { }
+
+var a = new A<11>(); // Not allowed, `11 < 10` is false
+var a = new A<5>(); // Allowed
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.
