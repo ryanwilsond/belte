@@ -1169,8 +1169,8 @@ internal sealed class Binder {
     private NamedTypeSymbol PreBindTypeDeclaration(
         TypeDeclarationSyntax type,
         DeclarationModifiers inheritedModifiers) {
+        // Binds everything about the type except the members
         var templateBuilder = ImmutableList.CreateBuilder<ParameterSymbol>();
-        var constraintsBuilder = ImmutableList.CreateBuilder<BoundExpression>();
 
         if (type.templateParameterList != null) {
             var templateParameters = BindParameters(type.templateParameterList.parameters, true);
@@ -1181,32 +1181,69 @@ internal sealed class Binder {
 
         var templates = templateBuilder.ToImmutableArray();
 
-        bool IsCompilerComputable(BoundExpression expression) {
-            if (expression.constantValue is not null)
-                return true;
+        NamedTypeSymbol symbol;
 
-            switch (expression.kind) {
-                case BoundNodeKind.BinaryExpression:
-                    var binaryExpression = (BoundBinaryExpression)expression;
-                    return IsCompilerComputable(binaryExpression.left) && IsCompilerComputable(binaryExpression.right);
-                case BoundNodeKind.CastExpression:
-                    return IsCompilerComputable(((BoundCastExpression)expression).expression);
-                case BoundNodeKind.IndexExpression:
-                    var indexExpression = (BoundIndexExpression)expression;
-                    return IsCompilerComputable(indexExpression.expression) &&
-                        IsCompilerComputable(indexExpression.index);
-                case BoundNodeKind.TernaryExpression:
-                    var ternaryExpression = (BoundTernaryExpression)expression;
-                    return IsCompilerComputable(ternaryExpression.left) &&
-                        IsCompilerComputable(ternaryExpression.center) &&
-                        IsCompilerComputable(ternaryExpression.right);
-                case BoundNodeKind.UnaryExpression:
-                    return IsCompilerComputable(((BoundUnaryExpression)expression).operand);
-                case BoundNodeKind.VariableExpression:
-                    // TODO
-                    return true;
-                default:
-                    return false;
+        if (type is StructDeclarationSyntax s) {
+            var modifiers = BindStructDeclarationModifiers(s.modifiers);
+            var accessibility = BindAccessibilityFromModifiers(modifiers);
+            // var constraints = BindConstraintClauseList(s, BinderFlags.Struct, modifiers, templates);
+
+            symbol = new StructSymbol(
+                    templates,
+                    // constraints,
+                    [],
+                    [],
+                    s,
+                    modifiers | inheritedModifiers,
+                    accessibility
+                );
+        } else if (type is ClassDeclarationSyntax c) {
+            var modifiers = BindClassDeclarationModifiers(c.modifiers);
+            var accessibility = BindAccessibilityFromModifiers(modifiers);
+            // var constraints = BindConstraintClauseList(c, BinderFlags.Class, modifiers, templates);
+            var baseType = c.baseType is null
+                ? new BoundType(_wellKnownTypes[WellKnownTypeNames.Object])
+                : BindBaseType(c.baseType);
+
+            symbol = new ClassSymbol(
+                    templates,
+                    // constraints,
+                    [],
+                    [],
+                    [],
+                    c,
+                    modifiers | inheritedModifiers,
+                    accessibility,
+                    baseType
+                );
+        } else {
+            throw new BelteInternalException($"BindTypeDeclaration: unexpected type '{type.identifier.text}'");
+        }
+
+        _scope.TryDeclareType(symbol);
+        return symbol;
+    }
+
+    private ImmutableArray<BoundExpression> BindConstraintClauseList(
+        TypeDeclarationSyntax type,
+        BinderFlags context,
+        DeclarationModifiers modifiers,
+        ImmutableArray<ParameterSymbol> templates) {
+        var constraintsBuilder = ImmutableList.CreateBuilder<BoundExpression>();
+
+        _scope = new BoundScope(_scope);
+        var saved = _flags;
+        _flags |= context;
+
+        if ((modifiers & DeclarationModifiers.LowLevel) != 0)
+            _flags |= BinderFlags.LowLevelContext;
+
+        foreach (var template in templates) {
+            if (template.type.typeSymbol == TypeSymbol.Type) {
+                var templateType = new TemplateTypeSymbol(template);
+                _scope.TryDeclareType(templateType);
+            } else {
+                _scope.TryDeclareVariable(template);
             }
         }
 
@@ -1237,12 +1274,16 @@ internal sealed class Binder {
                     var constraint = new BoundExtendExpression(template, extension);
                     constraintsBuilder.Add(constraint);
                 } else {
+                    _scope = new BoundScope(_scope);
+
                     var expressionStatement =
                         (BoundExpressionStatement)BindExpressionStatement(constraintClause.expressionStatement);
 
+                    _scope = _scope.parent;
+
                     var expression = expressionStatement.expression;
 
-                    if (!IsCompilerComputable(expression)) {
+                    if (!IsCompilerComputable(expression, templates)) {
                         diagnostics.Push(Error.ConstraintIsNotConstant(constraintClause.location));
                         continue;
                     }
@@ -1252,43 +1293,10 @@ internal sealed class Binder {
             }
         }
 
-        NamedTypeSymbol symbol;
+        _flags = saved;
+        _scope = _scope.parent;
 
-        if (type is StructDeclarationSyntax s) {
-            var modifiers = BindStructDeclarationModifiers(s.modifiers);
-            var accessibility = BindAccessibilityFromModifiers(modifiers);
-
-            symbol = new StructSymbol(
-                    templates,
-                    constraintsBuilder.ToImmutableArray(),
-                    [],
-                    s,
-                    modifiers | inheritedModifiers,
-                    accessibility
-                );
-        } else if (type is ClassDeclarationSyntax c) {
-            var modifiers = BindClassDeclarationModifiers(c.modifiers);
-            var accessibility = BindAccessibilityFromModifiers(modifiers);
-            var baseType = c.baseType is null
-                ? new BoundType(_wellKnownTypes[WellKnownTypeNames.Object])
-                : BindBaseType(c.baseType);
-
-            symbol = new ClassSymbol(
-                    templates,
-                    constraintsBuilder.ToImmutableArray(),
-                    [],
-                    [],
-                    c,
-                    modifiers | inheritedModifiers,
-                    accessibility,
-                    baseType
-                );
-        } else {
-            throw new BelteInternalException($"BindTypeDeclaration: unexpected type '{type.identifier.text}'");
-        }
-
-        _scope.TryDeclareType(symbol);
-        return symbol;
+        return constraintsBuilder.ToImmutableArray();
     }
 
     private TypeSymbol BindTypeDeclaration(TypeDeclarationSyntax @type) {
@@ -1463,6 +1471,8 @@ internal sealed class Binder {
             inheritModifiers = DeclarationModifiers.LowLevel;
         }
 
+        var templates = ImmutableArray.CreateBuilder<ParameterSymbol>();
+
         foreach (var templateParameter in oldClass.templateParameters) {
             if (templateParameter.type.typeSymbol == TypeSymbol.Type) {
                 var templateType = new TemplateTypeSymbol(templateParameter);
@@ -1472,7 +1482,11 @@ internal sealed class Binder {
                 builder.Add(templateParameter);
                 _scope.TryDeclareVariable(templateParameter);
             }
+
+            templates.Add(templateParameter);
         }
+
+        var constraints = BindConstraintClauseList(@class, BinderFlags.Class, DeclarationModifiers.None, templates.ToImmutable());
 
         foreach (var member in (oldClass.baseType.typeSymbol as ClassSymbol).members) {
             switch (member.kind) {
@@ -1513,7 +1527,7 @@ internal sealed class Binder {
 
             var emptyClass = new ClassSymbol(
                 oldClass.templateParameters,
-                oldClass.templateConstraints,
+                constraints,
                 builder.ToImmutableArray(),
                 [],
                 @class,
@@ -1609,7 +1623,7 @@ internal sealed class Binder {
 
         var newClass = new ClassSymbol(
             oldClass.templateParameters,
-            oldClass.templateConstraints,
+            constraints,
             builder.ToImmutableArray(),
             defaultFieldAssignments,
             @class,
@@ -2817,6 +2831,9 @@ internal sealed class Binder {
         if (!BindAndVerifyType(declaration, modifiers, false, out var type))
             return null;
 
+        if (type.typeSymbol is NamedTypeSymbol n)
+            Console.WriteLine($"{n.name} has {n.templateConstraints.Length} constraints");
+
         var value = declaration.initializer?.value;
         var isNullable = type.isNullable;
         var isConstantExpression = (modifiers & DeclarationModifiers.ConstExpr) != 0;
@@ -3287,7 +3304,6 @@ internal sealed class Binder {
     private BoundExpression BindIndexExpression(IndexExpressionSyntax expression) {
         var boundIndex = BindExpression(expression.index);
 
-        // TODO why does `{1, 2, 3}["string"]` prompt error BU0025?
         if (BoundConstant.IsNotNull(boundIndex.constantValue) &&
             boundIndex.constantValue.value is int v &&
             expression.expression is InitializerListExpressionSyntax i) {
@@ -3904,5 +3920,39 @@ internal sealed class Binder {
 
         if (CheckIsPartOfThis(left))
             diagnostics.Push(Error.AssignmentInConstMethod(assignmentLocation));
+    }
+
+    private bool IsCompilerComputable(BoundExpression expression, ImmutableArray<ParameterSymbol> allowedVariables) {
+        if (expression.constantValue is not null)
+            return true;
+
+        switch (expression.kind) {
+            case BoundNodeKind.BinaryExpression:
+                var binaryExpression = (BoundBinaryExpression)expression;
+                return IsCompilerComputable(binaryExpression.left, allowedVariables) &&
+                    IsCompilerComputable(binaryExpression.right, allowedVariables);
+            case BoundNodeKind.CastExpression:
+                return IsCompilerComputable(((BoundCastExpression)expression).expression, allowedVariables);
+            case BoundNodeKind.IndexExpression:
+                var indexExpression = (BoundIndexExpression)expression;
+                return IsCompilerComputable(indexExpression.expression, allowedVariables) &&
+                    IsCompilerComputable(indexExpression.index, allowedVariables);
+            case BoundNodeKind.TernaryExpression:
+                var ternaryExpression = (BoundTernaryExpression)expression;
+                return IsCompilerComputable(ternaryExpression.left, allowedVariables) &&
+                    IsCompilerComputable(ternaryExpression.center, allowedVariables) &&
+                    IsCompilerComputable(ternaryExpression.right, allowedVariables);
+            case BoundNodeKind.UnaryExpression:
+                return IsCompilerComputable(((BoundUnaryExpression)expression).operand, allowedVariables);
+            case BoundNodeKind.VariableExpression:
+                var variableExpression = (BoundVariableExpression)expression;
+
+                if (allowedVariables.Contains(variableExpression.variable))
+                    return true;
+                else
+                    return false;
+            default:
+                return false;
+        }
     }
 }
