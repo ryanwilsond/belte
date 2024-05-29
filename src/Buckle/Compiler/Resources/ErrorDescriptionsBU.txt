@@ -1910,6 +1910,24 @@ class A<int a> where { a < 10; } { }
 var a = new A<11>(); // Not allowed, `11 < 10` is false
 var a = new A<5>(); // Allowed
 ```
+$BU0129
+Global variables, constants, constant expressions, or functions cannot be used
+within class definitions to prevent possible circular dependencies when the
+global is of that very class type.
+
+For example:
+
+```
+C myC = new C();
+
+class C {
+    int a = myC.a;
+}
+```
+
+In this example, a circular dependency is created as the definition for class
+`C` uses global variable `myC`, but `myC` is of defining type `C`. To prevent
+this possibility, globals cannot be used within class definitions.
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.

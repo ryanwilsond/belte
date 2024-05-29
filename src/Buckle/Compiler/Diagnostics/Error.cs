@@ -1176,6 +1176,14 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstraintFailed), location, message);
     }
 
+    /// <summary>
+    /// BU0129. Run `buckle --explain BU0129` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotUseGlobalInClass(TextLocation location, string name) {
+        var message = $"cannot use global '{name}' in a class definition";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseGlobalInClass), location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

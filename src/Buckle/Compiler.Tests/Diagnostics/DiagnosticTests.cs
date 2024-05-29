@@ -1774,4 +1774,20 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0129_CannotUseGlobalInClass() {
+        var text = @"
+            A m = new A();
+            class A {
+                A a = [m];
+            }
+        ";
+
+        var diagnostics = @"
+            cannot use global 'm' in a class definition
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }
