@@ -1911,9 +1911,9 @@ var a = new A<11>(); // Not allowed, `11 < 10` is false
 var a = new A<5>(); // Allowed
 ```
 $BU0129
-Global variables, constants, constant expressions, or functions cannot be used
+Global variables, constants, or constant expressions cannot be used
 within class definitions to prevent possible circular dependencies when the
-global is of that very class type.
+global is of that very class type. Note that global functions can be used.
 
 For example:
 

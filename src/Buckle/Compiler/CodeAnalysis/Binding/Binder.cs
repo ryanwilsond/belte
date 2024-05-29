@@ -2246,7 +2246,7 @@ internal sealed class Binder {
 
         if (_flags.Includes(BinderFlags.Class) &&
             result is BoundVariableExpression v &&
-            v.variable.containingType is null) {
+            v.variable is GlobalVariableSymbol) {
             diagnostics.Push(Error.CannotUseGlobalInClass(syntax.location, name));
         }
 
@@ -2459,9 +2459,6 @@ internal sealed class Binder {
             foreach (var frame in _trackedDeclarations)
                 frame.Add(variable);
         }
-
-        if (_flags.Includes(BinderFlags.Class) && variable.containingType is null)
-            diagnostics.Push(Error.CannotUseGlobalInClass(identifier.location, name));
 
         return variable;
     }
@@ -3512,9 +3509,6 @@ internal sealed class Binder {
                     ));
                 }
             }
-
-            if (_flags.Includes(BinderFlags.Class) && result.bestOverload.containingType is null)
-                diagnostics.Push(Error.CannotUseGlobalInClass(expression.expression.location, mg.name));
 
             return new BoundCallExpression(receiver, result.bestOverload, result.arguments);
         }
