@@ -14,8 +14,9 @@ internal enum DeclarationModifiers : uint {
     LowLevel = 1 << 3,
     Public = 1 << 4,
     Private = 1 << 5,
-    Sealed = 1 << 6,
-    Abstract = 1 << 7,
-    Virtual = 1 << 8,
-    Override = 1 << 9,
+    Protected = 1 << 6,
+    Sealed = 1 << 7,
+    Abstract = 1 << 8,
+    Virtual = 1 << 9,
+    Override = 1 << 10,
 }

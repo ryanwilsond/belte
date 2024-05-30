@@ -745,6 +745,18 @@ internal sealed class Binder {
         return boundAssignmentsBuilder.ToImmutable();
     }
 
+    private bool ModifierAlreadyApplied(
+        DeclarationModifiers modifiers,
+        DeclarationModifiers modifier,
+        SyntaxToken syntax) {
+        if ((modifiers & modifier) != 0) {
+            diagnostics.Push(Error.ModifierAlreadyApplied(syntax.location, syntax.text));
+            return true;
+        }
+
+        return false;
+    }
+
     private MethodSymbol BindMethodDeclaration(
         MethodDeclarationSyntax method,
         DeclarationModifiers inheritedModifiers,
@@ -836,10 +848,8 @@ internal sealed class Binder {
                     if (!_flags.Includes(BinderFlags.Class))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Static) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Static, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Const) != 0) {
                         diagnostics.Push(Error.ConflictingModifiers(modifier.location, "static", "constant"));
@@ -852,10 +862,8 @@ internal sealed class Binder {
                     if (!_flags.Includes(BinderFlags.Class))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Const) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Const, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Static) != 0) {
                         diagnostics.Push(Error.ConflictingModifiers(modifier.location, "static", "constant"));
@@ -865,10 +873,8 @@ internal sealed class Binder {
                     declarationModifiers |= DeclarationModifiers.Const;
                     break;
                 case SyntaxKind.LowlevelKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.LowLevel) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.LowLevel, modifier))
                         break;
-                    }
 
                     declarationModifiers |= DeclarationModifiers.LowLevel;
                     break;
@@ -876,10 +882,8 @@ internal sealed class Binder {
                     if (!_flags.Includes(BinderFlags.Class))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Public) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Public, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Private) != 0) {
                         diagnostics.Push(Error.ConflictingModifiers(modifier.location, "public", "private"));
@@ -892,10 +896,8 @@ internal sealed class Binder {
                     if (!_flags.Includes(BinderFlags.Class))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Private) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Private, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Public) != 0) {
                         diagnostics.Push(Error.ConflictingModifiers(modifier.location, "public", "private"));
@@ -908,10 +910,8 @@ internal sealed class Binder {
                     if (!_flags.Includes(BinderFlags.Class))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Virtual) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Virtual, modifier))
                         break;
-                    }
 
                     declarationModifiers |= DeclarationModifiers.Virtual;
                     break;
@@ -919,10 +919,8 @@ internal sealed class Binder {
                     if (!_flags.Includes(BinderFlags.Class))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Override) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Static, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Virtual) != 0) {
                         diagnostics.Push(Error.ConflictingModifiers(modifier.location, "virtual", "override"));
@@ -981,10 +979,8 @@ internal sealed class Binder {
         foreach (var modifier in modifiers) {
             switch (modifier.kind) {
                 case SyntaxKind.LowlevelKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.LowLevel) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.LowLevel, modifier))
                         break;
-                    }
 
                     declarationModifiers |= DeclarationModifiers.LowLevel;
                     break;
@@ -992,10 +988,8 @@ internal sealed class Binder {
                     if (!_flags.Includes(BinderFlags.Class))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Public) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Public, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Private) != 0) {
                         diagnostics.Push(Error.ConflictingModifiers(modifier.location, "public", "private"));
@@ -1008,10 +1002,8 @@ internal sealed class Binder {
                     if (!_flags.Includes(BinderFlags.Class))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Private) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Private, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Public) != 0) {
                         diagnostics.Push(Error.ConflictingModifiers(modifier.location, "public", "private"));
@@ -1110,18 +1102,14 @@ internal sealed class Binder {
         foreach (var modifier in modifiers) {
             switch (modifier.kind) {
                 case SyntaxKind.StaticKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.Static) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Static, modifier))
                         break;
-                    }
 
                     declarationModifiers |= DeclarationModifiers.Static;
                     break;
                 case SyntaxKind.LowlevelKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.LowLevel) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.LowLevel, modifier))
                         break;
-                    }
 
                     declarationModifiers |= DeclarationModifiers.LowLevel;
                     break;
@@ -1129,10 +1117,8 @@ internal sealed class Binder {
                     if (!_flags.Includes(BinderFlags.Class))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Public) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Public, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Private) != 0) {
                         diagnostics.Push(Error.ConflictingModifiers(modifier.location, "public", "private"));
@@ -1145,10 +1131,8 @@ internal sealed class Binder {
                     if (!_flags.Includes(BinderFlags.Class))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Private) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Private, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Public) != 0) {
                         diagnostics.Push(Error.ConflictingModifiers(modifier.location, "public", "private"));
@@ -1156,6 +1140,15 @@ internal sealed class Binder {
                     }
 
                     declarationModifiers |= DeclarationModifiers.Private;
+                    break;
+                case SyntaxKind.ProtectedKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Protected, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.Protected;
                     break;
                 default:
                     diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
@@ -1389,10 +1382,8 @@ internal sealed class Binder {
         foreach (var modifier in modifiers) {
             switch (modifier.kind) {
                 case SyntaxKind.LowlevelKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.LowLevel) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.LowLevel, modifier))
                         break;
-                    }
 
                     declarationModifiers |= DeclarationModifiers.LowLevel;
                     break;
@@ -1400,10 +1391,8 @@ internal sealed class Binder {
                     if (!_flags.Includes(BinderFlags.Class))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Public) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Public, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Private) != 0) {
                         diagnostics.Push(Error.ConflictingModifiers(modifier.location, "public", "private"));
@@ -1416,10 +1405,8 @@ internal sealed class Binder {
                     if (!_flags.Includes(BinderFlags.Class))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Private) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Private, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Public) != 0) {
                         diagnostics.Push(Error.ConflictingModifiers(modifier.location, "public", "private"));
@@ -1668,18 +1655,14 @@ internal sealed class Binder {
         foreach (var modifier in modifiers) {
             switch (modifier.kind) {
                 case SyntaxKind.StaticKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.Static) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Static, modifier))
                         break;
-                    }
 
                     declarationModifiers |= DeclarationModifiers.Static;
                     break;
                 case SyntaxKind.LowlevelKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.LowLevel) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.LowLevel, modifier))
                         break;
-                    }
 
                     declarationModifiers |= DeclarationModifiers.LowLevel;
                     break;
@@ -1687,10 +1670,8 @@ internal sealed class Binder {
                     if (!_flags.Includes(BinderFlags.Class))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Public) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Public, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Private) != 0) {
                         diagnostics.Push(Error.ConflictingModifiers(modifier.location, "public", "private"));
@@ -1703,10 +1684,8 @@ internal sealed class Binder {
                     if (!_flags.Includes(BinderFlags.Class))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Private) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Private, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Public) != 0) {
                         diagnostics.Push(Error.ConflictingModifiers(modifier.location, "public", "private"));
@@ -1822,10 +1801,8 @@ internal sealed class Binder {
                     if (_flags.Includes(BinderFlags.Struct))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Const) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Const, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.ConstExpr) != 0) {
                         diagnostics.Push(
@@ -1841,10 +1818,8 @@ internal sealed class Binder {
                     if (_flags.Includes(BinderFlags.Struct))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.ConstExpr) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.ConstExpr, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Const) != 0) {
                         diagnostics.Push(
@@ -1860,10 +1835,8 @@ internal sealed class Binder {
                     if (!_flags.Includes(BinderFlags.Class))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Public) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Public, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Private) != 0) {
                         diagnostics.Push(Error.ConflictingModifiers(modifier.location, "public", "private"));
@@ -1876,10 +1849,8 @@ internal sealed class Binder {
                     if (!_flags.Includes(BinderFlags.Class))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Private) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Private, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Public) != 0) {
                         diagnostics.Push(Error.ConflictingModifiers(modifier.location, "public", "private"));
@@ -2787,10 +2758,8 @@ internal sealed class Binder {
         foreach (var modifier in modifiers) {
             switch (modifier.kind) {
                 case SyntaxKind.ConstKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.Const) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Const, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.ConstExpr) != 0) {
                         diagnostics.Push(
@@ -2803,10 +2772,8 @@ internal sealed class Binder {
                     declarationModifiers |= DeclarationModifiers.Const;
                     break;
                 case SyntaxKind.ConstexprKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.ConstExpr) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.ConstExpr, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Const) != 0) {
                         diagnostics.Push(
