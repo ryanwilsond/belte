@@ -143,7 +143,8 @@ internal static partial class StandardLibrary {
                 return null;
 
             var rate = Convert.ToDouble(arguments[2]);
-            return Convert.ToDouble(arguments[0]) * (1 - rate) + Convert.ToDouble(arguments[1]) * rate;
+            var start = Convert.ToDouble(arguments[0]);
+            return start + rate * (Convert.ToDouble(arguments[1]) - start);
         } else if (method == Math.members[33]) {
             var rate = Convert.ToDouble(arguments[2]);
             return Convert.ToDouble(arguments[0]) * (1 - rate) + Convert.ToDouble(arguments[1]) * rate;

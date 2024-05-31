@@ -33,6 +33,7 @@ public sealed partial class BelteRepl : Repl {
         ("Light", "", new LightTheme()),
         ("Green", "Abiral Shakya", new GreenTheme()),
         ("Blue", "Logan Kuz", new BlueTheme()),
+        ("Traffic Stop", "Jason Pelkey", new TrafficStopTheme()),
     }.ToImmutableArray();
 
     private List<TextChange> _changes = new List<TextChange>();
