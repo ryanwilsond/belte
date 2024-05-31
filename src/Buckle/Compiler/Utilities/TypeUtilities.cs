@@ -22,4 +22,20 @@ internal static class TypeUtilities {
 
         return TypeInheritsFrom((left.typeSymbol as ClassSymbol).baseType, right);
     }
+
+    internal static bool TypeInheritsFrom(TypeSymbol left, TypeSymbol right) {
+        if (left == right)
+            return true;
+
+        if (left is not ClassSymbol || right is not ClassSymbol)
+            return false;
+
+        if ((left as ClassSymbol).Equals(right as ClassSymbol))
+            return true;
+
+        if ((left as ClassSymbol).baseType is null)
+            return false;
+
+        return TypeInheritsFrom((left as ClassSymbol).baseType.typeSymbol, right);
+    }
 }
