@@ -756,7 +756,7 @@ internal sealed class Evaluator {
                 return EvaluatorObject.Null;
 
             return new EvaluatorObject((int)char.Parse(value));
-        } else if (node.method == BuiltinMethods.Char || node.method == BuiltinMethods.NullableAscii) {
+        } else if (node.method == BuiltinMethods.Char || node.method == BuiltinMethods.NullableChar) {
             var value = (int?)Value(EvaluateExpression(node.arguments[0], abort));
 
             if (!value.HasValue)
