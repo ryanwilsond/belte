@@ -146,6 +146,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0133 | Warning | the member '{0}.{1}' does not hide a member; the 'new' keyword is unnecessary |
 | BU0134 | Error | cannot derive from sealed type '{0}' |
 | BU0135 | Error | cannot derive from static type '{0}' |
+| BU0136 | Error | expected type |
 
 ## Command Line Diagnostics
 

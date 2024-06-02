@@ -144,6 +144,7 @@ public enum DiagnosticCode : int {
     WRN_MemberShadowsNothing = 133,
     ERR_CannotDeriveSealed = 134,
     ERR_CannotDeriveStatic = 135,
+    ERR_ExpectedType = 136,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

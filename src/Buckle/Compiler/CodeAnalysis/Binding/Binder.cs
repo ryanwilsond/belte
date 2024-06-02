@@ -3878,6 +3878,7 @@ internal sealed class Binder {
         if (boundOp.opKind != BoundBinaryOperatorKind.NullCoalescing &&
             boundOp.opKind != BoundBinaryOperatorKind.Is &&
             boundOp.opKind != BoundBinaryOperatorKind.Isnt &&
+            boundOp.opKind != BoundBinaryOperatorKind.As &&
             boundOp.opKind != BoundBinaryOperatorKind.ConditionalAnd &&
             boundOp.opKind != BoundBinaryOperatorKind.ConditionalOr) {
             if (BoundConstant.IsNull(boundLeft.constantValue) || BoundConstant.IsNull(boundRight.constantValue)) {
@@ -3898,6 +3899,19 @@ internal sealed class Binder {
             boundRight.constantValue != null && boundRight.constantValue.value.Equals(0)) {
             diagnostics.Push(Error.DivideByZero(expression.location));
             return new BoundErrorExpression();
+        }
+
+        if (boundOp.opKind == BoundBinaryOperatorKind.As) {
+            if (boundRight is not BoundType) {
+                diagnostics.Push(Error.ExpectedType(expression.right.location));
+                return new BoundErrorExpression();
+            }
+
+            if (!TypeUtilities.TypeInheritsFrom(boundLeft.type, boundRight.type) &&
+                !TypeUtilities.TypeInheritsFrom(boundRight.type, boundLeft.type)) {
+                diagnostics.Push(Error.CannotConvert(expression.location, boundLeft.type, boundRight.type));
+                return new BoundErrorExpression();
+            }
         }
 
         return new BoundBinaryExpression(boundLeft, boundOp, boundRight);

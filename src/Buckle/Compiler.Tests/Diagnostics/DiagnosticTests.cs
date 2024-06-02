@@ -1887,4 +1887,18 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0136_ExpectedType() {
+        var text = @"
+            class A {}
+            var a = new A() as [3];
+        ";
+
+        var diagnostics = @"
+            expected type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

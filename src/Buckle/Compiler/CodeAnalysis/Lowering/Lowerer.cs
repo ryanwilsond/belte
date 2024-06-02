@@ -213,6 +213,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         <left> <op> <right>
 
+        ----> <op> is 'as'
+
+        <left> <op> <right>
+
         ----> <op> is 'is' and <right> is 'null'
 
         (!HasValue(<left>))
@@ -242,6 +246,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         (<right> isnt null ? <left> <op> Value(<right>) : null)
 
         */
+        if (expression.op.opKind == BoundBinaryOperatorKind.As)
+            return base.RewriteBinaryExpression(expression);
+
         if (expression.op.opKind == BoundBinaryOperatorKind.Is) {
             if (BoundConstant.IsNull(expression.right.constantValue))
                 return RewriteExpression(Not(HasValue(expression.left)));

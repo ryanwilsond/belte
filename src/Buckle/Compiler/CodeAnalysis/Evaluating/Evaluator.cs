@@ -213,7 +213,7 @@ internal sealed class Evaluator {
         else if (value.reference != null)
             return new EvaluatorObject(value.reference, isExplicitReference: true);
         else if (value.members != null)
-            return new EvaluatorObject(Copy(value.members));
+            return new EvaluatorObject(Copy(value.members), value.trueType);
         else
             return new EvaluatorObject(value.value);
     }
@@ -306,24 +306,33 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateCast(EvaluatorObject value, BoundType type) {
-        var valueValue = Value(value);
+        var dereferenced = Dereference(value);
 
-        if (value.members != null)
-            return value;
+        if (dereferenced.members is null || dereferenced.trueType is null) {
+            var valueValue = Value(value);
 
-        if (valueValue is EvaluatorObject[] v) {
-            var builder = new List<EvaluatorObject>();
-            var castedValue = v;
+            if (valueValue is EvaluatorObject[] v) {
+                var builder = new List<EvaluatorObject>();
+                var castedValue = v;
 
-            foreach (var item in castedValue)
-                builder.Add(EvaluateCast(item, type.ChildType()));
+                foreach (var item in castedValue)
+                    builder.Add(EvaluateCast(item, type.ChildType()));
 
-            valueValue = builder.ToArray();
-        } else {
-            valueValue = EvaluateValueCast(valueValue, type);
+                valueValue = builder.ToArray();
+            } else {
+                valueValue = EvaluateValueCast(valueValue, type);
+            }
+
+            return new EvaluatorObject(valueValue);
         }
 
-        return new EvaluatorObject(valueValue);
+        if (TypeUtilities.TypeInheritsFrom(dereferenced.trueType, type))
+            return value;
+
+        if (TypeUtilities.TypeInheritsFrom(type, dereferenced.trueType))
+            throw new InvalidCastException();
+
+        throw ExceptionUtilities.Unreachable();
     }
 
     private object EvaluateValueCast(object value, BoundType type) {
@@ -541,7 +550,7 @@ internal sealed class Evaluator {
         var members = new Dictionary<Symbol, EvaluatorObject>();
 
         if (node.typeSymbol is not NamedTypeSymbol)
-            return new EvaluatorObject(members: members);
+            return new EvaluatorObject(members, node);
 
         var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).GetMembers();
         var templateArgumentIndex = 0;
@@ -558,7 +567,7 @@ internal sealed class Evaluator {
             members.Add(templateArgument as Symbol, value);
         }
 
-        return new EvaluatorObject(members: members);
+        return new EvaluatorObject(members, node);
     }
 
     private EvaluatorObject EvaluateThisExpression(BoundThisExpression _, ValueWrapper<bool> _1) {
@@ -610,7 +619,7 @@ internal sealed class Evaluator {
                 members.Add(member as Symbol, value);
             }
 
-            var newObject = new EvaluatorObject(members);
+            var newObject = new EvaluatorObject(members, node.type);
 
             EnterClassScope(newObject);
 
@@ -953,6 +962,15 @@ internal sealed class Evaluator {
                 return new EvaluatorObject(true);
 
             return new EvaluatorObject(false);
+        }
+
+        if (expression.op.opKind == BoundBinaryOperatorKind.As) {
+            var dereferenced = Dereference(left);
+
+            if (TypeUtilities.TypeInheritsFrom(dereferenced.trueType, expression.right.type))
+                return left;
+
+            return EvaluatorObject.Null;
         }
 
         var right = EvaluateExpression(expression.right, abort);

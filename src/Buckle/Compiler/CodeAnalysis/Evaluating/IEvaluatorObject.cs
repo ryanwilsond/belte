@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -36,4 +37,9 @@ public interface IEvaluatorObject {
     /// Members stored by this.
     /// </summary>
     internal Dictionary<Symbol, EvaluatorObject> members { get; set; }
+
+    /// <summary>
+    /// The true instance type of the object if not a primitive.
+    /// </summary>
+    internal BoundType trueType { get; set; }
 }

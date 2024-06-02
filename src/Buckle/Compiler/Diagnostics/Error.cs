@@ -1201,8 +1201,7 @@ internal static class Error {
         string newSignature,
         string newTypeName,
         string parentSignature,
-        string parentTypeName
-        ) {
+        string parentTypeName) {
         var message = $"'{newTypeName}.{newSignature}' hides inherited member '{parentTypeName}.{parentSignature}';" +
             " use the 'new' keyword if hiding was intended";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MemberShadowsParent), location, message);
@@ -1230,6 +1229,14 @@ internal static class Error {
     internal static BelteDiagnostic CannotDeriveStatic(TextLocation location, string typeName) {
         var message = $"cannot derive from static type '{typeName}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotDeriveStatic), location, message);
+    }
+
+    /// <summary>
+    /// BU0136. Run `buckle --explain BU0136` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic ExpectedType(TextLocation location) {
+        var message = $"expected type";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedType), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

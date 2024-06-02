@@ -1,4 +1,5 @@
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -92,6 +93,13 @@ internal sealed class Cast {
         Cast InternalClassify() {
             if (from == to)
                 return Identity;
+
+            if (TypeUtilities.TypeInheritsFrom(from, to))
+                return Implicit;
+
+            if (TypeUtilities.TypeInheritsFrom(to, from))
+                return Explicit;
+
             if (from == TypeSymbol.Bool || from == TypeSymbol.Int || from == TypeSymbol.Decimal) {
                 if (to == TypeSymbol.String)
                     return Explicit;
@@ -104,6 +112,7 @@ internal sealed class Cast {
 
             if (from == TypeSymbol.Int && to == TypeSymbol.Decimal)
                 return Implicit;
+
             if (from == TypeSymbol.Decimal && to == TypeSymbol.Int)
                 return Explicit;
 
