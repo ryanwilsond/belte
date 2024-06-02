@@ -2063,6 +2063,25 @@ class B extends A {
     }
 }
 ```
+$BU0138
+Abstract classes cannot be initialized directly. Only non-abstract child classes
+can. However, members and locals can have an abstract type.
+
+For example:
+
+```
+abstract class A { }
+
+A myA = new A(); // Not allowed
+```
+
+```
+abstract class A { }
+
+class B extends A { }
+
+A myA = new B(); // Allowed
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.

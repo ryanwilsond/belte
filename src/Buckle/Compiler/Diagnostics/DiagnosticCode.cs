@@ -146,6 +146,7 @@ public enum DiagnosticCode : int {
     ERR_CannotDeriveStatic = 135,
     ERR_ExpectedType = 136,
     ERR_CannotUseBase = 137,
+    ERR_CannotConstructAbstract = 138,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

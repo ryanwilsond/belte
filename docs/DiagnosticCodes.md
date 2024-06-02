@@ -148,6 +148,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0135 | Error | cannot derive from static type '{0}' |
 | BU0136 | Error | expected type |
 | BU0137 | Error | cannot use 'base' outside of a class |
+| BU0138 | Error | cannot create an instance of the abstract class '{0}' |
 
 ## Command Line Diagnostics
 

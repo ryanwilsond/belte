@@ -1261,6 +1261,14 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseBase), location, message);
     }
 
+    /// <summary>
+    /// BU0138. Run `buckle --explain BU0138` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotConstructAbstract(TextLocation location, string name) {
+        var message = $"cannot create an instance of the abstract class '{name}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotConstructAbstract), location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

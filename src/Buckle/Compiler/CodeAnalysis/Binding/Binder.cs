@@ -868,6 +868,31 @@ internal sealed class Binder {
         return false;
     }
 
+    private bool ConflictingOverrideModifier(
+        DeclarationModifiers modifiers,
+        DeclarationModifiers modifier,
+        SyntaxToken syntax) {
+        if ((modifier == DeclarationModifiers.Sealed && (modifiers & DeclarationModifiers.Static) != 0) ||
+            (modifier == DeclarationModifiers.Static && (modifiers & DeclarationModifiers.Sealed) != 0)) {
+            diagnostics.Push(Error.ConflictingModifiers(syntax.location, "sealed", "static"));
+            return true;
+        }
+
+        if ((modifier == DeclarationModifiers.Sealed && (modifiers & DeclarationModifiers.Abstract) != 0) ||
+            (modifier == DeclarationModifiers.Abstract && (modifiers & DeclarationModifiers.Sealed) != 0)) {
+            diagnostics.Push(Error.ConflictingModifiers(syntax.location, "sealed", "abstract"));
+            return true;
+        }
+
+        if ((modifier == DeclarationModifiers.Abstract && (modifiers & DeclarationModifiers.Static) != 0) ||
+            (modifier == DeclarationModifiers.Static && (modifiers & DeclarationModifiers.Abstract) != 0)) {
+            diagnostics.Push(Error.ConflictingModifiers(syntax.location, "abstract", "static"));
+            return true;
+        }
+
+        return false;
+    }
+
     private MethodSymbol BindMethodDeclaration(
         MethodDeclarationSyntax method,
         DeclarationModifiers inheritedModifiers,
@@ -1841,10 +1866,25 @@ internal sealed class Binder {
                     if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Sealed, modifier))
                         break;
 
+                    if (ConflictingOverrideModifier(declarationModifiers, DeclarationModifiers.Sealed, modifier))
+                        break;
+
                     declarationModifiers |= DeclarationModifiers.Sealed;
+                    break;
+                case SyntaxKind.AbstractKeyword:
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Abstract, modifier))
+                        break;
+
+                    if (ConflictingOverrideModifier(declarationModifiers, DeclarationModifiers.Abstract, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.Abstract;
                     break;
                 case SyntaxKind.StaticKeyword:
                     if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Static, modifier))
+                        break;
+
+                    if (ConflictingOverrideModifier(declarationModifiers, DeclarationModifiers.Static, modifier))
                         break;
 
                     declarationModifiers |= DeclarationModifiers.Static;
@@ -3384,6 +3424,11 @@ internal sealed class Binder {
 
         if (type.typeSymbol.isStatic) {
             diagnostics.Push(Error.CannotConstructStatic(expression.location, type.ToString()));
+            return new BoundErrorExpression();
+        }
+
+        if (type.typeSymbol.isAbstract) {
+            diagnostics.Push(Error.CannotConstructAbstract(expression.location, type.ToString()));
             return new BoundErrorExpression();
         }
 

@@ -1915,4 +1915,18 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0138_CannotConstructAbstract() {
+        var text = @"
+            abstract class A { }
+            var a = [new A()];
+        ";
+
+        var diagnostics = @"
+            cannot create an instance of the abstract class 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }
