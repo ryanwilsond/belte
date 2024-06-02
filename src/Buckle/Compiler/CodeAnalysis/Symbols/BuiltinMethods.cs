@@ -14,7 +14,7 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol RandInt = new MethodSymbol(
         "RandInt",
-        [new ParameterSymbol("max", BoundType.NullableInt, 0, NoDefault)],
+        [new ParameterSymbol("max", BoundType.Int, 0, NoDefault)],
         BoundType.Int
     );
 
