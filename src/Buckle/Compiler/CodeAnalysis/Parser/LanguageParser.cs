@@ -543,6 +543,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             SyntaxKind.LowlevelKeyword => DeclarationModifiers.LowLevel,
             SyntaxKind.PublicKeyword => DeclarationModifiers.Public,
             SyntaxKind.PrivateKeyword => DeclarationModifiers.Private,
+            SyntaxKind.ProtectedKeyword => DeclarationModifiers.Protected,
             SyntaxKind.SealedKeyword => DeclarationModifiers.Sealed,
             SyntaxKind.AbstractKeyword => DeclarationModifiers.Abstract,
             SyntaxKind.VirtualKeyword => DeclarationModifiers.Virtual,

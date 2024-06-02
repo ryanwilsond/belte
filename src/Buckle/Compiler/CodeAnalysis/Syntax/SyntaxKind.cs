@@ -96,6 +96,7 @@ public enum SyntaxKind {
     ExtendsKeyword,
     PublicKeyword,
     PrivateKeyword,
+    ProtectedKeyword,
     SealedKeyword,
     AbstractKeyword,
     VirtualKeyword,

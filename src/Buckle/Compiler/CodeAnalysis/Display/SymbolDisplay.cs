@@ -163,6 +163,9 @@ public static class SymbolDisplay {
         if (symbol.accessibility == Accessibility.Public) {
             text.Write(CreateKeyword(SyntaxKind.PublicKeyword));
             text.Write(CreateSpace());
+        } else if (symbol.accessibility == Accessibility.Protected) {
+            text.Write(CreateKeyword(SyntaxKind.ProtectedKeyword));
+            text.Write(CreateSpace());
         } else if (symbol.accessibility == Accessibility.Private) {
             text.Write(CreateKeyword(SyntaxKind.PrivateKeyword));
             text.Write(CreateSpace());

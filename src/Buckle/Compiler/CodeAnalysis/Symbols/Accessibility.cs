@@ -8,4 +8,5 @@ internal enum Accessibility {
     NotApplicable = 0,
     Private,
     Public,
+    Protected,
 }

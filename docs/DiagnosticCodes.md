@@ -140,6 +140,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0127 | Error | template constraint {0} fails ('{1}'); constraint results in null |
 | BU0128 | Error | template constraint {0} fails ('{1}') |
 | BU0129 | Error | cannot override inherited method '{0}' because it is not marked virtual or override |
+| BU0130 | Error | cannot use global '{0}' in a class definition |
 
 ## Command Line Diagnostics
 
