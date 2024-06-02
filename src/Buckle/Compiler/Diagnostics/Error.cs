@@ -187,13 +187,14 @@ internal static class Error {
     /// <summary>
     /// BU0018. Run `buckle --explain BU0018` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic MethodAlreadyDeclared(TextLocation location, string name, string typeName = null) {
-        string message;
+    internal static BelteDiagnostic MethodAlreadyDeclared(
+        TextLocation location,
+        string signature,
+        string typeName = null) {
+        var message = $"redeclaration of method '{signature}'";
 
-        if (typeName is null)
-            message = $"redeclaration of method '{name}'";
-        else
-            message = $"type '{typeName}' already declares a member named '{name}' with the same parameter types";
+        if (typeName is not null)
+            message += $"within type '{typeName}'";
 
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MethodAlreadyDeclared), location, message);
     }
@@ -957,16 +958,16 @@ internal static class Error {
     /// <summary>
     /// BU0103. Run `buckle --explain BU0103` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic NonConstantCallInConstant(TextLocation location, string name) {
-        var message = $"cannot call non-constant method '{name}' in a method marked as constant";
+    internal static BelteDiagnostic NonConstantCallInConstant(TextLocation location, string signature) {
+        var message = $"cannot call non-constant method '{signature}' in a method marked as constant";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NonConstantCallInConstant), location, message);
     }
 
     /// <summary>
     /// BU0104. Run `buckle --explain BU0104` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic NonConstantCallOnConstant(TextLocation location, string name) {
-        var message = $"cannot call non-constant method '{name}' on constant";
+    internal static BelteDiagnostic NonConstantCallOnConstant(TextLocation location, string signature) {
+        var message = $"cannot call non-constant method '{signature}' on constant";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NonConstantCallOnConstant), location, message);
     }
 
@@ -1174,6 +1175,14 @@ internal static class Error {
     internal static BelteDiagnostic ConstraintFailed(TextLocation location, string constraint, int ordinal) {
         var message = $"template constraint {ordinal} fails ('{constraint}')";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstraintFailed), location, message);
+    }
+
+    /// <summary>
+    /// BU0129. Run `buckle --explain BU0129` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotOverride(TextLocation location, string signature) {
+        var message = $"cannot override inherited method '{signature}' because it is not marked virtual or override";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotOverride), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

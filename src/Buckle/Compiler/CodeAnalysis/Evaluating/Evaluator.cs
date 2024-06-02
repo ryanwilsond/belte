@@ -543,7 +543,7 @@ internal sealed class Evaluator {
         if (node.typeSymbol is not NamedTypeSymbol)
             return new EvaluatorObject(members: members);
 
-        var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).members;
+        var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).GetMembers();
         var templateArgumentIndex = 0;
 
         foreach (var templateArgument in typeMembers.Where(t => t is ParameterSymbol)) {
@@ -555,7 +555,7 @@ internal sealed class Evaluator {
                 value = EvaluateType(node.type.templateArguments[templateArgumentIndex].type, abort);
 
             templateArgumentIndex++;
-            members.Add(templateArgument, value);
+            members.Add(templateArgument as Symbol, value);
         }
 
         return new EvaluatorObject(members: members);
@@ -592,7 +592,7 @@ internal sealed class Evaluator {
         if (node.viaConstructor || (node.type.sizes.Length == 0 && node.type.typeSymbol is StructSymbol)) {
             var core = EvaluateTypeCore(node.type, abort);
             var members = new Dictionary<Symbol, EvaluatorObject>();
-            var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).members;
+            var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).GetMembers();
 
             foreach (var member in core.members)
                 members.Add(member.Key, member.Value);
@@ -607,7 +607,7 @@ internal sealed class Evaluator {
                     }
                 }
 
-                members.Add(member, value);
+                members.Add(member as Symbol, value);
             }
 
             var newObject = new EvaluatorObject(members);

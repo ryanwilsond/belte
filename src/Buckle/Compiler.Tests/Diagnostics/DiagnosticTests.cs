@@ -199,7 +199,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            redeclaration of method 'myFunc'
+            redeclaration of method 'myFunc()'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1409,7 +1409,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot call non-constant method 'B' in a method marked as constant
+            cannot call non-constant method 'B()' in a method marked as constant
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1429,7 +1429,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot call non-constant method 'B' on constant
+            cannot call non-constant method 'B()' on constant
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1770,6 +1770,24 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             template constraint 1 fails ('(a < b)')
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0129_CannotOverride() {
+        var text = @"
+            class A {
+                public void M() { }
+            }
+            class B extends A {
+                public override void [M]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            cannot override inherited method 'M()' because it is not marked virtual or override
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

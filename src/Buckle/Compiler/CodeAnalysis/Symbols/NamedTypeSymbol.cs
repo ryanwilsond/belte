@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
@@ -10,7 +11,8 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
     protected readonly DeclarationModifiers _declarationModifiers;
-    private Dictionary<string, ImmutableArray<Symbol>> _lazyMembersDictionary;
+    protected List<Symbol> _lazyMembers;
+    protected Dictionary<string, ImmutableArray<Symbol>> _lazyMembersDictionary;
 
     internal NamedTypeSymbol(
         ImmutableArray<ParameterSymbol> templateParameters,
@@ -57,14 +59,17 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
     internal TypeDeclarationSyntax declaration { get; }
 
     public ImmutableArray<Symbol> GetMembers(string name) {
-        if (_lazyMembersDictionary is null)
+        if (_lazyMembersDictionary is null || _lazyMembers is null)
             ConstructLazyMembersDictionary();
 
         return _lazyMembersDictionary.TryGetValue(name, out var result) ? result : ImmutableArray<Symbol>.Empty;
     }
 
     public ImmutableArray<ISymbol> GetMembers() {
-        return members.CastArray<ISymbol>();
+        if (_lazyMembers is null)
+            ConstructLazyMembers();
+
+        return _lazyMembers.ToImmutableArray<ISymbol>();
     }
 
     /// <summary>
@@ -95,25 +100,38 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
         this.templateParameters = templateParameters;
         this.templateConstraints = templateConstraints;
         members = symbols;
+
+        foreach (var member in members)
+            member.SetContainingType(this);
+
+        _lazyMembers = null;
     }
 
     private ImmutableArray<MethodSymbol> GetConstructors() {
         var candidates = GetMembers(WellKnownMemberNames.InstanceConstructorName);
 
         if (candidates.IsEmpty)
-            return ImmutableArray<MethodSymbol>.Empty;
+            return [];
 
         var constructors = ArrayBuilder<MethodSymbol>.GetInstance();
 
         foreach (var candidate in candidates) {
-            if (candidate is MethodSymbol method)
+            if (candidate is MethodSymbol method && candidate.containingType == this)
                 constructors.Add(method);
         }
 
         return constructors.ToImmutableAndFree();
     }
 
+    protected virtual void ConstructLazyMembers() {
+        _lazyMembers = members.ToList();
+    }
+
     private void ConstructLazyMembersDictionary() {
-        _lazyMembersDictionary = members.ToDictionary(m => m.name, StringOrdinalComparer.Instance);
+        if (_lazyMembers is null)
+            ConstructLazyMembers();
+
+        _lazyMembersDictionary = _lazyMembers.ToImmutableArray()
+            .ToDictionary(m => m.name, StringOrdinalComparer.Instance);
     }
 }

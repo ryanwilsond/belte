@@ -6,6 +6,8 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// A base symbol.
 /// </summary>
 internal abstract class Symbol : ISymbol {
+    protected virtual Symbol _originalDefinition => this;
+
     private protected Symbol(string name) {
         this.name = name;
         accessibility = Accessibility.NotApplicable;
@@ -30,6 +32,11 @@ internal abstract class Symbol : ISymbol {
     /// The type that contains this symbol, or null if nothing is containing this symbol.
     /// </summary>
     public virtual NamedTypeSymbol containingType { get; private set; }
+
+    /// <summary>
+    /// Gets the original definition of the symbol.
+    /// </summary>
+    public Symbol originalDefinition => _originalDefinition;
 
     public ITypeSymbolWithMembers parent => containingType;
 
@@ -66,8 +73,6 @@ internal abstract class Symbol : ISymbol {
     public override string ToString() {
         return SymbolDisplay.DisplaySymbol(this).ToString();
     }
-
-    internal virtual Symbol CreateCopy() => (Symbol)MemberwiseClone();
 
     internal void SetContainingType(NamedTypeSymbol symbol) {
         containingType = symbol;

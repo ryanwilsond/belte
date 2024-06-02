@@ -11,6 +11,8 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal sealed class MethodSymbol : Symbol, IMethodSymbol {
     private readonly DeclarationModifiers _declarationModifiers;
 
+    protected override Symbol _originalDefinition { get; }
+
     /// <summary>
     /// Creates a <see cref="MethodSymbol" />.
     /// </summary>
@@ -33,7 +35,7 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
         this.type = type;
         this.parameters = parameters;
         this.declaration = declaration;
-        this.originalDefinition = originalDefinition;
+        _originalDefinition = originalDefinition;
         _declarationModifiers = modifiers;
     }
 
@@ -48,6 +50,8 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
     public override bool isOverride => (_declarationModifiers & DeclarationModifiers.Override) != 0;
 
     public override bool isSealed => false;
+
+    public new MethodSymbol originalDefinition => _originalDefinition as MethodSymbol;
 
     internal bool isConstant => (_declarationModifiers & DeclarationModifiers.Const) != 0;
 
@@ -69,12 +73,6 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
     internal BaseMethodDeclarationSyntax declaration { get; }
 
     /// <summary>
-    /// If this symbol is a modification of another symbol, <see cref="originalDefinition" /> is a reference
-    /// to the original symbol.
-    /// </summary>
-    internal MethodSymbol originalDefinition { get; }
-
-    /// <summary>
     /// Gets a string representation of the method signature without the return type or parameter names.
     /// </summary>
     public string Signature() {
@@ -93,18 +91,6 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
         signature.Append(')');
 
         return signature.ToString();
-    }
-
-    internal override Symbol CreateCopy() {
-        return new MethodSymbol(
-            name,
-            parameters,
-            type,
-            declaration,
-            this,
-            _declarationModifiers,
-            accessibility
-        );
     }
 
     /// <summary>

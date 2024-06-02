@@ -139,6 +139,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0126 | Error | template constraint {0} fails ('{1}'); '{2}' must be or inherit from '{3}' |
 | BU0127 | Error | template constraint {0} fails ('{1}'); constraint results in null |
 | BU0128 | Error | template constraint {0} fails ('{1}') |
+| BU0129 | Error | cannot override inherited method '{0}' because it is not marked virtual or override |
 
 ## Command Line Diagnostics
 

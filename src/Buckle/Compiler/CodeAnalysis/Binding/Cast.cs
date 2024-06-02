@@ -90,14 +90,6 @@ internal sealed class Cast {
             return Explicit;
 
         Cast InternalClassify() {
-            // TODO This should not need to be here, but for some reason the String used in String itself and
-            // StringBuilder contain identical data (fields point to same objects) but the Strings themselves are
-            // not the same object
-            if (from is ClassSymbol f && to is ClassSymbol t) {
-                if (f.Equals(t))
-                    return Identity;
-            }
-
             if (from == to)
                 return Identity;
             if (from == TypeSymbol.Bool || from == TypeSymbol.Int || from == TypeSymbol.Decimal) {

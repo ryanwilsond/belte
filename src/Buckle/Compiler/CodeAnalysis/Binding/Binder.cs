@@ -77,7 +77,7 @@ internal sealed class Binder {
         var currentContainingType = _containingType;
 
         while (currentContainingType != null) {
-            foreach (var member in currentContainingType.members) {
+            foreach (var member in currentContainingType.GetMembers()) {
                 if (member is FieldSymbol or ParameterSymbol)
                     _scope.TryDeclareVariable(member as VariableSymbol);
                 else if (member is NamedTypeSymbol n)
@@ -749,7 +749,7 @@ internal sealed class Binder {
         MethodDeclarationSyntax method,
         DeclarationModifiers inheritedModifiers,
         string name = null,
-        ImmutableList<Symbol>.Builder overridableMethods = null) {
+        ImmutableList<MethodSymbol> overridableMethods = null) {
         // ? This will return eventually
         BindAttributeLists(method.attributeLists);
 
@@ -810,11 +810,13 @@ internal sealed class Binder {
                         overrideTarget.accessibility.ToString().ToLower(),
                         accessibility.ToString().ToLower()
                     ));
+                } else if (!overrideTarget.isVirtual && !overrideTarget.isAbstract && !overrideTarget.isOverride) {
+                    diagnostics.Push(Error.CannotOverride(method.identifier.location, newMethod.Signature()));
                 }
             } else {
                 if (!_scope.TryDeclareMethod(newMethod)) {
                     diagnostics.Push(
-                        Error.MethodAlreadyDeclared(method.identifier.location, name ?? newMethod.name, className)
+                        Error.MethodAlreadyDeclared(method.identifier.location, newMethod.Signature(), className)
                     );
                 }
             }
@@ -964,7 +966,7 @@ internal sealed class Binder {
         if (!_scope.TryDeclareMethod(method)) {
             diagnostics.Push(Error.MethodAlreadyDeclared(
                 constructor.constructorKeyword.location,
-                WellKnownMemberNames.InstanceConstructorName,
+                method.Signature(),
                 className
             ));
         }
@@ -1094,7 +1096,7 @@ internal sealed class Binder {
         if ((method.declaration as OperatorDeclarationSyntax).operatorToken.text != null &&
             !_scope.TryDeclareMethod(method)) {
             diagnostics.Push(
-                Error.MethodAlreadyDeclared(GetOperatorTokenLocation(@operator), name, className)
+                Error.MethodAlreadyDeclared(GetOperatorTokenLocation(@operator), method.Signature(), className)
             );
         }
 
@@ -1377,7 +1379,8 @@ internal sealed class Binder {
             diagnostics.Push(Error.CannotUseStruct(@struct.keyword.location));
 
         _flags = saved;
-        return newStruct;
+
+        return oldStruct;
     }
 
     private DeclarationModifiers BindStructDeclarationModifiers(SyntaxTokenList modifiers) {
@@ -1468,7 +1471,7 @@ internal sealed class Binder {
         }
 
         var builder = ImmutableList.CreateBuilder<Symbol>();
-        var inheritedBuilder = ImmutableList.CreateBuilder<Symbol>();
+        var inheritedBuilder = ImmutableList.CreateBuilder<MethodSymbol>();
         var isStatic = oldClass.isStatic;
         _scope = new BoundScope(_scope);
 
@@ -1498,22 +1501,17 @@ internal sealed class Binder {
 
         var constraints = BindConstraintClauseList(@class, templates.ToImmutable());
 
-        foreach (var member in (oldClass.baseType.typeSymbol as ClassSymbol).members) {
+        foreach (var member in (oldClass.baseType.typeSymbol as ClassSymbol).GetMembers()) {
             switch (member.kind) {
                 case SymbolKind.Field:
-                    var fieldCopy = member.CreateCopy() as FieldSymbol;
-                    _scope.TryDeclareVariable(fieldCopy);
-                    inheritedBuilder.Add(fieldCopy);
+                    _scope.TryDeclareVariable(member as FieldSymbol);
                     break;
                 case SymbolKind.Type:
-                    var typeCopy = member.CreateCopy() as NamedTypeSymbol;
-                    _scope.TryDeclareType(typeCopy);
-                    inheritedBuilder.Add(typeCopy);
+                    _scope.TryDeclareType(member as NamedTypeSymbol);
                     break;
                 case SymbolKind.Method when member.name != WellKnownMemberNames.InstanceConstructorName:
-                    var methodCopy = member.CreateCopy() as MethodSymbol;
-                    _scope.TryDeclareMethod(methodCopy);
-                    inheritedBuilder.Add(methodCopy);
+                    _scope.TryDeclareMethod(member as MethodSymbol);
+                    inheritedBuilder.Add(member as MethodSymbol);
                     break;
                 default:
                     continue;
@@ -1530,7 +1528,6 @@ internal sealed class Binder {
             );
 
             builder.Add(defaultConstructor);
-            builder.AddRange(inheritedBuilder);
             _scope.TryDeclareMethod(defaultConstructor);
             _scope = _scope.parent;
             _scope.DeclareMethodStrict(defaultConstructor);
@@ -1552,8 +1549,11 @@ internal sealed class Binder {
                 diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
 
             _flags = saved;
-            return emptyClass;
+
+            return oldClass;
         }
+
+        _scope = new BoundScope(_scope);
 
         foreach (var member in @class.members.OfType<TypeDeclarationSyntax>())
             PreBindTypeDeclaration(member, inheritModifiers);
@@ -1601,11 +1601,13 @@ internal sealed class Binder {
             _scope.TryDeclareMethod(defaultConstructor);
         }
 
+        var inheritedMethods = inheritedBuilder.ToImmutable();
+
         foreach (var methodDeclaration in @class.members.OfType<MethodDeclarationSyntax>()) {
             var method = BindMethodDeclaration(
                 methodDeclaration,
                 inheritModifiers,
-                overridableMethods: inheritedBuilder
+                overridableMethods: inheritedMethods
             );
 
             if (isStatic && !method.isStatic)
@@ -1628,8 +1630,6 @@ internal sealed class Binder {
             builder.Add(type);
         }
 
-        builder.AddRange(inheritedBuilder);
-
         var newClass = new ClassSymbol(
             oldClass.templateParameters,
             constraints,
@@ -1643,8 +1643,9 @@ internal sealed class Binder {
 
         // This allows the methods to be seen by the global scope
         foreach (var method in _scope.GetDeclaredMethods())
-            _scope.parent.DeclareMethodStrict(method);
+            _scope.parent.parent.DeclareMethodStrict(method);
 
+        _scope = _scope.parent;
         _scope = _scope.parent;
 
         // If no members, the default .ctor has yet to be built by the compiler, meaning this instance is a temporary
@@ -1656,7 +1657,7 @@ internal sealed class Binder {
 
         _flags = saved;
 
-        return newClass;
+        return oldClass;
     }
 
     private DeclarationModifiers BindClassDeclarationModifiers(SyntaxTokenList modifiers) {
@@ -1985,7 +1986,7 @@ internal sealed class Binder {
                 return null;
             } else {
                 var namedLeft = leftType.typeSymbol as NamedTypeSymbol;
-                var symbols = namedLeft.members
+                var symbols = namedLeft.GetMembers()
                     .Where(m => m is NamedTypeSymbol && m.name == rightType.identifier.text)
                     .Select(n => n as NamedTypeSymbol);
 
@@ -2378,7 +2379,7 @@ internal sealed class Binder {
 
         var namedType = boundLeft.type.typeSymbol as NamedTypeSymbol;
         var name = right.identifier.text;
-        var symbols = namedType.members.Where(m => m.name == name);
+        var symbols = namedType.GetMembers(name);
 
         if (!symbols.Any()) {
             diagnostics.Push(Error.NoSuchMember(right.location, boundLeft.type, name));
@@ -2406,8 +2407,8 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        symbols = isStaticAccess ? staticSymbols : instanceSymbols;
-        var boundRight = BindIdentifierInScope(right, called, symbols.ToImmutableArray());
+        var selectedSymbols = isStaticAccess ? staticSymbols : instanceSymbols;
+        var boundRight = BindIdentifierInScope(right, called, selectedSymbols.ToImmutableArray());
 
         void CheckAccessibility(BoundExpression leftExpression, BoundExpression rightExpression) {
             if (leftExpression is BoundMemberAccessExpression m)
@@ -2417,7 +2418,7 @@ internal sealed class Binder {
                 if (v.variable.accessibility == Accessibility.Private &&
                     leftExpression.type.typeSymbol is ClassSymbol &&
                     (_containingType is null ||
-                    !(_containingType as ClassSymbol).Equals(leftExpression.type.typeSymbol as ClassSymbol))) {
+                    _containingType != leftExpression.type.typeSymbol)) {
                     diagnostics.Push(
                         Error.MemberIsInaccessible(right.location, v.variable.name, leftExpression.type.typeSymbol.name)
                     );
@@ -3211,7 +3212,7 @@ internal sealed class Binder {
 
             if (result.bestOverload.accessibility == Accessibility.Private) {
                 if (_containingType is null ||
-                    !(_containingType as ClassSymbol).Equals(result.bestOverload.containingType as ClassSymbol)) {
+                    _containingType != result.bestOverload.containingType) {
                     diagnostics.Push(Error.MemberIsInaccessible(
                         expression.type.location,
                         $"{result.bestOverload.name}()",
@@ -3388,13 +3389,9 @@ internal sealed class Binder {
         var name = SyntaxFacts.GetOperatorMemberName(expression.openBracket.kind, 2);
 
         if (name is not null) {
-            var symbols = ((boundExpression.type.typeSymbol is NamedTypeSymbol l)
-                    ? l.members.Where(n => n.name == name)
-                    : [])
+            var symbols = ((boundExpression.type.typeSymbol is NamedTypeSymbol l) ? l.GetMembers(name) : [])
                 .Concat((boundIndex.type.typeSymbol is NamedTypeSymbol r &&
-                    boundExpression.type.typeSymbol != boundIndex.type.typeSymbol)
-                    ? r.members.Where(n => n.name == name)
-                    : [])
+                    boundExpression.type.typeSymbol != boundIndex.type.typeSymbol) ? r.GetMembers(name) : [])
                 .Where(m => m is MethodSymbol)
                 .Select(m => m as MethodSymbol)
                 .ToImmutableArray();
@@ -3474,14 +3471,16 @@ internal sealed class Binder {
             if (receiver is not BoundEmptyExpression &&
                 !result.bestOverload.isConstant &&
                 (receiver.type.isReference ? receiver.type.isConstantReference : receiver.type.isConstant)) {
-                diagnostics.Push(Error.NonConstantCallOnConstant(expression.location, mg.name));
+                diagnostics.Push(Error.NonConstantCallOnConstant(expression.location, result.bestOverload.Signature()));
             }
 
             if (receiver is BoundEmptyExpression || receiver is BoundThisExpression) {
                 if ((_containingMethod?.isConstant ?? false) &&
                     !(result.bestOverload.isConstant || result.bestOverload.isStatic) &&
                     (result.bestOverload.containingType == _containingMethod.containingType)) {
-                    diagnostics.Push(Error.NonConstantCallInConstant(expression.location, mg.name));
+                    diagnostics.Push(
+                        Error.NonConstantCallInConstant(expression.location, result.bestOverload.Signature())
+                    );
                 }
 
                 if ((_containingMethod?.isStatic ?? false) &&
@@ -3493,7 +3492,7 @@ internal sealed class Binder {
 
             if (result.bestOverload.accessibility == Accessibility.Private) {
                 if (_containingType is null ||
-                    !(_containingType as ClassSymbol).Equals(result.bestOverload.containingType as ClassSymbol)) {
+                    _containingType != result.bestOverload.containingType) {
                     diagnostics.Push(Error.MemberIsInaccessible(
                         expression.expression is MemberAccessExpressionSyntax m
                             ? m.name.location
@@ -3809,9 +3808,7 @@ internal sealed class Binder {
             var boundIndex = BindExpression(indexExpression.index);
             right = BindExpression(expression.right);
 
-            var symbols = ((boundLeft.type.typeSymbol is NamedTypeSymbol l)
-                    ? l.members.Where(n => n.name == name)
-                    : [])
+            var symbols = ((boundLeft.type.typeSymbol is NamedTypeSymbol l) ? l.GetMembers(name) : [])
                 .Where(m => m is MethodSymbol)
                 .Select(m => m as MethodSymbol)
                 .ToImmutableArray();

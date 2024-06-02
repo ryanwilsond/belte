@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
@@ -46,25 +47,13 @@ internal sealed class ClassSymbol : NamedTypeSymbol {
         this.defaultFieldAssignments = defaultFieldAssignments;
     }
 
-    public bool Equals(ClassSymbol other) {
-        if ((object)this == other)
-            return true;
+    protected override void ConstructLazyMembers() {
+        _lazyMembers = new List<Symbol>();
+        var current = this;
 
-        if (name != other.name)
-            return false;
-        if (containingType != other.containingType)
-            return false;
-        if (_declarationModifiers != other._declarationModifiers)
-            return false;
-        if (templateParameters != other.templateParameters)
-            return false;
-        if (members != other.members)
-            return false;
-        if (defaultFieldAssignments != other.defaultFieldAssignments)
-            return false;
-        if (declaration != other.declaration)
-            return false;
-
-        return true;
+        do {
+            _lazyMembers.AddRange(current.members);
+            current = current.baseType?.typeSymbol as ClassSymbol;
+        } while (current is not null);
     }
 }

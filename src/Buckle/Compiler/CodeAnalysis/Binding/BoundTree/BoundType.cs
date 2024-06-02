@@ -305,7 +305,7 @@ internal sealed class BoundType : BoundExpression {
     /// <returns>If all fields match.</returns>
     internal bool Equals(BoundType type, bool loose = false, bool isTypeCheck = false) {
         var typesEqual = (typeSymbol is ClassSymbol l && type?.typeSymbol is ClassSymbol r)
-            ? l.Equals(r)
+            ? l == r
             : typeSymbol == type?.typeSymbol;
 
         if ((!loose || (typeSymbol is not null && type?.typeSymbol is not null)) && !typesEqual)
