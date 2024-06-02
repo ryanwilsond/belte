@@ -84,6 +84,14 @@ internal static class Warning {
         return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_UnreachableCode), location, message);
     }
 
+    /// <summary>
+    /// BU0133. Run `buckle --explain BU0133` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic MemberShadowsNothing(TextLocation location, string signature, string typeName) {
+        var message = $"the member '{typeName}.{signature}' does not hide a member; the 'new' keyword is unnecessary";
+        return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_MemberShadowsNothing), location, message);
+    }
+
     private static DiagnosticInfo WarningInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Warning);
     }

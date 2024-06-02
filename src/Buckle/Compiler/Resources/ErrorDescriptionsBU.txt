@@ -1953,6 +1953,83 @@ class C {
 In this example, a circular dependency is created as the definition for class
 `C` uses global variable `myC`, but `myC` is of defining type `C`. To prevent
 this possibility, globals cannot be used within class definitions.
+$BU0131
+Unlike local shadowing, member shadowing is not implicitly allowed to prevent
+unintended shadowing. The `new` keyword must be used to shadow members.
+
+For example:
+
+```
+class A {
+    public void M() { }
+}
+
+class B extends A {
+    public void M() { } // Not allowed, `B.M()` implicitly shadows `A.M()`
+    public new void M() { } // Allowed
+}
+```
+$BU0132
+A member marked as override cannot be marked as virtual, as virtual indicates
+that the member is not shadowing another, while overriding does.
+
+For example:
+
+```
+class A {
+    public virtual void M() { }
+}
+
+class B extends A {
+    public virtual override void M() { } // Not allowed, in this case just use `override`
+}
+```
+
+A member marked as override also cannot be marked as new, as new indicates total
+shadowing while override indicates override shadowing.
+
+For example:
+
+```
+class A {
+    public virtual void M() { }
+}
+
+class B extends A {
+    public new override void M() { } // Not allowed
+}
+```
+$BU0133
+A member marked as new that does not hide an inherited member makes the new
+unnecessary.
+
+For example:
+
+```
+class A {
+    public new void M() { } // Unnecessary `new` as `A.M()` does not hide any inherited members
+}
+```
+$BU0134
+Types marked as sealed cannot be derived.
+
+For example:
+
+```
+sealed class A { }
+
+class B extends A { } // Not allowed, `A` is sealed and therefore cannot be derived
+```
+$BU0135
+Types marked as static cannot be derived.
+
+For example:
+
+```
+static class A { }
+
+class B extends A { } // Not allowed, `A` is static and therefore cannot be derived
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.

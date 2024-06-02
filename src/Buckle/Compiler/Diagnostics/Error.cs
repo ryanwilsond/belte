@@ -1193,6 +1193,45 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseGlobalInClass), location, message);
     }
 
+    /// <summary>
+    /// BU0131. Run `buckle --explain BU0131` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic MemberShadowsParent(
+        TextLocation location,
+        string newSignature,
+        string newTypeName,
+        string parentSignature,
+        string parentTypeName
+        ) {
+        var message = $"'{newTypeName}.{newSignature}' hides inherited member '{parentTypeName}.{parentSignature}';" +
+            " use the 'new' keyword if hiding was intended";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MemberShadowsParent), location, message);
+    }
+
+    /// <summary>
+    /// BU0132. Run `buckle --explain BU0132` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic ConflictingOverrideModifiers(TextLocation location) {
+        var message = $"a member marked as override cannot be marked as new or virtual";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConflictingOverrideModifiers), location, message);
+    }
+
+    /// <summary>
+    /// BU0134. Run `buckle --explain BU0134` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotDeriveSealed(TextLocation location, string typeName) {
+        var message = $"cannot derive from sealed type '{typeName}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotDeriveSealed), location, message);
+    }
+
+    /// <summary>
+    /// BU0135. Run `buckle --explain BU0135` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotDeriveStatic(TextLocation location, string typeName) {
+        var message = $"cannot derive from static type '{typeName}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotDeriveStatic), location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

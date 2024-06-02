@@ -1,7 +1,5 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
-using System.Reflection;
 using Buckle.CodeAnalysis.Binding;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 using static Buckle.CodeAnalysis.Symbols.SymbolUtilities;
@@ -181,6 +179,19 @@ internal static class BuiltinMethods {
     );
 
     /// <summary>
+    /// Converts an integer into a base 16 representation.
+    /// Optionally adds the '0x' prefix.
+    /// </summary>
+    internal static readonly MethodSymbol NullableHex = new MethodSymbol(
+        "Hex",
+        ImmutableArray.Create(
+            new ParameterSymbol("value", BoundType.NullableInt, 0, NoDefault),
+            new ParameterSymbol("prefix", BoundType.Bool, 0, Literal(false, BoundType.Bool))
+        ),
+        BoundType.NullableString
+    );
+
+    /// <summary>
     /// Converts a string of length 1 to the appropriate ASCII code of the character.
     /// </summary>
     internal static readonly MethodSymbol Ascii = new MethodSymbol(
@@ -189,6 +200,17 @@ internal static class BuiltinMethods {
             new ParameterSymbol("char", BoundType.String, 0, NoDefault)
         ),
         BoundType.Int
+    );
+
+    /// <summary>
+    /// Converts a string of length 1 to the appropriate ASCII code of the character.
+    /// </summary>
+    internal static readonly MethodSymbol NullableAscii = new MethodSymbol(
+        "Ascii",
+        ImmutableArray.Create(
+            new ParameterSymbol("char", BoundType.NullableString, 0, NoDefault)
+        ),
+        BoundType.NullableInt
     );
 
     /// <summary>
@@ -204,6 +226,18 @@ internal static class BuiltinMethods {
     );
 
     /// <summary>
+    /// Converts an integer to the appropriate character using ASCII codes.
+    /// Opposite of <see cref="Ascii">.
+    /// </summary>
+    internal static readonly MethodSymbol NullableChar = new MethodSymbol(
+        "Char",
+        ImmutableArray.Create(
+            new ParameterSymbol("ascii", BoundType.NullableInt, 0, NoDefault)
+        ),
+        BoundType.NullableString
+    );
+
+    /// <summary>
     /// Gets the length of the given array. If given a non-array, returns null.
     /// </summary>
     internal static readonly MethodSymbol Length = new MethodSymbol(
@@ -215,11 +249,9 @@ internal static class BuiltinMethods {
     );
 
     /// <summary>
-    /// Gets all builtin methods.
+    /// Gets all public builtin methods.
     /// </summary>
-    /// <returns>All builtins, calling code should not depend on order.</returns>
+    /// <returns>All public builtins, calling code should not depend on order.</returns>
     internal static IEnumerable<MethodSymbol> GetAll()
-        => typeof(BuiltinMethods).GetFields(BindingFlags.NonPublic | BindingFlags.Static)
-            .Where(f => f.FieldType == typeof(MethodSymbol))
-            .Select(f => (MethodSymbol)f.GetValue(null));
+        => [RandInt, Hex, NullableHex, Ascii, NullableAscii, Char, NullableChar, Length];
 }

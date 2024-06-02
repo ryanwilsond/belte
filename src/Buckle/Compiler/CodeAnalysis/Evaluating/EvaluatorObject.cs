@@ -7,6 +7,8 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// Encased Object that can also be a reference to a <see cref="VariableSymbol" />.
 /// </summary>
 internal sealed class EvaluatorObject : IEvaluatorObject {
+    internal static EvaluatorObject Null => new EvaluatorObject(value: null);
+
     /// <summary>
     /// Creates an <see cref="EvaluatorObject" /> with a null value.
     /// </summary>

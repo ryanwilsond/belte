@@ -5,6 +5,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -205,27 +206,73 @@ internal sealed class OverloadResolution {
                 possibleOverloads.Clear();
                 possibleOverloads.Add(BuiltinMethods.ValueAny);
             } else {
-                var minArguments = int.MaxValue;
+                // Attempts to still find a preferred overload even if the parameter list is ambiguous
+                // Prefers:
+                //      - Methods that are accessible
+                //      - Methods with fewer parameters
+                //      - Methods from more direct parent types
                 var tempPossibleOverloads = new List<MethodSymbol>();
 
-                foreach (var overload in possibleOverloads) {
-                    if (overload.parameters.Length < minArguments) {
-                        tempPossibleOverloads.Clear();
-                        minArguments = overload.parameters.Length;
+                if (receiverType is not null) {
+                    foreach (var overload in possibleOverloads) {
+                        if (overload.accessibility == Accessibility.Public) {
+                            tempPossibleOverloads.Add(overload);
+                        } else if (overload.accessibility == Accessibility.Protected &&
+                            TypeUtilities.TypeInheritsFrom(receiverType.typeSymbol, overload.containingType)) {
+                            tempPossibleOverloads.Add(overload);
+                        } else if (overload.accessibility == Accessibility.Private && receiverType.typeSymbol == overload.containingType) {
+                            tempPossibleOverloads.Add(overload);
+                        }
                     }
 
-                    if (overload.parameters.Length == minArguments)
-                        tempPossibleOverloads.Add(overload);
+                    if (tempPossibleOverloads.Count > 0)
+                        possibleOverloads = tempPossibleOverloads;
                 }
 
-                possibleOverloads = tempPossibleOverloads;
-
                 if (possibleOverloads.Count > 1) {
-                    _binder.diagnostics.Push(
-                        Error.AmbiguousMethodOverload(operand.location, possibleOverloads.ToArray())
-                    );
+                    tempPossibleOverloads = new List<MethodSymbol>();
+                    var minArguments = int.MaxValue;
 
-                    return OverloadResolutionResult<MethodSymbol>.Ambiguous();
+                    foreach (var overload in possibleOverloads) {
+                        if (overload.parameters.Length < minArguments) {
+                            tempPossibleOverloads.Clear();
+                            minArguments = overload.parameters.Length;
+                        }
+
+                        if (overload.parameters.Length == minArguments)
+                            tempPossibleOverloads.Add(overload);
+                    }
+
+                    possibleOverloads = tempPossibleOverloads;
+
+                    if (possibleOverloads.Count > 1) {
+                        if (receiverType is not null) {
+                            var minBaseDepth = int.MaxValue;
+                            tempPossibleOverloads = new List<MethodSymbol>();
+
+                            foreach (var overload in possibleOverloads) {
+                                var depth = TypeUtilities.GetInheritanceDepth(receiverType.typeSymbol, overload.containingType);
+
+                                if (depth < minBaseDepth) {
+                                    tempPossibleOverloads.Clear();
+                                    minBaseDepth = depth;
+                                }
+
+                                if (depth == minBaseDepth)
+                                    tempPossibleOverloads.Add(overload);
+                            }
+
+                            possibleOverloads = tempPossibleOverloads;
+                        }
+
+                        if (possibleOverloads.Count > 1) {
+                            _binder.diagnostics.Push(
+                                Error.AmbiguousMethodOverload(operand.location, possibleOverloads.ToArray())
+                            );
+
+                            return OverloadResolutionResult<MethodSymbol>.Ambiguous();
+                        }
+                    }
                 }
             }
         } else if (methods.Length == 1 && possibleOverloads.Count == 0) {

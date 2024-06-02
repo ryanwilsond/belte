@@ -622,7 +622,7 @@ internal sealed class Evaluator {
 
             return newObject;
         } else {
-            var array = new EvaluatorObject(value: null);
+            var array = EvaluatorObject.Null;
             var sizes = new List<int>();
 
             // TODO There is probably a more efficient algorithm for this
@@ -633,7 +633,7 @@ internal sealed class Evaluator {
                     var members = new List<EvaluatorObject>();
 
                     for (var i = 0; i < sizeValue; i++)
-                        members.Add(new EvaluatorObject(value: null));
+                        members.Add(EvaluatorObject.Null);
 
                     element.value = members.ToArray();
                 }
@@ -739,29 +739,37 @@ internal sealed class Evaluator {
                 return new EvaluatorObject(false);
 
             return new EvaluatorObject(true);
-        } else if (node.method == BuiltinMethods.Hex) {
-            var value = (int)Value(EvaluateExpression(node.arguments[0], abort));
+        } else if (node.method == BuiltinMethods.Hex || node.method == BuiltinMethods.NullableHex) {
+            var value = (int?)Value(EvaluateExpression(node.arguments[0], abort));
+
+            if (!value.HasValue)
+                return EvaluatorObject.Null;
+
             var addPrefix = (bool)Value(EvaluateExpression(node.arguments[1], abort));
-            var hex = addPrefix ? $"0x{value.ToString("X")}" : value.ToString("X");
+            var hex = addPrefix ? $"0x{value.Value:X}" : value.Value.ToString("X");
 
             return new EvaluatorObject(hex);
-        } else if (node.method == BuiltinMethods.Ascii) {
+        } else if (node.method == BuiltinMethods.Ascii || node.method == BuiltinMethods.NullableAscii) {
             var value = (string)Value(EvaluateExpression(node.arguments[0], abort));
 
-            if (value.Length != 1)
-                throw new ArgumentException("String passed into `Ascii` method must be of length 1");
+            if (value is null || value.Length != 1)
+                return EvaluatorObject.Null;
 
             return new EvaluatorObject((int)char.Parse(value));
-        } else if (node.method == BuiltinMethods.Char) {
-            var value = (int)Value(EvaluateExpression(node.arguments[0], abort));
-            return new EvaluatorObject(((char)value).ToString());
+        } else if (node.method == BuiltinMethods.Char || node.method == BuiltinMethods.NullableAscii) {
+            var value = (int?)Value(EvaluateExpression(node.arguments[0], abort));
+
+            if (!value.HasValue)
+                return EvaluatorObject.Null;
+
+            return new EvaluatorObject(((char)value.Value).ToString());
         } else if (node.method == BuiltinMethods.Length) {
             var value = Value(EvaluateExpression(node.arguments[0], abort));
 
             if (value is object[] v)
                 return new EvaluatorObject(v.Length);
             else
-                return new EvaluatorObject(value: null);
+                return EvaluatorObject.Null;
         } else {
             if (CheckStandardMap(node.method, node.arguments, abort, out var result, out var printed)) {
                 lastOutputWasPrint = printed;

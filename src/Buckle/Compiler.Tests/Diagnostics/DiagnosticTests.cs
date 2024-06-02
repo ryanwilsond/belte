@@ -1709,7 +1709,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0124_ConstraintIsNotConstant() {
         var text = @"
-            class A<int T> where { [HasValue(T) ? true : false;] } { }
+            class A<int T> where { [Hex(T) == ""3"" ? true : false;] } { }
         ";
 
         var diagnostics = @"
@@ -1804,6 +1804,85 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             cannot use global 'm' in a class definition
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0131_MemberShadowsParent() {
+        var text = @"
+            class A {
+                public void M() {}
+            }
+            class B extends A {
+                public void [M]() {}
+            }
+        ";
+
+        var diagnostics = @"
+            'B.M()' hides inherited member 'A.M()'; use the 'new' keyword if hiding was intended
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0132_ConflictingOverrideModifiers() {
+        var text = @"
+            class A {
+                public virtual void M() {}
+            }
+            class B extends A {
+                public virtual [override] void M() {}
+            }
+        ";
+
+        var diagnostics = @"
+            a member marked as override cannot be marked as new or virtual
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0133_MemberShadowsNothing() {
+        var text = @"
+            class A {
+                public new void [M]() {}
+            }
+        ";
+
+        var diagnostics = @"
+            the member 'A.M()' does not hide a member; the 'new' keyword is unnecessary
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0134_CannotDeriveSealed() {
+        var text = @"
+            sealed class A { }
+            class B extends [A] { }
+        ";
+
+        var diagnostics = @"
+            cannot derive from sealed type 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0135_CannotDeriveStatic() {
+        var text = @"
+            static class A { }
+            class B extends [A] { }
+        ";
+
+        var diagnostics = @"
+            cannot derive from static type 'A'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

@@ -19,4 +19,5 @@ internal enum DeclarationModifiers : uint {
     Abstract = 1 << 8,
     Virtual = 1 << 9,
     Override = 1 << 10,
+    New = 1 << 11,
 }

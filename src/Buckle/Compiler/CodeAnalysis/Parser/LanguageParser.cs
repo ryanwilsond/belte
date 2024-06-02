@@ -548,6 +548,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             SyntaxKind.AbstractKeyword => DeclarationModifiers.Abstract,
             SyntaxKind.VirtualKeyword => DeclarationModifiers.Virtual,
             SyntaxKind.OverrideKeyword => DeclarationModifiers.Override,
+            SyntaxKind.NewKeyword => DeclarationModifiers.New,
             _ => DeclarationModifiers.None,
         };
     }

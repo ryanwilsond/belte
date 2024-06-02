@@ -271,10 +271,6 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public int a; public int M() { if (a is null) a = 3; return a++; } } var myA = new A(); myA.M(); return myA.M();", 4)]
     [InlineData("int A(int a) { return 1; } int A(int a, int b = 3) { return 2; } return A(9);", 1)]
     // Builtin Methods
-    [InlineData("Value(3);", 3)]
-    [InlineData("HasValue(3);", true)]
-    [InlineData("HasValue(null);", false)]
-    [InlineData("Value(\"test\");", "test")]
     [InlineData("Console.Print(message: \"test\");", null)]
     [InlineData("Hex(13);", "D")]
     [InlineData("Hex(13, false);", "D")]

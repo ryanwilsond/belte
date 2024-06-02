@@ -139,6 +139,11 @@ public enum DiagnosticCode : int {
     ERR_ConstraintFailed = 128,
     ERR_CannotUseGlobalInClass = 129,
     ERR_CannotOverride = 130,
+    ERR_MemberShadowsParent = 131,
+    ERR_ConflictingOverrideModifiers = 132,
+    WRN_MemberShadowsNothing = 133,
+    ERR_CannotDeriveSealed = 134,
+    ERR_CannotDeriveStatic = 135,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,
