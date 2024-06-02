@@ -217,10 +217,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
             var isBinary = Peek(offset + 1).kind.GetBinaryPrecedence() > 0;
             var isUnary = Peek(offset + 1).kind.GetBinaryPrecedence() > 0;
             var isTernary = Peek(offset + 1).kind.GetTernaryPrecedence() > 0;
-            var isPrimary = Peek(offset + 1).kind.GetPrimaryPrecedence() > 0;
             var isEquals = Peek(offset + 1).kind == SyntaxKind.EqualsToken;
 
-            if (!isBinary && !isUnary && !isTernary && !isPrimary && !isEquals)
+            if (!isBinary && !isUnary && !isTernary && !isEquals)
                 return true;
         }
 
