@@ -175,5 +175,25 @@ public static class SymbolDisplay {
             text.Write(CreateKeyword(SyntaxKind.StaticKeyword));
             text.Write(CreateSpace());
         }
+
+        if (symbol.isSealed) {
+            text.Write(CreateKeyword(SyntaxKind.SealedKeyword));
+            text.Write(CreateSpace());
+        }
+
+        if (symbol.isVirtual) {
+            text.Write(CreateKeyword(SyntaxKind.VirtualKeyword));
+            text.Write(CreateSpace());
+        }
+
+        if (symbol.isAbstract) {
+            text.Write(CreateKeyword(SyntaxKind.AbstractKeyword));
+            text.Write(CreateSpace());
+        }
+
+        if (symbol.isOverride) {
+            text.Write(CreateKeyword(SyntaxKind.OverrideKeyword));
+            text.Write(CreateSpace());
+        }
     }
 }

@@ -880,12 +880,12 @@ internal sealed class Binder {
                         containingTypeName
                     ));
                 }
+            }
 
-                if (!_scope.TryDeclareMethod(newMethod)) {
-                    diagnostics.Push(
-                        Error.MethodAlreadyDeclared(method.identifier.location, newMethod.Signature(), className)
-                    );
-                }
+            if (!_scope.TryDeclareMethod(newMethod)) {
+                diagnostics.Push(
+                    Error.MethodAlreadyDeclared(method.identifier.location, newMethod.Signature(), className)
+                );
             }
         }
 
@@ -3590,6 +3590,34 @@ internal sealed class Binder {
             if (!PartiallyBindArgumentList(expression.argumentList, out var arguments))
                 return new BoundErrorExpression();
 
+            if (mg.methods.Length == 1 &&
+                (mg.methods[0] == BuiltinMethods.ToAny || mg.methods[0] == BuiltinMethods.ToObject)) {
+                if (arguments.Length != 1) {
+                    _overloadResolution.ResolveIncorrectArgumentCount(
+                        expression.expression,
+                        expression.argumentList.closeParenthesis.span,
+                        mg.name,
+                        mg.methods[0].parameters,
+                        0,
+                        arguments.Length,
+                        expression.argumentList.arguments,
+                        false
+                    );
+
+                    return new BoundErrorExpression();
+                }
+
+                var resultType = mg.methods[0] == BuiltinMethods.ToAny
+                    ? BoundType.NullableAny
+                    : new BoundType(_wellKnownTypes[WellKnownTypeNames.Object], isNullable: true);
+
+                return new BoundCallExpression(
+                    receiver,
+                    new MethodSymbol(mg.name, mg.methods[0].parameters, resultType, null, mg.methods[0]),
+                    arguments.Select(m => m.Item2).ToImmutableArray()
+                );
+            }
+
             var result = _overloadResolution.MethodOverloadResolution(
                 mg.methods,
                 arguments,
@@ -3907,8 +3935,15 @@ internal sealed class Binder {
                 return new BoundErrorExpression();
             }
 
-            if (!TypeUtilities.TypeInheritsFrom(boundLeft.type, boundRight.type) &&
-                !TypeUtilities.TypeInheritsFrom(boundRight.type, boundLeft.type)) {
+            var invalidPrimitiveCast = boundLeft.type != boundRight.type &&
+                !boundRight.type.Equals(BoundType.Any, isTypeCheck: true) &&
+                !boundRight.type.Equals(BoundType.NullableAny, isTypeCheck: true);
+
+            var invalidReferenceCast = !TypeUtilities.TypeInheritsFrom(boundLeft.type, boundRight.type) &&
+                !TypeUtilities.TypeInheritsFrom(boundRight.type, boundLeft.type);
+
+            if ((boundLeft.type.typeSymbol is PrimitiveTypeSymbol && invalidPrimitiveCast) ||
+                (boundLeft.type.typeSymbol is not PrimitiveTypeSymbol && invalidReferenceCast)) {
                 diagnostics.Push(Error.CannotConvert(expression.location, boundLeft.type, boundRight.type));
                 return new BoundErrorExpression();
             }

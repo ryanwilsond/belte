@@ -10,33 +10,39 @@ internal sealed class Cast {
     /// <summary>
     /// No cast.
     /// </summary>
-    internal static readonly Cast None = new Cast(false, false, false, false);
+    internal static readonly Cast None = new Cast(false, false, false, false, false);
 
     /// <summary>
     /// <see cref="Cast" /> where both types are the same.
     /// </summary>
-    internal static readonly Cast Identity = new Cast(true, true, true, false);
+    internal static readonly Cast Identity = new Cast(true, true, true, false, false);
 
     /// <summary>
     /// Lossless cast, can be done automatically.
     /// </summary>
-    internal static readonly Cast Implicit = new Cast(true, false, true, false);
+    internal static readonly Cast Implicit = new Cast(true, false, true, false, false);
 
     /// <summary>
     /// Lossless cast where nullability is being added.
     /// </summary>
-    internal static readonly Cast NullAdding = new Cast(true, true, true, true);
+    internal static readonly Cast NullAdding = new Cast(true, true, true, true, false);
+
+    /// <summary>
+    /// Lossless cast.
+    /// </summary>
+    internal static readonly Cast AnyAdding = new Cast(true, true, true, false, true);
 
     /// <summary>
     /// Lossy cast, cannot be done implicitly.
     /// </summary>
-    internal static readonly Cast Explicit = new Cast(true, false, false, false);
+    internal static readonly Cast Explicit = new Cast(true, false, false, false, false);
 
-    private Cast(bool exists, bool isIdentity, bool isImplicit, bool isNullAdding) {
+    private Cast(bool exists, bool isIdentity, bool isImplicit, bool isNullAdding, bool isAnyAdding) {
         this.exists = exists;
         this.isIdentity = isIdentity;
         this.isImplicit = isImplicit;
         this.isNullAdding = isNullAdding;
+        this.isAnyAdding = isAnyAdding;
     }
 
     /// <summary>
@@ -58,6 +64,11 @@ internal sealed class Cast {
     /// If the <see cref="Cast"/> is a nullable cast.
     /// </summary>
     internal bool isNullAdding { get; }
+
+    /// <summary>
+    /// If the <see cref="Cast"/> is an any cast.
+    /// </summary>
+    internal bool isAnyAdding { get; }
 
     /// <summary>
     /// If the <see cref="Cast" /> is an explicit cast.
@@ -86,7 +97,7 @@ internal sealed class Cast {
         }
 
         if (from != TypeSymbol.Void && to == TypeSymbol.Any)
-            return Implicit;
+            return AnyAdding;
         if (from == TypeSymbol.Any && to != TypeSymbol.Void)
             return Explicit;
 

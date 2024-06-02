@@ -418,6 +418,48 @@ internal sealed class OverloadResolution {
         );
     }
 
+    internal void ResolveIncorrectArgumentCount(
+        SyntaxNodeOrToken operand,
+        TextSpan closingSpan,
+        string name,
+        ImmutableArray<ParameterSymbol> parameters,
+        int defaultParameterCount,
+        int argumentCount,
+        SeparatedSyntaxList<ArgumentSyntax> arguments,
+        bool isTemplate) {
+        TextSpan span;
+        if (argumentCount > parameters.Length) {
+            SyntaxNodeOrToken firstExceedingNode;
+
+            if (argumentCount > 1 && parameters.Length > 0) {
+                firstExceedingNode = arguments.GetSeparator(parameters.Length - 1);
+            } else {
+                firstExceedingNode = arguments[0].kind == SyntaxKind.EmptyExpression
+                    ? arguments.GetSeparator(0)
+                    : arguments[0];
+            }
+
+            SyntaxNodeOrToken lastExceedingNode = arguments.Last().kind == SyntaxKind.EmptyExpression
+                ? arguments.GetSeparator(argumentCount - 2)
+                : arguments.Last();
+
+            span = TextSpan.FromBounds(firstExceedingNode.span.start, lastExceedingNode.span.end);
+        } else {
+            span = closingSpan ?? operand.span;
+        }
+
+        var location = new TextLocation(operand.syntaxTree.text, span);
+
+        _binder.diagnostics.Push(Error.IncorrectArgumentCount(
+            location,
+            name,
+            parameters.Length,
+            defaultParameterCount,
+            argumentCount,
+            isTemplate
+        ));
+    }
+
     private bool CalculateArgumentRearrangements(
         int overloadCount,
         string name,
@@ -477,48 +519,6 @@ internal sealed class OverloadResolution {
         return canContinue;
     }
 
-    private void ResolveIncorrectArgumentCount(
-        SyntaxNodeOrToken operand,
-        TextSpan closingSpan,
-        string name,
-        ImmutableArray<ParameterSymbol> parameters,
-        int defaultParameterCount,
-        int argumentCount,
-        SeparatedSyntaxList<ArgumentSyntax> arguments,
-        bool isTemplate) {
-        TextSpan span;
-        if (argumentCount > parameters.Length) {
-            SyntaxNodeOrToken firstExceedingNode;
-
-            if (argumentCount > 1 && parameters.Length > 0) {
-                firstExceedingNode = arguments.GetSeparator(parameters.Length - 1);
-            } else {
-                firstExceedingNode = arguments[0].kind == SyntaxKind.EmptyExpression
-                    ? arguments.GetSeparator(0)
-                    : arguments[0];
-            }
-
-            SyntaxNodeOrToken lastExceedingNode = arguments.Last().kind == SyntaxKind.EmptyExpression
-                ? arguments.GetSeparator(argumentCount - 2)
-                : arguments.Last();
-
-            span = TextSpan.FromBounds(firstExceedingNode.span.start, lastExceedingNode.span.end);
-        } else {
-            span = closingSpan ?? operand.span;
-        }
-
-        var location = new TextLocation(operand.syntaxTree.text, span);
-
-        _binder.diagnostics.Push(Error.IncorrectArgumentCount(
-            location,
-            name,
-            parameters.Length,
-            defaultParameterCount,
-            argumentCount,
-            isTemplate
-        ));
-    }
-
     private int RearrangeArguments(
         ImmutableArray<ParameterSymbol> parameters,
         int score,
@@ -560,10 +560,12 @@ internal sealed class OverloadResolution {
                 receiverType: receiverType
             );
 
+            if (castType.isAnyAdding)
+                score += 3;
             if (castType.isImplicit && !castType.isIdentity)
                 score += 2;
             if (castType.isNullAdding)
-                score++;
+                score += 1;
 
             currentBoundArguments.Add(boundArgument);
         }

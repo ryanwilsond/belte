@@ -779,6 +779,11 @@ internal sealed class Evaluator {
                 return new EvaluatorObject(v.Length);
             else
                 return EvaluatorObject.Null;
+        } else if (node.method.originalDefinition == BuiltinMethods.ToAny) {
+            var value = Value(EvaluateExpression(node.arguments[0], abort));
+            return new EvaluatorObject(value);
+        } else if (node.method.originalDefinition == BuiltinMethods.ToObject) {
+            return EvaluateExpression(node.arguments[0], abort);
         } else {
             if (CheckStandardMap(node.method, node.arguments, abort, out var result, out var printed)) {
                 lastOutputWasPrint = printed;
@@ -967,6 +972,10 @@ internal sealed class Evaluator {
         if (expression.op.opKind == BoundBinaryOperatorKind.As) {
             var dereferenced = Dereference(left);
 
+            if (dereferenced.members is null || dereferenced.trueType is null)
+                // Primitive
+                return new EvaluatorObject(leftValue);
+
             if (TypeUtilities.TypeInheritsFrom(dereferenced.trueType, expression.right.type))
                 return left;
 
@@ -977,10 +986,21 @@ internal sealed class Evaluator {
         var rightValue = Value(right);
 
         if (expression.op.opKind is BoundBinaryOperatorKind.Is or BoundBinaryOperatorKind.Isnt) {
-            if (leftValue is null && Dereference(left).members is null)
+            var dereferenced = Dereference(left);
+
+            if (leftValue is null && dereferenced.members is null)
                 return new EvaluatorObject(false);
 
-            if (TypeUtilities.TypeInheritsFrom(expression.left.type, expression.right.type))
+            if (left.members is null) {
+                return new EvaluatorObject(
+                    (right.trueType.Equals(BoundType.NullableAny) ||
+                    right.trueType.Equals(BoundType.Any) ||
+                    BoundType.Assume(leftValue).Equals(right.trueType, isTypeCheck: true)) ^
+                    expression.op.opKind is not BoundBinaryOperatorKind.Is
+                );
+            }
+
+            if (TypeUtilities.TypeInheritsFrom(left.trueType, right.trueType))
                 return new EvaluatorObject(expression.op.opKind is BoundBinaryOperatorKind.Is);
             else
                 return new EvaluatorObject(expression.op.opKind is BoundBinaryOperatorKind.Isnt);
@@ -1089,8 +1109,32 @@ internal sealed class Evaluator {
         printed = false;
 
         if (method.containingType == StandardLibrary.Console || method.containingType == StandardLibrary.Math) {
-            if (method == StandardLibrary.Console.members[4] || method == StandardLibrary.Console.members[5])
+            if (method == StandardLibrary.Console.members[5] ||
+                method == StandardLibrary.Console.members[6] ||
+                method == StandardLibrary.Console.members[7]) {
                 printed = true;
+            }
+
+            // TODO Right now this approach seems fragile, should at some point reevaluate how this should be done
+            if (method == StandardLibrary.Console.members[3] || method == StandardLibrary.Console.members[7]) {
+                var receiver = Dereference(EvaluateExpression(arguments[0], abort));
+
+                // Calling ToString on objects
+                // There should always be exactly one method that fits these search criteria
+                var toString = (receiver.trueType.typeSymbol as NamedTypeSymbol)
+                    .GetMembers(WellKnownMemberNames.ToString)
+                    .Where(f => f is MethodSymbol)
+                    .Select(f => f as MethodSymbol)
+                    .Where(m => m.parameters.Length == 0)
+                    .First();
+
+                EnterClassScope(receiver);
+                var argument = InvokeMethod(toString, [], abort);
+                ExitClassScope();
+
+                result = StandardLibrary.EvaluateMethod(method, [Value(argument)]);
+                return true;
+            }
 
             result = StandardLibrary.EvaluateMethod(method, EvaluateArgumentsForExternalCall(arguments, abort));
             return true;

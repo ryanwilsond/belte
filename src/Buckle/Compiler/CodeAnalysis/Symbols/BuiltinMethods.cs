@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 using static Buckle.CodeAnalysis.Symbols.SymbolUtilities;
@@ -15,9 +14,7 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol RandInt = new MethodSymbol(
         "RandInt",
-        ImmutableArray.Create(
-            new ParameterSymbol("max", BoundType.NullableInt, 0, NoDefault)
-        ),
+        [new ParameterSymbol("max", BoundType.NullableInt, 0, NoDefault)],
         BoundType.Int
     );
 
@@ -27,9 +24,7 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol ValueAny = new MethodSymbol(
         "Value",
-        ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableAny, 0, NoDefault)
-        ),
+        [new ParameterSymbol("value", BoundType.NullableAny, 0, NoDefault)],
         BoundType.Any
     );
 
@@ -39,9 +34,7 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol ValueBool = new MethodSymbol(
         "Value",
-        ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableBool, 0, NoDefault)
-        ),
+        [new ParameterSymbol("value", BoundType.NullableBool, 0, NoDefault)],
         BoundType.Bool
     );
 
@@ -51,9 +44,7 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol ValueDecimal = new MethodSymbol(
         "Value",
-        ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableDecimal, 0, NoDefault)
-        ),
+        [new ParameterSymbol("value", BoundType.NullableDecimal, 0, NoDefault)],
         BoundType.Decimal
     );
 
@@ -63,9 +54,7 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol ValueInt = new MethodSymbol(
         "Value",
-        ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableInt, 0, NoDefault)
-        ),
+        [new ParameterSymbol("value", BoundType.NullableInt, 0, NoDefault)],
         BoundType.Int
     );
 
@@ -75,9 +64,7 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol ValueString = new MethodSymbol(
         "Value",
-        ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableString, 0, NoDefault)
-        ),
+        [new ParameterSymbol("value", BoundType.NullableString, 0, NoDefault)],
         BoundType.String
     );
 
@@ -87,9 +74,7 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol ValueChar = new MethodSymbol(
         "Value",
-        ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableChar, 0, NoDefault)
-        ),
+        [new ParameterSymbol("value", BoundType.NullableChar, 0, NoDefault)],
         BoundType.Char
     );
 
@@ -99,9 +84,7 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol HasValueAny = new MethodSymbol(
         "HasValue",
-        ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableAny, 0, NoDefault)
-        ),
+        [new ParameterSymbol("value", BoundType.NullableAny, 0, NoDefault)],
         BoundType.Bool
     );
 
@@ -111,9 +94,7 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol HasValueBool = new MethodSymbol(
         "HasValue",
-        ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableBool, 0, NoDefault)
-        ),
+        [new ParameterSymbol("value", BoundType.NullableBool, 0, NoDefault)],
         BoundType.Bool
     );
 
@@ -123,9 +104,7 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol HasValueDecimal = new MethodSymbol(
         "HasValue",
-        ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableDecimal, 0, NoDefault)
-        ),
+        [new ParameterSymbol("value", BoundType.NullableDecimal, 0, NoDefault)],
         BoundType.Bool
     );
 
@@ -135,9 +114,7 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol HasValueInt = new MethodSymbol(
         "HasValue",
-        ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableInt, 0, NoDefault)
-        ),
+        [new ParameterSymbol("value", BoundType.NullableInt, 0, NoDefault)],
         BoundType.Bool
     );
 
@@ -147,9 +124,7 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol HasValueString = new MethodSymbol(
         "HasValue",
-        ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableString, 0, NoDefault)
-        ),
+        [new ParameterSymbol("value", BoundType.NullableString, 0, NoDefault)],
         BoundType.Bool
     );
 
@@ -159,9 +134,7 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol HasValueChar = new MethodSymbol(
         "HasValue",
-        ImmutableArray.Create(
-            new ParameterSymbol("value", BoundType.NullableChar, 0, NoDefault)
-        ),
+        [new ParameterSymbol("value", BoundType.NullableChar, 0, NoDefault)],
         BoundType.Bool
     );
 
@@ -171,10 +144,10 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol Hex = new MethodSymbol(
         "Hex",
-        ImmutableArray.Create(
+        [
             new ParameterSymbol("value", BoundType.Int, 0, NoDefault),
-            new ParameterSymbol("prefix", BoundType.Bool, 0, Literal(false, BoundType.Bool))
-        ),
+            new ParameterSymbol("prefix", BoundType.Bool, 0, Literal(false, BoundType.Bool)),
+        ],
         BoundType.String
     );
 
@@ -184,10 +157,10 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol NullableHex = new MethodSymbol(
         "Hex",
-        ImmutableArray.Create(
+        [
             new ParameterSymbol("value", BoundType.NullableInt, 0, NoDefault),
-            new ParameterSymbol("prefix", BoundType.Bool, 0, Literal(false, BoundType.Bool))
-        ),
+            new ParameterSymbol("prefix", BoundType.Bool, 0, Literal(false, BoundType.Bool)),
+        ],
         BoundType.NullableString
     );
 
@@ -196,9 +169,7 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol Ascii = new MethodSymbol(
         "Ascii",
-        ImmutableArray.Create(
-            new ParameterSymbol("char", BoundType.String, 0, NoDefault)
-        ),
+        [new ParameterSymbol("char", BoundType.String, 0, NoDefault)],
         BoundType.Int
     );
 
@@ -207,9 +178,7 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol NullableAscii = new MethodSymbol(
         "Ascii",
-        ImmutableArray.Create(
-            new ParameterSymbol("char", BoundType.NullableString, 0, NoDefault)
-        ),
+        [new ParameterSymbol("char", BoundType.NullableString, 0, NoDefault)],
         BoundType.NullableInt
     );
 
@@ -219,9 +188,7 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol Char = new MethodSymbol(
         "Char",
-        ImmutableArray.Create(
-            new ParameterSymbol("ascii", BoundType.Int, 0, NoDefault)
-        ),
+        [new ParameterSymbol("ascii", BoundType.Int, 0, NoDefault)],
         BoundType.String
     );
 
@@ -231,9 +198,7 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol NullableChar = new MethodSymbol(
         "Char",
-        ImmutableArray.Create(
-            new ParameterSymbol("ascii", BoundType.NullableInt, 0, NoDefault)
-        ),
+        [new ParameterSymbol("ascii", BoundType.NullableInt, 0, NoDefault)],
         BoundType.NullableString
     );
 
@@ -242,10 +207,28 @@ internal static class BuiltinMethods {
     /// </summary>
     internal static readonly MethodSymbol Length = new MethodSymbol(
         "Length",
-        ImmutableArray.Create(
-            new ParameterSymbol("array", BoundType.NullableAny, 0, NoDefault)
-        ),
+        [new ParameterSymbol("array", BoundType.NullableAny, 0, NoDefault)],
         BoundType.NullableInt
+    );
+
+    /// <summary>
+    /// LowLevel only.
+    /// Converts a truly generic type into a generic primitive.
+    /// </summary>
+    internal static readonly MethodSymbol ToAny = new MethodSymbol(
+        "ToAny",
+        [new ParameterSymbol("primitive", BoundType.NullableAny, 0, NoDefault)],
+        BoundType.NullableAny
+    );
+
+    /// <summary>
+    /// LowLevel only.
+    /// Converts a truly generic type into a generic object.
+    /// </summary>
+    internal static readonly MethodSymbol ToObject = new MethodSymbol(
+        "ToObject",
+        [new ParameterSymbol("object", BoundType.NullableAny, 0, NoDefault)],
+        BoundType.NullableAny
     );
 
     /// <summary>
@@ -253,5 +236,5 @@ internal static class BuiltinMethods {
     /// </summary>
     /// <returns>All public builtins, calling code should not depend on order.</returns>
     internal static IEnumerable<MethodSymbol> GetAll()
-        => [RandInt, Hex, NullableHex, Ascii, NullableAscii, Char, NullableChar, Length];
+        => [RandInt, Hex, NullableHex, Ascii, NullableAscii, Char, NullableChar, Length, ToAny, ToObject];
 }

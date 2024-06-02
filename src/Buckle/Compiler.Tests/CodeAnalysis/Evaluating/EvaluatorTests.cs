@@ -136,7 +136,7 @@ public sealed class EvaluatorTests {
     [InlineData("3 is null;", false)]
     [InlineData("(null + 3) is null;", true)]
     [InlineData("(null > 3) is null;", true)]
-    [InlineData("3 is any;", false)]
+    [InlineData("3 is any;", true)]
     [InlineData("3 is decimal;", false)]
     [InlineData("3 is int;", true)]
     [InlineData("\"string\" is char;", false)]

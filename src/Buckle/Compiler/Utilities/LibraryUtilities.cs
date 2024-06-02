@@ -4,6 +4,7 @@ using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Libraries.Standard;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 using static Buckle.CodeAnalysis.Symbols.SymbolUtilities;
 
@@ -77,14 +78,16 @@ internal static class LibraryUtilities {
         string name,
         BoundType type,
         List<(string, BoundType)> parameters,
+        DeclarationModifiers modifiers,
+        Accessibility accessibility,
         MethodDeclarationSyntax declaration = null) {
         return new MethodSymbol(
             name,
             CreateParameterList(parameters),
             type,
             declaration: declaration,
-            modifiers: DeclarationModifiers.None,
-            accessibility: Accessibility.Public
+            modifiers: modifiers,
+            accessibility: accessibility
         );
     }
 
