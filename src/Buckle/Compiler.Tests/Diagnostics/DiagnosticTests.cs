@@ -1901,4 +1901,18 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0137_CannotUseBase() {
+        var text = @"
+            int myInt = 3;
+            [base].myInt = 5;
+        ";
+
+        var diagnostics = @"
+            cannot use 'base' outside of a class
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

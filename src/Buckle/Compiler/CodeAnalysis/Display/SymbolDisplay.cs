@@ -59,9 +59,9 @@ public static class SymbolDisplay {
 
     private static void DisplayField(DisplayText text, FieldSymbol symbol) {
         DisplayModifiers(text, symbol);
-
         DisplayText.DisplayNode(text, symbol.type);
         text.Write(CreateSpace());
+        DisplayContainedNames(text, symbol);
         text.Write(CreateIdentifier(symbol.name));
     }
 

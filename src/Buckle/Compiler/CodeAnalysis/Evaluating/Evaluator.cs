@@ -174,12 +174,19 @@ internal sealed class Evaluator {
         return reference;
     }
 
-    private Dictionary<object, object> DictionaryValue(Dictionary<Symbol, EvaluatorObject> value) {
+    private Dictionary<object, object> DictionaryValue(
+        Dictionary<Symbol, EvaluatorObject> value,
+        BoundType containingType) {
         var dictionary = new Dictionary<object, object>();
 
         foreach (var pair in value) {
-            if (pair.Key is FieldSymbol)
-                dictionary.Add(pair.Key.name, Value(pair.Value, true));
+            if (pair.Key is FieldSymbol) {
+                var name = pair.Key.containingType == containingType.typeSymbol
+                    ? pair.Key.name
+                    : $"{pair.Key.containingType.name}.{pair.Key.name}";
+
+                dictionary.Add(name, Value(pair.Value, true));
+            }
         }
 
         return dictionary;
@@ -202,7 +209,7 @@ internal sealed class Evaluator {
         else if (value.value is EvaluatorObject[] && traceCollections)
             return CollectionValue(value.value as EvaluatorObject[]);
         else if (traceCollections && value.value is null && value.members != null)
-            return DictionaryValue(value.members);
+            return DictionaryValue(value.members, value.trueType);
         else
             return value.value;
     }
@@ -515,6 +522,8 @@ internal sealed class Evaluator {
                 return EvaluateMemberAccessExpression((BoundMemberAccessExpression)node, abort);
             case BoundNodeKind.ThisExpression:
                 return EvaluateThisExpression((BoundThisExpression)node, abort);
+            case BoundNodeKind.BaseExpression:
+                return EvaluateBaseExpression((BoundBaseExpression)node, abort);
             case BoundNodeKind.Type:
                 return EvaluateType((BoundType)node, abort);
             default:
@@ -571,6 +580,10 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateThisExpression(BoundThisExpression _, ValueWrapper<bool> _1) {
+        return _enclosingTypes.Peek();
+    }
+
+    private EvaluatorObject EvaluateBaseExpression(BoundBaseExpression _, ValueWrapper<bool> _1) {
         return _enclosingTypes.Peek();
     }
 

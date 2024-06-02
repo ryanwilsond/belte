@@ -223,6 +223,8 @@ internal abstract class BoundTreeExpander {
                 return ExpandTypeWrapper((BoundTypeWrapper)expression, out replacement);
             case BoundNodeKind.ThisExpression:
                 return ExpandThisExpression((BoundThisExpression)expression, out replacement);
+            case BoundNodeKind.BaseExpression:
+                return ExpandBaseExpression((BoundBaseExpression)expression, out replacement);
             case BoundNodeKind.Type:
                 return ExpandType((BoundType)expression, out replacement);
             default:
@@ -237,6 +239,13 @@ internal abstract class BoundTreeExpander {
 
     protected virtual List<BoundStatement> ExpandThisExpression(
         BoundThisExpression expression,
+        out BoundExpression replacement) {
+        replacement = expression;
+        return new List<BoundStatement>() { };
+    }
+
+    protected virtual List<BoundStatement> ExpandBaseExpression(
+        BoundBaseExpression expression,
         out BoundExpression replacement) {
         replacement = expression;
         return new List<BoundStatement>() { };

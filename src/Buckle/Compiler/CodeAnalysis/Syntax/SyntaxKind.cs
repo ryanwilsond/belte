@@ -90,6 +90,7 @@ public enum SyntaxKind {
     ClassKeyword,
     NewKeyword,
     ThisKeyword,
+    BaseKeyword,
     StaticKeyword,
     OperatorKeyword,
     LowlevelKeyword,
@@ -124,6 +125,7 @@ public enum SyntaxKind {
     ParenthesizedExpression,
     CastExpression,
     ThisExpression,
+    BaseExpression,
     EmptyExpression,
 
     // Operator expressions
@@ -176,6 +178,7 @@ public enum SyntaxKind {
     FieldDeclaration,
     MethodDeclaration,
     ConstructorDeclaration,
+    ConstructorInitializer,
     OperatorDeclaration,
 
     // Names

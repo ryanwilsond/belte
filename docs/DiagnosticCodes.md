@@ -147,6 +147,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0134 | Error | cannot derive from sealed type '{0}' |
 | BU0135 | Error | cannot derive from static type '{0}' |
 | BU0136 | Error | expected type |
+| BU0137 | Error | cannot use 'base' outside of a class |
 
 ## Command Line Diagnostics
 

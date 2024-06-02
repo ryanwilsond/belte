@@ -1,6 +1,6 @@
 
 class Object {
-    private constructor();
+    protected constructor() { }
 
     public virtual string ToString() {
         return "";

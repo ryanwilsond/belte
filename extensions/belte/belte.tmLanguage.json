@@ -103,7 +103,7 @@
                 },
                 {
                     "name": "storage.modifier.belte",
-                    "match": "\\b(public|private|abstract|virtual|override|sealed|static|const|constexpr)\\b"
+                    "match": "\\b(public|private|abstract|virtual|override|sealed|static|const|constexpr|new|protected)\\b"
                 },
                 {
                     "name": "storage.type.doxygen.belte",

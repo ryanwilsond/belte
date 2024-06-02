@@ -122,8 +122,11 @@ internal sealed class Binder {
         var parentScope = CreateParentScope(previous, options.projectType);
         var binder = new Binder(options, options.topLevelBinderFlags, parentScope, null, previous?.libraryTypes);
 
-        if (!binder._wellKnownTypes.ContainsKey(WellKnownTypeNames.Object))
+        if (!binder._wellKnownTypes.ContainsKey(WellKnownTypeNames.Object)) {
             binder._wellKnownTypes.Add(WellKnownTypeNames.Object, StandardLibrary.Object);
+            binder._scope.TryDeclareMethod(StandardLibrary.Object.members[0] as MethodSymbol);
+            binder._scope.TryDeclareMethod(StandardLibrary.Object.members[1] as MethodSymbol);
+        }
 
         if (binder.diagnostics.Errors().Any())
             return GlobalScope(previous, binder.diagnostics);
@@ -254,7 +257,12 @@ internal sealed class Binder {
             );
 
             binder._innerPrefix.Push(method.name);
-            var body = binder.BindMethodBody(method.declaration?.body, method.parameters);
+            var body = binder.BindMethodBody(
+                method.declaration,
+                method.parameters,
+                method.containingType?.declaration?.identifier
+            );
+
             diagnostics.Move(binder.diagnostics);
 
             if (diagnostics.Errors().Any())
@@ -516,12 +524,16 @@ internal sealed class Binder {
     }
 
     private static TextLocation GetIdentifierLocation(BaseMethodDeclarationSyntax syntax) {
+        return GetIdentifierToken(syntax).location;
+    }
+
+    private static SyntaxToken GetIdentifierToken(BaseMethodDeclarationSyntax syntax) {
         if (syntax is ConstructorDeclarationSyntax c)
-            return c.constructorKeyword.location;
+            return c.constructorKeyword;
         if (syntax is MethodDeclarationSyntax m)
-            return m.identifier.location;
+            return m.identifier;
         if (syntax is OperatorDeclarationSyntax o)
-            return o.operatorToken.location;
+            return o.operatorToken;
 
         throw ExceptionUtilities.Unreachable();
     }
@@ -699,22 +711,37 @@ internal sealed class Binder {
     }
 
     private BoundBlockStatement BindMethodBody(
-        BlockStatementSyntax syntax,
-        ImmutableArray<ParameterSymbol> parameters) {
-        BoundBlockStatement body;
+        BaseMethodDeclarationSyntax syntax,
+        ImmutableArray<ParameterSymbol> parameters,
+        SyntaxToken fallbackLocation) {
+        var body = syntax?.body;
+        BoundBlockStatement boundBody;
 
-        if (syntax != null) {
-            _peekedLocals = PeekLocals(syntax.statements, parameters);
-            body = BindStatement(syntax) as BoundBlockStatement;
+        if (body != null) {
+            _peekedLocals = PeekLocals(body.statements, parameters);
+            boundBody = BindStatement(body) as BoundBlockStatement;
         } else {
-            body = Block();
+            boundBody = Block();
         }
 
         if (_containingMethod.name == WellKnownMemberNames.InstanceConstructorName &&
-            _containingType is ClassSymbol cs && cs.defaultFieldAssignments.Length > 0) {
-            return Block(BindDefaultFieldAssignments(cs.defaultFieldAssignments), body.statements);
+            _containingType is ClassSymbol cs) {
+            BoundExpression initializer = new BoundEmptyExpression();
+
+            if (_containingType != _wellKnownTypes[WellKnownTypeNames.Object]) {
+                initializer = BindConstructorInitializer(
+                    (syntax as ConstructorDeclarationSyntax)?.constructorInitializer,
+                    syntax is null ? fallbackLocation : GetIdentifierToken(syntax)
+                );
+            }
+
+            return Block(
+                [new BoundExpressionStatement(initializer)],
+                BindDefaultFieldAssignments(cs.defaultFieldAssignments),
+                boundBody.statements
+            );
         } else {
-            return body;
+            return boundBody;
         }
     }
 
@@ -741,6 +768,52 @@ internal sealed class Binder {
         }
 
         return boundAssignmentsBuilder.ToImmutable();
+    }
+
+    private BoundExpression BindConstructorInitializer(
+        ConstructorInitializerSyntax syntax,
+        SyntaxToken receiverName) {
+        BoundExpression receiver = (syntax is null || syntax.thisOrBaseKeyword.kind == SyntaxKind.BaseKeyword)
+            ? new BoundBaseExpression((_containingType as ClassSymbol).baseType)
+            : new BoundThisExpression(new BoundType(_containingType));
+
+        var constructors = (syntax is null || syntax.thisOrBaseKeyword.kind == SyntaxKind.BaseKeyword)
+            ? ((_containingType as ClassSymbol).baseType.typeSymbol as NamedTypeSymbol).constructors
+            : _containingType.constructors;
+
+        ImmutableArray<(string, BoundExpression)> arguments;
+
+        if (syntax is null) {
+            arguments = [];
+        } else {
+            if (!PartiallyBindArgumentList(syntax.argumentList, out arguments))
+                return new BoundErrorExpression();
+        }
+
+        var result = _overloadResolution.MethodOverloadResolution(
+            constructors,
+            arguments,
+            WellKnownMemberNames.InstanceConstructorName,
+            syntax?.thisOrBaseKeyword ?? receiverName,
+            syntax?.argumentList,
+            receiver.type
+        );
+
+        if (!result.succeeded)
+            return new BoundErrorExpression();
+
+        if (result.bestOverload.accessibility == Accessibility.Private) {
+            if (_containingType is null ||
+                _containingType != result.bestOverload.containingType) {
+                diagnostics.Push(Error.MemberIsInaccessible(
+                    syntax is null ? receiverName.location : syntax.thisOrBaseKeyword.location,
+                    $"{receiver.type.typeSymbol.name}.{result.bestOverload.Signature()}",
+                    result.bestOverload.containingType.name
+                ));
+            }
+        }
+
+        return new BoundCallExpression(receiver, result.bestOverload, result.arguments);
     }
 
     private bool ModifierAlreadyApplied(
@@ -1334,12 +1407,12 @@ internal sealed class Binder {
     private BoundType BindBaseType(BaseTypeSyntax syntax) {
         var type = BindType(syntax.type);
 
-        if (type.typeSymbol is PrimitiveTypeSymbol) {
+        if (type?.typeSymbol is PrimitiveTypeSymbol) {
             diagnostics.Push(Error.CannotDerivePrimitive(syntax.type.location, type.typeSymbol.ToString()));
             return new BoundType(_wellKnownTypes[WellKnownTypeNames.Object]);
         }
 
-        return type;
+        return type ?? new BoundType(_wellKnownTypes[WellKnownTypeNames.Object]);
     }
 
     private ImmutableArray<BoundExpression> BindConstraintClauseList(
@@ -1849,7 +1922,7 @@ internal sealed class Binder {
         binder._trackedSymbols.Push(new HashSet<VariableSymbol>());
         binder._trackedDeclarations.Push(new HashSet<VariableSymbol>());
         binder._innerPrefix.Push(functionSymbol.name);
-        var body = binder.BindMethodBody(functionSymbol.declaration.body, functionSymbol.parameters);
+        var body = binder.BindMethodBody(functionSymbol.declaration, functionSymbol.parameters, null);
 
         var usedVariables = binder._trackedSymbols.Pop();
         var declaredVariables = binder._trackedDeclarations.Pop();
@@ -2538,35 +2611,30 @@ internal sealed class Binder {
         var selectedSymbols = isStaticAccess ? staticSymbols : instanceSymbols;
         var boundRight = BindIdentifierInScope(right, called, selectedSymbols.ToImmutableArray());
 
-        void CheckAccessibility(BoundExpression leftExpression, BoundExpression rightExpression) {
-            if (leftExpression is BoundMemberAccessExpression m)
-                CheckAccessibility(m.left, m.right);
+        CheckVariableAccessibility(boundLeft, boundRight, right.location);
 
-            if (rightExpression is BoundVariableExpression v) {
-                var insideSameType = _containingType == v.variable.containingType;
-                var insideChildType = TypeUtilities.TypeInheritsFrom(_containingType, v.variable.containingType);
+        return new BoundMemberAccessExpression(boundLeft, boundRight, isNullConditional, isStaticAccess);
+    }
 
-                if (leftExpression.type.typeSymbol is ClassSymbol) {
-                    if (v.variable.accessibility == Accessibility.Private && !insideSameType) {
-                        diagnostics.Push(Error.MemberIsInaccessible(
-                            right.location,
-                            v.variable.name,
-                            leftExpression.type.typeSymbol.name
-                        ));
-                    } else if (v.variable.accessibility == Accessibility.Protected && !insideChildType) {
-                        diagnostics.Push(Error.MemberIsInaccessible(
-                            right.location,
-                            v.variable.name,
-                            leftExpression.type.typeSymbol.name
-                        ));
-                    }
+    private void CheckVariableAccessibility(BoundExpression left, BoundExpression right, TextLocation textLocation) {
+        if (left is BoundMemberAccessExpression m)
+            CheckVariableAccessibility(m.left, m.right, textLocation);
+
+        if (right is BoundVariableExpression v) {
+            var insideSameType = _containingType == v.variable.containingType;
+            var insideChildType = TypeUtilities.TypeInheritsFrom(_containingType, v.variable.containingType);
+
+            if (left.type.typeSymbol is ClassSymbol) {
+                if ((v.variable.accessibility == Accessibility.Private && !insideSameType) ||
+                    (v.variable.accessibility == Accessibility.Protected && !insideChildType)) {
+                    diagnostics.Push(Error.MemberIsInaccessible(
+                        textLocation,
+                        v.variable.name,
+                        left.type.typeSymbol.name
+                    ));
                 }
             }
         }
-
-        CheckAccessibility(boundLeft, boundRight);
-
-        return new BoundMemberAccessExpression(boundLeft, boundRight, isNullConditional, isStaticAccess);
     }
 
     private VariableSymbol BindVariable(
@@ -3262,6 +3330,8 @@ internal sealed class Binder {
                 return BindObjectCreationExpression((ObjectCreationExpressionSyntax)expression);
             case SyntaxKind.ThisExpression:
                 return BindThisExpression((ThisExpressionSyntax)expression);
+            case SyntaxKind.BaseExpression:
+                return BindBaseExpression((BaseExpressionSyntax)expression);
             case SyntaxKind.TemplateName:
             case SyntaxKind.IdentifierName:
                 return BindIdentifier((SimpleNameSyntax)expression, called, allowTypes);
@@ -3290,6 +3360,19 @@ internal sealed class Binder {
     private BoundThisExpression BindThisExpressionInternal() {
         var type = new BoundType(_containingType, isReference: true, arity: _containingType.arity);
         return new BoundThisExpression(type);
+    }
+
+    private BoundExpression BindBaseExpression(BaseExpressionSyntax expression) {
+        if (!_flags.Includes(BinderFlags.Class)) {
+            diagnostics.Push(Error.CannotUseBase(expression.location));
+            return new BoundErrorExpression();
+        }
+
+        return BindBaseExpressionInternal();
+    }
+
+    private BoundBaseExpression BindBaseExpressionInternal() {
+        return new BoundBaseExpression((_containingType as ClassSymbol).baseType);
     }
 
     private BoundExpression BindObjectCreationExpression(ObjectCreationExpressionSyntax expression) {
@@ -3342,15 +3425,16 @@ internal sealed class Binder {
             if (!result.succeeded)
                 return new BoundErrorExpression();
 
-            if (result.bestOverload.accessibility == Accessibility.Private) {
-                if (_containingType is null ||
-                    _containingType != result.bestOverload.containingType) {
-                    diagnostics.Push(Error.MemberIsInaccessible(
-                        expression.type.location,
-                        $"{result.bestOverload.name}()",
-                        result.bestOverload.containingType.name
-                    ));
-                }
+            var insideSameType = _containingType == result.bestOverload.containingType;
+            var insideChildType = TypeUtilities.TypeInheritsFrom(_containingType, result.bestOverload.containingType);
+
+            if ((result.bestOverload.accessibility == Accessibility.Private && !insideSameType) ||
+                (result.bestOverload.accessibility == Accessibility.Protected && !insideChildType)) {
+                diagnostics.Push(Error.MemberIsInaccessible(
+                    expression.type.location,
+                    result.bestOverload.Signature(),
+                    result.bestOverload.containingType.name
+                ));
             }
 
             return new BoundObjectCreationExpression(type, result.bestOverload, result.arguments);

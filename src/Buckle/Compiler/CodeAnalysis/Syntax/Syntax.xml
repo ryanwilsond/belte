@@ -129,6 +129,14 @@
     </Field>
     <Field Name="expressionStatement" Type="ExpressionStatementSyntax" Optional="true"/>
   </Node>
+  <Node Name="ConstructorInitializerSyntax" Base="SyntaxNode">
+    <Kind Name="ConstructorInitializer"/>
+    <Field Name="colon" Type="SyntaxToken">
+      <Kind Name="ColonToken"/>
+    </Field>
+    <Field Name="thisOrBaseKeyword" Type="SyntaxToken"/>
+    <Field Name="argumentList" Type="ArgumentListSyntax"/>
+  </Node>
   <!-- Directives -->
   <AbstractNode Name="DirectiveTriviaSyntax" Base="StructuredTriviaSyntax">
     <Field Name="isActive" Type="bool"/>
@@ -298,6 +306,7 @@
       <Kind Name="ConstructorKeyword"/>
     </Field>
     <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
+    <Field Name="constructorInitializer" Type="ConstructorInitializerSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
   </Node>
   <Node Name="FieldDeclarationSyntax" Base="MemberDeclarationSyntax">
@@ -620,6 +629,12 @@
     <Kind Name="ThisExpression"/>
     <Field Name="keyword" Type="SyntaxToken">
       <Kind Name="ThisKeyword"/>
+    </Field>
+  </Node>
+  <Node Name="BaseExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="BaseExpression"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="BaseKeyword"/>
     </Field>
   </Node>
   <Node Name="TypeOfExpressionSyntax" Base="ExpressionSyntax">

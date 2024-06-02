@@ -76,6 +76,20 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnexpectedToken), message);
     }
 
+    internal static Diagnostic UnexpectedToken(SyntaxKind unexpected, SyntaxKind expected1, SyntaxKind expected2) {
+        string message;
+
+        if (unexpected == SyntaxKind.EndOfFileToken) {
+            message = $"expected {DiagnosticText(expected1, false)} or " +
+                $"{DiagnosticText(expected2, false)} at end of input";
+        } else {
+            message = $"unexpected {DiagnosticText(unexpected)}, " +
+                $"expected {DiagnosticText(expected1, false)} or {DiagnosticText(expected2, false)}";
+        }
+
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnexpectedToken), message);
+    }
+
     /// <summary>
     /// BU0007. Run `buckle --explain BU0007` on the command line for more info.
     /// </summary>
@@ -1237,6 +1251,14 @@ internal static class Error {
     internal static BelteDiagnostic ExpectedType(TextLocation location) {
         var message = $"expected type";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedType), location, message);
+    }
+
+    /// <summary>
+    /// BU0137. Run `buckle --explain BU0137` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotUseBase(TextLocation location) {
+        var message = "cannot use 'base' outside of a class";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseBase), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

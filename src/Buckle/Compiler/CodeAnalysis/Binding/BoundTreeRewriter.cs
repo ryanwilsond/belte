@@ -224,6 +224,8 @@ internal abstract class BoundTreeRewriter {
                 return RewritePostfixExpression((BoundPostfixExpression)expression);
             case BoundNodeKind.ThisExpression:
                 return RewriteThisExpression((BoundThisExpression)expression);
+            case BoundNodeKind.BaseExpression:
+                return RewriteBaseExpression((BoundBaseExpression)expression);
             case BoundNodeKind.Type:
                 return RewriteType((BoundType)expression);
             default:
@@ -236,6 +238,10 @@ internal abstract class BoundTreeRewriter {
     }
 
     protected virtual BoundExpression RewriteThisExpression(BoundThisExpression expression) {
+        return expression;
+    }
+
+    protected virtual BoundExpression RewriteBaseExpression(BoundBaseExpression expression) {
         return expression;
     }
 
