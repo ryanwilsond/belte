@@ -580,6 +580,9 @@ public sealed partial class BelteRepl : Repl {
 
                 var first = namedTypes.First();
                 currentSymbols = first.GetMembers().Where(s => s.parent == first);
+
+                if (!currentSymbols.Any())
+                    currentSymbols = first.GetMembers();
             }
 
             if (failed) {
