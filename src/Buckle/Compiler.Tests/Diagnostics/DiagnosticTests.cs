@@ -1839,7 +1839,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            a member marked as override cannot be marked as new or virtual
+            a member marked as override cannot be marked as new, abstract, or virtual
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1925,6 +1925,67 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             cannot create an instance of the abstract class 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0139_NonAbstractMustHaveBody() {
+        var text = @"
+            class A {
+                void [M]();
+            }
+        ";
+
+        var diagnostics = @"
+            'M()' must declare a body because it is not marked abstract
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0140_AbstractCannotHaveBody() {
+        var text = @"
+            abstract class A {
+                public abstract void [M]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'M()' cannot declare a body because it is marked abstract
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0141_AbstractMemberInNonAbstractType() {
+        var text = @"
+            class A {
+                public abstract void [M]();
+            }
+        ";
+
+        var diagnostics = @"
+            'M()' cannot be marked abstract because it is not contained by an abstract type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0142_TypeDoesNotImplementAbstract() {
+        var text = @"
+            abstract class A {
+                public abstract void M();
+            }
+            class [B] extends A { }
+        ";
+
+        var diagnostics = @"
+            'B' must implement inherited abstract member 'A.M()'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

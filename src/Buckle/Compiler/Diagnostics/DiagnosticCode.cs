@@ -147,6 +147,10 @@ public enum DiagnosticCode : int {
     ERR_ExpectedType = 136,
     ERR_CannotUseBase = 137,
     ERR_CannotConstructAbstract = 138,
+    ERR_NonAbstractMustHaveBody = 139,
+    ERR_AbstractCannotHaveBody = 140,
+    ERR_AbstractMemberInNonAbstractType = 141,
+    ERR_TypeDoesNotImplementAbstract = 142,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

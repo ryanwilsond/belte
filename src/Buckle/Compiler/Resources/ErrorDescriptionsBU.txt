@@ -2082,6 +2082,67 @@ class B extends A { }
 
 A myA = new B(); // Allowed
 ```
+$BU0139
+All methods must define a body when declared unless marked abstract, where it is
+guaranteed to be overridden.
+
+For example:
+
+```
+class MyClass {
+    public void M(); // Not allowed
+}
+```
+$BU0140
+All abstract methods cannot define a body when declared because they are
+guaranteed to be overridden, making the defined body never used.
+
+For example:
+
+```
+abstract class MyClass {
+    public abstract void M() { } // Not allowed
+    public abstract void M(); // Allowed
+}
+```
+$BU0141
+Abstract methods must be overridden. Methods can only be marked in abstract
+types to ensure the method is overridden. An abstract method in a non-abstract
+type is not guaranteed to be defined because the type can be initialized
+directly.
+
+For example:
+
+```
+class MyClass {
+    public abstract void M(); // Not allowed, `MyClass` is not an abstract type
+}
+```
+$BU0142
+Abstract methods must be overbidden. Non-abstract child classes that inherit
+abstract methods must implement all abstract methods.
+
+For example:
+
+```
+abstract class A {
+    public abstract void M();
+}
+
+sealed class B extends A {
+    // Not allowed, does not implement inherited member `A.M()`
+}
+```
+
+```
+abstract class A {
+    public abstract void M();
+}
+
+sealed class B extends A {
+    public override void M() { } // Allowed
+}
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.

@@ -1225,7 +1225,7 @@ internal static class Error {
     /// BU0132. Run `buckle --explain BU0132` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic ConflictingOverrideModifiers(TextLocation location) {
-        var message = $"a member marked as override cannot be marked as new or virtual";
+        var message = $"a member marked as override cannot be marked as new, abstract, or virtual";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConflictingOverrideModifiers), location, message);
     }
 
@@ -1267,6 +1267,42 @@ internal static class Error {
     internal static BelteDiagnostic CannotConstructAbstract(TextLocation location, string name) {
         var message = $"cannot create an instance of the abstract class '{name}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotConstructAbstract), location, message);
+    }
+
+    /// <summary>
+    /// BU0139. Run `buckle --explain BU0139` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic NonAbstractMustHaveBody(TextLocation location, string name) {
+        var message = $"'{name}' must declare a body because it is not marked abstract";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NonAbstractMustHaveBody), location, message);
+    }
+
+    /// <summary>
+    /// BU0140. Run `buckle --explain BU0140` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic AbstractCannotHaveBody(TextLocation location, string name) {
+        var message = $"'{name}' cannot declare a body because it is marked abstract";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AbstractCannotHaveBody), location, message);
+    }
+
+    /// <summary>
+    /// BU0141. Run `buckle --explain BU0141` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic AbstractMemberInNonAbstractType(TextLocation location, string name) {
+        var message = $"'{name}' cannot be marked abstract because it is not contained by an abstract type";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AbstractMemberInNonAbstractType), location, message);
+    }
+
+    /// <summary>
+    /// BU0142. Run `buckle --explain BU0142` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic TypeDoesNotImplementAbstract(
+        TextLocation location,
+        string className,
+        string signature,
+        string containingTypeName) {
+        var message = $"'{className}' must implement inherited abstract member '{containingTypeName}.{signature}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_TypeDoesNotImplementAbstract), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

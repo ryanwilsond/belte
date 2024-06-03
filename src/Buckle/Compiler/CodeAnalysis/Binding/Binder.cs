@@ -274,8 +274,11 @@ internal sealed class Binder {
                 options.isTranspiling
             );
 
-            if (method.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
+            if (!method.isAbstract &&
+                method.type.typeSymbol != TypeSymbol.Void &&
+                !ControlFlowGraph.AllPathsReturn(loweredBody)) {
                 binder.diagnostics.Push(Error.NotAllPathsReturn(GetIdentifierLocation(method.declaration)));
+            }
 
             binder._methodBodies.Add((method, loweredBody));
 
@@ -860,7 +863,10 @@ internal sealed class Binder {
         if ((modifier == DeclarationModifiers.Virtual && (modifiers & DeclarationModifiers.Override) != 0) ||
             (modifier == DeclarationModifiers.Override && (modifiers & DeclarationModifiers.Virtual) != 0) ||
             (modifier == DeclarationModifiers.Override && (modifiers & DeclarationModifiers.New) != 0) ||
-            (modifier == DeclarationModifiers.New && (modifiers & DeclarationModifiers.Override) != 0)) {
+            (modifier == DeclarationModifiers.Virtual && (modifiers & DeclarationModifiers.Abstract) != 0) ||
+            (modifier == DeclarationModifiers.Abstract && (modifiers & DeclarationModifiers.Virtual) != 0) ||
+            (modifier == DeclarationModifiers.Override && (modifiers & DeclarationModifiers.Abstract) != 0) ||
+            (modifier == DeclarationModifiers.Abstract && (modifiers & DeclarationModifiers.Override) != 0)) {
             diagnostics.Push(Error.ConflictingOverrideModifiers(syntax.location));
             return true;
         }
@@ -897,7 +903,7 @@ internal sealed class Binder {
         MethodDeclarationSyntax method,
         DeclarationModifiers inheritedModifiers,
         string name = null,
-        ImmutableList<MethodSymbol> overridableMethods = null,
+        List<MethodSymbol> overridableMethods = null,
         string containingTypeName = null) {
         // ? This will return eventually
         BindAttributeLists(method.attributeLists);
@@ -950,7 +956,7 @@ internal sealed class Binder {
                 }
             }
 
-            if ((modifiers & DeclarationModifiers.Override) != 0) {
+            if (newMethod.isOverride) {
                 if (overrideTarget is null || !_scope.TryReplaceSymbol(overrideTarget, newMethod)) {
                     diagnostics.Push(Error.NoSuitableOverrideTarget(method.identifier.location));
                 } else if (overrideTarget.accessibility != newMethod.accessibility) {
@@ -979,6 +985,12 @@ internal sealed class Binder {
                     ));
                 }
             }
+
+            if (method.body is null && !newMethod.isAbstract)
+                diagnostics.Push(Error.NonAbstractMustHaveBody(method.identifier.location, newMethod.Signature()));
+
+            if (method.body is not null && newMethod.isAbstract)
+                diagnostics.Push(Error.AbstractCannotHaveBody(method.identifier.location, newMethod.Signature()));
 
             if (!_scope.TryDeclareMethod(newMethod)) {
                 diagnostics.Push(
@@ -1102,6 +1114,16 @@ internal sealed class Binder {
 
                     ConflictingDerivationModifier(declarationModifiers, DeclarationModifiers.New, modifier);
                     declarationModifiers |= DeclarationModifiers.New;
+                    break;
+                case SyntaxKind.AbstractKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Abstract, modifier))
+                        break;
+
+                    ConflictingDerivationModifier(declarationModifiers, DeclarationModifiers.Abstract, modifier);
+                    declarationModifiers |= DeclarationModifiers.Abstract;
                     break;
                 default:
                     diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
@@ -1656,7 +1678,7 @@ internal sealed class Binder {
         }
 
         var builder = ImmutableList.CreateBuilder<Symbol>();
-        var inheritedBuilder = ImmutableList.CreateBuilder<MethodSymbol>();
+        var inheritedMethods = new List<MethodSymbol>();
         var isStatic = oldClass.isStatic;
         _scope = new BoundScope(_scope);
 
@@ -1706,7 +1728,7 @@ internal sealed class Binder {
                     break;
                 case SymbolKind.Method when member.name != WellKnownMemberNames.InstanceConstructorName:
                     _scope.TryDeclareMethod(member as MethodSymbol);
-                    inheritedBuilder.Add(member as MethodSymbol);
+                    inheritedMethods.Add(member as MethodSymbol);
                     break;
                 default:
                     continue;
@@ -1727,6 +1749,8 @@ internal sealed class Binder {
             _scope = _scope.parent;
             _scope.DeclareMethodStrict(defaultConstructor);
 
+            EnsureAbstractsAreImplemented();
+
             var emptyClass = new ClassSymbol(
                 oldClass.templateParameters,
                 constraints,
@@ -1738,11 +1762,7 @@ internal sealed class Binder {
                 baseType
             );
 
-            if (oldClass.members.Length == 0)
-                _scope.TryReplaceSymbol(oldClass, emptyClass);
-            else if (!_scope.TryDeclareType(emptyClass))
-                diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
-
+            DeclareNewClass(emptyClass);
             _flags = saved;
 
             return oldClass;
@@ -1796,8 +1816,6 @@ internal sealed class Binder {
             _scope.TryDeclareMethod(defaultConstructor);
         }
 
-        var inheritedMethods = inheritedBuilder.ToImmutable();
-
         foreach (var methodDeclaration in @class.members.OfType<MethodDeclarationSyntax>()) {
             var method = BindMethodDeclaration(
                 methodDeclaration,
@@ -1808,6 +1826,12 @@ internal sealed class Binder {
 
             if (isStatic && !method.isStatic)
                 diagnostics.Push(Error.MemberMustBeStatic(methodDeclaration.identifier.location));
+
+            if (method.isAbstract && !oldClass.isAbstract) {
+                diagnostics.Push(
+                    Error.AbstractMemberInNonAbstractType(methodDeclaration.identifier.location, method.Signature())
+                );
+            }
 
             builder.Add(method);
         }
@@ -1826,6 +1850,8 @@ internal sealed class Binder {
             builder.Add(type);
         }
 
+        EnsureAbstractsAreImplemented();
+
         var newClass = new ClassSymbol(
             oldClass.templateParameters,
             constraints,
@@ -1842,17 +1868,32 @@ internal sealed class Binder {
             _scope.parent.parent.DeclareMethodStrict(method);
 
         _scope = _scope.parent.parent;
-
-        // If no members, the default .ctor has yet to be built by the compiler, meaning this instance is a temporary
-        // symbol that needs to be replaced
-        if (oldClass.members.Length == 0)
-            _scope.TryReplaceSymbol(oldClass, newClass);
-        else if (!_scope.TryDeclareType(newClass))
-            diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
-
+        DeclareNewClass(newClass);
         _flags = saved;
 
         return oldClass;
+
+        void EnsureAbstractsAreImplemented() {
+            foreach (var method in inheritedMethods) {
+                if (method.isAbstract) {
+                    diagnostics.Push(Error.TypeDoesNotImplementAbstract(
+                        @class.identifier.location,
+                        oldClass.name,
+                        method.Signature(),
+                        method.containingType.name
+                    ));
+                }
+            }
+        }
+
+        void DeclareNewClass(ClassSymbol replacingClass) {
+            // If no members, the default .ctor has yet to be built by the compiler, meaning this instance is a temporary
+            // symbol that needs to be replaced
+            if (oldClass.members.Length == 0)
+                _scope.TryReplaceSymbol(oldClass, replacingClass);
+            else if (!_scope.TryDeclareType(replacingClass))
+                diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
+        }
     }
 
     private DeclarationModifiers BindClassDeclarationModifiers(SyntaxTokenList modifiers) {
@@ -2960,6 +3001,7 @@ internal sealed class Binder {
                     fd.identifier,
                     fd.parameterList,
                     fd.body,
+                    SyntaxFactory.Token(SyntaxKind.SemicolonToken),
                     fd.parent,
                     fd.position
                 );

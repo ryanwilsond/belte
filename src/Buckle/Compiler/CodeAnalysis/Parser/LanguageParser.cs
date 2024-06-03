@@ -491,9 +491,23 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var type = ParseType(false);
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenParenToken);
         var parameterList = ParseParameterList();
-        var body = (BlockStatementSyntax)ParseBlockStatement();
+        BlockStatementSyntax body = null;
+        SyntaxToken semicolon = null;
 
-        return SyntaxFactory.MethodDeclaration(attributeLists, modifiers, type, identifier, parameterList, body);
+        if (currentToken.kind == SyntaxKind.SemicolonToken)
+            semicolon = Match(SyntaxKind.SemicolonToken);
+        else
+            body = (BlockStatementSyntax)ParseBlockStatement();
+
+        return SyntaxFactory.MethodDeclaration(
+            attributeLists,
+            modifiers,
+            type,
+            identifier,
+            parameterList,
+            body,
+            semicolon
+        );
     }
 
     private OperatorDeclarationSyntax ParseOperatorDeclaration(

@@ -133,6 +133,9 @@ members still require a definition. To override a virtual member, the override c
 hide a member without overriding, a member can be marked `new`. A member cannot be marked as both `override` and `new`
 or `virtual`.
 
+Similar to `virtual`, a member can be marked `abstract`. Abstract members must be overridden in all non-abstract child
+implementations, and as such abstract members do not have a definition when declared.
+
 Currently, these modifiers only apply to methods.
 
 ### 4.3.2 Static & ConstExpr
@@ -154,12 +157,18 @@ MyClass.B();
 Classes themselves can also be marked as `static`, meaning that all contained members must also be static or constant
 expressions.
 
-### 4.3.3 Sealed
+### 4.3.3 Sealed  & Abstract
 
 Classes can be marked as `sealed` to indicate that they cannot be derived.
 
 ```belte
 sealed class A { }
+```
+
+Classes can be marked as `abstract` to indicate that they must be derived.
+
+```belte
+abstract class A { }
 ```
 
 ## 4.4 Constructors

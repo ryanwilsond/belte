@@ -29,7 +29,8 @@ internal static partial class StandardLibrary {
                         SeparatedList<ParameterSyntax>(),
                         Token(SyntaxKind.CloseParenToken)
                     ),
-                    Block(Return(Literal("")))
+                    Block(Return(Literal(""))),
+                    Token(SyntaxKind.SemicolonToken)
                 )
             ),
         ]
