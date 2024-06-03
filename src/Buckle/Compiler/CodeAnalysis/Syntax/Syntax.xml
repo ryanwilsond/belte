@@ -663,4 +663,11 @@
       <Kind Name="CloseParenToken"/>
     </Field>
   </Node>
+  <Node Name="ThrowExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="ThrowExpression" />
+    <Field Name="throwKeyword" Type="SyntaxToken">
+      <Kind Name="ThrowKeyword"/>
+    </Field>
+    <Field Name="expression" Type="ExpressionSyntax"/>
+  </Node>
 </Tree>

@@ -106,6 +106,7 @@ public enum SyntaxKind {
     ConstructorKeyword,
     AsKeyword,
     WhereKeyword,
+    ThrowKeyword,
 
     // Tokens with text
     BadToken,
@@ -127,6 +128,7 @@ public enum SyntaxKind {
     CastExpression,
     ThisExpression,
     BaseExpression,
+    ThrowExpression,
     EmptyExpression,
 
     // Operator expressions

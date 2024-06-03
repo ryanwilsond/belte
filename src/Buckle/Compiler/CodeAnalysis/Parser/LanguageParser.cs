@@ -1170,6 +1170,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseThisExpression();
             case SyntaxKind.BaseKeyword:
                 return ParseBaseExpression();
+            case SyntaxKind.ThrowKeyword:
+                return ParseThrowExpression();
             case SyntaxKind.IdentifierToken:
             default:
                 return ParseLastCaseName();
@@ -1312,6 +1314,12 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private ExpressionSyntax ParseBaseExpression() {
         var keyword = Match(SyntaxKind.BaseKeyword);
         return SyntaxFactory.BaseExpression(keyword);
+    }
+
+    private ExpressionSyntax ParseThrowExpression() {
+        var keyword = Match(SyntaxKind.ThrowKeyword);
+        var expression = ParseExpression();
+        return SyntaxFactory.ThrowExpression(keyword, expression);
     }
 
     private ExpressionSyntax ParseMemberAccessExpression(ExpressionSyntax expression) {

@@ -140,8 +140,8 @@ internal sealed class Binder {
                 if (options.isLibrary) {
                     if (symbol.name == WellKnownTypeNames.List)
                         binder._wellKnownTypes.Add(WellKnownTypeNames.List, symbol);
-                    else if (symbol.name == WellKnownTypeNames.String)
-                        binder._wellKnownTypes.Add(WellKnownTypeNames.String, symbol);
+                    else if (symbol.name == WellKnownTypeNames.Exception)
+                        binder._wellKnownTypes.Add(WellKnownTypeNames.Exception, symbol);
                 }
             }
         }
@@ -2148,7 +2148,7 @@ internal sealed class Binder {
             var coreType = BindType(type, modifiers, explicitly, handled | DeclarationModifiers.Const);
 
             // Prevent raising this error if we have nested const keywords
-            if (coreType.isImplicit && !coreType.isConstant)
+            if (coreType?.isImplicit ?? false && !coreType.isConstant)
                 diagnostics.Push(Error.ConstantAndVariable(type.location));
 
             return BoundType.CopyWith(coreType, isConstant: true);
@@ -2162,7 +2162,7 @@ internal sealed class Binder {
 
             var coreType = BindType(rt.type);
 
-            if (coreType.isImplicit)
+            if (coreType?.isImplicit ?? false)
                 diagnostics.Push(Error.ImpliedReference(rt.refKeyword.location));
 
             return BoundType.CopyWith(coreType, isReference: true, isConstantReference: rt.constKeyword != null);
@@ -2173,7 +2173,7 @@ internal sealed class Binder {
             var coreType = BindType(at.elementType);
             var builder = ImmutableArray.CreateBuilder<BoundExpression>();
 
-            if (coreType.isImplicit) {
+            if (coreType?.isImplicit ?? false) {
                 var span = TextSpan.FromBounds(
                     at.rankSpecifiers[0].openBracket.location.span.start,
                     at.rankSpecifiers[^1].closeBracket.location.span.end
@@ -3374,6 +3374,8 @@ internal sealed class Binder {
                 return BindThisExpression((ThisExpressionSyntax)expression);
             case SyntaxKind.BaseExpression:
                 return BindBaseExpression((BaseExpressionSyntax)expression);
+            case SyntaxKind.ThrowExpression:
+                return BindThrowExpression((ThrowExpressionSyntax)expression);
             case SyntaxKind.TemplateName:
             case SyntaxKind.IdentifierName:
                 return BindIdentifier((SimpleNameSyntax)expression, called, allowTypes);
@@ -3388,6 +3390,14 @@ internal sealed class Binder {
             default:
                 throw new BelteInternalException($"BindExpressionInternal: unexpected syntax '{expression.kind}'");
         }
+    }
+
+    private BoundExpression BindThrowExpression(ThrowExpressionSyntax expression) {
+        var exceptionType = new BoundType(_wellKnownTypes[WellKnownTypeNames.Exception]);
+        var boundExpression = BindExpression(expression.expression);
+        var castedExpression = BindCast(expression.expression.location, boundExpression, exceptionType);
+
+        return new BoundThrowExpression(castedExpression);
     }
 
     private BoundExpression BindThisExpression(ThisExpressionSyntax expression) {

@@ -178,6 +178,7 @@ internal static class SyntaxFacts {
             "constructor" => SyntaxKind.ConstructorKeyword,
             "as" => SyntaxKind.AsKeyword,
             "where" => SyntaxKind.WhereKeyword,
+            "throw" => SyntaxKind.ThrowKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -282,6 +283,7 @@ internal static class SyntaxFacts {
             SyntaxKind.ConstructorKeyword => "constructor",
             SyntaxKind.AsKeyword => "as",
             SyntaxKind.WhereKeyword => "where",
+            SyntaxKind.ThrowKeyword => "throw",
             _ => null,
         };
     }

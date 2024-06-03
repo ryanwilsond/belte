@@ -524,6 +524,8 @@ internal sealed class Evaluator {
                 return EvaluateThisExpression((BoundThisExpression)node, abort);
             case BoundNodeKind.BaseExpression:
                 return EvaluateBaseExpression((BoundBaseExpression)node, abort);
+            case BoundNodeKind.ThrowExpression:
+                return EvaluateThrowExpression((BoundThrowExpression)node, abort);
             case BoundNodeKind.Type:
                 return EvaluateType((BoundType)node, abort);
             default:
@@ -585,6 +587,12 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateBaseExpression(BoundBaseExpression _, ValueWrapper<bool> _1) {
         return _enclosingTypes.Peek();
+    }
+
+    private EvaluatorObject EvaluateThrowExpression(BoundThrowExpression node, ValueWrapper<bool> abort) {
+        var exception = EvaluateExpression(node.exception, abort);
+        var message = exception.members.Where(m => m.Key.name == "message").First();
+        throw new Exception(message.Value.value as string);
     }
 
     private EvaluatorObject EvaluateMemberAccessExpression(BoundMemberAccessExpression node, ValueWrapper<bool> abort) {

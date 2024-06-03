@@ -9,11 +9,13 @@
   <ItemGroup>
     <Content Remove="Resources/ErrorDescriptionsBU.txt" />
     <Content Remove="../../Belte/Standard/List.blt" />
+    <Content Remove="../../Belte/Standard/Exception.blt" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Resources/ErrorDescriptionsBU.txt" />
     <EmbeddedResource Include="../../Belte/Standard/List.blt" />
+    <EmbeddedResource Include="../../Belte/Standard/Exception.blt" />
   </ItemGroup>
 
   <ItemGroup>

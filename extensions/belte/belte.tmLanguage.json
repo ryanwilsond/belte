@@ -29,11 +29,11 @@
             "patterns": [
                 {
                     "name": "keyword.control.belte",
-                    "match": "\\b(if|else|while|for|return|break|continue|do|try|catch|finally)\\b"
+                    "match": "\\b(if|else|while|for|return|break|continue|do|try|catch|finally|throw)\\b"
                 },
                 {
                     "name": "keyword.other.belte",
-                    "match": "\\b(this|var|ref|new|operator|lowlevel)\\b"
+                    "match": "\\b(this|base|var|ref|new|operator|lowlevel)\\b"
                 },
                 {
                     "name": "keyword.operator.arithmetic.belte",
@@ -95,7 +95,7 @@
                 },
                 {
                     "name": "storage.type.class.belte",
-                    "match": "\\b(class|constructor|extends|where)\\b"
+                    "match": "\\b(class|struct|constructor|extends|where)\\b"
                 },
                 {
                     "name": "storage.type.number.belte",
@@ -147,7 +147,7 @@
                 },
                 {
                     "name": "entity.name.operator.belte",
-                    "match": "\\b(?<=operator)((\\=)|(\\=\\=)|(\\<\\=)|(\\>\\=)|(\\<)|(\\>)|(\\!\\=)|(\\[\\])|(\\*\\*)|(\\+)|(\\-)|(\\*)|(\\/)|(\\%)|(\\^)|(\\&)|(\\|)|(\\~)|(\\!)|(\\+\\=)|(\\-\\=)|(\\*\\=)|(\\*\\*\\=)|(\\/\\=)|(\\%\\=)|(\\^\\=)|(\\&\\=)|(\\|\\=)|(\\<\\<)|(\\>\\>)|(\\<\\<\\=)|(\\>\\>\\=)|(\\&\\&)|(\\|\\|)|is|isnt|(\\+\\+)|(\\-\\-)|(\\(\\)))(?=\\()"
+                    "match": "\\b(?<=operator)((\\=)|(\\=\\=)|(\\<\\=)|(\\>\\=)|(\\<)|(\\>)|(\\!\\=)|(\\[\\])|(\\*\\*)|(\\+)|(\\-)|(\\*)|(\\/)|(\\%)|(\\^)|(\\&)|(\\|)|(\\~)|(\\!)|(\\+\\=)|(\\-\\=)|(\\*\\=)|(\\*\\*\\=)|(\\/\\=)|(\\%\\=)|(\\^\\=)|(\\&\\=)|(\\|\\=)|(\\<\\<)|(\\>\\>)|(\\>\\>\\>)|(\\<\\<\\=)|(\\>\\>\\=)|(\\&\\&)|(\\|\\|)|is|isnt|(\\+\\+)|(\\-\\-)|(\\(\\)))(?=\\()"
                 },
                 {
                     "name": "entity.name.type.belte",
