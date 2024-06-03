@@ -2149,7 +2149,7 @@ internal sealed class Binder {
             var coreType = BindType(type, modifiers, explicitly, handled | DeclarationModifiers.Const);
 
             // Prevent raising this error if we have nested const keywords
-            if (coreType?.isImplicit ?? false && !coreType.isConstant)
+            if ((coreType?.isImplicit ?? false) && !coreType.isConstant)
                 diagnostics.Push(Error.ConstantAndVariable(type.location));
 
             return BoundType.CopyWith(coreType, isConstant: true);
