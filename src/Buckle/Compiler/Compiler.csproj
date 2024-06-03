@@ -9,13 +9,25 @@
   <ItemGroup>
     <Content Remove="Resources/ErrorDescriptionsBU.txt" />
     <Content Remove="../../Belte/Standard/List.blt" />
-    <Content Remove="../../Belte/Standard/Exception.blt" />
+    <Content Remove="../../Belte/Standard/Exceptions/ArgumentException.blt" />
+    <Content Remove="../../Belte/Standard/Exceptions/ArgumentNullException.blt" />
+    <Content Remove="../../Belte/Standard/Exceptions/ArgumentOutOfRangeException.blt" />
+    <Content Remove="../../Belte/Standard/Exceptions/Exception.blt" />
+    <Content Remove="../../Belte/Standard/Exceptions/InvalidCastException.blt" />
+    <Content Remove="../../Belte/Standard/Exceptions/InvalidOperationException.blt" />
+    <Content Remove="../../Belte/Standard/Exceptions/NotSupportedException.blt" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Resources/ErrorDescriptionsBU.txt" />
     <EmbeddedResource Include="../../Belte/Standard/List.blt" />
-    <EmbeddedResource Include="../../Belte/Standard/Exception.blt" />
+    <EmbeddedResource Include="../../Belte/Standard/Exceptions/ArgumentException.blt" />
+    <EmbeddedResource Include="../../Belte/Standard/Exceptions/ArgumentNullException.blt" />
+    <EmbeddedResource Include="../../Belte/Standard/Exceptions/ArgumentOutOfRangeException.blt" />
+    <EmbeddedResource Include="../../Belte/Standard/Exceptions/Exception.blt" />
+    <EmbeddedResource Include="../../Belte/Standard/Exceptions/InvalidCastException.blt" />
+    <EmbeddedResource Include="../../Belte/Standard/Exceptions/InvalidOperationException.blt" />
+    <EmbeddedResource Include="../../Belte/Standard/Exceptions/NotSupportedException.blt" />
   </ItemGroup>
 
   <ItemGroup>

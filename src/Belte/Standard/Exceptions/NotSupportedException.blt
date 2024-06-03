@@ -1,0 +1,4 @@
+
+sealed class NotSupportedException extends Exception {
+    public constructor() : base("Specified method is not supported.") { }
+}

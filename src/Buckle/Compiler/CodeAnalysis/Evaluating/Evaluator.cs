@@ -447,7 +447,7 @@ internal sealed class Evaluator {
 
                 var previous = Console.ForegroundColor;
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.Write($"Unhandled exception ({e.GetType()}): ");
+                Console.Write($"Unhandled exception: ");
                 Console.ForegroundColor = previous;
                 Console.WriteLine(e.Message);
             }

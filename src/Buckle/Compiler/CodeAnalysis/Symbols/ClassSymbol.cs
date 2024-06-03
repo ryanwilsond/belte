@@ -29,22 +29,22 @@ internal sealed class ClassSymbol : NamedTypeSymbol {
     /// <summary>
     /// Statements that assigns fields with specified initializers. Used in constructors.
     /// </summary>
-    internal ImmutableArray<(FieldSymbol, ExpressionSyntax)> defaultFieldAssignments {
-        get; private set;
-    }
+    internal ImmutableArray<(FieldSymbol, ExpressionSyntax)> defaultFieldAssignments { get; private set; }
 
     /// <summary>
     /// The type this symbol inherits from; Object if not explicitly specified.
     /// </summary>
-    internal BoundType baseType { get; }
+    internal BoundType baseType { get; private set; }
 
     internal void UpdateInternals(
         ImmutableArray<ParameterSymbol> templateParameters,
         ImmutableArray<BoundExpression> templateConstraints,
         ImmutableArray<Symbol> symbols,
-        ImmutableArray<(FieldSymbol, ExpressionSyntax)> defaultFieldAssignments) {
+        ImmutableArray<(FieldSymbol, ExpressionSyntax)> defaultFieldAssignments,
+        BoundType baseType) {
         UpdateInternals(templateParameters, templateConstraints, symbols);
         this.defaultFieldAssignments = defaultFieldAssignments;
+        this.baseType = baseType;
     }
 
     protected override void ConstructLazyMembers() {

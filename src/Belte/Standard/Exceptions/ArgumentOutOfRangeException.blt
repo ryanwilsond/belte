@@ -1,0 +1,4 @@
+
+sealed class ArgumentOutOfRangeException extends Exception {
+    public constructor() : base("Specified argument was out of the range of valid values.") { }
+}

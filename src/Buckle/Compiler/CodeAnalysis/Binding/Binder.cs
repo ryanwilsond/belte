@@ -1380,15 +1380,6 @@ internal sealed class Binder {
         } else if (type is ClassDeclarationSyntax c) {
             var modifiers = BindClassDeclarationModifiers(c.modifiers);
             var accessibility = BindAccessibilityFromModifiers(modifiers);
-            var baseType = c.baseType is null
-                ? new BoundType(_wellKnownTypes[WellKnownTypeNames.Object])
-                : BindBaseType(c.baseType);
-
-            if (baseType.typeSymbol.isSealed)
-                diagnostics.Push(Error.CannotDeriveSealed(c.baseType.type.location, baseType.typeSymbol.name));
-
-            if (baseType.typeSymbol.isStatic)
-                diagnostics.Push(Error.CannotDeriveStatic(c.baseType.type.location, baseType.typeSymbol.name));
 
             symbol = new ClassSymbol(
                     templates,
@@ -1398,7 +1389,7 @@ internal sealed class Binder {
                     c,
                     modifiers | inheritedModifiers,
                     accessibility,
-                    baseType
+                    null
                 );
         } else {
             throw new BelteInternalException($"BindTypeDeclaration: unexpected type '{type.identifier.text}'");
@@ -1678,6 +1669,16 @@ internal sealed class Binder {
             inheritModifiers = DeclarationModifiers.LowLevel;
         }
 
+        var baseType = @class.baseType is null
+            ? new BoundType(_wellKnownTypes[WellKnownTypeNames.Object])
+            : BindBaseType(@class.baseType);
+
+        if (baseType.typeSymbol.isSealed)
+            diagnostics.Push(Error.CannotDeriveSealed(@class.baseType.type.location, baseType.typeSymbol.name));
+
+        if (baseType.typeSymbol.isStatic)
+            diagnostics.Push(Error.CannotDeriveStatic(@class.baseType.type.location, baseType.typeSymbol.name));
+
         var templates = ImmutableArray.CreateBuilder<ParameterSymbol>();
 
         foreach (var templateParameter in oldClass.templateParameters) {
@@ -1695,7 +1696,7 @@ internal sealed class Binder {
 
         var constraints = BindConstraintClauseList(@class, templates.ToImmutable());
 
-        foreach (var member in (oldClass.baseType.typeSymbol as ClassSymbol).GetMembers()) {
+        foreach (var member in (baseType.typeSymbol as ClassSymbol).GetMembers()) {
             switch (member.kind) {
                 case SymbolKind.Field:
                     _scope.TryDeclareVariable(member as FieldSymbol);
@@ -1734,7 +1735,7 @@ internal sealed class Binder {
                 @class,
                 inheritModifiers,
                 oldClass.accessibility,
-                oldClass.baseType
+                baseType
             );
 
             if (oldClass.members.Length == 0)
@@ -1833,7 +1834,7 @@ internal sealed class Binder {
             @class,
             inheritModifiers,
             oldClass.accessibility,
-            oldClass.baseType
+            baseType
         );
 
         // This allows the methods to be seen by the global scope

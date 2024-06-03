@@ -1,0 +1,4 @@
+
+sealed class InvalidOperationException extends Exception {
+    public constructor() : base("Operation is not valid due to the current state of the object.") { }
+}
