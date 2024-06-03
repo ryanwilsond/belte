@@ -4,7 +4,7 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
-/// A bound type extend clause, bound from a <see cref="Syntax.TemplateParameterConstraintClauseSyntax" />.
+/// A bound type extend clause, bound from a <see cref="Syntax.BaseTypeSyntax" />.
 /// </summary>
 internal sealed class BoundExtendExpression : BoundExpression {
     internal BoundExtendExpression(ParameterSymbol template, BoundType extension) {
