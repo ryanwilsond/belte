@@ -67,6 +67,7 @@ public enum SyntaxKind {
 
     // Keywords
     TypeOfKeyword,
+    NameOfKeyword,
     NullKeyword,
     TrueKeyword,
     FalseKeyword,
@@ -141,6 +142,7 @@ public enum SyntaxKind {
     // Primary expressions
     LiteralExpression,
     TypeOfExpression,
+    NameOfExpression,
     CallExpression,
     ReferenceExpression,
     MemberAccessExpression,

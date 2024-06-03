@@ -66,6 +66,7 @@ internal static class SyntaxFacts {
     internal static int GetPrimaryPrecedence(this SyntaxKind type) {
         switch (type) {
             case SyntaxKind.TypeOfKeyword:
+            case SyntaxKind.NameOfKeyword:
             case SyntaxKind.OpenBracketToken:
             case SyntaxKind.OpenParenToken:
             case SyntaxKind.PeriodToken:
@@ -156,6 +157,7 @@ internal static class SyntaxFacts {
             "is" => SyntaxKind.IsKeyword,
             "isnt" => SyntaxKind.IsntKeyword,
             "typeof" => SyntaxKind.TypeOfKeyword,
+            "nameof" => SyntaxKind.NameOfKeyword,
             "struct" => SyntaxKind.StructKeyword,
             "class" => SyntaxKind.ClassKeyword,
             "new" => SyntaxKind.NewKeyword,
@@ -259,6 +261,7 @@ internal static class SyntaxFacts {
             SyntaxKind.IsKeyword => "is",
             SyntaxKind.IsntKeyword => "isnt",
             SyntaxKind.TypeOfKeyword => "typeof",
+            SyntaxKind.NameOfKeyword => "nameof",
             SyntaxKind.StructKeyword => "struct",
             SyntaxKind.ClassKeyword => "class",
             SyntaxKind.NewKeyword => "new",

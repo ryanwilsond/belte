@@ -1162,6 +1162,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseReferenceExpression();
             case SyntaxKind.TypeOfKeyword:
                 return ParseTypeOfExpression();
+            case SyntaxKind.NameOfKeyword:
+                return ParseNameOfExpression();
             case SyntaxKind.NewKeyword:
                 return ParseObjectCreationExpression();
             case SyntaxKind.ThisKeyword:
@@ -1272,6 +1274,15 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
 
         return SyntaxFactory.TypeOfExpression(keyword, openParenthesis, type, closeParenthesis);
+    }
+
+    private ExpressionSyntax ParseNameOfExpression() {
+        var keyword = Match(SyntaxKind.NameOfKeyword);
+        var openParenthesis = Match(SyntaxKind.OpenParenToken);
+        var name = ParseQualifiedName();
+        var closeParenthesis = Match(SyntaxKind.CloseParenToken);
+
+        return SyntaxFactory.NameOfExpression(keyword, openParenthesis, name, closeParenthesis);
     }
 
     private ExpressionSyntax ParseObjectCreationExpression() {

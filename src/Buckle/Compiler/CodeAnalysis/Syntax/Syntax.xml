@@ -650,4 +650,17 @@
       <Kind Name="CloseParenToken"/>
     </Field>
   </Node>
+  <Node Name="NameOfExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="NameOfExpression"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="NameOfKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="name" Type="NameSyntax"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+  </Node>
 </Tree>

@@ -3366,6 +3366,8 @@ internal sealed class Binder {
                 return BindCastExpression((CastExpressionSyntax)expression);
             case SyntaxKind.TypeOfExpression:
                 return BindTypeOfExpression((TypeOfExpressionSyntax)expression);
+            case SyntaxKind.NameOfExpression:
+                return BindNameOfExpression((NameOfExpressionSyntax)expression);
             case SyntaxKind.ObjectCreationExpression:
                 return BindObjectCreationExpression((ObjectCreationExpressionSyntax)expression);
             case SyntaxKind.ThisExpression:
@@ -3501,6 +3503,18 @@ internal sealed class Binder {
     private BoundExpression BindTypeOfExpression(TypeOfExpressionSyntax expression) {
         var type = BindType(expression.type);
         return new BoundTypeOfExpression(type);
+    }
+
+    private BoundExpression BindNameOfExpression(NameOfExpressionSyntax expression) {
+        var name = BindExpression(expression.name, allowTypes: true);
+
+        return new BoundLiteralExpression(name.kind switch {
+            BoundNodeKind.VariableExpression => ((BoundVariableExpression)name).variable.name,
+            BoundNodeKind.MemberAccessExpression => ((BoundMemberAccessExpression)name).left.ToString(),
+            BoundNodeKind.ErrorExpression => "",
+            BoundNodeKind.Type => name.type.ToString(),
+            _ => throw ExceptionUtilities.Unreachable(),
+        });
     }
 
     private BoundExpression BindReferenceExpression(ReferenceExpressionSyntax expression) {
