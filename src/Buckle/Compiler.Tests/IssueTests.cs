@@ -84,7 +84,7 @@ public sealed class IssueTests {
     public void Evaluator_ReferenceExpression_Reports_CannotConvert() {
         var text = @"
             class A {
-                int num;
+                public int num;
             }
 
             void MyFunction(A a) {
@@ -150,7 +150,7 @@ public sealed class IssueTests {
     public void Evaluator_Classes_ReassignNull() {
         var text = @"
             class A {
-                int num;
+                public int num;
             }
 
             var x = new A();
@@ -734,10 +734,10 @@ public sealed class IssueTests {
     public void Evaluator_MethodInvoke_DoNotPopLocalsInStatic() {
         var text = @"
             class A {
-                static void Util() {
+                public static void Util() {
                     Console.PrintLine(""123"");
                 }
-                void Test() {
+                public void Test() {
                     Util();
                     A.Util();
                 }
@@ -784,10 +784,10 @@ public sealed class IssueTests {
     public void Evaluator_MemberAccessExpression_NestedCalls() {
         var text = @"
             class A {
-                void Test() { }
+                public void Test() { }
             }
             class B {
-                A First() { return new A(); }
+                public A First() { return new A(); }
             }
             var myB = new B();
             myB.First().Test();
@@ -872,7 +872,7 @@ public sealed class IssueTests {
     public void Evaluator_Assignment_HonorsConstantMemberAccess() {
         var text = @"
             class A {
-                int a = 3;
+                public int a = 3;
             }
             const a = new A();
             a.a[++];
@@ -971,7 +971,7 @@ public sealed class IssueTests {
     public void Evaluator_ClassDeclaration_StaticCanSeeTemplates() {
         var text = @"
             class A<int a> {
-                static A<a> operator~(A<a> a) {
+                public static A<a> operator~(A<a> a) {
                     return a;
                 }
             }
@@ -986,9 +986,9 @@ public sealed class IssueTests {
     public void Evaluator_OperatorOverloading_ReturnsCorrectType() {
         var text = @"
             class A<type t> {
-                int v = 3;
+                public int v = 3;
 
-                static A<t> operator+(int a, A<t> b) {
+                public static A<t> operator+(int a, A<t> b) {
                     b.v = 7;
                     return b;
                 }
@@ -996,6 +996,34 @@ public sealed class IssueTests {
 
             var myA = new A<string>();
             var c = 6 + (3 + myA);
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_Structs_InitializesProperly() {
+        var text = @"
+            lowlevel struct A<type T> {
+                T a;
+            }
+
+            var a = new A<int>();
+            a.a = 3;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_Casts_CorrectlyParses() {
+        var text = @"
+            class A { }
+            A a = (A)new A();
         ";
 
         var diagnostics = @"";

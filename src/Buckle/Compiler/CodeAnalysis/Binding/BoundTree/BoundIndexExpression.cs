@@ -9,6 +9,7 @@ internal sealed class BoundIndexExpression : BoundExpression {
         this.expression = expression;
         this.index = index;
         this.isNullConditional = isNullConditional;
+        constantValue = ConstantFolding.FoldIndex(this.expression, this.index);
     }
 
     internal BoundExpression expression { get; }
@@ -18,6 +19,8 @@ internal sealed class BoundIndexExpression : BoundExpression {
     internal bool isNullConditional { get; }
 
     internal override BoundNodeKind kind => BoundNodeKind.IndexExpression;
+
+    internal override BoundConstant constantValue { get; }
 
     internal override BoundType type => expression.type.ChildType();
 }

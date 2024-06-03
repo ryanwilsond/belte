@@ -413,6 +413,43 @@ internal abstract partial class SyntaxParser {
         }
     }
 
+    protected SyntaxToken MatchTwo(SyntaxKind kind1, SyntaxKind kind2, bool report = true) {
+        if (currentToken.kind == kind1)
+            return Match(kind1, report: report);
+        else if (currentToken.kind == kind2)
+            return Match(kind2, report: report);
+
+        var peek = Peek(1);
+
+        if (peek.kind != kind1 && peek.kind != kind2) {
+            var unexpectedToken = EatToken();
+
+            if (report) {
+                return AddDiagnostic(
+                    AddLeadingSkippedSyntax(SyntaxFactory.Missing(kind1), unexpectedToken),
+                    Error.UnexpectedToken(unexpectedToken.kind, kind1, kind2),
+                    unexpectedToken.GetLeadingTriviaWidth(),
+                    unexpectedToken.width
+                );
+            } else {
+                return AddLeadingSkippedSyntax(SyntaxFactory.Missing(kind1), unexpectedToken);
+            }
+        }
+
+        var unexpected = EatToken(stallDiagnostics: true);
+
+        if (report) {
+            return AddDiagnostic(
+                WithFutureDiagnostics(AddLeadingSkippedSyntax(EatToken(), unexpected)),
+                Error.UnexpectedToken(unexpected.kind),
+                unexpected.GetLeadingTriviaWidth(),
+                unexpected.width
+            );
+        } else {
+            return WithFutureDiagnostics(AddLeadingSkippedSyntax(EatToken(), unexpected));
+        }
+    }
+
     protected void MoveToNextToken() {
         _prevTokenTrailingTrivia = _currentToken.GetTrailingTrivia();
         _currentToken = null;

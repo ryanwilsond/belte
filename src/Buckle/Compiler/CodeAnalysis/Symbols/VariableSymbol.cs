@@ -14,8 +14,13 @@ internal abstract class VariableSymbol : Symbol, IVariableSymbol {
     /// <param name="name">Name of the variable.</param>
     /// <param name="type"><see cref="BoundType" /> of the variable.</param>
     /// <param name="constant"><see cref="BoundConstant" /> of the variable.</param>
-    internal VariableSymbol(string name, BoundType type, BoundConstant constant, DeclarationModifiers modifiers)
-        : base(name) {
+    internal VariableSymbol(
+        string name,
+        BoundType type,
+        BoundConstant constant,
+        DeclarationModifiers modifiers,
+        Accessibility accessibility)
+        : base(name, accessibility) {
         this.type = type;
         constantValue = ((type?.isConstant ?? false) || (type?.isConstantExpression ?? false))
             && (!type?.isReference ?? false) ? constant : null;
@@ -24,6 +29,14 @@ internal abstract class VariableSymbol : Symbol, IVariableSymbol {
 
     public override bool isStatic
         => (_declarationModifiers & (DeclarationModifiers.Static | DeclarationModifiers.ConstExpr)) != 0;
+
+    public override bool isVirtual => false;
+
+    public override bool isAbstract => false;
+
+    public override bool isSealed => false;
+
+    public override bool isOverride => false;
 
     public ITypeSymbol typeSymbol => type.typeSymbol;
 

@@ -163,12 +163,30 @@ internal sealed class Evaluator {
         throw new BelteInternalException($"Get: '{variable.name}' was not found in any accessible scopes");
     }
 
-    private Dictionary<object, object> DictionaryValue(Dictionary<Symbol, EvaluatorObject> value) {
+    private EvaluatorObject Dereference(EvaluatorObject reference, bool dereferenceOnExplicit = true) {
+        while (reference.isReference) {
+            if (!dereferenceOnExplicit && reference.isExplicitReference)
+                break;
+
+            reference = Get(reference.reference);
+        }
+
+        return reference;
+    }
+
+    private Dictionary<object, object> DictionaryValue(
+        Dictionary<Symbol, EvaluatorObject> value,
+        BoundType containingType) {
         var dictionary = new Dictionary<object, object>();
 
         foreach (var pair in value) {
-            if (pair.Key is FieldSymbol)
-                dictionary.Add(pair.Key.name, Value(pair.Value, true));
+            if (pair.Key is FieldSymbol) {
+                var name = pair.Key.containingType == containingType.typeSymbol
+                    ? pair.Key.name
+                    : $"{pair.Key.containingType.name}.{pair.Key.name}";
+
+                dictionary.Add(name, Value(pair.Value, true));
+            }
         }
 
         return dictionary;
@@ -191,7 +209,7 @@ internal sealed class Evaluator {
         else if (value.value is EvaluatorObject[] && traceCollections)
             return CollectionValue(value.value as EvaluatorObject[]);
         else if (traceCollections && value.value is null && value.members != null)
-            return DictionaryValue(value.members);
+            return DictionaryValue(value.members, value.trueType);
         else
             return value.value;
     }
@@ -202,7 +220,7 @@ internal sealed class Evaluator {
         else if (value.reference != null)
             return new EvaluatorObject(value.reference, isExplicitReference: true);
         else if (value.members != null)
-            return new EvaluatorObject(Copy(value.members));
+            return new EvaluatorObject(Copy(value.members), value.trueType);
         else
             return new EvaluatorObject(value.value);
     }
@@ -252,19 +270,14 @@ internal sealed class Evaluator {
     }
 
     private void Assign(EvaluatorObject left, EvaluatorObject right) {
-        while (right.isReference && !right.isExplicitReference)
-            right = Get(right.reference);
-
-        while (left.isReference && !left.isExplicitReference)
-            left = Get(left.reference);
+        right = Dereference(right, false);
+        left = Dereference(left, false);
 
         if (right.isExplicitReference) {
             left.reference = right.reference;
-
             return;
         } else if (left.isExplicitReference) {
-            while (left.isReference)
-                left = Get(left.reference);
+            left = Dereference(left);
         }
 
         if (right.members is null)
@@ -300,24 +313,33 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateCast(EvaluatorObject value, BoundType type) {
-        var valueValue = Value(value);
+        var dereferenced = Dereference(value);
 
-        if (value.members != null)
-            return value;
+        if (dereferenced.members is null || dereferenced.trueType is null) {
+            var valueValue = Value(value);
 
-        if (valueValue is EvaluatorObject[] v) {
-            var builder = new List<EvaluatorObject>();
-            var castedValue = v;
+            if (valueValue is EvaluatorObject[] v) {
+                var builder = new List<EvaluatorObject>();
+                var castedValue = v;
 
-            foreach (var item in castedValue)
-                builder.Add(EvaluateCast(item, type.ChildType()));
+                foreach (var item in castedValue)
+                    builder.Add(EvaluateCast(item, type.ChildType()));
 
-            valueValue = builder.ToArray();
-        } else {
-            valueValue = EvaluateValueCast(valueValue, type);
+                valueValue = builder.ToArray();
+            } else {
+                valueValue = EvaluateValueCast(valueValue, type);
+            }
+
+            return new EvaluatorObject(valueValue);
         }
 
-        return new EvaluatorObject(valueValue);
+        if (TypeUtilities.TypeInheritsFrom(dereferenced.trueType, type))
+            return value;
+
+        if (TypeUtilities.TypeInheritsFrom(type, dereferenced.trueType))
+            throw new InvalidCastException();
+
+        throw ExceptionUtilities.Unreachable();
     }
 
     private object EvaluateValueCast(object value, BoundType type) {
@@ -425,7 +447,7 @@ internal sealed class Evaluator {
 
                 var previous = Console.ForegroundColor;
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.Write($"Unhandled exception ({e.GetType()}): ");
+                Console.Write($"Unhandled exception: ");
                 Console.ForegroundColor = previous;
                 Console.WriteLine(e.Message);
             }
@@ -500,6 +522,10 @@ internal sealed class Evaluator {
                 return EvaluateMemberAccessExpression((BoundMemberAccessExpression)node, abort);
             case BoundNodeKind.ThisExpression:
                 return EvaluateThisExpression((BoundThisExpression)node, abort);
+            case BoundNodeKind.BaseExpression:
+                return EvaluateBaseExpression((BoundBaseExpression)node, abort);
+            case BoundNodeKind.ThrowExpression:
+                return EvaluateThrowExpression((BoundThrowExpression)node, abort);
             case BoundNodeKind.Type:
                 return EvaluateType((BoundType)node, abort);
             default:
@@ -535,9 +561,9 @@ internal sealed class Evaluator {
         var members = new Dictionary<Symbol, EvaluatorObject>();
 
         if (node.typeSymbol is not NamedTypeSymbol)
-            return new EvaluatorObject(members: members);
+            return new EvaluatorObject(members, node);
 
-        var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).members;
+        var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).GetMembers();
         var templateArgumentIndex = 0;
 
         foreach (var templateArgument in typeMembers.Where(t => t is ParameterSymbol)) {
@@ -549,14 +575,24 @@ internal sealed class Evaluator {
                 value = EvaluateType(node.type.templateArguments[templateArgumentIndex].type, abort);
 
             templateArgumentIndex++;
-            members.Add(templateArgument, value);
+            members.Add(templateArgument as Symbol, value);
         }
 
-        return new EvaluatorObject(members: members);
+        return new EvaluatorObject(members, node);
     }
 
     private EvaluatorObject EvaluateThisExpression(BoundThisExpression _, ValueWrapper<bool> _1) {
         return _enclosingTypes.Peek();
+    }
+
+    private EvaluatorObject EvaluateBaseExpression(BoundBaseExpression _, ValueWrapper<bool> _1) {
+        return _enclosingTypes.Peek();
+    }
+
+    private EvaluatorObject EvaluateThrowExpression(BoundThrowExpression node, ValueWrapper<bool> abort) {
+        var exception = EvaluateExpression(node.exception, abort);
+        var message = exception.members.Where(m => m.Key.name == "message").First();
+        throw new Exception(message.Value.value as string);
     }
 
     private EvaluatorObject EvaluateMemberAccessExpression(BoundMemberAccessExpression node, ValueWrapper<bool> abort) {
@@ -565,7 +601,7 @@ internal sealed class Evaluator {
         if (operand.isReference) {
             do {
                 operand = Get(operand.reference, operand.referenceScope);
-            } while (operand.isReference == true);
+            } while (operand.isReference);
         }
 
         if (node.type == BoundType.MethodGroup) {
@@ -583,10 +619,10 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateObjectCreationExpression(
         BoundObjectCreationExpression node,
         ValueWrapper<bool> abort) {
-        if (node.viaConstructor) {
+        if (node.viaConstructor || (node.type.sizes.Length == 0 && node.type.typeSymbol is StructSymbol)) {
             var core = EvaluateTypeCore(node.type, abort);
             var members = new Dictionary<Symbol, EvaluatorObject>();
-            var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).members;
+            var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).GetMembers();
 
             foreach (var member in core.members)
                 members.Add(member.Key, member.Value);
@@ -601,10 +637,10 @@ internal sealed class Evaluator {
                     }
                 }
 
-                members.Add(member, value);
+                members.Add(member as Symbol, value);
             }
 
-            var newObject = new EvaluatorObject(members);
+            var newObject = new EvaluatorObject(members, node.type);
 
             EnterClassScope(newObject);
 
@@ -616,7 +652,7 @@ internal sealed class Evaluator {
 
             return newObject;
         } else {
-            var array = new EvaluatorObject(value: null);
+            var array = EvaluatorObject.Null;
             var sizes = new List<int>();
 
             // TODO There is probably a more efficient algorithm for this
@@ -627,7 +663,7 @@ internal sealed class Evaluator {
                     var members = new List<EvaluatorObject>();
 
                     for (var i = 0; i < sizeValue; i++)
-                        members.Add(new EvaluatorObject(value: null));
+                        members.Add(EvaluatorObject.Null);
 
                     element.value = members.ToArray();
                 }
@@ -733,29 +769,42 @@ internal sealed class Evaluator {
                 return new EvaluatorObject(false);
 
             return new EvaluatorObject(true);
-        } else if (node.method == BuiltinMethods.Hex) {
-            var value = (int)Value(EvaluateExpression(node.arguments[0], abort));
+        } else if (node.method == BuiltinMethods.Hex || node.method == BuiltinMethods.NullableHex) {
+            var value = (int?)Value(EvaluateExpression(node.arguments[0], abort));
+
+            if (!value.HasValue)
+                return EvaluatorObject.Null;
+
             var addPrefix = (bool)Value(EvaluateExpression(node.arguments[1], abort));
-            var hex = addPrefix ? $"0x{value.ToString("X")}" : value.ToString("X");
+            var hex = addPrefix ? $"0x{value.Value:X}" : value.Value.ToString("X");
 
             return new EvaluatorObject(hex);
-        } else if (node.method == BuiltinMethods.Ascii) {
+        } else if (node.method == BuiltinMethods.Ascii || node.method == BuiltinMethods.NullableAscii) {
             var value = (string)Value(EvaluateExpression(node.arguments[0], abort));
 
-            if (value.Length != 1)
-                throw new ArgumentException("String passed into `Ascii` method must be of length 1");
+            if (value is null || value.Length != 1)
+                return EvaluatorObject.Null;
 
             return new EvaluatorObject((int)char.Parse(value));
-        } else if (node.method == BuiltinMethods.Char) {
-            var value = (int)Value(EvaluateExpression(node.arguments[0], abort));
-            return new EvaluatorObject(((char)value).ToString());
+        } else if (node.method == BuiltinMethods.Char || node.method == BuiltinMethods.NullableChar) {
+            var value = (int?)Value(EvaluateExpression(node.arguments[0], abort));
+
+            if (!value.HasValue)
+                return EvaluatorObject.Null;
+
+            return new EvaluatorObject(((char)value.Value).ToString());
         } else if (node.method == BuiltinMethods.Length) {
             var value = Value(EvaluateExpression(node.arguments[0], abort));
 
             if (value is object[] v)
                 return new EvaluatorObject(v.Length);
             else
-                return new EvaluatorObject(value: null);
+                return EvaluatorObject.Null;
+        } else if (node.method.originalDefinition == BuiltinMethods.ToAny) {
+            var value = Value(EvaluateExpression(node.arguments[0], abort));
+            return new EvaluatorObject(value);
+        } else if (node.method.originalDefinition == BuiltinMethods.ToObject) {
+            return EvaluateExpression(node.arguments[0], abort);
         } else {
             if (CheckStandardMap(node.method, node.arguments, abort, out var result, out var printed)) {
                 lastOutputWasPrint = printed;
@@ -771,6 +820,25 @@ internal sealed class Evaluator {
         ImmutableArray<BoundExpression> arguments,
         ValueWrapper<bool> abort,
         BoundExpression expression = null) {
+        EvaluatorObject receiver = null;
+        if (expression is not null && expression is not BoundEmptyExpression) {
+            receiver = EvaluateExpression(expression, abort);
+            var dereferencedReceiver = Dereference(receiver);
+
+            if (dereferencedReceiver.members is null)
+                throw new NullReferenceException();
+        }
+
+        if (method.isAbstract) {
+            var trueType = Dereference(receiver).trueType;
+            var newMethod = (trueType.typeSymbol as ClassSymbol)
+                .GetMembers()
+                .Where(s => s is MethodSymbol m && m.Signature() == method.Signature() && m.isOverride)
+                .First() as MethodSymbol;
+
+            method = newMethod;
+        }
+
         var locals = new Dictionary<IVariableSymbol, IEvaluatorObject>();
 
         for (var i = 0; i < arguments.Length; i++) {
@@ -789,19 +857,16 @@ internal sealed class Evaluator {
         var templateConstantDepth = _templateConstantDepth;
         var enteredScope = false;
 
-        if (expression != null) {
-            var possibleScope = EvaluateExpression(expression, abort);
-
+        if (receiver != null) {
             // On an expression such as 'myInstance.Method()', we need to enter the 'myInstance' class scope
             // in case 'Method' uses 'this'
             // If what we get here is not a reference, it is a static accession and the needed scoped members have
             // already been pushed by 'EvaluateType'.
-            if (possibleScope != null && possibleScope.isReference) {
-                while (possibleScope.isReference)
-                    possibleScope = Get(possibleScope.reference);
+            if (receiver != null && receiver.isReference) {
+                receiver = Dereference(receiver);
 
-                if (possibleScope.members is not null && possibleScope.members.Count > 0) {
-                    EnterClassScope(possibleScope);
+                if (receiver.members is not null && receiver.members.Count > 0) {
+                    EnterClassScope(receiver);
                     enteredScope = true;
                 }
             }
@@ -935,8 +1000,42 @@ internal sealed class Evaluator {
             return new EvaluatorObject(false);
         }
 
+        if (expression.op.opKind == BoundBinaryOperatorKind.As) {
+            var dereferenced = Dereference(left);
+
+            if (dereferenced.members is null || dereferenced.trueType is null)
+                // Primitive
+                return new EvaluatorObject(leftValue);
+
+            if (TypeUtilities.TypeInheritsFrom(dereferenced.trueType, expression.right.type))
+                return left;
+
+            return EvaluatorObject.Null;
+        }
+
         var right = EvaluateExpression(expression.right, abort);
         var rightValue = Value(right);
+
+        if (expression.op.opKind is BoundBinaryOperatorKind.Is or BoundBinaryOperatorKind.Isnt) {
+            var dereferenced = Dereference(left);
+
+            if (leftValue is null && dereferenced.members is null)
+                return new EvaluatorObject(false);
+
+            if (left.members is null) {
+                return new EvaluatorObject(
+                    (right.trueType.Equals(BoundType.NullableAny) ||
+                    right.trueType.Equals(BoundType.Any) ||
+                    BoundType.Assume(leftValue).Equals(right.trueType, isTypeCheck: true)) ^
+                    expression.op.opKind is not BoundBinaryOperatorKind.Is
+                );
+            }
+
+            if (TypeUtilities.TypeInheritsFrom(left.trueType, right.trueType))
+                return new EvaluatorObject(expression.op.opKind is BoundBinaryOperatorKind.Is);
+            else
+                return new EvaluatorObject(expression.op.opKind is BoundBinaryOperatorKind.Isnt);
+        }
 
         if (leftValue is null || rightValue is null)
             return new EvaluatorObject();
@@ -1041,8 +1140,32 @@ internal sealed class Evaluator {
         printed = false;
 
         if (method.containingType == StandardLibrary.Console || method.containingType == StandardLibrary.Math) {
-            if (method == StandardLibrary.Console.members[4] || method == StandardLibrary.Console.members[5])
+            if (method == StandardLibrary.Console.members[5] ||
+                method == StandardLibrary.Console.members[6] ||
+                method == StandardLibrary.Console.members[7]) {
                 printed = true;
+            }
+
+            // TODO Right now this approach seems fragile, should at some point reevaluate how this should be done
+            if (method == StandardLibrary.Console.members[3] || method == StandardLibrary.Console.members[7]) {
+                var receiver = Dereference(EvaluateExpression(arguments[0], abort));
+
+                // Calling ToString on objects
+                // There should always be exactly one method that fits these search criteria
+                var toString = (receiver.trueType.typeSymbol as NamedTypeSymbol)
+                    .GetMembers(WellKnownMemberNames.ToString)
+                    .Where(f => f is MethodSymbol)
+                    .Select(f => f as MethodSymbol)
+                    .Where(m => m.parameters.Length == 0)
+                    .First();
+
+                EnterClassScope(receiver);
+                var argument = InvokeMethod(toString, [], abort);
+                ExitClassScope();
+
+                result = StandardLibrary.EvaluateMethod(method, [Value(argument)]);
+                return true;
+            }
 
             result = StandardLibrary.EvaluateMethod(method, EvaluateArgumentsForExternalCall(arguments, abort));
             return true;

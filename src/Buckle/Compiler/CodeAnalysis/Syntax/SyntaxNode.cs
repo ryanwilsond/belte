@@ -413,7 +413,7 @@ public abstract partial class SyntaxNode {
         return false;
     }
 
-    private void PrettyPrint(DisplayText text, SyntaxNodeOrToken node, string indent = "", bool isLast = true) {
+    private static void PrettyPrint(DisplayText text, SyntaxNodeOrToken node, string indent = "", bool isLast = true) {
         var token = node.AsToken();
 
         if (token != null) {

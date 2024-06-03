@@ -77,7 +77,7 @@ internal sealed class Binder {
         var currentContainingType = _containingType;
 
         while (currentContainingType != null) {
-            foreach (var member in currentContainingType.members) {
+            foreach (var member in currentContainingType.GetMembers()) {
                 if (member is FieldSymbol or ParameterSymbol)
                     _scope.TryDeclareVariable(member as VariableSymbol);
                 else if (member is NamedTypeSymbol n)
@@ -122,6 +122,12 @@ internal sealed class Binder {
         var parentScope = CreateParentScope(previous, options.projectType);
         var binder = new Binder(options, options.topLevelBinderFlags, parentScope, null, previous?.libraryTypes);
 
+        if (!binder._wellKnownTypes.ContainsKey(WellKnownTypeNames.Object)) {
+            binder._wellKnownTypes.Add(WellKnownTypeNames.Object, StandardLibrary.Object);
+            binder._scope.TryDeclareMethod(StandardLibrary.Object.members[0] as MethodSymbol);
+            binder._scope.TryDeclareMethod(StandardLibrary.Object.members[1] as MethodSymbol);
+        }
+
         if (binder.diagnostics.Errors().Any())
             return GlobalScope(previous, binder.diagnostics);
 
@@ -134,8 +140,8 @@ internal sealed class Binder {
                 if (options.isLibrary) {
                     if (symbol.name == WellKnownTypeNames.List)
                         binder._wellKnownTypes.Add(WellKnownTypeNames.List, symbol);
-                    else if (symbol.name == WellKnownTypeNames.String)
-                        binder._wellKnownTypes.Add(WellKnownTypeNames.String, symbol);
+                    else if (symbol.name == WellKnownTypeNames.Exception)
+                        binder._wellKnownTypes.Add(WellKnownTypeNames.Exception, symbol);
                 }
             }
         }
@@ -251,16 +257,28 @@ internal sealed class Binder {
             );
 
             binder._innerPrefix.Push(method.name);
-            var body = binder.BindMethodBody(method.declaration?.body, method.parameters);
+            var body = binder.BindMethodBody(
+                method.declaration,
+                method.parameters,
+                method.containingType?.declaration?.identifier
+            );
+
             diagnostics.Move(binder.diagnostics);
 
             if (diagnostics.Errors().Any())
                 return Program(previous, diagnostics);
 
-            var loweredBody = Lowerer.Lower(method, body, options.isTranspiling);
+            var loweredBody = Lowerer.Lower(
+                method,
+                body,
+                options.isTranspiling
+            );
 
-            if (method.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
+            if (!method.isAbstract &&
+                method.type.typeSymbol != TypeSymbol.Void &&
+                !ControlFlowGraph.AllPathsReturn(loweredBody)) {
                 binder.diagnostics.Push(Error.NotAllPathsReturn(GetIdentifierLocation(method.declaration)));
+            }
 
             binder._methodBodies.Add((method, loweredBody));
 
@@ -501,9 +519,7 @@ internal sealed class Binder {
                 foreach (var globalStatement in firstGlobalPerTree)
                     binder.diagnostics.Push(Error.MainAndGlobals(globalStatement.location));
             } else {
-                entryPoint = new MethodSymbol(
-                    "<Main>$", ImmutableArray<ParameterSymbol>.Empty, new BoundType(TypeSymbol.Void)
-                );
+                entryPoint = new MethodSymbol("<Main>$", ImmutableArray<ParameterSymbol>.Empty, BoundType.Void);
             }
         }
 
@@ -511,12 +527,16 @@ internal sealed class Binder {
     }
 
     private static TextLocation GetIdentifierLocation(BaseMethodDeclarationSyntax syntax) {
+        return GetIdentifierToken(syntax).location;
+    }
+
+    private static SyntaxToken GetIdentifierToken(BaseMethodDeclarationSyntax syntax) {
         if (syntax is ConstructorDeclarationSyntax c)
-            return c.identifier.location;
+            return c.constructorKeyword;
         if (syntax is MethodDeclarationSyntax m)
-            return m.identifier.location;
+            return m.identifier;
         if (syntax is OperatorDeclarationSyntax o)
-            return o.operatorToken.location;
+            return o.operatorToken;
 
         throw ExceptionUtilities.Unreachable();
     }
@@ -681,7 +701,7 @@ internal sealed class Binder {
                 var boundParameter = new ParameterSymbol(
                     parameterName,
                     parameterType,
-                    parameters.Count,
+                    parametersBuilder.Count + 1,
                     boundDefault,
                     isTemplate: isTemplate
                 );
@@ -694,22 +714,37 @@ internal sealed class Binder {
     }
 
     private BoundBlockStatement BindMethodBody(
-        BlockStatementSyntax syntax,
-        ImmutableArray<ParameterSymbol> parameters) {
-        BoundBlockStatement body;
+        BaseMethodDeclarationSyntax syntax,
+        ImmutableArray<ParameterSymbol> parameters,
+        SyntaxToken fallbackLocation) {
+        var body = syntax?.body;
+        BoundBlockStatement boundBody;
 
-        if (syntax != null) {
-            _peekedLocals = PeekLocals(syntax.statements, parameters);
-            body = BindStatement(syntax) as BoundBlockStatement;
+        if (body != null) {
+            _peekedLocals = PeekLocals(body.statements, parameters);
+            boundBody = BindStatement(body) as BoundBlockStatement;
         } else {
-            body = Block();
+            boundBody = Block();
         }
 
         if (_containingMethod.name == WellKnownMemberNames.InstanceConstructorName &&
-            _containingType is ClassSymbol cs && cs.defaultFieldAssignments.Length > 0) {
-            return Block(BindDefaultFieldAssignments(cs.defaultFieldAssignments), body.statements);
+            _containingType is ClassSymbol cs) {
+            BoundExpression initializer = new BoundEmptyExpression();
+
+            if (_containingType != _wellKnownTypes[WellKnownTypeNames.Object]) {
+                initializer = BindConstructorInitializer(
+                    (syntax as ConstructorDeclarationSyntax)?.constructorInitializer,
+                    syntax is null ? fallbackLocation : GetIdentifierToken(syntax)
+                );
+            }
+
+            return Block(
+                [new BoundExpressionStatement(initializer)],
+                BindDefaultFieldAssignments(cs.defaultFieldAssignments),
+                boundBody.statements
+            );
         } else {
-            return body;
+            return boundBody;
         }
     }
 
@@ -738,14 +773,151 @@ internal sealed class Binder {
         return boundAssignmentsBuilder.ToImmutable();
     }
 
+    private BoundExpression BindConstructorInitializer(
+        ConstructorInitializerSyntax syntax,
+        SyntaxToken receiverName) {
+        BoundExpression receiver = (syntax is null || syntax.thisOrBaseKeyword.kind == SyntaxKind.BaseKeyword)
+            ? new BoundBaseExpression((_containingType as ClassSymbol).baseType)
+            : new BoundThisExpression(new BoundType(_containingType));
+
+        var constructors = (syntax is null || syntax.thisOrBaseKeyword.kind == SyntaxKind.BaseKeyword)
+            ? ((_containingType as ClassSymbol).baseType.typeSymbol as NamedTypeSymbol).constructors
+            : _containingType.constructors;
+
+        ImmutableArray<(string, BoundExpression)> arguments;
+
+        if (syntax is null) {
+            arguments = [];
+        } else {
+            if (!PartiallyBindArgumentList(syntax.argumentList, out arguments))
+                return new BoundErrorExpression();
+        }
+
+        var result = _overloadResolution.MethodOverloadResolution(
+            constructors,
+            arguments,
+            WellKnownMemberNames.InstanceConstructorName,
+            syntax?.thisOrBaseKeyword ?? receiverName,
+            syntax?.argumentList,
+            receiver.type
+        );
+
+        if (!result.succeeded)
+            return new BoundErrorExpression();
+
+        if (result.bestOverload.accessibility == Accessibility.Private) {
+            if (_containingType is null ||
+                _containingType != result.bestOverload.containingType) {
+                diagnostics.Push(Error.MemberIsInaccessible(
+                    syntax is null ? receiverName.location : syntax.thisOrBaseKeyword.location,
+                    $"{receiver.type.typeSymbol.name}.{result.bestOverload.Signature()}",
+                    result.bestOverload.containingType.name
+                ));
+            }
+        }
+
+        return new BoundCallExpression(receiver, result.bestOverload, result.arguments);
+    }
+
+    private bool ModifierAlreadyApplied(
+        DeclarationModifiers modifiers,
+        DeclarationModifiers modifier,
+        SyntaxToken syntax) {
+        if ((modifiers & modifier) != 0) {
+            diagnostics.Push(Error.ModifierAlreadyApplied(syntax.location, syntax.text));
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool ConflictingAccessibilityModifier(
+        DeclarationModifiers modifiers,
+        DeclarationModifiers modifier,
+        SyntaxToken syntax) {
+        if ((modifier == DeclarationModifiers.Public && (modifiers & DeclarationModifiers.Private) != 0) ||
+            (modifier == DeclarationModifiers.Private && (modifiers & DeclarationModifiers.Public) != 0)) {
+            diagnostics.Push(Error.ConflictingModifiers(syntax.location, "public", "private"));
+            return true;
+        }
+
+        if ((modifier == DeclarationModifiers.Public && (modifiers & DeclarationModifiers.Protected) != 0) ||
+            (modifier == DeclarationModifiers.Protected && (modifiers & DeclarationModifiers.Public) != 0)) {
+            diagnostics.Push(Error.ConflictingModifiers(syntax.location, "public", "protected"));
+            return true;
+        }
+
+        if ((modifier == DeclarationModifiers.Private && (modifiers & DeclarationModifiers.Protected) != 0) ||
+            (modifier == DeclarationModifiers.Protected && (modifiers & DeclarationModifiers.Private) != 0)) {
+            diagnostics.Push(Error.ConflictingModifiers(syntax.location, "protected", "private"));
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool ConflictingDerivationModifier(
+        DeclarationModifiers modifiers,
+        DeclarationModifiers modifier,
+        SyntaxToken syntax) {
+        if ((modifier == DeclarationModifiers.Virtual && (modifiers & DeclarationModifiers.Override) != 0) ||
+            (modifier == DeclarationModifiers.Override && (modifiers & DeclarationModifiers.Virtual) != 0) ||
+            (modifier == DeclarationModifiers.Override && (modifiers & DeclarationModifiers.New) != 0) ||
+            (modifier == DeclarationModifiers.Virtual && (modifiers & DeclarationModifiers.Abstract) != 0) ||
+            (modifier == DeclarationModifiers.Abstract && (modifiers & DeclarationModifiers.Virtual) != 0) ||
+            (modifier == DeclarationModifiers.Override && (modifiers & DeclarationModifiers.Abstract) != 0) ||
+            (modifier == DeclarationModifiers.Abstract && (modifiers & DeclarationModifiers.Override) != 0)) {
+            diagnostics.Push(Error.ConflictingOverrideModifiers(syntax.location));
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool ConflictingOverrideModifier(
+        DeclarationModifiers modifiers,
+        DeclarationModifiers modifier,
+        SyntaxToken syntax) {
+        if ((modifier == DeclarationModifiers.Sealed && (modifiers & DeclarationModifiers.Static) != 0) ||
+            (modifier == DeclarationModifiers.Static && (modifiers & DeclarationModifiers.Sealed) != 0)) {
+            diagnostics.Push(Error.ConflictingModifiers(syntax.location, "sealed", "static"));
+            return true;
+        }
+
+        if ((modifier == DeclarationModifiers.Sealed && (modifiers & DeclarationModifiers.Abstract) != 0) ||
+            (modifier == DeclarationModifiers.Abstract && (modifiers & DeclarationModifiers.Sealed) != 0)) {
+            diagnostics.Push(Error.ConflictingModifiers(syntax.location, "sealed", "abstract"));
+            return true;
+        }
+
+        if ((modifier == DeclarationModifiers.Abstract && (modifiers & DeclarationModifiers.Static) != 0) ||
+            (modifier == DeclarationModifiers.Static && (modifiers & DeclarationModifiers.Abstract) != 0)) {
+            diagnostics.Push(Error.ConflictingModifiers(syntax.location, "abstract", "static"));
+            return true;
+        }
+
+        return false;
+    }
+
     private MethodSymbol BindMethodDeclaration(
         MethodDeclarationSyntax method,
         DeclarationModifiers inheritedModifiers,
-        string name = null) {
+        string name = null,
+        List<MethodSymbol> overridableMethods = null,
+        string containingTypeName = null) {
         // ? This will return eventually
         BindAttributeLists(method.attributeLists);
 
         var modifiers = BindMethodDeclarationModifiers(method.modifiers);
+        // If name is not null that means we are binding a local function
+        // in which case accessibility is not applicable
+        var accessibility = name is null ? BindAccessibilityFromModifiers(modifiers) : Accessibility.NotApplicable;
+
+        if ((modifiers & (DeclarationModifiers.Virtual | DeclarationModifiers.Abstract)) != 0 &&
+            accessibility == Accessibility.Private) {
+            diagnostics.Push(Error.CannotBePrivateAndVirtualOrAbstract(method.identifier.location));
+        }
+
         var type = BindType(method.returnType, modifiers, true);
 
         var saved = _flags;
@@ -762,17 +934,69 @@ internal sealed class Binder {
             parameters,
             type,
             method,
-            modifiers: modifiers | inheritedModifiers
+            modifiers: modifiers | inheritedModifiers,
+            accessibility: accessibility
         );
 
         var parent = method.parent;
         var className = (parent is ClassDeclarationSyntax c) ? c.identifier.text : null;
 
-        if ((newMethod.declaration as MethodDeclarationSyntax).identifier.text != null &&
-            !_scope.TryDeclareMethod(newMethod)) {
-            diagnostics.Push(
-                Error.MethodAlreadyDeclared(method.identifier.location, name ?? newMethod.name, className)
-            );
+        if ((newMethod.declaration as MethodDeclarationSyntax).identifier.text != null) {
+            MethodSymbol overrideTarget = null;
+
+            if (overridableMethods is not null) {
+                foreach (var target in overridableMethods) {
+                    if (target is MethodSymbol m) {
+                        if (MethodUtilities.MethodsMatch(newMethod, m)) {
+                            overrideTarget = m;
+                            overridableMethods.Remove(target);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (newMethod.isOverride) {
+                if (overrideTarget is null || !_scope.TryReplaceSymbol(overrideTarget, newMethod)) {
+                    diagnostics.Push(Error.NoSuitableOverrideTarget(method.identifier.location));
+                } else if (overrideTarget.accessibility != newMethod.accessibility) {
+                    diagnostics.Push(Error.OverrideCannotChangeAccessibility(
+                        method.identifier.location,
+                        overrideTarget.accessibility.ToString().ToLower(),
+                        accessibility.ToString().ToLower()
+                    ));
+                } else if (!overrideTarget.isVirtual && !overrideTarget.isAbstract && !overrideTarget.isOverride) {
+                    diagnostics.Push(Error.CannotOverride(method.identifier.location, newMethod.Signature()));
+                }
+            } else {
+                if (overrideTarget is not null && (modifiers & DeclarationModifiers.New) == 0) {
+                    diagnostics.Push(Error.MemberShadowsParent(
+                        method.identifier.location,
+                        newMethod.Signature(),
+                        containingTypeName,
+                        overrideTarget.Signature(),
+                        overrideTarget.containingType.name
+                    ));
+                } else if (overrideTarget is null && (modifiers & DeclarationModifiers.New) != 0) {
+                    diagnostics.Push(Warning.MemberShadowsNothing(
+                        method.identifier.location,
+                        newMethod.Signature(),
+                        containingTypeName
+                    ));
+                }
+            }
+
+            if (method.body is null && !newMethod.isAbstract)
+                diagnostics.Push(Error.NonAbstractMustHaveBody(method.identifier.location, newMethod.Signature()));
+
+            if (method.body is not null && newMethod.isAbstract)
+                diagnostics.Push(Error.AbstractCannotHaveBody(method.identifier.location, newMethod.Signature()));
+
+            if (!_scope.TryDeclareMethod(newMethod)) {
+                diagnostics.Push(
+                    Error.MethodAlreadyDeclared(method.identifier.location, newMethod.Signature(), className)
+                );
+            }
         }
 
         _flags = saved;
@@ -791,10 +1015,8 @@ internal sealed class Binder {
                     if (!_flags.Includes(BinderFlags.Class))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Static) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Static, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Const) != 0) {
                         diagnostics.Push(Error.ConflictingModifiers(modifier.location, "static", "constant"));
@@ -807,10 +1029,8 @@ internal sealed class Binder {
                     if (!_flags.Includes(BinderFlags.Class))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Const) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Const, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Static) != 0) {
                         diagnostics.Push(Error.ConflictingModifiers(modifier.location, "static", "constant"));
@@ -820,12 +1040,90 @@ internal sealed class Binder {
                     declarationModifiers |= DeclarationModifiers.Const;
                     break;
                 case SyntaxKind.LowlevelKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.LowLevel) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.LowLevel, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.LowLevel;
+                    break;
+                case SyntaxKind.PublicKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Public, modifier))
+                        break;
+
+                    if (ConflictingAccessibilityModifier(declarationModifiers, DeclarationModifiers.Public, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.Public;
+                    break;
+                case SyntaxKind.PrivateKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Private, modifier))
+                        break;
+
+                    if (ConflictingAccessibilityModifier(declarationModifiers, DeclarationModifiers.Private, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.Private;
+                    break;
+                case SyntaxKind.ProtectedKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Protected, modifier))
+                        break;
+
+                    if (ConflictingAccessibilityModifier(
+                        declarationModifiers,
+                        DeclarationModifiers.Protected,
+                        modifier)) {
                         break;
                     }
 
-                    declarationModifiers |= DeclarationModifiers.LowLevel;
+                    declarationModifiers |= DeclarationModifiers.Protected;
+                    break;
+                case SyntaxKind.VirtualKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Virtual, modifier))
+                        break;
+
+                    ConflictingDerivationModifier(declarationModifiers, DeclarationModifiers.Virtual, modifier);
+                    declarationModifiers |= DeclarationModifiers.Virtual;
+                    break;
+                case SyntaxKind.OverrideKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Override, modifier))
+                        break;
+
+                    ConflictingDerivationModifier(declarationModifiers, DeclarationModifiers.Override, modifier);
+                    declarationModifiers |= DeclarationModifiers.Override;
+                    break;
+                case SyntaxKind.NewKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.New, modifier))
+                        break;
+
+                    ConflictingDerivationModifier(declarationModifiers, DeclarationModifiers.New, modifier);
+                    declarationModifiers |= DeclarationModifiers.New;
+                    break;
+                case SyntaxKind.AbstractKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Abstract, modifier))
+                        break;
+
+                    ConflictingDerivationModifier(declarationModifiers, DeclarationModifiers.Abstract, modifier);
+                    declarationModifiers |= DeclarationModifiers.Abstract;
                     break;
                 default:
                     diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
@@ -843,25 +1141,27 @@ internal sealed class Binder {
         BindAttributeLists(constructor.attributeLists);
 
         var modifiers = BindConstructorDeclarationModifiers(constructor.modifiers);
-        var name = constructor.identifier.text;
+        var accessibility = BindAccessibilityFromModifiers(modifiers);
         var parameters = BindParameterList(constructor.parameterList);
         var method = new MethodSymbol(
             WellKnownMemberNames.InstanceConstructorName,
             parameters,
             BoundType.Void,
             constructor,
-            modifiers: modifiers | inheritedModifiers
+            modifiers: modifiers | inheritedModifiers,
+            accessibility: accessibility
         );
 
-        // Currently this method is only called while binding a class declaration, so for now this is guaranteed
         var parent = constructor.parent as ClassDeclarationSyntax;
         var className = parent.identifier.text;
 
-        if (name != className)
-            diagnostics.Push(Error.IncorrectConstructorName(constructor.identifier.location, className));
-
-        if (name == className && !_scope.TryDeclareMethod(method))
-            diagnostics.Push(Error.MethodAlreadyDeclared(constructor.identifier.location, name, className));
+        if (!_scope.TryDeclareMethod(method)) {
+            diagnostics.Push(Error.MethodAlreadyDeclared(
+                constructor.constructorKeyword.location,
+                method.Signature(),
+                className
+            ));
+        }
 
         return method;
     }
@@ -875,12 +1175,50 @@ internal sealed class Binder {
         foreach (var modifier in modifiers) {
             switch (modifier.kind) {
                 case SyntaxKind.LowlevelKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.LowLevel) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.LowLevel, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.LowLevel;
+                    break;
+                case SyntaxKind.PublicKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Public, modifier))
+                        break;
+
+                    if (ConflictingAccessibilityModifier(declarationModifiers, DeclarationModifiers.Public, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.Public;
+                    break;
+                case SyntaxKind.PrivateKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Private, modifier))
+                        break;
+
+                    if (ConflictingAccessibilityModifier(declarationModifiers, DeclarationModifiers.Private, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.Private;
+                    break;
+                case SyntaxKind.ProtectedKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Protected, modifier))
+                        break;
+
+                    if (ConflictingAccessibilityModifier(
+                        declarationModifiers,
+                        DeclarationModifiers.Protected,
+                        modifier)) {
                         break;
                     }
 
-                    declarationModifiers |= DeclarationModifiers.LowLevel;
+                    declarationModifiers |= DeclarationModifiers.Protected;
                     break;
                 default:
                     diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
@@ -898,6 +1236,7 @@ internal sealed class Binder {
         BindAttributeLists(@operator.attributeLists);
 
         var modifiers = BindOperatorDeclarationModifiers(@operator.modifiers);
+        var accessibility = BindAccessibilityFromModifiers(modifiers);
         var type = BindType(@operator.returnType, modifiers, true);
         var parameters = BindParameterList(@operator.parameterList);
         var name = SyntaxFacts.GetOperatorMemberName(@operator.operatorToken.kind, parameters.Length);
@@ -914,8 +1253,8 @@ internal sealed class Binder {
             ));
         }
 
-        if ((modifiers & DeclarationModifiers.Static) == 0)
-            diagnostics.Push(Error.OperatorMustBeStatic(GetOperatorTokenLocation(@operator)));
+        if ((modifiers & DeclarationModifiers.Static) == 0 || accessibility != Accessibility.Public)
+            diagnostics.Push(Error.OperatorMustBePublicAndStatic(GetOperatorTokenLocation(@operator)));
 
         var parent = @operator.parent as ClassDeclarationSyntax;
         var className = parent.identifier.text;
@@ -948,13 +1287,14 @@ internal sealed class Binder {
             parameters,
             type,
             @operator,
-            modifiers: modifiers | inheritedModifiers
+            modifiers: modifiers | inheritedModifiers,
+            accessibility: accessibility
         );
 
         if ((method.declaration as OperatorDeclarationSyntax).operatorToken.text != null &&
             !_scope.TryDeclareMethod(method)) {
             diagnostics.Push(
-                Error.MethodAlreadyDeclared(GetOperatorTokenLocation(@operator), name, className)
+                Error.MethodAlreadyDeclared(GetOperatorTokenLocation(@operator), method.Signature(), className)
             );
         }
 
@@ -970,20 +1310,56 @@ internal sealed class Binder {
         foreach (var modifier in modifiers) {
             switch (modifier.kind) {
                 case SyntaxKind.StaticKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.Static) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Static, modifier))
                         break;
-                    }
 
                     declarationModifiers |= DeclarationModifiers.Static;
                     break;
                 case SyntaxKind.LowlevelKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.LowLevel) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.LowLevel, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.LowLevel;
+                    break;
+                case SyntaxKind.PublicKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Public, modifier))
+                        break;
+
+                    if (ConflictingAccessibilityModifier(declarationModifiers, DeclarationModifiers.Public, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.Public;
+                    break;
+                case SyntaxKind.PrivateKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Private, modifier))
+                        break;
+
+                    if (ConflictingAccessibilityModifier(declarationModifiers, DeclarationModifiers.Private, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.Private;
+                    break;
+                case SyntaxKind.ProtectedKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Protected, modifier))
+                        break;
+
+                    if (ConflictingAccessibilityModifier(
+                        declarationModifiers,
+                        DeclarationModifiers.Protected,
+                        modifier)) {
                         break;
                     }
 
-                    declarationModifiers |= DeclarationModifiers.LowLevel;
+                    declarationModifiers |= DeclarationModifiers.Protected;
                     break;
                 default:
                     diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
@@ -997,6 +1373,7 @@ internal sealed class Binder {
     private NamedTypeSymbol PreBindTypeDeclaration(
         TypeDeclarationSyntax type,
         DeclarationModifiers inheritedModifiers) {
+        // Binds everything about the type except the members and the constraints
         var templateBuilder = ImmutableList.CreateBuilder<ParameterSymbol>();
 
         if (type.templateParameterList != null) {
@@ -1006,24 +1383,35 @@ internal sealed class Binder {
                 templateBuilder.Add(templateParameter);
         }
 
+        var templates = templateBuilder.ToImmutableArray();
+
         NamedTypeSymbol symbol;
 
         if (type is StructDeclarationSyntax s) {
             var modifiers = BindStructDeclarationModifiers(s.modifiers);
+            var accessibility = BindAccessibilityFromModifiers(modifiers);
+
             symbol = new StructSymbol(
-                    templateBuilder.ToImmutableArray(),
-                    ImmutableArray<Symbol>.Empty,
+                    templates,
+                    [],
+                    [],
                     s,
-                    modifiers | inheritedModifiers
+                    modifiers | inheritedModifiers,
+                    accessibility
                 );
         } else if (type is ClassDeclarationSyntax c) {
             var modifiers = BindClassDeclarationModifiers(c.modifiers);
+            var accessibility = BindAccessibilityFromModifiers(modifiers);
+
             symbol = new ClassSymbol(
-                    templateBuilder.ToImmutableArray(),
-                    ImmutableArray<Symbol>.Empty,
-                    ImmutableArray<(FieldSymbol, ExpressionSyntax)>.Empty,
+                    templates,
+                    [],
+                    [],
+                    [],
                     c,
-                    modifiers | inheritedModifiers
+                    modifiers | inheritedModifiers,
+                    accessibility,
+                    null
                 );
         } else {
             throw new BelteInternalException($"BindTypeDeclaration: unexpected type '{type.identifier.text}'");
@@ -1042,32 +1430,146 @@ internal sealed class Binder {
             throw new BelteInternalException($"BindTypeDeclaration: unexpected type '{@type.identifier.text}'");
     }
 
+    private Accessibility BindAccessibilityFromModifiers(DeclarationModifiers modifiers) {
+        if (!_flags.Includes(BinderFlags.Class))
+            return Accessibility.NotApplicable;
+
+        if ((modifiers & DeclarationModifiers.Public) != 0)
+            return Accessibility.Public;
+        else if ((modifiers & DeclarationModifiers.Protected) != 0)
+            return Accessibility.Protected;
+
+        return Accessibility.Private;
+    }
+
+    private BoundType BindBaseType(BaseTypeSyntax syntax) {
+        var type = BindType(syntax.type);
+
+        if (type?.typeSymbol is PrimitiveTypeSymbol) {
+            diagnostics.Push(Error.CannotDerivePrimitive(syntax.type.location, type.typeSymbol.ToString()));
+            return new BoundType(_wellKnownTypes[WellKnownTypeNames.Object]);
+        }
+
+        return type ?? new BoundType(_wellKnownTypes[WellKnownTypeNames.Object]);
+    }
+
+    private ImmutableArray<BoundExpression> BindConstraintClauseList(
+        TypeDeclarationSyntax type,
+        ImmutableArray<ParameterSymbol> templates) {
+        // TODO Should the clauses be able to see globals? e.g. constexpr GlobalMin
+        var constraintsBuilder = ImmutableList.CreateBuilder<BoundExpression>();
+
+        if (type.constraintClauseList != null) {
+            foreach (var constraintClause in type.constraintClauseList.constraintClauses) {
+                if (constraintClause.expressionStatement is null) {
+                    var name = constraintClause.name.identifier.text;
+                    var possibleTemplate = templates
+                        .Where(t => t.name == name)
+                        .ToArray();
+
+                    if (possibleTemplate.Length != 1) {
+                        diagnostics.Push(
+                            Error.UnknownTemplate(constraintClause.name.location, type.identifier.text, name)
+                        );
+
+                        continue;
+                    }
+
+                    var template = possibleTemplate[0];
+
+                    if (template.type.typeSymbol != TypeSymbol.Type) {
+                        diagnostics.Push(Error.CannotExtendCheckNonType(constraintClause.location, template.name));
+                        continue;
+                    }
+
+                    var extension = BindType(constraintClause.type);
+                    var constraint = new BoundExtendExpression(template, extension);
+                    constraintsBuilder.Add(constraint);
+                } else {
+                    _scope = new BoundScope(_scope);
+
+                    var expressionStatement =
+                        (BoundExpressionStatement)BindExpressionStatement(constraintClause.expressionStatement);
+
+                    _scope = _scope.parent;
+
+                    var expression = BindCast(
+                        constraintClause.expressionStatement.expression.location,
+                        expressionStatement.expression,
+                        BoundType.NullableBool
+                    );
+
+                    if (!IsCompilerComputable(expression, templates)) {
+                        diagnostics.Push(Error.ConstraintIsNotConstant(constraintClause.location));
+                        continue;
+                    }
+
+                    constraintsBuilder.Add(expression);
+                }
+            }
+        }
+
+        return constraintsBuilder.ToImmutableArray();
+    }
+
     private StructSymbol BindStructDeclaration(StructDeclarationSyntax @struct) {
         // ? This will return eventually
         BindAttributeLists(@struct.attributeLists);
 
-        var builder = ImmutableList.CreateBuilder<Symbol>();
-        var oldStruct = _scope.LookupSymbol<StructSymbol>(@struct.identifier.text);
-        _scope = new BoundScope(_scope);
+        if (_scope.LookupSymbolDirect(@struct) is not StructSymbol oldStruct) {
+            diagnostics.Push(Error.TypeAlreadyDeclared(@struct.identifier.location, @struct.identifier.text, false));
 
-        foreach (var fieldDeclaration in @struct.members.OfType<FieldDeclarationSyntax>()) {
-            var field = BindFieldDeclaration(fieldDeclaration);
-            builder.Add(field);
+            return new StructSymbol(
+                [],
+                [],
+                [],
+                @struct,
+                DeclarationModifiers.None,
+                Accessibility.NotApplicable
+            );
         }
 
-        _scope = _scope.parent;
+        var builder = ImmutableList.CreateBuilder<Symbol>();
+        _scope = new BoundScope(_scope);
+
         var saved = _flags;
         _flags |= BinderFlags.Struct;
 
         if (oldStruct.isLowLevel)
             _flags |= BinderFlags.LowLevelContext;
 
+        var templates = ImmutableArray.CreateBuilder<ParameterSymbol>();
+
+        foreach (var templateParameter in oldStruct.templateParameters) {
+            if (templateParameter.type.typeSymbol == TypeSymbol.Type) {
+                var templateType = new TemplateTypeSymbol(templateParameter);
+                builder.Add(templateType);
+                _scope.TryDeclareType(templateType);
+            } else {
+                builder.Add(templateParameter);
+                _scope.TryDeclareVariable(templateParameter);
+            }
+
+            templates.Add(templateParameter);
+        }
+
+        var constraints = BindConstraintClauseList(@struct, templates.ToImmutable());
+
+        foreach (var fieldDeclaration in @struct.members.OfType<FieldDeclarationSyntax>()) {
+            var field = BindFieldDeclaration(fieldDeclaration, true);
+            builder.Add(field);
+        }
+
         var newStruct = new StructSymbol(
-            ImmutableArray<ParameterSymbol>.Empty,
+            oldStruct.templateParameters,
+            constraints,
             builder.ToImmutableArray(),
             @struct,
-            oldStruct.isLowLevel ? DeclarationModifiers.LowLevel : DeclarationModifiers.None
+            oldStruct.isLowLevel ? DeclarationModifiers.LowLevel : DeclarationModifiers.None,
+            oldStruct.accessibility
         );
+
+        _scope = _scope.parent;
 
         if (oldStruct.members.Length == 0)
             _scope.TryReplaceSymbol(oldStruct, newStruct);
@@ -1078,7 +1580,8 @@ internal sealed class Binder {
             diagnostics.Push(Error.CannotUseStruct(@struct.keyword.location));
 
         _flags = saved;
-        return newStruct;
+
+        return oldStruct;
     }
 
     private DeclarationModifiers BindStructDeclarationModifiers(SyntaxTokenList modifiers) {
@@ -1090,12 +1593,50 @@ internal sealed class Binder {
         foreach (var modifier in modifiers) {
             switch (modifier.kind) {
                 case SyntaxKind.LowlevelKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.LowLevel) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.LowLevel, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.LowLevel;
+                    break;
+                case SyntaxKind.PublicKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Public, modifier))
+                        break;
+
+                    if (ConflictingAccessibilityModifier(declarationModifiers, DeclarationModifiers.Public, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.Public;
+                    break;
+                case SyntaxKind.PrivateKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Private, modifier))
+                        break;
+
+                    if (ConflictingAccessibilityModifier(declarationModifiers, DeclarationModifiers.Private, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.Private;
+                    break;
+                case SyntaxKind.ProtectedKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Protected, modifier))
+                        break;
+
+                    if (ConflictingAccessibilityModifier(
+                        declarationModifiers,
+                        DeclarationModifiers.Protected,
+                        modifier)) {
                         break;
                     }
 
-                    declarationModifiers |= DeclarationModifiers.LowLevel;
+                    declarationModifiers |= DeclarationModifiers.Protected;
                     break;
                 default:
                     diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
@@ -1123,10 +1664,21 @@ internal sealed class Binder {
 
         if (_scope.LookupSymbolDirect(@class) is not ClassSymbol oldClass) {
             diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
-            return new ClassSymbol([], [], [], @class, DeclarationModifiers.None);
+
+            return new ClassSymbol(
+                [],
+                [],
+                [],
+                [],
+                @class,
+                DeclarationModifiers.None,
+                Accessibility.NotApplicable,
+                null
+            );
         }
 
         var builder = ImmutableList.CreateBuilder<Symbol>();
+        var inheritedMethods = new List<MethodSymbol>();
         var isStatic = oldClass.isStatic;
         _scope = new BoundScope(_scope);
 
@@ -1139,6 +1691,18 @@ internal sealed class Binder {
             inheritModifiers = DeclarationModifiers.LowLevel;
         }
 
+        var baseType = @class.baseType is null
+            ? new BoundType(_wellKnownTypes[WellKnownTypeNames.Object])
+            : BindBaseType(@class.baseType);
+
+        if (baseType.typeSymbol.isSealed)
+            diagnostics.Push(Error.CannotDeriveSealed(@class.baseType.type.location, baseType.typeSymbol.name));
+
+        if (baseType.typeSymbol.isStatic)
+            diagnostics.Push(Error.CannotDeriveStatic(@class.baseType.type.location, baseType.typeSymbol.name));
+
+        var templates = ImmutableArray.CreateBuilder<ParameterSymbol>();
+
         foreach (var templateParameter in oldClass.templateParameters) {
             if (templateParameter.type.typeSymbol == TypeSymbol.Type) {
                 var templateType = new TemplateTypeSymbol(templateParameter);
@@ -1148,6 +1712,27 @@ internal sealed class Binder {
                 builder.Add(templateParameter);
                 _scope.TryDeclareVariable(templateParameter);
             }
+
+            templates.Add(templateParameter);
+        }
+
+        var constraints = BindConstraintClauseList(@class, templates.ToImmutable());
+
+        foreach (var member in (baseType.typeSymbol as ClassSymbol).GetMembers()) {
+            switch (member.kind) {
+                case SymbolKind.Field:
+                    _scope.TryDeclareVariable(member as FieldSymbol);
+                    break;
+                case SymbolKind.Type:
+                    _scope.TryDeclareType(member as NamedTypeSymbol);
+                    break;
+                case SymbolKind.Method when member.name != WellKnownMemberNames.InstanceConstructorName:
+                    _scope.TryDeclareMethod(member as MethodSymbol);
+                    inheritedMethods.Add(member as MethodSymbol);
+                    break;
+                default:
+                    continue;
+            }
         }
 
         if (@class.members.Count == 0) {
@@ -1155,7 +1740,8 @@ internal sealed class Binder {
                 WellKnownMemberNames.InstanceConstructorName,
                 ImmutableArray<ParameterSymbol>.Empty,
                 BoundType.Void,
-                modifiers: inheritModifiers
+                modifiers: inheritModifiers,
+                accessibility: Accessibility.Public
             );
 
             builder.Add(defaultConstructor);
@@ -1163,31 +1749,34 @@ internal sealed class Binder {
             _scope = _scope.parent;
             _scope.DeclareMethodStrict(defaultConstructor);
 
+            EnsureAbstractsAreImplemented();
+
             var emptyClass = new ClassSymbol(
                 oldClass.templateParameters,
+                constraints,
                 builder.ToImmutableArray(),
                 [],
                 @class,
-                inheritModifiers
+                inheritModifiers,
+                oldClass.accessibility,
+                baseType
             );
 
-            if (oldClass.members.Length == 0)
-                _scope.TryReplaceSymbol(oldClass, emptyClass);
-            else if (!_scope.TryDeclareType(emptyClass))
-                diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
-
+            DeclareNewClass(emptyClass);
             _flags = saved;
-            return emptyClass;
+
+            return oldClass;
         }
+
+        _scope = new BoundScope(_scope);
 
         foreach (var member in @class.members.OfType<TypeDeclarationSyntax>())
             PreBindTypeDeclaration(member, inheritModifiers);
 
-        var defaultFieldAssignmentsBuilder =
-            ImmutableArray.CreateBuilder<(FieldSymbol, ExpressionSyntax)>();
+        var defaultFieldAssignmentsBuilder = ImmutableArray.CreateBuilder<(FieldSymbol, ExpressionSyntax)>();
 
         foreach (var fieldDeclaration in @class.members.OfType<FieldDeclarationSyntax>()) {
-            var field = BindFieldDeclaration(fieldDeclaration);
+            var field = BindFieldDeclaration(fieldDeclaration, false);
 
             if (isStatic && !field.isStatic) {
                 diagnostics.Push(Error.MemberMustBeStatic(fieldDeclaration.declaration.identifier.location));
@@ -1206,7 +1795,7 @@ internal sealed class Binder {
             var constructor = BindConstructorDeclaration(constructorDeclaration, inheritModifiers);
 
             if (isStatic) {
-                diagnostics.Push(Error.StaticConstructor(constructorDeclaration.identifier.location));
+                diagnostics.Push(Error.StaticConstructor(constructorDeclaration.constructorKeyword.location));
             } else {
                 builder.Add(constructor);
                 hasConstructor = true;
@@ -1218,7 +1807,8 @@ internal sealed class Binder {
                 WellKnownMemberNames.InstanceConstructorName,
                 ImmutableArray<ParameterSymbol>.Empty,
                 BoundType.Void,
-                modifiers: inheritModifiers
+                modifiers: inheritModifiers,
+                accessibility: Accessibility.Public
             );
 
             builder.Add(defaultConstructor);
@@ -1227,10 +1817,21 @@ internal sealed class Binder {
         }
 
         foreach (var methodDeclaration in @class.members.OfType<MethodDeclarationSyntax>()) {
-            var method = BindMethodDeclaration(methodDeclaration, inheritModifiers);
+            var method = BindMethodDeclaration(
+                methodDeclaration,
+                inheritModifiers,
+                overridableMethods: inheritedMethods,
+                containingTypeName: oldClass.name
+            );
 
             if (isStatic && !method.isStatic)
                 diagnostics.Push(Error.MemberMustBeStatic(methodDeclaration.identifier.location));
+
+            if (method.isAbstract && !oldClass.isAbstract) {
+                diagnostics.Push(
+                    Error.AbstractMemberInNonAbstractType(methodDeclaration.identifier.location, method.Signature())
+                );
+            }
 
             builder.Add(method);
         }
@@ -1249,30 +1850,50 @@ internal sealed class Binder {
             builder.Add(type);
         }
 
+        EnsureAbstractsAreImplemented();
+
         var newClass = new ClassSymbol(
             oldClass.templateParameters,
+            constraints,
             builder.ToImmutableArray(),
             defaultFieldAssignments,
             @class,
-            inheritModifiers
+            inheritModifiers,
+            oldClass.accessibility,
+            baseType
         );
 
         // This allows the methods to be seen by the global scope
-        foreach (var method in _scope.GetDeclaredMethods())
-            _scope.parent.DeclareMethodStrict(method);
+        foreach (var method in _scope.GetDeclaredMethods().Where(m => m.containingType == newClass))
+            _scope.parent.parent.DeclareMethodStrict(method);
 
-        _scope = _scope.parent;
-
-        // If no members, the default .ctor has yet to be built by the compiler, meaning this instance is a temporary
-        // symbol that needs to be replaced
-        if (oldClass.members.Length == 0)
-            _scope.TryReplaceSymbol(oldClass, newClass);
-        else if (!_scope.TryDeclareType(newClass))
-            diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
-
+        _scope = _scope.parent.parent;
+        DeclareNewClass(newClass);
         _flags = saved;
 
-        return newClass;
+        return oldClass;
+
+        void EnsureAbstractsAreImplemented() {
+            foreach (var method in inheritedMethods) {
+                if (method.isAbstract) {
+                    diagnostics.Push(Error.TypeDoesNotImplementAbstract(
+                        @class.identifier.location,
+                        oldClass.name,
+                        method.Signature(),
+                        method.containingType.name
+                    ));
+                }
+            }
+        }
+
+        void DeclareNewClass(ClassSymbol replacingClass) {
+            // If no members, the default .ctor has yet to be built by the compiler, meaning this instance is a temporary
+            // symbol that needs to be replaced
+            if (oldClass.members.Length == 0)
+                _scope.TryReplaceSymbol(oldClass, replacingClass);
+            else if (!_scope.TryDeclareType(replacingClass))
+                diagnostics.Push(Error.TypeAlreadyDeclared(@class.identifier.location, @class.identifier.text, true));
+        }
     }
 
     private DeclarationModifiers BindClassDeclarationModifiers(SyntaxTokenList modifiers) {
@@ -1283,21 +1904,78 @@ internal sealed class Binder {
 
         foreach (var modifier in modifiers) {
             switch (modifier.kind) {
-                case SyntaxKind.StaticKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.Static) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                case SyntaxKind.SealedKeyword:
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Sealed, modifier))
                         break;
-                    }
+
+                    if (ConflictingOverrideModifier(declarationModifiers, DeclarationModifiers.Sealed, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.Sealed;
+                    break;
+                case SyntaxKind.AbstractKeyword:
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Abstract, modifier))
+                        break;
+
+                    if (ConflictingOverrideModifier(declarationModifiers, DeclarationModifiers.Abstract, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.Abstract;
+                    break;
+                case SyntaxKind.StaticKeyword:
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Static, modifier))
+                        break;
+
+                    if (ConflictingOverrideModifier(declarationModifiers, DeclarationModifiers.Static, modifier))
+                        break;
 
                     declarationModifiers |= DeclarationModifiers.Static;
                     break;
                 case SyntaxKind.LowlevelKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.LowLevel) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.LowLevel, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.LowLevel;
+                    break;
+                case SyntaxKind.PublicKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Public, modifier))
+                        break;
+
+                    if (ConflictingAccessibilityModifier(declarationModifiers, DeclarationModifiers.Public, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.Public;
+                    break;
+                case SyntaxKind.PrivateKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Private, modifier))
+                        break;
+
+                    if (ConflictingAccessibilityModifier(declarationModifiers, DeclarationModifiers.Private, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.Private;
+                    break;
+                case SyntaxKind.ProtectedKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Protected, modifier))
+                        break;
+
+                    if (ConflictingAccessibilityModifier(
+                        declarationModifiers,
+                        DeclarationModifiers.Protected,
+                        modifier)) {
                         break;
                     }
 
-                    declarationModifiers |= DeclarationModifiers.LowLevel;
+                    declarationModifiers |= DeclarationModifiers.Protected;
                     break;
                 default:
                     diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
@@ -1326,7 +2004,7 @@ internal sealed class Binder {
         binder._trackedSymbols.Push(new HashSet<VariableSymbol>());
         binder._trackedDeclarations.Push(new HashSet<VariableSymbol>());
         binder._innerPrefix.Push(functionSymbol.name);
-        var body = binder.BindMethodBody(functionSymbol.declaration.body, functionSymbol.parameters);
+        var body = binder.BindMethodBody(functionSymbol.declaration, functionSymbol.parameters, null);
 
         var usedVariables = binder._trackedSymbols.Pop();
         var declaredVariables = binder._trackedDeclarations.Pop();
@@ -1357,7 +2035,11 @@ internal sealed class Binder {
             ? functionSymbol.UpdateParameters(parameters.ToImmutable())
             : functionSymbol;
 
-        var loweredBody = Lowerer.Lower(newFunctionSymbol, body, _options.isTranspiling);
+        var loweredBody = Lowerer.Lower(
+            newFunctionSymbol,
+            body,
+            _options.isTranspiling
+        );
 
         if (newFunctionSymbol.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
             diagnostics.Push(Error.NotAllPathsReturn(GetIdentifierLocation(newFunctionSymbol.declaration)));
@@ -1382,12 +2064,12 @@ internal sealed class Binder {
         return DeclarationModifiers.None;
     }
 
-    private FieldSymbol BindFieldDeclaration(FieldDeclarationSyntax fieldDeclaration) {
+    private FieldSymbol BindFieldDeclaration(FieldDeclarationSyntax fieldDeclaration, bool isStructField) {
         // ? This will return eventually
         BindAttributeLists(fieldDeclaration.attributeLists);
 
         var modifiers = BindFieldDeclarationModifiers(fieldDeclaration.modifiers);
-        return BindField(fieldDeclaration.declaration, modifiers);
+        return BindField(fieldDeclaration.declaration, modifiers, isStructField);
     }
 
     private DeclarationModifiers BindFieldDeclarationModifiers(SyntaxTokenList modifiers) {
@@ -1402,10 +2084,8 @@ internal sealed class Binder {
                     if (_flags.Includes(BinderFlags.Struct))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.Const) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Const, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.ConstExpr) != 0) {
                         diagnostics.Push(
@@ -1421,10 +2101,8 @@ internal sealed class Binder {
                     if (_flags.Includes(BinderFlags.Struct))
                         goto default;
 
-                    if ((declarationModifiers & DeclarationModifiers.ConstExpr) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.ConstExpr, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Const) != 0) {
                         diagnostics.Push(
@@ -1435,6 +2113,46 @@ internal sealed class Binder {
                     }
 
                     declarationModifiers |= DeclarationModifiers.ConstExpr;
+                    break;
+                case SyntaxKind.PublicKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Public, modifier))
+                        break;
+
+                    if (ConflictingAccessibilityModifier(declarationModifiers, DeclarationModifiers.Public, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.Public;
+                    break;
+                case SyntaxKind.PrivateKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Private, modifier))
+                        break;
+
+                    if (ConflictingAccessibilityModifier(declarationModifiers, DeclarationModifiers.Private, modifier))
+                        break;
+
+                    declarationModifiers |= DeclarationModifiers.Private;
+                    break;
+                case SyntaxKind.ProtectedKeyword:
+                    if (!_flags.Includes(BinderFlags.Class))
+                        goto default;
+
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Protected, modifier))
+                        break;
+
+                    if (ConflictingAccessibilityModifier(
+                        declarationModifiers,
+                        DeclarationModifiers.Protected,
+                        modifier)) {
+                        break;
+                    }
+
+                    declarationModifiers |= DeclarationModifiers.Protected;
                     break;
                 default:
                     diagnostics.Push(Error.InvalidModifier(modifier.location, modifier.text));
@@ -1472,7 +2190,7 @@ internal sealed class Binder {
             var coreType = BindType(type, modifiers, explicitly, handled | DeclarationModifiers.Const);
 
             // Prevent raising this error if we have nested const keywords
-            if (coreType.isImplicit && !coreType.isConstant)
+            if ((coreType?.isImplicit ?? false) && !coreType.isConstant)
                 diagnostics.Push(Error.ConstantAndVariable(type.location));
 
             return BoundType.CopyWith(coreType, isConstant: true);
@@ -1486,7 +2204,7 @@ internal sealed class Binder {
 
             var coreType = BindType(rt.type);
 
-            if (coreType.isImplicit)
+            if (coreType?.isImplicit ?? false)
                 diagnostics.Push(Error.ImpliedReference(rt.refKeyword.location));
 
             return BoundType.CopyWith(coreType, isReference: true, isConstantReference: rt.constKeyword != null);
@@ -1497,7 +2215,7 @@ internal sealed class Binder {
             var coreType = BindType(at.elementType);
             var builder = ImmutableArray.CreateBuilder<BoundExpression>();
 
-            if (coreType.isImplicit) {
+            if (coreType?.isImplicit ?? false) {
                 var span = TextSpan.FromBounds(
                     at.rankSpecifiers[0].openBracket.location.span.start,
                     at.rankSpecifiers[^1].closeBracket.location.span.end
@@ -1533,7 +2251,7 @@ internal sealed class Binder {
                 return null;
             } else {
                 var namedLeft = leftType.typeSymbol as NamedTypeSymbol;
-                var symbols = namedLeft.members
+                var symbols = namedLeft.GetMembers()
                     .Where(m => m is NamedTypeSymbol && m.name == rightType.identifier.text)
                     .Select(n => n as NamedTypeSymbol);
 
@@ -1651,23 +2369,60 @@ internal sealed class Binder {
                 name.templateArgumentList
             );
 
-            var constantArguments = ImmutableArray.CreateBuilder<BoundTypeOrConstant>();
+            var constantArgumentsBuilder = ImmutableArray.CreateBuilder<BoundTypeOrConstant>();
 
             foreach (var argument in result.arguments) {
                 if (argument is BoundType t)
-                    constantArguments.Add(new BoundTypeOrConstant(t));
+                    constantArgumentsBuilder.Add(new BoundTypeOrConstant(t));
                 else
-                    constantArguments.Add(new BoundTypeOrConstant(argument.constantValue, argument.type, argument));
+                    constantArgumentsBuilder.Add(new BoundTypeOrConstant(argument.constantValue, argument.type, argument));
             }
 
-            if (result.succeeded) {
-                return new BoundType(
-                    result.bestOverload,
-                    templateArguments: constantArguments.ToImmutable(),
-                    arity: result.bestOverload.arity,
-                    isNullable: true
-                );
+            if (!result.succeeded)
+                return null;
+
+            var constantArguments = constantArgumentsBuilder.ToImmutable();
+
+            for (var i = 0; i < result.bestOverload.templateConstraints.Length; i++) {
+                var constraint = result.bestOverload.templateConstraints[i];
+
+                if (constraint is BoundExtendExpression e) {
+                    var replacement = constantArgumentsBuilder[e.template.ordinal - 1];
+
+                    if (!TypeUtilities.TypeInheritsFrom(replacement.type, e.extension)) {
+                        diagnostics.Push(Error.ExtendConstraintFailed(
+                            name.templateArgumentList.location,
+                            constraint.ToString(),
+                            i + 1,
+                            e.template.name,
+                            e.extension.ToString()
+                        ));
+                    }
+                } else {
+                    var constraintResult = EvaluateConstraint(constraint, constantArguments);
+
+                    if (constraintResult is null) {
+                        diagnostics.Push(Error.ConstraintWasNull(
+                            name.templateArgumentList.location,
+                            constraint.ToString(),
+                            i + 1
+                        ));
+                    } else if (!constraintResult.Value) {
+                        diagnostics.Push(Error.ConstraintFailed(
+                            name.templateArgumentList.location,
+                            constraint.ToString(),
+                            i + 1
+                        ));
+                    }
+                }
             }
+
+            return new BoundType(
+                result.bestOverload,
+                templateArguments: constantArguments,
+                arity: result.bestOverload.arity,
+                isNullable: true
+            );
         }
 
         return null;
@@ -1686,7 +2441,8 @@ internal sealed class Binder {
 
             foreach (var potential in potentialMethods) {
                 if (potential.containingType is null ||
-                    (_containingType is not null && _containingType == potential.containingType)) {
+                    (_containingType is not null &&
+                    TypeUtilities.TypeInheritsFrom(_containingType, potential.containingType))) {
                     builder.Add(potential);
                 }
             }
@@ -1755,6 +2511,23 @@ internal sealed class Binder {
         if (!allowed && result is BoundType t)
             diagnostics.Push(Error.CannotUseType(syntax.location, t));
 
+        if (_flags.Includes(BinderFlags.Class) &&
+            result is BoundVariableExpression gv &&
+            gv.variable is GlobalVariableSymbol) {
+            diagnostics.Push(Error.CannotUseGlobalInClass(syntax.location, name));
+        }
+
+        if (_containingType is not null &&
+            result is BoundVariableExpression v &&
+            v.variable.accessibility == Accessibility.Private &&
+            _containingType != v.variable.containingType) {
+            diagnostics.Push(Error.MemberIsInaccessible(
+                syntax.location,
+                v.variable.name,
+                v.variable.containingType.name
+            ));
+        }
+
         return result;
     }
 
@@ -1782,22 +2555,22 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        var methods = ImmutableArray<MethodSymbol>.Empty;
-
         if (symbols.Length == 0) {
             diagnostics.Push(
                 Error.UndefinedMethod(syntax.location, name, _options.buildMode == BuildMode.Interpret)
             );
 
             return new BoundErrorExpression();
-        } else if (symbols[0] is not MethodSymbol) {
+        }
+
+        var methods = symbols
+            .Where(s => s is MethodSymbol)
+            .Select(s => s as MethodSymbol).ToImmutableArray();
+
+        if (methods.Length == 0) {
             diagnostics.Push(Error.CannotCallNonMethod(syntax.location, name));
             return new BoundErrorExpression();
         }
-
-        methods = symbols
-            .Where(s => s is MethodSymbol)
-            .Select(s => s as MethodSymbol).ToImmutableArray();
 
         return new BoundMethodGroup(name, methods);
     }
@@ -1874,8 +2647,8 @@ internal sealed class Binder {
         SimpleNameSyntax right,
         SyntaxToken operatorToken,
         bool called) {
-        if (boundLeft is BoundErrorExpression)
-            return boundLeft;
+        if (boundLeft is BoundErrorExpression || boundLeft.type.typeSymbol is null)
+            return new BoundErrorExpression();
 
         var furthestRight = boundLeft;
 
@@ -1889,7 +2662,7 @@ internal sealed class Binder {
 
         var namedType = boundLeft.type.typeSymbol as NamedTypeSymbol;
         var name = right.identifier.text;
-        var symbols = namedType.members.Where(m => m.name == name);
+        var symbols = namedType.GetMembers(name);
 
         if (!symbols.Any()) {
             diagnostics.Push(Error.NoSuchMember(right.location, boundLeft.type, name));
@@ -1917,10 +2690,33 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        symbols = isStaticAccess ? staticSymbols : instanceSymbols;
-        var boundRight = BindIdentifierInScope(right, called, symbols.ToImmutableArray());
+        var selectedSymbols = isStaticAccess ? staticSymbols : instanceSymbols;
+        var boundRight = BindIdentifierInScope(right, called, selectedSymbols.ToImmutableArray());
+
+        CheckVariableAccessibility(boundLeft, boundRight, right.location);
 
         return new BoundMemberAccessExpression(boundLeft, boundRight, isNullConditional, isStaticAccess);
+    }
+
+    private void CheckVariableAccessibility(BoundExpression left, BoundExpression right, TextLocation textLocation) {
+        if (left is BoundMemberAccessExpression m)
+            CheckVariableAccessibility(m.left, m.right, textLocation);
+
+        if (right is BoundVariableExpression v) {
+            var insideSameType = _containingType == v.variable.containingType;
+            var insideChildType = TypeUtilities.TypeInheritsFrom(_containingType, v.variable.containingType);
+
+            if (left.type.typeSymbol is ClassSymbol) {
+                if ((v.variable.accessibility == Accessibility.Private && !insideSameType) ||
+                    (v.variable.accessibility == Accessibility.Protected && !insideChildType)) {
+                    diagnostics.Push(Error.MemberIsInaccessible(
+                        textLocation,
+                        v.variable.name,
+                        left.type.typeSymbol.name
+                    ));
+                }
+            }
+        }
     }
 
     private VariableSymbol BindVariable(
@@ -1952,9 +2748,10 @@ internal sealed class Binder {
 
     private FieldSymbol BindField(
         VariableDeclarationSyntax declaration,
-        DeclarationModifiers modifiers) {
+        DeclarationModifiers modifiers,
+        bool isStructField) {
         var name = declaration.identifier.text;
-        BindAndVerifyType(declaration, modifiers, true, out var type);
+        BindAndVerifyType(declaration, modifiers, true, isStructField, out var type);
         BoundConstant constant = null;
 
         if ((modifiers & DeclarationModifiers.ConstExpr) != 0) {
@@ -1970,11 +2767,14 @@ internal sealed class Binder {
                 type = BoundType.CopyWith(type, typeSymbol: BoundType.Assume(constant.value).typeSymbol);
         }
 
+        var accessibility = BindAccessibilityFromModifiers(modifiers);
+
         var field = new FieldSymbol(
             name,
             type,
             constant,
-            modifiers
+            modifiers,
+            accessibility
         );
 
         if (LookupTypes(name).Length > 0) {
@@ -2201,6 +3001,7 @@ internal sealed class Binder {
                     fd.identifier,
                     fd.parameterList,
                     fd.body,
+                    SyntaxFactory.Token(SyntaxKind.SemicolonToken),
                     fd.parent,
                     fd.position
                 );
@@ -2245,10 +3046,8 @@ internal sealed class Binder {
         foreach (var modifier in modifiers) {
             switch (modifier.kind) {
                 case SyntaxKind.LowlevelKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.LowLevel) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.LowLevel, modifier))
                         break;
-                    }
 
                     declarationModifiers |= DeclarationModifiers.LowLevel;
                     break;
@@ -2270,10 +3069,8 @@ internal sealed class Binder {
         foreach (var modifier in modifiers) {
             switch (modifier.kind) {
                 case SyntaxKind.ConstKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.Const) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.Const, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.ConstExpr) != 0) {
                         diagnostics.Push(
@@ -2286,10 +3083,8 @@ internal sealed class Binder {
                     declarationModifiers |= DeclarationModifiers.Const;
                     break;
                 case SyntaxKind.ConstexprKeyword:
-                    if ((declarationModifiers & DeclarationModifiers.ConstExpr) != 0) {
-                        diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier.text));
+                    if (ModifierAlreadyApplied(declarationModifiers, DeclarationModifiers.ConstExpr, modifier))
                         break;
-                    }
 
                     if ((declarationModifiers & DeclarationModifiers.Const) != 0) {
                         diagnostics.Push(
@@ -2314,6 +3109,7 @@ internal sealed class Binder {
         VariableDeclarationSyntax declaration,
         DeclarationModifiers modifiers,
         bool isField,
+        bool isStructField,
         out BoundType type) {
         var currentCount = diagnostics.Errors().Count;
         type = BindType(declaration.type, modifiers, isField);
@@ -2351,7 +3147,7 @@ internal sealed class Binder {
             return false;
         }
 
-        if (!isField && !type.isNullable && declaration.initializer is null) {
+        if (!type.isNullable && declaration.initializer is null && !isStructField) {
             diagnostics.Push(Error.NoInitOnNonNullable(declaration.identifier.location));
             return false;
         }
@@ -2364,7 +3160,7 @@ internal sealed class Binder {
         DeclarationModifiers modifiers) {
         var currentCount = diagnostics.Errors().Count;
 
-        if (!BindAndVerifyType(declaration, modifiers, false, out var type))
+        if (!BindAndVerifyType(declaration, modifiers, false, false, out var type))
             return null;
 
         var value = declaration.initializer?.value;
@@ -2613,10 +3409,16 @@ internal sealed class Binder {
                 return BindCastExpression((CastExpressionSyntax)expression);
             case SyntaxKind.TypeOfExpression:
                 return BindTypeOfExpression((TypeOfExpressionSyntax)expression);
+            case SyntaxKind.NameOfExpression:
+                return BindNameOfExpression((NameOfExpressionSyntax)expression);
             case SyntaxKind.ObjectCreationExpression:
                 return BindObjectCreationExpression((ObjectCreationExpressionSyntax)expression);
             case SyntaxKind.ThisExpression:
                 return BindThisExpression((ThisExpressionSyntax)expression);
+            case SyntaxKind.BaseExpression:
+                return BindBaseExpression((BaseExpressionSyntax)expression);
+            case SyntaxKind.ThrowExpression:
+                return BindThrowExpression((ThrowExpressionSyntax)expression);
             case SyntaxKind.TemplateName:
             case SyntaxKind.IdentifierName:
                 return BindIdentifier((SimpleNameSyntax)expression, called, allowTypes);
@@ -2633,6 +3435,14 @@ internal sealed class Binder {
         }
     }
 
+    private BoundExpression BindThrowExpression(ThrowExpressionSyntax expression) {
+        var exceptionType = new BoundType(_wellKnownTypes[WellKnownTypeNames.Exception]);
+        var boundExpression = BindExpression(expression.expression);
+        var castedExpression = BindCast(expression.expression.location, boundExpression, exceptionType);
+
+        return new BoundThrowExpression(castedExpression);
+    }
+
     private BoundExpression BindThisExpression(ThisExpressionSyntax expression) {
         if (!_flags.Includes(BinderFlags.Class)) {
             diagnostics.Push(Error.CannotUseThis(expression.location));
@@ -2643,8 +3453,21 @@ internal sealed class Binder {
     }
 
     private BoundThisExpression BindThisExpressionInternal() {
-        var type = new BoundType(_containingType, isReference: true);
+        var type = new BoundType(_containingType, isReference: true, arity: _containingType.arity);
         return new BoundThisExpression(type);
+    }
+
+    private BoundExpression BindBaseExpression(BaseExpressionSyntax expression) {
+        if (!_flags.Includes(BinderFlags.Class)) {
+            diagnostics.Push(Error.CannotUseBase(expression.location));
+            return new BoundErrorExpression();
+        }
+
+        return BindBaseExpressionInternal();
+    }
+
+    private BoundBaseExpression BindBaseExpressionInternal() {
+        return new BoundBaseExpression((_containingType as ClassSymbol).baseType);
     }
 
     private BoundExpression BindObjectCreationExpression(ObjectCreationExpressionSyntax expression) {
@@ -2659,7 +3482,27 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
+        if (type.typeSymbol.isAbstract) {
+            diagnostics.Push(Error.CannotConstructAbstract(expression.location, type.ToString()));
+            return new BoundErrorExpression();
+        }
+
         if (type.dimensions > 0) {
+            return new BoundObjectCreationExpression(type);
+        } else if (type.typeSymbol is StructSymbol) {
+            if (!PartiallyBindArgumentList(expression.argumentList, out var arguments))
+                return new BoundErrorExpression();
+
+            if (arguments.Length > 0) {
+                var span = TextSpan.FromBounds(
+                    expression.argumentList.arguments[0].span.start,
+                    expression.argumentList.arguments[^1].span.end
+                );
+
+                var location = new TextLocation(expression.syntaxTree.text, span);
+                diagnostics.Push(Error.StructTakesNoArguments(location));
+            }
+
             return new BoundObjectCreationExpression(type);
         } else {
             if (type.typeSymbol is not NamedTypeSymbol) {
@@ -2682,6 +3525,18 @@ internal sealed class Binder {
             if (!result.succeeded)
                 return new BoundErrorExpression();
 
+            var insideSameType = _containingType == result.bestOverload.containingType;
+            var insideChildType = TypeUtilities.TypeInheritsFrom(_containingType, result.bestOverload.containingType);
+
+            if ((result.bestOverload.accessibility == Accessibility.Private && !insideSameType) ||
+                (result.bestOverload.accessibility == Accessibility.Protected && !insideChildType)) {
+                diagnostics.Push(Error.MemberIsInaccessible(
+                    expression.type.location,
+                    result.bestOverload.Signature(),
+                    result.bestOverload.containingType.name
+                ));
+            }
+
             return new BoundObjectCreationExpression(type, result.bestOverload, result.arguments);
         }
     }
@@ -2701,6 +3556,18 @@ internal sealed class Binder {
     private BoundExpression BindTypeOfExpression(TypeOfExpressionSyntax expression) {
         var type = BindType(expression.type);
         return new BoundTypeOfExpression(type);
+    }
+
+    private BoundExpression BindNameOfExpression(NameOfExpressionSyntax expression) {
+        var name = BindExpression(expression.name, allowTypes: true);
+
+        return new BoundLiteralExpression(name.kind switch {
+            BoundNodeKind.VariableExpression => ((BoundVariableExpression)name).variable.name,
+            BoundNodeKind.MemberAccessExpression => ((BoundMemberAccessExpression)name).left.ToString(),
+            BoundNodeKind.ErrorExpression => "",
+            BoundNodeKind.Type => name.type.ToString(),
+            _ => throw ExceptionUtilities.Unreachable(),
+        });
     }
 
     private BoundExpression BindReferenceExpression(ReferenceExpressionSyntax expression) {
@@ -2824,8 +3691,22 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindIndexExpression(IndexExpressionSyntax expression) {
-        var boundExpression = BindExpression(expression.expression);
         var boundIndex = BindExpression(expression.index);
+
+        if (BoundConstant.IsNotNull(boundIndex.constantValue) &&
+            boundIndex.constantValue.value is int v &&
+            expression.expression is InitializerListExpressionSyntax i) {
+            // Optimizes inline list indexes working around the List rewrite that initializer lists perform
+            var saved = _flags;
+            _flags |= BinderFlags.LowLevelContext;
+            var list = BindInitializerListExpression(i, null) as BoundInitializerListExpression;
+            _flags = saved;
+
+            return list.items[v];
+        }
+
+        var boundExpression = BindExpression(expression.expression);
+
         return BindIndexWithBoundSides(expression, boundExpression, boundIndex);
     }
 
@@ -2836,13 +3717,9 @@ internal sealed class Binder {
         var name = SyntaxFacts.GetOperatorMemberName(expression.openBracket.kind, 2);
 
         if (name is not null) {
-            var symbols = ((boundExpression.type.typeSymbol is NamedTypeSymbol l)
-                    ? l.members.Where(n => n.name == name)
-                    : [])
+            var symbols = ((boundExpression.type.typeSymbol is NamedTypeSymbol l) ? l.GetMembers(name) : [])
                 .Concat((boundIndex.type.typeSymbol is NamedTypeSymbol r &&
-                    boundExpression.type.typeSymbol != boundIndex.type.typeSymbol)
-                    ? r.members.Where(n => n.name == name)
-                    : [])
+                    boundExpression.type.typeSymbol != boundIndex.type.typeSymbol) ? r.GetMembers(name) : [])
                 .Where(m => m is MethodSymbol)
                 .Select(m => m as MethodSymbol)
                 .ToImmutableArray();
@@ -2901,11 +3778,41 @@ internal sealed class Binder {
         if (boundExpression is BoundMemberAccessExpression ma) {
             receiver = ma.left;
             boundExpression = ma.right;
+        } else if (_containingType is not null) {
+            receiver = new BoundThisExpression(new BoundType(_containingType));
         }
 
         if (boundExpression is BoundMethodGroup mg) {
             if (!PartiallyBindArgumentList(expression.argumentList, out var arguments))
                 return new BoundErrorExpression();
+
+            if (mg.methods.Length == 1 &&
+                (mg.methods[0] == BuiltinMethods.ToAny || mg.methods[0] == BuiltinMethods.ToObject)) {
+                if (arguments.Length != 1) {
+                    _overloadResolution.ResolveIncorrectArgumentCount(
+                        expression.expression,
+                        expression.argumentList.closeParenthesis.span,
+                        mg.name,
+                        mg.methods[0].parameters,
+                        0,
+                        arguments.Length,
+                        expression.argumentList.arguments,
+                        false
+                    );
+
+                    return new BoundErrorExpression();
+                }
+
+                var resultType = mg.methods[0] == BuiltinMethods.ToAny
+                    ? BoundType.NullableAny
+                    : new BoundType(_wellKnownTypes[WellKnownTypeNames.Object], isNullable: true);
+
+                return new BoundCallExpression(
+                    receiver,
+                    new MethodSymbol(mg.name, mg.methods[0].parameters, resultType, null, mg.methods[0]),
+                    arguments.Select(m => m.Item2).ToImmutableArray()
+                );
+            }
 
             var result = _overloadResolution.MethodOverloadResolution(
                 mg.methods,
@@ -2922,20 +3829,35 @@ internal sealed class Binder {
             if (receiver is not BoundEmptyExpression &&
                 !result.bestOverload.isConstant &&
                 (receiver.type.isReference ? receiver.type.isConstantReference : receiver.type.isConstant)) {
-                diagnostics.Push(Error.NonConstantCallOnConstant(expression.location, mg.name));
+                diagnostics.Push(Error.NonConstantCallOnConstant(expression.location, result.bestOverload.Signature()));
             }
 
             if (receiver is BoundEmptyExpression || receiver is BoundThisExpression) {
                 if ((_containingMethod?.isConstant ?? false) &&
                     !(result.bestOverload.isConstant || result.bestOverload.isStatic) &&
                     (result.bestOverload.containingType == _containingMethod.containingType)) {
-                    diagnostics.Push(Error.NonConstantCallInConstant(expression.location, mg.name));
+                    diagnostics.Push(
+                        Error.NonConstantCallInConstant(expression.location, result.bestOverload.Signature())
+                    );
                 }
 
                 if ((_containingMethod?.isStatic ?? false) &&
                     (result.bestOverload.containingType == _containingMethod.containingType) &&
                     (!result.bestOverload.isStatic)) {
                     diagnostics.Push(Error.InvalidStaticReference(expression.location, mg.name));
+                }
+            }
+
+            if (result.bestOverload.accessibility == Accessibility.Private) {
+                if (_containingType is null ||
+                    _containingType != result.bestOverload.containingType) {
+                    diagnostics.Push(Error.MemberIsInaccessible(
+                        expression.expression is MemberAccessExpressionSyntax m
+                            ? m.name.location
+                            : expression.expression.location,
+                        $"{result.bestOverload.name}()",
+                        result.bestOverload.containingType.name
+                    ));
                 }
             }
 
@@ -3143,7 +4065,7 @@ internal sealed class Binder {
 
     private BoundExpression BindBinaryExpression(BinaryExpressionSyntax expression) {
         var boundLeft = BindExpression(expression.left);
-        var boundRight = BindExpression(expression.right);
+        var boundRight = BindExpression(expression.right, allowTypes: true);
 
         if (boundLeft.type.typeSymbol == TypeSymbol.Error || boundRight.type.typeSymbol == TypeSymbol.Error)
             return new BoundErrorExpression();
@@ -3180,6 +4102,7 @@ internal sealed class Binder {
         if (boundOp.opKind != BoundBinaryOperatorKind.NullCoalescing &&
             boundOp.opKind != BoundBinaryOperatorKind.Is &&
             boundOp.opKind != BoundBinaryOperatorKind.Isnt &&
+            boundOp.opKind != BoundBinaryOperatorKind.As &&
             boundOp.opKind != BoundBinaryOperatorKind.ConditionalAnd &&
             boundOp.opKind != BoundBinaryOperatorKind.ConditionalOr) {
             if (BoundConstant.IsNull(boundLeft.constantValue) || BoundConstant.IsNull(boundRight.constantValue)) {
@@ -3188,10 +4111,38 @@ internal sealed class Binder {
             }
         }
 
+        if (boundOp.opKind is BoundBinaryOperatorKind.Is or BoundBinaryOperatorKind.Isnt) {
+            if (BoundConstant.IsNull(boundLeft.constantValue) && BoundConstant.IsNull(boundRight.constantValue)) {
+                var constant = boundOp.opKind == BoundBinaryOperatorKind.Is ? true : false;
+                diagnostics.Push(Warning.AlwaysValue(expression.location, constant));
+                return new BoundTypeWrapper(boundOp.type, new BoundConstant(constant));
+            }
+        }
+
         if (boundOp.opKind == BoundBinaryOperatorKind.Division &&
             boundRight.constantValue != null && boundRight.constantValue.value.Equals(0)) {
             diagnostics.Push(Error.DivideByZero(expression.location));
             return new BoundErrorExpression();
+        }
+
+        if (boundOp.opKind == BoundBinaryOperatorKind.As) {
+            if (boundRight is not BoundType) {
+                diagnostics.Push(Error.ExpectedType(expression.right.location));
+                return new BoundErrorExpression();
+            }
+
+            var invalidPrimitiveCast = boundLeft.type != boundRight.type &&
+                !boundRight.type.Equals(BoundType.Any, isTypeCheck: true) &&
+                !boundRight.type.Equals(BoundType.NullableAny, isTypeCheck: true);
+
+            var invalidReferenceCast = !TypeUtilities.TypeInheritsFrom(boundLeft.type, boundRight.type) &&
+                !TypeUtilities.TypeInheritsFrom(boundRight.type, boundLeft.type);
+
+            if ((boundLeft.type.typeSymbol is PrimitiveTypeSymbol && invalidPrimitiveCast) ||
+                (boundLeft.type.typeSymbol is not PrimitiveTypeSymbol && invalidReferenceCast)) {
+                diagnostics.Push(Error.CannotConvert(expression.location, boundLeft.type, boundRight.type));
+                return new BoundErrorExpression();
+            }
         }
 
         return new BoundBinaryExpression(boundLeft, boundOp, boundRight);
@@ -3236,9 +4187,7 @@ internal sealed class Binder {
             var boundIndex = BindExpression(indexExpression.index);
             right = BindExpression(expression.right);
 
-            var symbols = ((boundLeft.type.typeSymbol is NamedTypeSymbol l)
-                    ? l.members.Where(n => n.name == name)
-                    : [])
+            var symbols = ((boundLeft.type.typeSymbol is NamedTypeSymbol l) ? l.GetMembers(name) : [])
                 .Where(m => m is MethodSymbol)
                 .Select(m => m as MethodSymbol)
                 .ToImmutableArray();
@@ -3407,5 +4356,106 @@ internal sealed class Binder {
 
         if (CheckIsPartOfThis(left))
             diagnostics.Push(Error.AssignmentInConstMethod(assignmentLocation));
+    }
+
+    private bool IsCompilerComputable(BoundExpression expression, ImmutableArray<ParameterSymbol> allowedVariables) {
+        if (expression.constantValue is not null)
+            return true;
+
+        switch (expression.kind) {
+            case BoundNodeKind.UnaryExpression:
+                return IsCompilerComputable(((BoundUnaryExpression)expression).operand, allowedVariables);
+            case BoundNodeKind.BinaryExpression:
+                var binaryExpression = (BoundBinaryExpression)expression;
+                return IsCompilerComputable(binaryExpression.left, allowedVariables) &&
+                    IsCompilerComputable(binaryExpression.right, allowedVariables);
+            case BoundNodeKind.TernaryExpression:
+                var ternaryExpression = (BoundTernaryExpression)expression;
+                return IsCompilerComputable(ternaryExpression.left, allowedVariables) &&
+                    IsCompilerComputable(ternaryExpression.center, allowedVariables) &&
+                    IsCompilerComputable(ternaryExpression.right, allowedVariables);
+            case BoundNodeKind.CastExpression:
+                return IsCompilerComputable(((BoundCastExpression)expression).expression, allowedVariables);
+            case BoundNodeKind.IndexExpression:
+                var indexExpression = (BoundIndexExpression)expression;
+                return IsCompilerComputable(indexExpression.expression, allowedVariables) &&
+                    IsCompilerComputable(indexExpression.index, allowedVariables);
+            case BoundNodeKind.VariableExpression:
+                var variableExpression = (BoundVariableExpression)expression;
+
+                if (allowedVariables.Contains(variableExpression.variable))
+                    return true;
+                else
+                    return false;
+            default:
+                return false;
+        }
+    }
+
+    private bool? EvaluateConstraint(BoundExpression expression, ImmutableArray<BoundTypeOrConstant> templates) {
+        return (bool?)EvaluateExpression(expression);
+
+        object EvaluateExpression(BoundExpression expression) {
+            if (expression.constantValue is not null)
+                return expression.constantValue.value;
+
+            switch (expression.kind) {
+                case BoundNodeKind.UnaryExpression:
+                    var unaryExpression = (BoundUnaryExpression)expression;
+                    var unaryOperand = EvaluateExpression(unaryExpression.operand);
+
+                    return ConstantFolding.FoldUnary(
+                        unaryExpression.op,
+                        new BoundLiteralExpression(unaryOperand)
+                    ).value;
+                case BoundNodeKind.BinaryExpression:
+                    var binaryExpression = (BoundBinaryExpression)expression;
+                    var binaryLeft = EvaluateExpression(binaryExpression.left);
+                    var binaryRight = EvaluateExpression(binaryExpression.right);
+
+                    return ConstantFolding.FoldBinary(
+                        new BoundLiteralExpression(binaryLeft),
+                        binaryExpression.op,
+                        new BoundLiteralExpression(binaryRight)
+                    ).value;
+                case BoundNodeKind.TernaryExpression:
+                    var ternaryExpression = (BoundTernaryExpression)expression;
+                    var ternaryLeft = EvaluateExpression(ternaryExpression.left);
+                    var ternaryCenter = EvaluateExpression(ternaryExpression.center);
+                    var ternaryRight = EvaluateExpression(ternaryExpression.right);
+
+                    return ConstantFolding.FoldTernary(
+                        new BoundLiteralExpression(ternaryLeft),
+                        ternaryExpression.op,
+                        new BoundLiteralExpression(ternaryCenter),
+                        new BoundLiteralExpression(ternaryRight)
+                    ).value;
+                case BoundNodeKind.CastExpression:
+                    var castExpression = (BoundCastExpression)expression;
+                    var castOperand = EvaluateExpression(castExpression.expression);
+
+                    return ConstantFolding.FoldCast(
+                        new BoundLiteralExpression(castOperand),
+                        castExpression.type
+                    ).value;
+                case BoundNodeKind.IndexExpression:
+                    var indexExpression = (BoundIndexExpression)expression;
+                    var indexOperand = EvaluateExpression(indexExpression.expression);
+                    var indexIndex = EvaluateExpression(indexExpression.index);
+
+                    return ConstantFolding.FoldIndex(
+                        new BoundLiteralExpression(indexOperand),
+                        new BoundLiteralExpression(indexIndex)
+                    ).value;
+                case BoundNodeKind.VariableExpression:
+                    var variableExpression = (BoundVariableExpression)expression;
+                    var index = (variableExpression.variable as ParameterSymbol).ordinal - 1;
+                    var replacement = templates[index];
+
+                    return replacement.constant.value;
+                default:
+                    throw ExceptionUtilities.Unreachable();
+            }
+        }
     }
 }

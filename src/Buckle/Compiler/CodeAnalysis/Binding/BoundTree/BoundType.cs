@@ -303,32 +303,36 @@ internal sealed class BoundType : BoundExpression {
     /// </summary>
     /// <param name="type"><see cref="BoundType" /> to compare this to.</param>
     /// <returns>If all fields match.</returns>
-    internal bool Equals(BoundType type, bool loose = false) {
-        if ((!loose || (typeSymbol is not null && type?.typeSymbol is not null)) && typeSymbol != type?.typeSymbol)
+    internal bool Equals(BoundType type, bool loose = false, bool isTypeCheck = false) {
+        var typesEqual = (typeSymbol is ClassSymbol l && type?.typeSymbol is ClassSymbol r)
+            ? l == r
+            : typeSymbol == type?.typeSymbol;
+
+        if ((!loose || (typeSymbol is not null && type?.typeSymbol is not null)) && !typesEqual)
             return false;
-        if (isImplicit != type.isImplicit)
+        if (!isTypeCheck && isImplicit != type.isImplicit)
             return false;
-        if (isConstantReference != type.isConstantReference)
+        if (!isTypeCheck && isConstantReference != type.isConstantReference)
             return false;
-        if (isReference != type.isReference)
+        if (!isTypeCheck && isReference != type.isReference)
             return false;
-        if (isConstant != type.isConstant)
+        if (!isTypeCheck && isConstant != type.isConstant)
             return false;
-        if (isNullable != type.isNullable)
+        if (!isTypeCheck && isNullable != type.isNullable)
             return false;
-        if (isLiteral != type.isLiteral)
+        if (!isTypeCheck && isLiteral != type.isLiteral)
             return false;
         if (dimensions != type.dimensions)
             return false;
         if (arity != type.arity)
             return false;
-        if (isConstantExpression != type.isConstantExpression)
+        if (!isTypeCheck && isConstantExpression != type.isConstantExpression)
             return false;
         if (sizes.Length != type.sizes.Length)
             return false;
 
         for (var i = 0; i < templateArguments.Length; i++) {
-            if (!templateArguments[i].Equals(type.templateArguments[i]))
+            if (!templateArguments[i].Equals(type.templateArguments[i], isTypeCheck))
                 return false;
         }
 

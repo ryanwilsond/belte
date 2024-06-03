@@ -23,7 +23,7 @@ internal class SyntaxTokenListBuilder {
     }
 
     public void Add(SyntaxToken item) {
-        Debug.Assert(item.node is object);
+        Debug.Assert(item.node is not null);
         Add(item.node);
     }
 
@@ -74,8 +74,8 @@ internal class SyntaxTokenListBuilder {
                 case 1:
                     return new SyntaxTokenList(null, _nodes[0], 0, 0);
                 case 2:
-                    Debug.Assert(_nodes[0] is object);
-                    Debug.Assert(_nodes[1] is object);
+                    Debug.Assert(_nodes[0] is not null);
+                    Debug.Assert(_nodes[1] is not null);
                     return new SyntaxTokenList(null, InternalSyntax.SyntaxList.List(_nodes[0]!, _nodes[1]!), 0, 0);
                 default:
                     return new SyntaxTokenList(null, InternalSyntax.SyntaxList.List(_nodes, _count), 0, 0);

@@ -7,7 +7,9 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundBinaryExpression : BoundExpression {
     internal BoundBinaryExpression(
-        BoundExpression left, BoundBinaryOperator op, BoundExpression right) {
+        BoundExpression left,
+        BoundBinaryOperator op,
+        BoundExpression right) {
         this.left = left;
         this.op = op;
         this.right = right;

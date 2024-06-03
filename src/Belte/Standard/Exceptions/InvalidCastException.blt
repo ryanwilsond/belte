@@ -1,0 +1,4 @@
+
+sealed class InvalidCastException extends Exception {
+    public constructor() : base("Specified cast is not valid.") { }
+}

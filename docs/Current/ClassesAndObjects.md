@@ -74,7 +74,7 @@ Methods are similar to functions. They are declared as such:
 
 ```belte
 class MyClass {
-  void MyMethod(int param1) {
+  public void MyMethod(int param1) {
     // Body
   }
 }
@@ -93,7 +93,7 @@ Operators are similar to methods. They are declared as such:
 
 ```belte
 class MyClass {
-  static MyClass operator+(MyClass left, MyClass right) {
+  public static MyClass operator+(MyClass left, MyClass right) {
     // Body
   }
 }
@@ -103,20 +103,72 @@ Operator overloading is used to allow custom classes to use syntactical operator
 
 `**, *, /, %, +, -, <<, >>, >>>, &, ^, |, ++, --, !, ~, []`
 
+Note that operators must be marked [public](#431-accessibility-modifiers) and [static](#432-static--constexpr).
+
 ## 4.3 Modifiers
 
-Class members are instance members by default, meaning they require an instance to access. With the `static` and `const`
-keywords methods and fields respectively can be accessed without an instance.
+### 4.3.1 Accessibility Modifiers
+
+Public indicates that the member can be
+seen everywhere, including outside the class. Protected indicates that the member can only be seen within the class and
+child classes. Private indicates that the member can only be seen within the class, not even in child classes.
 
 ```belte
 class MyClass {
-  const int a = 3;
+  private int a;
+  protected int b;
+  public int c;
+}
+```
 
-  static void B() { }
+A member can only have one accessibility modifier, but they do not require the modifier. By default, all struct members
+are public and all class members are private.
+
+All types of members can be marked with all three accessibility modifiers except operators, which must always be public.
+
+### 4.3.4 Overriding Modifiers
+
+By default, members cannot be overridden. To allow a member to be overridden, it can be marked `virtual`. Virtual
+members still require a definition. To override a virtual member, the override can be marked `override`. To instead
+hide a member without overriding, a member can be marked `new`. A member cannot be marked as both `override` and `new`
+or `virtual`.
+
+Similar to `virtual`, a member can be marked `abstract`. Abstract members must be overridden in all non-abstract child
+implementations, and as such abstract members do not have a definition when declared.
+
+Currently, these modifiers only apply to methods.
+
+### 4.3.2 Static & ConstExpr
+
+Class members are instance members by default, meaning they require an instance to access. With the `static` and
+`constexpr` keywords methods and fields respectively can be accessed without an instance.
+
+```belte
+class MyClass {
+  public constexpr int a = 3;
+
+  public static void B() { }
 }
 
 var myA = MyClass.a;
 MyClass.B();
+```
+
+Classes themselves can also be marked as `static`, meaning that all contained members must also be static or constant
+expressions.
+
+### 4.3.3 Sealed  & Abstract
+
+Classes can be marked as `sealed` to indicate that they cannot be derived.
+
+```belte
+sealed class A { }
+```
+
+Classes can be marked as `abstract` to indicate that they must be derived.
+
+```belte
+abstract class A { }
 ```
 
 ## 4.4 Constructors
@@ -130,13 +182,13 @@ new MyClass();
 ```
 
 But with a constructor data can be allowed to be passed when creating the object. Constructors are declared similar to
-methods, but do not have a return type and must have the same name as the class.
+methods, but do not have a return type and they use the `constructor` keyword in place of an identifier.
 
 ```belte
 class MyClass {
   int myField;
 
-  MyClass(int a) {
+  public constructor(int a) {
     this.myField = a;
   }
 }
@@ -156,12 +208,12 @@ class List<type t> {
   t[] array;
   int length;
 
-  List(t[] array) {
+  public constructor(t[] array) {
     this.array = array;
     length = Length(array);
   }
 
-  static t operator[](List list, int index) {
+  public static t operator[](List list, int index) {
     return list.array[index];
   }
 }
@@ -195,4 +247,41 @@ var myList = new List<List<int>>({
   new List<int>({ 3 }),
   new List<int>({ 3, 3, 2, 45 })
 });
+```
+
+### 4.5.1 Constraint Clauses
+
+Templates can be constrained at compile-time to ensure intended functionality. These constraints are defined within a
+single `where` block in the class header.
+
+These expressions are enforced at compile-time, and as such they must be computable at compile time. To be computable
+at compile time, the set of allowed expressions is limited:
+
+| Expression | Additional Restrictions |
+|-|-|
+| Unary | |
+| Binary | |
+| Ternary | |
+| Cast | Only compiler-computable casts; only casts between primitives |
+| Index | Only constant indexes on constant initializer lists |
+| Member access | Only when accessing members that are compile-time constants, meaning the accessed expression does not need to be a compile-time constant |
+| Extend | Only on type template parameters |
+| Initializer list | Only when every item is a compile-time constant |
+| Literal | |
+| Variable | Only template parameters |
+
+Given the class definition:
+
+```belte
+class Int<int min, int max> where { min <= max; } {
+  ...
+}
+```
+
+Then we can see the following examples:
+
+```belte
+Int<0, 10>
+Int<5, 5>
+Int<10, 0> // Compile error
 ```

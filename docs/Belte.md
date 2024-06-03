@@ -422,18 +422,68 @@ Instead of generics, classes can be templated (as in C++). Templates are essenti
 types. The Standard Library uses this feature often, for example in the definition of the `Int` type.
 
 ```belte
-class Int<Int min = null, Int max = null> where { value >= min; value <= max; } { }
+class Int<Int min = null, Int max = null> { }
 
 Int<0, 10> m = 3;
-Int<0, 10> n = 11; // Not allowed
+```
+
+#### 8.1.1 Constraint Clauses
+
+Constraint clauses can be used to restrict the domain of possible template argument values. The constraints are
+specified within a `where` block where conditions are boolean expressions that must equate to true when instantiating a
+template.
+
+These expressions are enforced at compile-time, and as such they must be computable at compile time. To be computable
+at compile time, the set of allowed expressions is limited:
+
+| Expression | Additional Restrictions |
+|-|-|
+| Unary | |
+| Binary | |
+| Ternary | |
+| Cast | Only compiler-computable casts; only casts between primitives |
+| Index | Only constant indexes on constant initializer lists |
+| Member access | Only when accessing members that are compile-time constants, meaning the accessed expression does not need to be a compile-time constant |
+| Extend | Only on type template parameters |
+| Initializer list | Only when every item is a compile-time constant |
+| Literal | |
+| Variable | Only template parameters |
+
+For example:
+
+```belte
+class Int<Int min = null, Int max = null> where { min <= max ?? true; } { } // Valid
+
+Int<0, 10>; // Valid
+Int<5, 5>; // Valid
+Int<5>; // Valid
+Int<,0>; // Valid
+Int<10, 0>; // Invalid
+```
+
+```belte
+constexpr GlobalMin = 0;
+
+class Int<Int max> where { GlobalMin <= max; } { } // Valid
+```
+
+```belte
+int globalMin = 0;
+
+class Int<Int max> where { globalMin <= max; } { } // Invalid, `globalMin` is not a compile-time constant and therefore cannot be referenced
+```
+
+```belte
+class A<type T> where { T extends Int; } { } // Valid
 ```
 
 ### 8.2 Value Verifications
 
-A class definition can attach a `where` clause that validates all values assigned to any instance of that type.
+A class definition can attach a `verify` clause that validates all values assigned to any instance of that type. The
+`value` keyword is a placeholder for the right hand of assignments This may not be applicable to all data types.
 
 ```belte
-class C extends Int where { value != 4; } { }
+class C extends Int verify { value != 4; } { }
 
 C m = 3;
 m++; // Runtime exception as attempted to increment `m` to 4, making the `where` clause on C fail

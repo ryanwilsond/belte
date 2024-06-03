@@ -49,7 +49,7 @@ internal sealed class BoundConstant {
 
     public static bool operator !=(BoundConstant left, BoundConstant right) {
         if (right is null)
-            return left is object;
+            return left is not null;
 
         return (object)left != (object)right && !right.Equals(left);
     }

@@ -31,7 +31,7 @@ public sealed class DiagnosticTests {
     public void Reports_Warning_BU0002_NullDeference() {
         var text = @"
             class A {
-                int num;
+                public int num;
             }
 
             void MyFunc(A a) {
@@ -199,7 +199,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            redeclaration of method 'myFunc'
+            redeclaration of method 'myFunc()'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1149,15 +1149,16 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0086_IncorrectConstructorName() {
+    public void Reports_Error_BU0086_MemberIsInaccessible() {
         var text = @"
-            class MyClass {
-                [MyConstructor]() { }
+            class A {
+                private static void M() { }
             }
+            A.[M]();
         ";
 
         var diagnostics = @"
-            constructor name must match the name of the enclosing class; in this case constructors must be named 'MyClass'
+            'A.M()' is inaccessible due to its protection level
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1167,9 +1168,9 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0087_NoConstructorOverload() {
         var text = @"
             class MyClass {
-                MyClass(int a) { }
+                public constructor(int a) { }
 
-                MyClass(string a) { }
+                public constructor(string a) { }
             }
 
             MyClass myClass = new [MyClass](true);
@@ -1201,7 +1202,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0089_InvalidInstanceReference() {
         var text = @"
             class MyClass {
-                static void MyMethod() { }
+                public static void MyMethod() { }
             }
 
             var myClass = new MyClass();
@@ -1219,7 +1220,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0090_InvalidStaticReference() {
         var text = @"
             class MyClass {
-                void MyMethod() { }
+                public void MyMethod() { }
             }
 
             [MyClass.MyMethod]();
@@ -1321,7 +1322,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0098_StaticConstructor() {
         var text = @"
             static class A {
-                [A]() { }
+                [constructor]() { }
             }
         ";
 
@@ -1408,7 +1409,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot call non-constant method 'B' in a method marked as constant
+            cannot call non-constant method 'B()' in a method marked as constant
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1419,7 +1420,7 @@ public sealed class DiagnosticTests {
         var text = @"
             class A {
                 int a = 3;
-                void B() {
+                public void B() {
                     a++;
                 }
             }
@@ -1428,7 +1429,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot call non-constant method 'B' on constant
+            cannot call non-constant method 'B()' on constant
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1480,7 +1481,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0108_IncorrectOperatorParameterCount() {
         var text = @"
             class A {
-                static A operator[+](A a, A b, A c) { return a; }
+                public static A operator[+](A a, A b, A c) { return a; }
             }
         ";
 
@@ -1492,7 +1493,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0109_OperatorMustBeStatic() {
+    public void Reports_Error_BU0109_OperatorMustBePublicAndStatic() {
         var text = @"
             class A {
                 A operator[+](A a, A b) { return a; }
@@ -1500,7 +1501,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            overloaded operators must be marked as static
+            overloaded operators must be marked as public and static
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1510,7 +1511,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0110_StaticOperator() {
         var text = @"
             static class A {
-                static A operator[+](A a, A b) { return a; }
+                public static A operator[+](A a, A b) { return a; }
             }
         ";
 
@@ -1525,7 +1526,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0111_OperatorAtLeastOneClassParameter() {
         var text = @"
             class A {
-                static int operator[+](int a, int b) { return a; }
+                public static int operator[+](int a, int b) { return a; }
             }
         ";
 
@@ -1540,7 +1541,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0112_OperatorMustReturnClass() {
         var text = @"
             class A {
-                static int operator[++](A a) { return 3; }
+                public static int operator[++](A a) { return 3; }
             }
         ";
 
@@ -1555,7 +1556,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0113_IndexOperatorFirstParameter() {
         var text = @"
             class A {
-                static int operator[\[\]](int a, A b) { return 3; }
+                public static int operator[\[\]](int a, A b) { return 3; }
             }
         ";
 
@@ -1612,7 +1613,379 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            non-nullable locals must have an initializer
+            non-nullable locals and class fields must have an initializer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0118_CannotBePrivateAndVirtualOrAbstract() {
+        var text = @"
+            class A {
+                virtual void [M]() {}
+            }
+        ";
+
+        var diagnostics = @"
+            virtual or abstract methods cannot be private
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0119_NoSuitableOverrideTarget() {
+        var text = @"
+            class A {
+                public override void [M]() {}
+            }
+        ";
+
+        var diagnostics = @"
+            no suitable method found to override
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0120_OverrideCannotChangeAccessibility() {
+        var text = @"
+            class A {
+                public virtual void M() {}
+            }
+            class B extends A {
+                private override void [M]() {}
+            }
+        ";
+
+        var diagnostics = @"
+            cannot change access modifier of inherited member from 'public' to 'private'; cannot change access modifiers when overriding inherited members
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0121_CannotDerivePrimitive() {
+        var text = @"
+            class A extends [int] { }
+        ";
+
+        var diagnostics = @"
+            cannot derive from primitive type 'int'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0122_UnknownTemplate() {
+        var text = @"
+            class A where { [T] extends Object; } { }
+        ";
+
+        var diagnostics = @"
+            type 'A' has no such template parameter 'T'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0123_CannotExtendCheckNonType() {
+        var text = @"
+            class A<int T> where { [T extends Object;] } { }
+        ";
+
+        var diagnostics = @"
+            template 'T' is not a type; cannot extension check a non-type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0124_ConstraintIsNotConstant() {
+        var text = @"
+            class A<int T> where { [Hex(T) == ""3"" ? true : false;] } { }
+        ";
+
+        var diagnostics = @"
+            template constraint is not a compile-time constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0125_StructTakesNoArguments() {
+        var text = @"
+            lowlevel struct A {}
+            var a = new A([3]);
+        ";
+
+        var diagnostics = @"
+            struct constructors take no arguments
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0126_ExtendConstraintFailed() {
+        var text = @"
+            class A<type T> where { T extends Object; } { }
+            var myA = new A[<int>]();
+        ";
+
+        var diagnostics = @"
+            template constraint 1 fails ('T extends Object'); 'T' must be or inherit from 'Object'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0127_ConstraintWasNull() {
+        var text = @"
+            class A<int a, int b> where { a < b; } { }
+            var myA = new A[<, >]();
+        ";
+
+        var diagnostics = @"
+            template constraint 1 fails ('(a < b)'); constraint results in null
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0128_ConstraintFailed() {
+        var text = @"
+            class A<int a, int b> where { a < b; } { }
+            var myA = new A[<3, 2>]();
+        ";
+
+        var diagnostics = @"
+            template constraint 1 fails ('(a < b)')
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0129_CannotOverride() {
+        var text = @"
+            class A {
+                public void M() { }
+            }
+            class B extends A {
+                public override void [M]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            cannot override inherited method 'M()' because it is not marked virtual or override
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0130_CannotUseGlobalInClass() {
+        var text = @"
+            A m = new A();
+            class A {
+                A a = [m];
+            }
+        ";
+
+        var diagnostics = @"
+            cannot use global 'm' in a class definition
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0131_MemberShadowsParent() {
+        var text = @"
+            class A {
+                public void M() {}
+            }
+            class B extends A {
+                public void [M]() {}
+            }
+        ";
+
+        var diagnostics = @"
+            'B.M()' hides inherited member 'A.M()'; use the 'new' keyword if hiding was intended
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0132_ConflictingOverrideModifiers() {
+        var text = @"
+            class A {
+                public virtual void M() {}
+            }
+            class B extends A {
+                public virtual [override] void M() {}
+            }
+        ";
+
+        var diagnostics = @"
+            a member marked as override cannot be marked as new, abstract, or virtual
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0133_MemberShadowsNothing() {
+        var text = @"
+            class A {
+                public new void [M]() {}
+            }
+        ";
+
+        var diagnostics = @"
+            the member 'A.M()' does not hide a member; the 'new' keyword is unnecessary
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0134_CannotDeriveSealed() {
+        var text = @"
+            sealed class A { }
+            class B extends [A] { }
+        ";
+
+        var diagnostics = @"
+            cannot derive from sealed type 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0135_CannotDeriveStatic() {
+        var text = @"
+            static class A { }
+            class B extends [A] { }
+        ";
+
+        var diagnostics = @"
+            cannot derive from static type 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0136_ExpectedType() {
+        var text = @"
+            class A {}
+            var a = new A() as [3];
+        ";
+
+        var diagnostics = @"
+            expected type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0137_CannotUseBase() {
+        var text = @"
+            int myInt = 3;
+            [base].myInt = 5;
+        ";
+
+        var diagnostics = @"
+            cannot use 'base' outside of a class
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0138_CannotConstructAbstract() {
+        var text = @"
+            abstract class A { }
+            var a = [new A()];
+        ";
+
+        var diagnostics = @"
+            cannot create an instance of the abstract class 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0139_NonAbstractMustHaveBody() {
+        var text = @"
+            class A {
+                void [M]();
+            }
+        ";
+
+        var diagnostics = @"
+            'M()' must declare a body because it is not marked abstract
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0140_AbstractCannotHaveBody() {
+        var text = @"
+            abstract class A {
+                public abstract void [M]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'M()' cannot declare a body because it is marked abstract
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0141_AbstractMemberInNonAbstractType() {
+        var text = @"
+            class A {
+                public abstract void [M]();
+            }
+        ";
+
+        var diagnostics = @"
+            'M()' cannot be marked abstract because it is not contained by an abstract type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0142_TypeDoesNotImplementAbstract() {
+        var text = @"
+            abstract class A {
+                public abstract void M();
+            }
+            class [B] extends A { }
+        ";
+
+        var diagnostics = @"
+            'B' must implement inherited abstract member 'A.M()'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

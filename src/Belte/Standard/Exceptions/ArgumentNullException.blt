@@ -1,0 +1,4 @@
+
+sealed class ArgumentNullException extends Exception {
+    public constructor() : base("Value cannot be null.") { }
+}

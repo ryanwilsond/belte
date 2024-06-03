@@ -130,9 +130,7 @@ public sealed partial class SyntaxNodeOrTokenList : IReadOnlyCollection<SyntaxNo
     }
 
     private static SyntaxNode CreateNode(IEnumerable<SyntaxNodeOrToken> nodesAndTokens) {
-        if (nodesAndTokens is null)
-            throw new ArgumentNullException(nameof(nodesAndTokens));
-
+        ArgumentNullException.ThrowIfNull(nodesAndTokens, nameof(nodesAndTokens));
         var builder = new SyntaxNodeOrTokenListBuilder(8);
         builder.Add(nodesAndTokens);
         return builder.ToList().node;

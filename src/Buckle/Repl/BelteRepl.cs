@@ -28,12 +28,13 @@ public sealed partial class BelteRepl : Repl {
         new CompilationOptions(BuildMode.Repl, ProjectType.Console, [], true, false);
     private static readonly Compilation EmptyCompilation = Compilation.CreateScript(DefaultOptions, null);
     private static readonly ImmutableArray<(string name, string contributor, ColorTheme theme)> InUse =
-        new List<(string, string, ColorTheme)>() {
-        ("Dark", "", new DarkTheme()),
-        ("Light", "", new LightTheme()),
-        ("Green", "Abiral Shakya", new GreenTheme()),
-        ("Blue", "Logan Kuz", new BlueTheme()),
-    }.ToImmutableArray();
+        [
+            ("Dark", "", new DarkTheme()),
+            ("Light", "", new LightTheme()),
+            ("Green", "Abiral Shakya", new GreenTheme()),
+            ("Blue", "Logan Kuz", new BlueTheme()),
+            ("Traffic Stop", "Jason Pelkey", new TrafficStopTheme()),
+        ];
 
     private List<TextChange> _changes = new List<TextChange>();
 

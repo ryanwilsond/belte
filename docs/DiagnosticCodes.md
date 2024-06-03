@@ -96,7 +96,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0083 | Error | template is ambiguous between |
 | BU0084 | Error | cannot use structs outside of low-level contexts |
 | BU0085 | Error | cannot use 'this' outside of a class |
-| BU0086 | Error | constructor name must match the name of the enclosing class; in this case constructors must be named '{0}' |
+| BU0086 | Error | '{0}.{1}' is inaccessible due to its protection level |
 | BU0087 | Error | type '{0}' does not contain a constructor that matches the parameter list |
 | BU0088 | Error | modifier '{0}' is not valid for this item |
 | BU0089 | Error | member '{0}' cannot be accessed with an instance reference; qualify it with the type name instead |
@@ -119,7 +119,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0106 | Error | expression is not a compile-time constant |
 | BU0107 | Error | static types cannot be used as return types |
 | BU0108 | Error | overloaded operator '{0}' takes {1} parameters |
-| BU0109 | Error | overloaded operators must be marked as static |
+| BU0109 | Error | overloaded operators must be marked as public and static |
 | BU0110 | Error | static classes cannot contain operators |
 | BU0111 | Error | at least one of the parameters of an operator must be the containing type |
 | BU0112 | Error | the return type for the '++' or '--' operator must be the containing type |
@@ -127,7 +127,32 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0114 | Error | cannot use arrays outside of low-level contexts |
 | BU0115 | Error | character literal cannot be empty |
 | BU0116 | Error | character literal cannot be more than one character |
-| BU0117 | Error | non-nullable locals must have an initializer |
+| BU0117 | Error | non-nullable locals and class fields must have an initializer |
+| BU0118 | Error | virtual or abstract methods cannot be private |
+| BU0119 | Error | no suitable method found to override |
+| BU0120 | Error | cannot change access modifier of inherited member from '{0}' to '{1}'; cannot change access modifiers when overriding inherited members |
+| BU0121 | Error | cannot derive from primitive type '{0}' |
+| BU0122 | Error | type '{0}' has no such template parameter '{1}' |
+| BU0123 | Error | template '{0}' is not a type; cannot extension check a non-type |
+| BU0124 | Error | template constraint is not a compile-time constant |
+| BU0125 | Error | struct constructors take no arguments |
+| BU0126 | Error | template constraint {0} fails ('{1}'); '{2}' must be or inherit from '{3}' |
+| BU0127 | Error | template constraint {0} fails ('{1}'); constraint results in null |
+| BU0128 | Error | template constraint {0} fails ('{1}') |
+| BU0129 | Error | cannot override inherited method '{0}' because it is not marked virtual or override |
+| BU0130 | Error | cannot use global '{0}' in a class definition |
+| BU0131 | Error | '{0}.{1}' hides inherited member '{2}.{3}'; use the 'new' keyword if hiding was intended |
+| BU0132 | Error | a member marked as override cannot be marked as new, abstract, or virtual |
+| BU0133 | Warning | the member '{0}.{1}' does not hide a member; the 'new' keyword is unnecessary |
+| BU0134 | Error | cannot derive from sealed type '{0}' |
+| BU0135 | Error | cannot derive from static type '{0}' |
+| BU0136 | Error | expected type |
+| BU0137 | Error | cannot use 'base' outside of a class |
+| BU0138 | Error | cannot create an instance of the abstract class '{0}' |
+| BU0139 | Error | '{0}' must declare a body because it is not marked abstract |
+| BU0140 | Error | '{0}' cannot declare a body because it is marked abstract |
+| BU0141 | Error | '{0}' cannot be marked abstract because it is not contained by an abstract type |
+| BU0142 | Error | '{0}' must implement inherited abstract member '{1}.{2}' |
 
 ## Command Line Diagnostics
 

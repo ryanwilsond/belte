@@ -67,6 +67,7 @@ public enum SyntaxKind {
 
     // Keywords
     TypeOfKeyword,
+    NameOfKeyword,
     NullKeyword,
     TrueKeyword,
     FalseKeyword,
@@ -90,9 +91,22 @@ public enum SyntaxKind {
     ClassKeyword,
     NewKeyword,
     ThisKeyword,
+    BaseKeyword,
     StaticKeyword,
     OperatorKeyword,
     LowlevelKeyword,
+    ExtendsKeyword,
+    PublicKeyword,
+    PrivateKeyword,
+    ProtectedKeyword,
+    SealedKeyword,
+    AbstractKeyword,
+    VirtualKeyword,
+    OverrideKeyword,
+    ConstructorKeyword,
+    AsKeyword,
+    WhereKeyword,
+    ThrowKeyword,
 
     // Tokens with text
     BadToken,
@@ -113,6 +127,8 @@ public enum SyntaxKind {
     ParenthesizedExpression,
     CastExpression,
     ThisExpression,
+    BaseExpression,
+    ThrowExpression,
     EmptyExpression,
 
     // Operator expressions
@@ -128,6 +144,7 @@ public enum SyntaxKind {
     // Primary expressions
     LiteralExpression,
     TypeOfExpression,
+    NameOfExpression,
     CallExpression,
     ReferenceExpression,
     MemberAccessExpression,
@@ -165,6 +182,7 @@ public enum SyntaxKind {
     FieldDeclaration,
     MethodDeclaration,
     ConstructorDeclaration,
+    ConstructorInitializer,
     OperatorDeclaration,
 
     // Names
@@ -175,6 +193,7 @@ public enum SyntaxKind {
     ArrayType,
     NonNullableType,
     ReferenceType,
+    BaseType,
 
     // Lists
     Argument,
@@ -186,6 +205,8 @@ public enum SyntaxKind {
     TemplateArgumentList,
     Attribute,
     AttributeList,
+    TemplateParameterConstraintClause,
+    TemplateParameterConstraintClauseList,
 
     // Other
     EndOfFileToken,

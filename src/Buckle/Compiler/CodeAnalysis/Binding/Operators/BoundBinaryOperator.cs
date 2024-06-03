@@ -10,8 +10,11 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundBinaryOperator {
     private BoundBinaryOperator(
-        SyntaxKind kind, BoundBinaryOperatorKind opKind,
-        BoundType leftType, BoundType rightType, BoundType resultType) {
+        SyntaxKind kind,
+        BoundBinaryOperatorKind opKind,
+        BoundType leftType,
+        BoundType rightType,
+        BoundType resultType) {
         this.kind = kind;
         this.opKind = opKind;
         this.leftType = leftType;
@@ -20,7 +23,10 @@ internal sealed class BoundBinaryOperator {
     }
 
     private BoundBinaryOperator(
-        SyntaxKind kind, BoundBinaryOperatorKind opKind, BoundType operandType, BoundType resultType)
+        SyntaxKind kind,
+        BoundBinaryOperatorKind opKind,
+        BoundType operandType,
+        BoundType resultType)
         : this(kind, opKind, operandType, operandType, resultType) { }
 
     private BoundBinaryOperator(SyntaxKind kind, BoundBinaryOperatorKind opKind, BoundType type)
@@ -135,6 +141,8 @@ internal sealed class BoundBinaryOperator {
             BoundType.NullableAny, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.IsntKeyword, BoundBinaryOperatorKind.Isnt,
             BoundType.NullableAny, BoundType.Bool),
+        new BoundBinaryOperator(SyntaxKind.AsKeyword, BoundBinaryOperatorKind.As,
+            BoundType.NullableAny, null),
     };
 
     /// <summary>
@@ -218,13 +226,13 @@ internal sealed class BoundBinaryOperator {
                 : Cast.Classify(rightType, op.rightType, false).isImplicit;
 
             if (op.kind == kind && leftIsCorrect && rightIsCorrect) {
-                if (op.leftType is null || op.rightType is null) {
+                if (op.leftType is null || op.rightType is null || op.type is null) {
                     return new BoundBinaryOperator(
                         op.kind,
                         op.opKind,
                         op.leftType ?? leftType,
                         op.rightType ?? rightType,
-                        op.type ?? leftType
+                        op.type ?? rightType
                     );
                 } else if (leftType.isNullable || rightType.isNullable) {
                     return new BoundBinaryOperator(

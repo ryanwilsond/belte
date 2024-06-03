@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 
@@ -33,6 +32,7 @@ internal static class SyntaxFacts {
                 return 11;
             case SyntaxKind.IsKeyword:
             case SyntaxKind.IsntKeyword:
+            case SyntaxKind.AsKeyword:
             case SyntaxKind.LessThanToken:
             case SyntaxKind.GreaterThanToken:
             case SyntaxKind.LessThanEqualsToken:
@@ -66,6 +66,7 @@ internal static class SyntaxFacts {
     internal static int GetPrimaryPrecedence(this SyntaxKind type) {
         switch (type) {
             case SyntaxKind.TypeOfKeyword:
+            case SyntaxKind.NameOfKeyword:
             case SyntaxKind.OpenBracketToken:
             case SyntaxKind.OpenParenToken:
             case SyntaxKind.PeriodToken:
@@ -156,14 +157,28 @@ internal static class SyntaxFacts {
             "is" => SyntaxKind.IsKeyword,
             "isnt" => SyntaxKind.IsntKeyword,
             "typeof" => SyntaxKind.TypeOfKeyword,
+            "nameof" => SyntaxKind.NameOfKeyword,
             "struct" => SyntaxKind.StructKeyword,
             "class" => SyntaxKind.ClassKeyword,
             "new" => SyntaxKind.NewKeyword,
             "this" => SyntaxKind.ThisKeyword,
+            "base" => SyntaxKind.BaseKeyword,
             "static" => SyntaxKind.StaticKeyword,
             "constexpr" => SyntaxKind.ConstexprKeyword,
             "operator" => SyntaxKind.OperatorKeyword,
             "lowlevel" => SyntaxKind.LowlevelKeyword,
+            "extends" => SyntaxKind.ExtendsKeyword,
+            "public" => SyntaxKind.PublicKeyword,
+            "private" => SyntaxKind.PrivateKeyword,
+            "protected" => SyntaxKind.ProtectedKeyword,
+            "sealed" => SyntaxKind.SealedKeyword,
+            "abstract" => SyntaxKind.AbstractKeyword,
+            "virtual" => SyntaxKind.VirtualKeyword,
+            "override" => SyntaxKind.OverrideKeyword,
+            "constructor" => SyntaxKind.ConstructorKeyword,
+            "as" => SyntaxKind.AsKeyword,
+            "where" => SyntaxKind.WhereKeyword,
+            "throw" => SyntaxKind.ThrowKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -247,14 +262,28 @@ internal static class SyntaxFacts {
             SyntaxKind.IsKeyword => "is",
             SyntaxKind.IsntKeyword => "isnt",
             SyntaxKind.TypeOfKeyword => "typeof",
+            SyntaxKind.NameOfKeyword => "nameof",
             SyntaxKind.StructKeyword => "struct",
             SyntaxKind.ClassKeyword => "class",
             SyntaxKind.NewKeyword => "new",
             SyntaxKind.ThisKeyword => "this",
+            SyntaxKind.BaseKeyword => "base",
             SyntaxKind.StaticKeyword => "static",
             SyntaxKind.ConstexprKeyword => "constexpr",
             SyntaxKind.OperatorKeyword => "operator",
             SyntaxKind.LowlevelKeyword => "lowlevel",
+            SyntaxKind.ExtendsKeyword => "extends",
+            SyntaxKind.PublicKeyword => "public",
+            SyntaxKind.PrivateKeyword => "private",
+            SyntaxKind.ProtectedKeyword => "protected",
+            SyntaxKind.SealedKeyword => "sealed",
+            SyntaxKind.AbstractKeyword => "abstract",
+            SyntaxKind.VirtualKeyword => "virtual",
+            SyntaxKind.OverrideKeyword => "override",
+            SyntaxKind.ConstructorKeyword => "constructor",
+            SyntaxKind.AsKeyword => "as",
+            SyntaxKind.WhereKeyword => "where",
+            SyntaxKind.ThrowKeyword => "throw",
             _ => null,
         };
     }

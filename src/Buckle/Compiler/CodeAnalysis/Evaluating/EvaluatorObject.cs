@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -7,6 +8,8 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// Encased Object that can also be a reference to a <see cref="VariableSymbol" />.
 /// </summary>
 internal sealed class EvaluatorObject : IEvaluatorObject {
+    internal static EvaluatorObject Null => new EvaluatorObject(value: null);
+
     /// <summary>
     /// Creates an <see cref="EvaluatorObject" /> with a null value.
     /// </summary>
@@ -16,6 +19,7 @@ internal sealed class EvaluatorObject : IEvaluatorObject {
         reference = null;
         isExplicitReference = false;
         members = null;
+        trueType = null;
     }
 
     /// <summary>
@@ -29,18 +33,20 @@ internal sealed class EvaluatorObject : IEvaluatorObject {
         reference = null;
         isExplicitReference = false;
         members = null;
+        trueType = null;
     }
 
     /// <summary>
     /// Creates an <see cref="EvaluatorObject" /> without a value, and instead a list of members.
     /// </summary>
     /// <param name="members">Members to contain by this.</param>
-    internal EvaluatorObject(Dictionary<Symbol, EvaluatorObject> members) {
+    internal EvaluatorObject(Dictionary<Symbol, EvaluatorObject> members, BoundType trueType) {
         value = null;
         isReference = false;
         reference = null;
         isExplicitReference = false;
         this.members = members;
+        this.trueType = trueType;
     }
 
     /// <summary>
@@ -65,6 +71,7 @@ internal sealed class EvaluatorObject : IEvaluatorObject {
         this.referenceScope = referenceScope;
         this.isExplicitReference = isExplicitReference;
         members = null;
+        trueType = null;
     }
 
     public object value { get; set; }
@@ -78,4 +85,6 @@ internal sealed class EvaluatorObject : IEvaluatorObject {
     public VariableSymbol reference { get; set; }
 
     public Dictionary<Symbol, EvaluatorObject> members { get; set; }
+
+    public BoundType trueType { get; set; }
 }

@@ -76,6 +76,20 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnexpectedToken), message);
     }
 
+    internal static Diagnostic UnexpectedToken(SyntaxKind unexpected, SyntaxKind expected1, SyntaxKind expected2) {
+        string message;
+
+        if (unexpected == SyntaxKind.EndOfFileToken) {
+            message = $"expected {DiagnosticText(expected1, false)} or " +
+                $"{DiagnosticText(expected2, false)} at end of input";
+        } else {
+            message = $"unexpected {DiagnosticText(unexpected)}, " +
+                $"expected {DiagnosticText(expected1, false)} or {DiagnosticText(expected2, false)}";
+        }
+
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnexpectedToken), message);
+    }
+
     /// <summary>
     /// BU0007. Run `buckle --explain BU0007` on the command line for more info.
     /// </summary>
@@ -187,13 +201,14 @@ internal static class Error {
     /// <summary>
     /// BU0018. Run `buckle --explain BU0018` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic MethodAlreadyDeclared(TextLocation location, string name, string typeName = null) {
-        string message;
+    internal static BelteDiagnostic MethodAlreadyDeclared(
+        TextLocation location,
+        string signature,
+        string typeName = null) {
+        var message = $"redeclaration of method '{signature}'";
 
-        if (typeName is null)
-            message = $"redeclaration of method '{name}'";
-        else
-            message = $"type '{typeName}' already declares a member named '{name}' with the same parameter types";
+        if (typeName is not null)
+            message += $"within type '{typeName}'";
 
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MethodAlreadyDeclared), location, message);
     }
@@ -811,11 +826,9 @@ internal static class Error {
     /// <summary>
     /// BU0086. Run `buckle --explain BU0086` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic IncorrectConstructorName(TextLocation location, string name) {
-        var message = "constructor name must match the name of the enclosing class; " +
-            $"in this case constructors must be named '{name}'";
-
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_IncorrectConstructorName), location, message);
+    internal static BelteDiagnostic MemberIsInaccessible(TextLocation location, string memberName, string typeName) {
+        var message = $"'{typeName}.{memberName}' is inaccessible due to its protection level";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MemberIsInaccessible), location, message);
     }
 
     /// <summary>
@@ -959,16 +972,16 @@ internal static class Error {
     /// <summary>
     /// BU0103. Run `buckle --explain BU0103` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic NonConstantCallInConstant(TextLocation location, string name) {
-        var message = $"cannot call non-constant method '{name}' in a method marked as constant";
+    internal static BelteDiagnostic NonConstantCallInConstant(TextLocation location, string signature) {
+        var message = $"cannot call non-constant method '{signature}' in a method marked as constant";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NonConstantCallInConstant), location, message);
     }
 
     /// <summary>
     /// BU0104. Run `buckle --explain BU0104` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic NonConstantCallOnConstant(TextLocation location, string name) {
-        var message = $"cannot call non-constant method '{name}' on constant";
+    internal static BelteDiagnostic NonConstantCallOnConstant(TextLocation location, string signature) {
+        var message = $"cannot call non-constant method '{signature}' on constant";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NonConstantCallOnConstant), location, message);
     }
 
@@ -1012,9 +1025,9 @@ internal static class Error {
     /// <summary>
     /// BU0109. Run `buckle --explain BU0109` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic OperatorMustBeStatic(TextLocation location) {
-        var message = $"overloaded operators must be marked as static";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_OperatorMustBeStatic), location, message);
+    internal static BelteDiagnostic OperatorMustBePublicAndStatic(TextLocation location) {
+        var message = $"overloaded operators must be marked as public and static";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_OperatorMustBePublicAndStatic), location, message);
     }
 
     /// <summary>
@@ -1077,8 +1090,219 @@ internal static class Error {
     /// BU0117. Run `buckle --explain BU0117` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic NoInitOnNonNullable(TextLocation location) {
-        var message = $"non-nullable locals must have an initializer";
+        var message = $"non-nullable locals and class fields must have an initializer";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoInitOnNonNullable), location, message);
+    }
+
+    /// <summary>
+    /// BU0118. Run `buckle --explain BU0118` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotBePrivateAndVirtualOrAbstract(TextLocation location) {
+        var message = $"virtual or abstract methods cannot be private";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotBePrivateAndVirtualOrAbstract), location, message);
+    }
+
+    /// <summary>
+    /// BU0119. Run `buckle --explain BU0119` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic NoSuitableOverrideTarget(TextLocation location) {
+        var message = $"no suitable method found to override";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NoSuitableOverrideTarget), location, message);
+    }
+
+    /// <summary>
+    /// BU0120. Run `buckle --explain BU0120` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic OverrideCannotChangeAccessibility(
+        TextLocation location,
+        string oldAccessibility,
+        string newAccessibility) {
+        var message = $"cannot change access modifier of inherited member from '{oldAccessibility}' " +
+            $"to '{newAccessibility}'; cannot change access modifiers when overriding inherited members";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_OverrideCannotChangeAccessibility), location, message);
+    }
+
+    /// <summary>
+    /// BU0121. Run `buckle --explain BU0121` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotDerivePrimitive(TextLocation location, string typeName) {
+        var message = $"cannot derive from primitive type '{typeName}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotDerivePrimitive), location, message);
+    }
+
+    /// <summary>
+    /// BU0122. Run `buckle --explain BU0122` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic UnknownTemplate(TextLocation location, string typeName, string templateName) {
+        var message = $"type '{typeName}' has no such template parameter '{templateName}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_UnknownTemplate), location, message);
+    }
+
+    /// <summary>
+    /// BU0123. Run `buckle --explain BU0123` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotExtendCheckNonType(TextLocation location, string name) {
+        var message = $"template '{name}' is not a type; cannot extension check a non-type";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotExtendCheckNonType), location, message);
+    }
+
+    /// <summary>
+    /// BU0124. Run `buckle --explain BU0124` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic ConstraintIsNotConstant(TextLocation location) {
+        var message = $"template constraint is not a compile-time constant";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstraintIsNotConstant), location, message);
+    }
+
+    /// <summary>
+    /// BU0125. Run `buckle --explain BU0125` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic StructTakesNoArguments(TextLocation location) {
+        var message = $"struct constructors take no arguments";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StructTakesNoArguments), location, message);
+    }
+
+    /// <summary>
+    /// BU0126. Run `buckle --explain BU0126` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic ExtendConstraintFailed(
+        TextLocation location,
+        string constraint,
+        int ordinal,
+        string templateName,
+        string extensionName) {
+        var message = $"template constraint {ordinal} fails ('{constraint}'); '{templateName}' must be or inherit from '{extensionName}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ExtendConstraintFailed), location, message);
+    }
+
+    /// <summary>
+    /// BU0127. Run `buckle --explain BU0127` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic ConstraintWasNull(TextLocation location, string constraint, int ordinal) {
+        var message = $"template constraint {ordinal} fails ('{constraint}'); constraint results in null";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstraintWasNull), location, message);
+    }
+
+    /// <summary>
+    /// BU0128. Run `buckle --explain BU0128` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic ConstraintFailed(TextLocation location, string constraint, int ordinal) {
+        var message = $"template constraint {ordinal} fails ('{constraint}')";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstraintFailed), location, message);
+    }
+
+    /// <summary>
+    /// BU0129. Run `buckle --explain BU0129` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotOverride(TextLocation location, string signature) {
+        var message = $"cannot override inherited method '{signature}' because it is not marked virtual or override";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotOverride), location, message);
+    }
+
+    /// <summary>
+    /// BU0130. Run `buckle --explain BU0130` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotUseGlobalInClass(TextLocation location, string name) {
+        var message = $"cannot use global '{name}' in a class definition";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseGlobalInClass), location, message);
+    }
+
+    /// <summary>
+    /// BU0131. Run `buckle --explain BU0131` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic MemberShadowsParent(
+        TextLocation location,
+        string newSignature,
+        string newTypeName,
+        string parentSignature,
+        string parentTypeName) {
+        var message = $"'{newTypeName}.{newSignature}' hides inherited member '{parentTypeName}.{parentSignature}';" +
+            " use the 'new' keyword if hiding was intended";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MemberShadowsParent), location, message);
+    }
+
+    /// <summary>
+    /// BU0132. Run `buckle --explain BU0132` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic ConflictingOverrideModifiers(TextLocation location) {
+        var message = $"a member marked as override cannot be marked as new, abstract, or virtual";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConflictingOverrideModifiers), location, message);
+    }
+
+    /// <summary>
+    /// BU0134. Run `buckle --explain BU0134` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotDeriveSealed(TextLocation location, string typeName) {
+        var message = $"cannot derive from sealed type '{typeName}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotDeriveSealed), location, message);
+    }
+
+    /// <summary>
+    /// BU0135. Run `buckle --explain BU0135` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotDeriveStatic(TextLocation location, string typeName) {
+        var message = $"cannot derive from static type '{typeName}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotDeriveStatic), location, message);
+    }
+
+    /// <summary>
+    /// BU0136. Run `buckle --explain BU0136` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic ExpectedType(TextLocation location) {
+        var message = $"expected type";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedType), location, message);
+    }
+
+    /// <summary>
+    /// BU0137. Run `buckle --explain BU0137` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotUseBase(TextLocation location) {
+        var message = "cannot use 'base' outside of a class";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotUseBase), location, message);
+    }
+
+    /// <summary>
+    /// BU0138. Run `buckle --explain BU0138` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotConstructAbstract(TextLocation location, string name) {
+        var message = $"cannot create an instance of the abstract class '{name}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotConstructAbstract), location, message);
+    }
+
+    /// <summary>
+    /// BU0139. Run `buckle --explain BU0139` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic NonAbstractMustHaveBody(TextLocation location, string name) {
+        var message = $"'{name}' must declare a body because it is not marked abstract";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_NonAbstractMustHaveBody), location, message);
+    }
+
+    /// <summary>
+    /// BU0140. Run `buckle --explain BU0140` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic AbstractCannotHaveBody(TextLocation location, string name) {
+        var message = $"'{name}' cannot declare a body because it is marked abstract";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AbstractCannotHaveBody), location, message);
+    }
+
+    /// <summary>
+    /// BU0141. Run `buckle --explain BU0141` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic AbstractMemberInNonAbstractType(TextLocation location, string name) {
+        var message = $"'{name}' cannot be marked abstract because it is not contained by an abstract type";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_AbstractMemberInNonAbstractType), location, message);
+    }
+
+    /// <summary>
+    /// BU0142. Run `buckle --explain BU0142` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic TypeDoesNotImplementAbstract(
+        TextLocation location,
+        string className,
+        string signature,
+        string containingTypeName) {
+        var message = $"'{className}' must implement inherited abstract member '{containingTypeName}.{signature}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_TypeDoesNotImplementAbstract), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

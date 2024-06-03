@@ -188,6 +188,15 @@ public sealed class DisplayText {
             case BoundNodeKind.ThisExpression:
                 DisplayThisExpression(text, (BoundThisExpression)node);
                 break;
+            case BoundNodeKind.BaseExpression:
+                DisplayBaseExpression(text, (BoundBaseExpression)node);
+                break;
+            case BoundNodeKind.ExtendExpression:
+                DisplayExtendExpression(text, (BoundExtendExpression)node);
+                break;
+            case BoundNodeKind.ThrowExpression:
+                DisplayThrowExpression(text, (BoundThrowExpression)node);
+                break;
             default:
                 throw new BelteInternalException($"DisplayNode: unexpected node '{node.kind}'");
         }
@@ -539,6 +548,24 @@ public sealed class DisplayText {
 
     private static void DisplayThisExpression(DisplayText text, BoundThisExpression _) {
         text.Write(CreateKeyword(SyntaxKind.ThisKeyword));
+    }
+
+    private static void DisplayBaseExpression(DisplayText text, BoundBaseExpression _) {
+        text.Write(CreateKeyword(SyntaxKind.BaseKeyword));
+    }
+
+    private static void DisplayExtendExpression(DisplayText text, BoundExtendExpression node) {
+        SymbolDisplay.DisplaySymbol(text, node.template);
+        text.Write(CreateSpace());
+        text.Write(CreateKeyword(SyntaxKind.ExtendsKeyword));
+        text.Write(CreateSpace());
+        DisplayNode(text, node.extension);
+    }
+
+    private static void DisplayThrowExpression(DisplayText text, BoundThrowExpression node) {
+        text.Write(CreateKeyword(SyntaxKind.ThrowKeyword));
+        text.Write(CreateSpace());
+        DisplayNode(text, node.exception);
     }
 
     private static void DisplayTernaryExpression(DisplayText text, BoundTernaryExpression node) {

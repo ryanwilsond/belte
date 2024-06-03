@@ -44,7 +44,7 @@ public abstract class BelteSyntaxNode : SyntaxNode {
                 break;
             }
 
-            (nodes ?? (nodes = ArrayBuilder<BelteSyntaxNode>.GetInstance())).Add(node);
+            (nodes ??= ArrayBuilder<BelteSyntaxNode>.GetInstance()).Add(node);
             node = parent;
         }
 

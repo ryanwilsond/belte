@@ -11,7 +11,7 @@ internal static partial class StandardLibrary {
     /// Gets all the pre-compiled symbols defined by the library.
     /// </summary>
     internal static Symbol[] GetSymbols() {
-        return [Console, Math];
+        return [Object, Console, Math];
     }
 
     /// <summary>
@@ -29,32 +29,38 @@ internal static partial class StandardLibrary {
                 System.Console.WriteLine(arguments[0]);
         } else if (method == Console.members[3]) {
             if (!System.Console.IsOutputRedirected)
-                System.Console.WriteLine();
+                System.Console.WriteLine(arguments[0]);
         } else if (method == Console.members[4]) {
             if (!System.Console.IsOutputRedirected)
-                System.Console.Write(arguments[0]);
+                System.Console.WriteLine();
         } else if (method == Console.members[5]) {
             if (!System.Console.IsOutputRedirected)
                 System.Console.Write(arguments[0]);
         } else if (method == Console.members[6]) {
-            if (!System.Console.IsInputRedirected)
-                return System.Console.ReadLine();
+            if (!System.Console.IsOutputRedirected)
+                System.Console.Write(arguments[0]);
         } else if (method == Console.members[7]) {
             if (!System.Console.IsOutputRedirected)
-                System.Console.ForegroundColor = (ConsoleColor)arguments[0];
+                System.Console.Write(arguments[0]);
         } else if (method == Console.members[8]) {
-            if (!System.Console.IsOutputRedirected)
-                System.Console.BackgroundColor = (ConsoleColor)arguments[0];
+            if (!System.Console.IsInputRedirected)
+                return System.Console.ReadLine();
         } else if (method == Console.members[9]) {
             if (!System.Console.IsOutputRedirected)
-                System.Console.ResetColor();
+                System.Console.ForegroundColor = (ConsoleColor)arguments[0];
         } else if (method == Console.members[10]) {
             if (!System.Console.IsOutputRedirected)
-                return System.Console.WindowWidth;
+                System.Console.BackgroundColor = (ConsoleColor)arguments[0];
         } else if (method == Console.members[11]) {
             if (!System.Console.IsOutputRedirected)
-                return System.Console.WindowHeight;
+                System.Console.ResetColor();
         } else if (method == Console.members[12]) {
+            if (!System.Console.IsOutputRedirected)
+                return System.Console.WindowWidth;
+        } else if (method == Console.members[13]) {
+            if (!System.Console.IsOutputRedirected)
+                return System.Console.WindowHeight;
+        } else if (method == Console.members[14]) {
             if (!System.Console.IsOutputRedirected) {
                 var left = (int?)arguments[0] ?? System.Console.CursorLeft;
                 var top = (int?)arguments[1] ?? System.Console.CursorTop;
@@ -143,7 +149,8 @@ internal static partial class StandardLibrary {
                 return null;
 
             var rate = Convert.ToDouble(arguments[2]);
-            return Convert.ToDouble(arguments[0]) * (1 - rate) + Convert.ToDouble(arguments[1]) * rate;
+            var start = Convert.ToDouble(arguments[0]);
+            return start + rate * (Convert.ToDouble(arguments[1]) - start);
         } else if (method == Math.members[33]) {
             var rate = Convert.ToDouble(arguments[2]);
             return Convert.ToDouble(arguments[0]) * (1 - rate) + Convert.ToDouble(arguments[1]) * rate;

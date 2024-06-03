@@ -1351,23 +1351,24 @@ class MyClass {
     int myInt;
 
     void MyMethod() {
-        this.myInt = 3;
-        int myOtherInt = this.myInt; // Allowed
+        this.myInt = 3; // Allowed
     }
 }
 ```
 $BU0086
-Constructors are methods that are run when an object is created, and the name
-of a constructor must match the class name. Otherwise this error is raised.
+Members marked as private can only be accessed within their containing type's declaration.
 
 For example:
 
 ```
 class MyClass {
-    MyConstructor() { } // Not allowed, all constructors must be named the same as the class name, in this case `MyClass`
-
-    MyClass() { } // Allowed
+    private static void M1() { ... }
+    public static void M2() { ... }
 }
+
+MyClass.M1(); // Not allowed, `MyClass.M1()` is inaccessible outside of the `MyClass` declaration because `M1()` is marked as private
+MyClass.M2(); // Allowed, `M2()` is marked as public
+```
 $BU0087
 If an object is created with an argument list that matches no constructor
 parameter lists, this error is raised. This error is the same as BU0057 but
@@ -1660,12 +1661,17 @@ $BU0109
 Operators are static because they do not favor a specific instance (left or right). If an operator is overloaded without
 marking it as static, this error is raised.
 
+Operators must always be public. If an operator is overloaded without marking it as public, this error is raised as
+well.
+
 For example:
 
 ```
 class MyClass {
-    MyClass operator+(MyClass a, MyClass b) { ... } // Not allowed, not marked as static
-    static MyClass operator+(MyClass a, MyClass b) { ... } // Allowed
+    MyClass operator+(MyClass a, MyClass b) { ... } // Not allowed, not marked as public and static
+    public MyClass operator+(MyClass a, MyClass b) { ... } // Not allowed, not marked as static
+    static MyClass operator+(MyClass a, MyClass b) { ... } // Not allowed, not marked as public
+    public static MyClass operator+(MyClass a, MyClass b) { ... } // Allowed
 }
 ```
 $BU0110
@@ -1763,6 +1769,379 @@ For example:
 ```
 int! myInt; // Not allowed, no initializer
 int! myInt = 3; // Allowed
+```
+$BU0118
+Virtual and abstract methods indicate they can be overridden by child class
+declarations, and because child classes can only see public members, a method
+cannot be marked virtual or abstract while also marked private.
+
+For example:
+
+```
+class A {
+    private virtual void M() { ... } // Not allowed, method `M` marked both private and virtual
+}
+```
+$BU0119
+Override methods replace method definitions from base classes. If the base class
+did not declare a method matching the override signature, this error is raised
+as there is no suitable target for the override method.
+
+For example:
+
+```
+class A {
+    public virtual void M(int a) { }
+}
+
+class B extends A {
+    public override void J(int a) { } // Not allowed, no method `J` to override
+    public override void M(int a) { } // Allowed
+}
+```
+$BU0120
+Overridden members must only differ in definition, not declaration. As such,
+the access modifier of an overridden members cannot differ from the inherited
+member.
+
+For example:
+
+```
+class A {
+    public virtual void M() { }
+}
+
+class B extends A {
+    private override void M() { } // Not allowed, changing access modifier of `M` from public to private
+}
+```
+$BU0121
+Primitive types are not objects, so they cannot be inherited from/derived from.
+
+For example:
+
+```
+class A extends int { } // Not allowed, derives from non-object primitive type `int`
+```
+$BU0122
+Template parameter constraint clauses constraint the template parameters of the
+currently declaring type only.
+
+For example:
+
+```
+class A<type T> where { T extends Object; } { } // Allowed
+
+class B extends A where { T extends List<int>; } { } // Not allowed, `T` is not a template of `B` but of `A`
+```
+$BU0123
+Extension constraints ensure that a type template argument is or is a child
+class of the specified constraint type.
+
+For example:
+
+```
+class A<type T> where { T extends List<int>; } // Allowed
+
+class A<int T> where { T extends List<int>; } // Not allowed, `T` is not a type template parameter
+```
+$BU0124
+Template parameter constraint clauses must be computable at compile time because
+they are checked when compiling object creation expressions.
+
+For example:
+
+```
+int v = 3;
+
+class A<int T> where { T < v; } // Not allowed, referencing variable `v` is not compile-time computable
+
+class A<int T> where { T < 10; } // Allowed
+```
+$BU0125
+Structure (struct) constructors take no arguments because constructors cannot be
+defined for them. Only the default constructor can be called.
+
+For example:
+
+```
+struct A {
+    int a;
+    int b;
+}
+
+var s = new A(a: 3, b: 6); // Not allowed
+var s = new A(); // Allowed
+```
+$BU0126
+An extension template parameter constraint clause ensures the passed type
+template is or inherits from the specified type.
+
+For example:
+
+```
+class A<type T> where { T extends Object; } { }
+
+var a = new A<int>(); // Not allowed, `int` does not inherit from `Object`
+var a = new A<Object>(); // Allowed
+```
+$BU0127
+While template parameter constraint clauses themselves allow nullability, them
+resulting in null is treated as a constraint failure.
+
+For example:
+
+```
+class A<int a> where { a < 10; } { }
+
+var a = new A<null>(); // Not allowed, `null` makes the constraint result in null, failing
+var a = new A<5>(); // Allowed
+```
+$BU0128
+All template parameter constraint clauses must evaluate to true when
+instantiating a template.
+
+For example:
+
+```
+class A<int a> where { a < 10; } { }
+
+var a = new A<11>(); // Not allowed, `11 < 10` is false
+var a = new A<5>(); // Allowed
+```
+$BU0129
+By default, members are not allowed to be overridden. They can only be
+overridden if marked virtual, or if it is already an override itself.
+
+For example:
+
+```
+class A {
+    public void M() { }
+}
+
+class B extends A {
+    public override void M() { } // Not allowed, `M()` is not marked virtual or override
+}
+```
+
+```
+class A {
+    public virtual void M() { }
+}
+
+class B extends A {
+    public override void M() { } // Allowed
+}
+```
+$BU0130
+Global variables, constants, or constant expressions cannot be used
+within class definitions to prevent possible circular dependencies when the
+global is of that very class type. Note that global functions can be used.
+
+For example:
+
+```
+C myC = new C();
+
+class C {
+    int a = myC.a;
+}
+```
+
+In this example, a circular dependency is created as the definition for class
+`C` uses global variable `myC`, but `myC` is of defining type `C`. To prevent
+this possibility, globals cannot be used within class definitions.
+$BU0131
+Unlike local shadowing, member shadowing is not implicitly allowed to prevent
+unintended shadowing. The `new` keyword must be used to shadow members.
+
+For example:
+
+```
+class A {
+    public void M() { }
+}
+
+class B extends A {
+    public void M() { } // Not allowed, `B.M()` implicitly shadows `A.M()`
+    public new void M() { } // Allowed
+}
+```
+$BU0132
+A member marked as override cannot be marked as virtual, as virtual indicates
+that the member is not shadowing another, while overriding does.
+
+For example:
+
+```
+class A {
+    public virtual void M() { }
+}
+
+class B extends A {
+    public virtual override void M() { } // Not allowed, in this case just use `override`
+}
+```
+
+A member marked as override also cannot be marked as new, as new indicates total
+shadowing while override indicates override shadowing.
+
+For example:
+
+```
+class A {
+    public virtual void M() { }
+}
+
+class B extends A {
+    public new override void M() { } // Not allowed
+}
+```
+$BU0133
+A member marked as new that does not hide an inherited member makes the new
+unnecessary.
+
+For example:
+
+```
+class A {
+    public new void M() { } // Unnecessary `new` as `A.M()` does not hide any inherited members
+}
+```
+$BU0134
+Types marked as sealed cannot be derived.
+
+For example:
+
+```
+sealed class A { }
+
+class B extends A { } // Not allowed, `A` is sealed and therefore cannot be derived
+```
+$BU0135
+Types marked as static cannot be derived.
+
+For example:
+
+```
+static class A { }
+
+class B extends A { } // Not allowed, `A` is static and therefore cannot be derived
+```
+$BU0136
+As casts take in a type as the right operand.
+
+For example:
+
+```
+class A { }
+
+class B extends A { }
+
+var myA = new B() as A; // Allowed
+var myA = new B() as 379; // Not allowed
+```
+$BU0137
+The `base` keyword is used to access type members, such as fields and methods.
+It searches for members of the parent of the currently enclosing type, so if
+this keyword is used outside of a type definition, this error is raised.
+
+For example:
+
+```
+int myInt = 3;
+int myOtherInt = base.myInt; // Not allowed, not inside of a type definition
+
+class A {
+    protected int myInt;
+}
+
+class B extends A {
+    void MyMethod() {
+        base.myInt = 3; // Allowed
+    }
+}
+```
+$BU0138
+Abstract classes cannot be initialized directly. Only non-abstract child classes
+can. However, members and locals can have an abstract type.
+
+For example:
+
+```
+abstract class A { }
+
+A myA = new A(); // Not allowed
+```
+
+```
+abstract class A { }
+
+class B extends A { }
+
+A myA = new B(); // Allowed
+```
+$BU0139
+All methods must define a body when declared unless marked abstract, where it is
+guaranteed to be overridden.
+
+For example:
+
+```
+class MyClass {
+    public void M(); // Not allowed
+}
+```
+$BU0140
+All abstract methods cannot define a body when declared because they are
+guaranteed to be overridden, making the defined body never used.
+
+For example:
+
+```
+abstract class MyClass {
+    public abstract void M() { } // Not allowed
+    public abstract void M(); // Allowed
+}
+```
+$BU0141
+Abstract methods must be overridden. Methods can only be marked in abstract
+types to ensure the method is overridden. An abstract method in a non-abstract
+type is not guaranteed to be defined because the type can be initialized
+directly.
+
+For example:
+
+```
+class MyClass {
+    public abstract void M(); // Not allowed, `MyClass` is not an abstract type
+}
+```
+$BU0142
+Abstract methods must be overbidden. Non-abstract child classes that inherit
+abstract methods must implement all abstract methods.
+
+For example:
+
+```
+abstract class A {
+    public abstract void M();
+}
+
+sealed class B extends A {
+    // Not allowed, does not implement inherited member `A.M()`
+}
+```
+
+```
+abstract class A {
+    public abstract void M();
+}
+
+sealed class B extends A {
+    public override void M() { } // Allowed
+}
 ```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble

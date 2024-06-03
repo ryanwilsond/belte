@@ -13,29 +13,38 @@ internal static class LibraryUtilities {
     internal static ClassSymbol StaticClass(string name, ImmutableArray<Symbol> members) {
         return new ClassSymbol(
             [],
+            [],
             members,
             [],
             CreateDeclaration(name),
-            DeclarationModifiers.Static
+            DeclarationModifiers.Static,
+            Accessibility.Public,
+            null
         );
     }
 
     internal static ClassSymbol Class(string name, ImmutableArray<Symbol> members) {
         return new ClassSymbol(
             [],
+            [],
             members,
             [],
             CreateDeclaration(name),
-            DeclarationModifiers.None
+            DeclarationModifiers.None,
+            Accessibility.Public,
+            null
         );
     }
 
-    internal static MethodSymbol Constructor(List<(string, BoundType)> parameters) {
+    internal static MethodSymbol Constructor(
+        List<(string, BoundType)> parameters,
+        Accessibility accessibility = Accessibility.Public) {
         return new MethodSymbol(
             WellKnownMemberNames.InstanceConstructorName,
             CreateParameterList(parameters),
             BoundType.Void,
-            modifiers: DeclarationModifiers.None
+            modifiers: DeclarationModifiers.None,
+            accessibility: accessibility
         );
     }
 
@@ -59,7 +68,25 @@ internal static class LibraryUtilities {
             name,
             CreateParameterList(parameters),
             type,
-            modifiers: DeclarationModifiers.Static
+            modifiers: DeclarationModifiers.Static,
+            accessibility: Accessibility.Public
+        );
+    }
+
+    internal static MethodSymbol Method(
+        string name,
+        BoundType type,
+        List<(string, BoundType)> parameters,
+        DeclarationModifiers modifiers,
+        Accessibility accessibility,
+        MethodDeclarationSyntax declaration = null) {
+        return new MethodSymbol(
+            name,
+            CreateParameterList(parameters),
+            type,
+            declaration: declaration,
+            modifiers: modifiers,
+            accessibility: accessibility
         );
     }
 
@@ -68,7 +95,8 @@ internal static class LibraryUtilities {
             name,
             type,
             null,
-            DeclarationModifiers.None
+            DeclarationModifiers.None,
+            Accessibility.Public
         );
     }
 
@@ -77,7 +105,8 @@ internal static class LibraryUtilities {
             name,
             BoundType.CopyWith(type, isConstantExpression: true),
             new BoundConstant(value),
-            DeclarationModifiers.ConstExpr
+            DeclarationModifiers.ConstExpr,
+            Accessibility.Public
         );
     }
 
@@ -96,6 +125,8 @@ internal static class LibraryUtilities {
             CodeAnalysis.Syntax.InternalSyntax.SyntaxFactory.Token(SyntaxKind.ClassKeyword),
             CodeAnalysis.Syntax.InternalSyntax.SyntaxFactory.Token(SyntaxKind.IdentifierToken, name),
             null, // Template parameters
+            null, // Base type list
+            null, // Template parameter constraint clause list
             CodeAnalysis.Syntax.InternalSyntax.SyntaxFactory.Token(SyntaxKind.OpenBraceToken),
             null, // Members
             CodeAnalysis.Syntax.InternalSyntax.SyntaxFactory.Token(SyntaxKind.CloseBraceToken)

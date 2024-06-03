@@ -26,4 +26,5 @@ internal static class WellKnownMemberNames {
     internal const string BitwiseNotOperatorName = "op_BitwiseNot";
     internal const string IndexOperatorName = "op_Index";
     internal const string IndexAssignName = "op_IndexAssign";
+    internal new const string ToString = "ToString";
 }

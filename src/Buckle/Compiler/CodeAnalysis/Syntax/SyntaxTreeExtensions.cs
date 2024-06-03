@@ -30,7 +30,7 @@ public static class SyntaxTreeExtensions {
     internal static InternalSyntax.SyntaxList<InternalSyntax.SyntaxToken> ParseTokens(
         SourceText text,
         bool includeEOF = false) {
-        var tokens = new SyntaxListBuilder<InternalSyntax.SyntaxToken>(32);
+        var tokens = new InternalSyntax.SyntaxListBuilder<InternalSyntax.SyntaxToken>(32);
 
         void ParseTokens(SyntaxTree syntaxTree) {
             var lexer = new Lexer(syntaxTree, true);

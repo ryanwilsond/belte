@@ -26,6 +26,7 @@ internal enum BoundBinaryOperatorKind {
     GreatOrEqual,
     Is,
     Isnt,
+    As,
     Modulo,
     NullCoalescing,
 }

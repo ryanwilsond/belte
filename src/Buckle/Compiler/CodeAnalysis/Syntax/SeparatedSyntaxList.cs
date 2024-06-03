@@ -30,9 +30,6 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
     /// The given index represents which child of the given node to treat as the beginning of the created
     /// <see cref="SeparatedSyntaxList<T>" />.
     /// </summary>
-    /// <param name="node"></param>
-    /// <param name="index"></param>
-    /// <returns></returns>
     internal SeparatedSyntaxList(SyntaxNode node, int index) : this(new SyntaxNodeOrTokenList(node, index)) { }
 
     /// <summary>

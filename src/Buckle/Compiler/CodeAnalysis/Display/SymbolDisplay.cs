@@ -59,9 +59,9 @@ public static class SymbolDisplay {
 
     private static void DisplayField(DisplayText text, FieldSymbol symbol) {
         DisplayModifiers(text, symbol);
-
         DisplayText.DisplayNode(text, symbol.type);
         text.Write(CreateSpace());
+        DisplayContainedNames(text, symbol);
         text.Write(CreateIdentifier(symbol.name));
     }
 
@@ -95,6 +95,29 @@ public static class SymbolDisplay {
                 }
 
                 text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
+            }
+
+            if (n is ClassSymbol c) {
+                text.Write(CreateSpace());
+                text.Write(CreateKeyword(SyntaxKind.ExtendsKeyword));
+                text.Write(CreateSpace());
+                DisplayText.DisplayNode(text, c.baseType);
+            }
+
+            if (!n.templateConstraints.IsEmpty) {
+                text.Write(CreateSpace());
+                text.Write(CreateKeyword(SyntaxKind.WhereKeyword));
+                text.Write(CreateSpace());
+                text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+                text.Write(CreateSpace());
+
+                foreach (var constraint in n.templateConstraints) {
+                    DisplayText.DisplayNode(text, constraint);
+                    text.Write(CreatePunctuation(SyntaxKind.SemicolonToken));
+                    text.Write(CreateSpace());
+                }
+
+                text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
             }
         } else {
             text.Write(CreateType(symbol.name));
@@ -137,8 +160,39 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayModifiers(DisplayText text, Symbol symbol) {
+        if (symbol.accessibility == Accessibility.Public) {
+            text.Write(CreateKeyword(SyntaxKind.PublicKeyword));
+            text.Write(CreateSpace());
+        } else if (symbol.accessibility == Accessibility.Protected) {
+            text.Write(CreateKeyword(SyntaxKind.ProtectedKeyword));
+            text.Write(CreateSpace());
+        } else if (symbol.accessibility == Accessibility.Private) {
+            text.Write(CreateKeyword(SyntaxKind.PrivateKeyword));
+            text.Write(CreateSpace());
+        }
+
         if (symbol.isStatic) {
             text.Write(CreateKeyword(SyntaxKind.StaticKeyword));
+            text.Write(CreateSpace());
+        }
+
+        if (symbol.isSealed) {
+            text.Write(CreateKeyword(SyntaxKind.SealedKeyword));
+            text.Write(CreateSpace());
+        }
+
+        if (symbol.isVirtual) {
+            text.Write(CreateKeyword(SyntaxKind.VirtualKeyword));
+            text.Write(CreateSpace());
+        }
+
+        if (symbol.isAbstract) {
+            text.Write(CreateKeyword(SyntaxKind.AbstractKeyword));
+            text.Write(CreateSpace());
+        }
+
+        if (symbol.isOverride) {
+            text.Write(CreateKeyword(SyntaxKind.OverrideKeyword));
             text.Write(CreateSpace());
         }
     }

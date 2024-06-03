@@ -5,6 +5,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -13,8 +14,6 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class OverloadResolution {
     private readonly Binder _binder;
-
-    private bool _suppressDiagnostics = false;
 
     /// <summary>
     /// Creates an <see cref="OverloadResolution" />, uses a Binders diagnostics.
@@ -39,9 +38,13 @@ internal sealed class OverloadResolution {
         SyntaxNodeOrToken operand,
         ArgumentListSyntax argumentList,
         BoundType receiverType) {
-        _suppressDiagnostics = true;
+        var tempDiagnostics = new BelteDiagnosticQueue();
+        tempDiagnostics.Move(_binder.diagnostics);
+
         var result = MethodOverloadResolution(methods, arguments, name, operand, argumentList, receiverType);
-        _suppressDiagnostics = false;
+
+        _binder.diagnostics.Clear();
+        _binder.diagnostics.Move(tempDiagnostics);
 
         return result;
     }
@@ -170,8 +173,7 @@ internal sealed class OverloadResolution {
             }
 
             if (methods.Length == 1 && _binder.diagnostics.Errors().Any()) {
-                tempDiagnostics.Move(_binder.diagnostics);
-                _binder.diagnostics.Move(tempDiagnostics);
+                CleanUpDiagnostics(methods, tempDiagnostics);
                 return OverloadResolutionResult<MethodSymbol>.Failed();
             }
 
@@ -189,16 +191,10 @@ internal sealed class OverloadResolution {
         CleanUpDiagnostics(methods, tempDiagnostics);
 
         if (methods.Length > 1 && possibleOverloads.Count == 0) {
-            if (isConstructor) {
-                if (!_suppressDiagnostics) {
-                    _binder.diagnostics.Push(
-                        Error.NoConstructorOverload(operand.location, methods[0].containingType.name)
-                    );
-                }
-            } else {
-                if (!_suppressDiagnostics)
-                    _binder.diagnostics.Push(Error.NoMethodOverload(operand.location, name));
-            }
+            if (isConstructor)
+                _binder.diagnostics.Push(Error.NoConstructorOverload(operand.location, methods[0].containingType.name));
+            else
+                _binder.diagnostics.Push(Error.NoMethodOverload(operand.location, name));
 
             return OverloadResolutionResult<MethodSymbol>.Failed();
         } else if (methods.Length > 1 && possibleOverloads.Count > 1) {
@@ -210,27 +206,73 @@ internal sealed class OverloadResolution {
                 possibleOverloads.Clear();
                 possibleOverloads.Add(BuiltinMethods.ValueAny);
             } else {
-                var minArguments = int.MaxValue;
+                // Attempts to still find a preferred overload even if the parameter list is ambiguous
+                // Prefers:
+                //      - Methods that are accessible
+                //      - Methods with fewer parameters
+                //      - Methods from more direct parent types
                 var tempPossibleOverloads = new List<MethodSymbol>();
 
-                foreach (var overload in possibleOverloads) {
-                    if (overload.parameters.Length < minArguments) {
-                        tempPossibleOverloads.Clear();
-                        minArguments = overload.parameters.Length;
+                if (receiverType is not null) {
+                    foreach (var overload in possibleOverloads) {
+                        if (overload.accessibility == Accessibility.Public) {
+                            tempPossibleOverloads.Add(overload);
+                        } else if (overload.accessibility == Accessibility.Protected &&
+                            TypeUtilities.TypeInheritsFrom(receiverType.typeSymbol, overload.containingType)) {
+                            tempPossibleOverloads.Add(overload);
+                        } else if (overload.accessibility == Accessibility.Private && receiverType.typeSymbol == overload.containingType) {
+                            tempPossibleOverloads.Add(overload);
+                        }
                     }
 
-                    if (overload.parameters.Length == minArguments)
-                        tempPossibleOverloads.Add(overload);
+                    if (tempPossibleOverloads.Count > 0)
+                        possibleOverloads = tempPossibleOverloads;
                 }
 
-                possibleOverloads = tempPossibleOverloads;
-
                 if (possibleOverloads.Count > 1) {
-                    _binder.diagnostics.Push(
-                        Error.AmbiguousMethodOverload(operand.location, possibleOverloads.ToArray())
-                    );
+                    tempPossibleOverloads = new List<MethodSymbol>();
+                    var minArguments = int.MaxValue;
 
-                    return OverloadResolutionResult<MethodSymbol>.Ambiguous();
+                    foreach (var overload in possibleOverloads) {
+                        if (overload.parameters.Length < minArguments) {
+                            tempPossibleOverloads.Clear();
+                            minArguments = overload.parameters.Length;
+                        }
+
+                        if (overload.parameters.Length == minArguments)
+                            tempPossibleOverloads.Add(overload);
+                    }
+
+                    possibleOverloads = tempPossibleOverloads;
+
+                    if (possibleOverloads.Count > 1) {
+                        if (receiverType is not null) {
+                            var minBaseDepth = int.MaxValue;
+                            tempPossibleOverloads = new List<MethodSymbol>();
+
+                            foreach (var overload in possibleOverloads) {
+                                var depth = TypeUtilities.GetInheritanceDepth(receiverType.typeSymbol, overload.containingType);
+
+                                if (depth < minBaseDepth) {
+                                    tempPossibleOverloads.Clear();
+                                    minBaseDepth = depth;
+                                }
+
+                                if (depth == minBaseDepth)
+                                    tempPossibleOverloads.Add(overload);
+                            }
+
+                            possibleOverloads = tempPossibleOverloads;
+                        }
+
+                        if (possibleOverloads.Count > 1) {
+                            _binder.diagnostics.Push(
+                                Error.AmbiguousMethodOverload(operand.location, possibleOverloads.ToArray())
+                            );
+
+                            return OverloadResolutionResult<MethodSymbol>.Ambiguous();
+                        }
+                    }
                 }
             }
         } else if (methods.Length == 1 && possibleOverloads.Count == 0) {
@@ -343,8 +385,7 @@ internal sealed class OverloadResolution {
             }
 
             if (types.Length == 1 && _binder.diagnostics.Errors().Any()) {
-                tempDiagnostics.Move(_binder.diagnostics);
-                _binder.diagnostics.Move(tempDiagnostics);
+                CleanUpDiagnostics(types, tempDiagnostics);
                 return OverloadResolutionResult<NamedTypeSymbol>.Failed();
             }
 
@@ -362,9 +403,7 @@ internal sealed class OverloadResolution {
         CleanUpDiagnostics(types, tempDiagnostics);
 
         if (types.Length > 1 && possibleOverloads.Count == 0) {
-            if (!_suppressDiagnostics)
-                _binder.diagnostics.Push(Error.NoTemplateOverload(operand.location, name));
-
+            _binder.diagnostics.Push(Error.NoTemplateOverload(operand.location, name));
             return OverloadResolutionResult<NamedTypeSymbol>.Failed();
         } else if (types.Length > 1 && possibleOverloads.Count > 1) {
             _binder.diagnostics.Push(Error.AmbiguousTemplateOverload(operand.location, possibleOverloads.ToArray()));
@@ -379,72 +418,7 @@ internal sealed class OverloadResolution {
         );
     }
 
-    private bool CalculateArgumentRearrangements(
-        int overloadCount,
-        string name,
-        ImmutableArray<(string name, BoundExpression expression)>.Builder preBoundArgumentsBuilder,
-        ImmutableArray<ParameterSymbol> parameters,
-        int argumentCount,
-        SeparatedSyntaxList<ArgumentSyntax> arguments,
-        out Dictionary<int, int> rearrangedArguments,
-        out HashSet<string> seenParameterNames) {
-        rearrangedArguments = new Dictionary<int, int>();
-        seenParameterNames = new HashSet<string>();
-        var canContinue = true;
-
-        for (var i = 0; i < argumentCount; i++) {
-            var argumentName = preBoundArgumentsBuilder[i].name;
-
-            if (argumentName is null) {
-                seenParameterNames.Add(parameters[i].name);
-                rearrangedArguments[i] = i;
-                continue;
-            }
-
-            int? destinationIndex = null;
-
-            for (var j = 0; j < parameters.Length; j++) {
-                if (parameters[j].name == argumentName) {
-                    if (!seenParameterNames.Add(argumentName)) {
-                        if (!_suppressDiagnostics) {
-                            _binder.diagnostics.Push(
-                                Error.ParameterAlreadySpecified(
-                                    arguments[i].identifier.location,
-                                    argumentName
-                                )
-                            );
-                        }
-
-                        canContinue = false;
-                    } else {
-                        destinationIndex = j;
-                    }
-
-                    break;
-                }
-            }
-
-            if (!canContinue)
-                break;
-
-            if (!destinationIndex.HasValue) {
-                if (!_suppressDiagnostics) {
-                    _binder.diagnostics.Push(Error.NoSuchParameter(
-                        arguments[i].identifier.location, name,
-                        arguments[i].identifier.text, overloadCount > 1
-                    ));
-                }
-
-                canContinue = false;
-            } else {
-                rearrangedArguments[destinationIndex.Value] = i;
-            }
-        }
-
-        return canContinue;
-    }
-
-    private void ResolveIncorrectArgumentCount(
+    internal void ResolveIncorrectArgumentCount(
         SyntaxNodeOrToken operand,
         TextSpan closingSpan,
         string name,
@@ -476,16 +450,73 @@ internal sealed class OverloadResolution {
 
         var location = new TextLocation(operand.syntaxTree.text, span);
 
-        if (!_suppressDiagnostics) {
-            _binder.diagnostics.Push(Error.IncorrectArgumentCount(
-                location,
-                name,
-                parameters.Length,
-                defaultParameterCount,
-                argumentCount,
-                isTemplate
-            ));
+        _binder.diagnostics.Push(Error.IncorrectArgumentCount(
+            location,
+            name,
+            parameters.Length,
+            defaultParameterCount,
+            argumentCount,
+            isTemplate
+        ));
+    }
+
+    private bool CalculateArgumentRearrangements(
+        int overloadCount,
+        string name,
+        ImmutableArray<(string name, BoundExpression expression)>.Builder preBoundArgumentsBuilder,
+        ImmutableArray<ParameterSymbol> parameters,
+        int argumentCount,
+        SeparatedSyntaxList<ArgumentSyntax> arguments,
+        out Dictionary<int, int> rearrangedArguments,
+        out HashSet<string> seenParameterNames) {
+        rearrangedArguments = new Dictionary<int, int>();
+        seenParameterNames = new HashSet<string>();
+        var canContinue = true;
+
+        for (var i = 0; i < argumentCount; i++) {
+            var argumentName = preBoundArgumentsBuilder[i].name;
+
+            if (argumentName is null) {
+                seenParameterNames.Add(parameters[i].name);
+                rearrangedArguments[i] = i;
+                continue;
+            }
+
+            int? destinationIndex = null;
+
+            for (var j = 0; j < parameters.Length; j++) {
+                if (parameters[j].name == argumentName) {
+                    if (!seenParameterNames.Add(argumentName)) {
+                        _binder.diagnostics.Push(Error.ParameterAlreadySpecified(
+                            arguments[i].identifier.location,
+                            argumentName
+                        ));
+
+                        canContinue = false;
+                    } else {
+                        destinationIndex = j;
+                    }
+
+                    break;
+                }
+            }
+
+            if (!canContinue)
+                break;
+
+            if (!destinationIndex.HasValue) {
+                _binder.diagnostics.Push(Error.NoSuchParameter(
+                    arguments[i].identifier.location, name,
+                    arguments[i].identifier.text, overloadCount > 1
+                ));
+
+                canContinue = false;
+            } else {
+                rearrangedArguments[destinationIndex.Value] = i;
+            }
         }
+
+        return canContinue;
     }
 
     private int RearrangeArguments(
@@ -529,10 +560,12 @@ internal sealed class OverloadResolution {
                 receiverType: receiverType
             );
 
+            if (castType.isAnyAdding)
+                score += 3;
             if (castType.isImplicit && !castType.isIdentity)
                 score += 2;
             if (castType.isNullAdding)
-                score++;
+                score += 1;
 
             currentBoundArguments.Add(boundArgument);
         }
