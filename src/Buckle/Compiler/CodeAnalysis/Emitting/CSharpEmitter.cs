@@ -5,7 +5,6 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
@@ -305,7 +304,14 @@ internal sealed class CSharpEmitter {
         AddParameters(templateParameters.Where(p => p.type.typeSymbol != TypeSymbol.Type));
         AddParameters(constructor.parameters);
 
-        var signature = $"public {GetSafeName(name)}({parametersSignature})";
+        var constructorInitializer = _methods[constructor].statements[0] as BoundExpressionStatement;
+        var initializer = constructorInitializer.expression as BoundMemberAccessExpression;
+        var constructorKeyword = initializer.left is BoundThisExpression ? "this" : "base";
+
+        var signature = $"public {GetSafeName(name)}({parametersSignature}) : " +
+            $"{constructorKeyword}({constructorParameters})";
+
+        EmitArguments(indentedTextWriter, expression.arguments, expression.method.parameters);
 
         using (var methodCurly = new CurlyIndenter(indentedTextWriter, signature)) {
             foreach (var parameter in templateParameters) {
@@ -659,6 +665,9 @@ internal sealed class CSharpEmitter {
             case BoundNodeKind.ThisExpression:
                 EmitThisExpression(indentedTextWriter, (BoundThisExpression)expression);
                 break;
+            case BoundNodeKind.BaseExpression:
+                EmitBaseExpression(indentedTextWriter, (BoundBaseExpression)expression);
+                break;
             default:
                 throw new BelteInternalException($"EmitExpression: unexpected node '{expression.kind}'");
         }
@@ -956,5 +965,9 @@ internal sealed class CSharpEmitter {
 
     private void EmitThisExpression(IndentedTextWriter indentedTextWriter, BoundThisExpression _) {
         indentedTextWriter.Write("this");
+    }
+
+    private void EmitBaseExpression(IndentedTextWriter indentedTextWriter, BoundBaseExpression _) {
+        indentedTextWriter.Write("base");
     }
 }

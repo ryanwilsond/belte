@@ -698,6 +698,12 @@ internal sealed class Binder {
             if (!seenParameterNames.Add(parameterName)) {
                 diagnostics.Push(Error.ParameterAlreadyDeclared(parameter.location, parameter.identifier.text));
             } else {
+                if (isTemplate &&
+                    _options.buildMode == BuildMode.CSharpTranspile &&
+                    !parameterType.Equals(BoundType.Type, isTypeCheck: true)) {
+                    diagnostics.Push(Error.Unsupported.NonTypeTemplate(parameter.type.location));
+                }
+
                 var boundParameter = new ParameterSymbol(
                     parameterName,
                     parameterType,

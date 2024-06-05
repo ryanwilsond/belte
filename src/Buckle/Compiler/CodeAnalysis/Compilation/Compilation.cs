@@ -333,20 +333,15 @@ public sealed class Compilation {
         if (program.diagnostics.Errors().Any())
             return program.diagnostics;
 
-        var emitted = false;
-
         if (buildMode == BuildMode.Dotnet)
-            // emitted = true;
             // return ILEmitter.Emit(program, moduleName, references, outputPath);
             diagnostics.Push(Fatal.Unsupported.DotnetCompilation());
         else if (buildMode == BuildMode.CSharpTranspile)
-            // emitted = true;
-            // return CSharpEmitter.Emit(program, outputPath);
-            diagnostics.Push(Fatal.Unsupported.CSharpTranspilation());
+            return CSharpEmitter.Emit(program, outputPath);
         else if (buildMode == BuildMode.Independent)
             diagnostics.Push(Fatal.Unsupported.IndependentCompilation());
 
-        if (logTime && emitted) {
+        if (logTime && buildMode is BuildMode.Dotnet or BuildMode.CSharpTranspile) {
             timer.Stop();
             diagnostics.Push(new BelteDiagnostic(
                 DiagnosticSeverity.Debug,

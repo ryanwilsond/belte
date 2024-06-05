@@ -102,6 +102,7 @@ the program is run immediately. However, unlike the *-i* option, the method of r
 The code is compiled down to IL code, and then into an executable. This executable is wrapped and ran immediately. The
 runtime performance is the same as traditional compilation, though there will be a pause before the program executes.
 This pause is the longest of the three methods of running the program.
+-->
 
 ### *-t*, *--transpile*
 
@@ -114,7 +115,7 @@ Specifies the output path or filename. This option is only valid when using the 
 all compilation phases are completed. You cannot specify this option in junction with *-p*, *-s*, and *-c* when multiple
 files are inputted. You cannot also never specify this option in junction with *-i*, *--script*, *--evaluate*,
 *--execute*, *-t*, or *--transpile*.
--->
+
 
 ### *--severity=\<severity>* (Default *warning*)
 
