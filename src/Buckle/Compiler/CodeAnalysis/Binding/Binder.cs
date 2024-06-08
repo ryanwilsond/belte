@@ -2350,10 +2350,8 @@ internal sealed class Binder {
             }
 
             if (result.succeeded) {
-                if (!_wellKnownTypes.ContainsValue(_containingType) &&
-                    _wellKnownTypes.ContainsValue(result.bestOverload)) {
+                if (!_options.isLibrary && _wellKnownTypes.ContainsValue(result.bestOverload))
                     _usedLibraryTypes.Add(result.bestOverload);
-                }
 
                 return new BoundType(
                     result.bestOverload,
@@ -2367,7 +2365,7 @@ internal sealed class Binder {
 
         var selected = identifierSymbols.First();
 
-        if (!_wellKnownTypes.ContainsValue(_containingType) && _wellKnownTypes.ContainsValue(selected))
+        if (!_options.isLibrary && _wellKnownTypes.ContainsValue(selected))
             _usedLibraryTypes.Add(selected);
 
         return new BoundType(selected, isNullable: true);
@@ -2441,7 +2439,7 @@ internal sealed class Binder {
                 }
             }
 
-            if (!_wellKnownTypes.ContainsValue(_containingType) && _wellKnownTypes.ContainsValue(result.bestOverload))
+            if (!_options.isLibrary && _wellKnownTypes.ContainsValue(result.bestOverload))
                 _usedLibraryTypes.Add(result.bestOverload);
 
             return new BoundType(
@@ -4020,6 +4018,9 @@ internal sealed class Binder {
             templateArguments: [new BoundTypeOrConstant(type.ChildType())],
             arity: 1
         );
+
+        if (!_options.isLibrary)
+            _usedLibraryTypes.Add(listType);
 
         return new BoundObjectCreationExpression(constructedListType, listType.constructors[2], [initializerList]);
     }

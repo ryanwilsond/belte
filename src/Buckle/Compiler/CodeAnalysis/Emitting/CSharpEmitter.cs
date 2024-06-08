@@ -67,20 +67,22 @@ internal sealed class CSharpEmitter {
             indentedTextWriter.WriteLine("using System;");
             indentedTextWriter.WriteLine();
 
-            using (var libraryCurly = new CurlyIndenter(indentedTextWriter, "namespace Belte")) {
-                _methods = program.previous.methodBodies;
-                indentedTextWriter.WriteLine();
+            if (!program.usedLibraryTypes.IsEmpty && program.previous?.previous?.previous is null) {
+                using (var libraryCurly = new CurlyIndenter(indentedTextWriter, "namespace Belte")) {
+                    _methods = program.previous.methodBodies;
+                    indentedTextWriter.WriteLine();
 
-                foreach (var @struct in program.usedLibraryTypes.Where(t => t is StructSymbol))
-                    EmitStruct(indentedTextWriter, @struct as StructSymbol);
+                    foreach (var @struct in program.usedLibraryTypes.Where(t => t is StructSymbol))
+                        EmitStruct(indentedTextWriter, @struct as StructSymbol);
 
-                foreach (var @class in program.usedLibraryTypes.Where(t => t is ClassSymbol)) {
-                    if (@class.name != "Exception")
-                        EmitClass(indentedTextWriter, @class as ClassSymbol);
+                    foreach (var @class in program.usedLibraryTypes.Where(t => t is ClassSymbol)) {
+                        if (@class.name != "Exception")
+                            EmitClass(indentedTextWriter, @class as ClassSymbol);
+                    }
                 }
-            }
 
-            indentedTextWriter.WriteLine();
+                indentedTextWriter.WriteLine();
+            }
 
             using (var namespaceCurly = new CurlyIndenter(
                 indentedTextWriter, $"namespace {GetSafeName(namespaceName)}")) {
