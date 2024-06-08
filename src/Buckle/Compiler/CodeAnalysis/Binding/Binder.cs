@@ -34,6 +34,7 @@ internal sealed class Binder {
     private readonly Dictionary<string, LocalFunctionStatementSyntax> _unresolvedLocals =
         new Dictionary<string, LocalFunctionStatementSyntax>();
     private readonly Dictionary<string, NamedTypeSymbol> _wellKnownTypes;
+    private readonly HashSet<NamedTypeSymbol> _usedLibraryTypes = new HashSet<NamedTypeSymbol>();
 
     private BinderFlags _flags;
     private BoundScope _scope;
@@ -220,7 +221,8 @@ internal sealed class Binder {
             variables,
             types.ToImmutableArray(),
             statements.ToImmutable(),
-            binder._wellKnownTypes
+            binder._wellKnownTypes,
+            binder._usedLibraryTypes
         );
     }
 
@@ -245,6 +247,9 @@ internal sealed class Binder {
 
         var methodBodies = ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
         var diagnostics = new BelteDiagnosticQueue();
+        var usedLibraryTypes = previous is null
+            ? globalScope.usedLibraryTypes
+            : globalScope.usedLibraryTypes.Union(previous.usedLibraryTypes).ToHashSet();
         diagnostics.Move(globalScope.diagnostics);
 
         foreach (var method in globalScope.methods) {
@@ -252,7 +257,7 @@ internal sealed class Binder {
                 options,
                 options.topLevelBinderFlags,
                 parentScope,
-                method,
+                method, // ! TODO Maybe List is still being added because overridden List.ToString containingType is not List and references List
                 globalScope.libraryTypes
             );
 
@@ -268,7 +273,7 @@ internal sealed class Binder {
             if (diagnostics.Errors().Any())
                 return Program(previous, diagnostics);
 
-            var loweredBody = Lowerer.Lower(
+            var (flattenedBody, loweredBody) = Lowerer.Lower(
                 method,
                 body,
                 options.isTranspiling
@@ -276,7 +281,7 @@ internal sealed class Binder {
 
             if (!method.isAbstract &&
                 method.type.typeSymbol != TypeSymbol.Void &&
-                !ControlFlowGraph.AllPathsReturn(loweredBody)) {
+                !ControlFlowGraph.AllPathsReturn(flattenedBody)) {
                 binder.diagnostics.Push(Error.NotAllPathsReturn(GetIdentifierLocation(method.declaration)));
             }
 
@@ -306,13 +311,14 @@ internal sealed class Binder {
                 }
             }
 
+            usedLibraryTypes.UnionWith(binder._usedLibraryTypes);
             diagnostics.Move(binder.diagnostics);
         }
 
         var entryPoint = globalScope.wellKnownMethods[WellKnownMethodNames.EntryPoint];
 
         if (entryPoint != null && globalScope.statements.Any() && !options.isScript) {
-            var body = Lowerer.Lower(
+            var (_, body) = Lowerer.Lower(
                 entryPoint,
                 new BoundBlockStatement(globalScope.statements),
                 options.isTranspiling
@@ -329,7 +335,7 @@ internal sealed class Binder {
                 statements = statements.Add(new BoundReturnStatement(null));
             }
 
-            var body = Lowerer.Lower(
+            var (_, body) = Lowerer.Lower(
                 entryPoint,
                 new BoundBlockStatement(statements),
                 options.isTranspiling
@@ -343,7 +349,8 @@ internal sealed class Binder {
             diagnostics,
             globalScope.wellKnownMethods,
             methodBodies.ToImmutable(),
-            globalScope.types
+            globalScope.types,
+            usedLibraryTypes.ToImmutableArray()
         );
     }
 
@@ -2041,18 +2048,19 @@ internal sealed class Binder {
             ? functionSymbol.UpdateParameters(parameters.ToImmutable())
             : functionSymbol;
 
-        var loweredBody = Lowerer.Lower(
+        var (flattenedBody, loweredBody) = Lowerer.Lower(
             newFunctionSymbol,
             body,
             _options.isTranspiling
         );
 
-        if (newFunctionSymbol.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(loweredBody))
+        if (newFunctionSymbol.type.typeSymbol != TypeSymbol.Void && !ControlFlowGraph.AllPathsReturn(flattenedBody))
             diagnostics.Push(Error.NotAllPathsReturn(GetIdentifierLocation(newFunctionSymbol.declaration)));
 
         _methodBodies.Add((newFunctionSymbol, loweredBody));
         diagnostics.Move(binder.diagnostics);
         _methodBodies.AddRange(binder._methodBodies);
+        _usedLibraryTypes.UnionWith(binder._usedLibraryTypes);
 
         if (!_scope.TryReplaceSymbol(functionSymbol, newFunctionSymbol))
             throw new BelteInternalException($"BindLocalFunction: failed to set function '{functionSymbol.name}'");
@@ -2342,6 +2350,11 @@ internal sealed class Binder {
             }
 
             if (result.succeeded) {
+                if (!_wellKnownTypes.ContainsValue(_containingType) &&
+                    _wellKnownTypes.ContainsValue(result.bestOverload)) {
+                    _usedLibraryTypes.Add(result.bestOverload);
+                }
+
                 return new BoundType(
                     result.bestOverload,
                     templateArguments: constantArguments.ToImmutable(),
@@ -2352,7 +2365,12 @@ internal sealed class Binder {
             return null;
         }
 
-        return new BoundType(identifierSymbols.First(), isNullable: true);
+        var selected = identifierSymbols.First();
+
+        if (!_wellKnownTypes.ContainsValue(_containingType) && _wellKnownTypes.ContainsValue(selected))
+            _usedLibraryTypes.Add(selected);
+
+        return new BoundType(selected, isNullable: true);
     }
 
     private BoundType BindTemplateNameCore(TemplateNameSyntax name, IEnumerable<NamedTypeSymbol> symbols) {
@@ -2422,6 +2440,9 @@ internal sealed class Binder {
                     }
                 }
             }
+
+            if (!_wellKnownTypes.ContainsValue(_containingType) && _wellKnownTypes.ContainsValue(result.bestOverload))
+                _usedLibraryTypes.Add(result.bestOverload);
 
             return new BoundType(
                 result.bestOverload,

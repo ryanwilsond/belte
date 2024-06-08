@@ -29,15 +29,27 @@ internal sealed class Lowerer : BoundTreeRewriter {
     /// <param name="statement">Method body.</param>
     /// <param name="transpilerMode">If the compiler is transpiling, if true skips part of lowering.</param>
     /// <returns>Lowered method body (same type).</returns>
-    internal static BoundBlockStatement Lower(MethodSymbol method, BoundStatement statement, bool transpilerMode) {
-        var lowerer = new Lowerer(transpilerMode) {
+    internal static (BoundBlockStatement, BoundBlockStatement) Lower(MethodSymbol method, BoundStatement statement, bool transpilerMode) {
+        var lowerer = new Lowerer(false) {
             _expander = new Expander()
         };
 
         var expandedStatement = lowerer._expander.Expand(statement);
-        var block = Flatten(method, lowerer.RewriteStatement(expandedStatement));
+        var rewrittenStatement = lowerer.RewriteStatement(expandedStatement);
+        var block = Flatten(method, rewrittenStatement);
+        var optimizedBlock = Optimizer.Optimize(block, transpilerMode) as BoundBlockStatement;
 
-        return Optimizer.Optimize(block, transpilerMode) as BoundBlockStatement;
+        if (!transpilerMode)
+            return (optimizedBlock, optimizedBlock);
+
+        var transpilerLowerer = new Lowerer(true) {
+            _expander = lowerer._expander
+        };
+
+        var transpilerStatement = transpilerLowerer.RewriteStatement(expandedStatement);
+        var transpilerOptimizedBlock = Optimizer.Optimize(transpilerStatement, true) as BoundBlockStatement;
+
+        return (optimizedBlock, transpilerOptimizedBlock);
     }
 
     protected override BoundStatement RewriteIfStatement(BoundIfStatement statement) {
@@ -69,6 +81,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         end:
 
         */
+        if (_transpilerMode)
+            return base.RewriteIfStatement(statement);
+
         if (statement.elseStatement is null) {
             var endLabel = GenerateLabel();
 
@@ -117,6 +132,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         break:
 
         */
+        if (_transpilerMode)
+            return base.RewriteWhileStatement(statement);
+
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
 
@@ -149,6 +167,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         break:
 
         */
+        if (_transpilerMode)
+            return base.RewriteDoWhileStatement(statement);
+
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
 
@@ -183,6 +204,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         */
+        if (_transpilerMode)
+            return base.RewriteForStatement(statement);
+
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
         var condition = statement.condition.kind == BoundNodeKind.EmptyExpression
