@@ -2166,4 +2166,6 @@ Compiling with .NET integration is currently unsupported.
 $BU9005
 Currently, postfix operators are disabled if overloaded.
 $BU9006
-Transpiling to C# is currently unsupported.
+When targeting .NET, including when transpiling to C#, non-type templates cannot
+be used because the .NET framework has no way to handle them. Type templates
+are still allowed in all contexts.

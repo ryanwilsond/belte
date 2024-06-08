@@ -28,14 +28,6 @@ internal class Fatal {
             var message = "unsupported: cannot compile with .NET integration currently; must specify '-i' or '-r'";
             return new BelteDiagnostic(FatalInfo(DiagnosticCode.UNS_DotnetCompilation), message);
         }
-
-        /// <summary>
-        /// BU9006. Run `buckle --explain BU9006` on the command line for more info.
-        /// </summary>
-        internal static BelteDiagnostic CSharpTranspilation() {
-            var message = "unsupported: cannot transpile to C# currently; must specify '-i' or '-r'";
-            return new BelteDiagnostic(FatalInfo(DiagnosticCode.UNS_CSharpTranspilation), message);
-        }
     }
 
     private static DiagnosticInfo FatalInfo(DiagnosticCode code) {

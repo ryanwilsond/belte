@@ -164,6 +164,15 @@ public sealed class DisplayText {
             case BoundNodeKind.AssignmentExpression:
                 DisplayAssignmentExpression(text, (BoundAssignmentExpression)node);
                 break;
+            case BoundNodeKind.CompoundAssignmentExpression:
+                DisplayCompoundAssignmentExpression(text, (BoundCompoundAssignmentExpression)node);
+                break;
+            case BoundNodeKind.PrefixExpression:
+                DisplayPrefixExpression(text, (BoundPrefixExpression)node);
+                break;
+            case BoundNodeKind.PostfixExpression:
+                DisplayPostfixExpression(text, (BoundPostfixExpression)node);
+                break;
             case BoundNodeKind.EmptyExpression:
                 DisplayEmptyExpression(text, (BoundEmptyExpression)node);
                 break;
@@ -669,6 +678,24 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
         text.Write(CreateSpace());
         DisplayNode(text, node.right);
+    }
+
+    private static void DisplayCompoundAssignmentExpression(DisplayText text, BoundCompoundAssignmentExpression node) {
+        DisplayNode(text, node.left);
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(node.op.kind));
+        text.Write(CreateSpace());
+        DisplayNode(text, node.right);
+    }
+
+    private static void DisplayPostfixExpression(DisplayText text, BoundPostfixExpression node) {
+        DisplayNode(text, node.operand);
+        text.Write(CreatePunctuation(node.op.kind));
+    }
+
+    private static void DisplayPrefixExpression(DisplayText text, BoundPrefixExpression node) {
+        text.Write(CreatePunctuation(node.op.kind));
+        DisplayNode(text, node.operand);
     }
 
     private static void DisplayVariableExpression(DisplayText text, BoundVariableExpression node) {

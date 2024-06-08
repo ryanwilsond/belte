@@ -19,7 +19,8 @@ internal sealed class BoundGlobalScope {
         ImmutableArray<VariableSymbol> variables,
         ImmutableArray<NamedTypeSymbol> types,
         ImmutableArray<BoundStatement> statements,
-        Dictionary<string, NamedTypeSymbol> libraryTypes) {
+        Dictionary<string, NamedTypeSymbol> libraryTypes,
+        HashSet<NamedTypeSymbol> usedLibraryTypes) {
         this.methodBodies = methodBodies;
         this.previous = previous;
         this.diagnostics = new BelteDiagnosticQueue();
@@ -30,6 +31,7 @@ internal sealed class BoundGlobalScope {
         this.types = types;
         this.statements = statements;
         this.libraryTypes = libraryTypes;
+        this.usedLibraryTypes = usedLibraryTypes;
     }
 
     internal ImmutableArray<(MethodSymbol method, BoundBlockStatement body)> methodBodies { get; }
@@ -55,4 +57,6 @@ internal sealed class BoundGlobalScope {
     internal ImmutableArray<BoundStatement> statements { get; }
 
     internal Dictionary<string, NamedTypeSymbol> libraryTypes { get; }
+
+    internal HashSet<NamedTypeSymbol> usedLibraryTypes { get; }
 }

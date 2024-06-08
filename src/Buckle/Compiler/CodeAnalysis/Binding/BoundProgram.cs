@@ -15,12 +15,14 @@ internal sealed class BoundProgram {
         BelteDiagnosticQueue diagnostics,
         Dictionary<string, MethodSymbol> wellKnownMethods,
         ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies,
-        ImmutableArray<NamedTypeSymbol> types) {
+        ImmutableArray<NamedTypeSymbol> types,
+        ImmutableArray<NamedTypeSymbol> usedLibraryTypes) {
         this.previous = previous;
         this.diagnostics = diagnostics;
         this.wellKnownMethods = wellKnownMethods;
         this.methodBodies = methodBodies;
         this.types = types;
+        this.usedLibraryTypes = usedLibraryTypes;
     }
 
     /// <summary>
@@ -37,4 +39,6 @@ internal sealed class BoundProgram {
     internal ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies { get; }
 
     internal ImmutableArray<NamedTypeSymbol> types { get; }
+
+    internal ImmutableArray<NamedTypeSymbol> usedLibraryTypes { get; }
 }

@@ -21,7 +21,8 @@ internal static partial class BoundFactory {
             ImmutableArray<VariableSymbol>.Empty,
             ImmutableArray<NamedTypeSymbol>.Empty,
             ImmutableArray<BoundStatement>.Empty,
-            previous.libraryTypes
+            previous.libraryTypes,
+            []
         );
     }
 
@@ -35,6 +36,7 @@ internal static partial class BoundFactory {
                 { WellKnownMethodNames.GraphicsUpdate, null }
             },
             ImmutableDictionary<MethodSymbol, BoundBlockStatement>.Empty,
+            ImmutableArray<NamedTypeSymbol>.Empty,
             ImmutableArray<NamedTypeSymbol>.Empty
         );
     }
