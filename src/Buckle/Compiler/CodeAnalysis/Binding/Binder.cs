@@ -257,7 +257,7 @@ internal sealed class Binder {
                 options,
                 options.topLevelBinderFlags,
                 parentScope,
-                method, // ! TODO Maybe List is still being added because overridden List.ToString containingType is not List and references List
+                method,
                 globalScope.libraryTypes
             );
 
