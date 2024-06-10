@@ -41,4 +41,25 @@ internal static class CastUtilities {
             return value;
         }
     }
+
+    internal static object CastIgnoringNull(object value, BoundType targetType) {
+        var typeSymbol = targetType?.typeSymbol;
+
+        if (typeSymbol == TypeSymbol.Bool) {
+            return Convert.ToBoolean(value);
+        } else if (typeSymbol == TypeSymbol.Int) {
+            if (value.IsFloatingPoint())
+                value = Math.Truncate(Convert.ToDouble(value));
+
+            return Convert.ToInt32(value);
+        } else if (typeSymbol == TypeSymbol.Decimal) {
+            return Convert.ToDouble(value);
+        } else if (typeSymbol == TypeSymbol.String) {
+            return Convert.ToString(value);
+        } else if (typeSymbol == TypeSymbol.Char) {
+            return Convert.ToChar(value);
+        } else {
+            return value;
+        }
+    }
 }

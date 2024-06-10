@@ -307,38 +307,51 @@ internal sealed class Evaluator {
         _locals.Pop();
     }
 
-    private EvaluatorObject EvaluateCast(EvaluatorObject value, BoundType type) {
+    private EvaluatorObject EvaluateCast(EvaluatorObject value, BoundType fromType, BoundType toType) {
         var dereferenced = Dereference(value);
 
         if (dereferenced.members is null || dereferenced.trueType is null) {
             var valueValue = Value(value);
 
+            if (fromType.typeSymbol == toType.typeSymbol) {
+                if (!toType.isNullable && valueValue is null)
+                    throw new NullReferenceException();
+
+                return value;
+            }
+
             if (valueValue is EvaluatorObject[] v) {
                 var builder = new EvaluatorObject[v.Length];
-                var childType = type.ChildType();
 
                 for (var i = 0; i < v.Length; i++)
-                    builder[i] = EvaluateCast(v[i], childType);
+                    builder[i] = EvaluateCast(v[i], fromType.ChildType(), toType.ChildType());
 
                 valueValue = builder;
             } else {
-                valueValue = EvaluateValueCast(valueValue, type);
+                valueValue = CastUtilities.CastIgnoringNull(valueValue, toType);
             }
 
             return new EvaluatorObject(valueValue);
         }
 
-        if (TypeUtilities.TypeInheritsFrom(dereferenced.trueType, type))
+        if (TypeUtilities.TypeInheritsFrom(dereferenced.trueType, toType))
             return value;
 
-        if (TypeUtilities.TypeInheritsFrom(type, dereferenced.trueType))
+        if (TypeUtilities.TypeInheritsFrom(toType, dereferenced.trueType))
             throw new InvalidCastException();
 
         throw ExceptionUtilities.Unreachable();
     }
 
-    private static object EvaluateValueCast(object value, BoundType type) {
-        return CastUtilities.Cast(value, type);
+    private static object EvaluateValueCast(object value, BoundType fromType, BoundType toType) {
+        if (fromType.typeSymbol == toType.typeSymbol) {
+            if (!toType.isNullable && value is null)
+                throw new NullReferenceException();
+
+            return value;
+        }
+
+        return CastUtilities.CastIgnoringNull(value, toType);
     }
 
     private EvaluatorObject EvaluateStatement(
@@ -680,7 +693,7 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateCastExpression(BoundCastExpression node, ValueWrapper<bool> abort) {
         var value = EvaluateExpression(node.expression, abort);
 
-        return EvaluateCast(value, node.type);
+        return EvaluateCast(value, node.expression.type, node.type);
     }
 
     private EvaluatorObject EvaluateCallExpression(BoundCallExpression node, ValueWrapper<bool> abort) {
@@ -835,7 +848,7 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateConstantExpression(BoundExpression expression, ValueWrapper<bool> _) {
-        return EvaluateCast(EvaluateBoundConstant(expression.constantValue), expression.type);
+        return EvaluateBoundConstant(expression.constantValue);
     }
 
     private static EvaluatorObject EvaluateBoundConstant(BoundConstant constant) {
@@ -873,7 +886,7 @@ internal sealed class Evaluator {
         if (operandValue is null)
             return new EvaluatorObject();
 
-        operandValue = EvaluateValueCast(operandValue, expression.op.operandType);
+        operandValue = EvaluateValueCast(operandValue, expression.operand.type, expression.op.operandType);
 
         switch (expression.op.opKind) {
             case BoundUnaryOperatorKind.NumericalIdentity:
@@ -898,7 +911,7 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateTernaryExpression(BoundTernaryExpression expression, ValueWrapper<bool> abort) {
         var left = EvaluateExpression(expression.left, abort);
         var leftValue = Value(left);
-        leftValue = EvaluateValueCast(leftValue, expression.op.leftType);
+        leftValue = EvaluateValueCast(leftValue, expression.left.type, expression.op.leftType);
 
         switch (expression.op.opKind) {
             case BoundTernaryOperatorKind.Conditional:
@@ -988,8 +1001,8 @@ internal sealed class Evaluator {
         var expressionType = expression.type.typeSymbol;
         var leftType = expression.op.leftType.typeSymbol;
 
-        leftValue = EvaluateValueCast(leftValue, expression.op.leftType);
-        rightValue = EvaluateValueCast(rightValue, expression.op.rightType);
+        leftValue = EvaluateValueCast(leftValue, expression.left.type, expression.op.leftType);
+        rightValue = EvaluateValueCast(rightValue, expression.right.type, expression.op.rightType);
 
         switch (expression.op.opKind) {
             case BoundBinaryOperatorKind.Addition:
