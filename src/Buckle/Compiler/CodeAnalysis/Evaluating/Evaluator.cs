@@ -131,7 +131,7 @@ internal sealed class Evaluator {
         }
     }
 
-    private bool TryGet(
+    private static bool TryGet(
         Dictionary<IVariableSymbol, IEvaluatorObject> variables,
         VariableSymbol variable,
         out EvaluatorObject evaluatorObject) {
@@ -291,12 +291,11 @@ internal sealed class Evaluator {
 
     private void EnterClassScope(EvaluatorObject @class, bool updateLocals = true) {
         foreach (var member in @class.members) {
-            if (member.Key is FieldSymbol or ParameterSymbol) {
-                var variable = member.Key as VariableSymbol;
+            if (member.Key is FieldSymbol f) {
                 // If the symbol is already present it could be outdated and should be replaced
                 // If it isn't outdated no harm in replacing it
-                _classLocalBuffer.Remove(variable);
-                _classLocalBuffer.Add(variable, member.Value);
+                _classLocalBuffer.Remove(f);
+                _classLocalBuffer.Add(f, member.Value);
             }
         }
 
@@ -342,7 +341,7 @@ internal sealed class Evaluator {
         throw ExceptionUtilities.Unreachable();
     }
 
-    private object EvaluateValueCast(object value, BoundType type) {
+    private static object EvaluateValueCast(object value, BoundType type) {
         return CastUtilities.Cast(value, type);
     }
 
@@ -535,7 +534,7 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateType(BoundType node, ValueWrapper<bool> abort) {
         if (node.arity == 0)
-            return EvaluateTypeCore(node, abort);
+            return new EvaluatorObject(members: [], node);
 
         var locals = new Dictionary<IVariableSymbol, IEvaluatorObject>();
         var typeSymbol = node.typeSymbol as NamedTypeSymbol;
@@ -554,31 +553,7 @@ internal sealed class Evaluator {
         _locals.Push(locals);
         _templateConstantDepth++;
 
-        return EvaluateTypeCore(node, abort);
-    }
-
-    private EvaluatorObject EvaluateTypeCore(BoundType node, ValueWrapper<bool> abort) {
-        var members = new Dictionary<Symbol, EvaluatorObject>();
-
-        if (node.typeSymbol is not NamedTypeSymbol)
-            return new EvaluatorObject(members, node);
-
-        var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).GetMembers();
-        var templateArgumentIndex = 0;
-
-        foreach (var templateArgument in typeMembers.Where(t => t is ParameterSymbol)) {
-            EvaluatorObject value;
-
-            if (node.type.templateArguments[templateArgumentIndex].isConstant)
-                value = new EvaluatorObject(node.type.templateArguments[templateArgumentIndex].constant.value);
-            else
-                value = EvaluateType(node.type.templateArguments[templateArgumentIndex].type, abort);
-
-            templateArgumentIndex++;
-            members.Add(templateArgument as Symbol, value);
-        }
-
-        return new EvaluatorObject(members, node);
+        return new EvaluatorObject(members: [], node);
     }
 
     private EvaluatorObject EvaluateThisExpression(BoundThisExpression _, ValueWrapper<bool> _1) {
@@ -620,24 +595,18 @@ internal sealed class Evaluator {
         BoundObjectCreationExpression node,
         ValueWrapper<bool> abort) {
         if (node.viaConstructor || (node.type.sizes.Length == 0 && node.type.typeSymbol is StructSymbol)) {
-            var core = EvaluateTypeCore(node.type, abort);
             var members = new Dictionary<Symbol, EvaluatorObject>();
             var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).GetMembers();
 
-            foreach (var member in core.members)
-                members.Add(member.Key, member.Value);
-
-            foreach (var member in typeMembers.Where(t => t is not ParameterSymbol)) {
+            foreach (var field in typeMembers.Where(f => f is FieldSymbol)) {
                 var value = new EvaluatorObject();
 
-                if (member is FieldSymbol f) {
-                    if (f.isReference) {
-                        value.isReference = true;
-                        value.isExplicitReference = true;
-                    }
+                if ((field as FieldSymbol).isReference) {
+                    value.isReference = true;
+                    value.isExplicitReference = true;
                 }
 
-                members.Add(member as Symbol, value);
+                members.Add(field as Symbol, value);
             }
 
             var newObject = new EvaluatorObject(members, node.type);
@@ -672,7 +641,7 @@ internal sealed class Evaluator {
             return array;
         }
 
-        List<EvaluatorObject> IterateElements(EvaluatorObject evaluatorObject) {
+        static List<EvaluatorObject> IterateElements(EvaluatorObject evaluatorObject) {
             if (evaluatorObject.value is null) {
                 return [evaluatorObject];
             } else {
@@ -686,7 +655,7 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression _, ValueWrapper<bool> _1) {
+    private static EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression _, ValueWrapper<bool> _1) {
         // TODO Implement typeof and type types
         // ? Would just settings EvaluatorObject.value to a BoundType work?
         return new EvaluatorObject();
@@ -865,7 +834,7 @@ internal sealed class Evaluator {
             if (receiver != null && receiver.isReference) {
                 receiver = Dereference(receiver);
 
-                if (receiver.members is not null && receiver.members.Count > 0) {
+                if (receiver.members is not null) {
                     EnterClassScope(receiver);
                     enteredScope = true;
                 }
@@ -895,7 +864,7 @@ internal sealed class Evaluator {
         return EvaluateCast(EvaluateBoundConstant(expression.constantValue), expression.type);
     }
 
-    private EvaluatorObject EvaluateBoundConstant(BoundConstant constant) {
+    private static EvaluatorObject EvaluateBoundConstant(BoundConstant constant) {
         if (constant.value is ImmutableArray<BoundConstant> ia) {
             var builder = new List<EvaluatorObject>();
 
@@ -908,7 +877,9 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject EvaluateVariableExpression(BoundVariableExpression expression, ValueWrapper<bool> _) {
+    private static EvaluatorObject EvaluateVariableExpression(
+        BoundVariableExpression expression,
+        ValueWrapper<bool> _) {
         return new EvaluatorObject(expression.variable);
     }
 
