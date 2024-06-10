@@ -343,6 +343,10 @@ internal sealed class Evaluator {
     }
 
     private static object EvaluateValueCast(object value, BoundType fromType, BoundType toType) {
+        // TODO I sped this up for the future, but this method shouldn't be being called as much in general
+        // TODO Look into optimizing type nullability in the binder, for example this shouldn't need to be called
+        // TODO when doing something like `for (int! i = 0; i < 10; i++)` because i is not nullable,
+        // TODO but this is being called for some reason
         if (!toType.isNullable && value is null)
             throw new NullReferenceException();
 
