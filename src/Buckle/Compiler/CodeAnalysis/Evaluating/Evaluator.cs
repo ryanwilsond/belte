@@ -313,12 +313,11 @@ internal sealed class Evaluator {
         if (dereferenced.members is null || dereferenced.trueType is null) {
             var valueValue = Value(value);
 
-            if (fromType.typeSymbol == toType.typeSymbol) {
-                if (!toType.isNullable && valueValue is null)
-                    throw new NullReferenceException();
+            if (!toType.isNullable && value is null)
+                throw new NullReferenceException();
 
+            if (fromType.typeSymbol == toType.typeSymbol)
                 return value;
-            }
 
             if (valueValue is EvaluatorObject[] v) {
                 var builder = new EvaluatorObject[v.Length];
@@ -344,12 +343,11 @@ internal sealed class Evaluator {
     }
 
     private static object EvaluateValueCast(object value, BoundType fromType, BoundType toType) {
-        if (fromType.typeSymbol == toType.typeSymbol) {
-            if (!toType.isNullable && value is null)
-                throw new NullReferenceException();
+        if (!toType.isNullable && value is null)
+            throw new NullReferenceException();
 
+        if (fromType.typeSymbol == toType.typeSymbol)
             return value;
-        }
 
         return CastUtilities.CastIgnoringNull(value, toType);
     }
