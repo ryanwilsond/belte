@@ -141,7 +141,9 @@ public sealed class Compilation {
     /// <param name="abort">External flag used to cancel evaluation.</param>
     /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
     public EvaluationResult Evaluate(
-        Dictionary<IVariableSymbol, IEvaluatorObject> variables, ValueWrapper<bool> abort, bool logTime = false) {
+        Dictionary<IVariableSymbol, EvaluatorObject> variables,
+        ValueWrapper<bool> abort,
+        bool logTime = false) {
         if (globalScope.diagnostics.Errors().Any())
             return EvaluationResult.Failed(globalScope.diagnostics);
 
@@ -214,7 +216,8 @@ public sealed class Compilation {
     /// <param name="abort">External flag used to cancel evaluation.</param>
     /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
     public EvaluationResult Interpret(
-        Dictionary<IVariableSymbol, IEvaluatorObject> variables, ValueWrapper<bool> abort) {
+        Dictionary<IVariableSymbol, EvaluatorObject> variables,
+        ValueWrapper<bool> abort) {
         // syntaxTrees.Single() should have already been asserted by this point
         return Interpreter.Interpret(syntaxTrees[0], options, variables, abort);
     }

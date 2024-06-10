@@ -20,16 +20,13 @@ internal sealed class Evaluator {
     private readonly string[] _arguments;
     private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methods =
         new Dictionary<MethodSymbol, BoundBlockStatement>();
-    private readonly Dictionary<IVariableSymbol, IEvaluatorObject> _globals;
-    private readonly Stack<Dictionary<IVariableSymbol, IEvaluatorObject>> _locals =
-        new Stack<Dictionary<IVariableSymbol, IEvaluatorObject>>();
-    private readonly Dictionary<IVariableSymbol, IEvaluatorObject> _classLocalBuffer =
-        new Dictionary<IVariableSymbol, IEvaluatorObject>();
+    private readonly Dictionary<IVariableSymbol, EvaluatorObject> _globals;
+    private readonly Stack<Dictionary<IVariableSymbol, EvaluatorObject>> _locals =
+        new Stack<Dictionary<IVariableSymbol, EvaluatorObject>>();
     private readonly Stack<EvaluatorObject> _enclosingTypes = new Stack<EvaluatorObject>();
 
     private EvaluatorObject _lastValue;
     private Random _random;
-    // private bool _classLocalBufferOnStack;
     private bool _hasValue;
     private int _templateConstantDepth;
 
@@ -40,13 +37,13 @@ internal sealed class Evaluator {
     /// <param name="globals">Globals.</param>
     /// <param name="arguments">Runtime arguments.</param>
     internal Evaluator(
-        BoundProgram program, Dictionary<IVariableSymbol, IEvaluatorObject> globals, string[] arguments) {
+        BoundProgram program, Dictionary<IVariableSymbol, EvaluatorObject> globals, string[] arguments) {
         diagnostics = new BelteDiagnosticQueue();
         exceptions = new List<Exception>();
         _arguments = arguments;
         _program = program;
         _globals = globals;
-        _locals.Push(new Dictionary<IVariableSymbol, IEvaluatorObject>());
+        _locals.Push(new Dictionary<IVariableSymbol, EvaluatorObject>());
         _templateConstantDepth = 0;
 
         var current = program;
@@ -108,7 +105,7 @@ internal sealed class Evaluator {
                 )]
             ), abort);
 
-            _locals.Push(new Dictionary<IVariableSymbol, IEvaluatorObject>() {
+            _locals.Push(new Dictionary<IVariableSymbol, EvaluatorObject>() {
                 [_program.entryPoint.parameters[0]] = list
             });
         }
@@ -132,20 +129,20 @@ internal sealed class Evaluator {
     }
 
     private static bool TryGet(
-        Dictionary<IVariableSymbol, IEvaluatorObject> variables,
+        Dictionary<IVariableSymbol, EvaluatorObject> variables,
         VariableSymbol variable,
         out EvaluatorObject evaluatorObject) {
         if (variables.Count > 0 && variables.TryGetValue(variable, out var result)) {
-            evaluatorObject = result as EvaluatorObject;
+            evaluatorObject = result;
             return true;
         }
 
-        evaluatorObject = null;
+        evaluatorObject = default;
         return false;
     }
 
-    private EvaluatorObject Get(VariableSymbol variable, Dictionary<IVariableSymbol, IEvaluatorObject> scope = null) {
-        if (scope != null) {
+    private EvaluatorObject Get(VariableSymbol variable, Dictionary<IVariableSymbol, EvaluatorObject> scope = null) {
+        if (scope is not null) {
             if (TryGet(scope, variable, out var evaluatorObject))
                 return evaluatorObject;
         }
@@ -193,19 +190,19 @@ internal sealed class Evaluator {
     }
 
     private object[] CollectionValue(EvaluatorObject[] value) {
-        var builder = new List<object>();
+        var builder = new object[value.Length];
 
-        foreach (var item in value)
-            builder.Add(Value(item, true));
+        for (var i = 0; i < value.Length; i++)
+            builder[i] = Value(value[i], true);
 
-        return builder.ToArray();
+        return builder;
     }
 
-    private object Value(IEvaluatorObject value, bool traceCollections = false) {
+    private object Value(EvaluatorObject value, bool traceCollections = false) {
         if (value.isReference)
             return GetVariableValue(value.reference, traceCollections);
-        else if (value.value is EvaluatorObject)
-            return Value(value.value as EvaluatorObject, traceCollections);
+        else if (value.value is EvaluatorObject e)
+            return Value(e, traceCollections);
         else if (value.value is EvaluatorObject[] && traceCollections)
             return CollectionValue(value.value as EvaluatorObject[]);
         else if (traceCollections && value.value is null && value.members != null)
@@ -214,12 +211,12 @@ internal sealed class Evaluator {
             return value.value;
     }
 
-    private EvaluatorObject Copy(IEvaluatorObject value) {
-        if (value.reference != null && value.isExplicitReference == false)
+    private EvaluatorObject Copy(EvaluatorObject value) {
+        if (value.reference is not null && !value.isExplicitReference)
             return Copy(Get(value.reference));
-        else if (value.reference != null)
+        else if (value.reference is not null)
             return new EvaluatorObject(value.reference, isExplicitReference: true);
-        else if (value.members != null)
+        else if (value.members is not null)
             return new EvaluatorObject(Copy(value.members), value.trueType);
         else
             return new EvaluatorObject(value.value);
@@ -289,26 +286,25 @@ internal sealed class Evaluator {
             left.value = Value(right);
     }
 
-    private void EnterClassScope(EvaluatorObject @class, bool updateLocals = true) {
+    private void EnterClassScope(EvaluatorObject @class) {
+        var classLocalBuffer = new Dictionary<IVariableSymbol, EvaluatorObject>();
+
         foreach (var member in @class.members) {
             if (member.Key is FieldSymbol f) {
                 // If the symbol is already present it could be outdated and should be replaced
                 // If it isn't outdated no harm in replacing it
-                _classLocalBuffer.Remove(f);
-                _classLocalBuffer.Add(f, member.Value);
+                classLocalBuffer.Remove(f);
+                classLocalBuffer.Add(f, member.Value);
             }
         }
 
         _enclosingTypes.Push(@class);
-
-        if (updateLocals) {
-            _locals.Push(_classLocalBuffer);
-            // _classLocalBufferOnStack = true;
-        }
+        _locals.Push(classLocalBuffer);
     }
 
     private void ExitClassScope() {
         _enclosingTypes.Pop();
+        _locals.Pop();
     }
 
     private EvaluatorObject EvaluateCast(EvaluatorObject value, BoundType type) {
@@ -318,13 +314,13 @@ internal sealed class Evaluator {
             var valueValue = Value(value);
 
             if (valueValue is EvaluatorObject[] v) {
-                var builder = new List<EvaluatorObject>();
-                var castedValue = v;
+                var builder = new EvaluatorObject[v.Length];
+                var childType = type.ChildType();
 
-                foreach (var item in castedValue)
-                    builder.Add(EvaluateCast(item, type.ChildType()));
+                for (var i = 0; i < v.Length; i++)
+                    builder[i] = EvaluateCast(v[i], childType);
 
-                valueValue = builder.ToArray();
+                valueValue = builder;
             } else {
                 valueValue = EvaluateValueCast(valueValue, type);
             }
@@ -479,7 +475,7 @@ internal sealed class Evaluator {
         BoundLocalDeclarationStatement statement,
         ValueWrapper<bool> abort) {
         var value = EvaluateExpression(statement.declaration.initializer, abort);
-        _lastValue = null;
+        _lastValue = default;
         Create(statement.declaration.variable, value);
     }
 
@@ -536,7 +532,7 @@ internal sealed class Evaluator {
         if (node.arity == 0)
             return new EvaluatorObject(members: [], node);
 
-        var locals = new Dictionary<IVariableSymbol, IEvaluatorObject>();
+        var locals = new Dictionary<IVariableSymbol, EvaluatorObject>();
         var typeSymbol = node.typeSymbol as NamedTypeSymbol;
 
         for (var i = 0; i < node.templateArguments.Length; i++) {
@@ -571,17 +567,11 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateMemberAccessExpression(BoundMemberAccessExpression node, ValueWrapper<bool> abort) {
-        var operand = EvaluateExpression(node.left, abort);
-
-        if (operand.isReference) {
-            do {
-                operand = Get(operand.reference, operand.referenceScope);
-            } while (operand.isReference);
-        }
+        var operand = Dereference(EvaluateExpression(node.left, abort), true);
 
         if (node.type == BoundType.MethodGroup) {
-            EnterClassScope(operand, true);
-            return null;
+            EnterClassScope(operand);
+            return default;
         }
 
         if (node.right is BoundType)
@@ -622,19 +612,18 @@ internal sealed class Evaluator {
             return newObject;
         } else {
             var array = EvaluatorObject.Null;
-            var sizes = new List<int>();
 
             // TODO There is probably a more efficient algorithm for this
             foreach (var size in node.type.sizes) {
                 var sizeValue = (int)Value(EvaluateExpression(size, abort));
 
                 foreach (var element in IterateElements(array)) {
-                    var members = new List<EvaluatorObject>();
+                    var members = new EvaluatorObject[sizeValue];
 
                     for (var i = 0; i < sizeValue; i++)
-                        members.Add(EvaluatorObject.Null);
+                        members[i] = EvaluatorObject.Null;
 
-                    element.value = members.ToArray();
+                    element.value = members;
                 }
             }
 
@@ -662,18 +651,10 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node, ValueWrapper<bool> abort) {
-        if (node.expression is BoundVariableExpression v) {
-            Dictionary<IVariableSymbol, IEvaluatorObject> referenceScope;
-
-            if (v.variable.kind == SymbolKind.GlobalVariable)
-                referenceScope = _globals;
-            else
-                referenceScope = _locals.Peek();
-
-            return new EvaluatorObject(v.variable, isExplicitReference: true, referenceScope: referenceScope);
-        } else {
+        if (node.expression is BoundVariableExpression v)
+            return new EvaluatorObject(v.variable, isExplicitReference: true);
+        else
             return EvaluateExpression(node.expression, abort);
-        }
     }
 
     private EvaluatorObject EvaluateIndexExpression(BoundIndexExpression node, ValueWrapper<bool> abort) {
@@ -688,14 +669,12 @@ internal sealed class Evaluator {
     private EvaluatorObject[] EvaluateInitializerListExpression(
         BoundInitializerListExpression node,
         ValueWrapper<bool> abort) {
-        var builder = new List<EvaluatorObject>();
+        var builder = new EvaluatorObject[node.items.Length];
 
-        foreach (var item in node.items) {
-            var value = EvaluateExpression(item, abort);
-            builder.Add(value);
-        }
+        for (var i = 0; i < node.items.Length; i++)
+            builder[i] = EvaluateExpression(node.items[i], abort);
 
-        return builder.ToArray();
+        return builder;
     }
 
     private EvaluatorObject EvaluateCastExpression(BoundCastExpression node, ValueWrapper<bool> abort) {
@@ -789,7 +768,8 @@ internal sealed class Evaluator {
         ImmutableArray<BoundExpression> arguments,
         ValueWrapper<bool> abort,
         BoundExpression expression = null) {
-        EvaluatorObject receiver = null;
+        var receiver = default(EvaluatorObject);
+
         if (expression is not null && expression is not BoundEmptyExpression) {
             receiver = EvaluateExpression(expression, abort);
             var dereferencedReceiver = Dereference(receiver);
@@ -808,7 +788,7 @@ internal sealed class Evaluator {
             method = newMethod;
         }
 
-        var locals = new Dictionary<IVariableSymbol, IEvaluatorObject>();
+        var locals = new Dictionary<IVariableSymbol, EvaluatorObject>();
 
         for (var i = 0; i < arguments.Length; i++) {
             var parameter = method.parameters[i];
@@ -826,18 +806,16 @@ internal sealed class Evaluator {
         var templateConstantDepth = _templateConstantDepth;
         var enteredScope = false;
 
-        if (receiver != null) {
+        if (receiver is not null && receiver.isReference) {
             // On an expression such as 'myInstance.Method()', we need to enter the 'myInstance' class scope
             // in case 'Method' uses 'this'
             // If what we get here is not a reference, it is a static accession and the needed scoped members have
             // already been pushed by 'EvaluateType'.
-            if (receiver != null && receiver.isReference) {
-                receiver = Dereference(receiver);
+            receiver = Dereference(receiver);
 
-                if (receiver.members is not null) {
-                    EnterClassScope(receiver);
-                    enteredScope = true;
-                }
+            if (receiver.members is not null) {
+                EnterClassScope(receiver);
+                enteredScope = true;
             }
         }
 
@@ -853,10 +831,6 @@ internal sealed class Evaluator {
         if (enteredScope)
             ExitClassScope();
 
-        // TODO Make sure removing this doesn't lead to an accumulation of unnecessary locals on the stack
-        // if (_classLocalBufferOnStack)
-        //     _locals.Pop();
-
         return result;
     }
 
@@ -866,12 +840,12 @@ internal sealed class Evaluator {
 
     private static EvaluatorObject EvaluateBoundConstant(BoundConstant constant) {
         if (constant.value is ImmutableArray<BoundConstant> ia) {
-            var builder = new List<EvaluatorObject>();
+            var builder = new EvaluatorObject[ia.Length];
 
-            foreach (var item in ia)
-                builder.Add(EvaluateBoundConstant(item));
+            for (var i = 0; i < ia.Length; i++)
+                builder[i] = EvaluateBoundConstant(ia[i]);
 
-            return new EvaluatorObject(builder.ToArray());
+            return new EvaluatorObject(builder);
         } else {
             return new EvaluatorObject(constant.value);
         }
@@ -1148,11 +1122,11 @@ internal sealed class Evaluator {
     private object[] EvaluateArgumentsForExternalCall(
         ImmutableArray<BoundExpression> arguments,
         ValueWrapper<bool> abort) {
-        var evaluatedArguments = new List<object>();
+        var evaluatedArguments = new object[arguments.Length];
 
-        foreach (var argument in arguments)
-            evaluatedArguments.Add(Value(EvaluateExpression(argument, abort)));
+        for (var i = 0; i < arguments.Length; i++)
+            evaluatedArguments[i] = Value(EvaluateExpression(arguments[i], abort));
 
-        return evaluatedArguments.ToArray();
+        return evaluatedArguments;
     }
 }

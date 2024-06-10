@@ -24,8 +24,10 @@ internal sealed class Interpreter {
     /// <param name="abort">Flag that tells the interpreter to abort and safely exit as soon as possible.</param>
     /// <returns>The result of the last evaluated member.</returns>
     internal static EvaluationResult Interpret(
-        SyntaxTree syntaxTree, CompilationOptions options,
-        Dictionary<IVariableSymbol, IEvaluatorObject> variables, ValueWrapper<bool> abort) {
+        SyntaxTree syntaxTree,
+        CompilationOptions options,
+        Dictionary<IVariableSymbol, EvaluatorObject> variables,
+        ValueWrapper<bool> abort) {
         // This pseudo interpreter parses all of the source files at once, so there is a short delay before running the
         // code. This is not perfect, as the goal is to be a "true" interpreter, but without doing this at once the
         // parser would have to be written to support partial parsing. This would be a large undertaking, but maybe

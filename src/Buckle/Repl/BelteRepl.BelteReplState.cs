@@ -71,6 +71,6 @@ public sealed partial class BelteRepl {
         /// Current defined variables.
         /// Not tracked after Repl instance is over, instead previous submissions are reevaluated.
         /// </summary>
-        internal Dictionary<IVariableSymbol, IEvaluatorObject> variables;
+        internal Dictionary<IVariableSymbol, EvaluatorObject> variables;
     }
 }
