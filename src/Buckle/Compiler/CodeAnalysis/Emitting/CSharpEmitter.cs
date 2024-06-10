@@ -20,8 +20,8 @@ namespace Buckle.CodeAnalysis.Emitting;
 /// Emits a bound program into a C# source.
 /// </summary>
 internal sealed class CSharpEmitter {
-    private static List<string> ValueTypes = new List<string>() { "bool", "double", "int" };
-    private static string IndentString = "    ";
+    private static readonly List<string> ValueTypes = new List<string>() { "bool", "double", "int" };
+    private static readonly string IndentString = "    ";
 
     private bool _insideMain;
     private bool _insideReturningT;

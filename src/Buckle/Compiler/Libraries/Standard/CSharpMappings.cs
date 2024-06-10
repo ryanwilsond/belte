@@ -18,7 +18,14 @@ internal static partial class StandardLibrary {
     /// Method used to evaluate Standard Library methods with no native implementation.
     /// </summary>
     internal static object EvaluateMethod(MethodSymbol method, object[] arguments) {
-        // TODO This could be optimized by using a unique name lookup instead of comparing symbols
+        return arguments.Length switch {
+            0 => MethodMap[method.GetHashCode()](null, null, null),
+            1 => MethodMap[method.GetHashCode()](arguments[0], null, null),
+            2 => MethodMap[method.GetHashCode()](arguments[0], arguments[1], null),
+            3 => MethodMap[method.GetHashCode()](arguments[0], arguments[1], arguments[2]),
+            _ => null,
+        };
+
         // TODO Could optimize this by inlining Math methods such as Clamp
         // instead of calling the external .NET library to do it for us
         if (method == Console.members[1]) {
