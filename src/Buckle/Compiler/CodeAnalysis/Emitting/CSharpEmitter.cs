@@ -929,7 +929,10 @@ internal sealed class CSharpEmitter {
             indentedTextWriter.Write(GetSafeName(expression.method.name));
         }
 
-        EmitArguments(indentedTextWriter, expression.arguments, expression.method.parameters);
+        if (expression.method != StandardLibrary.Console.members[12] &&
+            expression.method != StandardLibrary.Console.members[13]) {
+            EmitArguments(indentedTextWriter, expression.arguments, expression.method.parameters);
+        }
     }
 
     private void EmitArguments(

@@ -1123,25 +1123,30 @@ internal sealed class Evaluator {
                 var argument = InvokeMethod(toString, [], abort);
                 ExitClassScope();
 
-                result = StandardLibrary.EvaluateMethod(method, [Value(argument)]);
+                result = StandardLibrary.MethodEvaluatorMap[method.GetHashCode()](Value(argument), null, null);
                 return true;
             }
 
-            result = StandardLibrary.EvaluateMethod(method, EvaluateArgumentsForExternalCall(arguments, abort));
+            result = arguments.Length switch {
+                0 => StandardLibrary.MethodEvaluatorMap[method.GetHashCode()](null, null, null),
+                1 => StandardLibrary.MethodEvaluatorMap[method.GetHashCode()]
+                    (Value(EvaluateExpression(arguments[0], abort)), null, null),
+                2 => StandardLibrary.MethodEvaluatorMap[method.GetHashCode()](
+                        Value(EvaluateExpression(arguments[0], abort)),
+                        Value(EvaluateExpression(arguments[1], abort)),
+                        null
+                    ),
+                3 => StandardLibrary.MethodEvaluatorMap[method.GetHashCode()](
+                        Value(EvaluateExpression(arguments[0], abort)),
+                        Value(EvaluateExpression(arguments[1], abort)),
+                        Value(EvaluateExpression(arguments[2], abort))
+                    ),
+                _ => throw ExceptionUtilities.Unreachable()
+            };
+
             return true;
         }
 
         return false;
-    }
-
-    private object[] EvaluateArgumentsForExternalCall(
-        ImmutableArray<BoundExpression> arguments,
-        ValueWrapper<bool> abort) {
-        var evaluatedArguments = new object[arguments.Length];
-
-        for (var i = 0; i < arguments.Length; i++)
-            evaluatedArguments[i] = Value(EvaluateExpression(arguments[i], abort));
-
-        return evaluatedArguments;
     }
 }

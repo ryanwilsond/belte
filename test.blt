@@ -1,3 +1,0 @@
-for (int! i = 0; i<100000; i++) {
-    Console.SetForegroundColor(Console.Color.Blue);
-}
