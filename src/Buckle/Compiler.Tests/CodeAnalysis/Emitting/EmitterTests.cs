@@ -444,7 +444,7 @@ namespace EmitterTests {
             global::System.Nullable<int>[]? a = new global::System.Nullable<int>[]? { 1, 2, 3 };
             global::System.Nullable<int> b = a[0];
             object[]? c = new object[]? { 1, 3.3, false };
-            global::System.Nullable<int> d = (global::System.Nullable<int>)global::System.Convert.ToInt32(c[0]);
+            global::System.Nullable<int> d = global::System.Convert.ToInt32(c[0]);
             b++;
             --d;
             global::System.Nullable<int> x = 4;
@@ -492,10 +492,10 @@ namespace EmitterTests {
             global::System.Nullable<int> temp1 = Add(5, 6);
             global::System.Nullable<int> temp2 = ((temp0.HasValue && temp1.HasValue) ? (global::System.Nullable<int>)(temp0.Value + temp1.Value) : null);
             global::System.Nullable<int> temp3 = Add(1, 5);
-            global::System.Console.ReadLine(((temp2.HasValue && temp3.HasValue) ? (global::System.Nullable<int>)(temp2.Value + temp3.Value) : null));
-            global::System.Console.ReadLine(Add(null, null));
-            global::System.Console.ReadLine(Add(1, null));
-            global::System.Console.ReadLine(Add(null, 2));
+            global::System.Console.Write(((temp2.HasValue && temp3.HasValue) ? (global::System.Nullable<int>)(temp2.Value + temp3.Value) : null));
+            global::System.Console.Write(Add(null, null));
+            global::System.Console.Write(Add(1, null));
+            global::System.Console.Write(Add(null, 2));
         }
 
         global::System.Nullable<int> Add(global::System.Nullable<int> a, global::System.Nullable<int> b) {
@@ -618,7 +618,7 @@ namespace EmitterTests {
     public static class Program {
 
         public static void Main() {
-            global::System.Nullable<int> max = (global::System.Nullable<int>)global::System.Convert.ToInt32(global::System.Console.BackgroundColor = ());
+            global::System.Nullable<int> max = global::System.Convert.ToInt32(global::System.Console.ReadLine());
             global::System.Nullable<int> randInt = ((global::System.Func<int>)(() => { var random = new global::System.Random(); var temp = max.Value; return random.Next(temp); }))();
         }
 
@@ -675,7 +675,11 @@ namespace EmitterTests {
     public void Emitter_Emits_CorrectText(string text, string expectedCSharpText, string expectedILText) {
         // TODO Fix Mono.Cecil bug that is preventing further IL Emitter development
         // TODO Research combining IL with JIT to allow non-type templates
-        AssertText(text, expectedCSharpText.Trim() + Environment.NewLine, BuildMode.CSharpTranspile);
+        AssertText(
+            text,
+            expectedCSharpText.Trim().Replace("\r\n", "\n") + Environment.NewLine,
+            BuildMode.CSharpTranspile
+        );
         // AssertText(text, expectedILText.Trim() + Environment.NewLine, BuildMode.Dotnet);
     }
 #pragma warning restore xUnit1026
