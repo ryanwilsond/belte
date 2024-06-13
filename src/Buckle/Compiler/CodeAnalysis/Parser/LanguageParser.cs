@@ -95,10 +95,12 @@ internal sealed partial class LanguageParser : SyntaxParser {
         if (hasName)
             offset++;
 
+        // TODO check for templates
+
         if (Peek(offset).kind != SyntaxKind.OpenParenToken)
             return false;
 
-        if (!couldBeInStatement)
+        if (!couldBeInStatement || hasName)
             return true;
 
         // If we get here it means that we are inside of a statement and if we do decide this is a function or method,
