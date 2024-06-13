@@ -31,7 +31,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
     /// <returns>Lowered method body (same type).</returns>
     internal static (BoundBlockStatement, BoundBlockStatement) Lower(MethodSymbol method, BoundStatement statement, bool transpilerMode) {
         var lowerer = new Lowerer(false) {
-            _expander = new Expander()
+            _expander = new Expander() {
+                transpilerMode = transpilerMode
+            }
         };
 
         var expandedStatement = lowerer._expander.Expand(statement);
@@ -403,7 +405,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         ----> <expression> is not nullable and <type> is nullable and <expression>.type and <type> are otherwise equal
 
         */
-
         if (expression.expression.type.isNullable && !expression.type.isNullable) {
             return base.RewriteCastExpression(
                 Cast(

@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// <summary>
 /// Encased Object that can also be a reference to a <see cref="VariableSymbol" />.
 /// </summary>
-internal sealed class EvaluatorObject : IEvaluatorObject {
+public sealed class EvaluatorObject {
     internal static EvaluatorObject Null => new EvaluatorObject(value: null);
 
     /// <summary>
@@ -62,29 +62,24 @@ internal sealed class EvaluatorObject : IEvaluatorObject {
     /// <param name="isExplicitReference">
     /// If this is just a variable, or if it explicitly a reference expression.
     /// </param>
-    internal EvaluatorObject(
-        VariableSymbol reference, bool isExplicitReference = false,
-        Dictionary<IVariableSymbol, IEvaluatorObject> referenceScope = null) {
+    internal EvaluatorObject(VariableSymbol reference, bool isExplicitReference = false) {
         value = null;
         isReference = true;
         this.reference = reference;
-        this.referenceScope = referenceScope;
         this.isExplicitReference = isExplicitReference;
         members = null;
         trueType = null;
     }
 
-    public object value { get; set; }
+    internal object value { get; set; }
 
-    public bool isReference { get; set; }
+    internal bool isReference { get; set; }
 
-    public Dictionary<IVariableSymbol, IEvaluatorObject> referenceScope { get; set; }
+    internal bool isExplicitReference { get; set; }
 
-    public bool isExplicitReference { get; set; }
+    internal VariableSymbol reference { get; set; }
 
-    public VariableSymbol reference { get; set; }
+    internal Dictionary<Symbol, EvaluatorObject> members { get; set; }
 
-    public Dictionary<Symbol, EvaluatorObject> members { get; set; }
-
-    public BoundType trueType { get; set; }
+    internal BoundType trueType { get; set; }
 }

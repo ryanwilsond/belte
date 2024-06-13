@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Libraries.Standard;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
@@ -13,6 +15,8 @@ internal sealed class Expander : BoundTreeExpander {
     private int _tempCount = 0;
     private int _compoundAssignmentDepth = 0;
     private int _operatorDepth = 0;
+
+    internal bool transpilerMode = false;
 
     /// <summary>
     /// Expands all expression in a <see cref="BoundStatement" />.
@@ -59,7 +63,7 @@ internal sealed class Expander : BoundTreeExpander {
         BoundCallExpression expression,
         out BoundExpression replacement) {
         if (_operatorDepth > 0) {
-            var statements = base.ExpandCallExpression(expression, out var callReplacement);
+            var statements = ExpandCallExpressionInternal(expression, out var callReplacement);
             var tempLocal = GenerateTempLocal(expression.type);
 
             statements.Add(new BoundLocalDeclarationStatement(
@@ -67,6 +71,35 @@ internal sealed class Expander : BoundTreeExpander {
             ));
 
             replacement = new BoundVariableExpression(tempLocal);
+
+            return statements;
+        }
+
+        return ExpandCallExpressionInternal(expression, out replacement);
+    }
+
+    private List<BoundStatement> ExpandCallExpressionInternal(
+        BoundCallExpression expression,
+        out BoundExpression replacement) {
+        if (transpilerMode && expression.method.containingType == StandardLibrary.Math) {
+            var statements = ExpandExpression(expression.expression, out var expressionReplacement);
+            var replacementArguments = ImmutableArray.CreateBuilder<BoundExpression>();
+
+            foreach (var argument in expression.arguments) {
+                var tempLocal = GenerateTempLocal(argument.type);
+                statements.AddRange(ExpandExpression(argument, out var argumentReplacement));
+                statements.Add(new BoundLocalDeclarationStatement(
+                    new BoundVariableDeclaration(tempLocal, argumentReplacement)
+                ));
+
+                replacementArguments.Add(new BoundVariableExpression(tempLocal));
+            }
+
+            replacement = new BoundCallExpression(
+                expressionReplacement,
+                expression.method,
+                replacementArguments.ToImmutable()
+            );
 
             return statements;
         }

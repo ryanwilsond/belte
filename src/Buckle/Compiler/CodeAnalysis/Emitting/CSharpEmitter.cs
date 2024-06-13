@@ -20,8 +20,8 @@ namespace Buckle.CodeAnalysis.Emitting;
 /// Emits a bound program into a C# source.
 /// </summary>
 internal sealed class CSharpEmitter {
-    private static List<string> ValueTypes = new List<string>() { "bool", "double", "int" };
-    private static string IndentString = "    ";
+    private static readonly List<string> ValueTypes = new List<string>() { "bool", "double", "int" };
+    private static readonly string IndentString = "    ";
 
     private bool _insideMain;
     private bool _insideReturningT;
@@ -916,6 +916,25 @@ internal sealed class CSharpEmitter {
 
         if (expression.method.containingType == StandardLibrary.Console ||
             expression.method.containingType == StandardLibrary.Math) {
+
+            if (expression.method.containingType == StandardLibrary.Math &&
+                expression.method.parameters[0].isNullable) {
+                indentedTextWriter.Write('(');
+                var isFirst = true;
+
+                foreach (var argument in expression.arguments) {
+                    if (!isFirst)
+                        indentedTextWriter.Write("|| ");
+                    else
+                        isFirst = false;
+
+                    EmitExpression(indentedTextWriter, argument);
+                    indentedTextWriter.Write(" is null");
+                }
+
+                indentedTextWriter.Write(") ? null : ");
+            }
+
             indentedTextWriter.Write(StandardLibrary.CSharpEmitMethod(expression.method));
         } else {
             if (expression.expression is not BoundEmptyExpression) {
@@ -929,7 +948,39 @@ internal sealed class CSharpEmitter {
             indentedTextWriter.Write(GetSafeName(expression.method.name));
         }
 
-        EmitArguments(indentedTextWriter, expression.arguments, expression.method.parameters);
+        if (expression.method != StandardLibrary.Console.members[12] &&
+            expression.method != StandardLibrary.Console.members[13]) {
+            if (expression.method.containingType == StandardLibrary.Math &&
+                expression.method.parameters[0].isNullable) {
+                indentedTextWriter.Write("(");
+
+                var isFirst = true;
+
+                for (var i = 0; i < expression.arguments.Length; i++) {
+                    if (isFirst)
+                        isFirst = false;
+                    else
+                        indentedTextWriter.Write(", ");
+
+                    var argument = expression.arguments[i];
+                    var type = expression.method.parameters.Length > i ? expression.method.parameters[i].type : null;
+
+                    if (type is not null && !type.isExplicitReference && argument is BoundReferenceExpression r)
+                        EmitExpression(indentedTextWriter, r.expression);
+                    else
+                        EmitExpression(indentedTextWriter, argument);
+
+                    if (GetEquivalentType(expression.arguments[0].type).StartsWith("global::System.Nullable"))
+                        indentedTextWriter.Write(".Value");
+                    else
+                        indentedTextWriter.Write('!');
+                }
+
+                indentedTextWriter.Write(")");
+            } else {
+                EmitArguments(indentedTextWriter, expression.arguments, expression.method.parameters);
+            }
+        }
     }
 
     private void EmitArguments(
@@ -970,9 +1021,6 @@ internal sealed class CSharpEmitter {
     }
 
     private void EmitCastExpression(IndentedTextWriter indentedTextWriter, BoundCastExpression expression) {
-        if (expression.type.isNullable)
-            indentedTextWriter.Write($"({GetEquivalentType(expression.type)})");
-
         var neededParenthesis = 1;
         var typeSymbol = expression.type.typeSymbol;
 
@@ -990,6 +1038,7 @@ internal sealed class CSharpEmitter {
                 neededParenthesis = 2;
             }
         } else {
+            indentedTextWriter.Write($"({GetEquivalentType(expression.type)})");
             neededParenthesis = 0;
         }
 
