@@ -53,10 +53,31 @@ public static partial class SyntaxFactory {
     /// <summary>
     /// Creates an <see cref="IdentifierNameSyntax" />.
     /// </summary>
-    /// <param name="name"></param>
-    /// <returns></returns>
     public static IdentifierNameSyntax IdentifierName(string name) {
         return IdentifierName(Identifier(name));
+    }
+
+    /// <summary>
+    /// Creates an empty <see cref="TemplateParameterListSyntax" />.
+    /// </summary>
+    public static TemplateParameterListSyntax TemplateParameterList() {
+        return TemplateParameterList(
+            Token(SyntaxKind.LessThanToken),
+            SeparatedList<ParameterSyntax>(),
+            Token(SyntaxKind.GreaterThanToken)
+        );
+    }
+
+    /// <summary>
+    /// Creates an empty <see cref="TemplateParameterConstraintClauseListSyntax" />.
+    /// </summary>
+    public static TemplateParameterConstraintClauseListSyntax ConstraintClauseList() {
+        return TemplateParameterConstraintClauseList(
+            Token(SyntaxKind.WhereKeyword),
+            Token(SyntaxKind.OpenBraceToken),
+            List<TemplateParameterConstraintClauseSyntax>(),
+            Token(SyntaxKind.CloseBraceToken)
+        );
     }
 
     /// <summary>

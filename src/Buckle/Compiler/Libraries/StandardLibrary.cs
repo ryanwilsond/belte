@@ -24,11 +24,13 @@ internal static partial class StandardLibrary {
                     TokenList(Token(SyntaxKind.VirtualKeyword)),
                     IdentifierName("string"),
                     Identifier("ToString"),
+                    TemplateParameterList(),
                     ParameterList(
                         Token(SyntaxKind.OpenParenToken),
                         SeparatedList<ParameterSyntax>(),
                         Token(SyntaxKind.CloseParenToken)
                     ),
+                    ConstraintClauseList(),
                     Block(Return(Literal(""))),
                     Token(SyntaxKind.SemicolonToken)
                 )

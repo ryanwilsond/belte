@@ -372,7 +372,9 @@
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>
+    <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Optional="true"/>
     <Field Name="parameterList" Type="ParameterListSyntax"/>
+    <Field Name="constraintClauseList" Type="TemplateParameterConstraintClauseListSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax"/>
   </Node>
   <Node Name="BlockStatementSyntax" Base="StatementSyntax">
