@@ -41,6 +41,8 @@ internal static class LibraryUtilities {
         Accessibility accessibility = Accessibility.Public) {
         return new MethodSymbol(
             WellKnownMemberNames.InstanceConstructorName,
+            [],
+            [],
             CreateParameterList(parameters),
             BoundType.Void,
             modifiers: DeclarationModifiers.None,
@@ -66,6 +68,8 @@ internal static class LibraryUtilities {
     internal static MethodSymbol StaticMethod(string name, BoundType type, List<(string, BoundType)> parameters) {
         return new MethodSymbol(
             name,
+            [],
+            [],
             CreateParameterList(parameters),
             type,
             modifiers: DeclarationModifiers.Static,
@@ -82,6 +86,8 @@ internal static class LibraryUtilities {
         MethodDeclarationSyntax declaration = null) {
         return new MethodSymbol(
             name,
+            [],
+            [],
             CreateParameterList(parameters),
             type,
             declaration: declaration,
