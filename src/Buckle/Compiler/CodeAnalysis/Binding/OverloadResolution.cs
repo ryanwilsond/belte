@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -288,28 +289,33 @@ internal sealed class OverloadResolution {
     /// <summary>
     /// Uses partially bound arguments to find the best template overload and resolves it.
     /// </summary>
-    /// <param name="types">Available overloads.</param>
+    /// <param name="symbols">Available overloads.</param>
     /// <param name="arguments">Bound arguments.</param>
     /// <param name="name">The name of the template.</param>
     /// <param name="operand">Original expression operand, used for diagnostic locations.</param>
     /// <param name="argumentList">The original arguments, used for calculations.</param>
-    internal OverloadResolutionResult<NamedTypeSymbol> TemplateOverloadResolution(
-        ImmutableArray<NamedTypeSymbol> types,
+    internal OverloadResolutionResult<ISymbolWithTemplates> TemplateOverloadResolution(
+        ImmutableArray<ISymbolWithTemplates> symbols,
         ImmutableArray<(string name, BoundTypeOrConstant constant)> arguments,
         string name,
         SyntaxNodeOrToken operand,
         TemplateArgumentListSyntax argumentList) {
         var minScore = int.MaxValue;
-        var possibleOverloads = new List<NamedTypeSymbol>();
+        var possibleOverloads = new List<ISymbolWithTemplates>();
 
         var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
         var preBoundArgumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
 
         foreach (var argument in arguments) {
             if (argument.constant.isConstant) {
-                var expression = argument.constant.constant is null
-                    ? argument.constant.expression
-                    : new BoundLiteralExpression(argument.constant.constant?.value);
+                BoundExpression expression;
+
+                if (argument.constant.constant is null)
+                    expression = argument.constant.expression;
+                else if (argument.constant.constant.value is ImmutableArray<BoundConstant>)
+                    expression = new BoundInitializerListExpression(argument.constant.constant, argument.constant.type);
+                else
+                    expression = new BoundLiteralExpression(argument.constant.constant.value);
 
                 preBoundArgumentsBuilder.Add((argument.name, expression));
             } else {
@@ -320,22 +326,22 @@ internal sealed class OverloadResolution {
         var tempDiagnostics = new BelteDiagnosticQueue();
         tempDiagnostics.Move(_binder.diagnostics);
 
-        foreach (var type in types) {
+        foreach (var symbol in symbols) {
             var beforeCount = _binder.diagnostics.Count;
             var score = 0;
 
-            var defaultParameterCount = type.templateParameters.Where(p => p.defaultValue != null).Count();
+            var defaultParameterCount = symbol.templateParameters.Where(p => p.defaultValue != null).Count();
             var expressionArguments = argumentList?.arguments;
             var argumentCount = expressionArguments?.Count ?? 0;
 
-            if (argumentCount < type.templateParameters.Length - defaultParameterCount ||
-                argumentCount > type.templateParameters.Length) {
-                if (argumentCount != type.templateParameters.Length) {
+            if (argumentCount < symbol.templateParameters.Length - defaultParameterCount ||
+                argumentCount > symbol.templateParameters.Length) {
+                if (argumentCount != symbol.templateParameters.Length) {
                     ResolveIncorrectArgumentCount(
                         operand,
                         argumentList?.closeAngleBracket?.span,
-                        type.name,
-                        type.templateParameters,
+                        symbol.name,
+                        symbol.templateParameters,
                         defaultParameterCount,
                         expressionArguments?.Count ?? 0,
                         expressionArguments,
@@ -347,18 +353,18 @@ internal sealed class OverloadResolution {
             }
 
             var canContinue = CalculateArgumentRearrangements(
-                types.Length,
+                symbols.Length,
                 name,
                 preBoundArgumentsBuilder,
-                type.templateParameters,
+                symbol.templateParameters,
                 expressionArguments?.Count ?? 0,
                 expressionArguments,
                 out var rearrangedArguments,
                 out var seenParameterNames
             );
 
-            for (var i = 0; i < type.templateParameters.Length; i++) {
-                var parameter = type.templateParameters[i];
+            for (var i = 0; i < symbol.templateParameters.Length; i++) {
+                var parameter = symbol.templateParameters[i];
 
                 if (!parameter.name.StartsWith('$') &&
                     seenParameterNames.Add(parameter.name) &&
@@ -372,7 +378,7 @@ internal sealed class OverloadResolution {
 
             if (canContinue) {
                 score = RearrangeArguments(
-                    type.templateParameters,
+                    symbol.templateParameters,
                     score,
                     expressionArguments?.Count ?? 0,
                     expressionArguments,
@@ -384,35 +390,69 @@ internal sealed class OverloadResolution {
                 );
             }
 
-            if (types.Length == 1 && _binder.diagnostics.Errors().Any()) {
-                CleanUpDiagnostics(types, tempDiagnostics);
-                return OverloadResolutionResult<NamedTypeSymbol>.Failed();
+            if (symbols.Length == 1 && _binder.diagnostics.Errors().Any()) {
+                CleanUpDiagnostics(symbols, tempDiagnostics);
+                return OverloadResolutionResult<ISymbolWithTemplates>.Failed();
             }
 
             minScore = UpdateScore(
                 minScore,
                 possibleOverloads,
                 boundArguments,
-                type,
+                symbol,
                 beforeCount,
                 score,
                 currentBoundArguments
             );
         }
 
-        CleanUpDiagnostics(types, tempDiagnostics);
+        CleanUpDiagnostics(symbols, tempDiagnostics);
 
-        if (types.Length > 1 && possibleOverloads.Count == 0) {
+        if (symbols.Length > 1 && possibleOverloads.Count == 0) {
             _binder.diagnostics.Push(Error.NoTemplateOverload(operand.location, name));
-            return OverloadResolutionResult<NamedTypeSymbol>.Failed();
-        } else if (types.Length > 1 && possibleOverloads.Count > 1) {
-            _binder.diagnostics.Push(Error.AmbiguousTemplateOverload(operand.location, possibleOverloads.ToArray()));
-            return OverloadResolutionResult<NamedTypeSymbol>.Ambiguous();
-        } else if (types.Length == 1 && possibleOverloads.Count == 0) {
-            possibleOverloads.Add(types[0]);
+            return OverloadResolutionResult<ISymbolWithTemplates>.Failed();
+        } else if (symbols.Length > 1 && possibleOverloads.Count > 1) {
+            var reference = possibleOverloads[0];
+            var failed = false;
+
+            foreach (var possibleOverload in possibleOverloads) {
+                if (possibleOverload.templateParameters.Length == reference.templateParameters.Length &&
+                    possibleOverload.templateConstraints.Length == reference.templateConstraints.Length) {
+                    for (var i = 0; i < possibleOverload.templateParameters.Length; i++) {
+                        if (possibleOverload.templateParameters[i].type != reference.templateParameters[i].type) {
+                            failed = true;
+                            break;
+                        }
+                    }
+
+                    if (!failed) {
+                        for (var i = 0; i < possibleOverload.templateConstraints.Length; i++) {
+                            if (possibleOverload.templateConstraints[i] != reference.templateConstraints[i]) {
+                                failed = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (failed) {
+                    _binder.diagnostics.Push(
+                        Error.AmbiguousTemplateOverload(operand.location, possibleOverloads.ToArray())
+                    );
+
+                    return OverloadResolutionResult<ISymbolWithTemplates>.Ambiguous();
+                }
+            }
+
+            return OverloadResolutionResult<ISymbolWithTemplates>.Succeeded(
+                possibleOverloads.ToArray(),
+                boundArguments.ToImmutable()
+            );
+        } else if (symbols.Length == 1 && possibleOverloads.Count == 0) {
+            possibleOverloads.Add(symbols[0]);
         }
 
-        return OverloadResolutionResult<NamedTypeSymbol>.Succeeded(
+        return OverloadResolutionResult<ISymbolWithTemplates>.Succeeded(
             possibleOverloads.SingleOrDefault(),
             boundArguments.ToImmutable()
         );
@@ -580,7 +620,7 @@ internal sealed class OverloadResolution {
         T overload,
         int beforeCount,
         int score,
-        ImmutableArray<BoundExpression>.Builder currentBoundArguments) where T : Symbol {
+        ImmutableArray<BoundExpression>.Builder currentBoundArguments) where T : ISymbol {
         if (_binder.diagnostics.Count == beforeCount) {
             if (score < minScore) {
                 boundArguments.Clear();
@@ -600,7 +640,7 @@ internal sealed class OverloadResolution {
     }
 
     private void CleanUpDiagnostics<T>(ImmutableArray<T> overloads, BelteDiagnosticQueue tempDiagnostics)
-        where T : Symbol {
+        where T : ISymbol {
         if (overloads.Length > 1) {
             _binder.diagnostics.Clear();
             _binder.diagnostics.Move(tempDiagnostics);

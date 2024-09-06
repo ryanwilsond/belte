@@ -23,28 +23,24 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class Binder {
     private readonly MethodSymbol _containingMethod;
     private readonly NamedTypeSymbol _containingType;
-    private readonly List<(MethodSymbol method, BoundBlockStatement body)> _methodBodies =
-        new List<(MethodSymbol, BoundBlockStatement)>();
     private readonly CompilationOptions _options;
     private readonly OverloadResolution _overloadResolution;
-    private readonly Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> _loopStack =
-        new Stack<(BoundLabel, BoundLabel)>();
-    private readonly Stack<List<string>> _localLocals = new Stack<List<string>>();
-    private readonly List<string> _resolvedLocals = new List<string>();
-    private readonly Dictionary<string, LocalFunctionStatementSyntax> _unresolvedLocals =
-        new Dictionary<string, LocalFunctionStatementSyntax>();
     private readonly Dictionary<string, NamedTypeSymbol> _wellKnownTypes;
-    private readonly HashSet<NamedTypeSymbol> _usedLibraryTypes = new HashSet<NamedTypeSymbol>();
+    private readonly List<(MethodSymbol method, BoundBlockStatement body)> _methodBodies = [];
+    private readonly Stack<(BoundLabel breakLabel, BoundLabel continueLabel)> _loopStack = [];
+    private readonly Stack<List<string>> _localLocals = [];
+    private readonly List<string> _resolvedLocals = [];
+    private readonly Dictionary<string, LocalFunctionStatementSyntax> _unresolvedLocals = [];
+    private readonly HashSet<NamedTypeSymbol> _usedLibraryTypes = [];
 
     private BinderFlags _flags;
     private BoundScope _scope;
     private int _labelCount;
-    private ImmutableArray<string> _peekedLocals = ImmutableArray<string>.Empty;
     private int _checkPeekedLocals = 0;
-    // Methods should be available correctly, so only track variables
-    private Stack<HashSet<VariableSymbol>> _trackedSymbols = new Stack<HashSet<VariableSymbol>>();
-    private Stack<HashSet<VariableSymbol>> _trackedDeclarations = new Stack<HashSet<VariableSymbol>>();
-    private Stack<string> _innerPrefix = new Stack<string>();
+    private ImmutableArray<string> _peekedLocals = [];
+    private Stack<HashSet<VariableSymbol>> _trackedSymbols = [];
+    private Stack<HashSet<VariableSymbol>> _trackedDeclarations = [];
+    private Stack<string> _innerPrefix = [];
     private string _shadowingVariable;
 
     private Binder(
@@ -60,7 +56,7 @@ internal sealed class Binder {
         _options = options;
         _flags = flags;
         _overloadResolution = new OverloadResolution(this);
-        _wellKnownTypes = wellKnownTypes ?? new Dictionary<string, NamedTypeSymbol>();
+        _wellKnownTypes = wellKnownTypes ?? [];
 
         var needsNewScope = false;
 
@@ -96,6 +92,15 @@ internal sealed class Binder {
 
             foreach (var parameter in method.parameters)
                 _scope.TryDeclareVariable(parameter);
+
+            foreach (var templateParameter in method.templateParameters) {
+                if (templateParameter.type.typeSymbol == TypeSymbol.Type) {
+                    var templateType = new TemplateTypeSymbol(templateParameter);
+                    _scope.TryDeclareType(templateType);
+                } else {
+                    _scope.TryDeclareVariable(templateParameter);
+                }
+            }
         }
     }
 
@@ -179,7 +184,7 @@ internal sealed class Binder {
 
         if (binder._options.isScript) {
             if (globalStatements.Any())
-                entryPoint = new MethodSymbol("<Eval>$", ImmutableArray<ParameterSymbol>.Empty, BoundType.NullableAny);
+                entryPoint = new MethodSymbol("<Eval>$", [], [], [], BoundType.NullableAny);
         } else {
             entryPoint = ResolveEntryPoint(methods, binder, globalStatements, firstGlobalPerTree);
 
@@ -526,7 +531,7 @@ internal sealed class Binder {
                 foreach (var globalStatement in firstGlobalPerTree)
                     binder.diagnostics.Push(Error.MainAndGlobals(globalStatement.location));
             } else {
-                entryPoint = new MethodSymbol("<Main>$", ImmutableArray<ParameterSymbol>.Empty, BoundType.Void);
+                entryPoint = new MethodSymbol("<Main>$", [], [], [], BoundType.Void);
             }
         }
 
@@ -557,7 +562,8 @@ internal sealed class Binder {
     }
 
     private static ImmutableArray<string> PeekLocals(
-        IEnumerable<StatementSyntax> statements, IEnumerable<ParameterSymbol> parameters) {
+        IEnumerable<StatementSyntax> statements,
+        IEnumerable<ParameterSymbol> parameters) {
         var locals = ImmutableArray.CreateBuilder<string>();
 
         foreach (var statement in statements) {
@@ -829,7 +835,7 @@ internal sealed class Binder {
             }
         }
 
-        return new BoundCallExpression(receiver, result.bestOverload, result.arguments);
+        return new BoundCallExpression(receiver, result.bestOverload, result.arguments, []);
     }
 
     private bool ModifierAlreadyApplied(
@@ -931,19 +937,40 @@ internal sealed class Binder {
             diagnostics.Push(Error.CannotBePrivateAndVirtualOrAbstract(method.identifier.location));
         }
 
-        var type = BindType(method.returnType, modifiers, true);
-
         var saved = _flags;
 
         if ((modifiers & DeclarationModifiers.LowLevel) != 0)
             _flags |= BinderFlags.LowLevelContext;
 
+        name ??= method.identifier.text;
+        var type = BindType(method.returnType, modifiers, true);
+
         if (type?.typeSymbol?.isStatic ?? false)
             diagnostics.Push(Error.CannotReturnStatic(method.returnType.location));
 
+        // Temporary scope so constraint clauses can see templates
+        _scope = new BoundScope(_scope);
+
+        var templates = BindTemplateParameters(method.templateParameterList);
+
+        foreach (var template in templates) {
+            if (template.type.typeSymbol == TypeSymbol.Type) {
+                var templateType = new TemplateTypeSymbol(template);
+                _scope.TryDeclareType(templateType);
+            } else {
+                _scope.TryDeclareVariable(template);
+            }
+        }
+
+        var constraints = BindConstraintClauseList(name, method.constraintClauseList, templates);
+
+        _scope = _scope.parent;
+
         var parameters = BindParameterList(method.parameterList);
         var newMethod = new MethodSymbol(
-            name ?? method.identifier.text,
+            name,
+            templates,
+            constraints,
             parameters,
             type,
             method,
@@ -1158,6 +1185,8 @@ internal sealed class Binder {
         var parameters = BindParameterList(constructor.parameterList);
         var method = new MethodSymbol(
             WellKnownMemberNames.InstanceConstructorName,
+            [],
+            [],
             parameters,
             BoundType.Void,
             constructor,
@@ -1297,6 +1326,8 @@ internal sealed class Binder {
 
         var method = new MethodSymbol(
             name,
+            [],
+            [],
             parameters,
             type,
             @operator,
@@ -1387,18 +1418,8 @@ internal sealed class Binder {
         TypeDeclarationSyntax type,
         DeclarationModifiers inheritedModifiers) {
         // Binds everything about the type except the members and the constraints
-        var templateBuilder = ImmutableList.CreateBuilder<ParameterSymbol>();
-
-        if (type.templateParameterList != null) {
-            var templateParameters = BindParameters(type.templateParameterList.parameters, true);
-
-            foreach (var templateParameter in templateParameters)
-                templateBuilder.Add(templateParameter);
-        }
-
-        var templates = templateBuilder.ToImmutableArray();
-
         NamedTypeSymbol symbol;
+        var templates = BindTemplateParameters(type.templateParameterList);
 
         if (type is StructDeclarationSyntax s) {
             var modifiers = BindStructDeclarationModifiers(s.modifiers);
@@ -1466,14 +1487,28 @@ internal sealed class Binder {
         return type ?? new BoundType(_wellKnownTypes[WellKnownTypeNames.Object]);
     }
 
+    private ImmutableArray<ParameterSymbol> BindTemplateParameters(TemplateParameterListSyntax templateParameterList) {
+        var builder = ImmutableList.CreateBuilder<ParameterSymbol>();
+
+        if (templateParameterList != null) {
+            var templateParameters = BindParameters(templateParameterList.parameters, true);
+
+            foreach (var templateParameter in templateParameters)
+                builder.Add(templateParameter);
+        }
+
+        return builder.ToImmutableArray();
+    }
+
     private ImmutableArray<BoundExpression> BindConstraintClauseList(
-        TypeDeclarationSyntax type,
+        string memberName,
+        TemplateParameterConstraintClauseListSyntax constraintClauseList,
         ImmutableArray<ParameterSymbol> templates) {
         // TODO Should the clauses be able to see globals? e.g. constexpr GlobalMin
         var constraintsBuilder = ImmutableList.CreateBuilder<BoundExpression>();
 
-        if (type.constraintClauseList != null) {
-            foreach (var constraintClause in type.constraintClauseList.constraintClauses) {
+        if (constraintClauseList != null) {
+            foreach (var constraintClause in constraintClauseList.constraintClauses) {
                 if (constraintClause.expressionStatement is null) {
                     var name = constraintClause.name.identifier.text;
                     var possibleTemplate = templates
@@ -1482,7 +1517,7 @@ internal sealed class Binder {
 
                     if (possibleTemplate.Length != 1) {
                         diagnostics.Push(
-                            Error.UnknownTemplate(constraintClause.name.location, type.identifier.text, name)
+                            Error.UnknownTemplate(constraintClause.name.location, memberName, name)
                         );
 
                         continue;
@@ -1566,7 +1601,11 @@ internal sealed class Binder {
             templates.Add(templateParameter);
         }
 
-        var constraints = BindConstraintClauseList(@struct, templates.ToImmutable());
+        var constraints = BindConstraintClauseList(
+            oldStruct.name,
+            @struct.constraintClauseList,
+            templates.ToImmutable()
+        );
 
         foreach (var fieldDeclaration in @struct.members.OfType<FieldDeclarationSyntax>()) {
             var field = BindFieldDeclaration(fieldDeclaration, true);
@@ -1729,7 +1768,7 @@ internal sealed class Binder {
             templates.Add(templateParameter);
         }
 
-        var constraints = BindConstraintClauseList(@class, templates.ToImmutable());
+        var constraints = BindConstraintClauseList(oldClass.name, @class.constraintClauseList, templates.ToImmutable());
 
         foreach (var member in (baseType.typeSymbol as ClassSymbol).GetMembers()) {
             switch (member.kind) {
@@ -1751,7 +1790,9 @@ internal sealed class Binder {
         if (@class.members.Count == 0) {
             var defaultConstructor = new MethodSymbol(
                 WellKnownMemberNames.InstanceConstructorName,
-                ImmutableArray<ParameterSymbol>.Empty,
+                [],
+                [],
+                [],
                 BoundType.Void,
                 modifiers: inheritModifiers,
                 accessibility: Accessibility.Public
@@ -1818,7 +1859,9 @@ internal sealed class Binder {
         if (!hasConstructor && !isStatic) {
             var defaultConstructor = new MethodSymbol(
                 WellKnownMemberNames.InstanceConstructorName,
-                ImmutableArray<ParameterSymbol>.Empty,
+                [],
+                [],
+                [],
                 BoundType.Void,
                 modifiers: inheritModifiers,
                 accessibility: Accessibility.Public
@@ -2017,7 +2060,11 @@ internal sealed class Binder {
         binder._trackedSymbols.Push(new HashSet<VariableSymbol>());
         binder._trackedDeclarations.Push(new HashSet<VariableSymbol>());
         binder._innerPrefix.Push(functionSymbol.name);
-        var body = binder.BindMethodBody(functionSymbol.declaration, functionSymbol.parameters, null);
+        var body = binder.BindMethodBody(
+            functionSymbol.declaration,
+            functionSymbol.parameters,
+            null
+        );
 
         var usedVariables = binder._trackedSymbols.Pop();
         var declaredVariables = binder._trackedDeclarations.Pop();
@@ -2065,7 +2112,7 @@ internal sealed class Binder {
         if (!_scope.TryReplaceSymbol(functionSymbol, newFunctionSymbol))
             throw new BelteInternalException($"BindLocalFunction: failed to set function '{functionSymbol.name}'");
 
-        return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
+        return new BoundBlockStatement([]);
     }
 
     private DeclarationModifiers BindLocalFunctionDeclarationModifiers(SyntaxTokenList modifiers) {
@@ -2277,7 +2324,7 @@ internal sealed class Binder {
                 if (rightType is IdentifierNameSyntax id) {
                     return BindIdentifierNameCore(id, symbols);
                 } else if (rightType is TemplateNameSyntax tn) {
-                    return BindTemplateNameCore(tn, symbols);
+                    return BindTemplateNameCore(tn, symbols, null);
                 }
             }
         } else if (name is EmptyNameSyntax) {
@@ -2320,7 +2367,7 @@ internal sealed class Binder {
             if (sn is IdentifierNameSyntax id)
                 return BindIdentifierNameCore(id, namedSymbols);
             else if (sn is TemplateNameSyntax tn)
-                return BindTemplateNameCore(tn, namedSymbols);
+                return BindTemplateNameCore(tn, namedSymbols, null);
         }
 
         throw ExceptionUtilities.Unreachable();
@@ -2333,7 +2380,7 @@ internal sealed class Binder {
 
         if (!identifierSymbols.Any()) {
             var result = _overloadResolution.TemplateOverloadResolution(
-                symbols.ToImmutableArray(),
+                symbols.ToImmutableArray<ISymbolWithTemplates>(),
                 ImmutableArray<(string, BoundTypeOrConstant)>.Empty,
                 name.identifier.text,
                 name.identifier,
@@ -2350,13 +2397,15 @@ internal sealed class Binder {
             }
 
             if (result.succeeded) {
-                if (!_options.isLibrary && _wellKnownTypes.ContainsValue(result.bestOverload))
-                    _usedLibraryTypes.Add(result.bestOverload);
+                var bestOverload = result.bestOverload as NamedTypeSymbol;
+
+                if (!_options.isLibrary && _wellKnownTypes.ContainsValue(bestOverload))
+                    _usedLibraryTypes.Add(bestOverload);
 
                 return new BoundType(
-                    result.bestOverload,
+                    bestOverload,
                     templateArguments: constantArguments.ToImmutable(),
-                    arity: result.bestOverload.arity
+                    arity: bestOverload.arity
                 );
             }
 
@@ -2371,7 +2420,10 @@ internal sealed class Binder {
         return new BoundType(selected, isNullable: true);
     }
 
-    private BoundType BindTemplateNameCore(TemplateNameSyntax name, IEnumerable<NamedTypeSymbol> symbols) {
+    private BoundType BindTemplateNameCore(
+        TemplateNameSyntax name,
+        IEnumerable<NamedTypeSymbol> symbols,
+        ImmutableArray<(string, BoundTypeOrConstant)>? templateArguments) {
         var templateSymbols = symbols.Where(s => s.arity > 0);
 
         if (!templateSymbols.Any()) {
@@ -2382,75 +2434,90 @@ internal sealed class Binder {
             return null;
         }
 
-        if (BindTemplateArgumentList(name.templateArgumentList, out var arguments)) {
-            var result = _overloadResolution.TemplateOverloadResolution(
-                templateSymbols.ToImmutableArray(),
-                arguments,
-                name.identifier.text,
-                name.identifier,
-                name.templateArgumentList
-            );
+        ImmutableArray<(string, BoundTypeOrConstant)> arguments;
 
-            var constantArgumentsBuilder = ImmutableArray.CreateBuilder<BoundTypeOrConstant>();
+        if (!templateArguments.HasValue)
+            BindTemplateArgumentList(name.templateArgumentList, out arguments);
+        else
+            arguments = templateArguments.Value;
 
-            foreach (var argument in result.arguments) {
-                if (argument is BoundType t)
-                    constantArgumentsBuilder.Add(new BoundTypeOrConstant(t));
-                else
-                    constantArgumentsBuilder.Add(new BoundTypeOrConstant(argument.constantValue, argument.type, argument));
-            }
+        var result = _overloadResolution.TemplateOverloadResolution(
+            templateSymbols.ToImmutableArray<ISymbolWithTemplates>(),
+            arguments,
+            name.identifier.text,
+            name.identifier,
+            name.templateArgumentList
+        );
 
-            if (!result.succeeded)
-                return null;
+        if (!result.succeeded)
+            return null;
 
-            var constantArguments = constantArgumentsBuilder.ToImmutable();
+        var constantArgumentsBuilder = ImmutableArray.CreateBuilder<BoundTypeOrConstant>();
 
-            for (var i = 0; i < result.bestOverload.templateConstraints.Length; i++) {
-                var constraint = result.bestOverload.templateConstraints[i];
-
-                if (constraint is BoundExtendExpression e) {
-                    var replacement = constantArgumentsBuilder[e.template.ordinal - 1];
-
-                    if (!TypeUtilities.TypeInheritsFrom(replacement.type, e.extension)) {
-                        diagnostics.Push(Error.ExtendConstraintFailed(
-                            name.templateArgumentList.location,
-                            constraint.ToString(),
-                            i + 1,
-                            e.template.name,
-                            e.extension.ToString()
-                        ));
-                    }
-                } else {
-                    var constraintResult = EvaluateConstraint(constraint, constantArguments);
-
-                    if (constraintResult is null) {
-                        diagnostics.Push(Error.ConstraintWasNull(
-                            name.templateArgumentList.location,
-                            constraint.ToString(),
-                            i + 1
-                        ));
-                    } else if (!constraintResult.Value) {
-                        diagnostics.Push(Error.ConstraintFailed(
-                            name.templateArgumentList.location,
-                            constraint.ToString(),
-                            i + 1
-                        ));
-                    }
-                }
-            }
-
-            if (!_options.isLibrary && _wellKnownTypes.ContainsValue(result.bestOverload))
-                _usedLibraryTypes.Add(result.bestOverload);
-
-            return new BoundType(
-                result.bestOverload,
-                templateArguments: constantArguments,
-                arity: result.bestOverload.arity,
-                isNullable: true
-            );
+        foreach (var argument in result.arguments) {
+            if (argument is BoundType t)
+                constantArgumentsBuilder.Add(new BoundTypeOrConstant(t));
+            else
+                constantArgumentsBuilder.Add(new BoundTypeOrConstant(argument.constantValue, argument.type, argument));
         }
 
-        return null;
+        var bestOverload = result.bestOverload as NamedTypeSymbol;
+
+        var constantArguments = constantArgumentsBuilder.ToImmutable();
+        VerifyConstraintClauses(
+            name.templateArgumentList.location,
+            result.bestOverload.templateConstraints,
+            constantArguments
+        );
+
+        if (!_options.isLibrary && _wellKnownTypes.ContainsValue(bestOverload))
+            _usedLibraryTypes.Add(bestOverload);
+
+        return new BoundType(
+            bestOverload,
+            templateArguments: constantArguments,
+            arity: bestOverload.arity,
+            isNullable: true
+        );
+    }
+
+    private void VerifyConstraintClauses(
+        TextLocation location,
+        ImmutableArray<BoundExpression> constraints,
+        ImmutableArray<BoundTypeOrConstant> constantArguments) {
+        for (var i = 0; i < constraints.Length; i++) {
+            var constraint = constraints[i];
+
+            if (constraint is BoundExtendExpression e) {
+                var replacement = constantArguments[e.template.ordinal - 1];
+
+                if (!TypeUtilities.TypeInheritsFrom(replacement.type, e.extension)) {
+                    diagnostics.Push(Error.ExtendConstraintFailed(
+                        location,
+                        constraint.ToString(),
+                        i + 1,
+                        e.template.name,
+                        e.extension.ToString()
+                    ));
+                }
+            } else {
+                var constraintResult = EvaluateConstraint(constraint, constantArguments);
+
+                if (constraintResult is null) {
+                    diagnostics.Push(Error.ConstraintWasNull(
+                        location,
+                        constraint.ToString(),
+                        i + 1
+                    ));
+                } else if (!constraintResult.Value) {
+                    diagnostics.Push(Error.ConstraintFailed(
+                        location,
+                        constraint.ToString(),
+                        i + 1
+                    ));
+                }
+            }
+        }
     }
 
     private BoundExpression BindIdentifier(SimpleNameSyntax syntax, bool called, bool allowed) {
@@ -2567,18 +2634,6 @@ internal sealed class Binder {
 
     private BoundExpression BindCalledIdentifierInScope(SimpleNameSyntax syntax, ImmutableArray<Symbol> symbols) {
         var name = syntax.identifier.text;
-        var arity = 0;
-
-        if (syntax is TemplateNameSyntax tn)
-            arity = tn.templateArgumentList.arguments.Count;
-
-        if (arity > 0) {
-            diagnostics.Push(
-                Error.TemplateNotExpected((syntax as TemplateNameSyntax).templateArgumentList.location, name)
-            );
-
-            return new BoundErrorExpression();
-        }
 
         if (symbols.Length == 0) {
             diagnostics.Push(
@@ -2590,14 +2645,65 @@ internal sealed class Binder {
 
         var methods = symbols
             .Where(s => s is MethodSymbol)
-            .Select(s => s as MethodSymbol).ToImmutableArray();
+            .Select(s => s as MethodSymbol).ToArray();
 
         if (methods.Length == 0) {
             diagnostics.Push(Error.CannotCallNonMethod(syntax.location, name));
             return new BoundErrorExpression();
         }
 
-        return new BoundMethodGroup(name, methods);
+        var templateArguments = ImmutableArray<(string, BoundTypeOrConstant)>.Empty;
+        var templateName = syntax as TemplateNameSyntax;
+
+        if (templateName is not null) {
+            if (!BindTemplateArgumentList(templateName.templateArgumentList, out templateArguments))
+                return new BoundErrorExpression();
+        }
+
+        var templateMethods = methods.Where(m => m.arity > 0);
+
+        if (!templateMethods.Any() && templateName is not null) {
+            diagnostics.Push(
+                Error.TemplateNotExpected(templateName.templateArgumentList.location, syntax.identifier.text)
+            );
+
+            return new BoundErrorExpression();
+        }
+
+        var result = _overloadResolution.TemplateOverloadResolution(
+            methods.ToImmutableArray<ISymbolWithTemplates>(),
+            templateArguments,
+            name,
+            syntax.identifier,
+            templateName?.templateArgumentList
+        );
+
+        if (!result.succeeded)
+            return new BoundErrorExpression();
+
+        var constantArgumentsBuilder = ImmutableArray.CreateBuilder<BoundTypeOrConstant>();
+
+        foreach (var argument in result.arguments) {
+            if (argument is BoundType t)
+                constantArgumentsBuilder.Add(new BoundTypeOrConstant(t));
+            else
+                constantArgumentsBuilder.Add(new BoundTypeOrConstant(argument.constantValue, argument.type, argument));
+        }
+
+        var bestOverload = result.bestOverload as NamedTypeSymbol;
+
+        var constantArguments = constantArgumentsBuilder.ToImmutable();
+        VerifyConstraintClauses(
+            templateName?.templateArgumentList?.location ?? syntax.location,
+            result.bestOverload.templateConstraints,
+            constantArguments
+        );
+
+        return new BoundMethodGroup(
+            name,
+            result.bestOverloads.Select(m => m as MethodSymbol).ToImmutableArray(),
+            constantArguments
+        );
     }
 
     private BoundExpression BindNonCalledIdentifierInScope(SimpleNameSyntax syntax, ImmutableArray<Symbol> symbols) {
@@ -2631,7 +2737,7 @@ internal sealed class Binder {
                 return new BoundErrorExpression();
             }
 
-            if (_flags.Includes(BinderFlags.LocalFunction)) {
+            if (_flags.Includes(BinderFlags.LocalFunction) && (!(v as ParameterSymbol)?.isTemplate ?? true)) {
                 foreach (var frame in _trackedSymbols)
                     frame.Add(v);
             }
@@ -2655,7 +2761,7 @@ internal sealed class Binder {
             if (syntax is IdentifierNameSyntax i)
                 return BindIdentifierNameCore(i, namedSymbols);
             else if (syntax is TemplateNameSyntax t)
-                return BindTemplateNameCore(t, namedSymbols);
+                return BindTemplateNameCore(t, namedSymbols, templateArguments);
         }
 
         throw ExceptionUtilities.Unreachable();
@@ -2864,7 +2970,7 @@ internal sealed class Binder {
             case SyntaxKind.ReturnStatement:
                 return BindReturnStatement((ReturnStatementSyntax)syntax);
             case SyntaxKind.LocalFunctionStatement:
-                return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
+                return new BoundBlockStatement([]);
             default:
                 throw new BelteInternalException($"BindStatementInternal: unexpected syntax '{syntax.kind}'");
         }
@@ -3024,7 +3130,9 @@ internal sealed class Binder {
                     fd.modifiers,
                     fd.returnType,
                     fd.identifier,
+                    fd.templateParameterList ?? SyntaxFactory.TemplateParameterList(),
                     fd.parameterList,
+                    fd.constraintClauseList ?? SyntaxFactory.ConstraintClauseList(),
                     fd.body,
                     SyntaxFactory.Token(SyntaxKind.SemicolonToken),
                     fd.parent,
@@ -3648,7 +3756,7 @@ internal sealed class Binder {
 
         if (result.succeeded || result.ambiguous) {
             if (ownStatement)
-                return new BoundCallExpression(boundOperand.type, result.bestOverload, [boundOperand]);
+                return new BoundCallExpression(boundOperand.type, result.bestOverload, [boundOperand], []);
             else
                 diagnostics.Push(Error.Unsupported.OverloadedPostfix(expression.operatorToken.location));
         }
@@ -3701,7 +3809,7 @@ internal sealed class Binder {
         );
 
         if (result.succeeded || result.ambiguous)
-            return new BoundCallExpression(boundOperand.type, result.bestOverload, [boundOperand]);
+            return new BoundCallExpression(boundOperand.type, result.bestOverload, [boundOperand], []);
 
         if (boundOp is null) {
             diagnostics.Push(Error.InvalidPrefixUse(
@@ -3763,7 +3871,8 @@ internal sealed class Binder {
                     var call = new BoundCallExpression(
                         boundExpression.type,
                         result.bestOverload,
-                        [boundExpression, boundIndex]
+                        [boundExpression, boundIndex],
+                        []
                     );
 
                     if (expression.openBracket.kind == SyntaxKind.QuestionOpenBracketToken) {
@@ -3834,8 +3943,9 @@ internal sealed class Binder {
 
                 return new BoundCallExpression(
                     receiver,
-                    new MethodSymbol(mg.name, mg.methods[0].parameters, resultType, null, mg.methods[0]),
-                    arguments.Select(m => m.Item2).ToImmutableArray()
+                    new MethodSymbol(mg.name, [], [], mg.methods[0].parameters, resultType, null, mg.methods[0]),
+                    arguments.Select(m => m.Item2).ToImmutableArray(),
+                    []
                 );
             }
 
@@ -3886,7 +3996,7 @@ internal sealed class Binder {
                 }
             }
 
-            return new BoundCallExpression(receiver, result.bestOverload, result.arguments);
+            return new BoundCallExpression(receiver, result.bestOverload, result.arguments, mg.templateArguments);
         }
 
         if (boundExpression is not BoundErrorExpression)
@@ -3898,7 +4008,7 @@ internal sealed class Binder {
     private bool PartiallyBindArgumentList(
         ArgumentListSyntax argumentList, out ImmutableArray<(string, BoundExpression)> arguments) {
         if (argumentList is null) {
-            arguments = ImmutableArray<(string, BoundExpression)>.Empty;
+            arguments = [];
             return true;
         } else {
             return PartiallyBindArguments(argumentList.arguments, out arguments);
@@ -3914,7 +4024,7 @@ internal sealed class Binder {
         bool result;
 
         if (argumentList is null) {
-            templateArguments = ImmutableArray<(string, BoundTypeOrConstant)>.Empty;
+            templateArguments = [];
             result = true;
         } else {
             result = PartiallyBindArguments(argumentList.arguments, out var arguments, true);
@@ -4045,7 +4155,7 @@ internal sealed class Binder {
         );
 
         if (result.succeeded || result.ambiguous)
-            return new BoundCallExpression(boundOperand.type, result.bestOverload, [boundOperand]);
+            return new BoundCallExpression(boundOperand.type, result.bestOverload, [boundOperand], []);
 
         if (boundOp is null) {
             diagnostics.Push(Error.InvalidUnaryOperatorUse(
@@ -4112,7 +4222,7 @@ internal sealed class Binder {
                 ? boundLeft.type
                 : boundRight.type;
 
-            return new BoundCallExpression(receiver, result.bestOverload, [boundLeft, boundRight]);
+            return new BoundCallExpression(receiver, result.bestOverload, [boundLeft, boundRight], []);
         }
 
         if (boundOp is null) {
@@ -4234,7 +4344,8 @@ internal sealed class Binder {
                     return new BoundCallExpression(
                         boundLeft.type,
                         result.bestOverload,
-                        [boundLeft, boundIndex, right]
+                        [boundLeft, boundIndex, right],
+                        []
                     );
                 }
 
@@ -4299,7 +4410,8 @@ internal sealed class Binder {
                 var callExpression = new BoundCallExpression(
                     new BoundEmptyExpression(),
                     result.bestOverload,
-                    [left, boundExpression]
+                    [left, boundExpression],
+                    []
                 );
 
                 var converted = BindCast(expression.right.location, callExpression, type);
@@ -4386,7 +4498,9 @@ internal sealed class Binder {
             diagnostics.Push(Error.AssignmentInConstMethod(assignmentLocation));
     }
 
-    private bool IsCompilerComputable(BoundExpression expression, ImmutableArray<ParameterSymbol> allowedVariables) {
+    private static bool IsCompilerComputable(
+        BoundExpression expression,
+        ImmutableArray<ParameterSymbol> allowedVariables) {
         if (expression.constantValue is not null)
             return true;
 
@@ -4420,7 +4534,7 @@ internal sealed class Binder {
         }
     }
 
-    private bool? EvaluateConstraint(BoundExpression expression, ImmutableArray<BoundTypeOrConstant> templates) {
+    private static bool? EvaluateConstraint(BoundExpression expression, ImmutableArray<BoundTypeOrConstant> templates) {
         return (bool?)EvaluateExpression(expression);
 
         object EvaluateExpression(BoundExpression expression) {

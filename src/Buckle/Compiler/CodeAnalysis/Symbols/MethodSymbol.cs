@@ -8,8 +8,9 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// A method symbol.
 /// </summary>
-internal sealed class MethodSymbol : Symbol, IMethodSymbol {
+internal sealed class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplates {
     private readonly DeclarationModifiers _declarationModifiers;
+    private string _signature = null;
 
     protected override Symbol _originalDefinition { get; }
 
@@ -25,6 +26,8 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
     /// </param>
     internal MethodSymbol(
         string name,
+        ImmutableArray<ParameterSymbol> templateParameters,
+        ImmutableArray<BoundExpression> templateConstraints,
         ImmutableArray<ParameterSymbol> parameters,
         BoundType type,
         BaseMethodDeclarationSyntax declaration = null,
@@ -37,6 +40,8 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
         this.declaration = declaration;
         _originalDefinition = originalDefinition;
         _declarationModifiers = modifiers;
+        this.templateParameters = templateParameters;
+        this.templateConstraints = templateConstraints;
     }
 
     public override SymbolKind kind => SymbolKind.Method;
@@ -51,11 +56,17 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
 
     public override bool isSealed => false;
 
+    public ImmutableArray<ParameterSymbol> templateParameters { get; set; }
+
+    public ImmutableArray<BoundExpression> templateConstraints { get; set; }
+
     public new MethodSymbol originalDefinition => _originalDefinition as MethodSymbol;
 
     internal bool isConstant => (_declarationModifiers & DeclarationModifiers.Const) != 0;
 
     internal bool isLowLevel => (_declarationModifiers & DeclarationModifiers.LowLevel) != 0;
+
+    internal int arity => templateParameters.Length;
 
     /// <summary>
     /// All parameters (see <see cref="ParameterSymbol" />).
@@ -76,28 +87,17 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
     /// Gets a string representation of the method signature without the return type or parameter names.
     /// </summary>
     public string Signature() {
-        var signature = new StringBuilder($"{name}(");
-        var isFirst = true;
+        if (_signature is null)
+            GenerateSignature();
 
-        foreach (var parameter in parameters) {
-            if (isFirst)
-                isFirst = false;
-            else
-                signature.Append(',');
-
-            signature.Append(parameter.type.ToString());
-        }
-
-        signature.Append(')');
-
-        return signature.ToString();
+        return _signature;
     }
 
     /// <summary>
     /// Creates a new method symbol with different parameters, but everything else is identical.
     /// </summary>
     internal MethodSymbol UpdateParameters(ImmutableArray<ParameterSymbol> parameters) {
-        return new MethodSymbol(name, parameters, type, declaration, this);
+        return new MethodSymbol(name, templateParameters, templateConstraints, parameters, type, declaration, this);
     }
 
     /// <summary>
@@ -119,5 +119,40 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
             return this;
 
         return originalDefinition.GetRootMethod();
+    }
+
+    private void GenerateSignature() {
+        var signature = new StringBuilder(name);
+        var isFirst = true;
+
+        if (templateParameters.Length > 0) {
+            signature.Append('<');
+
+            foreach (var templateParameter in templateParameters) {
+                if (isFirst)
+                    isFirst = false;
+                else
+                    signature.Append(',');
+
+                signature.Append(templateParameter.type.ToString());
+            }
+
+            signature.Append('>');
+        }
+
+        signature.Append('(');
+        isFirst = true;
+
+        foreach (var parameter in parameters) {
+            if (isFirst)
+                isFirst = false;
+            else
+                signature.Append(',');
+
+            signature.Append(parameter.type.ToString());
+        }
+
+        signature.Append(')');
+        _signature = signature.ToString();
     }
 }

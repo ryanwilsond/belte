@@ -88,6 +88,13 @@ void MyFunction(int param1, int param2 = 5, int param3 = 7) { }
 MyFunction(4, param3: 10);
 ```
 
+### 2.1.5 Template Arguments
+
+Similar to classes, declared functions (or methods) can be templated. The functionality of function templates are
+identical to that of class templates, which can be read about [here](./ClassesAndObjects.md#45-templates). The syntax
+for templates and template constraint clauses are as follows:
+`void Func<template parameters...>() where { template constraint clauses... } { }`
+
 ## 2.2 Entry Point
 
 If no specific entry point is declared, the program runs statements in a top-down approach (similar to Python). This is

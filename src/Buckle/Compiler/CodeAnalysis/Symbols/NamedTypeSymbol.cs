@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
+internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, ISymbolWithTemplates {
     protected readonly DeclarationModifiers _declarationModifiers;
     protected List<Symbol> _lazyMembers;
     protected Dictionary<string, ImmutableArray<Symbol>> _lazyMembersDictionary;
@@ -46,11 +46,11 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
 
     public ImmutableArray<MethodSymbol> constructors => GetConstructors();
 
+    public ImmutableArray<ParameterSymbol> templateParameters { get; set; }
+
+    public ImmutableArray<BoundExpression> templateConstraints { get; set; }
+
     internal ImmutableArray<Symbol> members { get; private set; }
-
-    internal ImmutableArray<ParameterSymbol> templateParameters { get; private set; }
-
-    internal ImmutableArray<BoundExpression> templateConstraints { get; private set; }
 
     internal override int arity => templateParameters.Length;
 
@@ -75,7 +75,7 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers {
     /// <summary>
     /// Gets a string representation of the type signature without template parameter names.
     /// </summary>
-    internal string Signature() {
+    public string Signature() {
         var signature = new StringBuilder($"{name}<");
         var isFirst = true;
 

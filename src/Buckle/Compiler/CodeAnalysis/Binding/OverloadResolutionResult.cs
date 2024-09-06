@@ -7,9 +7,9 @@ namespace Buckle.CodeAnalysis.Binding;
 /// The results of the <see cref="OverloadResolution" />. Describes if it succeeded, and which method was picked if it
 /// succeeded.
 /// </summary>
-internal sealed class OverloadResolutionResult<T> where T : Symbol {
-    private OverloadResolutionResult(T bestOverload, ImmutableArray<BoundExpression> arguments, bool succeeded) {
-        this.bestOverload = bestOverload;
+internal sealed class OverloadResolutionResult<T> where T : ISymbol {
+    private OverloadResolutionResult(T[] bestOverloads, ImmutableArray<BoundExpression> arguments, bool succeeded) {
+        this.bestOverloads = bestOverloads;
         this.arguments = arguments;
         this.succeeded = succeeded;
         ambiguous = false;
@@ -19,7 +19,7 @@ internal sealed class OverloadResolutionResult<T> where T : Symbol {
     /// Creates a failed result, indicating the <see cref="OverloadResolution" /> failed to resolve a single overload.
     /// </summary>
     internal static OverloadResolutionResult<T> Failed() {
-        return new OverloadResolutionResult<T>(null, ImmutableArray<BoundExpression>.Empty, false);
+        return new OverloadResolutionResult<T>(default, ImmutableArray<BoundExpression>.Empty, false);
     }
 
     /// <summary>
@@ -35,7 +35,14 @@ internal sealed class OverloadResolutionResult<T> where T : Symbol {
     /// Creates a succeeded result with a single chosen overload and the resulting fully-bound arguments.
     /// </summary>
     internal static OverloadResolutionResult<T> Succeeded(T bestOverload, ImmutableArray<BoundExpression> arguments) {
-        return new OverloadResolutionResult<T>(bestOverload, arguments, true);
+        return new OverloadResolutionResult<T>([bestOverload], arguments, true);
+    }
+
+    /// <summary>
+    /// Creates a succeeded result with multiple chosen overloads and the resulting fully-bound arguments.
+    /// </summary>
+    internal static OverloadResolutionResult<T> Succeeded(T[] bestOverloads, ImmutableArray<BoundExpression> arguments) {
+        return new OverloadResolutionResult<T>(bestOverloads, arguments, true);
     }
 
     /// <summary>
@@ -49,7 +56,9 @@ internal sealed class OverloadResolutionResult<T> where T : Symbol {
     /// <value></value>
     internal bool ambiguous { get; private set; }
 
-    internal T bestOverload { get; }
+    internal T[] bestOverloads { get; }
+
+    internal T bestOverload => bestOverloads[0];
 
     /// <summary>
     /// Modified arguments (accounts for default parameters, etc.)

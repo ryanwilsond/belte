@@ -10,10 +10,12 @@ internal sealed class BoundCallExpression : BoundExpression {
     internal BoundCallExpression(
         BoundExpression expression,
         MethodSymbol method,
-        ImmutableArray<BoundExpression> arguments) {
+        ImmutableArray<BoundExpression> arguments,
+        ImmutableArray<BoundTypeOrConstant> templateArguments) {
         this.expression = expression;
         this.method = method;
         this.arguments = arguments;
+        this.templateArguments = templateArguments;
     }
 
     internal BoundExpression expression { get; }
@@ -21,6 +23,8 @@ internal sealed class BoundCallExpression : BoundExpression {
     internal MethodSymbol method { get; }
 
     internal ImmutableArray<BoundExpression> arguments { get; }
+
+    internal ImmutableArray<BoundTypeOrConstant> templateArguments { get; }
 
     internal override BoundNodeKind kind => BoundNodeKind.CallExpression;
 

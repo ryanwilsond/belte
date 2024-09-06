@@ -95,10 +95,17 @@ internal sealed partial class LanguageParser : SyntaxParser {
         if (hasName)
             offset++;
 
+        if (Peek(offset).kind == SyntaxKind.LessThanToken) {
+            while (Peek(offset).kind is not SyntaxKind.EndOfFileToken and not SyntaxKind.GreaterThanToken)
+                offset++;
+
+            offset++;
+        }
+
         if (Peek(offset).kind != SyntaxKind.OpenParenToken)
             return false;
 
-        if (!couldBeInStatement)
+        if (!couldBeInStatement || hasName)
             return true;
 
         // If we get here it means that we are inside of a statement and if we do decide this is a function or method,
@@ -112,7 +119,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 parenthesisStack--;
 
             if (Peek(offset).kind == SyntaxKind.CloseParenToken && parenthesisStack == 0) {
-                if (Peek(offset + 1).kind == SyntaxKind.OpenBraceToken)
+                if (Peek(offset + 1).kind is SyntaxKind.OpenBraceToken or SyntaxKind.WhereKeyword)
                     return true;
                 else
                     return false;
@@ -490,7 +497,13 @@ internal sealed partial class LanguageParser : SyntaxParser {
         SyntaxList<SyntaxToken> modifiers) {
         var type = ParseType(false);
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenParenToken);
+        var templateParameterList = currentToken.kind == SyntaxKind.LessThanToken
+            ? ParseTemplateParameterList()
+            : null;
         var parameterList = ParseParameterList();
+        var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
+            ? ParseTemplateParameterConstraintClauseList()
+            : null;
         BlockStatementSyntax body = null;
         SyntaxToken semicolon = null;
 
@@ -504,7 +517,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
             modifiers,
             type,
             identifier,
+            templateParameterList,
             parameterList,
+            constraintClauseList,
             body,
             semicolon
         );
@@ -546,7 +561,13 @@ internal sealed partial class LanguageParser : SyntaxParser {
         modifiers ??= ParseModifiers();
         var type = ParseType(false);
         var identifier = Match(SyntaxKind.IdentifierToken);
-        var parameters = ParseParameterList();
+        var templateParameterList = currentToken.kind == SyntaxKind.LessThanToken
+            ? ParseTemplateParameterList()
+            : null;
+        var parameterList = ParseParameterList();
+        var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
+            ? ParseTemplateParameterConstraintClauseList()
+            : null;
         var body = (BlockStatementSyntax)ParseBlockStatement();
 
         return SyntaxFactory.LocalFunctionStatement(
@@ -554,7 +575,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
             modifiers,
             type,
             identifier,
-            parameters,
+            templateParameterList,
+            parameterList,
+            constraintClauseList,
             body
         );
     }

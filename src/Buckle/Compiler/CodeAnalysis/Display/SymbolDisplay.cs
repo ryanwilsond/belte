@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -80,22 +82,7 @@ public static class SymbolDisplay {
 
             DisplayContainedNames(text, symbol);
             text.Write(CreateIdentifier(symbol.name));
-
-            if (!n.templateParameters.IsEmpty) {
-                text.Write(CreatePunctuation(SyntaxKind.LessThanToken));
-                var first = true;
-
-                foreach (var templateParameter in n.templateParameters) {
-                    if (first)
-                        first = false;
-                    else
-                        text.Write(CreatePunctuation(", "));
-
-                    DisplaySymbol(text, templateParameter);
-                }
-
-                text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
-            }
+            DisplayTemplateParameters(text, n.templateParameters);
 
             if (n is ClassSymbol c) {
                 text.Write(CreateSpace());
@@ -104,23 +91,50 @@ public static class SymbolDisplay {
                 DisplayText.DisplayNode(text, c.baseType);
             }
 
-            if (!n.templateConstraints.IsEmpty) {
-                text.Write(CreateSpace());
-                text.Write(CreateKeyword(SyntaxKind.WhereKeyword));
-                text.Write(CreateSpace());
-                text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
-                text.Write(CreateSpace());
+            DisplayTemplateConstraints(text, n.templateConstraints);
 
-                foreach (var constraint in n.templateConstraints) {
-                    DisplayText.DisplayNode(text, constraint);
-                    text.Write(CreatePunctuation(SyntaxKind.SemicolonToken));
-                    text.Write(CreateSpace());
-                }
-
-                text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
-            }
         } else {
             text.Write(CreateType(symbol.name));
+        }
+    }
+
+    private static void DisplayTemplateParameters(
+        DisplayText text,
+        ImmutableArray<ParameterSymbol> templateParameters) {
+        if (!templateParameters.IsEmpty) {
+            text.Write(CreatePunctuation(SyntaxKind.LessThanToken));
+            var first = true;
+
+            foreach (var templateParameter in templateParameters) {
+                if (first)
+                    first = false;
+                else
+                    text.Write(CreatePunctuation(", "));
+
+                DisplaySymbol(text, templateParameter);
+            }
+
+            text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
+        }
+    }
+
+    private static void DisplayTemplateConstraints(
+        DisplayText text,
+        ImmutableArray<BoundExpression> templateConstraints) {
+        if (!templateConstraints.IsEmpty) {
+            text.Write(CreateSpace());
+            text.Write(CreateKeyword(SyntaxKind.WhereKeyword));
+            text.Write(CreateSpace());
+            text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+            text.Write(CreateSpace());
+
+            foreach (var constraint in templateConstraints) {
+                DisplayText.DisplayNode(text, constraint);
+                text.Write(CreatePunctuation(SyntaxKind.SemicolonToken));
+                text.Write(CreateSpace());
+            }
+
+            text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
         }
     }
 
@@ -143,6 +157,8 @@ public static class SymbolDisplay {
 
         DisplayContainedNames(text, symbol);
         text.Write(CreateIdentifier(symbol.name));
+
+        DisplayTemplateParameters(text, symbol.templateParameters);
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
 
         for (var i = 0; i < symbol.parameters.Length; i++) {
@@ -157,6 +173,8 @@ public static class SymbolDisplay {
         }
 
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+
+        DisplayTemplateConstraints(text, symbol.templateConstraints);
     }
 
     private static void DisplayModifiers(DisplayText text, Symbol symbol) {
