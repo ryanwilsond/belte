@@ -512,11 +512,6 @@ public sealed partial class BelteRepl : Repl {
         Console.Clear();
     }
 
-    [MetaCommand("cls", "Clear the screen")]
-    private void EvaluateCls() {
-        Console.Clear();
-    }
-
     [MetaCommand("reset", "Clear previous submissions")]
     private void EvaluateReset() {
         ResetState();
@@ -540,8 +535,8 @@ public sealed partial class BelteRepl : Repl {
         EvaluateSubmission(text);
     }
 
-    [MetaCommand("ls", "List all defined symbols")]
-    private void EvaluateLs() {
+    [MetaCommand("list", "List all defined symbols")]
+    private void EvaluateList() {
         var compilation = state.previous ?? EmptyCompilation;
         var symbols = compilation.GetSymbols().OrderBy(s => s.kind).ThenBy(s => s.name);
         var displayText = new DisplayText();
