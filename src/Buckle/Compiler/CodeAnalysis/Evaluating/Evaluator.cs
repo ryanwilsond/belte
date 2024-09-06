@@ -620,7 +620,7 @@ internal sealed class Evaluator {
 
             // structs don't have any methods, so no constructors
             if (node.type.typeSymbol is ClassSymbol)
-                InvokeMethod(node.constructor, node.arguments, abort);
+                InvokeMethod(node.constructor, node.arguments, [], abort);
 
             ExitClassScope();
 
@@ -774,13 +774,14 @@ internal sealed class Evaluator {
                 return new EvaluatorObject(result);
             }
 
-            return InvokeMethod(node.method, node.arguments, abort, node.expression);
+            return InvokeMethod(node.method, node.arguments, node.templateArguments, abort, node.expression);
         }
     }
 
     private EvaluatorObject InvokeMethod(
         MethodSymbol method,
         ImmutableArray<BoundExpression> arguments,
+        ImmutableArray<BoundTypeOrConstant> templateArguments,
         ValueWrapper<bool> abort,
         BoundExpression expression = null) {
         var receiver = default(EvaluatorObject);
@@ -804,6 +805,17 @@ internal sealed class Evaluator {
         }
 
         var locals = new Dictionary<IVariableSymbol, EvaluatorObject>();
+
+        for (var i = 0; i < templateArguments.Length; i++) {
+            EvaluatorObject value;
+
+            if (templateArguments[i].isConstant)
+                value = new EvaluatorObject(templateArguments[i].constant.value);
+            else
+                value = EvaluateType(templateArguments[i].type, abort);
+
+            locals.Add(method.templateParameters[i], value);
+        }
 
         for (var i = 0; i < arguments.Length; i++) {
             var parameter = method.parameters[i];
@@ -1120,7 +1132,7 @@ internal sealed class Evaluator {
                     .First();
 
                 EnterClassScope(receiver);
-                var argument = InvokeMethod(toString, [], abort);
+                var argument = InvokeMethod(toString, [], [], abort);
                 ExitClassScope();
 
                 result = StandardLibrary.MethodEvaluatorMap[method.GetHashCode()](Value(argument), null, null);

@@ -358,7 +358,8 @@ internal abstract class BoundTreeExpander {
         replacement = new BoundCallExpression(
             expressionReplacement,
             expression.method,
-            replacementArguments.ToImmutable()
+            replacementArguments.ToImmutable(),
+            expression.templateArguments
         );
 
         return statements;

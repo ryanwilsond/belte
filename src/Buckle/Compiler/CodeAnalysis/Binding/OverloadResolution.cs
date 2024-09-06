@@ -1,7 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Runtime.InteropServices;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -308,9 +308,14 @@ internal sealed class OverloadResolution {
 
         foreach (var argument in arguments) {
             if (argument.constant.isConstant) {
-                var expression = argument.constant.constant is null
-                    ? argument.constant.expression
-                    : new BoundLiteralExpression(argument.constant.constant?.value);
+                BoundExpression expression;
+
+                if (argument.constant.constant is null)
+                    expression = argument.constant.expression;
+                else if (argument.constant.constant.value is ImmutableArray<BoundConstant>)
+                    expression = new BoundInitializerListExpression(argument.constant.constant, argument.constant.type);
+                else
+                    expression = new BoundLiteralExpression(argument.constant.constant.value);
 
                 preBoundArgumentsBuilder.Add((argument.name, expression));
             } else {

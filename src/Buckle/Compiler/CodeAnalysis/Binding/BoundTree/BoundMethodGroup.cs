@@ -10,7 +10,7 @@ internal sealed class BoundMethodGroup : BoundExpression {
     internal BoundMethodGroup(
         string name,
         ImmutableArray<MethodSymbol> methods,
-        ImmutableArray<(string, BoundTypeOrConstant)> templateArguments) {
+        ImmutableArray<BoundTypeOrConstant> templateArguments) {
         this.name = name;
         this.methods = methods;
         this.templateArguments = templateArguments;
@@ -24,5 +24,5 @@ internal sealed class BoundMethodGroup : BoundExpression {
 
     internal ImmutableArray<MethodSymbol> methods { get; }
 
-    internal ImmutableArray<(string, BoundTypeOrConstant)> templateArguments { get; }
+    internal ImmutableArray<BoundTypeOrConstant> templateArguments { get; }
 }

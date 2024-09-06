@@ -92,6 +92,15 @@ internal sealed class Binder {
 
             foreach (var parameter in method.parameters)
                 _scope.TryDeclareVariable(parameter);
+
+            foreach (var templateParameter in method.templateParameters) {
+                if (templateParameter.type.typeSymbol == TypeSymbol.Type) {
+                    var templateType = new TemplateTypeSymbol(templateParameter);
+                    _scope.TryDeclareType(templateType);
+                } else {
+                    _scope.TryDeclareVariable(templateParameter);
+                }
+            }
         }
     }
 
@@ -153,7 +162,7 @@ internal sealed class Binder {
         var globalStatements = members.OfType<GlobalStatementSyntax>();
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
 
-        binder._peekedLocals = PeekLocals(globalStatements.Select(s => s.statement), null);
+        binder._peekedLocals = PeekLocals(globalStatements.Select(s => s.statement), null, null);
 
         foreach (var globalStatement in globalStatements)
             statements.Add(binder.BindStatement(globalStatement.statement, true));
@@ -261,6 +270,7 @@ internal sealed class Binder {
             var body = binder.BindMethodBody(
                 method.declaration,
                 method.parameters,
+                method.templateParameters,
                 method.containingType?.declaration?.identifier
             );
 
@@ -553,7 +563,9 @@ internal sealed class Binder {
     }
 
     private static ImmutableArray<string> PeekLocals(
-        IEnumerable<StatementSyntax> statements, IEnumerable<ParameterSymbol> parameters) {
+        IEnumerable<StatementSyntax> statements,
+        IEnumerable<ParameterSymbol> parameters,
+        IEnumerable<ParameterSymbol> templateParameters) {
         var locals = ImmutableArray.CreateBuilder<string>();
 
         foreach (var statement in statements) {
@@ -564,6 +576,11 @@ internal sealed class Binder {
         if (parameters != null) {
             foreach (var parameter in parameters)
                 locals.Add(parameter.name);
+        }
+
+        if (templateParameters != null) {
+            foreach (var templateParameter in templateParameters)
+                locals.Add(templateParameter.name);
         }
 
         return locals.ToImmutable();
@@ -725,12 +742,13 @@ internal sealed class Binder {
     private BoundBlockStatement BindMethodBody(
         BaseMethodDeclarationSyntax syntax,
         ImmutableArray<ParameterSymbol> parameters,
+        ImmutableArray<ParameterSymbol> templateParameters,
         SyntaxToken fallbackLocation) {
         var body = syntax?.body;
         BoundBlockStatement boundBody;
 
         if (body != null) {
-            _peekedLocals = PeekLocals(body.statements, parameters);
+            _peekedLocals = PeekLocals(body.statements, parameters, templateParameters);
             boundBody = BindStatement(body) as BoundBlockStatement;
         } else {
             boundBody = Block();
@@ -825,7 +843,7 @@ internal sealed class Binder {
             }
         }
 
-        return new BoundCallExpression(receiver, result.bestOverload, result.arguments);
+        return new BoundCallExpression(receiver, result.bestOverload, result.arguments, []);
     }
 
     private bool ModifierAlreadyApplied(
@@ -2050,7 +2068,12 @@ internal sealed class Binder {
         binder._trackedSymbols.Push(new HashSet<VariableSymbol>());
         binder._trackedDeclarations.Push(new HashSet<VariableSymbol>());
         binder._innerPrefix.Push(functionSymbol.name);
-        var body = binder.BindMethodBody(functionSymbol.declaration, functionSymbol.parameters, null);
+        var body = binder.BindMethodBody(
+            functionSymbol.declaration,
+            functionSymbol.parameters,
+            functionSymbol.templateParameters,
+            null
+        );
 
         var usedVariables = binder._trackedSymbols.Pop();
         var declaredVariables = binder._trackedDeclarations.Pop();
@@ -2688,7 +2711,7 @@ internal sealed class Binder {
         return new BoundMethodGroup(
             name,
             result.bestOverloads.Select(m => m as MethodSymbol).ToImmutableArray(),
-            templateArguments
+            constantArguments
         );
     }
 
@@ -3742,7 +3765,7 @@ internal sealed class Binder {
 
         if (result.succeeded || result.ambiguous) {
             if (ownStatement)
-                return new BoundCallExpression(boundOperand.type, result.bestOverload, [boundOperand]);
+                return new BoundCallExpression(boundOperand.type, result.bestOverload, [boundOperand], []);
             else
                 diagnostics.Push(Error.Unsupported.OverloadedPostfix(expression.operatorToken.location));
         }
@@ -3795,7 +3818,7 @@ internal sealed class Binder {
         );
 
         if (result.succeeded || result.ambiguous)
-            return new BoundCallExpression(boundOperand.type, result.bestOverload, [boundOperand]);
+            return new BoundCallExpression(boundOperand.type, result.bestOverload, [boundOperand], []);
 
         if (boundOp is null) {
             diagnostics.Push(Error.InvalidPrefixUse(
@@ -3857,7 +3880,8 @@ internal sealed class Binder {
                     var call = new BoundCallExpression(
                         boundExpression.type,
                         result.bestOverload,
-                        [boundExpression, boundIndex]
+                        [boundExpression, boundIndex],
+                        []
                     );
 
                     if (expression.openBracket.kind == SyntaxKind.QuestionOpenBracketToken) {
@@ -3929,7 +3953,8 @@ internal sealed class Binder {
                 return new BoundCallExpression(
                     receiver,
                     new MethodSymbol(mg.name, [], [], mg.methods[0].parameters, resultType, null, mg.methods[0]),
-                    arguments.Select(m => m.Item2).ToImmutableArray()
+                    arguments.Select(m => m.Item2).ToImmutableArray(),
+                    []
                 );
             }
 
@@ -3980,7 +4005,7 @@ internal sealed class Binder {
                 }
             }
 
-            return new BoundCallExpression(receiver, result.bestOverload, result.arguments);
+            return new BoundCallExpression(receiver, result.bestOverload, result.arguments, mg.templateArguments);
         }
 
         if (boundExpression is not BoundErrorExpression)
@@ -4139,7 +4164,7 @@ internal sealed class Binder {
         );
 
         if (result.succeeded || result.ambiguous)
-            return new BoundCallExpression(boundOperand.type, result.bestOverload, [boundOperand]);
+            return new BoundCallExpression(boundOperand.type, result.bestOverload, [boundOperand], []);
 
         if (boundOp is null) {
             diagnostics.Push(Error.InvalidUnaryOperatorUse(
@@ -4206,7 +4231,7 @@ internal sealed class Binder {
                 ? boundLeft.type
                 : boundRight.type;
 
-            return new BoundCallExpression(receiver, result.bestOverload, [boundLeft, boundRight]);
+            return new BoundCallExpression(receiver, result.bestOverload, [boundLeft, boundRight], []);
         }
 
         if (boundOp is null) {
@@ -4328,7 +4353,8 @@ internal sealed class Binder {
                     return new BoundCallExpression(
                         boundLeft.type,
                         result.bestOverload,
-                        [boundLeft, boundIndex, right]
+                        [boundLeft, boundIndex, right],
+                        []
                     );
                 }
 
@@ -4393,7 +4419,8 @@ internal sealed class Binder {
                 var callExpression = new BoundCallExpression(
                     new BoundEmptyExpression(),
                     result.bestOverload,
-                    [left, boundExpression]
+                    [left, boundExpression],
+                    []
                 );
 
                 var converted = BindCast(expression.right.location, callExpression, type);

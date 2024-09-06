@@ -391,7 +391,7 @@ internal abstract class BoundTreeRewriter {
         if (!arguments.HasValue)
             return expression;
 
-        return new BoundCallExpression(rewrote, expression.method, arguments.Value);
+        return new BoundCallExpression(rewrote, expression.method, arguments.Value, expression.templateArguments);
     }
 
     protected virtual BoundExpression RewriteErrorExpression(BoundErrorExpression expression) {
