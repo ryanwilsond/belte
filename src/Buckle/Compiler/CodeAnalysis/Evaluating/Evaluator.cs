@@ -551,17 +551,7 @@ internal sealed class Evaluator {
 
         var locals = new Dictionary<IVariableSymbol, EvaluatorObject>();
         var typeSymbol = node.typeSymbol as NamedTypeSymbol;
-
-        for (var i = 0; i < node.templateArguments.Length; i++) {
-            EvaluatorObject value;
-
-            if (node.templateArguments[i].isConstant)
-                value = new EvaluatorObject(node.templateArguments[i].constant.value);
-            else
-                value = EvaluateType(node.templateArguments[i].type, abort);
-
-            locals.Add(typeSymbol.templateParameters[i], value);
-        }
+        AddTemplatesToLocals(typeSymbol.templateParameters, node.templateArguments, locals, abort);
 
         _locals.Push(locals);
         _templateConstantDepth++;
@@ -807,17 +797,7 @@ internal sealed class Evaluator {
         }
 
         var locals = new Dictionary<IVariableSymbol, EvaluatorObject>();
-
-        for (var i = 0; i < templateArguments.Length; i++) {
-            EvaluatorObject value;
-
-            if (templateArguments[i].isConstant)
-                value = new EvaluatorObject(templateArguments[i].constant.value);
-            else
-                value = EvaluateType(templateArguments[i].type, abort);
-
-            locals.Add(method.templateParameters[i], value);
-        }
+        AddTemplatesToLocals(method.templateParameters, templateArguments, locals, abort);
 
         for (var i = 0; i < arguments.Length; i++) {
             var parameter = method.parameters[i];
@@ -861,6 +841,23 @@ internal sealed class Evaluator {
             ExitClassScope();
 
         return result;
+    }
+
+    private void AddTemplatesToLocals(
+        ImmutableArray<ParameterSymbol> templateParameters,
+        ImmutableArray<BoundTypeOrConstant> templateArguments,
+        Dictionary<IVariableSymbol, EvaluatorObject> locals,
+        ValueWrapper<bool> abort) {
+        for (var i = 0; i < templateArguments.Length; i++) {
+            EvaluatorObject value;
+
+            if (templateArguments[i].isConstant)
+                value = EvaluateBoundConstant(templateArguments[i].constant);
+            else
+                value = EvaluateType(templateArguments[i].type, abort);
+
+            locals.Add(templateParameters[i], value);
+        }
     }
 
     private EvaluatorObject EvaluateConstantExpression(BoundExpression expression, ValueWrapper<bool> _) {

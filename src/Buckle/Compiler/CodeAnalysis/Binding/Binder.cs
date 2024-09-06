@@ -937,13 +937,13 @@ internal sealed class Binder {
             diagnostics.Push(Error.CannotBePrivateAndVirtualOrAbstract(method.identifier.location));
         }
 
-        name ??= method.identifier.text;
-        var type = BindType(method.returnType, modifiers, true);
-
         var saved = _flags;
 
         if ((modifiers & DeclarationModifiers.LowLevel) != 0)
             _flags |= BinderFlags.LowLevelContext;
+
+        name ??= method.identifier.text;
+        var type = BindType(method.returnType, modifiers, true);
 
         if (type?.typeSymbol?.isStatic ?? false)
             diagnostics.Push(Error.CannotReturnStatic(method.returnType.location));
@@ -2737,7 +2737,7 @@ internal sealed class Binder {
                 return new BoundErrorExpression();
             }
 
-            if (_flags.Includes(BinderFlags.LocalFunction) && (!(v as ParameterSymbol)?.isTemplate ?? false)) {
+            if (_flags.Includes(BinderFlags.LocalFunction) && (!(v as ParameterSymbol)?.isTemplate ?? true)) {
                 foreach (var frame in _trackedSymbols)
                     frame.Add(v);
             }
