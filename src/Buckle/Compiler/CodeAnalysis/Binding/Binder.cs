@@ -162,7 +162,7 @@ internal sealed class Binder {
         var globalStatements = members.OfType<GlobalStatementSyntax>();
         var statements = ImmutableArray.CreateBuilder<BoundStatement>();
 
-        binder._peekedLocals = PeekLocals(globalStatements.Select(s => s.statement), null, null);
+        binder._peekedLocals = PeekLocals(globalStatements.Select(s => s.statement), null);
 
         foreach (var globalStatement in globalStatements)
             statements.Add(binder.BindStatement(globalStatement.statement, true));
@@ -270,7 +270,6 @@ internal sealed class Binder {
             var body = binder.BindMethodBody(
                 method.declaration,
                 method.parameters,
-                method.templateParameters,
                 method.containingType?.declaration?.identifier
             );
 
@@ -564,8 +563,7 @@ internal sealed class Binder {
 
     private static ImmutableArray<string> PeekLocals(
         IEnumerable<StatementSyntax> statements,
-        IEnumerable<ParameterSymbol> parameters,
-        IEnumerable<ParameterSymbol> templateParameters) {
+        IEnumerable<ParameterSymbol> parameters) {
         var locals = ImmutableArray.CreateBuilder<string>();
 
         foreach (var statement in statements) {
@@ -576,11 +574,6 @@ internal sealed class Binder {
         if (parameters != null) {
             foreach (var parameter in parameters)
                 locals.Add(parameter.name);
-        }
-
-        if (templateParameters != null) {
-            foreach (var templateParameter in templateParameters)
-                locals.Add(templateParameter.name);
         }
 
         return locals.ToImmutable();
@@ -742,13 +735,12 @@ internal sealed class Binder {
     private BoundBlockStatement BindMethodBody(
         BaseMethodDeclarationSyntax syntax,
         ImmutableArray<ParameterSymbol> parameters,
-        ImmutableArray<ParameterSymbol> templateParameters,
         SyntaxToken fallbackLocation) {
         var body = syntax?.body;
         BoundBlockStatement boundBody;
 
         if (body != null) {
-            _peekedLocals = PeekLocals(body.statements, parameters, templateParameters);
+            _peekedLocals = PeekLocals(body.statements, parameters);
             boundBody = BindStatement(body) as BoundBlockStatement;
         } else {
             boundBody = Block();
@@ -2071,7 +2063,6 @@ internal sealed class Binder {
         var body = binder.BindMethodBody(
             functionSymbol.declaration,
             functionSymbol.parameters,
-            functionSymbol.templateParameters,
             null
         );
 
@@ -2746,7 +2737,7 @@ internal sealed class Binder {
                 return new BoundErrorExpression();
             }
 
-            if (_flags.Includes(BinderFlags.LocalFunction)) {
+            if (_flags.Includes(BinderFlags.LocalFunction) && (!(v as ParameterSymbol)?.isTemplate ?? false)) {
                 foreach (var frame in _trackedSymbols)
                     frame.Add(v);
             }

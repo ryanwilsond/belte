@@ -37,7 +37,9 @@ internal sealed class Evaluator {
     /// <param name="globals">Globals.</param>
     /// <param name="arguments">Runtime arguments.</param>
     internal Evaluator(
-        BoundProgram program, Dictionary<IVariableSymbol, EvaluatorObject> globals, string[] arguments) {
+        BoundProgram program,
+        Dictionary<IVariableSymbol, EvaluatorObject> globals,
+        string[] arguments) {
         diagnostics = new BelteDiagnosticQueue();
         exceptions = new List<Exception>();
         _arguments = arguments;
