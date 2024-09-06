@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// A method symbol.
 /// </summary>
-internal sealed class MethodSymbol : Symbol, IMethodSymbol {
+internal sealed class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplates {
     private readonly DeclarationModifiers _declarationModifiers;
     private string _signature = null;
 
@@ -56,15 +56,15 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol {
 
     public override bool isSealed => false;
 
+    public ImmutableArray<ParameterSymbol> templateParameters { get; set; }
+
+    public ImmutableArray<BoundExpression> templateConstraints { get; set; }
+
     public new MethodSymbol originalDefinition => _originalDefinition as MethodSymbol;
 
     internal bool isConstant => (_declarationModifiers & DeclarationModifiers.Const) != 0;
 
     internal bool isLowLevel => (_declarationModifiers & DeclarationModifiers.LowLevel) != 0;
-
-    internal ImmutableArray<ParameterSymbol> templateParameters { get; }
-
-    internal ImmutableArray<BoundExpression> templateConstraints { get; }
 
     internal int arity => templateParameters.Length;
 

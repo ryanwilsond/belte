@@ -938,8 +938,24 @@ internal sealed class Binder {
         if (type?.typeSymbol?.isStatic ?? false)
             diagnostics.Push(Error.CannotReturnStatic(method.returnType.location));
 
+        // Temporary scope so constraint clauses can see templates
+        _scope = new BoundScope(_scope);
+
         var templates = BindTemplateParameters(method.templateParameterList);
+
+        foreach (var template in templates) {
+            if (template.type.typeSymbol == TypeSymbol.Type) {
+                var templateType = new TemplateTypeSymbol(template);
+                _scope.TryDeclareType(templateType);
+            } else {
+                _scope.TryDeclareVariable(template);
+            }
+        }
+
         var constraints = BindConstraintClauseList(name, method.constraintClauseList, templates);
+
+        _scope = _scope.parent;
+
         var parameters = BindParameterList(method.parameterList);
         var newMethod = new MethodSymbol(
             name,
@@ -2350,7 +2366,7 @@ internal sealed class Binder {
 
         if (!identifierSymbols.Any()) {
             var result = _overloadResolution.TemplateOverloadResolution(
-                symbols.ToImmutableArray(),
+                symbols.ToImmutableArray<ISymbolWithTemplates>(),
                 ImmutableArray<(string, BoundTypeOrConstant)>.Empty,
                 name.identifier.text,
                 name.identifier,
@@ -2367,13 +2383,15 @@ internal sealed class Binder {
             }
 
             if (result.succeeded) {
-                if (!_options.isLibrary && _wellKnownTypes.ContainsValue(result.bestOverload))
-                    _usedLibraryTypes.Add(result.bestOverload);
+                var bestOverload = result.bestOverload as NamedTypeSymbol;
+
+                if (!_options.isLibrary && _wellKnownTypes.ContainsValue(bestOverload))
+                    _usedLibraryTypes.Add(bestOverload);
 
                 return new BoundType(
-                    result.bestOverload,
+                    bestOverload,
                     templateArguments: constantArguments.ToImmutable(),
-                    arity: result.bestOverload.arity
+                    arity: bestOverload.arity
                 );
             }
 
@@ -2410,12 +2428,15 @@ internal sealed class Binder {
             arguments = templateArguments.Value;
 
         var result = _overloadResolution.TemplateOverloadResolution(
-            templateSymbols.ToImmutableArray(),
+            templateSymbols.ToImmutableArray<ISymbolWithTemplates>(),
             arguments,
             name.identifier.text,
             name.identifier,
             name.templateArgumentList
         );
+
+        if (!result.succeeded)
+            return null;
 
         var constantArgumentsBuilder = ImmutableArray.CreateBuilder<BoundTypeOrConstant>();
 
@@ -2426,8 +2447,7 @@ internal sealed class Binder {
                 constantArgumentsBuilder.Add(new BoundTypeOrConstant(argument.constantValue, argument.type, argument));
         }
 
-        if (!result.succeeded)
-            return null;
+        var bestOverload = result.bestOverload as NamedTypeSymbol;
 
         var constantArguments = constantArgumentsBuilder.ToImmutable();
         VerifyConstraintClauses(
@@ -2436,13 +2456,13 @@ internal sealed class Binder {
             constantArguments
         );
 
-        if (!_options.isLibrary && _wellKnownTypes.ContainsValue(result.bestOverload))
-            _usedLibraryTypes.Add(result.bestOverload);
+        if (!_options.isLibrary && _wellKnownTypes.ContainsValue(bestOverload))
+            _usedLibraryTypes.Add(bestOverload);
 
         return new BoundType(
-            result.bestOverload,
+            bestOverload,
             templateArguments: constantArguments,
-            arity: result.bestOverload.arity,
+            arity: bestOverload.arity,
             isNullable: true
         );
     }
@@ -2624,21 +2644,52 @@ internal sealed class Binder {
         if (templateName is not null) {
             if (!BindTemplateArgumentList(templateName.templateArgumentList, out templateArguments))
                 return new BoundErrorExpression();
-
-            var templateMethods = methods.Where(m => m.arity > 0);
-
-            if (!templateMethods.Any()) {
-                diagnostics.Push(
-                    Error.TemplateNotExpected(templateName.templateArgumentList.location, syntax.identifier.text)
-                );
-
-                return null;
-            }
-
-            return new BoundMethodGroup(name, templateMethods.ToImmutableArray(), templateArguments);
         }
 
-        return new BoundMethodGroup(name, methods.ToImmutableArray(), templateArguments);
+        var templateMethods = methods.Where(m => m.arity > 0);
+
+        if (!templateMethods.Any() && templateName is not null) {
+            diagnostics.Push(
+                Error.TemplateNotExpected(templateName.templateArgumentList.location, syntax.identifier.text)
+            );
+
+            return new BoundErrorExpression();
+        }
+
+        var result = _overloadResolution.TemplateOverloadResolution(
+            methods.ToImmutableArray<ISymbolWithTemplates>(),
+            templateArguments,
+            name,
+            syntax.identifier,
+            templateName?.templateArgumentList
+        );
+
+        if (!result.succeeded)
+            return new BoundErrorExpression();
+
+        var constantArgumentsBuilder = ImmutableArray.CreateBuilder<BoundTypeOrConstant>();
+
+        foreach (var argument in result.arguments) {
+            if (argument is BoundType t)
+                constantArgumentsBuilder.Add(new BoundTypeOrConstant(t));
+            else
+                constantArgumentsBuilder.Add(new BoundTypeOrConstant(argument.constantValue, argument.type, argument));
+        }
+
+        var bestOverload = result.bestOverload as NamedTypeSymbol;
+
+        var constantArguments = constantArgumentsBuilder.ToImmutable();
+        VerifyConstraintClauses(
+            templateName?.templateArgumentList?.location ?? syntax.location,
+            result.bestOverload.templateConstraints,
+            constantArguments
+        );
+
+        return new BoundMethodGroup(
+            name,
+            result.bestOverloads.Select(m => m as MethodSymbol).ToImmutableArray(),
+            templateArguments
+        );
     }
 
     private BoundExpression BindNonCalledIdentifierInScope(SimpleNameSyntax syntax, ImmutableArray<Symbol> symbols) {

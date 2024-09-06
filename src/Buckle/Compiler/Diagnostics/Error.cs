@@ -795,7 +795,7 @@ internal static class Error {
     /// <summary>
     /// BU0083. Run `buckle --explain BU0083` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic AmbiguousTemplateOverload(TextLocation location, NamedTypeSymbol[] symbols) {
+    internal static BelteDiagnostic AmbiguousTemplateOverload(TextLocation location, ISymbolWithTemplates[] symbols) {
         var message = new StringBuilder($"template is ambiguous between ");
 
         for (var i = 0; i < symbols.Length; i++) {

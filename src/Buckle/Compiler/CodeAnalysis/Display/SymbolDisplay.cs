@@ -157,6 +157,8 @@ public static class SymbolDisplay {
 
         DisplayContainedNames(text, symbol);
         text.Write(CreateIdentifier(symbol.name));
+
+        DisplayTemplateParameters(text, symbol.templateParameters);
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
 
         for (var i = 0; i < symbol.parameters.Length; i++) {
@@ -171,6 +173,8 @@ public static class SymbolDisplay {
         }
 
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+
+        DisplayTemplateConstraints(text, symbol.templateConstraints);
     }
 
     private static void DisplayModifiers(DisplayText text, Symbol symbol) {
