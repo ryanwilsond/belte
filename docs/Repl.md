@@ -39,12 +39,12 @@ The Repl provides many commands usefully for debug snippets or code.
 
 | Command Name | Usage | Description |
 |-|-|-|
-| [Clear](#clear-command) | `#clear`, `#cls` | Clear the screen |
+| [Clear](#clear-command) | `#clear` | Clear the screen |
 | [Dump](#dump-command) | `#dump <signature>` | Show contents of symbol \<signature> |
 | [Exit](#exit-command) | `#exit` | Exit the Repl |
 | [Help](#help-command) | `#help` | Show this document |
 | [Load](#load-command) | `#load <path>` | Load in text from \<path> |
-| [List](#list-command) | `#ls` | List all defined symbols |
+| [List](#list-command) | `#list` | List all defined symbols |
 | [Reset](#reset-command) | `#reset` | Clear previous submissions |
 | [Save to File](#save-to-file-command) | `#saveToFile <path> <count=1>` | Save previous \<count> submissions to \<path> |
 | [Settings](#settings-command) | `#settings` | Open settings page |
@@ -60,7 +60,7 @@ The Repl provides many commands usefully for debug snippets or code.
 
 ### Clear Command
 
-Usage: `#clear` or `#cls`
+Usage: `#clear`
 
 The clear command will clear the entire terminal of any past submissions, and then you can continue coding snippets.
 This command does not affect any of the Repl state like the reset command, it only clears the terminal buffer.
@@ -161,7 +161,7 @@ The Repl:
 
 ### List Command
 
-Usage: `#ls`
+Usage: `#list`
 
 The list command lists all currently declared symbols, including built-in ones.
 
