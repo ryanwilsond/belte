@@ -7,17 +7,15 @@ class Object {
     }
 
     public virtual bool! Equals(Object object) {
-        if (object is null) {
+        if (object is null)
             return false;
-        }
 
         return ObjectsEquals(this, object)!;
     }
 
     public virtual bool! ReferenceEquals(ref Object object) {
-        if (object is null) {
+        if (object is null)
             return false;
-        }
 
         return ObjectReferencesEqual(this, object)!;
     }

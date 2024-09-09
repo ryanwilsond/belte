@@ -87,9 +87,8 @@ lowlevel sealed class List<type T> {
     }
 
     public void Fill(T value) {
-        for (int! i = 0; i < _length; i++) {
+        for (int! i = 0; i < _length; i++)
             _array[i] = value;
-        }
     }
 
     public const int Length() {
@@ -105,9 +104,8 @@ lowlevel sealed class List<type T> {
     public const T Index(int! index) {
         index = PosIndex(index);
 
-        if (index < 0 || index >= _length) {
+        if (index < 0 || index >= _length)
             return null;
-        }
 
         return _array[index];
     }
@@ -116,40 +114,35 @@ lowlevel sealed class List<type T> {
         start = PosIndex(start);
         end = PosIndex(end);
 
-        if (end <= start) {
+        if (end <= start)
             return new List<T>();
-        }
 
         List<T> subset = new List<T>(end - start);
 
-        for (int! i = start; i < end; i++) {
+        for (int! i = start; i < end; i++)
             subset.Append(_array[i]);
-        }
 
         return subset;
     }
 
     public static T operator[](List<T> list, int index) {
-        if (index is null) {
+        if (index is null)
             return null;
-        }
 
         return list.Index(index!);
     }
 
     public static T operator[](List<T> list, int index, T value) {
-        if (index is null) {
+        if (index is null)
             return null;
-        }
 
         list.Assign(index!, value);
         return list.Index(index!);
     }
 
     public override string ToString() {
-        if (_length == 0) {
+        if (_length == 0)
             return "{ }";
-        }
 
         string representation = "{ ";
 
@@ -160,16 +153,14 @@ lowlevel sealed class List<type T> {
             this is List<char> ||
             this is List<type> ||
             this is List<any>) {
-            for (int i = 0; i < _length - 1; i++) {
+            for (int i = 0; i < _length - 1; i++)
                 representation += ((string)ToAny(_array[i])) + ", ";
-            }
 
             return representation + ((string)ToAny(_array[_length - 1])) + " }";
         }
 
-        for (int i = 0; i < _length - 1; i++) {
+        for (int i = 0; i < _length - 1; i++)
             representation += ToObject(_array[i]).ToString() + ", ";
-        }
 
         return representation + ToObject(_array[_length - 1]).ToString() + " }";
     }
@@ -196,16 +187,14 @@ lowlevel sealed class List<type T> {
     }
 
     private const int! PosIndex(int! index) {
-        if (index < 0) {
+        if (index < 0)
             index += _length;
-        }
 
         return index;
     }
 
     private static void CopyInto(ref T[] to, ref T[] from, int! start, int! length) {
-        for (int! i = 0; i < length; i++) {
+        for (int! i = 0; i < length; i++)
             to[i + start] = from[i];
-        }
     }
 }
