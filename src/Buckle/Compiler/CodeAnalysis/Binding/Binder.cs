@@ -378,7 +378,8 @@ internal sealed class Binder {
         bool allowExplicit = false,
         int argument = 0,
         bool isImplicitNull = false,
-        BoundType receiverType = null) {
+        BoundType receiverType = null,
+        ImmutableArray<BoundTypeOrConstant>? templateArguments = null) {
         var boundExpression = BindExpression(expression);
 
         return BindCast(
@@ -388,7 +389,8 @@ internal sealed class Binder {
             allowExplicit,
             argument,
             isImplicitNull,
-            receiverType: receiverType
+            receiverType: receiverType,
+            templateArguments: templateArguments
         );
     }
 
@@ -399,7 +401,8 @@ internal sealed class Binder {
         bool allowExplicit = false,
         int argument = 0,
         bool isImplicitNull = false,
-        BoundType receiverType = null) {
+        BoundType receiverType = null,
+        ImmutableArray<BoundTypeOrConstant>? templateArguments = null) {
         return BindCast(
             diagnosticLocation,
             expression,
@@ -408,7 +411,8 @@ internal sealed class Binder {
             allowExplicit,
             argument,
             isImplicitNull,
-            receiverType: receiverType
+            receiverType: receiverType,
+            templateArguments: templateArguments
         );
     }
 
@@ -421,7 +425,8 @@ internal sealed class Binder {
         int argument = 0,
         bool isImplicitNull = false,
         bool isTemplate = false,
-        BoundType receiverType = null) {
+        BoundType receiverType = null,
+        ImmutableArray<BoundTypeOrConstant>? templateArguments = null) {
         var fromType = expression.type;
         var toType = type;
 
@@ -430,6 +435,8 @@ internal sealed class Binder {
 
         if (receiverType is not null)
             toType = BoundType.Compound(receiverType, toType);
+        else if (templateArguments is not null)
+            toType = BoundType.Compound(templateArguments.Value, toType);
 
         var conversion = Cast.Classify(fromType, toType);
         castType = conversion;
@@ -823,6 +830,7 @@ internal sealed class Binder {
             WellKnownMemberNames.InstanceConstructorName,
             syntax?.thisOrBaseKeyword ?? receiverName,
             syntax?.argumentList,
+            null,
             receiver.type
         );
 
@@ -948,10 +956,6 @@ internal sealed class Binder {
             _flags |= BinderFlags.LowLevelContext;
 
         name ??= method.identifier.text;
-        var type = BindType(method.returnType, modifiers, true);
-
-        if (type?.typeSymbol?.isStatic ?? false)
-            diagnostics.Push(Error.CannotReturnStatic(method.returnType.location));
 
         // Temporary scope so constraint clauses can see templates
         _scope = new BoundScope(_scope);
@@ -967,11 +971,16 @@ internal sealed class Binder {
             }
         }
 
+        var type = BindType(method.returnType, modifiers, true);
+
+        if (type?.typeSymbol?.isStatic ?? false)
+            diagnostics.Push(Error.CannotReturnStatic(method.returnType.location));
+
         var constraints = BindConstraintClauseList(name, method.constraintClauseList, templates);
+        var parameters = BindParameterList(method.parameterList);
 
         _scope = _scope.parent;
 
-        var parameters = BindParameterList(method.parameterList);
         var newMethod = new MethodSymbol(
             name,
             templates,
@@ -3740,6 +3749,7 @@ internal sealed class Binder {
                 type.typeSymbol.name,
                 expression.type,
                 expression.argumentList,
+                null,
                 type
             );
 
@@ -4043,6 +4053,7 @@ internal sealed class Binder {
                 mg.name,
                 expression.expression,
                 expression.argumentList,
+                mg.templateArguments,
                 receiver.type
             );
 

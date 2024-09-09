@@ -275,8 +275,12 @@ internal sealed class BoundType : BoundExpression {
     /// Checks for template arguments on <param name="receiver"/> that could clarify <param name="type"/>.
     /// </summary>
     internal static BoundType Compound(BoundType receiver, BoundType type) {
-        if (type.typeSymbol is TemplateTypeSymbol t && receiver.templateArguments.Length > 0) {
-            var resolvedType = receiver.templateArguments[t.template.ordinal - 1].type;
+        return Compound(receiver.templateArguments, type);
+    }
+
+    internal static BoundType Compound(ImmutableArray<BoundTypeOrConstant> templateArguments, BoundType type) {
+        if (type.typeSymbol is TemplateTypeSymbol t && templateArguments.Length > 0) {
+            var resolvedType = templateArguments[t.template.ordinal - 1].type;
 
             return new BoundType(
                 resolvedType.typeSymbol,
