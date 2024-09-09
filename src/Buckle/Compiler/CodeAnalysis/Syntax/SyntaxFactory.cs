@@ -109,7 +109,14 @@ public static partial class SyntaxFactory {
     }
 
     /// <summary>
-    /// Creates a <see cref="BlockStatementSyntax"/>.
+    /// Creates a <see cref="ThisExpressionSyntax" />.
+    /// </summary>
+    public static ThisExpressionSyntax This() {
+        return ThisExpression(Token(SyntaxKind.ThisKeyword));
+    }
+
+    /// <summary>
+    /// Creates a <see cref="BlockStatementSyntax" />.
     /// </summary>
     public static BlockStatementSyntax Block(params StatementSyntax[] statements) {
         return BlockStatement(
@@ -120,10 +127,23 @@ public static partial class SyntaxFactory {
     }
 
     /// <summary>
-    /// Creates a <see cref="ReturnStatementSyntax"/>.
+    /// Creates a <see cref="ReturnStatementSyntax" />.
     /// </summary>
     public static ReturnStatementSyntax Return(ExpressionSyntax expression) {
         return ReturnStatement(Token(SyntaxKind.ReturnKeyword), expression, Token(SyntaxKind.SemicolonToken));
+    }
+
+    /// <summary>
+    /// Creates an <see cref="IfStatementSyntax" />.
+    /// </summary>
+    public static IfStatementSyntax If(ExpressionSyntax condition, StatementSyntax then) {
+        return IfStatement(
+            Token(SyntaxKind.IfKeyword),
+            Token(SyntaxKind.OpenParenToken),
+            condition,
+            Token(SyntaxKind.CloseParenToken),
+            then
+        );
     }
 
     /// <summary>
@@ -203,5 +223,16 @@ public static partial class SyntaxFactory {
     /// </summary>
     public static SyntaxTokenList TokenList(IEnumerable<SyntaxToken> tokens) {
         return new SyntaxTokenList(tokens);
+    }
+
+    /// <summary>
+    /// Creates an argument list.
+    /// </summary>
+    public static ArgumentListSyntax ArgumentList(params ArgumentSyntax[] arguments) {
+        return ArgumentList(
+            Token(SyntaxKind.OpenParenToken),
+            SeparatedList(arguments),
+            Token(SyntaxKind.CloseParenToken)
+        );
     }
 }

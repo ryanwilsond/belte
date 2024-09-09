@@ -619,7 +619,28 @@ internal static partial class StandardLibrary {
                             Token(SyntaxKind.CloseParenToken)
                         ),
                         ConstraintClauseList(),
-                        Block(Return(Literal(false))),
+                        Block(
+                            If(
+                                BinaryExpression(
+                                    IdentifierName("object"),
+                                    Token(SyntaxKind.IsKeyword),
+                                    LiteralExpression(Token(SyntaxKind.NullKeyword))
+                                ),
+                                Return(Literal(false))
+                            ),
+                            Return(
+                                PostfixExpression(
+                                    CallExpression(
+                                        IdentifierName("ObjectsEqual"),
+                                        ArgumentList(
+                                            Argument(This()),
+                                            Argument(IdentifierName("object"))
+                                        )
+                                    ),
+                                    Token(SyntaxKind.ExclamationToken)
+                                )
+                            )
+                        ),
                         Token(SyntaxKind.SemicolonToken)
                     )
                 ),
@@ -643,7 +664,28 @@ internal static partial class StandardLibrary {
                             Token(SyntaxKind.CloseParenToken)
                         ),
                         ConstraintClauseList(),
-                        Block(Return(Literal(false))),
+                        Block(
+                            If(
+                                BinaryExpression(
+                                    IdentifierName("object"),
+                                    Token(SyntaxKind.IsKeyword),
+                                    LiteralExpression(Token(SyntaxKind.NullKeyword))
+                                ),
+                                Return(Literal(false))
+                            ),
+                            Return(
+                                PostfixExpression(
+                                    CallExpression(
+                                        IdentifierName("ObjectReferencesEqual"),
+                                        ArgumentList(
+                                            Argument(This()),
+                                            Argument(IdentifierName("object"))
+                                        )
+                                    ),
+                                    Token(SyntaxKind.ExclamationToken)
+                                )
+                            )
+                        ),
                         Token(SyntaxKind.SemicolonToken)
                     )
                 )
