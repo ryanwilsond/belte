@@ -1030,4 +1030,15 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Evaluator_Function_ParametersCanUseTemplates() {
+        var text = @"
+            void M<type T>(T x) { }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }
