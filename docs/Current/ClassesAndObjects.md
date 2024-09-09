@@ -101,7 +101,11 @@ class MyClass {
 
 Operator overloading is used to allow custom classes to use syntactical operators. The overloadable operators are:
 
-`**, *, /, %, +, -, <<, >>, >>>, &, ^, |, ++, --, !, ~, []`
+| Operators | Notes |
+|-|-|
+| `+x`, `-x`, `!x`, `~x`, `++`, `--`, `x[]` | |
+| `x + y`, `x - y`, `x * y`, `x / y`, `x % y`, `x & y`, `x \| y`, `x ^ y`, `x << y`, `x >> y`, `x >>> y` | |
+| `x == y`, `x != y`, `x < y`, `x > y`, `x <= y`, `x >= y` | Must be overloaded in the following pairs: `==` and `!=`, `<` and `>`, `<=` and `>=` |
 
 Note that operators must be marked [public](#431-accessibility-modifiers) and [static](#432-static--constexpr).
 

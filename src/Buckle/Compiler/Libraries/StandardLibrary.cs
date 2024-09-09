@@ -688,6 +688,79 @@ internal static partial class StandardLibrary {
                         ),
                         Token(SyntaxKind.SemicolonToken)
                     )
+                ),
+        /* 4 */ Method(
+                    "op_Equality",
+                    BoundType.NullableBool,
+                    [("x", new BoundType(Object, isNullable: true)), ("y", new BoundType(Object, isNullable: true))],
+                    DeclarationModifiers.Static,
+                    Accessibility.Public,
+                    MethodDeclaration(
+                        null,
+                        TokenList(Token(SyntaxKind.StaticKeyword)),
+                        IdentifierName("bool"),
+                        Identifier("op_Equality"),
+                        TemplateParameterList(),
+                        ParameterList(
+                            Token(SyntaxKind.OpenParenToken),
+                            SeparatedList(
+                                Parameter(ReferenceType("Object"), Identifier("x")),
+                                Parameter(ReferenceType("Object"), Identifier("y"))
+                            ),
+                            Token(SyntaxKind.CloseParenToken)
+                        ),
+                        ConstraintClauseList(),
+                        Block(
+                            Return(
+                                CallExpression(
+                                    IdentifierName("ObjectsEqual"),
+                                    ArgumentList(
+                                        Argument(IdentifierName("x")),
+                                        Argument(IdentifierName("y"))
+                                    )
+                                )
+                            )
+                        ),
+                        Token(SyntaxKind.SemicolonToken)
+                    )
+                ),
+        /* 5 */ Method(
+                    "op_Inequality",
+                    BoundType.NullableBool,
+                    [("x", new BoundType(Object, isNullable: true)), ("y", new BoundType(Object, isNullable: true))],
+                    DeclarationModifiers.Static,
+                    Accessibility.Public,
+                    MethodDeclaration(
+                        null,
+                        TokenList(Token(SyntaxKind.StaticKeyword)),
+                        IdentifierName("bool"),
+                        Identifier("op_Inequality"),
+                        TemplateParameterList(),
+                        ParameterList(
+                            Token(SyntaxKind.OpenParenToken),
+                            SeparatedList(
+                                Parameter(ReferenceType("Object"), Identifier("x")),
+                                Parameter(ReferenceType("Object"), Identifier("y"))
+                            ),
+                            Token(SyntaxKind.CloseParenToken)
+                        ),
+                        ConstraintClauseList(),
+                        Block(
+                            Return(
+                                UnaryExpression(
+                                    Token(SyntaxKind.ExclamationToken),
+                                    CallExpression(
+                                        IdentifierName("ObjectsEqual"),
+                                        ArgumentList(
+                                            Argument(IdentifierName("x")),
+                                            Argument(IdentifierName("y"))
+                                        )
+                                    )
+                                )
+                            )
+                        ),
+                        Token(SyntaxKind.SemicolonToken)
+                    )
                 )
             )
         );

@@ -21,4 +21,12 @@ class Object {
 
         return ObjectReferencesEqual(this, object)!;
     }
+
+    public static bool operator==(Object x, Object y) {
+        return ObjectsEqual(x, y);
+    }
+
+    public static bool operator!=(Object x, Object y) {
+        return !ObjectsEqual(x, y);
+    }
 }

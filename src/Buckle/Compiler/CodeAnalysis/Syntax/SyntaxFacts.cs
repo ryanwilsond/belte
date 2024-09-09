@@ -337,6 +337,12 @@ internal static class SyntaxFacts {
             SyntaxKind.ExclamationToken => true,
             SyntaxKind.TildeToken => true,
             SyntaxKind.OpenBracketToken => true,
+            SyntaxKind.EqualsEqualsToken => true,
+            SyntaxKind.ExclamationEqualsToken => true,
+            SyntaxKind.LessThanToken => true,
+            SyntaxKind.GreaterThanToken => true,
+            SyntaxKind.LessThanEqualsToken => true,
+            SyntaxKind.GreaterThanEqualsToken => true,
             _ => false,
         };
     }
@@ -370,6 +376,12 @@ internal static class SyntaxFacts {
             SyntaxKind.OpenBracketToken when arity == 3 => WellKnownMemberNames.IndexAssignName,
             SyntaxKind.QuestionOpenBracketToken when arity != 3 => WellKnownMemberNames.IndexOperatorName,
             SyntaxKind.QuestionOpenBracketToken when arity == 3 => WellKnownMemberNames.IndexAssignName,
+            SyntaxKind.EqualsEqualsToken => WellKnownMemberNames.EqualityOperatorName,
+            SyntaxKind.ExclamationEqualsToken => WellKnownMemberNames.InequalityOperatorName,
+            SyntaxKind.LessThanToken => WellKnownMemberNames.LessThanOperatorName,
+            SyntaxKind.GreaterThanToken => WellKnownMemberNames.GreaterThanOperatorName,
+            SyntaxKind.LessThanEqualsToken => WellKnownMemberNames.LessThanOrEqualOperatorName,
+            SyntaxKind.GreaterThanEqualsToken => WellKnownMemberNames.GreaterThanOrEqualOperatorName,
             _ => null,
         };
     }
@@ -401,6 +413,12 @@ internal static class SyntaxFacts {
             WellKnownMemberNames.BitwiseNotOperatorName => 1,
             WellKnownMemberNames.IndexOperatorName => 2,
             WellKnownMemberNames.IndexAssignName => 3,
+            WellKnownMemberNames.EqualityOperatorName => 2,
+            WellKnownMemberNames.InequalityOperatorName => 2,
+            WellKnownMemberNames.LessThanOperatorName => 2,
+            WellKnownMemberNames.GreaterThanOperatorName => 2,
+            WellKnownMemberNames.LessThanOrEqualOperatorName => 2,
+            WellKnownMemberNames.GreaterThanOrEqualOperatorName => 2,
             _ => 0,
         };
     }

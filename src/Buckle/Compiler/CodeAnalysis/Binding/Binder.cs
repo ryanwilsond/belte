@@ -134,6 +134,8 @@ internal sealed class Binder {
             binder._scope.TryDeclareMethod(StandardLibrary.Object.members[1] as MethodSymbol);
             binder._scope.TryDeclareMethod(StandardLibrary.Object.members[2] as MethodSymbol);
             binder._scope.TryDeclareMethod(StandardLibrary.Object.members[3] as MethodSymbol);
+            binder._scope.TryDeclareMethod(StandardLibrary.Object.members[4] as MethodSymbol);
+            binder._scope.TryDeclareMethod(StandardLibrary.Object.members[5] as MethodSymbol);
         }
 
         if (binder.diagnostics.Errors().Any())
@@ -1895,6 +1897,8 @@ internal sealed class Binder {
             builder.Add(method);
         }
 
+        var operators = new List<(OperatorDeclarationSyntax, MethodSymbol)>();
+
         foreach (var operatorDeclaration in @class.members.OfType<OperatorDeclarationSyntax>()) {
             var @operator = BindOperatorDeclaration(operatorDeclaration, inheritModifiers);
 
@@ -1902,7 +1906,11 @@ internal sealed class Binder {
                 diagnostics.Push(Error.StaticOperator(operatorDeclaration.operatorToken.location));
             else
                 builder.Add(@operator);
+
+            operators.Add((operatorDeclaration, @operator));
         }
+
+        EnsurePairedOperatorsAreDeclared();
 
         foreach (var typeDeclaration in @class.members.OfType<TypeDeclarationSyntax>()) {
             var type = BindTypeDeclaration(typeDeclaration);
@@ -1931,6 +1939,83 @@ internal sealed class Binder {
         _flags = saved;
 
         return oldClass;
+
+        void EnsurePairedOperatorsAreDeclared() {
+            // TODO This is faster than doing multiple List.Contains, but there should be a faster way to do this
+            TextLocation hasEquality = null;
+            TextLocation hasInequality = null;
+            TextLocation hasLessThan = null;
+            TextLocation hasGreaterThan = null;
+            TextLocation hasLessThanEqual = null;
+            TextLocation hasGreaterThanEqual = null;
+
+            foreach (var (operatorDeclaration, @operator) in operators) {
+                switch (@operator.name) {
+                    case WellKnownMemberNames.EqualityOperatorName:
+                        hasEquality = operatorDeclaration.operatorToken.location;
+                        break;
+                    case WellKnownMemberNames.InequalityOperatorName:
+                        hasInequality = operatorDeclaration.operatorToken.location;
+                        break;
+                    case WellKnownMemberNames.LessThanOperatorName:
+                        hasLessThan = operatorDeclaration.operatorToken.location;
+                        break;
+                    case WellKnownMemberNames.GreaterThanOperatorName:
+                        hasGreaterThan = operatorDeclaration.operatorToken.location;
+                        break;
+                    case WellKnownMemberNames.LessThanOrEqualOperatorName:
+                        hasLessThanEqual = operatorDeclaration.operatorToken.location;
+                        break;
+                    case WellKnownMemberNames.GreaterThanOrEqualOperatorName:
+                        hasGreaterThanEqual = operatorDeclaration.operatorToken.location;
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            if (hasEquality is not null && hasInequality is null) {
+                diagnostics.Push(Error.MissingOperatorPair(
+                    hasEquality,
+                    SyntaxKind.EqualsEqualsToken,
+                    SyntaxKind.ExclamationEqualsToken
+                ));
+            } else if (hasEquality is null && hasInequality is not null) {
+                diagnostics.Push(Error.MissingOperatorPair(
+                    hasInequality,
+                    SyntaxKind.ExclamationEqualsToken,
+                    SyntaxKind.EqualsEqualsToken
+                ));
+            }
+
+            if (hasLessThan is not null && hasGreaterThan is null) {
+                diagnostics.Push(Error.MissingOperatorPair(
+                    hasLessThan,
+                    SyntaxKind.LessThanToken,
+                    SyntaxKind.GreaterThanToken
+                ));
+            } else if (hasLessThan is null && hasGreaterThan is not null) {
+                diagnostics.Push(Error.MissingOperatorPair(
+                    hasGreaterThan,
+                    SyntaxKind.GreaterThanToken,
+                    SyntaxKind.LessThanToken
+                ));
+            }
+
+            if (hasLessThanEqual is not null && hasGreaterThanEqual is null) {
+                diagnostics.Push(Error.MissingOperatorPair(
+                    hasLessThanEqual,
+                    SyntaxKind.LessThanEqualsToken,
+                    SyntaxKind.GreaterThanEqualsToken
+                ));
+            } else if (hasLessThanEqual is null && hasGreaterThanEqual is not null) {
+                diagnostics.Push(Error.MissingOperatorPair(
+                    hasGreaterThanEqual,
+                    SyntaxKind.GreaterThanEqualsToken,
+                    SyntaxKind.LessThanEqualsToken
+                ));
+            }
+        }
 
         void EnsureAbstractsAreImplemented() {
             foreach (var method in inheritedMethods) {
