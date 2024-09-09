@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.Libraries.Standard;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 using static Buckle.CodeAnalysis.Symbols.SymbolUtilities;
 
@@ -218,7 +219,8 @@ internal static class BuiltinMethods {
     internal static readonly MethodSymbol ToAny = new MethodSymbol(
         "ToAny",
         [], [], [new ParameterSymbol("primitive", BoundType.NullableAny, 0, NoDefault)],
-        BoundType.NullableAny
+        BoundType.NullableAny,
+        modifiers: DeclarationModifiers.LowLevel
     );
 
     /// <summary>
@@ -228,7 +230,46 @@ internal static class BuiltinMethods {
     internal static readonly MethodSymbol ToObject = new MethodSymbol(
         "ToObject",
         [], [], [new ParameterSymbol("object", BoundType.NullableAny, 0, NoDefault)],
-        BoundType.NullableAny
+        BoundType.NullableAny,
+        modifiers: DeclarationModifiers.LowLevel
+    );
+
+    /// <summary>
+    /// LowLevel only.
+    /// Checks if two objects values equal.
+    /// </summary>
+    internal static readonly MethodSymbol ObjectsEqual = new MethodSymbol(
+        "ObjectsEqual",
+        [], [], [
+            new ParameterSymbol("x", new BoundType(StandardLibrary.Object, isNullable: true), 0, NoDefault),
+            new ParameterSymbol("y", new BoundType(StandardLibrary.Object, isNullable: true), 0, NoDefault)
+        ],
+        BoundType.NullableBool,
+        modifiers: DeclarationModifiers.LowLevel
+    );
+
+    /// <summary>
+    /// LowLevel only.
+    /// Checks if two references refer to the same object.
+    /// </summary>
+    internal static readonly MethodSymbol ObjectReferencesEqual = new MethodSymbol(
+        "ObjectReferencesEqual",
+        [], [], [
+            new ParameterSymbol(
+                "x",
+                new BoundType(StandardLibrary.Object, isNullable: true, isReference: true),
+                0,
+                NoDefault
+            ),
+            new ParameterSymbol(
+                "y",
+                new BoundType(StandardLibrary.Object, isNullable: true, isReference: true),
+                0,
+                NoDefault
+            )
+        ],
+        BoundType.NullableBool,
+        modifiers: DeclarationModifiers.LowLevel
     );
 
     /// <summary>
@@ -236,5 +277,18 @@ internal static class BuiltinMethods {
     /// </summary>
     /// <returns>All public builtins, calling code should not depend on order.</returns>
     internal static IEnumerable<MethodSymbol> GetAll()
-        => [RandInt, Hex, NullableHex, Ascii, NullableAscii, Char, NullableChar, Length, ToAny, ToObject];
+        => [
+            RandInt,
+            Hex,
+            NullableHex,
+            Ascii,
+            NullableAscii,
+            Char,
+            NullableChar,
+            Length,
+            ToAny,
+            ToObject,
+            ObjectsEqual,
+            ObjectReferencesEqual
+        ];
 }

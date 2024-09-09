@@ -132,6 +132,8 @@ internal sealed class Binder {
             binder._wellKnownTypes.Add(WellKnownTypeNames.Object, StandardLibrary.Object);
             binder._scope.TryDeclareMethod(StandardLibrary.Object.members[0] as MethodSymbol);
             binder._scope.TryDeclareMethod(StandardLibrary.Object.members[1] as MethodSymbol);
+            binder._scope.TryDeclareMethod(StandardLibrary.Object.members[2] as MethodSymbol);
+            binder._scope.TryDeclareMethod(StandardLibrary.Object.members[3] as MethodSymbol);
         }
 
         if (binder.diagnostics.Errors().Any())
@@ -632,6 +634,7 @@ internal sealed class Binder {
             }
         }
 
+        StandardLibrary.Load();
         DeclareSymbols(StandardLibrary.GetSymbols());
     }
 

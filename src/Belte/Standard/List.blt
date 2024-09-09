@@ -14,6 +14,13 @@ lowlevel sealed class List<type T> {
         _res = length;
     }
 
+    public constructor(int! length, T value) {
+        _array = new T[length];
+        _length = length;
+        _res = length;
+        Fill(value);
+    }
+
     public constructor(T[] array) {
         TidyInit();
         ConstructContents(array, Length(array)!);

@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -40,14 +39,17 @@ public static partial class SyntaxFactory {
     /// Creates a <see cref="LiteralExpressionSyntax"/>.
     /// </summary>
     public static LiteralExpressionSyntax Literal(object value) {
-        if (value is int or double)
+        if (value is int or double) {
             return LiteralExpression(Token(SyntaxKind.NumericLiteralToken, value.ToString(), value));
-        else if (value is bool b)
-            return LiteralExpression(Token(b ? SyntaxKind.TrueKeyword : SyntaxKind.FalseKeyword));
-        else if (value is string s)
+        } else if (value is bool b) {
+            return LiteralExpression(
+                Token(b ? SyntaxKind.TrueKeyword : SyntaxKind.FalseKeyword, b ? "true" : "false", b)
+            );
+        } else if (value is string s) {
             return LiteralExpression(Token(SyntaxKind.StringLiteralToken, s, s));
-        else
+        } else {
             throw ExceptionUtilities.Unreachable();
+        }
     }
 
     /// <summary>
@@ -55,6 +57,20 @@ public static partial class SyntaxFactory {
     /// </summary>
     public static IdentifierNameSyntax IdentifierName(string name) {
         return IdentifierName(Identifier(name));
+    }
+
+    /// <summary>
+    /// Creates a <see cref="NonNullableTypeSyntax" />.
+    /// </summary>
+    public static NonNullableTypeSyntax NonNullableType(string name) {
+        return NonNullableType(IdentifierName(name), Token(SyntaxKind.ExclamationToken));
+    }
+
+    /// <summary>
+    /// Creates a <see cref="ReferenceTypeSyntax" />.
+    /// </summary>
+    public static ReferenceTypeSyntax ReferenceType(string name) {
+        return ReferenceType(Token(SyntaxKind.RefKeyword), IdentifierName(name));
     }
 
     /// <summary>

@@ -5,4 +5,20 @@ class Object {
     public virtual string ToString() {
         return "";
     }
+
+    public virtual bool! Equals(Object object) {
+        if (object is null) {
+            return false;
+        }
+
+        return ObjectsEquals(this, object)!;
+    }
+
+    public virtual bool! ReferenceEquals(ref Object object) {
+        if (object is null) {
+            return false;
+        }
+
+        return ObjectReferencesEqual(this, object)!;
+    }
 }

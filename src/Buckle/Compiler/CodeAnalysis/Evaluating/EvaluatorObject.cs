@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 
@@ -82,4 +83,41 @@ public sealed class EvaluatorObject {
     internal Dictionary<Symbol, EvaluatorObject> members { get; set; }
 
     internal BoundType trueType { get; set; }
+
+    /// <summary>
+    /// Checks if this and another EvaluatorObject's values equal.
+    /// </summary>
+    internal bool ValueEquals(EvaluatorObject other) {
+        if ((trueType is null) != (other.trueType is null))
+            return false;
+
+        if (trueType is not null) {
+            if (!trueType.Equals(other.trueType))
+                return false;
+        }
+
+        if (isReference) {
+            if (!other.isReference)
+                return false;
+
+            if (reference != other.reference)
+                return false;
+        } else if (members is null) {
+            if (other.isReference || (other.members is not null))
+                return false;
+
+            if (!value.Equals(other.value))
+                return false;
+        } else {
+            var memberValues = members.Values.ToArray();
+            var otherValues = other.members.Values.ToArray();
+
+            for (var i = 0; i < memberValues.Length; i++) {
+                if (!memberValues[i].ValueEquals(otherValues[i]))
+                    return false;
+            }
+        }
+
+        return true;
+    }
 }

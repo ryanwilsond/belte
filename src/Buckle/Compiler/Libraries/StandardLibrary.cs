@@ -587,6 +587,71 @@ internal static partial class StandardLibrary {
         };
 
     /// <summary>
+    /// Initializes all of the Standard Library types.
+    /// </summary>
+    internal static void Load() {
+        // This is how many members we statically declared on Object
+        // This ensures that if Load() is called multiple times, the new members don't get added multiple times
+        if (Object.members.Length > 2)
+            return;
+
+        Object.UpdateInternals(
+            Object.templateParameters,
+            Object.templateConstraints,
+            Object.members.AddRange(
+        /* 2 */ Method(
+                    "Equals",
+                    BoundType.Bool,
+                    [("object", new BoundType(Object, isNullable: true))],
+                    DeclarationModifiers.Virtual,
+                    Accessibility.Public,
+                    MethodDeclaration(
+                        null,
+                        TokenList(Token(SyntaxKind.VirtualKeyword)),
+                        NonNullableType("bool"),
+                        Identifier("Equals"),
+                        TemplateParameterList(),
+                        ParameterList(
+                            Token(SyntaxKind.OpenParenToken),
+                            SeparatedList(
+                                Parameter(IdentifierName("Object"), Identifier("object"))
+                            ),
+                            Token(SyntaxKind.CloseParenToken)
+                        ),
+                        ConstraintClauseList(),
+                        Block(Return(Literal(false))),
+                        Token(SyntaxKind.SemicolonToken)
+                    )
+                ),
+        /* 3 */ Method(
+                    "ReferenceEquals",
+                    BoundType.Bool,
+                    [("object", new BoundType(Object, isReference: true, isNullable: true))],
+                    DeclarationModifiers.Virtual,
+                    Accessibility.Public,
+                    MethodDeclaration(
+                        null,
+                        TokenList(Token(SyntaxKind.VirtualKeyword)),
+                        NonNullableType("bool"),
+                        Identifier("ReferenceEquals"),
+                        TemplateParameterList(),
+                        ParameterList(
+                            Token(SyntaxKind.OpenParenToken),
+                            SeparatedList(
+                                Parameter(ReferenceType("Object"), Identifier("object"))
+                            ),
+                            Token(SyntaxKind.CloseParenToken)
+                        ),
+                        ConstraintClauseList(),
+                        Block(Return(Literal(false))),
+                        Token(SyntaxKind.SemicolonToken)
+                    )
+                )
+            )
+        );
+    }
+
+    /// <summary>
     /// Gets all the pre-compiled symbols defined by the library.
     /// </summary>
     internal static Symbol[] GetSymbols() {

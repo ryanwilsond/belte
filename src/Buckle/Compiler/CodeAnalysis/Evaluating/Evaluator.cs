@@ -760,6 +760,25 @@ internal sealed class Evaluator {
             return new EvaluatorObject(value);
         } else if (node.method.originalDefinition == BuiltinMethods.ToObject) {
             return EvaluateExpression(node.arguments[0], abort);
+        } else if (node.method == BuiltinMethods.ObjectsEqual) {
+            var x = Dereference(EvaluateExpression(node.arguments[0], abort));
+            var y = Dereference(EvaluateExpression(node.arguments[1], abort));
+
+            if ((x.trueType is null && x.value is null) || (y.trueType is null && y.value is null))
+                return EvaluatorObject.Null;
+
+            return new EvaluatorObject(x.ValueEquals(y));
+        } else if (node.method == BuiltinMethods.ObjectReferencesEqual) {
+            var x = Dereference(EvaluateExpression(node.arguments[0], abort));
+            var y = Dereference(EvaluateExpression(node.arguments[1], abort));
+
+            if ((x.trueType is null && x.value is null) || (y.trueType is null && y.value is null))
+                return EvaluatorObject.Null;
+
+            if (x == y)
+                return new EvaluatorObject(true);
+
+            return new EvaluatorObject(false);
         } else {
             if (CheckStandardMap(node.method, node.arguments, abort, out var result, out var printed)) {
                 lastOutputWasPrint = printed;
