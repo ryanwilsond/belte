@@ -20,30 +20,18 @@ lowlevel class KeyValuePair<type TKey, type TValue> {
     public override string ToString() {
         string representation = "{ ";
 
-        if (key is int ||
-            key is string ||
-            key is decimal ||
-            key is bool ||
-            key is char ||
-            key is type ||
-            key is any) {
-            representation += ((string)ToAny(key));
-        } else {
+        if (key is Object) {
             representation += ToObject(key).ToString();
+        } else {
+            representation += ((string)ToAny(key));
         }
 
         representation += ", ";
 
-        if (value is int ||
-            value is string ||
-            value is decimal ||
-            value is bool ||
-            value is char ||
-            value is type ||
-            value is any) {
-            representation += ((string)ToAny(value));
-        } else {
+        if (value is Object) {
             representation += ToObject(value).ToString();
+        } else {
+            representation += ((string)ToAny(value));
         }
 
         return representation + " }";
@@ -56,25 +44,10 @@ abstract class EqualityComparer<type T> {
             return false;
         }
 
-        if (this is EqualityComparer<int> ||
-            this is EqualityComparer<string> ||
-            this is EqualityComparer<decimal> ||
-            this is EqualityComparer<bool> ||
-            this is EqualityComparer<char> ||
-            this is EqualityComparer<type> ||
-            this is EqualityComparer<any>) {
-            if (ToAny(x) == ToAny(y)) {
-                return true;
-            }
+        if (x is Object)
+            return ToObject(x).Equals(ToObject(y));
 
-            return false;
-        }
-
-        if (ToObject(x) == ToObject(y)) {
-            return true;
-        }
-
-        return false;
+        return x! == y!;
     }
 }
 

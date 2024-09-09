@@ -701,13 +701,12 @@ internal sealed class Evaluator {
             node.method == BuiltinMethods.ValueInt ||
             node.method == BuiltinMethods.ValueString ||
             node.method == BuiltinMethods.ValueChar) {
-            var value = EvaluateExpression(node.arguments[0], abort);
-            var hasNoMembers = value.isReference ? Get(value.reference).members is null : value.members is null;
+            var value = Dereference(EvaluateExpression(node.arguments[0], abort));
 
-            if (Value(value) is null && hasNoMembers)
+            if (value.members is null && Value(value) is null)
                 throw new NullReferenceException();
 
-            if (hasNoMembers)
+            if (value.members is null)
                 return new EvaluatorObject(Value(value));
             else
                 return Copy(value);
@@ -717,10 +716,9 @@ internal sealed class Evaluator {
             node.method == BuiltinMethods.HasValueInt ||
             node.method == BuiltinMethods.HasValueString ||
             node.method == BuiltinMethods.HasValueChar) {
-            var value = EvaluateExpression(node.arguments[0], abort);
-            var hasNoMembers = value.isReference ? Get(value.reference).members is null : value.members is null;
+            var value = Dereference(EvaluateExpression(node.arguments[0], abort));
 
-            if (Value(value) is null && hasNoMembers)
+            if (value.members is null && Value(value) is null)
                 return new EvaluatorObject(false);
 
             return new EvaluatorObject(true);
@@ -1012,7 +1010,7 @@ internal sealed class Evaluator {
             if (leftValue is null && dereferenced.members is null)
                 return new EvaluatorObject(false);
 
-            if (left.members is null) {
+            if (dereferenced.members is null) {
                 return new EvaluatorObject(
                     (right.trueType.Equals(BoundType.NullableAny) ||
                     right.trueType.Equals(BoundType.Any) ||
@@ -1021,7 +1019,7 @@ internal sealed class Evaluator {
                 );
             }
 
-            if (TypeUtilities.TypeInheritsFrom(left.trueType, right.trueType))
+            if (TypeUtilities.TypeInheritsFrom(dereferenced.trueType, right.trueType))
                 return new EvaluatorObject(expression.op.opKind is BoundBinaryOperatorKind.Is);
             else
                 return new EvaluatorObject(expression.op.opKind is BoundBinaryOperatorKind.Isnt);

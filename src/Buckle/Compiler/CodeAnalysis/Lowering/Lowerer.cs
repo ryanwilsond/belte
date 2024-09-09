@@ -398,14 +398,23 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         (<type>)<expression>
 
-        ----> <expression> is nullable
+        ----> <expression> is nullable and <type> is not nullable
 
         (<type>)Value(<expression>)
 
+        ----> <expression> is nullable and <type> is not nullable and <expression>.type and <type> are otherwise equal
+
+        Value(<expression>)
+
         ----> <expression> is not nullable and <type> is nullable and <expression>.type and <type> are otherwise equal
+
+        <expression>
 
         */
         if (expression.expression.type.isNullable && !expression.type.isNullable) {
+            if (BoundType.CopyWith(expression.type, isNullable: true).Equals(expression.expression.type, true))
+                return RewriteExpression(Value(expression.expression));
+
             return base.RewriteCastExpression(
                 Cast(
                     expression.type,
@@ -669,13 +678,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.type.typeSymbol == TypeSymbol.Char)
             return Call(BuiltinMethods.ValueChar, expression);
 
-        return Cast(
-            expression.type,
-            Call(
-                BuiltinMethods.ValueAny,
-                expression
-            )
-        );
+        return Call(BuiltinMethods.ValueAny, expression);
     }
 
     private BoundExpression HasValue(BoundExpression expression) {

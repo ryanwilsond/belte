@@ -145,9 +145,9 @@ internal sealed class BoundBinaryOperator {
             BoundType.NullableAny, null),
         // TODO Maybe make this an explicit operator that does not implicitly cast
         new BoundBinaryOperator(SyntaxKind.EqualsEqualsToken, BoundBinaryOperatorKind.EqualityEquals,
-            BoundType.NullableAny, BoundType.Bool),
+            BoundType.Any, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.ExclamationEqualsToken, BoundBinaryOperatorKind.EqualityNotEquals,
-            BoundType.NullableAny, BoundType.Bool),
+            BoundType.Any, BoundType.Bool),
     };
 
     /// <summary>
