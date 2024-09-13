@@ -1774,16 +1774,6 @@ internal sealed class Binder {
             inheritModifiers = DeclarationModifiers.LowLevel;
         }
 
-        var baseType = @class.baseType is null
-            ? new BoundType(_wellKnownTypes[WellKnownTypeNames.Object])
-            : BindBaseType(@class.baseType);
-
-        if (baseType.typeSymbol.isSealed)
-            diagnostics.Push(Error.CannotDeriveSealed(@class.baseType.type.location, baseType.typeSymbol.name));
-
-        if (baseType.typeSymbol.isStatic)
-            diagnostics.Push(Error.CannotDeriveStatic(@class.baseType.type.location, baseType.typeSymbol.name));
-
         var templates = ImmutableArray.CreateBuilder<ParameterSymbol>();
         var templateTypes = new Dictionary<string, TemplateTypeSymbol>();
 
@@ -1800,6 +1790,16 @@ internal sealed class Binder {
 
             templates.Add(templateParameter);
         }
+
+        var baseType = @class.baseType is null
+            ? new BoundType(_wellKnownTypes[WellKnownTypeNames.Object])
+            : BindBaseType(@class.baseType);
+
+        if (baseType.typeSymbol.isSealed)
+            diagnostics.Push(Error.CannotDeriveSealed(@class.baseType.type.location, baseType.typeSymbol.name));
+
+        if (baseType.typeSymbol.isStatic)
+            diagnostics.Push(Error.CannotDeriveStatic(@class.baseType.type.location, baseType.typeSymbol.name));
 
         var constraints = BindConstraintClauseList(oldClass.name, @class.constraintClauseList, templates.ToImmutable());
         ApplyExtensionConstraints(constraints, templateTypes);
@@ -2895,7 +2895,7 @@ internal sealed class Binder {
         SimpleNameSyntax right,
         SyntaxToken operatorToken,
         bool called) {
-        if (boundLeft is BoundErrorExpression || boundLeft.type.typeSymbol is null)
+        if (boundLeft is BoundErrorExpression || boundLeft.type.typeSymbol == TypeSymbol.Error)
             return new BoundErrorExpression();
 
         var furthestRight = boundLeft;
@@ -3050,7 +3050,8 @@ internal sealed class Binder {
                     es.expression.kind == BoundNodeKind.EmptyExpression ||
                     es.expression.kind == BoundNodeKind.CompoundAssignmentExpression ||
                     es.expression.kind == BoundNodeKind.PrefixExpression ||
-                    es.expression.kind == BoundNodeKind.PostfixExpression;
+                    es.expression.kind == BoundNodeKind.PostfixExpression ||
+                    es.expression.kind == BoundNodeKind.ThrowExpression;
 
                 if (!isAllowedExpression)
                     diagnostics.Push(Error.InvalidExpressionStatement(syntax.location));
@@ -4222,7 +4223,7 @@ internal sealed class Binder {
             tempItem = tempItem is BoundEmptyExpression ? new BoundLiteralExpression(null) : tempItem;
 
             // If the type is incomplete in any way, get a new one
-            if (type is null || type.isImplicit || type.typeSymbol is null) {
+            if (type is null || type.isImplicit || type.typeSymbol == TypeSymbol.Error) {
                 var tempType = tempItem.type;
 
                 type = BoundType.CopyWith(

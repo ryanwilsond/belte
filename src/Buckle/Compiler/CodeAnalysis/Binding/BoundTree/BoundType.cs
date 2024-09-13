@@ -265,6 +265,8 @@ internal sealed class BoundType : BoundExpression {
             return new BoundType(TypeSymbol.Char, isLiteral: true);
         if (value is double)
             return new BoundType(TypeSymbol.Decimal, isLiteral: true);
+        if (value is BoundType)
+            return new BoundType(TypeSymbol.Type, isLiteral: true);
         if (value is null)
             return new BoundType(null, isLiteral: true, isNullable: true);
         else

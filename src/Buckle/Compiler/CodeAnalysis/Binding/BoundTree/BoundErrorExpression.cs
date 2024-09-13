@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -12,5 +13,5 @@ internal sealed class BoundErrorExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.ErrorExpression;
 
-    internal override BoundType type => new BoundType(null);
+    internal override BoundType type => new BoundType(TypeSymbol.Error);
 }
