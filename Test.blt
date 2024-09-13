@@ -1,0 +1,22 @@
+
+class A {
+    public virtual string M() {
+        return "A";
+    }
+
+    public string T() {
+        return M();
+    }
+}
+
+class B extends A {
+    public override string M() {
+        return "B";
+    }
+}
+
+
+string Test() {
+    var b = new B();
+    return b.T();
+}

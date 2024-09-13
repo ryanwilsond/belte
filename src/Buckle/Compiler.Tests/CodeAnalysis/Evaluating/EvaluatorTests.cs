@@ -355,7 +355,44 @@ public sealed class EvaluatorTests {
     // TODO
     // [InlineData("lowlevel { int[] Test<int[] a>() { return a; } return Test<{1, 2, 3}>()[1]; }", 2)]
     // Operators
-    [InlineData("class A { public int a; public constructor(int a) { this.a = a; } public static int operator+(A a) { return a.a; } public static int operator+(A a, int b) { return a.a + b; } } var a = new A(3); return a + 5;", 8)]
+    [InlineData(@"
+        class A {
+            public int a;
+
+            public constructor(int a) {
+                this.a = a;
+            }
+
+            public static int operator+(A a) {
+                return a.a;
+            }
+
+            public static int operator+(A a, int b) {
+                return a.a + b;
+            }
+        }
+
+        var a = new A(3);
+        return a + 5;", 8)]
+    [InlineData(@"
+        class A {
+            public virtual string M() {
+                return ""A"";
+            }
+
+            public string T() {
+                return M();
+            }
+        }
+
+        class B extends A {
+            public override string M() {
+                return ""B"";
+            }
+        }
+
+        var b = new B();
+        return b.T();", "B")]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
         AssertValue(text, expectedValue);
     }

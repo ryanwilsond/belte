@@ -961,11 +961,13 @@ internal sealed class Binder {
         _scope = new BoundScope(_scope);
 
         var templates = BindTemplateParameters(method.templateParameterList);
+        var templateTypes = new Dictionary<string, TemplateTypeSymbol>();
 
         foreach (var template in templates) {
             if (template.type.typeSymbol == TypeSymbol.Type) {
                 var templateType = new TemplateTypeSymbol(template);
                 _scope.TryDeclareType(templateType);
+                templateTypes.Add(templateType.name, templateType);
             } else {
                 _scope.TryDeclareVariable(template);
             }
@@ -977,6 +979,8 @@ internal sealed class Binder {
             diagnostics.Push(Error.CannotReturnStatic(method.returnType.location));
 
         var constraints = BindConstraintClauseList(name, method.constraintClauseList, templates);
+        ApplyExtensionConstraints(constraints, templateTypes);
+
         var parameters = BindParameterList(method.parameterList);
 
         _scope = _scope.parent;
@@ -1574,6 +1578,15 @@ internal sealed class Binder {
         return constraintsBuilder.ToImmutableArray();
     }
 
+    private void ApplyExtensionConstraints(
+        ImmutableArray<BoundExpression> constraints,
+        Dictionary<string, TemplateTypeSymbol> templates) {
+        foreach (var constraint in constraints) {
+            if (constraint is BoundExtendExpression e)
+                templates[e.template.name].AddBaseType(e.extension);
+        }
+    }
+
     private StructSymbol BindStructDeclaration(StructDeclarationSyntax @struct) {
         // ? This will return eventually
         BindAttributeLists(@struct.attributeLists);
@@ -1601,12 +1614,14 @@ internal sealed class Binder {
             _flags |= BinderFlags.LowLevelContext;
 
         var templates = ImmutableArray.CreateBuilder<ParameterSymbol>();
+        var templateTypes = new Dictionary<string, TemplateTypeSymbol>();
 
         foreach (var templateParameter in oldStruct.templateParameters) {
             if (templateParameter.type.typeSymbol == TypeSymbol.Type) {
                 var templateType = new TemplateTypeSymbol(templateParameter);
                 builder.Add(templateType);
                 _scope.TryDeclareType(templateType);
+                templateTypes.Add(templateType.name, templateType);
             } else {
                 builder.Add(templateParameter);
                 _scope.TryDeclareVariable(templateParameter);
@@ -1620,6 +1635,8 @@ internal sealed class Binder {
             @struct.constraintClauseList,
             templates.ToImmutable()
         );
+
+        ApplyExtensionConstraints(constraints, templateTypes);
 
         foreach (var fieldDeclaration in @struct.members.OfType<FieldDeclarationSyntax>()) {
             var field = BindFieldDeclaration(fieldDeclaration, true);
@@ -1768,12 +1785,14 @@ internal sealed class Binder {
             diagnostics.Push(Error.CannotDeriveStatic(@class.baseType.type.location, baseType.typeSymbol.name));
 
         var templates = ImmutableArray.CreateBuilder<ParameterSymbol>();
+        var templateTypes = new Dictionary<string, TemplateTypeSymbol>();
 
         foreach (var templateParameter in oldClass.templateParameters) {
             if (templateParameter.type.typeSymbol == TypeSymbol.Type) {
                 var templateType = new TemplateTypeSymbol(templateParameter);
                 builder.Add(templateType);
                 _scope.TryDeclareType(templateType);
+                templateTypes.Add(templateType.name, templateType);
             } else {
                 builder.Add(templateParameter);
                 _scope.TryDeclareVariable(templateParameter);
@@ -1783,6 +1802,7 @@ internal sealed class Binder {
         }
 
         var constraints = BindConstraintClauseList(oldClass.name, @class.constraintClauseList, templates.ToImmutable());
+        ApplyExtensionConstraints(constraints, templateTypes);
 
         foreach (var member in (baseType.typeSymbol as ClassSymbol).GetMembers()) {
             switch (member.kind) {

@@ -803,14 +803,15 @@ internal sealed class Evaluator {
                 throw new NullReferenceException();
         }
 
-        if (method.isAbstract) {
+        if (method.isAbstract || method.isVirtual) {
             var trueType = Dereference(receiver).trueType;
             var newMethod = (trueType.typeSymbol as ClassSymbol)
                 .GetMembers()
                 .Where(s => s is MethodSymbol m && m.Signature() == method.Signature() && m.isOverride)
                 .First() as MethodSymbol;
 
-            method = newMethod;
+            if (newMethod is not null)
+                method = newMethod;
         }
 
         var locals = new Dictionary<IVariableSymbol, EvaluatorObject>();
