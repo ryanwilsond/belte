@@ -4223,7 +4223,7 @@ internal sealed class Binder {
             tempItem = tempItem is BoundEmptyExpression ? new BoundLiteralExpression(null) : tempItem;
 
             // If the type is incomplete in any way, get a new one
-            if (type is null || type.isImplicit || type.typeSymbol == TypeSymbol.Error) {
+            if (type is null || type.isImplicit || type.typeSymbol is null) {
                 var tempType = tempItem.type;
 
                 type = BoundType.CopyWith(
