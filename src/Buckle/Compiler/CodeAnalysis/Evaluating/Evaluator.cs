@@ -207,8 +207,10 @@ internal sealed class Evaluator {
             return Value(e, traceCollections);
         else if (value.value is EvaluatorObject[] && traceCollections)
             return CollectionValue(value.value as EvaluatorObject[]);
-        else if (traceCollections && value.value is null && value.members != null)
+        else if (traceCollections && value.value is null && value.members is not null)
             return DictionaryValue(value.members, value.trueType);
+        else if (value.members is null && value.trueType is not null)
+            return value.trueType;
         else
             return value.value;
     }
@@ -220,6 +222,8 @@ internal sealed class Evaluator {
             return new EvaluatorObject(value.reference, isExplicitReference: true);
         else if (value.members is not null)
             return new EvaluatorObject(Copy(value.members), value.trueType);
+        else if (value.trueType is not null)
+            return new EvaluatorObject(members: null, trueType: value.trueType);
         else
             return new EvaluatorObject(value.value);
     }
@@ -428,7 +432,7 @@ internal sealed class Evaluator {
                     case BoundNodeKind.ReturnStatement:
                         var returnStatement = (BoundReturnStatement)s;
                         _lastValue = returnStatement.expression is null
-                            ? new EvaluatorObject()
+                            ? EvaluatorObject.Null
                             : Copy(EvaluateExpression(returnStatement.expression, abort));
 
                         _hasValue = returnStatement.expression is not null and not BoundEmptyExpression;
@@ -443,7 +447,7 @@ internal sealed class Evaluator {
             return _lastValue;
         } catch (Exception e) when (e is not BelteInternalException) {
             if (e is BelteThreadException || abort)
-                return new EvaluatorObject();
+                return EvaluatorObject.Null;
 
             if (insideTry)
                 throw;
@@ -464,7 +468,7 @@ internal sealed class Evaluator {
                 Console.WriteLine(e.Message);
             }
 
-            return new EvaluatorObject();
+            return EvaluatorObject.Null;
         }
     }
 
@@ -527,7 +531,7 @@ internal sealed class Evaluator {
             case BoundNodeKind.TypeOfExpression:
                 return EvaluateTypeOfExpression((BoundTypeOfExpression)node, abort);
             case BoundNodeKind.EmptyExpression:
-                return new EvaluatorObject();
+                return EvaluatorObject.Null;
             case BoundNodeKind.ObjectCreationExpression:
                 return EvaluateObjectCreationExpression((BoundObjectCreationExpression)node, abort);
             case BoundNodeKind.MemberAccessExpression:
@@ -596,7 +600,7 @@ internal sealed class Evaluator {
             var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).GetMembers();
 
             foreach (var field in typeMembers.Where(f => f is FieldSymbol)) {
-                var value = new EvaluatorObject();
+                var value = EvaluatorObject.Null;
 
                 if ((field as FieldSymbol).isReference) {
                     value.isReference = true;
@@ -651,10 +655,28 @@ internal sealed class Evaluator {
         }
     }
 
-    private static EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression _, ValueWrapper<bool> _1) {
-        // TODO Implement typeof and type types
-        // ? Would just settings EvaluatorObject.value to a BoundType work?
-        return new EvaluatorObject();
+    private EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression node, ValueWrapper<bool> _) {
+        var trueType = node.typeOfType;
+
+        if (node.typeOfType.typeSymbol is TemplateTypeSymbol t) {
+            foreach (var enclosingType in _enclosingTypes) {
+                var type = enclosingType.trueType.typeSymbol as NamedTypeSymbol;
+                var succeeded = false;
+
+                for (var i = 0; i < type.templateParameters.Length; i++) {
+                    if (t.template == type.templateParameters[i]) {
+                        trueType = enclosingType.trueType.templateArguments[i].type;
+                        succeeded = true;
+                        break;
+                    }
+                }
+
+                if (succeeded)
+                    break;
+            }
+        }
+
+        return new EvaluatorObject(members: null, trueType: trueType);
     }
 
     private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node, ValueWrapper<bool> abort) {
@@ -703,11 +725,15 @@ internal sealed class Evaluator {
             node.method == BuiltinMethods.ValueChar) {
             var value = Dereference(EvaluateExpression(node.arguments[0], abort));
 
-            if (value.members is null && Value(value) is null)
+            if (value.members is null && Value(value) is null &&
+                (node.arguments[0].type.typeSymbol != TypeSymbol.Type || value.trueType is null)) {
                 throw new NullReferenceException();
+            }
 
-            if (value.members is null)
+            if (value.members is null && value.trueType is null)
                 return new EvaluatorObject(Value(value));
+            else if (value.members is null)
+                return new EvaluatorObject(value.trueType);
             else
                 return Copy(value);
         } else if (node.method == BuiltinMethods.HasValueAny ||
@@ -718,8 +744,10 @@ internal sealed class Evaluator {
             node.method == BuiltinMethods.HasValueChar) {
             var value = Dereference(EvaluateExpression(node.arguments[0], abort));
 
-            if (value.members is null && Value(value) is null)
+            if (value.members is null && Value(value) is null &&
+                (node.arguments[0].type.typeSymbol != TypeSymbol.Type || value.trueType is null)) {
                 return new EvaluatorObject(false);
+            }
 
             return new EvaluatorObject(true);
         } else if (node.method == BuiltinMethods.Hex || node.method == BuiltinMethods.NullableHex) {
@@ -915,7 +943,7 @@ internal sealed class Evaluator {
         var operandValue = Value(operand);
 
         if (operandValue is null)
-            return new EvaluatorObject();
+            return EvaluatorObject.Null;
 
         operandValue = EvaluateValueCast(operandValue, expression.operand.type, expression.op.operandType);
 
@@ -1026,8 +1054,16 @@ internal sealed class Evaluator {
                 return new EvaluatorObject(expression.op.opKind is BoundBinaryOperatorKind.Isnt);
         }
 
+        if (expression.op.opKind is BoundBinaryOperatorKind.EqualityEquals or BoundBinaryOperatorKind.EqualityNotEquals
+            && expression.op.leftType.typeSymbol == TypeSymbol.Type) {
+            if ((leftValue as BoundType).Equals(rightValue as BoundType))
+                return new EvaluatorObject(expression.op.opKind is BoundBinaryOperatorKind.EqualityEquals);
+            else
+                return new EvaluatorObject(expression.op.opKind is BoundBinaryOperatorKind.EqualityNotEquals);
+        }
+
         if (leftValue is null || rightValue is null)
-            return new EvaluatorObject();
+            return EvaluatorObject.Null;
 
         var expressionType = expression.type.typeSymbol;
         var leftType = expression.op.leftType.typeSymbol;

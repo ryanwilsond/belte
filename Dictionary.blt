@@ -1,6 +1,32 @@
 
 lowlevel class Dictionary<type TKey, type TValue> {
-    public struct Entry {
+    private int[] _buckets;
+    private Entry[] _entries;
+    private int _count;
+    private int _version;
+    private int _freeList;
+    private int _freeCount;
+    private EqualityComparer<TKey> _comparer;
+    private Object _syncRoot;
+
+    public constructor() : this(0, null) { }
+
+    public constructor(int capacity) : this(capacity, null) { }
+
+    public constructor(EqualityComparer<TKey> comparer) : this(0, comparer) { }
+
+    public constructor(int capacity, EqualityComparer<TKey> comparer) {
+        if (capacity < 0)
+            throw new ArgumentOutOfRangeException();
+
+        if (capacity > 0)
+            Initialize(capacity);
+
+        this.comparer = comparer ?? EqualityComparer<TKey>.Default;
+    }
+
+
+    private struct Entry {
         public int hashCode;
         public int next;
         public TKey key;
@@ -37,14 +63,37 @@ lowlevel class KeyValuePair<type TKey, type TValue> {
 }
 
 abstract class EqualityComparer<type T> {
+    public abstract bool! Equals(T x, T y);
+
+    public static EqualityComparer<T> CreateComparer() {
+        var t = typeof(T);
+
+        if (t == typeof(int) ||
+            t == typeof(string) ||
+            t == typeof(decimal) ||
+            t == typeof(bool) ||
+            t == typeof(char) ||
+            t == typeof(type) ||
+            t == typeof(any)) {
+            return new PrimitiveEqualityComparer<T>();
+        }
+
+        return new ObjectEqualityComparer<T>();
+    }
+}
+
+sealed class PrimitiveEqualityComparer<type T> {
     public bool! Equals(T x, T y) {
         if (x is null || y is null)
             return false;
 
-        if (x is Object)
-            return ToObject(x).Equals(ToObject(y));
-
         return x! == y!;
+    }
+}
+
+sealed class ObjectEqualityComparer<type T> where { T extends Object; } {
+    public bool! Equals(T x, T y) {
+        return ToObject(x).Equals(ToObject(y));
     }
 }
 

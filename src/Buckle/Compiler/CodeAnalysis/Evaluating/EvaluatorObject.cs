@@ -12,18 +12,6 @@ public sealed class EvaluatorObject {
     internal static EvaluatorObject Null => new EvaluatorObject(value: null);
 
     /// <summary>
-    /// Creates an <see cref="EvaluatorObject" /> with a null value.
-    /// </summary>
-    internal EvaluatorObject() {
-        value = null;
-        isReference = false;
-        reference = null;
-        isExplicitReference = false;
-        members = null;
-        trueType = null;
-    }
-
-    /// <summary>
     /// Creates an <see cref="EvaluatorObject" /> with a value (not a reference).
     /// In this case <see cref="EvaluatorObject" /> acts purely as an Object wrapper.
     /// </summary>
