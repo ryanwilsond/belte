@@ -10,6 +10,7 @@ require an explicit import.
 - [5.2](StandardLibrary/Console.md) Console (Included By Default)
 - [5.3](StandardLibrary/Math.md) Math (Included By Default)
 - [5.4](StandardLibrary/List.md) List
+- [5.5](StandardLibrary/Dictionary.md) Dictionary
 
 ## 5.1 Built-In Functions
 

@@ -833,7 +833,7 @@ internal sealed class Evaluator {
         var templateConstantDepth = _templateConstantDepth;
         var enteredScope = false;
 
-        if (receiver is not null && receiver.isReference) {
+        if (receiver is not null && (receiver.isReference || expression is BoundObjectCreationExpression)) {
             // On an expression such as 'myInstance.Method()', we need to enter the 'myInstance' class scope
             // in case 'Method' uses 'this'
             // If what we get here is not a reference, it is a static accession and the needed scoped members have

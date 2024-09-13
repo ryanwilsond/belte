@@ -64,15 +64,6 @@ lowlevel sealed class List<type T> {
         _res = newCapacity;
     }
 
-    public void Pop() {
-        if (_length > 0)
-            _length--;
-    }
-
-    public void Clear() {
-        _length = 0;
-    }
-
     public void Assign(int! index, T value) {
         index = PosIndex(index);
 
@@ -86,19 +77,13 @@ lowlevel sealed class List<type T> {
         _array[index] = value;
     }
 
+    public void Clear() {
+        _length = 0;
+    }
+
     public void Fill(T value) {
         for (int! i = 0; i < _length; i++)
             _array[i] = value;
-    }
-
-    public const int Length() {
-        return _length;
-    }
-
-    public const T[] ToArray() {
-        T[] copy = new T[_length];
-        CopyInto(ref copy, ref _array, 0, _length);
-        return copy;
     }
 
     public const T Index(int! index) {
@@ -108,6 +93,15 @@ lowlevel sealed class List<type T> {
             return null;
 
         return _array[index];
+    }
+
+    public const int Length() {
+        return _length;
+    }
+
+    public void Pop() {
+        if (_length > 0)
+            _length--;
     }
 
     public const List<T> Subset(int! start, int! end = -1) {
@@ -125,19 +119,10 @@ lowlevel sealed class List<type T> {
         return subset;
     }
 
-    public static T operator[](List<T> list, int index) {
-        if (index is null)
-            return null;
-
-        return list.Index(index!);
-    }
-
-    public static T operator[](List<T> list, int index, T value) {
-        if (index is null)
-            return null;
-
-        list.Assign(index!, value);
-        return list.Index(index!);
+    public const T[] ToArray() {
+        T[] copy = new T[_length];
+        CopyInto(ref copy, ref _array, 0, _length);
+        return copy;
     }
 
     public override string ToString() {
@@ -163,6 +148,21 @@ lowlevel sealed class List<type T> {
             representation += ToObject(_array[i]).ToString() + ", ";
 
         return representation + ToObject(_array[_length - 1]).ToString() + " }";
+    }
+
+    public static T operator[](List<T> list, int index) {
+        if (index is null)
+            return null;
+
+        return list.Index(index!);
+    }
+
+    public static T operator[](List<T> list, int index, T value) {
+        if (index is null)
+            return null;
+
+        list.Assign(index!, value);
+        return list.Index(index!);
     }
 
     private void TidyInit() {

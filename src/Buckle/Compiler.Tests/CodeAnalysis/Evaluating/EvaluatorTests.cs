@@ -358,37 +358,22 @@ public sealed class EvaluatorTests {
     [InlineData(@"
         class A {
             public int a;
-
-            public constructor(int a) {
-                this.a = a;
-            }
-
-            public static int operator+(A a) {
-                return a.a;
-            }
-
-            public static int operator+(A a, int b) {
-                return a.a + b;
-            }
+            public constructor(int a) { this.a = a; }
+            public static int operator+(A a) { return a.a; }
+            public static int operator+(A a, int b) { return a.a + b; }
         }
 
         var a = new A(3);
         return a + 5;", 8)]
+    // Overrides
     [InlineData(@"
         class A {
-            public virtual string M() {
-                return ""A"";
-            }
-
-            public string T() {
-                return M();
-            }
+            public virtual string M() { return ""A""; }
+            public string T() { return M(); }
         }
 
         class B extends A {
-            public override string M() {
-                return ""B"";
-            }
+            public override string M() { return ""B""; }
         }
 
         var b = new B();

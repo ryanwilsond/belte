@@ -219,8 +219,7 @@ internal static class BuiltinMethods {
     internal static readonly MethodSymbol ToAny = new MethodSymbol(
         "ToAny",
         [], [], [new ParameterSymbol("primitive", BoundType.NullableAny, 0, NoDefault)],
-        BoundType.NullableAny,
-        modifiers: DeclarationModifiers.LowLevel
+        BoundType.NullableAny
     );
 
     /// <summary>
@@ -230,8 +229,7 @@ internal static class BuiltinMethods {
     internal static readonly MethodSymbol ToObject = new MethodSymbol(
         "ToObject",
         [], [], [new ParameterSymbol("object", BoundType.NullableAny, 0, NoDefault)],
-        BoundType.NullableAny,
-        modifiers: DeclarationModifiers.LowLevel
+        BoundType.NullableAny
     );
 
     /// <summary>
@@ -244,8 +242,7 @@ internal static class BuiltinMethods {
             new ParameterSymbol("x", new BoundType(StandardLibrary.Object, isNullable: true), 0, NoDefault),
             new ParameterSymbol("y", new BoundType(StandardLibrary.Object, isNullable: true), 0, NoDefault)
         ],
-        BoundType.NullableBool,
-        modifiers: DeclarationModifiers.LowLevel
+        BoundType.NullableBool
     );
 
     /// <summary>
@@ -268,8 +265,7 @@ internal static class BuiltinMethods {
                 NoDefault
             )
         ],
-        BoundType.NullableBool,
-        modifiers: DeclarationModifiers.LowLevel
+        BoundType.NullableBool
     );
 
     /// <summary>

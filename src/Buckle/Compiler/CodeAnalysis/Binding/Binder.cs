@@ -4251,7 +4251,7 @@ internal sealed class Binder {
         if (!_options.isLibrary)
             _usedLibraryTypes.Add(listType);
 
-        return new BoundObjectCreationExpression(constructedListType, listType.constructors[2], [initializerList]);
+        return new BoundObjectCreationExpression(constructedListType, listType.constructors[3], [initializerList]);
     }
 
     private BoundExpression BindLiteralExpression(LiteralExpressionSyntax expression) {
