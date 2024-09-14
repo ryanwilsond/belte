@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -483,7 +484,7 @@ internal static class Error {
     /// BU0048. Run `buckle --explain BU0048` on the command line for more info.
     /// </summary>
     internal static Diagnostic ExpectedOverloadableOperator() {
-        var message = $"expected overloadable unary or binary operator";
+        var message = $"expected overloadable unary, arithmetic, equality, or comparison operator";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_ExpectedOverloadableOperator), message);
     }
 
@@ -1312,6 +1313,18 @@ internal static class Error {
         string containingTypeName) {
         var message = $"'{className}' must implement inherited abstract member '{containingTypeName}.{signature}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_TypeDoesNotImplementAbstract), location, message);
+    }
+
+    /// <summary>
+    /// BU0143. Run `buckle --explain BU0143` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic MissingOperatorPair(
+        TextLocation location,
+        SyntaxKind existingOperator,
+        SyntaxKind neededOperator) {
+        var message = $"operator {DiagnosticText(existingOperator, false)} requires a matching operator " +
+            $"{DiagnosticText(neededOperator, false)} to also be defined";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MissingOperatorPair), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

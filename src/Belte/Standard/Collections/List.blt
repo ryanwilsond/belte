@@ -1,0 +1,208 @@
+
+lowlevel sealed class List<type T> {
+    private T[] _array;
+    private int! _length = 0;
+    private int! _res = 0;
+
+    public constructor() {
+        TidyInit();
+    }
+
+    public constructor(int! length) {
+        _array = new T[length];
+        _length = length;
+        _res = length;
+    }
+
+    public constructor(int! length, T value) {
+        _array = new T[length];
+        _length = length;
+        _res = length;
+        Fill(value);
+    }
+
+    public constructor(T[] array) {
+        TidyInit();
+        ConstructContents(array, Length(array)!);
+    }
+
+    public constructor(List<T> list) {
+        TidyInit();
+        ConstructContents(list._array, list._length);
+    }
+
+    public void Append(T value) {
+        if (_res > _length) {
+            _array[_length] = value;
+            _length++;
+            return;
+        }
+
+        int! newCapacity = _length + 10;
+        T[] newArray = new T[newCapacity];
+        CopyInto(ref newArray, ref _array, 0, _length);
+        _array = newArray;
+
+        _length++;
+        _res = newCapacity;
+    }
+
+    public void AppendRange(List<T> list) {
+        if (_res > _length + list._length) {
+            CopyInto(ref _array, ref list._array, _length, list._length);
+            _length += list._length;
+            return;
+        }
+
+        int! newCapacity = _length + list._length + 10;
+        T[] newArray = new T[newCapacity];
+        CopyInto(ref newArray, ref _array, 0, _length);
+        CopyInto(ref newArray, ref list._array, _length, list._length);
+        _array = newArray;
+
+        _length += list._length;
+        _res = newCapacity;
+    }
+
+    public void Assign(int! index, T value) {
+        index = PosIndex(index);
+
+        if (index == _length) {
+            Append(value);
+            return;
+        } else if (index > _length) {
+            return;
+        }
+
+        _array[index] = value;
+    }
+
+    public void Clear() {
+        _length = 0;
+    }
+
+    public void Fill(T value) {
+        for (int! i = 0; i < _length; i++)
+            _array[i] = value;
+    }
+
+    public const T Index(int! index) {
+        index = PosIndex(index);
+
+        if (index < 0 || index >= _length)
+            return null;
+
+        return _array[index];
+    }
+
+    public const int Length() {
+        return _length;
+    }
+
+    public void Pop() {
+        if (_length > 0)
+            _length--;
+    }
+
+    public const List<T> Subset(int! start, int! end = -1) {
+        start = PosIndex(start);
+        end = PosIndex(end);
+
+        if (end <= start)
+            return new List<T>();
+
+        List<T> subset = new List<T>(end - start);
+
+        for (int! i = start; i < end; i++)
+            subset.Append(_array[i]);
+
+        return subset;
+    }
+
+    public const T[] ToArray() {
+        T[] copy = new T[_length];
+        CopyInto(ref copy, ref _array, 0, _length);
+        return copy;
+    }
+
+    public override string ToString() {
+        if (_length == 0)
+            return "{ }";
+
+        string representation = "{ ";
+        type t = typeof(T);
+
+        if (t == typeof(int) ||
+            t == typeof(string) ||
+            t == typeof(decimal) ||
+            t == typeof(bool) ||
+            t == typeof(char) ||
+            t == typeof(type) ||
+            t == typeof(any) ||
+            t == typeof(int!) ||
+            t == typeof(string!) ||
+            t == typeof(decimal!) ||
+            t == typeof(bool!) ||
+            t == typeof(char!) ||
+            t == typeof(type!) ||
+            t == typeof(any!)) {
+            for (int i = 0; i < _length - 1; i++)
+                representation += ((string)ToAny(_array[i])) + ", ";
+
+            return representation + ((string)ToAny(_array[_length - 1])) + " }";
+        }
+
+        for (int i = 0; i < _length - 1; i++)
+            representation += ToObject(_array[i]).ToString() + ", ";
+
+        return representation + ToObject(_array[_length - 1]).ToString() + " }";
+    }
+
+    public static T operator[](List<T> list, int index) {
+        if (index is null)
+            return null;
+
+        return list.Index(index!);
+    }
+
+    public static T operator[](List<T> list, int index, T value) {
+        if (index is null)
+            return null;
+
+        list.Assign(index!, value);
+        return list.Index(index!);
+    }
+
+    private void TidyInit() {
+        _array = new T[10];
+        _length = 0;
+        _res = 10;
+    }
+
+    private void ConstructContents(T[] array, int! length) {
+        if (_res > length) {
+            CopyInto(ref _array, ref array, 0, length);
+            _length = length;
+            return;
+        }
+
+        int! newCapacity = length + 10;
+        _array = new T[newCapacity];
+        CopyInto(ref _array, ref array, 0, length);
+
+        _length = length;
+        _res = newCapacity;
+    }
+
+    private const int! PosIndex(int! index) {
+        if (index < 0)
+            index += _length;
+
+        return index;
+    }
+
+    private static void CopyInto(ref T[] to, ref T[] from, int! start, int! length) {
+        for (int! i = 0; i < length; i++)
+            to[i + start] = from[i];
+    }
+}

@@ -42,7 +42,7 @@ internal sealed class OverloadResolution {
         var tempDiagnostics = new BelteDiagnosticQueue();
         tempDiagnostics.Move(_binder.diagnostics);
 
-        var result = MethodOverloadResolution(methods, arguments, name, operand, argumentList, receiverType);
+        var result = MethodOverloadResolution(methods, arguments, name, operand, argumentList, [], receiverType);
 
         _binder.diagnostics.Clear();
         _binder.diagnostics.Move(tempDiagnostics);
@@ -64,6 +64,7 @@ internal sealed class OverloadResolution {
         string name,
         SyntaxNodeOrToken operand,
         ArgumentListSyntax argumentList,
+        ImmutableArray<BoundTypeOrConstant>? templateArguments,
         BoundType receiverType) {
         var minScore = int.MaxValue;
         var possibleOverloads = new List<MethodSymbol>();
@@ -150,6 +151,7 @@ internal sealed class OverloadResolution {
                     preBoundArgumentsBuilder.ToImmutable(),
                     currentBoundArguments,
                     false,
+                    templateArguments,
                     receiverType
                 );
 
@@ -165,7 +167,8 @@ internal sealed class OverloadResolution {
                             argument,
                             parameter.type,
                             argument: i,
-                            receiverType: receiverType
+                            receiverType: receiverType,
+                            templateArguments: templateArguments
                         );
 
                         currentBoundArguments.Add(boundArgument);
@@ -386,6 +389,7 @@ internal sealed class OverloadResolution {
                     preBoundArgumentsBuilder.ToImmutable(),
                     currentBoundArguments,
                     true,
+                    null,
                     null
                 );
             }
@@ -568,6 +572,7 @@ internal sealed class OverloadResolution {
         ImmutableArray<(string name, BoundExpression expression)> preBoundArguments,
         ImmutableArray<BoundExpression>.Builder currentBoundArguments,
         bool isTemplate,
+        ImmutableArray<BoundTypeOrConstant>? templateArguments,
         BoundType receiverType) {
         for (var i = 0; i < preBoundArguments.Length; i++) {
             var argument = preBoundArguments[rearrangedArguments[i]];
@@ -597,7 +602,8 @@ internal sealed class OverloadResolution {
                 argument: i + 1,
                 isImplicitNull: isImplicitNull,
                 isTemplate: isTemplate,
-                receiverType: receiverType
+                receiverType: receiverType,
+                templateArguments: templateArguments
             );
 
             if (castType.isAnyAdding)

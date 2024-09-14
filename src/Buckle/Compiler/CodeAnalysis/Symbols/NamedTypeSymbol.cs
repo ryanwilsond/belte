@@ -96,12 +96,12 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
     internal void UpdateInternals(
         ImmutableArray<ParameterSymbol> templateParameters,
         ImmutableArray<BoundExpression> templateConstraints,
-        ImmutableArray<Symbol> symbols) {
+        ImmutableArray<Symbol> members) {
         this.templateParameters = templateParameters;
         this.templateConstraints = templateConstraints;
-        members = symbols;
+        this.members = members;
 
-        foreach (var member in members)
+        foreach (var member in this.members)
             member.SetContainingType(this);
 
         _lazyMembers = null;

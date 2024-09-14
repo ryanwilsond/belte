@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 
@@ -17,7 +18,22 @@ internal static class TypeUtilities {
         if (left.typeSymbol is not ClassSymbol c || right.typeSymbol is not ClassSymbol || c.baseType is null)
             return false;
 
-        return TypeInheritsFrom((left.typeSymbol as ClassSymbol).baseType, right);
+        var baseType = (left.typeSymbol as ClassSymbol).baseType;
+
+        if (left.templateArguments.Length > 0) {
+            var templateMappings = new Dictionary<ParameterSymbol, BoundTypeOrConstant>();
+
+            for (var i = 0; i < left.templateArguments.Length; i++) {
+                templateMappings.Add(
+                    (left.typeSymbol as NamedTypeSymbol).templateParameters[i],
+                    left.templateArguments[i]
+                );
+            }
+
+            baseType = BoundType.Clarify(baseType, templateMappings);
+        }
+
+        return TypeInheritsFrom(baseType, right);
     }
 
     /// <summary>

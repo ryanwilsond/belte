@@ -1302,7 +1302,6 @@ internal sealed partial class LanguageParser : SyntaxParser {
         _bracketStack.Pop();
         var right = Match(SyntaxKind.CloseParenToken);
 
-
         return SyntaxFactory.ParenthesisExpression(left, expression, right);
     }
 

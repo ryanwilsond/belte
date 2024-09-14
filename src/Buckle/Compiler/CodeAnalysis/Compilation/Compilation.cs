@@ -182,7 +182,15 @@ public sealed class Compilation {
         }
 
         diagnostics.Move(eval.diagnostics);
-        var result = new EvaluationResult(evalResult, hasValue, diagnostics, eval.exceptions, eval.lastOutputWasPrint);
+        var result = new EvaluationResult(
+            evalResult,
+            hasValue,
+            diagnostics,
+            eval.exceptions,
+            eval.lastOutputWasPrint,
+            eval.containsIO
+        );
+
         return result;
     }
 

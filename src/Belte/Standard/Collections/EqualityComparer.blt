@@ -1,0 +1,42 @@
+
+abstract class EqualityComparer<type T> {
+    public abstract bool! Equals(T x, T y);
+
+    public static EqualityComparer<T> CreateComparer() {
+        var t = typeof(T);
+
+        if (t == typeof(int) ||
+            t == typeof(string) ||
+            t == typeof(decimal) ||
+            t == typeof(bool) ||
+            t == typeof(char) ||
+            t == typeof(type) ||
+            t == typeof(any) ||
+            t == typeof(int!) ||
+            t == typeof(string!) ||
+            t == typeof(decimal!) ||
+            t == typeof(bool!) ||
+            t == typeof(char!) ||
+            t == typeof(type!) ||
+            t == typeof(any!)) {
+            return new PrimitiveEqualityComparer<T>();
+        }
+
+        return new ObjectEqualityComparer<T>();
+    }
+}
+
+sealed class PrimitiveEqualityComparer<type T> extends EqualityComparer<T> {
+    public override bool! Equals(T x, T y) {
+        if (x is null || y is null)
+            return false;
+
+        return x! == y!;
+    }
+}
+
+sealed class ObjectEqualityComparer<type T> extends EqualityComparer<T> {
+    public override bool! Equals(T x, T y) {
+        return ToObject(x).Equals(ToObject(y));
+    }
+}

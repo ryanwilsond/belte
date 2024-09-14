@@ -1030,4 +1030,28 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Evaluator_Function_ParametersCanUseTemplates() {
+        var text = @"
+            void M<type T>(T x) { }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_Template_TemplatesSeeConstraints() {
+        var text = @"
+            string M<type T>(T x) where { T extends Object; } {
+                return x.ToString();
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

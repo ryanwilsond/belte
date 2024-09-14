@@ -19,24 +19,26 @@ static class Console {
         public constexpr! White = 15;
     }
 
+    public static int GetWidth();
+
+    public static int GetHeight();
+
+    public static string! Input();
+
     public static void PrintLine(string message);
     public static void PrintLine(any value);
+    public static void PrintLine(Object value);
     public static void PrintLine();
 
     public static void Print(string message);
     public static void Print(any value);
+    public static void Print(Object value);
 
-    public static string! Input();
+    public static void ResetColor();
 
     public static void SetForegroundColor(int! color);
 
     public static void SetBackgroundColor(int! color);
-
-    public static void ResetColor();
-
-    public static int GetWidth();
-
-    public static int GetHeight();
 
     public static void SetCursorPosition(int left, int top);
 }

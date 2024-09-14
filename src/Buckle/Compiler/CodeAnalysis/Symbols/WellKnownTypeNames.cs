@@ -8,4 +8,5 @@ internal static class WellKnownTypeNames {
     internal const string Object = "Object";
     internal const string Exception = "Exception";
     internal const string List = "List";
+    internal const string Dictionary = "Dictionary";
 }

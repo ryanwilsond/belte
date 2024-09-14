@@ -8,7 +8,7 @@
 
   <ItemGroup>
     <Content Remove="Resources/ErrorDescriptionsBU.txt" />
-    <Content Remove="../../Belte/Standard/List.blt" />
+    <Content Remove="../../Belte/Standard/Collections/List.blt" />
     <Content Remove="../../Belte/Standard/Exceptions/ArgumentException.blt" />
     <Content Remove="../../Belte/Standard/Exceptions/ArgumentNullException.blt" />
     <Content Remove="../../Belte/Standard/Exceptions/ArgumentOutOfRangeException.blt" />
@@ -20,7 +20,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources/ErrorDescriptionsBU.txt" />
-    <EmbeddedResource Include="../../Belte/Standard/List.blt" />
+    <EmbeddedResource Include="../../Belte/Standard/Collections/List.blt" />
     <EmbeddedResource Include="../../Belte/Standard/Exceptions/ArgumentException.blt" />
     <EmbeddedResource Include="../../Belte/Standard/Exceptions/ArgumentNullException.blt" />
     <EmbeddedResource Include="../../Belte/Standard/Exceptions/ArgumentOutOfRangeException.blt" />

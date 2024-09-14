@@ -314,6 +314,10 @@ public sealed class EvaluatorTests {
     [InlineData("type a = typeof(string);", null)]
     [InlineData("type a = typeof(decimal!);", null)]
     [InlineData("class A { public int num; } type a = typeof(A);", null)]
+    [InlineData("typeof(int) == typeof(int);", true)]
+    [InlineData("typeof(int) == typeof(bool);", false)]
+    [InlineData("class C<type T> { public bool M() { return typeof(T) == typeof(int); } } var c = new C<int>(); return c.M();", true)]
+    [InlineData("class C<type T> { public bool M() { return typeof(T) == typeof(int); } } var c = new C<bool>(); return c.M();", false)]
     // Try statements
     [InlineData("try { int x = 0; int a = 56/x; return a; } catch { return 3; }", 3)]
     [InlineData("try { int a = 56/1; return a; } catch { return 3; }", 56)]
@@ -355,7 +359,29 @@ public sealed class EvaluatorTests {
     // TODO
     // [InlineData("lowlevel { int[] Test<int[] a>() { return a; } return Test<{1, 2, 3}>()[1]; }", 2)]
     // Operators
-    [InlineData("class A { public int a; public constructor(int a) { this.a = a; } public static int operator+(A a) { return a.a; } public static int operator+(A a, int b) { return a.a + b; } } var a = new A(3); return a + 5;", 8)]
+    [InlineData(@"
+        class A {
+            public int a;
+            public constructor(int a) { this.a = a; }
+            public static int operator+(A a) { return a.a; }
+            public static int operator+(A a, int b) { return a.a + b; }
+        }
+
+        var a = new A(3);
+        return a + 5;", 8)]
+    // Overrides
+    [InlineData(@"
+        class A {
+            public virtual string M() { return ""A""; }
+            public string T() { return M(); }
+        }
+
+        class B extends A {
+            public override string M() { return ""B""; }
+        }
+
+        var b = new B();
+        return b.T();", "B")]
     public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
         AssertValue(text, expectedValue);
     }

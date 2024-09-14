@@ -607,12 +607,12 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0048_ExpectedOverloadableOperator() {
         var text = @"
             class A {
-                static A operator[==]() { }
+                static A operator[.]() { }
             }
         ";
 
         var diagnostics = @"
-            expected overloadable unary or binary operator
+            expected overloadable unary, arithmetic, equality, or comparison operator
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1986,6 +1986,23 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             'B' must implement inherited abstract member 'A.M()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0143_MissingOperatorPair() {
+        var text = @"
+            class A {
+                public static bool operator[==](A x, A y) {
+                    return true;
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            operator '==' requires a matching operator '!=' to also be defined
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

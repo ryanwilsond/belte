@@ -151,6 +151,7 @@ public enum DiagnosticCode : int {
     ERR_AbstractCannotHaveBody = 140,
     ERR_AbstractMemberInNonAbstractType = 141,
     ERR_TypeDoesNotImplementAbstract = 142,
+    ERR_MissingOperatorPair = 143,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

@@ -1,0 +1,4 @@
+
+sealed class KeyNotFoundException extends Exception {
+    public constructor() : base("The given key was not present in the dictionary.") { }
+}

@@ -136,6 +136,12 @@ internal sealed class BoundBinaryOperator {
         new BoundBinaryOperator(SyntaxKind.QuestionQuestionToken, BoundBinaryOperatorKind.NullCoalescing,
                 BoundType.NullableDecimal),
 
+        // type
+        new BoundBinaryOperator(SyntaxKind.EqualsEqualsToken, BoundBinaryOperatorKind.EqualityEquals,
+            BoundType.Type, BoundType.Bool),
+        new BoundBinaryOperator(SyntaxKind.ExclamationEqualsToken, BoundBinaryOperatorKind.EqualityNotEquals,
+            BoundType.Type, BoundType.Bool),
+
         // any
         new BoundBinaryOperator(SyntaxKind.IsKeyword, BoundBinaryOperatorKind.Is,
             BoundType.NullableAny, BoundType.Bool),
@@ -143,6 +149,11 @@ internal sealed class BoundBinaryOperator {
             BoundType.NullableAny, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.AsKeyword, BoundBinaryOperatorKind.As,
             BoundType.NullableAny, null),
+        // TODO Maybe make this an explicit operator that does not implicitly cast
+        new BoundBinaryOperator(SyntaxKind.EqualsEqualsToken, BoundBinaryOperatorKind.EqualityEquals,
+            BoundType.Any, BoundType.Bool),
+        new BoundBinaryOperator(SyntaxKind.ExclamationEqualsToken, BoundBinaryOperatorKind.EqualityNotEquals,
+            BoundType.Any, BoundType.Bool),
     };
 
     /// <summary>

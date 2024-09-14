@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.Libraries.Standard;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 using static Buckle.CodeAnalysis.Symbols.SymbolUtilities;
 
@@ -232,9 +233,58 @@ internal static class BuiltinMethods {
     );
 
     /// <summary>
+    /// LowLevel only.
+    /// Checks if two objects values equal.
+    /// </summary>
+    internal static readonly MethodSymbol ObjectsEqual = new MethodSymbol(
+        "ObjectsEqual",
+        [], [], [
+            new ParameterSymbol("x", new BoundType(StandardLibrary.Object, isNullable: true), 0, NoDefault),
+            new ParameterSymbol("y", new BoundType(StandardLibrary.Object, isNullable: true), 0, NoDefault)
+        ],
+        BoundType.NullableBool
+    );
+
+    /// <summary>
+    /// LowLevel only.
+    /// Checks if two references refer to the same object.
+    /// </summary>
+    internal static readonly MethodSymbol ObjectReferencesEqual = new MethodSymbol(
+        "ObjectReferencesEqual",
+        [], [], [
+            new ParameterSymbol(
+                "x",
+                new BoundType(StandardLibrary.Object, isNullable: true, isReference: true),
+                0,
+                NoDefault
+            ),
+            new ParameterSymbol(
+                "y",
+                new BoundType(StandardLibrary.Object, isNullable: true, isReference: true),
+                0,
+                NoDefault
+            )
+        ],
+        BoundType.NullableBool
+    );
+
+    /// <summary>
     /// Gets all public builtin methods.
     /// </summary>
     /// <returns>All public builtins, calling code should not depend on order.</returns>
     internal static IEnumerable<MethodSymbol> GetAll()
-        => [RandInt, Hex, NullableHex, Ascii, NullableAscii, Char, NullableChar, Length, ToAny, ToObject];
+        => [
+            RandInt,
+            Hex,
+            NullableHex,
+            Ascii,
+            NullableAscii,
+            Char,
+            NullableChar,
+            Length,
+            ToAny,
+            ToObject,
+            ObjectsEqual,
+            ObjectReferencesEqual
+        ];
 }

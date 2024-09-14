@@ -132,6 +132,10 @@ internal sealed class Binder {
             binder._wellKnownTypes.Add(WellKnownTypeNames.Object, StandardLibrary.Object);
             binder._scope.TryDeclareMethod(StandardLibrary.Object.members[0] as MethodSymbol);
             binder._scope.TryDeclareMethod(StandardLibrary.Object.members[1] as MethodSymbol);
+            binder._scope.TryDeclareMethod(StandardLibrary.Object.members[2] as MethodSymbol);
+            binder._scope.TryDeclareMethod(StandardLibrary.Object.members[3] as MethodSymbol);
+            binder._scope.TryDeclareMethod(StandardLibrary.Object.members[4] as MethodSymbol);
+            binder._scope.TryDeclareMethod(StandardLibrary.Object.members[5] as MethodSymbol);
         }
 
         if (binder.diagnostics.Errors().Any())
@@ -151,6 +155,8 @@ internal sealed class Binder {
                 }
             }
         }
+
+        StandardLibrary.UpdateLibraries(binder._wellKnownTypes);
 
         foreach (var member in members) {
             if (member is TypeDeclarationSyntax ts)
@@ -374,7 +380,8 @@ internal sealed class Binder {
         bool allowExplicit = false,
         int argument = 0,
         bool isImplicitNull = false,
-        BoundType receiverType = null) {
+        BoundType receiverType = null,
+        ImmutableArray<BoundTypeOrConstant>? templateArguments = null) {
         var boundExpression = BindExpression(expression);
 
         return BindCast(
@@ -384,7 +391,8 @@ internal sealed class Binder {
             allowExplicit,
             argument,
             isImplicitNull,
-            receiverType: receiverType
+            receiverType: receiverType,
+            templateArguments: templateArguments
         );
     }
 
@@ -395,7 +403,8 @@ internal sealed class Binder {
         bool allowExplicit = false,
         int argument = 0,
         bool isImplicitNull = false,
-        BoundType receiverType = null) {
+        BoundType receiverType = null,
+        ImmutableArray<BoundTypeOrConstant>? templateArguments = null) {
         return BindCast(
             diagnosticLocation,
             expression,
@@ -404,7 +413,8 @@ internal sealed class Binder {
             allowExplicit,
             argument,
             isImplicitNull,
-            receiverType: receiverType
+            receiverType: receiverType,
+            templateArguments: templateArguments
         );
     }
 
@@ -417,7 +427,8 @@ internal sealed class Binder {
         int argument = 0,
         bool isImplicitNull = false,
         bool isTemplate = false,
-        BoundType receiverType = null) {
+        BoundType receiverType = null,
+        ImmutableArray<BoundTypeOrConstant>? templateArguments = null) {
         var fromType = expression.type;
         var toType = type;
 
@@ -426,6 +437,8 @@ internal sealed class Binder {
 
         if (receiverType is not null)
             toType = BoundType.Compound(receiverType, toType);
+        else if (templateArguments is not null)
+            toType = BoundType.Compound(templateArguments.Value, toType);
 
         var conversion = Cast.Classify(fromType, toType);
         castType = conversion;
@@ -632,6 +645,7 @@ internal sealed class Binder {
             }
         }
 
+        StandardLibrary.Load();
         DeclareSymbols(StandardLibrary.GetSymbols());
     }
 
@@ -818,6 +832,7 @@ internal sealed class Binder {
             WellKnownMemberNames.InstanceConstructorName,
             syntax?.thisOrBaseKeyword ?? receiverName,
             syntax?.argumentList,
+            null,
             receiver.type
         );
 
@@ -943,30 +958,35 @@ internal sealed class Binder {
             _flags |= BinderFlags.LowLevelContext;
 
         name ??= method.identifier.text;
-        var type = BindType(method.returnType, modifiers, true);
-
-        if (type?.typeSymbol?.isStatic ?? false)
-            diagnostics.Push(Error.CannotReturnStatic(method.returnType.location));
 
         // Temporary scope so constraint clauses can see templates
         _scope = new BoundScope(_scope);
 
         var templates = BindTemplateParameters(method.templateParameterList);
+        var templateTypes = new Dictionary<string, TemplateTypeSymbol>();
 
         foreach (var template in templates) {
             if (template.type.typeSymbol == TypeSymbol.Type) {
                 var templateType = new TemplateTypeSymbol(template);
                 _scope.TryDeclareType(templateType);
+                templateTypes.Add(templateType.name, templateType);
             } else {
                 _scope.TryDeclareVariable(template);
             }
         }
 
+        var type = BindType(method.returnType, modifiers, true);
+
+        if (type?.typeSymbol?.isStatic ?? false)
+            diagnostics.Push(Error.CannotReturnStatic(method.returnType.location));
+
         var constraints = BindConstraintClauseList(name, method.constraintClauseList, templates);
+        ApplyExtensionConstraints(constraints, templateTypes);
+
+        var parameters = BindParameterList(method.parameterList);
 
         _scope = _scope.parent;
 
-        var parameters = BindParameterList(method.parameterList);
         var newMethod = new MethodSymbol(
             name,
             templates,
@@ -1560,6 +1580,15 @@ internal sealed class Binder {
         return constraintsBuilder.ToImmutableArray();
     }
 
+    private void ApplyExtensionConstraints(
+        ImmutableArray<BoundExpression> constraints,
+        Dictionary<string, TemplateTypeSymbol> templates) {
+        foreach (var constraint in constraints) {
+            if (constraint is BoundExtendExpression e)
+                templates[e.template.name].AddBaseType(e.extension);
+        }
+    }
+
     private StructSymbol BindStructDeclaration(StructDeclarationSyntax @struct) {
         // ? This will return eventually
         BindAttributeLists(@struct.attributeLists);
@@ -1587,12 +1616,14 @@ internal sealed class Binder {
             _flags |= BinderFlags.LowLevelContext;
 
         var templates = ImmutableArray.CreateBuilder<ParameterSymbol>();
+        var templateTypes = new Dictionary<string, TemplateTypeSymbol>();
 
         foreach (var templateParameter in oldStruct.templateParameters) {
             if (templateParameter.type.typeSymbol == TypeSymbol.Type) {
                 var templateType = new TemplateTypeSymbol(templateParameter);
                 builder.Add(templateType);
                 _scope.TryDeclareType(templateType);
+                templateTypes.Add(templateType.name, templateType);
             } else {
                 builder.Add(templateParameter);
                 _scope.TryDeclareVariable(templateParameter);
@@ -1606,6 +1637,8 @@ internal sealed class Binder {
             @struct.constraintClauseList,
             templates.ToImmutable()
         );
+
+        ApplyExtensionConstraints(constraints, templateTypes);
 
         foreach (var fieldDeclaration in @struct.members.OfType<FieldDeclarationSyntax>()) {
             var field = BindFieldDeclaration(fieldDeclaration, true);
@@ -1743,6 +1776,23 @@ internal sealed class Binder {
             inheritModifiers = DeclarationModifiers.LowLevel;
         }
 
+        var templates = ImmutableArray.CreateBuilder<ParameterSymbol>();
+        var templateTypes = new Dictionary<string, TemplateTypeSymbol>();
+
+        foreach (var templateParameter in oldClass.templateParameters) {
+            if (templateParameter.type.typeSymbol == TypeSymbol.Type) {
+                var templateType = new TemplateTypeSymbol(templateParameter);
+                builder.Add(templateType);
+                _scope.TryDeclareType(templateType);
+                templateTypes.Add(templateType.name, templateType);
+            } else {
+                builder.Add(templateParameter);
+                _scope.TryDeclareVariable(templateParameter);
+            }
+
+            templates.Add(templateParameter);
+        }
+
         var baseType = @class.baseType is null
             ? new BoundType(_wellKnownTypes[WellKnownTypeNames.Object])
             : BindBaseType(@class.baseType);
@@ -1753,22 +1803,8 @@ internal sealed class Binder {
         if (baseType.typeSymbol.isStatic)
             diagnostics.Push(Error.CannotDeriveStatic(@class.baseType.type.location, baseType.typeSymbol.name));
 
-        var templates = ImmutableArray.CreateBuilder<ParameterSymbol>();
-
-        foreach (var templateParameter in oldClass.templateParameters) {
-            if (templateParameter.type.typeSymbol == TypeSymbol.Type) {
-                var templateType = new TemplateTypeSymbol(templateParameter);
-                builder.Add(templateType);
-                _scope.TryDeclareType(templateType);
-            } else {
-                builder.Add(templateParameter);
-                _scope.TryDeclareVariable(templateParameter);
-            }
-
-            templates.Add(templateParameter);
-        }
-
         var constraints = BindConstraintClauseList(oldClass.name, @class.constraintClauseList, templates.ToImmutable());
+        ApplyExtensionConstraints(constraints, templateTypes);
 
         foreach (var member in (baseType.typeSymbol as ClassSymbol).GetMembers()) {
             switch (member.kind) {
@@ -1892,6 +1928,8 @@ internal sealed class Binder {
             builder.Add(method);
         }
 
+        var operators = new List<(OperatorDeclarationSyntax, MethodSymbol)>();
+
         foreach (var operatorDeclaration in @class.members.OfType<OperatorDeclarationSyntax>()) {
             var @operator = BindOperatorDeclaration(operatorDeclaration, inheritModifiers);
 
@@ -1899,7 +1937,11 @@ internal sealed class Binder {
                 diagnostics.Push(Error.StaticOperator(operatorDeclaration.operatorToken.location));
             else
                 builder.Add(@operator);
+
+            operators.Add((operatorDeclaration, @operator));
         }
+
+        EnsurePairedOperatorsAreDeclared();
 
         foreach (var typeDeclaration in @class.members.OfType<TypeDeclarationSyntax>()) {
             var type = BindTypeDeclaration(typeDeclaration);
@@ -1928,6 +1970,83 @@ internal sealed class Binder {
         _flags = saved;
 
         return oldClass;
+
+        void EnsurePairedOperatorsAreDeclared() {
+            // TODO This is faster than doing multiple List.Contains, but there should be a faster way to do this
+            TextLocation hasEquality = null;
+            TextLocation hasInequality = null;
+            TextLocation hasLessThan = null;
+            TextLocation hasGreaterThan = null;
+            TextLocation hasLessThanEqual = null;
+            TextLocation hasGreaterThanEqual = null;
+
+            foreach (var (operatorDeclaration, @operator) in operators) {
+                switch (@operator.name) {
+                    case WellKnownMemberNames.EqualityOperatorName:
+                        hasEquality = operatorDeclaration.operatorToken.location;
+                        break;
+                    case WellKnownMemberNames.InequalityOperatorName:
+                        hasInequality = operatorDeclaration.operatorToken.location;
+                        break;
+                    case WellKnownMemberNames.LessThanOperatorName:
+                        hasLessThan = operatorDeclaration.operatorToken.location;
+                        break;
+                    case WellKnownMemberNames.GreaterThanOperatorName:
+                        hasGreaterThan = operatorDeclaration.operatorToken.location;
+                        break;
+                    case WellKnownMemberNames.LessThanOrEqualOperatorName:
+                        hasLessThanEqual = operatorDeclaration.operatorToken.location;
+                        break;
+                    case WellKnownMemberNames.GreaterThanOrEqualOperatorName:
+                        hasGreaterThanEqual = operatorDeclaration.operatorToken.location;
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            if (hasEquality is not null && hasInequality is null) {
+                diagnostics.Push(Error.MissingOperatorPair(
+                    hasEquality,
+                    SyntaxKind.EqualsEqualsToken,
+                    SyntaxKind.ExclamationEqualsToken
+                ));
+            } else if (hasEquality is null && hasInequality is not null) {
+                diagnostics.Push(Error.MissingOperatorPair(
+                    hasInequality,
+                    SyntaxKind.ExclamationEqualsToken,
+                    SyntaxKind.EqualsEqualsToken
+                ));
+            }
+
+            if (hasLessThan is not null && hasGreaterThan is null) {
+                diagnostics.Push(Error.MissingOperatorPair(
+                    hasLessThan,
+                    SyntaxKind.LessThanToken,
+                    SyntaxKind.GreaterThanToken
+                ));
+            } else if (hasLessThan is null && hasGreaterThan is not null) {
+                diagnostics.Push(Error.MissingOperatorPair(
+                    hasGreaterThan,
+                    SyntaxKind.GreaterThanToken,
+                    SyntaxKind.LessThanToken
+                ));
+            }
+
+            if (hasLessThanEqual is not null && hasGreaterThanEqual is null) {
+                diagnostics.Push(Error.MissingOperatorPair(
+                    hasLessThanEqual,
+                    SyntaxKind.LessThanEqualsToken,
+                    SyntaxKind.GreaterThanEqualsToken
+                ));
+            } else if (hasLessThanEqual is null && hasGreaterThanEqual is not null) {
+                diagnostics.Push(Error.MissingOperatorPair(
+                    hasGreaterThanEqual,
+                    SyntaxKind.GreaterThanEqualsToken,
+                    SyntaxKind.LessThanEqualsToken
+                ));
+            }
+        }
 
         void EnsureAbstractsAreImplemented() {
             foreach (var method in inheritedMethods) {
@@ -2690,14 +2809,23 @@ internal sealed class Binder {
                 constantArgumentsBuilder.Add(new BoundTypeOrConstant(argument.constantValue, argument.type, argument));
         }
 
-        var bestOverload = result.bestOverload as NamedTypeSymbol;
-
         var constantArguments = constantArgumentsBuilder.ToImmutable();
         VerifyConstraintClauses(
             templateName?.templateArgumentList?.location ?? syntax.location,
             result.bestOverload.templateConstraints,
             constantArguments
         );
+
+        var bestOverload = result.bestOverload as MethodSymbol;
+
+        // Hard coding in the methods that use the List type
+        if (bestOverload == StandardLibrary.Directory.members[4] ||
+            bestOverload == StandardLibrary.Directory.members[5] ||
+            bestOverload == StandardLibrary.File.members[0] ||
+            bestOverload == StandardLibrary.File.members[6] ||
+            bestOverload == StandardLibrary.File.members[8]) {
+            _usedLibraryTypes.Add(_wellKnownTypes[WellKnownTypeNames.List]);
+        }
 
         return new BoundMethodGroup(
             name,
@@ -2778,7 +2906,7 @@ internal sealed class Binder {
         SimpleNameSyntax right,
         SyntaxToken operatorToken,
         bool called) {
-        if (boundLeft is BoundErrorExpression || boundLeft.type.typeSymbol is null)
+        if (boundLeft is BoundErrorExpression || boundLeft.type.typeSymbol == TypeSymbol.Error)
             return new BoundErrorExpression();
 
         var furthestRight = boundLeft;
@@ -2933,7 +3061,8 @@ internal sealed class Binder {
                     es.expression.kind == BoundNodeKind.EmptyExpression ||
                     es.expression.kind == BoundNodeKind.CompoundAssignmentExpression ||
                     es.expression.kind == BoundNodeKind.PrefixExpression ||
-                    es.expression.kind == BoundNodeKind.PostfixExpression;
+                    es.expression.kind == BoundNodeKind.PostfixExpression ||
+                    es.expression.kind == BoundNodeKind.ThrowExpression;
 
                 if (!isAllowedExpression)
                     diagnostics.Push(Error.InvalidExpressionStatement(syntax.location));
@@ -3652,6 +3781,7 @@ internal sealed class Binder {
                 type.typeSymbol.name,
                 expression.type,
                 expression.argumentList,
+                null,
                 type
             );
 
@@ -3955,48 +4085,77 @@ internal sealed class Binder {
                 mg.name,
                 expression.expression,
                 expression.argumentList,
+                mg.templateArguments,
                 receiver.type
             );
 
             if (!result.succeeded)
                 return new BoundErrorExpression();
 
+            var method = result.bestOverload;
+
             if (receiver is not BoundEmptyExpression &&
-                !result.bestOverload.isConstant &&
+                !method.isConstant &&
                 (receiver.type.isReference ? receiver.type.isConstantReference : receiver.type.isConstant)) {
-                diagnostics.Push(Error.NonConstantCallOnConstant(expression.location, result.bestOverload.Signature()));
+                diagnostics.Push(Error.NonConstantCallOnConstant(expression.location, method.Signature()));
             }
 
             if (receiver is BoundEmptyExpression || receiver is BoundThisExpression) {
                 if ((_containingMethod?.isConstant ?? false) &&
-                    !(result.bestOverload.isConstant || result.bestOverload.isStatic) &&
-                    (result.bestOverload.containingType == _containingMethod.containingType)) {
+                    !(method.isConstant || method.isStatic) &&
+                    (method.containingType == _containingMethod.containingType)) {
                     diagnostics.Push(
-                        Error.NonConstantCallInConstant(expression.location, result.bestOverload.Signature())
+                        Error.NonConstantCallInConstant(expression.location, method.Signature())
                     );
                 }
 
                 if ((_containingMethod?.isStatic ?? false) &&
-                    (result.bestOverload.containingType == _containingMethod.containingType) &&
-                    (!result.bestOverload.isStatic)) {
+                    (method.containingType == _containingMethod.containingType) &&
+                    (!method.isStatic)) {
                     diagnostics.Push(Error.InvalidStaticReference(expression.location, mg.name));
                 }
             }
 
-            if (result.bestOverload.accessibility == Accessibility.Private) {
+            if (method.accessibility == Accessibility.Private) {
                 if (_containingType is null ||
-                    _containingType != result.bestOverload.containingType) {
+                    _containingType != method.containingType) {
                     diagnostics.Push(Error.MemberIsInaccessible(
                         expression.expression is MemberAccessExpressionSyntax m
                             ? m.name.location
                             : expression.expression.location,
-                        $"{result.bestOverload.name}()",
-                        result.bestOverload.containingType.name
+                        $"{method.name}()",
+                        method.containingType.name
                     ));
                 }
             }
 
-            return new BoundCallExpression(receiver, result.bestOverload, result.arguments, mg.templateArguments);
+            if (receiver.type is not null &&
+                receiver.type.templateArguments.Length > 0 &&
+                method.type.typeSymbol is NamedTypeSymbol) {
+                var templateMappings = new Dictionary<ParameterSymbol, BoundTypeOrConstant>();
+
+                for (var i = 0; i < receiver.type.templateArguments.Length; i++) {
+                    templateMappings.Add(
+                        (receiver.type.typeSymbol as NamedTypeSymbol).templateParameters[i],
+                        receiver.type.templateArguments[i]
+                    );
+                }
+
+                var returnType = BoundType.Clarify(method.type, templateMappings);
+
+                method = new MethodSymbol(
+                    method.name,
+                    method.templateParameters,
+                    method.templateConstraints,
+                    method.parameters,
+                    returnType,
+                    method.declaration,
+                    method,
+                    method.declarationModifiers,
+                    method.accessibility);
+            }
+
+            return new BoundCallExpression(receiver, method, result.arguments, mg.templateArguments);
         }
 
         if (boundExpression is not BoundErrorExpression)
@@ -4132,7 +4291,7 @@ internal sealed class Binder {
         if (!_options.isLibrary)
             _usedLibraryTypes.Add(listType);
 
-        return new BoundObjectCreationExpression(constructedListType, listType.constructors[2], [initializerList]);
+        return new BoundObjectCreationExpression(constructedListType, listType.constructors[3], [initializerList]);
     }
 
     private BoundExpression BindLiteralExpression(LiteralExpressionSyntax expression) {

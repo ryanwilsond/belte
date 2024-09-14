@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -40,14 +39,17 @@ public static partial class SyntaxFactory {
     /// Creates a <see cref="LiteralExpressionSyntax"/>.
     /// </summary>
     public static LiteralExpressionSyntax Literal(object value) {
-        if (value is int or double)
+        if (value is int or double) {
             return LiteralExpression(Token(SyntaxKind.NumericLiteralToken, value.ToString(), value));
-        else if (value is bool b)
-            return LiteralExpression(Token(b ? SyntaxKind.TrueKeyword : SyntaxKind.FalseKeyword));
-        else if (value is string s)
+        } else if (value is bool b) {
+            return LiteralExpression(
+                Token(b ? SyntaxKind.TrueKeyword : SyntaxKind.FalseKeyword, b ? "true" : "false", b)
+            );
+        } else if (value is string s) {
             return LiteralExpression(Token(SyntaxKind.StringLiteralToken, s, s));
-        else
+        } else {
             throw ExceptionUtilities.Unreachable();
+        }
     }
 
     /// <summary>
@@ -55,6 +57,20 @@ public static partial class SyntaxFactory {
     /// </summary>
     public static IdentifierNameSyntax IdentifierName(string name) {
         return IdentifierName(Identifier(name));
+    }
+
+    /// <summary>
+    /// Creates a <see cref="NonNullableTypeSyntax" />.
+    /// </summary>
+    public static NonNullableTypeSyntax NonNullableType(string name) {
+        return NonNullableType(IdentifierName(name), Token(SyntaxKind.ExclamationToken));
+    }
+
+    /// <summary>
+    /// Creates a <see cref="ReferenceTypeSyntax" />.
+    /// </summary>
+    public static ReferenceTypeSyntax ReferenceType(string name) {
+        return ReferenceType(Token(SyntaxKind.RefKeyword), IdentifierName(name));
     }
 
     /// <summary>
@@ -93,7 +109,14 @@ public static partial class SyntaxFactory {
     }
 
     /// <summary>
-    /// Creates a <see cref="BlockStatementSyntax"/>.
+    /// Creates a <see cref="ThisExpressionSyntax" />.
+    /// </summary>
+    public static ThisExpressionSyntax This() {
+        return ThisExpression(Token(SyntaxKind.ThisKeyword));
+    }
+
+    /// <summary>
+    /// Creates a <see cref="BlockStatementSyntax" />.
     /// </summary>
     public static BlockStatementSyntax Block(params StatementSyntax[] statements) {
         return BlockStatement(
@@ -104,10 +127,23 @@ public static partial class SyntaxFactory {
     }
 
     /// <summary>
-    /// Creates a <see cref="ReturnStatementSyntax"/>.
+    /// Creates a <see cref="ReturnStatementSyntax" />.
     /// </summary>
     public static ReturnStatementSyntax Return(ExpressionSyntax expression) {
         return ReturnStatement(Token(SyntaxKind.ReturnKeyword), expression, Token(SyntaxKind.SemicolonToken));
+    }
+
+    /// <summary>
+    /// Creates an <see cref="IfStatementSyntax" />.
+    /// </summary>
+    public static IfStatementSyntax If(ExpressionSyntax condition, StatementSyntax then) {
+        return IfStatement(
+            Token(SyntaxKind.IfKeyword),
+            Token(SyntaxKind.OpenParenToken),
+            condition,
+            Token(SyntaxKind.CloseParenToken),
+            then
+        );
     }
 
     /// <summary>
@@ -187,5 +223,16 @@ public static partial class SyntaxFactory {
     /// </summary>
     public static SyntaxTokenList TokenList(IEnumerable<SyntaxToken> tokens) {
         return new SyntaxTokenList(tokens);
+    }
+
+    /// <summary>
+    /// Creates an argument list.
+    /// </summary>
+    public static ArgumentListSyntax ArgumentList(params ArgumentSyntax[] arguments) {
+        return ArgumentList(
+            Token(SyntaxKind.OpenParenToken),
+            SeparatedList(arguments),
+            Token(SyntaxKind.CloseParenToken)
+        );
     }
 }
