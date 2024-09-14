@@ -130,12 +130,9 @@ internal sealed class Binder {
 
         if (!binder._wellKnownTypes.ContainsKey(WellKnownTypeNames.Object)) {
             binder._wellKnownTypes.Add(WellKnownTypeNames.Object, StandardLibrary.Object);
-            binder._scope.TryDeclareMethod(StandardLibrary.Object.members[0] as MethodSymbol);
-            binder._scope.TryDeclareMethod(StandardLibrary.Object.members[1] as MethodSymbol);
-            binder._scope.TryDeclareMethod(StandardLibrary.Object.members[2] as MethodSymbol);
-            binder._scope.TryDeclareMethod(StandardLibrary.Object.members[3] as MethodSymbol);
-            binder._scope.TryDeclareMethod(StandardLibrary.Object.members[4] as MethodSymbol);
-            binder._scope.TryDeclareMethod(StandardLibrary.Object.members[5] as MethodSymbol);
+
+            foreach (var member in StandardLibrary.Object.members)
+                binder._scope.TryDeclareMethod(member as MethodSymbol);
         }
 
         if (binder.diagnostics.Errors().Any())
@@ -2819,11 +2816,11 @@ internal sealed class Binder {
         var bestOverload = result.bestOverload as MethodSymbol;
 
         // Hard coding in the methods that use the List type
-        if (bestOverload == StandardLibrary.Directory.members[4] ||
-            bestOverload == StandardLibrary.Directory.members[5] ||
-            bestOverload == StandardLibrary.File.members[0] ||
-            bestOverload == StandardLibrary.File.members[6] ||
-            bestOverload == StandardLibrary.File.members[8]) {
+        if (bestOverload == StandardLibrary.DirectoryMembers.GetDirectories ||
+            bestOverload == StandardLibrary.DirectoryMembers.GetFiles ||
+            bestOverload == StandardLibrary.FileMembers.AppendLines ||
+            bestOverload == StandardLibrary.FileMembers.ReadLines ||
+            bestOverload == StandardLibrary.FileMembers.WriteLines) {
             _usedLibraryTypes.Add(_wellKnownTypes[WellKnownTypeNames.List]);
         }
 

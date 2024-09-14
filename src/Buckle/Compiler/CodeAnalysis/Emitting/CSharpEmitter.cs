@@ -950,8 +950,8 @@ internal sealed class CSharpEmitter {
             indentedTextWriter.Write(GetSafeName(expression.method.name));
         }
 
-        if (expression.method != StandardLibrary.Console.members[12] &&
-            expression.method != StandardLibrary.Console.members[13]) {
+        if (expression.method != StandardLibrary.ConsoleMembers.SetForegroundColor &&
+            expression.method != StandardLibrary.ConsoleMembers.SetBackgroundColor) {
             if (expression.method.containingType == StandardLibrary.Math &&
                 expression.method.parameters[0].isNullable) {
                 indentedTextWriter.Write("(");

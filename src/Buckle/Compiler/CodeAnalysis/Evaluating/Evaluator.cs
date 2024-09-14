@@ -1199,18 +1199,17 @@ internal sealed class Evaluator {
             method.containingType == StandardLibrary.Directory ||
             method.containingType == StandardLibrary.File ||
             method.containingType == StandardLibrary.Math) {
-            if (method == StandardLibrary.Console.members[8] ||
-                method == StandardLibrary.Console.members[9] ||
-                method == StandardLibrary.Console.members[10]) {
+            if (method == StandardLibrary.ConsoleMembers.Print_String ||
+                method == StandardLibrary.ConsoleMembers.Print_Any ||
+                method == StandardLibrary.ConsoleMembers.Print_Object) {
                 printed = true;
             }
 
             if (method.containingType == StandardLibrary.Directory || method.containingType == StandardLibrary.File)
                 io = true;
 
-            // TODO Right now this approach seems fragile, should at some point reevaluate how this should be done
-            // Approach to fix this on the Belte considering page
-            if (method == StandardLibrary.Console.members[6] || method == StandardLibrary.Console.members[10]) {
+            if (method == StandardLibrary.ConsoleMembers.Print_Object ||
+                method == StandardLibrary.ConsoleMembers.PrintLine_Object) {
                 var receiver = Dereference(EvaluateExpression(arguments[0], abort));
 
                 // Calling ToString on objects
@@ -1230,9 +1229,9 @@ internal sealed class Evaluator {
                 return true;
             }
 
-            if (method == StandardLibrary.Directory.members[4] ||
-                method == StandardLibrary.Directory.members[5] ||
-                method == StandardLibrary.File.members[8]) {
+            if (method == StandardLibrary.DirectoryMembers.GetDirectories ||
+                method == StandardLibrary.DirectoryMembers.GetFiles ||
+                method == StandardLibrary.FileMembers.ReadLines) {
                 var tempResult = StandardLibrary.MethodEvaluatorMap[method.GetHashCode()]
                     (Value(EvaluateExpression(arguments[0], abort)), null, null) as string[];
 
@@ -1258,7 +1257,7 @@ internal sealed class Evaluator {
                 return true;
             }
 
-            if (method == StandardLibrary.File.members[7] || method == StandardLibrary.File.members[9]) {
+            if (method == StandardLibrary.FileMembers.AppendLines || method == StandardLibrary.FileMembers.WriteLines) {
                 var argument0 = Value(EvaluateExpression(arguments[0], abort));
                 var argument1 = Dereference(EvaluateExpression(arguments[1], abort));
                 var newArgument1 = new List<string>();
