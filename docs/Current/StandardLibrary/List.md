@@ -1,13 +1,13 @@
-# 5.4 List
+# 5.6 List (Included By Default)
 
 The List template is a dynamic array implementation.
 
-- [5.4.1](#541-definition) Definition
-- [5.4.2](#542-initializer-lists) Initializer Lists
+- [5.6.1](#561-definition) Definition
+- [5.6.2](#562-initializer-lists) Initializer Lists
 
-## 5.4.1 Definition
+## 5.6.1 Definition
 
-The Belte public interface for the List class can be found [here](../../../src/Belte/Standard/List.blt).
+The Belte public interface for the List class can be found [here](../../../src/Belte/Standard/Collections/List.blt).
 
 | Method | Description |
 |-|-|
@@ -22,7 +22,7 @@ The Belte public interface for the List class can be found [here](../../../src/B
 | `const List<T> Subset(int!, int!)` | Copies list elements in a sub range to a new list. |
 | `const T[] ToArray()` | Copies all list elements into an array. |
 
-## 5.4.2 Initializer Lists
+## 5.6.2 Initializer Lists
 
 Initializer lists create Lists.
 

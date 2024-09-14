@@ -363,7 +363,9 @@ public sealed partial class BelteRepl : Repl {
             }
 
             state.previous = compilation;
-            SaveSubmission(syntaxTree.text.ToString());
+
+            if (!result.containsIO)
+                SaveSubmission(syntaxTree.text.ToString());
         }
 
         Console.ForegroundColor = state.colorTheme.@default;

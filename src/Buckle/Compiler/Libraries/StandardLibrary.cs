@@ -94,6 +94,50 @@ internal static partial class StandardLibrary {
         ]
     );
 
+    internal static ClassSymbol Directory = StaticClass("Directory",
+        [
+    /* 0 */ StaticMethod("Create", BoundType.Void, [
+                ("path", BoundType.String)
+            ]),
+    /* 1 */ StaticMethod("Delete", BoundType.Void, [
+                ("path", BoundType.String)
+            ]),
+    /* 2 */ StaticMethod("Exists", BoundType.Bool, [
+                ("path", BoundType.String)
+            ]),
+    /* 3 */ StaticMethod("GetCurrentDirectory", BoundType.String, [])
+        ]
+    );
+
+    internal static ClassSymbol File = StaticClass("File",
+        [
+    /* 0 */ StaticMethod("AppendText", BoundType.Void, [
+                ("fileName", BoundType.String),
+                ("text", BoundType.String),
+            ]),
+    /* 1 */ StaticMethod("Create", BoundType.Void, [
+                ("path", BoundType.String)
+            ]),
+    /* 2 */ StaticMethod("Copy", BoundType.Void, [
+                ("sourceFileName", BoundType.String),
+                ("destinationFileName", BoundType.String)
+            ]),
+    /* 3 */ StaticMethod("Delete", BoundType.Void, [
+                ("path", BoundType.String)
+            ]),
+    /* 4 */ StaticMethod("Exists", BoundType.Bool, [
+                ("path", BoundType.String)
+            ]),
+    /* 5 */ StaticMethod("ReadText", BoundType.NullableString, [
+                ("fileName", BoundType.String)
+            ]),
+    /* 6 */ StaticMethod("WriteText", BoundType.Void, [
+                ("fileName", BoundType.String),
+                ("text", BoundType.String),
+            ])
+        ]
+    );
+
     internal static ClassSymbol Math = StaticClass("Math",
         [
     /* 0 */ Constexpr("E", BoundType.Decimal, 2.7182818284590451),
@@ -349,6 +393,28 @@ internal static partial class StandardLibrary {
                 }
                 return null;
                }) },
+        { Directory.members[0].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { System.IO.Directory.CreateDirectory((string)a); return null; }) },
+        { Directory.members[1].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { System.IO.Directory.Delete((string)a, true); return null; }) },
+        { Directory.members[2].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { return System.IO.Directory.Exists((string)a); }) },
+        { Directory.members[3].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { return System.IO.Directory.GetCurrentDirectory(); }) },
+        { File.members[0].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { System.IO.File.AppendAllText((string)a, (string)b); return null; }) },
+        { File.members[1].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { System.IO.File.Create((string)a); return null; }) },
+        { File.members[2].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { System.IO.File.Copy((string)a, (string)b); return null; }) },
+        { File.members[3].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { System.IO.File.Delete((string)a); return null; }) },
+        { File.members[4].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { return System.IO.File.Exists((string)a); }) },
+        { File.members[5].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { return System.IO.File.ReadAllText((string)a); }) },
+        { File.members[6].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { System.IO.File.WriteAllText((string)a, (string)b); return null; }) },
         { Math.members[2].GetHashCode(), new Func<object, object, object, object>((a, b, c)
             => { return a is null ? null : System.Math.Abs(Convert.ToDouble(a)); }) },
         { Math.members[3].GetHashCode(), new Func<object, object, object, object>((a, b, c)
@@ -522,6 +588,17 @@ internal static partial class StandardLibrary {
             { Console.members[12].GetHashCode(), "global::System.Console.ForegroundColor = " },
             { Console.members[13].GetHashCode(), "global::System.Console.BackgroundColor = " },
             { Console.members[14].GetHashCode(), "global::System.Console.SetCursorPosition" },
+            { Directory.members[0].GetHashCode(), "global::System.IO.Directory.CreateDirectory" },
+            { Directory.members[1].GetHashCode(), "global::System.IO.Directory.Delete" },
+            { Directory.members[2].GetHashCode(), "global::System.IO.Directory.Exists" },
+            { Directory.members[3].GetHashCode(), "global::System.IO.Directory.GetCurrentDirectory" },
+            { File.members[0].GetHashCode(), "global::System.IO.File.AppendAllText" },
+            { File.members[1].GetHashCode(), "global::System.IO.File.Create" },
+            { File.members[2].GetHashCode(), "global::System.IO.File.Copy" },
+            { File.members[3].GetHashCode(), "global::System.IO.File.Delete" },
+            { File.members[4].GetHashCode(), "global::System.IO.File.Exists" },
+            { File.members[5].GetHashCode(), "global::System.IO.File.ReadAllText" },
+            { File.members[6].GetHashCode(), "global::System.IO.File.WriteAllText" },
             { Math.members[2].GetHashCode(), "global::System.Math.Abs" },
             { Math.members[3].GetHashCode(), "global::System.Math.Abs" },
             { Math.members[4].GetHashCode(), "global::System.Math.Abs" },
@@ -767,10 +844,74 @@ internal static partial class StandardLibrary {
     }
 
     /// <summary>
+    /// Updates all of the Standard Library types that require WellKnownTypes.
+    /// </summary>
+    internal static void UpdateLibraries(Dictionary<string, NamedTypeSymbol> wellKnownTypes) {
+        if (Directory.members.Length > 4)
+            return;
+
+        // If the List type is not found, that means none of these methods are being called so it does not matter
+        // what type we put in List's place. Using Void here arbitrarily. We still need to declare these methods though,
+        // because the Evaluator will check for them.
+        wellKnownTypes.TryGetValue(WellKnownTypeNames.List, out var listTypeSymbol);
+        var listStringType = listTypeSymbol is null
+            ? BoundType.Void
+            : new BoundType(listTypeSymbol, templateArguments: [new BoundTypeOrConstant(BoundType.String)]);
+
+        Directory.UpdateInternals(
+            Directory.templateParameters,
+            Directory.templateConstraints,
+            Directory.members.AddRange(
+        /* 4 */ StaticMethod("GetDirectories", listStringType, [
+                    ("path", BoundType.String)
+                ]),
+        /* 5 */ StaticMethod("GetFiles", listStringType, [
+                    ("path", BoundType.String)
+                ])
+            )
+        );
+
+        File.UpdateInternals(
+            File.templateParameters,
+            File.templateConstraints,
+            File.members.AddRange(
+        /* 7 */ StaticMethod("AppendLines", BoundType.Void, [
+                    ("fileName", BoundType.String),
+                    ("lines", listStringType),
+                ]),
+        /* 8 */ StaticMethod("ReadLines", listStringType, [
+                    ("fileName", BoundType.String)
+                ]),
+        /* 9 */ StaticMethod("WriteLines", BoundType.Void, [
+                    ("fileName", BoundType.String),
+                    ("lines", listStringType),
+                ])
+            )
+        );
+
+        MethodEvaluatorMap.Add(Directory.members[4].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { return System.IO.Directory.GetDirectories((string)a); }));
+        MethodEvaluatorMap.Add(Directory.members[5].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { return System.IO.Directory.GetFiles((string)a); }));
+        MethodEvaluatorMap.Add(File.members[7].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { System.IO.File.AppendAllLines((string)a, (List<string>)b); return null; }));
+        MethodEvaluatorMap.Add(File.members[8].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { return System.IO.File.ReadAllLines((string)a); }));
+        MethodEvaluatorMap.Add(File.members[9].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { System.IO.File.WriteAllLines((string)a, (List<string>)b); return null; }));
+
+        MethodTranspilerMap.Add(Directory.members[4].GetHashCode(), "global::System.IO.Directory.GetDirectories");
+        MethodTranspilerMap.Add(Directory.members[5].GetHashCode(), "global::System.IO.Directory.GetFiles");
+        MethodTranspilerMap.Add(File.members[7].GetHashCode(), "global::System.IO.File.AppendAllLines");
+        MethodTranspilerMap.Add(File.members[8].GetHashCode(), "global::System.IO.File.ReadAllLines");
+        MethodTranspilerMap.Add(File.members[9].GetHashCode(), "global::System.IO.File.WriteAllLines");
+    }
+
+    /// <summary>
     /// Gets all the pre-compiled symbols defined by the library.
     /// </summary>
     internal static Symbol[] GetSymbols() {
-        return [Object, Console, Math];
+        return [Object, Console, Directory, File, Math];
     }
 
     /// <summary>

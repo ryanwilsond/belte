@@ -156,6 +156,8 @@ internal sealed class Binder {
             }
         }
 
+        StandardLibrary.UpdateLibraries(binder._wellKnownTypes);
+
         foreach (var member in members) {
             if (member is TypeDeclarationSyntax ts)
                 binder.BindTypeDeclaration(ts);
@@ -2807,14 +2809,23 @@ internal sealed class Binder {
                 constantArgumentsBuilder.Add(new BoundTypeOrConstant(argument.constantValue, argument.type, argument));
         }
 
-        var bestOverload = result.bestOverload as NamedTypeSymbol;
-
         var constantArguments = constantArgumentsBuilder.ToImmutable();
         VerifyConstraintClauses(
             templateName?.templateArgumentList?.location ?? syntax.location,
             result.bestOverload.templateConstraints,
             constantArguments
         );
+
+        var bestOverload = result.bestOverload as MethodSymbol;
+
+        // Hard coding in the methods that use the List type
+        if (bestOverload == StandardLibrary.Directory.members[4] ||
+            bestOverload == StandardLibrary.Directory.members[5] ||
+            bestOverload == StandardLibrary.File.members[0] ||
+            bestOverload == StandardLibrary.File.members[6] ||
+            bestOverload == StandardLibrary.File.members[8]) {
+            _usedLibraryTypes.Add(_wellKnownTypes[WellKnownTypeNames.List]);
+        }
 
         return new BoundMethodGroup(
             name,

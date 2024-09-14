@@ -8,9 +8,11 @@ require an explicit import.
 
 - [5.1](#51-built-in-functions) Built-in Functions
 - [5.2](StandardLibrary/Console.md) Console (Included By Default)
-- [5.3](StandardLibrary/Math.md) Math (Included By Default)
-- [5.4](StandardLibrary/List.md) List
-- [5.5](StandardLibrary/Dictionary.md) Dictionary
+- [5.3](StandardLibrary/Dictionary.md) Dictionary (Included By Default)
+- [5.4](StandardLibrary/Directory.md) Directory (Included By Default)
+- [5.5](StandardLibrary/File.md) File (Included By Default)
+- [5.6](StandardLibrary/List.md) List (Included By Default)
+- [5.7](StandardLibrary/Math.md) Math (Included By Default)
 
 ## 5.1 Built-In Functions
 
