@@ -58,35 +58,35 @@ internal static partial class StandardLibrary {
                 Constexpr("Yellow", BoundType.Int, 14),
                 Constexpr("White", BoundType.Int, 15)
             ]),
-    /* 1 */ StaticMethod("PrintLine", BoundType.Void, [
-                        ("message", BoundType.NullableString)
-            ]),
-    /* 2 */ StaticMethod("PrintLine", BoundType.Void, [
-                ("value", BoundType.NullableAny)
-            ]),
-    /* 3 */ StaticMethod("PrintLine", BoundType.Void, [
-                ("value", new BoundType(Object, isNullable: true))
-            ]),
-    /* 4 */ StaticMethod("PrintLine", BoundType.Void, []),
-    /* 5 */ StaticMethod("Print", BoundType.Void, [
+    /* 1 */ StaticMethod("GetWidth", BoundType.Int, []),
+    /* 2 */ StaticMethod("GetHeight", BoundType.Int, []),
+    /* 3 */ StaticMethod("Input", BoundType.String, []),
+    /* 4 */ StaticMethod("PrintLine", BoundType.Void, [
                 ("message", BoundType.NullableString)
             ]),
-    /* 6 */ StaticMethod("Print", BoundType.Void, [
+    /* 5 */ StaticMethod("PrintLine", BoundType.Void, [
                 ("value", BoundType.NullableAny)
             ]),
-    /* 7 */ StaticMethod("Print", BoundType.Void, [
+    /* 6 */ StaticMethod("PrintLine", BoundType.Void, [
                 ("value", new BoundType(Object, isNullable: true))
             ]),
-    /* 8 */ StaticMethod("Input", BoundType.String, []),
-    /* 9 */ StaticMethod("SetForegroundColor", BoundType.Void, [
-                ("color", BoundType.Int)
+    /* 7 */ StaticMethod("PrintLine", BoundType.Void, []),
+    /* 8 */ StaticMethod("Print", BoundType.Void, [
+                ("message", BoundType.NullableString)
             ]),
-   /* 10 */ StaticMethod("SetBackgroundColor", BoundType.Void, [
-                ("color", BoundType.Int)
+    /* 9 */ StaticMethod("Print", BoundType.Void, [
+                ("value", BoundType.NullableAny)
+            ]),
+   /* 10 */ StaticMethod("Print", BoundType.Void, [
+                ("value", new BoundType(Object, isNullable: true))
             ]),
    /* 11 */ StaticMethod("ResetColor", BoundType.Void, []),
-   /* 12 */ StaticMethod("GetWidth", BoundType.Int, []),
-   /* 13 */ StaticMethod("GetHeight", BoundType.Int, []),
+   /* 12 */ StaticMethod("SetForegroundColor", BoundType.Void, [
+                ("color", BoundType.Int)
+            ]),
+   /* 13 */ StaticMethod("SetBackgroundColor", BoundType.Void, [
+                ("color", BoundType.Int)
+            ]),
    /* 14 */ StaticMethod("SetCursorPosition", BoundType.Void, [
                 ("left", BoundType.NullableInt),
                 ("top", BoundType.NullableInt)
@@ -96,8 +96,8 @@ internal static partial class StandardLibrary {
 
     internal static ClassSymbol Math = StaticClass("Math",
         [
-    /* 0 */ Constexpr("PI", BoundType.Decimal, 3.1415926535897931),
-    /* 1 */ Constexpr("E", BoundType.Decimal, 2.7182818284590451),
+    /* 0 */ Constexpr("E", BoundType.Decimal, 2.7182818284590451),
+    /* 1 */ Constexpr("PI", BoundType.Decimal, 3.1415926535897931),
     /* 2 */ StaticMethod("Abs", BoundType.NullableDecimal, [
                 ("value", BoundType.NullableDecimal)
             ]),
@@ -308,37 +308,37 @@ internal static partial class StandardLibrary {
     internal static readonly Dictionary<int, Func<object, object, object, object>> MethodEvaluatorMap
         = new Dictionary<int, Func<object, object, object, object>> {
         { Console.members[1].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
+            => { if (!System.Console.IsOutputRedirected) return System.Console.WindowWidth; return null; }) },
         { Console.members[2].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
+            => { if (!System.Console.IsOutputRedirected) return System.Console.WindowHeight; return null; }) },
         { Console.members[3].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
-        { Console.members[4].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(); return null; }) },
-        { Console.members[5].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
-        { Console.members[6].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
-        { Console.members[7].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
-        { Console.members[8].GetHashCode(), new Func<object, object, object, object>((a, b, c)
             => { if (!System.Console.IsOutputRedirected) return System.Console.ReadLine(); return null; }) },
+        { Console.members[4].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
+        { Console.members[5].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
+        { Console.members[6].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
+        { Console.members[7].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(); return null; }) },
+        { Console.members[8].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
         { Console.members[9].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
+        { Console.members[10].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
+        { Console.members[11].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { if (!System.Console.IsOutputRedirected) System.Console.ResetColor(); return null; }) },
+        { Console.members[12].GetHashCode(), new Func<object, object, object, object>((a, b, c)
             => {
                 if (!System.Console.IsOutputRedirected) System.Console.ForegroundColor = (ConsoleColor)a;
                 return null;
                }) },
-        { Console.members[10].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+        { Console.members[13].GetHashCode(), new Func<object, object, object, object>((a, b, c)
             => {
                 if (!System.Console.IsOutputRedirected) System.Console.BackgroundColor = (ConsoleColor)a;
                 return null;
                }) },
-        { Console.members[11].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) System.Console.ResetColor(); return null; }) },
-        { Console.members[12].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) return System.Console.WindowWidth; return null; }) },
-        { Console.members[13].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) return System.Console.WindowHeight; return null; }) },
         { Console.members[14].GetHashCode(), new Func<object, object, object, object>((a, b, c)
             => {
                 if (!System.Console.IsOutputRedirected) {
@@ -508,19 +508,19 @@ internal static partial class StandardLibrary {
     // TODO Ensure this is correct for every other nullable overload
     internal static readonly Dictionary<int, string> MethodTranspilerMap
         = new Dictionary<int, string> {
-            { Console.members[1].GetHashCode(), "global::System.Console.WriteLine" },
-            { Console.members[2].GetHashCode(), "global::System.Console.WriteLine" },
-            { Console.members[3].GetHashCode(), "global::System.Console.WriteLine" },
+            { Console.members[1].GetHashCode(), "global::System.Console.WindowWidth" },
+            { Console.members[2].GetHashCode(), "global::System.Console.WindowHeight" },
+            { Console.members[3].GetHashCode(), "global::System.Console.ReadLine" },
             { Console.members[4].GetHashCode(), "global::System.Console.WriteLine" },
-            { Console.members[5].GetHashCode(), "global::System.Console.Write" },
-            { Console.members[6].GetHashCode(), "global::System.Console.Write" },
-            { Console.members[7].GetHashCode(), "global::System.Console.Write" },
-            { Console.members[8].GetHashCode(), "global::System.Console.ReadLine" },
-            { Console.members[9].GetHashCode(), "global::System.Console.ForegroundColor = " },
-            { Console.members[10].GetHashCode(), "global::System.Console.BackgroundColor = " },
+            { Console.members[5].GetHashCode(), "global::System.Console.WriteLine" },
+            { Console.members[6].GetHashCode(), "global::System.Console.WriteLine" },
+            { Console.members[7].GetHashCode(), "global::System.Console.WriteLine" },
+            { Console.members[8].GetHashCode(), "global::System.Console.Write" },
+            { Console.members[9].GetHashCode(), "global::System.Console.Write" },
+            { Console.members[10].GetHashCode(), "global::System.Console.Write" },
             { Console.members[11].GetHashCode(), "global::System.Console.ResetColor" },
-            { Console.members[12].GetHashCode(), "global::System.Console.WindowWidth" },
-            { Console.members[13].GetHashCode(), "global::System.Console.WindowHeight" },
+            { Console.members[12].GetHashCode(), "global::System.Console.ForegroundColor = " },
+            { Console.members[13].GetHashCode(), "global::System.Console.BackgroundColor = " },
             { Console.members[14].GetHashCode(), "global::System.Console.SetCursorPosition" },
             { Math.members[2].GetHashCode(), "global::System.Math.Abs" },
             { Math.members[3].GetHashCode(), "global::System.Math.Abs" },

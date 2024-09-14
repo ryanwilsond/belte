@@ -1,0 +1,14 @@
+
+static class Directory {
+    public static void Create(string path);
+
+    public static void Delete(string path);
+
+    public static void Exists(string path);
+
+    public static string GetCurrentDirectory();
+
+    public static List<string> GetDirectories(string path);
+
+    public static List<string> GetFiles(string path);
+}

@@ -1,7 +1,7 @@
 
 static class Math {
-    public constexpr PI = 3.1415926535897931;
     public constexpr E = 2.7182818284590451;
+    public constexpr PI = 3.1415926535897931;
 
     public static decimal Abs(decimal value);
     public static decimal! Abs(decimal! value);

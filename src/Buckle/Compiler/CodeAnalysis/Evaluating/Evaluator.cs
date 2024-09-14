@@ -1165,14 +1165,14 @@ internal sealed class Evaluator {
         printed = false;
 
         if (method.containingType == StandardLibrary.Console || method.containingType == StandardLibrary.Math) {
-            if (method == StandardLibrary.Console.members[5] ||
-                method == StandardLibrary.Console.members[6] ||
-                method == StandardLibrary.Console.members[7]) {
+            if (method == StandardLibrary.Console.members[8] ||
+                method == StandardLibrary.Console.members[9] ||
+                method == StandardLibrary.Console.members[10]) {
                 printed = true;
             }
 
             // TODO Right now this approach seems fragile, should at some point reevaluate how this should be done
-            if (method == StandardLibrary.Console.members[3] || method == StandardLibrary.Console.members[7]) {
+            if (method == StandardLibrary.Console.members[6] || method == StandardLibrary.Console.members[10]) {
                 var receiver = Dereference(EvaluateExpression(arguments[0], abort));
 
                 // Calling ToString on objects
