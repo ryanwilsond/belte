@@ -1,30 +1,14 @@
 
 class Object {
-    protected constructor() { }
+    protected constructor();
 
-    public virtual bool! Equals(Object object) {
-        if (object is null)
-            return false;
+    public virtual bool! Equals(Object object);
 
-        return ObjectsEquals(this, object)!;
-    }
+    public virtual string ToString();
 
-    public virtual string ToString() {
-        return "";
-    }
+    public virtual bool! ReferenceEquals(ref Object object);
 
-    public virtual bool! ReferenceEquals(ref Object object) {
-        if (object is null)
-            return false;
+    public static bool operator==(Object x, Object y);
 
-        return ObjectReferencesEqual(this, object)!;
-    }
-
-    public static bool operator==(Object x, Object y) {
-        return ObjectsEqual(x, y);
-    }
-
-    public static bool operator!=(Object x, Object y) {
-        return !ObjectsEqual(x, y);
-    }
+    public static bool operator!=(Object x, Object y);
 }
