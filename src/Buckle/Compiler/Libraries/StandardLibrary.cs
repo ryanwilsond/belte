@@ -847,9 +847,6 @@ internal static partial class StandardLibrary {
     /// Updates all of the Standard Library types that require WellKnownTypes.
     /// </summary>
     internal static void UpdateLibraries(Dictionary<string, NamedTypeSymbol> wellKnownTypes) {
-        if (Directory.members.Length > 4)
-            return;
-
         // If the List type is not found, that means none of these methods are being called so it does not matter
         // what type we put in List's place. Using Void here arbitrarily. We still need to declare these methods though,
         // because the Evaluator will check for them.
@@ -857,6 +854,9 @@ internal static partial class StandardLibrary {
         var listStringType = listTypeSymbol is null
             ? BoundType.Void
             : new BoundType(listTypeSymbol, templateArguments: [new BoundTypeOrConstant(BoundType.String)]);
+
+        if (Directory.members.Length > 4)
+            return;
 
         Directory.UpdateInternals(
             Directory.templateParameters,
@@ -870,6 +870,9 @@ internal static partial class StandardLibrary {
                 ])
             )
         );
+
+        if (File.members.Length > 7)
+            return;
 
         File.UpdateInternals(
             File.templateParameters,
