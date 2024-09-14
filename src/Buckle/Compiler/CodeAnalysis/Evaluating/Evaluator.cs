@@ -65,6 +65,11 @@ internal sealed class Evaluator {
     internal bool lastOutputWasPrint { get; private set; }
 
     /// <summary>
+    /// If the submission contains File/Directory IO.
+    /// </summary>
+    internal bool containsIO { get; private set; }
+
+    /// <summary>
     /// All thrown exceptions during evaluation.
     /// </summary>
     internal List<Exception> exceptions { get; set; }
@@ -96,7 +101,7 @@ internal sealed class Evaluator {
 
             var list = EvaluateObjectCreationExpression(new BoundObjectCreationExpression(
                 _program.entryPoint.parameters[0].type,
-                (_program.entryPoint.parameters[0].type.typeSymbol as NamedTypeSymbol).constructors[2],
+                (_program.entryPoint.parameters[0].type.typeSymbol as NamedTypeSymbol).constructors[3],
                 [new BoundInitializerListExpression(
                     new BoundConstant(args.ToImmutable()),
                     new BoundType(
@@ -806,8 +811,13 @@ internal sealed class Evaluator {
 
             return new EvaluatorObject(false);
         } else {
-            if (CheckStandardMap(node.method, node.arguments, abort, out var result, out var printed)) {
+            if (CheckStandardMap(node.method, node.arguments, abort, out var result, out var printed, out var io)) {
                 lastOutputWasPrint = printed;
+                containsIO = io;
+
+                if (result is EvaluatorObject e)
+                    return e;
+
                 return new EvaluatorObject(result);
             }
 
@@ -861,7 +871,8 @@ internal sealed class Evaluator {
         var templateConstantDepth = _templateConstantDepth;
         var enteredScope = false;
 
-        if (receiver is not null && (receiver.isReference || expression is BoundObjectCreationExpression)) {
+        // !
+        if (receiver is not null /*&& (receiver.isReference || expression is BoundObjectCreationExpression)*/) {
             // On an expression such as 'myInstance.Method()', we need to enter the 'myInstance' class scope
             // in case 'Method' uses 'this'
             // If what we get here is not a reference, it is a static accession and the needed scoped members have
@@ -1160,19 +1171,28 @@ internal sealed class Evaluator {
         ImmutableArray<BoundExpression> arguments,
         ValueWrapper<bool> abort,
         out object result,
-        out bool printed) {
+        out bool printed,
+        out bool io) {
         result = null;
         printed = false;
+        io = false;
 
-        if (method.containingType == StandardLibrary.Console || method.containingType == StandardLibrary.Math) {
-            if (method == StandardLibrary.Console.members[5] ||
-                method == StandardLibrary.Console.members[6] ||
-                method == StandardLibrary.Console.members[7]) {
+        if (method.containingType == StandardLibrary.Console ||
+            method.containingType == StandardLibrary.Directory ||
+            method.containingType == StandardLibrary.File ||
+            method.containingType == StandardLibrary.Math) {
+            if (method == StandardLibrary.Console.members[8] ||
+                method == StandardLibrary.Console.members[9] ||
+                method == StandardLibrary.Console.members[10]) {
                 printed = true;
             }
 
+            if (method.containingType == StandardLibrary.Directory || method.containingType == StandardLibrary.File)
+                io = true;
+
             // TODO Right now this approach seems fragile, should at some point reevaluate how this should be done
-            if (method == StandardLibrary.Console.members[3] || method == StandardLibrary.Console.members[7]) {
+            // Approach to fix this on the Belte considering page
+            if (method == StandardLibrary.Console.members[6] || method == StandardLibrary.Console.members[10]) {
                 var receiver = Dereference(EvaluateExpression(arguments[0], abort));
 
                 // Calling ToString on objects
@@ -1189,6 +1209,48 @@ internal sealed class Evaluator {
                 ExitClassScope();
 
                 result = StandardLibrary.MethodEvaluatorMap[method.GetHashCode()](Value(argument), null, null);
+                return true;
+            }
+
+            if (method == StandardLibrary.Directory.members[4] ||
+                method == StandardLibrary.Directory.members[5] ||
+                method == StandardLibrary.File.members[8]) {
+                var tempResult = StandardLibrary.MethodEvaluatorMap[method.GetHashCode()]
+                    (Value(EvaluateExpression(arguments[0], abort)), null, null) as string[];
+
+                var listType = _program.usedLibraryTypes.Where(t => t.name == "List").Single();
+                var items = ImmutableArray.CreateBuilder<BoundConstant>();
+
+                foreach (var item in tempResult)
+                    items.Add(new BoundConstant(item));
+
+                result = EvaluateObjectCreationExpression(new BoundObjectCreationExpression(
+                    new BoundType(listType, templateArguments: [new BoundTypeOrConstant(BoundType.String)]),
+                    listType.constructors[3],
+                    [new BoundInitializerListExpression(
+                        new BoundConstant(items.ToImmutable()),
+                        new BoundType(
+                            TypeSymbol.String,
+                            dimensions: 1,
+                            sizes: [new BoundLiteralExpression(tempResult.Length)]
+                        )
+                    )]
+                ), abort);
+
+                return true;
+            }
+
+            if (method == StandardLibrary.File.members[7] || method == StandardLibrary.File.members[9]) {
+                var argument0 = Value(EvaluateExpression(arguments[0], abort));
+                var argument1 = Dereference(EvaluateExpression(arguments[1], abort));
+                var newArgument1 = new List<string>();
+                var internalList = argument1.members.Values.ElementAt(0).value as EvaluatorObject[];
+                var length = (int)argument1.members.Values.ElementAt(1).value;
+
+                for (var i = 0; i < length; i++)
+                    newArgument1.Add(internalList[i].value as string);
+
+                result = StandardLibrary.MethodEvaluatorMap[method.GetHashCode()](argument0, newArgument1, null);
                 return true;
             }
 

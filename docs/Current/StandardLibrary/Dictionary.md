@@ -1,18 +1,18 @@
-# 5.5 Dictionary
+# 5.3 Dictionary
 
 A Dictionary template is an ordered hashmap implementation.
 
-- [5.5.1](#551-definition) Definition
-- [5.5.2](#552-initializer-dictionaries) Initializer Dictionaries
+- [5.3.1](#531-definition) Definition
+- [5.3.2](#532-initializer-dictionaries) Initializer Dictionaries
 
-## 5.5.1 Definition
+## 5.3.1 Definition
 
-The Belte public interface for the List class can be found [here](../../../src/Belte/Standard/Dictionary.blt).
+The Belte public interface for the List class can be found [here](../../../src/Belte/Standard/Collections/Dictionary.blt).
 
 | Method | Description |
 |-|-|
 
-## 5.5.2 Initializer Dictionaries
+## 5.3.2 Initializer Dictionaries
 
 Initializer dictionaries create Dictionaries.
 

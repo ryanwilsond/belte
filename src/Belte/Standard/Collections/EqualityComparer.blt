@@ -11,7 +11,14 @@ abstract class EqualityComparer<type T> {
             t == typeof(bool) ||
             t == typeof(char) ||
             t == typeof(type) ||
-            t == typeof(any)) {
+            t == typeof(any) ||
+            t == typeof(int!) ||
+            t == typeof(string!) ||
+            t == typeof(decimal!) ||
+            t == typeof(bool!) ||
+            t == typeof(char!) ||
+            t == typeof(type!) ||
+            t == typeof(any!)) {
             return new PrimitiveEqualityComparer<T>();
         }
 

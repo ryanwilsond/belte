@@ -1,10 +1,10 @@
-# 5.3 Math (Included By Default)
+# 5.7 Math (Included By Default)
 
 The Math class provides an interface for common math values and functions.
 
-- [5.3.1](#531-definition) Definition
+- [5.7.1](#571-definition) Definition
 
-## 5.3.1 Definition
+## 5.7.1 Definition
 
 The Belte public interface for the Math class can be found [here](../../../src/Belte/Standard/Math.blt).
 
@@ -12,8 +12,8 @@ Most are simply the names of the math functions, so only a brief description is 
 
 | Method/Field | Description |
 |-|-|
-| `PI` | The mathematical constant PI (π). |
 | `E` | Euler's number (e). |
+| `PI` | The mathematical constant PI (π). |
 | `Abs` | Absolute value. |
 | `Acos` | Arccosine. |
 | `Acosh` | Inverse hyperbolic cosine. |

@@ -58,35 +58,35 @@ internal static partial class StandardLibrary {
                 Constexpr("Yellow", BoundType.Int, 14),
                 Constexpr("White", BoundType.Int, 15)
             ]),
-    /* 1 */ StaticMethod("PrintLine", BoundType.Void, [
-                        ("message", BoundType.NullableString)
-            ]),
-    /* 2 */ StaticMethod("PrintLine", BoundType.Void, [
-                ("value", BoundType.NullableAny)
-            ]),
-    /* 3 */ StaticMethod("PrintLine", BoundType.Void, [
-                ("value", new BoundType(Object, isNullable: true))
-            ]),
-    /* 4 */ StaticMethod("PrintLine", BoundType.Void, []),
-    /* 5 */ StaticMethod("Print", BoundType.Void, [
+    /* 1 */ StaticMethod("GetWidth", BoundType.Int, []),
+    /* 2 */ StaticMethod("GetHeight", BoundType.Int, []),
+    /* 3 */ StaticMethod("Input", BoundType.String, []),
+    /* 4 */ StaticMethod("PrintLine", BoundType.Void, [
                 ("message", BoundType.NullableString)
             ]),
-    /* 6 */ StaticMethod("Print", BoundType.Void, [
+    /* 5 */ StaticMethod("PrintLine", BoundType.Void, [
                 ("value", BoundType.NullableAny)
             ]),
-    /* 7 */ StaticMethod("Print", BoundType.Void, [
+    /* 6 */ StaticMethod("PrintLine", BoundType.Void, [
                 ("value", new BoundType(Object, isNullable: true))
             ]),
-    /* 8 */ StaticMethod("Input", BoundType.String, []),
-    /* 9 */ StaticMethod("SetForegroundColor", BoundType.Void, [
-                ("color", BoundType.Int)
+    /* 7 */ StaticMethod("PrintLine", BoundType.Void, []),
+    /* 8 */ StaticMethod("Print", BoundType.Void, [
+                ("message", BoundType.NullableString)
             ]),
-   /* 10 */ StaticMethod("SetBackgroundColor", BoundType.Void, [
-                ("color", BoundType.Int)
+    /* 9 */ StaticMethod("Print", BoundType.Void, [
+                ("value", BoundType.NullableAny)
+            ]),
+   /* 10 */ StaticMethod("Print", BoundType.Void, [
+                ("value", new BoundType(Object, isNullable: true))
             ]),
    /* 11 */ StaticMethod("ResetColor", BoundType.Void, []),
-   /* 12 */ StaticMethod("GetWidth", BoundType.Int, []),
-   /* 13 */ StaticMethod("GetHeight", BoundType.Int, []),
+   /* 12 */ StaticMethod("SetForegroundColor", BoundType.Void, [
+                ("color", BoundType.Int)
+            ]),
+   /* 13 */ StaticMethod("SetBackgroundColor", BoundType.Void, [
+                ("color", BoundType.Int)
+            ]),
    /* 14 */ StaticMethod("SetCursorPosition", BoundType.Void, [
                 ("left", BoundType.NullableInt),
                 ("top", BoundType.NullableInt)
@@ -94,10 +94,54 @@ internal static partial class StandardLibrary {
         ]
     );
 
+    internal static ClassSymbol Directory = StaticClass("Directory",
+        [
+    /* 0 */ StaticMethod("Create", BoundType.Void, [
+                ("path", BoundType.String)
+            ]),
+    /* 1 */ StaticMethod("Delete", BoundType.Void, [
+                ("path", BoundType.String)
+            ]),
+    /* 2 */ StaticMethod("Exists", BoundType.Bool, [
+                ("path", BoundType.String)
+            ]),
+    /* 3 */ StaticMethod("GetCurrentDirectory", BoundType.String, [])
+        ]
+    );
+
+    internal static ClassSymbol File = StaticClass("File",
+        [
+    /* 0 */ StaticMethod("AppendText", BoundType.Void, [
+                ("fileName", BoundType.String),
+                ("text", BoundType.String),
+            ]),
+    /* 1 */ StaticMethod("Create", BoundType.Void, [
+                ("path", BoundType.String)
+            ]),
+    /* 2 */ StaticMethod("Copy", BoundType.Void, [
+                ("sourceFileName", BoundType.String),
+                ("destinationFileName", BoundType.String)
+            ]),
+    /* 3 */ StaticMethod("Delete", BoundType.Void, [
+                ("path", BoundType.String)
+            ]),
+    /* 4 */ StaticMethod("Exists", BoundType.Bool, [
+                ("path", BoundType.String)
+            ]),
+    /* 5 */ StaticMethod("ReadText", BoundType.NullableString, [
+                ("fileName", BoundType.String)
+            ]),
+    /* 6 */ StaticMethod("WriteText", BoundType.Void, [
+                ("fileName", BoundType.String),
+                ("text", BoundType.String),
+            ])
+        ]
+    );
+
     internal static ClassSymbol Math = StaticClass("Math",
         [
-    /* 0 */ Constexpr("PI", BoundType.Decimal, 3.1415926535897931),
-    /* 1 */ Constexpr("E", BoundType.Decimal, 2.7182818284590451),
+    /* 0 */ Constexpr("E", BoundType.Decimal, 2.7182818284590451),
+    /* 1 */ Constexpr("PI", BoundType.Decimal, 3.1415926535897931),
     /* 2 */ StaticMethod("Abs", BoundType.NullableDecimal, [
                 ("value", BoundType.NullableDecimal)
             ]),
@@ -308,37 +352,37 @@ internal static partial class StandardLibrary {
     internal static readonly Dictionary<int, Func<object, object, object, object>> MethodEvaluatorMap
         = new Dictionary<int, Func<object, object, object, object>> {
         { Console.members[1].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
+            => { if (!System.Console.IsOutputRedirected) return System.Console.WindowWidth; return null; }) },
         { Console.members[2].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
+            => { if (!System.Console.IsOutputRedirected) return System.Console.WindowHeight; return null; }) },
         { Console.members[3].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
-        { Console.members[4].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(); return null; }) },
-        { Console.members[5].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
-        { Console.members[6].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
-        { Console.members[7].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
-        { Console.members[8].GetHashCode(), new Func<object, object, object, object>((a, b, c)
             => { if (!System.Console.IsOutputRedirected) return System.Console.ReadLine(); return null; }) },
+        { Console.members[4].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
+        { Console.members[5].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
+        { Console.members[6].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
+        { Console.members[7].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(); return null; }) },
+        { Console.members[8].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
         { Console.members[9].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
+        { Console.members[10].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
+        { Console.members[11].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { if (!System.Console.IsOutputRedirected) System.Console.ResetColor(); return null; }) },
+        { Console.members[12].GetHashCode(), new Func<object, object, object, object>((a, b, c)
             => {
                 if (!System.Console.IsOutputRedirected) System.Console.ForegroundColor = (ConsoleColor)a;
                 return null;
                }) },
-        { Console.members[10].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+        { Console.members[13].GetHashCode(), new Func<object, object, object, object>((a, b, c)
             => {
                 if (!System.Console.IsOutputRedirected) System.Console.BackgroundColor = (ConsoleColor)a;
                 return null;
                }) },
-        { Console.members[11].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) System.Console.ResetColor(); return null; }) },
-        { Console.members[12].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) return System.Console.WindowWidth; return null; }) },
-        { Console.members[13].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            => { if (!System.Console.IsOutputRedirected) return System.Console.WindowHeight; return null; }) },
         { Console.members[14].GetHashCode(), new Func<object, object, object, object>((a, b, c)
             => {
                 if (!System.Console.IsOutputRedirected) {
@@ -349,6 +393,28 @@ internal static partial class StandardLibrary {
                 }
                 return null;
                }) },
+        { Directory.members[0].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { System.IO.Directory.CreateDirectory((string)a); return null; }) },
+        { Directory.members[1].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { System.IO.Directory.Delete((string)a, true); return null; }) },
+        { Directory.members[2].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { return System.IO.Directory.Exists((string)a); }) },
+        { Directory.members[3].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { return System.IO.Directory.GetCurrentDirectory(); }) },
+        { File.members[0].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { System.IO.File.AppendAllText((string)a, (string)b); return null; }) },
+        { File.members[1].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { System.IO.File.Create((string)a); return null; }) },
+        { File.members[2].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { System.IO.File.Copy((string)a, (string)b); return null; }) },
+        { File.members[3].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { System.IO.File.Delete((string)a); return null; }) },
+        { File.members[4].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { return System.IO.File.Exists((string)a); }) },
+        { File.members[5].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { return System.IO.File.ReadAllText((string)a); }) },
+        { File.members[6].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { System.IO.File.WriteAllText((string)a, (string)b); return null; }) },
         { Math.members[2].GetHashCode(), new Func<object, object, object, object>((a, b, c)
             => { return a is null ? null : System.Math.Abs(Convert.ToDouble(a)); }) },
         { Math.members[3].GetHashCode(), new Func<object, object, object, object>((a, b, c)
@@ -508,20 +574,31 @@ internal static partial class StandardLibrary {
     // TODO Ensure this is correct for every other nullable overload
     internal static readonly Dictionary<int, string> MethodTranspilerMap
         = new Dictionary<int, string> {
-            { Console.members[1].GetHashCode(), "global::System.Console.WriteLine" },
-            { Console.members[2].GetHashCode(), "global::System.Console.WriteLine" },
-            { Console.members[3].GetHashCode(), "global::System.Console.WriteLine" },
+            { Console.members[1].GetHashCode(), "global::System.Console.WindowWidth" },
+            { Console.members[2].GetHashCode(), "global::System.Console.WindowHeight" },
+            { Console.members[3].GetHashCode(), "global::System.Console.ReadLine" },
             { Console.members[4].GetHashCode(), "global::System.Console.WriteLine" },
-            { Console.members[5].GetHashCode(), "global::System.Console.Write" },
-            { Console.members[6].GetHashCode(), "global::System.Console.Write" },
-            { Console.members[7].GetHashCode(), "global::System.Console.Write" },
-            { Console.members[8].GetHashCode(), "global::System.Console.ReadLine" },
-            { Console.members[9].GetHashCode(), "global::System.Console.ForegroundColor = " },
-            { Console.members[10].GetHashCode(), "global::System.Console.BackgroundColor = " },
+            { Console.members[5].GetHashCode(), "global::System.Console.WriteLine" },
+            { Console.members[6].GetHashCode(), "global::System.Console.WriteLine" },
+            { Console.members[7].GetHashCode(), "global::System.Console.WriteLine" },
+            { Console.members[8].GetHashCode(), "global::System.Console.Write" },
+            { Console.members[9].GetHashCode(), "global::System.Console.Write" },
+            { Console.members[10].GetHashCode(), "global::System.Console.Write" },
             { Console.members[11].GetHashCode(), "global::System.Console.ResetColor" },
-            { Console.members[12].GetHashCode(), "global::System.Console.WindowWidth" },
-            { Console.members[13].GetHashCode(), "global::System.Console.WindowHeight" },
+            { Console.members[12].GetHashCode(), "global::System.Console.ForegroundColor = " },
+            { Console.members[13].GetHashCode(), "global::System.Console.BackgroundColor = " },
             { Console.members[14].GetHashCode(), "global::System.Console.SetCursorPosition" },
+            { Directory.members[0].GetHashCode(), "global::System.IO.Directory.CreateDirectory" },
+            { Directory.members[1].GetHashCode(), "global::System.IO.Directory.Delete" },
+            { Directory.members[2].GetHashCode(), "global::System.IO.Directory.Exists" },
+            { Directory.members[3].GetHashCode(), "global::System.IO.Directory.GetCurrentDirectory" },
+            { File.members[0].GetHashCode(), "global::System.IO.File.AppendAllText" },
+            { File.members[1].GetHashCode(), "global::System.IO.File.Create" },
+            { File.members[2].GetHashCode(), "global::System.IO.File.Copy" },
+            { File.members[3].GetHashCode(), "global::System.IO.File.Delete" },
+            { File.members[4].GetHashCode(), "global::System.IO.File.Exists" },
+            { File.members[5].GetHashCode(), "global::System.IO.File.ReadAllText" },
+            { File.members[6].GetHashCode(), "global::System.IO.File.WriteAllText" },
             { Math.members[2].GetHashCode(), "global::System.Math.Abs" },
             { Math.members[3].GetHashCode(), "global::System.Math.Abs" },
             { Math.members[4].GetHashCode(), "global::System.Math.Abs" },
@@ -767,10 +844,74 @@ internal static partial class StandardLibrary {
     }
 
     /// <summary>
+    /// Updates all of the Standard Library types that require WellKnownTypes.
+    /// </summary>
+    internal static void UpdateLibraries(Dictionary<string, NamedTypeSymbol> wellKnownTypes) {
+        if (Directory.members.Length > 4)
+            return;
+
+        // If the List type is not found, that means none of these methods are being called so it does not matter
+        // what type we put in List's place. Using Void here arbitrarily. We still need to declare these methods though,
+        // because the Evaluator will check for them.
+        wellKnownTypes.TryGetValue(WellKnownTypeNames.List, out var listTypeSymbol);
+        var listStringType = listTypeSymbol is null
+            ? BoundType.Void
+            : new BoundType(listTypeSymbol, templateArguments: [new BoundTypeOrConstant(BoundType.String)]);
+
+        Directory.UpdateInternals(
+            Directory.templateParameters,
+            Directory.templateConstraints,
+            Directory.members.AddRange(
+        /* 4 */ StaticMethod("GetDirectories", listStringType, [
+                    ("path", BoundType.String)
+                ]),
+        /* 5 */ StaticMethod("GetFiles", listStringType, [
+                    ("path", BoundType.String)
+                ])
+            )
+        );
+
+        File.UpdateInternals(
+            File.templateParameters,
+            File.templateConstraints,
+            File.members.AddRange(
+        /* 7 */ StaticMethod("AppendLines", BoundType.Void, [
+                    ("fileName", BoundType.String),
+                    ("lines", listStringType),
+                ]),
+        /* 8 */ StaticMethod("ReadLines", listStringType, [
+                    ("fileName", BoundType.String)
+                ]),
+        /* 9 */ StaticMethod("WriteLines", BoundType.Void, [
+                    ("fileName", BoundType.String),
+                    ("lines", listStringType),
+                ])
+            )
+        );
+
+        MethodEvaluatorMap.Add(Directory.members[4].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { return System.IO.Directory.GetDirectories((string)a); }));
+        MethodEvaluatorMap.Add(Directory.members[5].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { return System.IO.Directory.GetFiles((string)a); }));
+        MethodEvaluatorMap.Add(File.members[7].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { System.IO.File.AppendAllLines((string)a, (List<string>)b); return null; }));
+        MethodEvaluatorMap.Add(File.members[8].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { return System.IO.File.ReadAllLines((string)a); }));
+        MethodEvaluatorMap.Add(File.members[9].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            => { System.IO.File.WriteAllLines((string)a, (List<string>)b); return null; }));
+
+        MethodTranspilerMap.Add(Directory.members[4].GetHashCode(), "global::System.IO.Directory.GetDirectories");
+        MethodTranspilerMap.Add(Directory.members[5].GetHashCode(), "global::System.IO.Directory.GetFiles");
+        MethodTranspilerMap.Add(File.members[7].GetHashCode(), "global::System.IO.File.AppendAllLines");
+        MethodTranspilerMap.Add(File.members[8].GetHashCode(), "global::System.IO.File.ReadAllLines");
+        MethodTranspilerMap.Add(File.members[9].GetHashCode(), "global::System.IO.File.WriteAllLines");
+    }
+
+    /// <summary>
     /// Gets all the pre-compiled symbols defined by the library.
     /// </summary>
     internal static Symbol[] GetSymbols() {
-        return [Object, Console, Math];
+        return [Object, Console, Directory, File, Math];
     }
 
     /// <summary>

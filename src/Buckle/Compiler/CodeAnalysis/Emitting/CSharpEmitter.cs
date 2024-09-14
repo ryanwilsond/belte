@@ -915,6 +915,8 @@ internal sealed class CSharpEmitter {
         }
 
         if (expression.method.containingType == StandardLibrary.Console ||
+            expression.method.containingType == StandardLibrary.Directory ||
+            expression.method.containingType == StandardLibrary.File ||
             expression.method.containingType == StandardLibrary.Math) {
 
             if (expression.method.containingType == StandardLibrary.Math &&

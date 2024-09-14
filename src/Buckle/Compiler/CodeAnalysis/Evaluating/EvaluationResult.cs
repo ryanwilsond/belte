@@ -14,23 +14,28 @@ public sealed class EvaluationResult {
     /// <param name="value">Result of evaluation.</param>
     /// <param name="diagnostics">Diagnostics associated with value.</param>
     internal EvaluationResult(
-        object value, bool hasValue, BelteDiagnosticQueue diagnostics,
-        List<Exception> exceptions, bool lastOutputWasPrint) {
+        object value,
+        bool hasValue,
+        BelteDiagnosticQueue diagnostics,
+        List<Exception> exceptions,
+        bool lastOutputWasPrint,
+        bool containsIO) {
         this.value = value;
         this.hasValue = hasValue;
         this.diagnostics = new BelteDiagnosticQueue();
         this.diagnostics.Move(diagnostics);
         this.exceptions = exceptions is null ? new List<Exception>() : new List<Exception>(exceptions);
         this.lastOutputWasPrint = lastOutputWasPrint;
+        this.containsIO = containsIO;
     }
 
     /// <summary>
     /// Creates an empty <see cref="EvaluationResult" />.
     /// </summary>
-    internal EvaluationResult() : this(null, false, null, null, false) { }
+    internal EvaluationResult() : this(null, false, null, null, false, false) { }
 
     internal static EvaluationResult Failed(BelteDiagnosticQueue diagnostics) {
-        return new EvaluationResult(null, false, diagnostics, null, false);
+        return new EvaluationResult(null, false, diagnostics, null, false, false);
     }
 
     /// <summary>
@@ -53,6 +58,11 @@ public sealed class EvaluationResult {
     /// an extra line to prevent formatting problems.
     /// </summary>
     public bool lastOutputWasPrint { get; }
+
+    /// <summary>
+    /// If the submission contains File/Directory IO.
+    /// </summary>
+    public bool containsIO { get; }
 
     /// <summary>
     /// All exceptions thrown while evaluating.
