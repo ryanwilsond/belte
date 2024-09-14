@@ -1,5 +1,5 @@
 
-lowlevel class KeyValuePair<type TKey, type TValue> {
+lowlevel sealed class KeyValuePair<type TKey, type TValue> {
     TKey key;
     TValue value;
 

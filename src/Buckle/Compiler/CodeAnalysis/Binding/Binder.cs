@@ -4092,42 +4092,70 @@ internal sealed class Binder {
             if (!result.succeeded)
                 return new BoundErrorExpression();
 
+            var method = result.bestOverload;
+
             if (receiver is not BoundEmptyExpression &&
-                !result.bestOverload.isConstant &&
+                !method.isConstant &&
                 (receiver.type.isReference ? receiver.type.isConstantReference : receiver.type.isConstant)) {
-                diagnostics.Push(Error.NonConstantCallOnConstant(expression.location, result.bestOverload.Signature()));
+                diagnostics.Push(Error.NonConstantCallOnConstant(expression.location, method.Signature()));
             }
 
             if (receiver is BoundEmptyExpression || receiver is BoundThisExpression) {
                 if ((_containingMethod?.isConstant ?? false) &&
-                    !(result.bestOverload.isConstant || result.bestOverload.isStatic) &&
-                    (result.bestOverload.containingType == _containingMethod.containingType)) {
+                    !(method.isConstant || method.isStatic) &&
+                    (method.containingType == _containingMethod.containingType)) {
                     diagnostics.Push(
-                        Error.NonConstantCallInConstant(expression.location, result.bestOverload.Signature())
+                        Error.NonConstantCallInConstant(expression.location, method.Signature())
                     );
                 }
 
                 if ((_containingMethod?.isStatic ?? false) &&
-                    (result.bestOverload.containingType == _containingMethod.containingType) &&
-                    (!result.bestOverload.isStatic)) {
+                    (method.containingType == _containingMethod.containingType) &&
+                    (!method.isStatic)) {
                     diagnostics.Push(Error.InvalidStaticReference(expression.location, mg.name));
                 }
             }
 
-            if (result.bestOverload.accessibility == Accessibility.Private) {
+            if (method.accessibility == Accessibility.Private) {
                 if (_containingType is null ||
-                    _containingType != result.bestOverload.containingType) {
+                    _containingType != method.containingType) {
                     diagnostics.Push(Error.MemberIsInaccessible(
                         expression.expression is MemberAccessExpressionSyntax m
                             ? m.name.location
                             : expression.expression.location,
-                        $"{result.bestOverload.name}()",
-                        result.bestOverload.containingType.name
+                        $"{method.name}()",
+                        method.containingType.name
                     ));
                 }
             }
 
-            return new BoundCallExpression(receiver, result.bestOverload, result.arguments, mg.templateArguments);
+            if (receiver.type is not null &&
+                receiver.type.templateArguments.Length > 0 &&
+                method.type.typeSymbol is NamedTypeSymbol) {
+                var templateMappings = new Dictionary<ParameterSymbol, BoundTypeOrConstant>();
+
+                for (var i = 0; i < receiver.type.templateArguments.Length; i++) {
+                    templateMappings.Add(
+                        (receiver.type.typeSymbol as NamedTypeSymbol).templateParameters[i],
+                        receiver.type.templateArguments[i]
+                    );
+                }
+
+                var returnType = BoundType.Clarify(method.type, templateMappings);
+
+                method = new MethodSymbol(
+                    method.name,
+                    method.templateParameters,
+                    method.templateConstraints,
+                    method.parameters,
+                    returnType,
+                    method.declaration,
+                    method,
+                    method.declarationModifiers,
+                    method.accessibility);
+            }
+
+            return new BoundCallExpression(receiver, method, result.arguments, mg.templateArguments);
         }
 
         if (boundExpression is not BoundErrorExpression)

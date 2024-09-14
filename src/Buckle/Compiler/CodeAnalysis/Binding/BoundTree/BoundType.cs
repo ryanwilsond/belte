@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
@@ -305,14 +306,44 @@ internal sealed class BoundType : BoundExpression {
     }
 
     /// <summary>
+    /// A variant of <see cref="Compound"/> that manually checks to see if the template parameters match instead of
+    /// assuming the order of template arguments is correct and of the correct number.
+    /// </summary>
+    internal static BoundType Clarify(BoundType type, Dictionary<ParameterSymbol, BoundTypeOrConstant> templates) {
+        if (type.templateArguments.Length == 0)
+            return type;
+
+        var builder = ImmutableArray.CreateBuilder<BoundTypeOrConstant>();
+
+        foreach (var argument in type.templateArguments) {
+            if (argument.type.typeSymbol is TemplateTypeSymbol t) {
+                if (templates.TryGetValue(t.template, out var typeOrConstant)) {
+                    builder.Add(typeOrConstant);
+                    continue;
+                }
+            }
+
+            builder.Add(argument);
+        }
+
+        return CopyWith(type, templateArguments: builder.ToImmutable());
+    }
+
+    /// <summary>
     /// If the given type is the same as this.
     /// </summary>
     /// <param name="type"><see cref="BoundType" /> to compare this to.</param>
     /// <returns>If all fields match.</returns>
     internal bool Equals(BoundType type, bool loose = false, bool isTypeCheck = false) {
-        var typesEqual = (typeSymbol is ClassSymbol l && type?.typeSymbol is ClassSymbol r)
-            ? l == r
-            : typeSymbol == type?.typeSymbol;
+        bool typesEqual;
+
+        if (typeSymbol is TemplateTypeSymbol lt && type?.typeSymbol is TemplateTypeSymbol rt) {
+            typesEqual = lt.baseType == rt.baseType;
+        } else {
+            typesEqual = (typeSymbol is ClassSymbol l && type?.typeSymbol is ClassSymbol r)
+                ? l == r
+                : typeSymbol == type?.typeSymbol;
+        }
 
         if ((!loose || (typeSymbol is not null && type?.typeSymbol is not null)) && !typesEqual)
             return false;

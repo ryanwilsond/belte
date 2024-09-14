@@ -615,7 +615,25 @@ internal sealed class Evaluator {
                 members.Add(field as Symbol, value);
             }
 
-            var newObject = new EvaluatorObject(members, node.type);
+            BoundType trueType;
+
+            if (_enclosingTypes.Count > 0 && _enclosingTypes.Peek().trueType.templateArguments.Length > 0) {
+                var templateMappings = new Dictionary<ParameterSymbol, BoundTypeOrConstant>();
+                var enclosingType = _enclosingTypes.Peek().trueType;
+
+                for (var i = 0; i < enclosingType.templateArguments.Length; i++) {
+                    templateMappings.Add(
+                        (enclosingType.typeSymbol as NamedTypeSymbol).templateParameters[i],
+                        enclosingType.templateArguments[i]
+                    );
+                }
+
+                trueType = BoundType.Clarify(node.type, templateMappings);
+            } else {
+                trueType = node.type;
+            }
+
+            var newObject = new EvaluatorObject(members, trueType);
 
             EnterClassScope(newObject);
 
