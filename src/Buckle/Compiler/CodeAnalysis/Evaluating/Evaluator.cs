@@ -228,7 +228,7 @@ internal sealed class Evaluator {
         else if (value.members is not null)
             return new EvaluatorObject(Copy(value.members), value.trueType);
         else if (value.trueType is not null)
-            return new EvaluatorObject(members: null, trueType: value.trueType);
+            return new EvaluatorObject(null, value.trueType);
         else
             return new EvaluatorObject(value.value);
     }
@@ -295,6 +295,8 @@ internal sealed class Evaluator {
             left.members = Copy(right.members);
         else
             left.value = Value(right);
+
+        left.trueType = right.trueType;
     }
 
     private void EnterClassScope(EvaluatorObject @class) {
@@ -564,8 +566,27 @@ internal sealed class Evaluator {
 
         _locals.Push(locals);
         _templateConstantDepth++;
+        var trueType = ClarifyType(node);
 
-        return new EvaluatorObject(members: [], node);
+        return new EvaluatorObject(members: [], trueType);
+    }
+
+    private BoundType ClarifyType(BoundType type) {
+        if (_enclosingTypes.Count > 0 && _enclosingTypes.Peek().trueType.arity > 0) {
+            var templateMappings = new Dictionary<ParameterSymbol, BoundTypeOrConstant>();
+            var enclosingType = _enclosingTypes.Peek().trueType;
+
+            for (var i = 0; i < enclosingType.arity; i++) {
+                templateMappings.Add(
+                    (enclosingType.typeSymbol as NamedTypeSymbol).templateParameters[i],
+                    enclosingType.templateArguments[i]
+                );
+            }
+
+            return BoundType.Clarify(type, templateMappings);
+        }
+
+        return type;
     }
 
     private EvaluatorObject EvaluateThisExpression(BoundThisExpression _, ValueWrapper<bool> _1) {
@@ -604,35 +625,18 @@ internal sealed class Evaluator {
             var members = new Dictionary<Symbol, EvaluatorObject>();
             var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).GetMembers();
 
-            foreach (var field in typeMembers.Where(f => f is FieldSymbol)) {
-                var value = EvaluatorObject.Null;
+            foreach (var field in typeMembers.Where(f => f is FieldSymbol).Select(f => f as FieldSymbol)) {
+                var value = field.type.arity > 0 ? new EvaluatorObject(null, field.type) : EvaluatorObject.Null;
 
-                if ((field as FieldSymbol).isReference) {
+                if (field.isReference) {
                     value.isReference = true;
                     value.isExplicitReference = true;
                 }
 
-                members.Add(field as Symbol, value);
+                members.Add(field, value);
             }
 
-            BoundType trueType;
-
-            if (_enclosingTypes.Count > 0 && _enclosingTypes.Peek().trueType.templateArguments.Length > 0) {
-                var templateMappings = new Dictionary<ParameterSymbol, BoundTypeOrConstant>();
-                var enclosingType = _enclosingTypes.Peek().trueType;
-
-                for (var i = 0; i < enclosingType.templateArguments.Length; i++) {
-                    templateMappings.Add(
-                        (enclosingType.typeSymbol as NamedTypeSymbol).templateParameters[i],
-                        enclosingType.templateArguments[i]
-                    );
-                }
-
-                trueType = BoundType.Clarify(node.type, templateMappings);
-            } else {
-                trueType = node.type;
-            }
-
+            var trueType = ClarifyType(node.type);
             var newObject = new EvaluatorObject(members, trueType);
 
             EnterClassScope(newObject);
@@ -699,7 +703,7 @@ internal sealed class Evaluator {
             }
         }
 
-        return new EvaluatorObject(members: null, trueType: trueType);
+        return new EvaluatorObject(null, trueType);
     }
 
     private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node, ValueWrapper<bool> abort) {

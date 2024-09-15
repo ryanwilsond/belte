@@ -1,0 +1,113 @@
+
+lowlevel sealed class Dictionary<type TKey, type TValue> {
+    private int[] _buckets;
+    private Entry[] _entries;
+    private int _count;
+    private int _version;
+    private int _freeList;
+    private int _freeCount;
+    private EqualityComparer<TKey> _comparer;
+    private Object _syncRoot;
+
+    public constructor() : this(0, null) { }
+
+    public constructor(int capacity) : this(capacity, null) { }
+
+    public constructor(EqualityComparer<TKey> comparer) : this(0, comparer) { }
+
+    public constructor(int capacity, EqualityComparer<TKey> comparer) {
+        if (capacity < 0)
+            throw new ArgumentOutOfRangeException();
+
+        if (capacity > 0)
+            Initialize(capacity);
+
+        _comparer = comparer ?? EqualityComparer<TKey>.CreateComparer();
+    }
+
+
+    // ! Temp
+    private void Initialize(int capacity) { }
+
+
+    private struct Entry {
+        public int hashCode;
+        public int next;
+        public TKey key;
+        public TValue value;
+    }
+}
+
+abstract class EqualityComparer<type T> {
+    public abstract bool! Equals(T x, T y);
+
+    public static EqualityComparer<T> CreateComparer() {
+        var t = typeof(T);
+
+        if (t == typeof(int) ||
+            t == typeof(string) ||
+            t == typeof(decimal) ||
+            t == typeof(bool) ||
+            t == typeof(char) ||
+            t == typeof(type) ||
+            t == typeof(any) ||
+            t == typeof(int!) ||
+            t == typeof(string!) ||
+            t == typeof(decimal!) ||
+            t == typeof(bool!) ||
+            t == typeof(char!) ||
+            t == typeof(type!) ||
+            t == typeof(any!)) {
+            return new PrimitiveEqualityComparer<T>();
+        }
+
+        return new ObjectEqualityComparer<T>();
+    }
+}
+
+sealed class PrimitiveEqualityComparer<type T> extends EqualityComparer<T> {
+    public override bool! Equals(T x, T y) {
+        if (x is null || y is null)
+            return false;
+
+        return x! == y!;
+    }
+}
+
+sealed class ObjectEqualityComparer<type T> extends EqualityComparer<T> {
+    public override bool! Equals(T x, T y) {
+        return ToObject(x).Equals(ToObject(y));
+    }
+}
+
+sealed class KeyNotFoundException extends Exception {
+    public constructor() : base("The given key was not present in the dictionary.") { }
+}
+
+lowlevel sealed class KeyValuePair<type TKey, type TValue> {
+    TKey key;
+    TValue value;
+
+    public constructor(TKey key, TValue value) {
+        this.key = key;
+        this.value = value;
+    }
+
+    public override string ToString() {
+        string representation = "{ ";
+
+        if (key is Object)
+            representation += ToObject(key).ToString();
+        else
+            representation += ((string)ToAny(key));
+
+        representation += ", ";
+
+        if (value is Object)
+            representation += ToObject(value).ToString();
+        else
+            representation += ((string)ToAny(value));
+
+        return representation + " }";
+    }
+}

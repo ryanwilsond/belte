@@ -836,7 +836,7 @@ internal sealed class Binder {
         if (!result.succeeded)
             return new BoundErrorExpression();
 
-        if (result.bestOverload.accessibility == Accessibility.Private) {
+        if (_options.buildMode != BuildMode.Repl && result.bestOverload.accessibility == Accessibility.Private) {
             if (_containingType is null ||
                 _containingType != result.bestOverload.containingType) {
                 diagnostics.Push(Error.MemberIsInaccessible(
@@ -2725,7 +2725,8 @@ internal sealed class Binder {
             diagnostics.Push(Error.CannotUseGlobalInClass(syntax.location, name));
         }
 
-        if (_containingType is not null &&
+        if (_options.buildMode != BuildMode.Repl &&
+            _containingType is not null &&
             result is BoundVariableExpression v &&
             v.variable.accessibility == Accessibility.Private &&
             _containingType != v.variable.containingType) {
@@ -2962,7 +2963,7 @@ internal sealed class Binder {
             var insideSameType = _containingType == v.variable.containingType;
             var insideChildType = TypeUtilities.TypeInheritsFrom(_containingType, v.variable.containingType);
 
-            if (left.type.typeSymbol is ClassSymbol) {
+            if (_options.buildMode != BuildMode.Repl && left.type.typeSymbol is ClassSymbol) {
                 if ((v.variable.accessibility == Accessibility.Private && !insideSameType) ||
                     (v.variable.accessibility == Accessibility.Protected && !insideChildType)) {
                     diagnostics.Push(Error.MemberIsInaccessible(
@@ -3788,8 +3789,9 @@ internal sealed class Binder {
             var insideSameType = _containingType == result.bestOverload.containingType;
             var insideChildType = TypeUtilities.TypeInheritsFrom(_containingType, result.bestOverload.containingType);
 
-            if ((result.bestOverload.accessibility == Accessibility.Private && !insideSameType) ||
-                (result.bestOverload.accessibility == Accessibility.Protected && !insideChildType)) {
+            if (_options.buildMode != BuildMode.Repl &&
+                ((result.bestOverload.accessibility == Accessibility.Private && !insideSameType) ||
+                (result.bestOverload.accessibility == Accessibility.Protected && !insideChildType))) {
                 diagnostics.Push(Error.MemberIsInaccessible(
                     expression.type.location,
                     result.bestOverload.Signature(),
@@ -4113,7 +4115,7 @@ internal sealed class Binder {
                 }
             }
 
-            if (method.accessibility == Accessibility.Private) {
+            if (_options.buildMode != BuildMode.Repl && method.accessibility == Accessibility.Private) {
                 if (_containingType is null ||
                     _containingType != method.containingType) {
                     diagnostics.Push(Error.MemberIsInaccessible(

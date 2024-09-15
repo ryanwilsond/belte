@@ -122,6 +122,24 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplates
         return originalDefinition.GetRootMethod();
     }
 
+    public override int GetHashCode() {
+        unchecked {
+            var hash = 17;
+
+            hash = hash * 23 + templateParameters.GetHashCode();
+            hash = hash * 23 + templateConstraints.GetHashCode();
+            hash = hash * 23 + declarationModifiers.GetHashCode();
+            hash = hash * 23 + parameters.GetHashCode();
+            hash = hash * 23 + type.GetHashCode();
+            hash = hash * 23 + name.GetHashCode();
+            hash = hash * 23 + accessibility.GetHashCode();
+            hash = hash * 23 + (originalDefinition is null ? 0 : originalDefinition.GetHashCode());
+            hash = hash * 23 + (declaration is null ? 0 : declaration.GetHashCode());
+
+            return hash;
+        }
+    }
+
     private void GenerateSignature() {
         var signature = new StringBuilder(name);
         var isFirst = true;

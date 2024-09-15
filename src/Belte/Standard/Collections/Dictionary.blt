@@ -1,0 +1,39 @@
+
+lowlevel sealed class Dictionary<type TKey, type TValue> {
+    private int[] _buckets;
+    private Entry[] _entries;
+    private int _count;
+    private int _version;
+    private int _freeList;
+    private int _freeCount;
+    private EqualityComparer<TKey> _comparer;
+    private Object _syncRoot;
+
+    public constructor() : this(0, null) { }
+
+    public constructor(int capacity) : this(capacity, null) { }
+
+    public constructor(EqualityComparer<TKey> comparer) : this(0, comparer) { }
+
+    public constructor(int capacity, EqualityComparer<TKey> comparer) {
+        if (capacity < 0)
+            throw new ArgumentOutOfRangeException();
+
+        if (capacity > 0)
+            Initialize(capacity);
+
+        _comparer = comparer ?? EqualityComparer<TKey>.CreateComparer();
+    }
+
+
+    // ! Temp
+    private void Initialize(int capacity) { }
+
+
+    private struct Entry {
+        public int hashCode;
+        public int next;
+        public TKey key;
+        public TValue value;
+    }
+}
