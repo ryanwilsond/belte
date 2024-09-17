@@ -147,6 +147,8 @@ internal sealed class Binder {
                 if (options.isLibrary) {
                     if (symbol.name == WellKnownTypeNames.List)
                         binder._wellKnownTypes.Add(WellKnownTypeNames.List, symbol);
+                    else if (symbol.name == WellKnownTypeNames.Dictionary)
+                        binder._wellKnownTypes.Add(WellKnownTypeNames.Dictionary, symbol);
                     else if (symbol.name == WellKnownTypeNames.Exception)
                         binder._wellKnownTypes.Add(WellKnownTypeNames.Exception, symbol);
                 }
@@ -1790,33 +1792,37 @@ internal sealed class Binder {
             templates.Add(templateParameter);
         }
 
-        var baseType = @class.baseType is null
-            ? new BoundType(_wellKnownTypes[WellKnownTypeNames.Object])
-            : BindBaseType(@class.baseType);
-
-        if (baseType.typeSymbol.isSealed)
-            diagnostics.Push(Error.CannotDeriveSealed(@class.baseType.type.location, baseType.typeSymbol.name));
-
-        if (baseType.typeSymbol.isStatic)
-            diagnostics.Push(Error.CannotDeriveStatic(@class.baseType.type.location, baseType.typeSymbol.name));
-
         var constraints = BindConstraintClauseList(oldClass.name, @class.constraintClauseList, templates.ToImmutable());
         ApplyExtensionConstraints(constraints, templateTypes);
 
-        foreach (var member in (baseType.typeSymbol as ClassSymbol).GetMembers()) {
-            switch (member.kind) {
-                case SymbolKind.Field:
-                    _scope.TryDeclareVariable(member as FieldSymbol);
-                    break;
-                case SymbolKind.Type:
-                    _scope.TryDeclareType(member as NamedTypeSymbol);
-                    break;
-                case SymbolKind.Method when member.name != WellKnownMemberNames.InstanceConstructorName:
-                    _scope.TryDeclareMethod(member as MethodSymbol);
-                    inheritedMethods.Add(member as MethodSymbol);
-                    break;
-                default:
-                    continue;
+        BoundType baseType = null;
+
+        if (!oldClass.isStatic) {
+            baseType = @class.baseType is null
+                ? new BoundType(_wellKnownTypes[WellKnownTypeNames.Object])
+                : BindBaseType(@class.baseType);
+
+            if (baseType.typeSymbol.isSealed)
+                diagnostics.Push(Error.CannotDeriveSealed(@class.baseType.type.location, baseType.typeSymbol.name));
+
+            if (baseType.typeSymbol.isStatic)
+                diagnostics.Push(Error.CannotDeriveStatic(@class.baseType.type.location, baseType.typeSymbol.name));
+
+            foreach (var member in (baseType.typeSymbol as ClassSymbol).GetMembers()) {
+                switch (member.kind) {
+                    case SymbolKind.Field:
+                        _scope.TryDeclareVariable(member as FieldSymbol);
+                        break;
+                    case SymbolKind.Type:
+                        _scope.TryDeclareType(member as NamedTypeSymbol);
+                        break;
+                    case SymbolKind.Method when member.name != WellKnownMemberNames.InstanceConstructorName:
+                        _scope.TryDeclareMethod(member as MethodSymbol);
+                        inheritedMethods.Add(member as MethodSymbol);
+                        break;
+                    default:
+                        continue;
+                }
             }
         }
 

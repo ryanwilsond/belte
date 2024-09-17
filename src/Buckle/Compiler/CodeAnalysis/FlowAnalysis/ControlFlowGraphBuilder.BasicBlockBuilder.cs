@@ -23,6 +23,8 @@ internal sealed partial class ControlFlowGraphBuilder {
                     case BoundNodeKind.GotoStatement:
                     case BoundNodeKind.ConditionalGotoStatement:
                     case BoundNodeKind.ReturnStatement:
+                    case BoundNodeKind.ExpressionStatement
+                        when (statement as BoundExpressionStatement).expression is BoundThrowExpression:
                         _statements.Add(statement);
                         StartBlock();
                         break;

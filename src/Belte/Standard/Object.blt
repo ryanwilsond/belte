@@ -4,6 +4,8 @@ class Object {
 
     public virtual bool! Equals(Object object);
 
+    public virtual int! GetHashCode();
+
     public virtual string ToString();
 
     public virtual bool! ReferenceEquals(ref Object object);

@@ -11,6 +11,7 @@ internal static partial class StandardLibrary {
         internal static new MethodSymbol ReferenceEquals => Object.members.ElementAtOrDefault(3) as MethodSymbol;
         internal static MethodSymbol op_Equality => Object.members.ElementAtOrDefault(4) as MethodSymbol;
         internal static MethodSymbol op_Inequality => Object.members.ElementAtOrDefault(5) as MethodSymbol;
+        internal static new MethodSymbol GetHashCode => Object.members.ElementAtOrDefault(6) as MethodSymbol;
     }
 
     internal static class ConsoleMembers {

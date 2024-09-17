@@ -36,10 +36,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
             }
         };
 
-        var expandedStatement = lowerer._expander.Expand(statement);
+        var optimizedStatement = Optimizer.Optimize(statement, false);
+        var expandedStatement = lowerer._expander.Expand(optimizedStatement);
         var rewrittenStatement = lowerer.RewriteStatement(expandedStatement);
         var block = Flatten(method, rewrittenStatement);
-        var optimizedBlock = Optimizer.Optimize(block, transpilerMode) as BoundBlockStatement;
+        var optimizedBlock = Optimizer.Optimize(block, !transpilerMode) as BoundBlockStatement;
 
         if (!transpilerMode)
             return (optimizedBlock, optimizedBlock);
@@ -49,7 +50,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         };
 
         var transpilerStatement = transpilerLowerer.RewriteStatement(expandedStatement);
-        var transpilerOptimizedBlock = Optimizer.Optimize(transpilerStatement, true) as BoundBlockStatement;
+        var transpilerOptimizedBlock = Optimizer.Optimize(transpilerStatement, false) as BoundBlockStatement;
 
         return (optimizedBlock, transpilerOptimizedBlock);
     }

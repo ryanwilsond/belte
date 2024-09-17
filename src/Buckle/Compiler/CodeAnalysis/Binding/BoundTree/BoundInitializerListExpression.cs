@@ -13,6 +13,7 @@ internal sealed class BoundInitializerListExpression : BoundExpression {
     }
 
     internal BoundInitializerListExpression(BoundConstant constantValue, BoundType type) {
+        items = ImmutableArray<BoundExpression>.Empty;
         this.type = type;
         this.constantValue = constantValue;
     }

@@ -84,7 +84,7 @@ public static class SymbolDisplay {
             text.Write(CreateIdentifier(symbol.name));
             DisplayTemplateParameters(text, n.templateParameters);
 
-            if (n is ClassSymbol c) {
+            if (n is ClassSymbol c && !n.isStatic) {
                 text.Write(CreateSpace());
                 text.Write(CreateKeyword(SyntaxKind.ExtendsKeyword));
                 text.Write(CreateSpace());

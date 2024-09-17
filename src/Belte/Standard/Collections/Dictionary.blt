@@ -2,37 +2,236 @@
 lowlevel sealed class Dictionary<type TKey, type TValue> {
     private int[] _buckets;
     private Entry[] _entries;
-    private int _count;
-    private int _version;
-    private int _freeList;
-    private int _freeCount;
-    private EqualityComparer<TKey> _comparer;
-    private Object _syncRoot;
+    private int! _count = 0;
+    private int! _freeList = -1;
+    private int! _freeCount = 0;
 
     public constructor() : this(0, null) { }
 
-    public constructor(int capacity) : this(capacity, null) { }
+    public constructor(int! capacity) : this(capacity, null) { }
 
-    public constructor(EqualityComparer<TKey> comparer) : this(0, comparer) { }
+    public constructor(ref EqualityComparer<TKey> comparer) : this(0, comparer) { }
 
-    public constructor(int capacity, EqualityComparer<TKey> comparer) {
+    public constructor(int! capacity, ref EqualityComparer<TKey> comparer) {
         if (capacity < 0)
             throw new ArgumentOutOfRangeException();
 
         if (capacity > 0)
             Initialize(capacity);
 
-        _comparer = comparer ?? EqualityComparer<TKey>.CreateComparer();
+        this.comparer = comparer ?? EqualityComparer<TKey>.CreateComparer();
     }
 
+    public constructor(ref Dictionary<TKey, TValue> dictionary) : this(dictionary, null) { }
 
-    // ! Temp
-    private void Initialize(int capacity) { }
+    public constructor(ref Dictionary<TKey, TValue> dictionary, ref EqualityComparer<TKey> comparer)
+        : this(dictionary isnt null ? dictionary.Length() : 0, comparer) {
+        if (dictionary is null)
+            throw new ArgumentNullException();
 
+        for (int! i = 0; i < dictionary._count; i++) {
+            Entry! entry = dictionary._entries[i]!;
+
+            if (entry.hashCode >= 0)
+                Add(entry.key, entry.value);
+        }
+    }
+
+    public EqualityComparer<TKey> comparer;
+
+    public const bool! ContainsKey(TKey key) {
+        return FindEntry(key) >= 0;
+    }
+
+    public const bool! ContainsValue(TValue value) {
+        if (value is null) {
+            for (int i = 0; i < _count; i++) {
+                if (_entries[i].hashCode >= 0 && _entries[i].value is null)
+                    return true;
+            }
+        } else {
+            EqualityComparer<TValue> c = EqualityComparer<TValue>.CreateComparer();
+
+            for (int i = 0; i < _count; i++) {
+                if (_entries[i].hashCode >= 0 && c.Equals(_entries[i].value, value))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    public const int! Length() {
+        return _count - _freeCount;
+    }
+
+    public void Add(TKey key, TValue value) {
+        Insert(key, value, true);
+    }
+
+    public void Clear() {
+        if (_count > 0) {
+            for (int i = 0; i < Length(_buckets); i++)
+                _buckets[i] = -1;
+
+            _freeList = -1;
+            _count = 0;
+            _freeCount = 0;
+        }
+    }
+
+    public bool Remove(TKey key) {
+        if (key is null)
+            throw new ArgumentNullException();
+
+        if (_buckets isnt null) {
+            int! hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
+            int! bucket = hashCode % Length(_buckets!);
+            int! last = -1;
+
+            for (int! i = _buckets[bucket]!; i >= 0; last = i) {
+                if (_entries[i].hashCode == hashCode && comparer.Equals(_entries[i].key, key)) {
+                    if (last < 0)
+                        _buckets[bucket] = _entries[i].next;
+                    else
+                        _entries[last].next = _entries[i].next;
+
+                    _entries[i].hashCode = -1;
+                    _entries[i].next = _freeList;
+                    _entries[i].key = null;
+                    _entries[i].value = null;
+                    _freeList = i;
+                    _freeCount++;
+
+                    return true;
+                }
+
+                i = _entries[i].next;
+            }
+        }
+
+        return false;
+    }
+
+    public static TValue operator[](Dictionary<TKey, TValue> dictionary, TKey key) {
+        int i = dictionary.FindEntry(key);
+
+        if (i >= 0)
+            return dictionary._entries[i].value;
+
+        throw new KeyNotFoundException();
+    }
+
+    public static TValue operator[](Dictionary<TKey, TValue> dictionary, TKey key, TValue value) {
+        dictionary.Insert(key, value, false);
+        return value;
+    }
+
+    private const int! FindEntry(TKey key) {
+        if (key is null)
+            throw new ArgumentNullException();
+
+        if (_buckets isnt null) {
+            int! hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
+
+            for (int! i = _buckets[hashCode % Length(_buckets!)]!; i >= 0; i = _entries[i].next) {
+                if (_entries[i].hashCode == hashCode && comparer.Equals(_entries[i].key, key))
+                    return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private void Insert(TKey key, TValue value, bool! add) {
+        if (key is null)
+            throw new ArgumentNullException();
+
+        if (_buckets is null)
+            Initialize(0);
+
+        int! hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
+        int! targetBucket = hashCode % Length(_buckets!);
+
+        for (int! i = _buckets[targetBucket]!; i >= 0; i = _entries[i].next) {
+            if (_entries[i].hashCode == hashCode && comparer.Equals(_entries[i].key, key)) {
+                if (add)
+                    throw new ArgumentNullException();
+
+                _entries[i].value = value!;
+                return;
+            }
+        }
+
+        int! index = 0;
+
+        if (_freeCount > 0) {
+            index = _freeList;
+            _freeList = _entries[index].next;
+            _freeCount--;
+        } else {
+            if (_count == Length(_entries)) {
+                Resize();
+                targetBucket = hashCode % Length(_buckets);
+            }
+
+            index = _count;
+            _count++;
+        }
+
+        _entries[index].hashCode = hashCode;
+        _entries[index].next = _buckets[targetBucket]!;
+        _entries[index].key = key!;
+        _entries[index].value = value!;
+        _buckets[targetBucket] = index;
+    }
+
+    private void Resize() {
+        Resize(HashHelpers.ExpandPrime(_count!), false);
+    }
+
+    private void Resize(int! newSize, bool! forceNewHashCodes) {
+        int[]! newBuckets = new int[newSize]!;
+
+        for (int! i = 0; i < Length(newBuckets); i++)
+            newBuckets[i] = -1;
+
+        Entry[] newEntries = new Entry[newSize];
+        Array<Entry>.Copy(ref newEntries, ref _entries, 0, _count);
+
+        if (forceNewHashCodes) {
+            for (int! i = 0; i < _count; i++) {
+                if (newEntries[i].hashCode != -1)
+                    newEntries[i].hashCode = (comparer.GetHashCode(newEntries[i].key) & 0x7FFFFFFF);
+            }
+        }
+
+        for (int! i = 0; i < _count; i++) {
+            if (newEntries[i].hashCode >= 0) {
+                int! bucket = newEntries[i].hashCode % newSize;
+                newEntries[i].next = newBuckets[bucket];
+                newBuckets[bucket] = i;
+            }
+        }
+
+        _buckets = newBuckets;
+        _entries = newEntries;
+    }
+
+    private void Initialize(int! capacity) {
+        int! size = HashHelpers.GetPrime(capacity);
+        _buckets = new int[size]!;
+
+        for (int! i = 0; i < Length(_buckets); i++)
+            _buckets[i] = -1;
+
+        _entries = new Entry[size];
+        _freeList = -1;
+    }
 
     private struct Entry {
-        public int hashCode;
-        public int next;
+        public int! hashCode;
+        public int! next;
         public TKey key;
         public TValue value;
     }

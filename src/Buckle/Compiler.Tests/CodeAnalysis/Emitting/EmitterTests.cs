@@ -298,12 +298,10 @@ namespace EmitterTests {
         public static int Main() {
             global::System.Nullable<int> a = 1;
             global::System.Nullable<int> b = -1;
-            int temp0 = 5;
-            global::System.Nullable<int> c = (a.HasValue ? (global::System.Nullable<int>)(temp0 + a.Value) : null);
-            global::System.Nullable<int> temp1 = (a.HasValue ? (global::System.Nullable<int>)(3 * a.Value) : null);
-            global::System.Nullable<int> d = (temp1.HasValue ? (global::System.Nullable<int>)(2 + temp1.Value) : null);
-            int temp2 = 5;
-            global::System.Nullable<int> e = (a.HasValue ? (global::System.Nullable<int>)(temp2 * a.Value) : null);
+            global::System.Nullable<int> c = (a.HasValue ? (global::System.Nullable<int>)(5 + a.Value) : null);
+            global::System.Nullable<int> temp0 = (a.HasValue ? (global::System.Nullable<int>)(3 * a.Value) : null);
+            global::System.Nullable<int> d = (temp0.HasValue ? (global::System.Nullable<int>)(2 + temp0.Value) : null);
+            global::System.Nullable<int> e = (a.HasValue ? (global::System.Nullable<int>)(5 * a.Value) : null);
             global::System.Nullable<int> f = (a.HasValue ? a.Value : 3);
             a += 5;
             global::System.Nullable<bool> bo = (a.HasValue ? (global::System.Nullable<bool>)(a.Value > 4) : null);

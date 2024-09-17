@@ -838,6 +838,37 @@ internal static partial class StandardLibrary {
                         ),
                         Token(SyntaxKind.SemicolonToken)
                     )
+                ),
+        /* 6 */ Method(
+                    "GetHashCode",
+                    BoundType.Int,
+                    [],
+                    DeclarationModifiers.Virtual,
+                    Accessibility.Public,
+                    MethodDeclaration(
+                        null,
+                        TokenList(Token(SyntaxKind.VirtualKeyword)),
+                        IdentifierName("int"),
+                        Identifier("GetHashCode"),
+                        TemplateParameterList(),
+                        ParameterList(
+                            Token(SyntaxKind.OpenParenToken),
+                            SeparatedList(
+                                Parameter(IdentifierName("any"), Identifier("value"))
+                            ),
+                            Token(SyntaxKind.CloseParenToken)
+                        ),
+                        ConstraintClauseList(),
+                        Block(
+                            Return(
+                                CallExpression(
+                                    IdentifierName("GetHashCode"),
+                                    ArgumentList(Argument(This()))
+                                )
+                            )
+                        ),
+                        Token(SyntaxKind.SemicolonToken)
+                    )
                 )
             )
         );

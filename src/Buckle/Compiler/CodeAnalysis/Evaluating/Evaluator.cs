@@ -277,6 +277,25 @@ internal sealed class Evaluator {
         }
     }
 
+    private EvaluatorObject CreateObject(BoundType type) {
+        var members = new Dictionary<Symbol, EvaluatorObject>();
+        var typeMembers = (type.typeSymbol as NamedTypeSymbol).GetMembers();
+
+        foreach (var field in typeMembers.Where(f => f is FieldSymbol).Select(f => f as FieldSymbol)) {
+            var value = field.type.arity > 0 ? new EvaluatorObject(null, field.type) : EvaluatorObject.Null;
+
+            if (field.isReference) {
+                value.isReference = true;
+                value.isExplicitReference = true;
+            }
+
+            members.Add(field, value);
+        }
+
+        var trueType = ClarifyType(type);
+        return new EvaluatorObject(members, trueType);
+    }
+
     private void Assign(EvaluatorObject left, EvaluatorObject right) {
         right = Dereference(right, false);
         left = Dereference(left, false);
@@ -297,6 +316,17 @@ internal sealed class Evaluator {
             left.value = Value(right);
 
         left.trueType = right.trueType;
+    }
+
+    private bool HasValue(EvaluatorObject value, BoundType type) {
+        value = Dereference(value);
+
+        if (value.members is null && Value(value) is null &&
+            (type.typeSymbol != TypeSymbol.Type || value.trueType is null)) {
+            return false;
+        }
+
+        return true;
     }
 
     private void EnterClassScope(EvaluatorObject @class) {
@@ -622,23 +652,7 @@ internal sealed class Evaluator {
         BoundObjectCreationExpression node,
         ValueWrapper<bool> abort) {
         if (node.viaConstructor || (node.type.sizes.Length == 0 && node.type.typeSymbol is StructSymbol)) {
-            var members = new Dictionary<Symbol, EvaluatorObject>();
-            var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).GetMembers();
-
-            foreach (var field in typeMembers.Where(f => f is FieldSymbol).Select(f => f as FieldSymbol)) {
-                var value = field.type.arity > 0 ? new EvaluatorObject(null, field.type) : EvaluatorObject.Null;
-
-                if (field.isReference) {
-                    value.isReference = true;
-                    value.isExplicitReference = true;
-                }
-
-                members.Add(field, value);
-            }
-
-            var trueType = ClarifyType(node.type);
-            var newObject = new EvaluatorObject(members, trueType);
-
+            var newObject = CreateObject(node.type);
             EnterClassScope(newObject);
 
             // structs don't have any methods, so no constructors
@@ -658,8 +672,13 @@ internal sealed class Evaluator {
                 foreach (var element in IterateElements(array)) {
                     var members = new EvaluatorObject[sizeValue];
 
-                    for (var i = 0; i < sizeValue; i++)
-                        members[i] = EvaluatorObject.Null;
+                    for (var i = 0; i < sizeValue; i++) {
+                        // TODO This will use a default when default expression is added for primitives instead of null
+                        if (node.type.isNullable || node.type.typeSymbol is PrimitiveTypeSymbol)
+                            members[i] = EvaluatorObject.Null;
+                        else
+                            members[i] = CreateObject(node.type.ChildType());
+                    }
 
                     element.value = members;
                 }
@@ -769,14 +788,8 @@ internal sealed class Evaluator {
             node.method == BuiltinMethods.HasValueInt ||
             node.method == BuiltinMethods.HasValueString ||
             node.method == BuiltinMethods.HasValueChar) {
-            var value = Dereference(EvaluateExpression(node.arguments[0], abort));
-
-            if (value.members is null && Value(value) is null &&
-                (node.arguments[0].type.typeSymbol != TypeSymbol.Type || value.trueType is null)) {
-                return new EvaluatorObject(false);
-            }
-
-            return new EvaluatorObject(true);
+            var value = EvaluateExpression(node.arguments[0], abort);
+            return new EvaluatorObject(HasValue(value, node.arguments[0].type));
         } else if (node.method == BuiltinMethods.Hex || node.method == BuiltinMethods.NullableHex) {
             var value = (int?)Value(EvaluateExpression(node.arguments[0], abort));
 
@@ -801,13 +814,17 @@ internal sealed class Evaluator {
                 return EvaluatorObject.Null;
 
             return new EvaluatorObject(((char)value.Value).ToString());
-        } else if (node.method == BuiltinMethods.Length) {
+        } else if (node.method == BuiltinMethods.Length || node.method == BuiltinMethods.LengthNull) {
             var value = Value(EvaluateExpression(node.arguments[0], abort));
 
-            if (value is object[] v)
+            if (value is object[] v) {
                 return new EvaluatorObject(v.Length);
-            else
+            } else {
+                if (node.method == BuiltinMethods.Length)
+                    throw new NullReferenceException();
+
                 return EvaluatorObject.Null;
+            }
         } else if (node.method.originalDefinition == BuiltinMethods.ToAny) {
             var value = Value(EvaluateExpression(node.arguments[0], abort));
             return new EvaluatorObject(value);
@@ -832,6 +849,16 @@ internal sealed class Evaluator {
                 return new EvaluatorObject(true);
 
             return new EvaluatorObject(false);
+        } else if (node.method == BuiltinMethods.GetHashCode) {
+            var value = Dereference(EvaluateExpression(node.arguments[0], abort));
+
+            if (value.members is null && value.trueType is null && value.value is null)
+                return new EvaluatorObject(0);
+
+            if (value.value is not null)
+                return new EvaluatorObject(value.value.GetHashCode());
+            else
+                return new EvaluatorObject(value.GetHashCode());
         } else {
             if (CheckStandardMap(node.method, node.arguments, abort, out var result, out var printed, out var io)) {
                 lastOutputWasPrint = printed;

@@ -289,7 +289,9 @@ public static partial class BuckleCommandLine {
             return;
 
         var prefixSpan = TextSpan.FromBounds(line.start, span.start);
-        var suffixSpan = TextSpan.FromBounds(span.end, line.end);
+        var suffixSpan = span.end > line.end
+            ? TextSpan.FromBounds(line.end, line.end)
+            : TextSpan.FromBounds(span.end, line.end);
 
         var prefix = text.ToString(prefixSpan);
         var focus = text.ToString(span);

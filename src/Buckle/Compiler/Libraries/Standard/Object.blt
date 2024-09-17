@@ -27,4 +27,8 @@ class Object {
     public static bool operator!=(Object x, Object y) {
         return !ObjectsEqual(x, y);
     }
+
+    public virtual int! GetHashCode() {
+        return GetHashCode(this);
+    }
 }

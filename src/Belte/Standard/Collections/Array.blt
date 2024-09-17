@@ -1,0 +1,7 @@
+
+lowlevel static class Array<type T> {
+    public static void Copy(ref T[] to, ref T[] from, int! start, int! length) {
+        for (int! i = 0; i < length; i++)
+            to[i + start] = from[i];
+    }
+}

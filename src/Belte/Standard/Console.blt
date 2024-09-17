@@ -1,24 +1,5 @@
 
 static class Console {
-    public static class Color {
-        public constexpr! Black = 0;
-        public constexpr! DarkBlue = 1;
-        public constexpr! DarkGreen = 2;
-        public constexpr! DarkCyan = 3;
-        public constexpr! DarkRed = 4;
-        public constexpr! DarkMagenta = 5;
-        public constexpr! DarkYellow = 6;
-        public constexpr! Gray = 7;
-        public constexpr! DarkGray = 8;
-        public constexpr! Blue = 9;
-        public constexpr! Green = 10;
-        public constexpr! Cyan = 11;
-        public constexpr! Red = 12;
-        public constexpr! Magenta = 13;
-        public constexpr! Yellow = 14;
-        public constexpr! White = 15;
-    }
-
     public static int GetWidth();
 
     public static int GetHeight();
@@ -41,4 +22,23 @@ static class Console {
     public static void SetBackgroundColor(int! color);
 
     public static void SetCursorPosition(int left, int top);
+
+    public static class Color {
+        public constexpr! Black = 0;
+        public constexpr! DarkBlue = 1;
+        public constexpr! DarkGreen = 2;
+        public constexpr! DarkCyan = 3;
+        public constexpr! DarkRed = 4;
+        public constexpr! DarkMagenta = 5;
+        public constexpr! DarkYellow = 6;
+        public constexpr! Gray = 7;
+        public constexpr! DarkGray = 8;
+        public constexpr! Blue = 9;
+        public constexpr! Green = 10;
+        public constexpr! Cyan = 11;
+        public constexpr! Red = 12;
+        public constexpr! Magenta = 13;
+        public constexpr! Yellow = 14;
+        public constexpr! White = 15;
+    }
 }
