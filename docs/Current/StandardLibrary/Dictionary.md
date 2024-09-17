@@ -29,5 +29,8 @@ var a = { "A": 1, "B": 2, "C": 3 };
 The previous example could more explicitly be written as:
 
 ```belte
-Dictionary<string, int> a = new Dictionary<string, int>({ { "A", 1 }, { "B", 2 }, { "C", 3 } });
+Dictionary<string, int> a = new Dictionary<string, int>();
+a.Add("A", 1);
+a.Add("B", 2);
+a.Add("C", 3);
 ```
