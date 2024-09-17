@@ -596,7 +596,7 @@
     </Field>
   </Node>
   <Node Name="InitializerListExpressionSyntax" Base="ExpressionSyntax">
-    <Kind Name="InitializerList"/>
+    <Kind Name="InitializerListExpression"/>
     <Field Name="openBrace" Type="SyntaxToken">
       <Kind Name="OpenBraceToken"/>
     </Field>
@@ -606,7 +606,7 @@
     </Field>
   </Node>
   <Node Name="InitializerDictionaryExpressionSyntax" Base="ExpressionSyntax">
-    <Kind Name="InitializerDictionary"/>
+    <Kind Name="InitializerDictionaryExpression"/>
     <Field Name="openBrace" Type="SyntaxToken">
       <Kind Name="OpenBraceToken"/>
     </Field>
