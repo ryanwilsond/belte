@@ -895,13 +895,9 @@ internal sealed partial class ILEmitter {
         }
 
         switch (expression.kind) {
-            case BoundNodeKind.LiteralExpression:
-                if (expression is BoundInitializerListExpression il) {
-                    EmitInitializerListExpression(iLProcessor, il);
-                    break;
-                } else {
-                    goto default;
-                }
+            case BoundNodeKind.InitializerListExpression:
+                EmitInitializerListExpression(iLProcessor, (BoundInitializerListExpression)expression);
+                break;
             case BoundNodeKind.UnaryExpression:
                 EmitUnaryExpression(iLProcessor, (BoundUnaryExpression)expression);
                 break;

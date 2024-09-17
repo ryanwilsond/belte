@@ -3645,10 +3645,11 @@ internal sealed class Binder {
         bool allowTypes) {
         switch (expression.kind) {
             case SyntaxKind.LiteralExpression:
-                if (expression is InitializerListExpressionSyntax il)
-                    return BindInitializerListExpression(il, initializerListType);
-                else
-                    return BindLiteralExpression((LiteralExpressionSyntax)expression);
+                return BindLiteralExpression((LiteralExpressionSyntax)expression);
+            case SyntaxKind.InitializerListExpression:
+                return BindInitializerListExpression((InitializerListExpressionSyntax)expression, initializerListType);
+            case SyntaxKind.InitializerDictionaryExpression:
+                return BindInitializerDictionaryExpression((InitializerDictionaryExpressionSyntax)expression);
             case SyntaxKind.UnaryExpression:
                 return BindUnaryExpression((UnaryExpressionSyntax)expression);
             case SyntaxKind.BinaryExpression:
@@ -4297,6 +4298,10 @@ internal sealed class Binder {
             _usedLibraryTypes.Add(listType);
 
         return new BoundObjectCreationExpression(constructedListType, listType.constructors[3], [initializerList]);
+    }
+
+    private BoundEmptyExpression BindInitializerDictionaryExpression(InitializerDictionaryExpressionSyntax expression) {
+        return new BoundEmptyExpression();
     }
 
     private BoundExpression BindLiteralExpression(LiteralExpressionSyntax expression) {

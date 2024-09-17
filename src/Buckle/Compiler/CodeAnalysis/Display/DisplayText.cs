@@ -152,8 +152,8 @@ public sealed class DisplayText {
             case BoundNodeKind.UnaryExpression:
                 DisplayUnaryExpression(text, (BoundUnaryExpression)node);
                 break;
-            case BoundNodeKind.LiteralExpression when node is BoundInitializerListExpression:
-                DisplayInitializerListExpression(text, node as BoundInitializerListExpression);
+            case BoundNodeKind.InitializerListExpression:
+                DisplayInitializerListExpression(text, (BoundInitializerListExpression)node);
                 break;
             case BoundNodeKind.BinaryExpression:
                 DisplayBinaryExpression(text, (BoundBinaryExpression)node);

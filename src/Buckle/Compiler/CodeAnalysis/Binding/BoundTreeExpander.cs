@@ -179,18 +179,22 @@ internal abstract class BoundTreeExpander {
         BoundExpression expression,
         out BoundExpression replacement) {
         switch (expression.kind) {
-            case BoundNodeKind.BinaryExpression:
-                return ExpandBinaryExpression((BoundBinaryExpression)expression, out replacement);
             case BoundNodeKind.LiteralExpression:
-                if (expression is BoundInitializerListExpression il)
-                    return ExpandInitializerListExpression(il, out replacement);
                 return ExpandLiteralExpression((BoundLiteralExpression)expression, out replacement);
+            case BoundNodeKind.InitializerListExpression:
+                return ExpandInitializerListExpression((BoundInitializerListExpression)expression, out replacement);
+            case BoundNodeKind.InitializerDictionaryExpression:
+                return ExpandInitializerDictionaryExpression(
+                    (BoundInitializerDictionaryExpression)expression, out replacement
+                );
             case BoundNodeKind.VariableExpression:
                 return ExpandVariableExpression((BoundVariableExpression)expression, out replacement);
             case BoundNodeKind.AssignmentExpression:
                 return ExpandAssignmentExpression((BoundAssignmentExpression)expression, out replacement);
             case BoundNodeKind.UnaryExpression:
                 return ExpandUnaryExpression((BoundUnaryExpression)expression, out replacement);
+            case BoundNodeKind.BinaryExpression:
+                return ExpandBinaryExpression((BoundBinaryExpression)expression, out replacement);
             case BoundNodeKind.EmptyExpression:
                 return ExpandEmptyExpression((BoundEmptyExpression)expression, out replacement);
             case BoundNodeKind.ErrorExpression:
@@ -261,7 +265,8 @@ internal abstract class BoundTreeExpander {
     }
 
     protected virtual List<BoundStatement> ExpandBinaryExpression(
-        BoundBinaryExpression expression, out BoundExpression replacement) {
+        BoundBinaryExpression expression,
+        out BoundExpression replacement) {
         var statements = ExpandExpression(expression.left, out var leftReplacement);
         statements.AddRange(ExpandExpression(expression.right, out var rightReplacement));
 
@@ -275,7 +280,8 @@ internal abstract class BoundTreeExpander {
     }
 
     protected virtual List<BoundStatement> ExpandInitializerListExpression(
-        BoundInitializerListExpression expression, out BoundExpression replacement) {
+        BoundInitializerListExpression expression,
+        out BoundExpression replacement) {
         var statements = new List<BoundStatement>();
         var replacementItems = ImmutableArray.CreateBuilder<BoundExpression>();
 
@@ -293,20 +299,30 @@ internal abstract class BoundTreeExpander {
         return new List<BoundStatement>() { };
     }
 
+    protected virtual List<BoundStatement> ExpandInitializerDictionaryExpression(
+        BoundInitializerDictionaryExpression expression,
+        out BoundExpression replacement) {
+        replacement = expression;
+        return new List<BoundStatement>() { };
+    }
+
     protected virtual List<BoundStatement> ExpandLiteralExpression(
-        BoundLiteralExpression expression, out BoundExpression replacement) {
+        BoundLiteralExpression expression,
+        out BoundExpression replacement) {
         replacement = expression;
         return new List<BoundStatement>() { };
     }
 
     protected virtual List<BoundStatement> ExpandVariableExpression(
-        BoundVariableExpression expression, out BoundExpression replacement) {
+        BoundVariableExpression expression,
+        out BoundExpression replacement) {
         replacement = expression;
         return new List<BoundStatement>() { };
     }
 
     protected virtual List<BoundStatement> ExpandAssignmentExpression(
-        BoundAssignmentExpression expression, out BoundExpression replacement) {
+        BoundAssignmentExpression expression,
+        out BoundExpression replacement) {
         var statements = ExpandExpression(expression.left, out var leftReplacement);
         statements.AddRange(ExpandExpression(expression.right, out var rightReplacement));
 
@@ -320,7 +336,8 @@ internal abstract class BoundTreeExpander {
     }
 
     protected virtual List<BoundStatement> ExpandUnaryExpression(
-        BoundUnaryExpression expression, out BoundExpression replacement) {
+        BoundUnaryExpression expression,
+        out BoundExpression replacement) {
         var statements = ExpandExpression(expression.operand, out var operandReplacement);
 
         if (statements.Count != 0) {
@@ -333,13 +350,15 @@ internal abstract class BoundTreeExpander {
     }
 
     protected virtual List<BoundStatement> ExpandEmptyExpression(
-        BoundEmptyExpression expression, out BoundExpression replacement) {
+        BoundEmptyExpression expression,
+        out BoundExpression replacement) {
         replacement = expression;
         return new List<BoundStatement>() { };
     }
 
     protected virtual List<BoundStatement> ExpandErrorExpression(
-        BoundErrorExpression expression, out BoundExpression replacement) {
+        BoundErrorExpression expression,
+        out BoundExpression replacement) {
         replacement = expression;
         return new List<BoundStatement>() { };
     }
@@ -380,7 +399,8 @@ internal abstract class BoundTreeExpander {
     }
 
     protected virtual List<BoundStatement> ExpandIndexExpression(
-        BoundIndexExpression expression, out BoundExpression replacement) {
+        BoundIndexExpression expression,
+        out BoundExpression replacement) {
         var statements = ExpandExpression(expression.expression, out var operandReplacement);
         statements.AddRange(ExpandExpression(expression.index, out var indexReplacement));
 
@@ -394,7 +414,8 @@ internal abstract class BoundTreeExpander {
     }
 
     protected virtual List<BoundStatement> ExpandCompoundAssignmentExpression(
-        BoundCompoundAssignmentExpression expression, out BoundExpression replacement) {
+        BoundCompoundAssignmentExpression expression,
+        out BoundExpression replacement) {
         var statements = ExpandExpression(expression.left, out var leftReplacement);
         statements.AddRange(ExpandExpression(expression.right, out var rightReplacement));
 
@@ -408,19 +429,22 @@ internal abstract class BoundTreeExpander {
     }
 
     protected virtual List<BoundStatement> ExpandReferenceExpression(
-        BoundReferenceExpression expression, out BoundExpression replacement) {
+        BoundReferenceExpression expression,
+        out BoundExpression replacement) {
         replacement = expression;
         return new List<BoundStatement>() { };
     }
 
     protected virtual List<BoundStatement> ExpandTypeOfExpression(
-        BoundTypeOfExpression expression, out BoundExpression replacement) {
+        BoundTypeOfExpression expression,
+        out BoundExpression replacement) {
         replacement = expression;
         return new List<BoundStatement>() { };
     }
 
     protected virtual List<BoundStatement> ExpandTernaryExpression(
-        BoundTernaryExpression expression, out BoundExpression replacement) {
+        BoundTernaryExpression expression,
+        out BoundExpression replacement) {
         var statements = ExpandExpression(expression.left, out var leftReplacement);
         statements.AddRange(ExpandExpression(expression.center, out var centerReplacement));
         statements.AddRange(ExpandExpression(expression.right, out var rightReplacement));
@@ -438,13 +462,15 @@ internal abstract class BoundTreeExpander {
     }
 
     protected virtual List<BoundStatement> ExpandObjectCreationExpression(
-        BoundObjectCreationExpression expression, out BoundExpression replacement) {
+        BoundObjectCreationExpression expression,
+        out BoundExpression replacement) {
         replacement = expression;
         return new List<BoundStatement>() { };
     }
 
     protected virtual List<BoundStatement> ExpandMemberAccessExpression(
-        BoundMemberAccessExpression expression, out BoundExpression replacement) {
+        BoundMemberAccessExpression expression,
+        out BoundExpression replacement) {
         var statements = ExpandExpression(expression.left, out var leftReplacement);
         statements.AddRange(ExpandExpression(expression.right, out var rightReplacement));
 
@@ -464,7 +490,8 @@ internal abstract class BoundTreeExpander {
     }
 
     protected virtual List<BoundStatement> ExpandPrefixExpression(
-        BoundPrefixExpression expression, out BoundExpression replacement) {
+        BoundPrefixExpression expression,
+        out BoundExpression replacement) {
         var statements = ExpandExpression(expression.operand, out var operandReplacement);
 
         if (statements.Count != 0) {
@@ -477,7 +504,8 @@ internal abstract class BoundTreeExpander {
     }
 
     protected virtual List<BoundStatement> ExpandPostfixExpression(
-        BoundPostfixExpression expression, out BoundExpression replacement) {
+        BoundPostfixExpression expression,
+        out BoundExpression replacement) {
         var statements = ExpandExpression(expression.operand, out var operandReplacement);
 
         if (statements.Count != 0) {

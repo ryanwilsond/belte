@@ -20,7 +20,7 @@ internal sealed class BoundInitializerListExpression : BoundExpression {
 
     internal ImmutableArray<BoundExpression> items { get; }
 
-    internal override BoundNodeKind kind => BoundNodeKind.LiteralExpression;
+    internal override BoundNodeKind kind => BoundNodeKind.InitializerListExpression;
 
     internal override BoundType type { get; }
 

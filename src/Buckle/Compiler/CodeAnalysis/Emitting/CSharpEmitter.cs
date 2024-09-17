@@ -714,13 +714,9 @@ internal sealed class CSharpEmitter {
         }
 
         switch (expression.kind) {
-            case BoundNodeKind.LiteralExpression:
-                if (expression is BoundInitializerListExpression il) {
-                    EmitInitializerListExpression(indentedTextWriter, il);
-                    break;
-                } else {
-                    goto default;
-                }
+            case BoundNodeKind.InitializerListExpression:
+                EmitInitializerListExpression(indentedTextWriter, (BoundInitializerListExpression)expression);
+                break;
             case BoundNodeKind.UnaryExpression:
                 EmitUnaryExpression(indentedTextWriter, (BoundUnaryExpression)expression);
                 break;

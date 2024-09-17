@@ -542,11 +542,10 @@ internal sealed class Evaluator {
             return EvaluateConstantExpression(node, abort);
 
         switch (node.kind) {
-            case BoundNodeKind.LiteralExpression:
-                if (node is BoundInitializerListExpression il)
-                    return new EvaluatorObject(EvaluateInitializerListExpression(il, abort));
-                else
-                    goto default;
+            case BoundNodeKind.InitializerListExpression:
+                return new EvaluatorObject(
+                    EvaluateInitializerListExpression((BoundInitializerListExpression)node, abort)
+                );
             case BoundNodeKind.VariableExpression:
                 return EvaluateVariableExpression((BoundVariableExpression)node, abort);
             case BoundNodeKind.AssignmentExpression:

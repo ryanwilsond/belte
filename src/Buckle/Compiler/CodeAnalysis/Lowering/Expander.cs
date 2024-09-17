@@ -36,7 +36,8 @@ internal sealed class Expander : BoundTreeExpander {
     }
 
     protected override List<BoundStatement> ExpandCompoundAssignmentExpression(
-        BoundCompoundAssignmentExpression expression, out BoundExpression replacement) {
+        BoundCompoundAssignmentExpression expression,
+        out BoundExpression replacement) {
         _compoundAssignmentDepth++;
 
         if (_compoundAssignmentDepth > 1) {
@@ -110,7 +111,8 @@ internal sealed class Expander : BoundTreeExpander {
     }
 
     protected override List<BoundStatement> ExpandBinaryExpression(
-        BoundBinaryExpression expression, out BoundExpression replacement) {
+        BoundBinaryExpression expression,
+        out BoundExpression replacement) {
         _operatorDepth++;
 
         if (_operatorDepth > 1) {
@@ -137,7 +139,8 @@ internal sealed class Expander : BoundTreeExpander {
     }
 
     protected override List<BoundStatement> ExpandTernaryExpression(
-        BoundTernaryExpression expression, out BoundExpression replacement) {
+        BoundTernaryExpression expression,
+        out BoundExpression replacement) {
         _operatorDepth++;
 
         if (_operatorDepth > 1) {
@@ -162,6 +165,14 @@ internal sealed class Expander : BoundTreeExpander {
         var baseStatements = base.ExpandTernaryExpression(expression, out replacement);
         _operatorDepth--;
         return baseStatements;
+    }
+
+    protected override List<BoundStatement> ExpandInitializerDictionaryExpression(
+        BoundInitializerDictionaryExpression expression,
+        out BoundExpression replacement) {
+        // TODO
+        replacement = expression;
+        return [];
     }
 
     private LocalVariableSymbol GenerateTempLocal(BoundType type) {
