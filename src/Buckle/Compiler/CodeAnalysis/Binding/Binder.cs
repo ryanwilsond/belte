@@ -4300,8 +4300,30 @@ internal sealed class Binder {
         return new BoundObjectCreationExpression(constructedListType, listType.constructors[3], [initializerList]);
     }
 
-    private BoundEmptyExpression BindInitializerDictionaryExpression(InitializerDictionaryExpressionSyntax expression) {
-        return new BoundEmptyExpression();
+    private BoundExpression BindInitializerDictionaryExpression(InitializerDictionaryExpressionSyntax expression) {
+        // TODO need to add type checking
+        var keyType = BoundType.Any;
+        var valueType = BoundType.Any;
+
+        var builder = ImmutableArray.CreateBuilder<(BoundExpression, BoundExpression)>();
+
+        foreach (var pair in expression.items) {
+            var key = BindExpression(pair.key);
+            var value = BindExpression(pair.value);
+            builder.Add((key, value));
+        }
+
+        var dictionaryType = _wellKnownTypes[WellKnownTypeNames.Dictionary];
+        var constructedType = new BoundType(
+            dictionaryType,
+            templateArguments: [new BoundTypeOrConstant(keyType), new BoundTypeOrConstant(valueType)],
+            arity: 2
+        );
+
+        if (!_options.isLibrary)
+            _usedLibraryTypes.Add(dictionaryType);
+
+        return new BoundInitializerDictionaryExpression(builder.ToImmutable(), constructedType);
     }
 
     private BoundExpression BindLiteralExpression(LiteralExpressionSyntax expression) {
