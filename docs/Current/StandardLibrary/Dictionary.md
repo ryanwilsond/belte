@@ -1,4 +1,4 @@
-# 5.3 Dictionary
+# 5.3 Dictionary (Included By Default)
 
 A Dictionary template is an ordered hashmap implementation.
 
@@ -11,6 +11,12 @@ The Belte public interface for the List class can be found [here](../../../src/B
 
 | Method | Description |
 |-|-|
+| `void Add(TKey, TValue)` | Adds a key value pair. |
+| `void Clear()` | Removes all elements. |
+| `bool! ContainsKey(TKey)` | If the dictionary contains the given key. |
+| `bool! ContainsValue(TValue)` | If the dictionary contains the given value. |
+| `int! Length()` | The number of elements. |
+| `bool Remove(TKey)` | Removes the pair with the given key. Returns true if succeeded, or false if the key was not present. |
 
 ## 5.3.2 Initializer Dictionaries
 
