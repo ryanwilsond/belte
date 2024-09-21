@@ -4301,7 +4301,6 @@ internal sealed class Binder {
     }
 
     private BoundExpression BindInitializerDictionaryExpression(InitializerDictionaryExpressionSyntax expression) {
-        // TODO need to add type checking
         var keyType = BoundType.Any;
         var valueType = BoundType.Any;
 
