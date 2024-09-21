@@ -1,74 +1,71 @@
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 /// <summary>
 /// A cast from any <see cref="BoundType" /> to any <see cref="BoundType" /> (can be the same).
 /// </summary>
-internal sealed class Cast {
-    /// <summary>
-    /// No cast.
-    /// </summary>
-    internal static readonly Cast None = new Cast(false, false, false, false, false);
+internal sealed partial class Cast {
+    internal static readonly Cast None = new Cast(CastKind.None);
 
-    /// <summary>
-    /// <see cref="Cast" /> where both types are the same.
-    /// </summary>
-    internal static readonly Cast Identity = new Cast(true, true, true, false, false);
+    internal static readonly Cast Identity = new Cast(CastKind.Identity);
 
-    /// <summary>
-    /// Lossless cast, can be done automatically.
-    /// </summary>
-    internal static readonly Cast Implicit = new Cast(true, false, true, false, false);
+    internal static readonly Cast Implicit = new Cast(CastKind.Implicit);
 
-    /// <summary>
-    /// Lossless cast where nullability is being added.
-    /// </summary>
-    internal static readonly Cast NullAdding = new Cast(true, true, true, true, false);
+    internal static readonly Cast ImplicitNullable = new Cast(CastKind.ImplicitNullable);
 
-    /// <summary>
-    /// Lossless cast.
-    /// </summary>
-    internal static readonly Cast AnyAdding = new Cast(true, true, true, false, true);
+    internal static readonly Cast ImplicitReference = new Cast(CastKind.ImplicitReference);
 
-    /// <summary>
-    /// Lossy cast, cannot be done implicitly.
-    /// </summary>
-    internal static readonly Cast Explicit = new Cast(true, false, false, false, false);
+    internal static readonly Cast Boxing = new Cast(CastKind.Boxing);
 
-    private Cast(bool exists, bool isIdentity, bool isImplicit, bool isNullAdding, bool isAnyAdding) {
-        this.exists = exists;
-        this.isIdentity = isIdentity;
-        this.isImplicit = isImplicit;
-        this.isNullAdding = isNullAdding;
-        this.isAnyAdding = isAnyAdding;
+    internal static readonly Cast BoxingImplicitNullable = new Cast(CastKind.BoxingImplicitNullable);
+
+    internal static readonly Cast BoxingExplicitNullable = new Cast(CastKind.BoxingExplicitNullable);
+
+    internal static readonly Cast AnyBoxing = new Cast(CastKind.AnyBoxing);
+
+    internal static readonly Cast AnyBoxingImplicitNullable = new Cast(CastKind.AnyBoxingImplicitNullable);
+
+    internal static readonly Cast AnyBoxingExplicitNullable = new Cast(CastKind.AnyBoxingExplicitNullable);
+
+    internal static readonly Cast Explicit = new Cast(CastKind.Explicit);
+
+    internal static readonly Cast ExplicitNullable = new Cast(CastKind.ExplicitNullable);
+
+    internal static readonly Cast ExplicitReference = new Cast(CastKind.ExplicitReference);
+
+    internal static readonly Cast Unboxing = new Cast(CastKind.Unboxing);
+
+    internal static readonly Cast UnboxingImplicitNullable = new Cast(CastKind.UnboxingImplicitNullable);
+
+    internal static readonly Cast UnboxingExplicitNullable = new Cast(CastKind.UnboxingExplicitNullable);
+
+    internal static readonly Cast AnyUnboxing = new Cast(CastKind.AnyUnboxing);
+
+    internal static readonly Cast AnyUnboxingImplicitNullable = new Cast(CastKind.AnyUnboxingImplicitNullable);
+
+    internal static readonly Cast AnyUnboxingExplicitNullable = new Cast(CastKind.AnyUnboxingExplicitNullable);
+
+    private Cast(CastKind castKind) {
+        kind = castKind;
     }
+
+    internal CastKind kind { get; }
 
     /// <summary>
     /// If a cast exists (otherwise you cant go from one type to the other).
     /// </summary>
-    internal bool exists { get; }
+    internal bool exists => kind != CastKind.None;
 
     /// <summary>
     /// If the <see cref="Cast" /> is an identity cast.
     /// </summary>
-    internal bool isIdentity { get; }
+    internal bool isIdentity => kind == CastKind.Identity;
 
     /// <summary>
     /// If the <see cref="Cast" /> is an implicit cast.
     /// </summary>
-    internal bool isImplicit { get; }
-
-    /// <summary>
-    /// If the <see cref="Cast"/> is a nullable cast.
-    /// </summary>
-    internal bool isNullAdding { get; }
-
-    /// <summary>
-    /// If the <see cref="Cast"/> is an any cast.
-    /// </summary>
-    internal bool isAnyAdding { get; }
+    internal bool isImplicit => kind.IsImplicitCast();
 
     /// <summary>
     /// If the <see cref="Cast" /> is an explicit cast.
@@ -76,89 +73,55 @@ internal sealed class Cast {
     /// </summary>
     internal bool isExplicit => exists && !isImplicit;
 
+    internal bool isNullable => kind.IsNullableCast();
+
+    internal bool isReference => kind is CastKind.ImplicitReference or CastKind.ExplicitReference;
+
+    internal bool isBoxing => kind.IsBoxingCast();
+
+    internal bool isUnboxing => kind.IsUnboxingCast();
+
     /// <summary>
     /// Classify what type of <see cref="Cast" /> is required to go from one type to the other.
     /// </summary>
-    /// <param name="fromType">Target <see cref="BoundType" />.</param>
-    /// <param name="toType">Existing/current <see cref="BoundType" />.</param>
-    /// <param name="includeNullability">
-    /// If to account for nullability, otherwise both types are treated as non-nullable.
-    /// </param>
-    /// <returns>Created <see cref="Cast" />.</returns>
-    internal static Cast Classify(BoundType fromType, BoundType toType, bool includeNullability = true) {
-        var from = fromType.typeSymbol;
-        var to = toType.typeSymbol;
+    internal static Cast Classify(TypeSymbol source, TypeSymbol target) {
+        if (source.typeKind == TypeKind.Primitive && target.typeKind == TypeKind.Primitive)
+            return new Cast(EasyOut.Classify(source, target));
 
-        if (from is null) {
-            if (fromType.isNullable && !toType.isNullable && includeNullability)
-                return None;
-
-            return Identity;
-        }
-
-        if (from != TypeSymbol.Void && to == TypeSymbol.Any) {
-            if (toType.isNullable)
-                return new Cast(true, true, true, true, true);
-
-            return AnyAdding;
-        }
-
-        if (from == TypeSymbol.Any && to != TypeSymbol.Void)
-            return Explicit;
-
-        Cast InternalClassify() {
-            if (from == to)
-                return Identity;
-
-            if (TypeUtilities.TypeInheritsFrom(from, to))
-                return Implicit;
-
-            if (TypeUtilities.TypeInheritsFrom(to, from))
-                return Explicit;
-
-            if (from == TypeSymbol.Bool || from == TypeSymbol.Int || from == TypeSymbol.Decimal) {
-                if (to == TypeSymbol.String)
-                    return Explicit;
-            }
-
-            if (from == TypeSymbol.String) {
-                if (to == TypeSymbol.Bool || to == TypeSymbol.Int || to == TypeSymbol.Decimal)
-                    return Explicit;
-            }
-
-            if (from == TypeSymbol.Int && to == TypeSymbol.Decimal)
-                return Implicit;
-
-            if (from == TypeSymbol.Decimal && to == TypeSymbol.Int)
-                return Explicit;
-
+        if (source.typeKind == TypeKind.Primitive || target.typeKind == TypeKind.Primitive)
             return None;
+
+        if (source == target)
+            return Identity;
+
+        var sourceIsNullable = source.typeWithAnnotations.isNullable;
+        var targetIsNullable = target.typeWithAnnotations.isNullable;
+
+        if (source.typeWithAnnotations.underlyingType == target.typeWithAnnotations.underlyingType) {
+            if (sourceIsNullable && targetIsNullable)
+                return Identity;
+            else if (sourceIsNullable)
+                return ExplicitNullable;
+            else
+                return ImplicitNullable;
         }
 
-        var cast = InternalClassify();
-
-        if (cast != None && includeNullability) {
-            // var! -> var : null adding
-            // var -> var! : explicit
-            if (!fromType.isNullable && toType.isNullable && cast != Explicit)
-                cast = NullAdding;
-
-            if (fromType.isNullable && !toType.isNullable && !toType.isLiteral)
-                cast = Explicit;
+        if (source.typeWithAnnotations.underlyingType.InheritsFrom(target.typeWithAnnotations.underlyingType)) {
+            if (sourceIsNullable && targetIsNullable)
+                return ImplicitNullable;
+            else if (sourceIsNullable)
+                return ExplicitNullable;
+            else
+                return ImplicitNullable;
         }
 
-        // Special cases that are not allowed
-        //      var -> ref var
-        //      ref var -> var
-        //      var[] -> var        (any dimension mismatch)
-        //      ref const -> ref
-        if ((toType.isReference && toType.isExplicitReference && !fromType.isReference) ||
-            (fromType.isReference && fromType.isExplicitReference && !toType.isReference) ||
-            fromType.dimensions != toType.dimensions ||
-            (fromType.isConstantReference && toType.isReference && !toType.isConstantReference)) {
-            cast = None;
+        if (target.typeWithAnnotations.underlyingType.InheritsFrom(source.typeWithAnnotations.underlyingType)) {
+            if (sourceIsNullable || targetIsNullable)
+                return ExplicitNullable;
+            else
+                return Explicit;
         }
 
-        return cast;
+        return None;
     }
 }

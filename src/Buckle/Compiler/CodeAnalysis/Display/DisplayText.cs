@@ -98,9 +98,6 @@ public sealed class DisplayText {
             case BoundNodeKind.VariableDeclaration:
                 DisplayVariableDeclaration(text, (BoundVariableDeclaration)node);
                 break;
-            case BoundNodeKind.Type:
-                DisplayType(text, (BoundType)node);
-                break;
             case BoundNodeKind.NopStatement:
                 DisplayNopStatement(text, (BoundNopStatement)node);
                 break;
@@ -139,6 +136,9 @@ public sealed class DisplayText {
                 break;
             case BoundNodeKind.TryStatement:
                 DisplayTryStatement(text, (BoundTryStatement)node);
+                break;
+            case BoundNodeKind.TypeExpression:
+                DisplayTypeExpression(text, (BoundTypeExpression)node);
                 break;
             case BoundNodeKind.TernaryExpression:
                 DisplayTernaryExpression(text, (BoundTernaryExpression)node);
@@ -345,6 +345,10 @@ public sealed class DisplayText {
 
         if (!type.isNullable && !type.isLiteral && type.typeSymbol != TypeSymbol.Void)
             text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
+    }
+
+    private static void DisplayTypeExpression(DisplayText text, BoundTypeExpression node) {
+        SymbolDisplay.DisplaySymbol(text, node.type);
     }
 
     private static void DisplayNopStatement(DisplayText text, BoundNopStatement _) {

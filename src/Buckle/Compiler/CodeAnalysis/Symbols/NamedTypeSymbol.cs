@@ -10,12 +10,12 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
     internal NamedTypeSymbol(
         ImmutableArray<TemplateParameterSymbol> templateParameters,
         ImmutableArray<BoundExpression> templateConstraints,
-        ImmutableArray<Symbol> symbols,
+        ImmutableArray<Symbol> members,
         TypeDeclarationSyntax declaration,
         DeclarationModifiers modifiers,
         Accessibility accessibility)
         : base(declaration?.identifier?.text, accessibility) {
-        members = symbols;
+        this.members = members;
         this.declaration = declaration;
         this.templateParameters = templateParameters;
         this.templateConstraints = templateConstraints;
@@ -57,6 +57,8 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
 
     internal TypeDeclarationSyntax declaration { get; }
 
+    internal override ImmutableArray<Symbol> members { get; }
+
     /// <summary>
     /// Gets a string representation of the type signature without template parameter names.
     /// </summary>
@@ -76,6 +78,34 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
         signature.Append('>');
 
         return signature.ToString();
+    }
+
+    internal override bool InheritsFrom(TypeSymbol other) {
+        if (other is null)
+            return false;
+
+        if (this == other)
+            return true;
+
+        if (typeKind != other.typeKind)
+            return false;
+
+        return InheritsFrom(other.baseType);
+    }
+
+    internal override int GetInheritanceDepth(TypeSymbol other) {
+        if (!InheritsFrom(other))
+            return -1;
+
+        var depth = 0;
+        var current = this;
+
+        while (current != other) {
+            depth++;
+            current = current.baseType;
+        }
+
+        return depth;
     }
 
     private ImmutableArray<MethodSymbol> GetConstructors() {

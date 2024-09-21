@@ -40,6 +40,10 @@ internal sealed class ConstructedNamedTypeSymbol : NamedTypeSymbol {
 
     internal override TypeKind typeKind => originalTypeDefinition.typeKind;
 
+    internal override TypeWithAnnotations typeWithAnnotations => null;
+
+    internal override bool isRef => false;
+
     public override ImmutableArray<TypeOrConstant> templateArguments => [];
 
     public override TemplateMap templateSubstitution => null;

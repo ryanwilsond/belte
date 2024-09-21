@@ -10,7 +10,9 @@ internal sealed class SubstitutedNamedTypeSymbol : NamedTypeSymbol {
     internal SubstitutedNamedTypeSymbol(
         NamedTypeSymbol originalDefinition,
         ImmutableArray<TypeOrConstant> templateArguments,
-        TemplateMap templateSubstitution)
+        TemplateMap templateSubstitution,
+        TypeWithAnnotations typeWithAnnotations,
+        bool isRef)
         : base(
             originalDefinition.templateParameters,
             originalDefinition.templateConstraints,
@@ -21,6 +23,8 @@ internal sealed class SubstitutedNamedTypeSymbol : NamedTypeSymbol {
         originalTypeDefinition = originalDefinition;
         this.templateArguments = templateArguments;
         this.templateSubstitution = templateSubstitution;
+        this.typeWithAnnotations = typeWithAnnotations;
+        this.isRef = isRef;
     }
 
     internal override ImmutableArray<(FieldSymbol, ExpressionSyntax)> defaultFieldAssignments
@@ -33,6 +37,10 @@ internal sealed class SubstitutedNamedTypeSymbol : NamedTypeSymbol {
 
     internal override TypeKind typeKind => originalTypeDefinition.typeKind;
 
+    internal override TypeWithAnnotations typeWithAnnotations { get; }
+
+    internal override bool isRef { get; }
+
     public override ImmutableArray<TypeOrConstant> templateArguments { get; }
 
     public override TemplateMap templateSubstitution { get; }
@@ -42,4 +50,31 @@ internal sealed class SubstitutedNamedTypeSymbol : NamedTypeSymbol {
     public override TypeSymbol originalTypeDefinition { get; }
 
     public override Symbol originalSymbolDefinition => originalTypeDefinition;
+
+    internal override bool InheritsFrom(TypeSymbol other) {
+        if (other is null)
+            return false;
+
+        if (this == other)
+            return true;
+
+        if (typeKind != other.typeKind)
+            return false;
+
+        if (originalDefinition == other.originalDefinition) {
+            if (other is not SubstitutedNamedTypeSymbol s)
+                return false;
+
+            foreach (var templateParameter in templateParameters) {
+                if (!templateSubstitution.SubstituteTemplate(templateParameter).Equals(
+                    s.templateSubstitution.SubstituteTemplate(templateParameter), TypeCompareKind.ConsiderEverything)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        return InheritsFrom(other.baseType);
+    }
 }

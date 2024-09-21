@@ -22,6 +22,10 @@ internal sealed class SourceNamedTypeSymbol : NamedTypeSymbol {
 
     internal override NamedTypeSymbol baseType => null;
 
+    internal override TypeWithAnnotations typeWithAnnotations => null;
+
+    internal override bool isRef => false;
+
     public override ImmutableArray<TypeOrConstant> templateArguments => [];
 
     public override TemplateMap templateSubstitution => null;

@@ -45,7 +45,7 @@ internal static partial class BoundFactory {
         return new BoundNopStatement();
     }
 
-    internal static BoundLiteralExpression Literal(object value, BoundType type = null) {
+    internal static BoundLiteralExpression Literal(object value, TypeSymbol type = null) {
         if (type != null)
             return new BoundLiteralExpression(value, type);
 
@@ -94,11 +94,11 @@ internal static partial class BoundFactory {
         return new BoundWhileStatement(condition, body, breakLabel, continueLabel);
     }
 
-    internal static BoundCallExpression Call(MethodSymbol method, params BoundExpression[] arguments) {
-        return new BoundCallExpression(new BoundEmptyExpression(), method, ImmutableArray.Create(arguments), []);
+    internal static BoundCallExpression Call(SubstitutedMethodSymbol method, params BoundExpression[] arguments) {
+        return new BoundCallExpression(new BoundEmptyExpression(), method, ImmutableArray.Create(arguments));
     }
 
-    internal static BoundCastExpression Cast(BoundType type, BoundExpression expression) {
+    internal static BoundCastExpression Cast(TypeSymbol type, BoundExpression expression) {
         return new BoundCastExpression(type, expression);
     }
 
